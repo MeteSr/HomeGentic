@@ -10,189 +10,114 @@ import {
   type ScheduleEntry,
 } from "@/services/maintenance";
 import {
-  AlertTriangle,
-  Clock,
-  Eye,
-  CheckCircle2,
-  Calendar,
-  Bot,
-  Send,
-  Wrench,
-  ChevronDown,
-  ChevronUp,
-  PlusCircle,
-  X,
+  AlertTriangle, Clock, Eye, CheckCircle2, Calendar,
+  Bot, Send, Wrench, ChevronDown, ChevronUp, PlusCircle, X, Settings2,
 } from "lucide-react";
+import { systemAgesService } from "@/services/systemAges";
+import { useNavigate } from "react-router-dom";
 
-// ─── Urgency Badge ────────────────────────────────────────────────────────────
+const S = {
+  ink: "#0E0E0C", paper: "#F4F1EB", rule: "#C8C3B8",
+  rust: "#C94C2E", inkLight: "#7A7268", sage: "#3D6B57",
+  serif: "'Playfair Display', Georgia, serif" as const,
+  mono:  "'IBM Plex Mono', monospace" as const,
+};
+
+const URGENCY_RUST: Record<UrgencyLevel, string> = {
+  Critical: S.rust, Soon: "#D4820E", Watch: "#7A7268", Good: S.sage,
+};
+const URGENCY_BG: Record<UrgencyLevel, string> = {
+  Critical: "#FAF0ED", Soon: "#FEF3DC", Watch: S.paper, Good: "#F0F6F3",
+};
+
+// ─── Urgency Badge ─────────────────────────────────────────────────────────────
 
 function UrgencyBadge({ urgency }: { urgency: UrgencyLevel }) {
   const icons: Record<UrgencyLevel, React.ReactNode> = {
-    Critical: <AlertTriangle size={12} />,
-    Soon:     <Clock size={12} />,
-    Watch:    <Eye size={12} />,
-    Good:     <CheckCircle2 size={12} />,
+    Critical: <AlertTriangle size={10} />,
+    Soon:     <Clock size={10} />,
+    Watch:    <Eye size={10} />,
+    Good:     <CheckCircle2 size={10} />,
   };
   return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "0.25rem",
-        padding: "0.2rem 0.6rem",
-        borderRadius: "9999px",
-        fontSize: "0.7rem",
-        fontWeight: 700,
-        textTransform: "uppercase",
-        letterSpacing: "0.05em",
-        color: maintenanceService.urgencyColor(urgency),
-        backgroundColor: maintenanceService.urgencyBg(urgency),
-      }}
-    >
-      {icons[urgency]}
-      {urgency}
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: "0.25rem",
+      padding: "0.15rem 0.5rem",
+      fontFamily: S.mono, fontSize: "0.6rem", fontWeight: 700,
+      letterSpacing: "0.1em", textTransform: "uppercase",
+      color: URGENCY_RUST[urgency],
+      background: URGENCY_BG[urgency],
+      border: `1px solid ${URGENCY_RUST[urgency]}40`,
+    }}>
+      {icons[urgency]}{urgency}
     </span>
   );
 }
 
-// ─── Life Bar ─────────────────────────────────────────────────────────────────
+// ─── Life Bar ──────────────────────────────────────────────────────────────────
 
 function LifeBar({ pct, urgency }: { pct: number; urgency: UrgencyLevel }) {
-  const capped = Math.min(pct, 100);
   return (
-    <div
-      style={{
-        height: "6px",
-        borderRadius: "3px",
-        backgroundColor: "#e5e7eb",
-        overflow: "hidden",
-        flex: 1,
-      }}
-    >
-      <div
-        style={{
-          height: "100%",
-          width: `${capped}%`,
-          backgroundColor: maintenanceService.urgencyColor(urgency),
-          borderRadius: "3px",
-          transition: "width 0.6s ease",
-        }}
-      />
+    <div style={{ height: "3px", background: S.rule, flex: 1, overflow: "hidden" }}>
+      <div style={{ height: "3px", width: `${Math.min(pct, 100)}%`, background: URGENCY_RUST[urgency], transition: "width 0.6s ease" }} />
     </div>
   );
 }
 
-// ─── System Card ─────────────────────────────────────────────────────────────
+// ─── System Card ───────────────────────────────────────────────────────────────
 
-function SystemCard({
-  pred,
-  onSchedule,
-}: {
-  pred: SystemPrediction;
-  onSchedule: (pred: SystemPrediction) => void;
-}) {
+function SystemCard({ pred, onSchedule }: { pred: SystemPrediction; onSchedule: (p: SystemPrediction) => void }) {
   const [expanded, setExpanded] = useState(false);
   const low  = maintenanceService.formatCents(pred.estimatedCostLowCents);
   const high = maintenanceService.formatCents(pred.estimatedCostHighCents);
 
   return (
-    <div
-      style={{
-        border: "1px solid",
-        borderColor: pred.urgency === "Critical" ? "#fca5a5" : "#e5e7eb",
-        borderRadius: "0.75rem",
-        backgroundColor: "white",
-        overflow: "hidden",
-      }}
-    >
-      {/* Header row */}
-      <div
-        style={{
-          padding: "1rem 1.25rem",
-          display: "flex",
-          alignItems: "center",
-          gap: "0.75rem",
-          cursor: "pointer",
-        }}
-        onClick={() => setExpanded((e) => !e)}
-      >
+    <div style={{ border: `1px solid ${pred.urgency === "Critical" ? S.rust : S.rule}`, background: "#fff" }}>
+      <div style={{ padding: "1rem 1.25rem", display: "flex", alignItems: "center", gap: "0.75rem", cursor: "pointer" }} onClick={() => setExpanded((e) => !e)}>
         <div style={{ flex: 1 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.375rem" }}>
-            <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "#111827" }}>
-              {pred.systemName}
-            </span>
+            <span style={{ fontWeight: 700, fontSize: "0.9rem", color: S.ink }}>{pred.systemName}</span>
             <UrgencyBadge urgency={pred.urgency} />
             {pred.diyViable && (
-              <span
-                style={{
-                  fontSize: "0.65rem",
-                  color: "#6b7280",
-                  border: "1px solid #d1d5db",
-                  borderRadius: "9999px",
-                  padding: "0.1rem 0.45rem",
-                  fontWeight: 600,
-                }}
-              >
+              <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight, border: `1px solid ${S.rule}`, padding: "0.1rem 0.4rem" }}>
                 DIY OK
               </span>
             )}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
             <LifeBar pct={pred.percentLifeUsed} urgency={pred.urgency} />
-            <span style={{ fontSize: "0.75rem", color: "#6b7280", whiteSpace: "nowrap" }}>
+            <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight, whiteSpace: "nowrap" }}>
               {pred.percentLifeUsed}% life used
             </span>
           </div>
         </div>
         <div style={{ textAlign: "right", minWidth: "7rem" }}>
-          <div style={{ fontSize: "0.75rem", color: "#6b7280" }}>Replacement</div>
-          <div style={{ fontWeight: 700, fontSize: "0.875rem", color: "#111827" }}>
-            {low}–{high}
-          </div>
+          <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight }}>Replacement</div>
+          <div style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.75rem", color: S.ink }}>{low}–{high}</div>
         </div>
-        <div style={{ color: "#9ca3af" }}>
-          {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        <div style={{ color: S.inkLight }}>
+          {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </div>
       </div>
 
-      {/* Expanded detail */}
       {expanded && (
-        <div
-          style={{
-            borderTop: "1px solid #f3f4f6",
-            padding: "0.875rem 1.25rem",
-            backgroundColor: "#fafafa",
-          }}
-        >
-          <p style={{ fontSize: "0.85rem", color: "#374151", marginBottom: "0.75rem", lineHeight: 1.5 }}>
+        <div style={{ borderTop: `1px solid ${S.rule}`, padding: "0.875rem 1.25rem", background: S.paper }}>
+          <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: S.ink, marginBottom: "0.75rem", lineHeight: 1.6 }}>
             {pred.recommendation.replace(/^[⚠️📅👁✅]\s*/, "")}
           </p>
-          <div style={{ display: "flex", gap: "1.5rem", fontSize: "0.78rem", color: "#6b7280", marginBottom: "0.75rem" }}>
-            <span>Last serviced: <strong style={{ color: "#374151" }}>{pred.lastServiceYear}</strong></span>
+          <div style={{ display: "flex", gap: "1.5rem", fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, marginBottom: "0.75rem" }}>
+            <span>Last serviced: <strong style={{ color: S.ink }}>{pred.lastServiceYear}</strong></span>
             <span>
               {pred.yearsRemaining >= 0
-                ? <>Years remaining: <strong style={{ color: "#374151" }}>{pred.yearsRemaining}</strong></>
-                : <><strong style={{ color: "#dc2626" }}>{Math.abs(pred.yearsRemaining)} yrs overdue</strong></>}
+                ? <>Years remaining: <strong style={{ color: S.ink }}>{pred.yearsRemaining}</strong></>
+                : <><strong style={{ color: S.rust }}>{Math.abs(pred.yearsRemaining)} yrs overdue</strong></>}
             </span>
           </div>
           <button
             onClick={(e) => { e.stopPropagation(); onSchedule(pred); }}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.375rem",
-              padding: "0.4rem 0.875rem",
-              borderRadius: "0.5rem",
-              fontSize: "0.8rem",
-              fontWeight: 600,
-              color: "#3b82f6",
-              backgroundColor: "#eff6ff",
-              border: "1px solid #bfdbfe",
-              cursor: "pointer",
-            }}
+            style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.4rem 0.875rem", border: `1px solid ${S.rule}`, background: "#fff", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.ink, cursor: "pointer" }}
           >
-            <Calendar size={13} />
-            Add to schedule
+            <Calendar size={11} /> Add to schedule
           </button>
         </div>
       )}
@@ -200,91 +125,52 @@ function SystemCard({
   );
 }
 
-// ─── Schedule Panel ───────────────────────────────────────────────────────────
+// ─── Schedule Panel ────────────────────────────────────────────────────────────
 
-function SchedulePanel({
-  entries,
-  onComplete,
-  onDelete,
-}: {
-  entries: ScheduleEntry[];
-  onComplete: (id: string) => void;
-  onDelete: (id: string) => void;
-}) {
+function SchedulePanel({ entries, onComplete, onDelete }: { entries: ScheduleEntry[]; onComplete: (id: string) => void; onDelete: (id: string) => void }) {
   const pending   = entries.filter((e) => !e.isCompleted);
   const completed = entries.filter((e) => e.isCompleted);
 
   if (entries.length === 0) {
     return (
-      <div style={{ textAlign: "center", padding: "2rem", color: "#9ca3af" }}>
-        <Calendar size={32} style={{ margin: "0 auto 0.5rem" }} />
-        <p style={{ fontSize: "0.875rem" }}>No scheduled maintenance yet.</p>
-        <p style={{ fontSize: "0.8rem" }}>Click "Add to schedule" on any system card.</p>
+      <div style={{ border: `1px dashed ${S.rule}`, padding: "2rem", textAlign: "center" }}>
+        <Calendar size={28} color={S.rule} style={{ margin: "0 auto 0.5rem" }} />
+        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>No scheduled maintenance yet.</p>
+        <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, marginTop: "0.25rem" }}>Click "Add to schedule" on any system card.</p>
       </div>
     );
   }
 
   const renderEntry = (entry: ScheduleEntry) => (
-    <div
-      key={entry.id}
-      style={{
-        display: "flex",
-        alignItems: "flex-start",
-        gap: "0.75rem",
-        padding: "0.75rem",
-        borderRadius: "0.5rem",
-        backgroundColor: entry.isCompleted ? "#f9fafb" : "white",
-        border: "1px solid #e5e7eb",
-        opacity: entry.isCompleted ? 0.65 : 1,
-      }}
-    >
+    <div key={entry.id} style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", padding: "0.75rem 1rem", border: `1px solid ${S.rule}`, background: entry.isCompleted ? S.paper : "#fff", opacity: entry.isCompleted ? 0.65 : 1 }}>
       <button
         onClick={() => !entry.isCompleted && onComplete(entry.id)}
-        style={{
-          width: "1.25rem",
-          height: "1.25rem",
-          borderRadius: "50%",
-          border: `2px solid ${entry.isCompleted ? "#16a34a" : "#d1d5db"}`,
-          backgroundColor: entry.isCompleted ? "#16a34a" : "white",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: entry.isCompleted ? "default" : "pointer",
-          flexShrink: 0,
-          marginTop: "0.1rem",
-        }}
+        style={{ width: "1.125rem", height: "1.125rem", border: `2px solid ${entry.isCompleted ? S.sage : S.rule}`, background: entry.isCompleted ? S.sage : "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: entry.isCompleted ? "default" : "pointer", flexShrink: 0, marginTop: "0.1rem" }}
         title={entry.isCompleted ? "Completed" : "Mark complete"}
       >
-        {entry.isCompleted && <CheckCircle2 size={10} color="white" />}
+        {entry.isCompleted && <CheckCircle2 size={9} color="#fff" />}
       </button>
       <div style={{ flex: 1 }}>
-        <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "#111827" }}>
-          {entry.systemName}
-        </div>
-        <div style={{ fontSize: "0.78rem", color: "#6b7280" }}>{entry.taskDescription}</div>
-        <div style={{ fontSize: "0.75rem", color: "#9ca3af", marginTop: "0.2rem" }}>
+        <div style={{ fontWeight: 600, fontSize: "0.85rem", color: S.ink }}>{entry.systemName}</div>
+        <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: S.inkLight }}>{entry.taskDescription}</div>
+        <div style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, marginTop: "0.2rem" }}>
           Planned: {entry.plannedYear}{entry.plannedMonth ? `/${entry.plannedMonth}` : ""}
-          {entry.estimatedCostCents
-            ? ` · ~${maintenanceService.formatCents(entry.estimatedCostCents)}`
-            : ""}
+          {entry.estimatedCostCents ? ` · ~${maintenanceService.formatCents(entry.estimatedCostCents)}` : ""}
         </div>
       </div>
-      <button
-        onClick={() => onDelete(entry.id)}
-        style={{ color: "#d1d5db", background: "none", border: "none", cursor: "pointer", padding: "0.125rem" }}
-      >
-        <X size={14} />
+      <button onClick={() => onDelete(entry.id)} style={{ color: S.inkLight, background: "none", border: "none", cursor: "pointer", padding: "0.125rem" }}>
+        <X size={12} />
       </button>
     </div>
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: S.rule }}>
       {pending.map(renderEntry)}
       {completed.length > 0 && (
         <>
-          <div style={{ fontSize: "0.75rem", color: "#9ca3af", fontWeight: 600, marginTop: "0.5rem" }}>
-            COMPLETED
+          <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, padding: "0.5rem 0", background: S.paper, paddingLeft: "1rem" }}>
+            Completed
           </div>
           {completed.map(renderEntry)}
         </>
@@ -293,154 +179,62 @@ function SchedulePanel({
   );
 }
 
-// ─── Add to Schedule Modal ────────────────────────────────────────────────────
+// ─── Add to Schedule Modal ─────────────────────────────────────────────────────
 
-function AddToScheduleModal({
-  pred,
-  propertyId,
-  onSave,
-  onClose,
-}: {
-  pred: SystemPrediction;
-  propertyId: string;
-  onSave: (entry: ScheduleEntry) => void;
-  onClose: () => void;
-}) {
+function AddToScheduleModal({ pred, propertyId, onSave, onClose }: { pred: SystemPrediction; propertyId: string; onSave: (e: ScheduleEntry) => void; onClose: () => void }) {
   const currentYear = new Date().getFullYear();
   const [year, setYear]   = useState(String(currentYear + 1));
   const [month, setMonth] = useState("");
   const [desc, setDesc]   = useState(`${pred.systemName} service/inspection`);
-  const [cost, setCost]   = useState(
-    String(Math.round(pred.estimatedCostLowCents / 100))
-  );
+  const [cost, setCost]   = useState(String(Math.round(pred.estimatedCostLowCents / 100)));
 
   const save = async () => {
-    const entry = await maintenanceService.createScheduleEntry(
-      propertyId,
-      pred.systemName,
-      desc,
-      Number(year),
-      month ? Number(month) : undefined,
-      cost ? Math.round(parseFloat(cost) * 100) : undefined
-    );
+    const entry = await maintenanceService.createScheduleEntry(propertyId, pred.systemName, desc, Number(year), month ? Number(month) : undefined, cost ? Math.round(parseFloat(cost) * 100) : undefined);
     onSave(entry);
     onClose();
   };
 
   return (
-    <div
-      style={{
-        position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        zIndex: 1000, padding: "1rem",
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          backgroundColor: "white", borderRadius: "1rem", padding: "1.5rem",
-          maxWidth: "26rem", width: "100%",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "1rem" }} onClick={onClose}>
+      <div style={{ background: "#fff", padding: "1.5rem", maxWidth: "26rem", width: "100%", border: `1px solid ${S.rule}` }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.25rem" }}>
-          <h3 style={{ fontWeight: 700, fontSize: "1rem", color: "#111827" }}>
+          <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
             Schedule {pred.systemName} Work
-          </h3>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af" }}>
-            <X size={18} />
-          </button>
+          </p>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: S.inkLight }}><X size={16} /></button>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
-          <label style={{ fontSize: "0.85rem" }}>
-            <span style={{ fontWeight: 600, color: "#374151", display: "block", marginBottom: "0.3rem" }}>
-              Task description
-            </span>
-            <input
-              value={desc}
-              onChange={(e) => setDesc(e.target.value)}
-              style={{
-                width: "100%", padding: "0.5rem 0.75rem", borderRadius: "0.5rem",
-                border: "1px solid #d1d5db", fontSize: "0.85rem", boxSizing: "border-box",
-              }}
-            />
-          </label>
-
+          <div>
+            <label className="form-label">Task description</label>
+            <input value={desc} onChange={(e) => setDesc(e.target.value)} className="form-input" />
+          </div>
           <div style={{ display: "flex", gap: "0.75rem" }}>
-            <label style={{ fontSize: "0.85rem", flex: 1 }}>
-              <span style={{ fontWeight: 600, color: "#374151", display: "block", marginBottom: "0.3rem" }}>
-                Planned year *
-              </span>
-              <input
-                type="number"
-                value={year}
-                min={currentYear}
-                max={currentYear + 30}
-                onChange={(e) => setYear(e.target.value)}
-                style={{
-                  width: "100%", padding: "0.5rem 0.75rem", borderRadius: "0.5rem",
-                  border: "1px solid #d1d5db", fontSize: "0.85rem", boxSizing: "border-box",
-                }}
-              />
-            </label>
-            <label style={{ fontSize: "0.85rem", flex: 1 }}>
-              <span style={{ fontWeight: 600, color: "#374151", display: "block", marginBottom: "0.3rem" }}>
-                Month (optional)
-              </span>
-              <select
-                value={month}
-                onChange={(e) => setMonth(e.target.value)}
-                style={{
-                  width: "100%", padding: "0.5rem 0.75rem", borderRadius: "0.5rem",
-                  border: "1px solid #d1d5db", fontSize: "0.85rem", boxSizing: "border-box",
-                }}
-              >
+            <div style={{ flex: 1 }}>
+              <label className="form-label">Planned year *</label>
+              <input type="number" value={year} min={currentYear} max={currentYear + 30} onChange={(e) => setYear(e.target.value)} className="form-input" />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label className="form-label">Month (optional)</label>
+              <select value={month} onChange={(e) => setMonth(e.target.value)} className="form-input">
                 <option value="">Any</option>
                 {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map((m, i) => (
                   <option key={m} value={i + 1}>{m}</option>
                 ))}
               </select>
-            </label>
+            </div>
           </div>
-
-          <label style={{ fontSize: "0.85rem" }}>
-            <span style={{ fontWeight: 600, color: "#374151", display: "block", marginBottom: "0.3rem" }}>
-              Estimated cost ($)
-            </span>
-            <input
-              type="number"
-              value={cost}
-              onChange={(e) => setCost(e.target.value)}
-              placeholder="Optional"
-              style={{
-                width: "100%", padding: "0.5rem 0.75rem", borderRadius: "0.5rem",
-                border: "1px solid #d1d5db", fontSize: "0.85rem", boxSizing: "border-box",
-              }}
-            />
-          </label>
+          <div>
+            <label className="form-label">Estimated cost ($)</label>
+            <input type="number" value={cost} onChange={(e) => setCost(e.target.value)} placeholder="Optional" className="form-input" />
+          </div>
         </div>
 
         <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.25rem" }}>
-          <button
-            onClick={onClose}
-            style={{
-              flex: 1, padding: "0.6rem", borderRadius: "0.5rem",
-              border: "1px solid #e5e7eb", backgroundColor: "white",
-              fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", color: "#374151",
-            }}
-          >
+          <button onClick={onClose} style={{ flex: 1, padding: "0.6rem", border: `1px solid ${S.rule}`, background: "#fff", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer", color: S.inkLight }}>
             Cancel
           </button>
-          <button
-            onClick={save}
-            disabled={!year || !desc}
-            style={{
-              flex: 2, padding: "0.6rem", borderRadius: "0.5rem",
-              backgroundColor: "#3b82f6", color: "white",
-              fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", border: "none",
-            }}
-          >
+          <button onClick={save} disabled={!year || !desc} style={{ flex: 2, padding: "0.6rem", border: `1px solid ${S.ink}`, background: S.ink, color: "#F4F1EB", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer" }}>
             Save to Schedule
           </button>
         </div>
@@ -449,31 +243,18 @@ function AddToScheduleModal({
   );
 }
 
-// ─── AI Chat ──────────────────────────────────────────────────────────────────
+// ─── AI Chat ───────────────────────────────────────────────────────────────────
 
-function MaintenanceChatPanel({
-  yearBuilt,
-  propertyAddress,
-  report,
-}: {
-  yearBuilt: number;
-  propertyAddress: string;
-  report: MaintenanceReport | null;
-}) {
+function MaintenanceChatPanel({ yearBuilt, propertyAddress, report }: { yearBuilt: number; propertyAddress: string; report: MaintenanceReport | null }) {
   interface Msg { role: "user" | "assistant"; text: string }
   const [messages, setMessages] = useState<Msg[]>([
-    {
-      role: "assistant",
-      text: "Hi! I'm your HomeFax Maintenance Advisor. Ask me anything about your home systems — what to prioritize, cost estimates, DIY tips, or when to call a pro.",
-    },
+    { role: "assistant", text: "Hi! I'm your HomeFax Maintenance Advisor. Ask me anything about your home systems — what to prioritize, cost estimates, DIY tips, or when to call a pro." },
   ]);
   const [input, setInput]     = useState("");
   const [loading, setLoading] = useState(false);
   const bottomRef             = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   const send = async () => {
     const msg = input.trim();
@@ -481,127 +262,59 @@ function MaintenanceChatPanel({
     setInput("");
     setMessages((m) => [...m, { role: "user", text: msg }]);
     setLoading(true);
-
     try {
       let reply = "";
       setMessages((m) => [...m, { role: "assistant", text: "…" }]);
-      for await (const chunk of maintenanceService.chat(msg, {
-        yearBuilt,
-        propertyAddress,
-        report: report ?? undefined,
-      })) {
+      for await (const chunk of maintenanceService.chat(msg, { yearBuilt, propertyAddress, report: report ?? undefined })) {
         reply += chunk;
-        setMessages((m) => {
-          const copy = [...m];
-          copy[copy.length - 1] = { role: "assistant", text: reply };
-          return copy;
-        });
+        setMessages((m) => { const copy = [...m]; copy[copy.length - 1] = { role: "assistant", text: reply }; return copy; });
       }
     } catch {
-      setMessages((m) => {
-        const copy = [...m];
-        copy[copy.length - 1] = {
-          role: "assistant",
-          text: "Sorry, I couldn't reach the advisor. Make sure the agent server is running.",
-        };
-        return copy;
-      });
+      setMessages((m) => { const copy = [...m]; copy[copy.length - 1] = { role: "assistant", text: "Sorry, I couldn't reach the advisor. Make sure the agent server is running." }; return copy; });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        minHeight: "0",
-      }}
-    >
-      {/* Message thread */}
-      <div
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          padding: "1rem",
-          display: "flex",
-          flexDirection: "column",
-          gap: "0.75rem",
-        }}
-      >
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: "0" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
         {messages.map((m, i) => (
-          <div
-            key={i}
-            style={{
-              maxWidth: "85%",
-              alignSelf: m.role === "user" ? "flex-end" : "flex-start",
-              padding: "0.625rem 0.875rem",
-              borderRadius: m.role === "user" ? "1rem 1rem 0.25rem 1rem" : "1rem 1rem 1rem 0.25rem",
-              backgroundColor: m.role === "user" ? "#3b82f6" : "#f3f4f6",
-              color: m.role === "user" ? "white" : "#111827",
-              fontSize: "0.85rem",
-              lineHeight: 1.55,
-            }}
-          >
+          <div key={i} style={{
+            maxWidth: "85%", alignSelf: m.role === "user" ? "flex-end" : "flex-start",
+            padding: "0.625rem 0.875rem",
+            background: m.role === "user" ? S.ink : S.paper,
+            color: m.role === "user" ? "#F4F1EB" : S.ink,
+            fontFamily: S.mono, fontSize: "0.7rem", letterSpacing: "0.03em", lineHeight: 1.6,
+          }}>
             {m.text}
           </div>
         ))}
         <div ref={bottomRef} />
       </div>
-
-      {/* Input row */}
-      <div
-        style={{
-          borderTop: "1px solid #e5e7eb",
-          padding: "0.75rem 1rem",
-          display: "flex",
-          gap: "0.5rem",
-        }}
-      >
+      <div style={{ borderTop: `1px solid ${S.rule}`, padding: "0.75rem 1rem", display: "flex", gap: "0.5rem" }}>
         <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
+          value={input} onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
-          placeholder="Ask about your home systems…"
-          disabled={loading}
-          style={{
-            flex: 1,
-            padding: "0.5rem 0.75rem",
-            borderRadius: "0.5rem",
-            border: "1px solid #d1d5db",
-            fontSize: "0.85rem",
-            outline: "none",
-          }}
+          placeholder="Ask about your home systems…" disabled={loading}
+          style={{ flex: 1, padding: "0.5rem 0.75rem", border: `1px solid ${S.rule}`, fontFamily: S.mono, fontSize: "0.7rem", outline: "none", background: "#fff" }}
         />
-        <button
-          onClick={send}
-          disabled={loading || !input.trim()}
-          style={{
-            padding: "0.5rem 0.875rem",
-            borderRadius: "0.5rem",
-            backgroundColor: "#3b82f6",
-            color: "white",
-            border: "none",
-            cursor: loading || !input.trim() ? "not-allowed" : "pointer",
-            opacity: loading || !input.trim() ? 0.6 : 1,
-          }}
-        >
-          <Send size={16} />
+        <button onClick={send} disabled={loading || !input.trim()} style={{ padding: "0.5rem 0.875rem", border: `1px solid ${S.ink}`, background: S.ink, color: "#F4F1EB", cursor: loading || !input.trim() ? "not-allowed" : "pointer", opacity: loading || !input.trim() ? 0.6 : 1 }}>
+          <Send size={14} />
         </button>
       </div>
     </div>
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// ─── Main Page ─────────────────────────────────────────────────────────────────
 
 type Tab = "systems" | "annual" | "schedule" | "advisor";
 
 export default function PredictiveMaintenancePage() {
   const { properties } = usePropertyStore();
   const { jobs }       = useJobStore();
+  const navigate       = useNavigate();
 
   const [selectedId, setSelectedId] = useState(String(properties[0]?.id ?? ""));
   const [report, setReport]         = useState<MaintenanceReport | null>(null);
@@ -614,26 +327,14 @@ export default function PredictiveMaintenancePage() {
 
   useEffect(() => {
     if (!property) return;
-    setReport(maintenanceService.predict(Number(property.yearBuilt), propJobs));
+    const systemAges = systemAgesService.get(selectedId);
+    setReport(maintenanceService.predict(Number(property.yearBuilt), propJobs, systemAges));
     maintenanceService.getScheduleByProperty(String(property.id)).then(setScheduleEntries);
   }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleScheduleSave = (entry: ScheduleEntry) => {
-    setScheduleEntries((prev) => [...prev, entry]);
-    setActiveTab("schedule");
-  };
-
-  const handleComplete = async (id: string) => {
-    await maintenanceService.markCompleted(id);
-    setScheduleEntries((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, isCompleted: true } : e))
-    );
-  };
-
-  const handleDelete = (id: string) => {
-    maintenanceService.deleteEntry(id);
-    setScheduleEntries((prev) => prev.filter((e) => e.id !== id));
-  };
+  const handleScheduleSave = (entry: ScheduleEntry) => { setScheduleEntries((prev) => [...prev, entry]); setActiveTab("schedule"); };
+  const handleComplete = async (id: string) => { await maintenanceService.markCompleted(id); setScheduleEntries((prev) => prev.map((e) => (e.id === id ? { ...e, isCompleted: true } : e))); };
+  const handleDelete   = (id: string) => { maintenanceService.deleteEntry(id); setScheduleEntries((prev) => prev.filter((e) => e.id !== id)); };
 
   const criticalCount = report?.systemPredictions.filter((p) => p.urgency === "Critical").length ?? 0;
   const soonCount     = report?.systemPredictions.filter((p) => p.urgency === "Soon").length ?? 0;
@@ -649,26 +350,22 @@ export default function PredictiveMaintenancePage() {
     <Layout>
       <div style={{ maxWidth: "72rem", margin: "0 auto", padding: "2rem 1.5rem" }}>
 
-        {/* Page header */}
-        <div style={{ marginBottom: "1.5rem" }}>
-          <h1 style={{ fontSize: "1.5rem", fontWeight: 800, color: "#111827", marginBottom: "0.25rem" }}>
+        <div style={{ marginBottom: "2rem" }}>
+          <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.rust, marginBottom: "0.5rem" }}>
+            Maintenance
+          </div>
+          <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "2rem", lineHeight: 1, marginBottom: "0.375rem" }}>
             Predictive Maintenance
           </h1>
-          <p style={{ color: "#6b7280", fontSize: "0.9rem" }}>
+          <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>
             System health predictions based on home age and service history.
           </p>
         </div>
 
-        {/* Property selector */}
         {properties.length === 0 ? (
-          <div
-            style={{
-              textAlign: "center", padding: "3rem", borderRadius: "1rem",
-              backgroundColor: "white", border: "1px solid #e5e7eb",
-            }}
-          >
-            <Wrench size={40} style={{ color: "#d1d5db", margin: "0 auto 0.75rem" }} />
-            <p style={{ color: "#6b7280" }}>Add a property to see maintenance predictions.</p>
+          <div style={{ border: `1px dashed ${S.rule}`, padding: "3rem", textAlign: "center" }}>
+            <Wrench size={32} color={S.rule} style={{ margin: "0 auto 0.75rem" }} />
+            <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>Add a property to see maintenance predictions.</p>
           </div>
         ) : (
           <>
@@ -676,58 +373,35 @@ export default function PredictiveMaintenancePage() {
               <select
                 value={selectedId}
                 onChange={(e) => setSelectedId(String(e.target.value))}
-                style={{
-                  padding: "0.5rem 0.875rem", borderRadius: "0.5rem",
-                  border: "1px solid #d1d5db", fontSize: "0.875rem",
-                  backgroundColor: "white", cursor: "pointer",
-                }}
+                style={{ padding: "0.5rem 0.875rem", border: `1px solid ${S.rule}`, fontFamily: S.mono, fontSize: "0.65rem", background: "#fff", cursor: "pointer" }}
               >
                 {properties.map((p) => (
-                  <option key={String(p.id)} value={String(p.id)}>
-                    {p.address}, {p.city} ({String(p.yearBuilt)})
-                  </option>
+                  <option key={String(p.id)} value={String(p.id)}>{p.address}, {p.city} ({String(p.yearBuilt)})</option>
                 ))}
               </select>
+              <button
+                onClick={() => navigate(`/properties/${selectedId}/systems`)}
+                style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.5rem 0.875rem", border: `1px solid ${S.rule}`, background: "#fff", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, cursor: "pointer" }}
+              >
+                <Settings2 size={12} />
+                {systemAgesService.hasAny(selectedId) ? "Edit system ages" : "Set system ages"}
+              </button>
 
-              {/* Budget summary chips */}
               {report && (
                 <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                   {criticalCount > 0 && (
-                    <span
-                      style={{
-                        display: "inline-flex", alignItems: "center", gap: "0.3rem",
-                        padding: "0.3rem 0.75rem", borderRadius: "9999px",
-                        backgroundColor: "#fef2f2", color: "#dc2626",
-                        fontSize: "0.78rem", fontWeight: 700,
-                      }}
-                    >
-                      <AlertTriangle size={11} />
-                      {criticalCount} Critical
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", padding: "0.25rem 0.625rem", border: `1px solid ${S.rust}`, fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.rust }}>
+                      <AlertTriangle size={10} /> {criticalCount} Critical
                     </span>
                   )}
                   {soonCount > 0 && (
-                    <span
-                      style={{
-                        display: "inline-flex", alignItems: "center", gap: "0.3rem",
-                        padding: "0.3rem 0.75rem", borderRadius: "9999px",
-                        backgroundColor: "#fffbeb", color: "#d97706",
-                        fontSize: "0.78rem", fontWeight: 700,
-                      }}
-                    >
-                      <Clock size={11} />
-                      {soonCount} Soon
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", padding: "0.25rem 0.625rem", border: `1px solid ${S.rule}`, fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight }}>
+                      <Clock size={10} /> {soonCount} Soon
                     </span>
                   )}
                   {report.totalBudgetLowCents > 0 && (
-                    <span
-                      style={{
-                        padding: "0.3rem 0.75rem", borderRadius: "9999px",
-                        backgroundColor: "#f3f4f6", color: "#374151",
-                        fontSize: "0.78rem", fontWeight: 600,
-                      }}
-                    >
-                      Budget: {maintenanceService.formatCents(report.totalBudgetLowCents)}–
-                      {maintenanceService.formatCents(report.totalBudgetHighCents)}
+                    <span style={{ padding: "0.25rem 0.625rem", border: `1px solid ${S.rule}`, fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: S.inkLight }}>
+                      Budget: {maintenanceService.formatCents(report.totalBudgetLowCents)}–{maintenanceService.formatCents(report.totalBudgetHighCents)}
                     </span>
                   )}
                 </div>
@@ -735,100 +409,37 @@ export default function PredictiveMaintenancePage() {
             </div>
 
             {/* Tabs */}
-            <div
-              style={{
-                display: "flex",
-                borderBottom: "1px solid #e5e7eb",
-                marginBottom: "1.25rem",
-                gap: "0",
-              }}
-            >
+            <div style={{ display: "flex", borderBottom: `1px solid ${S.rule}`, marginBottom: "1.25rem" }}>
               {TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  style={{
-                    padding: "0.6rem 1.1rem",
-                    fontSize: "0.85rem",
-                    fontWeight: 600,
-                    border: "none",
-                    borderBottom: activeTab === tab.id ? "2px solid #3b82f6" : "2px solid transparent",
-                    color: activeTab === tab.id ? "#3b82f6" : "#6b7280",
-                    backgroundColor: "transparent",
-                    cursor: "pointer",
-                    transition: "all 0.15s",
-                    marginBottom: "-1px",
-                  }}
-                >
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ padding: "0.6rem 1.1rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", border: "none", borderBottom: activeTab === tab.id ? `2px solid ${S.rust}` : "2px solid transparent", color: activeTab === tab.id ? S.rust : S.inkLight, background: "transparent", cursor: "pointer", marginBottom: "-1px" }}>
                   {tab.label}
                 </button>
               ))}
             </div>
 
-            {/* Tab content */}
             {activeTab === "systems" && report && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: S.rule }}>
                 {report.systemPredictions.map((pred) => (
-                  <SystemCard
-                    key={pred.systemName}
-                    pred={pred}
-                    onSchedule={setScheduleTarget}
-                  />
+                  <SystemCard key={pred.systemName} pred={pred} onSchedule={setScheduleTarget} />
                 ))}
               </div>
             )}
 
             {activeTab === "annual" && report && (
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(16rem, 1fr))",
-                  gap: "0.75rem",
-                }}
-              >
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(16rem, 1fr))", gap: "1px", background: S.rule }}>
                 {report.annualTasks.map((task) => (
-                  <div
-                    key={task.task}
-                    style={{
-                      backgroundColor: "white",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: "0.75rem",
-                      padding: "1rem",
-                    }}
-                  >
-                    <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#111827", marginBottom: "0.375rem" }}>
-                      {task.task}
-                    </div>
-                    <div style={{ fontSize: "0.78rem", color: "#6b7280", display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-                      <span
-                        style={{
-                          backgroundColor: "#eff6ff",
-                          color: "#3b82f6",
-                          padding: "0.15rem 0.45rem",
-                          borderRadius: "9999px",
-                          fontSize: "0.7rem",
-                          fontWeight: 600,
-                        }}
-                      >
+                  <div key={task.task} style={{ background: "#fff", padding: "1rem" }}>
+                    <div style={{ fontWeight: 600, fontSize: "0.875rem", color: S.ink, marginBottom: "0.375rem" }}>{task.task}</div>
+                    <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "0.5rem" }}>
+                      <span style={{ border: `1px solid ${S.rule}`, fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.rust, padding: "0.125rem 0.4rem" }}>
                         {task.frequency}
                       </span>
-                      {task.season && (
-                        <span style={{ color: "#9ca3af" }}>{task.season}</span>
-                      )}
+                      {task.season && <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>{task.season}</span>}
                     </div>
-                    <div style={{ marginTop: "0.5rem", fontSize: "0.8rem", color: "#374151", fontWeight: 600 }}>
+                    <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: S.ink, fontWeight: 600 }}>
                       {task.estimatedCost}
                       {task.diyViable && (
-                        <span
-                          style={{
-                            marginLeft: "0.5rem",
-                            fontSize: "0.68rem",
-                            color: "#16a34a",
-                            border: "1px solid #bbf7d0",
-                            borderRadius: "9999px",
-                            padding: "0.1rem 0.4rem",
-                          }}
-                        >
+                        <span style={{ marginLeft: "0.5rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: S.sage, border: `1px solid ${S.sage}40`, padding: "0.1rem 0.4rem", textTransform: "uppercase" }}>
                           DIY
                         </span>
                       )}
@@ -841,64 +452,26 @@ export default function PredictiveMaintenancePage() {
             {activeTab === "schedule" && (
               <div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-                  <h3 style={{ fontWeight: 700, color: "#111827", fontSize: "0.95rem" }}>Maintenance Schedule</h3>
-                  <button
-                    onClick={() => setActiveTab("systems")}
-                    style={{
-                      display: "inline-flex", alignItems: "center", gap: "0.35rem",
-                      fontSize: "0.8rem", fontWeight: 600, color: "#3b82f6",
-                      backgroundColor: "#eff6ff", border: "1px solid #bfdbfe",
-                      borderRadius: "0.5rem", padding: "0.35rem 0.75rem", cursor: "pointer",
-                    }}
-                  >
-                    <PlusCircle size={13} />
-                    Add from systems
+                  <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>Maintenance Schedule</p>
+                  <button onClick={() => setActiveTab("systems")} style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, border: `1px solid ${S.rule}`, background: "#fff", padding: "0.35rem 0.75rem", cursor: "pointer" }}>
+                    <PlusCircle size={11} /> Add from systems
                   </button>
                 </div>
-                <SchedulePanel
-                  entries={scheduleEntries}
-                  onComplete={handleComplete}
-                  onDelete={handleDelete}
-                />
+                <SchedulePanel entries={scheduleEntries} onComplete={handleComplete} onDelete={handleDelete} />
               </div>
             )}
 
             {activeTab === "advisor" && property && (
-              <div
-                style={{
-                  backgroundColor: "white",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: "1rem",
-                  overflow: "hidden",
-                  height: "30rem",
-                  display: "flex",
-                  flexDirection: "column",
-                }}
-              >
-                <div
-                  style={{
-                    padding: "0.875rem 1.25rem",
-                    borderBottom: "1px solid #f3f4f6",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.5rem",
-                    backgroundColor: "#fafafa",
-                  }}
-                >
-                  <Bot size={16} color="#3b82f6" />
-                  <span style={{ fontWeight: 700, fontSize: "0.875rem", color: "#111827" }}>
+              <div style={{ border: `1px solid ${S.rule}`, background: "#fff", overflow: "hidden", height: "30rem", display: "flex", flexDirection: "column" }}>
+                <div style={{ padding: "0.875rem 1.25rem", borderBottom: `1px solid ${S.rule}`, display: "flex", alignItems: "center", gap: "0.5rem", background: S.paper }}>
+                  <Bot size={14} color={S.rust} />
+                  <span style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.ink }}>
                     AI Maintenance Advisor
                   </span>
-                  <span style={{ fontSize: "0.75rem", color: "#9ca3af" }}>
-                    · Powered by Claude
-                  </span>
+                  <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>· Powered by Claude</span>
                 </div>
                 <div style={{ flex: 1, minHeight: 0 }}>
-                  <MaintenanceChatPanel
-                    yearBuilt={Number(property.yearBuilt)}
-                    propertyAddress={`${property.address}, ${property.city}`}
-                    report={report}
-                  />
+                  <MaintenanceChatPanel yearBuilt={Number(property.yearBuilt)} propertyAddress={`${property.address}, ${property.city}`} report={report} />
                 </div>
               </div>
             )}
@@ -906,14 +479,8 @@ export default function PredictiveMaintenancePage() {
         )}
       </div>
 
-      {/* Schedule modal */}
       {scheduleTarget && property && (
-        <AddToScheduleModal
-          pred={scheduleTarget}
-          propertyId={String(property.id)}
-          onSave={handleScheduleSave}
-          onClose={() => setScheduleTarget(null)}
-        />
+        <AddToScheduleModal pred={scheduleTarget} propertyId={String(property.id)} onSave={handleScheduleSave} onClose={() => setScheduleTarget(null)} />
       )}
     </Layout>
   );

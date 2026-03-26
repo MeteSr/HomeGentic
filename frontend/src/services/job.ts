@@ -49,6 +49,16 @@ const idlFactory = ({ IDL }: any) => {
     AlreadyVerified: IDL.Null,
   });
   return IDL.Service({
+    linkContractor: IDL.Func(
+      [IDL.Text, IDL.Principal],
+      [IDL.Variant({ ok: Job, err: Error })],
+      []
+    ),
+    getJobsPendingMySignature: IDL.Func(
+      [],
+      [IDL.Vec(Job)],
+      ["query"]
+    ),
     createJob: IDL.Func(
       [
         IDL.Text,         // propertyId
@@ -103,6 +113,8 @@ export type JobStatus = "pending" | "in_progress" | "completed" | "verified";
 export interface Job {
   id: string;
   propertyId: string;
+  homeowner: string;         // principal text
+  contractor?: string;       // principal text, undefined = no linked contractor yet
   serviceType: string;
   contractorName?: string;   // undefined = DIY
   amount: number;            // cents
@@ -112,6 +124,9 @@ export interface Job {
   permitNumber?: string;
   warrantyMonths?: number;
   status: JobStatus;
+  verified: boolean;
+  homeownerSigned: boolean;
+  contractorSigned: boolean;
   photos: string[];
   createdAt: number;         // ms
 }
@@ -149,19 +164,24 @@ function fromJob(raw: any): Job {
   const date = new Date(Number(raw.completedDate) / 1_000_000).toISOString().split("T")[0];
 
   return {
-    id:             raw.id,
-    propertyId:     raw.propertyId,
-    serviceType:    serviceTypeKey,
-    contractorName: raw.contractorName[0] ?? undefined,
-    amount:         Number(raw.amount),
+    id:               raw.id,
+    propertyId:       raw.propertyId,
+    homeowner:        raw.homeowner.toText(),
+    contractor:       raw.contractor[0]?.toText() ?? undefined,
+    serviceType:      serviceTypeKey,
+    contractorName:   raw.contractorName[0] ?? undefined,
+    amount:           Number(raw.amount),
     date,
-    description:    raw.description,
-    isDiy:          raw.isDiy,
-    permitNumber:   raw.permitNumber[0] ?? undefined,
-    warrantyMonths: raw.warrantyMonths[0] !== undefined ? Number(raw.warrantyMonths[0]) : undefined,
-    status:         STATUS_MAP[statusKey] ?? "pending",
-    photos:         [],  // photos live in the photo canister
-    createdAt:      Number(raw.createdAt) / 1_000_000,
+    description:      raw.description,
+    isDiy:            raw.isDiy,
+    permitNumber:     raw.permitNumber[0] ?? undefined,
+    warrantyMonths:   raw.warrantyMonths[0] !== undefined ? Number(raw.warrantyMonths[0]) : undefined,
+    status:           STATUS_MAP[statusKey] ?? "pending",
+    verified:         raw.verified,
+    homeownerSigned:  raw.homeownerSigned,
+    contractorSigned: raw.contractorSigned,
+    photos:           [],  // photos live in the photo canister
+    createdAt:        Number(raw.createdAt) / 1_000_000,
   };
 }
 
@@ -191,12 +211,17 @@ export const jobService = {
     return [];
   },
 
-  async create(job: Omit<Job, "id" | "createdAt" | "status" | "photos">): Promise<Job> {
+  async create(job: Omit<Job, "id" | "createdAt" | "status" | "photos" | "verified" | "homeownerSigned" | "contractorSigned" | "homeowner" | "contractor">): Promise<Job> {
     if (!JOB_CANISTER_ID) {
       const newJob: Job = {
         ...job,
         id: String(Date.now()),
+        homeowner: "mock-principal",
+        contractor: undefined,
         status: "pending",
+        verified: false,
+        homeownerSigned: false,
+        contractorSigned: job.isDiy,
         photos: [],
         createdAt: Date.now(),
       };
@@ -243,17 +268,41 @@ export const jobService = {
       const idx = MOCK_JOBS.findIndex((j) => j.id === jobId);
       if (idx === -1) throw new Error("Job not found");
       const job = MOCK_JOBS[idx];
-      const newStatus: JobStatus = job.isDiy
-        ? "verified"
-        : job.status === "in_progress"
-        ? "verified"
-        : "in_progress";
-      MOCK_JOBS[idx] = { ...job, status: newStatus };
+      const newHomeownerSigned  = true;
+      const newContractorSigned = job.contractorSigned || job.isDiy;
+      const fullyVerified       = newHomeownerSigned && newContractorSigned;
+      MOCK_JOBS[idx] = {
+        ...job,
+        homeownerSigned:  newHomeownerSigned,
+        contractorSigned: newContractorSigned,
+        verified:         fullyVerified,
+        status:           fullyVerified ? "verified" : job.status,
+      };
       return MOCK_JOBS[idx];
     }
     const a = await getActor();
     const result = await a.verifyJob(jobId);
     return unwrapJob(result);
+  },
+
+  async linkContractor(jobId: string, contractorPrincipal: string): Promise<Job> {
+    if (!JOB_CANISTER_ID) {
+      const idx = MOCK_JOBS.findIndex((j) => j.id === jobId);
+      if (idx === -1) throw new Error("Job not found");
+      MOCK_JOBS[idx] = { ...MOCK_JOBS[idx], contractor: contractorPrincipal };
+      return MOCK_JOBS[idx];
+    }
+    const a = await getActor();
+    const { Principal: P } = await import("@dfinity/principal");
+    const result = await a.linkContractor(jobId, P.fromText(contractorPrincipal));
+    return unwrapJob(result);
+  },
+
+  async getJobsPendingMySignature(): Promise<Job[]> {
+    if (!JOB_CANISTER_ID) return [];
+    const a = await getActor();
+    const result = await a.getJobsPendingMySignature();
+    return (result as any[]).map(fromJob);
   },
 
   isDiy(job: Job): boolean {

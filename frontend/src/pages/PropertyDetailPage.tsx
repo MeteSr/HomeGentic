@@ -8,6 +8,7 @@ import { GenerateReportModal } from "@/components/GenerateReportModal";
 import { propertyService, Property } from "@/services/property";
 import { jobService, Job } from "@/services/job";
 import { usePropertyStore } from "@/store/propertyStore";
+import { useAuthStore } from "@/store/authStore";
 import toast from "react-hot-toast";
 
 const S = {
@@ -23,6 +24,7 @@ export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { properties: storeProperties } = usePropertyStore();
+  const { principal } = useAuthStore();
   const [property, setProperty] = useState<Property | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [tab, setTab] = useState<Tab>("timeline");
@@ -39,11 +41,6 @@ export default function PropertyDetailPage() {
       jobService.getByProperty(id).then(setJobs).catch(() => {}),
     ]).finally(() => setLoading(false));
   }, [id]);
-
-  const handleShare = () => {
-    navigator.clipboard.writeText(window.location.href);
-    toast.success("Report link copied!");
-  };
 
   const handleVerify = async (jobId: string) => {
     try {
@@ -213,7 +210,7 @@ export default function PropertyDetailPage() {
           ))}
         </div>
 
-        {tab === "timeline"  && <TimelineTab jobs={jobs} onVerify={handleVerify} />}
+        {tab === "timeline"  && <TimelineTab jobs={jobs} onVerify={handleVerify} currentPrincipal={principal} />}
         {tab === "jobs"      && <JobsTab jobs={jobs} />}
         {tab === "documents" && <DocumentsTab />}
         {tab === "settings"  && <SettingsTab property={property} />}
@@ -226,7 +223,23 @@ export default function PropertyDetailPage() {
   );
 }
 
-function TimelineTab({ jobs, onVerify }: { jobs: Job[]; onVerify: (id: string) => void }) {
+function SigPill({ signed, label }: { signed: boolean; label: string }) {
+  const S = { sage: "#3D6B57", inkLight: "#7A7268", rule: "#C8C3B8", mono: "'IBM Plex Mono', monospace" as const };
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: "0.25rem",
+      fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase",
+      padding: "0.15rem 0.5rem",
+      border: `1px solid ${signed ? S.sage : S.rule}`,
+      color: signed ? S.sage : S.inkLight,
+      background: signed ? "#F0F6F3" : "#fafafa",
+    }}>
+      {signed ? "✓" : "○"} {label}
+    </span>
+  );
+}
+
+function TimelineTab({ jobs, onVerify, currentPrincipal }: { jobs: Job[]; onVerify: (id: string) => void; currentPrincipal: string | null }) {
   const S = { ink: "#0E0E0C", rule: "#C8C3B8", rust: "#C94C2E", inkLight: "#7A7268", mono: "'IBM Plex Mono', monospace" as const, serif: "'Playfair Display', Georgia, serif" as const };
 
   if (jobs.length === 0) {
@@ -243,41 +256,58 @@ function TimelineTab({ jobs, onVerify }: { jobs: Job[]; onVerify: (id: string) =
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: S.rule }}>
-      {jobs.map((job) => (
-        <div key={job.id} style={{ background: "#fff", padding: "1.25rem" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <div>
-              <p style={{ fontWeight: 500, fontSize: "0.875rem", marginBottom: "0.125rem" }}>{job.serviceType}</p>
-              <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>
-                {job.isDiy ? "DIY" : job.contractorName} · {job.date}
-              </p>
+      {jobs.map((job) => {
+        const isHomeowner  = currentPrincipal && job.homeowner === currentPrincipal;
+        const canSign      = !job.verified && isHomeowner && !job.homeownerSigned;
+        const needsBothSig = !job.isDiy;
+
+        return (
+          <div key={job.id} style={{ background: "#fff", padding: "1.25rem" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <p style={{ fontWeight: 500, fontSize: "0.875rem", marginBottom: "0.125rem" }}>{job.serviceType}</p>
+                <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>
+                  {job.isDiy ? "DIY" : job.contractorName} · {job.date}
+                </p>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <p style={{ fontFamily: S.mono, fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.25rem" }}>
+                  ${(job.amount / 100).toLocaleString()}
+                </p>
+                <Badge variant={job.status === "verified" ? "success" : job.status === "completed" ? "info" : "warning"} size="sm">
+                  {job.status}
+                </Badge>
+              </div>
             </div>
-            <div style={{ textAlign: "right" }}>
-              <p style={{ fontFamily: S.mono, fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.25rem" }}>
-                ${(job.amount / 100).toLocaleString()}
-              </p>
-              <Badge variant={job.status === "verified" ? "success" : job.status === "completed" ? "info" : "warning"} size="sm">
-                {job.status}
-              </Badge>
-            </div>
+
+            {job.description && (
+              <p style={{ fontSize: "0.8rem", color: S.inkLight, fontWeight: 300, marginTop: "0.5rem" }}>{job.description}</p>
+            )}
+
+            {/* Signature status */}
+            {!job.verified && (
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
+                <SigPill signed={job.homeownerSigned} label="Homeowner" />
+                {needsBothSig && (
+                  <SigPill signed={job.contractorSigned} label={job.contractor ? "Contractor" : "Contractor (not linked)"} />
+                )}
+                {canSign && (
+                  <button
+                    onClick={() => onVerify(job.id)}
+                    style={{
+                      padding: "0.25rem 0.75rem",
+                      fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase",
+                      color: S.rust, background: "none", border: `1px solid ${S.rust}`, cursor: "pointer",
+                    }}
+                  >
+                    Sign →
+                  </button>
+                )}
+              </div>
+            )}
           </div>
-          {job.description && (
-            <p style={{ fontSize: "0.8rem", color: S.inkLight, fontWeight: 300, marginTop: "0.5rem" }}>{job.description}</p>
-          )}
-          {(job.status === "pending" || job.status === "completed") && (
-            <button
-              onClick={() => onVerify(job.id)}
-              style={{
-                marginTop: "0.75rem", padding: "0.375rem 0.875rem",
-                fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase",
-                color: S.rust, background: "none", border: `1px solid ${S.rust}`, cursor: "pointer",
-              }}
-            >
-              Sign &amp; Verify →
-            </button>
-          )}
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

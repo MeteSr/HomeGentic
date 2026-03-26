@@ -7,16 +7,20 @@ import type { Job } from "@/services/job";
 
 function makeJob(overrides: Partial<Job> = {}): Job {
   return {
-    id:          "1",
-    propertyId:  "prop-1",
-    serviceType: "HVAC",
-    amount:      120_000,   // cents
-    date:        "2024-06-15",
-    description: "HVAC replacement",
-    isDiy:       false,
-    status:      "verified",
-    photos:      [],
-    createdAt:   Date.now(),
+    id:               "1",
+    propertyId:       "prop-1",
+    homeowner:        "test-principal",
+    serviceType:      "HVAC",
+    amount:           120_000,   // cents
+    date:             "2024-06-15",
+    description:      "HVAC replacement",
+    isDiy:            false,
+    status:           "verified",
+    verified:         true,
+    homeownerSigned:  true,
+    contractorSigned: true,
+    photos:           [],
+    createdAt:        Date.now(),
     ...overrides,
   };
 }
@@ -114,10 +118,24 @@ describe("jobToInput (report adapter)", () => {
     expect(input.completedYear).toBe(2023);
   });
 
-  it("maps verified status correctly", () => {
-    expect(jobToInput(makeJob({ status: "verified"  })).isVerified).toBe(true);
-    expect(jobToInput(makeJob({ status: "completed" })).isVerified).toBe(false);
-    expect(jobToInput(makeJob({ status: "pending"   })).isVerified).toBe(false);
+  it("uses the verified field when present", () => {
+    expect(jobToInput(makeJob({ verified: true  })).isVerified).toBe(true);
+    expect(jobToInput(makeJob({ verified: false })).isVerified).toBe(false);
+  });
+
+  it("falls back to status === 'verified' when verified field is absent", () => {
+    const withoutVerified = makeJob({ status: "verified" });
+    delete (withoutVerified as any).verified;
+    expect(jobToInput(withoutVerified).isVerified).toBe(true);
+
+    const completed = makeJob({ status: "completed" });
+    delete (completed as any).verified;
+    expect(jobToInput(completed).isVerified).toBe(false);
+  });
+
+  it("explicit verified=false overrides a 'verified' status", () => {
+    // verified field is the authoritative signal — status is a display concern
+    expect(jobToInput(makeJob({ status: "verified", verified: false })).isVerified).toBe(false);
   });
 
   it("passes amountCents through unchanged", () => {

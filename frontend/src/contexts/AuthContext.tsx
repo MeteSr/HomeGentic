@@ -24,7 +24,7 @@ const AuthContext = createContext<AuthContextValue>({
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
-  const { setAuthenticated, setProfile, clearAuth, setLoading } = useAuthStore();
+  const { setAuthenticated, setProfile, setLastLoginAt, clearAuth, setLoading } = useAuthStore();
 
   useEffect(() => {
     // E2E test bypass: Playwright sets window.__e2e_principal before React boots.
@@ -32,14 +32,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (import.meta.env.DEV && (window as any).__e2e_principal) {
       setAuthenticated((window as any).__e2e_principal);
       setProfile({
-        principal: (window as any).__e2e_principal,
-        role: "Homeowner",
-        email: "e2e@test.com",
-        phone: "0000000000",
-        createdAt: BigInt(0),
-        updatedAt: BigInt(0),
-        isActive: true,
+        principal:    (window as any).__e2e_principal,
+        role:         "Homeowner",
+        email:        "e2e@test.com",
+        phone:        "0000000000",
+        createdAt:    BigInt(0),
+        updatedAt:    BigInt(0),
+        isActive:     true,
+        lastLoggedIn: null,
       });
+      setLastLoginAt(null);
       setLoading(false);
       return;
     }
@@ -50,7 +52,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAuthenticated(principal);
         try {
           const profile = await authService.getProfile();
+          setLastLoginAt(profile.lastLoggedIn);   // capture previous session timestamp
           setProfile(profile);
+          authService.recordLogin().catch(() => {}); // fire-and-forget
         } catch {
           // Not registered yet
         }
@@ -65,7 +69,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthenticated(principal);
     try {
       const profile = await authService.getProfile();
+      setLastLoginAt(profile.lastLoggedIn);
       setProfile(profile);
+      authService.recordLogin().catch(() => {});
       if (profile.role === "Contractor") {
         navigate("/contractor-dashboard");
       } else {
@@ -81,7 +87,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthenticated(principal);
     try {
       const profile = await authService.getProfile();
+      setLastLoginAt(profile.lastLoggedIn);
       setProfile(profile);
+      authService.recordLogin().catch(() => {});
       if (profile.role === "Contractor") {
         navigate("/contractor-dashboard");
       } else {

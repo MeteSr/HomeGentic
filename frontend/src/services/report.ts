@@ -176,7 +176,7 @@ export function jobToInput(job: Job): JobInput {
     isDiy:          job.isDiy,
     permitNumber:   job.permitNumber,
     warrantyMonths: job.warrantyMonths,
-    isVerified:     job.status === "verified",
+    isVerified:     job.verified ?? job.status === "verified",
     status:         job.status,
   };
 }
@@ -338,6 +338,7 @@ export const reportService = {
     );
     if ("ok" in result) return fromShareLink(result.ok);
     const key = Object.keys(result.err)[0];
+    if (key === "UnverifiedProperty") throw new Error("Property must be verified (Basic or Premium) before generating a shareable report.");
     const val = result.err[key];
     throw new Error(typeof val === "string" ? val : key);
   },

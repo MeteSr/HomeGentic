@@ -6,8 +6,10 @@ import { Button } from "@/components/Button";
 import { Badge } from "@/components/Badge";
 import { propertyService, Property } from "@/services/property";
 import { jobService, Job } from "@/services/job";
+import { quoteService, QuoteRequest } from "@/services/quote";
 import { useAuthStore } from "@/store/authStore";
 import { usePropertyStore } from "@/store/propertyStore";
+import { isNewSince, hasQuoteActivity, pendingQuoteCount } from "@/services/notifications";
 import toast from "react-hot-toast";
 
 const S = {
@@ -19,14 +21,15 @@ const S = {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { principal, profile } = useAuthStore();
+  const { principal, profile, lastLoginAt } = useAuthStore();
   const { properties, setProperties } = usePropertyStore();
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [quoteRequests, setQuoteRequests] = useState<QuoteRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [bannerDismissed, setBannerDismissed] = useState(false);
 
   useEffect(() => {
-    Promise.all([loadProperties(), loadJobs()]).finally(() => setLoading(false));
+    Promise.all([loadProperties(), loadJobs(), loadQuoteRequests()]).finally(() => setLoading(false));
   }, []);
 
   async function loadProperties() {
@@ -37,6 +40,10 @@ export default function DashboardPage() {
 
   async function loadJobs() {
     try { setJobs(await jobService.getAll()); } catch { /* canister not deployed */ }
+  }
+
+  async function loadQuoteRequests() {
+    try { setQuoteRequests(await quoteService.getRequests()); } catch { /* canister not deployed */ }
   }
 
   const totalValue    = jobService.getTotalValue(jobs);
@@ -182,6 +189,82 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+
+        {/* Quote Requests */}
+        {quoteRequests.length > 0 && (
+          <div style={{ marginBottom: "2.5rem" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+                <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
+                  Quote Requests
+                </div>
+                {pendingQuoteCount(quoteRequests) > 0 && (
+                  <div style={{
+                    display: "inline-flex", alignItems: "center",
+                    padding: "0.1rem 0.5rem",
+                    background: S.rust, color: "#fff",
+                    fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase",
+                  }}>
+                    {pendingQuoteCount(quoteRequests)} {pendingQuoteCount(quoteRequests) === 1 ? "bid" : "bids"} waiting
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => navigate("/quotes/new")}
+                style={{ display: "flex", alignItems: "center", gap: "0.25rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.rust, background: "none", border: "none", cursor: "pointer", padding: 0 }}
+              >
+                <Plus size={11} /> New Request
+              </button>
+            </div>
+            <div style={{ border: `1px solid ${S.rule}` }}>
+              {quoteRequests.map((req, i) => {
+                const statusVariant =
+                  req.status === "accepted" ? "success"
+                  : req.status === "quoted"  ? "info"
+                  : req.status === "closed"  ? "default"
+                  : "warning";
+                const isNew      = isNewSince(req.createdAt, lastLoginAt);
+                const hasBids    = hasQuoteActivity(req.status);
+                const rowBg      = hasBids ? "#FDFAF9" : "#fff";
+                return (
+                  <div
+                    key={req.id}
+                    onClick={() => navigate(`/quotes/${req.id}`)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: "1rem", padding: "0.875rem 1rem",
+                      borderBottom: i < quoteRequests.length - 1 ? `1px solid ${S.rule}` : "none",
+                      background: rowBg, cursor: "pointer",
+                      borderLeft: hasBids ? `3px solid ${S.rust}` : "3px solid transparent",
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = "#FAF0ED"; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = rowBg; }}
+                  >
+                    <div style={{ width: "2rem", height: "2rem", border: `1px solid ${S.rule}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <MessageSquare size={13} color={hasBids ? S.rust : S.inkLight} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: "0.875rem", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {req.serviceType}
+                      </p>
+                      <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {req.description}
+                      </p>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexShrink: 0 }}>
+                      {isNew && (
+                        <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.rust, border: `1px solid ${S.rust}`, padding: "0.1rem 0.4rem" }}>
+                          New
+                        </span>
+                      )}
+                      <Badge variant={statusVariant} size="sm">{req.status}</Badge>
+                      <ArrowRight size={13} color={S.inkLight} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Recent Activity */}
         {jobs.length > 0 && (

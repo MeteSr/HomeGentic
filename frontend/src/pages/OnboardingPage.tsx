@@ -1,21 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Home, ShieldCheck, Wrench, FileText,
-  ArrowRight, CheckCircle, Circle, Sparkles,
-} from "lucide-react";
+import { Home, ShieldCheck, Wrench, FileText, ArrowRight, CheckCircle } from "lucide-react";
 import { propertyService, Property } from "@/services/property";
 import { jobService, Job } from "@/services/job";
+import { systemAgesService } from "@/services/systemAges";
 import { useAuthStore } from "@/store/authStore";
 
-// ─── Palette (matches new landing page) ──────────────────────────────────────
-const CREAM  = "#FAFAF7";
-const ORANGE = "#E8580C";
-const DARK   = "#1A1A1A";
-const MUTED  = "#6B6B6B";
-const WHITE  = "#FFFFFF";
-
-// ─── Step definition ─────────────────────────────────────────────────────────
+const S = {
+  ink: "#0E0E0C", paper: "#F4F1EB", rule: "#C8C3B8",
+  rust: "#C94C2E", inkLight: "#7A7268", sage: "#3D6B57",
+  serif: "'Playfair Display', Georgia, serif" as const,
+  mono:  "'IBM Plex Mono', monospace" as const,
+};
 
 interface Step {
   id: string;
@@ -27,212 +23,64 @@ interface Step {
   done: boolean;
 }
 
-function buildSteps(
-  properties: Property[],
-  jobs: Job[],
-  firstPropertyId?: bigint,
-): Step[] {
-  const hasProperty   = properties.length > 0;
-  const verified      = properties.some((p) => p.verificationLevel !== "Unverified" && p.verificationLevel !== "PendingReview");
-  const hasJob        = jobs.length > 0;
-
+function buildSteps(properties: Property[], jobs: Job[], firstPropertyId?: bigint): Step[] {
+  const hasProperty  = properties.length > 0;
+  const verified     = properties.some((p) => p.verificationLevel !== "Unverified" && p.verificationLevel !== "PendingReview");
+  const hasJob       = jobs.length > 0;
+  const hasSystemAges = hasProperty && firstPropertyId != null && systemAgesService.hasAny(String(firstPropertyId));
   return [
-    {
-      id: "add-property",
-      icon: <Home size={22} />,
-      title: "Add your first property",
-      body: "Register your home on-chain and start building its verified maintenance history.",
-      cta: hasProperty ? "View my property" : "Add property",
-      href: hasProperty && firstPropertyId != null
-        ? `/properties/${firstPropertyId}`
-        : "/properties/new",
-      done: hasProperty,
-    },
-    {
-      id: "verify-ownership",
-      icon: <ShieldCheck size={22} />,
-      title: "Verify ownership",
-      body: "Upload a utility bill, deed, or tax record to earn a verification badge that buyers trust.",
-      cta: "Verify now",
-      href: hasProperty && firstPropertyId != null
-        ? `/properties/${firstPropertyId}/verify`
-        : "/properties/new",
-      done: verified,
-    },
-    {
-      id: "log-job",
-      icon: <Wrench size={22} />,
-      title: "Log your first maintenance job",
-      body: "Every repair, renovation, or upgrade you record adds real value to your HomeFax report.",
-      cta: "Log a job",
-      href: "/jobs/new",
-      done: hasJob,
-    },
-    {
-      id: "get-report",
-      icon: <FileText size={22} />,
-      title: "Generate your HomeFax report",
-      body: "Share a verified, tamper-proof history with buyers, agents, or insurers with one link.",
-      cta: "Go to dashboard",
-      href: "/dashboard",
-      done: false, // triggered by going to dashboard
-    },
+    { id: "add-property",    icon: <Home size={20} />,       title: "Add your first property",          body: "Register your home on-chain and start building its verified maintenance history.",             cta: hasProperty ? "View my property" : "Add property", href: hasProperty && firstPropertyId != null ? `/properties/${firstPropertyId}` : "/properties/new", done: hasProperty },
+    { id: "verify-ownership", icon: <ShieldCheck size={20} />, title: "Verify ownership",               body: "Upload a utility bill, deed, or tax record to earn a verification badge that buyers trust.",    cta: "Verify now",       href: hasProperty && firstPropertyId != null ? `/properties/${firstPropertyId}/verify` : "/properties/new", done: verified },
+    { id: "log-job",         icon: <Wrench size={20} />,     title: "Log your first maintenance job",    body: "Every repair, renovation, or upgrade you record adds real value to your HomeFax report.",      cta: "Log a job",        href: "/jobs/new", done: hasJob },
+    { id: "system-ages",     icon: <Wrench size={20} />,     title: "Set your system ages",              body: "Tell us when your HVAC, roof, water heater, and other systems were last replaced — so predictions reflect reality, not just your home's build year.", cta: "Set system ages", href: hasProperty && firstPropertyId != null ? `/properties/${firstPropertyId}/systems` : "/dashboard", done: hasSystemAges },
+    { id: "get-report",      icon: <FileText size={20} />,   title: "Generate your HomeFax report",      body: "Share a verified, tamper-proof history with buyers, agents, or insurers with one link.",       cta: "Go to dashboard",  href: "/dashboard", done: false },
   ];
 }
 
-// ─── Step card ───────────────────────────────────────────────────────────────
-
-function StepCard({
-  step,
-  index,
-  isNext,
-  onClick,
-}: {
-  step: Step;
-  index: number;
-  isNext: boolean;
-  onClick: () => void;
-}) {
-  const [hover, setHover] = useState(false);
-
-  const borderColor = step.done
-    ? "#16A34A"
-    : isNext
-    ? ORANGE
-    : "#E5E7EB";
-
-  const bgColor = step.done
-    ? "#F0FDF4"
-    : isNext
-    ? WHITE
-    : WHITE;
-
-  const iconBg = step.done
-    ? "#DCFCE7"
-    : isNext
-    ? "#FFF3EE"
-    : "#F3F4F6";
-
-  const iconColor = step.done ? "#16A34A" : isNext ? ORANGE : "#9CA3AF";
-
+function StepCard({ step, index, isNext, onClick }: { step: Step; index: number; isNext: boolean; onClick: () => void }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "flex-start",
-        gap: "1rem",
-        padding: "1.25rem 1.5rem",
-        borderRadius: "1rem",
-        border: `1.5px solid ${borderColor}`,
-        backgroundColor: bgColor,
-        boxShadow: hover && isNext ? "0 8px 24px rgba(232,88,12,0.12)" : "none",
-        transition: "box-shadow 0.15s, transform 0.15s",
-        transform: hover && isNext ? "translateY(-2px)" : "translateY(0)",
-      }}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-    >
-      {/* Number + icon */}
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.375rem", flexShrink: 0 }}>
-        <div
-          style={{
-            width: "2.75rem",
-            height: "2.75rem",
-            borderRadius: "0.75rem",
-            backgroundColor: iconBg,
-            color: iconColor,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          {step.icon}
-        </div>
+    <div style={{
+      display: "flex", alignItems: "flex-start", gap: "1rem",
+      padding: "1.25rem 1.5rem",
+      border: `1px solid ${step.done ? S.sage : isNext ? S.rust : S.rule}`,
+      background: step.done ? "#F0F6F3" : "#fff",
+    }}>
+      {/* Icon */}
+      <div style={{ width: "2.75rem", height: "2.75rem", border: `1px solid ${step.done ? S.sage : isNext ? S.rust : S.rule}`, color: step.done ? S.sage : isNext ? S.rust : S.inkLight, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        {step.icon}
       </div>
 
       {/* Content */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
-          <span
-            style={{
-              fontSize: "0.7rem",
-              fontWeight: 700,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              color: MUTED,
-            }}
-          >
+          <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
             Step {index + 1}
           </span>
           {step.done && (
-            <span
-              style={{
-                fontSize: "0.7rem",
-                fontWeight: 700,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: "#16A34A",
-                backgroundColor: "#DCFCE7",
-                padding: "0.1rem 0.5rem",
-                borderRadius: "9999px",
-              }}
-            >
+            <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.sage, border: `1px solid ${S.sage}40`, padding: "0.1rem 0.5rem" }}>
               Done
             </span>
           )}
         </div>
-
-        <h3
-          style={{
-            fontSize: "0.938rem",
-            fontWeight: 700,
-            color: step.done ? "#374151" : DARK,
-            marginBottom: "0.25rem",
-            textDecoration: step.done ? "line-through" : "none",
-          }}
-        >
+        <h3 style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "0.938rem", color: step.done ? S.inkLight : S.ink, marginBottom: "0.25rem", textDecoration: step.done ? "line-through" : "none" }}>
           {step.title}
         </h3>
-        <p style={{ fontSize: "0.813rem", color: MUTED, lineHeight: 1.55 }}>
-          {step.body}
-        </p>
+        <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: S.inkLight, lineHeight: 1.6 }}>{step.body}</p>
       </div>
 
-      {/* CTA */}
       {!step.done && (
-        <button
-          onClick={onClick}
-          style={{
-            flexShrink: 0,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "0.375rem",
-            padding: "0.5rem 1rem",
-            borderRadius: "0.625rem",
-            backgroundColor: isNext ? ORANGE : "transparent",
-            color: isNext ? WHITE : "#9CA3AF",
-            border: isNext ? "none" : "1.5px solid #E5E7EB",
-            fontSize: "0.813rem",
-            fontWeight: 600,
-            cursor: isNext ? "pointer" : "default",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {step.cta} {isNext && <ArrowRight size={14} />}
+        <button onClick={onClick} style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.5rem 1rem", border: `1px solid ${isNext ? S.rust : S.rule}`, background: isNext ? S.rust : "#fff", color: isNext ? "#F4F1EB" : S.inkLight, fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: isNext ? "pointer" : "default", whiteSpace: "nowrap" }}>
+          {step.cta} {isNext && <ArrowRight size={12} />}
         </button>
       )}
 
-      {step.done && (
-        <CheckCircle size={22} color="#16A34A" style={{ flexShrink: 0 }} />
-      )}
+      {step.done && <CheckCircle size={20} color={S.sage} style={{ flexShrink: 0 }} />}
     </div>
   );
 }
 
-// ─── Main page ────────────────────────────────────────────────────────────────
-
 export default function OnboardingPage() {
-  const navigate   = useNavigate();
+  const navigate    = useNavigate();
   const { profile } = useAuthStore();
   const [properties, setProperties] = useState<Property[]>([]);
   const [jobs, setJobs]             = useState<Job[]>([]);
@@ -246,118 +94,46 @@ export default function OnboardingPage() {
   }, []);
 
   const firstPropertyId = properties[0]?.id;
-  const steps = buildSteps(properties, jobs, firstPropertyId);
+  const steps     = buildSteps(properties, jobs, firstPropertyId);
   const doneCount = steps.filter((s) => s.done).length;
   const nextStep  = steps.find((s) => !s.done);
 
-  const handleStep = (step: Step) => {
-    if (!step.done) navigate(step.href);
-  };
+  const handleStep = (step: Step) => { if (!step.done) navigate(step.href); };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        backgroundColor: CREAM,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        padding: "3rem 1.25rem 4rem",
-      }}
-    >
+    <div style={{ minHeight: "100vh", background: S.paper, display: "flex", flexDirection: "column", alignItems: "center", padding: "3rem 1.25rem 4rem" }}>
+
       {/* Logo */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "0.5rem",
-          marginBottom: "3rem",
-          cursor: "pointer",
-        }}
-        onClick={() => navigate("/")}
-      >
-        <Home size={20} color={ORANGE} />
-        <span style={{ fontWeight: 900, fontSize: "1.125rem", color: DARK, letterSpacing: "-0.01em" }}>
-          HomeFax
-        </span>
+      <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginBottom: "3rem", cursor: "pointer" }} onClick={() => navigate("/")}>
+        <div style={{ width: "1.5rem", height: "1.5rem", background: S.rust, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Home size={14} color="#F4F1EB" />
+        </div>
+        <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.125rem", color: S.ink, letterSpacing: "-0.01em" }}>HomeFax</span>
       </div>
 
       {/* Card */}
-      <div
-        style={{
-          backgroundColor: WHITE,
-          borderRadius: "1.5rem",
-          padding: "2.5rem",
-          maxWidth: "38rem",
-          width: "100%",
-          boxShadow: "0 4px 24px rgba(0,0,0,0.07)",
-        }}
-      >
+      <div style={{ border: `1px solid ${S.rule}`, background: "#fff", padding: "2.5rem", maxWidth: "38rem", width: "100%" }}>
+
         {/* Welcome header */}
         <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-          <div
-            style={{
-              width: "3.5rem",
-              height: "3.5rem",
-              borderRadius: "1rem",
-              backgroundColor: "#FFF3EE",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              margin: "0 auto 1rem",
-            }}
-          >
-            <Sparkles size={22} color={ORANGE} />
+          <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.rust, marginBottom: "0.5rem" }}>
+            Welcome
           </div>
-          <h1
-            style={{
-              fontSize: "1.5rem",
-              fontWeight: 900,
-              color: DARK,
-              letterSpacing: "-0.02em",
-              marginBottom: "0.5rem",
-            }}
-          >
+          <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, color: S.ink, marginBottom: "0.5rem" }}>
             Welcome{profile?.email ? `, ${profile.email.split("@")[0]}` : ""}!
           </h1>
-          <p style={{ fontSize: "0.875rem", color: MUTED, maxWidth: "26rem", margin: "0 auto" }}>
+          <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight, maxWidth: "26rem", margin: "0 auto" }}>
             You're in. Let's get your first property on-chain in the next few minutes.
           </p>
 
-          {/* Progress bar */}
+          {/* Progress */}
           <div style={{ marginTop: "1.5rem" }}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                fontSize: "0.75rem",
-                fontWeight: 600,
-                color: MUTED,
-                marginBottom: "0.5rem",
-              }}
-            >
+            <div style={{ display: "flex", justifyContent: "space-between", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.5rem" }}>
               <span>Setup progress</span>
-              <span style={{ color: doneCount > 0 ? ORANGE : MUTED }}>
-                {doneCount} / {steps.length} complete
-              </span>
+              <span style={{ color: doneCount > 0 ? S.rust : S.inkLight }}>{doneCount} / {steps.length} complete</span>
             </div>
-            <div
-              style={{
-                height: "6px",
-                backgroundColor: "#F3F4F6",
-                borderRadius: "9999px",
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  height: "100%",
-                  width: `${(doneCount / steps.length) * 100}%`,
-                  backgroundColor: ORANGE,
-                  borderRadius: "9999px",
-                  transition: "width 0.4s ease",
-                }}
-              />
+            <div style={{ height: "3px", background: S.rule }}>
+              <div style={{ height: "3px", width: `${(doneCount / steps.length) * 100}%`, background: S.rust, transition: "width 0.4s ease" }} />
             </div>
           </div>
         </div>
@@ -368,41 +144,16 @@ export default function OnboardingPage() {
             <div className="spinner-lg" />
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: S.rule }}>
             {steps.map((step, i) => (
-              <StepCard
-                key={step.id}
-                step={step}
-                index={i}
-                isNext={step === nextStep}
-                onClick={() => handleStep(step)}
-              />
+              <StepCard key={step.id} step={step} index={i} isNext={step === nextStep} onClick={() => handleStep(step)} />
             ))}
           </div>
         )}
 
-        {/* Footer actions */}
-        <div
-          style={{
-            marginTop: "2rem",
-            paddingTop: "1.5rem",
-            borderTop: "1px solid #F3F4F6",
-            display: "flex",
-            justifyContent: "center",
-          }}
-        >
-          <button
-            onClick={() => navigate("/dashboard")}
-            style={{
-              fontSize: "0.813rem",
-              color: MUTED,
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              textDecoration: "underline",
-              textUnderlineOffset: "3px",
-            }}
-          >
+        {/* Footer */}
+        <div style={{ marginTop: "2rem", paddingTop: "1.5rem", borderTop: `1px solid ${S.rule}`, display: "flex", justifyContent: "center" }}>
+          <button onClick={() => navigate("/dashboard")} style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.08em", color: S.inkLight, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "3px" }}>
             Skip for now — go to my dashboard
           </button>
         </div>

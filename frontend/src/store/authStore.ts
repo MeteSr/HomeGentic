@@ -6,8 +6,10 @@ interface AuthState {
   principal: string | null;
   profile: UserProfile | null;
   isLoading: boolean;
+  lastLoginAt: number | null;   // ms timestamp of the *previous* session
   setAuthenticated: (principal: string) => void;
   setProfile: (profile: UserProfile) => void;
+  setLastLoginAt: (v: number | null) => void;
   clearAuth: () => void;
   setLoading: (v: boolean) => void;
 }
@@ -17,8 +19,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   principal: null,
   profile: null,
   isLoading: true,
+  lastLoginAt: null,
   setAuthenticated: (principal) => set({ isAuthenticated: true, principal }),
   setProfile: (profile) => set({ profile }),
-  clearAuth: () => set({ isAuthenticated: false, principal: null, profile: null }),
+  setLastLoginAt: (lastLoginAt) => set({ lastLoginAt }),
+  clearAuth: () => set({ isAuthenticated: false, principal: null, profile: null, lastLoginAt: null }),
   setLoading: (isLoading) => set({ isLoading }),
 }));

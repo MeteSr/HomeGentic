@@ -264,6 +264,59 @@ table { border-collapse: collapse; }
   100% { transform: translateX(-50%); }
 }
 
+/* ─── Google Places autocomplete dropdown ────────────────────────────────────── */
+
+.pac-container {
+  border: 1px solid var(--rule);
+  border-top: none;
+  border-radius: 0;
+  box-shadow: 0 4px 12px rgba(14, 14, 12, 0.08);
+  font-family: var(--sans);
+  background: var(--white);
+  margin-top: -1px; /* flush with input border */
+}
+
+.pac-container::after {
+  /* hide the Google logo */
+  background-image: none !important;
+  height: 0;
+  padding: 0;
+}
+
+.pac-item {
+  padding: 0.5rem 0.875rem;
+  font-size: 0.8rem;
+  color: var(--ink);
+  border-top: 1px solid var(--rule);
+  cursor: pointer;
+  line-height: 1.5;
+}
+
+.pac-item:first-child {
+  border-top: none;
+}
+
+.pac-item:hover,
+.pac-item-selected {
+  background: #FAF0ED;
+}
+
+.pac-item-query {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ink);
+  padding-right: 0.25rem;
+}
+
+.pac-matched {
+  font-weight: 700;
+  color: var(--rust);
+}
+
+.pac-icon {
+  display: none; /* hide the map pin icons */
+}
+
 /* ─── Print / PDF (HomeFax Report) ───────────────────────────────────────────── */
 
 @media print {

@@ -10,13 +10,14 @@ const idlFactory = ({ IDL }: any) => {
     Realtor: IDL.Null,
   });
   const UserProfile = IDL.Record({
-    principal: IDL.Principal,
-    role: UserRole,
-    email: IDL.Text,
-    phone: IDL.Text,
-    createdAt: IDL.Int,
-    updatedAt: IDL.Int,
-    isActive: IDL.Bool,
+    principal:    IDL.Principal,
+    role:         UserRole,
+    email:        IDL.Text,
+    phone:        IDL.Text,
+    createdAt:    IDL.Int,
+    updatedAt:    IDL.Int,
+    isActive:     IDL.Bool,
+    lastLoggedIn: IDL.Opt(IDL.Int),
   });
   const RegisterArgs = IDL.Record({
     role: UserRole,
@@ -33,10 +34,11 @@ const idlFactory = ({ IDL }: any) => {
   });
   const Result = IDL.Variant({ ok: UserProfile, err: Error });
   return IDL.Service({
-    register: IDL.Func([RegisterArgs], [Result], []),
-    getProfile: IDL.Func([], [Result], ["query"]),
+    register:      IDL.Func([RegisterArgs], [Result], []),
+    getProfile:    IDL.Func([], [Result], ["query"]),
     updateProfile: IDL.Func([UpdateArgs], [Result], []),
-    hasRole: IDL.Func([UserRole], [IDL.Bool], ["query"]),
+    recordLogin:   IDL.Func([], [], []),
+    hasRole:       IDL.Func([UserRole], [IDL.Bool], ["query"]),
     getMetrics: IDL.Func(
       [],
       [
@@ -56,13 +58,14 @@ const idlFactory = ({ IDL }: any) => {
 export type UserRole = "Homeowner" | "Contractor" | "Realtor";
 
 export interface UserProfile {
-  principal: string;
-  role: UserRole;
-  email: string;
-  phone: string;
-  createdAt: bigint;
-  updatedAt: bigint;
-  isActive: boolean;
+  principal:    string;
+  role:         UserRole;
+  email:        string;
+  phone:        string;
+  createdAt:    bigint;
+  updatedAt:    bigint;
+  isActive:     boolean;
+  lastLoggedIn: number | null;  // ms timestamp of previous login; null on first login
 }
 
 export interface RegisterArgs {
@@ -83,13 +86,16 @@ async function getActor() {
 
 function fromProfile(raw: any): UserProfile {
   return {
-    principal: raw.principal.toText(),
-    role: Object.keys(raw.role)[0] as UserRole,
-    email: raw.email,
-    phone: raw.phone,
-    createdAt: raw.createdAt,
-    updatedAt: raw.updatedAt,
-    isActive: raw.isActive,
+    principal:    raw.principal.toText(),
+    role:         Object.keys(raw.role)[0] as UserRole,
+    email:        raw.email,
+    phone:        raw.phone,
+    createdAt:    raw.createdAt,
+    updatedAt:    raw.updatedAt,
+    isActive:     raw.isActive,
+    lastLoggedIn: raw.lastLoggedIn[0] != null
+      ? Number(raw.lastLoggedIn[0]) / 1_000_000
+      : null,
   };
 }
 
@@ -121,6 +127,12 @@ export const authService = {
     const a = await getActor();
     const result = await a.updateProfile(args);
     return unwrap(result);
+  },
+
+  async recordLogin(): Promise<void> {
+    if (!AUTH_CANISTER_ID) return;
+    const a = await getActor();
+    await a.recordLogin();
   },
 
   async hasRole(role: UserRole): Promise<boolean> {

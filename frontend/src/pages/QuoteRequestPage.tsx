@@ -8,16 +8,20 @@ import { quoteService, Urgency } from "@/services/quote";
 import { usePropertyStore } from "@/store/propertyStore";
 import toast from "react-hot-toast";
 
-const SERVICE_TYPES = [
-  "HVAC", "Roofing", "Plumbing", "Electrical", "Flooring",
-  "Painting", "Landscaping", "Windows", "Foundation", "Other",
-];
+const S = {
+  ink: "#0E0E0C", paper: "#F4F1EB", rule: "#C8C3B8",
+  rust: "#C94C2E", inkLight: "#7A7268",
+  serif: "'Playfair Display', Georgia, serif" as const,
+  mono:  "'IBM Plex Mono', monospace" as const,
+};
 
-const URGENCY_OPTIONS: { value: Urgency; label: string; desc: string; color: string; bg: string }[] = [
-  { value: "low", label: "Low", desc: "Flexible timeline", color: "#059669", bg: "#f0fdf4" },
-  { value: "medium", label: "Medium", desc: "Within 2–4 weeks", color: "#d97706", bg: "#fffbeb" },
-  { value: "high", label: "High", desc: "Within 1 week", color: "#dc2626", bg: "#fef2f2" },
-  { value: "emergency", label: "Emergency", desc: "ASAP", color: "#7c3aed", bg: "#f5f3ff" },
+const SERVICE_TYPES = ["HVAC","Roofing","Plumbing","Electrical","Flooring","Painting","Landscaping","Windows","Foundation","Other"];
+
+const URGENCY_OPTIONS: { value: Urgency; label: string; desc: string }[] = [
+  { value: "low",       label: "Low",       desc: "Flexible timeline" },
+  { value: "medium",    label: "Medium",    desc: "Within 2–4 weeks" },
+  { value: "high",      label: "High",      desc: "Within 1 week" },
+  { value: "emergency", label: "Emergency", desc: "ASAP" },
 ];
 
 export default function QuoteRequestPage() {
@@ -31,23 +35,16 @@ export default function QuoteRequestPage() {
     description: "",
   });
 
-  // Free tier quota for demo
   const quota = { used: 1, limit: 3, tier: "Free" };
-
   const update = (key: string, value: string) => setForm((f) => ({ ...f, [key]: value }));
 
   const handleSubmit = async () => {
-    if (!form.description.trim()) {
-      toast.error("Please describe the work needed");
-      return;
-    }
+    if (!form.description.trim()) { toast.error("Please describe the work needed"); return; }
     setLoading(true);
     try {
       const req = await quoteService.createRequest({
-        propertyId: form.propertyId,
-        serviceType: form.serviceType,
-        urgency: form.urgency,
-        description: form.description,
+        propertyId: form.propertyId, serviceType: form.serviceType,
+        urgency: form.urgency, description: form.description,
       });
       toast.success("Quote request sent to contractors!");
       navigate(`/quotes/${req.id}`);
@@ -60,150 +57,74 @@ export default function QuoteRequestPage() {
 
   return (
     <Layout>
-      <div style={{ maxWidth: "40rem", margin: "2rem auto", padding: "0 1.5rem" }}>
+      <div style={{ maxWidth: "38rem", margin: "0 auto", padding: "2rem 1.5rem" }}>
+
         <button
           onClick={() => navigate(-1)}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.375rem",
-            color: "#6b7280",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            fontSize: "0.875rem",
-            padding: 0,
-            marginBottom: "1rem",
-          }}
+          style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: "1.5rem" }}
         >
-          <ArrowLeft size={16} /> Back
+          <ArrowLeft size={14} /> Back
         </button>
 
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 900, color: "#111827", marginBottom: "0.25rem" }}>
+        <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.rust, marginBottom: "0.5rem" }}>
+          Contractor Network
+        </div>
+        <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, marginBottom: "0.375rem" }}>
           Request a Quote
         </h1>
-        <p style={{ color: "#6b7280", fontSize: "0.875rem", marginBottom: "1.5rem" }}>
+        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight, marginBottom: "1.5rem" }}>
           Get competitive quotes from verified HomeFax contractors.
         </p>
 
-        <div
-          style={{
-            backgroundColor: "white",
-            border: "1px solid #e5e7eb",
-            borderRadius: "1.25rem",
-            padding: "1.75rem",
-            display: "flex",
-            flexDirection: "column",
-            gap: "1.25rem",
-          }}
-        >
-          {/* Quota warning */}
+        <div style={{ border: `1px solid ${S.rule}`, background: "#fff", padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+
           <div>
-            <label className="form-label" style={{ display: "block", marginBottom: "0.5rem" }}>
-              Quote Request Quota
-            </label>
-            <PhotoQuotaDisplay
-              used={quota.used}
-              limit={quota.limit}
-              tier={quota.tier}
-              onUpgrade={() => navigate("/pricing")}
-            />
+            <label className="form-label" style={{ display: "block", marginBottom: "0.5rem" }}>Quote Request Quota</label>
+            <PhotoQuotaDisplay used={quota.used} limit={quota.limit} tier={quota.tier} onUpgrade={() => navigate("/pricing")} />
           </div>
 
-          {/* Property */}
           {properties.length > 0 && (
             <div>
               <label className="form-label">Property *</label>
-              <select
-                className="form-input"
-                value={form.propertyId}
-                onChange={(e) => update("propertyId", e.target.value)}
-              >
+              <select className="form-input" value={form.propertyId} onChange={(e) => update("propertyId", e.target.value)}>
                 {properties.map((p) => (
-                  <option key={String(p.id)} value={String(p.id)}>
-                    {p.address}, {p.city}
-                  </option>
+                  <option key={String(p.id)} value={String(p.id)}>{p.address}, {p.city}</option>
                 ))}
               </select>
             </div>
           )}
 
-          {/* Service type */}
           <div>
             <label className="form-label">Service Type *</label>
-            <select
-              className="form-input"
-              value={form.serviceType}
-              onChange={(e) => update("serviceType", e.target.value)}
-            >
-              {SERVICE_TYPES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
+            <select className="form-input" value={form.serviceType} onChange={(e) => update("serviceType", e.target.value)}>
+              {SERVICE_TYPES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
 
-          {/* Urgency */}
           <div>
             <label className="form-label">Urgency *</label>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1px", background: S.rule }}>
               {URGENCY_OPTIONS.map((opt) => (
-                <div
-                  key={opt.value}
-                  onClick={() => update("urgency", opt.value)}
-                  style={{
-                    padding: "0.75rem",
-                    borderRadius: "0.625rem",
-                    border:
-                      form.urgency === opt.value
-                        ? `2px solid ${opt.color}`
-                        : "2px solid #e5e7eb",
-                    backgroundColor: form.urgency === opt.value ? opt.bg : "white",
-                    cursor: "pointer",
-                    transition: "all 0.15s",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontWeight: 700,
-                      fontSize: "0.875rem",
-                      color: form.urgency === opt.value ? opt.color : "#374151",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.375rem",
-                    }}
-                  >
-                    {opt.value === "emergency" && <Zap size={14} />}
+                <div key={opt.value} onClick={() => update("urgency", opt.value)} style={{
+                  padding: "0.75rem 1rem", cursor: "pointer",
+                  background: form.urgency === opt.value ? "#FAF0ED" : "#fff",
+                }}>
+                  <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: form.urgency === opt.value ? S.rust : S.ink, marginBottom: "0.2rem", display: "flex", alignItems: "center", gap: "0.375rem" }}>
+                    {opt.value === "emergency" && <Zap size={11} />}
                     {opt.label}
                   </div>
-                  <div style={{ fontSize: "0.75rem", color: "#6b7280" }}>{opt.desc}</div>
+                  <div style={{ fontSize: "0.75rem", color: S.inkLight, fontWeight: 300 }}>{opt.desc}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Description */}
           <div>
             <label className="form-label">Describe the work needed *</label>
-            <textarea
-              className="form-input"
-              rows={4}
-              placeholder="Describe the issue or project in detail. Include any relevant measurements, materials, or constraints."
-              value={form.description}
-              onChange={(e) => update("description", e.target.value)}
-              style={{ resize: "vertical" }}
-            />
+            <textarea className="form-input" rows={4} placeholder="Describe the issue or project in detail. Include any relevant measurements, materials, or constraints." value={form.description} onChange={(e) => update("description", e.target.value)} style={{ resize: "vertical" }} />
           </div>
 
-          <Button
-            loading={loading}
-            disabled={quota.used >= quota.limit}
-            onClick={handleSubmit}
-            icon={<Send size={16} />}
-            size="lg"
-            style={{ width: "100%" }}
-          >
+          <Button loading={loading} disabled={quota.used >= quota.limit} onClick={handleSubmit} icon={<Send size={14} />} size="lg" style={{ width: "100%" }}>
             {quota.used >= quota.limit ? "Quote limit reached — Upgrade to continue" : "Send Quote Request"}
           </Button>
         </div>

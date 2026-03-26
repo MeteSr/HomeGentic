@@ -195,6 +195,16 @@ persistent actor Job {
     #ok(matches)
   };
 
+  /// Fetch jobs where the caller is the linked contractor and has not yet signed.
+  public query(msg) func getJobsPendingMySignature() : async [Job] {
+    Iter.toArray(Iter.filter(jobs.vals(), func(j: Job) : Bool {
+      switch (j.contractor) {
+        case (?con) { con == msg.caller and not j.contractorSigned and not j.verified };
+        case null   { false };
+      }
+    }))
+  };
+
   /// Update a job's status. Only the homeowner (or admin) can do this on unverified jobs.
   public shared(msg) func updateJobStatus(jobId: Text, status: JobStatus) : async Result.Result<Job, Error> {
     switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };

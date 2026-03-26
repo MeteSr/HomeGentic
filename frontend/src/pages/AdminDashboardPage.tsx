@@ -3,26 +3,18 @@ import { Navigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { propertyService, Property, VerificationLevel, SubscriptionTier } from "@/services/property";
 import { useAuthStore } from "@/store/authStore";
-import {
-  Shield, CheckCircle, XCircle, User, RefreshCw,
-  AlertCircle, ChevronDown,
-} from "lucide-react";
+import { Shield, CheckCircle, XCircle, RefreshCw } from "lucide-react";
 import toast from "react-hot-toast";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type Tab = "verifications" | "tiers";
-
-const TIERS: SubscriptionTier[] = ["Free", "Pro", "Premium", "ContractorPro"];
-
-const TIER_COLORS: Record<SubscriptionTier, { bg: string; color: string }> = {
-  Free:          { bg: "#F3F4F6", color: "#374151" },
-  Pro:           { bg: "#DBEAFE", color: "#1D4ED8" },
-  Premium:       { bg: "#EDE9FE", color: "#6D28D9" },
-  ContractorPro: { bg: "#D1FAE5", color: "#065F46" },
+const S = {
+  ink: "#0E0E0C", paper: "#F4F1EB", rule: "#C8C3B8",
+  rust: "#C94C2E", inkLight: "#7A7268", sage: "#3D6B57",
+  serif: "'Playfair Display', Georgia, serif" as const,
+  mono:  "'IBM Plex Mono', monospace" as const,
 };
 
-// ─── Verification Card ────────────────────────────────────────────────────────
+type Tab = "verifications" | "tiers";
+const TIERS: SubscriptionTier[] = ["Free", "Pro", "Premium", "ContractorPro"];
 
 function VerificationCard({
   property,
@@ -42,78 +34,49 @@ function VerificationCard({
   };
 
   return (
-    <div style={{
-      backgroundColor: "white", border: "1px solid #E5E7EB",
-      borderRadius: "1rem", padding: "1.5rem",
-      display: "flex", flexDirection: "column", gap: "1rem",
-    }}>
-      {/* Property info */}
+    <div style={{ border: `1px solid ${S.rule}`, background: "#fff", padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
       <div>
-        <p style={{ fontWeight: 700, fontSize: "0.95rem", color: "#111827", marginBottom: "0.25rem" }}>
+        <p style={{ fontWeight: 700, fontSize: "0.95rem", color: S.ink, marginBottom: "0.25rem" }}>
           {property.address}, {property.city}, {property.state} {property.zipCode}
         </p>
-        <p style={{ fontSize: "0.8rem", color: "#6B7280" }}>
-          ID: {String(property.id)} · Owner: <code style={{ fontSize: "0.75rem", backgroundColor: "#F3F4F6", padding: "0.1rem 0.3rem", borderRadius: "0.25rem" }}>{property.owner}</code>
+        <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight }}>
+          ID: {String(property.id)} · Owner: <code style={{ fontSize: "0.7rem", background: S.paper, padding: "0.1rem 0.3rem" }}>{property.owner}</code>
         </p>
-        <p style={{ fontSize: "0.8rem", color: "#6B7280", marginTop: "0.25rem" }}>
+        <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight, marginTop: "0.25rem" }}>
           Built: {String(property.yearBuilt)} · {String(property.squareFeet)} sq ft · {property.propertyType}
         </p>
       </div>
-
-      {/* Actions */}
       <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <span style={{ fontSize: "0.8rem", color: "#374151", fontWeight: 600 }}>Approve as:</span>
+          <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>Approve as:</span>
           <select
             value={level}
             onChange={(e) => setLevel(e.target.value as "Basic" | "Premium")}
             disabled={loading}
-            style={{
-              padding: "0.375rem 0.625rem", borderRadius: "0.5rem",
-              border: "1px solid #D1D5DB", fontSize: "0.8rem",
-              backgroundColor: "white", cursor: "pointer",
-            }}
+            style={{ padding: "0.375rem 0.625rem", border: `1px solid ${S.rule}`, fontSize: "0.8rem", background: "#fff", cursor: "pointer" }}
           >
             <option value="Basic">Basic (Utility Bill)</option>
             <option value="Premium">Premium (Deed / Tax Record)</option>
           </select>
         </div>
-
         <button
           onClick={() => act(() => onApprove(property.id, level))}
           disabled={loading}
-          style={{
-            display: "inline-flex", alignItems: "center", gap: "0.375rem",
-            padding: "0.5rem 1rem", borderRadius: "0.5rem",
-            backgroundColor: "#16A34A", color: "white",
-            border: "none", fontSize: "0.8rem", fontWeight: 600,
-            cursor: loading ? "not-allowed" : "pointer",
-            opacity: loading ? 0.6 : 1,
-          }}
+          style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.5rem 1rem", border: `1px solid ${S.sage}`, background: "#fff", color: S.sage, fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}
         >
-          <CheckCircle size={14} /> Approve
+          <CheckCircle size={12} /> Approve
         </button>
-
         <button
           onClick={() => act(() => onReject(property.id))}
           disabled={loading}
-          style={{
-            display: "inline-flex", alignItems: "center", gap: "0.375rem",
-            padding: "0.5rem 1rem", borderRadius: "0.5rem",
-            backgroundColor: "#DC2626", color: "white",
-            border: "none", fontSize: "0.8rem", fontWeight: 600,
-            cursor: loading ? "not-allowed" : "pointer",
-            opacity: loading ? 0.6 : 1,
-          }}
+          style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.5rem 1rem", border: `1px solid ${S.rust}`, background: "#fff", color: S.rust, fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}
         >
-          <XCircle size={14} /> Reject
+          <XCircle size={12} /> Reject
         </button>
       </div>
     </div>
   );
 }
-
-// ─── Tier Manager ─────────────────────────────────────────────────────────────
 
 function TierManager() {
   const [principal, setPrincipal] = useState("");
@@ -135,93 +98,66 @@ function TierManager() {
   };
 
   return (
-    <div style={{
-      backgroundColor: "white", border: "1px solid #E5E7EB",
-      borderRadius: "1rem", padding: "1.5rem",
-    }}>
-      <h3 style={{ fontWeight: 700, fontSize: "0.95rem", color: "#111827", marginBottom: "1.25rem" }}>
+    <div style={{ border: `1px solid ${S.rule}`, background: "#fff", padding: "1.5rem" }}>
+      <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "1.25rem" }}>
         Set Subscription Tier
-      </h3>
+      </p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: "32rem" }}>
-        <label style={{ fontSize: "0.85rem" }}>
-          <span style={{ fontWeight: 600, color: "#374151", display: "block", marginBottom: "0.375rem" }}>
-            User Principal
-          </span>
+        <div>
+          <label className="form-label">User Principal</label>
           <input
             value={principal}
             onChange={(e) => setPrincipal(e.target.value)}
             placeholder="abc12-xyz34-..."
-            style={{
-              width: "100%", padding: "0.5rem 0.75rem",
-              borderRadius: "0.5rem", border: "1px solid #D1D5DB",
-              fontSize: "0.85rem", fontFamily: "monospace", boxSizing: "border-box",
-            }}
+            className="form-input"
+            style={{ fontFamily: S.mono }}
           />
-        </label>
+        </div>
 
-        <label style={{ fontSize: "0.85rem" }}>
-          <span style={{ fontWeight: 600, color: "#374151", display: "block", marginBottom: "0.375rem" }}>
-            Tier
-          </span>
-          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+        <div>
+          <label className="form-label" style={{ display: "block", marginBottom: "0.5rem" }}>Tier</label>
+          <div style={{ display: "flex", gap: "1px", background: S.rule }}>
             {TIERS.map((t) => (
               <button
                 key={t}
                 onClick={() => setTier(t)}
                 style={{
-                  padding: "0.5rem 1rem", borderRadius: "9999px",
-                  fontSize: "0.8rem", fontWeight: 600, cursor: "pointer",
-                  border: tier === t ? "2px solid #1D4ED8" : "2px solid #E5E7EB",
-                  backgroundColor: tier === t ? TIER_COLORS[t].bg : "white",
-                  color: tier === t ? TIER_COLORS[t].color : "#6B7280",
+                  flex: 1, padding: "0.5rem 0.75rem",
+                  fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase",
+                  cursor: "pointer",
+                  border: "none",
+                  background: tier === t ? S.ink : "#fff",
+                  color: tier === t ? "#F4F1EB" : S.inkLight,
                 }}
               >
                 {t}
               </button>
             ))}
           </div>
-        </label>
+        </div>
 
         <button
           onClick={handleSet}
           disabled={loading || !principal.trim()}
-          style={{
-            padding: "0.625rem 1.5rem", borderRadius: "0.5rem",
-            backgroundColor: "#1D4ED8", color: "white",
-            border: "none", fontSize: "0.875rem", fontWeight: 600,
-            cursor: loading || !principal.trim() ? "not-allowed" : "pointer",
-            opacity: loading || !principal.trim() ? 0.6 : 1,
-            alignSelf: "flex-start",
-          }}
+          style={{ padding: "0.625rem 1.5rem", border: `1px solid ${S.ink}`, background: S.ink, color: "#F4F1EB", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: loading || !principal.trim() ? "not-allowed" : "pointer", opacity: loading || !principal.trim() ? 0.6 : 1, alignSelf: "flex-start" }}
         >
           {loading ? "Saving…" : "Set Tier"}
         </button>
       </div>
 
-      <div style={{
-        marginTop: "1.5rem", padding: "0.875rem",
-        backgroundColor: "#F9FAFB", borderRadius: "0.75rem",
-        border: "1px solid #E5E7EB",
-      }}>
-        <p style={{ fontSize: "0.78rem", color: "#6B7280", marginBottom: "0.5rem", fontWeight: 600 }}>
-          Tier limits
-        </p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "0.375rem" }}>
+      <div style={{ marginTop: "1.5rem", border: `1px solid ${S.rule}`, padding: "1rem" }}>
+        <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.5rem" }}>Tier limits</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "1px", background: S.rule }}>
           {[
             { tier: "Free",          props: "1 property",      quotes: "3 open requests" },
             { tier: "Pro",           props: "5 properties",    quotes: "10 open requests" },
             { tier: "Premium",       props: "25 properties",   quotes: "10 open requests" },
             { tier: "ContractorPro", props: "Unlimited",       quotes: "Unlimited" },
           ].map((r) => (
-            <div key={r.tier} style={{
-              padding: "0.5rem 0.75rem", borderRadius: "0.5rem",
-              backgroundColor: TIER_COLORS[r.tier as SubscriptionTier].bg,
-            }}>
-              <p style={{ fontSize: "0.75rem", fontWeight: 700, color: TIER_COLORS[r.tier as SubscriptionTier].color }}>
-                {r.tier}
-              </p>
-              <p style={{ fontSize: "0.7rem", color: "#6B7280" }}>{r.props} · {r.quotes}</p>
+            <div key={r.tier} style={{ background: "#fff", padding: "0.625rem 0.875rem" }}>
+              <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.ink, fontWeight: 700 }}>{r.tier}</p>
+              <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>{r.props} · {r.quotes}</p>
             </div>
           ))}
         </div>
@@ -230,8 +166,6 @@ function TierManager() {
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
-
 export default function AdminDashboardPage() {
   const { isAuthenticated, principal } = useAuthStore();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
@@ -239,12 +173,9 @@ export default function AdminDashboardPage() {
   const [pending, setPending] = useState<Property[]>([]);
   const [loadingPending, setLoadingPending] = useState(false);
 
-  // Check admin access on mount
   useEffect(() => {
     if (!principal) return;
-    propertyService.isAdmin(principal)
-      .then(setIsAdmin)
-      .catch(() => setIsAdmin(false));
+    propertyService.isAdmin(principal).then(setIsAdmin).catch(() => setIsAdmin(false));
   }, [principal]);
 
   const loadPending = async () => {
@@ -263,7 +194,6 @@ export default function AdminDashboardPage() {
     if (isAdmin && tab === "verifications") loadPending();
   }, [isAdmin, tab]);
 
-  // Still checking
   if (!isAuthenticated || isAdmin === null) {
     return (
       <Layout>
@@ -274,10 +204,7 @@ export default function AdminDashboardPage() {
     );
   }
 
-  // Not an admin
-  if (isAdmin === false) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  if (isAdmin === false) return <Navigate to="/dashboard" replace />;
 
   const handleApprove = async (id: bigint, level: "Basic" | "Premium") => {
     await propertyService.verifyProperty(id, level as VerificationLevel);
@@ -296,20 +223,22 @@ export default function AdminDashboardPage() {
       <div style={{ maxWidth: "60rem", margin: "0 auto", padding: "2rem 1.5rem" }}>
 
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "2rem", flexWrap: "wrap", gap: "1rem" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "2rem", flexWrap: "wrap", gap: "1rem" }}>
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
-              <Shield size={20} color="#1D4ED8" />
-              <h1 style={{ fontSize: "1.5rem", fontWeight: 800, color: "#111827" }}>Admin Dashboard</h1>
+            <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.rust, marginBottom: "0.5rem" }}>
+              Admin
             </div>
-            <p style={{ fontSize: "0.85rem", color: "#6B7280" }}>
-              Principal: <code style={{ fontSize: "0.78rem", backgroundColor: "#F3F4F6", padding: "0.1rem 0.4rem", borderRadius: "0.25rem" }}>{principal}</code>
+            <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "2rem", lineHeight: 1, marginBottom: "0.375rem" }}>
+              Admin Dashboard
+            </h1>
+            <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight }}>
+              Principal: <code style={{ background: S.paper, padding: "0.1rem 0.4rem" }}>{principal}</code>
             </p>
           </div>
         </div>
 
         {/* Tabs */}
-        <div style={{ display: "flex", borderBottom: "1px solid #E5E7EB", marginBottom: "1.5rem" }}>
+        <div style={{ display: "flex", borderBottom: `1px solid ${S.rule}`, marginBottom: "1.5rem" }}>
           {([
             { id: "verifications", label: `Verifications${pending.length > 0 ? ` (${pending.length})` : ""}` },
             { id: "tiers",         label: "Subscription Tiers" },
@@ -318,11 +247,11 @@ export default function AdminDashboardPage() {
               key={t.id}
               onClick={() => setTab(t.id)}
               style={{
-                padding: "0.625rem 1.25rem", fontSize: "0.875rem", fontWeight: 600,
-                border: "none", borderBottom: tab === t.id ? "2px solid #1D4ED8" : "2px solid transparent",
-                color: tab === t.id ? "#1D4ED8" : "#6B7280",
-                backgroundColor: "transparent", cursor: "pointer",
-                marginBottom: "-1px",
+                padding: "0.625rem 1.25rem",
+                fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase",
+                color: tab === t.id ? S.rust : S.inkLight,
+                border: "none", borderBottom: tab === t.id ? `2px solid ${S.rust}` : "2px solid transparent",
+                background: "transparent", cursor: "pointer", marginBottom: "-1px",
               }}
             >
               {t.label}
@@ -334,20 +263,15 @@ export default function AdminDashboardPage() {
         {tab === "verifications" && (
           <div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-              <p style={{ fontSize: "0.875rem", color: "#6B7280" }}>
+              <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>
                 Properties awaiting ownership verification review.
               </p>
               <button
                 onClick={loadPending}
                 disabled={loadingPending}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: "0.375rem",
-                  padding: "0.375rem 0.875rem", borderRadius: "0.5rem",
-                  border: "1px solid #E5E7EB", backgroundColor: "white",
-                  fontSize: "0.8rem", fontWeight: 600, cursor: "pointer", color: "#374151",
-                }}
+                style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.375rem 0.875rem", border: `1px solid ${S.rule}`, background: "#fff", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", color: S.inkLight }}
               >
-                <RefreshCw size={13} style={{ animation: loadingPending ? "spin 1s linear infinite" : "none" }} />
+                <RefreshCw size={11} style={{ animation: loadingPending ? "spin 1s linear infinite" : "none" }} />
                 Refresh
               </button>
             </div>
@@ -357,30 +281,20 @@ export default function AdminDashboardPage() {
                 <div className="spinner-lg" />
               </div>
             ) : pending.length === 0 ? (
-              <div style={{
-                textAlign: "center", padding: "3rem",
-                backgroundColor: "white", border: "1px solid #E5E7EB", borderRadius: "1rem",
-              }}>
-                <CheckCircle size={36} color="#D1D5DB" style={{ margin: "0 auto 0.75rem" }} />
-                <p style={{ color: "#6B7280", fontWeight: 600 }}>No pending verifications</p>
-                <p style={{ fontSize: "0.8rem", color: "#9CA3AF" }}>All caught up!</p>
+              <div style={{ border: `1px dashed ${S.rule}`, padding: "3rem", textAlign: "center" }}>
+                <CheckCircle size={32} color={S.rule} style={{ margin: "0 auto 0.75rem" }} />
+                <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>No pending verifications. All caught up!</p>
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
                 {pending.map((p) => (
-                  <VerificationCard
-                    key={String(p.id)}
-                    property={p}
-                    onApprove={handleApprove}
-                    onReject={handleReject}
-                  />
+                  <VerificationCard key={String(p.id)} property={p} onApprove={handleApprove} onReject={handleReject} />
                 ))}
               </div>
             )}
           </div>
         )}
 
-        {/* Tiers tab */}
         {tab === "tiers" && <TierManager />}
       </div>
     </Layout>

@@ -40,6 +40,9 @@ persistent actor Contractor {
     specialty:     ServiceType;
     email:         Text;
     phone:         Text;
+    bio:           ?Text;
+    licenseNumber: ?Text;
+    serviceArea:   ?Text;
     trustScore:    Nat;
     jobsCompleted: Nat;
     isVerified:    Bool;
@@ -62,6 +65,16 @@ persistent actor Contractor {
     specialty: ServiceType;
     email:     Text;
     phone:     Text;
+  };
+
+  public type UpdateArgs = {
+    name:          Text;
+    specialty:     ServiceType;
+    email:         Text;
+    phone:         Text;
+    bio:           ?Text;
+    licenseNumber: ?Text;
+    serviceArea:   ?Text;
   };
 
   public type Error = {
@@ -185,6 +198,9 @@ persistent actor Contractor {
       specialty     = args.specialty;
       email         = args.email;
       phone         = args.phone;
+      bio           = null;
+      licenseNumber = null;
+      serviceArea   = null;
       trustScore    = 70;
       jobsCompleted = 0;
       isVerified    = false;
@@ -244,6 +260,46 @@ persistent actor Contractor {
     #ok(review)
   };
 
+  /// Update an existing contractor profile. Caller must already be registered.
+  public shared(msg) func updateProfile(args: UpdateArgs) : async Result.Result<ContractorProfile, Error> {
+    switch (requireActive()) { case (#err e) return #err e; case _ {} };
+
+    if (Text.size(args.name)  == 0) return #err(#InvalidInput("name cannot be empty"));
+    if (Text.size(args.email) == 0) return #err(#InvalidInput("email cannot be empty"));
+    if (not Text.contains(args.email, #text "@"))
+      return #err(#InvalidInput("email must contain @"));
+    if (Text.size(args.phone) == 0) return #err(#InvalidInput("phone cannot be empty"));
+
+    switch (contractors.get(msg.caller)) {
+      case null { #err(#NotFound) };
+      case (?existing) {
+        let updated: ContractorProfile = {
+          id            = existing.id;
+          name          = args.name;
+          specialty     = args.specialty;
+          email         = args.email;
+          phone         = args.phone;
+          bio           = args.bio;
+          licenseNumber = args.licenseNumber;
+          serviceArea   = args.serviceArea;
+          trustScore    = existing.trustScore;
+          jobsCompleted = existing.jobsCompleted;
+          isVerified    = existing.isVerified;
+          createdAt     = existing.createdAt;
+        };
+        contractors.put(msg.caller, updated);
+        #ok(updated)
+      };
+    }
+  };
+
+  public query func getContractor(c: Principal) : async Result.Result<ContractorProfile, Error> {
+    switch (contractors.get(c)) {
+      case null { #err(#NotFound) };
+      case (?p) { #ok(p) };
+    }
+  };
+
   public query(msg) func getMyProfile() : async Result.Result<ContractorProfile, Error> {
     switch (contractors.get(msg.caller)) {
       case null { #err(#NotFound) };
@@ -275,6 +331,9 @@ persistent actor Contractor {
           specialty     = existing.specialty;
           email         = existing.email;
           phone         = existing.phone;
+          bio           = existing.bio;
+          licenseNumber = existing.licenseNumber;
+          serviceArea   = existing.serviceArea;
           trustScore    = existing.trustScore;
           jobsCompleted = existing.jobsCompleted;
           isVerified    = true;

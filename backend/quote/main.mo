@@ -279,6 +279,15 @@ persistent actor Quote {
     }
   };
 
+  /// Fetch all open or quoted requests — visible to any contractor browsing the marketplace.
+  public query func getOpenRequests() : async [QuoteRequest] {
+    Iter.toArray(
+      Iter.filter(requests.vals(), func(r: QuoteRequest) : Bool {
+        r.status == #Open or r.status == #Quoted
+      })
+    )
+  };
+
   /// Fetch all requests created by the caller.
   public query(msg) func getMyQuoteRequests() : async [QuoteRequest] {
     Iter.toArray(

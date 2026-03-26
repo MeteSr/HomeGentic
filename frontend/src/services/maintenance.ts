@@ -186,15 +186,19 @@ function recommendationFor(
   }
 }
 
-export function predictMaintenance(yearBuilt: number, jobs: Job[]): MaintenanceReport {
+export function predictMaintenance(
+  yearBuilt: number,
+  jobs: Job[],
+  systemInstallYears: Partial<Record<string, number>> = {}
+): MaintenanceReport {
   const year = currentYear();
   let predictions: SystemPrediction[] = [];
   let budgetLow  = 0;
   let budgetHigh = 0;
 
   for (const sys of SYSTEMS) {
-    // Most recent job year for this system
-    let lastYear = yearBuilt;
+    // Use an explicit install year if the user set one, otherwise fall back to yearBuilt
+    let lastYear = systemInstallYears[sys.name] ?? yearBuilt;
     for (const job of jobs) {
       const jobYear = new Date(job.date).getFullYear();
       if (job.serviceType === sys.name && jobYear > lastYear) {
@@ -243,8 +247,8 @@ const scheduleStore = new Map<string, ScheduleEntry>();
 let scheduleCounter = 0;
 
 export const maintenanceService = {
-  predict(yearBuilt: number, jobs: Job[]): MaintenanceReport {
-    return predictMaintenance(yearBuilt, jobs);
+  predict(yearBuilt: number, jobs: Job[], systemInstallYears?: Partial<Record<string, number>>): MaintenanceReport {
+    return predictMaintenance(yearBuilt, jobs, systemInstallYears);
   },
 
   async createScheduleEntry(

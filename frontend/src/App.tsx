@@ -16,12 +16,14 @@ import QuoteDetailPage from "@/pages/QuoteDetailPage";
 import SettingsPage from "@/pages/SettingsPage";
 import PricingPage from "@/pages/PricingPage";
 import ContractorDashboardPage from "@/pages/ContractorDashboardPage";
+import ContractorProfilePage from "@/pages/ContractorProfilePage";
 import MarketIntelligencePage from "@/pages/MarketIntelligencePage";
 import ReportPage from "@/pages/ReportPage";
 import PredictiveMaintenancePage from "@/pages/PredictiveMaintenancePage";
 import PropertyVerifyPage from "@/pages/PropertyVerifyPage";
 import AdminDashboardPage from "@/pages/AdminDashboardPage";
 import OnboardingPage from "@/pages/OnboardingPage";
+import SystemAgesPage from "@/pages/SystemAgesPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuthStore();
@@ -91,6 +93,14 @@ export default function App() {
           }
         />
         <Route
+          path="/contractor/profile"
+          element={
+            <ProtectedRoute>
+              <ContractorProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/properties/new"
           element={
             <ProtectedRoute>
@@ -111,6 +121,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <PropertyVerifyPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/properties/:id/systems"
+          element={
+            <ProtectedRoute>
+              <SystemAgesPage />
             </ProtectedRoute>
           }
         />

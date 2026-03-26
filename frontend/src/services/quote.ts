@@ -56,6 +56,7 @@ const idlFactory = ({ IDL }: any) => {
       ["query"]
     ),
     getMyQuoteRequests: IDL.Func([], [IDL.Vec(QuoteRequest)], ["query"]),
+    getOpenRequests: IDL.Func([], [IDL.Vec(QuoteRequest)], ["query"]),
     submitQuote: IDL.Func(
       [IDL.Text, IDL.Nat, IDL.Nat, IDL.Int],
       [IDL.Variant({ ok: Quote, err: Error })],
@@ -110,6 +111,39 @@ export interface Quote {
 // ─── Mock fallback ────────────────────────────────────────────────────────────
 
 const MOCK_REQUESTS: QuoteRequest[] = [];
+
+const MOCK_OPEN_REQUESTS: QuoteRequest[] = [
+  {
+    id: "REQ_1", propertyId: "prop_1", homeowner: "owner-principal-1",
+    serviceType: "HVAC", urgency: "high",
+    description: "AC unit stopped cooling last week. Unit is 12 years old. Needs diagnosis and likely refrigerant recharge or compressor inspection.",
+    status: "open", createdAt: Date.now() - 1000 * 60 * 60 * 3,
+  },
+  {
+    id: "REQ_2", propertyId: "prop_2", homeowner: "owner-principal-2",
+    serviceType: "Roofing", urgency: "medium",
+    description: "Several shingles missing after last storm. Small leak visible in attic near chimney flashing. Need repair estimate before next rain.",
+    status: "open", createdAt: Date.now() - 1000 * 60 * 60 * 18,
+  },
+  {
+    id: "REQ_3", propertyId: "prop_3", homeowner: "owner-principal-3",
+    serviceType: "Plumbing", urgency: "emergency",
+    description: "Pipe burst under kitchen sink — water shut off at main. Need emergency repair ASAP. 1960s copper piping throughout.",
+    status: "quoted", createdAt: Date.now() - 1000 * 60 * 30,
+  },
+  {
+    id: "REQ_4", propertyId: "prop_4", homeowner: "owner-principal-4",
+    serviceType: "Electrical", urgency: "medium",
+    description: "Breaker keeps tripping on kitchen circuit. GFCIs installed but issue persists. 200A panel, house built 1998.",
+    status: "open", createdAt: Date.now() - 1000 * 60 * 60 * 48,
+  },
+  {
+    id: "REQ_5", propertyId: "prop_5", homeowner: "owner-principal-5",
+    serviceType: "Flooring", urgency: "low",
+    description: "Refinish 900 sq ft of original hardwood oak floors. Some boards need replacement. Looking for quotes before scheduling.",
+    status: "open", createdAt: Date.now() - 1000 * 60 * 60 * 72,
+  },
+];
 
 // ─── Actor ────────────────────────────────────────────────────────────────────
 
@@ -201,6 +235,41 @@ export const quoteService = {
     if (!QUOTE_CANISTER_ID) return [...MOCK_REQUESTS];
     const a = await getActor();
     return (await a.getMyQuoteRequests() as any[]).map(fromRequest);
+  },
+
+  async getOpenRequests(): Promise<QuoteRequest[]> {
+    if (!QUOTE_CANISTER_ID) return [...MOCK_OPEN_REQUESTS];
+    const a = await getActor();
+    return (await a.getOpenRequests() as any[]).map(fromRequest);
+  },
+
+  async submitQuote(
+    requestId: string,
+    amountCents: number,
+    timelineDays: number,
+    validUntilMs: number
+  ): Promise<Quote> {
+    if (!QUOTE_CANISTER_ID) {
+      // mock: return a fake pending quote
+      const q: Quote = {
+        id: `QUOTE_${Date.now()}`, requestId,
+        contractor: "local",
+        amount: amountCents, timeline: timelineDays,
+        validUntil: validUntilMs, status: "pending", createdAt: Date.now(),
+      };
+      return q;
+    }
+    const a = await getActor();
+    const result = await a.submitQuote(
+      requestId,
+      BigInt(amountCents),
+      BigInt(timelineDays),
+      BigInt(validUntilMs * 1_000_000) // ms → ns
+    );
+    if ("ok" in result) return fromQuote(result.ok);
+    const key = Object.keys(result.err)[0];
+    const val = result.err[key];
+    throw new Error(typeof val === "string" ? val : key);
   },
 
   async getRequest(id: string): Promise<QuoteRequest | undefined> {

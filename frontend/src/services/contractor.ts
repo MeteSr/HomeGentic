@@ -16,6 +16,9 @@ const idlFactory = ({ IDL }: any) => {
     specialty:     ServiceType,
     email:         IDL.Text,
     phone:         IDL.Text,
+    bio:           IDL.Opt(IDL.Text),
+    licenseNumber: IDL.Opt(IDL.Text),
+    serviceArea:   IDL.Opt(IDL.Text),
     trustScore:    IDL.Nat,
     jobsCompleted: IDL.Nat,
     isVerified:    IDL.Bool,
@@ -26,6 +29,15 @@ const idlFactory = ({ IDL }: any) => {
     specialty: ServiceType,
     email:     IDL.Text,
     phone:     IDL.Text,
+  });
+  const UpdateArgs = IDL.Record({
+    name:          IDL.Text,
+    specialty:     ServiceType,
+    email:         IDL.Text,
+    phone:         IDL.Text,
+    bio:           IDL.Opt(IDL.Text),
+    licenseNumber: IDL.Opt(IDL.Text),
+    serviceArea:   IDL.Opt(IDL.Text),
   });
   const Review = IDL.Record({
     id:         IDL.Text,
@@ -50,8 +62,18 @@ const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: ContractorProfile, err: Error })],
       []
     ),
+    updateProfile: IDL.Func(
+      [UpdateArgs],
+      [IDL.Variant({ ok: ContractorProfile, err: Error })],
+      []
+    ),
     getMyProfile: IDL.Func(
       [],
+      [IDL.Variant({ ok: ContractorProfile, err: Error })],
+      ["query"]
+    ),
+    getContractor: IDL.Func(
+      [IDL.Principal],
       [IDL.Variant({ ok: ContractorProfile, err: Error })],
       ["query"]
     ),
@@ -77,11 +99,14 @@ export interface ContractorProfile {
   specialty:     string;
   email:         string;
   phone:         string;
+  bio:           string | null;
+  licenseNumber: string | null;
+  serviceArea:   string | null;
   trustScore:    number;
   jobsCompleted: number;
   isVerified:    boolean;
   createdAt:     number;   // ms
-  rating?:       number;   // average from reviews; undefined until computed
+  rating?:       number;   // average from reviews; computed client-side
 }
 
 export interface RegisterContractorArgs {
@@ -89,6 +114,16 @@ export interface RegisterContractorArgs {
   specialty: string;
   email:     string;
   phone:     string;
+}
+
+export interface UpdateContractorArgs {
+  name:          string;
+  specialty:     string;
+  email:         string;
+  phone:         string;
+  bio:           string | null;
+  licenseNumber: string | null;
+  serviceArea:   string | null;
 }
 
 // ─── Mock fallback ────────────────────────────────────────────────────────────
@@ -116,6 +151,9 @@ function fromProfile(raw: any): ContractorProfile {
     specialty:     Object.keys(raw.specialty)[0],
     email:         raw.email,
     phone:         raw.phone,
+    bio:           raw.bio[0] ?? null,
+    licenseNumber: raw.licenseNumber[0] ?? null,
+    serviceArea:   raw.serviceArea[0] ?? null,
     trustScore:    Number(raw.trustScore),
     jobsCompleted: Number(raw.jobsCompleted),
     isVerified:    raw.isVerified,
@@ -153,10 +191,23 @@ export const contractorService = {
     return all.sort((a, b) => b.trustScore - a.trustScore);
   },
 
-  async getMyProfile(): Promise<ContractorProfile> {
-    if (!CONTRACTOR_CANISTER_ID) return MOCK_CONTRACTORS[0];
+  async getMyProfile(): Promise<ContractorProfile | null> {
+    if (!CONTRACTOR_CANISTER_ID) return MOCK_CONTRACTORS[0] ?? null;
     const a = await getActor();
-    return unwrap(await a.getMyProfile());
+    const result = await a.getMyProfile();
+    if ("err" in result) return null;
+    return fromProfile(result.ok);
+  },
+
+  async getContractor(principalText: string): Promise<ContractorProfile | null> {
+    if (!CONTRACTOR_CANISTER_ID) {
+      return MOCK_CONTRACTORS.find((c) => c.id === principalText) ?? null;
+    }
+    const a = await getActor();
+    const { Principal: P } = await import("@dfinity/principal");
+    const result = await a.getContractor(P.fromText(principalText));
+    if ("err" in result) return null;
+    return fromProfile(result.ok);
   },
 
   async register(args: RegisterContractorArgs): Promise<ContractorProfile> {
@@ -166,6 +217,19 @@ export const contractorService = {
       specialty: { [args.specialty]: null },
       email:     args.email,
       phone:     args.phone,
+    }));
+  },
+
+  async updateProfile(args: UpdateContractorArgs): Promise<ContractorProfile> {
+    const a = await getActor();
+    return unwrap(await a.updateProfile({
+      name:          args.name,
+      specialty:     { [args.specialty]: null },
+      email:         args.email,
+      phone:         args.phone,
+      bio:           args.bio           ? [args.bio]           : [],
+      licenseNumber: args.licenseNumber ? [args.licenseNumber] : [],
+      serviceArea:   args.serviceArea   ? [args.serviceArea]   : [],
     }));
   },
 

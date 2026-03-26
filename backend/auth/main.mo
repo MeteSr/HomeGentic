@@ -32,6 +32,7 @@ persistent actor Auth {
     createdAt: Int;
     updatedAt: Int;
     isActive: Bool;
+    lastLoggedIn: ?Int;   // null until first recordLogin() call
   };
 
   public type RegisterArgs = {
@@ -139,13 +140,14 @@ persistent actor Auth {
 
     let now = Time.now();
     let profile: UserProfile = {
-      principal = caller;
-      role = args.role;
-      email = args.email;
-      phone = args.phone;
-      createdAt = now;
-      updatedAt = now;
-      isActive = true;
+      principal    = caller;
+      role         = args.role;
+      email        = args.email;
+      phone        = args.phone;
+      createdAt    = now;
+      updatedAt    = now;
+      isActive     = true;
+      lastLoggedIn = null;
     };
 
     users.put(caller, profile);
@@ -171,16 +173,39 @@ persistent actor Auth {
           return #err(#InvalidInput("Email must contain @"));
 
         let updated: UserProfile = {
-          principal = existing.principal;
-          role = existing.role;
-          email = args.email;
-          phone = args.phone;
-          createdAt = existing.createdAt;
-          updatedAt = Time.now();
-          isActive = existing.isActive;
+          principal    = existing.principal;
+          role         = existing.role;
+          email        = args.email;
+          phone        = args.phone;
+          createdAt    = existing.createdAt;
+          updatedAt    = Time.now();
+          isActive     = existing.isActive;
+          lastLoggedIn = existing.lastLoggedIn;
         };
         users.put(msg.caller, updated);
         #ok(updated)
+      };
+    }
+  };
+
+  /// Record the current time as the caller's last login.
+  /// Called by the frontend immediately after reading the profile, so the
+  /// profile read returns the *previous* session's timestamp for comparison.
+  public shared(msg) func recordLogin() : async () {
+    switch (users.get(msg.caller)) {
+      case null {};  // Not registered yet — ignore
+      case (?existing) {
+        let updated: UserProfile = {
+          principal    = existing.principal;
+          role         = existing.role;
+          email        = existing.email;
+          phone        = existing.phone;
+          createdAt    = existing.createdAt;
+          updatedAt    = existing.updatedAt;
+          isActive     = existing.isActive;
+          lastLoggedIn = ?Time.now();
+        };
+        users.put(msg.caller, updated);
       };
     }
   };
