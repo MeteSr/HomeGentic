@@ -365,36 +365,24 @@ test.describe("Property detail page", () => {
   });
 });
 
-// ── 5. Sign & verify — planned (button not yet implemented) ───────────────────
-//
-// These tests document the intended interaction once the "Sign & Verify"
-// button is added to the UI.  They are marked fixme so:
-//   • They show in the test report as "expected failure / planned"
-//   • They automatically become passing tests when the feature ships
-//   • They serve as an executable spec for the developer implementing them
+// ── 5. Sign & verify ─────────────────────────────────────────────────────────
 
-test.describe("Sign & verify action (planned)", () => {
-  test.fixme(
-    "completed contractor job shows a Sign & Verify button",
+test.describe("Sign & verify action", () => {
+  test(
+    "completed contractor job shows a Sign button",
     async ({ page }) => {
       await setup(page);
       await gotoPropertyDetail(page);
-      // Roofing job (id 2) has status "completed" — the homeowner should be
-      // able to trigger verification from here.
-      const roofingCard = page
-        .getByText("Roofing")
-        .locator("..")
-        .locator("..");
+      const roofingCard = page.getByTestId("job-roofing");
       await expect(
-        roofingCard.getByRole("button", { name: /sign|verify/i })
+        roofingCard.getByRole("button", { name: /sign/i })
       ).toBeVisible();
     }
   );
 
-  test.fixme(
+  test(
     "homeowner signing a DIY job transitions its status to verified",
     async ({ page }) => {
-      // DIY jobs only need the homeowner signature — one click to verified.
       await setup(page);
       // Create a fresh DIY job so it starts as pending
       await page.goto("/dashboard");
@@ -408,51 +396,41 @@ test.describe("Sign & verify action (planned)", () => {
 
       // Navigate to property detail and sign the job
       await gotoPropertyDetail(page);
-      const landscapeCard = page
-        .getByText("Landscaping")
-        .locator("..")
-        .locator("..");
-      await landscapeCard.getByRole("button", { name: /sign|verify/i }).click();
+      const landscapeCard = page.getByTestId("job-landscaping");
+      await landscapeCard.getByRole("button", { name: /sign/i }).click();
 
-      // After signing, the status badge should change to "verified"
+      // After signing a DIY job (only homeowner sig needed), status → verified
       await expect(landscapeCard.getByText("verified")).toBeVisible();
-      // The dot should turn green — checked via aria or data attribute once added
     }
   );
 
-  test.fixme(
-    "contractor job requires homeowner AND contractor signature before verified",
+  test(
+    "contractor job requires both signatures — shows awaiting contractor after homeowner signs",
     async ({ page }) => {
-      // Dual-signature rule: homeowner signs first → status stays "in progress"
-      // until the contractor also signs.
       await setup(page);
       await gotoPropertyDetail(page);
-      const roofingCard = page
-        .getByText("Roofing")
-        .locator("..")
-        .locator("..");
+      const roofingCard = page.getByTestId("job-roofing");
 
       // Homeowner signs
       await roofingCard.getByRole("button", { name: /sign/i }).click();
       // Not yet verified — waiting for contractor
       await expect(roofingCard.getByText("verified")).not.toBeVisible();
       await expect(
-        roofingCard.getByText(/awaiting contractor|in.progress/i)
+        roofingCard.getByText(/awaiting contractor/i)
       ).toBeVisible();
     }
   );
 
-  test.fixme(
-    "a fully verified job does not show the Sign & Verify button",
+  test(
+    "a fully verified job does not show the Sign button",
     async ({ page }) => {
-      // Once verified the record is immutable — the sign button must disappear.
       await setup(page);
       await gotoPropertyDetail(page);
-      const hvacCard = page.getByText("HVAC").locator("..").locator("..");
-      // HVAC is already verified in mock data
+      const hvacCard = page.getByTestId("job-hvac");
+      // HVAC is already verified in injected mock data
       await expect(hvacCard.getByText("verified")).toBeVisible();
       await expect(
-        hvacCard.getByRole("button", { name: /sign|verify/i })
+        hvacCard.getByRole("button", { name: /sign/i })
       ).not.toBeVisible();
     }
   );

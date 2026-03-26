@@ -7,6 +7,7 @@ import { Badge } from "@/components/Badge";
 import { GenerateReportModal } from "@/components/GenerateReportModal";
 import { propertyService, Property } from "@/services/property";
 import { jobService, Job } from "@/services/job";
+import { photoService, Photo } from "@/services/photo";
 import { usePropertyStore } from "@/store/propertyStore";
 import { useAuthStore } from "@/store/authStore";
 import toast from "react-hot-toast";
@@ -30,6 +31,7 @@ export default function PropertyDetailPage() {
   const [tab, setTab] = useState<Tab>("timeline");
   const [loading, setLoading] = useState(true);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [photosByJob, setPhotosByJob] = useState<Record<string, Photo[]>>({});
 
   useEffect(() => {
     if (!id) return;
@@ -39,8 +41,27 @@ export default function PropertyDetailPage() {
         if (cached) setProperty(cached);
       }),
       jobService.getByProperty(id).then(setJobs).catch(() => {}),
+      photoService.getByProperty(id).then((photos) => {
+        const map: Record<string, Photo[]> = {};
+        for (const p of photos) {
+          (map[p.jobId] ??= []).push(p);
+        }
+        setPhotosByJob(map);
+      }).catch(() => {}),
     ]).finally(() => setLoading(false));
   }, [id]);
+
+  const handlePhotoUpload = async (jobId: string, file: File) => {
+    try {
+      const photo = await photoService.upload(file, jobId, id!, "PostConstruction", "Job photo");
+      setPhotosByJob((prev) => ({
+        ...prev,
+        [jobId]: [...(prev[jobId] ?? []), photo],
+      }));
+    } catch (err: any) {
+      toast.error(err.message ?? "Photo upload failed");
+    }
+  };
 
   const handleVerify = async (jobId: string) => {
     try {
@@ -125,7 +146,7 @@ export default function PropertyDetailPage() {
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
             <Badge variant={verificationColor as any}>{property.verificationLevel}</Badge>
             <Button icon={<Share2 size={14} />} onClick={() => setShowReportModal(true)}>
-              Share Report
+              Share HomeFax Report
             </Button>
           </div>
         </div>
@@ -210,7 +231,7 @@ export default function PropertyDetailPage() {
           ))}
         </div>
 
-        {tab === "timeline"  && <TimelineTab jobs={jobs} onVerify={handleVerify} currentPrincipal={principal} />}
+        {tab === "timeline"  && <TimelineTab jobs={jobs} onVerify={handleVerify} currentPrincipal={principal} photosByJob={photosByJob} onPhotoUpload={handlePhotoUpload} />}
         {tab === "jobs"      && <JobsTab jobs={jobs} />}
         {tab === "documents" && <DocumentsTab />}
         {tab === "settings"  && <SettingsTab property={property} />}
@@ -239,7 +260,53 @@ function SigPill({ signed, label }: { signed: boolean; label: string }) {
   );
 }
 
-function TimelineTab({ jobs, onVerify, currentPrincipal }: { jobs: Job[]; onVerify: (id: string) => void; currentPrincipal: string | null }) {
+function PhotoStrip({ photos, jobId, onUpload }: { photos: Photo[]; jobId: string; onUpload: (jobId: string, file: File) => void }) {
+  const S = { rule: "#C8C3B8", inkLight: "#7A7268", rust: "#C94C2E", mono: "'IBM Plex Mono', monospace" as const };
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) { onUpload(jobId, file); e.target.value = ""; }
+  };
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
+      {photos.slice(0, 5).map((p) => (
+        <img
+          key={p.id}
+          src={p.url}
+          alt={p.description}
+          title={p.description}
+          style={{ width: 48, height: 48, objectFit: "cover", border: `1px solid ${S.rule}` }}
+        />
+      ))}
+      {photos.length > 5 && (
+        <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>
+          +{photos.length - 5} more
+        </span>
+      )}
+      <button
+        onClick={() => inputRef.current?.click()}
+        style={{
+          padding: "0.2rem 0.6rem",
+          fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase",
+          color: S.inkLight, background: "none", border: `1px solid ${S.rule}`, cursor: "pointer",
+        }}
+      >
+        + Add Photo
+      </button>
+      <input ref={inputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleChange} />
+    </div>
+  );
+}
+
+function TimelineTab({ jobs, onVerify, currentPrincipal, photosByJob, onPhotoUpload }: {
+  jobs: Job[];
+  onVerify: (id: string) => void;
+  currentPrincipal: string | null;
+  photosByJob: Record<string, Photo[]>;
+  onPhotoUpload: (jobId: string, file: File) => void;
+}) {
   const S = { ink: "#0E0E0C", rule: "#C8C3B8", rust: "#C94C2E", inkLight: "#7A7268", mono: "'IBM Plex Mono', monospace" as const, serif: "'Playfair Display', Georgia, serif" as const };
 
   if (jobs.length === 0) {
@@ -262,7 +329,7 @@ function TimelineTab({ jobs, onVerify, currentPrincipal }: { jobs: Job[]; onVeri
         const needsBothSig = !job.isDiy;
 
         return (
-          <div key={job.id} style={{ background: "#fff", padding: "1.25rem" }}>
+          <div key={job.id} data-testid={`job-${job.serviceType.toLowerCase().replace(/\s+/g, "-")}`} style={{ background: "#fff", padding: "1.25rem" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div>
                 <p style={{ fontWeight: 500, fontSize: "0.875rem", marginBottom: "0.125rem" }}>{job.serviceType}</p>
@@ -303,8 +370,22 @@ function TimelineTab({ jobs, onVerify, currentPrincipal }: { jobs: Job[]; onVeri
                     Sign →
                   </button>
                 )}
+                {job.homeownerSigned && !job.contractorSigned && !job.isDiy && !job.verified && (
+                  <span style={{
+                    fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em",
+                    textTransform: "uppercase", color: S.inkLight,
+                  }}>
+                    Awaiting contractor signature
+                  </span>
+                )}
               </div>
             )}
+
+            <PhotoStrip
+              photos={photosByJob[job.id] ?? []}
+              jobId={job.id}
+              onUpload={onPhotoUpload}
+            />
           </div>
         );
       })}

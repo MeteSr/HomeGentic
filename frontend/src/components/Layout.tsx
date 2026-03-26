@@ -28,6 +28,7 @@ export function Layout({ children }: LayoutProps) {
         { to: "/dashboard",      label: "Dashboard" },
         { to: "/market",         label: "Market" },
         { to: "/maintenance",    label: "Maintenance" },
+        { to: "/sensors",        label: "Sensors" },
         { to: "/properties/new", label: "Add Property" },
         { to: "/settings",       label: "Settings" },
       ];

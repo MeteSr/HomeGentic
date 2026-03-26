@@ -134,7 +134,11 @@ export interface Job {
 // ─── Mock store ───────────────────────────────────────────────────────────────
 // Used when JOB_CANISTER_ID is not configured (local dev without dfx, E2E tests).
 
-const MOCK_JOBS: Job[] = [];
+// Seed from Playwright test globals if present (window.__e2e_jobs set by addInitScript)
+const MOCK_JOBS: Job[] =
+  typeof window !== "undefined" && (window as any).__e2e_jobs
+    ? [...(window as any).__e2e_jobs]
+    : [];
 
 // ─── Actor ────────────────────────────────────────────────────────────────────
 
@@ -216,7 +220,7 @@ export const jobService = {
       const newJob: Job = {
         ...job,
         id: String(Date.now()),
-        homeowner: "mock-principal",
+        homeowner: (typeof window !== "undefined" && (window as any).__e2e_principal) || "mock-principal",
         contractor: undefined,
         status: "pending",
         verified: false,

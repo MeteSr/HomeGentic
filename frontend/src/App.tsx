@@ -24,6 +24,7 @@ import PropertyVerifyPage from "@/pages/PropertyVerifyPage";
 import AdminDashboardPage from "@/pages/AdminDashboardPage";
 import OnboardingPage from "@/pages/OnboardingPage";
 import SystemAgesPage from "@/pages/SystemAgesPage";
+import SensorPage from "@/pages/SensorPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuthStore();
@@ -58,7 +59,7 @@ export default function App() {
         position="top-right"
         toastOptions={{
           style: {
-            borderRadius: "0.75rem",
+            borderRadius: 0,
             fontSize: "0.875rem",
             fontWeight: 500,
           },
@@ -193,6 +194,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <OnboardingPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/sensors"
+          element={
+            <ProtectedRoute>
+              <SensorPage />
             </ProtectedRoute>
           }
         />
