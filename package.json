@@ -3,15 +3,33 @@
   "version": "0.1.0",
   "description": "Blockchain-verified home maintenance history platform on Internet Computer Protocol",
   "private": true,
+  "workspaces": ["frontend"],
   "scripts": {
-    "deploy:local": "bash scripts/deploy-local.sh",
+    "deploy": "bash scripts/deploy.sh",
+    "deploy:testnet": "bash scripts/deploy.sh --network testnet",
     "start": "dfx start --background",
     "stop": "dfx stop",
-    "test": "bash scripts/test-backend.sh",
-    "frontend": "cd src/frontend && npm run dev",
-    "generate": "dfx generate"
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "cd frontend && npm run test",
+    "test:unit:watch": "cd frontend && npm run test:watch",
+    "test:unit:coverage": "cd frontend && npm run test:coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:canister": "bash scripts/test-backend.sh",
+    "frontend": "cd frontend && npm run dev",
+    "generate": "dfx generate",
+    "status": "bash scripts/status.sh",
+    "upgrade": "bash scripts/upgrade.sh"
   },
   "devDependencies": {
+    "@playwright/test": "^1.44.0",
     "typescript": "^5.3.3"
+  },
+  "overrides": {
+    "@dfinity/agent": "2.1.3",
+    "@dfinity/auth-client": "2.1.3",
+    "@dfinity/candid": "2.1.3",
+    "@dfinity/identity": "2.1.3",
+    "@dfinity/principal": "2.1.3"
   }
 }

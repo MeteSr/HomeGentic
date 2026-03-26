@@ -1,16 +1,64 @@
 {
   "canisters": {
     "auth": {
-      "main": "src/auth/main.mo",
+      "main": "backend/auth/main.mo",
       "type": "motoko"
     },
     "property": {
-      "main": "src/property/main.mo",
+      "main": "backend/property/main.mo",
       "type": "motoko"
     },
+    "job": {
+      "main": "backend/job/main.mo",
+      "type": "motoko"
+    },
+    "contractor": {
+      "main": "backend/contractor/main.mo",
+      "type": "motoko"
+    },
+    "quote": {
+      "main": "backend/quote/main.mo",
+      "type": "motoko"
+    },
+    "price": {
+      "main": "backend/price/main.mo",
+      "type": "motoko"
+    },
+    "payment": {
+      "main": "backend/payment/main.mo",
+      "type": "motoko"
+    },
+    "photo": {
+      "main": "backend/photo/main.mo",
+      "type": "motoko"
+    },
+    "monitoring": {
+      "main": "backend/monitoring/main.mo",
+      "type": "motoko"
+    },
+    "market": {
+      "main": "backend/market/main.mo",
+      "type": "motoko"
+    },
+    "report": {
+      "main": "backend/report/main.mo",
+      "type": "motoko"
+    },
+    "maintenance": {
+      "main": "backend/maintenance/main.mo",
+      "type": "motoko"
+    },
+    "sensor": {
+      "main": "backend/sensor/main.mo",
+      "type": "motoko"
+    },
+    "internet_identity": {
+      "type": "pull",
+      "id": "rdmx6-jaaaa-aaaaa-aaadq-cai"
+    },
     "frontend": {
-      "dependencies": ["auth", "property"],
-      "source": ["src/frontend/dist"],
+      "dependencies": ["auth", "property", "internet_identity"],
+      "source": ["frontend/dist"],
       "type": "assets",
       "workspace": "frontend"
     }
@@ -18,7 +66,7 @@
   "defaults": {
     "build": {
       "args": "",
-      "packtool": ""
+      "packtool": "mops sources"
     }
   },
   "output_env_file": ".env",

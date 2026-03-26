@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install DFX
+        run: sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
+      - name: Start replica
+        run: dfx start --background --clean
+      - name: Deploy canisters
+        run: bash scripts/deploy.sh
+      - name: Run tests
+        run: bash scripts/test-backend.sh
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: cd frontend && npm install
+      - run: cd frontend && npm run build

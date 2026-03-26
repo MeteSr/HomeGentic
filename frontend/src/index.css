@@ -1,0 +1,275 @@
+/* ─── Design tokens ──────────────────────────────────────────────────────────── */
+
+:root {
+  --ink:    #0E0E0C;
+  --paper:  #F4F1EB;
+  --rule:   #C8C3B8;
+  --rust:   #C94C2E;
+  --rust-dark: #A83D23;
+  --sage:   #3D6B57;
+  --gold:   #B89040;
+  --white:  #FFFFFF;
+  --ink-mid: #4A4A45;
+  --ink-light: #7A7268;
+  --paper-dark: #EDE9E0;
+
+  --serif: 'Playfair Display', Georgia, serif;
+  --mono:  'IBM Plex Mono', 'Courier New', monospace;
+  --sans:  'IBM Plex Sans', system-ui, sans-serif;
+}
+
+/* ─── Reset ─────────────────────────────────────────────────────────────────── */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--sans);
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--ink);
+  background-color: var(--paper);
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+button {
+  font-family: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+/* ─── Form elements ──────────────────────────────────────────────────────────── */
+
+.form-label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-mid);
+  margin-bottom: 0.5rem;
+}
+
+.form-input {
+  display: block;
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
+  font-family: var(--sans);
+  color: var(--ink);
+  background-color: var(--white);
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.form-input:focus {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 2px rgba(14, 14, 12, 0.08);
+}
+
+.form-input::placeholder {
+  color: var(--ink-light);
+  font-weight: 300;
+}
+
+.form-input:disabled {
+  background-color: var(--paper-dark);
+  color: var(--ink-light);
+  cursor: not-allowed;
+}
+
+select.form-input {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%237A7268' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  padding-right: 2.5rem;
+}
+
+textarea.form-input {
+  resize: vertical;
+  min-height: 5rem;
+}
+
+/* ─── Spinners ───────────────────────────────────────────────────────────────── */
+
+.btn-spinner {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  flex-shrink: 0;
+}
+
+.spinner-lg {
+  display: block;
+  width: 3rem;
+  height: 3rem;
+  border: 2px solid var(--rule);
+  border-top-color: var(--rust);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--paper-dark); }
+::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 0; }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-light); }
+
+/* ─── Focus ──────────────────────────────────────────────────────────────────── */
+
+:focus-visible {
+  outline: 2px solid var(--rust);
+  outline-offset: 2px;
+}
+
+/* ─── Selection ──────────────────────────────────────────────────────────────── */
+
+::selection {
+  background-color: #F5C5B8;
+  color: var(--ink);
+}
+
+/* ─── Table defaults ─────────────────────────────────────────────────────────── */
+
+table { border-collapse: collapse; }
+
+/* ─── Responsive nav ─────────────────────────────────────────────────────────── */
+
+.rsp-nav-desktop { display: flex; align-items: center; gap: 0; }
+.rsp-nav-user    { display: flex; align-items: center; gap: 1rem; }
+
+.rsp-hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  color: var(--ink-light);
+}
+.rsp-hamburger:hover { color: var(--ink); }
+
+.rsp-mobile-menu {
+  display: none;
+  flex-direction: column;
+  padding: 0.75rem 1.5rem 1rem;
+  background: var(--white);
+  border-top: 1px solid var(--rule);
+  gap: 0;
+}
+.rsp-mobile-menu.open { display: flex; }
+
+.rsp-mobile-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 0;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-light);
+  text-decoration: none;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--rule);
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: color 0.15s;
+}
+.rsp-mobile-link:hover,
+.rsp-mobile-link.active { color: var(--rust); }
+
+.rsp-mobile-divider { height: 1px; background-color: var(--rule); margin: 0.5rem 0; }
+
+@media (max-width: 640px) {
+  .rsp-nav-desktop { display: none; }
+  .rsp-nav-user    { display: none; }
+  .rsp-hamburger   { display: flex; }
+}
+
+/* ─── Responsive two-column grid ─────────────────────────────────────────────── */
+
+.rsp-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+
+@media (max-width: 640px) {
+  .rsp-grid-2 { grid-template-columns: 1fr; }
+}
+
+/* ─── Responsive activity row ────────────────────────────────────────────────── */
+
+.rsp-activity-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+}
+
+.rsp-activity-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+  gap: 0.25rem;
+}
+
+@media (max-width: 480px) {
+  .rsp-activity-row { flex-wrap: wrap; }
+  .rsp-activity-right {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: 3.25rem;
+  }
+}
+
+/* ─── Marquee ────────────────────────────────────────────────────────────────── */
+
+@keyframes marquee-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* ─── Print / PDF (HomeFax Report) ───────────────────────────────────────────── */
+
+@media print {
+  .no-print { display: none !important; }
+  body { background-color: white; }
+  #homefax-report { max-width: 100% !important; padding: 0 !important; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  [data-report-card] { break-inside: avoid; }
+}

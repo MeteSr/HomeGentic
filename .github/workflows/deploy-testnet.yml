@@ -1,0 +1,17 @@
+name: Deploy Testnet
+
+on:
+  push:
+    branches: [develop]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install DFX
+        run: sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
+      - name: Deploy to testnet
+        run: bash scripts/deploy.sh --network testnet
+        env:
+          DFX_IDENTITY_PEM: ${{ secrets.DFX_IDENTITY_PEM }}

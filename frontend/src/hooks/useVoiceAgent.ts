@@ -1,0 +1,275 @@
+import { useState, useRef, useCallback } from "react";
+import { propertyService } from "../services/property";
+import { jobService } from "../services/job";
+import { executeTool, toolActionLabel, type ToolName } from "../services/agentTools";
+
+// ── Minimal message types (mirrors Anthropic SDK without importing it) ────────
+
+type TextBlock      = { type: "text";       text: string };
+type ToolUseBlock   = { type: "tool_use";   id: string; name: string; input: Record<string, unknown> };
+type ToolResultBlock = { type: "tool_result"; tool_use_id: string; content: string };
+type ContentBlock   = TextBlock | ToolUseBlock | ToolResultBlock;
+
+interface MessageParam {
+  role: "user" | "assistant";
+  content: string | ContentBlock[];
+}
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export type VoiceAgentState =
+  | "idle"
+  | "listening"
+  | "processing"
+  | "speaking"
+  | "error";
+
+export interface UseVoiceAgentReturn {
+  state: VoiceAgentState;
+  transcript: string;
+  response: string;
+  error: string | null;
+  isSupported: boolean;
+  startListening: () => void;
+  stopListening: () => void;
+  reset: () => void;
+}
+
+// ── Config ────────────────────────────────────────────────────────────────────
+
+const PROXY_URL =
+  (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:3001";
+
+const MAX_AGENT_TURNS = 5; // safety cap — prevents runaway loops
+
+// ── Hook ──────────────────────────────────────────────────────────────────────
+
+export function useVoiceAgent(): UseVoiceAgentReturn {
+  const [state, setState] = useState<VoiceAgentState>("idle");
+  const [transcript, setTranscript]   = useState("");
+  const [response, setResponse]       = useState("");
+  const [error, setError]             = useState<string | null>(null);
+
+  const recognitionRef       = useRef<any>(null);
+  const finalTranscriptRef   = useRef("");
+
+  const SpeechRecognition =
+    (window as any).SpeechRecognition ||
+    (window as any).webkitSpeechRecognition;
+  const isSupported = typeof SpeechRecognition !== "undefined";
+
+  // ── Context builder ───────────────────────────────────────────────────────
+
+  const buildContext = async () => {
+    const [propertiesResult, jobsResult] = await Promise.allSettled([
+      propertyService.getMyProperties(),
+      jobService.getAll(),
+    ]);
+    return {
+      properties:
+        propertiesResult.status === "fulfilled"
+          ? propertiesResult.value.map((p) => ({
+              address: p.address,
+              city: p.city,
+              state: p.state,
+              zipCode: p.zipCode,
+              propertyType: p.propertyType,
+              yearBuilt: Number(p.yearBuilt),
+              squareFeet: Number(p.squareFeet),
+              verificationLevel: p.verificationLevel,
+            }))
+          : [],
+      recentJobs:
+        jobsResult.status === "fulfilled"
+          ? jobsResult.value.slice(0, 10).map((j) => ({
+              serviceType: j.serviceType,
+              description: j.description,
+              contractorName: j.contractorName,
+              amount: j.amount,
+              status: j.status,
+            }))
+          : [],
+    };
+  };
+
+  // ── Agentic loop ──────────────────────────────────────────────────────────
+  //
+  // Runs repeated POST /api/agent turns until Claude returns a final "answer".
+  // Tool calls are executed here in the browser so they use the user's ICP
+  // identity — the proxy never touches authentication.
+
+  const runAgentLoop = useCallback(async (userMessage: string) => {
+    setState("processing");
+    setResponse("");
+
+    try {
+      const context = await buildContext();
+      const messages: MessageParam[] = [
+        { role: "user", content: userMessage },
+      ];
+
+      for (let turn = 0; turn < MAX_AGENT_TURNS; turn++) {
+        const res = await fetch(`${PROXY_URL}/api/agent`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages, context }),
+        });
+
+        if (!res.ok) throw new Error(`Proxy error: HTTP ${res.status}`);
+        const data = await res.json();
+
+        // ── Final answer ─────────────────────────────────────────────────
+        if (data.type === "answer") {
+          setResponse(data.text);
+          speak(data.text);
+          return;
+        }
+
+        // ── Tool calls ───────────────────────────────────────────────────
+        if (data.type === "tool_calls") {
+          const labels = (data.toolCalls as { name: ToolName }[])
+            .map((tc) => toolActionLabel(tc.name))
+            .join(", ");
+          setResponse(`Working on it: ${labels}…`);
+
+          // Append Claude's assistant message (contains tool_use blocks)
+          messages.push(data.assistantMessage as MessageParam);
+
+          // Execute each tool in the browser, collect results
+          const toolResults: ToolResultBlock[] = await Promise.all(
+            (data.toolCalls as { id: string; name: ToolName; input: Record<string, unknown> }[])
+              .map(async (tc) => {
+                const result = await executeTool(tc.name, tc.input);
+                return {
+                  type: "tool_result" as const,
+                  tool_use_id: tc.id,
+                  content: JSON.stringify(result),
+                };
+              })
+          );
+
+          // Feed results back as a user turn
+          messages.push({ role: "user", content: toolResults });
+          continue;
+        }
+
+        // Unexpected response shape — bail out
+        throw new Error("Unexpected response from agent");
+      }
+
+      // Loop exhausted without a final answer
+      const fallback = "I ran into trouble completing that. Please try again.";
+      setResponse(fallback);
+      speak(fallback);
+    } catch (e) {
+      const msg =
+        e instanceof Error
+          ? e.message
+          : "Could not reach the HomeFax assistant. Please try again.";
+      setError(msg);
+      setState("error");
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── TTS ───────────────────────────────────────────────────────────────────
+
+  const speak = (text: string) => {
+    setState("speaking");
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate  = 0.95;
+    utterance.pitch = 1.0;
+
+    const voices = window.speechSynthesis.getVoices();
+    const preferred = voices.find(
+      (v) =>
+        v.lang.startsWith("en") &&
+        (v.name.includes("Natural") ||
+          v.name.includes("Neural") ||
+          v.name.includes("Samantha") ||
+          v.name.includes("Google"))
+    );
+    if (preferred) utterance.voice = preferred;
+
+    utterance.onend  = () => setState("idle");
+    utterance.onerror = () => setState("idle");
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // ── Speech recognition ────────────────────────────────────────────────────
+
+  const startListening = useCallback(() => {
+    if (!isSupported) {
+      setError("Voice input is not supported in this browser. Try Chrome.");
+      setState("error");
+      return;
+    }
+
+    setTranscript("");
+    setResponse("");
+    setError(null);
+    finalTranscriptRef.current = "";
+
+    const recognition = new SpeechRecognition();
+    recognition.lang            = "en-US";
+    recognition.interimResults  = true;
+    recognition.maxAlternatives = 1;
+    recognition.continuous      = false;
+
+    recognition.onresult = (event: any) => {
+      let interim = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const r = event.results[i];
+        if (r.isFinal) finalTranscriptRef.current += r[0].transcript;
+        else interim += r[0].transcript;
+      }
+      setTranscript(finalTranscriptRef.current + interim);
+    };
+
+    recognition.onend = () => {
+      const text = finalTranscriptRef.current.trim();
+      if (text) runAgentLoop(text);
+      else setState("idle");
+    };
+
+    recognition.onerror = (event: any) => {
+      if (event.error === "no-speech") {
+        setState("idle");
+      } else {
+        setError(`Microphone error: ${event.error}`);
+        setState("error");
+      }
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setState("listening");
+  }, [isSupported, runAgentLoop]);
+
+  const stopListening = useCallback(() => {
+    recognitionRef.current?.stop();
+  }, []);
+
+  const reset = useCallback(() => {
+    recognitionRef.current?.abort();
+    window.speechSynthesis.cancel();
+    setTranscript("");
+    setResponse("");
+    setError(null);
+    finalTranscriptRef.current = "";
+    setState("idle");
+  }, []);
+
+  return {
+    state,
+    transcript,
+    response,
+    error,
+    isSupported,
+    startListening,
+    stopListening,
+    reset,
+  };
+}

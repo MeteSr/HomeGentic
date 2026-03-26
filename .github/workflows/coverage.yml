@@ -1,0 +1,15 @@
+name: Code Coverage
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install DFX
+        run: sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
+      - name: Run tests with coverage
+        run: bash scripts/test-backend.sh

@@ -1,0 +1,351 @@
+/**
+ * HomeFax Maintenance Prediction Canister
+ *
+ * Deterministic prediction engine for home system health and maintenance scheduling.
+ *
+ * - `predictMaintenance` is a stateless query — no cycles, instant response.
+ * - Schedule entries are stored on-chain so homeowners track planned work.
+ * - Embedded cost tables use 2024 national averages (Angi / HomeAdvisor data).
+ */
+
+import Array    "mo:base/Array";
+import HashMap  "mo:base/HashMap";
+import Int      "mo:base/Int";
+import Iter     "mo:base/Iter";
+import Nat      "mo:base/Nat";
+import Option   "mo:base/Option";
+import Principal "mo:base/Principal";
+import Result   "mo:base/Result";
+import Text     "mo:base/Text";
+import Time     "mo:base/Time";
+
+persistent actor Maintenance {
+
+  // ─── Input Types ──────────────────────────────────────────────────────────────
+
+  /// Minimal job summary the frontend passes in.
+  public type JobInput = {
+    serviceType:   Text;
+    completedYear: Nat;
+  };
+
+  // ─── Output Types ─────────────────────────────────────────────────────────────
+
+  public type UrgencyLevel = { #Critical; #Soon; #Watch; #Good };
+
+  public type SystemPrediction = {
+    systemName:             Text;
+    lastServiceYear:        Nat;      // 0 = never serviced (using original install)
+    percentLifeUsed:        Nat;      // 0–100+; can exceed 100 if overdue
+    yearsRemaining:         Int;      // negative = overdue
+    urgency:                UrgencyLevel;
+    estimatedCostLowCents:  Nat;
+    estimatedCostHighCents: Nat;
+    recommendation:         Text;
+    diyViable:              Bool;     // true if typical homeowner can DIY
+  };
+
+  public type AnnualTask = {
+    task:          Text;
+    frequency:     Text;   // "Monthly" | "Quarterly" | "Semi-annually" | "Annually"
+    season:        ?Text;  // "Spring" | "Fall" | null = any time
+    estimatedCost: Text;   // "$0 (DIY)" or "$X–$Y"
+    diyViable:     Bool;
+  };
+
+  public type MaintenanceReport = {
+    systemPredictions: [SystemPrediction];
+    annualTasks:       [AnnualTask];
+    totalBudgetLowCents:  Nat;    // sum of all Critical + Soon low estimates
+    totalBudgetHighCents: Nat;
+    generatedAt:       Time.Time;
+  };
+
+  /// A scheduled maintenance entry the homeowner commits to.
+  public type ScheduleEntry = {
+    id:                Text;
+    propertyId:        Text;
+    systemName:        Text;
+    taskDescription:   Text;
+    plannedYear:       Nat;
+    plannedMonth:      ?Nat;
+    estimatedCostCents: ?Nat;
+    isCompleted:       Bool;
+    createdBy:         Principal;
+    createdAt:         Time.Time;
+  };
+
+  public type Error = {
+    #NotFound;
+    #Unauthorized;
+    #InvalidInput: Text;
+  };
+
+  public type Metrics = {
+    scheduleEntries: Nat;
+    completedEntries: Nat;
+    isPaused: Bool;
+  };
+
+  // ─── Embedded System Tables ───────────────────────────────────────────────────
+
+  private type SystemSpec = {
+    name:            Text;
+    lifespanYears:   Nat;
+    costLowCents:    Nat;
+    costHighCents:   Nat;
+    diyViable:       Bool;
+  };
+
+  private let SYSTEMS : [SystemSpec] = [
+    { name = "HVAC";         lifespanYears = 18; costLowCents = 800_000;   costHighCents = 1_500_000; diyViable = false },
+    { name = "Roofing";      lifespanYears = 25; costLowCents = 1_500_000; costHighCents = 3_500_000; diyViable = false },
+    { name = "Water Heater"; lifespanYears = 12; costLowCents = 120_000;   costHighCents = 350_000;   diyViable = false },
+    { name = "Windows";      lifespanYears = 22; costLowCents = 800_000;   costHighCents = 2_400_000; diyViable = false },
+    { name = "Electrical";   lifespanYears = 35; costLowCents = 200_000;   costHighCents = 600_000;   diyViable = false },
+    { name = "Plumbing";     lifespanYears = 50; costLowCents = 400_000;   costHighCents = 1_500_000; diyViable = false },
+    { name = "Flooring";     lifespanYears = 25; costLowCents = 300_000;   costHighCents = 2_000_000; diyViable = true  },
+    { name = "Insulation";   lifespanYears = 30; costLowCents = 150_000;   costHighCents = 500_000;   diyViable = true  },
+  ];
+
+  private let ANNUAL_TASKS : [AnnualTask] = [
+    { task = "Replace HVAC air filter";          frequency = "Quarterly";     season = null;       estimatedCost = "$10–$30 (DIY)";     diyViable = true  },
+    { task = "Clean gutters";                    frequency = "Semi-annually"; season = ?"Fall";    estimatedCost = "$100–$250";          diyViable = true  },
+    { task = "Clean dryer vent";                 frequency = "Annually";      season = null;       estimatedCost = "$0–$150";            diyViable = true  },
+    { task = "Flush water heater";               frequency = "Annually";      season = null;       estimatedCost = "$0 (DIY)";           diyViable = true  },
+    { task = "Test smoke & CO detectors";        frequency = "Annually";      season = null;       estimatedCost = "$0 (DIY)";           diyViable = true  },
+    { task = "Inspect roof for damage";          frequency = "Annually";      season = ?"Spring";  estimatedCost = "$0–$300";            diyViable = true  },
+    { task = "Check weatherstripping & caulk";   frequency = "Annually";      season = ?"Fall";    estimatedCost = "$20–$80 (DIY)";     diyViable = true  },
+    { task = "Service garage door springs/tracks"; frequency = "Annually";    season = null;       estimatedCost = "$0–$200";            diyViable = true  },
+    { task = "HVAC professional tune-up";        frequency = "Annually";      season = ?"Spring";  estimatedCost = "$80–$150";           diyViable = false },
+    { task = "Chimney inspection & cleaning";    frequency = "Annually";      season = ?"Fall";    estimatedCost = "$150–$350";          diyViable = false },
+  ];
+
+  // ─── Stable State ─────────────────────────────────────────────────────────────
+
+  private var scheduleCounter: Nat = 0;
+  private var isPaused: Bool = false;
+  private var adminListEntries: [Principal] = [];
+  private var scheduleEntries: [(Text, ScheduleEntry)] = [];
+
+  // ─── Transient State ──────────────────────────────────────────────────────────
+
+  private transient var schedule = HashMap.fromIter<Text, ScheduleEntry>(
+    scheduleEntries.vals(), 64, Text.equal, Text.hash
+  );
+
+  // ─── Upgrade Hooks ────────────────────────────────────────────────────────────
+
+  system func preupgrade() {
+    scheduleEntries := Iter.toArray(schedule.entries());
+  };
+
+  system func postupgrade() {
+    scheduleEntries := [];
+  };
+
+  // ─── Private Helpers ──────────────────────────────────────────────────────────
+
+  private func isAdmin(p: Principal) : Bool {
+    Option.isSome(Array.find<Principal>(adminListEntries, func(a) { a == p }))
+  };
+
+  private func requireActive() : Result.Result<(), Error> {
+    if (isPaused) #err(#InvalidInput("Canister is paused")) else #ok(())
+  };
+
+  private func currentYear() : Nat {
+    let secsPerYear : Nat = 31_536_000;
+    let secsSinceEpoch = Int.abs(Time.now()) / 1_000_000_000;
+    1970 + secsSinceEpoch / secsPerYear
+  };
+
+  private func urgencyFor(pctUsed: Nat) : UrgencyLevel {
+    if      (pctUsed >= 100) #Critical
+    else if (pctUsed >= 75)  #Soon
+    else if (pctUsed >= 50)  #Watch
+    else                     #Good
+  };
+
+  private func recommendationFor(sys: SystemSpec, urgency: UrgencyLevel, yearsRemaining: Int) : Text {
+    switch (urgency) {
+      case (#Critical) {
+        "⚠️ " # sys.name # " is past expected lifespan. " #
+        "Budget $" # Nat.toText(sys.costLowCents / 100) # "–$" # Nat.toText(sys.costHighCents / 100) #
+        " and plan replacement immediately."
+      };
+      case (#Soon) {
+        "📅 " # sys.name # " has roughly " # Int.toText(yearsRemaining) # " year(s) remaining. " #
+        "Start saving now — typical cost $" # Nat.toText(sys.costLowCents / 100) #
+        "–$" # Nat.toText(sys.costHighCents / 100) # "."
+      };
+      case (#Watch) {
+        "👁 " # sys.name # " is in good shape but worth monitoring. " #
+        "Schedule routine inspection every 2–3 years."
+      };
+      case (#Good) {
+        "✅ " # sys.name # " is well within expected lifespan. No action needed."
+      };
+    }
+  };
+
+  // ─── Core: Predict Maintenance ────────────────────────────────────────────────
+
+  /// Stateless query — no state change, no cycles cost.
+  /// Pass all job history so the engine can determine last service year per system.
+  public query func predictMaintenance(
+    yearBuilt: Nat,
+    jobs:      [JobInput]
+  ) : async MaintenanceReport {
+    let year = currentYear();
+
+    var predictions : [SystemPrediction] = [];
+    var budgetLow  : Nat = 0;
+    var budgetHigh : Nat = 0;
+
+    for (sys in SYSTEMS.vals()) {
+      // Find the most recent job year for this system
+      var lastYear : Nat = yearBuilt;
+      for (job in jobs.vals()) {
+        if (job.serviceType == sys.name and job.completedYear > lastYear) {
+          lastYear := job.completedYear;
+        };
+      };
+
+      let age        : Nat = if (year > lastYear) year - lastYear else 0;
+      let pctUsed    : Nat = age * 100 / sys.lifespanYears;
+      let remaining  : Int = (sys.lifespanYears : Int) - (age : Int);
+      let urgency                = urgencyFor(pctUsed);
+
+      let pred : SystemPrediction = {
+        systemName             = sys.name;
+        lastServiceYear        = lastYear;
+        percentLifeUsed        = pctUsed;
+        yearsRemaining         = remaining;
+        urgency;
+        estimatedCostLowCents  = sys.costLowCents;
+        estimatedCostHighCents = sys.costHighCents;
+        recommendation         = recommendationFor(sys, urgency, remaining);
+        diyViable              = sys.diyViable;
+      };
+      predictions := Array.append(predictions, [pred]);
+
+      // Accumulate budget for Critical and Soon items only
+      switch (urgency) {
+        case (#Critical) { budgetLow += sys.costLowCents; budgetHigh += sys.costHighCents };
+        case (#Soon)     { budgetLow += sys.costLowCents; budgetHigh += sys.costHighCents };
+        case _           {};
+      };
+    };
+
+    // Sort predictions: Critical first, then Soon, Watch, Good
+    let sorted = Array.sort<SystemPrediction>(
+      predictions,
+      func(a, b) {
+        let rankA = switch (a.urgency) { case (#Critical) 0; case (#Soon) 1; case (#Watch) 2; case (#Good) 3 };
+        let rankB = switch (b.urgency) { case (#Critical) 0; case (#Soon) 1; case (#Watch) 2; case (#Good) 3 };
+        if      (rankA < rankB) #less
+        else if (rankA > rankB) #greater
+        else                    #equal
+      }
+    );
+
+    {
+      systemPredictions    = sorted;
+      annualTasks          = ANNUAL_TASKS;
+      totalBudgetLowCents  = budgetLow;
+      totalBudgetHighCents = budgetHigh;
+      generatedAt          = Time.now();
+    }
+  };
+
+  // ─── Schedule Management ─────────────────────────────────────────────────────
+
+  public shared(msg) func createScheduleEntry(
+    propertyId:         Text,
+    systemName:         Text,
+    taskDescription:    Text,
+    plannedYear:        Nat,
+    plannedMonth:       ?Nat,
+    estimatedCostCents: ?Nat
+  ) : async Result.Result<ScheduleEntry, Error> {
+    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+    if (Text.size(propertyId) == 0) return #err(#InvalidInput("propertyId cannot be empty"));
+    if (Text.size(systemName) == 0) return #err(#InvalidInput("systemName cannot be empty"));
+
+    scheduleCounter += 1;
+    let id = "SCH_" # Nat.toText(scheduleCounter);
+
+    let entry : ScheduleEntry = {
+      id;
+      propertyId;
+      systemName;
+      taskDescription;
+      plannedYear;
+      plannedMonth;
+      estimatedCostCents;
+      isCompleted = false;
+      createdBy   = msg.caller;
+      createdAt   = Time.now();
+    };
+    schedule.put(id, entry);
+    #ok(entry)
+  };
+
+  public query func getScheduleByProperty(propertyId: Text) : async [ScheduleEntry] {
+    Iter.toArray(Iter.filter(schedule.vals(), func(e: ScheduleEntry) : Bool {
+      e.propertyId == propertyId
+    }))
+  };
+
+  public shared(msg) func markCompleted(entryId: Text) : async Result.Result<ScheduleEntry, Error> {
+    switch (schedule.get(entryId)) {
+      case null { #err(#NotFound) };
+      case (?entry) {
+        if (entry.createdBy != msg.caller and not isAdmin(msg.caller))
+          return #err(#Unauthorized);
+        let updated : ScheduleEntry = {
+          id                 = entry.id;
+          propertyId         = entry.propertyId;
+          systemName         = entry.systemName;
+          taskDescription    = entry.taskDescription;
+          plannedYear        = entry.plannedYear;
+          plannedMonth       = entry.plannedMonth;
+          estimatedCostCents = entry.estimatedCostCents;
+          isCompleted        = true;
+          createdBy          = entry.createdBy;
+          createdAt          = entry.createdAt;
+        };
+        schedule.put(entryId, updated);
+        #ok(updated)
+      };
+    }
+  };
+
+  // ─── Admin Functions ──────────────────────────────────────────────────────────
+
+  public shared(msg) func addAdmin(newAdmin: Principal) : async Result.Result<(), Error> {
+    if (adminListEntries.size() > 0 and not isAdmin(msg.caller))
+      return #err(#Unauthorized);
+    adminListEntries := Array.append(adminListEntries, [newAdmin]);
+    #ok(())
+  };
+
+  public shared(msg) func pause() : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#Unauthorized);
+    isPaused := true;
+    #ok(())
+  };
+
+  public shared(msg) func unpause() : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#Unauthorized);
+    isPaused := false;
+    #ok(())
+  };
+
+  public query func getMetrics() : async Metrics {
+    var completed = 0;
+    for (e in schedule.vals()) { if (e.isCompleted) { completed += 1 } };
+    { scheduleEntries = schedule.size(); completedEntries = completed; isPaused }
+  };
+}

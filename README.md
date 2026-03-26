@@ -1,4 +1,4 @@
-# HomeFax 🏠
+# HomeFax
 
 **The Carfax for Homes** — Blockchain-verified home maintenance history on the Internet Computer Protocol (ICP).
 
@@ -6,45 +6,42 @@ HomeFax gives homeowners an immutable, tamper-proof record of every repair, upgr
 
 ---
 
-## Project Overview
+## Stack
 
 | Layer | Technology |
 |---|---|
 | Blockchain | Internet Computer Protocol (ICP) |
-| Backend | Motoko canisters |
+| Backend | Motoko canisters (9 total) |
 | Auth | ICP Internet Identity |
 | Frontend | React + TypeScript + Vite |
-
-### Two-Canister Architecture
-
-- **`auth` canister** — User registration, profiles, and role management (Homeowner / Contractor / Realtor)
-- **`property` canister** — Property registration, verification, and tier-based limits
+| AI Agents | Node.js + Claude API (Anthropic) |
 
 ---
 
-## Features Implemented
+## Backend Canisters
 
-### Auth Canister
-- [x] User registration with roles (Homeowner, Contractor, Realtor)
-- [x] Profile management (get, update)
-- [x] Role checking
-- [x] Admin controls (addAdmin, pause, unpause)
-- [x] Platform metrics
-- [x] Upgrade hooks for data persistence
+| Canister | Responsibility |
+|---|---|
+| `auth` | User registration, profiles, role management (Homeowner / Contractor / Realtor) |
+| `property` | Property registration, verification, tier-based limits |
+| `job` | Maintenance job tracking with dual-signature verification |
+| `contractor` | Contractor profiles, specialty, trust scores |
+| `quote` | Quote request / submission with tier-based rate limiting |
+| `payment` | Subscription management and tier tracking |
+| `photo` | Job photo storage with SHA-256 deduplication and quota enforcement |
+| `price` | Static pricing table for all subscription tiers |
+| `monitoring` | Cost tracking, metrics aggregation, profitability analysis, alerting |
 
-### Property Canister
-- [x] Property registration with type and tier
-- [x] Tier-based property limits (Free=1, Pro=5, Premium=25, ContractorPro=unlimited)
-- [x] Admin verification levels (Unverified, Basic, Premium)
-- [x] Admin controls (addAdmin, pause, unpause)
-- [x] Platform metrics
-- [x] Upgrade hooks for data persistence
+---
 
-### Frontend
-- [x] React + TypeScript + Vite scaffold
-- [x] Internet Identity authentication flow
-- [x] Landing page
-- [x] Backend status page (shows canister IDs and connection state)
+## AI Agents
+
+| Agent | Location | Status |
+|---|---|---|
+| Voice Assistant | `agents/voice/` | Active |
+| Predictive Maintenance | `agents/maintenance/` | Planned |
+| Market Intelligence | `agents/market/` | Planned |
+| Scheduling | `agents/scheduling/` | Planned |
 
 ---
 
@@ -56,132 +53,96 @@ HomeFax gives homeowners an immutable, tamper-proof record of every repair, upgr
 - Node.js >= 18
 - npm >= 9
 
-### Installation
+### 1. Install dependencies
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/MeteSr/HomeFax.git
-cd HomeFax
+# Frontend
+cd frontend && npm install && cd ..
 
-# 2. Install frontend dependencies
-cd src/frontend && npm install && cd ../..
+# Voice agent proxy
+cd agents/voice && npm install && cd ../..
 ```
 
-### Deploy Locally
+### 2. Configure environment
 
 ```bash
-# Start dfx and deploy all canisters
-bash scripts/deploy-local.sh
+cp .env.example .env
+# Fill in ANTHROPIC_API_KEY (required for voice agent)
+# Canister IDs are populated automatically by dfx deploy
 ```
 
-This will:
-1. Start a local dfx replica in the background
-2. Deploy the `auth` and `property` canisters
-3. Print canister IDs and Candid UI links
-
-### Start Frontend Dev Server
+### 3. Deploy canisters locally
 
 ```bash
-# In a separate terminal
+dfx start --background
+dfx deploy
+```
+
+### 4. Start the frontend
+
+```bash
 npm run frontend
-# → http://localhost:3000
+# → http://localhost:5173
 ```
 
-### Run Backend Tests
+### 5. Start the voice agent proxy
 
 ```bash
-npm test
-# or directly:
-bash scripts/test-backend.sh
+cd agents/voice && npm run dev
+# → http://localhost:3001
 ```
+
+The voice agent requires `ANTHROPIC_API_KEY` in `.env`. All other env vars have defaults for local development.
 
 ---
 
-## Manual Test Commands
+## Voice Agent
 
-### Auth Canister
+The voice agent is a floating mic button that appears on every page. Users tap it, speak a question, and hear a spoken response — powered by Claude.
 
-```bash
-# Register as a homeowner
-dfx canister call auth register '(record { role = variant { Homeowner }; email = "you@example.com"; phone = "555-0100" })'
+**What it knows:**
+- The authenticated user's registered properties and recent job history (pulled live from ICP canisters)
+- Home maintenance best practices and schedules
+- Upgrade ROI and cost estimates
+- How maintenance history affects property value and resale
+- Contractor selection guidance
+- Building system lifespans and repair vs replace decisions
 
-# Get your profile
-dfx canister call auth getProfile
+**How it works:**
 
-# Update your profile
-dfx canister call auth updateProfile '(record { email = "new@example.com"; phone = "555-0199" })'
-
-# Check your role
-dfx canister call auth hasRole '(variant { Homeowner })'
-
-# View platform metrics
-dfx canister call auth getMetrics
+```
+User speaks
+  → Web Speech API (browser, no cost)
+  → useVoiceAgent hook fetches property + job context from ICP
+  → POST agents/voice/server.ts  { message, context }
+  → Express proxy builds scoped system prompt, calls Claude (streaming)
+  → Text streams back into speech bubble word-by-word
+  → SpeechSynthesis reads full response aloud
 ```
 
-### Property Canister
+**To add it to a page**, import and render `<VoiceAgent />` — it positions itself fixed bottom-right:
 
-```bash
-# Register a property (Pro tier)
-dfx canister call property registerProperty '(record {
-  address = "123 Main Street";
-  city = "San Francisco";
-  state = "CA";
-  zipCode = "94105";
-  propertyType = variant { SingleFamily };
-  yearBuilt = 1995;
-  squareFeet = 1800;
-  tier = variant { Pro };
-})'
+```tsx
+import { VoiceAgent } from "../components/VoiceAgent";
 
-# List your properties
-dfx canister call property getMyProperties
-
-# Get a specific property
-dfx canister call property getProperty '(1)'
-
-# Check tier limits
-dfx canister call property getPropertyLimitForTier '(variant { Free })'
-dfx canister call property getPropertyLimitForTier '(variant { ContractorPro })'
-
-# View property metrics
-dfx canister call property getMetrics
+export function Layout({ children }) {
+  return (
+    <div>
+      {children}
+      <VoiceAgent />
+    </div>
+  );
+}
 ```
 
-### Admin Commands
+**Environment variables** (see `.env.example`):
 
-```bash
-# Add yourself as admin (first call — no auth check)
-dfx canister call auth addAdmin "(principal \"$(dfx identity get-principal)\")"
-dfx canister call property addAdmin "(principal \"$(dfx identity get-principal)\")"
-
-# Pause a canister
-dfx canister call auth pause
-
-# Unpause
-dfx canister call auth unpause
-
-# Verify a property (admin only)
-dfx canister call property verifyProperty '(1, variant { Basic })'
-```
-
----
-
-## Upgrade Testing
-
-HomeFax canisters use `preupgrade`/`postupgrade` hooks to persist all HashMap data across canister upgrades.
-
-```bash
-# 1. Register data before upgrade
-dfx canister call auth register '(record { role = variant { Homeowner }; email = "test@test.com"; phone = "555-0001" })'
-
-# 2. Upgrade the canister
-dfx deploy auth --upgrade-unchanged
-
-# 3. Verify data survived the upgrade
-dfx canister call auth getProfile
-```
-
-The test script (`bash scripts/test-backend.sh`) includes automated upgrade persistence tests.
+| Variable | Default | Description |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | — | Required. Your Anthropic API key. |
+| `VOICE_AGENT_PORT` | `3001` | Port for the Express proxy. |
+| `FRONTEND_ORIGIN` | `http://localhost:5173` | CORS allowed origin. |
+| `VITE_VOICE_AGENT_URL` | `http://localhost:3001` | Proxy URL used by the frontend. |
 
 ---
 
@@ -189,59 +150,148 @@ The test script (`bash scripts/test-backend.sh`) includes automated upgrade pers
 
 ```
 homefax/
-├── dfx.json                    # ICP canister configuration
-├── package.json                # Root scripts (deploy, test, frontend)
-├── .gitignore
-├── README.md
+├── dfx.json                      # ICP canister configuration
+├── package.json                  # Root scripts
+├── .env.example                  # Environment variable template
 │
-├── src/
-│   ├── auth/
-│   │   └── main.mo             # Auth canister (Motoko)
-│   ├── property/
-│   │   └── main.mo             # Property canister (Motoko)
-│   └── frontend/
-│       ├── index.html
-│       ├── package.json        # Frontend dependencies
-│       ├── tsconfig.json       # TypeScript strict mode
-│       ├── tsconfig.node.json
-│       ├── vite.config.ts      # Vite + proxy to localhost:8000
-│       └── src/
-│           ├── main.tsx        # React entry point
-│           ├── App.tsx         # Routes + Internet Identity auth
-│           └── index.css       # Styles
+├── backend/                      # Motoko canisters
+│   ├── auth/main.mo
+│   ├── property/main.mo
+│   ├── job/main.mo
+│   ├── contractor/main.mo
+│   ├── quote/main.mo
+│   ├── payment/main.mo
+│   ├── photo/main.mo
+│   ├── price/main.mo
+│   └── monitoring/main.mo
+│
+├── agents/                       # AI agents
+│   └── voice/
+│       ├── server.ts             # Express proxy → Claude API
+│       ├── prompts.ts            # System prompt builder
+│       ├── types.ts              # Shared request/context types
+│       ├── package.json
+│       └── tsconfig.json
+│
+├── frontend/                     # React + Vite app
+│   ├── src/
+│   │   ├── components/
+│   │   │   └── VoiceAgent.tsx    # Floating mic button + speech bubble
+│   │   ├── hooks/
+│   │   │   └── useVoiceAgent.ts  # Web Speech API + SSE stream + TTS
+│   │   ├── services/             # ICP canister actor clients
+│   │   └── pages/
+│   └── package.json
+│
+├── docs/
+│   ├── ARCHITECTURE.md
+│   ├── API.md
+│   ├── DEPLOYMENT.md
+│   └── SECURITY.md
 │
 └── scripts/
-    ├── deploy-local.sh         # Start dfx + deploy all canisters
-    └── test-backend.sh         # Full backend test suite
+    ├── deploy.sh
+    ├── status.sh
+    └── upgrade.sh
 ```
 
 ---
 
 ## Subscription Tiers
 
-| Tier | Properties | Use Case |
-|---|---|---|
-| Free | 1 | Single homeowner |
-| Pro | 5 | Small portfolio |
-| Premium | 25 | Property investor |
-| ContractorPro | Unlimited | Contractors & agencies |
+| Tier | Properties | Open Quote Requests | Photos/Job | Price |
+|---|---|---|---|---|
+| Free | 1 | 3 | 5 | $0 |
+| Pro | 5 | 10 | 50 | $9/mo |
+| Premium | 25 | 10 | 100 | $49/yr |
+| ContractorPro | Unlimited | Unlimited | 200 | $29/mo |
 
 ---
 
-## Next Features Roadmap
+## Manual Test Commands
 
-- [ ] Maintenance records canister (log repairs, HVAC, plumbing, etc.)
-- [ ] Receipt document hashing (SHA-256 proof of documents)
-- [ ] Public HomeFax report generation (shareable URL)
-- [ ] Property search by ZIP code
-- [ ] Contractor marketplace (verified service providers)
-- [ ] ICP token payments for tier upgrades
-- [ ] Mobile-responsive frontend dashboard
-- [ ] Email notification integration via HTTP outcalls
-- [ ] Property transfer on home sale
+### Job canister
+
+```bash
+# Create a job
+dfx canister call job createJob '(
+  "1", "HVAC Replacement", variant { HVAC },
+  "Full 3-ton Carrier system replacement",
+  "Cool Air Services", 240000, 1700000000000000000
+)'
+
+# Fetch jobs for a property
+dfx canister call job getJobsForProperty '("1")'
+
+# Link a contractor principal
+dfx canister call job linkContractor '("JOB_1", principal "aaaaa-aa")'
+
+# Sign verification (homeowner)
+dfx canister call job verifyJob '("JOB_1")'
+```
+
+### Quote canister
+
+```bash
+# Create a quote request (Free tier)
+dfx canister call quote createQuoteRequest '(
+  "1", variant { Roofing },
+  "Need full roof replacement, ~2000 sq ft",
+  variant { High }, variant { Free }
+)'
+
+# Submit a quote (as contractor)
+dfx canister call quote submitQuote '("REQ_1", 850000, 5, 1800000000000000000)'
+
+# Accept a quote (as homeowner)
+dfx canister call quote acceptQuote '("QUOTE_1")'
+```
+
+### Monitoring canister
+
+```bash
+# Push canister metrics
+dfx canister call monitoring recordCanisterMetrics '(
+  principal "aaaaa-aa", 8000000000000, 500000000,
+  104857600, 4294967296, 1000, 12, 450
+)'
+
+# Get active alerts
+dfx canister call monitoring getActiveAlerts
+
+# Get cost breakdown
+dfx canister call monitoring calculateCostMetrics '(150)'
+```
+
+### Admin commands
+
+```bash
+# Bootstrap admin on any canister
+dfx canister call auth addAdmin "(principal \"$(dfx identity get-principal)\")"
+dfx canister call property addAdmin "(principal \"$(dfx identity get-principal)\")"
+dfx canister call job addAdmin "(principal \"$(dfx identity get-principal)\")"
+
+# Pause / unpause
+dfx canister call job pause
+dfx canister call job unpause
+```
+
+---
+
+## Coming Soon
+
+### Privacy & Selective Disclosure via ICP vetKeys
+
+ICP's [vetKeys](https://internetcomputer.org/docs/current/developer-docs/integrations/vetkeys/) (verifiable encrypted threshold keys) will enable privacy-preserving features without a centralized key custodian:
+
+- **Encrypted job records** — homeowners encrypt maintenance records on-chain; only explicitly authorized principals (e.g. a buyer's agent) can obtain the decryption key from the canister
+- **Buyer disclosure packages** — share a time-limited, scoped view of a property's verified history without exposing raw cost or contractor data
+- **Contractor-gated access** — contractors can only read the job records they are linked to
+
+> **Note:** vetKeys (`test_key_1`) are available on local replicas and testnets today. Production use of `key_1` on ICP mainnet is experimental and requires DFINITY approval. HomeFax will ship this feature once mainnet access is generally available.
 
 ---
 
 ## License
 
-MIT © HomeFax 2024
+MIT © HomeFax 2025
