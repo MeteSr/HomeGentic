@@ -1,6 +1,6 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Send, Zap } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { ArrowLeft, Send, Zap, User } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { PhotoQuotaDisplay } from "@/components/PhotoQuotaDisplay";
@@ -10,7 +10,7 @@ import toast from "react-hot-toast";
 
 const S = {
   ink: "#0E0E0C", paper: "#F4F1EB", rule: "#C8C3B8",
-  rust: "#C94C2E", inkLight: "#7A7268",
+  rust: "#C94C2E", inkLight: "#7A7268", sage: "#3D6B57",
   serif: "'Playfair Display', Georgia, serif" as const,
   mono:  "'IBM Plex Mono', monospace" as const,
 };
@@ -24,19 +24,55 @@ const URGENCY_OPTIONS: { value: Urgency; label: string; desc: string }[] = [
   { value: "emergency", label: "Emergency", desc: "ASAP" },
 ];
 
+// Tier → open request limit
+const TIER_LIMITS: Record<string, number> = {
+  Free: 3, Pro: 10, Premium: 10, ContractorPro: 999,
+};
+
 export default function QuoteRequestPage() {
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
+  const location  = useLocation();
+  const prefill   = (location.state as { prefill?: Record<string, string> } | null)?.prefill ?? null;
   const { properties } = usePropertyStore();
-  const [loading, setLoading] = useState(false);
+  const [loading,   setLoading]   = useState(false);
+  const [openCount, setOpenCount] = useState(0);
+  const [tierLimit, setTierLimit] = useState(3);
   const [form, setForm] = useState({
-    propertyId: properties[0] ? String(properties[0].id) : "",
-    serviceType: SERVICE_TYPES[0],
-    urgency: "medium" as Urgency,
+    propertyId:  properties[0] ? String(properties[0].id) : "",
+    serviceType: prefill?.serviceType ?? SERVICE_TYPES[0],
+    urgency:     "medium" as Urgency,
     description: "",
+    budgetMin:   "",
+    budgetMax:   "",
   });
 
-  const quota = { used: 1, limit: 3, tier: "Free" };
-  const update = (key: string, value: string) => setForm((f) => ({ ...f, [key]: value }));
+  useEffect(() => {
+    quoteService.getRequests().then((reqs) => {
+      const open = reqs.filter((r) => r.status === "open" || r.status === "quoted").length;
+      setOpenCount(open);
+      // Infer tier from limit embedded in response (fallback to Free)
+      const tier = (reqs[0] as any)?.tier ?? "Free";
+      setTierLimit(TIER_LIMITS[tier] ?? 3);
+    }).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const quota     = { used: openCount, limit: tierLimit, tier: "Free" };
+  const atLimit   = openCount >= tierLimit;
+  const update    = (key: string, value: string) => setForm((f) => ({ ...f, [key]: value }));
+
+  if (properties.length === 0) {
+    return (
+      <Layout>
+        <div style={{ maxWidth: "38rem", margin: "2rem auto", padding: "0 1.5rem", textAlign: "center" }}>
+          <p style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.25rem", marginBottom: "0.5rem" }}>No properties yet</p>
+          <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, marginBottom: "1.25rem" }}>
+            Add a property before requesting quotes.
+          </p>
+          <Button onClick={() => navigate("/properties/new")}>Add Property</Button>
+        </div>
+      </Layout>
+    );
+  }
 
   const handleSubmit = async () => {
     if (!form.description.trim()) { toast.error("Please describe the work needed"); return; }
@@ -76,23 +112,32 @@ export default function QuoteRequestPage() {
           Get competitive quotes from verified HomeFax contractors.
         </p>
 
+        {/* Preferred contractor banner (when arriving from contractor profile) */}
+        {prefill?.contractorName && (
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.875rem 1rem", border: `1px solid ${S.sage}`, background: "#F0F6F3", marginBottom: "1.25rem" }}>
+            <User size={13} color={S.sage} style={{ flexShrink: 0 }} />
+            <div>
+              <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.sage, marginBottom: "0.1rem" }}>Preferred contractor</p>
+              <p style={{ fontSize: "0.875rem", fontWeight: 500, color: S.ink }}>{prefill.contractorName}</p>
+            </div>
+          </div>
+        )}
+
         <div style={{ border: `1px solid ${S.rule}`, background: "#fff", padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
 
           <div>
-            <label className="form-label" style={{ display: "block", marginBottom: "0.5rem" }}>Quote Request Quota</label>
+            <label className="form-label" style={{ display: "block", marginBottom: "0.5rem" }}>Open Requests</label>
             <PhotoQuotaDisplay used={quota.used} limit={quota.limit} tier={quota.tier} onUpgrade={() => navigate("/pricing")} />
           </div>
 
-          {properties.length > 0 && (
-            <div>
-              <label className="form-label">Property *</label>
-              <select className="form-input" value={form.propertyId} onChange={(e) => update("propertyId", e.target.value)}>
-                {properties.map((p) => (
-                  <option key={String(p.id)} value={String(p.id)}>{p.address}, {p.city}</option>
-                ))}
-              </select>
-            </div>
-          )}
+          <div>
+            <label className="form-label">Property *</label>
+            <select className="form-input" value={form.propertyId} onChange={(e) => update("propertyId", e.target.value)}>
+              {properties.map((p) => (
+                <option key={String(p.id)} value={String(p.id)}>{p.address}, {p.city}</option>
+              ))}
+            </select>
+          </div>
 
           <div>
             <label className="form-label">Service Type *</label>
@@ -119,13 +164,28 @@ export default function QuoteRequestPage() {
             </div>
           </div>
 
+          {/* Budget range */}
+          <div>
+            <label className="form-label">Budget <span style={{ color: S.inkLight, fontWeight: 300 }}>(optional)</span></label>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <div style={{ position: "relative" }}>
+                <span style={{ position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)", color: S.inkLight, fontSize: "0.875rem", pointerEvents: "none" }}>$</span>
+                <input className="form-input" type="number" min="0" placeholder="Min" value={form.budgetMin} onChange={(e) => update("budgetMin", e.target.value)} style={{ paddingLeft: "1.5rem" }} />
+              </div>
+              <div style={{ position: "relative" }}>
+                <span style={{ position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)", color: S.inkLight, fontSize: "0.875rem", pointerEvents: "none" }}>$</span>
+                <input className="form-input" type="number" min="0" placeholder="Max" value={form.budgetMax} onChange={(e) => update("budgetMax", e.target.value)} style={{ paddingLeft: "1.5rem" }} />
+              </div>
+            </div>
+          </div>
+
           <div>
             <label className="form-label">Describe the work needed *</label>
             <textarea className="form-input" rows={4} placeholder="Describe the issue or project in detail. Include any relevant measurements, materials, or constraints." value={form.description} onChange={(e) => update("description", e.target.value)} style={{ resize: "vertical" }} />
           </div>
 
-          <Button loading={loading} disabled={quota.used >= quota.limit} onClick={handleSubmit} icon={<Send size={14} />} size="lg" style={{ width: "100%" }}>
-            {quota.used >= quota.limit ? "Quote limit reached — Upgrade to continue" : "Send Quote Request"}
+          <Button loading={loading} disabled={atLimit} onClick={handleSubmit} icon={<Send size={14} />} size="lg" style={{ width: "100%" }}>
+            {atLimit ? "Quote limit reached — Upgrade to continue" : "Send Quote Request"}
           </Button>
         </div>
       </div>

@@ -1,11 +1,18 @@
 import React, { useEffect, useState } from "react";
-import { Wifi, WifiOff, AlertTriangle, CheckCircle, Plus, Trash2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Wifi, WifiOff, AlertTriangle, Plus, Trash2, Wrench } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { Badge } from "@/components/Badge";
 import { usePropertyStore } from "@/store/propertyStore";
 import { sensorService, SensorDevice, SensorEvent, DeviceSource } from "@/services/sensor";
 import toast from "react-hot-toast";
+
+function inferServiceType(eventType: string): string {
+  if (/water|leak|flood/i.test(eventType)) return "Plumbing";
+  if (/hvac|filter|temperature|humidity/i.test(eventType)) return "HVAC";
+  return "Other";
+}
 
 const S = {
   ink: "#0E0E0C", paper: "#F4F1EB", rule: "#C8C3B8",
@@ -22,6 +29,7 @@ const SOURCES: { value: DeviceSource; label: string }[] = [
 ];
 
 export default function SensorPage() {
+  const navigate = useNavigate();
   const { properties } = usePropertyStore();
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>("");
   const [devices, setDevices]   = useState<SensorDevice[]>([]);
@@ -121,6 +129,22 @@ export default function SensorPage() {
           </div>
         )}
 
+        {/* Stats bar */}
+        {(devices.length > 0 || alerts.length > 0) && (
+          <div style={{ display: "flex", gap: "1px", background: S.rule, marginBottom: "1.5rem" }}>
+            {[
+              { label: "Active Devices", value: devices.filter((d) => d.isActive).length },
+              { label: "Active Alerts",  value: alerts.length,                             accent: alerts.length > 0 ? S.rust : undefined },
+              { label: "Auto-Created Jobs", value: alerts.filter((a) => a.jobId).length,   accent: alerts.filter((a) => a.jobId).length > 0 ? "#C9A84C" : undefined },
+            ].map((stat) => (
+              <div key={stat.label} style={{ flex: 1, background: "#fff", padding: "0.875rem 1.25rem" }}>
+                <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.25rem" }}>{stat.label}</p>
+                <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, color: stat.accent ?? S.ink }}>{stat.value}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Register form */}
         {showForm && (
           <form
@@ -205,6 +229,15 @@ export default function SensorPage() {
                     </p>
                   </div>
                   <Badge variant={evt.severity === "Critical" ? "error" : "warning"}>{evt.severity}</Badge>
+                  {evt.severity === "Critical" && !evt.jobId && (
+                    <button
+                      onClick={() => navigate("/jobs/new", { state: { prefill: { serviceType: inferServiceType(evt.eventType) } } })}
+                      title="Log a job for this alert"
+                      style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.375rem 0.75rem", background: S.rust, color: "#fff", border: "none", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer", flexShrink: 0 }}
+                    >
+                      <Wrench size={11} /> Log Job
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -227,9 +260,12 @@ export default function SensorPage() {
             <div style={{ border: `1px dashed ${S.rule}`, padding: "3rem", textAlign: "center" }}>
               <Wifi size={36} color={S.rule} style={{ margin: "0 auto 1rem" }} />
               <p style={{ fontFamily: S.serif, fontWeight: 700, marginBottom: "0.375rem" }}>No devices registered</p>
-              <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>
+              <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight, marginBottom: "1.25rem" }}>
                 Connect a Nest, Ecobee, or Moen Flo device to automatically log critical home events.
               </p>
+              <Button icon={<Plus size={14} />} onClick={() => setShowForm(true)}>
+                Register Your First Device
+              </Button>
             </div>
           )}
 

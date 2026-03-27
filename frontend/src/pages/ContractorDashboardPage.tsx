@@ -5,7 +5,7 @@ import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { Badge } from "@/components/Badge";
 import { contractorService, ContractorProfile } from "@/services/contractor";
-import { quoteService, QuoteRequest } from "@/services/quote";
+import { quoteService, QuoteRequest, Quote } from "@/services/quote";
 import { jobService, Job } from "@/services/job";
 import { useAuthStore } from "@/store/authStore";
 import { isNewSince, countNew } from "@/services/notifications";
@@ -247,17 +247,20 @@ export default function ContractorDashboardPage() {
   const [profile,       setProfile]       = useState<ContractorProfile | null>(null);
   const [openRequests,  setOpenRequests]  = useState<QuoteRequest[]>([]);
   const [pendingJobs,   setPendingJobs]   = useState<Job[]>([]);
+  const [myBids,        setMyBids]        = useState<Quote[]>([]);
   const [signingJobId,  setSigningJobId]  = useState<string | null>(null);
   const [submittedIds,  setSubmittedIds]  = useState<Set<string>>(new Set());
   const [filterType,    setFilterType]    = useState("All");
   const [modalRequest,  setModalRequest]  = useState<QuoteRequest | null>(null);
   const [loading,       setLoading]       = useState(true);
+  const [showBidHistory, setShowBidHistory] = useState(false);
 
   useEffect(() => {
     Promise.all([
       contractorService.getMyProfile().then(setProfile).catch(() => {}),
       quoteService.getOpenRequests().then(setOpenRequests).catch(() => {}),
       jobService.getJobsPendingMySignature().then(setPendingJobs).catch(() => {}),
+      quoteService.getMyBids().then(setMyBids).catch(() => {}),
     ]).finally(() => setLoading(false));
   }, []);
 
@@ -301,6 +304,10 @@ export default function ContractorDashboardPage() {
 
   const newLeadsCount   = openRequests.filter((r) => !submittedIds.has(r.id)).length;
   const newSinceLogin   = countNew(openRequests, lastLoginAt);
+
+  const resolvedBids = myBids.filter((b) => b.status === "accepted" || b.status === "rejected");
+  const wonBids      = myBids.filter((b) => b.status === "accepted");
+  const winRate      = resolvedBids.length > 0 ? Math.round((wonBids.length / resolvedBids.length) * 100) : null;
 
   return (
     <Layout>
@@ -353,27 +360,33 @@ export default function ContractorDashboardPage() {
         )}
 
         {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", borderTop: `1px solid ${S.rule}`, borderLeft: `1px solid ${S.rule}`, marginBottom: "2.5rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", borderTop: `1px solid ${S.rule}`, borderLeft: `1px solid ${S.rule}`, marginBottom: "2.5rem" }}>
           {[
             { label: "Open Leads",         value: loading ? "…" : newLeadsCount },
             { label: "New Since Last Visit", value: loading ? "…" : newSinceLogin, alert: newSinceLogin > 0 },
             { label: "Quotes Submitted",   value: submittedIds.size },
             { label: "Pending Signatures", value: loading ? "…" : pendingJobs.length, alert: pendingJobs.length > 0 },
             { label: "Jobs Completed",     value: profile?.jobsCompleted ?? "—" },
+            { label: "Win Rate",           value: winRate !== null ? `${winRate}%` : "—", highlight: winRate !== null && winRate >= 50 },
             { label: "Trust Score",        value: profile ? `${profile.trustScore}/100` : "—", accent: true },
-          ].map((stat) => (
-            <div key={stat.label} style={{
-              padding: "1.5rem", borderRight: `1px solid ${S.rule}`, borderBottom: `1px solid ${S.rule}`,
-              background: (stat as any).accent ? S.ink : (stat as any).alert ? "#FAF0ED" : "#fff",
-            }}>
-              <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: (stat as any).accent ? "#7A7268" : (stat as any).alert ? S.rust : S.inkLight, marginBottom: "0.625rem" }}>
-                {stat.label}
+          ].map((stat) => {
+            const isAccent    = !!(stat as any).accent;
+            const isAlert     = !!(stat as any).alert;
+            const isHighlight = !!(stat as any).highlight;
+            const bg    = isAccent ? S.ink : isAlert ? "#FAF0ED" : isHighlight ? "#F0F6F3" : "#fff";
+            const color = isAccent ? "#7A7268" : isAlert ? S.rust : isHighlight ? S.sage : S.inkLight;
+            const valColor = isAccent ? "#F4F1EB" : isAlert ? S.rust : isHighlight ? S.sage : S.ink;
+            return (
+              <div key={stat.label} style={{ padding: "1.5rem", borderRight: `1px solid ${S.rule}`, borderBottom: `1px solid ${S.rule}`, background: bg }}>
+                <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color, marginBottom: "0.625rem" }}>
+                  {stat.label}
+                </div>
+                <div style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "2rem", lineHeight: 1, color: valColor }}>
+                  {stat.value}
+                </div>
               </div>
-              <div style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "2rem", lineHeight: 1, color: (stat as any).accent ? "#F4F1EB" : (stat as any).alert ? S.rust : S.ink }}>
-                {stat.value}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Two-column layout */}
@@ -472,6 +485,54 @@ export default function ContractorDashboardPage() {
                 ))}
               </div>
             )}
+          {/* Bid History */}
+          {myBids.length > 0 && (
+            <div style={{ marginTop: "2rem" }}>
+              <button
+                onClick={() => setShowBidHistory((v) => !v)}
+                style={{ display: "flex", alignItems: "center", gap: "0.5rem", width: "100%", background: "none", border: "none", borderBottom: `1px solid ${S.rule}`, padding: "0.625rem 0", cursor: "pointer", marginBottom: "0.75rem" }}
+              >
+                <span style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, flex: 1, textAlign: "left" }}>
+                  Bid History ({myBids.length})
+                </span>
+                {showBidHistory ? <ChevronUp size={13} color={S.inkLight} /> : <ChevronDown size={13} color={S.inkLight} />}
+              </button>
+              {showBidHistory && (
+                <div style={{ border: `1px solid ${S.rule}`, overflow: "hidden" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: S.mono, fontSize: "0.6rem" }}>
+                    <thead>
+                      <tr style={{ background: S.paper }}>
+                        {["Request ID", "Amount", "Timeline", "Submitted", "Status"].map((h) => (
+                          <th key={h} style={{ padding: "0.5rem 0.875rem", textAlign: "left", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, borderBottom: `1px solid ${S.rule}`, fontWeight: 600 }}>
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...myBids].sort((a, b) => b.createdAt - a.createdAt).map((bid, i) => {
+                        const statusColor = bid.status === "accepted" ? S.sage : bid.status === "rejected" ? S.rust : S.inkLight;
+                        const statusBg    = bid.status === "accepted" ? "#F0F6F3" : bid.status === "rejected" ? "#FAF0ED" : "#fff";
+                        return (
+                          <tr key={bid.id} style={{ background: i % 2 === 0 ? "#fff" : S.paper, borderBottom: `1px solid ${S.rule}` }}>
+                            <td style={{ padding: "0.625rem 0.875rem", color: S.ink }}>{bid.requestId}</td>
+                            <td style={{ padding: "0.625rem 0.875rem", color: S.ink, fontWeight: 600 }}>${(bid.amount / 100).toLocaleString()}</td>
+                            <td style={{ padding: "0.625rem 0.875rem", color: S.inkLight }}>{bid.timeline}d</td>
+                            <td style={{ padding: "0.625rem 0.875rem", color: S.inkLight }}>{timeAgo(bid.createdAt)}</td>
+                            <td style={{ padding: "0.625rem 0.875rem" }}>
+                              <span style={{ display: "inline-block", padding: "0.15rem 0.5rem", background: statusBg, color: statusColor, border: `1px solid ${statusColor}40`, letterSpacing: "0.08em", textTransform: "uppercase", fontSize: "0.55rem", fontWeight: 700 }}>
+                                {bid.status}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
           </div>
 
           {/* Sidebar: Trust Score */}
@@ -508,6 +569,7 @@ export default function ContractorDashboardPage() {
                 { label: "Jobs Completed", val: profile?.jobsCompleted ?? 0, max: 200 },
                 { label: "Rating",         val: ((profile as any)?.rating ?? 0) * 20, max: 100, display: `${(profile as any)?.rating ?? 0}/5.0` },
                 { label: "Response Rate",  val: 94, max: 100, display: "94%" },
+                { label: "Win Rate",       val: winRate ?? 0, max: 100, display: winRate !== null ? `${winRate}%` : "—", sage: true },
               ].map((item) => (
                 <div key={item.label} style={{ marginBottom: "0.75rem" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.3rem" }}>
@@ -515,7 +577,7 @@ export default function ContractorDashboardPage() {
                     <span>{item.display ?? item.val}</span>
                   </div>
                   <div style={{ height: "3px", background: S.rule }}>
-                    <div style={{ height: "3px", background: S.rust, width: `${Math.min((item.val / item.max) * 100, 100)}%` }} />
+                    <div style={{ height: "3px", background: (item as any).sage ? S.sage : S.rust, width: `${Math.min((item.val / item.max) * 100, 100)}%` }} />
                   </div>
                 </div>
               ))}

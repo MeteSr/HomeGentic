@@ -91,3 +91,59 @@ export function scoreDelta(history: ScoreSnapshot[]): number {
   if (history.length < 2) return 0;
   return history[history.length - 1].score - history[history.length - 2].score;
 }
+
+/**
+ * Determines whether a property qualifies for the HomeFax Certified™ designation.
+ * Criteria (front-end heuristic; canister enforcement is a Tier 3 item):
+ *   - HomeFax Score ≥ 88
+ *   - At least 3 verified jobs on record
+ *   - At least 2 of the 4 key systems have a verified job: HVAC, Roofing, Plumbing, Electrical
+ */
+export function isCertified(score: number, jobs: Job[]): boolean {
+  if (score < 88) return false;
+  const verified = jobs.filter((j) => j.verified || j.status === "verified");
+  if (verified.length < 3) return false;
+  const KEY_SYSTEMS = ["HVAC", "Roofing", "Plumbing", "Electrical"];
+  return KEY_SYSTEMS.filter((sys) => verified.some((j) => j.serviceType === sys)).length >= 2;
+}
+
+/**
+ * Lender certificate — encodes a summary as a base64 URL token so the lender
+ * can view score + certified status without accessing any job details.
+ * NOTE: This is a frontend-only placeholder until canister cert issuance (4.2.1).
+ */
+export interface CertPayload {
+  address:     string;
+  score:       number;
+  grade:       string;
+  certified:   boolean;
+  generatedAt: number; // ms
+}
+
+export function generateCertToken(payload: CertPayload): string {
+  return btoa(JSON.stringify(payload)).replace(/=/g, "");
+}
+
+export function parseCertToken(token: string): CertPayload | null {
+  try {
+    const padded = token + "=".repeat((4 - token.length % 4) % 4);
+    return JSON.parse(atob(padded)) as CertPayload;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Estimates the buyer-premium dollar range associated with a HomeFax score.
+ * Based on industry research: verified maintenance history lifts sale price
+ * 1–10% in typical US markets. Returns null below score 40 (not enough signal).
+ *
+ * NOTE: These are heuristic ranges pending real market-data integration (5.3.2).
+ */
+export function premiumEstimate(score: number): { low: number; high: number } | null {
+  if (score < 40) return null;
+  if (score < 55) return { low: 3_000,  high: 8_000  };
+  if (score < 70) return { low: 8_000,  high: 15_000 };
+  if (score < 85) return { low: 15_000, high: 25_000 };
+  return               { low: 20_000, high: 35_000 };
+}

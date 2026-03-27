@@ -249,6 +249,17 @@ export const jobService = {
     return unwrapJob(result);
   },
 
+  async updateJob(jobId: string, updates: Partial<Pick<Job, "serviceType" | "contractorName" | "amount" | "date" | "description" | "permitNumber" | "warrantyMonths" | "isDiy">>): Promise<Job> {
+    if (!JOB_CANISTER_ID) {
+      const idx = MOCK_JOBS.findIndex((j) => j.id === jobId);
+      if (idx === -1) throw new Error("Job not found");
+      MOCK_JOBS[idx] = { ...MOCK_JOBS[idx], ...updates };
+      return MOCK_JOBS[idx];
+    }
+    // Canister updateJob not yet implemented — throw to signal unsupported
+    throw new Error("Job editing is not yet available on-chain. Please contact support.");
+  },
+
   async updateJobStatus(jobId: string, status: JobStatus): Promise<Job> {
     if (!JOB_CANISTER_ID) {
       const idx = MOCK_JOBS.findIndex((j) => j.id === jobId);

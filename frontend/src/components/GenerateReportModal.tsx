@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { X, Link2, Copy, CheckCircle, Trash2, Shield, Eye, Clock } from "lucide-react";
+import { X, Link2, Copy, CheckCircle, Trash2, Shield, Eye, Clock, EyeOff } from "lucide-react";
 import { Button } from "@/components/Button";
-import { reportService, ShareLink, propertyToInput, jobToInput } from "@/services/report";
+import { reportService, ShareLink, propertyToInput, jobToInput, DisclosureOptions } from "@/services/report";
+import { agentProfileService } from "@/services/agentProfile";
 import { jobService } from "@/services/job";
+import { computeScore, getScoreGrade } from "@/services/scoreService";
 import type { Property } from "@/services/property";
 import toast from "react-hot-toast";
 
@@ -31,6 +33,12 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
   const [expiryDays,   setExpiryDays]   = useState<number | null>(30);
   const [copiedToken,  setCopiedToken]  = useState<string>("");
   const [loadingLinks, setLoadingLinks] = useState(true);
+  const [freshLink,    setFreshLink]    = useState<ShareLink | null>(null);
+  const [previewStats, setPreviewStats] = useState<{ score: number; grade: string; verifiedCount: number } | null>(null);
+  const [disclosure,   setDisclosure]   = useState<DisclosureOptions>({
+    hideAmounts: false, hideContractors: false,
+    hidePermits: false, hideDescriptions: false,
+  });
 
   const propertyId = String(property.id);
 
@@ -44,6 +52,9 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
     setGenerating(true);
     try {
       const jobs = await jobService.getByProperty(propertyId);
+      const score        = computeScore(jobs, [property]);
+      const grade        = getScoreGrade(score);
+      const verifiedCount = jobs.filter((j) => j.verified || j.status === "verified").length;
       const link = await reportService.generateReport(
         propertyId,
         propertyToInput(property),
@@ -52,6 +63,8 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
         "Public"
       );
       setLinks((prev) => [link, ...prev]);
+      setFreshLink(link);
+      setPreviewStats({ score, grade, verifiedCount });
       toast.success("HomeFax report created!");
     } catch (err: any) {
       toast.error(err.message || "Failed to generate report");
@@ -60,8 +73,11 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
     }
   };
 
-  const handleCopy = (token: string) => {
-    navigator.clipboard.writeText(reportService.shareUrl(token));
+  const handleCopy = (token: string, linkDisclosure?: DisclosureOptions) => {
+    let url = reportService.shareUrl(token, linkDisclosure ?? disclosure);
+    const agentProfile = agentProfileService.load();
+    if (agentProfile) url = agentProfileService.appendToUrl(url, agentProfile);
+    navigator.clipboard.writeText(url);
     setCopiedToken(token);
     toast.success("Link copied!");
     setTimeout(() => setCopiedToken(""), 2000);
@@ -148,6 +164,37 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
               ))}
             </div>
 
+            {/* Disclosure toggles */}
+            <div style={{ border: `1px solid ${S.rule}`, marginBottom: "1rem" }}>
+              <div style={{ padding: "0.5rem 0.875rem", borderBottom: `1px solid ${S.rule}`, display: "flex", alignItems: "center", gap: "0.375rem" }}>
+                <EyeOff size={11} color={S.inkLight} />
+                <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>
+                  Hide from viewer
+                </span>
+              </div>
+              {(
+                [
+                  { key: "hideAmounts"      as const, label: "Job amounts"       },
+                  { key: "hideContractors"  as const, label: "Contractor names"  },
+                  { key: "hidePermits"      as const, label: "Permit numbers"    },
+                  { key: "hideDescriptions" as const, label: "Job descriptions"  },
+                ] as const
+              ).map(({ key, label }) => (
+                <label
+                  key={key}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.5rem 0.875rem", cursor: "pointer", borderBottom: `1px solid ${S.rule}` }}
+                >
+                  <span style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.ink }}>{label}</span>
+                  <input
+                    type="checkbox"
+                    checked={disclosure[key]}
+                    onChange={(e) => setDisclosure((d) => ({ ...d, [key]: e.target.checked }))}
+                    style={{ accentColor: S.rust, width: "0.875rem", height: "0.875rem" }}
+                  />
+                </label>
+              ))}
+            </div>
+
             <Button
               loading={generating}
               onClick={handleGenerate}
@@ -163,6 +210,56 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
               </p>
             )}
           </div>
+
+          {/* Share preview — shown immediately after generation */}
+          {freshLink && previewStats && (
+            <div style={{ border: `1px solid ${S.sage}`, background: "#F0F6F3" }}>
+              <div style={{ padding: "0.75rem 1rem", borderBottom: `1px solid ${S.sage}30`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.sage }}>
+                  Link ready to share
+                </span>
+                <button
+                  onClick={() => setFreshLink(null)}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: S.sage, padding: 0 }}
+                >
+                  ×
+                </button>
+              </div>
+              <div style={{ padding: "1rem" }}>
+                <p style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "0.9rem", color: S.ink, marginBottom: "0.625rem" }}>
+                  {property.address}, {property.city}
+                </p>
+                <div style={{ display: "flex", gap: "1.25rem", marginBottom: "0.875rem" }}>
+                  <div>
+                    <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.15rem" }}>HomeFax Score</p>
+                    <p style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.25rem", lineHeight: 1, color: S.ink }}>
+                      {previewStats.score} <span style={{ fontFamily: S.mono, fontWeight: 400, fontSize: "0.7rem", color: S.inkLight }}>{previewStats.grade}</span>
+                    </p>
+                  </div>
+                  <div>
+                    <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.15rem" }}>Verified Jobs</p>
+                    <p style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.25rem", lineHeight: 1, color: S.ink }}>{previewStats.verifiedCount}</p>
+                  </div>
+                  <div>
+                    <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.15rem" }}>Expiry</p>
+                    <p style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.ink }}>{reportService.expiryLabel(freshLink)}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => { handleCopy(freshLink.token); setFreshLink(null); }}
+                  style={{
+                    width: "100%", padding: "0.6rem",
+                    background: S.ink, color: "#F4F1EB",
+                    fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase",
+                    border: "none", cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: "0.375rem",
+                  }}
+                >
+                  <Copy size={12} /> Copy Share Link
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Active links */}
           {loadingLinks ? (

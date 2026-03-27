@@ -134,6 +134,57 @@ export default function ContractorProfilePage() {
             : "Complete your profile to start receiving quote leads from homeowners."}
         </p>
 
+        {/* Profile completeness bar */}
+        {(() => {
+          const checks = [
+            { label: "Name",         done: !!form.name.trim() },
+            { label: "Email",        done: !!form.email.trim() },
+            { label: "Phone",        done: !!form.phone.trim() },
+            { label: "Bio",          done: form.bio.trim().length >= 40 },
+            { label: "License #",    done: !!form.licenseNumber.trim() },
+            { label: "Service Area", done: !!form.serviceArea.trim() },
+          ];
+          const doneCount = checks.filter((c) => c.done).length;
+          const pct       = Math.round((doneCount / checks.length) * 100);
+          const barColor  = pct === 100 ? S.sage : pct >= 67 ? "#D4820E" : S.rust;
+          return (
+            <div style={{ marginBottom: "1.5rem", border: `1px solid ${S.rule}`, background: "#fff", padding: "1rem 1.25rem" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+                <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>
+                  Profile Completeness
+                </span>
+                <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.1rem", lineHeight: 1, color: barColor }}>
+                  {pct}%
+                </span>
+              </div>
+              <div style={{ height: "4px", background: S.rule, marginBottom: "0.75rem" }}>
+                <div style={{ height: "4px", width: `${pct}%`, background: barColor, transition: "width 0.4s ease" }} />
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem" }}>
+                {checks.map((c) => (
+                  <span
+                    key={c.label}
+                    style={{
+                      fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase",
+                      padding: "0.15rem 0.5rem",
+                      border: `1px solid ${c.done ? S.sage : S.rule}`,
+                      color: c.done ? S.sage : S.inkLight,
+                      background: c.done ? "#F0F6F3" : "transparent",
+                    }}
+                  >
+                    {c.done ? "✓ " : ""}{c.label}
+                  </span>
+                ))}
+              </div>
+              {pct < 100 && (
+                <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.04em", color: S.inkLight, marginTop: "0.625rem", lineHeight: 1.5 }}>
+                  Complete profiles receive 20% more bid views. Add a bio, license number, and service area to stand out.
+                </p>
+              )}
+            </div>
+          );
+        })()}
+
         {/* Verification badge for existing verified contractors */}
         {existing?.isVerified && (
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.75rem 1rem", border: `1px solid ${S.sage}`, background: "#F0F6F3", marginBottom: "1.25rem" }}>

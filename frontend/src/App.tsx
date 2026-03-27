@@ -17,12 +17,16 @@ import SettingsPage from "@/pages/SettingsPage";
 import PricingPage from "@/pages/PricingPage";
 import ContractorDashboardPage from "@/pages/ContractorDashboardPage";
 import ContractorProfilePage from "@/pages/ContractorProfilePage";
+import ContractorPublicPage from "@/pages/ContractorPublicPage";
+import ContractorBrowsePage from "@/pages/ContractorBrowsePage";
 import MarketIntelligencePage from "@/pages/MarketIntelligencePage";
 import ReportPage from "@/pages/ReportPage";
+import ScoreCertPage from "@/pages/ScoreCertPage";
 import PredictiveMaintenancePage from "@/pages/PredictiveMaintenancePage";
 import PropertyVerifyPage from "@/pages/PropertyVerifyPage";
 import AdminDashboardPage from "@/pages/AdminDashboardPage";
 import OnboardingPage from "@/pages/OnboardingPage";
+import AgentDashboardPage from "@/pages/AgentDashboardPage";
 import SystemAgesPage from "@/pages/SystemAgesPage";
 import SensorPage from "@/pages/SensorPage";
 
@@ -90,6 +94,22 @@ export default function App() {
           element={
             <ProtectedRoute>
               <ContractorDashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/contractors"
+          element={
+            <ProtectedRoute>
+              <ContractorBrowsePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/contractor/:id"
+          element={
+            <ProtectedRoute>
+              <ContractorPublicPage />
             </ProtectedRoute>
           }
         />
@@ -198,6 +218,14 @@ export default function App() {
           }
         />
         <Route
+          path="/agent-dashboard"
+          element={
+            <ProtectedRoute>
+              <AgentDashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/sensors"
           element={
             <ProtectedRoute>
@@ -207,6 +235,7 @@ export default function App() {
         />
         {/* Public — no auth required */}
         <Route path="/report/:token" element={<ReportPage />} />
+        <Route path="/cert/:token"   element={<ScoreCertPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AuthProvider>

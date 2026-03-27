@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { ArrowLeft, CheckCircle } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { type Job } from "@/services/job";
+import { ArrowLeft, CheckCircle, AlertTriangle } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { ConstructionPhotoUpload } from "@/components/ConstructionPhotoUpload";
@@ -23,22 +24,52 @@ const SERVICE_TYPES = [
 ];
 const PERMIT_SERVICE_TYPES = new Set(["HVAC","Roofing","Electrical","Plumbing","Foundation"]);
 
+// Next-service suggestions per category
+const NEXT_SERVICE: Record<string, string> = {
+  HVAC:              "Schedule HVAC filter replacement in 3 months to maintain efficiency.",
+  Roofing:           "Book an annual roof inspection to catch early wear.",
+  Plumbing:          "Check water heater anode rod in 12 months to prevent corrosion.",
+  Electrical:        "Schedule a panel safety inspection in 3 years.",
+  Flooring:          "Consider re-sealing or refinishing flooring in 2 years.",
+  Painting:          "Plan a touch-up inspection in 12 months.",
+  "Kitchen Remodel": "Add appliance model numbers to your room record for warranty tracking.",
+  "Bathroom Remodel":"Inspect grout and caulking in 12 months to prevent water intrusion.",
+};
+
 export default function JobCreatePage() {
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
+  const location  = useLocation();
+  const editJob   = (location.state as { editJob?: Job; prefill?: Record<string, string> } | null)?.editJob ?? null;
+  const prefill   = (location.state as { editJob?: Job; prefill?: Record<string, string> } | null)?.prefill ?? null;
   const { properties } = usePropertyStore();
   const [loading, setLoading] = useState(false);
   const [quota, setQuota] = useState<PhotoQuota>({ used: 0, limit: 10, tier: "Free" });
   const [uploadedFiles, setUploadedFiles] = useState<{ file: File; phase: string }[]>([]);
+  const [submitted, setSubmitted] = useState(false);
+  const [loggedServiceType, setLoggedServiceType] = useState("");
   const [form, setForm] = useState({
-    propertyId: "", serviceType: SERVICE_TYPES[0], isDiy: false,
-    contractorName: "", amount: "", date: new Date().toISOString().split("T")[0],
-    description: "", permitNumber: "", warrantyMonths: "",
+    propertyId:      editJob ? editJob.propertyId                                              : "",
+    serviceType:     editJob ? editJob.serviceType     : prefill?.serviceType    ?? SERVICE_TYPES[0],
+    isDiy:           editJob ? editJob.isDiy           : false,
+    contractorName:  editJob ? (editJob.contractorName ?? "") : prefill?.contractorName ?? "",
+    amount:          editJob ? String((editJob.amount / 100).toFixed(2)) : prefill?.amount ?? "",
+    date:            editJob ? editJob.date                                                    : new Date().toISOString().split("T")[0],
+    description:     editJob ? (editJob.description ?? "")                                     : "",
+    permitNumber:    editJob ? (editJob.permitNumber  ?? "")                                   : "",
+    warrantyMonths:  editJob ? (editJob.warrantyMonths != null ? String(editJob.warrantyMonths) : "") : "",
   });
 
   useEffect(() => {
     photoService.getQuota().then(setQuota);
-    if (properties.length > 0) setForm((f) => ({ ...f, propertyId: String(properties[0].id) }));
-  }, [properties]);
+    if (!editJob && properties.length > 0) setForm((f) => ({ ...f, propertyId: String(properties[0].id) }));
+  }, [properties]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-navigate to dashboard 3 s after success
+  useEffect(() => {
+    if (!submitted) return;
+    const timer = setTimeout(() => navigate("/dashboard"), 3000);
+    return () => clearTimeout(timer);
+  }, [submitted]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const update = (key: string, value: string | boolean) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -48,24 +79,101 @@ export default function JobCreatePage() {
     if (!form.amount) { toast.error("Please enter the amount"); return; }
     setLoading(true);
     try {
-      await jobService.create({
-        propertyId: form.propertyId, serviceType: form.serviceType,
-        contractorName: form.isDiy ? undefined : form.contractorName.trim(),
-        amount: Math.round(parseFloat(form.amount) * 100),
-        date: form.date, description: form.description, isDiy: form.isDiy,
-        permitNumber: form.permitNumber.trim() || undefined,
-        warrantyMonths: form.warrantyMonths ? parseInt(form.warrantyMonths, 10) : undefined,
-      });
-      toast.success("Job logged successfully!");
-      navigate("/dashboard");
+      if (editJob) {
+        await jobService.updateJob(editJob.id, {
+          serviceType:    form.serviceType,
+          contractorName: form.isDiy ? undefined : form.contractorName.trim(),
+          amount:         Math.round(parseFloat(form.amount) * 100),
+          date:           form.date,
+          description:    form.description,
+          isDiy:          form.isDiy,
+          permitNumber:   form.permitNumber.trim() || undefined,
+          warrantyMonths: form.warrantyMonths ? parseInt(form.warrantyMonths, 10) : undefined,
+        });
+        toast.success("Job updated!");
+      } else {
+        await jobService.create({
+          propertyId: form.propertyId, serviceType: form.serviceType,
+          contractorName: form.isDiy ? undefined : form.contractorName.trim(),
+          amount: Math.round(parseFloat(form.amount) * 100),
+          date: form.date, description: form.description, isDiy: form.isDiy,
+          permitNumber: form.permitNumber.trim() || undefined,
+          warrantyMonths: form.warrantyMonths ? parseInt(form.warrantyMonths, 10) : undefined,
+        });
+        setLoggedServiceType(form.serviceType);
+        setSubmitted(true);
+        return; // don't navigate — show success state
+      }
+      navigate(-1);
     } catch (err: any) {
-      toast.error(err.message || "Failed to create job");
+      toast.error(err.message || (editJob ? "Failed to update job" : "Failed to create job"));
     } finally {
       setLoading(false);
     }
   };
 
   const showPermitField = PERMIT_SERVICE_TYPES.has(form.serviceType);
+  const nextServiceTip  = NEXT_SERVICE[loggedServiceType] ?? "Log your next job to keep your HomeFax Score growing.";
+
+  // ── Success screen ────────────────────────────────────────────────────────
+  if (submitted) {
+    return (
+      <Layout>
+        <div style={{ maxWidth: "38rem", margin: "0 auto", padding: "4rem 1.5rem", textAlign: "center" }}>
+          <div className="job-success-icon" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "4rem", height: "4rem", border: `2px solid ${S.sage}`, marginBottom: "1.25rem" }}>
+            <CheckCircle size={28} color={S.sage} />
+          </div>
+          <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.sage, marginBottom: "0.375rem" }}>
+            Record Locked On-Chain
+          </p>
+          <h2 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, marginBottom: "0.5rem" }}>
+            {loggedServiceType} logged
+          </h2>
+          <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: S.inkLight, marginBottom: "2rem" }}>
+            Your maintenance record has been added to your HomeFax report.
+          </p>
+
+          {/* Next-service suggestion */}
+          <div style={{ border: `1px solid ${S.rule}`, padding: "1.25rem", background: "#fff", textAlign: "left", marginBottom: "1.5rem" }}>
+            <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.5rem" }}>
+              Next Step
+            </p>
+            <p style={{ fontSize: "0.875rem", fontWeight: 300, color: S.ink, lineHeight: 1.6, marginBottom: "0.875rem" }}>
+              {nextServiceTip}
+            </p>
+            <button
+              onClick={() => navigate("/maintenance")}
+              style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 0.875rem", border: `1px solid ${S.rule}`, background: "none", cursor: "pointer", color: S.inkLight }}
+            >
+              Add to maintenance schedule →
+            </button>
+          </div>
+
+          {/* Progress bar countdown */}
+          <div style={{ height: "2px", background: S.rule, marginBottom: "1.25rem", overflow: "hidden" }}>
+            <div className="job-success-progress" style={{ height: "100%", background: S.sage }} />
+          </div>
+          <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", color: S.inkLight, marginBottom: "1rem" }}>
+            Redirecting to dashboard in 3 seconds…
+          </p>
+          <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}>
+            <button
+              onClick={() => navigate("/dashboard")}
+              style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${S.ink}`, background: S.ink, color: S.paper, cursor: "pointer" }}
+            >
+              Go to dashboard
+            </button>
+            <button
+              onClick={() => { setSubmitted(false); setForm((f) => ({ ...f, serviceType: SERVICE_TYPES[0], contractorName: "", amount: "", description: "", permitNumber: "", warrantyMonths: "" })); }}
+              style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${S.rule}`, background: "none", cursor: "pointer", color: S.inkLight }}
+            >
+              Log another job
+            </button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -82,15 +190,15 @@ export default function JobCreatePage() {
           Maintenance Record
         </div>
         <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, marginBottom: "0.375rem" }}>
-          Log a Job
+          {editJob ? "Edit Job" : "Log a Job"}
         </h1>
         <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight, marginBottom: "1.5rem" }}>
-          Record a completed maintenance job on the blockchain.
+          {editJob ? `Editing record for ${editJob.serviceType} · ${editJob.date}` : "Record a completed maintenance job on the blockchain."}
         </p>
 
         <div style={{ border: `1px solid ${S.rule}`, background: "#fff", padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
 
-          {properties.length > 0 && (
+          {!editJob && properties.length > 0 && (
             <div>
               <label className="form-label">Property *</label>
               <select className="form-input" value={form.propertyId} onChange={(e) => update("propertyId", e.target.value)}>
@@ -107,6 +215,26 @@ export default function JobCreatePage() {
               {SERVICE_TYPES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
+
+          {/* Permit warning */}
+          {showPermitField && (
+            <div style={{
+              display: "flex", alignItems: "flex-start", gap: "0.625rem",
+              padding: "0.875rem 1rem",
+              border: "1px solid #D4820E", background: "#FEF3DC",
+            }}>
+              <AlertTriangle size={14} color="#D4820E" style={{ flexShrink: 0, marginTop: "0.1rem" }} />
+              <div>
+                <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "#8B6914", marginBottom: "0.2rem" }}>
+                  Permit may be required
+                </p>
+                <p style={{ fontSize: "0.75rem", color: "#8B6914", fontWeight: 300 }}>
+                  {form.serviceType} work typically requires a building permit. If one was pulled, logging the permit number below
+                  significantly strengthens your record — buyers and lenders look for this.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* DIY toggle */}
           <div
@@ -183,19 +311,21 @@ export default function JobCreatePage() {
             </div>
           )}
 
-          <div>
-            <label className="form-label" style={{ marginBottom: "0.5rem", display: "block" }}>
-              Photos & Receipts <span style={{ color: S.inkLight, fontWeight: 300 }}>(optional)</span>
-            </label>
-            <ConstructionPhotoUpload
-              onUpload={(file, phase) => setUploadedFiles((u) => [...u, { file, phase }])}
-              quota={{ ...quota, used: quota.used + uploadedFiles.length }}
-              onUpgradeQuota={() => navigate("/pricing")}
-            />
-          </div>
+          {!editJob && (
+            <div>
+              <label className="form-label" style={{ marginBottom: "0.5rem", display: "block" }}>
+                Photos & Receipts <span style={{ color: S.inkLight, fontWeight: 300 }}>(optional)</span>
+              </label>
+              <ConstructionPhotoUpload
+                onUpload={(file, phase) => setUploadedFiles((u) => [...u, { file, phase }])}
+                quota={{ ...quota, used: quota.used + uploadedFiles.length }}
+                onUpgradeQuota={() => navigate("/pricing")}
+              />
+            </div>
+          )}
 
           <Button loading={loading} onClick={handleSubmit} icon={<CheckCircle size={14} />} size="lg" style={{ width: "100%" }}>
-            Log Job to Blockchain
+            {editJob ? "Save Changes" : "Log Job to Blockchain"}
           </Button>
         </div>
       </div>

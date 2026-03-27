@@ -1,10 +1,12 @@
 import React, { useState } from "react";
-import { User, CreditCard, Bell, Lock, CheckCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { User, CreditCard, Bell, Lock, CheckCircle, LayoutDashboard } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { Badge } from "@/components/Badge";
 import { authService } from "@/services/auth";
 import { PLANS } from "@/services/payment";
+import { agentProfileService, type AgentProfile } from "@/services/agentProfile";
 import { useAuthStore } from "@/store/authStore";
 import toast from "react-hot-toast";
 
@@ -76,8 +78,8 @@ export default function SettingsPage() {
 }
 
 function AccountTab({ profile, setProfile }: { profile: any; setProfile: any }) {
-  const [email, setEmail] = useState(profile?.email ?? "");
-  const [phone, setPhone] = useState(profile?.phone ?? "");
+  const [email,   setEmail]   = useState(profile?.email ?? "");
+  const [phone,   setPhone]   = useState(profile?.phone ?? "");
   const [loading, setLoading] = useState(false);
 
   const handleSave = async () => {
@@ -94,26 +96,121 @@ function AccountTab({ profile, setProfile }: { profile: any; setProfile: any }) 
   };
 
   return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+      <div style={{ border: `1px solid ${S.rule}` }}>
+        <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${S.rule}` }}>
+          <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>Account Details</p>
+        </div>
+        <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <div>
+            <label className="form-label">Role</label>
+            <div style={{ padding: "0.5rem 0" }}>
+              <Badge variant="info">{profile?.role ?? "Unknown"}</Badge>
+            </div>
+          </div>
+          <div>
+            <label className="form-label">Email Address</label>
+            <input className="form-input" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </div>
+          <div>
+            <label className="form-label">Phone Number</label>
+            <input className="form-input" type="tel" placeholder="+1 (555) 000-0000" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          </div>
+          <Button loading={loading} onClick={handleSave} icon={<CheckCircle size={14} />}>Save Changes</Button>
+        </div>
+      </div>
+
+      {profile?.role === "Realtor" && <AgentBrandingSection />}
+      {profile?.role === "Realtor" && <AgentDashboardLink />}
+    </div>
+  );
+}
+
+function AgentBrandingSection() {
+  const saved = agentProfileService.load();
+  const [name,      setName]      = useState(saved?.name      ?? "");
+  const [brokerage, setBrokerage] = useState(saved?.brokerage ?? "");
+  const [phone,     setBrandPhone] = useState(saved?.phone    ?? "");
+  const [logoUrl,   setLogoUrl]   = useState(saved?.logoUrl   ?? "");
+
+  const handleSave = () => {
+    agentProfileService.save({ name, brokerage, phone, logoUrl });
+    toast.success("Agent branding saved");
+  };
+
+  const handleClear = () => {
+    agentProfileService.clear();
+    setName(""); setBrokerage(""); setBrandPhone(""); setLogoUrl("");
+    toast.success("Branding cleared");
+  };
+
+  return (
     <div style={{ border: `1px solid ${S.rule}` }}>
-      <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${S.rule}` }}>
-        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>Account Details</p>
+      <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${S.rule}`, background: "#FAFAF8" }}>
+        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.25rem" }}>
+          Agent Co-Branding
+        </p>
+        <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: S.inkLight, fontWeight: 300 }}>
+          Your branding appears on HomeFax reports you share with buyers. ICP verification remains intact.
+        </p>
       </div>
       <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
         <div>
-          <label className="form-label">Role</label>
-          <div style={{ padding: "0.5rem 0" }}>
-            <Badge variant="info">{profile?.role ?? "Unknown"}</Badge>
+          <label className="form-label">Full Name</label>
+          <input className="form-input" type="text" placeholder="Jane Smith" value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+        <div>
+          <label className="form-label">Brokerage</label>
+          <input className="form-input" type="text" placeholder="Keller Williams Austin" value={brokerage} onChange={(e) => setBrokerage(e.target.value)} />
+        </div>
+        <div>
+          <label className="form-label">Phone</label>
+          <input className="form-input" type="tel" placeholder="+1 (512) 000-0000" value={phone} onChange={(e) => setBrandPhone(e.target.value)} />
+        </div>
+        <div>
+          <label className="form-label">Logo URL <span style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight, textTransform: "none", letterSpacing: 0 }}>(optional — https://)</span></label>
+          <input className="form-input" type="url" placeholder="https://yourbrokerage.com/logo.png" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} />
+        </div>
+        {/* Preview */}
+        {(name || brokerage) && (
+          <div style={{ border: `1px solid ${S.rule}`, padding: "0.875rem 1.25rem", background: "#F4F1EB", display: "flex", alignItems: "center", gap: "0.875rem" }}>
+            {logoUrl && (
+              <img src={logoUrl} alt="logo" style={{ height: "2rem", objectFit: "contain", flexShrink: 0 }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+            )}
+            <div>
+              {name && <p style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "0.875rem", color: S.ink }}>{name}</p>}
+              {brokerage && <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: S.inkLight }}>{brokerage}</p>}
+              {phone && <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight }}>{phone}</p>}
+            </div>
           </div>
+        )}
+        <div style={{ display: "flex", gap: "0.75rem" }}>
+          <Button onClick={handleSave} icon={<CheckCircle size={14} />}>Save Branding</Button>
+          {saved && (
+            <Button variant="outline" onClick={handleClear}>Clear</Button>
+          )}
         </div>
-        <div>
-          <label className="form-label">Email Address</label>
-          <input className="form-input" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-        </div>
-        <div>
-          <label className="form-label">Phone Number</label>
-          <input className="form-input" type="tel" placeholder="+1 (555) 000-0000" value={phone} onChange={(e) => setPhone(e.target.value)} />
-        </div>
-        <Button loading={loading} onClick={handleSave} icon={<CheckCircle size={14} />}>Save Changes</Button>
+      </div>
+    </div>
+  );
+}
+
+function AgentDashboardLink() {
+  const navigate = useNavigate();
+  return (
+    <div style={{ border: `1px solid ${S.rule}`, marginTop: "1.5rem" }}>
+      <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${S.rule}`, background: "#FAFAF8" }}>
+        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.25rem" }}>
+          Agent Dashboard
+        </p>
+        <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: S.inkLight, fontWeight: 300 }}>
+          Track all share links across your client properties — view counts, expiry, and revocation.
+        </p>
+      </div>
+      <div style={{ padding: "1.25rem" }}>
+        <Button onClick={() => navigate("/agent-dashboard")} icon={<LayoutDashboard size={14} />}>
+          Open Agent Dashboard
+        </Button>
       </div>
     </div>
   );

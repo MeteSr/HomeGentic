@@ -127,15 +127,36 @@ export default function OnboardingPage() {
           </p>
 
           {/* Progress */}
-          <div style={{ marginTop: "1.5rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.5rem" }}>
-              <span>Setup progress</span>
-              <span style={{ color: doneCount > 0 ? S.rust : S.inkLight }}>{doneCount} / {steps.length} complete</span>
-            </div>
-            <div style={{ height: "3px", background: S.rule }}>
-              <div style={{ height: "3px", width: `${(doneCount / steps.length) * 100}%`, background: S.rust, transition: "width 0.4s ease" }} />
-            </div>
-          </div>
+          {(() => {
+            const pct      = Math.round((doneCount / steps.length) * 100);
+            const allDone  = doneCount === steps.length;
+            const barColor = allDone ? S.sage : S.rust;
+            return (
+              <div style={{ marginTop: "1.5rem" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+                  <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight }}>
+                    Setup progress
+                  </span>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: "0.375rem" }}>
+                    <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.25rem", lineHeight: 1, color: allDone ? S.sage : S.rust }}>
+                      {pct}%
+                    </span>
+                    <span style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight }}>
+                      {doneCount}/{steps.length} steps
+                    </span>
+                  </div>
+                </div>
+                <div style={{ height: "5px", background: S.rule }}>
+                  <div style={{ height: "5px", width: `${pct}%`, background: barColor, transition: "width 0.5s ease" }} />
+                </div>
+                {allDone && (
+                  <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: S.sage, marginTop: "0.5rem", textAlign: "center" }}>
+                    ✓ Setup complete — your HomeFax profile is ready.
+                  </p>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Steps */}

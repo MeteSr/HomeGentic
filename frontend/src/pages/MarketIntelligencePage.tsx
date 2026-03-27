@@ -14,6 +14,7 @@ import {
 import { usePropertyStore } from "@/store/propertyStore";
 
 type Tab = "competitive" | "projects";
+type SortBy = "roi" | "cost" | "payback";
 
 const S = {
   ink: "#0E0E0C", paper: "#F4F1EB", rule: "#C8C3B8",
@@ -60,6 +61,7 @@ export default function MarketIntelligencePage() {
   const [analysis, setAnalysis] = useState<CompetitiveAnalysis | null>(null);
   const [projects, setProjects] = useState<ProjectRecommendation[]>([]);
   const [budget, setBudget] = useState("50000");
+  const [sortBy, setSortBy] = useState<SortBy>("roi");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -239,6 +241,30 @@ export default function MarketIntelligencePage() {
 
             {tab === "projects" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                {/* Sort controls */}
+                {projects.length > 1 && (
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>
+                      Sort by
+                    </span>
+                    {(["roi", "cost", "payback"] as SortBy[]).map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setSortBy(s)}
+                        style={{
+                          fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase",
+                          padding: "0.25rem 0.75rem",
+                          background: sortBy === s ? S.ink : "none",
+                          color: sortBy === s ? "#F4F1EB" : S.inkLight,
+                          border: `1px solid ${sortBy === s ? S.ink : S.rule}`,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {s === "roi" ? "ROI %" : s === "cost" ? "Cost ↑" : "Payback ↑"}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {projects.length === 0 ? (
                   <div style={{ border: `1px dashed ${S.rule}`, padding: "3rem", textAlign: "center" }}>
                     <Wrench size={32} color={S.rule} style={{ margin: "0 auto 1rem" }} />
@@ -247,7 +273,13 @@ export default function MarketIntelligencePage() {
                     </p>
                   </div>
                 ) : (
-                  projects.map((p, i) => (
+                  [...projects]
+                    .sort((a, b) =>
+                      sortBy === "roi"     ? b.estimatedRoiPercent - a.estimatedRoiPercent
+                      : sortBy === "cost"  ? a.estimatedCostCents  - b.estimatedCostCents
+                      : a.paybackMonths    - b.paybackMonths
+                    )
+                    .map((p, i) => (
                     <div key={i} style={{ border: `1px solid ${S.rule}`, background: "#fff", padding: "1.25rem" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem", flexWrap: "wrap", gap: "0.5rem" }}>
                         <div>

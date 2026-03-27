@@ -18,11 +18,15 @@ const S = {
 export default function QuoteDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [request,         setRequest]         = useState<QuoteRequest | null>(null);
-  const [quotes,          setQuotes]          = useState<Quote[]>([]);
-  const [contractorNames, setContractorNames] = useState<Record<string, string>>({});
-  const [loading,         setLoading]         = useState(true);
-  const [accepting,       setAccepting]       = useState<string | null>(null);
+  const [request,            setRequest]            = useState<QuoteRequest | null>(null);
+  const [quotes,             setQuotes]             = useState<Quote[]>([]);
+  const [contractorNames,    setContractorNames]    = useState<Record<string, string>>({});
+  const [contractorScores,   setContractorScores]   = useState<Record<string, number>>({});
+  const [contractorVerified, setContractorVerified] = useState<Record<string, boolean>>({});
+  const [loading,            setLoading]            = useState(true);
+  const [accepting,          setAccepting]          = useState<string | null>(null);
+  const [pendingAccept,      setPendingAccept]      = useState<Quote | null>(null);
+  const [acceptedQuote,      setAcceptedQuote]      = useState<Quote | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -30,27 +34,51 @@ export default function QuoteDetailPage() {
       .then(async ([req, qs]) => {
         setRequest(req ?? null);
         setQuotes(qs);
-        // Look up contractor names in parallel
         const names: Record<string, string> = {};
+        const scores: Record<string, number> = {};
+        const verified: Record<string, boolean> = {};
         await Promise.all(qs.map(async (q) => {
           const profile = await contractorService.getContractor(q.contractor).catch(() => null);
-          names[q.contractor] = profile?.name ?? null!;
+          names[q.contractor]    = profile?.name ?? null!;
+          scores[q.contractor]   = profile?.trustScore ?? 0;
+          verified[q.contractor] = profile?.isVerified ?? false;
         }));
         setContractorNames(names);
+        setContractorScores(scores);
+        setContractorVerified(verified);
       })
       .finally(() => setLoading(false));
   }, [id]);
 
-  const lowestAmount = quotes.length > 0 ? Math.min(...quotes.map((q) => q.amount)) : 0;
+  const lowestAmount  = quotes.length > 0 ? Math.min(...quotes.map((q) => q.amount)) : 0;
+  const highestAmount = quotes.length > 0 ? Math.max(...quotes.map((q) => q.amount)) : 0;
 
-  const handleAccept = async (quoteId: string) => {
-    setAccepting(quoteId);
+  // "Best Value" = best composite of (low price rank + high trust score rank)
+  const bestValueId = React.useMemo(() => {
+    if (quotes.length < 2) return null;
+    const maxAmt   = Math.max(...quotes.map((q) => q.amount));
+    const minAmt   = Math.min(...quotes.map((q) => q.amount));
+    const maxScore = Math.max(...quotes.map((q) => contractorScores[q.contractor] ?? 0));
+    const scored   = quotes.map((q) => {
+      const priceRank = maxAmt === minAmt ? 0 : (maxAmt - q.amount) / (maxAmt - minAmt);
+      const trustRank = maxScore > 0 ? (contractorScores[q.contractor] ?? 0) / maxScore : 0;
+      return { id: q.id, composite: priceRank * 0.55 + trustRank * 0.45 };
+    });
+    return scored.sort((a, b) => b.composite - a.composite)[0]?.id ?? null;
+  }, [quotes, contractorScores]);
+
+  const handleAccept = async () => {
+    if (!pendingAccept) return;
+    setAccepting(pendingAccept.id);
     try {
-      await quoteService.accept(quoteId);
-      toast.success("Quote accepted! The contractor will be notified.");
-      navigate("/dashboard");
+      await quoteService.accept(pendingAccept.id);
+      setAcceptedQuote(pendingAccept);
+      setPendingAccept(null);
+      setQuotes((prev) => prev.map((q) => q.id === pendingAccept.id ? { ...q, status: "accepted" } : { ...q, status: q.status === "pending" ? "rejected" : q.status }));
+      toast.success("Quote accepted — contractor has been notified.");
     } catch (err: any) {
       toast.error(err.message || "Failed to accept quote");
+      setPendingAccept(null);
     } finally {
       setAccepting(null);
     }
@@ -101,6 +129,36 @@ export default function QuoteDetailPage() {
           </div>
         )}
 
+        {/* Post-accept success banner */}
+        {acceptedQuote && (
+          <div style={{ border: `1px solid ${S.sage}`, background: "#F0F6F3", padding: "1.25rem 1.5rem", marginBottom: "1.5rem" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
+                  <CheckCircle size={14} color={S.sage} />
+                  <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.sage, fontWeight: 600 }}>
+                    Quote Accepted
+                  </p>
+                </div>
+                <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, lineHeight: 1.5 }}>
+                  {contractorNames[acceptedQuote.contractor] ?? "Contractor"} · ${acceptedQuote.amount.toLocaleString()} · {acceptedQuote.timeline}d timeline
+                </p>
+              </div>
+              <Button
+                icon={<CheckCircle size={13} />}
+                onClick={() => navigate("/jobs/new", { state: { prefill: {
+                  serviceType:    request?.serviceType,
+                  contractorName: contractorNames[acceptedQuote.contractor],
+                  amount:         String((acceptedQuote.amount / 100).toFixed(2)),
+                } }})}
+                size="sm"
+              >
+                Log This Job
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Quotes */}
         {quotes.length === 0 ? (
           <div style={{ border: `1px dashed ${S.rule}`, padding: "3rem", textAlign: "center" }}>
@@ -112,56 +170,148 @@ export default function QuoteDetailPage() {
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-            <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>
-              {quotes.length} quote{quotes.length !== 1 ? "s" : ""} received
-            </p>
+            {/* Bid comparison summary */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", borderTop: `1px solid ${S.rule}`, borderLeft: `1px solid ${S.rule}` }}>
+              {[
+                { label: "Bids Received",  value: String(quotes.length) },
+                { label: "Bid Range",      value: lowestAmount === highestAmount ? `$${lowestAmount.toLocaleString()}` : `$${lowestAmount.toLocaleString()} – $${highestAmount.toLocaleString()}` },
+                { label: "Spread",         value: lowestAmount === highestAmount ? "—" : `$${(highestAmount - lowestAmount).toLocaleString()}` },
+              ].map((s) => (
+                <div key={s.label} style={{ padding: "0.875rem 1rem", borderRight: `1px solid ${S.rule}`, borderBottom: `1px solid ${S.rule}`, background: "#fff" }}>
+                  <div style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.375rem" }}>{s.label}</div>
+                  <div style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.125rem", lineHeight: 1 }}>{s.value}</div>
+                </div>
+              ))}
+            </div>
+
             {quotes
               .sort((a, b) => a.amount - b.amount)
               .map((quote) => {
-                const isLowest = quote.amount === lowestAmount;
+                const isLowest    = quote.amount === lowestAmount;
+                const isBestValue = quote.id === bestValueId;
+                const trustScore  = contractorScores[quote.contractor] ?? 0;
+                const isVerified  = contractorVerified[quote.contractor] ?? false;
+                const label       = isBestValue ? "Best Value" : isLowest ? "Lowest Quote" : null;
+                const labelColor  = isBestValue ? "#1A5C8A" : S.sage;
+                const borderColor = isBestValue ? "#1A5C8A" : isLowest ? S.sage : S.rule;
+
                 return (
-                  <div key={quote.id} style={{ border: `1px solid ${isLowest ? S.sage : S.rule}`, background: "#fff", padding: "1.25rem", position: "relative" }}>
-                    {isLowest && (
+                  <div key={quote.id} style={{ border: `1px solid ${borderColor}`, background: "#fff", padding: "1.25rem", position: "relative" }}>
+                    {label && (
                       <div style={{
                         position: "absolute", top: "-1px", left: "1rem",
-                        background: S.sage, color: "#fff",
+                        background: labelColor, color: "#fff",
                         fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase",
                         padding: "0.2rem 0.625rem",
                       }}>
-                        Lowest Quote
+                        {label}
                       </div>
                     )}
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1rem", marginTop: isLowest ? "0.75rem" : 0 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1rem", marginTop: label ? "0.75rem" : 0 }}>
                       <div>
-                        <p style={{ fontWeight: 500, marginBottom: "0.25rem" }}>
-                        {contractorNames[quote.contractor] ?? `${quote.contractor.slice(0, 10)}…`}
-                      </p>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
+                          <p style={{ fontWeight: 500 }}>
+                            {contractorNames[quote.contractor] ?? `${quote.contractor.slice(0, 10)}…`}
+                          </p>
+                          {isVerified && (
+                            <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.sage, border: `1px solid ${S.sage}40`, padding: "0.1rem 0.375rem" }}>
+                              ✓ Verified
+                            </span>
+                          )}
+                        </div>
                         <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>
                           <Clock size={11} style={{ display: "inline", marginRight: "0.25rem" }} />
                           {quote.timeline} day{quote.timeline !== 1 ? "s" : ""} to complete
                         </p>
+                        {trustScore > 0 && (
+                          <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight, marginTop: "0.25rem" }}>
+                            Trust Score: <strong style={{ color: S.ink }}>{trustScore}/100</strong>
+                          </p>
+                        )}
                       </div>
                       <div style={{ textAlign: "right" }}>
-                        <p style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, color: isLowest ? S.sage : S.ink }}>
+                        <p style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, color: isBestValue ? "#1A5C8A" : isLowest ? S.sage : S.ink }}>
                           ${quote.amount.toLocaleString()}
                         </p>
                       </div>
                     </div>
-                    <Button
-                      loading={accepting === quote.id}
-                      onClick={() => handleAccept(quote.id)}
-                      variant={isLowest ? "primary" : "outline"}
-                      icon={<CheckCircle size={14} />}
-                      style={{ width: "100%" }}
-                    >
-                      Accept This Quote
-                    </Button>
+                    {quote.status === "accepted" ? (
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", padding: "0.625rem", border: `1px solid ${S.sage}`, color: S.sage, fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                        <CheckCircle size={13} /> Accepted
+                      </div>
+                    ) : quote.status === "rejected" ? (
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "0.625rem", color: S.inkLight, fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.5 }}>
+                        Not selected
+                      </div>
+                    ) : (
+                      <Button
+                        loading={accepting === quote.id}
+                        onClick={() => setPendingAccept(quote)}
+                        variant={isBestValue || isLowest ? "primary" : "outline"}
+                        icon={<CheckCircle size={14} />}
+                        style={{ width: "100%" }}
+                      >
+                        Accept This Quote
+                      </Button>
+                    )}
                   </div>
                 );
               })}
           </div>
         )}
       </div>
+
+      {/* Confirmation modal */}
+      {pendingAccept && (
+        <div
+          onClick={() => setPendingAccept(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(14,14,12,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: "1.5rem" }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: "#fff", border: `1px solid ${S.rule}`, maxWidth: "28rem", width: "100%", padding: "0" }}
+          >
+            <div style={{ padding: "1.25rem 1.5rem", borderBottom: `1px solid ${S.rule}`, background: S.paper }}>
+              <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.ink, fontWeight: 600 }}>
+                Confirm acceptance
+              </p>
+            </div>
+            <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderTop: `1px solid ${S.rule}`, borderLeft: `1px solid ${S.rule}` }}>
+                {[
+                  { label: "Contractor",  value: contractorNames[pendingAccept.contractor] ?? "—" },
+                  { label: "Amount",      value: `$${pendingAccept.amount.toLocaleString()}` },
+                  { label: "Timeline",    value: `${pendingAccept.timeline}d` },
+                ].map((r) => (
+                  <div key={r.label} style={{ padding: "0.75rem", borderRight: `1px solid ${S.rule}`, borderBottom: `1px solid ${S.rule}` }}>
+                    <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.25rem" }}>{r.label}</p>
+                    <p style={{ fontSize: "0.875rem", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.value}</p>
+                  </div>
+                ))}
+              </div>
+              <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, lineHeight: 1.5 }}>
+                Accepting this quote closes the request and notifies the contractor. Other bids will be marked as not selected.
+              </p>
+              <div style={{ display: "flex", gap: "0.75rem" }}>
+                <Button
+                  loading={!!accepting}
+                  onClick={handleAccept}
+                  icon={<CheckCircle size={13} />}
+                  style={{ flex: 1 }}
+                >
+                  Confirm Accept
+                </Button>
+                <button
+                  onClick={() => setPendingAccept(null)}
+                  style={{ padding: "0.5rem 1.25rem", border: `1px solid ${S.rule}`, background: "none", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight, cursor: "pointer" }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

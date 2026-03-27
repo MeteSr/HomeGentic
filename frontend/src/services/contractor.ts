@@ -233,6 +233,21 @@ export const contractorService = {
     }));
   },
 
+  async submitReview(contractorPrincipalText: string, rating: number, comment: string, jobId: string): Promise<void> {
+    if (!CONTRACTOR_CANISTER_ID) {
+      // Mock: no-op in dev
+      return;
+    }
+    const a = await getActor();
+    const { Principal: P } = await import("@dfinity/principal");
+    const result = await a.submitReview(P.fromText(contractorPrincipalText), BigInt(rating), comment, jobId);
+    if ("err" in result) {
+      const key = Object.keys(result.err)[0];
+      const val = result.err[key];
+      throw new Error(typeof val === "string" ? val : key);
+    }
+  },
+
   reset() {
     _actor = null;
   },

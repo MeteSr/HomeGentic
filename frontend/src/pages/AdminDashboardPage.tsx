@@ -172,6 +172,7 @@ export default function AdminDashboardPage() {
   const [tab, setTab] = useState<Tab>("verifications");
   const [pending, setPending] = useState<Property[]>([]);
   const [loadingPending, setLoadingPending] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
 
   useEffect(() => {
     if (!principal) return;
@@ -187,6 +188,7 @@ export default function AdminDashboardPage() {
       toast.error("Failed to load pending verifications");
     } finally {
       setLoadingPending(false);
+      setLastRefreshed(new Date());
     }
   };
 
@@ -234,6 +236,39 @@ export default function AdminDashboardPage() {
             <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight }}>
               Principal: <code style={{ background: S.paper, padding: "0.1rem 0.4rem" }}>{principal}</code>
             </p>
+          </div>
+        </div>
+
+        {/* Metrics bar */}
+        <div style={{ display: "flex", gap: "1px", background: S.rule, marginBottom: "1.5rem" }}>
+          <div style={{ flex: 1, background: "#fff", padding: "0.875rem 1.25rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.25rem" }}>Pending Verifications</p>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, color: pending.length > 0 ? S.rust : S.ink }}>{pending.length}</span>
+                {pending.length > 0 && (
+                  <span style={{ display: "inline-flex", alignItems: "center", padding: "0.15rem 0.5rem", background: S.rust, color: "#fff", fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                    Action needed
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          <div style={{ flex: 1, background: "#fff", padding: "0.875rem 1.25rem" }}>
+            <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.25rem" }}>Last Refreshed</p>
+            <p style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.ink }}>
+              {lastRefreshed ? lastRefreshed.toLocaleTimeString() : "—"}
+            </p>
+          </div>
+          <div style={{ background: "#fff", padding: "0.875rem 1.25rem", display: "flex", alignItems: "center" }}>
+            <button
+              onClick={loadPending}
+              disabled={loadingPending}
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.5rem 1rem", border: `1px solid ${S.rule}`, background: loadingPending ? S.paper : "#fff", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: loadingPending ? "not-allowed" : "pointer", color: S.inkLight, opacity: loadingPending ? 0.7 : 1 }}
+            >
+              <RefreshCw size={11} style={{ animation: loadingPending ? "spin 1s linear infinite" : "none" }} />
+              {loadingPending ? "Refreshing…" : "Refresh"}
+            </button>
           </div>
         </div>
 

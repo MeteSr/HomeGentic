@@ -131,6 +131,27 @@ export interface PropertyInput {
 
 export type VisibilityLevel = "Public" | "BuyerOnly";
 
+/**
+ * Field-level disclosure options encoded as URL query params on the share link.
+ * The canister stores the full record; these flags let sellers control what
+ * a buyer can see without needing canister-level changes.
+ */
+export interface DisclosureOptions {
+  hideAmounts:      boolean;
+  hideContractors:  boolean;
+  hidePermits:      boolean;
+  hideDescriptions: boolean;
+}
+
+export function disclosureFromParams(params: URLSearchParams): DisclosureOptions {
+  return {
+    hideAmounts:      params.get("ha") === "1",
+    hideContractors:  params.get("hc") === "1",
+    hidePermits:      params.get("hp") === "1",
+    hideDescriptions: params.get("hd") === "1",
+  };
+}
+
 export interface ReportSnapshot {
   snapshotId:        string;
   propertyId:        string;
@@ -393,8 +414,16 @@ export const reportService = {
     }
   },
 
-  shareUrl(token: string): string {
-    return `${window.location.origin}/report/${token}`;
+  shareUrl(token: string, options?: Partial<DisclosureOptions>): string {
+    const base = `${window.location.origin}/report/${token}`;
+    if (!options) return base;
+    const p = new URLSearchParams();
+    if (options.hideAmounts)      p.set("ha", "1");
+    if (options.hideContractors)  p.set("hc", "1");
+    if (options.hidePermits)      p.set("hp", "1");
+    if (options.hideDescriptions) p.set("hd", "1");
+    const qs = p.toString();
+    return qs ? `${base}?${qs}` : base;
   },
 
   expiryLabel(link: ShareLink): string {

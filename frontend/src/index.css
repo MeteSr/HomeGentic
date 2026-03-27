@@ -139,6 +139,24 @@ textarea.form-input {
   to { transform: rotate(360deg); }
 }
 
+@keyframes scale-in {
+  from { transform: scale(0.4); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+@keyframes progress-bar {
+  from { width: 0%; }
+  to   { width: 100%; }
+}
+
+.job-success-icon {
+  animation: scale-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.job-success-progress {
+  animation: progress-bar 3s linear forwards;
+}
+
 /* ─── Scrollbar ──────────────────────────────────────────────────────────────── */
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }

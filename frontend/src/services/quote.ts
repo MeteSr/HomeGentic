@@ -110,7 +110,21 @@ export interface Quote {
 
 // ─── Mock fallback ────────────────────────────────────────────────────────────
 
-const MOCK_REQUESTS: QuoteRequest[] = [];
+const MOCK_REQUESTS: QuoteRequest[] = [
+  { id: "MY_REQ_1", propertyId: "prop_1", homeowner: "local", serviceType: "HVAC",     urgency: "high",   description: "AC unit not cooling. 12-year-old unit — needs diagnosis.", status: "quoted",   createdAt: Date.now() - 86400000 * 3 },
+  { id: "MY_REQ_2", propertyId: "prop_1", homeowner: "local", serviceType: "Roofing",  urgency: "medium", description: "Several shingles missing after last storm. Small attic leak.", status: "open",     createdAt: Date.now() - 86400000 * 8 },
+  { id: "MY_REQ_3", propertyId: "prop_1", homeowner: "local", serviceType: "Plumbing", urgency: "low",    description: "Slow drain in master bathroom. Snaking hasn't resolved it.", status: "accepted", createdAt: Date.now() - 86400000 * 14 },
+];
+
+const MOCK_MY_BIDS: Quote[] = [
+  { id: "QUOTE_101", requestId: "REQ_101", contractor: "local", amount: 185000, timeline: 3,  validUntil: Date.now() - 86400000 * 30, status: "accepted",  createdAt: Date.now() - 86400000 * 90 },
+  { id: "QUOTE_102", requestId: "REQ_102", contractor: "local", amount: 320000, timeline: 5,  validUntil: Date.now() - 86400000 * 20, status: "rejected",  createdAt: Date.now() - 86400000 * 75 },
+  { id: "QUOTE_103", requestId: "REQ_103", contractor: "local", amount: 95000,  timeline: 2,  validUntil: Date.now() - 86400000 * 10, status: "accepted",  createdAt: Date.now() - 86400000 * 60 },
+  { id: "QUOTE_104", requestId: "REQ_104", contractor: "local", amount: 440000, timeline: 7,  validUntil: Date.now() - 86400000 * 5,  status: "rejected",  createdAt: Date.now() - 86400000 * 45 },
+  { id: "QUOTE_105", requestId: "REQ_105", contractor: "local", amount: 210000, timeline: 4,  validUntil: Date.now() - 86400000 * 2,  status: "accepted",  createdAt: Date.now() - 86400000 * 30 },
+  { id: "QUOTE_106", requestId: "REQ_106", contractor: "local", amount: 75000,  timeline: 1,  validUntil: Date.now() + 86400000 * 10, status: "pending",   createdAt: Date.now() - 86400000 * 5  },
+  { id: "QUOTE_107", requestId: "REQ_107", contractor: "local", amount: 560000, timeline: 10, validUntil: Date.now() + 86400000 * 20, status: "pending",   createdAt: Date.now() - 86400000 * 2  },
+];
 
 const MOCK_OPEN_REQUESTS: QuoteRequest[] = [
   {
@@ -278,6 +292,32 @@ export const quoteService = {
     const result = await a.getQuoteRequest(id);
     if ("err" in result) return undefined;
     return fromRequest(result.ok);
+  },
+
+  async getBidCountMap(requestIds: string[]): Promise<Record<string, number>> {
+    if (!QUOTE_CANISTER_ID) {
+      // Mock: infer counts from request status
+      const map: Record<string, number> = {};
+      for (const id of requestIds) {
+        const req = MOCK_REQUESTS.find((r) => r.id === id);
+        map[id] = req?.status === "accepted" ? 3 : req?.status === "quoted" ? 2 : 0;
+      }
+      return map;
+    }
+    const results = await Promise.allSettled(
+      requestIds.map((id) => this.getQuotesForRequest(id).then((qs) => [id, qs.length] as [string, number]))
+    );
+    const map: Record<string, number> = {};
+    for (const r of results) {
+      if (r.status === "fulfilled") map[r.value[0]] = r.value[1];
+    }
+    return map;
+  },
+
+  async getMyBids(): Promise<Quote[]> {
+    if (!QUOTE_CANISTER_ID) return [...MOCK_MY_BIDS];
+    // No dedicated canister endpoint yet — return empty; canister can add getMyQuotes later
+    return [];
   },
 
   async getQuotesForRequest(requestId: string): Promise<Quote[]> {

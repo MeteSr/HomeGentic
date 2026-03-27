@@ -14,6 +14,7 @@ import {
   Bot, Send, Wrench, ChevronDown, ChevronUp, PlusCircle, X, Settings2,
 } from "lucide-react";
 import { systemAgesService } from "@/services/systemAges";
+import { marketService, buildPropertySummary, type ProjectRecommendation } from "@/services/market";
 import { useNavigate } from "react-router-dom";
 
 const S = {
@@ -66,18 +67,28 @@ function LifeBar({ pct, urgency }: { pct: number; urgency: UrgencyLevel }) {
 
 // ─── System Card ───────────────────────────────────────────────────────────────
 
-function SystemCard({ pred, onSchedule }: { pred: SystemPrediction; onSchedule: (p: SystemPrediction) => void }) {
+type TaskState = "none" | "scheduled" | "done";
+
+function SystemCard({ pred, onSchedule, marketRec, taskState, onTaskStateChange }: {
+  pred:              SystemPrediction;
+  onSchedule:        (p: SystemPrediction) => void;
+  marketRec?:        ProjectRecommendation;
+  taskState:         TaskState;
+  onTaskStateChange: (state: TaskState) => void;
+}) {
   const [expanded, setExpanded] = useState(false);
   const low  = maintenanceService.formatCents(pred.estimatedCostLowCents);
   const high = maintenanceService.formatCents(pred.estimatedCostHighCents);
 
   return (
-    <div style={{ border: `1px solid ${pred.urgency === "Critical" ? S.rust : S.rule}`, background: "#fff" }}>
+    <div style={{ border: `1px solid ${taskState === "done" ? S.sage : pred.urgency === "Critical" ? S.rust : S.rule}`, background: taskState === "done" ? "#F0F6F3" : "#fff", opacity: taskState === "done" ? 0.75 : 1 }}>
       <div style={{ padding: "1rem 1.25rem", display: "flex", alignItems: "center", gap: "0.75rem", cursor: "pointer" }} onClick={() => setExpanded((e) => !e)}>
         <div style={{ flex: 1 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.375rem" }}>
             <span style={{ fontWeight: 700, fontSize: "0.9rem", color: S.ink }}>{pred.systemName}</span>
-            <UrgencyBadge urgency={pred.urgency} />
+            {taskState === "done"      ? <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.sage, border: `1px solid ${S.sage}40`, padding: "0.1rem 0.4rem" }}>✓ Done</span>
+            : taskState === "scheduled" ? <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "#8B6914", border: "1px solid #D4820E40", padding: "0.1rem 0.4rem" }}>Scheduled</span>
+            : <UrgencyBadge urgency={pred.urgency} />}
             {pred.diyViable && (
               <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight, border: `1px solid ${S.rule}`, padding: "0.1rem 0.4rem" }}>
                 DIY OK
@@ -113,12 +124,63 @@ function SystemCard({ pred, onSchedule }: { pred: SystemPrediction; onSchedule: 
                 : <><strong style={{ color: S.rust }}>{Math.abs(pred.yearsRemaining)} yrs overdue</strong></>}
             </span>
           </div>
-          <button
-            onClick={(e) => { e.stopPropagation(); onSchedule(pred); }}
-            style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.4rem 0.875rem", border: `1px solid ${S.rule}`, background: "#fff", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.ink, cursor: "pointer" }}
-          >
-            <Calendar size={11} /> Add to schedule
-          </button>
+
+          {/* Market ROI data */}
+          {marketRec && (
+            <div style={{ border: `1px solid ${S.rule}`, padding: "0.75rem 1rem", marginBottom: "0.75rem", display: "flex", gap: "1.5rem", flexWrap: "wrap", background: "#fff" }}>
+              <div>
+                <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.2rem" }}>Market ROI</p>
+                <p style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.75rem", color: S.sage }}>{marketRec.estimatedRoiPercent}%</p>
+              </div>
+              <div>
+                <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.2rem" }}>Est. Value Gain</p>
+                <p style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.75rem", color: S.ink }}>{marketService.formatCost(marketRec.estimatedGainCents)}</p>
+              </div>
+              <div>
+                <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.2rem" }}>Payback</p>
+                <p style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.75rem", color: S.ink }}>{marketRec.paybackMonths} mo</p>
+              </div>
+              <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.04em", color: S.inkLight, width: "100%", marginTop: "-0.25rem" }}>
+                Source: 2024 Remodeling Magazine · {marketRec.requiresPermit ? "Permit required" : "No permit typically required"}
+              </p>
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            <button
+              onClick={(e) => { e.stopPropagation(); onSchedule(pred); }}
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.4rem 0.875rem", border: `1px solid ${S.rule}`, background: "#fff", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.ink, cursor: "pointer" }}
+            >
+              <Calendar size={11} /> Add to schedule
+            </button>
+
+            {taskState !== "scheduled" && taskState !== "done" && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onTaskStateChange("scheduled"); }}
+                style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.4rem 0.875rem", border: `1px solid #D4820E`, background: "#FEF3DC", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "#8B6914", cursor: "pointer" }}
+              >
+                <Clock size={11} /> Mark Scheduled
+              </button>
+            )}
+
+            {taskState !== "done" && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onTaskStateChange("done"); }}
+                style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.4rem 0.875rem", border: `1px solid ${S.sage}`, background: "#F0F6F3", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.sage, cursor: "pointer" }}
+              >
+                <CheckCircle2 size={11} /> Mark Done
+              </button>
+            )}
+
+            {taskState !== "none" && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onTaskStateChange("none"); }}
+                style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.4rem 0.875rem", border: `1px solid ${S.rule}`, background: "#fff", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight, cursor: "pointer" }}
+              >
+                <X size={11} /> Undo
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -378,9 +440,62 @@ export default function PredictiveMaintenancePage() {
   const [activeTab, setActiveTab]   = useState<Tab>("systems");
   const [scheduleEntries, setScheduleEntries] = useState<ScheduleEntry[]>([]);
   const [scheduleTarget, setScheduleTarget]   = useState<SystemPrediction | null>(null);
+  const [taskStates, setTaskStates] = useState<Record<string, TaskState>>(() => {
+    try { return JSON.parse(localStorage.getItem("homefax_task_states") ?? "{}"); }
+    catch { return {}; }
+  });
+
+  const taskKey = (systemName: string) => `${selectedId}::${systemName}`;
+  const setTaskState = (systemName: string, state: TaskState) => {
+    setTaskStates((prev) => {
+      const next = { ...prev, [taskKey(systemName)]: state };
+      localStorage.setItem("homefax_task_states", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const currentYear = new Date().getFullYear();
+  const [annualTaskDone, setAnnualTaskDone] = useState<Record<string, boolean>>(() => {
+    try { return JSON.parse(localStorage.getItem("homefax_annual_tasks") ?? "{}"); }
+    catch { return {}; }
+  });
+  const annualKey = (taskName: string) => `${selectedId}::${taskName}::${currentYear}`;
+  const toggleAnnualTask = (taskName: string) => {
+    setAnnualTaskDone((prev) => {
+      const key  = annualKey(taskName);
+      const next = { ...prev, [key]: !prev[key] };
+      localStorage.setItem("homefax_annual_tasks", JSON.stringify(next));
+      return next;
+    });
+  };
 
   const property = properties.find((p) => String(p.id) === selectedId);
   const propJobs = jobs.filter((j) => j.propertyId === selectedId);
+
+  // Market recommendations indexed by service category for O(1) lookup in SystemCard
+  const marketRecsByCategory = React.useMemo<Record<string, ProjectRecommendation>>(() => {
+    if (!property) return {};
+    const recs = marketService.recommendValueAddingProjects(
+      {
+        yearBuilt:    Number(property.yearBuilt),
+        squareFeet:   Number(property.squareFeet),
+        propertyType: String(property.propertyType),
+        state:        property.state,
+        zipCode:      property.zipCode,
+      },
+      propJobs.map((j) => ({
+        serviceType:   j.serviceType,
+        completedYear: j.date ? parseInt(j.date.split("-")[0], 10) : new Date().getFullYear(),
+        amountCents:   j.amount,
+        isDiy:         j.isDiy,
+        isVerified:    j.status === "verified",
+      })),
+      0
+    );
+    const map: Record<string, ProjectRecommendation> = {};
+    for (const r of recs) map[r.category] = r;
+    return map;
+  }, [selectedId, property, propJobs.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!property) return;
@@ -395,6 +510,22 @@ export default function PredictiveMaintenancePage() {
 
   const criticalCount = report?.systemPredictions.filter((p) => p.urgency === "Critical").length ?? 0;
   const soonCount     = report?.systemPredictions.filter((p) => p.urgency === "Soon").length ?? 0;
+
+  // Cross-property overview (only computed when 2+ properties)
+  const allPropertyReports = React.useMemo(() => {
+    if (properties.length < 2) return [];
+    return properties.map((p) => {
+      const pJobs = jobs.filter((j) => j.propertyId === String(p.id));
+      const ages  = systemAgesService.get(String(p.id));
+      const r     = maintenanceService.predict(Number(p.yearBuilt), pJobs, ages);
+      return {
+        property: p,
+        critical: r.systemPredictions.filter((s) => s.urgency === "Critical").length,
+        soon:     r.systemPredictions.filter((s) => s.urgency === "Soon").length,
+        overdueSystems: r.systemPredictions.filter((s) => s.yearsRemaining < 0),
+      };
+    });
+  }, [properties, jobs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const TABS: { id: Tab; label: string }[] = [
     { id: "systems",  label: "System Health" },
@@ -426,6 +557,56 @@ export default function PredictiveMaintenancePage() {
           </div>
         ) : (
           <>
+            {/* Cross-property overdue overview */}
+            {allPropertyReports.length >= 2 && (
+              <div style={{ border: `1px solid ${S.rule}`, marginBottom: "1.5rem", background: "#fff" }}>
+                <div style={{ padding: "0.75rem 1.25rem", borderBottom: `1px solid ${S.rule}`, background: S.paper }}>
+                  <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: S.inkLight }}>
+                    All Properties — Overdue Overview
+                  </span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: S.rule }}>
+                  {allPropertyReports.map(({ property: p, critical, soon, overdueSystems }) => (
+                    <button
+                      key={String(p.id)}
+                      onClick={() => setSelectedId(String(p.id))}
+                      style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.75rem 1.25rem", background: String(p.id) === selectedId ? "#FAF0ED" : "#fff", border: "none", cursor: "pointer", textAlign: "left", width: "100%" }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontWeight: 600, fontSize: "0.875rem", color: S.ink, marginBottom: "0.2rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {p.address}
+                        </p>
+                        {overdueSystems.length > 0 ? (
+                          <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, letterSpacing: "0.04em" }}>
+                            Overdue: {overdueSystems.map((s) => s.systemName).join(", ")}
+                          </p>
+                        ) : (
+                          <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.sage, letterSpacing: "0.04em" }}>No overdue systems</p>
+                        )}
+                      </div>
+                      <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
+                        {critical > 0 && (
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", padding: "0.2rem 0.5rem", border: `1px solid ${S.rust}`, fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.rust }}>
+                            <AlertTriangle size={9} /> {critical}
+                          </span>
+                        )}
+                        {soon > 0 && (
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", padding: "0.2rem 0.5rem", border: `1px solid #D4820E`, fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "#D4820E" }}>
+                            <Clock size={9} /> {soon}
+                          </span>
+                        )}
+                        {critical === 0 && soon === 0 && (
+                          <span style={{ padding: "0.2rem 0.5rem", border: `1px solid ${S.sage}`, fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.sage }}>
+                            Good
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
               <select
                 value={selectedId}
@@ -474,37 +655,129 @@ export default function PredictiveMaintenancePage() {
               ))}
             </div>
 
-            {activeTab === "systems" && report && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: S.rule }}>
-                {report.systemPredictions.map((pred) => (
-                  <SystemCard key={pred.systemName} pred={pred} onSchedule={setScheduleTarget} />
-                ))}
-              </div>
-            )}
+            {activeTab === "systems" && report && (() => {
+              const active = report.systemPredictions.filter((p) => taskStates[taskKey(p.systemName)] !== "done");
+              const done   = report.systemPredictions.filter((p) => taskStates[taskKey(p.systemName)] === "done");
+              return (
+                <>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: S.rule }}>
+                    {active.map((pred) => (
+                      <SystemCard
+                        key={pred.systemName}
+                        pred={pred}
+                        onSchedule={setScheduleTarget}
+                        marketRec={marketRecsByCategory[pred.systemName]}
+                        taskState={taskStates[taskKey(pred.systemName)] ?? "none"}
+                        onTaskStateChange={(s) => setTaskState(pred.systemName, s)}
+                      />
+                    ))}
+                  </div>
+                  {done.length > 0 && (
+                    <details style={{ marginTop: "1rem" }}>
+                      <summary style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, cursor: "pointer", padding: "0.5rem 0", userSelect: "none" }}>
+                        Completed systems ({done.length})
+                      </summary>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: S.rule, marginTop: "0.5rem" }}>
+                        {done.map((pred) => (
+                          <SystemCard
+                            key={pred.systemName}
+                            pred={pred}
+                            onSchedule={setScheduleTarget}
+                            marketRec={marketRecsByCategory[pred.systemName]}
+                            taskState="done"
+                            onTaskStateChange={(s) => setTaskState(pred.systemName, s)}
+                          />
+                        ))}
+                      </div>
+                    </details>
+                  )}
+                </>
+              );
+            })()}
 
-            {activeTab === "annual" && report && (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(16rem, 1fr))", gap: "1px", background: S.rule }}>
-                {report.annualTasks.map((task) => (
-                  <div key={task.task} style={{ background: "#fff", padding: "1rem" }}>
-                    <div style={{ fontWeight: 600, fontSize: "0.875rem", color: S.ink, marginBottom: "0.375rem" }}>{task.task}</div>
-                    <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "0.5rem" }}>
-                      <span style={{ border: `1px solid ${S.rule}`, fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.rust, padding: "0.125rem 0.4rem" }}>
-                        {task.frequency}
+            {activeTab === "annual" && report && (() => {
+              const pending = report.annualTasks.filter((t) => !annualTaskDone[annualKey(t.task)]);
+              const done    = report.annualTasks.filter((t) =>  annualTaskDone[annualKey(t.task)]);
+              const pct     = report.annualTasks.length > 0 ? Math.round((done.length / report.annualTasks.length) * 100) : 0;
+              return (
+                <>
+                  {/* Progress bar */}
+                  <div style={{ marginBottom: "1.25rem" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.375rem" }}>
+                      <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>
+                        {currentYear} Annual Tasks
                       </span>
-                      {task.season && <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>{task.season}</span>}
+                      <span style={{ fontFamily: S.mono, fontSize: "0.65rem", fontWeight: 700, color: pct === 100 ? S.sage : S.ink }}>
+                        {done.length} / {report.annualTasks.length} done ({pct}%)
+                      </span>
                     </div>
-                    <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: S.ink, fontWeight: 600 }}>
-                      {task.estimatedCost}
-                      {task.diyViable && (
-                        <span style={{ marginLeft: "0.5rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: S.sage, border: `1px solid ${S.sage}40`, padding: "0.1rem 0.4rem", textTransform: "uppercase" }}>
-                          DIY
-                        </span>
-                      )}
+                    <div style={{ height: "4px", background: S.rule }}>
+                      <div style={{ height: "100%", width: `${pct}%`, background: pct === 100 ? S.sage : S.rust, transition: "width 0.3s" }} />
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+
+                  {/* Pending tasks */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(16rem, 1fr))", gap: "1px", background: S.rule }}>
+                    {pending.map((task) => (
+                      <div key={task.task} style={{ background: "#fff", padding: "1rem" }}>
+                        <label style={{ display: "flex", alignItems: "flex-start", gap: "0.625rem", cursor: "pointer" }}>
+                          <input
+                            type="checkbox"
+                            checked={false}
+                            onChange={() => toggleAnnualTask(task.task)}
+                            style={{ marginTop: "0.2rem", accentColor: S.rust, cursor: "pointer", flexShrink: 0 }}
+                          />
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 600, fontSize: "0.875rem", color: S.ink, marginBottom: "0.375rem" }}>{task.task}</div>
+                            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "0.5rem" }}>
+                              <span style={{ border: `1px solid ${S.rule}`, fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.rust, padding: "0.125rem 0.4rem" }}>
+                                {task.frequency}
+                              </span>
+                              {task.season && <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>{task.season}</span>}
+                            </div>
+                            <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: S.ink, fontWeight: 600 }}>
+                              {task.estimatedCost}
+                              {task.diyViable && (
+                                <span style={{ marginLeft: "0.5rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: S.sage, border: `1px solid ${S.sage}40`, padding: "0.1rem 0.4rem", textTransform: "uppercase" }}>
+                                  DIY
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Done tasks */}
+                  {done.length > 0 && (
+                    <details style={{ marginTop: "1rem" }}>
+                      <summary style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.sage, cursor: "pointer", padding: "0.5rem 0", userSelect: "none" }}>
+                        ✓ Done this year ({done.length})
+                      </summary>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(16rem, 1fr))", gap: "1px", background: S.rule, marginTop: "0.5rem" }}>
+                        {done.map((task) => (
+                          <div key={task.task} style={{ background: "#F0F6F3", padding: "1rem", opacity: 0.7 }}>
+                            <label style={{ display: "flex", alignItems: "flex-start", gap: "0.625rem", cursor: "pointer" }}>
+                              <input
+                                type="checkbox"
+                                checked={true}
+                                onChange={() => toggleAnnualTask(task.task)}
+                                style={{ marginTop: "0.2rem", accentColor: S.sage, cursor: "pointer", flexShrink: 0 }}
+                              />
+                              <div>
+                                <div style={{ fontWeight: 600, fontSize: "0.875rem", color: S.inkLight, textDecoration: "line-through", marginBottom: "0.2rem" }}>{task.task}</div>
+                                <span style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.sage }}>Completed {currentYear}</span>
+                              </div>
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+                </>
+              );
+            })()}
 
             {activeTab === "schedule" && (
               <div>
