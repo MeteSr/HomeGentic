@@ -717,6 +717,124 @@ Require modest new infrastructure; high product value.
 
 ---
 
+## 12. Test Coverage — Gaps & Failing Areas
+
+**Context:** Overall coverage is ~49% (12/21 frontend services, 12/30 pages e2e, 8/14 backend canisters). The gaps below are ordered by risk — scoring logic and canister algorithms with no tests are the highest priority.
+
+---
+
+### 12.1 Frontend Unit Tests — Missing Services
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 12.1.1 | `scoreService.ts` unit tests | ⬜ Missing | M | Highest risk gap. Tests needed for: `computeScore()` (40pt verified + 20pt value + 20pt verification + 20pt diversity rubric), `isCertified()` (score ≥88, ≥3 verified jobs, ≥2 key systems), `generateCertToken()` / `parseCertToken()` (Base64 encoding), `premiumEstimate()` (buyer premium ranges), `getScoreGrade()` (A+ through F) |
+| 12.1.2 | `recurringService.ts` unit tests | ⬜ Missing | M | Completely untested despite complex canister integration. Cover: `create()`, `getByProperty()`, `updateStatus()`, `addVisitLog()`, `getVisitLogs()`, `toSummary()` — especially mock store behavior and `AlreadyCancelled` error guard |
+| 12.1.3 | `scoreEventService.ts` unit tests | ⬜ Missing | S | Test `getRecentScoreEvents()` — 90-day window filter, max-12-events cap, deduplication, category assignment per event type |
+| 12.1.4 | `auth.ts` unit tests | ⬜ Missing | M | Test: `register()`, `getProfile()`, `updateProfile()`, `hasRole()`, BigInt time-field conversions, Opt unwrapping (`raw.field[0] ?? undefined` pattern), error propagation |
+| 12.1.5 | `pulseService.ts` unit tests | ⬜ Missing | S | Test `getWeeklyPulse()` — seasonal month detection, overdue service window (12 months), tip selection per season, empty-jobs edge case |
+| 12.1.6 | `agentTools.ts` unit tests | ⬜ Missing | L | Test each Claude tool execution path: `classify_home_issue`, `create_maintenance_job`, `create_quote_request`, `search_contractors`, `sign_job_verification`, `update_job_status`; error recovery when canister call fails mid-tool |
+| 12.1.7 | `agentProfile.ts` unit tests | ⬜ Missing | S | Test `appendToUrl()` / `fromParams()` round-trip, empty-param edge cases, `save()` / `load()` / `clear()` localStorage cycle |
+
+---
+
+### 12.2 Frontend Unit Tests — Gaps Within Existing Files
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 12.2.1 | `job.test.ts` — missing lifecycle methods | ⬜ Missing | M | Currently only tests adapters and utilities. Add: `signJob()` (dual-signature flow), `getByProperty()` pagination, DIY-only homeowner path, photo attachment validation |
+| 12.2.2 | `property.test.ts` — missing verification flow | ⬜ Missing | M | Add tests for `verifyProperty()` / `submitVerification()` — Unverified → PendingReview → Basic → Premium status transitions and 7-day conflict window |
+| 12.2.3 | `quote.test.ts` — missing contractor side | ⬜ Missing | M | Add tests for contractor bid submission, quote expiration, urgency-based matching, and tier-enforced open-request limits (3 Free / 10 Pro+) |
+| 12.2.4 | `report.test.ts` — missing share-link edge cases | ⬜ Missing | S | Add tests for: expired links (past `expiresAt`), `viewCount` increment, `listShareLinks` isolation per `propertyId`, `shareUrl` format with custom base URL |
+| 12.2.5 | `contractor.test.ts` — missing review rate-limiting | ⬜ Missing | S | Add tests for 10-reviews-per-day-per-user limit, composite key deduplication on reviews |
+| 12.2.6 | `sensor.test.ts` — missing anomaly detection | ⬜ Missing | M | Add tests for bulk reading ingestion, Critical event auto-creating a pending job (cross-service), alert threshold boundary values |
+| 12.2.7 | `maintenance.test.ts` — missing climate/material variants | ⬜ Missing | M | Add tests for climate-adjusted lifespan (once 1.1.5 lands) and all 8 system types at boundary ages (exactly at threshold years) |
+
+---
+
+### 12.3 Backend Canister Tests — Fully Missing
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 12.3.1 | `backend/market/test.sh` | ⬜ Missing | M | Largest untested canister (535 lines). Test: ROI-ranked project recommendations, `analyzeCompetitivePosition()` scoring (maintenance 25pts/HVAC, 80% DIY factor), zip-level `MarketSnapshot`, `getTopProjects()` sort order |
+| 12.3.2 | `backend/monitoring/test.sh` | ⬜ Missing | M | Test: cycles usage metrics, ARPU/LTV/CAC calculations, profitability thresholds, alert generation, `pause()`/`unpause()` admin flow |
+| 12.3.3 | `backend/sensor/test.sh` | ⬜ Missing | M | Test: device registration, reading ingestion, health classification (Critical/Warning/OK), auto-creation of pending job on Critical event (canister cross-call) |
+| 12.3.4 | `backend/maintenance/test.sh` | ⬜ Missing | M | Test: system lifespan tables for all 8 types, seasonal task generation per month, urgency threshold boundaries (Critical/Warning/Deferred), `getSeasonalTasks()` output shape |
+| 12.3.5 | `backend/report/test.sh` | ⬜ Missing | M | Test: report generation with snapshot immutability, token issuance uniqueness, share link visibility levels (Public/Buyer/Agent/Private), revocation, `viewCount` increment on `getReport()` |
+| 12.3.6 | `backend/recurring/test.sh` | ⬜ Missing | M | Test: service creation per property, `AlreadyCancelled` guard (status change on cancelled = error), visit log ordering, `attachContractDoc` idempotency, `getByProperty()` isolation |
+
+---
+
+### 12.4 Backend Canister Tests — Gaps Within Existing Scripts
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 12.4.1 | `job/test.sh` — dual-signature flow | ⬜ Missing | M | Currently tests single-signer create + status update. Add: contractor co-sign path, homeowner-only DIY verification, signature dispute scenario, photo attachment |
+| 12.4.2 | `property/test.sh` — verification state machine | ⬜ Missing | M | Currently tests register + retrieve. Add: full Unverified → PendingReview → Basic → Premium transition, 7-day ownership conflict window, tier upgrade enforcement |
+| 12.4.3 | `job/test.sh` — pagination | ⬜ Missing | S | `getByProperty()` with more than one page of results; confirm offset/limit behavior |
+| 12.4.4 | `quote/test.sh` — contractor response + expiry | ⬜ Missing | M | Add: contractor bid submission, open-request tier limits (3 Free / 10 Pro+), quote expiration after deadline |
+| 12.4.5 | `auth/test.sh` — role transitions | ⬜ Missing | S | Add tests for role change (Homeowner → Realtor), duplicate registration guard, `addAdmin()` + metrics |
+| 12.4.6 | `scripts/test-backend.sh` — cross-canister integration | ⬜ Missing | L | Currently tests each canister in isolation. Add cross-canister scenarios: job creation checks property tier limits; sensor Critical event creates job; payment tier change unlocks quote slots |
+
+---
+
+### 12.5 E2E Tests — Missing Page Flows
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 12.5.1 | `login.spec.ts` | ⬜ Missing | M | Dev login flow (bypass Internet Identity), redirect to dashboard on success, redirect to `/login` on protected route access, session persistence across reload |
+| 12.5.2 | `register.spec.ts` | ⬜ Missing | M | Role selection (Homeowner / Contractor / Agent), profile completion, redirect to onboarding |
+| 12.5.3 | `settings.spec.ts` | ⬜ Missing | M | Profile update, notification preferences, subscription tier display, pause subscription flow |
+| 12.5.4 | `recurring-service.spec.ts` | ⬜ Missing | M | Create recurring service (lawn care, pest control), log a visit, view contract doc upload, cancel service → tombstone state |
+| 12.5.5 | `warranty-wallet.spec.ts` | ⬜ Missing | M | Warranty card display, expiry badge variants (active/expiring/expired), attach warranty doc |
+| 12.5.6 | `score-cert.spec.ts` | ⬜ Missing | M | Certificate page renders HomeFax score + certified badge, shareable URL contains token, expired cert shows correct state |
+| 12.5.7 | `pricing.spec.ts` | ⬜ Missing | M | Tier comparison table renders, upgrade CTA navigates correctly, current tier highlighted |
+| 12.5.8 | `onboarding.spec.ts` | ⬜ Missing | M | Multi-step wizard (property add → first job → invite contractor), step validation, skip-step behavior |
+| 12.5.9 | `contractor-browse.spec.ts` | ⬜ Missing | M | Search by specialty, filter by rating, navigate to public profile page |
+| 12.5.10 | `quote-detail.spec.ts` | ⬜ Missing | M | Contractor views and responds to open quote, homeowner sees bid, accept/decline flow |
+| 12.5.11 | `resale-ready.spec.ts` | ⬜ Missing | S | Checklist items render, score indicator shows, CTA routes correctly |
+| 12.5.12 | `insurance-defense.spec.ts` | ⬜ Missing | S | Evidence cards display, key systems highlighted, generate report from page |
+| 12.5.13 | `landing.spec.ts` | ⬜ Missing | S | Nav links scroll to correct sections, "Get Started" CTAs navigate to `/login`, mobile nav renders on small viewport |
+
+---
+
+### 12.6 Test Infrastructure
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 12.6.1 | Vitest coverage report in CI | ⬜ Missing | S | Add `--coverage` flag to `npm run test:unit`; configure Istanbul thresholds (target: 70% line coverage for services); fail CI below threshold |
+| 12.6.2 | Playwright visual regression baseline | ⬜ Missing | M | Capture screenshots of key pages (Dashboard, Report, Landing) as regression baseline; flag pixel diffs in CI — especially important during design migration (Section 11) |
+| 12.6.3 | Backend test coverage tracking | ⬜ Missing | S | Add a coverage summary table to `scripts/test-backend.sh` output; count pass/fail per canister; non-zero exit code on any failure |
+| 12.6.4 | Mock canister identity in unit tests | ⬜ Missing | M | Current unit tests use the mock-fallback pattern (no `CANISTER_ID` → mock data). Add a test utility that stubs canister actor calls so real IDL validation is exercised without a running replica |
+| 12.6.5 | E2E test data isolation | 🟡 Partial | S | `window.__e2e_properties` injection exists; extend to cover recurring services (`window.__e2e_recurring`), warranties, and score events so new e2e tests have consistent fixtures |
+
+---
+
+### Priority Tiers — Test Coverage
+
+**Tier 1-T — Highest Risk, Do First**
+- 12.1.1 `scoreService.ts` (scoring/certification logic — no tests, used everywhere)
+- 12.3.1 `market/test.sh` (largest canister, no backend tests)
+- 12.3.5 `report/test.sh` (token issuance + snapshot immutability — security-adjacent)
+- 12.4.6 Cross-canister integration tests
+- 12.6.1 Vitest coverage report in CI (gates future regressions)
+
+**Tier 2-T — Core Workflow Gaps**
+- 12.1.2 `recurringService.ts` tests
+- 12.1.4 `auth.ts` tests
+- 12.2.1 `job.test.ts` lifecycle methods
+- 12.2.2 `property.test.ts` verification flow
+- 12.3.3 `sensor/test.sh` + 12.3.4 `maintenance/test.sh`
+- 12.5.1–12.5.2 Login + register e2e
+
+**Tier 3-T — Completeness**
+- 12.1.3, 12.1.5, 12.1.7 Smaller service tests (scoreEvent, pulse, agentProfile)
+- 12.2.3–12.2.7 Gaps within existing test files
+- 12.4.1–12.4.5 Gaps within existing backend scripts
+- 12.5.3–12.5.13 Remaining e2e page flows
+- 12.6.2–12.6.5 Test infrastructure improvements
+
+---
+
 ## 11. Design System Migration — New UI Language
 
 **Vision:** Roll the new landing page design system (Fraunces serif, Plus Jakarta Sans, plum/sage/blush palette, rounded pill buttons, blob visuals) out across all authenticated app pages, replacing the current blueprint/editorial aesthetic. Delivers brand coherence from first impression through daily use.
