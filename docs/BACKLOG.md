@@ -406,7 +406,7 @@ The core retention challenge for HomeFax: value delivery is irregular. Homeowner
 | 8.1.2 | Climate zone data integration | ⬜ Missing | M | Map zip code → NOAA climate zone; feed into digest and maintenance forecasts (see 1.1.5) |
 | 8.1.3 | Weekly digest email delivery | ⬜ Missing | M | Email template + send pipeline (Resend / SendGrid); one digest per active property per user |
 | 8.1.4 | In-app Pulse notification | ✅ Exists | — | Proactive alert chips in `VoiceAgent` component surface warranty/signature/quote alerts on every page load |
-| 8.1.5 | Pulse opt-out / frequency controls | ⬜ Missing | S | User preference in `SettingsPage` Notifications tab; already has toggle UI pattern |
+| 8.1.5 | Pulse opt-out / frequency controls | ✅ Exists | — | "Weekly Home Pulse" toggle in Settings Notifications tab; persisted to localStorage; `DashboardPage` checks `homefax_pulse_enabled` before showing pulse tip |
 | 8.1.6 | Pulse content personalization over time | ⬜ Missing | M | Track which Pulse items the user acted on; Claude weights future digests toward high-signal topics |
 
 ### 8.2 Score Micro-Increments & Dollar-Value Display
@@ -414,12 +414,12 @@ The core retention challenge for HomeFax: value delivery is irregular. Homeowner
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 8.2.1 | Score event system | ⬜ Missing | M | Define all scoreable micro-actions: upload doc, add appliance, connect utility, confirm scheduled service, log DIY task, respond to AI prompt |
-| 8.2.2 | Micro-increment scoring in `market` canister | ⬜ Missing | M | Lightweight point increments (not just full competitive analysis) for each score event; stored in `monitoring` canister for history |
+| 8.2.1 | Score event system | ✅ Exists | — | `scoreEventService.ts` derives events from jobs/properties: verified job (+4), DIY (+1), property verification (+5/+10), diversity milestone, value milestone |
+| 8.2.2 | Micro-increment scoring in `market` canister | ✅ Exists | — | Score event feed ("Score Activity") on Dashboard shows each micro-action with pts and category badge |
 | 8.2.3 | Score history / sparkline | ✅ Exists | — | `ScoreSparkline` + `ScoreHistoryChart` on Dashboard; `scoreService.ts` persists weekly snapshots to localStorage |
 | 8.2.4 | Dollar value of score change | ⬜ Missing | M | "Your score went from 74 to 77. In Flagler County, a 3-point increase ≈ $4,200 in home value." Requires score-to-value model (6.1.2) |
-| 8.2.5 | Score increase push notification | ⬜ Missing | S | Trigger notification when score increases ≥ 1 point; show new score + dollar value |
-| 8.2.6 | Score stagnation alert | ⬜ Missing | S | If score hasn't moved in 30 days, prompt the user with the easiest action to earn points |
+| 8.2.5 | Score increase push notification | ✅ Exists | — | In-app banner on Dashboard when `scoreDelta > 0`; respects "Score Change Alerts" toggle in Settings |
+| 8.2.6 | Score stagnation alert | ✅ Exists | — | `scoreStagnant` nudge in DashboardPage when score unchanged for 4+ weeks |
 
 ### 8.3 Cancellation Flow — Make It Feel Like Data Loss
 **Vision:** The cancel flow shows exactly what's at stake: verified records, active warranties, score, ICP chain of custody. Factually accurate, not manipulative.
@@ -428,7 +428,7 @@ The core retention challenge for HomeFax: value delivery is irregular. Homeowner
 |---|------|--------|------|-------|
 | 8.3.1 | Cancellation intent screen | ✅ Exists | — | `SubscriptionTab` in `SettingsPage` — idle → confirm (features-lost list) → loading → done state machine |
 | 8.3.2 | Post-cancel read-only mode | ⬜ Missing | M | Cancelled accounts retain read access to their on-chain records; score stops updating; reports become static |
-| 8.3.3 | "Your records stay on ICP" messaging | ⬜ Missing | S | Explicit copy explaining that ICP records are permanent even after cancel — honest, trust-building |
+| 8.3.3 | "Your records stay on ICP" messaging | ✅ Exists | — | Green info box in cancel confirm step: "Your ICP records are permanent even after cancellation" |
 | 8.3.4 | Pause subscription option | ✅ Exists | — | `paymentService.pause(months)`/`resume()`/`getPauseState()` in localStorage; pause banner + 1/2/3-month buttons in SettingsPage; "Pause 1 month instead" shortcut in cancel confirm step |
 | 8.3.5 | Win-back email sequence | ⬜ Missing | M | 7/30/90-day post-cancel emails highlighting new records that would have been created; "Your home didn't stop aging" |
 
@@ -437,9 +437,9 @@ The core retention challenge for HomeFax: value delivery is irregular. Homeowner
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 8.4.1 | Insurance Defense export format | ⬜ Missing | M | PDF template: HVAC dates, roof inspection photos, electrical updates — all with ICP timestamps and blockchain verification reference |
-| 8.4.2 | "Insurance Defense Mode" UI | ⬜ Missing | M | Dedicated section in `ReportPage` or `SettingsPage`; single button generates insurer-formatted PDF |
-| 8.4.3 | Key insurance-relevant fields on job records | ⬜ Missing | S | Flag jobs as "insurance-relevant" (roof, HVAC, electrical, plumbing, foundation); `Job` entity extension |
+| 8.4.1 | Insurance Defense export format | ✅ Exists | — | `InsuranceDefensePage.tsx` — print-ready report filtered to insurance-relevant jobs (Roofing, HVAC, Electrical, Plumbing, Foundation) with ICP verification status, blockchain disclaimer, permit numbers |
+| 8.4.2 | "Insurance Defense Mode" UI | ✅ Exists | — | `/insurance-defense` route; "Insurance Defense" button in Dashboard Quick Actions; "Print / Export PDF" → `window.print()` |
+| 8.4.3 | Key insurance-relevant fields on job records | ✅ Exists | — | `INSURANCE_SERVICE_TYPES` set + `isInsuranceRelevant()` in `job.ts`; badge shown in `JobCreatePage` when service type is insurance-relevant (Roofing, HVAC, Electrical, Plumbing, Foundation) |
 | 8.4.4 | Insurer-specific export templates | ⬜ Missing | L | Different Florida insurers have different documentation formats; template library for major carriers (Citizens, Universal, Heritage) |
 | 8.4.5 | Insurance success story prompt | ⬜ Missing | S | After export, prompt: "Did this help with your insurer? Tell us what you saved." — feeds testimonials + in-app social proof |
 | 8.4.6 | Premium discount estimate | ⬜ Missing | M | Based on record completeness and score, estimate potential insurance premium reduction (see 7.3.2) |
@@ -449,8 +449,8 @@ The core retention challenge for HomeFax: value delivery is irregular. Homeowner
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 8.5.1 | Annual milestone trigger | ⬜ Missing | S | Check account age in `auth` canister; on 12-month anniversary, fire milestone event |
-| 8.5.2 | "Resale Ready" milestone screen | ⬜ Missing | M | Full-page milestone view: record depth vs. comparable homes, buyer confidence score, preview of what a buyer would see |
+| 8.5.1 | Annual milestone trigger | ✅ Exists | — | `showMilestone` in DashboardPage — fires when `accountAgeMs >= 11 months` + at least one job logged; dismissible banner |
+| 8.5.2 | "Resale Ready" milestone screen | ✅ Exists | — | `ResaleReadyPage.tsx` at `/resale-ready` — score arc, stats grid, premium estimate, HomeFax Certified badge, share link generation, insurance defense link, "what a buyer sees" preview |
 | 8.5.3 | Year-in-review email | ⬜ Missing | M | Email summarizing the year: jobs logged, score change, warranty reminders set, estimated value added |
 | 8.5.4 | Milestone share card | ⬜ Missing | S | Shareable image: "My home has a HomeFax score of 81 — 43 verified records over 12 months." Organic social distribution |
 | 8.5.5 | Advocate prompt at milestone | ⬜ Missing | S | After milestone screen, prompt referral: "Know a homeowner who should have this?" with referral link |
@@ -460,12 +460,12 @@ The core retention challenge for HomeFax: value delivery is irregular. Homeowner
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 8.6.1 | Post-job completion notification | ⬜ Missing | S | Push/email after job status → `verified`: "Your HVAC service is now on your HomeFax record" |
-| 8.6.2 | Next-service prompt from completed job | ⬜ Missing | M | After HVAC service verified, AI agent prompts: "HVAC filters should be replaced in 3 months — add to schedule?" |
+| 8.6.1 | Post-job completion notification | ✅ Exists | — | Job success screen in `JobCreatePage` shows "Record Locked On-Chain" with next-service tip after every submission |
+| 8.6.2 | Next-service prompt from completed job | ✅ Exists | — | Dashboard shows follow-up tip for most recent verified job ("Next Step" card) with "Add to Maintenance Schedule →" CTA; dismissible |
 | 8.6.3 | "Add to schedule" one-tap flow | 🟡 Partial | S | `PredictiveMaintenancePage` has schedule section; needs one-tap add from post-job prompt |
 | 8.6.4 | Contractor re-engagement via job history | ⬜ Missing | M | After 11 months since last HVAC service: "Book Cool Air Services again — they did your last service and you gave no complaints" |
-| 8.6.5 | In-app job completion animation | ⬜ Missing | S | Brief celebratory moment when a job is verified — score counter ticks up, record "locks" on-chain. Small but habit-forming. |
-| 8.6.6 | 3-service engagement milestone | ⬜ Missing | S | Badge/reward at 3 contractor-verified jobs: "Your home history is taking shape" — correlates with long-term retention |
+| 8.6.5 | In-app job completion animation | ✅ Exists | — | "Job Verified" overlay in `ContractorDashboardPage` — 2.8s animated card with "Record Locked On-Chain" copy after contractor signs |
+| 8.6.6 | 3-service engagement milestone | ✅ Exists | — | Dismissible milestone banner in DashboardPage when `verifiedCount >= 3` |
 
 ---
 
@@ -477,33 +477,240 @@ The core retention challenge for HomeFax: value delivery is irregular. Homeowner
 Build these alongside Tier 1 MVP polish. Each addresses a root churn cause with minimal new infrastructure.
 
 - ~~8.1.4 In-app Pulse notification (S)~~ ✅ VoiceAgent proactive alert chips
+- ~~8.1.5 Pulse opt-out controls (S)~~ ✅ "Weekly Home Pulse" toggle in Settings Notifications tab
 - ~~8.2.3 Score sparkline on Dashboard (M)~~ ✅ ScoreSparkline + ScoreHistoryChart
+- ~~8.2.5 Score increase push notification (S)~~ ✅ In-app banner when scoreDelta > 0
+- ~~8.2.6 Score stagnation alert (S)~~ ✅ scoreStagnant nudge in DashboardPage
 - ~~8.3.1 Cancellation intent screen (M)~~ ✅ SettingsPage subscription tab
-- 8.1.5 Pulse opt-out controls (S)
-- 8.2.5 Score increase push notification (S)
-- 8.2.6 Score stagnation alert (S)
 - ~~8.3.4 Pause subscription option (S)~~ ✅
-- 8.4.3 Insurance-relevant job flags (S)
-- 8.5.1 Annual milestone trigger (S)
-- 8.6.1 Post-job completion notification (S)
-- 8.6.5 In-app job completion animation (S)
-- 8.6.6 3-service engagement milestone (S)
+- ~~8.4.3 Insurance-relevant job flags (S)~~ ✅ isInsuranceRelevant() + badge in JobCreatePage
+- ~~8.5.1 Annual milestone trigger (S)~~ ✅ showMilestone in DashboardPage
+- ~~8.6.1 Post-job completion notification (S)~~ ✅ "Record Locked On-Chain" success screen
+- ~~8.6.5 In-app job completion animation (S)~~ ✅ Overlay in ContractorDashboardPage
+- ~~8.6.6 3-service engagement milestone (S)~~ ✅ Dismissible banner when verifiedCount >= 3
 
 ### Tier 2-R — Retention: Medium Effort, Core Differentiators
 - 8.1.1–8.1.3 Home Pulse digest with email delivery (L+M+M)
-- 8.2.1–8.2.2 Score event system + micro-increments (M+M)
+- ~~8.2.1–8.2.2 Score event system + micro-increments (M+M)~~ ✅ scoreEventService.ts + Dashboard Score Activity feed
 - 8.2.4 Dollar value of score change (M) — requires 6.1.2 first
-- 8.3.1–8.3.2 Cancellation flow + read-only mode (M+M)
-- 8.4.1–8.4.2 Insurance Defense export (M+M)
-- 8.5.2–8.5.3 Resale-ready milestone screen + email (M+M)
-- 8.6.2–8.6.4 Post-service habit loop (M+M+M)
+- 8.3.1–8.3.2 Cancellation flow + read-only mode — 8.3.1 ✅; 8.3.2 remaining
+- ~~8.3.3 "Records stay on ICP" messaging~~ ✅ cancel confirm step
+- ~~8.4.1–8.4.2 Insurance Defense export (M+M)~~ ✅ InsuranceDefensePage + Quick Actions button
+- ~~8.5.2 Resale-ready milestone screen (M)~~ ✅ ResaleReadyPage + annual milestone CTA
+- 8.5.3 Year-in-review email (M) — needs email backend
+- ~~8.6.2 Next-service prompt from verified job (M)~~ ✅ Dashboard "Next Step" card
+- 8.6.3–8.6.4 Post-service habit loop remainder (M+M)
 
 ### Tier 3-R — Retention: Infrastructure-Heavy
+- 8.1.1–8.1.3 Home Pulse digest + email delivery (requires Claude backend + email service)
 - 8.1.6 Pulse personalization over time (M)
+- 8.3.2 Post-cancel read-only mode (M)
 - 8.3.5 Win-back email sequence (M)
 - 8.4.4 Insurer-specific export templates (L)
+- 8.5.3 Year-in-review email (M)
 - 8.6.4 Contractor re-engagement (M)
 
 ---
 
-*Last updated: 2026-03-27*
+## 9. Seller's Marketplace — Make Agents Compete
+
+**Strategic thesis:** HomeFax sits on the most valuable signal in a listing transaction — a verified, blockchain-anchored maintenance record and a quantified score. No other platform gives sellers this kind of leverage over agents before an agreement is signed. The natural move is to turn that signal into a competitive marketplace: agents submit structured proposals to win the listing, and sellers choose on merit, not familiarity. In a typical transaction, the seller never makes agents compete at all. HomeFax can make that the new normal.
+
+---
+
+### 9.1 Agent Role & Profile
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 9.1.1 | `Realtor` role in `auth` canister | 🟡 Partial | M | Role referenced in code; needs full registration flow, profile fields, and license verification step |
+| 9.1.2 | Agent profile: brokerage, license #, markets served | ⬜ Missing | S | `AgentProfile { name, brokerage, licenseNumber, statesLicensed, avgDaysOnMarket, listingsLast12Months, bio }` |
+| 9.1.3 | Agent verification badge | ⬜ Missing | M | Admin-verifiable license check (or self-attestation with warning); badge shown on proposals and co-branded reports |
+| 9.1.4 | Agent public profile page | ⬜ Missing | M | Public `/agent/:id` page showing credentials, listings won through HomeFax, average commission, verified reviews from homeowners |
+| 9.1.5 | Agent reviews from HomeFax transactions | ⬜ Missing | M | After a listing closes, homeowner rates the agent (1–5); stored on-chain in agent profile; rate-limited, same deduplication pattern as contractor reviews |
+
+---
+
+### 9.2 Listing Bid Request (Homeowner Side)
+
+The homeowner initiates a bid request when they're considering selling. The request automatically surfaces their HomeFax score, verified record count, and property details — agents see exactly what they're pitching before submitting.
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 9.2.1 | `ListingBidRequest` type in new `listing` canister | ⬜ Missing | L | Fields: `propertyId`, `targetListDate`, `desiredSalePrice` (optional), `notes`, `bidDeadline`, `status: { #Open \| #Awarded \| #Cancelled }` |
+| 9.2.2 | Listing bid request creation UI | ⬜ Missing | M | New page `/listing/new` — property selector, target list date, desired price (optional, visible to agents), deadline for proposals, notes |
+| 9.2.3 | HomeFax score + summary auto-attached to request | ⬜ Missing | S | When request is created, snapshot current score, verified job count, key system ages — attached to every agent's proposal view automatically |
+| 9.2.4 | Bid request visibility controls | ⬜ Missing | S | Homeowner chooses: open to all licensed agents in their market, or invite-only (send to specific agents by email/ID) |
+| 9.2.5 | Bid deadline enforcement | ⬜ Missing | S | After `bidDeadline`, request closes automatically; no new proposals accepted; homeowner receives notification |
+
+---
+
+### 9.3 Agent Proposal Submission
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 9.3.1 | `ListingProposal` type in `listing` canister | ⬜ Missing | M | Fields: `requestId`, `agentId`, `commissionRateBps` (basis points, e.g. 250 = 2.5%), `cmaSummary` (text), `marketingPlan` (text), `estimatedDaysOnMarket`, `estimatedSalePrice`, `includedServices` (list), `validUntil`, `coverLetter` |
+| 9.3.2 | Proposal submission UI for agents | ⬜ Missing | M | Agent sees the property's HomeFax summary (score, key verified records, system ages) before proposing; fills in their CMA, commission, marketing narrative |
+| 9.3.3 | Commission input with basis-points precision | ⬜ Missing | S | Slider + text input; show dollar equivalent in real-time based on homeowner's desired price; enforces legal minimums per state |
+| 9.3.4 | CMA upload / attachment | ⬜ Missing | M | Agent uploads a PDF CMA or enters structured comps (address, sale price, date, bed/bath/sqft); stored in `photo` canister pattern |
+| 9.3.5 | Proposal draft / save before submit | ⬜ Missing | S | Agents can save a draft and return before the deadline |
+| 9.3.6 | Proposal sealed until deadline (blind bidding) | ⬜ Missing | M | Agents cannot see each other's commission rates or proposals until the bid deadline passes; homeowner sees all after close — same sealed-bid principle as 2.4 |
+
+---
+
+### 9.4 Proposal Comparison & Agent Selection (Homeowner Side)
+
+This is the moment HomeFax wins. The seller sees every proposal side-by-side — normalized, comparable, with the HomeFax score as context — and picks on merit.
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 9.4.1 | Proposal comparison view | ⬜ Missing | L | Side-by-side table: agent, commission rate, estimated sale price, estimated days on market, included services, verified reviews; sortable by any column |
+| 9.4.2 | Net proceeds calculator per proposal | ⬜ Missing | M | Given desired price + each agent's commission, show estimated net proceeds after commission + estimated closing costs; makes the cost of a 0.5% commission difference visceral |
+| 9.4.3 | HomeFax score context for each proposal | ⬜ Missing | S | Show agents how they priced the property relative to the HomeFax-estimated premium; flag agents who underpriced |
+| 9.4.4 | Agent selection + engagement flow | ⬜ Missing | M | "Select this agent" → notification sent to agent; listing request marked `#Awarded`; other agents notified they were not selected |
+| 9.4.5 | Post-selection contract upload | ⬜ Missing | S | After selecting an agent, homeowner uploads the signed listing agreement as a doc; stored on-chain as a milestone |
+| 9.4.6 | Counter-proposal flow | ⬜ Missing | L | Homeowner can counter on commission rate or terms; agent accepts/rejects/counter-counters; async threaded negotiation |
+
+---
+
+### 9.5 Transaction Tracking (After Agent Selected)
+
+Once an agent is selected, HomeFax stays in the transaction rather than disappearing at agreement signing.
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 9.5.1 | Listing milestone timeline | ⬜ Missing | M | Checklist: listing agreement signed → listed on MLS → first showing → offer received → under contract → inspection → appraisal → close. Agent and homeowner both update milestones |
+| 9.5.2 | Offer log | ⬜ Missing | M | Homeowner logs received offers (amount, contingencies, close date); HomeFax shows delta from listing price and HomeFax estimated premium |
+| 9.5.3 | Final sale price logging | ⬜ Missing | S | After close, record final sale price; compute and display actual premium over HomeFax baseline; feeds into 6.1.2 model training data |
+| 9.5.4 | Agent performance score post-close | ⬜ Missing | M | Compare: estimated days on market vs. actual, estimated sale price vs. actual, commission promised vs. charged; becomes part of agent's public profile |
+
+---
+
+### 9.6 Agent Discovery (Without a Bid Request)
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 9.6.1 | Agent browse / search page | ⬜ Missing | M | `/agents` page: filter by market, commission range, avg days on market, HomeFax transaction history; similar to existing `ContractorBrowsePage` |
+| 9.6.2 | "Request proposal from this agent" direct invite | ⬜ Missing | S | From an agent's public profile, homeowner can send a direct bid invitation tied to their property |
+| 9.6.3 | HomeFax-verified transaction badge on agent profiles | ⬜ Missing | S | Agents who have closed transactions through HomeFax get a "HomeFax Verified Transaction" badge — drives agent adoption loop |
+
+---
+
+## 10. For Sale By Owner (FSBO) Mode — Seller Without an Agent
+
+**Strategic thesis:** Roughly 10% of US home sales are FSBO. These sellers are underserved by every major platform — Zillow makes it cumbersome, FSBO.com is dated, and no one gives them tools that actually equip them to negotiate, price, and close confidently. HomeFax's verified maintenance record is the best FSBO asset that exists: it pre-answers buyer objections, replaces an inspection contingency, and signals a serious, prepared seller. The app should be the platform that makes FSBO actually work.
+
+---
+
+### 10.1 FSBO Mode Activation
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 10.1.1 | FSBO flag on property record | ⬜ Missing | S | `isFsbo: Bool` + `fsboListPrice: ?Nat` (cents) on `property` canister; homeowner can toggle without impacting normal HomeFax functionality |
+| 10.1.2 | FSBO mode activation flow | ⬜ Missing | M | In `PropertyDetailPage`, "Sell This Home Yourself" CTA leads to a checklist-style activation flow: set price → review HomeFax report → generate public listing page → done |
+| 10.1.3 | FSBO savings calculator | ⬜ Missing | S | Show estimated agent commission savings in real-time as homeowner sets their list price (e.g. "At $485K, you save ~$14,550 vs. a 3% buyer's agent commission") |
+| 10.1.4 | Readiness score for FSBO | ⬜ Missing | M | Based on HomeFax score, verified record completeness, and whether a public report exists — rate FSBO readiness (Not Ready / Ready / Optimally Ready); show what's missing |
+
+---
+
+### 10.2 Pricing Intelligence
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 10.2.1 | Comparable sales integration | ⬜ Missing | XL | Pull recent sold comps from ATTOM / Zillow / Redfin API (or public records) for the property's zip; display price/sqft, days on market, sale-to-list ratio |
+| 10.2.2 | HomeFax-adjusted price recommendation | ⬜ Missing | L | Take median comp price/sqft × sqft + HomeFax score premium (6.1.2) = suggested list price range; show the premium component explicitly ("Your verified records add an estimated $X–Y") |
+| 10.2.3 | Price history and reduction tracking | ⬜ Missing | S | If homeowner adjusts their list price, log the history with timestamps; buyers see stable or reduced pricing as signals |
+| 10.2.4 | Days-on-market estimator | ⬜ Missing | M | Based on comp DOM, season, and HomeFax score band — estimate expected time to offer; refreshes weekly |
+
+---
+
+### 10.3 Public FSBO Listing Page
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 10.3.1 | Public listing page per FSBO property | ⬜ Missing | L | Unauthenticated `/for-sale/:propertyId` page: photos, list price, property details, HomeFax score badge, verified record summary, contact form — clean, shareable URL |
+| 10.3.2 | HomeFax score badge as trust anchor | ⬜ Missing | S | On the public listing, the HomeFax score is front-and-center with a "Verified on ICP Blockchain" explainer; replaces the "trust us" gap that kills FSBO credibility |
+| 10.3.3 | Full HomeFax report link on listing | ⬜ Missing | S | A "View Full Maintenance History" button links to the shared HomeFax report (uses existing `report` canister share link); buyer sees everything the seller wants to disclose |
+| 10.3.4 | Showing request form on listing page | ⬜ Missing | M | Buyer submits name, contact, preferred time; notification sent to seller; all requests logged (no third-party scheduling tool required) |
+| 10.3.5 | Listing page SEO and shareability | ⬜ Missing | M | Open Graph tags, clean title/description with price + location; designed to be shared on Nextdoor, Facebook Marketplace, Craigslist without losing credibility |
+| 10.3.6 | Flat-fee MLS listing integration | ⬜ Missing | XL | Partner with a flat-fee MLS service (e.g. Houzeo, ListingSpark) to submit the FSBO listing to the MLS from within HomeFax; this single item 5×es FSBO buyer exposure |
+
+---
+
+### 10.4 Buyer Communication & Showing Management
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 10.4.1 | Showing request inbox | ⬜ Missing | M | Seller sees all showing requests in a simple inbox: buyer name, preferred time, contact info; accept/decline/propose alternate time |
+| 10.4.2 | Showing calendar | ⬜ Missing | M | Calendar view of confirmed showings; iCal export; reminder notification before each showing |
+| 10.4.3 | Post-showing feedback request | ⬜ Missing | S | After a showing, seller can send a one-question feedback request ("How did the showing go?"); buyer responses logged |
+| 10.4.4 | Buyer Q&A via HomeFax report | 🟡 Partial | M | Buyers can submit questions against the report (see 6.3.1); seller not required to answer manually if HomeFax data covers it |
+
+---
+
+### 10.5 Offer Management
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 10.5.1 | Offer intake form | ⬜ Missing | M | Structured form for seller to log received offers: buyer name, offer price, earnest money, contingencies (inspection, financing, appraisal, sale of home), proposed close date, escalation clause Y/N |
+| 10.5.2 | Offer comparison view | ⬜ Missing | M | Side-by-side comparison of all offers: net to seller after contingency risk, close date, strength of financing, contingency count; similar structure to 9.4.1 agent proposal comparison |
+| 10.5.3 | Net proceeds calculator per offer | ⬜ Missing | S | For each offer: price − estimated closing costs − any seller concessions = estimated net; comparable to 9.4.2 |
+| 10.5.4 | Counter-offer tracking | ⬜ Missing | M | Log counter-offers and responses; full thread per offer; timestamps on chain |
+| 10.5.5 | Accepted offer milestone | ⬜ Missing | S | When seller marks an offer accepted, FSBO listing moves to "Under Contract"; public page updated; HomeFax score snapshot taken |
+
+---
+
+### 10.6 Disclosure & Legal
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 10.6.1 | Seller disclosure statement generator | ⬜ Missing | L | State-specific disclosure form pre-filled from HomeFax data (known defects, material improvements, permits, age of systems); seller reviews and signs; stored on-chain |
+| 10.6.2 | Disclosure completeness score | ⬜ Missing | M | Rate how complete the disclosure is based on HomeFax data coverage; incomplete items flagged so sellers can address them before listing |
+| 10.6.3 | Legal document library | ⬜ Missing | L | Curated, state-specific templates: purchase agreement, counter-offer form, earnest money agreement, seller's disclosure; FSBO sellers can download, fill, and upload signed copies |
+| 10.6.4 | Uploaded legal documents stored on-chain | ⬜ Missing | S | Use existing `photo` canister (with appropriate `DocumentType`) to store signed contracts; creates an immutable record of the transaction paper trail |
+| 10.6.5 | "Inspection waiver" readiness based on HomeFax score | ⬜ Missing | M | If HomeFax score ≥ 88 and key systems verified, show sellers a script for offering buyers an "inspection waiver" as a negotiating point — HomeFax data is the substitute; connect to 6.5 |
+
+---
+
+### 10.7 FSBO → Agent Handoff
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 10.7.1 | "I changed my mind — find me an agent" flow | ⬜ Missing | S | One-click from FSBO dashboard to open a listing bid request (9.2); FSBO data (price history, showing count, offer history) transferred to the bid request as context for agents |
+| 10.7.2 | FSBO effort summary for agent proposals | ⬜ Missing | S | Agents bidding on a property that was previously FSBO see the seller's showing count, offer count, and days on market; this data strengthens the agent's proposal and HomeFax's positioning as the source of record |
+
+---
+
+## Updated Priority Tiers (Seller Features)
+
+### Tier 1-S — Seller: High Impact, Low Infrastructure
+Buildable without new canisters; leverages existing `quote`, `auth`, `report`, and `photo` patterns.
+
+- 9.1.1 Realtor role in `auth` canister (see also 6.4.1 — consolidate)
+- 9.1.2–9.1.3 Agent profile + verification badge
+- 9.2.1–9.2.3 Listing bid request + score auto-attach (extend `quote` canister pattern)
+- 9.3.1–9.3.3 Proposal type + submission UI + commission input
+- 9.4.1–9.4.2 Proposal comparison + net proceeds calculator
+- 10.1.1–10.1.3 FSBO flag, activation flow, savings calculator
+- 10.3.1–10.3.3 Public listing page + HomeFax badge + report link
+- 10.5.1–10.5.3 Offer intake + comparison + net proceeds
+
+### Tier 2-S — Seller: Core Differentiators
+Require modest new infrastructure; high product value.
+
+- 9.2.4–9.2.6 Bid controls, deadline enforcement, sealed proposals (9.3.6)
+- 9.4.3–9.4.6 Score context, selection flow, contract upload, counter-proposal
+- 9.5.1–9.5.4 Transaction tracking + agent performance scoring
+- 10.2.1–10.2.4 Pricing intelligence (requires comp data API)
+- 10.4.1–10.4.3 Showing management inbox + calendar
+- 10.6.1–10.6.2 Disclosure generator + completeness score
+- 10.7.1–10.7.2 FSBO → agent handoff
+
+### Tier 3-S — Seller: Infrastructure-Heavy or Partnership-Dependent
+- 10.3.6 Flat-fee MLS integration (partner dependency)
+- 10.6.3 Legal document library (state-by-state legal review required)
+- 10.2.1 Comparable sales API integration (ATTOM / Zillow)
+- 9.1.5 Agent reviews (trust system evolution)
+
+---
+
+*Last updated: 2026-03-27 (sprint 19)*

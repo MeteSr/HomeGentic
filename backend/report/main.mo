@@ -41,6 +41,18 @@ persistent actor Report {
     status:         Text;
   };
 
+  /// Buyer-facing summary for one recurring service contract.
+  /// Built by the frontend from recurringService.toSummary() before calling generateReport.
+  public type RecurringServiceInput = {
+    serviceType:    Text;   // human-readable label, e.g. "Pest Control"
+    providerName:   Text;
+    frequency:      Text;   // human-readable label, e.g. "Monthly"
+    status:         Text;   // "Active" | "Paused" | "Cancelled"
+    startDate:      Text;   // YYYY-MM-DD
+    lastVisitDate:  ?Text;  // YYYY-MM-DD, null = no visits logged
+    totalVisits:    Nat;
+  };
+
   public type PropertyInput = {
     address:           Text;
     city:              Text;
@@ -58,23 +70,24 @@ persistent actor Report {
 
   /// Immutable snapshot of property state at time of report generation.
   public type ReportSnapshot = {
-    snapshotId:        Text;
-    propertyId:        Text;
-    generatedBy:       Principal;
-    address:           Text;
-    city:              Text;
-    state:             Text;
-    zipCode:           Text;
-    propertyType:      Text;
-    yearBuilt:         Nat;
-    squareFeet:        Nat;
-    verificationLevel: Text;
-    jobs:              [JobInput];
-    totalAmountCents:  Nat;
-    verifiedJobCount:  Nat;
-    diyJobCount:       Nat;
-    permitCount:       Nat;
-    generatedAt:       Time.Time;
+    snapshotId:         Text;
+    propertyId:         Text;
+    generatedBy:        Principal;
+    address:            Text;
+    city:               Text;
+    state:              Text;
+    zipCode:            Text;
+    propertyType:       Text;
+    yearBuilt:          Nat;
+    squareFeet:         Nat;
+    verificationLevel:  Text;
+    jobs:               [JobInput];
+    recurringServices:  [RecurringServiceInput];
+    totalAmountCents:   Nat;
+    verifiedJobCount:   Nat;
+    diyJobCount:        Nat;
+    permitCount:        Nat;
+    generatedAt:        Time.Time;
   };
 
   /// Share link record — separate from the snapshot so we can revoke without
@@ -211,11 +224,12 @@ persistent actor Report {
   ///
   /// Pass expiryDays = null for a link that never expires.
   public shared(msg) func generateReport(
-    propertyId:  Text,
-    property:    PropertyInput,
-    jobs:        [JobInput],
-    expiryDays:  ?Nat,
-    visibility:  VisibilityLevel
+    propertyId:        Text,
+    property:          PropertyInput,
+    jobs:              [JobInput],
+    recurringServices: [RecurringServiceInput],
+    expiryDays:        ?Nat,
+    visibility:        VisibilityLevel
   ) : async Result.Result<ShareLink, Error> {
     switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
     if (Text.size(propertyId) == 0) return #err(#InvalidInput("propertyId cannot be empty"));
@@ -250,21 +264,22 @@ persistent actor Report {
     let snapshot : ReportSnapshot = {
       snapshotId;
       propertyId;
-      generatedBy      = msg.caller;
-      address          = property.address;
-      city             = property.city;
-      state            = property.state;
-      zipCode          = property.zipCode;
-      propertyType     = property.propertyType;
-      yearBuilt        = property.yearBuilt;
-      squareFeet       = property.squareFeet;
-      verificationLevel = property.verificationLevel;
+      generatedBy        = msg.caller;
+      address            = property.address;
+      city               = property.city;
+      state              = property.state;
+      zipCode            = property.zipCode;
+      propertyType       = property.propertyType;
+      yearBuilt          = property.yearBuilt;
+      squareFeet         = property.squareFeet;
+      verificationLevel  = property.verificationLevel;
       jobs;
-      totalAmountCents = totalAmount(jobs);
-      verifiedJobCount = countVerified(jobs);
-      diyJobCount      = countDiy(jobs);
-      permitCount      = countPermits(jobs);
-      generatedAt      = now;
+      recurringServices;
+      totalAmountCents   = totalAmount(jobs);
+      verifiedJobCount   = countVerified(jobs);
+      diyJobCount        = countDiy(jobs);
+      permitCount        = countPermits(jobs);
+      generatedAt        = now;
     };
     snapshots.put(snapshotId, snapshot);
 

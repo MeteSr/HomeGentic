@@ -8,6 +8,7 @@ import { Actor } from "@dfinity/agent";
 import { getAgent } from "./actor";
 import { Job } from "./job";
 import type { Property } from "./property";
+import type { RecurringServiceSummary } from "./recurringService";
 
 const REPORT_CANISTER_ID = (process.env as any).REPORT_CANISTER_ID || "";
 
@@ -40,6 +41,16 @@ const idlFactory = ({ IDL }: any) => {
     verificationLevel: IDL.Text,
   });
 
+  const RecurringServiceInput = IDL.Record({
+    serviceType:   IDL.Text,
+    providerName:  IDL.Text,
+    frequency:     IDL.Text,
+    status:        IDL.Text,
+    startDate:     IDL.Text,
+    lastVisitDate: IDL.Opt(IDL.Text),
+    totalVisits:   IDL.Nat,
+  });
+
   const ReportSnapshot = IDL.Record({
     snapshotId:        IDL.Text,
     propertyId:        IDL.Text,
@@ -53,6 +64,7 @@ const idlFactory = ({ IDL }: any) => {
     squareFeet:        IDL.Nat,
     verificationLevel: IDL.Text,
     jobs:              IDL.Vec(JobInput),
+    recurringServices: IDL.Vec(RecurringServiceInput),
     totalAmountCents:  IDL.Nat,
     verifiedJobCount:  IDL.Nat,
     diyJobCount:       IDL.Nat,
@@ -83,7 +95,7 @@ const idlFactory = ({ IDL }: any) => {
 
   return IDL.Service({
     generateReport: IDL.Func(
-      [IDL.Text, PropertyInput, IDL.Vec(JobInput), IDL.Opt(IDL.Nat), VisibilityLevel],
+      [IDL.Text, PropertyInput, IDL.Vec(JobInput), IDL.Vec(RecurringServiceInput), IDL.Opt(IDL.Nat), VisibilityLevel],
       [IDL.Variant({ ok: ShareLink, err: Error })],
       []
     ),
@@ -165,6 +177,7 @@ export interface ReportSnapshot {
   squareFeet:        number;
   verificationLevel: string;
   jobs:              JobInput[];
+  recurringServices: RecurringServiceSummary[];
   totalAmountCents:  number;
   verifiedJobCount:  number;
   diyJobCount:       number;
@@ -275,6 +288,15 @@ function fromSnapshot(raw: any): ReportSnapshot {
       isVerified:     j.isVerified,
       status:         j.status,
     })),
+    recurringServices: (raw.recurringServices as any[]).map((r: any) => ({
+      serviceType:   r.serviceType,
+      providerName:  r.providerName,
+      frequency:     r.frequency,
+      status:        r.status,
+      startDate:     r.startDate,
+      lastVisitDate: r.lastVisitDate[0] ?? undefined,
+      totalVisits:   Number(r.totalVisits),
+    })),
     totalAmountCents:  Number(raw.totalAmountCents),
     verifiedJobCount:  Number(raw.verifiedJobCount),
     diyJobCount:       Number(raw.diyJobCount),
@@ -302,11 +324,12 @@ function jobInputToCanister(j: JobInput) {
 
 export const reportService = {
   async generateReport(
-    propertyId:  string,
-    property:    PropertyInput,
-    jobs:        JobInput[],
-    expiryDays:  number | null,
-    visibility:  VisibilityLevel
+    propertyId:        string,
+    property:          PropertyInput,
+    jobs:              JobInput[],
+    recurringServices: RecurringServiceSummary[],
+    expiryDays:        number | null,
+    visibility:        VisibilityLevel
   ): Promise<ShareLink> {
     if (!REPORT_CANISTER_ID) {
       mockCounter++;
@@ -324,6 +347,7 @@ export const reportService = {
         squareFeet:        property.squareFeet,
         verificationLevel: property.verificationLevel,
         jobs,
+        recurringServices,
         totalAmountCents:  jobs.reduce((s, j) => s + j.amountCents, 0),
         verifiedJobCount:  jobs.filter((j) => j.isVerified).length,
         diyJobCount:       jobs.filter((j) => j.isDiy).length,
@@ -354,6 +378,15 @@ export const reportService = {
         verificationLevel: property.verificationLevel,
       },
       jobs.map(jobInputToCanister),
+      recurringServices.map((r) => ({
+        serviceType:   r.serviceType,
+        providerName:  r.providerName,
+        frequency:     r.frequency,
+        status:        r.status,
+        startDate:     r.startDate,
+        lastVisitDate: r.lastVisitDate ? [r.lastVisitDate] : [],
+        totalVisits:   BigInt(r.totalVisits),
+      })),
       expiryDays ? [BigInt(expiryDays)] : [],
       { [visibility]: null }
     );

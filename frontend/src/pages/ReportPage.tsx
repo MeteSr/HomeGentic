@@ -391,6 +391,46 @@ export default function ReportPage() {
           );
         })()}
 
+        {/* Ongoing Services */}
+        {snapshot.recurringServices && snapshot.recurringServices.length > 0 && (
+          <div style={{ marginBottom: "2.5rem" }}>
+            <SectionHeader title="Ongoing Services" icon={<CheckCircle size={14} color={S.sage} />} />
+            <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: S.rule }}>
+              {snapshot.recurringServices.map((svc, i) => (
+                <div key={i} style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", padding: "0.875rem 1.25rem", background: "#fff", gap: "0.75rem" }}>
+                  <div>
+                    <p style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.7rem", letterSpacing: "0.04em", color: S.ink, marginBottom: "0.2rem" }}>
+                      {svc.serviceType}
+                    </p>
+                    <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>
+                      {svc.providerName} · {svc.frequency}
+                    </p>
+                  </div>
+                  <div style={{ display: "flex", gap: "1.5rem", alignItems: "center", flexWrap: "wrap" }}>
+                    {svc.lastVisitDate && (
+                      <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>
+                        Last: {fmtDate(svc.lastVisitDate)}
+                      </span>
+                    )}
+                    <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>
+                      {svc.totalVisits} visit{svc.totalVisits !== 1 ? "s" : ""} logged
+                    </span>
+                    <span style={{
+                      fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em",
+                      textTransform: "uppercase", padding: "0.15rem 0.5rem",
+                      color: svc.status === "Active" ? S.sage : S.inkLight,
+                      background: svc.status === "Active" ? "#F0F6F3" : S.paper,
+                      border: `1px solid ${svc.status === "Active" ? S.sage + "44" : S.rule}`,
+                    }}>
+                      {svc.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Contractor Roster */}
         {uniqueContractors.length > 0 && (
           <div style={{ marginBottom: "2.5rem" }}>

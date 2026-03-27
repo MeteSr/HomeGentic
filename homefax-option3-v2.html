@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HomeFax — Own It. Prove It. Sell It.</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,900;1,9..144,300;1,9..144,600;1,9..144,900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sage: #7AAF76;
+    --sage-light: #E5F0E4;
+    --sage-mid: #C4DCC2;
+    --blush: #F0CDBA;
+    --sky: #BAD5E8;
+    --butter: #F5E9BB;
+    --plum: #2E2540;
+    --plum-mid: #6B5B7B;
+    --white: #FDFCFA;
+    --charcoal: #1E1928;
+    --icp-blue: #3B00B9;
+    --icp-cyan: #29ABE2;
+  }
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--white); color: var(--charcoal); font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
+
+  /* NAV */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 56px;
+    background: rgba(253,252,250,0.92); backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgba(122,175,118,0.2);
+  }
+  .logo { font-family: 'Fraunces', serif; font-size: 24px; font-weight: 900; color: var(--plum); text-decoration: none; letter-spacing: -0.5px; }
+  .logo span { color: var(--sage); }
+  nav ul { display: flex; gap: 32px; list-style: none; }
+  nav ul a { font-size: 14px; color: var(--plum-mid); text-decoration: none; font-weight: 500; transition: color .2s; }
+  nav ul a:hover { color: var(--plum); }
+  .nav-pill {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--plum); color: white; padding: 10px 22px;
+    border-radius: 100px; font-size: 14px; font-weight: 600; text-decoration: none;
+    transition: transform .2s, box-shadow .2s;
+  }
+  .nav-pill:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(46,37,64,0.3); }
+  .nav-hamburger { display: none; background: none; border: none; cursor: pointer; padding: 4px; }
+  .nav-hamburger span { display: block; width: 22px; height: 2px; background: var(--plum); margin: 5px 0; border-radius: 2px; }
+
+  /* HERO */
+  .hero {
+    padding: 120px 56px 80px;
+    display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 64px; align-items: center;
+  }
+  .hero-eyebrow {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: var(--butter); color: var(--plum); padding: 7px 18px;
+    border-radius: 100px; font-size: 13px; font-weight: 600; margin-bottom: 28px;
+    border: 1px solid rgba(46,37,64,0.1);
+  }
+  .hero-eyebrow .dot { width: 8px; height: 8px; background: var(--sage); border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.4);opacity:0.7} }
+
+  h1 { font-family: 'Fraunces', serif; font-size: clamp(46px, 5vw, 70px); font-weight: 900; line-height: 1.04; letter-spacing: -1.5px; margin-bottom: 22px; }
+  h1 em { font-style: italic; color: var(--sage); font-weight: 300; }
+  .hero-sub { font-size: 17px; line-height: 1.75; color: var(--plum-mid); max-width: 460px; margin-bottom: 36px; }
+
+  .value-pills { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 40px; }
+  .vpill {
+    background: var(--sage-light); color: var(--plum); padding: 8px 18px;
+    border-radius: 100px; font-size: 13px; font-weight: 600; border: 1.5px solid var(--sage-mid);
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  .hero-actions { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .btn-main {
+    background: var(--plum); color: white; padding: 16px 36px; border-radius: 100px;
+    font-size: 16px; font-weight: 700; text-decoration: none;
+    transition: transform .2s, box-shadow .2s;
+  }
+  .btn-main:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(46,37,64,0.3); }
+  .btn-soft {
+    background: white; color: var(--plum); padding: 16px 28px; border-radius: 100px;
+    font-size: 16px; font-weight: 600; text-decoration: none;
+    border: 2px solid var(--sage-mid); transition: border-color .2s, background .2s;
+  }
+  .btn-soft:hover { border-color: var(--sage); background: var(--sage-light); }
+
+  /* HERO VISUAL */
+  .hero-right { position: relative; display: flex; align-items: center; justify-content: center; }
+  .blob-wrap {
+    position: relative; width: 420px; height: 460px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .blob-bg {
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 35% 45%, var(--blush) 0%, var(--butter) 40%, var(--sky) 80%);
+    border-radius: 58% 42% 52% 48% / 46% 54% 46% 54%;
+    animation: morph 9s ease-in-out infinite;
+  }
+  @keyframes morph { 0%,100%{border-radius:58% 42% 52% 48%/46% 54% 46% 54%} 33%{border-radius:40% 60% 60% 40%/60% 38% 62% 40%} 66%{border-radius:52% 48% 42% 58%/48% 58% 42% 52%} }
+
+  .dashboard-card {
+    position: relative; z-index: 2; background: white; border-radius: 22px; width: 320px;
+    box-shadow: 0 24px 72px rgba(46,37,64,0.18); overflow: hidden;
+    animation: floatY 5s ease-in-out infinite;
+  }
+  @keyframes floatY { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+
+  .dc-header { background: var(--plum); padding: 18px 22px; }
+  .dc-h-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .dc-title { font-family: 'Fraunces', serif; font-size: 15px; font-weight: 700; color: white; }
+  .dc-verified { display: flex; align-items: center; gap: 5px; background: rgba(122,175,118,0.3); border: 1px solid rgba(122,175,118,0.5); border-radius: 100px; padding: 4px 10px; font-size: 10px; color: #A8DCA5; font-weight: 600; letter-spacing: 0.5px; }
+  .dc-addr { font-size: 12px; color: rgba(255,255,255,0.6); }
+  .dc-score-row { display: flex; align-items: center; gap: 14px; }
+  .dc-score-num { font-family: 'Fraunces', serif; font-size: 42px; font-weight: 900; color: var(--sage); line-height: 1; }
+  .dc-score-label { font-size: 10px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px; }
+  .dc-score-bar-wrap { flex: 1; height: 6px; background: rgba(255,255,255,0.15); border-radius: 100px; overflow: hidden; }
+  .dc-score-bar { height: 100%; width: 91%; background: linear-gradient(90deg, var(--sage), #A8E8A0); border-radius: 100px; }
+
+  .dc-body { padding: 18px 22px; }
+  .dc-section-label { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--plum-mid); margin-bottom: 12px; }
+  .dc-items { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+  .dc-item { display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; background: var(--sage-light); border-radius: 10px; font-size: 12px; }
+  .dc-item-left { display: flex; align-items: center; gap: 8px; color: var(--plum); font-weight: 500; }
+  .dc-item-icon { font-size: 14px; }
+  .dc-item-status { font-size: 11px; font-weight: 600; }
+  .dc-item-status.done { color: var(--sage); }
+  .dc-item-status.due { color: #D4843A; }
+  .dc-item-status.ok { color: var(--plum-mid); }
+
+  .dc-verified-row { background: var(--sage-light); border: 1px solid var(--sage-mid); border-radius: 10px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; }
+  .dc-verified-icon { font-size: 18px; }
+  .dc-verified-text { font-size: 11px; line-height: 1.4; color: var(--plum-mid); }
+  .dc-verified-text strong { color: var(--plum); }
+
+  /* FLOATING BADGES */
+  .fbadge {
+    position: absolute; z-index: 3; background: white; border-radius: 14px;
+    box-shadow: 0 8px 28px rgba(46,37,64,0.14); padding: 10px 16px;
+    display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--plum);
+    white-space: nowrap; animation: floatY 4s ease-in-out infinite;
+  }
+  .fbadge.b1 { top: 6%; right: -16px; animation-delay: 0s; }
+  .fbadge.b2 { bottom: 14%; left: -20px; animation-delay: 1.5s; }
+  .fbadge .ficon { font-size: 18px; }
+
+  /* NUMBERS BAR */
+  .numbers-bar {
+    background: var(--plum); display: flex; justify-content: space-around; flex-wrap: wrap;
+    padding: 40px 56px; gap: 20px;
+  }
+  .nbar-item { text-align: center; }
+  .nbar-num { font-family: 'Fraunces', serif; font-size: 40px; font-weight: 900; color: var(--sage); line-height: 1; }
+  .nbar-label { font-size: 13px; color: rgba(253,252,250,0.6); margin-top: 6px; }
+
+  /* HOW IT WORKS - LIFECYCLE */
+  .lifecycle { padding: 100px 56px; }
+  .sec-kicker { font-size: 12px; font-weight: 700; color: var(--sage); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 14px; }
+  .sec-title { font-family: 'Fraunces', serif; font-size: 50px; font-weight: 900; letter-spacing: -1px; line-height: 1.05; margin-bottom: 20px; }
+  .sec-sub { font-size: 17px; color: var(--plum-mid); line-height: 1.7; max-width: 520px; margin-bottom: 60px; }
+
+  .lifecycle-flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; position: relative; }
+  .lifecycle-flow::before {
+    content: ''; position: absolute; top: 52px; left: 10%; right: 10%; height: 2px;
+    background: linear-gradient(90deg, var(--sage-mid), var(--sage)); z-index: 0;
+  }
+  .lf-step { text-align: center; position: relative; z-index: 1; padding: 0 16px; }
+  .lf-icon {
+    width: 104px; height: 104px; border-radius: 50%; margin: 0 auto 22px;
+    display: flex; align-items: center; justify-content: center; font-size: 36px;
+    border: 3px solid white; box-shadow: 0 8px 28px rgba(46,37,64,0.15);
+    position: relative; z-index: 1;
+  }
+  .lf-step:nth-child(1) .lf-icon { background: var(--butter); }
+  .lf-step:nth-child(2) .lf-icon { background: var(--blush); }
+  .lf-step:nth-child(3) .lf-icon { background: var(--sky); }
+  .lf-step:nth-child(4) .lf-icon { background: var(--sage-light); }
+  .lf-title { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+  .lf-desc { font-size: 14px; color: var(--plum-mid); line-height: 1.65; }
+
+  /* FEATURE BENTO */
+  .features { padding: 0 56px 100px; }
+  .bento { display: grid; grid-template-columns: 1.5fr 1fr 1fr; grid-template-rows: auto auto; gap: 16px; }
+  .bc { border-radius: 24px; padding: 40px; }
+  .bc.hero-card { grid-row: span 2; background: var(--plum); color: white; display: flex; flex-direction: column; justify-content: space-between; }
+  .bc.sage-card { background: var(--sage-light); }
+  .bc.blush-card { background: var(--blush); }
+  .bc.sky-card { background: var(--sky); }
+  .bc.butter-card { background: var(--butter); }
+  .bc-icon { font-size: 40px; margin-bottom: 18px; }
+  .bc-title { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 700; margin-bottom: 10px; }
+  .bc.hero-card .bc-title { font-size: 34px; color: white; }
+  .bc-desc { font-size: 14px; line-height: 1.7; color: var(--plum-mid); }
+  .bc.hero-card .bc-desc { color: rgba(253,252,250,0.7); font-size: 16px; }
+  .bc-list { list-style: none; margin-top: 28px; display: flex; flex-direction: column; gap: 11px; }
+  .bc-list li { font-size: 14px; color: rgba(253,252,250,0.85); display: flex; align-items: center; gap: 10px; }
+  .bc-list li::before { content: '✦'; color: var(--sage); font-size: 10px; flex-shrink: 0; }
+  .bc-tag { margin-top: 32px; display: inline-flex; align-items: center; gap: 8px; background: rgba(122,175,118,0.2); border: 1px solid rgba(122,175,118,0.3); border-radius: 12px; padding: 10px 14px; font-size: 12px; color: rgba(253,252,250,0.8); }
+
+  /* HOMEFAX REPORT CTA */
+  .report-cta { margin: 0 56px 100px; background: linear-gradient(135deg, var(--plum), #4A3870); border-radius: 28px; padding: 72px 80px; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+  .rc-left {}
+  .rc-label { font-size: 11px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: var(--sage); margin-bottom: 18px; }
+  .rc-title { font-family: 'Fraunces', serif; font-size: 46px; font-weight: 900; color: white; line-height: 1.05; letter-spacing: -1px; margin-bottom: 18px; }
+  .rc-title em { color: var(--sage); font-style: italic; font-weight: 300; }
+  .rc-desc { font-size: 16px; color: rgba(253,252,250,0.72); line-height: 1.7; margin-bottom: 36px; }
+  .rc-actions { display: flex; gap: 14px; flex-wrap: wrap; }
+  .rc-btn-main { background: var(--sage); color: var(--plum); padding: 16px 32px; border-radius: 100px; font-weight: 700; font-size: 15px; text-decoration: none; transition: transform .2s, box-shadow .2s; }
+  .rc-btn-main:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,0.3); }
+  .rc-btn-ghost { background: rgba(255,255,255,0.1); color: white; padding: 16px 24px; border-radius: 100px; font-weight: 600; font-size: 15px; text-decoration: none; border: 1px solid rgba(255,255,255,0.2); transition: background .2s; }
+  .rc-btn-ghost:hover { background: rgba(255,255,255,0.18); }
+
+  .rc-right {}
+  .report-mockup { background: white; border-radius: 18px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+  .rm-top { background: var(--plum); padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; }
+  .rm-address-title { font-family: 'Fraunces', serif; font-size: 15px; color: white; font-weight: 700; }
+  .rm-badge { background: var(--sage); color: var(--plum); font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 100px; letter-spacing: 1px; }
+  .rm-score-bar { background: var(--sage-light); padding: 14px 20px; display: flex; align-items: center; gap: 14px; }
+  .rm-score-big { font-family: 'Fraunces', serif; font-size: 38px; font-weight: 900; color: var(--sage); line-height: 1; }
+  .rm-score-info { flex: 1; }
+  .rm-score-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--plum-mid); margin-bottom: 6px; }
+  .rm-bar { height: 8px; background: var(--sage-mid); border-radius: 100px; overflow: hidden; }
+  .rm-bar-fill { height: 100%; width: 91%; background: linear-gradient(90deg, var(--sage), #A8E8A0); border-radius: 100px; }
+  .rm-rows { padding: 8px 20px 16px; }
+  .rm-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #F0EDE8; font-size: 12px; }
+  .rm-row:last-child { border-bottom: none; }
+  .rm-row-label { color: var(--plum-mid); display: flex; align-items: center; gap: 6px; }
+  .rm-row-val { font-weight: 700; }
+  .rm-row-val.pass { color: var(--sage); }
+  .rm-row-val.flag { color: #D4843A; }
+  .rm-row-val.info { color: var(--plum-mid); }
+  .rm-footer-row { padding: 10px 20px 14px; display: flex; align-items: center; gap: 8px; background: var(--sage-light); border-top: 1px solid var(--sage-mid); font-size: 11px; color: var(--plum-mid); font-weight: 600; }
+
+  /* TESTIMONIALS */
+  .testimonials { padding: 0 56px 100px; }
+  .test-title { font-family: 'Fraunces', serif; font-size: 44px; font-weight: 900; text-align: center; margin-bottom: 48px; letter-spacing: -0.5px; }
+  .test-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; }
+  .test-card { background: white; border-radius: 20px; padding: 30px; border: 1.5px solid rgba(122,175,118,0.2); transition: border-color .2s, box-shadow .2s; }
+  .test-card:hover { border-color: var(--sage); box-shadow: 0 8px 32px rgba(122,175,118,0.15); }
+  .test-stars { color: #F4B942; font-size: 16px; margin-bottom: 14px; }
+  .test-text { font-size: 14px; line-height: 1.75; color: var(--plum-mid); margin-bottom: 20px; font-style: italic; }
+  .test-author { display: flex; align-items: center; gap: 12px; }
+  .test-avi { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .a1 { background: var(--blush); } .a2 { background: var(--sky); } .a3 { background: var(--butter); }
+  .test-name { font-weight: 700; font-size: 13px; color: var(--plum); }
+  .test-role { font-size: 11px; color: var(--plum-mid); }
+
+  /* FINAL CTA — PERSONA */
+  .final-cta { padding: 0 56px 100px; }
+  .fc-inner { background: var(--sage-light); border-radius: 28px; padding: 80px; text-align: center; border: 2px solid var(--sage-mid); position: relative; overflow: hidden; }
+  .fc-blob { position: absolute; top: -60px; right: -60px; width: 300px; height: 300px; background: radial-gradient(circle, var(--blush), transparent 70%); pointer-events: none; }
+  .fc-blob2 { position: absolute; bottom: -80px; left: -40px; width: 280px; height: 280px; background: radial-gradient(circle, var(--sky), transparent 70%); pointer-events: none; }
+  .fc-title { font-family: 'Fraunces', serif; font-size: 52px; font-weight: 900; letter-spacing: -2px; margin-bottom: 14px; position: relative; }
+  .fc-sub { font-size: 18px; color: var(--plum-mid); margin-bottom: 52px; max-width: 480px; margin-left: auto; margin-right: auto; line-height: 1.65; position: relative; }
+  .fc-personas { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; max-width: 760px; margin: 0 auto; position: relative; }
+  .fc-persona {
+    background: white; border-radius: 20px; padding: 32px 24px;
+    border: 2px solid transparent; transition: border-color .2s, box-shadow .2s, transform .2s;
+    text-align: left; cursor: pointer; text-decoration: none; color: inherit; display: block;
+  }
+  .fc-persona:hover { border-color: var(--sage); box-shadow: 0 12px 36px rgba(46,37,64,0.12); transform: translateY(-4px); }
+  .fc-persona-icon { font-size: 36px; margin-bottom: 16px; }
+  .fc-persona-role { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--sage); margin-bottom: 8px; }
+  .fc-persona-title { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 700; color: var(--plum); margin-bottom: 10px; }
+  .fc-persona-desc { font-size: 13px; color: var(--plum-mid); line-height: 1.6; margin-bottom: 22px; }
+  .fc-persona-cta { font-size: 14px; font-weight: 700; color: var(--plum); display: flex; align-items: center; gap: 6px; }
+  .fc-persona-cta::after { content: '→'; transition: transform .2s; }
+  .fc-persona:hover .fc-persona-cta::after { transform: translateX(4px); }
+
+  footer { background: var(--plum); color: rgba(253,252,250,0.65); padding: 36px 56px; display: flex; align-items: center; justify-content: space-between; font-size: 13px; }
+  .footer-logo { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 900; color: white; }
+  .footer-logo span { color: var(--sage); }
+  .footer-links { display: flex; gap: 24px; }
+  .footer-links a { color: rgba(253,252,250,0.5); text-decoration: none; font-size: 13px; transition: color .2s; }
+  .footer-links a:hover { color: rgba(253,252,250,0.85); }
+
+  /* ANIMATIONS */
+  @keyframes fadeUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+  .hero-eyebrow{animation:fadeUp .5s ease both}
+  h1{animation:fadeUp .5s .1s ease both}
+  .hero-sub{animation:fadeUp .5s .2s ease both}
+  .value-pills{animation:fadeUp .5s .25s ease both}
+  .hero-actions{animation:fadeUp .5s .3s ease both}
+  .blob-wrap{animation:fadeUp .7s .15s ease both}
+
+  /* ─── MOBILE ─────────────────────────────────────────────────────────────── */
+  @media (max-width: 900px) {
+    nav { padding: 16px 24px; }
+    nav ul { display: none; }
+    .nav-hamburger { display: block; }
+
+    .hero {
+      grid-template-columns: 1fr;
+      padding: 96px 24px 48px;
+      gap: 40px;
+    }
+    .hero-right { display: none; }
+    h1 { font-size: clamp(36px, 9vw, 52px); }
+    .hero-sub { font-size: 15px; max-width: 100%; }
+
+    .numbers-bar { padding: 28px 24px; gap: 16px; }
+    .numbers-bar { display: grid; grid-template-columns: 1fr 1fr; }
+    .nbar-num { font-size: 30px; }
+    .nbar-label { font-size: 12px; }
+
+    .lifecycle { padding: 64px 24px; }
+    .sec-title { font-size: 34px; }
+    .sec-sub { font-size: 15px; max-width: 100%; margin-bottom: 40px; }
+    .lifecycle-flow { grid-template-columns: 1fr 1fr; gap: 36px; }
+    .lifecycle-flow::before { display: none; }
+    .lf-icon { width: 80px; height: 80px; font-size: 28px; }
+
+    .features { padding: 0 24px 64px; }
+    .bento { grid-template-columns: 1fr; }
+    .bc.hero-card { grid-row: span 1; }
+    .bc { padding: 28px; }
+    .bc.hero-card .bc-title { font-size: 26px; }
+
+    .report-cta {
+      margin: 0 24px 64px;
+      padding: 40px 28px;
+      grid-template-columns: 1fr;
+      gap: 36px;
+    }
+    .rc-title { font-size: 32px; }
+    .rc-desc { font-size: 14px; }
+    .rc-right { display: none; }
+
+    .testimonials { padding: 0 24px 64px; }
+    .test-title { font-size: 32px; }
+    .test-grid { grid-template-columns: 1fr; }
+
+    .final-cta { padding: 0 24px 64px; }
+    .fc-inner { padding: 48px 24px; }
+    .fc-title { font-size: 34px; letter-spacing: -1px; }
+    .fc-sub { font-size: 15px; }
+    .fc-personas { grid-template-columns: 1fr; max-width: 100%; }
+
+    footer { flex-direction: column; gap: 20px; text-align: center; padding: 28px 24px; }
+    .footer-links { flex-wrap: wrap; justify-content: center; }
+  }
+
+  @media (min-width: 901px) and (max-width: 1100px) {
+    nav { padding: 16px 32px; }
+    .hero { padding: 120px 32px 64px; gap: 40px; }
+    .blob-wrap { width: 340px; height: 380px; }
+    .dashboard-card { width: 280px; }
+    .lifecycle { padding: 80px 32px; }
+    .features { padding: 0 32px 80px; }
+    .report-cta { margin: 0 32px 80px; padding: 56px 48px; }
+    .testimonials { padding: 0 32px 80px; }
+    .final-cta { padding: 0 32px 80px; }
+    footer { padding: 28px 32px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="#" class="logo">Home<span>Fax</span></a>
+  <ul>
+    <li><a href="#">For Homeowners</a></li>
+    <li><a href="#">Service Network</a></li>
+    <li><a href="#">HomeFax Report</a></li>
+    <li><a href="#">Sell Smarter</a></li>
+  </ul>
+  <a href="#" class="nav-pill">🏡 Start Free</a>
+  <button class="nav-hamburger" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<section class="hero">
+  <div class="hero-left">
+    <div class="hero-eyebrow">
+      <span class="dot"></span>
+      Verified Records · AI-Powered · Built on ICP
+    </div>
+    <h1>Own It.<br>Prove It.<br><em>Sell It.</em></h1>
+    <p class="hero-sub">HomeFax is the all-in-one platform for homeowners to manage their property, coordinate trusted service providers, and generate a verified Home Report that commands premium offers — or make real estate agents compete for your listing.</p>
+    <div class="value-pills">
+      <div class="vpill">🔧 Property Management</div>
+      <div class="vpill">👷 Verified Contractors</div>
+      <div class="vpill">📋 Verified Home Report</div>
+      <div class="vpill">🏆 Agent Marketplace</div>
+    </div>
+    <div class="hero-actions">
+      <a href="#" class="btn-main">Get Started Free →</a>
+      <a href="#" class="btn-soft">See a HomeFax Report</a>
+    </div>
+  </div>
+  <div class="hero-right">
+    <div class="blob-wrap">
+      <div class="blob-bg"></div>
+      <div class="dashboard-card">
+        <div class="dc-header">
+          <div class="dc-h-top">
+            <span class="dc-title">My Home Dashboard</span>
+            <span class="dc-verified">✓ Verified</span>
+          </div>
+          <div class="dc-addr">4821 Oakwood Drive, Austin TX</div>
+          <div style="height:12px"></div>
+          <div class="dc-score-row">
+            <div>
+              <div class="dc-score-label">HomeFax Score</div>
+              <div class="dc-score-num">91</div>
+            </div>
+            <div style="flex:1">
+              <div class="dc-score-bar-wrap"><div class="dc-score-bar"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="dc-body">
+          <div class="dc-section-label">Maintenance & Services</div>
+          <div class="dc-items">
+            <div class="dc-item">
+              <span class="dc-item-left"><span class="dc-item-icon">❄️</span> HVAC Service</span>
+              <span class="dc-item-status done">✓ Logged</span>
+            </div>
+            <div class="dc-item">
+              <span class="dc-item-left"><span class="dc-item-icon">🔌</span> Electrical Panel</span>
+              <span class="dc-item-status ok">✓ Verified</span>
+            </div>
+            <div class="dc-item">
+              <span class="dc-item-left"><span class="dc-item-icon">🌿</span> Landscaping</span>
+              <span class="dc-item-status due">Due Nov 10</span>
+            </div>
+          </div>
+          <div class="dc-verified-row">
+            <span class="dc-verified-icon">📋</span>
+            <span class="dc-verified-text"><strong>HomeFax Report Ready</strong> — 14 records verified, share with buyers in one click</span>
+          </div>
+        </div>
+      </div>
+      <div class="fbadge b1"><span class="ficon">🏆</span> Score: 91 · Top 8%</div>
+      <div class="fbadge b2"><span class="ficon">⚡</span> 3 agents competing</div>
+    </div>
+  </div>
+</section>
+
+<div class="numbers-bar">
+  <div class="nbar-item"><div class="nbar-num">40+</div><div class="nbar-label">Data points in your score</div></div>
+  <div class="nbar-item"><div class="nbar-num">Avg 47</div><div class="nbar-label">Records per HomeFax Report</div></div>
+  <div class="nbar-item"><div class="nbar-num">3×</div><div class="nbar-label">More offers when score is shared</div></div>
+  <div class="nbar-item"><div class="nbar-num">Free</div><div class="nbar-label">To start — no credit card needed</div></div>
+</div>
+
+<section class="lifecycle">
+  <div class="sec-kicker">How It Works</div>
+  <h2 class="sec-title">Own It. Manage It.<br>Prove It. Sell It.</h2>
+  <p class="sec-sub">HomeFax works across the entire homeownership lifecycle — from move-in to sale day.</p>
+  <div class="lifecycle-flow">
+    <div class="lf-step">
+      <div class="lf-icon">🏠</div>
+      <h3 class="lf-title">Set Up Your Home</h3>
+      <p class="lf-desc">Add your property and import existing records. AI agents begin organizing your home's history automatically.</p>
+    </div>
+    <div class="lf-step">
+      <div class="lf-icon">🔧</div>
+      <h3 class="lf-title">Manage & Maintain</h3>
+      <p class="lf-desc">Schedule services with verified providers. Every job is logged, receipted, and stored on your permanent record.</p>
+    </div>
+    <div class="lf-step">
+      <div class="lf-icon">📋</div>
+      <h3 class="lf-title">Generate Your Report</h3>
+      <p class="lf-desc">Your HomeFax Report is a tamper-proof property biography. Share it with buyers or attach it to any listing.</p>
+    </div>
+    <div class="lf-step">
+      <div class="lf-icon">🏆</div>
+      <h3 class="lf-title">Sell With Confidence</h3>
+      <p class="lf-desc">List with the agent who wins your bid — or go FSBO with our full suite of seller tools. Your home, your terms.</p>
+    </div>
+  </div>
+</section>
+
+<section class="features">
+  <div class="bento">
+    <div class="bc hero-card">
+      <div>
+        <div class="bc-icon">📋</div>
+        <h3 class="bc-title">The Verified Home Record</h3>
+        <p class="bc-desc">Every service, every repair, every renovation — documented, signed, and stored permanently. Your HomeFax is the Carfax your home deserves.</p>
+        <ul class="bc-list">
+          <li>Full ownership &amp; transaction history</li>
+          <li>Verified contractor records &amp; warranties</li>
+          <li>Permitted renovations on file</li>
+          <li>Recurring services under contract</li>
+          <li>AI agents continuously update your score</li>
+          <li>Share with buyers instantly, no middlemen</li>
+        </ul>
+      </div>
+      <div class="bc-tag">
+        <span>⬡</span>
+        <span>Records stored on ICP — tamper-proof, always available</span>
+      </div>
+    </div>
+    <div class="bc sage-card">
+      <div class="bc-icon">🤖</div>
+      <h3 class="bc-title">AI Property Agents</h3>
+      <p class="bc-desc">Autonomous AI agents monitor your home, flag upcoming maintenance, find verified service providers, and keep your HomeFax score climbing.</p>
+    </div>
+    <div class="bc blush-card">
+      <div class="bc-icon">👷</div>
+      <h3 class="bc-title">Verified Service Network</h3>
+      <p class="bc-desc">Every contractor in our network is credentialed, reviewed, and bonded. Their work is automatically logged to your home's record.</p>
+    </div>
+    <div class="bc sky-card">
+      <div class="bc-icon">⚖️</div>
+      <h3 class="bc-title">Make Agents Compete</h3>
+      <p class="bc-desc">Post your listing intent and let real estate agents submit competing proposals. See commissions, marketing plans, and estimated net proceeds — side by side.</p>
+    </div>
+    <div class="bc butter-card">
+      <div class="bc-icon">🏡</div>
+      <h3 class="bc-title">Sell It Yourself</h3>
+      <p class="bc-desc">Not ready for an agent? Our FSBO mode gives you pricing intelligence, a public listing page, showing management, and an offer inbox — everything you need to close on your own terms.</p>
+    </div>
+  </div>
+</section>
+
+<section class="report-cta">
+  <div class="rc-left">
+    <p class="rc-label">The HomeFax Report</p>
+    <h2 class="rc-title">Your Home's Verified<br><em>Biography</em></h2>
+    <p class="rc-desc">When it's time to sell, your HomeFax Report is a tamper-proof document showing every owner, every service, every improvement. Buyers love it. Agents share it. Homes with it sell first.</p>
+    <div class="rc-actions">
+      <a href="#" class="rc-btn-main">Generate My HomeFax →</a>
+      <a href="#" class="rc-btn-ghost">View Sample Report</a>
+    </div>
+  </div>
+  <div class="rc-right">
+    <div class="report-mockup">
+      <div class="rm-top">
+        <span class="rm-address-title">4821 Oakwood Drive, Austin TX</span>
+        <span class="rm-badge">HomeFax ✓</span>
+      </div>
+      <div class="rm-score-bar">
+        <div class="rm-score-big">91</div>
+        <div class="rm-score-info">
+          <div class="rm-score-lbl">HomeFax Property Score</div>
+          <div class="rm-bar"><div class="rm-bar-fill"></div></div>
+        </div>
+      </div>
+      <div class="rm-rows">
+        <div class="rm-row"><span class="rm-row-label">📋 Title &amp; Ownership</span><span class="rm-row-val pass">Clear ✓</span></div>
+        <div class="rm-row"><span class="rm-row-label">🔨 Permits &amp; Renovations</span><span class="rm-row-val pass">12 Logged ✓</span></div>
+        <div class="rm-row"><span class="rm-row-label">🔧 Service History</span><span class="rm-row-val pass">47 Records ✓</span></div>
+        <div class="rm-row"><span class="rm-row-label">🌿 Recurring Services</span><span class="rm-row-val pass">4 Under Contract ✓</span></div>
+        <div class="rm-row"><span class="rm-row-label">⚖️ Liens &amp; Encumbrances</span><span class="rm-row-val pass">None ✓</span></div>
+        <div class="rm-row"><span class="rm-row-label">💧 Environmental Risk</span><span class="rm-row-val flag">Zone AE ⚠</span></div>
+      </div>
+      <div class="rm-footer-row">📋 <span>All records independently verified · Shareable link generated</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="testimonials">
+  <h2 class="test-title">Homeowners Love HomeFax</h2>
+  <div class="test-grid">
+    <div class="test-card">
+      <div class="test-stars">★★★★★</div>
+      <p class="test-text">"We got $28k over asking. Our buyers said the HomeFax Report was the reason they felt comfortable waiving the inspection contingency. It's a game changer."</p>
+      <div class="test-author"><div class="test-avi a1">👩</div><div><div class="test-name">Sarah M.</div><div class="test-role">Seller · Austin, TX</div></div></div>
+    </div>
+    <div class="test-card">
+      <div class="test-stars">★★★★★</div>
+      <p class="test-text">"I posted my listing intent and got five agent proposals in 48 hours. Ended up saving $11k in commission compared to what I would have paid without negotiating. Never going back."</p>
+      <div class="test-author"><div class="test-avi a2">👨</div><div><div class="test-name">Marcus T.</div><div class="test-role">Seller · Denver, CO</div></div></div>
+    </div>
+    <div class="test-card">
+      <div class="test-stars">★★★★★</div>
+      <p class="test-text">"The AI agent reminded me my HVAC was overdue for service, booked a verified tech, and logged it to my HomeFax automatically. When I sold six months later, it was right there in the report."</p>
+      <div class="test-author"><div class="test-avi a3">👩</div><div><div class="test-name">Priya K.</div><div class="test-role">Homeowner · Seattle, WA</div></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="final-cta">
+  <div class="fc-inner">
+    <div class="fc-blob"></div>
+    <div class="fc-blob2"></div>
+    <h2 class="fc-title">How do you want to start?</h2>
+    <p class="fc-sub">HomeFax works for every stage of homeownership. Pick what fits you now.</p>
+    <div class="fc-personas">
+      <a href="#" class="fc-persona">
+        <div class="fc-persona-icon">🏠</div>
+        <div class="fc-persona-role">Homeowner</div>
+        <div class="fc-persona-title">Build My HomeFax</div>
+        <div class="fc-persona-desc">Log services, track maintenance, grow your property score, and be ready to sell on your terms.</div>
+        <div class="fc-persona-cta">Get started free</div>
+      </a>
+      <a href="#" class="fc-persona">
+        <div class="fc-persona-icon">👷</div>
+        <div class="fc-persona-role">Contractor</div>
+        <div class="fc-persona-title">Join the Network</div>
+        <div class="fc-persona-desc">Get verified, receive job requests, and have your work permanently credited on homeowner records.</div>
+        <div class="fc-persona-cta">Apply to join</div>
+      </a>
+      <a href="#" class="fc-persona">
+        <div class="fc-persona-icon">🏆</div>
+        <div class="fc-persona-role">Ready to Sell</div>
+        <div class="fc-persona-title">Make Agents Compete</div>
+        <div class="fc-persona-desc">Post your listing intent, collect competing agent proposals, or go FSBO with our full seller toolkit.</div>
+        <div class="fc-persona-cta">Start selling smarter</div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-logo">Home<span>Fax</span></div>
+  <div class="footer-links">
+    <a href="#">For Homeowners</a>
+    <a href="#">Service Network</a>
+    <a href="#">Sell Smarter</a>
+    <a href="#">Privacy</a>
+    <a href="#">Terms</a>
+  </div>
+  <p>© 2026 HomeFax Inc.</p>
+</footer>
+
+</body>
+</html>

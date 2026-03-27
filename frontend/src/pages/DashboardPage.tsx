@@ -1,18 +1,21 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Home, Plus, Wrench, MessageSquare, Sparkles, ArrowRight, X } from "lucide-react";
+import { Home, Plus, Wrench, MessageSquare, Sparkles, ArrowRight, X, ShieldCheck, Calendar } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { Badge } from "@/components/Badge";
 import { propertyService, Property } from "@/services/property";
 import { jobService, Job } from "@/services/job";
 import { quoteService, QuoteRequest } from "@/services/quote";
+import { recurringService, RecurringService, VisitLog } from "@/services/recurringService";
+import { RecurringServiceCard } from "@/components/RecurringServiceCard";
 import { useAuthStore } from "@/store/authStore";
 import { usePropertyStore } from "@/store/propertyStore";
 import { isNewSince, hasQuoteActivity, pendingQuoteCount } from "@/services/notifications";
 import { computeScore, getScoreGrade, loadHistory, recordSnapshot, scoreDelta, premiumEstimate, isCertified, generateCertToken, type ScoreSnapshot } from "@/services/scoreService";
 import { getWeeklyPulse } from "@/services/pulseService";
 import { marketService, jobToSummary, type PropertyProfile, type ProjectRecommendation } from "@/services/market";
+import { getRecentScoreEvents, categoryColor, categoryBg, type ScoreEvent } from "@/services/scoreEventService";
 import toast from "react-hot-toast";
 
 const S = {
@@ -30,6 +33,8 @@ export default function DashboardPage() {
   const [quoteRequests, setQuoteRequests] = useState<QuoteRequest[]>([]);
   const [bidCountMap,   setBidCountMap]   = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [recurringServices, setRecurringServices] = useState<RecurringService[]>([]);
+  const [visitLogMap, setVisitLogMap] = useState<Record<string, VisitLog[]>>({});
   const [bannerDismissed,     setBannerDismissed]     = useState(false);
   const [showScoreBreakdown,  setShowScoreBreakdown]  = useState(false);
   const [showScoreChart,      setShowScoreChart]      = useState(false);
@@ -37,13 +42,14 @@ export default function DashboardPage() {
     const v = localStorage.getItem("homefax_score_goal");
     return v ? parseInt(v, 10) : null;
   });
-  const [milestoneDismissed,  setMilestoneDismissed]  = useState(() => !!localStorage.getItem("homefax_milestone_dismissed"));
-  const [milestone3Dismissed, setMilestone3Dismissed] = useState(() => !!localStorage.getItem("homefax_3job_milestone"));
-  const [pulseDismissed,      setPulseDismissed]      = useState(() => !!localStorage.getItem(`homefax_pulse_${new Date().toISOString().slice(0, 7)}`));
+  const [milestoneDismissed,    setMilestoneDismissed]    = useState(() => !!localStorage.getItem("homefax_milestone_dismissed"));
+  const [milestone3Dismissed,   setMilestone3Dismissed]   = useState(() => !!localStorage.getItem("homefax_3job_milestone"));
+  const [pulseDismissed,        setPulseDismissed]        = useState(() => !!localStorage.getItem(`homefax_pulse_${new Date().toISOString().slice(0, 7)}`));
+  const [scoreIncreaseDismissed, setScoreIncreaseDismissed] = useState(() => false);
   const [scoreHistory, setScoreHistory] = useState<ScoreSnapshot[]>([]);
 
   useEffect(() => {
-    Promise.all([loadProperties(), loadJobs(), loadQuoteRequests()]).finally(() => setLoading(false));
+    Promise.all([loadProperties(), loadJobs(), loadQuoteRequests(), loadRecurringServices()]).finally(() => setLoading(false));
     setScoreHistory(loadHistory());
   }, []);
 
@@ -55,6 +61,32 @@ export default function DashboardPage() {
 
   async function loadJobs() {
     try { setJobs(await jobService.getAll()); } catch { /* canister not deployed */ }
+  }
+
+  async function loadRecurringServices() {
+    try {
+      const props = (typeof window !== "undefined" && (window as any).__e2e_properties)
+        || [];
+      // Load after properties are set — use store or fallback to empty
+      const { usePropertyStore: store } = await import("@/store/propertyStore");
+      const propList = store.getState().properties;
+      if (propList.length === 0 && props.length === 0) return;
+      const list = propList.length > 0 ? propList : props;
+      const allServices: RecurringService[] = [];
+      for (const p of list) {
+        const svcs = await recurringService.getByProperty(String(p.id));
+        allServices.push(...svcs);
+      }
+      setRecurringServices(allServices);
+      // Load visit logs for each service
+      const logEntries = await Promise.all(
+        allServices.map(async (s) => {
+          const logs = await recurringService.getVisitLogs(s.id).catch(() => [] as VisitLog[]);
+          return [s.id, logs] as [string, VisitLog[]];
+        })
+      );
+      setVisitLogMap(Object.fromEntries(logEntries));
+    } catch { /* canister not deployed */ }
   }
 
   async function loadQuoteRequests() {
@@ -78,6 +110,34 @@ export default function DashboardPage() {
   const hasJob       = jobs.length > 0;
   const showBanner   = !loading && !(hasProperty && hasVerified && hasJob) && !bannerDismissed;
   const certified    = isCertified(homefaxScore, jobs);
+
+  const scoreAlertsEnabled = localStorage.getItem("homefax_score_alerts") !== "false";
+  const showScoreIncrease  = !loading && hasJob && delta > 0 && scoreAlertsEnabled && !scoreIncreaseDismissed;
+
+  // Next-service prompt (8.6.2) — most recently verified job's follow-up tip
+  const NEXT_SERVICE_TIPS: Record<string, string> = {
+    HVAC:       "Schedule HVAC filter replacement in 3 months to maintain efficiency.",
+    Roofing:    "Book an annual roof inspection to catch early wear.",
+    Plumbing:   "Check water heater anode rod in 12 months to prevent corrosion.",
+    Electrical: "Schedule a panel safety inspection in 3 years.",
+    Flooring:   "Consider re-sealing or refinishing flooring in 2 years.",
+    Painting:   "Plan a touch-up inspection in 12 months.",
+  };
+  const recentVerified = jobs
+    .filter((j) => j.status === "verified")
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] ?? null;
+  const nextServiceTip = recentVerified ? NEXT_SERVICE_TIPS[recentVerified.serviceType] ?? null : null;
+  const nextServiceKey = `homefax_next_service_${recentVerified?.id ?? ""}`;
+  const [nextServiceDismissed, setNextServiceDismissed] = React.useState(
+    () => !!localStorage.getItem(nextServiceKey)
+  );
+  const showNextService = !loading && !!nextServiceTip && !nextServiceDismissed;
+
+  // Score events (8.2.1–8.2.2)
+  const scoreEvents: ScoreEvent[] = React.useMemo(
+    () => (!loading ? getRecentScoreEvents(jobs, properties) : []),
+    [jobs, properties, loading]
+  );
 
   // Score breakdown — per-component contribution for the explanatory panel
   const scoreBreakdown = React.useMemo(() => {
@@ -127,9 +187,10 @@ export default function DashboardPage() {
     && accountAgeMs >= 11 * 30 * 24 * 60 * 60 * 1000;
 
   // Home Pulse — rule-based weekly maintenance focus tip
-  const pulseKey  = `homefax_pulse_${new Date().toISOString().slice(0, 7)}`;
-  const pulseTip  = React.useMemo(() => getWeeklyPulse(properties, jobs), [properties, jobs]);
-  const showPulse = !loading && hasProperty && !!pulseTip && !pulseDismissed;
+  const pulseKey     = `homefax_pulse_${new Date().toISOString().slice(0, 7)}`;
+  const pulseEnabled = localStorage.getItem("homefax_pulse_enabled") !== "false";
+  const pulseTip     = React.useMemo(() => getWeeklyPulse(properties, jobs), [properties, jobs]);
+  const showPulse    = !loading && hasProperty && !!pulseTip && !pulseDismissed && pulseEnabled;
 
   // Multi-property score comparison — computed when user has 2+ properties
   const propertyComparison = React.useMemo(() => {
@@ -286,6 +347,12 @@ export default function DashboardPage() {
                 You've been building your verified home history for nearly a year.{" "}
                 <strong style={{ fontWeight: 600 }}>${(totalValue / 100).toLocaleString()} in documented improvements</strong> — that's real value for your next sale.
               </p>
+              <button
+                onClick={() => navigate("/resale-ready")}
+                style={{ marginTop: "0.5rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 1rem", border: `1px solid ${S.rust}`, background: "none", color: S.rust, cursor: "pointer" }}
+              >
+                View Resale Summary →
+              </button>
             </div>
             <button
               onClick={() => { localStorage.setItem(milestoneKey, "1"); setMilestoneDismissed(true); }}
@@ -387,6 +454,30 @@ export default function DashboardPage() {
               }}
             >
               Log a Job <ArrowRight size={12} />
+            </button>
+          </div>
+        )}
+
+        {/* Score increase notification */}
+        {showScoreIncrease && (
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem",
+            border: `1px solid #B5D4C8`, padding: "0.875rem 1.25rem", marginBottom: "1.5rem",
+            background: "#F0F7F4", flexWrap: "wrap",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+              <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.sage }}>
+                Score Up +{delta} pts
+              </span>
+              <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: "#3D6B57", opacity: 0.75 }}>
+                — Your HomeFax Score is now {homefaxScore}. Keep logging jobs to grow your record.
+              </span>
+            </div>
+            <button
+              onClick={() => setScoreIncreaseDismissed(true)}
+              style={{ background: "none", border: "none", cursor: "pointer", color: S.sage, flexShrink: 0 }}
+            >
+              <X size={14} />
             </button>
           </div>
         )}
@@ -777,10 +868,11 @@ export default function DashboardPage() {
             Quick Actions
           </div>
           <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-            <Button variant="outline" icon={<Plus size={14} />}         onClick={() => navigate("/properties/new")}>Add Property</Button>
-            <Button variant="outline" icon={<Wrench size={14} />}       onClick={() => navigate("/jobs/new")}>Log a Job</Button>
+            <Button variant="outline" icon={<Plus size={14} />}          onClick={() => navigate("/properties/new")}>Add Property</Button>
+            <Button variant="outline" icon={<Wrench size={14} />}        onClick={() => navigate("/jobs/new")}>Log a Job</Button>
             <Button variant="outline" icon={<MessageSquare size={14} />} onClick={() => navigate("/quotes/new")}>Request Quote</Button>
-            <Button variant="outline" icon={<Home size={14} />}         onClick={() => navigate("/contractors")}>Find Contractors</Button>
+            <Button variant="outline" icon={<Home size={14} />}          onClick={() => navigate("/contractors")}>Find Contractors</Button>
+            <Button variant="outline" icon={<ShieldCheck size={14} />}   onClick={() => navigate("/insurance-defense")}>Insurance Defense</Button>
           </div>
         </div>
 
@@ -900,6 +992,117 @@ export default function DashboardPage() {
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* Next-service prompt (8.6.2) */}
+        {showNextService && nextServiceTip && recentVerified && (
+          <div style={{
+            display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem",
+            border: `1px solid ${S.rule}`, padding: "1rem 1.25rem", marginBottom: "2rem",
+            background: "#fff", flexWrap: "wrap",
+          }}>
+            <div style={{ display: "flex", gap: "0.75rem", flex: 1 }}>
+              <div style={{ width: "2rem", height: "2rem", border: `1px solid ${S.rule}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Calendar size={13} color={S.sage} />
+              </div>
+              <div>
+                <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.sage, marginBottom: "0.2rem" }}>
+                  Next Step — {recentVerified.serviceType}
+                </p>
+                <p style={{ fontSize: "0.875rem", fontWeight: 400, color: S.ink, marginBottom: "0.5rem" }}>
+                  {nextServiceTip}
+                </p>
+                <button
+                  onClick={() => navigate("/maintenance")}
+                  style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.35rem 0.875rem", border: `1px solid ${S.sage}`, background: "none", color: S.sage, cursor: "pointer" }}
+                >
+                  Add to Maintenance Schedule →
+                </button>
+              </div>
+            </div>
+            <button
+              onClick={() => { localStorage.setItem(nextServiceKey, "1"); setNextServiceDismissed(true); }}
+              style={{ background: "none", border: "none", cursor: "pointer", color: S.inkLight, flexShrink: 0 }}
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
+        {/* Score event feed (8.2.1–8.2.2) */}
+        {!loading && scoreEvents.length > 0 && (
+          <div style={{ marginBottom: "2.5rem" }}>
+            <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "1rem" }}>
+              Score Activity
+            </div>
+            <div style={{ border: `1px solid ${S.rule}` }}>
+              {scoreEvents.slice(0, 5).map((ev, i) => (
+                <div key={ev.id} style={{
+                  display: "flex", alignItems: "center", gap: "0.875rem",
+                  padding: "0.75rem 1rem",
+                  borderBottom: i < Math.min(scoreEvents.length, 5) - 1 ? `1px solid ${S.rule}` : "none",
+                  background: "#fff",
+                }}>
+                  <div style={{ width: "2rem", height: "2rem", background: categoryBg(ev.category), border: `1px solid ${categoryColor(ev.category)}40`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <span style={{ fontFamily: S.mono, fontSize: "0.6rem", fontWeight: 700, color: categoryColor(ev.category) }}>
+                      +{ev.pts}
+                    </span>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: "0.8rem", fontWeight: 500 }}>{ev.label}</p>
+                    <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>{ev.detail}</p>
+                  </div>
+                  <span style={{
+                    fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase",
+                    padding: "0.2rem 0.5rem", border: `1px solid ${categoryColor(ev.category)}40`,
+                    color: categoryColor(ev.category), flexShrink: 0,
+                  }}>
+                    {ev.category}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Recurring Services */}
+        {hasProperty && (
+          <div style={{ marginBottom: "2rem" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+              <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
+                Recurring Services
+              </div>
+              <button
+                onClick={() => navigate("/recurring/new")}
+                style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.3rem 0.75rem", border: `1px solid ${S.rust}`, color: S.rust, background: "none", cursor: "pointer" }}
+              >
+                + Add
+              </button>
+            </div>
+            {recurringServices.length === 0 ? (
+              <div style={{ border: `1px solid ${S.rule}`, background: "#fff", padding: "1.5rem", textAlign: "center" }}>
+                <p style={{ fontSize: "0.85rem", fontWeight: 300, color: S.inkLight, marginBottom: "0.75rem" }}>
+                  Lawn care, pest control, pool service — log ongoing contracts once and let the visit log do the rest.
+                </p>
+                <button
+                  onClick={() => navigate("/recurring/new")}
+                  style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 1rem", border: `1px solid ${S.ink}`, background: "none", cursor: "pointer", color: S.ink }}
+                >
+                  Add first service →
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                {recurringServices.map((svc) => (
+                  <RecurringServiceCard
+                    key={svc.id}
+                    service={svc}
+                    visitLogs={visitLogMap[svc.id] ?? []}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 

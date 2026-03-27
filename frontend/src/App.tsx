@@ -30,6 +30,10 @@ import AgentDashboardPage from "@/pages/AgentDashboardPage";
 import SystemAgesPage from "@/pages/SystemAgesPage";
 import SensorPage from "@/pages/SensorPage";
 import WarrantyWalletPage from "@/pages/WarrantyWalletPage";
+import InsuranceDefensePage from "@/pages/InsuranceDefensePage";
+import ResaleReadyPage from "@/pages/ResaleReadyPage";
+import RecurringServiceCreatePage from "@/pages/RecurringServiceCreatePage";
+import RecurringServiceDetailPage from "@/pages/RecurringServiceDetailPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuthStore();
@@ -239,6 +243,38 @@ export default function App() {
           element={
             <ProtectedRoute>
               <WarrantyWalletPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/insurance-defense"
+          element={
+            <ProtectedRoute>
+              <InsuranceDefensePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/resale-ready"
+          element={
+            <ProtectedRoute>
+              <ResaleReadyPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/recurring/new"
+          element={
+            <ProtectedRoute>
+              <RecurringServiceCreatePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/recurring/:id"
+          element={
+            <ProtectedRoute>
+              <RecurringServiceDetailPage />
             </ProtectedRoute>
           }
         />

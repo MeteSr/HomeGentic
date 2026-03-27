@@ -4,6 +4,7 @@ import { Button } from "@/components/Button";
 import { reportService, ShareLink, propertyToInput, jobToInput, DisclosureOptions } from "@/services/report";
 import { agentProfileService } from "@/services/agentProfile";
 import { jobService } from "@/services/job";
+import { recurringService } from "@/services/recurringService";
 import { computeScore, getScoreGrade } from "@/services/scoreService";
 import type { Property } from "@/services/property";
 import toast from "react-hot-toast";
@@ -51,14 +52,27 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
   const handleGenerate = async () => {
     setGenerating(true);
     try {
-      const jobs = await jobService.getByProperty(propertyId);
+      const [jobs, recurringList] = await Promise.all([
+        jobService.getByProperty(propertyId),
+        recurringService.getByProperty(propertyId).catch(() => []),
+      ]);
       const score        = computeScore(jobs, [property]);
       const grade        = getScoreGrade(score);
       const verifiedCount = jobs.filter((j) => j.verified || j.status === "verified").length;
+
+      // Build recurring summaries with visit logs
+      const recurringSummaries = await Promise.all(
+        recurringList.map(async (svc) => {
+          const visits = await recurringService.getVisitLogs(svc.id).catch(() => []);
+          return recurringService.toSummary(svc, visits);
+        })
+      );
+
       const link = await reportService.generateReport(
         propertyId,
         propertyToInput(property),
         jobs.map(jobToInput),
+        recurringSummaries,
         expiryDays,
         "Public"
       );

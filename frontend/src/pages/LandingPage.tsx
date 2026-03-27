@@ -1,296 +1,719 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+
+/* ─── Styles ──────────────────────────────────────────────────────────────── */
+const CSS = `
+  .hfl * { margin: 0; padding: 0; box-sizing: border-box; }
+  .hfl {
+    --sage: #7AAF76; --sage-light: #E5F0E4; --sage-mid: #C4DCC2;
+    --blush: #F0CDBA; --sky: #BAD5E8; --butter: #F5E9BB;
+    --plum: #2E2540; --plum-mid: #6B5B7B;
+    --white: #FDFCFA; --charcoal: #1E1928;
+    background: var(--white); color: var(--charcoal);
+    font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden;
+  }
+
+  /* NAV */
+  .hfl-nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 56px;
+    background: rgba(253,252,250,0.92); backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgba(122,175,118,0.2);
+  }
+  .hfl-logo {
+    font-family: 'Fraunces', serif; font-size: 24px; font-weight: 900;
+    color: var(--plum); text-decoration: none; letter-spacing: -0.5px;
+  }
+  .hfl-logo span { color: var(--sage); }
+  .hfl-nav ul { display: flex; gap: 32px; list-style: none; }
+  .hfl-nav ul a {
+    font-size: 14px; color: var(--plum-mid); text-decoration: none;
+    font-weight: 500; transition: color .2s; cursor: pointer;
+  }
+  .hfl-nav ul a:hover { color: var(--plum); }
+  .hfl-nav-pill {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--plum); color: white; padding: 10px 22px;
+    border-radius: 100px; font-size: 14px; font-weight: 600;
+    border: none; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif;
+    transition: transform .2s, box-shadow .2s;
+  }
+  .hfl-nav-pill:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(46,37,64,0.3); }
+  .hfl-hamburger {
+    display: none; background: none; border: none; cursor: pointer; padding: 4px;
+  }
+  .hfl-hamburger span {
+    display: block; width: 22px; height: 2px; background: var(--plum);
+    margin: 5px 0; border-radius: 2px;
+  }
+
+  /* HERO */
+  .hfl-hero {
+    padding: 120px 56px 80px;
+    display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 64px; align-items: center;
+  }
+  .hfl-eyebrow {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: var(--butter); color: var(--plum); padding: 7px 18px;
+    border-radius: 100px; font-size: 13px; font-weight: 600; margin-bottom: 28px;
+    border: 1px solid rgba(46,37,64,0.1);
+  }
+  .hfl-dot {
+    width: 8px; height: 8px; background: var(--sage); border-radius: 50%;
+    animation: hfl-pulse 2s infinite;
+  }
+  @keyframes hfl-pulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.4);opacity:0.7} }
+
+  .hfl h1 {
+    font-family: 'Fraunces', serif; font-size: clamp(46px, 5vw, 70px);
+    font-weight: 900; line-height: 1.04; letter-spacing: -1.5px; margin-bottom: 22px;
+  }
+  .hfl h1 em { font-style: italic; color: var(--sage); font-weight: 300; }
+  .hfl-sub {
+    font-size: 17px; line-height: 1.75; color: var(--plum-mid);
+    max-width: 460px; margin-bottom: 36px;
+  }
+  .hfl-pills { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 40px; }
+  .hfl-pill {
+    background: var(--sage-light); color: var(--plum); padding: 8px 18px;
+    border-radius: 100px; font-size: 13px; font-weight: 600;
+    border: 1.5px solid var(--sage-mid); display: flex; align-items: center; gap: 6px;
+  }
+  .hfl-actions { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .hfl-btn-main {
+    background: var(--plum); color: white; padding: 16px 36px; border-radius: 100px;
+    font-size: 16px; font-weight: 700; border: none; cursor: pointer;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    transition: transform .2s, box-shadow .2s;
+  }
+  .hfl-btn-main:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(46,37,64,0.3); }
+  .hfl-btn-soft {
+    background: white; color: var(--plum); padding: 16px 28px; border-radius: 100px;
+    font-size: 16px; font-weight: 600; cursor: pointer;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    border: 2px solid var(--sage-mid); transition: border-color .2s, background .2s;
+  }
+  .hfl-btn-soft:hover { border-color: var(--sage); background: var(--sage-light); }
+
+  /* HERO VISUAL */
+  .hfl-hero-right { position: relative; display: flex; align-items: center; justify-content: center; }
+  .hfl-blob-wrap {
+    position: relative; width: 420px; height: 460px;
+    display: flex; align-items: center; justify-content: center;
+    animation: hfl-fadeUp .7s .15s ease both;
+  }
+  .hfl-blob-bg {
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 35% 45%, var(--blush) 0%, var(--butter) 40%, var(--sky) 80%);
+    border-radius: 58% 42% 52% 48% / 46% 54% 46% 54%;
+    animation: hfl-morph 9s ease-in-out infinite;
+  }
+  @keyframes hfl-morph {
+    0%,100%{border-radius:58% 42% 52% 48%/46% 54% 46% 54%}
+    33%{border-radius:40% 60% 60% 40%/60% 38% 62% 40%}
+    66%{border-radius:52% 48% 42% 58%/48% 58% 42% 52%}
+  }
+  .hfl-dash-card {
+    position: relative; z-index: 2; background: white; border-radius: 22px; width: 320px;
+    box-shadow: 0 24px 72px rgba(46,37,64,0.18); overflow: hidden;
+    animation: hfl-float 5s ease-in-out infinite;
+  }
+  @keyframes hfl-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+  .hfl-dc-header { background: var(--plum); padding: 18px 22px; }
+  .hfl-dc-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .hfl-dc-title { font-family: 'Fraunces', serif; font-size: 15px; font-weight: 700; color: white; }
+  .hfl-dc-ver {
+    display: flex; align-items: center; gap: 5px;
+    background: rgba(122,175,118,0.3); border: 1px solid rgba(122,175,118,0.5);
+    border-radius: 100px; padding: 4px 10px; font-size: 10px; color: #A8DCA5; font-weight: 600; letter-spacing: 0.5px;
+  }
+  .hfl-dc-addr { font-size: 12px; color: rgba(255,255,255,0.6); }
+  .hfl-dc-score-row { display: flex; align-items: center; gap: 14px; margin-top: 12px; }
+  .hfl-dc-num { font-family: 'Fraunces', serif; font-size: 42px; font-weight: 900; color: var(--sage); line-height: 1; }
+  .hfl-dc-score-lbl { font-size: 10px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px; }
+  .hfl-dc-bar-wrap { flex: 1; height: 6px; background: rgba(255,255,255,0.15); border-radius: 100px; overflow: hidden; }
+  .hfl-dc-bar { height: 100%; width: 91%; background: linear-gradient(90deg, var(--sage), #A8E8A0); border-radius: 100px; }
+  .hfl-dc-body { padding: 18px 22px; }
+  .hfl-dc-sec-lbl { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--plum-mid); margin-bottom: 12px; }
+  .hfl-dc-items { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+  .hfl-dc-item { display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; background: var(--sage-light); border-radius: 10px; font-size: 12px; }
+  .hfl-dc-item-l { display: flex; align-items: center; gap: 8px; color: var(--plum); font-weight: 500; }
+  .hfl-status-done { font-size: 11px; font-weight: 600; color: var(--sage); }
+  .hfl-status-due  { font-size: 11px; font-weight: 600; color: #D4843A; }
+  .hfl-status-ok   { font-size: 11px; font-weight: 600; color: var(--plum-mid); }
+  .hfl-dc-ver-row {
+    background: var(--sage-light); border: 1px solid var(--sage-mid);
+    border-radius: 10px; padding: 10px 12px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .hfl-dc-ver-text { font-size: 11px; line-height: 1.4; color: var(--plum-mid); }
+  .hfl-dc-ver-text strong { color: var(--plum); }
+
+  .hfl-badge {
+    position: absolute; z-index: 3; background: white; border-radius: 14px;
+    box-shadow: 0 8px 28px rgba(46,37,64,0.14); padding: 10px 16px;
+    display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--plum);
+    white-space: nowrap;
+  }
+  .hfl-badge-1 { top: 6%; right: -16px; animation: hfl-float 4s ease-in-out infinite; }
+  .hfl-badge-2 { bottom: 14%; left: -20px; animation: hfl-float 4s 1.5s ease-in-out infinite; }
+  .hfl-badge-icon { font-size: 18px; }
+
+  /* NUMBERS BAR */
+  .hfl-numbers {
+    background: var(--plum); display: grid; grid-template-columns: repeat(4, 1fr);
+    padding: 40px 56px; gap: 20px;
+  }
+  .hfl-nbar { text-align: center; }
+  .hfl-nbar-num { font-family: 'Fraunces', serif; font-size: 40px; font-weight: 900; color: var(--sage); line-height: 1; }
+  .hfl-nbar-lbl { font-size: 13px; color: rgba(253,252,250,0.6); margin-top: 6px; }
+
+  /* LIFECYCLE */
+  .hfl-lifecycle { padding: 100px 56px; }
+  .hfl-kicker { font-size: 12px; font-weight: 700; color: var(--sage); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 14px; }
+  .hfl h2 { font-family: 'Fraunces', serif; font-size: 50px; font-weight: 900; letter-spacing: -1px; line-height: 1.05; margin-bottom: 20px; }
+  .hfl-sec-sub { font-size: 17px; color: var(--plum-mid); line-height: 1.7; max-width: 520px; margin-bottom: 60px; }
+  .hfl-flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; position: relative; }
+  .hfl-flow::before {
+    content: ''; position: absolute; top: 52px; left: 10%; right: 10%; height: 2px;
+    background: linear-gradient(90deg, var(--sage-mid), var(--sage)); z-index: 0;
+  }
+  .hfl-step { text-align: center; position: relative; z-index: 1; padding: 0 16px; }
+  .hfl-step-icon {
+    width: 104px; height: 104px; border-radius: 50%; margin: 0 auto 22px;
+    display: flex; align-items: center; justify-content: center; font-size: 36px;
+    border: 3px solid white; box-shadow: 0 8px 28px rgba(46,37,64,0.15); position: relative; z-index: 1;
+  }
+  .hfl-step:nth-child(1) .hfl-step-icon { background: var(--butter); }
+  .hfl-step:nth-child(2) .hfl-step-icon { background: var(--blush); }
+  .hfl-step:nth-child(3) .hfl-step-icon { background: var(--sky); }
+  .hfl-step:nth-child(4) .hfl-step-icon { background: var(--sage-light); }
+  .hfl-step h3 { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+  .hfl-step p { font-size: 14px; color: var(--plum-mid); line-height: 1.65; }
+
+  /* BENTO */
+  .hfl-features { padding: 0 56px 100px; }
+  .hfl-bento { display: grid; grid-template-columns: 1.5fr 1fr 1fr; grid-template-rows: auto auto; gap: 16px; }
+  .hfl-bc { border-radius: 24px; padding: 40px; }
+  .hfl-bc-hero { grid-row: span 2; background: var(--plum); color: white; display: flex; flex-direction: column; justify-content: space-between; }
+  .hfl-bc-sage   { background: var(--sage-light); }
+  .hfl-bc-blush  { background: var(--blush); }
+  .hfl-bc-sky    { background: var(--sky); }
+  .hfl-bc-butter { background: var(--butter); }
+  .hfl-bc-icon { font-size: 40px; margin-bottom: 18px; }
+  .hfl-bc h3 { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 700; margin-bottom: 10px; color: var(--plum); }
+  .hfl-bc-hero h3 { font-size: 34px; color: white; }
+  .hfl-bc p { font-size: 14px; line-height: 1.7; color: var(--plum-mid); }
+  .hfl-bc-hero p { color: rgba(253,252,250,0.7); font-size: 16px; }
+  .hfl-bc-list { list-style: none; margin-top: 28px; display: flex; flex-direction: column; gap: 11px; }
+  .hfl-bc-list li { font-size: 14px; color: rgba(253,252,250,0.85); display: flex; align-items: center; gap: 10px; }
+  .hfl-bc-list li::before { content: '✦'; color: var(--sage); font-size: 10px; flex-shrink: 0; }
+  .hfl-bc-tag {
+    margin-top: 32px; display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(122,175,118,0.2); border: 1px solid rgba(122,175,118,0.3);
+    border-radius: 12px; padding: 10px 14px; font-size: 12px; color: rgba(253,252,250,0.8);
+  }
+
+  /* REPORT CTA */
+  .hfl-report {
+    margin: 0 56px 100px;
+    background: linear-gradient(135deg, var(--plum), #4A3870);
+    border-radius: 28px; padding: 72px 80px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center;
+  }
+  .hfl-rc-label { font-size: 11px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: var(--sage); margin-bottom: 18px; }
+  .hfl-report h2 { font-size: 46px; color: white; margin-bottom: 18px; }
+  .hfl-report h2 em { color: var(--sage); font-style: italic; font-weight: 300; }
+  .hfl-report p { font-size: 16px; color: rgba(253,252,250,0.72); line-height: 1.7; margin-bottom: 36px; }
+  .hfl-rc-actions { display: flex; gap: 14px; flex-wrap: wrap; }
+  .hfl-rc-btn {
+    background: var(--sage); color: var(--plum); padding: 16px 32px; border-radius: 100px;
+    font-weight: 700; font-size: 15px; border: none; cursor: pointer;
+    font-family: 'Plus Jakarta Sans', sans-serif; transition: transform .2s, box-shadow .2s;
+  }
+  .hfl-rc-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,0.3); }
+  .hfl-rc-ghost {
+    background: rgba(255,255,255,0.1); color: white; padding: 16px 24px; border-radius: 100px;
+    font-weight: 600; font-size: 15px; border: 1px solid rgba(255,255,255,0.2); cursor: pointer;
+    font-family: 'Plus Jakarta Sans', sans-serif; transition: background .2s;
+  }
+  .hfl-rc-ghost:hover { background: rgba(255,255,255,0.18); }
+  .hfl-report-mock { background: white; border-radius: 18px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+  .hfl-mock-top { background: var(--plum); padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; }
+  .hfl-mock-addr { font-family: 'Fraunces', serif; font-size: 15px; color: white; font-weight: 700; }
+  .hfl-mock-badge { background: var(--sage); color: var(--plum); font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 100px; letter-spacing: 1px; }
+  .hfl-mock-score { background: var(--sage-light); padding: 14px 20px; display: flex; align-items: center; gap: 14px; }
+  .hfl-mock-num { font-family: 'Fraunces', serif; font-size: 38px; font-weight: 900; color: var(--sage); line-height: 1; }
+  .hfl-mock-score-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--plum-mid); margin-bottom: 6px; }
+  .hfl-mock-bar { height: 8px; background: var(--sage-mid); border-radius: 100px; overflow: hidden; }
+  .hfl-mock-bar-fill { height: 100%; width: 91%; background: linear-gradient(90deg, var(--sage), #A8E8A0); border-radius: 100px; }
+  .hfl-mock-rows { padding: 8px 20px 16px; }
+  .hfl-mock-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #F0EDE8; font-size: 12px; }
+  .hfl-mock-row:last-child { border-bottom: none; }
+  .hfl-mock-row-lbl { color: var(--plum-mid); display: flex; align-items: center; gap: 6px; }
+  .hfl-mock-pass { font-weight: 700; color: var(--sage); }
+  .hfl-mock-flag { font-weight: 700; color: #D4843A; }
+  .hfl-mock-info { font-weight: 700; color: var(--plum-mid); }
+  .hfl-mock-footer { padding: 10px 20px 14px; display: flex; align-items: center; gap: 8px; background: var(--sage-light); border-top: 1px solid var(--sage-mid); font-size: 11px; color: var(--plum-mid); font-weight: 600; }
+
+  /* TESTIMONIALS */
+  .hfl-testimonials { padding: 0 56px 100px; }
+  .hfl-testimonials h2 { text-align: center; margin-bottom: 48px; letter-spacing: -0.5px; }
+  .hfl-test-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .hfl-test-card {
+    background: white; border-radius: 20px; padding: 30px;
+    border: 1.5px solid rgba(122,175,118,0.2); transition: border-color .2s, box-shadow .2s;
+  }
+  .hfl-test-card:hover { border-color: var(--sage); box-shadow: 0 8px 32px rgba(122,175,118,0.15); }
+  .hfl-stars { color: #F4B942; font-size: 16px; margin-bottom: 14px; }
+  .hfl-test-card blockquote { font-size: 14px; line-height: 1.75; color: var(--plum-mid); margin-bottom: 20px; font-style: italic; }
+  .hfl-test-author { display: flex; align-items: center; gap: 12px; }
+  .hfl-avi { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .hfl-avi-1 { background: var(--blush); }
+  .hfl-avi-2 { background: var(--sky); }
+  .hfl-avi-3 { background: var(--butter); }
+  .hfl-test-name { font-weight: 700; font-size: 13px; color: var(--plum); }
+  .hfl-test-role { font-size: 11px; color: var(--plum-mid); }
+
+  /* PERSONA CTA */
+  .hfl-cta { padding: 0 56px 100px; }
+  .hfl-cta-inner {
+    background: var(--sage-light); border-radius: 28px; padding: 80px;
+    text-align: center; border: 2px solid var(--sage-mid); position: relative; overflow: hidden;
+  }
+  .hfl-cta-blob1 { position: absolute; top: -60px; right: -60px; width: 300px; height: 300px; background: radial-gradient(circle, var(--blush), transparent 70%); pointer-events: none; }
+  .hfl-cta-blob2 { position: absolute; bottom: -80px; left: -40px; width: 280px; height: 280px; background: radial-gradient(circle, var(--sky), transparent 70%); pointer-events: none; }
+  .hfl-cta h2 { font-size: 52px; letter-spacing: -2px; margin-bottom: 14px; position: relative; }
+  .hfl-cta-sub { font-size: 18px; color: var(--plum-mid); margin-bottom: 52px; max-width: 480px; margin-left: auto; margin-right: auto; line-height: 1.65; position: relative; }
+  .hfl-personas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; max-width: 760px; margin: 0 auto; position: relative; }
+  .hfl-persona {
+    background: white; border-radius: 20px; padding: 32px 24px;
+    border: 2px solid transparent; transition: border-color .2s, box-shadow .2s, transform .2s;
+    text-align: left; cursor: pointer;
+  }
+  .hfl-persona:hover { border-color: var(--sage); box-shadow: 0 12px 36px rgba(46,37,64,0.12); transform: translateY(-4px); }
+  .hfl-persona-icon { font-size: 36px; margin-bottom: 16px; }
+  .hfl-persona-role { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--sage); margin-bottom: 8px; }
+  .hfl-persona-title { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 700; color: var(--plum); margin-bottom: 10px; }
+  .hfl-persona-desc { font-size: 13px; color: var(--plum-mid); line-height: 1.6; margin-bottom: 22px; }
+  .hfl-persona-cta { font-size: 14px; font-weight: 700; color: var(--plum); display: flex; align-items: center; gap: 6px; }
+  .hfl-persona-arrow { transition: transform .2s; display: inline-block; }
+  .hfl-persona:hover .hfl-persona-arrow { transform: translateX(4px); }
+
+  /* FOOTER */
+  .hfl-footer {
+    background: var(--plum); color: rgba(253,252,250,0.65); padding: 36px 56px;
+    display: flex; align-items: center; justify-content: space-between; font-size: 13px;
+  }
+  .hfl-footer-logo { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 900; color: white; }
+  .hfl-footer-logo span { color: var(--sage); }
+  .hfl-footer-links { display: flex; gap: 24px; }
+  .hfl-footer-links a { color: rgba(253,252,250,0.5); text-decoration: none; font-size: 13px; transition: color .2s; cursor: pointer; }
+  .hfl-footer-links a:hover { color: rgba(253,252,250,0.85); }
+
+  /* ENTRANCE ANIMATIONS */
+  @keyframes hfl-fadeUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+  .hfl-eyebrow  { animation: hfl-fadeUp .5s ease both; }
+  .hfl h1       { animation: hfl-fadeUp .5s .1s ease both; }
+  .hfl-sub      { animation: hfl-fadeUp .5s .2s ease both; }
+  .hfl-pills    { animation: hfl-fadeUp .5s .25s ease both; }
+  .hfl-actions  { animation: hfl-fadeUp .5s .3s ease both; }
+
+  /* ── MOBILE ────────────────────────────────────────────────────────────── */
+  @media (max-width: 900px) {
+    .hfl-nav { padding: 16px 24px; }
+    .hfl-nav ul { display: none; }
+    .hfl-hamburger { display: block; }
+
+    .hfl-hero { grid-template-columns: 1fr; padding: 96px 24px 48px; gap: 0; }
+    .hfl-hero-right { display: none; }
+    .hfl h1 { font-size: clamp(36px, 9vw, 52px); }
+    .hfl-sub { font-size: 15px; max-width: 100%; }
+
+    .hfl-numbers { grid-template-columns: 1fr 1fr; padding: 28px 24px; }
+    .hfl-nbar-num { font-size: 30px; }
+
+    .hfl-lifecycle { padding: 64px 24px; }
+    .hfl h2 { font-size: 34px; }
+    .hfl-sec-sub { font-size: 15px; max-width: 100%; margin-bottom: 40px; }
+    .hfl-flow { grid-template-columns: 1fr 1fr; gap: 36px; }
+    .hfl-flow::before { display: none; }
+    .hfl-step-icon { width: 80px; height: 80px; font-size: 28px; }
+
+    .hfl-features { padding: 0 24px 64px; }
+    .hfl-bento { grid-template-columns: 1fr; }
+    .hfl-bc-hero { grid-row: span 1; }
+    .hfl-bc { padding: 28px; }
+    .hfl-bc-hero h3 { font-size: 26px; }
+
+    .hfl-report { margin: 0 24px 64px; padding: 40px 28px; grid-template-columns: 1fr; gap: 36px; }
+    .hfl-report h2 { font-size: 32px; }
+    .hfl-report > div:last-child { display: none; }
+
+    .hfl-testimonials { padding: 0 24px 64px; }
+    .hfl-testimonials h2 { font-size: 32px; }
+    .hfl-test-grid { grid-template-columns: 1fr; }
+
+    .hfl-cta { padding: 0 24px 64px; }
+    .hfl-cta-inner { padding: 48px 24px; }
+    .hfl-cta h2 { font-size: 34px; letter-spacing: -1px; }
+    .hfl-cta-sub { font-size: 15px; }
+    .hfl-personas { grid-template-columns: 1fr; max-width: 100%; }
+
+    .hfl-footer { flex-direction: column; gap: 20px; text-align: center; padding: 28px 24px; }
+    .hfl-footer-links { flex-wrap: wrap; justify-content: center; }
+  }
+
+  @media (min-width: 901px) and (max-width: 1100px) {
+    .hfl-nav { padding: 16px 32px; }
+    .hfl-hero { padding: 120px 32px 64px; gap: 40px; }
+    .hfl-blob-wrap { width: 340px; height: 380px; }
+    .hfl-dash-card { width: 280px; }
+    .hfl-lifecycle, .hfl-testimonials { padding-left: 32px; padding-right: 32px; }
+    .hfl-features { padding-left: 32px; padding-right: 32px; }
+    .hfl-report { margin-left: 32px; margin-right: 32px; padding: 56px 48px; }
+    .hfl-cta { padding-left: 32px; padding-right: 32px; }
+    .hfl-numbers { padding: 32px; }
+    .hfl-footer { padding: 28px 32px; }
+  }
+`;
 
 export default function LandingPage() {
   const navigate = useNavigate();
-  const marqueeRef = useRef<HTMLDivElement>(null);
 
-  const s = {
-    ink:   "#0E0E0C",
-    paper: "#F4F1EB",
-    rule:  "#C8C3B8",
-    rust:  "#C94C2E",
-    sage:  "#3D6B57",
-    gold:  "#B89040",
-    serif: "'Playfair Display', Georgia, serif" as const,
-    mono:  "'IBM Plex Mono', monospace" as const,
-    sans:  "'IBM Plex Sans', sans-serif" as const,
-  };
+  useEffect(() => {
+    if (!document.getElementById("hf-landing-fonts")) {
+      const link = document.createElement("link");
+      link.id = "hf-landing-fonts";
+      link.rel = "stylesheet";
+      link.href =
+        "https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,900;1,9..144,300;1,9..144,600;1,9..144,900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap";
+      document.head.appendChild(link);
+    }
+    return () => {
+      document.getElementById("hf-landing-fonts")?.remove();
+    };
+  }, []);
+
+  const scrollTo = (id: string) =>
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
 
   return (
-    <div style={{ background: s.paper, color: s.ink, fontFamily: s.sans, overflowX: "hidden" }}>
+    <>
+      <style>{CSS}</style>
+      <div className="hfl">
 
-      {/* ── Nav ─────────────────────────────────────────────────────────────── */}
-      <nav style={{
-        display: "flex", alignItems: "stretch",
-        borderBottom: `1px solid ${s.rule}`,
-        height: "3.5rem",
-      }}>
-        <div style={{
-          fontFamily: s.mono, fontWeight: 500, fontSize: "0.875rem",
-          letterSpacing: "0.08em", textTransform: "uppercase",
-          padding: "0 1.5rem", borderRight: `1px solid ${s.rule}`,
-          display: "flex", alignItems: "center", flexShrink: 0,
-        }}>
-          Home<span style={{ color: s.rust }}>Fax</span>
-        </div>
-        <div style={{ flex: 1, display: "flex", alignItems: "center", padding: "0 1.5rem", gap: "2rem" }}>
-          {([
-            { label: "Features", action: () => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" }) },
-            { label: "Pricing",  action: () => navigate("/pricing") },
-            { label: "About",    action: () => document.getElementById("about")?.scrollIntoView({ behavior: "smooth" }) },
-          ] as const).map(({ label, action }) => (
-            <span key={label} onClick={action} style={{
-              fontFamily: s.mono, fontSize: "0.688rem", letterSpacing: "0.12em",
-              textTransform: "uppercase", color: "#888", cursor: "pointer",
-            }}>{label}</span>
-          ))}
-        </div>
-        <button
-          onClick={() => navigate("/login")}
-          style={{
-            fontFamily: s.mono, fontSize: "0.688rem", letterSpacing: "0.12em",
-            textTransform: "uppercase", padding: "0 1.5rem",
-            background: s.ink, color: s.paper, border: "none",
-            cursor: "pointer", borderLeft: `1px solid ${s.rule}`,
-            transition: "background 0.15s",
-          }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = s.rust; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = s.ink; }}
-        >
-          Get Started
-        </button>
-      </nav>
+        {/* ── Nav ─────────────────────────────────────────────────────────── */}
+        <nav className="hfl-nav">
+          <a href="/" className="hfl-logo">Home<span>Fax</span></a>
+          <ul>
+            <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-features"); }}>For Homeowners</a></li>
+            <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-features"); }}>Service Network</a></li>
+            <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-report"); }}>HomeFax Report</a></li>
+            <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-sell"); }}>Sell Smarter</a></li>
+          </ul>
+          <button className="hfl-nav-pill" onClick={() => navigate("/login")}>🏡 Start Free</button>
+          <button className="hfl-hamburger" aria-label="Menu">
+            <span /><span /><span />
+          </button>
+        </nav>
 
-      {/* ── Hero ────────────────────────────────────────────────────────────── */}
-      <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", minHeight: "520px" }}>
-        {/* Left */}
-        <div style={{
-          padding: "60px 48px",
-          display: "flex", flexDirection: "column", justifyContent: "space-between",
-          borderRight: `1px solid ${s.rule}`,
-        }}>
+        {/* ── Hero ────────────────────────────────────────────────────────── */}
+        <section className="hfl-hero">
           <div>
-            <div style={{
-              fontFamily: s.mono, fontSize: "0.688rem", letterSpacing: "0.18em",
-              textTransform: "uppercase", color: s.rust, marginBottom: "1.5rem",
-              display: "flex", alignItems: "center", gap: "0.625rem",
-            }}>
-              <span style={{ display: "block", width: "24px", height: "1px", background: s.rust }} />
-              Home maintenance intelligence
+            <div className="hfl-eyebrow">
+              <span className="hfl-dot" />
+              Verified Records · AI-Powered · Built on ICP
             </div>
-
-            <h1 style={{
-              fontFamily: s.serif, fontWeight: 900, fontSize: "clamp(42px,5vw,62px)",
-              lineHeight: 1.0, letterSpacing: "-1px", marginBottom: "2rem",
-            }}>
-              Your home,<br />
-              <em style={{ fontStyle: "italic", color: s.rust }}>fully</em><br />
-              accounted for.
-            </h1>
-
-            <p style={{
-              fontFamily: s.sans, fontWeight: 300, fontSize: "1rem",
-              lineHeight: 1.75, color: "#555", maxWidth: "420px", marginBottom: "2.5rem",
-            }}>
+            <h1>Own It.<br /><em>Prove It.</em><br />Sell It.</h1>
+            <p className="hfl-sub">
               HomeFax tracks every repair, reminds you before things break, and builds
-              the complete maintenance record your home deserves.
+              the complete maintenance record your home deserves — so when it's time to sell,
+              you're ready to command a premium or make agents compete for your listing.
             </p>
-
-            <div style={{ display: "flex", alignItems: "center", gap: "1.25rem" }}>
-              <button
-                onClick={() => navigate("/login")}
-                style={{
-                  background: s.ink, color: s.paper,
-                  fontFamily: s.mono, fontSize: "0.7rem", letterSpacing: "0.12em",
-                  textTransform: "uppercase", padding: "14px 32px",
-                  border: `1px solid ${s.ink}`, cursor: "pointer",
-                  transition: "background 0.15s, border-color 0.15s",
-                }}
-                onMouseEnter={(e) => {
-                  const b = e.currentTarget as HTMLButtonElement;
-                  b.style.background = s.rust; b.style.borderColor = s.rust;
-                }}
-                onMouseLeave={(e) => {
-                  const b = e.currentTarget as HTMLButtonElement;
-                  b.style.background = s.ink; b.style.borderColor = s.ink;
-                }}
-              >
-                Start for free
-              </button>
-              <button
-                onClick={() => navigate("/login")}
-                style={{
-                  background: "none", border: "none", cursor: "pointer",
-                  fontFamily: s.mono, fontSize: "0.7rem", letterSpacing: "0.12em",
-                  textTransform: "uppercase", color: "#888",
-                  display: "flex", alignItems: "center", gap: "0.5rem",
-                }}
-              >
-                See how it works →
-              </button>
+            <div className="hfl-pills">
+              <div className="hfl-pill">🔧 Property Management</div>
+              <div className="hfl-pill">👷 Verified Contractors</div>
+              <div className="hfl-pill">📋 Verified Home Report</div>
+              <div className="hfl-pill">🏆 Agent Marketplace</div>
+            </div>
+            <div className="hfl-actions">
+              <button className="hfl-btn-main" onClick={() => navigate("/login")}>Get Started Free →</button>
+              <button className="hfl-btn-soft" onClick={() => navigate("/login")}>See a HomeFax Report</button>
             </div>
           </div>
 
-          <div style={{ fontFamily: s.mono, fontSize: "0.688rem", color: "#AAA", letterSpacing: "0.06em" }}>
-            No credit card required &nbsp;·&nbsp; Works for any home
-          </div>
-        </div>
-
-        {/* Right — blueprint */}
-        <div style={{ position: "relative", background: "#E8E4DC", overflow: "hidden" }}>
-          {/* Grid */}
-          <div style={{
-            position: "absolute", inset: 0,
-            backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 39px,#C8C3B8 39px,#C8C3B8 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,#C8C3B8 39px,#C8C3B8 40px)",
-            opacity: 0.4,
-          }} />
-          {/* House SVG */}
-          <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-52%)" }}>
-            <svg width="340" height="320" viewBox="0 0 340 320" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="40" y="148" width="260" height="148" fill="none" stroke="#0E0E0C" strokeWidth="1.5"/>
-              <polyline points="20,148 170,40 320,148" fill="none" stroke="#0E0E0C" strokeWidth="1.5"/>
-              <rect x="130" y="210" width="80" height="86" fill="none" stroke="#0E0E0C" strokeWidth="1"/>
-              <circle cx="205" cy="254" r="4" fill="#0E0E0C"/>
-              <rect x="56" y="180" width="52" height="44" fill="none" stroke="#0E0E0C" strokeWidth="1"/>
-              <line x1="82" y1="180" x2="82" y2="224" stroke="#0E0E0C" strokeWidth="0.75"/>
-              <line x1="56" y1="202" x2="108" y2="202" stroke="#0E0E0C" strokeWidth="0.75"/>
-              <rect x="232" y="180" width="52" height="44" fill="none" stroke="#0E0E0C" strokeWidth="1"/>
-              <line x1="258" y1="180" x2="258" y2="224" stroke="#0E0E0C" strokeWidth="0.75"/>
-              <line x1="232" y1="202" x2="284" y2="202" stroke="#0E0E0C" strokeWidth="0.75"/>
-              <line x1="40" y1="296" x2="300" y2="296" stroke="#0E0E0C" strokeWidth="1.5"/>
-              <rect x="154" y="90" width="32" height="22" fill="none" stroke="#C94C2E" strokeWidth="1"/>
-              <line x1="162" y1="95" x2="178" y2="107" stroke="#C94C2E" strokeWidth="0.75"/>
-              <line x1="178" y1="95" x2="162" y2="107" stroke="#C94C2E" strokeWidth="0.75"/>
-              <text x="56" y="172" fontFamily="'IBM Plex Mono',monospace" fontSize="9" fill="#C94C2E" letterSpacing="0.08em">LIVING ROOM</text>
-              <text x="232" y="172" fontFamily="'IBM Plex Mono',monospace" fontSize="9" fill="#3D6B57" letterSpacing="0.08em">BEDROOM</text>
-              <text x="136" y="264" fontFamily="'IBM Plex Mono',monospace" fontSize="9" fill="#888" letterSpacing="0.08em">ENTRY</text>
-              <text x="125" y="312" fontFamily="'IBM Plex Mono',monospace" fontSize="9" fill="#B89040" letterSpacing="0.08em">HOMEFAX · REV. 01</text>
-              <line x1="40" y1="148" x2="40" y2="316" stroke="#0E0E0C" strokeWidth="0.5" strokeDasharray="3,4"/>
-              <text x="26" y="234" fontFamily="'IBM Plex Mono',monospace" fontSize="8" fill="#AAA" transform="rotate(-90,26,234)">11'-6"</text>
-              <line x1="40" y1="316" x2="300" y2="316" stroke="#0E0E0C" strokeWidth="0.5" strokeDasharray="3,4"/>
-              <text x="165" y="326" fontFamily="'IBM Plex Mono',monospace" fontSize="8" fill="#AAA" textAnchor="middle">24'-0"</text>
-            </svg>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Metrics strip ───────────────────────────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", borderTop: `1px solid ${s.rule}`, borderBottom: `1px solid ${s.rule}` }}>
-        {[
-          { num: "47", sup: "k", label: "Homes tracked" },
-          { num: "$3.2", sup: "B", label: "In repairs documented" },
-          { num: "98", sup: "%", label: "Issue prevention rate" },
-        ].map((m, i) => (
-          <div key={m.label} style={{
-            padding: "2rem 3rem",
-            borderRight: i < 2 ? `1px solid ${s.rule}` : "none",
-          }}>
-            <div style={{ fontFamily: s.serif, fontWeight: 700, fontSize: "2.625rem", lineHeight: 1, marginBottom: "0.375rem" }}>
-              {m.num}<sup style={{ fontSize: "1.25rem", verticalAlign: "super" }}>{m.sup}</sup>
-            </div>
-            <div style={{ fontFamily: s.mono, fontSize: "0.688rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "#888" }}>
-              {m.label}
+          <div className="hfl-hero-right">
+            <div className="hfl-blob-wrap">
+              <div className="hfl-blob-bg" />
+              <div className="hfl-dash-card">
+                <div className="hfl-dc-header">
+                  <div className="hfl-dc-top">
+                    <span className="hfl-dc-title">My Home Dashboard</span>
+                    <span className="hfl-dc-ver">✓ Verified</span>
+                  </div>
+                  <div className="hfl-dc-addr">4821 Oakwood Drive, Austin TX</div>
+                  <div className="hfl-dc-score-row">
+                    <div>
+                      <div className="hfl-dc-score-lbl">HomeFax Score</div>
+                      <div className="hfl-dc-num">91</div>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div className="hfl-dc-bar-wrap"><div className="hfl-dc-bar" /></div>
+                    </div>
+                  </div>
+                </div>
+                <div className="hfl-dc-body">
+                  <div className="hfl-dc-sec-lbl">Maintenance &amp; Services</div>
+                  <div className="hfl-dc-items">
+                    <div className="hfl-dc-item">
+                      <span className="hfl-dc-item-l"><span>❄️</span> HVAC Service</span>
+                      <span className="hfl-status-done">✓ Logged</span>
+                    </div>
+                    <div className="hfl-dc-item">
+                      <span className="hfl-dc-item-l"><span>🔌</span> Electrical Panel</span>
+                      <span className="hfl-status-ok">✓ Verified</span>
+                    </div>
+                    <div className="hfl-dc-item">
+                      <span className="hfl-dc-item-l"><span>🌿</span> Landscaping</span>
+                      <span className="hfl-status-due">Due Nov 10</span>
+                    </div>
+                  </div>
+                  <div className="hfl-dc-ver-row">
+                    <span style={{ fontSize: 18 }}>📋</span>
+                    <span className="hfl-dc-ver-text">
+                      <strong>HomeFax Report Ready</strong> — 14 records verified, share in one click
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="hfl-badge hfl-badge-1">
+                <span className="hfl-badge-icon">🏆</span> Score: 91 · Top 8%
+              </div>
+              <div className="hfl-badge hfl-badge-2">
+                <span className="hfl-badge-icon">⚡</span> 3 agents competing
+              </div>
             </div>
           </div>
-        ))}
-      </div>
+        </section>
 
-      {/* ── Marquee ──────────────────────────────────────────────────────────── */}
-      <div style={{ background: s.ink, color: s.paper, padding: "0.875rem 0", overflow: "hidden", whiteSpace: "nowrap" }}>
-        <div style={{ display: "inline-block", animation: "marquee-scroll 22s linear infinite" }}>
-          {["Track every repair", "Schedule maintenance", "Monitor home health", "Document appliances", "Log contractor visits", "Set smart reminders",
-            "Track every repair", "Schedule maintenance", "Monitor home health", "Document appliances", "Log contractor visits", "Set smart reminders"].map((t, i) => (
-            <React.Fragment key={i}>
-              <span style={{ fontFamily: s.mono, fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", marginRight: "3.5rem", display: "inline-block" }}>
-                {t}
-              </span>
-              <span style={{ display: "inline-block", width: "5px", height: "5px", background: s.rust, borderRadius: "50%", marginRight: "3.5rem", verticalAlign: "middle" }} />
-            </React.Fragment>
+        {/* ── Numbers bar ─────────────────────────────────────────────────── */}
+        <div className="hfl-numbers">
+          {[
+            { num: "40+",    label: "Data points in your score" },
+            { num: "Avg 47", label: "Records per HomeFax Report" },
+            { num: "3×",     label: "More offers when score is shared" },
+            { num: "Free",   label: "To start — no credit card needed" },
+          ].map((n) => (
+            <div key={n.label} className="hfl-nbar">
+              <div className="hfl-nbar-num">{n.num}</div>
+              <div className="hfl-nbar-lbl">{n.label}</div>
+            </div>
           ))}
         </div>
-      </div>
 
-      {/* ── Features ─────────────────────────────────────────────────────────── */}
-      <div id="features" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", borderBottom: `1px solid ${s.rule}` }}>
-        {[
-          {
-            num: "01",
-            title: "Complete repair history",
-            body: "Every fix, every contractor, every receipt — organized in a permanent record that adds real value when you sell.",
-            dark: false,
-          },
-          {
-            num: "02",
-            title: "Proactive reminders",
-            body: "HomeFax knows when your furnace filter is due before you do. Seasonal checklists that adapt to your actual home.",
-            dark: true,
-          },
-          {
-            num: "03",
-            title: "Health score",
-            body: "A single number that tells you where your home stands — and exactly what to do to improve it this month.",
-            dark: false,
-          },
-        ].map((f, i) => (
-          <div key={f.num} style={{
-            padding: "3rem",
-            borderRight: i < 2 ? `1px solid ${s.rule}` : "none",
-            background: f.dark ? s.ink : "transparent",
-            color: f.dark ? s.paper : s.ink,
-          }}>
-            <div style={{ fontFamily: s.mono, fontSize: "0.688rem", color: f.dark ? s.gold : s.rust, letterSpacing: "0.1em", marginBottom: "1.25rem" }}>
-              {f.num}
-            </div>
-            <div style={{ width: "32px", height: "2px", background: f.dark ? "#444" : s.rule, marginBottom: "1.25rem" }} />
-            <div style={{ fontFamily: s.serif, fontWeight: 700, fontSize: "1.375rem", lineHeight: 1.2, marginBottom: "0.875rem" }}>
-              {f.title}
-            </div>
-            <p style={{ fontFamily: s.sans, fontWeight: 300, fontSize: "0.875rem", lineHeight: 1.7, color: f.dark ? "#AAA" : "#666" }}>
-              {f.body}
-            </p>
+        {/* ── Lifecycle ───────────────────────────────────────────────────── */}
+        <section id="hfl-features" className="hfl-lifecycle">
+          <div className="hfl-kicker">How It Works</div>
+          <h2>Own It. Manage It.<br />Prove It. Sell It.</h2>
+          <p className="hfl-sec-sub">HomeFax works across the entire homeownership lifecycle — from move-in to sale day.</p>
+          <div className="hfl-flow">
+            {[
+              { icon: "🏠", title: "Set Up Your Home", desc: "Add your property and import existing records. AI agents begin organizing your home's history automatically." },
+              { icon: "🔧", title: "Manage & Maintain", desc: "Schedule services with verified providers. Every job is logged, receipted, and stored on your permanent record." },
+              { icon: "📋", title: "Generate Your Report", desc: "Your HomeFax Report is a tamper-proof property biography. Share it with buyers or attach it to any listing." },
+              { icon: "🏆", title: "Sell With Confidence", desc: "List with the agent who wins your bid — or go FSBO with our full suite of seller tools. Your home, your terms." },
+            ].map((s) => (
+              <div key={s.title} className="hfl-step">
+                <div className="hfl-step-icon">{s.icon}</div>
+                <h3>{s.title}</h3>
+                <p>{s.desc}</p>
+              </div>
+            ))}
           </div>
-        ))}
+        </section>
+
+        {/* ── Features bento ──────────────────────────────────────────────── */}
+        <section className="hfl-features">
+          <div className="hfl-bento">
+            <div className="hfl-bc hfl-bc-hero">
+              <div>
+                <div className="hfl-bc-icon">📋</div>
+                <h3>The Verified Home Record</h3>
+                <p>Every service, every repair, every renovation — documented, signed, and stored permanently. Your HomeFax is the Carfax your home deserves.</p>
+                <ul className="hfl-bc-list">
+                  <li>Full ownership &amp; transaction history</li>
+                  <li>Verified contractor records &amp; warranties</li>
+                  <li>Permitted renovations on file</li>
+                  <li>Recurring services under contract</li>
+                  <li>AI agents continuously update your score</li>
+                  <li>Share with buyers instantly, no middlemen</li>
+                </ul>
+              </div>
+              <div className="hfl-bc-tag">
+                <span>⬡</span>
+                <span>Records stored on ICP — tamper-proof, always available</span>
+              </div>
+            </div>
+            <div className="hfl-bc hfl-bc-sage">
+              <div className="hfl-bc-icon">🤖</div>
+              <h3>AI Property Agents</h3>
+              <p>Autonomous AI agents monitor your home, flag upcoming maintenance, find verified service providers, and keep your HomeFax score climbing.</p>
+            </div>
+            <div className="hfl-bc hfl-bc-blush">
+              <div className="hfl-bc-icon">👷</div>
+              <h3>Verified Service Network</h3>
+              <p>Every contractor in our network is credentialed, reviewed, and bonded. Their work is automatically logged to your home's record.</p>
+            </div>
+            <div id="hfl-sell" className="hfl-bc hfl-bc-sky">
+              <div className="hfl-bc-icon">⚖️</div>
+              <h3>Make Agents Compete</h3>
+              <p>Post your listing intent and let real estate agents submit competing proposals. See commissions, marketing plans, and estimated net proceeds — side by side.</p>
+            </div>
+            <div className="hfl-bc hfl-bc-butter">
+              <div className="hfl-bc-icon">🏡</div>
+              <h3>Sell It Yourself</h3>
+              <p>Not ready for an agent? Our FSBO mode gives you pricing intelligence, a public listing page, showing management, and an offer inbox — everything you need to close on your own terms.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Report CTA ──────────────────────────────────────────────────── */}
+        <section id="hfl-report" className="hfl-report">
+          <div>
+            <div className="hfl-rc-label">The HomeFax Report</div>
+            <h2>Your Home's Verified<br /><em>Biography</em></h2>
+            <p>
+              When it's time to sell, your HomeFax Report is a tamper-proof document showing
+              every owner, every service, every improvement. Buyers love it. Agents share it.
+              Homes with it sell first.
+            </p>
+            <div className="hfl-rc-actions">
+              <button className="hfl-rc-btn" onClick={() => navigate("/login")}>Generate My HomeFax →</button>
+              <button className="hfl-rc-ghost" onClick={() => navigate("/login")}>View Sample Report</button>
+            </div>
+          </div>
+          <div>
+            <div className="hfl-report-mock">
+              <div className="hfl-mock-top">
+                <span className="hfl-mock-addr">4821 Oakwood Drive, Austin TX</span>
+                <span className="hfl-mock-badge">HomeFax ✓</span>
+              </div>
+              <div className="hfl-mock-score">
+                <div className="hfl-mock-num">91</div>
+                <div style={{ flex: 1 }}>
+                  <div className="hfl-mock-score-lbl">HomeFax Property Score</div>
+                  <div className="hfl-mock-bar"><div className="hfl-mock-bar-fill" /></div>
+                </div>
+              </div>
+              <div className="hfl-mock-rows">
+                {[
+                  { label: "📋 Title & Ownership",     val: "Clear ✓",            cls: "hfl-mock-pass" },
+                  { label: "🔨 Permits & Renovations", val: "12 Logged ✓",        cls: "hfl-mock-pass" },
+                  { label: "🔧 Service History",        val: "47 Records ✓",       cls: "hfl-mock-pass" },
+                  { label: "🌿 Recurring Services",     val: "4 Under Contract ✓", cls: "hfl-mock-pass" },
+                  { label: "⚖️ Liens & Encumbrances",  val: "None ✓",             cls: "hfl-mock-pass" },
+                  { label: "💧 Environmental Risk",     val: "Zone AE ⚠",         cls: "hfl-mock-flag" },
+                ].map((r) => (
+                  <div key={r.label} className="hfl-mock-row">
+                    <span className="hfl-mock-row-lbl">{r.label}</span>
+                    <span className={r.cls}>{r.val}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="hfl-mock-footer">📋 <span>All records independently verified · Shareable link generated</span></div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Testimonials ────────────────────────────────────────────────── */}
+        <section className="hfl-testimonials">
+          <h2>Homeowners Love HomeFax</h2>
+          <div className="hfl-test-grid">
+            {[
+              {
+                quote: "We got $28k over asking. Our buyers said the HomeFax Report was the reason they felt comfortable waiving the inspection contingency. It's a game changer.",
+                name: "Sarah M.", role: "Seller · Austin, TX", avi: "hfl-avi-1", emoji: "👩",
+              },
+              {
+                quote: "I posted my listing intent and got five agent proposals in 48 hours. Ended up saving $11k in commission compared to what I would have paid without negotiating.",
+                name: "Marcus T.", role: "Seller · Denver, CO", avi: "hfl-avi-2", emoji: "👨",
+              },
+              {
+                quote: "The AI agent reminded me my HVAC was overdue, booked a verified tech, and logged it to my HomeFax automatically. When I sold six months later, it was right there in the report.",
+                name: "Priya K.", role: "Homeowner · Seattle, WA", avi: "hfl-avi-3", emoji: "👩",
+              },
+            ].map((t) => (
+              <div key={t.name} className="hfl-test-card">
+                <div className="hfl-stars">★★★★★</div>
+                <blockquote>"{t.quote}"</blockquote>
+                <div className="hfl-test-author">
+                  <div className={`hfl-avi ${t.avi}`}>{t.emoji}</div>
+                  <div>
+                    <div className="hfl-test-name">{t.name}</div>
+                    <div className="hfl-test-role">{t.role}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ── Persona CTA ─────────────────────────────────────────────────── */}
+        <section className="hfl-cta">
+          <div className="hfl-cta-inner">
+            <div className="hfl-cta-blob1" />
+            <div className="hfl-cta-blob2" />
+            <h2>How do you want to start?</h2>
+            <p className="hfl-cta-sub">HomeFax works for every stage of homeownership. Pick what fits you now.</p>
+            <div className="hfl-personas">
+              {[
+                {
+                  icon: "🏠", role: "Homeowner", title: "Build My HomeFax",
+                  desc: "Log services, track maintenance, grow your property score, and be ready to sell on your terms.",
+                  cta: "Get started free",
+                },
+                {
+                  icon: "👷", role: "Contractor", title: "Join the Network",
+                  desc: "Get verified, receive job requests, and have your work permanently credited on homeowner records.",
+                  cta: "Apply to join",
+                },
+                {
+                  icon: "🏆", role: "Ready to Sell", title: "Make Agents Compete",
+                  desc: "Post your listing intent, collect competing agent proposals, or go FSBO with our full seller toolkit.",
+                  cta: "Start selling smarter",
+                },
+              ].map((p) => (
+                <div key={p.role} className="hfl-persona" onClick={() => navigate("/login")}>
+                  <div className="hfl-persona-icon">{p.icon}</div>
+                  <div className="hfl-persona-role">{p.role}</div>
+                  <div className="hfl-persona-title">{p.title}</div>
+                  <div className="hfl-persona-desc">{p.desc}</div>
+                  <div className="hfl-persona-cta">
+                    {p.cta} <span className="hfl-persona-arrow">→</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── Footer ──────────────────────────────────────────────────────── */}
+        <footer className="hfl-footer">
+          <div className="hfl-footer-logo">Home<span>Fax</span></div>
+          <div className="hfl-footer-links">
+            <a onClick={(e) => { e.preventDefault(); scrollTo("hfl-features"); }}>For Homeowners</a>
+            <a onClick={(e) => { e.preventDefault(); scrollTo("hfl-features"); }}>Service Network</a>
+            <a onClick={(e) => { e.preventDefault(); scrollTo("hfl-sell"); }}>Sell Smarter</a>
+            <a onClick={() => navigate("/pricing")}>Pricing</a>
+            <a href="#">Privacy</a>
+            <a href="#">Terms</a>
+          </div>
+          <p>© 2026 HomeFax Inc.</p>
+        </footer>
+
       </div>
-
-      {/* ── CTA band ─────────────────────────────────────────────────────────── */}
-      <div id="about" style={{
-        display: "grid", gridTemplateColumns: "1fr auto",
-        alignItems: "center", padding: "3.5rem 3rem", gap: "2.5rem",
-        borderBottom: `1px solid ${s.rule}`,
-      }}>
-        <div style={{ fontFamily: s.serif, fontWeight: 900, fontStyle: "italic", fontSize: "clamp(28px,3.5vw,44px)", lineHeight: 1.1, maxWidth: "560px" }}>
-          Stop discovering problems.<br />Start preventing them.
-        </div>
-        <button
-          onClick={() => navigate("/login")}
-          style={{
-            background: s.rust, color: "#fff",
-            fontFamily: s.mono, fontSize: "0.7rem", letterSpacing: "0.12em",
-            textTransform: "uppercase", padding: "18px 40px",
-            border: "none", cursor: "pointer", whiteSpace: "nowrap",
-            transition: "background 0.15s",
-          }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#A83D23"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = s.rust; }}
-        >
-          Create your home file
-        </button>
-      </div>
-
-      {/* ── Footer ───────────────────────────────────────────────────────────── */}
-      <footer style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "1.375rem 3rem", borderTop: `1px solid ${s.rule}`,
-      }}>
-        <div style={{ fontFamily: s.mono, fontSize: "0.75rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "#AAA" }}>
-          Home<span style={{ color: s.rust }}>Fax</span>
-        </div>
-        <div style={{ fontFamily: s.mono, fontSize: "0.688rem", color: "#CCC", letterSpacing: "0.06em" }}>
-          © 2026 HomeFax Inc. &nbsp;·&nbsp; All rights reserved
-        </div>
-      </footer>
-
-    </div>
+    </>
   );
 }

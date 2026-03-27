@@ -336,3 +336,14 @@ export const jobService = {
     _actor = null;
   },
 };
+
+// ─── Insurance relevance ──────────────────────────────────────────────────────
+
+/** Service types that insurers commonly require documentation for. */
+export const INSURANCE_SERVICE_TYPES = new Set([
+  "Roofing", "HVAC", "Electrical", "Plumbing", "Foundation",
+]);
+
+export function isInsuranceRelevant(serviceType: string): boolean {
+  return INSURANCE_SERVICE_TYPES.has(serviceType);
+}

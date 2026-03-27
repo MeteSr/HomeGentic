@@ -249,6 +249,7 @@ export default function ContractorDashboardPage() {
   const [pendingJobs,   setPendingJobs]   = useState<Job[]>([]);
   const [myBids,        setMyBids]        = useState<Quote[]>([]);
   const [signingJobId,  setSigningJobId]  = useState<string | null>(null);
+  const [verifiedAnim,  setVerifiedAnim]  = useState(false);
   const [submittedIds,  setSubmittedIds]  = useState<Set<string>>(new Set());
   const [filterType,    setFilterType]    = useState("All");
   const [modalRequest,  setModalRequest]  = useState<QuoteRequest | null>(null);
@@ -294,7 +295,8 @@ export default function ContractorDashboardPage() {
     try {
       await jobService.verifyJob(jobId);
       setPendingJobs((prev) => prev.filter((j) => j.id !== jobId));
-      toast.success("Job signed! The homeowner has been notified.");
+      setVerifiedAnim(true);
+      setTimeout(() => setVerifiedAnim(false), 2800);
     } catch (err: any) {
       toast.error(err.message || "Failed to sign job");
     } finally {
@@ -311,6 +313,30 @@ export default function ContractorDashboardPage() {
 
   return (
     <Layout>
+      {/* Job verified celebration overlay */}
+      {verifiedAnim && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 9999,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          background: "rgba(14,14,12,0.45)", pointerEvents: "none",
+        }}>
+          <div style={{
+            background: S.paper, border: `2px solid ${S.sage}`, padding: "2.5rem 3rem",
+            textAlign: "center", maxWidth: "22rem",
+          }}>
+            <CheckCircle2 size={36} color={S.sage} style={{ marginBottom: "0.75rem" }} />
+            <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.sage, marginBottom: "0.3rem" }}>
+              Record Locked On-Chain
+            </p>
+            <p style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.4rem", lineHeight: 1.1 }}>
+              Job Verified
+            </p>
+            <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, marginTop: "0.5rem" }}>
+              The homeowner's HomeFax Score has been updated.
+            </p>
+          </div>
+        </div>
+      )}
       <div style={{ maxWidth: "80rem", margin: "0 auto", padding: "2rem 1.5rem" }}>
 
         {/* Header */}

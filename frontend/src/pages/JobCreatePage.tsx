@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { type Job } from "@/services/job";
-import { ArrowLeft, CheckCircle, AlertTriangle } from "lucide-react";
+import { type Job, isInsuranceRelevant } from "@/services/job";
+import { ArrowLeft, CheckCircle, AlertTriangle, ShieldCheck } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { ConstructionPhotoUpload } from "@/components/ConstructionPhotoUpload";
@@ -214,6 +214,14 @@ export default function JobCreatePage() {
             <select className="form-input" value={form.serviceType} onChange={(e) => update("serviceType", e.target.value)}>
               {SERVICE_TYPES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
+            {isInsuranceRelevant(form.serviceType) && (
+              <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", marginTop: "0.4rem", padding: "0.35rem 0.6rem", background: "#F0F7F4", border: "1px solid #B5D4C8" }}>
+                <ShieldCheck size={11} color="#3D6B57" />
+                <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "#3D6B57" }}>
+                  Insurance-relevant — this record may support a premium dispute or claim
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Permit warning */}

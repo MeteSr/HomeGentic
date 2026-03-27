@@ -414,6 +414,12 @@ function SubscriptionTab({ profile }: { profile: any }) {
                   ))}
                 </ul>
               </div>
+              <div style={{ padding: "0.875rem 1rem", background: "#F0F6F3", border: "1px solid #B5D4C8" }}>
+                <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: "#3D6B57", lineHeight: 1.6 }}>
+                  <strong>Your ICP records are permanent.</strong> All your maintenance history, verified jobs, and blockchain records remain on the Internet Computer after cancellation.
+                  You can still view them — you just won't earn new score points or get priority support.
+                </p>
+              </div>
               <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: S.inkLight }}>
                 Or pause instead — keeps your account active without billing.
               </p>
@@ -500,17 +506,32 @@ function NotificationsTab() {
   const [emailQuote, setEmailQuote] = useState(true);
   const [emailJob, setEmailJob] = useState(false);
   const [smsAlerts, setSmsAlerts] = useState(false);
+  const [pulseEnabled, setPulseEnabled] = useState(() =>
+    localStorage.getItem("homefax_pulse_enabled") !== "false"
+  );
+  const [scoreAlerts, setScoreAlerts] = useState(() =>
+    localStorage.getItem("homefax_score_alerts") !== "false"
+  );
+
+  function savePrefs() {
+    localStorage.setItem("homefax_pulse_enabled", pulseEnabled ? "true" : "false");
+    localStorage.setItem("homefax_score_alerts", scoreAlerts ? "true" : "false");
+    toast.success("Preferences saved");
+  }
+
   return (
     <div style={{ border: `1px solid ${S.rule}` }}>
       <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${S.rule}` }}>
         <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>Notifications</p>
       </div>
-      <ToggleRow label="Email: Job Verified"   desc="When a job is verified on-chain"          value={emailVerified} onChange={setEmailVerified} />
+      <ToggleRow label="Weekly Home Pulse"     desc="In-app maintenance tips on your dashboard" value={pulseEnabled}  onChange={setPulseEnabled} />
+      <ToggleRow label="Score Change Alerts"   desc="Banner when your HomeFax Score increases"  value={scoreAlerts}   onChange={setScoreAlerts} />
+      <ToggleRow label="Email: Job Verified"   desc="When a job is verified on-chain"           value={emailVerified} onChange={setEmailVerified} />
       <ToggleRow label="Email: Quote Received" desc="When a contractor submits a quote"         value={emailQuote}    onChange={setEmailQuote} />
       <ToggleRow label="Email: Job Updates"    desc="Status changes on your jobs"               value={emailJob}      onChange={setEmailJob} />
       <ToggleRow label="SMS Alerts"            desc="Critical alerts via text message"          value={smsAlerts}     onChange={setSmsAlerts} />
       <div style={{ padding: "1.25rem" }}>
-        <Button onClick={() => toast.success("Preferences saved")}>Save Preferences</Button>
+        <Button onClick={savePrefs}>Save Preferences</Button>
       </div>
     </div>
   );

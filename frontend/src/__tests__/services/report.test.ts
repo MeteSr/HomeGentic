@@ -42,7 +42,7 @@ describe("reportService.generateReport", () => {
       makeJob({ amountCents: 100_000 }),
       makeJob({ amountCents: 200_000, serviceType: "Roofing" }),
     ];
-    const link = await reportService.generateReport("prop-1", makeProperty(), jobs, 30, "Public");
+    const link = await reportService.generateReport("prop-1", makeProperty(), jobs, [], 30, "Public");
     const { snapshot } = await reportService.getReport(link.token);
     expect(snapshot.totalAmountCents).toBe(300_000);
   });
@@ -53,7 +53,7 @@ describe("reportService.generateReport", () => {
       makeJob({ isVerified: false, serviceType: "Roofing"    }),
       makeJob({ isVerified: true,  serviceType: "Plumbing"   }),
     ];
-    const link = await reportService.generateReport("prop-2", makeProperty(), jobs, null, "Public");
+    const link = await reportService.generateReport("prop-2", makeProperty(), jobs, [], null, "Public");
     const { snapshot } = await reportService.getReport(link.token);
     expect(snapshot.verifiedJobCount).toBe(2);
   });
@@ -64,7 +64,7 @@ describe("reportService.generateReport", () => {
       makeJob({ isDiy: false, serviceType: "HVAC"       }),
       makeJob({ isDiy: true,  serviceType: "Flooring"   }),
     ];
-    const link = await reportService.generateReport("prop-3", makeProperty(), jobs, null, "Public");
+    const link = await reportService.generateReport("prop-3", makeProperty(), jobs, [], null, "Public");
     const { snapshot } = await reportService.getReport(link.token);
     expect(snapshot.diyJobCount).toBe(2);
   });
@@ -75,13 +75,13 @@ describe("reportService.generateReport", () => {
       makeJob({ permitNumber: undefined,   serviceType: "Painting" }),
       makeJob({ permitNumber: "ROOF-002",  serviceType: "Roofing"  }),
     ];
-    const link = await reportService.generateReport("prop-4", makeProperty(), jobs, null, "Public");
+    const link = await reportService.generateReport("prop-4", makeProperty(), jobs, [], null, "Public");
     const { snapshot } = await reportService.getReport(link.token);
     expect(snapshot.permitCount).toBe(2);
   });
 
   it("snapshot is 0-amount when no jobs", async () => {
-    const link = await reportService.generateReport("prop-5", makeProperty(), [], null, "Public");
+    const link = await reportService.generateReport("prop-5", makeProperty(), [], [], null, "Public");
     const { snapshot } = await reportService.getReport(link.token);
     expect(snapshot.totalAmountCents).toBe(0);
     expect(snapshot.verifiedJobCount).toBe(0);
@@ -91,7 +91,7 @@ describe("reportService.generateReport", () => {
 
   it("snapshot preserves property fields", async () => {
     const prop = makeProperty({ address: "456 Oak Ave", city: "Denver", state: "CO" });
-    const link = await reportService.generateReport("prop-6", prop, [], null, "Public");
+    const link = await reportService.generateReport("prop-6", prop, [], [], null, "Public");
     const { snapshot } = await reportService.getReport(link.token);
     expect(snapshot.address).toBe("456 Oak Ave");
     expect(snapshot.city).toBe("Denver");
@@ -108,7 +108,7 @@ describe("reportService.getReport", () => {
 
   it("throws when link has been revoked", async () => {
     const link = await reportService.generateReport(
-      "prop-revoke", makeProperty(), [], null, "Public"
+      "prop-revoke", makeProperty(), [], [], null, "Public"
     );
     await reportService.revokeShareLink(link.token);
     await expect(reportService.getReport(link.token)).rejects.toThrow("revoked");
@@ -116,7 +116,7 @@ describe("reportService.getReport", () => {
 
   it("increments viewCount on each call", async () => {
     const link = await reportService.generateReport(
-      "prop-views", makeProperty(), [], null, "Public"
+      "prop-views", makeProperty(), [], [], null, "Public"
     );
     await reportService.getReport(link.token);
     await reportService.getReport(link.token);
@@ -130,9 +130,9 @@ describe("reportService.getReport", () => {
 
 describe("reportService.listShareLinks", () => {
   it("returns only links for the given propertyId", async () => {
-    await reportService.generateReport("prop-A", makeProperty(), [], null, "Public");
-    await reportService.generateReport("prop-A", makeProperty(), [], null, "Public");
-    await reportService.generateReport("prop-B", makeProperty(), [], null, "Public");
+    await reportService.generateReport("prop-A", makeProperty(), [], [], null, "Public");
+    await reportService.generateReport("prop-A", makeProperty(), [], [], null, "Public");
+    await reportService.generateReport("prop-B", makeProperty(), [], [], null, "Public");
 
     const linksA = await reportService.listShareLinks("prop-A");
     const linksB = await reportService.listShareLinks("prop-B");

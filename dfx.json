@@ -52,12 +52,16 @@
       "main": "backend/sensor/main.mo",
       "type": "motoko"
     },
+    "recurring": {
+      "main": "backend/recurring/main.mo",
+      "type": "motoko"
+    },
     "internet_identity": {
       "type": "pull",
       "id": "rdmx6-jaaaa-aaaaa-aaadq-cai"
     },
     "frontend": {
-      "dependencies": ["auth", "property", "internet_identity"],
+      "dependencies": ["auth", "property", "internet_identity", "recurring"],
       "source": ["frontend/dist"],
       "type": "assets",
       "workspace": "frontend"
