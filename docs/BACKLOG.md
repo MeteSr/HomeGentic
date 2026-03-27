@@ -809,6 +809,107 @@ Require modest new infrastructure; high product value.
 
 ---
 
+---
+
+## 13. Benchmark & Load Testing
+
+**Context:** HomeFax runs on ICP where cost is cycles-per-instruction, not per-request. Load testing has two goals: (1) throughput — can canisters handle concurrent users without queuing, and (2) cycles efficiency — are any calls burning disproportionate cycles that hit runway. The `monitoring` canister already tracks cycles and ARPU/LTV/CAC; what's missing is a baseline and stress scenarios.
+
+---
+
+### 13.1 Cycles Baseline — Cost Per Operation
+
+Establish cycles cost for every significant canister call before any optimization work. Without a baseline, you can't measure improvement or catch regressions.
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 13.1.1 | Baseline script for query calls | ⬜ Missing | S | Node.js script using `@dfinity/agent` that calls each read endpoint once and records cycles consumed; output CSV: canister, method, cycles_before, cycles_after, delta. Targets: `getMyProperties`, `getByProperty` (jobs), `getReport(token)`, `getSeasonalTasks`, `predictMaintenance` |
+| 13.1.2 | Baseline script for update calls | ⬜ Missing | S | Same pattern for write paths: `createJob`, `generateReport`, `addVisitLog`, `createRecurringService`, `createRequest` (quote). Update calls go through consensus — latency matters as much as cycles |
+| 13.1.3 | Identify top-3 cycles-heavy operations | ⬜ Missing | S | Run 13.1.1 + 13.1.2, sort by delta, flag any call above 1B cycles as a review candidate. `analyzeCompetitivePosition()` (market, 535 lines) and `predictMaintenance()` (iterates 8 systems) are the likely suspects |
+| 13.1.4 | Integrate baseline into `monitoring` canister metrics | ⬜ Missing | M | Expose a `cyclesPerCall` map in `monitoring` canister's `metrics()` query; update it on each significant call so cost-per-operation is visible in the admin dashboard over time |
+
+---
+
+### 13.2 Canister Throughput & Concurrency
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 13.2.1 | Concurrent read stress test — `getReport` | ⬜ Missing | M | Simulate a HomeFax report URL shared in a real estate listing: fire 200 concurrent `getReport(token)` calls over 60 seconds via `@dfinity/agent`. Measure: p50/p95/p99 latency, error rate, cycles total. This is the most realistic "viral" scenario |
+| 13.2.2 | Concurrent write stress test — `createJob` | ⬜ Missing | M | 50 concurrent `createJob` calls (simulating a busy contractor day). Measure consensus latency distribution, queue depth, any dropped calls. Update calls serialize through consensus — expect higher p99 |
+| 13.2.3 | Contractor dashboard poll simulation | ⬜ Missing | S | 50 contractors refreshing `getOpenRequests()` every 30 seconds for 10 minutes. Query calls are cheap but volume can still saturate; measure cycles burn rate vs. expected monthly cost |
+| 13.2.4 | Report generation spike | ⬜ Missing | M | 25 simultaneous `generateReport()` calls (snapshot creation + share link issuance). Tests canister stable memory write performance under concurrency |
+| 13.2.5 | Cross-canister call latency | ⬜ Missing | M | Measure end-to-end latency for calls that touch multiple canisters: job creation (job → photo → property tier check), sensor Critical event (sensor → job auto-create). Inter-canister calls add latency per hop |
+
+---
+
+### 13.3 Algorithmic Load — Heavy Canister Methods
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 13.3.1 | `market` canister — `analyzeCompetitivePosition()` under load | ⬜ Missing | M | Largest canister (535 lines). Call with properties ranging from 1 to 100 jobs; chart cycles cost vs. input size. Flag if O(n²) or worse behavior exists in scoring loops |
+| 13.3.2 | `maintenance` canister — `predictMaintenance()` at scale | ⬜ Missing | S | Call with build years from 1950 to 2024 for all 8 system types. Verify constant-time lookup (should be table-driven, not iterative). Measure with 1, 10, and 50 concurrent calls |
+| 13.3.3 | `report` canister — snapshot size growth | ⬜ Missing | S | Generate reports with 0, 10, 50, 200 jobs and measure: snapshot serialization cycles, stable memory footprint, `getReport` deserialization time. Identify the point where large job histories create noticeable latency |
+| 13.3.4 | `monitoring` canister — metrics aggregation under load | ⬜ Missing | S | Call `getMetrics()` while simultaneously running 13.2.1–13.2.4. Verify the monitoring canister doesn't become a bottleneck when all other canisters are logging to it concurrently |
+
+---
+
+### 13.4 Frontend Rendering Performance
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 13.4.1 | Dashboard rendering with large dataset | ⬜ Missing | M | Inject 25 properties + 200 jobs via `window.__e2e_*` and measure: time to first meaningful paint, React render time, scroll performance. The `Promise.all` in `DashboardPage` fetches all properties + jobs + recurring services in parallel — verify it doesn't block render |
+| 13.4.2 | ReportPage rendering with 200-job snapshot | ⬜ Missing | S | Load a report snapshot containing 200 job records, 10 recurring services. Measure render time — this is a public page that buyers see; slow renders kill trust |
+| 13.4.3 | Playwright performance baseline for key pages | ⬜ Missing | M | Use Playwright's `page.metrics()` to capture JS heap, DOM nodes, and layout duration for Dashboard, PropertyDetail, ReportPage. Commit as a baseline; alert on >20% regression. Ties into 12.6.2 |
+| 13.4.4 | Bundle size audit | ⬜ Missing | S | Run `npm run build` and analyze `frontend/dist/` with `vite-bundle-visualizer`. Identify any unexpectedly large dependencies. Target: initial JS bundle < 200KB gzipped |
+
+---
+
+### 13.5 Load Test Scenarios — Realistic User Journeys
+
+End-to-end scenarios that combine multiple calls, matching how real users interact with the app.
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 13.5.1 | "Sell day" scenario | ⬜ Missing | M | Sequence: load ResaleReady checklist → view HomeFax score → generate report → create listing bid request. Measure total wall-clock time and total cycles burned end-to-end. This is the highest-value user journey |
+| 13.5.2 | "Buyer due diligence" scenario | ⬜ Missing | S | Sequence: open shared report URL → view all sections → click score cert → view contractor public profiles. Entirely read-path; test with 100 concurrent "buyers" against one report token |
+| 13.5.3 | "Active homeowner" scenario | ⬜ Missing | M | Simulate a homeowner who logs 3 jobs, adds 2 visit logs, uploads a photo, and regenerates their report in a single session. Measures realistic write load per engaged user |
+| 13.5.4 | "Agent competition" scenario | ⬜ Missing | M | Once Section 9 (listing bid marketplace) is built: 10 agents simultaneously submit proposals to the same listing bid request. Tests write contention on the listing canister |
+
+---
+
+### 13.6 Infrastructure & Tooling
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 13.6.1 | `scripts/benchmark.sh` harness | ⬜ Missing | M | Bash/Node script that runs the full baseline suite (13.1.1 + 13.1.2) against a local replica and outputs a Markdown summary table. Run manually before each release; eventually CI on deploy |
+| 13.6.2 | k6 load test suite for Express proxy | ⬜ Missing | M | k6 scripts targeting `POST /api/agent` and `POST /api/chat` on the voice agent server (port 3001). Scenarios: 1 VU ramp to 50, sustained 50 VU for 5 minutes, spike to 200 VU. Measures Anthropic API latency contribution vs. canister latency |
+| 13.6.3 | Cycles burn rate dashboard | ⬜ Missing | M | Surface `monitoring` canister metrics in `AdminDashboardPage`: cycles remaining per canister, burn rate (cycles/day), estimated runway (days until top-up needed). Alert threshold at 30-day runway |
+| 13.6.4 | Performance regression gate in CI | ⬜ Missing | L | After baseline is established (13.1.1–13.1.2): add a CI step that runs the baseline script on every PR and fails if any call regresses by >25% in cycles cost. Requires a lightweight local replica in CI |
+
+---
+
+### Priority Tiers — Benchmark & Load Testing
+
+**Tier 1-B — Establish Baseline First**
+- 13.1.1–13.1.3 Cycles baseline for query + update calls (can't optimize what you haven't measured)
+- 13.4.4 Bundle size audit (quick win, high visibility)
+- 13.6.3 Cycles burn rate dashboard (operational necessity before launch)
+
+**Tier 2-B — Stress the Critical Paths**
+- 13.2.1 `getReport` concurrent read spike (most realistic viral scenario)
+- 13.2.2 `createJob` concurrent write test
+- 13.3.1 `market` canister algorithmic load
+- 13.4.1 Dashboard rendering with large dataset
+- 13.5.1 "Sell day" end-to-end scenario
+
+**Tier 3-B — Completeness & Automation**
+- 13.2.3–13.2.5 Remaining throughput tests
+- 13.3.2–13.3.4 Remaining algorithmic tests
+- 13.4.2–13.4.3 Remaining frontend perf tests
+- 13.5.2–13.5.4 Remaining journey scenarios
+- 13.6.1–13.6.2 Tooling harness + k6 suite
+- 13.6.4 CI regression gate (requires baseline first)
+
 ### Priority Tiers — Test Coverage
 
 **Tier 1-T — Highest Risk, Do First**
