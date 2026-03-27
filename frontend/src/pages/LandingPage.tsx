@@ -453,7 +453,7 @@ export default function LandingPage() {
                     <span className="hfl-dc-title">My Home Dashboard</span>
                     <span className="hfl-dc-ver">✓ Verified</span>
                   </div>
-                  <div className="hfl-dc-addr">4821 Oakwood Drive, Austin TX</div>
+                  <div className="hfl-dc-addr">327 Keech Street, Daytona Beach FL</div>
                   <div className="hfl-dc-score-row">
                     <div>
                       <div className="hfl-dc-score-lbl">HomeFax Score</div>
@@ -597,7 +597,7 @@ export default function LandingPage() {
           <div>
             <div className="hfl-report-mock">
               <div className="hfl-mock-top">
-                <span className="hfl-mock-addr">4821 Oakwood Drive, Austin TX</span>
+                <span className="hfl-mock-addr">327 Keech Street, Daytona Beach FL</span>
                 <span className="hfl-mock-badge">HomeFax ✓</span>
               </div>
               <div className="hfl-mock-score">
