@@ -10,6 +10,7 @@ import { quoteService, QuoteRequest } from "@/services/quote";
 import { useAuthStore } from "@/store/authStore";
 import { usePropertyStore } from "@/store/propertyStore";
 import { isNewSince, hasQuoteActivity, pendingQuoteCount } from "@/services/notifications";
+import { computeScore, getScoreGrade, loadHistory, recordSnapshot, scoreDelta, type ScoreSnapshot } from "@/services/scoreService";
 import toast from "react-hot-toast";
 
 const S = {
@@ -27,9 +28,11 @@ export default function DashboardPage() {
   const [quoteRequests, setQuoteRequests] = useState<QuoteRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [scoreHistory, setScoreHistory] = useState<ScoreSnapshot[]>([]);
 
   useEffect(() => {
     Promise.all([loadProperties(), loadJobs(), loadQuoteRequests()]).finally(() => setLoading(false));
+    setScoreHistory(loadHistory());
   }, []);
 
   async function loadProperties() {
@@ -48,11 +51,22 @@ export default function DashboardPage() {
 
   const totalValue    = jobService.getTotalValue(jobs);
   const verifiedCount = jobService.getVerifiedCount(jobs);
+  const homefaxScore  = computeScore(jobs, properties);
+  const scoreGrade    = getScoreGrade(homefaxScore);
+  const delta         = scoreDelta(scoreHistory);
 
   const hasProperty  = properties.length > 0;
   const hasVerified  = properties.some((p) => p.verificationLevel !== "Unverified" && p.verificationLevel !== "PendingReview");
   const hasJob       = jobs.length > 0;
   const showBanner   = !loading && !(hasProperty && hasVerified && hasJob) && !bannerDismissed;
+
+  // Record score snapshot once data is loaded
+  useEffect(() => {
+    if (!loading && (jobs.length > 0 || properties.length > 0)) {
+      const history = recordSnapshot(homefaxScore);
+      setScoreHistory(history);
+    }
+  }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const verificationBadge = (level: string) => {
     if (level === "Premium")       return <Badge variant="success">Premium Verified</Badge>;
@@ -126,27 +140,38 @@ export default function DashboardPage() {
         )}
 
         {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", borderTop: `1px solid ${S.rule}`, borderLeft: `1px solid ${S.rule}`, marginBottom: "2.5rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", borderTop: `1px solid ${S.rule}`, borderLeft: `1px solid ${S.rule}`, marginBottom: "2.5rem" }}>
           {[
-            { label: "Properties",        value: properties.length,                                     accent: false },
-            { label: "Verified Jobs",      value: verifiedCount,                                         accent: false },
-            { label: "Total Value Added",  value: `$${(totalValue / 100).toLocaleString()}`,             accent: false },
-            { label: "HomeFax Premium™",   value: `$${Math.round((totalValue / 100) * 0.03).toLocaleString()}`, accent: true },
+            { label: "Properties",       value: String(properties.length),                                         accent: false },
+            { label: "Verified Jobs",    value: String(verifiedCount),                                             accent: false },
+            { label: "Total Value",      value: `$${(totalValue / 100).toLocaleString()}`,                         accent: false },
+            { label: "HomeFax Premium™", value: `$${Math.round((totalValue / 100) * 0.03).toLocaleString()}`,      accent: false },
           ].map((stat) => (
-            <div key={stat.label} style={{
-              padding: "1.5rem",
-              borderRight: `1px solid ${S.rule}`,
-              borderBottom: `1px solid ${S.rule}`,
-              background: stat.accent ? S.ink : "#fff",
-            }}>
-              <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: stat.accent ? "#7A7268" : S.inkLight, marginBottom: "0.625rem" }}>
+            <div key={stat.label} style={{ padding: "1.5rem", borderRight: `1px solid ${S.rule}`, borderBottom: `1px solid ${S.rule}`, background: "#fff" }}>
+              <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.625rem" }}>
                 {stat.label}
               </div>
-              <div style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "2rem", lineHeight: 1, color: stat.accent ? "#F4F1EB" : S.ink }}>
+              <div style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "2rem", lineHeight: 1, color: S.ink }}>
                 {stat.value}
               </div>
             </div>
           ))}
+          {/* HomeFax Score — accent cell */}
+          <div style={{ padding: "1.5rem", borderRight: `1px solid ${S.rule}`, borderBottom: `1px solid ${S.rule}`, background: S.ink }}>
+            <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "#7A7268", marginBottom: "0.625rem" }}>
+              HomeFax Score
+            </div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem", marginBottom: "0.5rem" }}>
+              <span style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "2rem", lineHeight: 1, color: "#F4F1EB" }}>{homefaxScore}</span>
+              <span style={{ fontFamily: S.mono, fontSize: "0.7rem", color: "#7A7268" }}>/100 · {scoreGrade}</span>
+            </div>
+            {delta !== 0 && (
+              <div style={{ fontFamily: S.mono, fontSize: "0.6rem", color: delta > 0 ? "#6EAF8A" : "#C94C2E", letterSpacing: "0.06em" }}>
+                {delta > 0 ? "+" : ""}{delta} pts this period
+              </div>
+            )}
+            <ScoreSparkline history={scoreHistory} />
+          </div>
         </div>
 
         {/* Quick Actions */}
@@ -298,6 +323,35 @@ export default function DashboardPage() {
 
       </div>
     </Layout>
+  );
+}
+
+function ScoreSparkline({ history }: { history: ScoreSnapshot[] }) {
+  if (history.length < 2) return null;
+
+  const W = 80, H = 24, pad = 2;
+  const scores = history.map((s) => s.score);
+  const min = Math.max(0, Math.min(...scores) - 5);
+  const max = Math.min(100, Math.max(...scores) + 5);
+  const range = max - min || 1;
+
+  const pts = scores.map((s, i) => {
+    const x = pad + (i / (scores.length - 1)) * (W - pad * 2);
+    const y = H - pad - ((s - min) / range) * (H - pad * 2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+
+  return (
+    <svg width={W} height={H} style={{ display: "block", marginTop: "0.5rem", opacity: 0.7 }}>
+      <polyline points={pts} fill="none" stroke="#C8C3B8" strokeWidth="1.5" strokeLinejoin="round" />
+      {scores.map((s, i) => {
+        const x = pad + (i / (scores.length - 1)) * (W - pad * 2);
+        const y = H - pad - ((s - min) / range) * (H - pad * 2);
+        return i === scores.length - 1
+          ? <circle key={i} cx={x} cy={y} r="2.5" fill="#F4F1EB" />
+          : null;
+      })}
+    </svg>
   );
 }
 

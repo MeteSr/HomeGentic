@@ -2,7 +2,7 @@ name: Deploy Testnet
 
 on:
   push:
-    branches: [develop]
+    branches: [main, develop]
 
 jobs:
   deploy:
@@ -10,7 +10,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install DFX
-        run: sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
+        uses: dfinity/setup-dfx@main
+      - name: Install mops
+        run: npm install -g ic-mops
       - name: Deploy to testnet
         run: bash scripts/deploy.sh --network testnet
         env:

@@ -300,6 +300,18 @@ function PhotoStrip({ photos, jobId, onUpload }: { photos: Photo[]; jobId: strin
   );
 }
 
+function warrantyStatus(job: Job): { label: string; color: string; bg: string } | null {
+  if (!job.warrantyMonths || job.warrantyMonths <= 0) return null;
+  const jobDate = new Date(job.date).getTime();
+  const expiryMs = jobDate + job.warrantyMonths * 30.44 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const daysLeft = Math.round((expiryMs - now) / (24 * 60 * 60 * 1000));
+  if (daysLeft < 0) return { label: "Warranty expired", color: "#7A7268", bg: "#F4F1EB" };
+  if (daysLeft <= 90) return { label: `Warranty: ${daysLeft}d left`, color: "#C94C2E", bg: "#FAF0ED" };
+  const monthsLeft = Math.round(daysLeft / 30);
+  return { label: `Warranty: ${monthsLeft}mo left`, color: "#3D6B57", bg: "#F0F6F3" };
+}
+
 function TimelineTab({ jobs, onVerify, currentPrincipal, photosByJob, onPhotoUpload }: {
   jobs: Job[];
   onVerify: (id: string) => void;
@@ -307,7 +319,16 @@ function TimelineTab({ jobs, onVerify, currentPrincipal, photosByJob, onPhotoUpl
   photosByJob: Record<string, Photo[]>;
   onPhotoUpload: (jobId: string, file: File) => void;
 }) {
-  const S = { ink: "#0E0E0C", rule: "#C8C3B8", rust: "#C94C2E", inkLight: "#7A7268", mono: "'IBM Plex Mono', monospace" as const, serif: "'Playfair Display', Georgia, serif" as const };
+  const S = { ink: "#0E0E0C", rule: "#C8C3B8", rust: "#C94C2E", inkLight: "#7A7268", sage: "#3D6B57", mono: "'IBM Plex Mono', monospace" as const, serif: "'Playfair Display', Georgia, serif" as const };
+  const [justVerified, setJustVerified] = React.useState<string | null>(null);
+
+  const verifiedCount = jobs.filter((j) => j.verified).length;
+
+  const handleVerify = (jobId: string) => {
+    onVerify(jobId);
+    setJustVerified(jobId);
+    setTimeout(() => setJustVerified(null), 2500);
+  };
 
   if (jobs.length === 0) {
     return (
@@ -322,74 +343,116 @@ function TimelineTab({ jobs, onVerify, currentPrincipal, photosByJob, onPhotoUpl
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: S.rule }}>
-      {jobs.map((job) => {
-        const isHomeowner  = currentPrincipal && job.homeowner === currentPrincipal;
-        const canSign      = !job.verified && isHomeowner && !job.homeownerSigned;
-        const needsBothSig = !job.isDiy;
-
-        return (
-          <div key={job.id} data-testid={`job-${job.serviceType.toLowerCase().replace(/\s+/g, "-")}`} style={{ background: "#fff", padding: "1.25rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <div>
-                <p style={{ fontWeight: 500, fontSize: "0.875rem", marginBottom: "0.125rem" }}>{job.serviceType}</p>
-                <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>
-                  {job.isDiy ? "DIY" : job.contractorName} · {job.date}
-                </p>
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <p style={{ fontFamily: S.mono, fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.25rem" }}>
-                  ${(job.amount / 100).toLocaleString()}
-                </p>
-                <Badge variant={job.status === "verified" ? "success" : job.status === "completed" ? "info" : "warning"} size="sm">
-                  {job.status}
-                </Badge>
-              </div>
-            </div>
-
-            {job.description && (
-              <p style={{ fontSize: "0.8rem", color: S.inkLight, fontWeight: 300, marginTop: "0.5rem" }}>{job.description}</p>
-            )}
-
-            {/* Signature status */}
-            {!job.verified && (
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
-                <SigPill signed={job.homeownerSigned} label="Homeowner" />
-                {needsBothSig && (
-                  <SigPill signed={job.contractorSigned} label={job.contractor ? "Contractor" : "Contractor (not linked)"} />
-                )}
-                {canSign && (
-                  <button
-                    onClick={() => onVerify(job.id)}
-                    style={{
-                      padding: "0.25rem 0.75rem",
-                      fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase",
-                      color: S.rust, background: "none", border: `1px solid ${S.rust}`, cursor: "pointer",
-                    }}
-                  >
-                    Sign →
-                  </button>
-                )}
-                {job.homeownerSigned && !job.contractorSigned && !job.isDiy && !job.verified && (
-                  <span style={{
-                    fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em",
-                    textTransform: "uppercase", color: S.inkLight,
-                  }}>
-                    Awaiting contractor signature
-                  </span>
-                )}
-              </div>
-            )}
-
-            <PhotoStrip
-              photos={photosByJob[job.id] ?? []}
-              jobId={job.id}
-              onUpload={onPhotoUpload}
-            />
+    <>
+      {/* 3-service engagement milestone */}
+      {verifiedCount >= 3 && (
+        <div style={{ border: `1px solid ${S.sage}`, background: "#F0F6F3", padding: "0.875rem 1.25rem", marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <span style={{ fontSize: "1.25rem" }}>🏅</span>
+          <div>
+            <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.sage, marginBottom: "0.1rem" }}>
+              Home History Taking Shape
+            </p>
+            <p style={{ fontSize: "0.8rem", color: S.inkLight, fontWeight: 300 }}>
+              {verifiedCount} verified jobs on-chain. Your HomeFax report is ready to impress buyers.
+            </p>
           </div>
-        );
-      })}
-    </div>
+        </div>
+      )}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: S.rule }}>
+        {jobs.map((job) => {
+          const isHomeowner  = currentPrincipal && job.homeowner === currentPrincipal;
+          const canSign      = !job.verified && isHomeowner && !job.homeownerSigned;
+          const needsBothSig = !job.isDiy;
+          const isFlashing   = justVerified === job.id || (job.verified && justVerified === job.id);
+          const warranty     = warrantyStatus(job);
+
+          return (
+            <div
+              key={job.id}
+              data-testid={`job-${job.serviceType.toLowerCase().replace(/\s+/g, "-")}`}
+              style={{
+                background: isFlashing ? "#F0F6F3" : "#fff",
+                padding: "1.25rem",
+                transition: "background 0.6s ease",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div>
+                  <p style={{ fontWeight: 500, fontSize: "0.875rem", marginBottom: "0.125rem" }}>{job.serviceType}</p>
+                  <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>
+                    {job.isDiy ? "DIY" : job.contractorName} · {job.date}
+                  </p>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <p style={{ fontFamily: S.mono, fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.25rem" }}>
+                    ${(job.amount / 100).toLocaleString()}
+                  </p>
+                  <Badge variant={job.status === "verified" ? "success" : job.status === "completed" ? "info" : "warning"} size="sm">
+                    {isFlashing ? "⛓ locked on-chain" : job.status}
+                  </Badge>
+                </div>
+              </div>
+
+              {job.description && (
+                <p style={{ fontSize: "0.8rem", color: S.inkLight, fontWeight: 300, marginTop: "0.5rem" }}>{job.description}</p>
+              )}
+
+              {/* Warranty pill */}
+              {warranty && (
+                <div style={{ marginTop: "0.5rem" }}>
+                  <span style={{
+                    display: "inline-flex", alignItems: "center", gap: "0.25rem",
+                    fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase",
+                    padding: "0.15rem 0.5rem",
+                    color: warranty.color, background: warranty.bg,
+                    border: `1px solid ${warranty.color}40`,
+                  }}>
+                    🛡 {warranty.label}
+                  </span>
+                </div>
+              )}
+
+              {/* Signature status */}
+              {!job.verified && (
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
+                  <SigPill signed={job.homeownerSigned} label="Homeowner" />
+                  {needsBothSig && (
+                    <SigPill signed={job.contractorSigned} label={job.contractor ? "Contractor" : "Contractor (not linked)"} />
+                  )}
+                  {canSign && (
+                    <button
+                      onClick={() => handleVerify(job.id)}
+                      style={{
+                        padding: "0.25rem 0.75rem",
+                        fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase",
+                        color: S.rust, background: "none", border: `1px solid ${S.rust}`, cursor: "pointer",
+                      }}
+                    >
+                      Sign →
+                    </button>
+                  )}
+                  {job.homeownerSigned && !job.contractorSigned && !job.isDiy && !job.verified && (
+                    <span style={{
+                      fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em",
+                      textTransform: "uppercase", color: S.inkLight,
+                    }}>
+                      Awaiting contractor signature
+                    </span>
+                  )}
+                </div>
+              )}
+
+              <PhotoStrip
+                photos={photosByJob[job.id] ?? []}
+                jobId={job.id}
+                onUpload={onPhotoUpload}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 }
 

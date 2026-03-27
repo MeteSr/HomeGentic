@@ -18,7 +18,7 @@ if [ "$NETWORK" = "local" ]; then
 fi
 
 echo "▶ Deploying canisters..."
-for canister in auth property job contractor quote price payment photo monitoring; do
+for canister in auth property job contractor quote price payment photo report maintenance market sensor monitoring; do
   echo "  Deploying $canister..."
   dfx deploy $canister --network $NETWORK
 done
@@ -27,7 +27,7 @@ echo ""
 echo "============================================"
 echo "  Deployed Canister IDs"
 echo "============================================"
-for canister in auth property job contractor quote price payment photo monitoring; do
+for canister in auth property job contractor quote price payment photo report maintenance market sensor monitoring; do
   ID=$(dfx canister id $canister --network $NETWORK 2>/dev/null || echo "not deployed")
   echo "  $canister: $ID"
 done

@@ -1,8 +1,6 @@
 name: Deploy Mainnet
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -12,8 +10,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install DFX
-        run: sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
+        uses: dfinity/setup-dfx@main
+      - name: Install mops
+        run: npm install -g ic-mops
       - name: Deploy to mainnet
         run: bash scripts/deploy.sh --network ic
         env:
-          DFX_IDENTITY_PEM: ${{ secrets.DFX_IDENTITY_PEM }}
+          DFX_IDENTITY_PEM: ${{ secrets.MAINNET_IDENTITY_PEM }}

@@ -125,56 +125,113 @@ function SystemCard({ pred, onSchedule }: { pred: SystemPrediction; onSchedule: 
   );
 }
 
-// ─── Schedule Panel ────────────────────────────────────────────────────────────
+// ─── Five-Year Calendar ────────────────────────────────────────────────────────
 
-function SchedulePanel({ entries, onComplete, onDelete }: { entries: ScheduleEntry[]; onComplete: (id: string) => void; onDelete: (id: string) => void }) {
-  const pending   = entries.filter((e) => !e.isCompleted);
-  const completed = entries.filter((e) => e.isCompleted);
+const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function FiveYearCalendar({ entries, onComplete, onDelete, onAddYear }: {
+  entries: ScheduleEntry[];
+  onComplete: (id: string) => void;
+  onDelete: (id: string) => void;
+  onAddYear: () => void;
+}) {
+  const currentYear = new Date().getFullYear();
+  const years = [currentYear, currentYear+1, currentYear+2, currentYear+3, currentYear+4];
+
+  const byYear = (year: number) => entries.filter((e) => e.plannedYear === year);
+  const pending = entries.filter((e) => !e.isCompleted);
+  const yearBudget = (year: number) =>
+    byYear(year).filter((e) => !e.isCompleted && e.estimatedCostCents)
+      .reduce((s, e) => s + (e.estimatedCostCents ?? 0), 0);
 
   if (entries.length === 0) {
     return (
-      <div style={{ border: `1px dashed ${S.rule}`, padding: "2rem", textAlign: "center" }}>
+      <div style={{ border: `1px dashed ${S.rule}`, padding: "2.5rem", textAlign: "center" }}>
         <Calendar size={28} color={S.rule} style={{ margin: "0 auto 0.5rem" }} />
         <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>No scheduled maintenance yet.</p>
-        <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, marginTop: "0.25rem" }}>Click "Add to schedule" on any system card.</p>
+        <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, marginTop: "0.25rem" }}>
+          Click "Add to schedule" on any system card to populate your 5-year calendar.
+        </p>
       </div>
     );
   }
 
   const renderEntry = (entry: ScheduleEntry) => (
-    <div key={entry.id} style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", padding: "0.75rem 1rem", border: `1px solid ${S.rule}`, background: entry.isCompleted ? S.paper : "#fff", opacity: entry.isCompleted ? 0.65 : 1 }}>
+    <div key={entry.id} style={{ display: "flex", alignItems: "flex-start", gap: "0.625rem", padding: "0.625rem 0.875rem", background: entry.isCompleted ? S.paper : "#fff", opacity: entry.isCompleted ? 0.6 : 1 }}>
       <button
         onClick={() => !entry.isCompleted && onComplete(entry.id)}
-        style={{ width: "1.125rem", height: "1.125rem", border: `2px solid ${entry.isCompleted ? S.sage : S.rule}`, background: entry.isCompleted ? S.sage : "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: entry.isCompleted ? "default" : "pointer", flexShrink: 0, marginTop: "0.1rem" }}
-        title={entry.isCompleted ? "Completed" : "Mark complete"}
+        style={{ width: "1rem", height: "1rem", border: `2px solid ${entry.isCompleted ? S.sage : S.rule}`, background: entry.isCompleted ? S.sage : "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: entry.isCompleted ? "default" : "pointer", flexShrink: 0, marginTop: "0.1rem" }}
       >
-        {entry.isCompleted && <CheckCircle2 size={9} color="#fff" />}
+        {entry.isCompleted && <CheckCircle2 size={8} color="#fff" />}
       </button>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontWeight: 600, fontSize: "0.85rem", color: S.ink }}>{entry.systemName}</div>
-        <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: S.inkLight }}>{entry.taskDescription}</div>
-        <div style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, marginTop: "0.2rem" }}>
-          Planned: {entry.plannedYear}{entry.plannedMonth ? `/${entry.plannedMonth}` : ""}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: "0.85rem", fontWeight: 600, color: S.ink }}>{entry.systemName}</div>
+        <div style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, letterSpacing: "0.04em" }}>
+          {entry.plannedMonth ? `${MONTH_NAMES[entry.plannedMonth - 1]} · ` : ""}{entry.taskDescription}
           {entry.estimatedCostCents ? ` · ~${maintenanceService.formatCents(entry.estimatedCostCents)}` : ""}
         </div>
       </div>
-      <button onClick={() => onDelete(entry.id)} style={{ color: S.inkLight, background: "none", border: "none", cursor: "pointer", padding: "0.125rem" }}>
-        <X size={12} />
+      <button onClick={() => onDelete(entry.id)} style={{ color: S.inkLight, background: "none", border: "none", cursor: "pointer", padding: "0.125rem", flexShrink: 0 }}>
+        <X size={11} />
       </button>
     </div>
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: S.rule }}>
-      {pending.map(renderEntry)}
-      {completed.length > 0 && (
-        <>
-          <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, padding: "0.5rem 0", background: S.paper, paddingLeft: "1rem" }}>
-            Completed
-          </div>
-          {completed.map(renderEntry)}
-        </>
+    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      {/* Total pending budget banner */}
+      {pending.length > 0 && (
+        <div style={{ border: `1px solid ${S.rule}`, padding: "0.875rem 1.25rem", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff" }}>
+          <span style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>
+            {pending.length} tasks scheduled
+          </span>
+          <span style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.75rem", color: S.ink }}>
+            5-yr budget: {maintenanceService.formatCents(years.reduce((s, y) => s + yearBudget(y), 0))}
+          </span>
+        </div>
       )}
+
+      {/* Year columns */}
+      {years.map((year) => {
+        const yearEntries = byYear(year);
+        const budget = yearBudget(year);
+        const isCurrentYear = year === currentYear;
+        return (
+          <div key={year} style={{ border: `1px solid ${isCurrentYear ? S.rust : S.rule}`, background: "#fff", overflow: "hidden" }}>
+            <div style={{
+              padding: "0.625rem 1rem", borderBottom: `1px solid ${isCurrentYear ? S.rust : S.rule}`,
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              background: isCurrentYear ? "#FAF0ED" : S.paper,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+                <span style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.7rem", letterSpacing: "0.1em", color: isCurrentYear ? S.rust : S.inkLight }}>
+                  {year}
+                </span>
+                {isCurrentYear && (
+                  <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.rust, border: `1px solid ${S.rust}`, padding: "0.1rem 0.35rem" }}>
+                    This year
+                  </span>
+                )}
+              </div>
+              <span style={{ fontFamily: S.mono, fontSize: "0.65rem", color: budget > 0 ? S.ink : S.inkLight, fontWeight: budget > 0 ? 700 : 400 }}>
+                {budget > 0 ? maintenanceService.formatCents(budget) : "No estimate"}
+              </span>
+            </div>
+
+            {yearEntries.length === 0 ? (
+              <div style={{ padding: "0.75rem 1rem" }}>
+                <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight }}>
+                  No tasks scheduled — add from System Health tab
+                </span>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: S.rule }}>
+                {yearEntries.map(renderEntry)}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -452,12 +509,12 @@ export default function PredictiveMaintenancePage() {
             {activeTab === "schedule" && (
               <div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-                  <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>Maintenance Schedule</p>
+                  <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>5-Year Maintenance Calendar</p>
                   <button onClick={() => setActiveTab("systems")} style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, border: `1px solid ${S.rule}`, background: "#fff", padding: "0.35rem 0.75rem", cursor: "pointer" }}>
                     <PlusCircle size={11} /> Add from systems
                   </button>
                 </div>
-                <SchedulePanel entries={scheduleEntries} onComplete={handleComplete} onDelete={handleDelete} />
+                <FiveYearCalendar entries={scheduleEntries} onComplete={handleComplete} onDelete={handleDelete} onAddYear={() => setActiveTab("systems")} />
               </div>
             )}
 
