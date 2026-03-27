@@ -714,3 +714,127 @@ Require modest new infrastructure; high product value.
 ---
 
 *Last updated: 2026-03-27 (sprint 19)*
+
+---
+
+## 11. Design System Migration — New UI Language
+
+**Vision:** Roll the new landing page design system (Fraunces serif, Plus Jakarta Sans, plum/sage/blush palette, rounded pill buttons, blob visuals) out across all authenticated app pages, replacing the current blueprint/editorial aesthetic. Delivers brand coherence from first impression through daily use.
+
+**Design tokens to propagate:**
+```
+--plum: #2E2540        (replaces ink #0E0E0C as primary)
+--sage: #7AAF76        (replaces rust #C94C2E as accent)
+--sage-light: #E5F0E4  (replaces paper #F4F1EB as background tint)
+--plum-mid: #6B5B7B    (replaces inkLight #7A7268 as muted text)
+--white: #FDFCFA       (page background)
+--blush: #F0CDBA       (warm accent surface)
+--sky: #BAD5E8         (cool accent surface)
+--butter: #F5E9BB      (highlight surface)
+Fraunces (serif headings, 700/900) replaces Playfair Display
+Plus Jakarta Sans (body, 300–700) replaces IBM Plex Sans
+IBM Plex Mono retained for labels and data values
+border-radius: pills (100px) for buttons; 20–24px for cards
+```
+
+---
+
+### 11.1 Design Token Foundation
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 11.1.1 | Create `theme.ts` with new token constants | ⬜ Missing | S | Export `COLORS`, `FONTS`, `RADIUS` objects; replace inline `s = {...}` pattern used in every page component |
+| 11.1.2 | Update Google Fonts in `index.html` | ⬜ Missing | S | Add Fraunces + Plus Jakarta Sans; keep IBM Plex Mono; remove Playfair Display after migration complete |
+| 11.1.3 | Update global CSS resets in `index.css` | ⬜ Missing | S | Body font, background color, scrollbar, selection color aligned to new palette |
+| 11.1.4 | Update shared `Button.tsx` component | ⬜ Missing | S | Primary (plum fill, pill), secondary (sage-light fill, pill), ghost (border); replace current sharp-corner variants |
+| 11.1.5 | Update shared `Badge.tsx` component | ⬜ Missing | S | Pill shape, sage/blush/sky/butter surface variants matching new card language |
+| 11.1.6 | Update shared `Layout.tsx` nav + sidebar | ⬜ Missing | M | New nav: plum logo, sage accent on active item, white background with sage-mid bottom border; sidebar uses plum-mid text |
+
+---
+
+### 11.2 Core Authenticated Pages
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 11.2.1 | `DashboardPage.tsx` | ⬜ Missing | M | Property cards → 20px radius, sage-light surface; score ring → sage gradient; section headers → Fraunces; stat pills → new palette |
+| 11.2.2 | `PropertyDetailPage.tsx` | ⬜ Missing | M | Tab bar → plum active state; cards → new radius + surface colors; action buttons → pill style |
+| 11.2.3 | `JobCreatePage.tsx` | ⬜ Missing | S | Form inputs → plum focus border; submit button → plum pill; success screen → sage-light background |
+| 11.2.4 | `SettingsPage.tsx` | ⬜ Missing | S | Section cards → 20px radius; tier badges → new badge variants; save button → plum pill |
+| 11.2.5 | `PricingPage.tsx` | ⬜ Missing | M | Tier cards → blush/sky/sage-light surfaces; CTA buttons → plum pill; recommended tier → plum card (dark) |
+| 11.2.6 | `OnboardingPage.tsx` | ⬜ Missing | M | Step indicators → sage dots; form cards → new radius; progress bar → sage gradient |
+
+---
+
+### 11.3 Contractor & Quote Pages
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 11.3.1 | `ContractorDashboardPage.tsx` | ⬜ Missing | M | Job cards → new card style; trust score display → sage gradient bar; status badges → new variants |
+| 11.3.2 | `ContractorProfilePage.tsx` | ⬜ Missing | S | Profile header → plum background; form fields → new focus state; save → plum pill |
+| 11.3.3 | `ContractorBrowsePage.tsx` | ⬜ Missing | M | Contractor cards → 20px radius, hover sage border; filter pills → sage-light; search → plum focus |
+| 11.3.4 | `ContractorPublicPage.tsx` | ⬜ Missing | M | Public-facing — must look polished; hero → plum gradient; review cards → new card style |
+| 11.3.5 | `QuoteRequestPage.tsx` + `QuoteDetailPage.tsx` | ⬜ Missing | M | Quote cards → blush surface; status badges → new variants; action buttons → pill style |
+
+---
+
+### 11.4 Feature Pages
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 11.4.1 | `PredictiveMaintenancePage.tsx` | ⬜ Missing | M | Calendar grid → sage-light cells; urgency badges → blush (Soon) / sky (Watch) / sage (Good); tab bar → new style |
+| 11.4.2 | `MarketIntelligencePage.tsx` | ⬜ Missing | S | ROI bars → sage gradient; project cards → 20px radius; category headers → Fraunces |
+| 11.4.3 | `WarrantyWalletPage.tsx` | ⬜ Missing | S | Warranty cards → butter surface for active, plum-mid text for expired; expiry badges → new variants |
+| 11.4.4 | `InsuranceDefensePage.tsx` | ⬜ Missing | S | Evidence cards → sky surface; score indicators → sage; action buttons → plum pill |
+| 11.4.5 | `ResaleReadyPage.tsx` | ⬜ Missing | S | Checklist items → sage checkmark; progress ring → sage gradient; CTA → plum pill |
+| 11.4.6 | `RecurringServiceCreatePage.tsx` + `RecurringServiceDetailPage.tsx` | ⬜ Missing | S | New pages — apply new design from the start rather than retrofitting |
+| 11.4.7 | `SensorPage.tsx` | ⬜ Missing | S | Device cards → sky surface (IoT = tech/cool); alert badges → blush for warning |
+| 11.4.8 | `SystemAgesPage.tsx` | ⬜ Missing | S | Age bars → sage (good) / blush (aging) / rust-equivalent warning; Fraunces system names |
+
+---
+
+### 11.5 Report & Certificate Pages
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 11.5.1 | `ReportPage.tsx` (public share page) | ⬜ Missing | L | Highest-stakes public page; score display → Fraunces large number + sage gradient bar; section cards → new style; HomeFax badge → pill; "Powered by HomeFax" footer → plum |
+| 11.5.2 | `ScoreCertPage.tsx` | ⬜ Missing | M | Certificate → Fraunces display type + plum/sage palette; shareable badge → new style |
+| 11.5.3 | `GenerateReportModal.tsx` | ⬜ Missing | S | Modal → 20px radius, white background; form inputs → plum focus; generate button → plum pill |
+
+---
+
+### 11.6 Admin & Agent Pages
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 11.6.1 | `AdminDashboardPage.tsx` | ⬜ Missing | M | Metric cards → new card style; charts → sage/plum palette; admin-only badge → plum dark |
+| 11.6.2 | `AgentDashboardPage.tsx` | ⬜ Missing | M | Pipeline cards → blush surface; proposal status badges → new variants; earnings summary → Fraunces numerals |
+
+---
+
+### 11.7 Login & Auth Pages
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 11.7.1 | `LoginPage.tsx` | ⬜ Missing | S | Page background → sage-light; card → white, 24px radius; Internet Identity button → plum pill; dev login → ghost pill |
+| 11.7.2 | `RegisterPage.tsx` | ⬜ Missing | S | Same card style as login; role selector → pill toggle (Homeowner / Contractor / Agent) in plum/sage |
+
+---
+
+### Priority Tiers — Design Migration
+
+**Tier 1-D — Highest Visibility (do first)**
+- 11.1.1–11.1.6 Token foundation + shared components (unlocks everything else)
+- 11.7.1–11.7.2 Login/Register (first authenticated experience)
+- 11.2.1 Dashboard (most-visited authenticated page)
+- 11.5.1 ReportPage (public-facing, buyer-visible)
+- 11.2.5 PricingPage (conversion-critical)
+
+**Tier 2-D — Core Workflows**
+- 11.2.2–11.2.4 Property detail, job create, settings
+- 11.3.1–11.3.5 Contractor + quote pages
+- 11.5.2–11.5.3 Score cert + generate modal
+
+**Tier 3-D — Feature Pages (after core is done)**
+- 11.4.1–11.4.8 All feature pages
+- 11.6.1–11.6.2 Admin + agent pages
+- 11.2.6 Onboarding
