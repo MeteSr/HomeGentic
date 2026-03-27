@@ -939,6 +939,119 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 
 ---
 
+---
+
+## 15. Free Tier Tightening — Conversion Urgency
+
+**Problem:** The free tier currently gives away the full value proposition — unlimited job logging, permanent shareable reports, full score breakdown, market intelligence, and warranty wallet. There is no natural forcing function to upgrade. A homeowner can prepare their home for sale entirely on the free tier.
+
+**Strategy:** Free users get enough to feel the value and get hooked, but hit professional-grade walls at the exact moment they need to use it seriously — when preparing to list or sell.
+
+**The upgrade moment:** *"I'm ready to list — let me share my report"* → 7-day expiry warning → upgrade to Pro for a permanent, unbranded link.
+
+---
+
+### 15.1 Job History Cap
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 15.1.1 | Enforce 5-job cap on free tier in `job` canister | ⬜ Missing | S | In `createJob()`, count existing jobs for the property and return `#err(#TierLimitExceeded)` if the caller is on Free and already has ≥5 jobs. The tier check should call the `payment` canister (or accept a tier param from the frontend). |
+| 15.1.2 | Surface job cap in `JobCreatePage` | ⬜ Missing | S | Before submitting, check job count against tier limit. Show an upgrade prompt instead of the form when at the cap: "You've logged 5 jobs on the free plan — upgrade to Pro to keep building your record." |
+| 15.1.3 | Show job count + cap progress on Dashboard | ⬜ Missing | S | Free users see "5/5 jobs logged" with a progress bar and upgrade CTA. Pro+ users see no cap indicator. |
+
+---
+
+### 15.2 Report Share Link Expiry
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 15.2.1 | Default share link TTL to 7 days for free tier | ⬜ Missing | M | In `report` canister `generateReport()`, check caller's tier. If Free, set `expiresAt = now + 7 days` regardless of what the caller passes. Pro+ retain the current behavior (caller-controlled expiry, including null = never). |
+| 15.2.2 | Warn free users before link expires in `ReportPage` | ⬜ Missing | S | When a report is loaded and the share link expires within 48 hours, show a banner: "This report link expires [date]. Upgrade to Pro for a permanent link." |
+| 15.2.3 | Show expiry in `GenerateReportModal` for free users | ⬜ Missing | S | After generating, show "Your report link expires in 7 days" with an inline upgrade prompt. Pro users see "Link never expires" confirmation. |
+| 15.2.4 | Expired free report shows upgrade prompt, not generic error | ⬜ Missing | S | When `getReport()` returns a revoked/expired token, `ReportPage` currently shows a generic error. For free-tier-expired links, show: "This HomeFax report has expired. The homeowner can upgrade to Pro to share a permanent link." |
+
+---
+
+### 15.3 Report Branding (Free Plan Watermark)
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 15.3.1 | Add `planTier` field to `ReportSnapshot` in `report` canister | ⬜ Missing | S | Store the generator's tier at snapshot creation time. Immutable — the report always reflects the plan active when it was generated, even if the user later upgrades or downgrades. |
+| 15.3.2 | Render "Free Plan" banner on `ReportPage` for free-tier reports | ⬜ Missing | S | When `snapshot.planTier === "Free"`, show a banner at the top of the public report: "Generated with HomeFax Free — upgrade to remove this banner and unlock permanent sharing." Buyers see this; it signals to them that the seller hasn't committed to the platform. |
+| 15.3.3 | Remove banner from Pro+ reports | ⬜ Missing | S | Pro and Premium reports render with no banner, clean header, and a "Verified by HomeFax" trust badge instead. This makes the Pro report visually superior and the difference obvious. |
+
+---
+
+### 15.4 Score Breakdown Gating
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 15.4.1 | Show score number on free tier, lock breakdown | ⬜ Missing | M | Free users see their HomeFax score (e.g., "74") but the four scoring pillars (Verified Jobs, Investment Value, Property Verification, Service Diversity) are replaced with a locked card: "See exactly what's dragging your score down — upgrade to Pro." |
+| 15.4.2 | Lock improvement recommendations on free tier | ⬜ Missing | S | The "How to improve your score" action list (currently shown on Dashboard and PropertyDetailPage) is Pro-only. Free users see: "3 actions available — upgrade to see them." |
+| 15.4.3 | Show full breakdown in score cert for Pro+ | ⬜ Missing | S | `ScoreCertPage` shows full breakdown for Pro+. Free users who earn a cert (score ≥88) still get the cert number, but the detailed sub-scores are blurred with an upgrade prompt. |
+
+---
+
+### 15.5 Predictive Maintenance Gating
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 15.5.1 | Restrict free tier to current-month maintenance view | ⬜ Missing | M | In `PredictiveMaintenancePage`, free users see only the current month's tasks. The 5-year calendar tab is replaced with a locked state: "See your full 5-year maintenance plan and cost estimates — upgrade to Pro." The urgency here is real: buyers ask "when is the HVAC due?" and only Pro can answer confidently. |
+| 15.5.2 | Lock per-task cost estimates on free tier | ⬜ Missing | S | The dollar ranges on each maintenance task (e.g., "$3,200–$5,800 to replace") are Pro-only. Free users see task names and urgency levels, but costs are hidden behind a blur with upgrade CTA. |
+
+---
+
+### 15.6 Feature Locks — High-Value Pages
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 15.6.1 | Lock Recurring Services on free tier | ⬜ Missing | S | Free users who navigate to `/recurring/new` see an upgrade gate page instead of the create form: "Recurring service contracts are a Pro feature — track lawn care, pest control, and pool maintenance with a Pro plan." This is a strong differentiator because contract continuity is exactly what buyers want to see. |
+| 15.6.2 | Lock Market Intelligence on free tier | ⬜ Missing | S | `MarketIntelligencePage` shows a locked state for free users: "See how your home's maintenance investment compares to your neighbors — upgrade to Pro." The competitive positioning data is pure selling value and has no place on a free tier. |
+| 15.6.3 | Lock Warranty Wallet on free tier | ⬜ Missing | S | `WarrantyWalletPage` shows a locked state: "Track active warranties and get expiry alerts — upgrade to Pro." Warranty data is high perceived value (especially for HVAC, roof, appliances) and easy to gate. |
+| 15.6.4 | Lock Agent Marketplace and FSBO on free tier | ⬜ Missing | S | Both the listing bid request flow (Section 9) and FSBO mode (Section 10) require Pro or Premium. Free users who navigate to these flows see: "Selling your home? Upgrade to Pro to make agents compete for your listing — or go FSBO with our full toolkit." This is the highest-value gate of all. |
+| 15.6.5 | Lock Insurance Defense on free tier | ⬜ Missing | S | `InsuranceDefensePage` is Pro-only. Free users see a locked state: "Build your evidence file for insurance claims — upgrade to Pro." |
+
+---
+
+### 15.7 Upgrade Prompts & Conversion UX
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 15.7.1 | Consistent upgrade gate component | ⬜ Missing | M | Build a reusable `<UpgradeGate feature="..." description="..." />` component that renders the locked state (blurred preview + upgrade CTA) used across 15.4–15.6. Ensures all gates look identical and link to the same `/pricing` page with the relevant feature highlighted. |
+| 15.7.2 | Upgrade prompt on Dashboard for free users | ⬜ Missing | S | Free users see a persistent (but dismissible) upgrade banner on the Dashboard after logging their 3rd job: "You're building something valuable — unlock the full HomeFax experience." Triggers at job #3, not job #1 (let them get hooked first). |
+| 15.7.3 | Highlight the upgrade moment in email / notification | ⬜ Missing | M | When a free user generates a report (the peak intent moment), send a notification: "Your HomeFax report is live — it expires in 7 days. Upgrade to Pro before you share it with buyers." Requires notification infrastructure to be wired up. |
+| 15.7.4 | Update `PricingPage` feature comparison table | ⬜ Missing | S | Reflect all new gates in the pricing table: add rows for Recurring Services, Market Intelligence, Warranty Wallet, Score Breakdown, 5-Year Maintenance Calendar, Permanent Report Links, Agent Marketplace, FSBO mode. Free column shows ✗ for all new locked items. |
+| 15.7.5 | "You're on Free" tier indicator in Settings | ⬜ Missing | S | `SettingsPage` shows the user's current tier prominently with a one-click upgrade CTA. Currently this exists but should be made more prominent for free users — show what they're missing with a short feature list. |
+
+---
+
+### Priority Tiers — Free Tier Tightening
+
+**Tier 1-FT — Highest Conversion Impact (do first)**
+- 15.2.1 7-day report link TTL for free tier (the core forcing function)
+- 15.3.2 "Free Plan" banner on public reports (buyer-visible signal)
+- 15.1.1–15.1.2 5-job cap enforcement + UI prompt
+- 15.4.1–15.4.2 Score number visible, breakdown locked
+- 15.7.4 Update pricing page to reflect new gates
+
+**Tier 2-FT — Feature Gates**
+- 15.6.1 Recurring services locked
+- 15.6.2 Market intelligence locked
+- 15.6.3 Warranty wallet locked
+- 15.6.4 Agent marketplace + FSBO locked
+- 15.5.1 Maintenance calendar restricted to current month
+- 15.7.1 Reusable UpgradeGate component
+
+**Tier 3-FT — Polish & Retention**
+- 15.1.3 Job count progress bar on Dashboard
+- 15.2.2–15.2.4 Expiry warnings and better expired-link UX
+- 15.3.1 planTier field on snapshot
+- 15.3.3 Pro trust badge on clean reports
+- 15.4.3 Score cert breakdown for Pro+
+- 15.5.2 Cost estimate blur on maintenance tasks
+- 15.7.2–15.7.3 Dashboard nudge + notification at peak intent moment
+- 15.7.5 Tier indicator prominence in Settings
+
 ### Priority Tiers — Security
 
 **Tier 1-SEC — Fix Before Production (blocking)**
