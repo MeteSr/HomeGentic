@@ -95,8 +95,9 @@ persistent actor Contractor {
 
   // ─── Stable State ─────────────────────────────────────────────────────────────
 
-  private var isPaused:      Bool        = false;
-  private var admins:        [Principal] = [];
+  private var isPaused:           Bool        = false;
+  private var admins:             [Principal] = [];
+  private var adminInitialized:   Bool        = false;
   private var reviewCounter: Nat         = 0;
 
   private var contractorEntries:      [(Principal, ContractorProfile)] = [];
@@ -346,8 +347,9 @@ persistent actor Contractor {
   };
 
   public shared(msg) func addAdmin(newAdmin: Principal) : async Result.Result<(), Error> {
-    if (admins.size() > 0 and not isAdmin(msg.caller)) return #err(#Unauthorized);
+    if (adminInitialized and not isAdmin(msg.caller)) return #err(#Unauthorized);
     admins := Array.append(admins, [newAdmin]);
+    adminInitialized := true;
     #ok(())
   };
 

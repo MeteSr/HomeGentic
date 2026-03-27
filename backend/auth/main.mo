@@ -66,6 +66,7 @@ persistent actor Auth {
 
   private var isPaused: Bool = false;
   private var admins: [Principal] = [];
+  private var adminInitialized: Bool = false;
 
   /// Stable entries for HashMap persistence across upgrades
   private var userEntries: [(Principal, UserProfile)] = [];
@@ -106,8 +107,9 @@ persistent actor Auth {
 
   /// Add a new admin principal
   public shared(msg) func addAdmin(newAdmin: Principal) : async Result.Result<(), Error> {
-    if (admins.size() > 0 and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (adminInitialized and not isAdmin(msg.caller)) return #err(#NotAuthorized);
     admins := Array.append(admins, [newAdmin]);
+    adminInitialized := true;
     #ok(())
   };
 

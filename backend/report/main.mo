@@ -13,16 +13,19 @@
  * exactly as it was when the homeowner generated the report.
  */
 
-import Array    "mo:base/Array";
-import HashMap  "mo:base/HashMap";
-import Int      "mo:base/Int";
-import Iter     "mo:base/Iter";
-import Nat      "mo:base/Nat";
-import Option   "mo:base/Option";
-import Principal "mo:base/Principal";
-import Result   "mo:base/Result";
-import Text     "mo:base/Text";
-import Time     "mo:base/Time";
+import Array     "mo:base/Array";
+import Blob      "mo:base/Blob";
+import HashMap   "mo:base/HashMap";
+import Int        "mo:base/Int";
+import Iter       "mo:base/Iter";
+import Nat        "mo:base/Nat";
+import Nat8       "mo:base/Nat8";
+import Option     "mo:base/Option";
+import Principal  "mo:base/Principal";
+import Random     "mo:base/Random";
+import Result     "mo:base/Result";
+import Text       "mo:base/Text";
+import Time       "mo:base/Time";
 
 persistent actor Report {
 
@@ -127,8 +130,9 @@ persistent actor Report {
   // ─── Stable State ─────────────────────────────────────────────────────────────
 
   private var reportCounter    : Nat       = 0;
-  private var isPaused         : Bool      = false;
-  private var adminListEntries : [Principal] = [];
+  private var isPaused          : Bool        = false;
+  private var adminListEntries  : [Principal] = [];
+  private var adminInitialized  : Bool        = false;
   private var snapshotEntries  : [(Text, ReportSnapshot)] = [];
   private var linkEntries      : [(Text, ShareLink)] = [];
 
@@ -169,11 +173,26 @@ persistent actor Report {
     if (isPaused) #err(#InvalidInput("Canister is paused")) else #ok(())
   };
 
-  private func nextIds() : (Text, Text) {
-    reportCounter += 1;
-    let ts  = Int.abs(Time.now()) / 1_000_000;   // ms since epoch
-    let sid = "SNAP_" # Nat.toText(reportCounter) # "_" # Int.toText(ts);
-    let tok = "RPT_"  # Nat.toText(reportCounter) # "_" # Int.toText(ts);
+  /// Convert a Blob to a lowercase hex string.
+  private func blobToHex(b : Blob) : Text {
+    let hex  = ['0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'];
+    let bytes = Blob.toArray(b);
+    var result = "";
+    for (byte in bytes.vals()) {
+      let n = Nat8.toNat(byte);
+      result #= Text.fromChar(hex[n / 16]);
+      result #= Text.fromChar(hex[n % 16]);
+    };
+    result
+  };
+
+  /// Generate a cryptographically random snapshot ID and share token.
+  /// Uses IC certified randomness — tokens are unguessable and non-sequential.
+  private func nextIds() : async (Text, Text) {
+    let randBytes = await Random.blob();
+    let randHex   = blobToHex(randBytes);
+    let sid = "SNAP_" # randHex;
+    let tok = "RPT_"  # randHex;
     (sid, tok)
   };
 
@@ -258,7 +277,7 @@ persistent actor Report {
       };
     };
 
-    let (snapshotId, token) = nextIds();
+    let (snapshotId, token) = await nextIds();
     let now = Time.now();
 
     let snapshot : ReportSnapshot = {
@@ -382,9 +401,9 @@ persistent actor Report {
   };
 
   public shared(msg) func addAdmin(newAdmin: Principal) : async Result.Result<(), Error> {
-    if (adminListEntries.size() > 0 and not isAdmin(msg.caller))
-      return #err(#Unauthorized);
+    if (adminInitialized and not isAdmin(msg.caller)) return #err(#Unauthorized);
     adminListEntries := Array.append(adminListEntries, [newAdmin]);
+    adminInitialized := true;
     #ok(())
   };
 

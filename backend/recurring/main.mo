@@ -95,6 +95,7 @@ persistent actor Recurring {
   private var visitCounter      : Nat         = 0;
   private var isPaused          : Bool        = false;
   private var adminListEntries  : [Principal] = [];
+  private var adminInitialized  : Bool        = false;
   private var recurringEntries  : [(Text, RecurringService)] = [];
   private var visitEntries      : [(Text, VisitLog)]         = [];
 
@@ -331,9 +332,9 @@ persistent actor Recurring {
   // ─── Admin Functions ──────────────────────────────────────────────────────────
 
   public shared(msg) func addAdmin(newAdmin: Principal) : async Result.Result<(), Error> {
-    if (adminListEntries.size() > 0 and not isAdmin(msg.caller))
-      return #err(#Unauthorized);
+    if (adminInitialized and not isAdmin(msg.caller)) return #err(#Unauthorized);
     adminListEntries := Array.append(adminListEntries, [newAdmin]);
+    adminInitialized := true;
     #ok(())
   };
 
