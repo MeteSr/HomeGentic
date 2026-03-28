@@ -60,6 +60,11 @@ export default function DashboardPage() {
   useEffect(() => {
     loadProperties().then((props) => {
       const list = props ?? [];
+      // Single-property users belong on their property page
+      if (list.length === 1) {
+        navigate(`/properties/${list[0].id}`, { replace: true });
+        return;
+      }
       Promise.all([
         loadAllJobs(list),
         loadQuoteRequests(),

@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Share2, Shield, Wrench, Calendar, DollarSign, AlertCircle, Star } from "lucide-react";
+import { ArrowLeft, Share2, Shield, Wrench, MessageSquare, Calendar, DollarSign, AlertCircle, Star } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { Badge } from "@/components/Badge";
 import { GenerateReportModal } from "@/components/GenerateReportModal";
+import { LogJobModal } from "@/components/LogJobModal";
+import { RequestQuoteModal } from "@/components/RequestQuoteModal";
 import { propertyService, Property } from "@/services/property";
 import { jobService, Job } from "@/services/job";
 import { photoService, Photo } from "@/services/photo";
+import { computeScore, getScoreGrade, recordSnapshot } from "@/services/scoreService";
 import { usePropertyStore } from "@/store/propertyStore";
 import { useAuthStore } from "@/store/authStore";
 import toast from "react-hot-toast";
@@ -37,7 +40,9 @@ export default function PropertyDetailPage() {
   const initialTab = (searchParams.get("tab") as Tab | null) ?? "timeline";
   const [tab, setTab] = useState<Tab>(initialTab);
   const [loading, setLoading] = useState(true);
-  const [showReportModal, setShowReportModal] = useState(false);
+  const [showReportModal,  setShowReportModal]  = useState(false);
+  const [showLogJobModal,  setShowLogJobModal]  = useState(false);
+  const [showQuoteModal,   setShowQuoteModal]   = useState(false);
   const [photosByJob, setPhotosByJob] = useState<Record<string, Photo[]>>({});
 
   useEffect(() => {
@@ -57,6 +62,14 @@ export default function PropertyDetailPage() {
       }).catch(() => {}),
     ]).finally(() => setLoading(false));
   }, [id]);
+
+  // Record score snapshot whenever property + jobs are resolved
+  useEffect(() => {
+    if (!loading && property) {
+      const score = computeScore(jobs, [property]);
+      recordSnapshot(score, String(property.id));
+    }
+  }, [loading, property, jobs]);
 
   const handlePhotoUpload = async (jobId: string, file: File) => {
     try {
@@ -81,6 +94,8 @@ export default function PropertyDetailPage() {
 
   const totalValue = jobService.getTotalValue(jobs);
   const verifiedCount = jobService.getVerifiedCount(jobs);
+  const homefaxScore = property ? computeScore(jobs, [property]) : 0;
+  const scoreGrade   = getScoreGrade(homefaxScore);
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "timeline", label: "Timeline" },
@@ -123,19 +138,21 @@ export default function PropertyDetailPage() {
     <Layout>
       <div style={{ maxWidth: "60rem", margin: "0 auto", padding: "2rem 1.5rem" }}>
 
-        {/* Back */}
-        <button
-          onClick={() => navigate("/dashboard")}
-          style={{
-            display: "flex", alignItems: "center", gap: "0.375rem",
-            fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em",
-            textTransform: "uppercase", color: S.inkLight,
-            background: "none", border: "none", cursor: "pointer",
-            padding: 0, marginBottom: "1.5rem",
-          }}
-        >
-          <ArrowLeft size={14} /> Back to Dashboard
-        </button>
+        {/* Back — hidden for single-property users whose home base is this page */}
+        {storeProperties.length !== 1 && (
+          <button
+            onClick={() => navigate("/dashboard")}
+            style={{
+              display: "flex", alignItems: "center", gap: "0.375rem",
+              fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em",
+              textTransform: "uppercase", color: S.inkLight,
+              background: "none", border: "none", cursor: "pointer",
+              padding: 0, marginBottom: "1.5rem",
+            }}
+          >
+            <ArrowLeft size={14} /> Back to Dashboard
+          </button>
+        )}
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
@@ -150,8 +167,10 @@ export default function PropertyDetailPage() {
               {property.city}, {property.state} {property.zipCode} · {property.propertyType} · Built {String(property.yearBuilt)}
             </p>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
             <Badge variant={verificationColor as any}>{property.verificationLevel}</Badge>
+            <Button variant="outline" icon={<Wrench size={14} />} onClick={() => setShowLogJobModal(true)}>Log Job</Button>
+            <Button variant="outline" icon={<MessageSquare size={14} />} onClick={() => setShowQuoteModal(true)}>Request Quote</Button>
             <Button icon={<Share2 size={14} />} onClick={() => setShowReportModal(true)}>
               Share HomeFax Report
             </Button>
@@ -199,10 +218,10 @@ export default function PropertyDetailPage() {
         )}
 
         {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "1rem", marginBottom: "2rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "1rem", marginBottom: "2rem" }}>
           {[
-            { label: "Total Jobs",   value: jobs.length },
-            { label: "Verified",     value: verifiedCount },
+            { label: "Total Jobs",   value: String(jobs.length) },
+            { label: "Verified",     value: String(verifiedCount) },
             { label: "Value Added",  value: `$${(totalValue / 100).toLocaleString()}` },
           ].map((s) => (
             <div key={s.label} style={{ padding: "1.25rem", borderRadius: RADIUS.card, border: `1px solid ${COLORS.rule}`, background: COLORS.white, boxShadow: SHADOWS.card }}>
@@ -214,6 +233,20 @@ export default function PropertyDetailPage() {
               </div>
             </div>
           ))}
+          {/* HomeFax Score — accent cell */}
+          <div style={{ padding: "1.25rem", borderRadius: RADIUS.card, border: `1px solid ${COLORS.plum}`, background: COLORS.plum, boxShadow: SHADOWS.card }}>
+            <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.6)", marginBottom: "0.5rem" }}>
+              HomeFax Score
+            </div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "0.375rem" }}>
+              <div style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.75rem", lineHeight: 1, color: COLORS.white }}>
+                {homefaxScore}
+              </div>
+              <div style={{ fontFamily: S.mono, fontSize: "0.7rem", color: "rgba(255,255,255,0.7)" }}>
+                {scoreGrade}
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -248,6 +281,22 @@ export default function PropertyDetailPage() {
       {showReportModal && (
         <GenerateReportModal property={property} onClose={() => setShowReportModal(false)} />
       )}
+
+      <LogJobModal
+        isOpen={showLogJobModal}
+        onClose={() => setShowLogJobModal(false)}
+        onSuccess={() => {
+          jobService.getByProperty(id!).then(setJobs).catch(() => {});
+        }}
+        properties={storeProperties.length > 0 ? storeProperties : (property ? [property] : [])}
+      />
+
+      <RequestQuoteModal
+        isOpen={showQuoteModal}
+        onClose={() => setShowQuoteModal(false)}
+        onSuccess={(quoteId) => { setShowQuoteModal(false); navigate(`/quotes/${quoteId}`); }}
+        properties={storeProperties.length > 0 ? storeProperties : (property ? [property] : [])}
+      />
     </Layout>
   );
 }

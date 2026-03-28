@@ -9,6 +9,7 @@ import {
   loginWithLocalIdentity,
 } from "@/services/actor";
 import { authService } from "@/services/auth";
+import { propertyService } from "@/services/property";
 
 interface AuthContextValue {
   login: () => Promise<void>;
@@ -21,6 +22,14 @@ const AuthContext = createContext<AuthContextValue>({
   devLogin: async () => {},
   logout: async () => {},
 });
+
+async function homeownerDestination(): Promise<string> {
+  try {
+    const props = await propertyService.getMyProperties();
+    if (props.length === 1) return `/properties/${props[0].id}`;
+  } catch { /* fall through to dashboard */ }
+  return "/dashboard";
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
@@ -75,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (profile.role === "Contractor") {
         navigate("/contractor-dashboard");
       } else {
-        navigate("/dashboard");
+        navigate(await homeownerDestination());
       }
     } catch {
       navigate("/register");
@@ -93,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (profile.role === "Contractor") {
         navigate("/contractor-dashboard");
       } else {
-        navigate("/dashboard");
+        navigate(await homeownerDestination());
       }
     } catch {
       navigate("/register");
