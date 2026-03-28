@@ -7,11 +7,12 @@ import { Badge } from "@/components/Badge";
 import { GenerateReportModal } from "@/components/GenerateReportModal";
 import { LogJobModal } from "@/components/LogJobModal";
 import { RequestQuoteModal } from "@/components/RequestQuoteModal";
+import { AddRoomModal } from "@/components/AddRoomModal";
 import { propertyService, Property } from "@/services/property";
 import { jobService, Job } from "@/services/job";
 import { photoService, Photo } from "@/services/photo";
 import { computeScore, getScoreGrade, recordSnapshot } from "@/services/scoreService";
-import { roomService, Room as RoomRecord, type CreateRoomArgs, type UpdateRoomArgs, type AddFixtureArgs, type Fixture } from "@/services/room";
+import { roomService, Room as RoomRecord, type UpdateRoomArgs, type AddFixtureArgs, type Fixture } from "@/services/room";
 import { usePropertyStore } from "@/store/propertyStore";
 import { useAuthStore } from "@/store/authStore";
 import toast from "react-hot-toast";
@@ -1529,16 +1530,6 @@ function SettingsTab({ property, currentPrincipal }: { property: Property; curre
 
 const FLOOR_TYPES = ["Hardwood", "Tile", "Carpet", "Laminate", "Vinyl", "Concrete", "Stone", "Other"];
 
-const EMPTY_ROOM_FORM: CreateRoomArgs = {
-  propertyId: "",
-  name: "",
-  floorType: "",
-  paintColor: "",
-  paintBrand: "",
-  paintCode: "",
-  notes: "",
-};
-
 const EMPTY_FIXTURE_FORM: AddFixtureArgs = {
   brand: "",
   model: "",
@@ -1562,7 +1553,6 @@ function RoomsTab({
   onRoomPhotoUpload:  (roomId: string, file: File) => Promise<void>;
 }) {
   const [showAddRoom,    setShowAddRoom]    = useState(false);
-  const [roomForm,       setRoomForm]       = useState<CreateRoomArgs>({ ...EMPTY_ROOM_FORM, propertyId });
   const [savingRoom,     setSavingRoom]     = useState(false);
   const [expandedRoom,   setExpandedRoom]   = useState<string | null>(null);
   const [editingRoom,    setEditingRoom]    = useState<string | null>(null);
@@ -1571,22 +1561,6 @@ function RoomsTab({
   const [fixtureForm,    setFixtureForm]    = useState<AddFixtureArgs>({ ...EMPTY_FIXTURE_FORM });
   const [savingFixture,  setSavingFixture]  = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState<string | null>(null); // roomId being uploaded
-
-  const handleCreateRoom = async () => {
-    if (!roomForm.name.trim()) return;
-    setSavingRoom(true);
-    try {
-      const room = await roomService.createRoom({ ...roomForm, propertyId });
-      onRoomsChange([...rooms, room]);
-      setRoomForm({ ...EMPTY_ROOM_FORM, propertyId });
-      setShowAddRoom(false);
-      setExpandedRoom(room.id);
-    } catch (err: any) {
-      toast.error(err.message ?? "Failed to create room");
-    } finally {
-      setSavingRoom(false);
-    }
-  };
 
   const handleUpdateRoom = async (id: string) => {
     if (!editForm || !editForm.name.trim()) return;
@@ -1651,67 +1625,24 @@ function RoomsTab({
 
   return (
     <div>
+      {/* Add Room modal */}
+      <AddRoomModal
+        isOpen={showAddRoom}
+        onClose={() => setShowAddRoom(false)}
+        propertyId={propertyId}
+        onSuccess={(room) => {
+          onRoomsChange([...rooms, room]);
+          setExpandedRoom(room.id);
+        }}
+      />
+
       {/* Header row */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
         <p style={{ fontFamily: FONTS.sans, fontSize: "0.85rem", color: COLORS.plumMid, fontWeight: 300 }}>
           Track finishes, paint, and appliances room by room.
         </p>
-        {!showAddRoom && (
-          <Button size="sm" onClick={() => setShowAddRoom(true)}>+ Add Room</Button>
-        )}
+        <Button size="sm" onClick={() => setShowAddRoom(true)}>+ Add Room</Button>
       </div>
-
-      {/* Add Room form */}
-      {showAddRoom && (
-        <div style={{ border: `1px solid ${COLORS.sage}`, padding: "1.25rem", marginBottom: "1.25rem", background: COLORS.sageLight }}>
-          <p style={{ fontFamily: FONTS.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.sage, marginBottom: "1rem" }}>
-            New Room
-          </p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "0.75rem" }}>
-            <div>
-              <label style={labelStyle}>Room Name *</label>
-              <input style={inputStyle} placeholder="e.g. Kitchen" value={roomForm.name}
-                onChange={(e) => setRoomForm((f) => ({ ...f, name: e.target.value }))} />
-            </div>
-            <div>
-              <label style={labelStyle}>Floor Type</label>
-              <select style={inputStyle} value={roomForm.floorType}
-                onChange={(e) => setRoomForm((f) => ({ ...f, floorType: e.target.value }))}>
-                <option value="">— Select —</option>
-                {FLOOR_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={labelStyle}>Paint Color</label>
-              <input style={inputStyle} placeholder="e.g. Agreeable Gray" value={roomForm.paintColor}
-                onChange={(e) => setRoomForm((f) => ({ ...f, paintColor: e.target.value }))} />
-            </div>
-            <div>
-              <label style={labelStyle}>Paint Brand</label>
-              <input style={inputStyle} placeholder="e.g. Sherwin-Williams" value={roomForm.paintBrand}
-                onChange={(e) => setRoomForm((f) => ({ ...f, paintBrand: e.target.value }))} />
-            </div>
-            <div>
-              <label style={labelStyle}>Paint Code</label>
-              <input style={inputStyle} placeholder="e.g. SW 7029" value={roomForm.paintCode}
-                onChange={(e) => setRoomForm((f) => ({ ...f, paintCode: e.target.value }))} />
-            </div>
-          </div>
-          <div style={{ marginBottom: "1rem" }}>
-            <label style={labelStyle}>Notes</label>
-            <textarea style={{ ...inputStyle, minHeight: "4rem", resize: "vertical" }} placeholder="Anything useful to remember about this room…"
-              value={roomForm.notes} onChange={(e) => setRoomForm((f) => ({ ...f, notes: e.target.value }))} />
-          </div>
-          <div style={{ display: "flex", gap: "0.5rem" }}>
-            <Button size="sm" onClick={handleCreateRoom} disabled={savingRoom || !roomForm.name.trim()}>
-              {savingRoom ? "Saving…" : "Save Room"}
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => { setShowAddRoom(false); setRoomForm({ ...EMPTY_ROOM_FORM, propertyId }); }}>
-              Cancel
-            </Button>
-          </div>
-        </div>
-      )}
 
       {/* Room list */}
       {rooms.length === 0 && !showAddRoom && (
