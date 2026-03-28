@@ -86,6 +86,19 @@ export default function PropertyDetailPage() {
     }
   };
 
+  const handleRoomPhotoUpload = async (roomId: string, file: File) => {
+    try {
+      const photo = await photoService.uploadRoomPhoto(file, roomId, id!, "PostConstruction", "Room photo");
+      const key = `ROOM_${roomId}`;
+      setPhotosByJob((prev) => ({
+        ...prev,
+        [key]: [...(prev[key] ?? []), photo],
+      }));
+    } catch (err: any) {
+      toast.error(err.message ?? "Photo upload failed");
+    }
+  };
+
   const handleVerify = async (jobId: string) => {
     try {
       const updated = await jobService.verifyJob(jobId);
@@ -278,7 +291,7 @@ export default function PropertyDetailPage() {
 
         {tab === "timeline"  && <TimelineTab property={property} jobs={jobs} onVerify={handleVerify} currentPrincipal={principal} photosByJob={photosByJob} onPhotoUpload={handlePhotoUpload} />}
         {tab === "jobs"      && <JobsTab jobs={jobs} />}
-        {tab === "rooms"     && <RoomsTab propertyId={id!} rooms={rooms} onRoomsChange={setRooms} />}
+        {tab === "rooms"     && <RoomsTab propertyId={id!} rooms={rooms} onRoomsChange={setRooms} photosByJob={photosByJob} onRoomPhotoUpload={handleRoomPhotoUpload} />}
         {tab === "documents" && <DocumentsTab propertyId={id!} />}
         {tab === "settings"  && <SettingsTab property={property} currentPrincipal={principal ?? ""} />}
       </div>
@@ -709,7 +722,7 @@ function TimelineTab({ property, jobs, onVerify, currentPrincipal, photosByJob, 
                   )}
 
                   {expandedJobId === job.id && (
-                    <div style={{ marginTop: "0.625rem", padding: "0.75rem", background: S.paper, border: `1px solid ${S.rule}`, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                    <div style={{ marginTop: "0.625rem", padding: "0.75rem", background: COLORS.white, border: `1px solid ${S.rule}`, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                       {job.permitNumber && (
                         <div style={{ display: "flex", gap: "0.75rem" }}>
                           <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight, width: "6rem", flexShrink: 0 }}>Permit #</span>
@@ -1539,10 +1552,14 @@ function RoomsTab({
   propertyId,
   rooms,
   onRoomsChange,
+  photosByJob,
+  onRoomPhotoUpload,
 }: {
-  propertyId:    string;
-  rooms:         RoomRecord[];
-  onRoomsChange: (rooms: RoomRecord[]) => void;
+  propertyId:         string;
+  rooms:              RoomRecord[];
+  onRoomsChange:      (rooms: RoomRecord[]) => void;
+  photosByJob:        Record<string, Photo[]>;
+  onRoomPhotoUpload:  (roomId: string, file: File) => Promise<void>;
 }) {
   const [showAddRoom,    setShowAddRoom]    = useState(false);
   const [roomForm,       setRoomForm]       = useState<CreateRoomArgs>({ ...EMPTY_ROOM_FORM, propertyId });
@@ -1553,6 +1570,7 @@ function RoomsTab({
   const [addFixtureRoom, setAddFixtureRoom] = useState<string | null>(null);
   const [fixtureForm,    setFixtureForm]    = useState<AddFixtureArgs>({ ...EMPTY_FIXTURE_FORM });
   const [savingFixture,  setSavingFixture]  = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState<string | null>(null); // roomId being uploaded
 
   const handleCreateRoom = async () => {
     if (!roomForm.name.trim()) return;
@@ -1745,7 +1763,7 @@ function RoomsTab({
 
                   {/* Edit form */}
                   {isEditing && editForm && (
-                    <div style={{ marginBottom: "1.25rem", padding: "1rem", background: COLORS.paper, border: `1px solid ${COLORS.rule}` }}>
+                    <div style={{ marginBottom: "1.25rem", padding: "1rem", background: COLORS.white, border: `1px solid ${COLORS.rule}` }}>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "0.75rem" }}>
                         <div>
                           <label style={labelStyle}>Room Name *</label>
@@ -1797,6 +1815,53 @@ function RoomsTab({
                     </p>
                   )}
 
+                  {/* Photo gallery */}
+                  {(() => {
+                    const roomPhotos = photosByJob[`ROOM_${room.id}`] ?? [];
+                    return (
+                      <div style={{ marginBottom: "1rem" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                          <span style={{ fontFamily: FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid }}>
+                            Photos{roomPhotos.length > 0 ? ` (${roomPhotos.length})` : ""}
+                          </span>
+                          <label style={{ fontFamily: FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.sage, cursor: "pointer" }}>
+                            {uploadingPhoto === room.id ? "Uploading…" : "+ Add Photo"}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              style={{ display: "none" }}
+                              disabled={uploadingPhoto === room.id}
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                setUploadingPhoto(room.id);
+                                try { await onRoomPhotoUpload(room.id, file); }
+                                finally { setUploadingPhoto(null); e.target.value = ""; }
+                              }}
+                            />
+                          </label>
+                        </div>
+                        {roomPhotos.length > 0 && (
+                          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                            {roomPhotos.map((photo) => (
+                              <img
+                                key={photo.id}
+                                src={photo.url}
+                                alt={photo.description || "Room photo"}
+                                style={{ width: "5rem", height: "5rem", objectFit: "cover", border: `1px solid ${COLORS.rule}` }}
+                              />
+                            ))}
+                          </div>
+                        )}
+                        {roomPhotos.length === 0 && (
+                          <p style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: COLORS.plumMid, fontWeight: 300, fontStyle: "italic" }}>
+                            No photos yet.
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   {/* Fixtures */}
                   <div style={{ marginBottom: "0.75rem" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
@@ -1813,7 +1878,7 @@ function RoomsTab({
 
                     {/* Add fixture form */}
                     {addFixtureRoom === room.id && (
-                      <div style={{ border: `1px solid ${COLORS.rule}`, padding: "1rem", marginBottom: "0.75rem", background: COLORS.paper }}>
+                      <div style={{ border: `1px solid ${COLORS.rule}`, padding: "1rem", marginBottom: "0.75rem", background: COLORS.white }}>
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.625rem", marginBottom: "0.625rem" }}>
                           <div>
                             <label style={labelStyle}>Brand</label>

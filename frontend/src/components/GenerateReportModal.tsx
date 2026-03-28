@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { X, Link2, Copy, CheckCircle, Trash2, Shield, Eye, Clock, EyeOff } from "lucide-react";
 import { Button } from "@/components/Button";
-import { reportService, ShareLink, propertyToInput, jobToInput, DisclosureOptions } from "@/services/report";
+import { reportService, ShareLink, propertyToInput, jobToInput, roomToInput, DisclosureOptions } from "@/services/report";
+import { roomService } from "@/services/room";
 import { agentProfileService } from "@/services/agentProfile";
 import { jobService } from "@/services/job";
 import { recurringService } from "@/services/recurringService";
@@ -70,9 +71,10 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
   const handleGenerate = async () => {
     setGenerating(true);
     try {
-      const [jobs, recurringList] = await Promise.all([
+      const [jobs, recurringList, roomList] = await Promise.all([
         jobService.getByProperty(propertyId),
         recurringService.getByProperty(propertyId).catch(() => []),
+        roomService.getRoomsByProperty(propertyId).catch(() => []),
       ]);
       const score        = computeScore(jobs, [property]);
       const grade        = getScoreGrade(score);
@@ -91,6 +93,7 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
         propertyToInput(property),
         jobs.map(jobToInput),
         recurringSummaries,
+        roomList.map(roomToInput),
         expiryDays,
         "Public"
       );

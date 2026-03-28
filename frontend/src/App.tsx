@@ -21,6 +21,7 @@ import ContractorPublicPage from "@/pages/ContractorPublicPage";
 import ContractorBrowsePage from "@/pages/ContractorBrowsePage";
 import MarketIntelligencePage from "@/pages/MarketIntelligencePage";
 import ReportPage from "@/pages/ReportPage";
+import BadgePage from "@/pages/BadgePage";
 import ScoreCertPage from "@/pages/ScoreCertPage";
 import PredictiveMaintenancePage from "@/pages/PredictiveMaintenancePage";
 import PropertyVerifyPage from "@/pages/PropertyVerifyPage";
@@ -280,6 +281,7 @@ export default function App() {
         />
         {/* Public — no auth required */}
         <Route path="/report/:token" element={<ReportPage />} />
+        <Route path="/badge/:token"  element={<BadgePage />} />
         <Route path="/cert/:token"   element={<ScoreCertPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

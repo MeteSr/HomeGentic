@@ -436,6 +436,50 @@ export default function ReportPage() {
           </div>
         )}
 
+        {/* Room Inventory */}
+        {snapshot.rooms && snapshot.rooms.length > 0 && (
+          <div style={{ marginBottom: "2.5rem" }}>
+            <SectionHeader title="Room Inventory" icon={<FileText size={14} color={S.inkLight} />} />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(13rem, 1fr))", gap: "1rem" }}>
+              {snapshot.rooms.map((room, i) => (
+                <div key={i} style={{ border: `1px solid ${S.rule}`, padding: "1rem 1.25rem", background: COLORS.white }}>
+                  <p style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.7rem", letterSpacing: "0.08em", color: S.ink, marginBottom: "0.625rem" }}>
+                    {room.name}
+                  </p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+                    {room.floorType && (
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+                        <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight }}>Floor</span>
+                        <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.ink }}>{room.floorType}</span>
+                      </div>
+                    )}
+                    {room.paintColor && (
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+                        <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight }}>Paint</span>
+                        <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.ink }}>
+                          {room.paintColor}{room.paintCode ? ` · ${room.paintCode}` : ""}
+                        </span>
+                      </div>
+                    )}
+                    {room.paintBrand && (
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+                        <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight }}>Brand</span>
+                        <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.ink }}>{room.paintBrand}</span>
+                      </div>
+                    )}
+                    {room.fixtureCount > 0 && (
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+                        <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight }}>Fixtures</span>
+                        <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.ink }}>{room.fixtureCount}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Active Warranties */}
         {(() => {
           const today = Date.now();
