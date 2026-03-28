@@ -53,6 +53,7 @@ export default function DashboardPage() {
   const [scoreGoal, setScoreGoalState] = useState<number | null>(null);
   const [milestoneDismissed,    setMilestoneDismissed]    = useState(() => !!localStorage.getItem("homefax_milestone_dismissed"));
   const [milestone3Dismissed,   setMilestone3Dismissed]   = useState(() => !!localStorage.getItem("homefax_3job_milestone"));
+  const [upgradeBannerDismissed, setUpgradeBannerDismissed] = useState(() => !!localStorage.getItem("homefax_upgrade_banner_dismissed"));
   const [pulseDismissed,        setPulseDismissed]        = useState(() => !!localStorage.getItem(`homefax_pulse_${new Date().toISOString().slice(0, 7)}`));
   const [scoreIncreaseDismissed, setScoreIncreaseDismissed] = useState(() => false);
   const [scoreHistory, setScoreHistory] = useState<ScoreSnapshot[]>([]);
@@ -543,6 +544,43 @@ export default function DashboardPage() {
             >
               <X size={15} />
             </button>
+          </div>
+        )}
+
+        {/* Free-tier upgrade nudge — shown after 3rd job logged (15.7.2) */}
+        {!loading && userTier === "Free" && jobs.length >= 3 && !upgradeBannerDismissed && (
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem",
+            border: `1.5px solid ${COLORS.sageMid}`, padding: "1rem 1.25rem", marginBottom: "2rem",
+            background: COLORS.sageLight, flexWrap: "wrap", borderRadius: RADIUS.sm,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.875rem", flex: 1 }}>
+              <div style={{ width: "2rem", height: "2rem", border: `2px solid ${S.sage}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: RADIUS.sm, fontSize: "1rem" }}>
+                🔓
+              </div>
+              <div>
+                <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: S.sage, marginBottom: "0.2rem" }}>
+                  Upgrade to Pro
+                </p>
+                <p style={{ fontSize: "0.875rem", fontWeight: 300, color: S.ink }}>
+                  You've logged <strong style={{ fontWeight: 600 }}>{jobs.length} jobs</strong>. Unlock score breakdowns, warranty tracking, and full report sharing with Pro.
+                </p>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexShrink: 0 }}>
+              <button
+                onClick={() => navigate("/pricing")}
+                style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.45rem 1rem", border: "none", background: S.sage, color: COLORS.white, cursor: "pointer", borderRadius: RADIUS.sm, fontWeight: 600 }}
+              >
+                See Plans →
+              </button>
+              <button
+                onClick={() => { localStorage.setItem("homefax_upgrade_banner_dismissed", "1"); setUpgradeBannerDismissed(true); }}
+                style={{ background: "none", border: "none", cursor: "pointer", color: S.inkLight }}
+              >
+                <X size={15} />
+              </button>
+            </div>
           </div>
         )}
 
