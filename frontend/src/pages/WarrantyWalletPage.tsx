@@ -4,6 +4,8 @@ import { ArrowLeft, ShieldCheck, AlertTriangle, Clock } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { jobService, Job } from "@/services/job";
 import { propertyService, Property } from "@/services/property";
+import { paymentService, type PlanTier } from "@/services/payment";
+import { UpgradeGate } from "@/components/UpgradeGate";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 
 const S = {
@@ -155,8 +157,10 @@ export default function WarrantyWalletPage() {
   const navigate = useNavigate();
   const [warrantyJobs, setWarrantyJobs] = useState<WarrantyJob[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [userTier, setUserTier] = useState<PlanTier>("Free");
 
   useEffect(() => {
+    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch(() => {});
     Promise.all([
       jobService.getAll(),
       propertyService.getMyProperties(),
@@ -179,6 +183,20 @@ export default function WarrantyWalletPage() {
   const expiring = warrantyJobs.filter((w) => w.status === "expiring");
   const active   = warrantyJobs.filter((w) => w.status === "active");
   const expired  = warrantyJobs.filter((w) => w.status === "expired");
+
+  if (userTier === "Free") {
+    return (
+      <Layout>
+        <div style={{ maxWidth: "48rem", margin: "0 auto", padding: "2rem 1.5rem" }}>
+          <UpgradeGate
+            feature="Warranty Wallet"
+            description="Track active warranties across all your appliances and systems — and get alerts before they expire."
+            icon="🛡️"
+          />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

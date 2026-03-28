@@ -16,6 +16,8 @@ import { usePropertyStore } from "@/store/propertyStore";
 import { isNewSince, hasQuoteActivity, pendingQuoteCount } from "@/services/notifications";
 import { computeScore, getScoreGrade, loadHistory, recordSnapshot, scoreDelta, premiumEstimate, isCertified, type ScoreSnapshot } from "@/services/scoreService";
 import { certService } from "@/services/cert";
+import { paymentService, type PlanTier } from "@/services/payment";
+import { UpgradeGate } from "@/components/UpgradeGate";
 import { getWeeklyPulse } from "@/services/pulseService";
 import { marketService, jobToSummary, type PropertyProfile, type ProjectRecommendation } from "@/services/market";
 import { getRecentScoreEvents, categoryColor, categoryBg, type ScoreEvent } from "@/services/scoreEventService";
@@ -57,6 +59,7 @@ export default function DashboardPage() {
   const [showLogJobModal,  setShowLogJobModal]  = useState(false);
   const [logJobPrefill,    setLogJobPrefill]    = useState<{ serviceType?: string; contractorName?: string } | undefined>(undefined);
   const [showQuoteModal,   setShowQuoteModal]   = useState(false);
+  const [userTier,         setUserTier]         = useState<PlanTier>("Free");
 
   useEffect(() => {
     loadProperties().then((props) => {
@@ -70,6 +73,7 @@ export default function DashboardPage() {
         loadAllJobs(list),
         loadQuoteRequests(),
         loadRecurringServices(),
+        paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch(() => {}),
       ]).finally(() => setLoading(false));
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -699,7 +703,14 @@ export default function DashboardPage() {
               <span style={{ flex: 1 }}>How is my HomeFax Score calculated?</span>
               <span style={{ fontSize: "0.75rem" }}>{showScoreBreakdown ? "▲" : "▼"}</span>
             </button>
-            {showScoreBreakdown && (
+            {showScoreBreakdown && userTier === "Free" && (
+              <UpgradeGate
+                feature="Score Breakdown"
+                description="See exactly which factors are dragging your score down — and what to fix first."
+                style={{ borderRadius: `0 0 ${RADIUS.card}px ${RADIUS.card}px`, borderTop: "none" }}
+              />
+            )}
+            {showScoreBreakdown && userTier !== "Free" && (
               <div style={{ border: `1px solid ${S.rule}`, borderTop: "none", background: COLORS.white, borderRadius: `0 0 ${RADIUS.card}px ${RADIUS.card}px`, overflow: "hidden" }}>
                 {scoreBreakdown.map((row) => (
                   <div key={row.label} style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.875rem 1rem", borderBottom: `1px solid ${S.rule}` }}>

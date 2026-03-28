@@ -11,7 +11,9 @@ import {
   CompetitiveAnalysis,
   ProjectRecommendation,
 } from "@/services/market";
+import { paymentService, type PlanTier } from "@/services/payment";
 import { usePropertyStore } from "@/store/propertyStore";
+import { UpgradeGate } from "@/components/UpgradeGate";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 
 type Tab = "competitive" | "projects";
@@ -68,11 +70,13 @@ export default function MarketIntelligencePage() {
   const [budget, setBudget] = useState("50000");
   const [sortBy, setSortBy] = useState<SortBy>("roi");
   const [loading, setLoading] = useState(false);
+  const [userTier, setUserTier] = useState<PlanTier>("Free");
 
   useEffect(() => {
     if (properties.length > 0 && !selectedId) {
       setSelectedId(String(properties[0].id));
     }
+    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch(() => {});
   }, [properties]);
 
   const runAnalysis = async () => {
@@ -109,6 +113,20 @@ export default function MarketIntelligencePage() {
       setLoading(false);
     }
   };
+
+  if (userTier === "Free") {
+    return (
+      <Layout>
+        <div style={{ maxWidth: "60rem", margin: "0 auto", padding: "2rem 1.5rem" }}>
+          <UpgradeGate
+            feature="Market Intelligence"
+            description="See how your home's maintenance investment stacks up against comparable properties — and which projects will move the needle most."
+            icon="📊"
+          />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

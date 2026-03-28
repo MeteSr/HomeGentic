@@ -4,7 +4,9 @@ import { ArrowLeft, CheckCircle } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { recurringService, RecurringServiceType, Frequency, SERVICE_TYPE_LABELS, FREQUENCY_LABELS } from "@/services/recurringService";
+import { paymentService, type PlanTier } from "@/services/payment";
 import { usePropertyStore } from "@/store/propertyStore";
+import { UpgradeGate } from "@/components/UpgradeGate";
 import toast from "react-hot-toast";
 import { COLORS, FONTS } from "@/theme";
 
@@ -33,6 +35,11 @@ export default function RecurringServiceCreatePage() {
   const [loading, setLoading]   = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [createdName, setCreatedName] = useState("");
+  const [userTier, setUserTier] = useState<PlanTier>("Free");
+
+  useEffect(() => {
+    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch(() => {});
+  }, []);
   const [form, setForm] = useState({
     propertyId:      "",
     serviceType:     "LawnCare"     as RecurringServiceType,
@@ -120,6 +127,20 @@ export default function RecurringServiceCreatePage() {
               Add another
             </button>
           </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (userTier === "Free") {
+    return (
+      <Layout>
+        <div style={{ maxWidth: "38rem", margin: "0 auto", padding: "2rem 1.5rem" }}>
+          <UpgradeGate
+            feature="Recurring Services"
+            description="Track lawn care, pest control, pool maintenance, and more — and show buyers your complete service history."
+            icon="🔄"
+          />
         </div>
       </Layout>
     );
