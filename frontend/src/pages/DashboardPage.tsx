@@ -4,6 +4,8 @@ import { Home, Plus, Wrench, MessageSquare, Sparkles, ArrowRight, X, ShieldCheck
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { Badge } from "@/components/Badge";
+import { LogJobModal } from "@/components/LogJobModal";
+import { RequestQuoteModal } from "@/components/RequestQuoteModal";
 import { propertyService, Property } from "@/services/property";
 import { jobService, Job } from "@/services/job";
 import { quoteService, QuoteRequest } from "@/services/quote";
@@ -52,6 +54,9 @@ export default function DashboardPage() {
   const [pulseDismissed,        setPulseDismissed]        = useState(() => !!localStorage.getItem(`homefax_pulse_${new Date().toISOString().slice(0, 7)}`));
   const [scoreIncreaseDismissed, setScoreIncreaseDismissed] = useState(() => false);
   const [scoreHistory, setScoreHistory] = useState<ScoreSnapshot[]>([]);
+  const [showLogJobModal,  setShowLogJobModal]  = useState(false);
+  const [logJobPrefill,    setLogJobPrefill]    = useState<{ serviceType?: string; contractorName?: string } | undefined>(undefined);
+  const [showQuoteModal,   setShowQuoteModal]   = useState(false);
 
   useEffect(() => {
     Promise.all([loadProperties(), loadJobs(), loadQuoteRequests(), loadRecurringServices()]).finally(() => setLoading(false));
@@ -303,7 +308,7 @@ export default function DashboardPage() {
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem",
             border: `1px solid ${S.rust}`, padding: "1rem 1.25rem", marginBottom: "2rem",
-            background: COLORS.sageLight, flexWrap: "wrap",
+            background: COLORS.sageLight, flexWrap: "wrap", borderRadius: RADIUS.sm,
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
               <Sparkles size={16} color={S.rust} style={{ flexShrink: 0 }} />
@@ -326,6 +331,7 @@ export default function DashboardPage() {
                   padding: "0.5rem 1rem", background: S.rust, color: "#fff",
                   border: "none", fontFamily: S.mono, fontSize: "0.65rem",
                   letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer",
+                  borderRadius: RADIUS.pill,
                 }}
               >
                 Continue setup <ArrowRight size={12} />
@@ -342,7 +348,7 @@ export default function DashboardPage() {
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem",
             border: `1px solid ${S.rust}`, padding: "1rem 1.25rem", marginBottom: "2rem",
-            background: S.ink, flexWrap: "wrap",
+            background: S.ink, flexWrap: "wrap", borderRadius: RADIUS.sm,
           }}>
             <div>
               <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.rust, marginBottom: "0.25rem" }}>
@@ -354,7 +360,7 @@ export default function DashboardPage() {
               </p>
               <button
                 onClick={() => navigate("/resale-ready")}
-                style={{ marginTop: "0.5rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 1rem", border: `1px solid ${S.rust}`, background: "none", color: S.rust, cursor: "pointer" }}
+                style={{ marginTop: "0.5rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 1rem", border: `1px solid ${S.rust}`, background: "none", color: S.rust, cursor: "pointer", borderRadius: RADIUS.sm }}
               >
                 View Resale Summary →
               </button>
@@ -373,10 +379,10 @@ export default function DashboardPage() {
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem",
             border: `1px solid ${S.sage}`, padding: "1rem 1.25rem", marginBottom: "2rem",
-            background: COLORS.sageLight, flexWrap: "wrap",
+            background: COLORS.sageLight, flexWrap: "wrap", borderRadius: RADIUS.sm,
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
-              <div style={{ width: "2rem", height: "2rem", border: `2px solid ${S.sage}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: S.sage }}>
+              <div style={{ width: "2rem", height: "2rem", border: `2px solid ${S.sage}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: S.sage, borderRadius: RADIUS.sm }}>
                 <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "0.875rem" }}>3</span>
               </div>
               <div>
@@ -402,10 +408,10 @@ export default function DashboardPage() {
           <div style={{
             display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem",
             border: `1px solid ${S.rule}`, padding: "1rem 1.25rem", marginBottom: "2rem",
-            background: "#fff", flexWrap: "wrap",
+            background: "#fff", flexWrap: "wrap", borderRadius: RADIUS.sm,
           }}>
             <div style={{ display: "flex", gap: "0.875rem", flex: 1 }}>
-              <div style={{ width: "2rem", height: "2rem", border: `1px solid ${S.rule}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: "0.125rem" }}>
+              <div style={{ width: "2rem", height: "2rem", border: `1px solid ${S.rule}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: "0.125rem", borderRadius: RADIUS.sm }}>
                 <Sparkles size={13} color={S.rust} />
               </div>
               <div>
@@ -413,7 +419,7 @@ export default function DashboardPage() {
                   <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.rust }}>
                     Home Pulse
                   </p>
-                  <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight, border: `1px solid ${S.rule}`, padding: "0.05rem 0.375rem" }}>
+                  <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight, border: `1px solid ${S.rule}`, padding: "0.05rem 0.375rem", borderRadius: 100 }}>
                     {pulseTip.category}
                   </span>
                 </div>
@@ -435,10 +441,10 @@ export default function DashboardPage() {
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem",
             border: `1px solid ${S.rule}`, padding: "1rem 1.25rem", marginBottom: "2rem",
-            background: "#fff", flexWrap: "wrap",
+            background: "#fff", flexWrap: "wrap", borderRadius: RADIUS.sm,
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-              <div style={{ width: "2rem", height: "2rem", border: `1px solid ${S.rule}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <div style={{ width: "2rem", height: "2rem", border: `1px solid ${S.rule}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: RADIUS.sm }}>
                 <Sparkles size={13} color={S.inkLight} />
               </div>
               <div>
@@ -451,11 +457,12 @@ export default function DashboardPage() {
               </div>
             </div>
             <button
-              onClick={() => navigate("/jobs/new")}
+              onClick={() => { setLogJobPrefill(undefined); setShowLogJobModal(true); }}
               style={{
                 fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase",
                 padding: "0.5rem 1rem", background: S.ink, color: S.paper,
                 border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.375rem", flexShrink: 0,
+                borderRadius: RADIUS.pill,
               }}
             >
               Log a Job <ArrowRight size={12} />
@@ -468,7 +475,7 @@ export default function DashboardPage() {
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem",
             border: `1px solid ${COLORS.sageMid}`, padding: "0.875rem 1.25rem", marginBottom: "1.5rem",
-            background: COLORS.sageLight, flexWrap: "wrap",
+            background: COLORS.sageLight, flexWrap: "wrap", borderRadius: RADIUS.sm,
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
               <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.sage }}>
@@ -524,7 +531,7 @@ export default function DashboardPage() {
 
         {/* Score history chart */}
         {showScoreChart && scoreHistory.length >= 2 && (
-          <div style={{ marginBottom: "2rem", border: `1px solid ${S.rule}`, background: "#fff" }}>
+          <div style={{ marginBottom: "2rem", border: `1px solid ${S.rule}`, background: "#fff", borderRadius: RADIUS.card, overflow: "hidden" }}>
             <div style={{ padding: "0.75rem 1rem", borderBottom: `1px solid ${S.rule}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: COLORS.white }}>
               <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>Score History</span>
               <button onClick={() => setShowScoreChart(false)} style={{ background: "none", border: "none", cursor: "pointer", color: S.inkLight, fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase" }}>Close ✕</button>
@@ -544,13 +551,14 @@ export default function DashboardPage() {
                 background: showScoreBreakdown ? COLORS.sageLight : COLORS.white,
                 fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase",
                 color: S.inkLight, cursor: "pointer", textAlign: "left",
+                borderRadius: showScoreBreakdown ? `${RADIUS.card}px ${RADIUS.card}px 0 0` : RADIUS.card,
               }}
             >
               <span style={{ flex: 1 }}>How is my HomeFax Score calculated?</span>
               <span style={{ fontSize: "0.75rem" }}>{showScoreBreakdown ? "▲" : "▼"}</span>
             </button>
             {showScoreBreakdown && (
-              <div style={{ border: `1px solid ${S.rule}`, borderTop: "none", background: COLORS.white }}>
+              <div style={{ border: `1px solid ${S.rule}`, borderTop: "none", background: COLORS.white, borderRadius: `0 0 ${RADIUS.card}px ${RADIUS.card}px`, overflow: "hidden" }}>
                 {scoreBreakdown.map((row) => (
                   <div key={row.label} style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.875rem 1rem", borderBottom: `1px solid ${S.rule}` }}>
                     <div style={{ width: "10rem", flexShrink: 0 }}>
@@ -561,8 +569,8 @@ export default function DashboardPage() {
                         {row.detail}
                       </p>
                     </div>
-                    <div style={{ flex: 1, height: "4px", background: S.rule }}>
-                      <div style={{ height: "4px", background: S.rust, width: `${(row.pts / row.max) * 100}%`, transition: "width 0.5s ease" }} />
+                    <div style={{ flex: 1, height: "4px", background: S.rule, borderRadius: 100 }}>
+                      <div style={{ height: "4px", background: S.rust, width: `${(row.pts / row.max) * 100}%`, transition: "width 0.5s ease", borderRadius: 100 }} />
                     </div>
                     <div style={{ width: "4rem", textAlign: "right", flexShrink: 0 }}>
                       <span style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1rem", color: S.ink }}>{row.pts}</span>
@@ -582,7 +590,7 @@ export default function DashboardPage() {
 
         {/* Score Goal Widget */}
         {!loading && hasProperty && (
-          <div style={{ marginBottom: "2.5rem", border: `1px solid ${S.rule}`, background: COLORS.white }}>
+          <div style={{ marginBottom: "2.5rem", border: `1px solid ${S.rule}`, background: COLORS.white, borderRadius: RADIUS.card, overflow: "hidden" }}>
             <div style={{ padding: "0.875rem 1.25rem", borderBottom: `1px solid ${S.rule}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: COLORS.white }}>
               <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
                 Score Goal
@@ -639,7 +647,7 @@ export default function DashboardPage() {
                 </p>
                 <button
                   onClick={() => setScoreGoal(null)}
-                  style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", border: `1px solid ${S.rule}`, background: "none", cursor: "pointer", color: S.inkLight }}
+                  style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", border: `1px solid ${S.rule}`, background: "none", cursor: "pointer", color: S.inkLight, borderRadius: RADIUS.sm }}
                 >
                   Set next goal
                 </button>
@@ -655,12 +663,13 @@ export default function DashboardPage() {
                     Goal: <strong style={{ color: S.rust }}>{scoreGoal}</strong>
                   </span>
                 </div>
-                <div style={{ height: "6px", background: S.rule, marginBottom: "0.75rem" }}>
+                <div style={{ height: "6px", background: S.rule, marginBottom: "0.75rem", borderRadius: 100 }}>
                   <div style={{
                     height: "100%",
                     width: `${(homefaxScore / scoreGoal) * 100}%`,
                     background: `linear-gradient(to right, ${COLORS.sage}, ${COLORS.sageMid})`,
                     transition: "width 0.5s ease",
+                    borderRadius: 100,
                   }} />
                 </div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -670,11 +679,12 @@ export default function DashboardPage() {
                     </p>
                   )}
                   <button
-                    onClick={() => navigate("/jobs/new")}
+                    onClick={() => { setLogJobPrefill(undefined); setShowLogJobModal(true); }}
                     style={{
                       fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase",
                       padding: "0.4rem 0.875rem", background: S.ink, color: S.paper, border: "none", cursor: "pointer",
                       display: "inline-flex", alignItems: "center", gap: "0.375rem", flexShrink: 0, marginLeft: "1rem",
+                      borderRadius: RADIUS.pill,
                     }}
                   >
                     Log a Job <ArrowRight size={11} />
@@ -703,10 +713,10 @@ export default function DashboardPage() {
               {recommendations.map((rec) => {
                 const priorityColor = rec.priority === "High" ? S.rust : rec.priority === "Medium" ? COLORS.plumMid : S.inkLight;
                 return (
-                  <div key={rec.name} style={{ background: COLORS.white, padding: "1.25rem", borderRadius: RADIUS.sm, border: `1px solid ${COLORS.rule}`, display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+                  <div key={rec.name} style={{ background: COLORS.white, padding: "1.25rem", borderRadius: RADIUS.card, border: `1px solid ${COLORS.rule}`, boxShadow: SHADOWS.card, display: "flex", flexDirection: "column", gap: "0.625rem" }}>
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "0.5rem" }}>
                       <p style={{ fontSize: "0.875rem", fontWeight: 600, color: S.ink, lineHeight: 1.2 }}>{rec.name}</p>
-                      <span style={{ fontFamily: S.mono, fontSize: "0.5rem", letterSpacing: "0.1em", textTransform: "uppercase", color: priorityColor, border: `1px solid ${priorityColor}`, padding: "0.1rem 0.4rem", flexShrink: 0, opacity: 0.8 }}>
+                      <span style={{ fontFamily: S.mono, fontSize: "0.5rem", letterSpacing: "0.1em", textTransform: "uppercase", color: priorityColor, border: `1px solid ${priorityColor}`, padding: "0.1rem 0.4rem", flexShrink: 0, opacity: 0.8, borderRadius: 100 }}>
                         {rec.priority}
                       </span>
                     </div>
@@ -724,8 +734,8 @@ export default function DashboardPage() {
                       {rec.rationale}
                     </p>
                     <button
-                      onClick={() => navigate("/jobs/new", { state: { prefill: { serviceType: rec.category } } })}
-                      style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.35rem 0.75rem", border: `1px solid ${S.rule}`, background: "none", color: S.inkLight, cursor: "pointer", alignSelf: "flex-start" }}
+                      onClick={() => { setLogJobPrefill({ serviceType: rec.category }); setShowLogJobModal(true); }}
+                      style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.35rem 0.75rem", border: `1px solid ${S.rule}`, background: "none", color: S.inkLight, cursor: "pointer", alignSelf: "flex-start", borderRadius: RADIUS.sm }}
                     >
                       Log This Job →
                     </button>
@@ -744,7 +754,7 @@ export default function DashboardPage() {
           return (
             <div style={{
               border: `1px solid ${S.rust}30`, padding: "1.25rem 1.5rem", marginBottom: "2.5rem",
-              background: COLORS.sageLight,
+              background: COLORS.sageLight, borderRadius: RADIUS.card,
             }}>
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
                 <div>
@@ -765,7 +775,7 @@ export default function DashboardPage() {
                   <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end", flexWrap: "wrap" }}>
                     <button
                       onClick={() => navigate("/resale-ready")}
-                      style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.375rem 0.875rem", border: `1px solid ${S.rust}`, color: S.rust, background: "none", cursor: "pointer" }}
+                      style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.375rem 0.875rem", border: `1px solid ${S.rust}`, color: S.rust, background: "none", cursor: "pointer", borderRadius: RADIUS.sm }}
                     >
                       See Full Analysis →
                     </button>
@@ -783,7 +793,7 @@ export default function DashboardPage() {
                           navigator.clipboard.writeText(url);
                           toast.success("Lender certificate link copied!");
                         }}
-                        style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.375rem 0.875rem", border: `1px solid ${S.rule}`, color: S.inkLight, background: "none", cursor: "pointer" }}
+                        style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.375rem 0.875rem", border: `1px solid ${S.rule}`, color: S.inkLight, background: "none", cursor: "pointer", borderRadius: RADIUS.sm }}
                       >
                         Copy Cert Link
                       </button>
@@ -810,7 +820,7 @@ export default function DashboardPage() {
                 View all →
               </button>
             </div>
-            <div style={{ border: `1px solid ${S.rule}` }}>
+            <div style={{ border: `1px solid ${S.rule}`, borderRadius: RADIUS.card, overflow: "hidden" }}>
               {expiringWarranties.map((job, i) => {
                 const expiry   = new Date(job.date).getTime() + (job.warrantyMonths ?? 0) * 30.44 * 24 * 60 * 60 * 1000;
                 const daysLeft = Math.round((expiry - Date.now()) / (24 * 60 * 60 * 1000));
@@ -821,7 +831,7 @@ export default function DashboardPage() {
                       <p style={{ fontSize: "0.875rem", fontWeight: 500 }}>{job.serviceType}</p>
                       <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight }}>{job.isDiy ? "DIY" : job.contractorName} · {job.date}</p>
                     </div>
-                    <span style={{ fontFamily: S.mono, fontSize: "0.65rem", fontWeight: 700, color, border: `1px solid ${color}40`, padding: "0.2rem 0.6rem", flexShrink: 0 }}>
+                    <span style={{ fontFamily: S.mono, fontSize: "0.65rem", fontWeight: 700, color, border: `1px solid ${color}40`, padding: "0.2rem 0.6rem", flexShrink: 0, borderRadius: 100 }}>
                       {daysLeft}d left
                     </span>
                   </div>
@@ -837,7 +847,7 @@ export default function DashboardPage() {
             <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "1rem" }}>
               Property Comparison
             </div>
-            <div style={{ border: `1px solid ${S.rule}` }}>
+            <div style={{ border: `1px solid ${S.rule}`, borderRadius: RADIUS.card, overflow: "hidden" }}>
               {/* Header */}
               <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", padding: "0.5rem 1rem", background: S.paper, borderBottom: `1px solid ${S.rule}` }}>
                 {["Address", "Score", "Value Added", "Verified Jobs", "Level"].map((h) => (
@@ -886,8 +896,8 @@ export default function DashboardPage() {
           </div>
           <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
             <Button variant="outline" icon={<Plus size={14} />}          onClick={() => navigate("/properties/new")}>Add Property</Button>
-            <Button variant="outline" icon={<Wrench size={14} />}        onClick={() => navigate("/jobs/new")}>Log a Job</Button>
-            <Button variant="outline" icon={<MessageSquare size={14} />} onClick={() => navigate("/quotes/new")}>Request Quote</Button>
+            <Button variant="outline" icon={<Wrench size={14} />}        onClick={() => { setLogJobPrefill(undefined); setShowLogJobModal(true); }}>Log a Job</Button>
+            <Button variant="outline" icon={<MessageSquare size={14} />} onClick={() => setShowQuoteModal(true)}>Request Quote</Button>
             <Button variant="outline" icon={<Home size={14} />}          onClick={() => navigate("/contractors")}>Find Contractors</Button>
             <Button variant="outline" icon={<ShieldCheck size={14} />}   onClick={() => navigate("/insurance-defense")}>Insurance Defense</Button>
           </div>
@@ -931,19 +941,19 @@ export default function DashboardPage() {
                   Quote Requests
                 </div>
                 {pendingQuoteCount(quoteRequests) > 0 && (
-                  <div style={{ display: "inline-flex", alignItems: "center", padding: "0.1rem 0.5rem", background: S.rust, color: "#fff", fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                  <div style={{ display: "inline-flex", alignItems: "center", padding: "0.1rem 0.5rem", background: S.rust, color: "#fff", fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", borderRadius: 100 }}>
                     {pendingQuoteCount(quoteRequests)} {pendingQuoteCount(quoteRequests) === 1 ? "bid" : "bids"} waiting
                   </div>
                 )}
               </div>
               <button
-                onClick={() => navigate("/quotes/new")}
-                style={{ display: "flex", alignItems: "center", gap: "0.25rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.rust, background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                onClick={() => setShowQuoteModal(true)}
+                style={{ display: "flex", alignItems: "center", gap: "0.25rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.rust, background: "none", border: `1px solid ${S.rust}`, cursor: "pointer", padding: "0.3rem 0.75rem", borderRadius: RADIUS.sm }}
               >
                 <Plus size={11} /> New Request
               </button>
             </div>
-            <div style={{ border: `1px solid ${S.rule}` }}>
+            <div style={{ border: `1px solid ${S.rule}`, borderRadius: RADIUS.card, overflow: "hidden" }}>
               {quoteRequests.map((req, i) => {
                 const statusVariant =
                   req.status === "accepted" ? "success"
@@ -970,7 +980,7 @@ export default function DashboardPage() {
                     onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = COLORS.sageLight; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = rowBg; }}
                   >
-                    <div style={{ width: "2rem", height: "2rem", border: `1px solid ${S.rule}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <div style={{ width: "2rem", height: "2rem", border: `1px solid ${S.rule}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: RADIUS.sm }}>
                       <MessageSquare size={13} color={hasBids ? S.rust : S.inkLight} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -996,7 +1006,7 @@ export default function DashboardPage() {
                       )}
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.25rem" }}>
                         {isNew && (
-                          <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.rust, border: `1px solid ${S.rust}`, padding: "0.1rem 0.4rem" }}>
+                          <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.rust, border: `1px solid ${S.rust}`, padding: "0.1rem 0.4rem", borderRadius: 100 }}>
                             New
                           </span>
                         )}
@@ -1017,10 +1027,10 @@ export default function DashboardPage() {
           <div style={{
             display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem",
             border: `1px solid ${S.rule}`, padding: "1rem 1.25rem", marginBottom: "2rem",
-            background: "#fff", flexWrap: "wrap",
+            background: "#fff", flexWrap: "wrap", borderRadius: RADIUS.sm,
           }}>
             <div style={{ display: "flex", gap: "0.75rem", flex: 1 }}>
-              <div style={{ width: "2rem", height: "2rem", border: `1px solid ${S.rule}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <div style={{ width: "2rem", height: "2rem", border: `1px solid ${S.rule}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: RADIUS.sm }}>
                 <Calendar size={13} color={S.sage} />
               </div>
               <div>
@@ -1032,7 +1042,7 @@ export default function DashboardPage() {
                 </p>
                 <button
                   onClick={() => navigate(`/maintenance?system=${encodeURIComponent(recentVerified.serviceType)}`)}
-                  style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.35rem 0.875rem", border: `1px solid ${S.sage}`, background: "none", color: S.sage, cursor: "pointer" }}
+                  style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.35rem 0.875rem", border: `1px solid ${S.sage}`, background: "none", color: S.sage, cursor: "pointer", borderRadius: RADIUS.sm }}
                 >
                   Add to Maintenance Schedule →
                 </button>
@@ -1053,7 +1063,7 @@ export default function DashboardPage() {
             <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "1rem" }}>
               Score Activity
             </div>
-            <div style={{ border: `1px solid ${S.rule}` }}>
+            <div style={{ border: `1px solid ${S.rule}`, borderRadius: RADIUS.card, overflow: "hidden" }}>
               {scoreEvents.slice(0, 5).map((ev, i) => (
                 <div key={ev.id} style={{
                   display: "flex", alignItems: "center", gap: "0.875rem",
@@ -1061,7 +1071,7 @@ export default function DashboardPage() {
                   borderBottom: i < Math.min(scoreEvents.length, 5) - 1 ? `1px solid ${S.rule}` : "none",
                   background: "#fff",
                 }}>
-                  <div style={{ width: "2rem", height: "2rem", background: categoryBg(ev.category), border: `1px solid ${categoryColor(ev.category)}40`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <div style={{ width: "2rem", height: "2rem", background: categoryBg(ev.category), border: `1px solid ${categoryColor(ev.category)}40`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: RADIUS.sm }}>
                     <span style={{ fontFamily: S.mono, fontSize: "0.6rem", fontWeight: 700, color: categoryColor(ev.category) }}>
                       +{ev.pts}
                     </span>
@@ -1073,7 +1083,7 @@ export default function DashboardPage() {
                   <span style={{
                     fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase",
                     padding: "0.2rem 0.5rem", border: `1px solid ${categoryColor(ev.category)}40`,
-                    color: categoryColor(ev.category), flexShrink: 0,
+                    color: categoryColor(ev.category), flexShrink: 0, borderRadius: 100,
                   }}>
                     {ev.category}
                   </span>
@@ -1092,19 +1102,19 @@ export default function DashboardPage() {
               </div>
               <button
                 onClick={() => navigate("/recurring/new")}
-                style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.3rem 0.75rem", border: `1px solid ${S.rust}`, color: S.rust, background: "none", cursor: "pointer" }}
+                style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.3rem 0.75rem", border: `1px solid ${S.rust}`, color: S.rust, background: "none", cursor: "pointer", borderRadius: RADIUS.sm }}
               >
                 + Add
               </button>
             </div>
             {recurringServices.length === 0 ? (
-              <div style={{ border: `1px solid ${S.rule}`, background: "#fff", padding: "1.5rem", textAlign: "center" }}>
+              <div style={{ border: `1px solid ${S.rule}`, background: "#fff", padding: "1.5rem", textAlign: "center", borderRadius: RADIUS.card }}>
                 <p style={{ fontSize: "0.85rem", fontWeight: 300, color: S.inkLight, marginBottom: "0.75rem" }}>
                   Lawn care, pest control, pool service — log ongoing contracts once and let the visit log do the rest.
                 </p>
                 <button
                   onClick={() => navigate("/recurring/new")}
-                  style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 1rem", border: `1px solid ${S.ink}`, background: "none", cursor: "pointer", color: S.ink }}
+                  style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 1rem", border: `1px solid ${S.ink}`, background: "none", cursor: "pointer", color: S.ink, borderRadius: RADIUS.sm }}
                 >
                   Add first service →
                 </button>
@@ -1129,10 +1139,10 @@ export default function DashboardPage() {
             <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "1rem" }}>
               Recent Activity
             </div>
-            <div style={{ border: `1px solid ${S.rule}` }}>
+            <div style={{ border: `1px solid ${S.rule}`, borderRadius: RADIUS.card, overflow: "hidden" }}>
               {jobs.slice(0, 5).map((job, i) => (
                 <div key={job.id} className="rsp-activity-row" style={{ borderBottom: i < Math.min(jobs.length, 5) - 1 ? `1px solid ${S.rule}` : "none", background: "#fff" }}>
-                  <div style={{ width: "2rem", height: "2rem", border: `1px solid ${S.rule}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <div style={{ width: "2rem", height: "2rem", border: `1px solid ${S.rule}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: RADIUS.sm }}>
                     <Wrench size={13} color={S.inkLight} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -1154,6 +1164,22 @@ export default function DashboardPage() {
         )}
 
       </div>
+
+      <LogJobModal
+        isOpen={showLogJobModal}
+        onClose={() => setShowLogJobModal(false)}
+        onSuccess={() => { loadJobs(); loadQuoteRequests(); }}
+        properties={properties}
+        prefill={logJobPrefill}
+      />
+
+      <RequestQuoteModal
+        isOpen={showQuoteModal}
+        onClose={() => setShowQuoteModal(false)}
+        onSuccess={(quoteId) => { setShowQuoteModal(false); navigate(`/quotes/${quoteId}`); }}
+        properties={properties}
+      />
+
     </Layout>
   );
 }
