@@ -431,6 +431,79 @@ export default function ReportPage() {
           </div>
         )}
 
+        {/* Active Warranties */}
+        {(() => {
+          const today = Date.now();
+          const warranties = sortedJobs
+            .filter((j) => j.warrantyMonths && j.warrantyMonths > 0)
+            .map((j) => {
+              const startMs  = new Date(j.date).getTime();
+              const expiryMs = startMs + (j.warrantyMonths! * 30.44 * 24 * 3600 * 1000);
+              const daysLeft = Math.round((expiryMs - today) / (24 * 3600 * 1000));
+              const yearsLeft = (daysLeft / 365).toFixed(1);
+              return { job: j, expiryMs, daysLeft, yearsLeft };
+            })
+            .sort((a, b) => a.expiryMs - b.expiryMs);
+
+          if (warranties.length === 0) return null;
+          const active  = warranties.filter((w) => w.daysLeft > 0);
+          const expired = warranties.filter((w) => w.daysLeft <= 0);
+
+          return (
+            <div style={{ marginBottom: "2.5rem" }}>
+              <SectionHeader title="Warranties" icon={<Shield size={14} color="#1d4ed8" />} />
+              <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: S.rule }}>
+                {active.map(({ job, daysLeft, yearsLeft }, i) => {
+                  const nearExpiry = daysLeft <= 90;
+                  return (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.875rem 1.25rem", background: nearExpiry ? "#FFFBEB" : "#fff", gap: "0.75rem", flexWrap: "wrap" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+                        <span style={{ fontSize: "1rem" }}>{SERVICE_ICONS[job.serviceType] ?? "🔩"}</span>
+                        <div>
+                          <p style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.04em", color: S.ink, marginBottom: "0.125rem" }}>{job.serviceType}</p>
+                          <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>{contractorLabel(job)} · Started {fmtDate(job.date)}</p>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
+                        {nearExpiry && (
+                          <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "#D4820E", border: "1px solid #D4820E44", padding: "0.15rem 0.5rem" }}>
+                            Expiring soon
+                          </span>
+                        )}
+                        <div style={{ textAlign: "right" }}>
+                          <p style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "0.875rem", color: nearExpiry ? "#D4820E" : S.sage }}>
+                            {daysLeft < 365 ? `${daysLeft} days` : `${yearsLeft} yrs`} remaining
+                          </p>
+                          <p style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight }}>
+                            {job.warrantyMonths} mo warranty
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {expired.map(({ job }, i) => (
+                  <div key={`exp-${i}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.75rem 1.25rem", background: S.paper, gap: "0.75rem", opacity: 0.6 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+                      <span style={{ fontSize: "1rem", filter: "grayscale(1)" }}>{SERVICE_ICONS[job.serviceType] ?? "🔩"}</span>
+                      <div>
+                        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight }}>{job.serviceType}</p>
+                        <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>{fmtDate(job.date)}</p>
+                      </div>
+                    </div>
+                    <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight }}>Expired</span>
+                  </div>
+                ))}
+              </div>
+              {active.length > 0 && (
+                <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.04em", color: S.inkLight, marginTop: "0.5rem" }}>
+                  {active.length} active warrant{active.length !== 1 ? "ies" : "y"} on record. Verify transferability with contractor before sale.
+                </p>
+              )}
+            </div>
+          );
+        })()}
+
         {/* Contractor Roster */}
         {uniqueContractors.length > 0 && (
           <div style={{ marginBottom: "2.5rem" }}>

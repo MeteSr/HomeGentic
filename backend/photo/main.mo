@@ -29,6 +29,7 @@ persistent actor Photo {
     #Drywall;
     #Finishing;
     #PostConstruction;
+    #Warranty;
   };
 
   public type SubscriptionTier = {

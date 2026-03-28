@@ -10,7 +10,7 @@ const idlFactory = ({ IDL }: any) => {
     PreConstruction: IDL.Null, Foundation: IDL.Null, Framing: IDL.Null,
     Electrical: IDL.Null, Plumbing: IDL.Null, HVAC: IDL.Null,
     Insulation: IDL.Null, Drywall: IDL.Null, Finishing: IDL.Null,
-    PostConstruction: IDL.Null,
+    PostConstruction: IDL.Null, Warranty: IDL.Null,
   });
   const Photo = IDL.Record({
     id:          IDL.Text,

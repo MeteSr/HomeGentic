@@ -405,11 +405,25 @@ function TimelineTab({ property, jobs, onVerify, currentPrincipal, photosByJob, 
 }) {
   const S = { ink: "#0E0E0C", rule: "#C8C3B8", rust: "#C94C2E", inkLight: "#7A7268", sage: "#3D6B57", mono: "'IBM Plex Mono', monospace" as const, serif: "'Playfair Display', Georgia, serif" as const };
   const navigate = useNavigate();
-  const [justVerified,    setJustVerified]    = React.useState<string | null>(null);
-  const [reviewNudgeJob,  setReviewNudgeJob]  = React.useState<Job | null>(null);
+  const [justVerified,        setJustVerified]        = React.useState<string | null>(null);
+  const [reviewNudgeJob,      setReviewNudgeJob]      = React.useState<Job | null>(null);
+  const [newestFirst,         setNewestFirst]         = React.useState(true);
+  const [expandedJobId,       setExpandedJobId]       = React.useState<string | null>(null);
+  const [warrantyUploading,   setWarrantyUploading]   = React.useState<string | null>(null); // jobId being uploaded
+  const warrantyInputRefs = React.useRef<Record<string, HTMLInputElement | null>>({});
 
-  const [newestFirst,    setNewestFirst]    = React.useState(true);
-  const [expandedJobId,  setExpandedJobId]  = React.useState<string | null>(null);
+  const handleWarrantyUpload = async (job: Job, file: File) => {
+    setWarrantyUploading(job.id);
+    try {
+      await photoService.upload(file, job.id, String(property.id), "Warranty", `Warranty|${job.serviceType}|${file.name}`);
+      toast.success("Warranty document uploaded");
+    } catch (err: any) {
+      const msg: string = err.message ?? "Upload failed";
+      toast.error(msg === "Duplicate" ? "Already uploaded" : msg);
+    } finally {
+      setWarrantyUploading(null);
+    }
+  };
 
   const verifiedCount = jobs.filter((j) => j.verified).length;
 
@@ -675,6 +689,25 @@ function TimelineTab({ property, jobs, onVerify, currentPrincipal, photosByJob, 
                           >
                             Edit record
                           </button>
+                        </div>
+                      )}
+                      {/* Warranty doc upload — shown for any job with a warranty */}
+                      {job.warrantyMonths && job.warrantyMonths > 0 && (
+                        <div style={{ marginTop: "0.25rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                          <button
+                            onClick={() => warrantyInputRefs.current[job.id]?.click()}
+                            disabled={warrantyUploading === job.id}
+                            style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.3rem 0.75rem", border: `1px solid #1d4ed8`, background: "#fff", color: "#1d4ed8", cursor: warrantyUploading === job.id ? "not-allowed" : "pointer", opacity: warrantyUploading === job.id ? 0.5 : 1, display: "inline-flex", alignItems: "center", gap: "0.3rem" }}
+                          >
+                            🛡 {warrantyUploading === job.id ? "Uploading…" : "Upload warranty doc"}
+                          </button>
+                          <input
+                            ref={(el) => { warrantyInputRefs.current[job.id] = el; }}
+                            type="file"
+                            accept="image/*,application/pdf"
+                            style={{ display: "none" }}
+                            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleWarrantyUpload(job, f); e.target.value = ""; }}
+                          />
                         </div>
                       )}
                     </div>
