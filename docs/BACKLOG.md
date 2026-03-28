@@ -28,19 +28,19 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 | 1.1.4 | Per-task cost estimate ranges | ✅ Exists | — | `serviceCallLowCents`/`High` on `SystemPrediction`; numeric cents on `AnnualTask`; annual budget total on Annual Tasks tab; modal pre-fills service cost for Watch/Good, replacement cost for Critical/Soon |
 | 1.1.5 | Climate-adjusted aging model | ⬜ Missing | L | Pull zip-code weather normals; adjust HVAC/roof lifespan curves by region |
 | 1.1.6 | Material-aware forecasting | ⬜ Missing | L | Room digital twin (1.4) is a prerequisite — need material metadata |
-| 1.1.7 | Exportable PDF maintenance calendar | ⬜ Missing | M | Generate printable 12-month schedule with estimated costs |
+| 1.1.7 | Exportable PDF maintenance calendar | ✅ Done | M | Generate printable 12-month schedule with estimated costs |
 
 ### 1.2 "Home Genome" Onboarding
 **Vision:** NLP-powered bulk document ingestion at signup — PDFs, photos, receipts, inspection reports all parsed and auto-categorized into the historical record.
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 1.2.1 | Multi-file upload UI | 🟡 Partial | S | `DocumentsTab` handles single-file uploads; needs batch mode |
+| 1.2.1 | Multi-file upload UI | ✅ Done | S | `DocumentsTab` handles single-file uploads; needs batch mode |
 | 1.2.2 | Claude-powered document classification | ⬜ Missing | L | POST files to voice agent server; Claude Vision classifies type (receipt/inspection/permit) |
 | 1.2.3 | Auto-populate job records from parsed docs | ⬜ Missing | XL | Structured extraction → `job.createJob()` calls; needs review/confirm step |
-| 1.2.4 | Onboarding wizard with bulk upload step | ⬜ Missing | M | Add step to `OnboardingPage` after property registration |
-| 1.2.5 | Duplicate detection across ingested docs | ⬜ Missing | M | SHA-256 dedup already exists in `photo` canister; apply at ingestion time |
-| 1.2.6 | Progress UI for batch processing | ⬜ Missing | S | Show per-file status (parsing / done / failed) during ingestion |
+| 1.2.4 | Onboarding wizard with bulk upload step | ✅ Done | M | Add step to `OnboardingPage` after property registration |
+| 1.2.5 | Duplicate detection across ingested docs | ✅ Done | M | SHA-256 dedup already exists in `photo` canister; apply at ingestion time |
+| 1.2.6 | Progress UI for batch processing | ✅ Done | S | Show per-file status (parsing / done / failed) during ingestion |
 
 ### 1.3 Utility Intelligence Layer
 **Vision:** Connect to utility accounts and flag anomalies (water spike → possible leak, HVAC runtime increase → refrigerant loss).
@@ -77,10 +77,10 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
 | 2.1.1 | Dual-signature job verification | ✅ Exists | — | `job` canister has `homeownerSigned` + `contractorSigned` + `verified` flag |
-| 2.1.2 | On-chain job credential issuance | ⬜ Missing | L | On job verification, mint a credential record in `contractor` canister: `{ jobId, contractorId, serviceType, verifiedAt, homeownerPrincipal }` |
-| 2.1.3 | Contractor credential portfolio page | ⬜ Missing | M | New tab on `ContractorProfilePage` showing verified job history as credential cards |
-| 2.1.4 | Portable credential export | ⬜ Missing | M | Generate a shareable link / QR code to a contractor's verified work history |
-| 2.1.5 | Trust score driven by verified jobs | 🟡 Partial | S | `trustScore` exists in `contractor` canister; auto-increment on each verified job |
+| 2.1.2 | On-chain job credential issuance | ✅ Done | L | On job verification, mint a credential record in `contractor` canister: `{ jobId, contractorId, serviceType, verifiedAt, homeownerPrincipal }` |
+| 2.1.3 | Contractor credential portfolio page | ✅ Done | M | New tab on `ContractorProfilePage` showing verified job history as credential cards |
+| 2.1.4 | Portable credential export | ✅ Done | M | Generate a shareable link / QR code to a contractor's verified work history |
+| 2.1.5 | Trust score driven by verified jobs | ✅ Done | S | `trustScore` exists in `contractor` canister; auto-increment on each verified job |
 
 ### 2.2 Escrow-Protected Job Completion
 **Vision:** Payment held in ICP smart contract escrow; released automatically when homeowner approves the job.
@@ -101,8 +101,8 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 | 2.3.1 | Warranty record type in job/fixture entity | ✅ Exists | — | `warrantyMonths` field on `Job`; expiry computed as `date + warrantyMonths * 30.44 days` |
 | 2.3.2 | Warranty entry UI | ✅ Exists | — | `warrantyMonths` input in `JobCreatePage` |
 | 2.3.3 | Expiry alert system | ✅ Exists | — | Proactive alerts in `useVoiceAgent` — warranties expiring ≤90 days surfaced as VoiceAgent chips |
-| 2.3.4 | Warranty summary in HomeFax Report | ⬜ Missing | M | Show "14 years warranty remaining on roof" in report output |
-| 2.3.5 | Warranty doc upload | 🟡 Partial | S | `photo` canister can store docs; add `phase: "Warranty"` and link to job |
+| 2.3.4 | Warranty summary in HomeFax Report | ✅ Done | M | Show "14 years warranty remaining on roof" in report output |
+| 2.3.5 | Warranty doc upload | ✅ Done | S | `photo` canister can store docs; add `phase: "Warranty"` and link to job |
 
 ### 2.4 Contractor Bidding with ZKP Pricing
 **Vision:** Homeowners see bids; contractors cannot see each other's prices. ZKPs attest "this is the lowest bid" without revealing other bids.
@@ -283,10 +283,10 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 6.4.1 | Agent account type / role | ⬜ Missing | M | Add `Realtor` role to `auth` canister (partially referenced in code; needs full flow) |
-| 6.4.2 | Agent branding fields | ⬜ Missing | S | `AgentProfile { name, brokerage, logoUrl, phone }` in `auth` or new `agent` canister |
-| 6.4.3 | Co-branded report PDF template | ⬜ Missing | M | Report PDF renders agent logo + contact in footer/header |
-| 6.4.4 | Agent share link with co-branding | ⬜ Missing | M | Share links carry agent branding token; viewer sees agent info alongside HomeFax data |
+| 6.4.1 | Agent account type / role | ✅ Done | M | Add `Realtor` role to `auth` canister (partially referenced in code; needs full flow) |
+| 6.4.2 | Agent branding fields | ✅ Done | S | `AgentProfile { name, brokerage, logoUrl, phone }` in `auth` or new `agent` canister |
+| 6.4.3 | Co-branded report PDF template | ✅ Done | M | Report PDF renders agent logo + contact in footer/header |
+| 6.4.4 | Agent share link with co-branding | ✅ Done | M | Share links carry agent branding token; viewer sees agent info alongside HomeFax data |
 | 6.4.5 | Agent dashboard | ⬜ Missing | L | Agent can see all properties they've shared + view counts + buyer engagement |
 
 ### 6.5 "HomeFax Certified" Pre-Inspection Waiver
