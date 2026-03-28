@@ -148,44 +148,144 @@ persistent actor Report {
     isPaused:        Bool;
   };
 
+  // ─── V0 Migration Types ───────────────────────────────────────────────────────
+  // Exact copies of the stable types from the canister deployed before 1.4.7.
+  // `linkEntries` and `snapshotEntries` keep these names AND these types so that
+  // Motoko's upgrade runtime can match them by name and deserialise the old
+  // on-chain records into these arrays without a type error.
+  // postupgrade() migrates them into the V2 arrays and clears them.
+
+  private type ShareLinkV0 = {
+    token:      Text;
+    snapshotId: Text;
+    propertyId: Text;
+    createdBy:  Principal;
+    expiresAt:  ?Time.Time;
+    visibility: VisibilityLevel;
+    viewCount:  Nat;
+    isActive:   Bool;
+    createdAt:  Time.Time;
+    // NO hideAmounts / hideContractors / hidePermits / hideDescriptions
+  };
+
+  private type ReportSnapshotV0 = {
+    snapshotId:        Text;
+    propertyId:        Text;
+    generatedBy:       Principal;
+    address:           Text;
+    city:              Text;
+    state:             Text;
+    zipCode:           Text;
+    propertyType:      Text;
+    yearBuilt:         Nat;
+    squareFeet:        Nat;
+    verificationLevel: Text;
+    jobs:              [JobInput];
+    recurringServices: [RecurringServiceInput];
+    // NO rooms
+    totalAmountCents:  Nat;
+    verifiedJobCount:  Nat;
+    diyJobCount:       Nat;
+    permitCount:       Nat;
+    generatedAt:       Time.Time;
+  };
+
   // ─── Stable State ─────────────────────────────────────────────────────────────
 
-  private var _reportCounter   : Nat       = 0;   // reserved for future use
-  private var isPaused          : Bool        = false;
-  private var pauseExpiryNs     : ?Int        = null;   // 14.4.4 auto-expiry
-  private var adminListEntries  : [Principal] = [];
-  private var adminInitialized  : Bool        = false;
-  private var snapshotEntries  : [(Text, ReportSnapshot)] = [];
-  private var linkEntries      : [(Text, ShareLink)] = [];
-  /// 14.4.3 — incremented when ReportSnapshot type changes incompatibly.
-  /// Current version: 1 (added recurringServices, disclosure flags on ShareLink).
-  private var _snapshotSchemaVersion : Nat = 1;   // reserved for future migration checks
+  // reportCounter / snapshotSchemaVersion must keep their original names.
+  // Renaming a stable variable is treated as deletion (M0169 error).
+  private var reportCounter         : Nat        = 0;   // unused; kept for compat
+  private var isPaused              : Bool        = false;
+  private var pauseExpiryNs         : ?Int        = null;
+  private var adminListEntries      : [Principal] = [];
+  private var adminInitialized      : Bool        = false;
+  private var snapshotSchemaVersion : Nat         = 1;   // unused; kept for compat
+  private var propCanisterId        : Text        = "";
 
-  /// Property canister ID — set post-deploy via setPropertyCanisterId().
-  /// When non-empty, generateReport() cross-canister calls
-  /// property.getVerificationLevel() to enforce the unverified gate.
-  private var propCanisterId : Text = "";
+  // Migration source (V0): same names as the deployed stable variables so the
+  // runtime deserialisees old on-chain data into them on the first upgrade.
+  // Cleared in postupgrade() once data has been moved to the V2 arrays.
+  private var linkEntries     : [(Text, ShareLinkV0)]      = [];
+  private var snapshotEntries : [(Text, ReportSnapshotV0)] = [];
+
+  // Current (V2): used for all new data and for normal preupgrade/postupgrade
+  // serialisation after the one-time V0→V1 migration has run.
+  private var linkEntriesV2     : [(Text, ShareLink)]      = [];
+  private var snapshotEntriesV2 : [(Text, ReportSnapshot)] = [];
 
   // ─── Transient State ──────────────────────────────────────────────────────────
+  // Initialised empty — postupgrade() populates both HashMaps so that we avoid
+  // any type mismatch between the V0 stable arrays and the V1 HashMap types.
 
-  private transient var snapshots = HashMap.fromIter<Text, ReportSnapshot>(
-    snapshotEntries.vals(), 64, Text.equal, Text.hash
-  );
-
-  private transient var links = HashMap.fromIter<Text, ShareLink>(
-    linkEntries.vals(), 64, Text.equal, Text.hash
-  );
+  private transient var snapshots = HashMap.HashMap<Text, ReportSnapshot>(64, Text.equal, Text.hash);
+  private transient var links     = HashMap.HashMap<Text, ShareLink>(64, Text.equal, Text.hash);
 
   // ─── Upgrade Hooks ────────────────────────────────────────────────────────────
 
   system func preupgrade() {
-    snapshotEntries := Iter.toArray(snapshots.entries());
-    linkEntries     := Iter.toArray(links.entries());
+    // Always save current data to V2 arrays for the next upgrade.
+    snapshotEntriesV2 := Iter.toArray(snapshots.entries());
+    linkEntriesV2     := Iter.toArray(links.entries());
   };
 
   system func postupgrade() {
+    // ── One-time V0→V1 migration (runs on the upgrade from pre-1.4.7) ─────────
+    // linkEntries / snapshotEntries hold old records without the new fields.
+    // Migrate them into the HashMaps with safe defaults, then clear.
+    for ((k, v) in linkEntries.vals()) {
+      links.put(k, {
+        token            = v.token;
+        snapshotId       = v.snapshotId;
+        propertyId       = v.propertyId;
+        createdBy        = v.createdBy;
+        expiresAt        = v.expiresAt;
+        visibility       = v.visibility;
+        viewCount        = v.viewCount;
+        isActive         = v.isActive;
+        createdAt        = v.createdAt;
+        hideAmounts      = null;   // default: nothing hidden
+        hideContractors  = null;
+        hidePermits      = null;
+        hideDescriptions = null;
+      });
+    };
+    linkEntries := [];
+
+    for ((k, v) in snapshotEntries.vals()) {
+      snapshots.put(k, {
+        snapshotId        = v.snapshotId;
+        propertyId        = v.propertyId;
+        generatedBy       = v.generatedBy;
+        address           = v.address;
+        city              = v.city;
+        state             = v.state;
+        zipCode           = v.zipCode;
+        propertyType      = v.propertyType;
+        yearBuilt         = v.yearBuilt;
+        squareFeet        = v.squareFeet;
+        verificationLevel = v.verificationLevel;
+        jobs              = v.jobs;
+        recurringServices = v.recurringServices;
+        rooms             = null;   // not present before 1.4.7
+        totalAmountCents  = v.totalAmountCents;
+        verifiedJobCount  = v.verifiedJobCount;
+        diyJobCount       = v.diyJobCount;
+        permitCount       = v.permitCount;
+        generatedAt       = v.generatedAt;
+      });
+    };
     snapshotEntries := [];
-    linkEntries     := [];
+
+    // ── Normal restore from V2 (all upgrades after 1.4.7) ─────────────────────
+    for ((k, v) in linkEntriesV2.vals()) {
+      links.put(k, v);
+    };
+    linkEntriesV2 := [];
+
+    for ((k, v) in snapshotEntriesV2.vals()) {
+      snapshots.put(k, v);
+    };
+    snapshotEntriesV2 := [];
   };
 
   // ─── Private Helpers ──────────────────────────────────────────────────────────
