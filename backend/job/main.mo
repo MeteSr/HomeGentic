@@ -64,6 +64,7 @@ persistent actor Job {
     #Unauthorized;
     #InvalidInput: Text;
     #AlreadyVerified;
+    #TierLimitReached: Text;
   };
 
   public type Metrics = {
@@ -91,6 +92,10 @@ persistent actor Job {
   /// When set, createSensorJob() cross-calls getPropertyOwner() to verify
   /// that the sensor device's stored homeowner actually owns the property.
   private var propCanisterId:     Text        = "";
+  /// Payment canister ID — set post-deploy via setPaymentCanisterId().
+  /// When set, createJob() cross-calls getTierForPrincipal() and enforces
+  /// the Free-tier job cap (max 5 jobs per homeowner).
+  private var payCanisterId:      Text        = "";
 
   // ─── Transient State ─────────────────────────────────────────────────────────
 
@@ -166,6 +171,25 @@ persistent actor Job {
           if (Text.size(name) == 0)   return #err(#InvalidInput("contractorName cannot be empty"));
           if (Text.size(name) > 200)  return #err(#InvalidInput("contractorName exceeds 200 characters"));
         };
+      };
+    };
+
+    // ── Free-tier job cap (15.1.1) ──────────────────────────────────────────
+    if (payCanisterId != "") {
+      let payActor = actor(payCanisterId) : actor {
+        getTierForPrincipal : (Principal) -> async { #Free; #Pro; #Premium; #ContractorPro };
+      };
+      let tier = await payActor.getTierForPrincipal(msg.caller);
+      switch (tier) {
+        case (#Free) {
+          let callerJobCount = Iter.size(
+            Iter.filter(jobs.vals(), func(j: Job) : Bool { j.homeowner == msg.caller })
+          );
+          if (callerJobCount >= 5) {
+            return #err(#TierLimitReached("Free plan is limited to 5 jobs. Upgrade to Pro to continue."));
+          };
+        };
+        case _ {};
       };
     };
 
@@ -465,6 +489,14 @@ persistent actor Job {
   public shared(msg) func setPropertyCanisterId(id: Text) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#Unauthorized);
     propCanisterId := id;
+    #ok(())
+  };
+
+  /// Wire the job canister to the payment canister for tier-based cap enforcement.
+  /// Must be called once after both canisters are deployed.
+  public shared(msg) func setPaymentCanisterId(id: Text) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#Unauthorized);
+    payCanisterId := id;
     #ok(())
   };
 

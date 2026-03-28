@@ -33,4 +33,29 @@ for canister in auth property job contractor quote price payment photo report ma
 done
 
 echo ""
+echo "============================================"
+echo "  Wiring Inter-Canister IDs"
+echo "============================================"
+
+JOB_ID=$(dfx canister id job --network $NETWORK 2>/dev/null || echo "")
+PAYMENT_ID=$(dfx canister id payment --network $NETWORK 2>/dev/null || echo "")
+CONTRACTOR_ID=$(dfx canister id contractor --network $NETWORK 2>/dev/null || echo "")
+PROPERTY_ID=$(dfx canister id property --network $NETWORK 2>/dev/null || echo "")
+
+if [ -n "$JOB_ID" ] && [ -n "$PAYMENT_ID" ]; then
+  echo "  Wiring payment -> job (tier cap enforcement)..."
+  dfx canister call job setPaymentCanisterId "(\"$PAYMENT_ID\")" --network $NETWORK
+fi
+
+if [ -n "$JOB_ID" ] && [ -n "$CONTRACTOR_ID" ]; then
+  echo "  Wiring contractor -> job..."
+  dfx canister call job setContractorCanisterId "(\"$CONTRACTOR_ID\")" --network $NETWORK
+fi
+
+if [ -n "$JOB_ID" ] && [ -n "$PROPERTY_ID" ]; then
+  echo "  Wiring property -> job..."
+  dfx canister call job setPropertyCanisterId "(\"$PROPERTY_ID\")" --network $NETWORK
+fi
+
+echo ""
 echo "✅ Deployment complete!"

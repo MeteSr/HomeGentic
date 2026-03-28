@@ -54,4 +54,14 @@ persistent actor Payment {
       case (?s) { #ok(s) };
     }
   };
+
+  /// Inter-canister helper: look up the tier for an explicit Principal.
+  /// Used by the job canister to enforce per-tier job caps without the
+  /// caller identity shifting to the job canister principal.
+  public query func getTierForPrincipal(p: Principal) : async Tier {
+    switch (subscriptions.get(p)) {
+      case null  { #Free };
+      case (?s)  { s.tier };
+    }
+  };
 }

@@ -955,8 +955,8 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 15.1.1 | Enforce 5-job cap on free tier in `job` canister | ⬜ Missing | S | In `createJob()`, add a cross-canister tier check: call `paymentCanister.getSubscription(msg.caller)` (same pattern used in the `quote` canister for open-request limits), read the `tier` field, and if `#Free` count existing jobs for the caller via `getByProperty()`. If count ≥5 return `#err(#TierLimitExceeded)`. Add `#TierLimitExceeded` to the `Error` variant. Store the payment canister ID in a stable var `paymentCanisterId: Text` set post-deploy via a `setPaymentCanisterId()` admin function (same pattern as `propCanisterId` in the report canister). Do NOT accept tier as a param from the frontend — that would be spoofable. |
-| 15.1.2 | Surface job cap in `JobCreatePage` | ⬜ Missing | S | Before submitting, check job count against tier limit. Show an upgrade prompt instead of the form when at the cap: "You've logged 5 jobs on the free plan — upgrade to Pro to keep building your record." |
+| 15.1.1 | Enforce 5-job cap on free tier in `job` canister | ✅ Exists | S | `createJob()` cross-calls `payment.getTierForPrincipal(msg.caller)`. If `#Free` and caller already has ≥5 jobs, returns `#err(#TierLimitReached)`. Added `payCanisterId` stable var + `setPaymentCanisterId()` admin func. `deploy.sh` now wires all three inter-canister IDs post-deploy. |
+| 15.1.2 | Surface job cap in `JobCreatePage` | ✅ Exists | S | UpgradeGate shown when Free user has ≥5 jobs (fetched on mount). |
 | 15.1.3 | Show job count + cap progress on Dashboard | ⬜ Missing | S | Free users see "5/5 jobs logged" with a progress bar and upgrade CTA. Pro+ users see no cap indicator. |
 
 ---
