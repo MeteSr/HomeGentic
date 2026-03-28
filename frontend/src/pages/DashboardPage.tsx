@@ -977,6 +977,9 @@ export default function DashboardPage() {
           </div>
         )}
 
+          </>
+        )}
+
         {/* Multi-property overview */}
         {!loading && isAllView && propertyComparison && (
           <div style={{ marginBottom: "2.5rem" }}>
