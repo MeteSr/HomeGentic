@@ -98,7 +98,10 @@ persistent actor Contractor {
   private var isPaused:           Bool        = false;
   private var admins:             [Principal] = [];
   private var adminInitialized:   Bool        = false;
-  private var reviewCounter: Nat         = 0;
+  private var reviewCounter:      Nat         = 0;
+  /// Job canister principal — set post-deploy via setJobCanisterId().
+  /// When non-empty, recordJobVerified() accepts calls from the job canister.
+  private var jobCanisterId:      Text        = "";
 
   private var contractorEntries:      [(Principal, ContractorProfile)] = [];
   private var reviewEntries:          [(Text, Review)]                 = [];
@@ -147,6 +150,10 @@ persistent actor Contractor {
 
   private func isAdmin(p: Principal) : Bool {
     Option.isSome(Array.find<Principal>(admins, func(a) { a == p }))
+  };
+
+  private func isJobCanister(p: Principal) : Bool {
+    Text.size(jobCanisterId) > 0 and Principal.toText(p) == jobCanisterId
   };
 
   private func requireActive() : Result.Result<(), Error> {
@@ -318,7 +325,50 @@ persistent actor Contractor {
     )
   };
 
+  // ─── Job-Verified Hook ─────────────────────────────────────────────────────────
+
+  /// Called by the Job canister (cross-canister) when a job reaches fully-verified
+  /// status. Increments the contractor's jobsCompleted counter and nudges their
+  /// trustScore up by 2 points (capped at 100).
+  ///
+  /// Only the registered job canister principal or an admin may call this.
+  public shared(msg) func recordJobVerified(contractorPrincipal: Principal) : async Result.Result<(), Error> {
+    if (not isJobCanister(msg.caller) and not isAdmin(msg.caller))
+      return #err(#Unauthorized);
+
+    switch (contractors.get(contractorPrincipal)) {
+      case null { #ok(()) };  // contractor not registered — silently succeed
+      case (?existing) {
+        let newScore : Nat = if (existing.trustScore + 2 > 100) 100 else existing.trustScore + 2;
+        let updated: ContractorProfile = {
+          id            = existing.id;
+          name          = existing.name;
+          specialty     = existing.specialty;
+          email         = existing.email;
+          phone         = existing.phone;
+          bio           = existing.bio;
+          licenseNumber = existing.licenseNumber;
+          serviceArea   = existing.serviceArea;
+          trustScore    = newScore;
+          jobsCompleted = existing.jobsCompleted + 1;
+          isVerified    = existing.isVerified;
+          createdAt     = existing.createdAt;
+        };
+        contractors.put(contractorPrincipal, updated);
+        #ok(())
+      };
+    }
+  };
+
   // ─── Admin Functions ───────────────────────────────────────────────────────────
+
+  /// Wire the contractor canister to the job canister so recordJobVerified()
+  /// accepts cross-canister calls. Must be called once after both canisters deploy.
+  public shared(msg) func setJobCanisterId(id: Text) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#Unauthorized);
+    jobCanisterId := id;
+    #ok(())
+  };
 
   /// Mark a contractor as verified (admin only).
   public shared(msg) func verifyContractor(c: Principal) : async Result.Result<ContractorProfile, Error> {

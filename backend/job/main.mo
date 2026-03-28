@@ -83,6 +83,9 @@ persistent actor Job {
   private var adminInitialized:   Bool        = false;
   private var authorizedSensors: [Principal] = [];
   private var jobsEntries: [(Text, Job)] = [];
+  /// Contractor canister ID — set post-deploy via setContractorCanisterId().
+  /// When set, verifyJob() notifies the contractor canister on full verification.
+  private var contrCanisterId:    Text        = "";
 
   // ─── Transient State ─────────────────────────────────────────────────────────
 
@@ -335,6 +338,20 @@ persistent actor Job {
           createdAt        = existing.createdAt;
         };
         jobs.put(jobId, updated);
+
+        // Notify contractor canister when job becomes fully verified
+        if (fullyVerified and Text.size(contrCanisterId) > 0) {
+          switch (existing.contractor) {
+            case (?con) {
+              let contrActor = actor(contrCanisterId) : actor {
+                recordJobVerified : (Principal) -> async { #ok : (); #err : {} };
+              };
+              ignore contrActor.recordJobVerified(con);
+            };
+            case null {};
+          };
+        };
+
         #ok(updated)
       };
     }
@@ -389,6 +406,14 @@ persistent actor Job {
   };
 
   // ─── Admin Functions ──────────────────────────────────────────────────────────
+
+  /// Wire the job canister to the contractor canister so trust scores
+  /// auto-increment on job verification. Must be called once post-deploy.
+  public shared(msg) func setContractorCanisterId(id: Text) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#Unauthorized);
+    contrCanisterId := id;
+    #ok(())
+  };
 
   /// Authorize a Sensor canister principal to call createSensorJob().
   public shared(msg) func addSensorCanister(sensor: Principal) : async Result.Result<(), Error> {

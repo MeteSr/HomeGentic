@@ -88,6 +88,16 @@ const idlFactory = ({ IDL }: any) => {
       [IDL.Vec(Review)],
       ["query"]
     ),
+    recordJobVerified: IDL.Func(
+      [IDL.Principal],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
+    setJobCanisterId: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
   });
 };
 
