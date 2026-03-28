@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { User, CreditCard, Bell, Lock, CheckCircle, LayoutDashboard } from "lucide-react";
+import { User, CreditCard, Bell, Lock, CheckCircle, LayoutDashboard, Download } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { Badge } from "@/components/Badge";
@@ -8,6 +8,8 @@ import { authService } from "@/services/auth";
 import { PLANS, paymentService, type PlanTier } from "@/services/payment";
 import { agentProfileService, type AgentProfile } from "@/services/agentProfile";
 import { useAuthStore } from "@/store/authStore";
+import { usePropertyStore } from "@/store/propertyStore";
+import { useJobStore } from "@/store/jobStore";
 import toast from "react-hot-toast";
 
 const S = {
@@ -541,6 +543,59 @@ function PrivacyTab() {
   const [publicReport, setPublicReport] = useState(true);
   const [contractorView, setContractorView] = useState(true);
   const [analyticsShare, setAnalyticsShare] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const { properties } = usePropertyStore();
+  const { jobs } = useJobStore();
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        properties: properties.map((p) => ({
+          id:                String(p.id),
+          address:           p.address,
+          city:              p.city,
+          state:             p.state,
+          zipCode:           p.zipCode,
+          propertyType:      p.propertyType,
+          yearBuilt:         String(p.yearBuilt),
+          squareFeet:        String(p.squareFeet),
+          verificationLevel: p.verificationLevel,
+          tier:              p.tier,
+          createdAt:         new Date(Number(p.createdAt) / 1_000_000).toISOString(),
+        })),
+        jobs: jobs.map((j) => ({
+          id:             j.id,
+          propertyId:     j.propertyId,
+          serviceType:    j.serviceType,
+          description:    j.description,
+          contractorName: j.contractorName,
+          amountUsd:      (j.amount / 100).toFixed(2),
+          date:           j.date,
+          status:         j.status,
+          verified:       j.verified,
+          isDiy:          j.isDiy,
+          permitNumber:   j.permitNumber ?? null,
+          warrantyMonths: j.warrantyMonths,
+        })),
+      };
+
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href     = url;
+      a.download = `homefax-export-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Export downloaded");
+    } catch {
+      toast.error("Export failed");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div style={{ border: `1px solid ${S.rule}` }}>
       <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${S.rule}` }}>
@@ -549,8 +604,30 @@ function PrivacyTab() {
       <ToggleRow label="Public HomeFax Report"   desc="Allow anyone with the link to view your property history" value={publicReport}    onChange={setPublicReport} />
       <ToggleRow label="Contractor Visibility"   desc="Allow contractors to find and view your properties"       value={contractorView}  onChange={setContractorView} />
       <ToggleRow label="Share Analytics"         desc="Help improve HomeFax with anonymous usage data"           value={analyticsShare}  onChange={setAnalyticsShare} />
-      <div style={{ padding: "1.25rem" }}>
+      <div style={{ padding: "1.25rem", display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
         <Button onClick={() => toast.success("Privacy settings saved")}>Save Privacy Settings</Button>
+      </div>
+
+      {/* Data Export */}
+      <div style={{ borderTop: `1px solid ${S.rule}`, padding: "1.25rem" }}>
+        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.5rem" }}>
+          Export Your Data
+        </p>
+        <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: S.inkLight, lineHeight: 1.6, marginBottom: "1rem" }}>
+          Download all your property and job records as JSON. Your data is yours — no lock-in,
+          no expiration. Records are also permanently stored on the Internet Computer blockchain.
+        </p>
+        <Button
+          loading={exporting}
+          onClick={handleExport}
+          icon={<Download size={13} />}
+          variant="outline"
+        >
+          Download My Data (JSON)
+        </Button>
+        <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.04em", color: S.inkLight, marginTop: "0.5rem", lineHeight: 1.5 }}>
+          Includes {properties.length} propert{properties.length !== 1 ? "ies" : "y"} and {jobs.length} job record{jobs.length !== 1 ? "s" : ""}.
+        </p>
       </div>
     </div>
   );

@@ -660,6 +660,65 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* ── Data Sovereignty ────────────────────────────────────────────── */}
+        <section id="hfl-data" style={{ background: "#0E0E0C", color: "#F4F1EB", padding: "5rem 2rem" }}>
+          <div style={{ maxWidth: "56rem", margin: "0 auto" }}>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.6rem", letterSpacing: "0.2em", textTransform: "uppercase", color: "#C94C2E", marginBottom: "0.75rem" }}>
+              Data Sovereignty
+            </div>
+            <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 900, fontSize: "clamp(1.75rem, 4vw, 2.5rem)", lineHeight: 1.05, marginBottom: "1rem" }}>
+              Your Data. Your Keys.<br />Your Home's History.
+            </h2>
+            <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 300, fontSize: "1rem", color: "#C8C3B8", lineHeight: 1.7, maxWidth: "34rem", marginBottom: "3rem" }}>
+              HomeFax records live on the Internet Computer Protocol — a public blockchain where no single company
+              (including us) can alter, delete, or hold your data hostage. You own your home's history forever.
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(14rem, 1fr))", gap: "1px", background: "#2A2A28" }}>
+              {[
+                {
+                  icon: "⬡",
+                  title: "On-Chain Permanence",
+                  body: "Every job record, photo, and warranty is written to immutable canister storage on ICP. Records persist even if HomeFax shuts down.",
+                },
+                {
+                  icon: "🔑",
+                  title: "Principal-Based Ownership",
+                  body: "Your Internet Identity keypair is the only key to your records. No email, no password reset, no way to lock you out of your own data.",
+                },
+                {
+                  icon: "📂",
+                  title: "Open Interfaces",
+                  body: "Every canister publishes its Candid IDL spec. Any developer can build a tool that reads your HomeFax data — no API keys, no permission needed.",
+                },
+                {
+                  icon: "🌐",
+                  title: "Portable History",
+                  body: "Export your full property record at any time as JSON. Migrating platforms? Your data travels with you — no vendor lock-in.",
+                },
+              ].map((item) => (
+                <div key={item.title} style={{ background: "#141412", padding: "1.75rem 1.5rem" }}>
+                  <div style={{ fontSize: "1.5rem", marginBottom: "0.75rem" }}>{item.icon}</div>
+                  <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 700, fontSize: "1rem", color: "#F4F1EB", marginBottom: "0.5rem" }}>
+                    {item.title}
+                  </h3>
+                  <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.6rem", letterSpacing: "0.03em", color: "#7A7268", lineHeight: 1.7 }}>
+                    {item.body}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: "2rem", display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "#7A7268" }}>
+                Built on Internet Computer Protocol
+              </span>
+              <span style={{ height: "1px", flex: 1, background: "#2A2A28", minWidth: "2rem" }} />
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.55rem", letterSpacing: "0.08em", color: "#7A7268" }}>
+                Candid IDL published · Open source · No vendor lock-in
+              </span>
+            </div>
+          </div>
+        </section>
+
         {/* ── Persona CTA ─────────────────────────────────────────────────── */}
         <section className="hfl-cta">
           <div className="hfl-cta-inner">
@@ -706,6 +765,7 @@ export default function LandingPage() {
             <a onClick={(e) => { e.preventDefault(); scrollTo("hfl-features"); }}>For Homeowners</a>
             <a onClick={(e) => { e.preventDefault(); scrollTo("hfl-features"); }}>Service Network</a>
             <a onClick={(e) => { e.preventDefault(); scrollTo("hfl-sell"); }}>Sell Smarter</a>
+            <a onClick={(e) => { e.preventDefault(); scrollTo("hfl-data"); }}>Your Data</a>
             <a onClick={() => navigate("/pricing")}>Pricing</a>
             <a href="#">Privacy</a>
             <a href="#">Terms</a>
