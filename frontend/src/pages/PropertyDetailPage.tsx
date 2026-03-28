@@ -236,7 +236,7 @@ export default function PropertyDetailPage() {
         {tab === "timeline"  && <TimelineTab property={property} jobs={jobs} onVerify={handleVerify} currentPrincipal={principal} photosByJob={photosByJob} onPhotoUpload={handlePhotoUpload} />}
         {tab === "jobs"      && <JobsTab jobs={jobs} />}
         {tab === "documents" && <DocumentsTab propertyId={id!} />}
-        {tab === "settings"  && <SettingsTab property={property} />}
+        {tab === "settings"  && <SettingsTab property={property} currentPrincipal={principal ?? ""} />}
       </div>
 
       {showReportModal && (
@@ -980,13 +980,25 @@ function DocumentsTab({ propertyId }: { propertyId: string }) {
   );
 }
 
-function SettingsTab({ property }: { property: Property }) {
+function SettingsTab({ property, currentPrincipal }: { property: Property; currentPrincipal: string }) {
   const S = { rule: "#C8C3B8", inkLight: "#7A7268", ink: "#0E0E0C", rust: "#C94C2E", sage: "#3D6B57", paper: "#F4F1EB", serif: "'Playfair Display', Georgia, serif" as const, mono: "'IBM Plex Mono', monospace" as const };
   const navigate = useNavigate();
 
   const [transferPrincipal, setTransferPrincipal] = React.useState("");
   const [transferStep, setTransferStep] = React.useState<"idle" | "confirm" | "loading" | "done">("idle");
   const [transferError, setTransferError] = React.useState<string | null>(null);
+
+  // Incoming pending transfer (this user is the recipient)
+  const [incomingTransfer, setIncomingTransfer] = React.useState<import("../services/property").PendingTransfer | null>(null);
+  const [incomingLoading, setIncomingLoading] = React.useState(false);
+  const [historyRecords, setHistoryRecords] = React.useState<import("../services/property").TransferRecord[]>([]);
+
+  React.useEffect(() => {
+    propertyService.getPendingTransfer(BigInt(property.id)).then((pt) => {
+      if (pt && pt.to === currentPrincipal) setIncomingTransfer(pt);
+    }).catch(() => {});
+    propertyService.getOwnershipHistory(BigInt(property.id)).then(setHistoryRecords).catch(() => {});
+  }, [property.id, currentPrincipal]);
 
   const verificationNext =
     property.verificationLevel === "Unverified"
@@ -1107,12 +1119,63 @@ function SettingsTab({ property }: { property: Property }) {
         </div>
       </div>
 
+      {/* Incoming Transfer — shown when this user is the designated recipient */}
+      {incomingTransfer && (
+        <div style={{ border: `1px solid #1e40af`, background: "#EFF6FF" }}>
+          {section("Incoming Transfer")}
+          <div style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+            <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: "#1e40af", lineHeight: 1.6 }}>
+              <strong>{incomingTransfer.from}</strong> has proposed to transfer this property to you. Accept to become the owner on-chain.
+            </p>
+            <div style={{ display: "flex", gap: "0.75rem" }}>
+              <button
+                disabled={incomingLoading}
+                onClick={async () => {
+                  setIncomingLoading(true);
+                  try {
+                    await propertyService.acceptTransfer(BigInt(property.id));
+                    toast.success("Transfer accepted — you are now the owner.");
+                    setIncomingTransfer(null);
+                    navigate("/dashboard");
+                  } catch (e: any) {
+                    toast.error(e.message ?? "Accept failed");
+                  } finally {
+                    setIncomingLoading(false);
+                  }
+                }}
+                style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", background: "#1e40af", color: "#fff", border: "none", cursor: "pointer" }}
+              >
+                {incomingLoading ? "Accepting…" : "Accept Transfer"}
+              </button>
+              <button
+                disabled={incomingLoading}
+                onClick={async () => {
+                  setIncomingLoading(true);
+                  try {
+                    await propertyService.cancelTransfer(BigInt(property.id));
+                    setIncomingTransfer(null);
+                    toast.success("Transfer declined.");
+                  } catch (e: any) {
+                    toast.error(e.message ?? "Decline failed");
+                  } finally {
+                    setIncomingLoading(false);
+                  }
+                }}
+                style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", background: "none", border: `1px solid ${S.rule}`, color: S.inkLight, cursor: "pointer" }}
+              >
+                Decline
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Transfer Ownership */}
       <div style={{ border: `1px solid ${S.rust}` }}>
         {section("Transfer Ownership")}
         <div style={{ padding: "1.25rem", background: "#fff" }}>
           {transferStep === "done" ? (
-            <p style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.sage }}>Ownership transfer submitted. The new owner must accept on-chain.</p>
+            <p style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.sage }}>Transfer proposed. The recipient must accept on-chain to complete the transfer.</p>
           ) : (
             <>
               <p style={{ fontSize: "0.8rem", color: S.inkLight, fontWeight: 300, lineHeight: 1.6, marginBottom: "1rem" }}>
@@ -1155,8 +1218,7 @@ function SettingsTab({ property }: { property: Property }) {
                       onClick={async () => {
                         setTransferStep("loading");
                         try {
-                          const { propertyService } = await import("../services/property");
-                          await propertyService.transferOwnership(BigInt(property.id), transferPrincipal.trim());
+                          await propertyService.initiateTransfer(BigInt(property.id), transferPrincipal.trim());
                           setTransferStep("done");
                         } catch (e: any) {
                           setTransferError(e.message ?? "Transfer failed.");
@@ -1183,6 +1245,34 @@ function SettingsTab({ property }: { property: Property }) {
           )}
         </div>
       </div>
+
+      {/* Ownership History */}
+      {historyRecords.length > 0 && (
+        <div style={{ border: `1px solid ${S.rule}` }}>
+          {section("Ownership History")}
+          <div style={{ background: "#fff" }}>
+            {historyRecords.map((r, i) => (
+              <div
+                key={i}
+                style={{ padding: "0.875rem 1.25rem", borderBottom: i < historyRecords.length - 1 ? `1px solid ${S.rule}` : "none", display: "flex", flexDirection: "column", gap: "0.25rem" }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight }}>
+                    {new Date(r.timestamp).toLocaleDateString()}
+                  </span>
+                  {r.txHash && (
+                    <span style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight, opacity: 0.7 }}>{r.txHash.slice(0, 16)}…</span>
+                  )}
+                </div>
+                <div style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.ink }}>
+                  <span style={{ color: S.inkLight }}>From </span>{r.from.slice(0, 20)}…
+                  <span style={{ color: S.inkLight }}> → </span>{r.to.slice(0, 20)}…
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
     </div>
   );

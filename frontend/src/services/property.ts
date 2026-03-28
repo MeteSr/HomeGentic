@@ -57,6 +57,19 @@ const idlFactory = ({ IDL }: any) => {
     DuplicateAddress: IDL.Null,
     AddressConflict: IDL.Int,
   });
+  const TransferRecord = IDL.Record({
+    propertyId : IDL.Nat,
+    from       : IDL.Principal,
+    to         : IDL.Principal,
+    timestamp  : IDL.Int,
+    txHash     : IDL.Text,
+  });
+  const PendingTransfer = IDL.Record({
+    propertyId  : IDL.Nat,
+    from        : IDL.Principal,
+    to          : IDL.Principal,
+    initiatedAt : IDL.Int,
+  });
   return IDL.Service({
     registerProperty: IDL.Func([RegisterArgs], [IDL.Variant({ ok: Property, err: Error })], []),
     getMyProperties: IDL.Func([], [IDL.Vec(Property)], ["query"]),
@@ -80,11 +93,23 @@ const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: IDL.Null, err: Error })],
       []
     ),
-    transferOwnership: IDL.Func(
+    initiateTransfer: IDL.Func(
       [IDL.Nat, IDL.Principal],
+      [IDL.Variant({ ok: PendingTransfer, err: Error })],
+      []
+    ),
+    acceptTransfer: IDL.Func(
+      [IDL.Nat, IDL.Text],
+      [IDL.Variant({ ok: Property, err: Error })],
+      []
+    ),
+    cancelTransfer: IDL.Func(
+      [IDL.Nat],
       [IDL.Variant({ ok: IDL.Null, err: Error })],
       []
     ),
+    getPendingTransfer: IDL.Func([IDL.Nat], [IDL.Opt(PendingTransfer)], ["query"]),
+    getOwnershipHistory: IDL.Func([IDL.Nat], [IDL.Vec(TransferRecord)], ["query"]),
   });
 };
 
@@ -107,6 +132,21 @@ export interface Property {
   createdAt: bigint;
   updatedAt: bigint;
   isActive: boolean;
+}
+
+export interface TransferRecord {
+  propertyId : bigint;
+  from       : string;  // principal text
+  to         : string;  // principal text
+  timestamp  : number;  // ms
+  txHash     : string;
+}
+
+export interface PendingTransfer {
+  propertyId  : bigint;
+  from        : string;
+  to          : string;
+  initiatedAt : number; // ms
 }
 
 export interface RegisterPropertyArgs {
@@ -233,15 +273,63 @@ export const propertyService = {
     }
   },
 
-  async transferOwnership(propertyId: bigint, newOwnerPrincipal: string): Promise<void> {
-    if (!PROPERTY_CANISTER_ID) return; // mock: no-op
+  async initiateTransfer(propertyId: bigint, toPrincipal: string): Promise<PendingTransfer> {
     const { Principal: P } = await import("@dfinity/principal");
     const a = await getActor();
-    const result = await a.transferOwnership(propertyId, P.fromText(newOwnerPrincipal));
+    const result = await a.initiateTransfer(propertyId, P.fromText(toPrincipal));
+    if ("ok" in result) {
+      const r = result.ok;
+      return {
+        propertyId : r.propertyId,
+        from       : r.from.toText(),
+        to         : r.to.toText(),
+        initiatedAt: Number(r.initiatedAt) / 1_000_000,
+      };
+    }
+    const key = Object.keys(result.err)[0];
+    const val = result.err[key];
+    throw new Error(typeof val === "string" ? val : key);
+  },
+
+  async acceptTransfer(propertyId: bigint, txHash = ""): Promise<Property> {
+    const a = await getActor();
+    const result = await a.acceptTransfer(propertyId, txHash);
+    return unwrap(result);
+  },
+
+  async cancelTransfer(propertyId: bigint): Promise<void> {
+    const a = await getActor();
+    const result = await a.cancelTransfer(propertyId);
     if ("err" in result) {
       const key = Object.keys(result.err)[0];
       throw new Error(key);
     }
+  },
+
+  async getPendingTransfer(propertyId: bigint): Promise<PendingTransfer | null> {
+    const a = await getActor();
+    const result: any[] = await a.getPendingTransfer(propertyId);
+    if (!result[0]) return null;
+    const r = result[0];
+    return {
+      propertyId : r.propertyId,
+      from       : r.from.toText(),
+      to         : r.to.toText(),
+      initiatedAt: Number(r.initiatedAt) / 1_000_000,
+    };
+  },
+
+  async getOwnershipHistory(propertyId: bigint): Promise<TransferRecord[]> {
+    if (!PROPERTY_CANISTER_ID) return [];
+    const a = await getActor();
+    const records: any[] = await a.getOwnershipHistory(propertyId);
+    return records.map((r) => ({
+      propertyId : r.propertyId,
+      from       : r.from.toText(),
+      to         : r.to.toText(),
+      timestamp  : Number(r.timestamp) / 1_000_000,
+      txHash     : r.txHash,
+    }));
   },
 
   reset() {

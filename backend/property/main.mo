@@ -28,17 +28,17 @@
  *  properties cannot produce shareable reports.
  */
 
-import Array    "mo:base/Array";
-import HashMap  "mo:base/HashMap";
-import Hash     "mo:base/Hash";
-import Int      "mo:base/Int";
-import Iter     "mo:base/Iter";
-import Nat      "mo:base/Nat";
-import Option   "mo:base/Option";
+import Array     "mo:base/Array";
+import HashMap   "mo:base/HashMap";
+import Hash      "mo:base/Hash";
+import Int       "mo:base/Int";
+import Iter      "mo:base/Iter";
+import Nat       "mo:base/Nat";
+import Option    "mo:base/Option";
 import Principal "mo:base/Principal";
-import Result   "mo:base/Result";
-import Text     "mo:base/Text";
-import Time     "mo:base/Time";
+import Result    "mo:base/Result";
+import Text      "mo:base/Text";
+import Time      "mo:base/Time";
 
 persistent actor Property {
 
@@ -133,6 +133,25 @@ persistent actor Property {
     #AddressConflict : Int;
   };
 
+  /// Immutable record of a single ownership transfer event.
+  public type TransferRecord = {
+    propertyId : Nat;
+    from       : Principal;
+    to         : Principal;
+    timestamp  : Time.Time;
+    /// Optional hash / txid from an off-chain deed recording or blockchain tx.
+    /// Empty string when not provided.
+    txHash     : Text;
+  };
+
+  /// Pending transfer awaiting recipient acceptance.
+  public type PendingTransfer = {
+    propertyId  : Nat;
+    from        : Principal;
+    to          : Principal;
+    initiatedAt : Time.Time;
+  };
+
   // ─── Stable State ─────────────────────────────────────────────────────────
 
   private var nextId     : Nat       = 1;
@@ -146,6 +165,11 @@ persistent actor Property {
   /// Admin-managed tier grants keyed by principal text.
   /// Default (missing) → #Free.  Callers cannot supply or spoof their own tier.
   private var tierGrantEntries  : [(Text, SubscriptionTier)] = [];
+  /// Append-only ownership transfer log. Key is auto-incrementing transfer ID.
+  private var transferCounter   : Nat = 0;
+  private var transferEntries   : [(Nat, TransferRecord)]    = [];
+  /// Pending transfers keyed by propertyId. At most one pending transfer per property.
+  private var pendingTransferEntries : [(Nat, PendingTransfer)] = [];
 
   // ─── Transient State ──────────────────────────────────────────────────────
 
@@ -163,18 +187,30 @@ persistent actor Property {
     tierGrantEntries.vals(), 16, Text.equal, Text.hash
   );
 
+  private transient var transfers = HashMap.fromIter<Nat, TransferRecord>(
+    transferEntries.vals(), 16, Nat.equal, Hash.hash
+  );
+
+  private transient var pendingTransfers = HashMap.fromIter<Nat, PendingTransfer>(
+    pendingTransferEntries.vals(), 8, Nat.equal, Hash.hash
+  );
+
   // ─── Upgrade Hooks ────────────────────────────────────────────────────────
 
   system func preupgrade() {
-    propertyEntries   := Iter.toArray(properties.entries());
-    addressIdxEntries := Iter.toArray(addressIdx.entries());
-    tierGrantEntries  := Iter.toArray(tierGrants.entries());
+    propertyEntries        := Iter.toArray(properties.entries());
+    addressIdxEntries      := Iter.toArray(addressIdx.entries());
+    tierGrantEntries       := Iter.toArray(tierGrants.entries());
+    transferEntries        := Iter.toArray(transfers.entries());
+    pendingTransferEntries := Iter.toArray(pendingTransfers.entries());
   };
 
   system func postupgrade() {
-    propertyEntries   := [];
-    addressIdxEntries := [];
-    tierGrantEntries  := [];
+    propertyEntries        := [];
+    addressIdxEntries      := [];
+    tierGrantEntries       := [];
+    transferEntries        := [];
+    pendingTransferEntries := [];
   };
 
   // ─── Private Helpers ──────────────────────────────────────────────────────
@@ -485,6 +521,131 @@ persistent actor Property {
   /// Returns true if the given principal is an admin.
   public query func isAdminPrincipal(p: Principal) : async Bool {
     Option.isSome(Array.find<Principal>(admins, func(a) { a == p }))
+  };
+
+  // ─── Ownership Transfer ───────────────────────────────────────────────────
+
+  /// Step 1: current owner proposes a transfer to `to`.
+  /// Overwrites any existing pending transfer for this property.
+  public shared(msg) func initiateTransfer(
+    propertyId : Nat,
+    to         : Principal
+  ) : async Result.Result<PendingTransfer, Error> {
+    switch (requireActive()) { case (#err e) return #err e; case _ {} };
+
+    switch (properties.get(propertyId)) {
+      case null { #err(#NotFound) };
+      case (?prop) {
+        if (prop.owner != msg.caller) return #err(#NotAuthorized);
+        if (prop.owner == to)         return #err(#InvalidInput("Cannot transfer to yourself"));
+
+        let pending : PendingTransfer = {
+          propertyId;
+          from        = msg.caller;
+          to;
+          initiatedAt = Time.now();
+        };
+        pendingTransfers.put(propertyId, pending);
+        #ok(pending)
+      };
+    }
+  };
+
+  /// Step 2: recipient accepts; executes the transfer and records it in the log.
+  /// `txHash` is optional metadata (off-chain deed or blockchain tx id).
+  public shared(msg) func acceptTransfer(
+    propertyId : Nat,
+    txHash     : Text
+  ) : async Result.Result<Property, Error> {
+    switch (requireActive()) { case (#err e) return #err e; case _ {} };
+
+    switch (pendingTransfers.get(propertyId)) {
+      case null { #err(#NotFound) };
+      case (?pending) {
+        if (pending.to != msg.caller) return #err(#NotAuthorized);
+
+        switch (properties.get(propertyId)) {
+          case null { #err(#NotFound) };
+          case (?prop) {
+            let now = Time.now();
+
+            // Update property owner
+            let updated : Property = {
+              id                  = prop.id;
+              owner               = msg.caller;
+              address             = prop.address;
+              city                = prop.city;
+              state               = prop.state;
+              zipCode             = prop.zipCode;
+              propertyType        = prop.propertyType;
+              yearBuilt           = prop.yearBuilt;
+              squareFeet          = prop.squareFeet;
+              verificationLevel   = prop.verificationLevel;
+              verificationDate    = prop.verificationDate;
+              verificationMethod  = prop.verificationMethod;
+              verificationDocHash = prop.verificationDocHash;
+              tier                = prop.tier;
+              createdAt           = prop.createdAt;
+              updatedAt           = now;
+              isActive            = prop.isActive;
+            };
+            properties.put(propertyId, updated);
+
+            // Append immutable transfer record
+            transferCounter += 1;
+            let record : TransferRecord = {
+              propertyId;
+              from      = pending.from;
+              to        = msg.caller;
+              timestamp = now;
+              txHash;
+            };
+            transfers.put(transferCounter, record);
+
+            // Clear the pending transfer
+            pendingTransfers.delete(propertyId);
+
+            #ok(updated)
+          };
+        }
+      };
+    }
+  };
+
+  /// Recipient (or original proposer) cancels a pending transfer.
+  public shared(msg) func cancelTransfer(
+    propertyId : Nat
+  ) : async Result.Result<(), Error> {
+    switch (pendingTransfers.get(propertyId)) {
+      case null { #err(#NotFound) };
+      case (?pending) {
+        if (pending.from != msg.caller and pending.to != msg.caller and not isAdmin(msg.caller))
+          return #err(#NotAuthorized);
+        pendingTransfers.delete(propertyId);
+        #ok(())
+      };
+    }
+  };
+
+  /// Returns the pending transfer for a property, if any.
+  public query func getPendingTransfer(propertyId: Nat) : async ?PendingTransfer {
+    pendingTransfers.get(propertyId)
+  };
+
+  /// Public, unauthenticated ownership history for a property.
+  /// Returns records sorted by timestamp ascending (oldest first).
+  public query func getOwnershipHistory(propertyId: Nat) : async [TransferRecord] {
+    let filtered = Iter.toArray(
+      Iter.filter(transfers.vals(), func(r: TransferRecord) : Bool {
+        r.propertyId == propertyId
+      })
+    );
+    // Sort ascending by timestamp
+    Array.sort<TransferRecord>(filtered, func(a, b) {
+      if      (a.timestamp < b.timestamp) { #less    }
+      else if (a.timestamp > b.timestamp) { #greater }
+      else                                { #equal   }
+    })
   };
 
   // ─── Admin Controls ───────────────────────────────────────────────────────
