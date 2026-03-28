@@ -124,9 +124,9 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
 | 3.1.1 | Property registration on-chain | ✅ Exists | — | `property` canister records owner principal + timestamp |
-| 3.1.2 | Ownership transfer event log | ⬜ Missing | L | Append-only `transfers: [{ from, to, timestamp, txHash }]` stable array in `property` canister |
-| 3.1.3 | Transfer UI | ⬜ Missing | M | "Transfer Property" in `SettingsTab`; requires both parties to sign |
-| 3.1.4 | Public ownership verification endpoint | ⬜ Missing | M | Unauthenticated query: `getOwnershipHistory(propertyId)` → returns full chain |
+| 3.1.2 | Ownership transfer event log | ✅ Done | L | Append-only `transfers: [{ from, to, timestamp, txHash }]` stable array in `property` canister |
+| 3.1.3 | Transfer UI | ✅ Done | M | "Transfer Property" in `SettingsTab`; requires both parties to sign |
+| 3.1.4 | Public ownership verification endpoint | ✅ Done | M | Unauthenticated query: `getOwnershipHistory(propertyId)` → returns full chain |
 
 ### 3.2 Decentralized Document Vault
 **Vision:** Photos, permits, inspection reports in ICP canisters — not AWS. Breach-proof, shutdown-proof.
@@ -135,7 +135,7 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 |---|------|--------|------|-------|
 | 3.2.1 | SHA-256 dedup photo storage | ✅ Exists | — | `photo` canister |
 | 3.2.2 | Document type taxonomy | ✅ Exists | — | `DOC_TYPES` in `ConstructionPhotoUpload.tsx`: Receipt, Invoice, Permit, Before/After Photo, Warranty Card, Inspection Report, Other |
-| 3.2.3 | Permit / inspection upload flow | ⬜ Missing | M | Dedicated upload UI in `PropertyDetailPage` Documents tab beyond receipts |
+| 3.2.3 | Permit / inspection upload flow | ✅ Done | M | Dedicated upload UI in `PropertyDetailPage` Documents tab beyond receipts |
 | 3.2.4 | Per-tier storage quota enforcement | 🟡 Partial | S | `getQuota()` exists; quota banner shown; enforcement on upload needs hardening |
 | 3.2.5 | Canister-level access control | ⬜ Missing | M | Only property owner + authorized contractors can read documents; add caller check in `photo` canister |
 
@@ -168,7 +168,7 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
 | 4.1.1 | Visibility levels on report shares | ✅ Exists | — | `report` canister has `Full / Summary / ScoreOnly` visibility + revocation |
-| 4.1.2 | Field-level disclosure toggles | ⬜ Missing | M | UI in `ReportPage` to choose which fields are visible per share link |
+| 4.1.2 | Field-level disclosure toggles | ✅ Done | M | UI in `ReportPage` to choose which fields are visible per share link |
 | 4.1.3 | ZKP "permits closed" attestation | ⬜ Missing | XL | Requires ZKP circuit; prove all permit fields = Closed without revealing job details |
 | 4.1.4 | ZKP "maintenance score above threshold" | ⬜ Missing | XL | Prove score ≥ N without revealing individual job records |
 
@@ -257,7 +257,7 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 |---|------|--------|------|-------|
 | 6.1.1 | HomeFax score computation | ✅ Exists | — | `market` canister `analyzeCompetitivePosition()` returns score + grade |
 | 6.1.2 | Score-to-dollar premium model | ⬜ Missing | L | Needs market data (5.3.2); map score band → estimated premium range per zip |
-| 6.1.3 | Dollar premium display on Dashboard | ⬜ Missing | M | "Your score is worth an estimated $X–$Y in your market" card |
+| 6.1.3 | Dollar premium display on Dashboard | ✅ Done | M | "Your score is worth an estimated $X–$Y in your market" card |
 | 6.1.4 | Premium estimate in HomeFax Report | ⬜ Missing | M | Include dollar value range in generated report for buyer/agent view |
 
 ### 6.2 Listing Platform Integration & Badge
@@ -441,7 +441,7 @@ The core retention challenge for HomeFax: value delivery is irregular. Homeowner
 | 8.4.2 | "Insurance Defense Mode" UI | ✅ Exists | — | `/insurance-defense` route; "Insurance Defense" button in Dashboard Quick Actions; "Print / Export PDF" → `window.print()` |
 | 8.4.3 | Key insurance-relevant fields on job records | ✅ Exists | — | `INSURANCE_SERVICE_TYPES` set + `isInsuranceRelevant()` in `job.ts`; badge shown in `JobCreatePage` when service type is insurance-relevant (Roofing, HVAC, Electrical, Plumbing, Foundation) |
 | 8.4.4 | Insurer-specific export templates | ⬜ Missing | L | Different Florida insurers have different documentation formats; template library for major carriers (Citizens, Universal, Heritage) |
-| 8.4.5 | Insurance success story prompt | ⬜ Missing | S | After export, prompt: "Did this help with your insurer? Tell us what you saved." — feeds testimonials + in-app social proof |
+| 8.4.5 | Insurance success story prompt | ✅ Done | S | After export, prompt: "Did this help with your insurer? Tell us what you saved." — feeds testimonials + in-app social proof |
 | 8.4.6 | Premium discount estimate | ⬜ Missing | M | Based on record completeness and score, estimate potential insurance premium reduction (see 7.3.2) |
 
 ### 8.5 Annual Resale-Ready Milestone
@@ -452,8 +452,8 @@ The core retention challenge for HomeFax: value delivery is irregular. Homeowner
 | 8.5.1 | Annual milestone trigger | ✅ Exists | — | `showMilestone` in DashboardPage — fires when `accountAgeMs >= 11 months` + at least one job logged; dismissible banner |
 | 8.5.2 | "Resale Ready" milestone screen | ✅ Exists | — | `ResaleReadyPage.tsx` at `/resale-ready` — score arc, stats grid, premium estimate, HomeFax Certified badge, share link generation, insurance defense link, "what a buyer sees" preview |
 | 8.5.3 | Year-in-review email | ⬜ Missing | M | Email summarizing the year: jobs logged, score change, warranty reminders set, estimated value added |
-| 8.5.4 | Milestone share card | ⬜ Missing | S | Shareable image: "My home has a HomeFax score of 81 — 43 verified records over 12 months." Organic social distribution |
-| 8.5.5 | Advocate prompt at milestone | ⬜ Missing | S | After milestone screen, prompt referral: "Know a homeowner who should have this?" with referral link |
+| 8.5.4 | Milestone share card | ✅ Done | S | Shareable image: "My home has a HomeFax score of 81 — 43 verified records over 12 months." Organic social distribution |
+| 8.5.5 | Advocate prompt at milestone | ✅ Done | S | After milestone screen, prompt referral: "Know a homeowner who should have this?" with referral link |
 
 ### 8.6 Post-Service Habit Loop
 **Vision:** After every job: push notification → score increase → record on-chain → AI prompt for next related service. Three completions in year one → churn rate fraction of manual-only users.
@@ -462,7 +462,7 @@ The core retention challenge for HomeFax: value delivery is irregular. Homeowner
 |---|------|--------|------|-------|
 | 8.6.1 | Post-job completion notification | ✅ Exists | — | Job success screen in `JobCreatePage` shows "Record Locked On-Chain" with next-service tip after every submission |
 | 8.6.2 | Next-service prompt from completed job | ✅ Exists | — | Dashboard shows follow-up tip for most recent verified job ("Next Step" card) with "Add to Maintenance Schedule →" CTA; dismissible |
-| 8.6.3 | "Add to schedule" one-tap flow | 🟡 Partial | S | `PredictiveMaintenancePage` has schedule section; needs one-tap add from post-job prompt |
+| 8.6.3 | "Add to schedule" one-tap flow | ✅ Done | S | `PredictiveMaintenancePage` has schedule section; needs one-tap add from post-job prompt |
 | 8.6.4 | Contractor re-engagement via job history | ⬜ Missing | M | After 11 months since last HVAC service: "Book Cool Air Services again — they did your last service and you gave no complaints" |
 | 8.6.5 | In-app job completion animation | ✅ Exists | — | "Job Verified" overlay in `ContractorDashboardPage` — 2.8s animated card with "Record Locked On-Chain" copy after contractor signs |
 | 8.6.6 | 3-service engagement milestone | ✅ Exists | — | Dismissible milestone banner in DashboardPage when `verifiedCount >= 3` |
@@ -727,13 +727,13 @@ Require modest new infrastructure; high product value.
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 12.1.1 | `scoreService.ts` unit tests | ⬜ Missing | M | Highest risk gap. Tests needed for: `computeScore()` (40pt verified + 20pt value + 20pt verification + 20pt diversity rubric), `isCertified()` (score ≥88, ≥3 verified jobs, ≥2 key systems), `generateCertToken()` / `parseCertToken()` (Base64 encoding), `premiumEstimate()` (buyer premium ranges), `getScoreGrade()` (A+ through F) |
-| 12.1.2 | `recurringService.ts` unit tests | ⬜ Missing | M | Completely untested despite complex canister integration. Cover: `create()`, `getByProperty()`, `updateStatus()`, `addVisitLog()`, `getVisitLogs()`, `toSummary()` — especially mock store behavior and `AlreadyCancelled` error guard |
-| 12.1.3 | `scoreEventService.ts` unit tests | ⬜ Missing | S | Test `getRecentScoreEvents()` — 90-day window filter, max-12-events cap, deduplication, category assignment per event type |
-| 12.1.4 | `auth.ts` unit tests | ⬜ Missing | M | Test: `register()`, `getProfile()`, `updateProfile()`, `hasRole()`, BigInt time-field conversions, Opt unwrapping (`raw.field[0] ?? undefined` pattern), error propagation |
-| 12.1.5 | `pulseService.ts` unit tests | ⬜ Missing | S | Test `getWeeklyPulse()` — seasonal month detection, overdue service window (12 months), tip selection per season, empty-jobs edge case |
+| 12.1.1 | `scoreService.ts` unit tests | ✅ Done | M | Highest risk gap. Tests needed for: `computeScore()` (40pt verified + 20pt value + 20pt verification + 20pt diversity rubric), `isCertified()` (score ≥88, ≥3 verified jobs, ≥2 key systems), `generateCertToken()` / `parseCertToken()` (Base64 encoding), `premiumEstimate()` (buyer premium ranges), `getScoreGrade()` (A+ through F) |
+| 12.1.2 | `recurringService.ts` unit tests | ✅ Done | M | Completely untested despite complex canister integration. Cover: `create()`, `getByProperty()`, `updateStatus()`, `addVisitLog()`, `getVisitLogs()`, `toSummary()` — especially mock store behavior and `AlreadyCancelled` error guard |
+| 12.1.3 | `scoreEventService.ts` unit tests | ✅ Done | S | Test `getRecentScoreEvents()` — 90-day window filter, max-12-events cap, deduplication, category assignment per event type |
+| 12.1.4 | `auth.ts` unit tests | ✅ Done | M | Test: `register()`, `getProfile()`, `updateProfile()`, `hasRole()`, BigInt time-field conversions, Opt unwrapping (`raw.field[0] ?? undefined` pattern), error propagation |
+| 12.1.5 | `pulseService.ts` unit tests | ✅ Done | S | Test `getWeeklyPulse()` — seasonal month detection, overdue service window (12 months), tip selection per season, empty-jobs edge case |
 | 12.1.6 | `agentTools.ts` unit tests | ⬜ Missing | L | Test each Claude tool execution path: `classify_home_issue`, `create_maintenance_job`, `create_quote_request`, `search_contractors`, `sign_job_verification`, `update_job_status`; error recovery when canister call fails mid-tool |
-| 12.1.7 | `agentProfile.ts` unit tests | ⬜ Missing | S | Test `appendToUrl()` / `fromParams()` round-trip, empty-param edge cases, `save()` / `load()` / `clear()` localStorage cycle |
+| 12.1.7 | `agentProfile.ts` unit tests | ✅ Done | S | Test `appendToUrl()` / `fromParams()` round-trip, empty-param edge cases, `save()` / `load()` / `clear()` localStorage cycle |
 
 ---
 
@@ -744,8 +744,8 @@ Require modest new infrastructure; high product value.
 | 12.2.1 | `job.test.ts` — missing lifecycle methods | ⬜ Missing | M | Currently only tests adapters and utilities. Add: `signJob()` (dual-signature flow), `getByProperty()` pagination, DIY-only homeowner path, photo attachment validation |
 | 12.2.2 | `property.test.ts` — missing verification flow | ⬜ Missing | M | Add tests for `verifyProperty()` / `submitVerification()` — Unverified → PendingReview → Basic → Premium status transitions and 7-day conflict window |
 | 12.2.3 | `quote.test.ts` — missing contractor side | ⬜ Missing | M | Add tests for contractor bid submission, quote expiration, urgency-based matching, and tier-enforced open-request limits (3 Free / 10 Pro+) |
-| 12.2.4 | `report.test.ts` — missing share-link edge cases | ⬜ Missing | S | Add tests for: expired links (past `expiresAt`), `viewCount` increment, `listShareLinks` isolation per `propertyId`, `shareUrl` format with custom base URL |
-| 12.2.5 | `contractor.test.ts` — missing review rate-limiting | ⬜ Missing | S | Add tests for 10-reviews-per-day-per-user limit, composite key deduplication on reviews |
+| 12.2.4 | `report.test.ts` — missing share-link edge cases | ✅ Done | S | Add tests for: expired links (past `expiresAt`), `viewCount` increment, `listShareLinks` isolation per `propertyId`, `shareUrl` format with custom base URL |
+| 12.2.5 | `contractor.test.ts` — missing review rate-limiting | ✅ Done | S | Add tests for 10-reviews-per-day-per-user limit, composite key deduplication on reviews |
 | 12.2.6 | `sensor.test.ts` — missing anomaly detection | ⬜ Missing | M | Add tests for bulk reading ingestion, Critical event auto-creating a pending job (cross-service), alert threshold boundary values |
 | 12.2.7 | `maintenance.test.ts` — missing climate/material variants | ⬜ Missing | M | Add tests for climate-adjusted lifespan (once 1.1.5 lands) and all 8 system types at boundary ages (exactly at threshold years) |
 
