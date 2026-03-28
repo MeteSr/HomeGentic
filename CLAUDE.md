@@ -155,7 +155,7 @@ Copy `.env.example` to `.env`. Key vars:
 DFX_NETWORK=local
 ANTHROPIC_API_KEY=sk-ant-...     # Required for voice agent
 VOICE_AGENT_PORT=3001
-FRONTEND_ORIGIN=http://localhost:5173
+FRONTEND_ORIGIN=http://localhost:3000
 VITE_VOICE_AGENT_URL=http://localhost:3001
 ```
 Canister IDs (`CANISTER_ID_AUTH`, etc.) are auto-populated by `scripts/deploy.sh`.

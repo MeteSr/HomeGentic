@@ -13,7 +13,7 @@ help:
 	@echo "  make clean      Clean local dfx state"
 
 dev:
-	dfx start --background && bash scripts/deploy.sh && cd frontend && npm run dev
+	dfx start --clean --background && bash scripts/deploy.sh && cd frontend && npm run dev
 
 start:
 	dfx start --background
