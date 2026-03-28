@@ -713,6 +713,33 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* Free-tier job cap progress bar (15.1.3) */}
+        {!loading && userTier === "Free" && (
+          <div style={{ border: `1px solid ${S.rule}`, background: COLORS.white, padding: "0.875rem 1.25rem", marginBottom: "1.5rem", borderRadius: RADIUS.sm }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+              <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>
+                Free Plan · Jobs
+              </span>
+              <span style={{ fontFamily: S.mono, fontSize: "0.65rem", fontWeight: 700, color: jobs.length >= 5 ? COLORS.sage : S.ink }}>
+                {jobs.length}/5
+              </span>
+            </div>
+            <div style={{ height: "4px", background: S.rule, borderRadius: 100, overflow: "hidden", marginBottom: "0.5rem" }}>
+              <div style={{ height: "4px", width: `${Math.min(jobs.length / 5 * 100, 100)}%`, background: jobs.length >= 5 ? COLORS.sage : COLORS.plum, borderRadius: 100, transition: "width 0.5s ease" }} />
+            </div>
+            {jobs.length >= 5 ? (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
+                <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>Job limit reached — upgrade to keep logging</span>
+                <button onClick={() => navigate("/pricing")} style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.25rem 0.625rem", border: "none", background: COLORS.plum, color: COLORS.white, cursor: "pointer", borderRadius: RADIUS.sm, whiteSpace: "nowrap" }}>Upgrade →</button>
+              </div>
+            ) : (
+              <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>
+                {5 - jobs.length} job{5 - jobs.length !== 1 ? "s" : ""} remaining on Free plan
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Score history chart */}
         {showScoreChart && scoreHistory.length >= 2 && (
           <div style={{ marginBottom: "2rem", border: `1px solid ${S.rule}`, background: "#fff", borderRadius: RADIUS.card, overflow: "hidden" }}>
