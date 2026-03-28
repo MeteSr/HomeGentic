@@ -741,8 +741,8 @@ Require modest new infrastructure; high product value.
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 12.2.1 | `job.test.ts` — missing lifecycle methods | ⬜ Missing | M | Currently only tests adapters and utilities. Add: `signJob()` (dual-signature flow), `getByProperty()` pagination, DIY-only homeowner path, photo attachment validation |
-| 12.2.2 | `property.test.ts` — missing verification flow | ⬜ Missing | M | Add tests for `verifyProperty()` / `submitVerification()` — Unverified → PendingReview → Basic → Premium status transitions and 7-day conflict window |
+| 12.2.1 | `job.test.ts` — missing lifecycle methods | ✅ Done | M | Added: `create` (default fields, DIY `contractorSigned` behavior), `getByProperty` (filtering, empty result), `updateJob` (field updates, not-found), `updateJobStatus` (all four statuses), `verifyJob` (DIY→fully verified, non-DIY→partial), `linkContractor`, `getJobsPendingMySignature` (returns []), `getCertificationData` (meetsStructural threshold), `isInsuranceRelevant` + `INSURANCE_SERVICE_TYPES` |
+| 12.2.2 | `property.test.ts` — transfer flow untested | ✅ Done | M | Added: `initiateTransfer` (maps PendingTransfer, error throws), `acceptTransfer` (ok/err via unwrap), `cancelTransfer` (resolves/throws), `getPendingTransfer` (mapped object + null when empty), `getOwnershipHistory` (maps TransferRecord[], returns [] without canister ID) |
 | 12.2.3 | `quote.test.ts` — missing contractor side | ⬜ Missing | M | Add tests for contractor bid submission, quote expiration, urgency-based matching, and tier-enforced open-request limits (3 Free / 10 Pro+) |
 | 12.2.4 | `report.test.ts` — missing share-link edge cases | ✅ Done | S | Add tests for: expired links (past `expiresAt`), `viewCount` increment, `listShareLinks` isolation per `propertyId`, `shareUrl` format with custom base URL |
 | 12.2.5 | `contractor.test.ts` — missing review rate-limiting | ✅ Done | S | Add tests for 10-reviews-per-day-per-user limit, composite key deduplication on reviews |

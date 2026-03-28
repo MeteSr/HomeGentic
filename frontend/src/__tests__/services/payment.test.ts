@@ -55,10 +55,11 @@ describe("PLANS", () => {
     });
   });
 
-  it("paid tiers have higher property limits than Free", () => {
+  it("homeowner paid tiers have higher property limits than Free", () => {
     const free = PLANS.find((p) => p.tier === "Free")!;
-    const paid = PLANS.filter((p) => p.price > 0);
-    paid.forEach((p) => {
+    // ContractorPro is a contractor plan (propertyLimit=0 means N/A for homeowners).
+    const homeownerPaid = PLANS.filter((p) => p.price > 0 && p.tier !== "ContractorPro");
+    homeownerPaid.forEach((p) => {
       expect(p.propertyLimit).toBeGreaterThan(free.propertyLimit);
     });
   });

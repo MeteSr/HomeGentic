@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { quoteService } from "@/services/quote";
+
+// Ensure Date.now() increments on every call so IDs based on it are always distinct.
+let _now = 2_000_000_000_000;
+vi.spyOn(Date, "now").mockImplementation(() => ++_now);
 import type { QuoteRequest } from "@/services/quote";
 
 // ─── getQuotaForTier (pure) ───────────────────────────────────────────────────
@@ -134,23 +138,26 @@ describe("quoteService mock — getRequests", () => {
     svc = m.quoteService;
   });
 
-  it("returns empty array before any requests are created", async () => {
-    expect(await svc.getRequests()).toEqual([]);
+  it("starts with the 3 pre-seeded demo requests", async () => {
+    const reqs = await svc.getRequests();
+    expect(reqs).toHaveLength(3);
+    expect(reqs.map((r) => r.id)).toContain("MY_REQ_1");
   });
 
-  it("returns all created requests", async () => {
+  it("returns all pre-seeded + created requests", async () => {
     await svc.createRequest({ propertyId: "p1", serviceType: "HVAC",    urgency: "high",   description: "d1" });
     await svc.createRequest({ propertyId: "p1", serviceType: "Roofing", urgency: "medium", description: "d2" });
     const reqs = await svc.getRequests();
-    expect(reqs).toHaveLength(2);
+    expect(reqs).toHaveLength(5); // 3 pre-seeded + 2 created
   });
 
   it("returns a copy — mutating result does not affect service state", async () => {
+    const before = (await svc.getRequests()).length; // 3 pre-seeded
     await svc.createRequest({ propertyId: "p1", serviceType: "HVAC", urgency: "high", description: "d1" });
     const first = await svc.getRequests();
     first.pop();
     const second = await svc.getRequests();
-    expect(second).toHaveLength(1);
+    expect(second).toHaveLength(before + 1); // pop on copy doesn't affect internal state
   });
 });
 

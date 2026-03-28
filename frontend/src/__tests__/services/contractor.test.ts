@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeAll, beforeEach, afterAll } from "vitest";
 
 // ─── Mock external ICP dependencies ──────────────────────────────────────────
 
@@ -18,6 +18,10 @@ vi.mock("@/services/actor", () => ({
 
 vi.mock("@dfinity/agent", () => ({
   Actor: { createActor: vi.fn(() => mockActor) },
+}));
+
+vi.mock("@dfinity/principal", () => ({
+  Principal: { fromText: vi.fn((t: string) => ({ toText: () => t })) },
 }));
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -40,9 +44,21 @@ function makeRawProfile(overrides: Record<string, unknown> = {}) {
   };
 }
 
-// ─── Import service ───────────────────────────────────────────────────────────
+// ─── Load service with a non-empty canister ID so all code paths use the actor.
+// CONTRACTOR_CANISTER_ID is a module-level constant evaluated at load time;
+// we stub the env var, reset the module cache, then dynamically import the service.
 
-import { contractorService } from "@/services/contractor";
+let contractorService: typeof import("@/services/contractor").contractorService;
+
+beforeAll(async () => {
+  vi.stubEnv("CONTRACTOR_CANISTER_ID", "aaaaa-aaaaa-aaaaa-aaaaa-cai");
+  vi.resetModules();
+  contractorService = (await import("@/services/contractor")).contractorService;
+});
+
+afterAll(() => {
+  vi.unstubAllEnvs();
+});
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 

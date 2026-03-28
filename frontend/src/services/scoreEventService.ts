@@ -93,7 +93,7 @@ export function getRecentScoreEvents(
 
   // ── Value milestone: noted when documented value crosses thresholds ───────
   const totalCents = jobs.reduce((s, j) => s + j.amount, 0);
-  const thresholds = [500_000, 1_000_000, 2_500_000, 5_000_000, 10_000_000];
+  const thresholds = [10_000_000, 5_000_000, 2_500_000, 1_000_000, 500_000];
   for (const t of thresholds) {
     if (totalCents >= t) {
       const ts = Math.max(...jobs.map((j) => new Date(j.date).getTime()));

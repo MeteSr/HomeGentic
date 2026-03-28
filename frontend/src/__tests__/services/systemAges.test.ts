@@ -103,8 +103,8 @@ describe("systemAgesService.hasAny", () => {
 // ─── TRACKED_SYSTEMS constant ─────────────────────────────────────────────────
 
 describe("TRACKED_SYSTEMS", () => {
-  it("contains exactly 8 systems", () => {
-    expect(TRACKED_SYSTEMS).toHaveLength(8);
+  it("contains exactly 9 systems", () => {
+    expect(TRACKED_SYSTEMS).toHaveLength(9);
   });
 
   it("matches the system names used by predictMaintenance", () => {
@@ -117,6 +117,7 @@ describe("TRACKED_SYSTEMS", () => {
       "Plumbing",
       "Flooring",
       "Insulation",
+      "Solar Panels",
     ];
     expect([...TRACKED_SYSTEMS]).toEqual(expected);
   });

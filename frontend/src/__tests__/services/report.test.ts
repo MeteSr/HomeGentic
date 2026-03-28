@@ -157,14 +157,16 @@ describe("reportService.expiryLabel", () => {
   });
 
   it('returns "Expires in N days" for a future timestamp', () => {
+    // Subtract 1 minute so the value stays strictly within 2 full days.
+    // Math.ceil(1.999... days) = 2.
     const twoDaysMs = 2 * 24 * 60 * 60 * 1000;
-    const label = reportService.expiryLabel({ expiresAt: Date.now() + twoDaysMs + 5000 } as any);
+    const label = reportService.expiryLabel({ expiresAt: Date.now() + twoDaysMs - 60_000 } as any);
     expect(label).toBe("Expires in 2 days");
   });
 
   it('returns singular "day" for 1-day expiry', () => {
     const oneDayMs = 24 * 60 * 60 * 1000;
-    const label = reportService.expiryLabel({ expiresAt: Date.now() + oneDayMs + 5000 } as any);
+    const label = reportService.expiryLabel({ expiresAt: Date.now() + oneDayMs - 60_000 } as any);
     expect(label).toBe("Expires in 1 day");
   });
 });

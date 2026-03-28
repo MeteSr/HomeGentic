@@ -40,8 +40,8 @@ function makeJob(serviceType: string, dateStr: string, overrides: Partial<Job> =
 // ─── Output shape ─────────────────────────────────────────────────────────────
 
 describe("predictMaintenance — output shape", () => {
-  it("returns exactly 8 system predictions", () => {
-    expect(predictMaintenance(2000, []).systemPredictions).toHaveLength(8);
+  it("returns exactly 9 system predictions", () => {
+    expect(predictMaintenance(2000, []).systemPredictions).toHaveLength(9);
   });
 
   it("returns all expected system names", () => {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Home, Plus, Wrench, MessageSquare, Sparkles, ArrowRight, X, ShieldCheck, Calendar } from "lucide-react";
 import { Layout } from "@/components/Layout";
@@ -36,7 +36,9 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const { principal, profile, lastLoginAt } = useAuthStore();
   const { properties, setProperties } = usePropertyStore();
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [allJobs, setAllJobs] = useState<Job[]>([]);
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
+  const propertyInitialized = useRef(false);
   const [quoteRequests, setQuoteRequests] = useState<QuoteRequest[]>([]);
   const [bidCountMap,   setBidCountMap]   = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -45,10 +47,7 @@ export default function DashboardPage() {
   const [bannerDismissed,     setBannerDismissed]     = useState(false);
   const [showScoreBreakdown,  setShowScoreBreakdown]  = useState(false);
   const [showScoreChart,      setShowScoreChart]      = useState(false);
-  const [scoreGoal, setScoreGoalState] = useState<number | null>(() => {
-    const v = localStorage.getItem("homefax_score_goal");
-    return v ? parseInt(v, 10) : null;
-  });
+  const [scoreGoal, setScoreGoalState] = useState<number | null>(null);
   const [milestoneDismissed,    setMilestoneDismissed]    = useState(() => !!localStorage.getItem("homefax_milestone_dismissed"));
   const [milestone3Dismissed,   setMilestone3Dismissed]   = useState(() => !!localStorage.getItem("homefax_3job_milestone"));
   const [pulseDismissed,        setPulseDismissed]        = useState(() => !!localStorage.getItem(`homefax_pulse_${new Date().toISOString().slice(0, 7)}`));
@@ -59,18 +58,42 @@ export default function DashboardPage() {
   const [showQuoteModal,   setShowQuoteModal]   = useState(false);
 
   useEffect(() => {
-    Promise.all([loadProperties(), loadJobs(), loadQuoteRequests(), loadRecurringServices()]).finally(() => setLoading(false));
-    setScoreHistory(loadHistory());
-  }, []);
+    loadProperties().then((props) => {
+      const list = props ?? [];
+      Promise.all([
+        loadAllJobs(list),
+        loadQuoteRequests(),
+        loadRecurringServices(),
+      ]).finally(() => setLoading(false));
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function loadProperties() {
-    if ((window as any).__e2e_properties) { setProperties((window as any).__e2e_properties); return; }
-    try { setProperties(await propertyService.getMyProperties()); }
-    catch (err: any) { toast.error("Failed to load properties: " + err.message); }
+  async function loadProperties(): Promise<Property[]> {
+    if ((window as any).__e2e_properties) {
+      const list = (window as any).__e2e_properties as Property[];
+      setProperties(list);
+      return list;
+    }
+    try {
+      const list = await propertyService.getMyProperties();
+      setProperties(list);
+      return list;
+    } catch (err: any) {
+      toast.error("Failed to load properties: " + err.message);
+      return [];
+    }
   }
 
-  async function loadJobs() {
-    try { setJobs(await jobService.getAll()); } catch { /* canister not deployed */ }
+  async function loadAllJobs(propList: typeof properties) {
+    try {
+      if (propList.length === 0) { setAllJobs([]); return; }
+      const perProp = await Promise.all(
+        propList.map((p) => jobService.getByProperty(String(p.id)).catch(() => [] as Job[]))
+      );
+      const merged = perProp.flat();
+      // Fall back to getAll() in mock/dev when per-property returns nothing
+      setAllJobs(merged.length > 0 ? merged : await jobService.getAll().catch(() => []));
+    } catch { /* canister not deployed */ }
   }
 
   async function loadRecurringServices() {
@@ -109,9 +132,21 @@ export default function DashboardPage() {
     } catch { /* canister not deployed */ }
   }
 
+  // Property-centric derived values
+  const activePropertyId = selectedPropertyId ?? (properties.length === 1 ? String(properties[0].id) : null);
+  const activeProperty   = activePropertyId
+    ? properties.find((p) => String(p.id) === activePropertyId) ?? null
+    : null;
+  const isAllView = activePropertyId === null && properties.length > 1;
+
+  // jobs = all jobs filtered to the selected property (or all when in "all view")
+  const jobs = activePropertyId
+    ? allJobs.filter((j) => j.propertyId === activePropertyId)
+    : allJobs;
+
   const totalValue    = jobService.getTotalValue(jobs);
   const verifiedCount = jobService.getVerifiedCount(jobs);
-  const homefaxScore  = computeScore(jobs, properties);
+  const homefaxScore  = activeProperty ? computeScore(jobs, [activeProperty]) : 0;
   const scoreGrade    = getScoreGrade(homefaxScore);
   const delta         = scoreDelta(scoreHistory);
 
@@ -145,8 +180,8 @@ export default function DashboardPage() {
 
   // Score events (8.2.1–8.2.2)
   const scoreEvents: ScoreEvent[] = React.useMemo(
-    () => (!loading ? getRecentScoreEvents(jobs, properties) : []),
-    [jobs, properties, loading]
+    () => (!loading ? getRecentScoreEvents(jobs, activeProperty ? [activeProperty] : []) : []),
+    [jobs, activeProperty, loading]
   );
 
   // Score breakdown — per-component contribution for the explanatory panel
@@ -156,7 +191,7 @@ export default function DashboardPage() {
     const totalValueDollars = jobs.reduce((s, j) => s + j.amount, 0) / 100;
     const valuePts          = Math.min(Math.floor(totalValueDollars / 2500), 20);
     let verPts = 0;
-    for (const p of properties) {
+    for (const p of (activeProperty ? [activeProperty] : [])) {
       if (p.verificationLevel === "Premium") verPts += 10;
       else if (p.verificationLevel === "Basic") verPts += 5;
     }
@@ -166,10 +201,10 @@ export default function DashboardPage() {
     return [
       { label: "Verified Jobs",      pts: verifiedJobPts, max: 40, detail: `${verifiedJobs.length} verified job${verifiedJobs.length !== 1 ? "s" : ""} × 4 pts` },
       { label: "Total Value",        pts: valuePts,        max: 20, detail: `$${Math.round(totalValueDollars).toLocaleString()} documented` },
-      { label: "Verification Level", pts: verPts,          max: 20, detail: properties.map((p) => p.verificationLevel).join(", ") || "No properties" },
+      { label: "Verification Level", pts: verPts,          max: 20, detail: activeProperty?.verificationLevel ?? "No property selected" },
       { label: "Job Diversity",      pts: diversityPts,    max: 20, detail: `${uniqueTypes} service categor${uniqueTypes !== 1 ? "ies" : "y"}` },
     ];
-  }, [jobs, properties]);
+  }, [jobs, activeProperty]);
 
   // Warranty expiry alerts — jobs with warranty expiring within 90 days
   const expiringWarranties = React.useMemo(() => {
@@ -206,14 +241,14 @@ export default function DashboardPage() {
   const propertyComparison = React.useMemo(() => {
     if (properties.length < 2) return null;
     return properties.map((p) => {
-      const pJobs    = jobs.filter((j) => j.propertyId === String(p.id));
+      const pJobs    = allJobs.filter((j) => j.propertyId === String(p.id));
       const score    = computeScore(pJobs, [p]);
       const grade    = getScoreGrade(score);
       const value    = jobService.getTotalValue(pJobs);
       const verified = jobService.getVerifiedCount(pJobs);
       return { property: p, score, grade, value, verified, jobCount: pJobs.length };
     }).sort((a, b) => b.score - a.score);
-  }, [properties, jobs]);
+  }, [properties, allJobs]);
 
   // Score stagnation — true when score hasn't increased in 4+ weeks
   const scoreStagnant = React.useMemo(() => {
@@ -226,10 +261,10 @@ export default function DashboardPage() {
     return current.score <= old.score;
   }, [scoreHistory, hasProperty]);
 
-  // Smart project recommendations — top 3 ROI-ranked for first property
+  // Smart project recommendations — top 3 ROI-ranked for active property
   const recommendations = React.useMemo((): ProjectRecommendation[] => {
-    if (!hasProperty || properties.length === 0) return [];
-    const p = properties[0];
+    if (!activeProperty) return [];
+    const p = activeProperty;
     const profile: PropertyProfile = {
       yearBuilt:    Number(p.yearBuilt),
       squareFeet:   Number(p.squareFeet),
@@ -239,13 +274,14 @@ export default function DashboardPage() {
     };
     const pJobs = jobs.filter((j) => j.propertyId === String(p.id)).map(jobToSummary);
     return marketService.recommendValueAddingProjects(profile, pJobs, 0).slice(0, 3);
-  }, [properties, jobs, hasProperty]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeProperty, jobs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Score goal helpers
+  const scoreGoalKey = activePropertyId ? `homefax_score_goal_${activePropertyId}` : "homefax_score_goal";
   const setScoreGoal = (goal: number | null) => {
     setScoreGoalState(goal);
-    if (goal === null) localStorage.removeItem("homefax_score_goal");
-    else localStorage.setItem("homefax_score_goal", String(goal));
+    if (goal === null) localStorage.removeItem(scoreGoalKey);
+    else localStorage.setItem(scoreGoalKey, String(goal));
   };
 
   const scoreGoalGap = React.useMemo((): string | null => {
@@ -265,11 +301,34 @@ export default function DashboardPage() {
 
   // Record score snapshot once data is loaded
   useEffect(() => {
-    if (!loading && (jobs.length > 0 || properties.length > 0)) {
-      const history = recordSnapshot(homefaxScore);
+    if (!loading && activePropertyId && (jobs.length > 0 || properties.length > 0)) {
+      const history = recordSnapshot(homefaxScore, activePropertyId);
       setScoreHistory(history);
     }
   }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Initialize property selection after data loads (first property by default)
+  useEffect(() => {
+    if (!loading && properties.length > 0 && !propertyInitialized.current) {
+      propertyInitialized.current = true;
+      setSelectedPropertyId(String(properties[0].id));
+    }
+  }, [loading, properties]);
+
+  // Reload score history whenever the active property changes
+  useEffect(() => {
+    if (selectedPropertyId) {
+      setScoreHistory(loadHistory(selectedPropertyId));
+    }
+  }, [selectedPropertyId]);
+
+  // Load per-property score goal when active property changes
+  useEffect(() => {
+    if (activePropertyId) {
+      const v = localStorage.getItem(`homefax_score_goal_${activePropertyId}`);
+      setScoreGoalState(v ? parseInt(v, 10) : null);
+    }
+  }, [activePropertyId]);
 
   const verificationBadge = (level: string) => {
     if (level === "Premium")       return <Badge variant="success">Premium Verified</Badge>;
@@ -302,6 +361,80 @@ export default function DashboardPage() {
             Add Property
           </Button>
         </div>
+
+        {/* Property selector — shown when user has 2+ properties */}
+        {!loading && properties.length > 1 && (
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "2rem", flexWrap: "wrap" }}>
+            <button
+              onClick={() => setSelectedPropertyId(null)}
+              style={{
+                fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase",
+                padding: "0.375rem 0.875rem",
+                background: isAllView ? COLORS.plum : "none",
+                color: isAllView ? COLORS.white : S.inkLight,
+                border: `1px solid ${isAllView ? COLORS.plum : S.rule}`,
+                cursor: "pointer", borderRadius: RADIUS.pill,
+              }}
+            >
+              All Properties
+            </button>
+            {properties.map((p) => {
+              const isActive = String(p.id) === activePropertyId;
+              return (
+                <button
+                  key={String(p.id)}
+                  onClick={() => setSelectedPropertyId(String(p.id))}
+                  style={{
+                    fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em",
+                    padding: "0.375rem 0.875rem",
+                    background: isActive ? COLORS.plum : "none",
+                    color: isActive ? COLORS.white : S.inkLight,
+                    border: `1px solid ${isActive ? COLORS.plum : S.rule}`,
+                    cursor: "pointer", borderRadius: RADIUS.pill,
+                    maxWidth: "14rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                  }}
+                  title={`${p.address}, ${p.city}`}
+                >
+                  {p.address}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Active property context header — shown when a specific property is selected */}
+        {!loading && activeProperty && (
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "0.875rem 1.25rem", marginBottom: "1.5rem",
+            background: COLORS.white, border: `1px solid ${COLORS.rule}`,
+            borderRadius: RADIUS.card, gap: "1rem", flexWrap: "wrap",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
+              <div style={{ width: "2.25rem", height: "2.25rem", background: COLORS.sageLight, border: `1px solid ${COLORS.rule}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: RADIUS.sm }}>
+                <Home size={14} color={S.sage} />
+              </div>
+              <div>
+                <p style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "0.95rem", color: S.ink, lineHeight: 1.2 }}>
+                  {activeProperty.address}
+                </p>
+                <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: S.inkLight, marginTop: "0.15rem" }}>
+                  {activeProperty.city}, {activeProperty.state} · {verificationBadge(activeProperty.verificationLevel)}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate(`/properties/${activeProperty.id}`)}
+              style={{
+                fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase",
+                padding: "0.375rem 0.875rem", border: `1px solid ${S.rule}`,
+                color: S.inkLight, background: "none", cursor: "pointer", borderRadius: RADIUS.sm,
+              }}
+            >
+              View Property →
+            </button>
+          </div>
+        )}
 
         {/* Onboarding banner */}
         {showBanner && (
@@ -494,10 +627,13 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {!isAllView && (
+          <>
+
         {/* Stats */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: "1rem", marginBottom: "2.5rem" }}>
           {[
-            { label: "Properties",       value: String(properties.length) },
+            { label: "Verification", value: activeProperty?.verificationLevel === "PendingReview" ? "Pending" : (activeProperty?.verificationLevel ?? "—") },
             { label: "Verified Jobs",    value: String(verifiedCount) },
             { label: "Total Value",      value: `$${(totalValue / 100).toLocaleString()}` },
             { label: "HomeFax Premium™", value: `$${Math.round((totalValue / 100) * 0.03).toLocaleString()}` },
@@ -750,7 +886,7 @@ export default function DashboardPage() {
         {!loading && hasJob && hasProperty && (() => {
           const est = premiumEstimate(homefaxScore);
           if (!est) return null;
-          const market = properties[0] ? `${properties[0].city}, ${properties[0].state}` : "your market";
+          const market = activeProperty ? `${activeProperty.city}, ${activeProperty.state}` : "your market";
           return (
             <div style={{
               border: `1px solid ${S.rust}30`, padding: "1.25rem 1.5rem", marginBottom: "2.5rem",
@@ -779,11 +915,11 @@ export default function DashboardPage() {
                     >
                       See Full Analysis →
                     </button>
-                    {properties[0] && (
+                    {activeProperty && (
                       <button
                         onClick={() => {
                           const token = generateCertToken({
-                            address:     properties[0].address,
+                            address:     activeProperty.address,
                             score:       homefaxScore,
                             grade:       scoreGrade,
                             certified,
@@ -841,8 +977,8 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Multi-property comparison */}
-        {!loading && propertyComparison && (
+        {/* Multi-property overview */}
+        {!loading && isAllView && propertyComparison && (
           <div style={{ marginBottom: "2.5rem" }}>
             <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "1rem" }}>
               Property Comparison
@@ -1168,7 +1304,7 @@ export default function DashboardPage() {
       <LogJobModal
         isOpen={showLogJobModal}
         onClose={() => setShowLogJobModal(false)}
-        onSuccess={() => { loadJobs(); loadQuoteRequests(); }}
+        onSuccess={() => { loadAllJobs(properties); loadQuoteRequests(); }}
         properties={properties}
         prefill={logJobPrefill}
       />

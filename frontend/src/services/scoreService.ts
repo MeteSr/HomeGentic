@@ -19,7 +19,8 @@ export interface ScoreSnapshot {
   timestamp: number; // ms epoch
 }
 
-const STORAGE_KEY = "homefax_score_history";
+const historyKey = (propertyId?: string | null) =>
+  propertyId ? `homefax_score_${propertyId}` : "homefax_score_history";
 const MAX_SNAPSHOTS = 12; // keep ~3 months of weekly snapshots
 
 export function computeScore(jobs: Job[], properties: Property[]): number {
@@ -53,9 +54,9 @@ export function getScoreGrade(score: number): string {
   return "F";
 }
 
-export function loadHistory(): ScoreSnapshot[] {
+export function loadHistory(propertyId?: string | null): ScoreSnapshot[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(historyKey(propertyId));
     return raw ? (JSON.parse(raw) as ScoreSnapshot[]) : [];
   } catch {
     return [];
@@ -66,8 +67,8 @@ export function loadHistory(): ScoreSnapshot[] {
  * Record a new score snapshot if at least 6 days have passed since the last
  * one (prevents duplicate daily snapshots while still capturing weekly drift).
  */
-export function recordSnapshot(score: number): ScoreSnapshot[] {
-  const history = loadHistory();
+export function recordSnapshot(score: number, propertyId?: string | null): ScoreSnapshot[] {
+  const history = loadHistory(propertyId);
   const now = Date.now();
   const SIX_DAYS_MS = 6 * 24 * 60 * 60 * 1000;
 
@@ -75,12 +76,12 @@ export function recordSnapshot(score: number): ScoreSnapshot[] {
   if (last && now - last.timestamp < SIX_DAYS_MS) {
     // Update the most recent snapshot in-place instead of appending
     const updated = [...history.slice(0, -1), { score, timestamp: last.timestamp }];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    localStorage.setItem(historyKey(propertyId), JSON.stringify(updated));
     return updated;
   }
 
   const next = [...history, { score, timestamp: now }].slice(-MAX_SNAPSHOTS);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  localStorage.setItem(historyKey(propertyId), JSON.stringify(next));
   return next;
 }
 

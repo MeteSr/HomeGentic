@@ -1,7 +1,11 @@
-import { describe, it, expect } from "vitest";
-import { jobService } from "@/services/job";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { jobService, isInsuranceRelevant, INSURANCE_SERVICE_TYPES } from "@/services/job";
 import { jobToInput } from "@/services/report";
 import type { Job } from "@/services/job";
+
+// Ensure Date.now() always increments so consecutive create() calls get unique IDs.
+let _nowCounter = 1_000_000_000;
+vi.spyOn(Date, "now").mockImplementation(() => ++_nowCounter);
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -107,6 +111,253 @@ describe("mock data", () => {
     jobs.filter((j) => j.isDiy).forEach((j) => {
       expect(j.contractorName).toBeUndefined();
     });
+  });
+});
+
+// ─── Mock-store lifecycle tests ───────────────────────────────────────────────
+// Each describe block uses a unique propertyId so MOCK_JOBS doesn't bleed between suites
+// (reset() only clears _actor, not MOCK_JOBS).
+
+describe("jobService.create", () => {
+  beforeEach(() => jobService.reset());
+
+  it("returns a job with default fields", async () => {
+    const job = await jobService.create({
+      propertyId:  "create-prop-1",
+      serviceType: "Plumbing",
+      amount:      50_000,
+      date:        "2024-05-01",
+      description: "Fix leak",
+      isDiy:       false,
+    });
+    expect(job.status).toBe("pending");
+    expect(job.verified).toBe(false);
+    expect(job.homeownerSigned).toBe(false);
+    expect(job.photos).toEqual([]);
+    expect(typeof job.id).toBe("string");
+  });
+
+  it("sets contractorSigned=true for DIY jobs", async () => {
+    const job = await jobService.create({
+      propertyId:  "create-prop-1",
+      serviceType: "Painting",
+      amount:      10_000,
+      date:        "2024-06-01",
+      description: "Painted walls",
+      isDiy:       true,
+    });
+    expect(job.contractorSigned).toBe(true);
+    expect(job.isDiy).toBe(true);
+  });
+
+  it("sets contractorSigned=false for contractor jobs", async () => {
+    const job = await jobService.create({
+      propertyId:   "create-prop-1",
+      serviceType:  "HVAC",
+      amount:       200_000,
+      date:         "2024-07-01",
+      description:  "New unit",
+      isDiy:        false,
+      contractorName: "Cool Air Inc",
+    });
+    expect(job.contractorSigned).toBe(false);
+    expect(job.contractorName).toBe("Cool Air Inc");
+  });
+
+  it("stores optional permit and warranty fields", async () => {
+    const job = await jobService.create({
+      propertyId:    "create-prop-1",
+      serviceType:   "Electrical",
+      amount:        30_000,
+      date:          "2024-08-01",
+      description:   "Panel upgrade",
+      isDiy:         false,
+      permitNumber:  "ELEC-2024-99",
+      warrantyMonths: 12,
+    });
+    expect(job.permitNumber).toBe("ELEC-2024-99");
+    expect(job.warrantyMonths).toBe(12);
+  });
+});
+
+describe("jobService.getByProperty", () => {
+  beforeEach(() => jobService.reset());
+
+  it("returns empty array when no jobs exist for a property", async () => {
+    const result = await jobService.getByProperty("gbp-prop-no-match");
+    expect(result).toEqual([]);
+  });
+
+  it("returns only jobs matching the requested propertyId", async () => {
+    await jobService.create({ propertyId: "gbp-prop-A", serviceType: "HVAC",    amount: 1_000, date: "2024-01-01", description: "d", isDiy: false });
+    await jobService.create({ propertyId: "gbp-prop-B", serviceType: "Roofing", amount: 2_000, date: "2024-01-02", description: "d", isDiy: false });
+    await jobService.create({ propertyId: "gbp-prop-A", serviceType: "Plumbing",amount: 3_000, date: "2024-01-03", description: "d", isDiy: false });
+
+    const result = await jobService.getByProperty("gbp-prop-A");
+    expect(result).toHaveLength(2);
+    result.forEach((j) => expect(j.propertyId).toBe("gbp-prop-A"));
+  });
+});
+
+describe("jobService.updateJob", () => {
+  beforeEach(() => jobService.reset());
+
+  it("updates editable fields on an existing job", async () => {
+    const created = await jobService.create({ propertyId: "upd-prop-1", serviceType: "Painting", amount: 5_000, date: "2024-01-01", description: "old", isDiy: false });
+    const updated = await jobService.updateJob(created.id, { description: "new description", amount: 9_000 });
+    expect(updated.description).toBe("new description");
+    expect(updated.amount).toBe(9_000);
+  });
+
+  it("throws 'Job not found' for an unknown id", async () => {
+    await expect(jobService.updateJob("nonexistent-id", { description: "x" }))
+      .rejects.toThrow("Job not found");
+  });
+});
+
+describe("jobService.updateJobStatus", () => {
+  beforeEach(() => jobService.reset());
+
+  it("transitions through all four status values", async () => {
+    const created = await jobService.create({ propertyId: "ust-prop-1", serviceType: "Flooring", amount: 8_000, date: "2024-01-01", description: "d", isDiy: false });
+    for (const status of ["pending", "in_progress", "completed", "verified"] as const) {
+      const j = await jobService.updateJobStatus(created.id, status);
+      expect(j.status).toBe(status);
+    }
+  });
+
+  it("throws 'Job not found' for an unknown id", async () => {
+    await expect(jobService.updateJobStatus("bad-id", "completed"))
+      .rejects.toThrow("Job not found");
+  });
+});
+
+describe("jobService.verifyJob", () => {
+  beforeEach(() => jobService.reset());
+
+  it("fully verifies a DIY job on first call", async () => {
+    const created = await jobService.create({ propertyId: "vj-prop-diy", serviceType: "Painting", amount: 1_000, date: "2024-01-01", description: "d", isDiy: true });
+    const verified = await jobService.verifyJob(created.id);
+    expect(verified.homeownerSigned).toBe(true);
+    expect(verified.contractorSigned).toBe(true);
+    expect(verified.verified).toBe(true);
+    expect(verified.status).toBe("verified");
+  });
+
+  it("only sets homeownerSigned for a non-DIY job (contractor still unsigned)", async () => {
+    const created = await jobService.create({ propertyId: "vj-prop-con", serviceType: "HVAC", amount: 1_000, date: "2024-01-01", description: "d", isDiy: false });
+    const result = await jobService.verifyJob(created.id);
+    expect(result.homeownerSigned).toBe(true);
+    expect(result.contractorSigned).toBe(false);
+    expect(result.verified).toBe(false);
+  });
+
+  it("throws 'Job not found' for an unknown id", async () => {
+    await expect(jobService.verifyJob("ghost-id")).rejects.toThrow("Job not found");
+  });
+});
+
+describe("jobService.linkContractor", () => {
+  beforeEach(() => jobService.reset());
+
+  it("sets the contractor field on a job", async () => {
+    const created = await jobService.create({ propertyId: "lc-prop-1", serviceType: "Plumbing", amount: 1_000, date: "2024-01-01", description: "d", isDiy: false });
+    const linked = await jobService.linkContractor(created.id, "contractor-principal-123");
+    expect(linked.contractor).toBe("contractor-principal-123");
+  });
+
+  it("throws 'Job not found' for an unknown id", async () => {
+    await expect(jobService.linkContractor("no-such-id", "p")).rejects.toThrow("Job not found");
+  });
+});
+
+describe("jobService.getJobsPendingMySignature", () => {
+  it("returns empty array when no canister ID is configured", async () => {
+    const result = await jobService.getJobsPendingMySignature();
+    expect(result).toEqual([]);
+  });
+});
+
+describe("jobService.getCertificationData", () => {
+  beforeEach(() => jobService.reset());
+
+  it("returns zeros for a property with no jobs", async () => {
+    const data = await jobService.getCertificationData("cert-prop-empty");
+    expect(data.verifiedJobCount).toBe(0);
+    expect(data.verifiedKeySystems).toEqual([]);
+    expect(data.meetsStructural).toBe(false);
+  });
+
+  it("does not count unverified jobs", async () => {
+    await jobService.create({ propertyId: "cert-prop-unver", serviceType: "HVAC", amount: 1_000, date: "2024-01-01", description: "d", isDiy: false });
+    const data = await jobService.getCertificationData("cert-prop-unver");
+    expect(data.verifiedJobCount).toBe(0);
+    expect(data.meetsStructural).toBe(false);
+  });
+
+  it("meetsStructural=false with fewer than 3 verified jobs", async () => {
+    const j1 = await jobService.create({ propertyId: "cert-prop-few", serviceType: "HVAC",    amount: 1_000, date: "2024-01-01", description: "d", isDiy: true });
+    const j2 = await jobService.create({ propertyId: "cert-prop-few", serviceType: "Roofing", amount: 2_000, date: "2024-01-02", description: "d", isDiy: true });
+    await jobService.verifyJob(j1.id);
+    await jobService.verifyJob(j2.id);
+    const data = await jobService.getCertificationData("cert-prop-few");
+    expect(data.verifiedJobCount).toBe(2);
+    expect(data.meetsStructural).toBe(false);
+  });
+
+  it("meetsStructural=true with 3 verified DIY jobs across 2+ key systems", async () => {
+    const j1 = await jobService.create({ propertyId: "cert-prop-full", serviceType: "HVAC",      amount: 1_000, date: "2024-01-01", description: "d", isDiy: true });
+    const j2 = await jobService.create({ propertyId: "cert-prop-full", serviceType: "Roofing",   amount: 2_000, date: "2024-01-02", description: "d", isDiy: true });
+    const j3 = await jobService.create({ propertyId: "cert-prop-full", serviceType: "Electrical", amount: 3_000, date: "2024-01-03", description: "d", isDiy: true });
+    await jobService.verifyJob(j1.id);
+    await jobService.verifyJob(j2.id);
+    await jobService.verifyJob(j3.id);
+    const data = await jobService.getCertificationData("cert-prop-full");
+    expect(data.verifiedJobCount).toBe(3);
+    expect(data.verifiedKeySystems.length).toBeGreaterThanOrEqual(2);
+    expect(data.meetsStructural).toBe(true);
+  });
+
+  it("only counts KEY_SYSTEMS (HVAC, Roofing, Plumbing, Electrical) in verifiedKeySystems", async () => {
+    const j1 = await jobService.create({ propertyId: "cert-prop-keys", serviceType: "Painting", amount: 1_000, date: "2024-01-01", description: "d", isDiy: true });
+    const j2 = await jobService.create({ propertyId: "cert-prop-keys", serviceType: "HVAC",     amount: 2_000, date: "2024-01-02", description: "d", isDiy: true });
+    const j3 = await jobService.create({ propertyId: "cert-prop-keys", serviceType: "Roofing",  amount: 3_000, date: "2024-01-03", description: "d", isDiy: true });
+    await jobService.verifyJob(j1.id);
+    await jobService.verifyJob(j2.id);
+    await jobService.verifyJob(j3.id);
+    const data = await jobService.getCertificationData("cert-prop-keys");
+    expect(data.verifiedKeySystems).not.toContain("Painting");
+    expect(data.verifiedKeySystems).toContain("HVAC");
+    expect(data.verifiedKeySystems).toContain("Roofing");
+  });
+});
+
+// ─── isInsuranceRelevant ──────────────────────────────────────────────────────
+
+describe("isInsuranceRelevant", () => {
+  it("returns true for all five insurance-relevant service types", () => {
+    const relevant = ["Roofing", "HVAC", "Electrical", "Plumbing", "Foundation"];
+    relevant.forEach((t) => expect(isInsuranceRelevant(t)).toBe(true));
+  });
+
+  it("returns false for non-insurance service types", () => {
+    const irrelevant = ["Painting", "Flooring", "Landscaping", "Windows"];
+    irrelevant.forEach((t) => expect(isInsuranceRelevant(t)).toBe(false));
+  });
+});
+
+describe("INSURANCE_SERVICE_TYPES", () => {
+  it("contains exactly the five expected types", () => {
+    expect(INSURANCE_SERVICE_TYPES.has("Roofing")).toBe(true);
+    expect(INSURANCE_SERVICE_TYPES.has("HVAC")).toBe(true);
+    expect(INSURANCE_SERVICE_TYPES.has("Electrical")).toBe(true);
+    expect(INSURANCE_SERVICE_TYPES.has("Plumbing")).toBe(true);
+    expect(INSURANCE_SERVICE_TYPES.has("Foundation")).toBe(true);
+  });
+
+  it("does not contain non-insurance types", () => {
+    expect(INSURANCE_SERVICE_TYPES.has("Painting")).toBe(false);
+    expect(INSURANCE_SERVICE_TYPES.has("Flooring")).toBe(false);
   });
 });
 
