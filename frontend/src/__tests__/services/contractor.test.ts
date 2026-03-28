@@ -243,6 +243,44 @@ describe("contractorService", () => {
     });
   });
 
+  // ── submitReview ──────────────────────────────────────────────────────────────
+  describe("submitReview", () => {
+    it("resolves without error on success (ok result)", async () => {
+      mockActor.submitReview.mockResolvedValue({ ok: null });
+      await expect(
+        contractorService.submitReview("contractor-principal", 5, "Great work", "job-1")
+      ).resolves.toBeUndefined();
+    });
+
+    it("throws when canister returns RateLimitExceeded", async () => {
+      mockActor.submitReview.mockResolvedValue({ err: { RateLimitExceeded: null } });
+      await expect(
+        contractorService.submitReview("contractor-principal", 4, "Good", "job-2")
+      ).rejects.toThrow("RateLimitExceeded");
+    });
+
+    it("throws when canister returns DuplicateReview (composite key dedup)", async () => {
+      mockActor.submitReview.mockResolvedValue({ err: { DuplicateReview: null } });
+      await expect(
+        contractorService.submitReview("contractor-principal", 3, "Dup", "job-3")
+      ).rejects.toThrow("DuplicateReview");
+    });
+
+    it("throws when canister returns NotFound", async () => {
+      mockActor.submitReview.mockResolvedValue({ err: { NotFound: null } });
+      await expect(
+        contractorService.submitReview("unknown-principal", 5, "?", "job-4")
+      ).rejects.toThrow("NotFound");
+    });
+
+    it("throws with message text for InvalidInput variant", async () => {
+      mockActor.submitReview.mockResolvedValue({ err: { InvalidInput: "Rating must be 1–5" } });
+      await expect(
+        contractorService.submitReview("contractor-principal", 0, "", "job-5")
+      ).rejects.toThrow("Rating must be 1–5");
+    });
+  });
+
   // ── updateProfile ─────────────────────────────────────────────────────────────
   describe("updateProfile", () => {
     it("returns updated profile on success", async () => {

@@ -177,4 +177,66 @@ describe("reportService.shareUrl", () => {
     expect(url).toContain("RPT_42_123456");
     expect(url).toMatch(/^http/);
   });
+
+  it("returns a clean URL with no query string when no options are passed", () => {
+    const url = reportService.shareUrl("RPT_token");
+    expect(url).not.toContain("?");
+  });
+
+  it("appends ha=1 when hideAmounts is true", () => {
+    const url = reportService.shareUrl("RPT_token", { hideAmounts: true });
+    expect(new URL(url).searchParams.get("ha")).toBe("1");
+  });
+
+  it("appends hc=1 when hideContractors is true", () => {
+    const url = reportService.shareUrl("RPT_token", { hideContractors: true });
+    expect(new URL(url).searchParams.get("hc")).toBe("1");
+  });
+
+  it("appends hp=1 when hidePermits is true", () => {
+    const url = reportService.shareUrl("RPT_token", { hidePermits: true });
+    expect(new URL(url).searchParams.get("hp")).toBe("1");
+  });
+
+  it("appends hd=1 when hideDescriptions is true", () => {
+    const url = reportService.shareUrl("RPT_token", { hideDescriptions: true });
+    expect(new URL(url).searchParams.get("hd")).toBe("1");
+  });
+
+  it("omits params for false disclosure flags", () => {
+    const url = reportService.shareUrl("RPT_token", {
+      hideAmounts: false, hideContractors: false, hidePermits: false, hideDescriptions: false,
+    });
+    expect(url).not.toContain("?");
+  });
+
+  it("encodes all four flags when all are true", () => {
+    const url = reportService.shareUrl("RPT_token", {
+      hideAmounts: true, hideContractors: true, hidePermits: true, hideDescriptions: true,
+    });
+    const p = new URL(url).searchParams;
+    expect(p.get("ha")).toBe("1");
+    expect(p.get("hc")).toBe("1");
+    expect(p.get("hp")).toBe("1");
+    expect(p.get("hd")).toBe("1");
+  });
+});
+
+// ─── getReport — expired link ──────────────────────────────────────────────────
+
+describe("reportService.getReport — expired link", () => {
+  it("throws when the link's expiresAt is in the past", async () => {
+    // expiryDays = 0 would be odd; use a negative approach: create with 1-day expiry
+    // then set system time to the future
+    const { vi } = await import("vitest");
+    const link = await reportService.generateReport("prop-exp", makeProperty(), [], [], 1, "Public");
+
+    // Advance time beyond 1 day
+    vi.setSystemTime(Date.now() + 2 * 24 * 60 * 60 * 1000);
+    try {
+      await expect(reportService.getReport(link.token)).rejects.toThrow("expired");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
