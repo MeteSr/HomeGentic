@@ -7,6 +7,8 @@ import { Button } from "@/components/Button";
 import { ConstructionPhotoUpload } from "@/components/ConstructionPhotoUpload";
 import { jobService } from "@/services/job";
 import { photoService, PhotoQuota } from "@/services/photo";
+import { paymentService, type PlanTier } from "@/services/payment";
+import { UpgradeGate } from "@/components/UpgradeGate";
 import { usePropertyStore } from "@/store/propertyStore";
 import toast from "react-hot-toast";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
@@ -49,6 +51,8 @@ export default function JobCreatePage() {
   const { properties } = usePropertyStore();
   const [loading, setLoading] = useState(false);
   const [quota, setQuota] = useState<PhotoQuota>({ used: 0, limit: 10, tier: "Free" });
+  const [userTier, setUserTier] = useState<PlanTier>("Free");
+  const [jobCount, setJobCount] = useState<number | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<{ file: File; phase: string }[]>([]);
   const [submitted, setSubmitted] = useState(false);
   const [loggedServiceType, setLoggedServiceType] = useState("");
@@ -66,6 +70,8 @@ export default function JobCreatePage() {
 
   useEffect(() => {
     photoService.getQuota().then(setQuota);
+    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch(() => {});
+    jobService.getAll().then((js) => setJobCount(js.length)).catch(() => {});
     if (!editJob && properties.length > 0) setForm((f) => ({ ...f, propertyId: String(properties[0].id) }));
   }, [properties]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -175,6 +181,27 @@ export default function JobCreatePage() {
               Log another job
             </button>
           </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Free-tier job cap: 5 jobs (15.1.2) — only show gate when not editing an existing job
+  if (!editJob && userTier === "Free" && jobCount !== null && jobCount >= 5) {
+    return (
+      <Layout>
+        <div style={{ maxWidth: "38rem", margin: "0 auto", padding: "2rem 1.5rem" }}>
+          <button
+            onClick={() => navigate(-1)}
+            style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: "1.5rem" }}
+          >
+            <ArrowLeft size={14} /> Back
+          </button>
+          <UpgradeGate
+            feature="Job Limit Reached"
+            description={`You've logged ${jobCount} jobs on the Free plan. Upgrade to Pro to keep building your record — unlimited jobs, verified history, and more.`}
+            icon="📋"
+          />
         </div>
       </Layout>
     );

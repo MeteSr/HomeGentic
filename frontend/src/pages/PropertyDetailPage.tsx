@@ -13,6 +13,8 @@ import { jobService, Job } from "@/services/job";
 import { photoService, Photo } from "@/services/photo";
 import { computeScore, getScoreGrade, recordSnapshot, premiumEstimate } from "@/services/scoreService";
 import { roomService, Room as RoomRecord, type UpdateRoomArgs, type AddFixtureArgs, type Fixture } from "@/services/room";
+import { paymentService, type PlanTier } from "@/services/payment";
+import { UpgradeGate } from "@/components/UpgradeGate";
 import { usePropertyStore } from "@/store/propertyStore";
 import { useAuthStore } from "@/store/authStore";
 import toast from "react-hot-toast";
@@ -47,6 +49,11 @@ export default function PropertyDetailPage() {
   const [showQuoteModal,   setShowQuoteModal]   = useState(false);
   const [photosByJob, setPhotosByJob] = useState<Record<string, Photo[]>>({});
   const [rooms, setRooms] = useState<RoomRecord[]>([]);
+  const [userTier, setUserTier] = useState<PlanTier>("Free");
+
+  useEffect(() => {
+    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -339,6 +346,59 @@ export default function PropertyDetailPage() {
               <p style={{ fontFamily: S.mono, fontSize: "0.5rem", letterSpacing: "0.04em", color: S.inkLight, marginTop: "0.875rem", borderTop: `1px solid ${COLORS.rule}`, paddingTop: "0.5rem" }}>
                 Heuristic estimate based on verified maintenance records. Individual market conditions vary.
               </p>
+            </div>
+          );
+        })()}
+
+        {/* Improvement actions (15.4.2) */}
+        {!loading && homefaxScore > 0 && (() => {
+          const unverified = jobs.filter((j) => j.status !== "verified").length;
+          const uniqueTypes = new Set(jobs.map((j) => j.serviceType)).size;
+          const actions = [
+            unverified > 0
+              ? `Verify ${unverified} unverified job${unverified > 1 ? "s" : ""} — each verified record adds up to 4 pts`
+              : null,
+            uniqueTypes < 5
+              ? `Log a new service type — diversity adds up to 10 pts (currently ${uniqueTypes}/5 categories)`
+              : null,
+            jobs.length < 10
+              ? `Add more maintenance records — ${10 - jobs.length} more job${10 - jobs.length !== 1 ? "s" : ""} to reach 10 total`
+              : null,
+            "Attach photos to each job — documented proof strengthens your verified score",
+          ].filter(Boolean).slice(0, 3) as string[];
+
+          return (
+            <div style={{ border: `1px solid ${COLORS.rule}`, background: COLORS.white, marginBottom: "1.5rem" }}>
+              <div style={{ padding: "0.75rem 1.25rem", borderBottom: `1px solid ${COLORS.rule}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
+                  How to improve your score
+                </span>
+                <span style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight }}>
+                  {actions.length} action{actions.length !== 1 ? "s" : ""}
+                </span>
+              </div>
+              {userTier === "Free" ? (
+                <div style={{ padding: "1.25rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+                  <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight }}>
+                    {actions.length} action{actions.length !== 1 ? "s" : ""} available — upgrade to see them
+                  </p>
+                  <button
+                    onClick={() => navigate("/pricing")}
+                    style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 0.875rem", border: "none", background: COLORS.plum, color: COLORS.white, cursor: "pointer", whiteSpace: "nowrap" }}
+                  >
+                    Upgrade to Pro →
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  {actions.map((action, i) => (
+                    <div key={i} style={{ padding: "0.75rem 1.25rem", borderBottom: i < actions.length - 1 ? `1px solid ${COLORS.rule}` : "none", display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
+                      <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: COLORS.sage, marginTop: "0.1rem", flexShrink: 0 }}>→</span>
+                      <span style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.ink, lineHeight: 1.5 }}>{action}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })()}
