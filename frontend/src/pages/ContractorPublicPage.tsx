@@ -7,10 +7,10 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Star, ShieldCheck, Wrench, MessageSquare, Mail, Phone } from "lucide-react";
+import { ArrowLeft, Star, ShieldCheck, Wrench, MessageSquare, Mail, Phone, Award } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
-import { contractorService, ContractorProfile } from "@/services/contractor";
+import { contractorService, ContractorProfile, JobCredential } from "@/services/contractor";
 import toast from "react-hot-toast";
 
 const S = {
@@ -43,18 +43,22 @@ function StarRating({ value, onChange }: { value: number; onChange: (v: number) 
 export default function ContractorPublicPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [contractor, setContractor] = useState<ContractorProfile | null>(null);
-  const [loading,    setLoading]    = useState(true);
-  const [rating,     setRating]     = useState(0);
-  const [comment,    setComment]    = useState("");
-  const [jobId,      setJobId]      = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted,  setSubmitted]  = useState(false);
+  const [contractor,   setContractor]   = useState<ContractorProfile | null>(null);
+  const [credentials,  setCredentials]  = useState<JobCredential[]>([]);
+  const [loading,      setLoading]      = useState(true);
+  const [rating,       setRating]       = useState(0);
+  const [comment,      setComment]      = useState("");
+  const [jobId,        setJobId]        = useState("");
+  const [submitting,   setSubmitting]   = useState(false);
+  const [submitted,    setSubmitted]    = useState(false);
 
   useEffect(() => {
     if (!id) return;
     contractorService.getContractor(id)
-      .then(setContractor)
+      .then((c) => {
+        setContractor(c);
+        if (c) contractorService.getCredentials(c.id).then(setCredentials).catch(() => {});
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [id]);
@@ -196,6 +200,55 @@ export default function ContractorPublicPage() {
           >
             <MessageSquare size={13} /> Request Quote
           </button>
+        </div>
+
+        {/* Verified Work Portfolio */}
+        <div style={{ border: `1px solid ${S.rule}`, background: "#fff", marginBottom: "1.5rem" }}>
+          <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${S.rule}`, background: "#FAFAF8", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
+              Verified Work Portfolio
+            </p>
+            {credentials.length > 0 && (
+              <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", color: S.sage, border: `1px solid ${S.sage}`, padding: "0.15rem 0.5rem" }}>
+                {credentials.length} on-chain
+              </span>
+            )}
+          </div>
+
+          {credentials.length === 0 ? (
+            <div style={{ padding: "1.5rem 1.25rem", textAlign: "center" }}>
+              <Award size={24} color={S.rule} style={{ margin: "0 auto 0.5rem" }} />
+              <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight }}>
+                No verified jobs yet. Credentials appear here as homeowners confirm completed work.
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: S.rule }}>
+              {credentials.slice().sort((a, b) => b.verifiedAt - a.verifiedAt).map((cred) => (
+                <div
+                  key={cred.id}
+                  style={{ background: "#fff", padding: "0.875rem 1.25rem", display: "flex", alignItems: "center", gap: "1rem" }}
+                >
+                  <div style={{ width: "2rem", height: "2rem", border: `1px solid ${S.sage}`, background: "#F0F6F3", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Award size={12} color={S.sage} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "0.875rem", color: S.ink, marginBottom: "0.125rem" }}>
+                      {cred.serviceType}
+                    </p>
+                    <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.06em", color: S.inkLight }}>
+                      Verified {new Date(cred.verifiedAt).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                      {" · "}Job #{cred.jobId}
+                    </p>
+                  </div>
+                  <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                    <ShieldCheck size={12} color={S.sage} />
+                    <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.06em", color: S.sage }}>ICP Verified</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Review form */}

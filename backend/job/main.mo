@@ -343,10 +343,20 @@ persistent actor Job {
         if (fullyVerified and Text.size(contrCanisterId) > 0) {
           switch (existing.contractor) {
             case (?con) {
-              let contrActor = actor(contrCanisterId) : actor {
-                recordJobVerified : (Principal) -> async { #ok : (); #err : {} };
+              let svcText = switch (existing.serviceType) {
+                case (#HVAC)        { "HVAC"        };
+                case (#Roofing)     { "Roofing"     };
+                case (#Plumbing)    { "Plumbing"    };
+                case (#Electrical)  { "Electrical"  };
+                case (#Painting)    { "Painting"    };
+                case (#Flooring)    { "Flooring"    };
+                case (#Windows)     { "Windows"     };
+                case (#Landscaping) { "Landscaping" };
               };
-              ignore contrActor.recordJobVerified(con);
+              let contrActor = actor(contrCanisterId) : actor {
+                recordJobVerified : (Principal, Text, Text, Principal) -> async { #ok : (); #err : {} };
+              };
+              ignore contrActor.recordJobVerified(con, jobId, svcText, existing.homeowner);
             };
             case null {};
           };

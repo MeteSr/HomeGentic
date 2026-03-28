@@ -13,6 +13,7 @@ import HashMap   "mo:base/HashMap";
 import Int       "mo:base/Int";
 import Iter      "mo:base/Iter";
 import Nat       "mo:base/Nat";
+import Nat32     "mo:base/Nat32";
 import Option    "mo:base/Option";
 import Principal "mo:base/Principal";
 import Result    "mo:base/Result";
@@ -47,6 +48,16 @@ persistent actor Contractor {
     jobsCompleted: Nat;
     isVerified:    Bool;
     createdAt:     Int;
+  };
+
+  /// On-chain credential minted when a job is fully verified.
+  public type JobCredential = {
+    id:                 Nat;
+    jobId:              Text;
+    contractorId:       Principal;
+    serviceType:        Text;
+    verifiedAt:         Int;
+    homeownerPrincipal: Principal;
   };
 
   /// One review per reviewer+job (composite key).
@@ -99,12 +110,14 @@ persistent actor Contractor {
   private var admins:             [Principal] = [];
   private var adminInitialized:   Bool        = false;
   private var reviewCounter:      Nat         = 0;
+  private var credentialCounter:  Nat         = 0;
   /// Job canister principal — set post-deploy via setJobCanisterId().
   /// When non-empty, recordJobVerified() accepts calls from the job canister.
   private var jobCanisterId:      Text        = "";
 
   private var contractorEntries:      [(Principal, ContractorProfile)] = [];
   private var reviewEntries:          [(Text, Review)]                 = [];
+  private var credentialEntries:      [(Nat, JobCredential)]           = [];
   /// compositeKey = "reviewerPrincipal|jobId" → reviewId.
   /// O(1) duplicate check — prevents two reviews from the same person for the same job.
   private var reviewKeyEntries:       [(Text, Text)]                   = [];
@@ -121,6 +134,10 @@ persistent actor Contractor {
     reviewEntries.vals(), 16, Text.equal, Text.hash
   );
 
+  private transient var credentials = HashMap.fromIter<Nat, JobCredential>(
+    credentialEntries.vals(), 16, Nat.equal, func(n: Nat) : Nat32 { Nat32.fromNat(n % 4294967295) }
+  );
+
   private transient var reviewKeys = HashMap.fromIter<Text, Text>(
     reviewKeyEntries.vals(), 16, Text.equal, Text.hash
   );
@@ -135,6 +152,7 @@ persistent actor Contractor {
   system func preupgrade() {
     contractorEntries      := Iter.toArray(contractors.entries());
     reviewEntries          := Iter.toArray(reviews.entries());
+    credentialEntries      := Iter.toArray(credentials.entries());
     reviewKeyEntries       := Iter.toArray(reviewKeys.entries());
     reviewRateLimitEntries := Iter.toArray(reviewRateLimits.entries());
   };
@@ -142,6 +160,7 @@ persistent actor Contractor {
   system func postupgrade() {
     contractorEntries      := [];
     reviewEntries          := [];
+    credentialEntries      := [];
     reviewKeyEntries       := [];
     reviewRateLimitEntries := [];
   };
@@ -328,16 +347,33 @@ persistent actor Contractor {
   // ─── Job-Verified Hook ─────────────────────────────────────────────────────────
 
   /// Called by the Job canister (cross-canister) when a job reaches fully-verified
-  /// status. Increments the contractor's jobsCompleted counter and nudges their
-  /// trustScore up by 2 points (capped at 100).
+  /// status. Increments the contractor's jobsCompleted counter, nudges their
+  /// trustScore up by 2 points (capped at 100), and mints a JobCredential record.
   ///
   /// Only the registered job canister principal or an admin may call this.
-  public shared(msg) func recordJobVerified(contractorPrincipal: Principal) : async Result.Result<(), Error> {
+  public shared(msg) func recordJobVerified(
+    contractorPrincipal: Principal,
+    jobId:               Text,
+    serviceType:         Text,
+    homeownerPrincipal:  Principal,
+  ) : async Result.Result<(), Error> {
     if (not isJobCanister(msg.caller) and not isAdmin(msg.caller))
       return #err(#Unauthorized);
 
+    // Mint credential regardless of whether contractor is registered
+    credentialCounter += 1;
+    let cred: JobCredential = {
+      id                 = credentialCounter;
+      jobId;
+      contractorId       = contractorPrincipal;
+      serviceType;
+      verifiedAt         = Time.now();
+      homeownerPrincipal;
+    };
+    credentials.put(credentialCounter, cred);
+
     switch (contractors.get(contractorPrincipal)) {
-      case null { #ok(()) };  // contractor not registered — silently succeed
+      case null { #ok(()) };  // contractor not registered — credential minted but no profile to update
       case (?existing) {
         let newScore : Nat = if (existing.trustScore + 2 > 100) 100 else existing.trustScore + 2;
         let updated: ContractorProfile = {
@@ -358,6 +394,15 @@ persistent actor Contractor {
         #ok(())
       };
     }
+  };
+
+  /// Returns all verified-job credentials for a given contractor.
+  public query func getCredentials(contractorPrincipal: Principal) : async [JobCredential] {
+    Iter.toArray(
+      Iter.filter(credentials.vals(), func(c: JobCredential) : Bool {
+        c.contractorId == contractorPrincipal
+      })
+    )
   };
 
   // ─── Admin Functions ───────────────────────────────────────────────────────────

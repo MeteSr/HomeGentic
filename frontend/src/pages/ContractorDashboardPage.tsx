@@ -641,6 +641,27 @@ export default function ContractorDashboardPage() {
                 </div>
               ))}
             </div>
+
+            {/* Portfolio share link */}
+            {profile && (
+              <div style={{ borderTop: `1px solid ${S.rule}`, padding: "1rem 1.25rem" }}>
+                <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.5rem" }}>
+                  Credential Portfolio
+                </p>
+                <p style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight, lineHeight: 1.5, marginBottom: "0.625rem" }}>
+                  Share your on-chain verified work history with homeowners and agents.
+                </p>
+                <button
+                  onClick={() => {
+                    const url = `${window.location.origin}/contractor/${profile.id}`;
+                    navigator.clipboard.writeText(url).then(() => toast.success("Portfolio link copied"));
+                  }}
+                  style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.5rem 0.875rem", border: `1px solid ${S.rule}`, background: "none", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight, cursor: "pointer" }}
+                >
+                  Copy Portfolio Link
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

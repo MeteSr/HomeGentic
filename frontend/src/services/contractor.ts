@@ -89,9 +89,21 @@ const idlFactory = ({ IDL }: any) => {
       ["query"]
     ),
     recordJobVerified: IDL.Func(
-      [IDL.Principal],
+      [IDL.Principal, IDL.Text, IDL.Text, IDL.Principal],
       [IDL.Variant({ ok: IDL.Null, err: Error })],
       []
+    ),
+    getCredentials: IDL.Func(
+      [IDL.Principal],
+      [IDL.Vec(IDL.Record({
+        id:                 IDL.Nat,
+        jobId:              IDL.Text,
+        contractorId:       IDL.Principal,
+        serviceType:        IDL.Text,
+        verifiedAt:         IDL.Int,
+        homeownerPrincipal: IDL.Principal,
+      }))],
+      ["query"]
     ),
     setJobCanisterId: IDL.Func(
       [IDL.Text],
@@ -117,6 +129,15 @@ export interface ContractorProfile {
   isVerified:    boolean;
   createdAt:     number;   // ms
   rating?:       number;   // average from reviews; computed client-side
+}
+
+export interface JobCredential {
+  id:                 number;
+  jobId:              string;
+  contractorId:       string;   // principal text
+  serviceType:        string;
+  verifiedAt:         number;   // ms
+  homeownerPrincipal: string;   // principal text
 }
 
 export interface RegisterContractorArgs {
@@ -256,6 +277,24 @@ export const contractorService = {
       const val = result.err[key];
       throw new Error(typeof val === "string" ? val : key);
     }
+  },
+
+  async getCredentials(contractorPrincipalText: string): Promise<JobCredential[]> {
+    if (!CONTRACTOR_CANISTER_ID) {
+      // Mock: return empty portfolio in dev
+      return [];
+    }
+    const a = await getActor();
+    const { Principal: P } = await import("@dfinity/principal");
+    const raw = await a.getCredentials(P.fromText(contractorPrincipalText)) as any[];
+    return raw.map((c: any) => ({
+      id:                 Number(c.id),
+      jobId:              c.jobId,
+      contractorId:       c.contractorId.toText(),
+      serviceType:        c.serviceType,
+      verifiedAt:         Number(c.verifiedAt) / 1_000_000,
+      homeownerPrincipal: c.homeownerPrincipal.toText(),
+    }));
   },
 
   reset() {
