@@ -16,6 +16,8 @@ import {
 import { systemAgesService } from "@/services/systemAges";
 import { marketService, buildPropertySummary, type ProjectRecommendation } from "@/services/market";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { paymentService, type PlanTier } from "@/services/payment";
+import { UpgradeGate } from "@/components/UpgradeGate";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 
 const S = {
@@ -490,6 +492,11 @@ export default function PredictiveMaintenancePage() {
     });
   };
 
+  const [userTier, setUserTier] = useState<PlanTier>("Free");
+  useEffect(() => {
+    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch(() => {});
+  }, []);
+
   const property = properties.find((p) => String(p.id) === selectedId);
   const propJobs = jobs.filter((j) => j.propertyId === selectedId);
 
@@ -872,15 +879,24 @@ export default function PredictiveMaintenancePage() {
             })()}
 
             {activeTab === "schedule" && (
-              <div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-                  <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>5-Year Maintenance Calendar</p>
-                  <button onClick={() => setActiveTab("systems")} style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, border: `1px solid ${S.rule}`, background: COLORS.white, padding: "0.35rem 0.75rem", cursor: "pointer" }}>
-                    <PlusCircle size={11} /> Add from systems
-                  </button>
+              userTier === "Free" ? (
+                <UpgradeGate
+                  feature="5-Year Maintenance Calendar"
+                  description="Plan ahead with a full 5-year schedule. Drag systems onto your calendar and export a printable PDF."
+                  icon={<Calendar size={20} color={COLORS.plumMid} />}
+                  style={{ marginTop: "0.5rem" }}
+                />
+              ) : (
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+                    <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>5-Year Maintenance Calendar</p>
+                    <button onClick={() => setActiveTab("systems")} style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, border: `1px solid ${S.rule}`, background: COLORS.white, padding: "0.35rem 0.75rem", cursor: "pointer" }}>
+                      <PlusCircle size={11} /> Add from systems
+                    </button>
+                  </div>
+                  <FiveYearCalendar entries={scheduleEntries} onComplete={handleComplete} onDelete={handleDelete} onAddYear={() => setActiveTab("systems")} />
                 </div>
-                <FiveYearCalendar entries={scheduleEntries} onComplete={handleComplete} onDelete={handleDelete} onAddYear={() => setActiveTab("systems")} />
-              </div>
+              )
             )}
 
             {activeTab === "advisor" && property && (
