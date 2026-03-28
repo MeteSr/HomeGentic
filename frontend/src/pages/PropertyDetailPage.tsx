@@ -765,6 +765,9 @@ function parseDoc(description: string): { type: DocType; filename: string } {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+type BatchFileStatus = "pending" | "uploading" | "done" | "duplicate" | "error";
+interface BatchFile { name: string; status: BatchFileStatus; error?: string }
+
 function DocumentsTab({ propertyId }: { propertyId: string }) {
   const S = {
     ink: "#0E0E0C", rule: "#C8C3B8", inkLight: "#7A7268", rust: "#C94C2E",
@@ -774,8 +777,9 @@ function DocumentsTab({ propertyId }: { propertyId: string }) {
   const DOCS_JOB = `docs_${propertyId}`;
   const inputRef  = React.useRef<HTMLInputElement>(null);
   const [docs,     setDocs]     = useState<Photo[]>([]);
-  const [uploading, setUploading] = useState(false);
   const [docType,  setDocType]  = useState<DocType>("Receipt");
+  const [queue,    setQueue]    = useState<BatchFile[]>([]);
+  const batchActive = queue.some((f) => f.status === "pending" || f.status === "uploading");
 
   useEffect(() => {
     // Load both legacy "receipts_" key and new "docs_" key
@@ -789,29 +793,47 @@ function DocumentsTab({ propertyId }: { propertyId: string }) {
   }, [propertyId]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    try {
-      const description = encodeDoc(docType, file.name);
-      const doc = await photoService.upload(file, DOCS_JOB, propertyId, "PostConstruction", description);
-      setDocs((prev) => [doc, ...prev]);
-      toast.success(`${docType} uploaded`);
-    } catch (err: any) {
-      toast.error(err.message ?? "Upload failed");
-    } finally {
-      setUploading(false);
-      if (inputRef.current) inputRef.current.value = "";
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    if (inputRef.current) inputRef.current.value = "";
+
+    const initialQueue: BatchFile[] = files.map((f) => ({ name: f.name, status: "pending" }));
+    setQueue(initialQueue);
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      setQueue((prev) => prev.map((q, idx) => idx === i ? { ...q, status: "uploading" } : q));
+      try {
+        const description = encodeDoc(docType, file.name);
+        const doc = await photoService.upload(file, DOCS_JOB, propertyId, "PostConstruction", description);
+        setDocs((prev) => [doc, ...prev]);
+        setQueue((prev) => prev.map((q, idx) => idx === i ? { ...q, status: "done" } : q));
+      } catch (err: any) {
+        const msg: string = err.message ?? "Upload failed";
+        const isDuplicate = msg === "Duplicate" || msg.startsWith("Duplicate");
+        setQueue((prev) => prev.map((q, idx) => idx === i ? { ...q, status: isDuplicate ? "duplicate" : "error", error: isDuplicate ? "Already uploaded" : msg } : q));
+      }
     }
+  };
+
+  const statusIcon = (s: BatchFileStatus) => {
+    if (s === "done")      return <span style={{ color: "#16a34a" }}>✓</span>;
+    if (s === "duplicate") return <span style={{ color: "#7A7268" }}>⊘</span>;
+    if (s === "error")     return <span style={{ color: "#C94C2E" }}>✗</span>;
+    if (s === "uploading") return <span style={{ color: "#2563eb" }}>↑</span>;
+    return <span style={{ color: "#C8C3B8" }}>…</span>;
   };
 
   return (
     <div>
       {/* Upload controls */}
       <div style={{ border: `1px solid ${S.rule}`, marginBottom: "1.5rem" }}>
-        <div style={{ padding: "0.875rem 1.25rem", borderBottom: `1px solid ${S.rule}` }}>
+        <div style={{ padding: "0.875rem 1.25rem", borderBottom: `1px solid ${S.rule}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
-            Upload Document
+            Upload Documents
+          </p>
+          <p style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight }}>
+            Select multiple files — duplicates are auto-detected
           </p>
         </div>
         <div style={{ padding: "1rem 1.25rem", display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
@@ -836,17 +858,39 @@ function DocumentsTab({ propertyId }: { propertyId: string }) {
           {/* Upload button */}
           <button
             onClick={() => inputRef.current?.click()}
-            disabled={uploading}
+            disabled={batchActive}
             style={{
               fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase",
               padding: "0.375rem 0.875rem", border: `1px solid ${S.rust}`, color: S.rust,
-              background: "none", cursor: uploading ? "not-allowed" : "pointer", opacity: uploading ? 0.5 : 1,
+              background: "none", cursor: batchActive ? "not-allowed" : "pointer", opacity: batchActive ? 0.5 : 1,
             }}
           >
-            {uploading ? "Uploading…" : `+ Upload ${docType}`}
+            {batchActive ? "Uploading…" : `+ Upload ${docType}s`}
           </button>
-          <input ref={inputRef} type="file" accept="image/*,application/pdf" style={{ display: "none" }} onChange={handleUpload} />
+          <input ref={inputRef} type="file" multiple accept="image/*,application/pdf" style={{ display: "none" }} onChange={handleUpload} />
         </div>
+
+        {/* Batch progress queue */}
+        {queue.length > 0 && (
+          <div style={{ borderTop: `1px solid ${S.rule}` }}>
+            {queue.map((f, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.5rem 1.25rem", borderBottom: i < queue.length - 1 ? `1px solid ${S.rule}` : "none", background: f.status === "error" ? "#FEF2F2" : f.status === "duplicate" ? "#F9FAFB" : "#fff" }}>
+                <span style={{ fontFamily: S.mono, fontSize: "0.8rem", width: "1rem", textAlign: "center" }}>{statusIcon(f.status)}</span>
+                <span style={{ flex: 1, fontFamily: S.mono, fontSize: "0.65rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+                <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.06em", textTransform: "uppercase", color: f.status === "error" ? S.rust : f.status === "duplicate" ? S.inkLight : f.status === "done" ? "#16a34a" : S.inkLight }}>
+                  {f.status === "error" ? (f.error ?? "Error") : f.status === "duplicate" ? "Duplicate — skipped" : f.status === "done" ? "Uploaded" : f.status === "uploading" ? "Uploading…" : "Queued"}
+                </span>
+              </div>
+            ))}
+            {!batchActive && (
+              <div style={{ padding: "0.5rem 1.25rem", display: "flex", justifyContent: "flex-end" }}>
+                <button onClick={() => setQueue([])} style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", border: "none", background: "none", color: S.inkLight, cursor: "pointer" }}>
+                  Clear
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Document list */}
