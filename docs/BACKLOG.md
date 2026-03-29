@@ -27,7 +27,7 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 | 1.1.3 | 5-year rolling calendar view | ✅ Exists | — | `FiveYearCalendar` component in `PredictiveMaintenancePage` — "Schedule" tab with year columns, per-year budget, completion checkboxes |
 | 1.1.4 | Per-task cost estimate ranges | ✅ Exists | — | `serviceCallLowCents`/`High` on `SystemPrediction`; numeric cents on `AnnualTask`; annual budget total on Annual Tasks tab; modal pre-fills service cost for Watch/Good, replacement cost for Critical/Soon |
 | 1.1.5 | Climate-adjusted aging model | ✅ Done | L | Pull zip-code weather normals; adjust HVAC/roof lifespan curves by region |
-| 1.1.6 | Material-aware forecasting | ⬜ Missing | L | Room digital twin (1.4) is a prerequisite — need material metadata |
+| 1.1.6 | Material-aware forecasting | ✅ Done | L | `MATERIAL_SPECS` + `getMaterialMultiplier` in `maintenance.ts`; 5th param `materialOverrides` on `predictMaintenance` stacks with climate multiplier; `SystemPrediction.materialMultiplier` field |
 | 1.1.7 | Exportable PDF maintenance calendar | ✅ Done | M | Generate printable 12-month schedule with estimated costs |
 
 ### 1.2 "Home Genome" Onboarding
