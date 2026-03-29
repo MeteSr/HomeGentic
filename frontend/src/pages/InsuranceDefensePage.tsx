@@ -61,7 +61,7 @@ export default function InsuranceDefensePage() {
     paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch(() => {});
     Promise.all([
       propertyService.getMyProperties(),
-      jobService.getMyJobs(),
+      jobService.getAll(),
     ]).then(([props, js]) => {
       setProperties(props);
       setJobs(js);
@@ -237,8 +237,8 @@ export default function InsuranceDefensePage() {
                       }}>
                         <div>
                           <p style={{ fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.1rem" }}>{job.serviceType}</p>
-                          {job.title && job.title !== job.serviceType && (
-                            <p style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight }}>{job.title}</p>
+                          {job.description && (
+                            <p style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight }}>{job.description}</p>
                           )}
                           {job.permitNumber && (
                             <p style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight }}>Permit: {job.permitNumber}</p>

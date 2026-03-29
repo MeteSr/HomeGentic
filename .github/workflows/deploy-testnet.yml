@@ -1,12 +1,15 @@
 name: Deploy Testnet
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
     branches: [main, develop]
+    types: [completed]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
     steps:
       - uses: actions/checkout@v4
       - name: Install DFX
@@ -14,6 +17,6 @@ jobs:
       - name: Install mops
         run: npm install -g ic-mops
       - name: Deploy to testnet
-        run: bash scripts/deploy.sh --network testnet
+        run: bash scripts/deploy.sh testnet
         env:
           DFX_IDENTITY_PEM: ${{ secrets.DFX_IDENTITY_PEM }}

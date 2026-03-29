@@ -13,3 +13,5 @@ jobs:
       - uses: ahmadnassri/action-dependabot-auto-merge@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Only auto-merge patch and minor updates; major versions require manual review
+          target: minor

@@ -12,7 +12,7 @@ import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { propertyService, Property } from "@/services/property";
 import { jobService, Job } from "@/services/job";
-import { reportService } from "@/services/report";
+import { reportService, propertyToInput, jobToInput } from "@/services/report";
 import { computeScore, getScoreGrade, premiumEstimate, isCertified, loadHistory } from "@/services/scoreService";
 import { certService } from "@/services/cert";
 import toast from "react-hot-toast";
@@ -64,7 +64,7 @@ export default function ResaleReadyPage() {
   useEffect(() => {
     Promise.all([
       propertyService.getMyProperties(),
-      jobService.getMyJobs(),
+      jobService.getAll(),
     ]).then(([props, js]) => {
       setProperties(props);
       setJobs(js);
@@ -89,17 +89,14 @@ export default function ResaleReadyPage() {
   async function handleGenerateShareLink() {
     if (!property) return;
     try {
-      const link = await reportService.createShareLink(
+      const link = await reportService.generateReport(
         String(property.id),
-        jobs.map((j) => ({
-          id: j.id, title: j.title, serviceType: j.serviceType,
-          description: j.description ?? "", contractorName: j.contractorName,
-          amount: j.amount, date: j.date, status: j.status,
-          verified: j.status === "verified", isDiy: j.isDiy,
-          permitNumber: j.permitNumber, warrantyMonths: j.warrantyMonths,
-        })),
-        "Full",
-        undefined
+        propertyToInput(property),
+        jobs.map(jobToInput),
+        [],
+        [],
+        null,
+        "Public"
       );
       const url = `${window.location.origin}/report/${link.token}`;
       setShareLink(url);

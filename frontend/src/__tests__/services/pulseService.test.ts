@@ -28,18 +28,23 @@ function makeProperty(): Property {
 
 function makeJob(overrides: Partial<Job> = {}): Job {
   return {
-    id:             "j1",
-    propertyId:     "p1",
-    serviceType:    "HVAC",
-    description:    "HVAC tune-up",
-    contractorName: "Cool Air LLC",
-    amount:         20_000,
-    date:           "2025-06-01",   // recent — within last 12 months
-    status:         "verified",
-    verified:       true,
-    isDiy:          false,
-    permitNumber:   undefined,
-    warrantyMonths: 0,
+    id:               "j1",
+    propertyId:       "p1",
+    homeowner:        "principal-abc",
+    serviceType:      "HVAC",
+    description:      "HVAC tune-up",
+    contractorName:   "Cool Air LLC",
+    amount:           20_000,
+    date:             "2025-06-01",   // recent — within last 12 months
+    status:           "verified",
+    verified:         true,
+    isDiy:            false,
+    permitNumber:     undefined,
+    warrantyMonths:   0,
+    homeownerSigned:  true,
+    contractorSigned: true,
+    photos:           [],
+    createdAt:        Date.now(),
     ...overrides,
   };
 }

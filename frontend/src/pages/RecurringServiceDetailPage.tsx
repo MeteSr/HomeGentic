@@ -92,7 +92,8 @@ export default function RecurringServiceDetailPage() {
     const file = e.target.files[0];
     setDocUploading(true);
     try {
-      const photo = await photoService.uploadPhoto(
+      const photo = await photoService.upload(
+        file,
         id,           // jobId = service ID
         svc.propertyId,
         "PostConstruction",

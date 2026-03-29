@@ -18,18 +18,23 @@ import type { Property } from "@/services/property";
 
 function makeJob(overrides: Partial<Job> = {}): Job {
   return {
-    id:             "job-1",
-    propertyId:     "prop-1",
-    serviceType:    "HVAC",
-    description:    "HVAC replacement",
-    contractorName: "Cool Air LLC",
-    amount:         240_000,   // $2,400 in cents
-    date:           "2024-06-15",
-    status:         "verified",
-    verified:       true,
-    isDiy:          false,
-    permitNumber:   undefined,
-    warrantyMonths: 0,
+    id:               "job-1",
+    propertyId:       "prop-1",
+    homeowner:        "principal-abc",
+    serviceType:      "HVAC",
+    description:      "HVAC replacement",
+    contractorName:   "Cool Air LLC",
+    amount:           240_000,   // $2,400 in cents
+    date:             "2024-06-15",
+    status:           "verified",
+    verified:         true,
+    isDiy:            false,
+    permitNumber:     undefined,
+    warrantyMonths:   0,
+    homeownerSigned:  true,
+    contractorSigned: true,
+    photos:           [],
+    createdAt:        Date.now(),
     ...overrides,
   };
 }
