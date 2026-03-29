@@ -26,7 +26,7 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 | 1.1.2 | Seasonal task generation | ✅ Exists | — | `getSeasonalTasks()` in maintenance canister |
 | 1.1.3 | 5-year rolling calendar view | ✅ Exists | — | `FiveYearCalendar` component in `PredictiveMaintenancePage` — "Schedule" tab with year columns, per-year budget, completion checkboxes |
 | 1.1.4 | Per-task cost estimate ranges | ✅ Exists | — | `serviceCallLowCents`/`High` on `SystemPrediction`; numeric cents on `AnnualTask`; annual budget total on Annual Tasks tab; modal pre-fills service cost for Watch/Good, replacement cost for Critical/Soon |
-| 1.1.5 | Climate-adjusted aging model | ⬜ Missing | L | Pull zip-code weather normals; adjust HVAC/roof lifespan curves by region |
+| 1.1.5 | Climate-adjusted aging model | ✅ Done | L | Pull zip-code weather normals; adjust HVAC/roof lifespan curves by region |
 | 1.1.6 | Material-aware forecasting | ⬜ Missing | L | Room digital twin (1.4) is a prerequisite — need material metadata |
 | 1.1.7 | Exportable PDF maintenance calendar | ✅ Done | M | Generate printable 12-month schedule with estimated costs |
 
@@ -59,13 +59,13 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 1.4.1 | Room entity in `property` or new canister | ⬜ Missing | L | New Motoko stable type: `Room { id, propertyId, name, floorType, paintColor, fixtures: [Fixture] }` |
-| 1.4.2 | Room CRUD frontend | ⬜ Missing | M | Add "Rooms" tab to `PropertyDetailPage`; list, add, edit rooms |
-| 1.4.3 | Fixture/appliance inventory per room | ⬜ Missing | M | `Fixture { brand, model, serialNumber, installedDate, warrantyExpiry }` |
+| 1.4.1 | Room entity in `property` or new canister | ✅ Done | L | New Motoko stable type: `Room { id, propertyId, name, floorType, paintColor, fixtures: [Fixture] }` |
+| 1.4.2 | Room CRUD frontend | ✅ Done | M | Add "Rooms" tab to `PropertyDetailPage`; list, add, edit rooms |
+| 1.4.3 | Fixture/appliance inventory per room | ✅ Done | M | `Fixture { brand, model, serialNumber, installedDate, warrantyExpiry }` |
 | 1.4.4 | Warranty wallet (see 2.3) | ⬜ Missing | L | Auto-alert before warranty expiry; shown in HomeFax Report |
 | 1.4.5 | Room photo gallery | 🟡 Partial | S | `photo` canister exists; add room-scoped `getByRoom()` query |
-| 1.4.6 | Paint color lookup / match | ⬜ Missing | M | Store paint brand + color code; generate a "touch-up" reference card |
-| 1.4.7 | Room data in HomeFax Report export | ⬜ Missing | M | Include room finishes summary in generated report (buyer disclosure layer) |
+| 1.4.6 | Paint color lookup / match | ✅ Done | M | Store paint brand + color code; generate a "touch-up" reference card |
+| 1.4.7 | Room data in HomeFax Report export | ✅ Done | M | Include room finishes summary in generated report (buyer disclosure layer) |
 
 ---
 
@@ -177,8 +177,8 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 4.2.1 | HomeFax score certification endpoint | ⬜ Missing | M | Canister returns a signed score certificate with no personal data |
-| 4.2.2 | Lender-facing score verification page | ⬜ Missing | M | Unauthenticated URL: lender enters certification code, sees score + grade only |
+| 4.2.1 | HomeFax score certification endpoint | ✅ Done | M | Canister returns a signed score certificate with no personal data |
+| 4.2.2 | Lender-facing score verification page | ✅ Done | M | Unauthenticated URL: lender enters certification code, sees score + grade only |
 | 4.2.3 | ZKP score proof (no raw data) | ⬜ Missing | XL | Full ZKP implementation; score proven without job record disclosure |
 
 ### 4.3 Anonymous Neighborhood Benchmarking
@@ -212,7 +212,7 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 | 5.1.1 | Voice agent (SSE streaming chat) | ✅ Exists | — | `agents/voice/server.ts` with Claude API |
 | 5.1.2 | Agentic tool-use loop (up to 5 turns) | ✅ Exists | — | `POST /api/agent` in voice server |
 | 5.1.3 | Issue classification tool | ✅ Exists | — | `classify_home_issue` → confirms with user → `create_quote_request` → `quoteService.createRequest()`; full classify-then-act loop in `tools.ts` and `agentTools.ts` |
-| 5.1.4 | Contractor search + schedule via agent | ⬜ Missing | L | Agent calls `contractor.search()`, proposes top 3, and pre-fills `QuoteRequestPage` |
+| 5.1.4 | Contractor search + schedule via agent | ✅ Done | L | Agent calls `contractor.search()`, proposes top 3, and pre-fills `QuoteRequestPage` |
 | 5.1.5 | Work order auto-draft from NL input | ✅ Done | M | Agent generates structured job description from homeowner's natural language input |
 | 5.1.6 | Auto-log completed job from conversation | ✅ Done | M | After contractor confirmation, agent calls `job.createJob()` with parsed fields |
 
@@ -233,7 +233,7 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 | 5.3.1 | Local real estate data ingestion | ⬜ Missing | L | Integrate with Zillow / ATTOM / MLS API for inventory and days-on-market data |
 | 5.3.2 | Score-to-premium model | ⬜ Missing | L | Regression model: HomeFax score × zip × season → estimated price premium |
 | 5.3.3 | Market timing alert | ⬜ Missing | M | Push notification / dashboard banner: "Now is a good time to list" |
-| 5.3.4 | Score-to-value calculator UI | ⬜ Missing | M | Show "Your score of 91 in 78704 is associated with $18–24K buyer premium" on Dashboard |
+| 5.3.4 | Score-to-value calculator UI | ✅ Done | M | Show "Your score of 91 in 78704 is associated with $18–24K buyer premium" on Dashboard |
 
 ### 5.4 Autonomous Permit Research
 **Vision:** When a contractor proposes a renovation, AI pre-checks permit requirements and drafts the application.
@@ -242,8 +242,8 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 |---|------|--------|------|-------|
 | 5.4.1 | Municipal permit API integration | ⬜ Missing | XL | Per-city permit data; no universal API exists — requires city-by-city or OpenPermit integration |
 | 5.4.2 | Permit requirement lookup tool | ⬜ Missing | L | Agent tool: given service type + zip, returns permit required Y/N + estimated cost |
-| 5.4.3 | Permit status tracking in job record | ⬜ Missing | M | Add `permitRequired: Bool`, `permitNumber: ?Text`, `permitStatus` to Job entity |
-| 5.4.4 | Permit alert in job creation flow | ⬜ Missing | M | During `JobCreatePage`, auto-warn if selected service type typically requires permit |
+| 5.4.3 | Permit status tracking in job record | ✅ Done | M | Add `permitRequired: Bool`, `permitNumber: ?Text`, `permitStatus` to Job entity |
+| 5.4.4 | Permit alert in job creation flow | ✅ Done | M | During `JobCreatePage`, auto-warn if selected service type typically requires permit |
 | 5.4.5 | Permit application draft generation | ⬜ Missing | L | Agent drafts permit application text from job details; user downloads/submits |
 
 ---
@@ -265,8 +265,8 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 6.2.1 | HomeFax badge image generation | ⬜ Missing | M | SVG/PNG badge with score + grade; generated from canister data |
-| 6.2.2 | Embeddable badge widget | ⬜ Missing | M | `<iframe>` or JS snippet for listing agents to embed on property pages |
+| 6.2.1 | HomeFax badge image generation | ✅ Done | M | SVG/PNG badge with score + grade; generated from canister data |
+| 6.2.2 | Embeddable badge widget | ✅ Done | M | `<iframe>` or JS snippet for listing agents to embed on property pages |
 | 6.2.3 | Zillow / Realtor.com API partnership | ⬜ Missing | XL | Requires partner API access; long-term business development item |
 
 ### 6.3 Buyer Q&A via ZKP
@@ -287,7 +287,7 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 | 6.4.2 | Agent branding fields | ✅ Done | S | `AgentProfile { name, brokerage, logoUrl, phone }` in `auth` or new `agent` canister |
 | 6.4.3 | Co-branded report PDF template | ✅ Done | M | Report PDF renders agent logo + contact in footer/header |
 | 6.4.4 | Agent share link with co-branding | ✅ Done | M | Share links carry agent branding token; viewer sees agent info alongside HomeFax data |
-| 6.4.5 | Agent dashboard | ⬜ Missing | L | Agent can see all properties they've shared + view counts + buyer engagement |
+| 6.4.5 | Agent dashboard | ✅ Done | L | Agent can see all properties they've shared + view counts + buyer engagement |
 
 ### 6.5 "HomeFax Certified" Pre-Inspection Waiver
 **Vision:** Score ≥ 88 qualifies for waived/discounted inspection contingency — killer feature in competitive markets.
@@ -307,8 +307,8 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 7.1.1 | Data sovereignty explainer on landing page | ⬜ Missing | S | Section explaining ICP data ownership model |
-| 7.1.2 | Self-service canister data export | ⬜ Missing | M | (See 3.3.1) |
+| 7.1.1 | Data sovereignty explainer on landing page | ✅ Done | S | Section explaining ICP data ownership model |
+| 7.1.2 | Self-service canister data export | ✅ Done | M | (See 3.3.1) |
 | 7.1.3 | "Verified on ICP" explorer links | ⬜ Missing | S | Link each record to ic.rocks or dashboard.internetcomputer.org for independent verification |
 
 ### 7.2 Builder / Developer Onboarding
@@ -536,7 +536,7 @@ The homeowner initiates a bid request when they're considering selling. The requ
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 9.2.1 | `ListingBidRequest` type in new `listing` canister | ⬜ Missing | L | Fields: `propertyId`, `targetListDate`, `desiredSalePrice` (optional), `notes`, `bidDeadline`, `status: { #Open \| #Awarded \| #Cancelled }` |
+| 9.2.1 | `ListingBidRequest` type in new `listing` canister | ✅ Done | L | Fields: `propertyId`, `targetListDate`, `desiredSalePrice` (optional), `notes`, `bidDeadline`, `status: { #Open \| #Awarded \| #Cancelled }` |
 | 9.2.2 | Listing bid request creation UI | ⬜ Missing | M | New page `/listing/new` — property selector, target list date, desired price (optional, visible to agents), deadline for proposals, notes |
 | 9.2.3 | HomeFax score + summary auto-attached to request | ⬜ Missing | S | When request is created, snapshot current score, verified job count, key system ages — attached to every agent's proposal view automatically |
 | 9.2.4 | Bid request visibility controls | ⬜ Missing | S | Homeowner chooses: open to all licensed agents in their market, or invite-only (send to specific agents by email/ID) |
@@ -548,12 +548,12 @@ The homeowner initiates a bid request when they're considering selling. The requ
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 9.3.1 | `ListingProposal` type in `listing` canister | ⬜ Missing | M | Fields: `requestId`, `agentId`, `commissionRateBps` (basis points, e.g. 250 = 2.5%), `cmaSummary` (text), `marketingPlan` (text), `estimatedDaysOnMarket`, `estimatedSalePrice`, `includedServices` (list), `validUntil`, `coverLetter` |
+| 9.3.1 | `ListingProposal` type in `listing` canister | ✅ Done | M | Fields: `requestId`, `agentId`, `commissionRateBps` (basis points, e.g. 250 = 2.5%), `cmaSummary` (text), `marketingPlan` (text), `estimatedDaysOnMarket`, `estimatedSalePrice`, `includedServices` (list), `validUntil`, `coverLetter` |
 | 9.3.2 | Proposal submission UI for agents | ⬜ Missing | M | Agent sees the property's HomeFax summary (score, key verified records, system ages) before proposing; fills in their CMA, commission, marketing narrative |
 | 9.3.3 | Commission input with basis-points precision | ⬜ Missing | S | Slider + text input; show dollar equivalent in real-time based on homeowner's desired price; enforces legal minimums per state |
 | 9.3.4 | CMA upload / attachment | ⬜ Missing | M | Agent uploads a PDF CMA or enters structured comps (address, sale price, date, bed/bath/sqft); stored in `photo` canister pattern |
 | 9.3.5 | Proposal draft / save before submit | ⬜ Missing | S | Agents can save a draft and return before the deadline |
-| 9.3.6 | Proposal sealed until deadline (blind bidding) | ⬜ Missing | M | Agents cannot see each other's commission rates or proposals until the bid deadline passes; homeowner sees all after close — same sealed-bid principle as 2.4 |
+| 9.3.6 | Proposal sealed until deadline (blind bidding) | ✅ Done | M | Agents cannot see each other's commission rates or proposals until the bid deadline passes; homeowner sees all after close — same sealed-bid principle as 2.4 |
 
 ---
 
@@ -564,9 +564,9 @@ This is the moment HomeFax wins. The seller sees every proposal side-by-side —
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
 | 9.4.1 | Proposal comparison view | ⬜ Missing | L | Side-by-side table: agent, commission rate, estimated sale price, estimated days on market, included services, verified reviews; sortable by any column |
-| 9.4.2 | Net proceeds calculator per proposal | ⬜ Missing | M | Given desired price + each agent's commission, show estimated net proceeds after commission + estimated closing costs; makes the cost of a 0.5% commission difference visceral |
+| 9.4.2 | Net proceeds calculator per proposal | ✅ Done | M | Given desired price + each agent's commission, show estimated net proceeds after commission + estimated closing costs; makes the cost of a 0.5% commission difference visceral |
 | 9.4.3 | HomeFax score context for each proposal | ⬜ Missing | S | Show agents how they priced the property relative to the HomeFax-estimated premium; flag agents who underpriced |
-| 9.4.4 | Agent selection + engagement flow | ⬜ Missing | M | "Select this agent" → notification sent to agent; listing request marked `#Awarded`; other agents notified they were not selected |
+| 9.4.4 | Agent selection + engagement flow | ✅ Done | M | "Select this agent" → notification sent to agent; listing request marked `#Awarded`; other agents notified they were not selected |
 | 9.4.5 | Post-selection contract upload | ⬜ Missing | S | After selecting an agent, homeowner uploads the signed listing agreement as a doc; stored on-chain as a milestone |
 | 9.4.6 | Counter-proposal flow | ⬜ Missing | L | Homeowner can counter on commission rate or terms; agent accepts/rejects/counter-counters; async threaded negotiation |
 
@@ -801,7 +801,7 @@ Require modest new infrastructure; high product value.
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 12.6.1 | Vitest coverage report in CI | ⬜ Missing | S | Add `--coverage` flag to `npm run test:unit`; configure Istanbul thresholds (target: 70% line coverage for services); fail CI below threshold |
+| 12.6.1 | Vitest coverage report in CI | ✅ Done | S | Add `--coverage` flag to `npm run test:unit`; configure Istanbul thresholds (target: 70% line coverage for services); fail CI below threshold |
 | 12.6.2 | Playwright visual regression baseline | ⬜ Missing | M | Capture screenshots of key pages (Dashboard, Report, Landing) as regression baseline; flag pixel diffs in CI — especially important during design migration (Section 11) |
 | 12.6.3 | Backend test coverage tracking | ⬜ Missing | S | Add a coverage summary table to `scripts/test-backend.sh` output; count pass/fail per canister; non-zero exit code on any failure |
 | 12.6.4 | Mock canister identity in unit tests | ⬜ Missing | M | Current unit tests use the mock-fallback pattern (no `CANISTER_ID` → mock data). Add a test utility that stubs canister actor calls so real IDL validation is exercised without a running replica |
@@ -922,7 +922,7 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 | 14.3.1 | Missing text field size limits across canisters | ⬜ Missing | M | **MEDIUM.** `description`, `title`, `comment`, `bio`, `name` fields are validated for non-empty but not for maximum length. The sensor canister correctly enforces `MAX_PAYLOAD_BYTES = 4096` but other canisters don't follow this pattern. An attacker can submit a multi-gigabyte description and cause memory exhaustion or expensive serialization cycles. Fix: add `MAX_DESCRIPTION: Nat = 5000`, `MAX_COMMENT: Nat = 10000` constants to all canisters that accept free-text input; return `#InvalidInput` if exceeded. |
 | 14.3.2 | No rate limiting on voice agent proxy endpoints | ⬜ Missing | S | **MEDIUM.** `/api/agent` and `/api/chat` on the Express proxy (port 3001) have no rate limiting. An attacker can spam these endpoints, exhausting the `ANTHROPIC_API_KEY` quota or causing denial of service. Fix: add `express-rate-limit` middleware — 30 requests/minute/IP on `/api/` routes. File: `agents/voice/server.ts`. |
 | 14.3.3 | CORS origin fails open if env var missing | ⬜ Missing | S | **MEDIUM.** `FRONTEND_ORIGIN` defaults to `"http://localhost:5173"` if not set. In a misconfigured production environment this silently restricts or opens CORS in unexpected ways. Fix: throw a startup error if `FRONTEND_ORIGIN` is not set (`if (!allowedOrigin) throw new Error(...)`). File: `agents/voice/server.ts`. |
-| 14.3.4 | Missing Content-Security-Policy header | ⬜ Missing | S | **MEDIUM.** `frontend/index.html` has no CSP meta tag. While no `dangerouslySetInnerHTML` was found in the current codebase, absence of a CSP leaves the door open for XSS introduced by future changes or third-party scripts. Fix: add `<meta http-equiv="Content-Security-Policy">` restricting `script-src`, `style-src` (allow `fonts.googleapis.com`), `font-src` (allow `fonts.gstatic.com`), `connect-src` to IC endpoint. |
+| 14.3.4 | Content-Security-Policy header | ✅ Done | S | **MEDIUM.** `frontend/index.html` has no CSP meta tag. While no `dangerouslySetInnerHTML` was found in the current codebase, absence of a CSP leaves the door open for XSS introduced by future changes or third-party scripts. Fix: add `<meta http-equiv="Content-Security-Policy">` restricting `script-src`, `style-src` (allow `fonts.googleapis.com`), `font-src` (allow `fonts.gstatic.com`), `connect-src` to IC endpoint. |
 
 ---
 
@@ -957,7 +957,7 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 |---|------|--------|------|-------|
 | 15.1.1 | Enforce 5-job cap on free tier in `job` canister | ✅ Exists | S | `createJob()` cross-calls `payment.getTierForPrincipal(msg.caller)`. If `#Free` and caller already has ≥5 jobs, returns `#err(#TierLimitReached)`. Added `payCanisterId` stable var + `setPaymentCanisterId()` admin func. `deploy.sh` now wires all three inter-canister IDs post-deploy. |
 | 15.1.2 | Surface job cap in `JobCreatePage` | ✅ Exists | S | UpgradeGate shown when Free user has ≥5 jobs (fetched on mount). |
-| 15.1.3 | Show job count + cap progress on Dashboard | ⬜ Missing | S | Free users see "5/5 jobs logged" with a progress bar and upgrade CTA. Pro+ users see no cap indicator. |
+| 15.1.3 | Show job count + cap progress on Dashboard | ✅ Done | S | Free users see "5/5 jobs logged" with a progress bar and upgrade CTA. Pro+ users see no cap indicator. |
 
 ---
 
@@ -965,7 +965,7 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 15.2.1 | Default share link TTL to 7 days for free tier | ⬜ Missing | M | In `report` canister `generateReport()`, check caller's tier. If Free, set `expiresAt = now + 7 days` regardless of what the caller passes. Pro+ retain the current behavior (caller-controlled expiry, including null = never). |
+| 15.2.1 | Default share link TTL to 7 days for free tier | ✅ Done | M | In `report` canister `generateReport()`, check caller's tier. If Free, set `expiresAt = now + 7 days` regardless of what the caller passes. Pro+ retain the current behavior (caller-controlled expiry, including null = never). |
 | 15.2.2 | Warn free users before link expires in `ReportPage` | ⬜ Missing | S | When a report is loaded and the share link expires within 48 hours, show a banner: "This report link expires [date]. Upgrade to Pro for a permanent link." |
 | 15.2.3 | Show expiry in `GenerateReportModal` for free users | ⬜ Missing | S | In the success screen shown after `reportService.generateReport()` resolves (the screen that displays the shareable URL), add a conditional block below the URL: if the user is on Free, show an amber info row — "⚠ This link expires in 7 days · [Upgrade to Pro →]". If Pro+, show a green confirmation row — "✓ This link never expires". Check tier from `useAuthStore` / `paymentService.getSubscription()`. This is informational only, not a blocker — the user has already generated the report. |
 | 15.2.4 | Expired free report shows upgrade prompt, not generic error | ⬜ Missing | S | When `getReport()` returns a revoked/expired token, `ReportPage` currently shows a generic error. For free-tier-expired links, show: "This HomeFax report has expired. The homeowner can upgrade to Pro to share a permanent link." |
@@ -977,7 +977,7 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
 | 15.3.1 | Add `planTier` field to `ReportSnapshot` in `report` canister | ⬜ Missing | S | Add `planTier: Text` to the `ReportSnapshot` record type (use `Text` rather than importing the `Tier` variant from the payment canister to avoid inter-canister type coupling; valid values: `"Free"`, `"Pro"`, `"Premium"`, `"ContractorPro"`). In `generateReport()`, call `paymentCanister.getSubscription(msg.caller)`, read the tier, and store it in the snapshot. Requires `paymentCanisterId` stable var + `setPaymentCanisterId()` admin function (same pattern as 15.1.1). Update the IDL in `frontend/src/services/report.ts` to add `planTier: IDL.Text` to the `ReportSnapshot` record, and add `planTier: string` to the TypeScript interface. Old snapshots (before this field exists) will deserialize with an empty string — treat `""` as `"Free"` in the frontend. |
-| 15.3.2 | Render "Free Plan" banner on `ReportPage` for free-tier reports | ⬜ Missing | S | When `snapshot.planTier === "Free"`, show a banner at the top of the public report: "Generated with HomeFax Free — upgrade to remove this banner and unlock permanent sharing." Buyers see this; it signals to them that the seller hasn't committed to the platform. |
+| 15.3.2 | Render "Free Plan" banner on `ReportPage` for free-tier reports | ✅ Done | S | When `snapshot.planTier === "Free"`, show a banner at the top of the public report: "Generated with HomeFax Free — upgrade to remove this banner and unlock permanent sharing." Buyers see this; it signals to them that the seller hasn't committed to the platform. |
 | 15.3.3 | Remove banner from Pro+ reports | ⬜ Missing | S | Pro and Premium reports render with no banner, clean header, and a "Verified by HomeFax" trust badge instead. This makes the Pro report visually superior and the difference obvious. |
 
 ---
@@ -986,8 +986,8 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 15.4.1 | Show score number on free tier, lock breakdown | ⬜ Missing | M | The score breakdown appears in two places: (1) `DashboardPage` — the per-property score section, and (2) `PropertyDetailPage` — the Score tab. Apply the gate in both. Free users see the large score number and grade (e.g., "74 · C+") unchanged. The four scoring pillars rendered below it (`scoreService.computeScore()` returns `verifiedJobPts`, `valuePts`, `verificationPts`, `diversityPts`) are replaced with a single `<UpgradeGate>` card (see 15.7.1): icon 🔍, title "Score Breakdown", description "See exactly what's dragging your score down — upgrade to Pro." The gate check is: `if (tier === "Free") show gate else show pillars`. Read tier from `paymentService.getSubscription()` called once in the page's `useEffect`, stored in local state. |
-| 15.4.2 | Lock improvement recommendations on free tier | ⬜ Missing | S | The "How to improve your score" action list (currently shown on Dashboard and PropertyDetailPage) is Pro-only. Free users see: "3 actions available — upgrade to see them." |
+| 15.4.1 | Show score number on free tier, lock breakdown | ✅ Done | M | The score breakdown appears in two places: (1) `DashboardPage` — the per-property score section, and (2) `PropertyDetailPage` — the Score tab. Apply the gate in both. Free users see the large score number and grade (e.g., "74 · C+") unchanged. The four scoring pillars rendered below it (`scoreService.computeScore()` returns `verifiedJobPts`, `valuePts`, `verificationPts`, `diversityPts`) are replaced with a single `<UpgradeGate>` card (see 15.7.1): icon 🔍, title "Score Breakdown", description "See exactly what's dragging your score down — upgrade to Pro." The gate check is: `if (tier === "Free") show gate else show pillars`. Read tier from `paymentService.getSubscription()` called once in the page's `useEffect`, stored in local state. |
+| 15.4.2 | Lock improvement recommendations on free tier | ✅ Done | S | The "How to improve your score" action list (currently shown on Dashboard and PropertyDetailPage) is Pro-only. Free users see: "3 actions available — upgrade to see them." |
 | 15.4.3 | Show full breakdown in score cert for Pro+ | ⬜ Missing | S | `ScoreCertPage` shows full breakdown for Pro+. Free users who earn a cert (score ≥88) still get the cert number, but the detailed sub-scores are blurred with an upgrade prompt. |
 
 ---
@@ -996,8 +996,8 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 15.5.1 | Restrict free tier to current-month maintenance view | ⬜ Missing | M | In `PredictiveMaintenancePage`, free users see only the current month's tasks. The 5-year calendar tab is replaced with a locked state: "See your full 5-year maintenance plan and cost estimates — upgrade to Pro." The urgency here is real: buyers ask "when is the HVAC due?" and only Pro can answer confidently. |
-| 15.5.2 | Lock per-task cost estimates on free tier | ⬜ Missing | S | The dollar ranges on each maintenance task (e.g., "$3,200–$5,800 to replace") are Pro-only. Free users see task names and urgency levels, but costs are hidden behind a blur with upgrade CTA. |
+| 15.5.1 | Restrict free tier to current-month maintenance view | ✅ Done | M | In `PredictiveMaintenancePage`, free users see only the current month's tasks. The 5-year calendar tab is replaced with a locked state: "See your full 5-year maintenance plan and cost estimates — upgrade to Pro." The urgency here is real: buyers ask "when is the HVAC due?" and only Pro can answer confidently. |
+| 15.5.2 | Lock per-task cost estimates on free tier | ✅ Done | S | The dollar ranges on each maintenance task (e.g., "$3,200–$5,800 to replace") are Pro-only. Free users see task names and urgency levels, but costs are hidden behind a blur with upgrade CTA. |
 
 ---
 
@@ -1005,11 +1005,11 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 15.6.1 | Lock Recurring Services on free tier | ⬜ Missing | S | Free users who navigate to `/recurring/new` see an upgrade gate page instead of the create form: "Recurring service contracts are a Pro feature — track lawn care, pest control, and pool maintenance with a Pro plan." This is a strong differentiator because contract continuity is exactly what buyers want to see. |
-| 15.6.2 | Lock Market Intelligence on free tier | ⬜ Missing | S | `MarketIntelligencePage` shows a locked state for free users: "See how your home's maintenance investment compares to your neighbors — upgrade to Pro." The competitive positioning data is pure selling value and has no place on a free tier. |
-| 15.6.3 | Lock Warranty Wallet on free tier | ⬜ Missing | S | `WarrantyWalletPage` shows a locked state: "Track active warranties and get expiry alerts — upgrade to Pro." Warranty data is high perceived value (especially for HVAC, roof, appliances) and easy to gate. |
+| 15.6.1 | Lock Recurring Services on free tier | ✅ Done | S | Free users who navigate to `/recurring/new` see an upgrade gate page instead of the create form: "Recurring service contracts are a Pro feature — track lawn care, pest control, and pool maintenance with a Pro plan." This is a strong differentiator because contract continuity is exactly what buyers want to see. |
+| 15.6.2 | Lock Market Intelligence on free tier | ✅ Done | S | `MarketIntelligencePage` shows a locked state for free users: "See how your home's maintenance investment compares to your neighbors — upgrade to Pro." The competitive positioning data is pure selling value and has no place on a free tier. |
+| 15.6.3 | Lock Warranty Wallet on free tier | ✅ Done | S | `WarrantyWalletPage` shows a locked state: "Track active warranties and get expiry alerts — upgrade to Pro." Warranty data is high perceived value (especially for HVAC, roof, appliances) and easy to gate. |
 | 15.6.4 | Lock Agent Marketplace and FSBO on free tier | ⬜ Missing | S | Both the listing bid request flow (Section 9) and FSBO mode (Section 10) require Pro or Premium. Free users who navigate to these flows see: "Selling your home? Upgrade to Pro to make agents compete for your listing — or go FSBO with our full toolkit." This is the highest-value gate of all. |
-| 15.6.5 | Lock Insurance Defense on free tier | ⬜ Missing | S | `InsuranceDefensePage` is Pro-only. Free users see a locked state: "Build your evidence file for insurance claims — upgrade to Pro." |
+| 15.6.5 | Lock Insurance Defense on free tier | ✅ Done | S | `InsuranceDefensePage` is Pro-only. Free users see a locked state: "Build your evidence file for insurance claims — upgrade to Pro." |
 
 ---
 
@@ -1017,11 +1017,11 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 15.7.1 | Consistent upgrade gate component | ⬜ Missing | M | Create `frontend/src/components/UpgradeGate.tsx`. Props: `icon: string` (emoji), `feature: string` (feature name for the heading), `description: string` (one-line value prop), `tier?: "Pro" \| "Premium"` (defaults to `"Pro"`). Renders a bordered card (sage-light background, sage-mid border, 20px radius matching new design system) with: the icon at 40px, a Fraunces heading, the description in body text, and a plum pill button "Upgrade to [tier] →" that navigates to `/pricing`. No blurred preview of actual content — use a simple placeholder illustration or leave the card empty behind the gate. Blurring real content requires rendering it first, which leaks the data to the DOM; a clean locked card is both simpler and safer. Used by: 15.4.1, 15.4.2, 15.5.1, 15.5.2, 15.6.1–15.6.5. |
-| 15.7.2 | Upgrade prompt on Dashboard for free users | ⬜ Missing | S | Free users see a persistent (but dismissible) upgrade banner on the Dashboard after logging their 3rd job: "You're building something valuable — unlock the full HomeFax experience." Triggers at job #3, not job #1 (let them get hooked first). |
+| 15.7.1 | Consistent upgrade gate component | ✅ Done | M | Create `frontend/src/components/UpgradeGate.tsx`. Props: `icon: string` (emoji), `feature: string` (feature name for the heading), `description: string` (one-line value prop), `tier?: "Pro" \| "Premium"` (defaults to `"Pro"`). Renders a bordered card (sage-light background, sage-mid border, 20px radius matching new design system) with: the icon at 40px, a Fraunces heading, the description in body text, and a plum pill button "Upgrade to [tier] →" that navigates to `/pricing`. No blurred preview of actual content — use a simple placeholder illustration or leave the card empty behind the gate. Blurring real content requires rendering it first, which leaks the data to the DOM; a clean locked card is both simpler and safer. Used by: 15.4.1, 15.4.2, 15.5.1, 15.5.2, 15.6.1–15.6.5. |
+| 15.7.2 | Upgrade prompt on Dashboard for free users | ✅ Done | S | Free users see a persistent (but dismissible) upgrade banner on the Dashboard after logging their 3rd job: "You're building something valuable — unlock the full HomeFax experience." Triggers at job #3, not job #1 (let them get hooked first). |
 | 15.7.3 | Highlight the upgrade moment in-app notification | ⬜ Missing | S | Scope: in-app notification only (no email or push — those require external infrastructure not yet in place). When a free user's `generateReport()` call succeeds in `GenerateReportModal`, immediately call `notificationService.create({ type: "ReportExpiry", message: "Your HomeFax report expires in 7 days — upgrade to Pro for a permanent link.", propertyId })`. This surfaces in the notification bell on the next page load. The existing `notifications.ts` service and bell UI already support this; no new infrastructure needed. Email/push upgrade reminders are a separate future item once an email provider is integrated. |
-| 15.7.4 | Update `PricingPage` feature comparison table | ⬜ Missing | S | Reflect all new gates in the pricing table: add rows for Recurring Services, Market Intelligence, Warranty Wallet, Score Breakdown, 5-Year Maintenance Calendar, Permanent Report Links, Agent Marketplace, FSBO mode. Free column shows ✗ for all new locked items. |
-| 15.7.5 | "You're on Free" tier indicator in Settings | ⬜ Missing | S | `SettingsPage` shows the user's current tier prominently with a one-click upgrade CTA. Currently this exists but should be made more prominent for free users — show what they're missing with a short feature list. |
+| 15.7.4 | Update `PricingPage` feature comparison table | ✅ Done | S | Reflect all new gates in the pricing table: add rows for Recurring Services, Market Intelligence, Warranty Wallet, Score Breakdown, 5-Year Maintenance Calendar, Permanent Report Links, Agent Marketplace, FSBO mode. Free column shows ✗ for all new locked items. |
+| 15.7.5 | "You're on Free" tier indicator in Settings | ✅ Done | S | `SettingsPage` shows the user's current tier prominently with a one-click upgrade CTA. Currently this exists but should be made more prominent for free users — show what they're missing with a short feature list. |
 
 ---
 
