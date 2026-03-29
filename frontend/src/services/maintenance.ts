@@ -69,6 +69,63 @@ function fromEntry(raw: any): ScheduleEntry {
   };
 }
 
+// ─── Material Specs (1.1.6) ──────────────────────────────────────────────────
+//
+// Per-system material keys with lifespan multipliers relative to the baseline.
+// Multipliers > 1.0 extend lifespan; < 1.0 shorten it.
+// These stack with climate multipliers inside predictMaintenance.
+
+export interface MaterialSpec {
+  label: string;
+  multiplier: number;
+}
+
+export const MATERIAL_SPECS: Record<string, Record<string, MaterialSpec>> = {
+  Roofing: {
+    asphalt:   { label: "Asphalt Shingles",       multiplier: 1.0  },
+    metal:     { label: "Metal",                   multiplier: 1.6  },
+    tile:      { label: "Clay/Concrete Tile",      multiplier: 2.0  },
+    woodShake: { label: "Wood Shake",              multiplier: 0.80 },
+    slate:     { label: "Slate",                   multiplier: 2.4  },
+  },
+  Flooring: {
+    hardwood:  { label: "Hardwood",                multiplier: 1.0  },
+    carpet:    { label: "Carpet",                  multiplier: 0.40 },
+    lvp:       { label: "Luxury Vinyl",            multiplier: 0.80 },
+    tile:      { label: "Ceramic/Porcelain Tile",  multiplier: 1.20 },
+    laminate:  { label: "Laminate",                multiplier: 0.60 },
+  },
+  Plumbing: {
+    copper:    { label: "Copper",                  multiplier: 1.0  },
+    pvc:       { label: "PVC/PEX",                 multiplier: 1.0  },
+    galvanized:{ label: "Galvanized Steel",         multiplier: 0.50 },
+    castIron:  { label: "Cast Iron",               multiplier: 1.40 },
+  },
+  Windows: {
+    doublePane:{ label: "Double-Pane Vinyl",       multiplier: 1.0  },
+    singlePane:{ label: "Single-Pane",             multiplier: 0.68 },
+    triplePane:{ label: "Triple-Pane",             multiplier: 1.36 },
+    wood:      { label: "Wood Frame",              multiplier: 0.86 },
+  },
+  "Water Heater": {
+    tank:      { label: "Tank (Standard)",         multiplier: 1.0  },
+    tankless:  { label: "Tankless",                multiplier: 1.67 },
+    heatPump:  { label: "Heat Pump Water Heater",  multiplier: 1.50 },
+  },
+  HVAC: {
+    central:   { label: "Central Air/Furnace",     multiplier: 1.0  },
+    heatPump:  { label: "Heat Pump",               multiplier: 0.83 },
+    miniSplit:  { label: "Mini-Split",              multiplier: 1.11 },
+    boiler:    { label: "Boiler",                  multiplier: 1.33 },
+  },
+};
+
+/** Returns the lifespan multiplier for a given system + material key.
+ *  Falls back to 1.0 (no adjustment) for unknown systems or materials. */
+export function getMaterialMultiplier(systemName: string, materialKey: string): number {
+  return MATERIAL_SPECS[systemName]?.[materialKey]?.multiplier ?? 1.0;
+}
+
 // ─── Climate Zone Model ──────────────────────────────────────────────────────
 //
 // Five practical zones derived from DOE Building America climate zones.
@@ -178,6 +235,7 @@ export interface SystemPrediction {
   serviceCallHighCents: number;      // routine service / inspection cost
   recommendation: string;
   diyViable: boolean;
+  materialMultiplier: number;        // 1.0 if no material override applied
 }
 
 export interface AnnualTask {
@@ -199,6 +257,7 @@ export interface MaintenanceReport {
   annualTaskBudgetHighCents: number;
   climateZone: ClimateZone;
   generatedAt: number;
+  materialOverrides: Partial<Record<string, string>>;
 }
 
 export interface ScheduleEntry {
@@ -293,7 +352,8 @@ export function predictMaintenance(
   yearBuilt: number,
   jobs: Job[],
   systemInstallYears: Partial<Record<string, number>> = {},
-  state?: string
+  state?: string,
+  materialOverrides: Partial<Record<string, string>> = {}
 ): MaintenanceReport {
   const year  = currentYear();
   const zone  = state ? getClimateZone(state) : CLIMATE_ZONES.mixed;
@@ -311,9 +371,11 @@ export function predictMaintenance(
       }
     }
 
-    // Apply climate multiplier to effective lifespan
-    const multiplier       = zone.lifespanMultipliers[sys.name] ?? 1.0;
-    const effectiveLifespan = Math.round(sys.lifespanYears * multiplier);
+    // Apply climate multiplier then material multiplier to effective lifespan
+    const climateMultiplier  = zone.lifespanMultipliers[sys.name] ?? 1.0;
+    const matKey             = materialOverrides[sys.name] ?? "";
+    const materialMult       = getMaterialMultiplier(sys.name, matKey);
+    const effectiveLifespan  = Math.round(sys.lifespanYears * climateMultiplier * materialMult);
 
     const age       = Math.max(0, year - lastYear);
     const pctUsed   = Math.round((age / effectiveLifespan) * 100);
@@ -332,6 +394,7 @@ export function predictMaintenance(
       serviceCallHighCents:   sys.serviceCallHighCents,
       recommendation:         recommendationFor(sys, urgency, remaining),
       diyViable:              sys.diyViable,
+      materialMultiplier:     materialMult,
     });
 
     if (urgency === "Critical" || urgency === "Soon") {
@@ -355,6 +418,7 @@ export function predictMaintenance(
     annualTaskBudgetHighCents: annualHigh,
     climateZone:               zone,
     generatedAt:               Date.now(),
+    materialOverrides,
   };
 }
 
@@ -364,8 +428,8 @@ const scheduleStore = new Map<string, ScheduleEntry>();
 let scheduleCounter = 0;
 
 export const maintenanceService = {
-  predict(yearBuilt: number, jobs: Job[], systemInstallYears?: Partial<Record<string, number>>, state?: string): MaintenanceReport {
-    return predictMaintenance(yearBuilt, jobs, systemInstallYears, state);
+  predict(yearBuilt: number, jobs: Job[], systemInstallYears?: Partial<Record<string, number>>, state?: string, materialOverrides?: Partial<Record<string, string>>): MaintenanceReport {
+    return predictMaintenance(yearBuilt, jobs, systemInstallYears, state, materialOverrides);
   },
 
   async createScheduleEntry(

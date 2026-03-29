@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
-import { predictMaintenance, maintenanceService } from "@/services/maintenance";
+import { predictMaintenance, maintenanceService, MATERIAL_SPECS, getMaterialMultiplier } from "@/services/maintenance";
 import type { Job } from "@/services/job";
 
 // ─── Fix time so age calculations are deterministic ───────────────────────────
@@ -349,5 +349,141 @@ describe("maintenanceService.urgencyBg", () => {
 
   it("Good → light green background", () => {
     expect(maintenanceService.urgencyBg("Good")).toBe("#f0fdf4");
+  });
+});
+
+// ─── Material-aware forecasting (1.1.6) ──────────────────────────────────────
+
+describe("MATERIAL_SPECS", () => {
+  it("covers all material-sensitive systems", () => {
+    expect(MATERIAL_SPECS).toHaveProperty("Roofing");
+    expect(MATERIAL_SPECS).toHaveProperty("Flooring");
+    expect(MATERIAL_SPECS).toHaveProperty("Plumbing");
+    expect(MATERIAL_SPECS).toHaveProperty("Windows");
+    expect(MATERIAL_SPECS).toHaveProperty("Water Heater");
+    expect(MATERIAL_SPECS).toHaveProperty("HVAC");
+  });
+
+  it("every entry has a non-empty label and positive multiplier", () => {
+    for (const materials of Object.values(MATERIAL_SPECS)) {
+      for (const spec of Object.values(materials)) {
+        expect(typeof spec.label).toBe("string");
+        expect(spec.label.length).toBeGreaterThan(0);
+        expect(typeof spec.multiplier).toBe("number");
+        expect(spec.multiplier).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("metal roof multiplier is 1.6", () => {
+    expect(MATERIAL_SPECS["Roofing"]["metal"].multiplier).toBe(1.6);
+  });
+
+  it("galvanized pipe multiplier is 0.5", () => {
+    expect(MATERIAL_SPECS["Plumbing"]["galvanized"].multiplier).toBe(0.5);
+  });
+});
+
+describe("getMaterialMultiplier", () => {
+  it("returns correct multiplier for a known system + material", () => {
+    expect(getMaterialMultiplier("Roofing", "metal")).toBe(1.6);
+    expect(getMaterialMultiplier("Plumbing", "galvanized")).toBe(0.5);
+    expect(getMaterialMultiplier("HVAC", "boiler")).toBe(1.33);
+  });
+
+  it("returns 1.0 for an unknown system", () => {
+    expect(getMaterialMultiplier("Garage Door", "steel")).toBe(1.0);
+  });
+
+  it("returns 1.0 for an unknown material in a known system", () => {
+    expect(getMaterialMultiplier("Roofing", "mystery-material")).toBe(1.0);
+  });
+
+  it("returns 1.0 for an empty material key", () => {
+    expect(getMaterialMultiplier("HVAC", "")).toBe(1.0);
+  });
+});
+
+describe("predictMaintenance — material overrides", () => {
+  // ── Metal roof: asphalt Critical → Watch ──
+  // Roofing baseline 25yr; yearBuilt 2001 → age 25 → pct 100 → Critical (asphalt)
+  // Metal 1.6× → effectiveLifespan = round(25*1.6)=40 → pct = round(25/40*100)=63 → Watch
+  it("metal roof extends effective lifespan: Critical becomes Watch", () => {
+    const plain = predictMaintenance(2001, []).systemPredictions
+      .find((s) => s.systemName === "Roofing")!;
+    expect(plain.urgency).toBe("Critical");
+
+    const withMetal = predictMaintenance(2001, [], {}, undefined, { Roofing: "metal" })
+      .systemPredictions.find((s) => s.systemName === "Roofing")!;
+    expect(withMetal.urgency).toBe("Watch");
+  });
+
+  // ── Galvanized pipes: Watch → Critical ──
+  // Plumbing baseline 50yr; yearBuilt 1990 → age 36 → pct 72 → Watch
+  // Galvanized 0.5× → effectiveLifespan = round(50*0.5)=25 → pct = round(36/25*100)=144 → Critical
+  it("galvanized pipes shorten effective lifespan: Watch becomes Critical", () => {
+    const plain = predictMaintenance(1990, []).systemPredictions
+      .find((s) => s.systemName === "Plumbing")!;
+    expect(plain.urgency).toBe("Watch");
+
+    const withGalvanized = predictMaintenance(1990, [], {}, undefined, { Plumbing: "galvanized" })
+      .systemPredictions.find((s) => s.systemName === "Plumbing")!;
+    expect(withGalvanized.urgency).toBe("Critical");
+  });
+
+  // ── Boiler HVAC: Critical (age 18) → Soon ──
+  // HVAC baseline 18yr; age 18 → pct 100 → Critical
+  // Boiler 1.33× → effectiveLifespan = round(18*1.33)=24 → pct = round(18/24*100)=75 → Soon
+  it("boiler HVAC extends lifespan: Critical (age 18) becomes Soon", () => {
+    const withBoiler = predictMaintenance(CURRENT_YEAR - 18, [], {}, undefined, { HVAC: "boiler" })
+      .systemPredictions.find((s) => s.systemName === "HVAC")!;
+    expect(withBoiler.urgency).toBe("Soon");
+  });
+
+  // ── Unknown material → no change ──
+  it("unknown material key leaves urgency and percentLifeUsed unchanged", () => {
+    const baseline = predictMaintenance(2001, []).systemPredictions
+      .find((s) => s.systemName === "Roofing")!;
+    const withUnknown = predictMaintenance(2001, [], {}, undefined, { Roofing: "mystery-material" })
+      .systemPredictions.find((s) => s.systemName === "Roofing")!;
+    expect(withUnknown.urgency).toBe(baseline.urgency);
+    expect(withUnknown.percentLifeUsed).toBe(baseline.percentLifeUsed);
+  });
+
+  // ── Climate × material stack ──
+  // Cold (MI): HVAC 0.88× → effectiveLifespan = round(18*0.88)=16; age 10 → pct 63 → Watch
+  // + heatPump 0.83× → effectiveLifespan = round(18*0.88*0.83)=13; pct = round(10/13*100)=77 → Soon
+  it("climate and material multipliers stack multiplicatively", () => {
+    const coldOnly = predictMaintenance(CURRENT_YEAR - 10, [], {}, "MI")
+      .systemPredictions.find((s) => s.systemName === "HVAC")!;
+    expect(coldOnly.urgency).toBe("Watch");
+
+    const coldHeatPump = predictMaintenance(CURRENT_YEAR - 10, [], {}, "MI", { HVAC: "heatPump" })
+      .systemPredictions.find((s) => s.systemName === "HVAC")!;
+    expect(coldHeatPump.urgency).toBe("Soon");
+  });
+
+  it("SystemPrediction includes materialMultiplier = 1.6 for metal roof", () => {
+    const pred = predictMaintenance(2001, [], {}, undefined, { Roofing: "metal" })
+      .systemPredictions.find((s) => s.systemName === "Roofing")!;
+    expect(pred.materialMultiplier).toBe(1.6);
+  });
+
+  it("materialMultiplier defaults to 1.0 when no override given", () => {
+    const pred = predictMaintenance(2001, []).systemPredictions
+      .find((s) => s.systemName === "Roofing")!;
+    expect(pred.materialMultiplier).toBe(1.0);
+  });
+
+  it("MaintenanceReport includes the materialOverrides passed in", () => {
+    const overrides = { Roofing: "metal", Plumbing: "copper" };
+    const report = predictMaintenance(2001, [], {}, undefined, overrides);
+    expect(report.materialOverrides).toEqual(overrides);
+  });
+
+  it("empty materialOverrides produces identical urgencies to no override", () => {
+    const baseline = predictMaintenance(2001, []).systemPredictions.map((s) => s.urgency);
+    const withEmpty = predictMaintenance(2001, [], {}, undefined, {}).systemPredictions.map((s) => s.urgency);
+    expect(withEmpty).toEqual(baseline);
   });
 });
