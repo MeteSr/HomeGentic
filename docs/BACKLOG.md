@@ -37,7 +37,7 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 |---|------|--------|------|-------|
 | 1.2.1 | Multi-file upload UI | ✅ Done | S | `DocumentsTab` handles single-file uploads; needs batch mode |
 | 1.2.2 | Claude-powered document classification | ⬜ Missing | L | POST files to voice agent server; Claude Vision classifies type (receipt/inspection/permit) |
-| 1.2.3 | Auto-populate job records from parsed docs | ⬜ Missing | XL | Structured extraction → `job.createJob()` calls; needs review/confirm step |
+| 1.2.3 | Auto-populate job records from parsed docs | ✅ Done | XL | `docIngestion.ts`: `ParsedDocExtraction` → `JobDraft` (pending_review); duplicate detection vs job history + existing drafts; `updateDraft` / `confirmDraft` (calls `jobService.create`) / `discardDraft` |
 | 1.2.4 | Onboarding wizard with bulk upload step | ✅ Done | M | Add step to `OnboardingPage` after property registration |
 | 1.2.5 | Duplicate detection across ingested docs | ✅ Done | M | SHA-256 dedup already exists in `photo` canister; apply at ingestion time |
 | 1.2.6 | Progress UI for batch processing | ✅ Done | S | Show per-file status (parsing / done / failed) during ingestion |
