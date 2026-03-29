@@ -123,27 +123,83 @@ describe("photoService", () => {
     });
   });
 
-  // ── getByJob (mock path returns empty) ───────────────────────────────────────
+  // ── getByJob ─────────────────────────────────────────────────────────────────
   describe("getByJob", () => {
-    it("returns an empty array in mock mode", async () => {
-      const photos = await photoService.getByJob("any-job");
-      expect(photos).toEqual([]);
+    it("returns an empty array when no photos have been uploaded", async () => {
+      expect(await photoService.getByJob("any-job")).toEqual([]);
+    });
+
+    it("returns photos uploaded for that jobId", async () => {
+      await photoService.upload(makeFile(), "job-1", "p1", "Framing", "desc");
+      const photos = await photoService.getByJob("job-1");
+      expect(photos).toHaveLength(1);
+      expect(photos[0].jobId).toBe("job-1");
+    });
+
+    it("does not return photos for a different jobId", async () => {
+      await photoService.upload(makeFile(), "job-1", "p1", "Framing", "desc");
+      expect(await photoService.getByJob("job-2")).toHaveLength(0);
+    });
+
+    it("returns multiple photos for the same job", async () => {
+      await photoService.upload(makeFile("a"), "job-1", "p1", "Framing", "first");
+      await photoService.upload(makeFile("b"), "job-1", "p1", "Framing", "second");
+      expect(await photoService.getByJob("job-1")).toHaveLength(2);
     });
   });
 
-  // ── getByProperty (mock path returns empty) ──────────────────────────────────
+  // ── getByProperty ─────────────────────────────────────────────────────────────
   describe("getByProperty", () => {
-    it("returns an empty array in mock mode", async () => {
-      const photos = await photoService.getByProperty("any-property");
-      expect(photos).toEqual([]);
+    it("returns an empty array when no photos have been uploaded", async () => {
+      expect(await photoService.getByProperty("any-property")).toEqual([]);
+    });
+
+    it("returns photos uploaded for that propertyId", async () => {
+      await photoService.upload(makeFile(), "j1", "prop-A", "Finishing", "desc");
+      const photos = await photoService.getByProperty("prop-A");
+      expect(photos).toHaveLength(1);
+      expect(photos[0].propertyId).toBe("prop-A");
+    });
+
+    it("does not return photos for a different property", async () => {
+      await photoService.upload(makeFile(), "j1", "prop-A", "Finishing", "desc");
+      expect(await photoService.getByProperty("prop-B")).toHaveLength(0);
     });
   });
 
-  // ── getByRoom (mock path returns empty) ─────────────────────────────────────
+  // ── getByRoom (1.4.5) ────────────────────────────────────────────────────────
   describe("getByRoom", () => {
-    it("returns an empty array in mock mode", async () => {
-      const photos = await photoService.getByRoom("any-room");
-      expect(photos).toEqual([]);
+    it("returns an empty array when no room photos have been uploaded", async () => {
+      expect(await photoService.getByRoom("any-room")).toEqual([]);
+    });
+
+    it("returns photos uploaded via uploadRoomPhoto for the matching room", async () => {
+      await photoService.uploadRoomPhoto(makeFile(), "room-42", "p1", "PostConstruction", "desc");
+      const photos = await photoService.getByRoom("room-42");
+      expect(photos).toHaveLength(1);
+      expect(photos[0].jobId).toBe("ROOM_room-42");
+    });
+
+    it("does not return photos uploaded for a different room", async () => {
+      await photoService.uploadRoomPhoto(makeFile(), "room-A", "p1", "PostConstruction", "desc");
+      expect(await photoService.getByRoom("room-B")).toHaveLength(0);
+    });
+
+    it("returns multiple photos for the same room", async () => {
+      await photoService.uploadRoomPhoto(makeFile("a"), "room-1", "p1", "Finishing", "shot 1");
+      await photoService.uploadRoomPhoto(makeFile("b"), "room-1", "p1", "Finishing", "shot 2");
+      expect(await photoService.getByRoom("room-1")).toHaveLength(2);
+    });
+
+    it("does not return job photos with a matching propertyId (different store)", async () => {
+      await photoService.upload(makeFile(), "job-99", "p1", "Framing", "job photo");
+      expect(await photoService.getByRoom("job-99")).toHaveLength(0);
+    });
+
+    it("reset() clears the photo store so getByRoom returns empty again", async () => {
+      await photoService.uploadRoomPhoto(makeFile(), "room-X", "p1", "PostConstruction", "desc");
+      photoService.reset();
+      expect(await photoService.getByRoom("room-X")).toHaveLength(0);
     });
   });
 

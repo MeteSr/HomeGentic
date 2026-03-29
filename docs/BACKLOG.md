@@ -63,7 +63,7 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 | 1.4.2 | Room CRUD frontend | ✅ Done | M | Add "Rooms" tab to `PropertyDetailPage`; list, add, edit rooms |
 | 1.4.3 | Fixture/appliance inventory per room | ✅ Done | M | `Fixture { brand, model, serialNumber, installedDate, warrantyExpiry }` |
 | 1.4.4 | Warranty wallet (see 2.3) | ✅ Done | L | `warranty.ts` service: `warrantyExpiry`, `warrantyStatus`, `daysRemaining`, `getWarrantyJobs`; 90-day alert threshold; `WarrantyWalletPage` + dashboard alerts; HomeFax Report includes warrantyMonths |
-| 1.4.5 | Room photo gallery | 🟡 Partial | S | `photo` canister exists; add room-scoped `getByRoom()` query |
+| 1.4.5 | Room photo gallery | ✅ Done | S | `getByRoom(roomId)` filters mock store by `ROOM_<roomId>` synthetic jobId; `upload` now persists to `MOCK_PHOTOS`; `getByJob`/`getByProperty` also use mock store |
 | 1.4.6 | Paint color lookup / match | ✅ Done | M | Store paint brand + color code; generate a "touch-up" reference card |
 | 1.4.7 | Room data in HomeFax Report export | ✅ Done | M | Include room finishes summary in generated report (buyer disclosure layer) |
 

@@ -113,6 +113,10 @@ async function computeHash(file: File): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+// ─── Mock store (used when PHOTO_CANISTER_ID is not configured) ───────────────
+
+const MOCK_PHOTOS: Photo[] = [];
+
 // ─── Service ──────────────────────────────────────────────────────────────────
 
 export const photoService = {
@@ -126,7 +130,7 @@ export const photoService = {
     const hash = await computeHash(file);
 
     if (!PHOTO_CANISTER_ID) {
-      return {
+      const photo: Photo = {
         id:          String(Date.now()),
         jobId,
         propertyId,
@@ -138,6 +142,8 @@ export const photoService = {
         verified:    false,
         createdAt:   Date.now(),
       };
+      MOCK_PHOTOS.push(photo);
+      return photo;
     }
 
     const a      = await getActor();
@@ -158,19 +164,19 @@ export const photoService = {
   },
 
   async getByJob(jobId: string): Promise<Photo[]> {
-    if (!PHOTO_CANISTER_ID) return [];
+    if (!PHOTO_CANISTER_ID) return MOCK_PHOTOS.filter((p) => p.jobId === jobId);
     const a = await getActor();
     return (await a.getPhotosByJob(jobId) as any[]).map(fromPhoto);
   },
 
   async getByProperty(propertyId: string): Promise<Photo[]> {
-    if (!PHOTO_CANISTER_ID) return [];
+    if (!PHOTO_CANISTER_ID) return MOCK_PHOTOS.filter((p) => p.propertyId === propertyId);
     const a = await getActor();
     return (await a.getPhotosByProperty(propertyId) as any[]).map(fromPhoto);
   },
 
   async getByRoom(roomId: string): Promise<Photo[]> {
-    if (!PHOTO_CANISTER_ID) return [];
+    if (!PHOTO_CANISTER_ID) return MOCK_PHOTOS.filter((p) => p.jobId === `ROOM_${roomId}`);
     const a = await getActor();
     return (await a.getPhotosByRoom(roomId) as any[]).map(fromPhoto);
   },
@@ -203,5 +209,6 @@ export const photoService = {
 
   reset() {
     _actor = null;
+    MOCK_PHOTOS.length = 0;
   },
 };
