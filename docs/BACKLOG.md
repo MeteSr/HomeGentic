@@ -1260,3 +1260,61 @@ border-radius: pills (100px) for buttons; 20–24px for cards
 - 11.4.1–11.4.8 All feature pages
 - 11.6.1–11.6.2 Admin + agent pages
 - 11.2.6 Onboarding
+
+---
+
+## 16. Single-Property Home Screen — Closing the Dashboard Gap ⚠️ P0
+
+> **Why this is top priority:** The Dashboard drives nearly every retention, engagement, and conversion mechanic in HomeFax — score intelligence, decay alerts, re-engagement prompts, market recommendations, milestone banners, upgrade nudges. But single-property users — the statistical majority of early adopters — never see it. When a user has exactly one property, `DashboardPage` immediately redirects them to `PropertyDetailPage`. That page has a basic score and two action buttons. Everything else is invisible to these users. Every retention feature we build is wasted on our largest cohort until this is fixed.
+>
+> **Design principle:** `PropertyDetailPage` already *is* the home screen for single-property users. It must feel complete — not like a Dashboard with features stripped out. Single-property users should never see a "Go to Dashboard" link or feel that they're on a lesser page. The property page gains a **Home Panel** above its tab bar that surfaces everything the Dashboard provides, contextualized to the single property they're looking at.
+>
+> **Architecture:** Extract shared sections into standalone components (16.1 is the enabling task). Both `DashboardPage` and `PropertyDetailPage` then import the same components. No logic duplication. The property page detects `storeProperties.length === 1` to know it's acting as the home screen and renders the full Home Panel.
+
+### 16.1 Extract Shared Dashboard Components (Enabling Task)
+**Vision:** Before adding anything to the property page, extract the Dashboard's major sections into standalone, self-contained components. This keeps both pages maintainable and prevents a ~4,000-line monolith.
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 16.1.1 | `<ScorePanel>` component | ⬜ Missing | M | Encapsulates: score arc, grade badge, delta chip, premium estimate, certified badge, score goal bar, breakdown modal trigger. Props: `jobs`, `properties`, `systemAges`, `scoreHistory`, `userTier`. Used by both Dashboard (multi-property selector) and PropertyDetailPage. |
+| 16.1.2 | `<ScoreActivityFeed>` component | ⬜ Missing | M | Encapsulates: positive score events + decay events merged feed, "Score Activity" header, 5-row cap. Props: `jobs`, `properties`, `systemAges`. Self-contained — calls `getRecentScoreEvents` and `getAllDecayEvents` internally. |
+| 16.1.3 | `<AlertStack>` component | ⬜ Missing | S | Renders any combination of: Score at Risk card (8.7.7), score stagnation nudge (8.2.6), upgrade banner, weekly Pulse tip — each as a dismissible card. Props: `alerts: AlertItem[]`. Caller builds the alert list; component handles dismiss state and styling. |
+| 16.1.4 | `<MilestoneStack>` component | ⬜ Missing | S | Renders annual milestone banner, 3-job milestone banner, HomeFax Certified banner — each dismissible via localStorage keys. Props: `jobs`, `properties`, `accountAgeMs`. |
+| 16.1.5 | `<ReEngagementStack>` component | ⬜ Missing | S | Renders re-engagement "Book Again" prompt cards (from `reEngagementService`). Props: `jobs`. Handles dismiss state internally via `homefax_reengage_*` localStorage. |
+| 16.1.6 | `<MarketIntelPanel>` component | ⬜ Missing | M | Encapsulates ROI project recommendations from `marketService`. Props: `property`, `jobs`. Renders top-3 ranked cards with ROI badge, cost estimate, and "Log Job" CTA pre-filled with service type. |
+| 16.1.7 | `<RecurringServicesPanel>` component | ⬜ Missing | S | Encapsulates the recurring service card list + visit log + "+ Add" CTA. Props: `propertyId`, `userTier`. Handles its own data fetching (recurring service list + visit logs). |
+
+### 16.2 Home Panel on PropertyDetailPage
+**Vision:** A collapsible "Home" section rendered above the tab bar on `PropertyDetailPage` when the user has exactly one property. It brings everything from the Dashboard to where single-property users already live. Disappears automatically if the user adds a second property (they'll use the real Dashboard).
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 16.2.1 | Score Panel on property page | ⬜ Missing | S | Replace current ad-hoc score display in `PropertyDetailPage` with `<ScorePanel>`. Add decay: swap `computeScore` → `computeScoreWithDecay`; load `systemAges` from `systemAgesService`. Score snapshot recording also updated. Condition: always shown (property page always shows score). |
+| 16.2.2 | Alert stack on property page | ⬜ Missing | S | When `storeProperties.length === 1`, render `<AlertStack>` above the tab bar. Alerts include: Score at Risk (8.7.7), stagnation nudge (8.2.6), upgrade banner, weekly Pulse tip. Each is dismissible. Alert list is computed from `jobs`, `systemAges`, `scoreHistory`, `userTier`. |
+| 16.2.3 | Score Activity feed on property page | ⬜ Missing | S | When `storeProperties.length === 1`, render `<ScoreActivityFeed>` in the Home section. Shows positive + decay events exactly as Dashboard does, including recovery prompts. Single-property users get full score transparency without navigating anywhere. |
+| 16.2.4 | Milestone banners on property page | ⬜ Missing | S | When `storeProperties.length === 1`, render `<MilestoneStack>`. Brings annual milestone, HomeFax Certified, and 3-job celebration to property page. (PropertyDetailPage already has a partial 3-job banner — replace it with the shared component.) |
+| 16.2.5 | Re-engagement prompts on property page | ⬜ Missing | S | When `storeProperties.length === 1`, render `<ReEngagementStack>`. "It's been 11 months — book your HVAC contractor again?" cards with "Request Quote →" CTA. |
+| 16.2.6 | Market Intelligence panel on property page | ⬜ Missing | M | When `storeProperties.length === 1`, render `<MarketIntelPanel>`. Top-3 ROI project recommendations contextualized to this property. Clicks open `LogJobModal` pre-filled with the recommended service type. |
+| 16.2.7 | Recurring Services panel on property page | ⬜ Missing | S | When `storeProperties.length === 1`, render `<RecurringServicesPanel>`. Single-property users can manage recurring contracts without knowing the Dashboard exists. |
+| 16.2.8 | Quick Actions upgrade on property page | ⬜ Missing | S | Current Log Job / Request Quote on property page are plain outline buttons. When `storeProperties.length === 1`, upgrade to modal-first UX (matching Dashboard — commit `8d5e5ca`). `LogJobModal` and `RequestQuoteModal` already imported; just wire them. |
+
+### 16.3 Navigation & Routing Cleanup
+**Vision:** Single-property users should never encounter navigation that assumes a multi-property context. Fix any copy, links, or empty states that point them toward a Dashboard they'll never see.
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 16.3.1 | Remove "← Back to Dashboard" from property page for single-property users | ⬜ Missing | S | `PropertyDetailPage` back button navigates to `/dashboard` — for single-property users this redirects back to the property page (infinite loop). Conditionally hide or replace with "← Home" that navigates to `/` when `storeProperties.length === 1`. |
+| 16.3.2 | Nav sidebar active state for single-property users | ⬜ Missing | S | The global nav highlights "Dashboard" as active. For single-property users whose home is `/properties/:id`, the sidebar shows nothing highlighted. Fix: treat the property detail route as "active home" when user has one property. |
+| 16.3.3 | "Add a second property" upsell on Home Panel | ⬜ Missing | S | At the bottom of the Home Panel, show a soft upsell: "Tracking a rental or vacation property? Add it to HomeFax." Links to `/properties/new`. Shown only after 30+ days of active use (account age check) to avoid overwhelming new users. |
+
+---
+
+### Priority Tier — Section 16
+
+**16 must be done before any new retention or engagement features** — every feature we add to the Dashboard is wasted on the majority of users until 16 is complete. Recommended order:
+
+1. **16.1.1–16.1.7** Component extraction first — enables everything below without duplication
+2. **16.2.1** Score Panel + decay on property page — fixes the most visible score accuracy gap
+3. **16.2.2–16.2.5** Alert stack + feed + milestones + re-engagement — core retention parity
+4. **16.3.1–16.3.2** Nav cleanup — prevents confusing UX regressions
+5. **16.2.6–16.2.8 + 16.3.3** Market Intel, Recurring, modal UX, upsell — full feature parity
