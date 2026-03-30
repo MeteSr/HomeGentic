@@ -13,6 +13,7 @@
 
 import type { Job } from "@/services/job";
 import type { Property } from "@/services/property";
+import { SCORE_DECAY_FLOOR } from "@/services/scoreDecayService";
 
 export interface ScoreSnapshot {
   score: number;
@@ -43,6 +44,19 @@ export function computeScore(jobs: Job[], properties: Property[]): number {
   score += Math.min(uniqueTypes * 4, 20);
 
   return Math.min(Math.round(score), 100);
+}
+
+/**
+ * Applies decay pts to the raw score and clamps to the decay floor (8.7.1–8.7.4, 8.7.8).
+ * Use this in place of computeScore() when decay events are available.
+ */
+export function computeScoreWithDecay(
+  jobs: Job[],
+  properties: Property[],
+  decayPts: number,
+): number {
+  const raw = computeScore(jobs, properties);
+  return Math.max(raw - decayPts, SCORE_DECAY_FLOOR);
 }
 
 export function getScoreGrade(score: number): string {

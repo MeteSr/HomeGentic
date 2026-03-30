@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   computeScore,
+  computeScoreWithDecay,
   getScoreGrade,
   isCertified,
   generateCertToken,
@@ -11,6 +12,7 @@ import {
   scoreDelta,
   type ScoreSnapshot,
 } from "@/services/scoreService";
+import { SCORE_DECAY_FLOOR } from "@/services/scoreDecayService";
 import type { Job } from "@/services/job";
 import type { Property } from "@/services/property";
 
@@ -134,6 +136,32 @@ describe("computeScore", () => {
       makeProperty({ id: BigInt(2), verificationLevel: "Premium" }),
     ];
     expect(computeScore(jobs, props)).toBe(100);
+  });
+});
+
+// ─── computeScoreWithDecay (8.7.1–8.7.4, 8.7.8) ─────────────────────────────
+
+describe("computeScoreWithDecay", () => {
+  it("returns raw score when decayPts is 0", () => {
+    const job = makeJob();
+    const raw = computeScore([job], []);
+    expect(computeScoreWithDecay([job], [], 0)).toBe(raw);
+  });
+
+  it("subtracts decayPts from the raw score", () => {
+    const job = makeJob();
+    const raw = computeScore([job], []);
+    expect(computeScoreWithDecay([job], [], 5)).toBe(raw - 5);
+  });
+
+  it(`clamps to SCORE_DECAY_FLOOR (${SCORE_DECAY_FLOOR}) when decay exceeds raw score`, () => {
+    // 0 jobs → raw score 0, apply 3 decay pts → floor
+    expect(computeScoreWithDecay([], [], 3)).toBe(SCORE_DECAY_FLOOR);
+  });
+
+  it("never returns below the floor even with large decay", () => {
+    const jobs = [makeJob()]; // small raw score
+    expect(computeScoreWithDecay(jobs, [], 999)).toBe(SCORE_DECAY_FLOOR);
   });
 });
 

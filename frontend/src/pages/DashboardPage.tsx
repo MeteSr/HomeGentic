@@ -14,7 +14,9 @@ import { RecurringServiceCard } from "@/components/RecurringServiceCard";
 import { useAuthStore } from "@/store/authStore";
 import { usePropertyStore } from "@/store/propertyStore";
 import { isNewSince, hasQuoteActivity, pendingQuoteCount } from "@/services/notifications";
-import { computeScore, getScoreGrade, loadHistory, recordSnapshot, scoreDelta, premiumEstimate, isCertified, type ScoreSnapshot } from "@/services/scoreService";
+import { computeScore, computeScoreWithDecay, getScoreGrade, loadHistory, recordSnapshot, scoreDelta, premiumEstimate, isCertified, type ScoreSnapshot } from "@/services/scoreService";
+import { getAllDecayEvents, getAtRiskWarnings, getTotalDecay, decayCategoryColor, decayCategoryBg, type DecayEvent, type AtRiskWarning } from "@/services/scoreDecayService";
+import { systemAgesService, type SystemAges } from "@/services/systemAges";
 import { certService } from "@/services/cert";
 import { paymentService, type PlanTier } from "@/services/payment";
 import { UpgradeGate } from "@/components/UpgradeGate";
@@ -63,6 +65,7 @@ export default function DashboardPage() {
   const [logJobPrefill,    setLogJobPrefill]    = useState<{ serviceType?: string; contractorName?: string } | undefined>(undefined);
   const [showQuoteModal,   setShowQuoteModal]   = useState(false);
   const [userTier,         setUserTier]         = useState<PlanTier>("Free");
+  const [systemAges,       setSystemAges]       = useState<SystemAges>({});
 
   useEffect(() => {
     loadProperties().then((props) => {
@@ -159,7 +162,16 @@ export default function DashboardPage() {
 
   const totalValue    = jobService.getTotalValue(jobs);
   const verifiedCount = jobService.getVerifiedCount(jobs);
-  const homefaxScore  = activeProperty ? computeScore(jobs, [activeProperty]) : 0;
+  const decayEvents: DecayEvent[]   = React.useMemo(
+    () => !loading ? getAllDecayEvents(jobs, systemAges, Date.now()) : [],
+    [jobs, systemAges, loading]
+  );
+  const atRiskWarnings: AtRiskWarning[] = React.useMemo(
+    () => !loading ? getAtRiskWarnings(jobs, systemAges, Date.now()) : [],
+    [jobs, systemAges, loading]
+  );
+  const totalDecay    = getTotalDecay(decayEvents);
+  const homefaxScore  = activeProperty ? computeScoreWithDecay(jobs, [activeProperty], totalDecay) : 0;
   const scoreGrade    = getScoreGrade(homefaxScore);
   const delta         = scoreDelta(scoreHistory);
 
@@ -338,10 +350,11 @@ export default function DashboardPage() {
     }
   }, [loading, properties]);
 
-  // Reload score history whenever the active property changes
+  // Reload score history and system ages whenever the active property changes
   useEffect(() => {
     if (selectedPropertyId) {
       setScoreHistory(loadHistory(selectedPropertyId));
+      setSystemAges(systemAgesService.get(selectedPropertyId));
     }
   }, [selectedPropertyId]);
 
@@ -660,6 +673,35 @@ export default function DashboardPage() {
             >
               Log a Job <ArrowRight size={12} />
             </button>
+          </div>
+        )}
+
+        {/* Score at Risk warning (8.7.7) */}
+        {!loading && atRiskWarnings.length > 0 && (
+          <div style={{
+            display: "flex", alignItems: "flex-start", gap: "0.75rem",
+            border: "1px solid #f59e0b40", padding: "1rem 1.25rem", marginBottom: "1.5rem",
+            background: "#fffbeb", borderRadius: RADIUS.sm,
+          }}>
+            <div style={{ width: "1.75rem", height: "1.75rem", background: "#fef3c7", border: "1px solid #f59e0b60", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: RADIUS.sm }}>
+              <span style={{ fontFamily: S.mono, fontSize: "0.65rem", fontWeight: 700, color: "#b45309" }}>!</span>
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "#b45309", marginBottom: "0.375rem" }}>
+                Score at Risk
+              </p>
+              {atRiskWarnings.map((w) => (
+                <p key={w.id} style={{ fontSize: "0.78rem", fontWeight: 300, color: "#78350f", marginBottom: "0.2rem" }}>
+                  {w.label} — <strong style={{ fontWeight: 600 }}>{w.pts} pts</strong> in {w.daysRemaining} day{w.daysRemaining !== 1 ? "s" : ""}
+                </p>
+              ))}
+              <button
+                onClick={() => { setLogJobPrefill(undefined); setShowLogJobModal(true); }}
+                style={{ marginTop: "0.5rem", fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.35rem 0.875rem", background: "#b45309", color: "#fff", border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.3rem", borderRadius: RADIUS.pill }}
+              >
+                Log a Job <ArrowRight size={11} />
+              </button>
+            </div>
           </div>
         )}
 
@@ -1339,18 +1381,19 @@ export default function DashboardPage() {
           </div>
         ))}
 
-        {/* Score event feed (8.2.1–8.2.2) */}
-        {!loading && scoreEvents.length > 0 && (
+        {/* Score event feed (8.2.1–8.2.2, 8.7.5) — positive gains + decay events merged */}
+        {!loading && (scoreEvents.length > 0 || decayEvents.length > 0) && (
           <div style={{ marginBottom: "2.5rem" }}>
             <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "1rem" }}>
               Score Activity
             </div>
             <div style={{ border: `1px solid ${S.rule}`, borderRadius: RADIUS.card, overflow: "hidden" }}>
+              {/* Positive events */}
               {scoreEvents.slice(0, 5).map((ev, i) => (
                 <div key={ev.id} style={{
                   display: "flex", alignItems: "center", gap: "0.875rem",
                   padding: "0.75rem 1rem",
-                  borderBottom: i < Math.min(scoreEvents.length, 5) - 1 ? `1px solid ${S.rule}` : "none",
+                  borderBottom: `1px solid ${S.rule}`,
                   background: "#fff",
                 }}>
                   <div style={{ width: "2rem", height: "2rem", background: categoryBg(ev.category), border: `1px solid ${categoryColor(ev.category)}40`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: RADIUS.sm }}>
@@ -1366,6 +1409,37 @@ export default function DashboardPage() {
                     fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase",
                     padding: "0.2rem 0.5rem", border: `1px solid ${categoryColor(ev.category)}40`,
                     color: categoryColor(ev.category), flexShrink: 0, borderRadius: 100,
+                  }}>
+                    {ev.category}
+                  </span>
+                </div>
+              ))}
+              {/* Decay events (8.7.5) */}
+              {decayEvents.map((ev, i) => (
+                <div key={ev.id} style={{
+                  display: "flex", alignItems: "center", gap: "0.875rem",
+                  padding: "0.75rem 1rem",
+                  borderBottom: i < decayEvents.length - 1 ? `1px solid ${S.rule}` : "none",
+                  background: decayCategoryBg(ev.category),
+                }}>
+                  <div style={{ width: "2rem", height: "2rem", background: "#fff", border: `1px solid ${decayCategoryColor(ev.category)}40`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: RADIUS.sm }}>
+                    <span style={{ fontFamily: S.mono, fontSize: "0.6rem", fontWeight: 700, color: decayCategoryColor(ev.category) }}>
+                      {ev.pts}
+                    </span>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: "0.8rem", fontWeight: 500, color: decayCategoryColor(ev.category) }}>{ev.label}</p>
+                    <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>{ev.detail}</p>
+                    {ev.recoveryPrompt && (
+                      <p style={{ fontFamily: S.mono, fontSize: "0.58rem", color: decayCategoryColor(ev.category), marginTop: "0.2rem", fontStyle: "italic" }}>
+                        ↑ {ev.recoveryPrompt}
+                      </p>
+                    )}
+                  </div>
+                  <span style={{
+                    fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase",
+                    padding: "0.2rem 0.5rem", border: `1px solid ${decayCategoryColor(ev.category)}40`,
+                    color: decayCategoryColor(ev.category), flexShrink: 0, borderRadius: 100,
                   }}>
                     {ev.category}
                   </span>
