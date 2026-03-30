@@ -21,6 +21,7 @@ import "dotenv/config";
 import crypto from "crypto";
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
+import rateLimit from "express-rate-limit";
 import { handleNestEvent, handleEcobeeEvent, handleMoenFloEvent } from "./handlers";
 import { recordSensorEvent, getGatewayPrincipal } from "./icp";
 import type {
@@ -31,6 +32,13 @@ import type {
 
 const app = express();
 const port = Number(process.env.IOT_GATEWAY_PORT) || 3002;
+
+const ecobeeLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 60, // max 60 requests per minute per IP for Ecobee webhook
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Store raw body for HMAC verification before JSON parsing
 app.use(
@@ -115,7 +123,7 @@ app.post("/webhooks/nest", async (req: Request, res: Response): Promise<void> =>
 // ── POST /webhooks/ecobee ─────────────────────────────────────────────────────
 // Ecobee sends alert notifications here.
 // Validates X-Ecobee-Signature HMAC-SHA256.
-app.post("/webhooks/ecobee", async (req: Request, res: Response): Promise<void> => {
+app.post("/webhooks/ecobee", ecobeeLimiter, async (req: Request, res: Response): Promise<void> => {
   if (!verifyHmac(req, "x-ecobee-signature", process.env.ECOBEE_WEBHOOK_SECRET)) {
     console.warn("[ecobee] rejected — invalid signature");
     res.status(401).json({ error: "Unauthorized" });
