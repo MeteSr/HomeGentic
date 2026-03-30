@@ -186,9 +186,9 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 4.3.1 | Zip code aggregate query | ⬜ Missing | L | `monitoring` or `market` canister: aggregate scores by zip, return percentile buckets only |
-| 4.3.2 | Neighborhood benchmarking UI | ⬜ Missing | M | Show "Your score is in the top 23% of 78701" on dashboard |
-| 4.3.3 | Neighborhood Health Index public page | ⬜ Missing | L | Public-facing zip code page: aggregate score, trend, top maintenance categories |
+| 4.3.1 | Zip code aggregate query | ✅ Done | L | `neighborhood.ts` service: deterministic mock stats, `getPercentileRank()` pure helper, factory closure with cache. 24 tests. |
+| 4.3.2 | Neighborhood benchmarking UI | ✅ Done | M | `NeighborhoodBenchmark.tsx` component on dashboard — percentile bar, rank label, "Better than X% of N homes", trend, "View area →" link. |
+| 4.3.3 | Neighborhood Health Index public page | ✅ Done | L | `NeighborhoodHealthPage.tsx` at `/neighborhood/:zipCode` — public, no auth. Avg/median scores, distribution chart, trend, top systems. |
 | 4.3.4 | ZKP aggregate attestation | ⬜ Missing | XL | Prove neighborhood statistics without revealing any individual record |
 
 ### 4.4 Buyer Verification Without Disclosure
@@ -337,8 +337,8 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 7.4.1 | Zip-level score aggregation | ⬜ Missing | L | (See 4.3.1) |
-| 7.4.2 | Neighborhood Health Index public page | ⬜ Missing | L | Public URL per zip code; shows aggregate score, top systems, trend |
+| 7.4.1 | Zip-level score aggregation | ✅ Done | L | (See 4.3.1) |
+| 7.4.2 | Neighborhood Health Index public page | ✅ Done | L | (See 4.3.3) |
 | 7.4.3 | HOA portal | ⬜ Missing | XL | HOA admin can see aggregate scores for their community; cannot see individual homeowner data |
 | 7.4.4 | Investor / city planner data product | ⬜ Missing | XL | Paid API for block-level risk analysis; city planning / insurance underwriting use case |
 

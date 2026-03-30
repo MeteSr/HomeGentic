@@ -35,6 +35,7 @@ import InsuranceDefensePage from "@/pages/InsuranceDefensePage";
 import ResaleReadyPage from "@/pages/ResaleReadyPage";
 import RecurringServiceCreatePage from "@/pages/RecurringServiceCreatePage";
 import RecurringServiceDetailPage from "@/pages/RecurringServiceDetailPage";
+import NeighborhoodHealthPage from "@/pages/NeighborhoodHealthPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuthStore();
@@ -280,9 +281,10 @@ export default function App() {
           }
         />
         {/* Public — no auth required */}
-        <Route path="/report/:token" element={<ReportPage />} />
-        <Route path="/badge/:token"  element={<BadgePage />} />
-        <Route path="/cert/:token"   element={<ScoreCertPage />} />
+        <Route path="/report/:token"          element={<ReportPage />} />
+        <Route path="/badge/:token"           element={<BadgePage />} />
+        <Route path="/cert/:token"            element={<ScoreCertPage />} />
+        <Route path="/neighborhood/:zipCode"  element={<NeighborhoodHealthPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AuthProvider>

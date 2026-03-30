@@ -12,17 +12,17 @@
  * - Admins can push zip-level MarketSnapshots to improve local accuracy.
  */
 
-import Array    "mo:base/Array";
-import HashMap  "mo:base/HashMap";
-import Int      "mo:base/Int";
-import Iter     "mo:base/Iter";
-import Nat      "mo:base/Nat";
-import Option   "mo:base/Option";
-import Order    "mo:base/Order";
-import Principal "mo:base/Principal";
-import Result   "mo:base/Result";
-import Text     "mo:base/Text";
-import Time     "mo:base/Time";
+import Array    "mo:core/Array";
+import Map      "mo:core/Map";
+import Int      "mo:core/Int";
+import Iter     "mo:core/Iter";
+import Nat      "mo:core/Nat";
+import Option   "mo:core/Option";
+import Order    "mo:core/Order";
+import Principal "mo:core/Principal";
+import Result   "mo:core/Result";
+import Text     "mo:core/Text";
+import Time     "mo:core/Time";
 
 persistent actor MarketIntelligence {
 
@@ -120,14 +120,14 @@ persistent actor MarketIntelligence {
 
   // ─── Transient State ──────────────────────────────────────────────────────────
 
-  private transient var snapshots = HashMap.fromIter<Text, MarketSnapshot>(
-    snapshotEntries.vals(), 64, Text.equal, Text.hash
+  private transient var snapshots = Map.fromIter<Text, MarketSnapshot>(
+    snapshotEntries.vals(), Text.compare
   );
 
   // ─── Upgrade Hooks ────────────────────────────────────────────────────────────
 
   system func preupgrade() {
-    snapshotEntries := Iter.toArray(snapshots.entries());
+    snapshotEntries := Iter.toArray(Map.entries(snapshots));
   };
 
   system func postupgrade() {
@@ -383,7 +383,7 @@ persistent actor MarketIntelligence {
     let year      = currentYear();
     let propAge   = if (year > profile.yearBuilt) year - profile.yearBuilt else 0;
     let stateMult = stateMultiplier(profile.state);
-    let zipSnap   = snapshots.get(profile.zipCode);
+    let zipSnap   = Map.get(snapshots, Text.compare, profile.zipCode);
 
     // Market premium for zip: if median price > national average ($400K) scale up slightly
     let zipPremium : Nat = switch (zipSnap) {
@@ -499,13 +499,13 @@ persistent actor MarketIntelligence {
       marketTrend = trend;
       recordedAt  = Time.now();
     };
-    snapshots.put(zipCode, snap);
+    Map.add(snapshots, Text.compare, zipCode, snap);
     #ok(snap)
   };
 
   /// Retrieve the latest market snapshot for a zip code.
   public query func getMarketSnapshot(zipCode: Text) : async Result.Result<MarketSnapshot, Error> {
-    switch (snapshots.get(zipCode)) {
+    switch (Map.get(snapshots, Text.compare, zipCode)) {
       case null    { #err(#NotFound) };
       case (?snap) { #ok(snap) };
     }
@@ -539,7 +539,7 @@ persistent actor MarketIntelligence {
 
   public query func getMetrics() : async Metrics {
     {
-      marketSnapshotCount = snapshots.size();
+      marketSnapshotCount = Map.size(snapshots);
       isPaused;
     }
   };

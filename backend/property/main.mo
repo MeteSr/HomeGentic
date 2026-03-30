@@ -28,17 +28,16 @@
  *  properties cannot produce shareable reports.
  */
 
-import Array     "mo:base/Array";
-import HashMap   "mo:base/HashMap";
-import Hash      "mo:base/Hash";
-import Int       "mo:base/Int";
-import Iter      "mo:base/Iter";
-import Nat       "mo:base/Nat";
-import Option    "mo:base/Option";
-import Principal "mo:base/Principal";
-import Result    "mo:base/Result";
-import Text      "mo:base/Text";
-import Time      "mo:base/Time";
+import Array     "mo:core/Array";
+import Map       "mo:core/Map";
+import Int       "mo:core/Int";
+import Iter      "mo:core/Iter";
+import Nat       "mo:core/Nat";
+import Option    "mo:core/Option";
+import Principal "mo:core/Principal";
+import Result    "mo:core/Result";
+import Text      "mo:core/Text";
+import Time      "mo:core/Time";
 
 persistent actor Property {
 
@@ -174,36 +173,36 @@ persistent actor Property {
 
   // ─── Transient State ──────────────────────────────────────────────────────
 
-  private transient var properties = HashMap.fromIter<Nat, Property>(
-    propertyEntries.vals(), 16, Nat.equal, Hash.hash
+  private transient var properties = Map.fromIter<Nat, Property>(
+    propertyEntries.vals(), Nat.compare
   );
 
   /// Address key → first-registered property ID.
   /// Used for duplicate detection and conflict resolution.
-  private transient var addressIdx = HashMap.fromIter<Text, Nat>(
-    addressIdxEntries.vals(), 16, Text.equal, Text.hash
+  private transient var addressIdx = Map.fromIter<Text, Nat>(
+    addressIdxEntries.vals(), Text.compare
   );
 
-  private transient var tierGrants = HashMap.fromIter<Text, SubscriptionTier>(
-    tierGrantEntries.vals(), 16, Text.equal, Text.hash
+  private transient var tierGrants = Map.fromIter<Text, SubscriptionTier>(
+    tierGrantEntries.vals(), Text.compare
   );
 
-  private transient var transfers = HashMap.fromIter<Nat, TransferRecord>(
-    transferEntries.vals(), 16, Nat.equal, Hash.hash
+  private transient var transfers = Map.fromIter<Nat, TransferRecord>(
+    transferEntries.vals(), Nat.compare
   );
 
-  private transient var pendingTransfers = HashMap.fromIter<Nat, PendingTransfer>(
-    pendingTransferEntries.vals(), 8, Nat.equal, Hash.hash
+  private transient var pendingTransfers = Map.fromIter<Nat, PendingTransfer>(
+    pendingTransferEntries.vals(), Nat.compare
   );
 
   // ─── Upgrade Hooks ────────────────────────────────────────────────────────
 
   system func preupgrade() {
-    propertyEntries        := Iter.toArray(properties.entries());
-    addressIdxEntries      := Iter.toArray(addressIdx.entries());
-    tierGrantEntries       := Iter.toArray(tierGrants.entries());
-    transferEntries        := Iter.toArray(transfers.entries());
-    pendingTransferEntries := Iter.toArray(pendingTransfers.entries());
+    propertyEntries        := Iter.toArray(Map.entries(properties));
+    addressIdxEntries      := Iter.toArray(Map.entries(addressIdx));
+    tierGrantEntries       := Iter.toArray(Map.entries(tierGrants));
+    transferEntries        := Iter.toArray(Map.entries(transfers));
+    pendingTransferEntries := Iter.toArray(Map.entries(pendingTransfers));
   };
 
   system func postupgrade() {
@@ -231,7 +230,7 @@ persistent actor Property {
 
   private func countOwnerProperties(owner: Principal) : Nat {
     var n = 0;
-    for (p in properties.vals()) {
+    for (p in Map.values(properties)) {
       if (p.owner == owner and p.isActive) { n += 1 };
     };
     n
@@ -255,7 +254,7 @@ persistent actor Property {
   /// Falls back to #Free for principals without an admin-granted tier.
   /// Callers cannot influence this — it is set only via setTier() (admin-only).
   private func tierFor(p: Principal) : SubscriptionTier {
-    switch (tierGrants.get(Principal.toText(p))) {
+    switch (Map.get(tierGrants, Text.compare, Principal.toText(p))) {
       case (?t) { t };
       case null { #Free };
     }
@@ -298,9 +297,9 @@ persistent actor Property {
     let key    = addressKey(args.address, args.city, args.state, args.zipCode);
 
     // ── Duplicate address check ──────────────────────────────────────────────
-    switch (addressIdx.get(key)) {
+    switch (Map.get(addressIdx, Text.compare, key)) {
       case (?existingId) {
-        switch (properties.get(existingId)) {
+        switch (Map.get(properties, Nat.compare, existingId)) {
           case (?existing) {
             if (existing.owner == caller) {
               // Same owner re-registering the same address — allow (idempotent).
@@ -375,8 +374,8 @@ persistent actor Property {
       isActive            = true;
     };
 
-    properties.put(id, prop);
-    addressIdx.put(key, id);
+    Map.add(properties, Nat.compare, id, prop);
+    Map.add(addressIdx, Text.compare, key, id);
     #ok(prop)
   };
 
@@ -400,7 +399,7 @@ persistent actor Property {
     if (Text.size(method)       == 0) return #err(#InvalidInput("method required"));
     if (Text.size(documentHash) == 0) return #err(#InvalidInput("documentHash required"));
 
-    switch (properties.get(propertyId)) {
+    switch (Map.get(properties, Nat.compare, propertyId)) {
       case null { #err(#NotFound) };
       case (?existing) {
         if (existing.owner != msg.caller) return #err(#NotAuthorized);
@@ -428,7 +427,7 @@ persistent actor Property {
           updatedAt           = Time.now();
           isActive            = existing.isActive;
         };
-        properties.put(propertyId, updated);
+        Map.add(properties, Nat.compare, propertyId, updated);
         #ok(updated)
       };
     }
@@ -449,7 +448,7 @@ persistent actor Property {
   ) : async Result.Result<Property, Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
 
-    switch (properties.get(id)) {
+    switch (Map.get(properties, Nat.compare, id)) {
       case null { #err(#NotFound) };
       case (?existing) {
         let now  = Time.now();
@@ -475,7 +474,7 @@ persistent actor Property {
           updatedAt           = now;
           isActive            = existing.isActive;
         };
-        properties.put(id, updated);
+        Map.add(properties, Nat.compare, id, updated);
         #ok(updated)
       };
     }
@@ -486,14 +485,14 @@ persistent actor Property {
   public query(msg) func getMyProperties() : async [Property] {
     let caller = msg.caller;
     Iter.toArray(
-      Iter.filter(properties.vals(), func(p: Property) : Bool {
+      Iter.filter(Map.values(properties), func(p: Property) : Bool {
         p.owner == caller and p.isActive
       })
     )
   };
 
   public query func getProperty(id: Nat) : async Result.Result<Property, Error> {
-    switch (properties.get(id)) {
+    switch (Map.get(properties, Nat.compare, id)) {
       case null  { #err(#NotFound) };
       case (?p)  { #ok(p) };
     }
@@ -506,7 +505,7 @@ persistent actor Property {
   /// Returns Text rather than VerificationLevel to keep the inter-canister
   /// interface simple and stable as new variants are added.
   public query func getVerificationLevel(id: Nat) : async ?Text {
-    switch (properties.get(id)) {
+    switch (Map.get(properties, Nat.compare, id)) {
       case null  { null };
       case (?p)  {
         ?(switch (p.verificationLevel) {
@@ -524,7 +523,7 @@ persistent actor Property {
   /// the homeowner stored on a sensor device actually owns the property
   /// before auto-creating a sensor-triggered job.
   public query func getPropertyOwner(id: Nat) : async ?Principal {
-    switch (properties.get(id)) {
+    switch (Map.get(properties, Nat.compare, id)) {
       case null  { null };
       case (?p)  { ?p.owner };
     }
@@ -533,7 +532,7 @@ persistent actor Property {
   /// Returns all properties currently awaiting admin verification review.
   public query func getPendingVerifications() : async [Property] {
     Iter.toArray(
-      Iter.filter(properties.vals(), func(p: Property) : Bool {
+      Iter.filter(Map.values(properties), func(p: Property) : Bool {
         p.verificationLevel == #PendingReview and p.isActive
       })
     )
@@ -554,7 +553,7 @@ persistent actor Property {
   ) : async Result.Result<PendingTransfer, Error> {
     switch (requireActive()) { case (#err e) return #err e; case _ {} };
 
-    switch (properties.get(propertyId)) {
+    switch (Map.get(properties, Nat.compare, propertyId)) {
       case null { #err(#NotFound) };
       case (?prop) {
         if (prop.owner != msg.caller) return #err(#NotAuthorized);
@@ -566,7 +565,7 @@ persistent actor Property {
           to;
           initiatedAt = Time.now();
         };
-        pendingTransfers.put(propertyId, pending);
+        Map.add(pendingTransfers, Nat.compare, propertyId, pending);
         #ok(pending)
       };
     }
@@ -580,12 +579,12 @@ persistent actor Property {
   ) : async Result.Result<Property, Error> {
     switch (requireActive()) { case (#err e) return #err e; case _ {} };
 
-    switch (pendingTransfers.get(propertyId)) {
+    switch (Map.get(pendingTransfers, Nat.compare, propertyId)) {
       case null { #err(#NotFound) };
       case (?pending) {
         if (pending.to != msg.caller) return #err(#NotAuthorized);
 
-        switch (properties.get(propertyId)) {
+        switch (Map.get(properties, Nat.compare, propertyId)) {
           case null { #err(#NotFound) };
           case (?prop) {
             let now = Time.now();
@@ -610,7 +609,7 @@ persistent actor Property {
               updatedAt           = now;
               isActive            = prop.isActive;
             };
-            properties.put(propertyId, updated);
+            Map.add(properties, Nat.compare, propertyId, updated);
 
             // Append immutable transfer record
             transferCounter += 1;
@@ -621,10 +620,10 @@ persistent actor Property {
               timestamp = now;
               txHash;
             };
-            transfers.put(transferCounter, record);
+            Map.add(transfers, Nat.compare, transferCounter, record);
 
             // Clear the pending transfer
-            pendingTransfers.delete(propertyId);
+            Map.remove(pendingTransfers, Nat.compare, propertyId);
 
             #ok(updated)
           };
@@ -637,12 +636,12 @@ persistent actor Property {
   public shared(msg) func cancelTransfer(
     propertyId : Nat
   ) : async Result.Result<(), Error> {
-    switch (pendingTransfers.get(propertyId)) {
+    switch (Map.get(pendingTransfers, Nat.compare, propertyId)) {
       case null { #err(#NotFound) };
       case (?pending) {
         if (pending.from != msg.caller and pending.to != msg.caller and not isAdmin(msg.caller))
           return #err(#NotAuthorized);
-        pendingTransfers.delete(propertyId);
+        Map.remove(pendingTransfers, Nat.compare, propertyId);
         #ok(())
       };
     }
@@ -650,14 +649,14 @@ persistent actor Property {
 
   /// Returns the pending transfer for a property, if any.
   public query func getPendingTransfer(propertyId: Nat) : async ?PendingTransfer {
-    pendingTransfers.get(propertyId)
+    Map.get(pendingTransfers, Nat.compare, propertyId)
   };
 
   /// Public, unauthenticated ownership history for a property.
   /// Returns records sorted by timestamp ascending (oldest first).
   public query func getOwnershipHistory(propertyId: Nat) : async [TransferRecord] {
     let filtered = Iter.toArray(
-      Iter.filter(transfers.vals(), func(r: TransferRecord) : Bool {
+      Iter.filter(Map.values(transfers), func(r: TransferRecord) : Bool {
         r.propertyId == propertyId
       })
     );
@@ -676,7 +675,7 @@ persistent actor Property {
   /// This is the only authoritative source for tier limits — callers cannot spoof.
   public shared(msg) func setTier(user: Principal, tier: SubscriptionTier) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    tierGrants.put(Principal.toText(user), tier);
+    Map.add(tierGrants, Text.compare, Principal.toText(user), tier);
     #ok(())
   };
 
@@ -711,7 +710,7 @@ persistent actor Property {
     var pendingReview = 0;
     var unverified    = 0;
 
-    for (p in properties.vals()) {
+    for (p in Map.values(properties)) {
       if (p.isActive) {
         switch (p.verificationLevel) {
           case (#Unverified)    { unverified    += 1 };
@@ -722,7 +721,7 @@ persistent actor Property {
     };
 
     {
-      totalProperties         = properties.size();
+      totalProperties         = Map.size(properties);
       verifiedProperties      = verified;
       pendingReviewProperties = pendingReview;
       unverifiedProperties    = unverified;

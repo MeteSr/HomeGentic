@@ -1,8 +1,8 @@
-import HashMap "mo:base/HashMap";
-import Iter "mo:base/Iter";
-import Principal "mo:base/Principal";
-import Result "mo:base/Result";
-import Time "mo:base/Time";
+import Map "mo:core/Map";
+import Iter "mo:core/Iter";
+import Principal "mo:core/Principal";
+import Result "mo:core/Result";
+import Time "mo:core/Time";
 
 persistent actor Payment {
 
@@ -18,12 +18,12 @@ persistent actor Payment {
   public type Error = { #NotFound; #NotAuthorized; #PaymentFailed: Text };
 
   private var subscriptionEntries: [(Principal, Subscription)] = [];
-  private transient var subscriptions = HashMap.fromIter<Principal, Subscription>(
-    subscriptionEntries.vals(), 16, Principal.equal, Principal.hash
+  private transient var subscriptions = Map.fromIter<Principal, Subscription>(
+    subscriptionEntries.vals(), Principal.compare
   );
 
   system func preupgrade() {
-    subscriptionEntries := Iter.toArray(subscriptions.entries());
+    subscriptionEntries := Iter.toArray(Map.entries(subscriptions));
   };
 
   system func postupgrade() {
@@ -44,12 +44,12 @@ persistent actor Payment {
       expiresAt = if (durationNs == 0) 0 else now + durationNs;
       createdAt = now;
     };
-    subscriptions.put(msg.caller, sub);
+    Map.add(subscriptions, Principal.compare, msg.caller, sub);
     #ok(sub)
   };
 
   public query(msg) func getMySubscription() : async Result.Result<Subscription, Error> {
-    switch (subscriptions.get(msg.caller)) {
+    switch (Map.get(subscriptions, Principal.compare, msg.caller)) {
       case null { #ok({ owner = msg.caller; tier = #Free; expiresAt = 0; createdAt = Time.now() }) };
       case (?s) { #ok(s) };
     }
@@ -59,7 +59,7 @@ persistent actor Payment {
   /// Used by the job canister to enforce per-tier job caps without the
   /// caller identity shifting to the job canister principal.
   public query func getTierForPrincipal(p: Principal) : async Tier {
-    switch (subscriptions.get(p)) {
+    switch (Map.get(subscriptions, Principal.compare, p)) {
       case null  { #Free };
       case (?s)  { s.tier };
     }

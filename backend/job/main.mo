@@ -6,15 +6,15 @@
  * Contractor jobs require both homeowner AND contractor signatures.
  */
 
-import Array  "mo:base/Array";
-import HashMap "mo:base/HashMap";
-import Iter   "mo:base/Iter";
-import Nat    "mo:base/Nat";
-import Option "mo:base/Option";
-import Principal "mo:base/Principal";
-import Result "mo:base/Result";
-import Text   "mo:base/Text";
-import Time   "mo:base/Time";
+import Array  "mo:core/Array";
+import Map    "mo:core/Map";
+import Iter   "mo:core/Iter";
+import Nat    "mo:core/Nat";
+import Option "mo:core/Option";
+import Principal "mo:core/Principal";
+import Result "mo:core/Result";
+import Text   "mo:core/Text";
+import Time   "mo:core/Time";
 
 persistent actor Job {
 
@@ -99,14 +99,14 @@ persistent actor Job {
 
   // ─── Transient State ─────────────────────────────────────────────────────────
 
-  private transient var jobs = HashMap.fromIter<Text, Job>(
-    jobsEntries.vals(), 16, Text.equal, Text.hash
+  private transient var jobs = Map.fromIter<Text, Job>(
+    jobsEntries.vals(), Text.compare
   );
 
   // ─── Upgrade Hooks ───────────────────────────────────────────────────────────
 
   system func preupgrade() {
-    jobsEntries := Iter.toArray(jobs.entries());
+    jobsEntries := Iter.toArray(Map.entries(jobs));
   };
 
   system func postupgrade() {
@@ -183,7 +183,7 @@ persistent actor Job {
       switch (tier) {
         case (#Free) {
           let callerJobCount = Iter.size(
-            Iter.filter(jobs.vals(), func(j: Job) : Bool { j.homeowner == msg.caller })
+            Iter.filter(Map.values(jobs), func(j: Job) : Bool { j.homeowner == msg.caller })
           );
           if (callerJobCount >= 5) {
             return #err(#TierLimitReached("Free plan is limited to 5 jobs. Upgrade to Pro to continue."));
@@ -218,13 +218,13 @@ persistent actor Job {
       createdAt        = now;
     };
 
-    jobs.put(id, job);
+    Map.add(jobs, Text.compare, id, job);
     #ok(job)
   };
 
   /// Fetch a single job by ID.
   public query func getJob(jobId: Text) : async Result.Result<Job, Error> {
-    switch (jobs.get(jobId)) {
+    switch (Map.get(jobs, Text.compare, jobId)) {
       case null { #err(#NotFound) };
       case (?j) { #ok(j) };
     }
@@ -233,14 +233,14 @@ persistent actor Job {
   /// Fetch all jobs for a given property.
   public query func getJobsForProperty(propertyId: Text) : async Result.Result<[Job], Error> {
     let matches = Iter.toArray(
-      Iter.filter(jobs.vals(), func(j: Job) : Bool { j.propertyId == propertyId })
+      Iter.filter(Map.values(jobs), func(j: Job) : Bool { j.propertyId == propertyId })
     );
     #ok(matches)
   };
 
   /// Fetch jobs where the caller is the linked contractor and has not yet signed.
   public query(msg) func getJobsPendingMySignature() : async [Job] {
-    Iter.toArray(Iter.filter(jobs.vals(), func(j: Job) : Bool {
+    Iter.toArray(Iter.filter(Map.values(jobs), func(j: Job) : Bool {
       switch (j.contractor) {
         case (?con) { con == msg.caller and not j.contractorSigned and not j.verified };
         case null   { false };
@@ -252,7 +252,7 @@ persistent actor Job {
   public shared(msg) func updateJobStatus(jobId: Text, status: JobStatus) : async Result.Result<Job, Error> {
     switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (jobs.get(jobId)) {
+    switch (Map.get(jobs, Text.compare, jobId)) {
       case null { #err(#NotFound) };
       case (?existing) {
         if (existing.verified) return #err(#AlreadyVerified);
@@ -279,7 +279,7 @@ persistent actor Job {
           contractorSigned = existing.contractorSigned;
           createdAt        = existing.createdAt;
         };
-        jobs.put(jobId, updated);
+        Map.add(jobs, Text.compare, jobId, updated);
         #ok(updated)
       };
     }
@@ -290,7 +290,7 @@ persistent actor Job {
   public shared(msg) func linkContractor(jobId: Text, contractorPrincipal: Principal) : async Result.Result<Job, Error> {
     switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (jobs.get(jobId)) {
+    switch (Map.get(jobs, Text.compare, jobId)) {
       case null { #err(#NotFound) };
       case (?existing) {
         if (existing.verified) return #err(#AlreadyVerified);
@@ -317,7 +317,7 @@ persistent actor Job {
           contractorSigned = existing.contractorSigned;
           createdAt        = existing.createdAt;
         };
-        jobs.put(jobId, updated);
+        Map.add(jobs, Text.compare, jobId, updated);
         #ok(updated)
       };
     }
@@ -331,7 +331,7 @@ persistent actor Job {
   public shared(msg) func verifyJob(jobId: Text) : async Result.Result<Job, Error> {
     switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (jobs.get(jobId)) {
+    switch (Map.get(jobs, Text.compare, jobId)) {
       case null { #err(#NotFound) };
       case (?existing) {
         if (existing.verified) return #err(#AlreadyVerified);
@@ -376,7 +376,7 @@ persistent actor Job {
           contractorSigned = newContractorSigned;
           createdAt        = existing.createdAt;
         };
-        jobs.put(jobId, updated);
+        Map.add(jobs, Text.compare, jobId, updated);
 
         // Notify contractor canister when job becomes fully verified
         if (fullyVerified and Text.size(contrCanisterId) > 0) {
@@ -470,7 +470,7 @@ persistent actor Job {
       createdAt        = now;
     };
 
-    jobs.put(id, job);
+    Map.add(jobs, Text.compare, id, job);
     #ok(id)
   };
 
@@ -544,7 +544,7 @@ persistent actor Job {
     var verifiedCount : Nat = 0;
     var foundSystems : [Text] = [];
 
-    for (j in jobs.vals()) {
+    for (j in Map.values(jobs)) {
       if (j.propertyId == propertyId and j.verified) {
         verifiedCount += 1;
         let svcText = switch (j.serviceType) {
@@ -573,7 +573,7 @@ persistent actor Job {
     var verified  = 0;
     var diy       = 0;
 
-    for (j in jobs.vals()) {
+    for (j in Map.values(jobs)) {
       if (j.isDiy) { diy += 1 };
       switch (j.status) {
         case (#Pending)   { pending   += 1 };
@@ -584,7 +584,7 @@ persistent actor Job {
     };
 
     {
-      totalJobs     = jobs.size();
+      totalJobs     = Map.size(jobs);
       pendingJobs   = pending;
       completedJobs = completed;
       verifiedJobs  = verified;

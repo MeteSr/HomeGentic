@@ -8,16 +8,16 @@
  * - Embedded cost tables use 2024 national averages (Angi / HomeAdvisor data).
  */
 
-import Array    "mo:base/Array";
-import HashMap  "mo:base/HashMap";
-import Int      "mo:base/Int";
-import Iter     "mo:base/Iter";
-import Nat      "mo:base/Nat";
-import Option   "mo:base/Option";
-import Principal "mo:base/Principal";
-import Result   "mo:base/Result";
-import Text     "mo:base/Text";
-import Time     "mo:base/Time";
+import Array    "mo:core/Array";
+import Map      "mo:core/Map";
+import Int      "mo:core/Int";
+import Iter     "mo:core/Iter";
+import Nat      "mo:core/Nat";
+import Option   "mo:core/Option";
+import Principal "mo:core/Principal";
+import Result   "mo:core/Result";
+import Text     "mo:core/Text";
+import Time     "mo:core/Time";
 
 persistent actor Maintenance {
 
@@ -131,14 +131,14 @@ persistent actor Maintenance {
 
   // ─── Transient State ──────────────────────────────────────────────────────────
 
-  private transient var schedule = HashMap.fromIter<Text, ScheduleEntry>(
-    scheduleEntries.vals(), 64, Text.equal, Text.hash
+  private transient var schedule = Map.fromIter<Text, ScheduleEntry>(
+    scheduleEntries.vals(), Text.compare
   );
 
   // ─── Upgrade Hooks ────────────────────────────────────────────────────────────
 
   system func preupgrade() {
-    scheduleEntries := Iter.toArray(schedule.entries());
+    scheduleEntries := Iter.toArray(Map.entries(schedule));
   };
 
   system func postupgrade() {
@@ -294,18 +294,18 @@ persistent actor Maintenance {
       createdBy   = msg.caller;
       createdAt   = Time.now();
     };
-    schedule.put(id, entry);
+    Map.add(schedule, Text.compare, id, entry);
     #ok(entry)
   };
 
   public query func getScheduleByProperty(propertyId: Text) : async [ScheduleEntry] {
-    Iter.toArray(Iter.filter(schedule.vals(), func(e: ScheduleEntry) : Bool {
+    Iter.toArray(Iter.filter(Map.values(schedule), func(e: ScheduleEntry) : Bool {
       e.propertyId == propertyId
     }))
   };
 
   public shared(msg) func markCompleted(entryId: Text) : async Result.Result<ScheduleEntry, Error> {
-    switch (schedule.get(entryId)) {
+    switch (Map.get(schedule, Text.compare, entryId)) {
       case null { #err(#NotFound) };
       case (?entry) {
         if (entry.createdBy != msg.caller and not isAdmin(msg.caller))
@@ -322,7 +322,7 @@ persistent actor Maintenance {
           createdBy          = entry.createdBy;
           createdAt          = entry.createdAt;
         };
-        schedule.put(entryId, updated);
+        Map.add(schedule, Text.compare, entryId, updated);
         #ok(updated)
       };
     }
@@ -356,7 +356,7 @@ persistent actor Maintenance {
 
   public query func getMetrics() : async Metrics {
     var completed = 0;
-    for (e in schedule.vals()) { if (e.isCompleted) { completed += 1 } };
-    { scheduleEntries = schedule.size(); completedEntries = completed; isPaused }
+    for (e in Map.values(schedule)) { if (e.isCompleted) { completed += 1 } };
+    { scheduleEntries = Map.size(schedule); completedEntries = completed; isPaused }
   };
 }

@@ -4,13 +4,13 @@
  * Supports Homeowner, Contractor, and Realtor roles.
  */
 
-import HashMap "mo:base/HashMap";
-import Iter "mo:base/Iter";
-import Principal "mo:base/Principal";
-import Result "mo:base/Result";
-import Text "mo:base/Text";
-import Time "mo:base/Time";
-import Array "mo:base/Array";
+import Map "mo:core/Map";
+import Iter "mo:core/Iter";
+import Principal "mo:core/Principal";
+import Result "mo:core/Result";
+import Text "mo:core/Text";
+import Time "mo:core/Time";
+import Array "mo:core/Array";
 
 persistent actor Auth {
 
@@ -74,19 +74,17 @@ persistent actor Auth {
 
   // ─── Mutable State ───────────────────────────────────────────────────────────
 
-  /// In-memory HashMap for fast lookups; rebuilt from stable entries on upgrade
-  private transient var users = HashMap.fromIter<Principal, UserProfile>(
+  /// In-memory Map for fast lookups; rebuilt from stable entries on upgrade
+  private transient var users = Map.fromIter<Principal, UserProfile>(
     userEntries.vals(),
-    16,
-    Principal.equal,
-    Principal.hash
+    Principal.compare
   );
 
   // ─── Upgrade Hooks ───────────────────────────────────────────────────────────
 
-  /// Save HashMap contents to stable variables before canister upgrade
+  /// Save Map contents to stable variables before canister upgrade
   system func preupgrade() {
-    userEntries := Iter.toArray(users.entries());
+    userEntries := Iter.toArray(Map.entries(users));
   };
 
   /// Clear stable entries after upgrade (data is back in HashMap)
@@ -146,7 +144,7 @@ persistent actor Auth {
 
     let caller = msg.caller;
 
-    if (users.get(caller) != null) return #err(#AlreadyExists);
+    if (Map.get(users, Principal.compare, caller) != null) return #err(#AlreadyExists);
     // Email and phone are optional; validate format only when provided
     if (Text.size(args.email) > 256) return #err(#InvalidInput("email exceeds 256 characters"));
     if (Text.size(args.phone) > 30)  return #err(#InvalidInput("phone exceeds 30 characters"));
@@ -165,13 +163,13 @@ persistent actor Auth {
       lastLoggedIn = null;
     };
 
-    users.put(caller, profile);
+    Map.add(users, Principal.compare, caller, profile);
     #ok(profile)
   };
 
   /// Get the caller's profile
   public query(msg) func getProfile() : async Result.Result<UserProfile, Error> {
-    switch (users.get(msg.caller)) {
+    switch (Map.get(users, Principal.compare, msg.caller)) {
       case null { #err(#NotFound) };
       case (?p) { #ok(p) };
     }
@@ -181,7 +179,7 @@ persistent actor Auth {
   public shared(msg) func updateProfile(args: UpdateArgs) : async Result.Result<UserProfile, Error> {
     switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (users.get(msg.caller)) {
+    switch (Map.get(users, Principal.compare, msg.caller)) {
       case null { #err(#NotFound) };
       case (?existing) {
         if (Text.size(args.email) > 256) return #err(#InvalidInput("email exceeds 256 characters"));
@@ -199,7 +197,7 @@ persistent actor Auth {
           isActive     = existing.isActive;
           lastLoggedIn = existing.lastLoggedIn;
         };
-        users.put(msg.caller, updated);
+        Map.add(users, Principal.compare, msg.caller, updated);
         #ok(updated)
       };
     }
@@ -209,7 +207,7 @@ persistent actor Auth {
   /// Called by the frontend immediately after reading the profile, so the
   /// profile read returns the *previous* session's timestamp for comparison.
   public shared(msg) func recordLogin() : async () {
-    switch (users.get(msg.caller)) {
+    switch (Map.get(users, Principal.compare, msg.caller)) {
       case null {};  // Not registered yet — ignore
       case (?existing) {
         let updated: UserProfile = {
@@ -222,14 +220,14 @@ persistent actor Auth {
           isActive     = existing.isActive;
           lastLoggedIn = ?Time.now();
         };
-        users.put(msg.caller, updated);
+        Map.add(users, Principal.compare, msg.caller, updated);
       };
     }
   };
 
   /// Check if the caller has a specific role
   public query(msg) func hasRole(role: UserRole) : async Bool {
-    switch (users.get(msg.caller)) {
+    switch (Map.get(users, Principal.compare, msg.caller)) {
       case null { false };
       case (?p) {
         switch (role, p.role) {
@@ -250,7 +248,7 @@ persistent actor Auth {
     var contractors = 0;
     var realtors = 0;
 
-    for (profile in users.vals()) {
+    for (profile in Map.values(users)) {
       switch (profile.role) {
         case (#Homeowner) { homeowners += 1 };
         case (#Contractor) { contractors += 1 };
@@ -259,7 +257,7 @@ persistent actor Auth {
     };
 
     {
-      totalUsers = users.size();
+      totalUsers = Map.size(users);
       homeowners;
       contractors;
       realtors;

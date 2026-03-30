@@ -4,17 +4,17 @@
  * Aggregates health data pushed by all other canisters.
  */
 
-import Array     "mo:base/Array";
-import Float     "mo:base/Float";
-import HashMap   "mo:base/HashMap";
-import Int       "mo:base/Int";
-import Iter      "mo:base/Iter";
-import Nat       "mo:base/Nat";
-import Option    "mo:base/Option";
-import Principal "mo:base/Principal";
-import Result    "mo:base/Result";
-import Text      "mo:base/Text";
-import Time      "mo:base/Time";
+import Array     "mo:core/Array";
+import Float     "mo:core/Float";
+import Map       "mo:core/Map";
+import Int       "mo:core/Int";
+import Iter      "mo:core/Iter";
+import Nat       "mo:core/Nat";
+import Option    "mo:core/Option";
+import Principal "mo:core/Principal";
+import Result    "mo:core/Result";
+import Text      "mo:core/Text";
+import Time      "mo:core/Time";
 
 persistent actor Monitoring {
 
@@ -134,19 +134,19 @@ persistent actor Monitoring {
 
   // ─── Transient State ─────────────────────────────────────────────────────────
 
-  private transient var canisterMetrics = HashMap.fromIter<Principal, CanisterMetrics>(
-    metricsEntries.vals(), 16, Principal.equal, Principal.hash
+  private transient var canisterMetrics = Map.fromIter<Principal, CanisterMetrics>(
+    metricsEntries.vals(), Principal.compare
   );
 
-  private transient var alerts = HashMap.fromIter<Text, Alert>(
-    alertEntries.vals(), 16, Text.equal, Text.hash
+  private transient var alerts = Map.fromIter<Text, Alert>(
+    alertEntries.vals(), Text.compare
   );
 
   // ─── Upgrade Hooks ───────────────────────────────────────────────────────────
 
   system func preupgrade() {
-    metricsEntries := Iter.toArray(canisterMetrics.entries());
-    alertEntries   := Iter.toArray(alerts.entries());
+    metricsEntries := Iter.toArray(Map.entries(canisterMetrics));
+    alertEntries   := Iter.toArray(Map.entries(alerts));
   };
 
   system func postupgrade() {
@@ -176,7 +176,7 @@ persistent actor Monitoring {
 
   // Returns true if an unresolved alert of this category already exists for the canister.
   private func alertExists(category: AlertCategory, canisterId: ?Principal) : Bool {
-    for (a in alerts.vals()) {
+    for (a in Map.values(alerts)) {
       if (not a.resolved and a.category == category) {
         switch (canisterId, a.canisterId) {
           case (?c1, ?c2) { if (c1 == c2) return true };
@@ -206,7 +206,7 @@ persistent actor Monitoring {
       createdAt  = Time.now();
       resolvedAt = null;
     };
-    alerts.put(id, alert);
+    Map.add(alerts, Text.compare, id, alert);
   };
 
   private func float2(f: Float) : Text {
@@ -283,7 +283,7 @@ persistent actor Monitoring {
       avgResponseTimeMs;
       updatedAt = Time.now();
     };
-    canisterMetrics.put(canisterId, m);
+    Map.add(canisterMetrics, Principal.compare, canisterId, m);
     evaluateAlerts(m);
   };
 
@@ -291,7 +291,7 @@ persistent actor Monitoring {
   /// Pass `userCount` > 0 to get a per-user cost figure.
   public query func calculateCostMetrics(userCount: Nat) : async CostMetrics {
     var totalBurned : Nat = 0;
-    for (m in canisterMetrics.vals()) { totalBurned += m.cyclesBurned };
+    for (m in Map.values(canisterMetrics)) { totalBurned += m.cyclesBurned };
 
     let totalUsd = Float.fromInt(totalBurned) / cyclesPerTrillion * usdPerTrillion;
 
@@ -321,7 +321,7 @@ persistent actor Monitoring {
   ) : async ProfitabilityMetrics {
     // Derive cost from stored metrics (same logic as calculateCostMetrics)
     var totalBurned : Nat = 0;
-    for (m in canisterMetrics.vals()) { totalBurned += m.cyclesBurned };
+    for (m in Map.values(canisterMetrics)) { totalBurned += m.cyclesBurned };
     let costUsd = Float.fromInt(totalBurned) / cyclesPerTrillion * usdPerTrillion;
 
     let profit = revenue - costUsd;
@@ -353,13 +353,13 @@ persistent actor Monitoring {
 
   /// Return all stored canister metrics snapshots.
   public query func getAllCanisterMetrics() : async [CanisterMetrics] {
-    Iter.toArray(canisterMetrics.vals())
+    Iter.toArray(Map.values(canisterMetrics))
   };
 
   /// Return all unresolved alerts, sorted Critical → Warning → Info.
   public query func getActiveAlerts() : async [Alert] {
     let active = Iter.toArray(
-      Iter.filter(alerts.vals(), func(a: Alert) : Bool { not a.resolved })
+      Iter.filter(Map.values(alerts), func(a: Alert) : Bool { not a.resolved })
     );
     // Sort: Critical = 0, Warning = 1, Info = 2
     let rank = func(s: AlertSeverity) : Nat {
@@ -376,7 +376,7 @@ persistent actor Monitoring {
 
   /// Mark an alert as resolved. Returns true if the alert was found and updated.
   public shared(msg) func resolveAlert(alertId: Text) : async Bool {
-    switch (alerts.get(alertId)) {
+    switch (Map.get(alerts, Text.compare, alertId)) {
       case null { false };
       case (?existing) {
         if (existing.resolved) return false;
@@ -391,7 +391,7 @@ persistent actor Monitoring {
           createdAt  = existing.createdAt;
           resolvedAt = ?Time.now();
         };
-        alerts.put(alertId, resolved);
+        Map.add(alerts, Text.compare, alertId, resolved);
         true
       };
     }
@@ -415,7 +415,7 @@ persistent actor Monitoring {
       createdAt  = Time.now();
       resolvedAt = null;
     };
-    alerts.put(id, alert);
+    Map.add(alerts, Text.compare, id, alert);
     #ok(alert)
   };
 
@@ -426,7 +426,7 @@ persistent actor Monitoring {
     var totalRequests : Nat = 0;
     var totalErrors : Nat = 0;
     var canisterCount : Nat = 0;
-    for (m in canisterMetrics.vals()) {
+    for (m in Map.values(canisterMetrics)) {
       totalBurned   += m.cyclesBurned;
       totalRequests += m.requestCount;
       totalErrors   += m.errorCount;
@@ -444,7 +444,7 @@ persistent actor Monitoring {
 
     var activeAlertCount : Nat = 0;
     var critCount : Nat = 0;
-    for (a in alerts.vals()) {
+    for (a in Map.values(alerts)) {
       if (not a.resolved) {
         activeAlertCount += 1;
         switch (a.severity) { case (#Critical) { critCount += 1 }; case _ {} };
@@ -518,14 +518,14 @@ persistent actor Monitoring {
   public query func getMetrics() : async Metrics {
     var active : Nat = 0;
     var critical : Nat = 0;
-    for (a in alerts.vals()) {
+    for (a in Map.values(alerts)) {
       if (not a.resolved) {
         active += 1;
         switch (a.severity) { case (#Critical) { critical += 1 }; case _ {} };
       };
     };
     {
-      totalCanisters = canisterMetrics.size();
+      totalCanisters = Map.size(canisterMetrics);
       activeAlerts   = active;
       criticalAlerts = critical;
       isPaused;

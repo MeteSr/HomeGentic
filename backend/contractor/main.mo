@@ -8,17 +8,16 @@
  *   - 1–5 star rating validation
  */
 
-import Array     "mo:base/Array";
-import HashMap   "mo:base/HashMap";
-import Int       "mo:base/Int";
-import Iter      "mo:base/Iter";
-import Nat       "mo:base/Nat";
-import Nat32     "mo:base/Nat32";
-import Option    "mo:base/Option";
-import Principal "mo:base/Principal";
-import Result    "mo:base/Result";
-import Text      "mo:base/Text";
-import Time      "mo:base/Time";
+import Array     "mo:core/Array";
+import Map       "mo:core/Map";
+import Int       "mo:core/Int";
+import Iter      "mo:core/Iter";
+import Nat       "mo:core/Nat";
+import Option    "mo:core/Option";
+import Principal "mo:core/Principal";
+import Result    "mo:core/Result";
+import Text      "mo:core/Text";
+import Time      "mo:core/Time";
 
 persistent actor Contractor {
 
@@ -127,35 +126,35 @@ persistent actor Contractor {
 
   // ─── Transient State ──────────────────────────────────────────────────────────
 
-  private transient var contractors = HashMap.fromIter<Principal, ContractorProfile>(
-    contractorEntries.vals(), 16, Principal.equal, Principal.hash
+  private transient var contractors = Map.fromIter<Principal, ContractorProfile>(
+    contractorEntries.vals(), Principal.compare
   );
 
-  private transient var reviews = HashMap.fromIter<Text, Review>(
-    reviewEntries.vals(), 16, Text.equal, Text.hash
+  private transient var reviews = Map.fromIter<Text, Review>(
+    reviewEntries.vals(), Text.compare
   );
 
-  private transient var credentials = HashMap.fromIter<Nat, JobCredential>(
-    credentialEntries.vals(), 16, Nat.equal, func(n: Nat) : Nat32 { Nat32.fromNat(n % 4294967295) }
+  private transient var credentials = Map.fromIter<Nat, JobCredential>(
+    credentialEntries.vals(), Nat.compare
   );
 
-  private transient var reviewKeys = HashMap.fromIter<Text, Text>(
-    reviewKeyEntries.vals(), 16, Text.equal, Text.hash
+  private transient var reviewKeys = Map.fromIter<Text, Text>(
+    reviewKeyEntries.vals(), Text.compare
   );
 
   /// Daily review rate limits per reviewer.
-  private transient var reviewRateLimits = HashMap.fromIter<Text, (Nat, Int)>(
-    reviewRateLimitEntries.vals(), 16, Text.equal, Text.hash
+  private transient var reviewRateLimits = Map.fromIter<Text, (Nat, Int)>(
+    reviewRateLimitEntries.vals(), Text.compare
   );
 
   // ─── Upgrade Hooks ────────────────────────────────────────────────────────────
 
   system func preupgrade() {
-    contractorEntries      := Iter.toArray(contractors.entries());
-    reviewEntries          := Iter.toArray(reviews.entries());
-    credentialEntries      := Iter.toArray(credentials.entries());
-    reviewKeyEntries       := Iter.toArray(reviewKeys.entries());
-    reviewRateLimitEntries := Iter.toArray(reviewRateLimits.entries());
+    contractorEntries      := Iter.toArray(Map.entries(contractors));
+    reviewEntries          := Iter.toArray(Map.entries(reviews));
+    credentialEntries      := Iter.toArray(Map.entries(credentials));
+    reviewKeyEntries       := Iter.toArray(Map.entries(reviewKeys));
+    reviewRateLimitEntries := Iter.toArray(Map.entries(reviewRateLimits));
   };
 
   system func postupgrade() {
@@ -193,19 +192,19 @@ persistent actor Contractor {
   private func tryConsumeReviewSlot(reviewer: Principal) : Bool {
     let key = Principal.toText(reviewer);
     let now = Time.now();
-    switch (reviewRateLimits.get(key)) {
+    switch (Map.get(reviewRateLimits, Text.compare, key)) {
       case null {
-        reviewRateLimits.put(key, (1, now));
+        Map.add(reviewRateLimits, Text.compare, key, (1, now));
         true
       };
       case (?(count, windowStart)) {
         if (now - windowStart >= oneDayNs) {
-          reviewRateLimits.put(key, (1, now));
+          Map.add(reviewRateLimits, Text.compare, key, (1, now));
           true
         } else if (count >= dailyReviewLimit) {
           false
         } else {
-          reviewRateLimits.put(key, (count + 1, windowStart));
+          Map.add(reviewRateLimits, Text.compare, key, (count + 1, windowStart));
           true
         }
       };
@@ -217,7 +216,7 @@ persistent actor Contractor {
   /// Register a new contractor profile. Validates all required fields.
   public shared(msg) func register(args: RegisterArgs) : async Result.Result<ContractorProfile, Error> {
     switch (requireActive()) { case (#err e) return #err e; case _ {} };
-    if (contractors.get(msg.caller) != null) return #err(#AlreadyExists);
+    if (Map.get(contractors, Principal.compare, msg.caller) != null) return #err(#AlreadyExists);
 
     if (Text.size(args.name)  == 0)   return #err(#InvalidInput("name cannot be empty"));
     if (Text.size(args.name)  > 200)  return #err(#InvalidInput("name exceeds 200 characters"));
@@ -242,7 +241,7 @@ persistent actor Contractor {
       isVerified    = false;
       createdAt     = Time.now();
     };
-    contractors.put(msg.caller, profile);
+    Map.add(contractors, Principal.compare, msg.caller, profile);
     #ok(profile)
   };
 
@@ -260,7 +259,7 @@ persistent actor Contractor {
   ) : async Result.Result<Review, Error> {
     switch (requireActive()) { case (#err e) return #err e; case _ {} };
 
-    if (contractors.get(contractorPrincipal) == null) return #err(#NotFound);
+    if (Map.get(contractors, Principal.compare, contractorPrincipal) == null) return #err(#NotFound);
     if (rating < 1 or rating > 5)
       return #err(#InvalidInput("rating must be between 1 and 5"));
     if (Text.size(comment) == 0)    return #err(#InvalidInput("comment cannot be empty"));
@@ -269,7 +268,7 @@ persistent actor Contractor {
 
     // Composite duplicate check: one review per reviewer+job
     let compositeKey = Principal.toText(msg.caller) # "|" # jobId;
-    if (reviewKeys.get(compositeKey) != null)
+    if (Map.get(reviewKeys, Text.compare, compositeKey) != null)
       return #err(#InvalidInput("You have already reviewed this job"));
 
     // Daily rate limit
@@ -290,8 +289,8 @@ persistent actor Contractor {
       jobId;
       createdAt  = Time.now();
     };
-    reviews.put(id, review);
-    reviewKeys.put(compositeKey, id);
+    Map.add(reviews, Text.compare, id, review);
+    Map.add(reviewKeys, Text.compare, compositeKey, id);
     #ok(review)
   };
 
@@ -308,7 +307,7 @@ persistent actor Contractor {
     if (Text.size(args.phone) == 0)   return #err(#InvalidInput("phone cannot be empty"));
     if (Text.size(args.phone) > 30)   return #err(#InvalidInput("phone exceeds 30 characters"));
 
-    switch (contractors.get(msg.caller)) {
+    switch (Map.get(contractors, Principal.compare, msg.caller)) {
       case null { #err(#NotFound) };
       case (?existing) {
         let updated: ContractorProfile = {
@@ -325,33 +324,33 @@ persistent actor Contractor {
           isVerified    = existing.isVerified;
           createdAt     = existing.createdAt;
         };
-        contractors.put(msg.caller, updated);
+        Map.add(contractors, Principal.compare, msg.caller, updated);
         #ok(updated)
       };
     }
   };
 
   public query func getContractor(c: Principal) : async Result.Result<ContractorProfile, Error> {
-    switch (contractors.get(c)) {
+    switch (Map.get(contractors, Principal.compare, c)) {
       case null { #err(#NotFound) };
       case (?p) { #ok(p) };
     }
   };
 
   public query(msg) func getMyProfile() : async Result.Result<ContractorProfile, Error> {
-    switch (contractors.get(msg.caller)) {
+    switch (Map.get(contractors, Principal.compare, msg.caller)) {
       case null { #err(#NotFound) };
       case (?p) { #ok(p) };
     }
   };
 
   public query func getAll() : async [ContractorProfile] {
-    Iter.toArray(contractors.vals())
+    Iter.toArray(Map.values(contractors))
   };
 
   public query func getReviewsForContractor(c: Principal) : async [Review] {
     Iter.toArray(
-      Iter.filter(reviews.vals(), func(r: Review) : Bool { r.contractor == c })
+      Iter.filter(Map.values(reviews), func(r: Review) : Bool { r.contractor == c })
     )
   };
 
@@ -381,9 +380,9 @@ persistent actor Contractor {
       verifiedAt         = Time.now();
       homeownerPrincipal;
     };
-    credentials.put(credentialCounter, cred);
+    Map.add(credentials, Nat.compare, credentialCounter, cred);
 
-    switch (contractors.get(contractorPrincipal)) {
+    switch (Map.get(contractors, Principal.compare, contractorPrincipal)) {
       case null { #ok(()) };  // contractor not registered — credential minted but no profile to update
       case (?existing) {
         let newScore : Nat = if (existing.trustScore + 2 > 100) 100 else existing.trustScore + 2;
@@ -401,7 +400,7 @@ persistent actor Contractor {
           isVerified    = existing.isVerified;
           createdAt     = existing.createdAt;
         };
-        contractors.put(contractorPrincipal, updated);
+        Map.add(contractors, Principal.compare, contractorPrincipal, updated);
         #ok(())
       };
     }
@@ -410,7 +409,7 @@ persistent actor Contractor {
   /// Returns all verified-job credentials for a given contractor.
   public query func getCredentials(contractorPrincipal: Principal) : async [JobCredential] {
     Iter.toArray(
-      Iter.filter(credentials.vals(), func(c: JobCredential) : Bool {
+      Iter.filter(Map.values(credentials), func(c: JobCredential) : Bool {
         c.contractorId == contractorPrincipal
       })
     )
@@ -429,7 +428,7 @@ persistent actor Contractor {
   /// Mark a contractor as verified (admin only).
   public shared(msg) func verifyContractor(c: Principal) : async Result.Result<ContractorProfile, Error> {
     if (not isAdmin(msg.caller)) return #err(#Unauthorized);
-    switch (contractors.get(c)) {
+    switch (Map.get(contractors, Principal.compare, c)) {
       case null { #err(#NotFound) };
       case (?existing) {
         let updated: ContractorProfile = {
@@ -446,7 +445,7 @@ persistent actor Contractor {
           isVerified    = true;
           createdAt     = existing.createdAt;
         };
-        contractors.put(c, updated);
+        Map.add(contractors, Principal.compare, c, updated);
         #ok(updated)
       };
     }
@@ -478,11 +477,11 @@ persistent actor Contractor {
 
   public query func getMetrics() : async Metrics {
     var verified = 0;
-    for (c in contractors.vals()) { if (c.isVerified) { verified += 1 } };
+    for (c in Map.values(contractors)) { if (c.isVerified) { verified += 1 } };
     {
-      totalContractors    = contractors.size();
+      totalContractors    = Map.size(contractors);
       verifiedContractors = verified;
-      totalReviews        = reviews.size();
+      totalReviews        = Map.size(reviews);
       isPaused;
     }
   };

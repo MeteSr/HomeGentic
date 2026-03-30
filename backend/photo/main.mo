@@ -4,15 +4,15 @@
  * SHA-256 duplicate prevention, and multi-approval verification.
  */
 
-import Array     "mo:base/Array";
-import HashMap   "mo:base/HashMap";
-import Iter      "mo:base/Iter";
-import Nat       "mo:base/Nat";
-import Option    "mo:base/Option";
-import Principal "mo:base/Principal";
-import Result    "mo:base/Result";
-import Text      "mo:base/Text";
-import Time      "mo:base/Time";
+import Array     "mo:core/Array";
+import Map       "mo:core/Map";
+import Iter      "mo:core/Iter";
+import Nat       "mo:core/Nat";
+import Option    "mo:core/Option";
+import Principal "mo:core/Principal";
+import Result    "mo:core/Result";
+import Text      "mo:core/Text";
+import Time      "mo:core/Time";
 
 persistent actor Photo {
 
@@ -91,31 +91,31 @@ persistent actor Photo {
 
   // ─── Transient State (rebuilt from stable after each upgrade) ────────────────
 
-  private transient var photos = HashMap.fromIter<Text, Photo>(
-    photoEntries.vals(), 16, Text.equal, Text.hash
+  private transient var photos = Map.fromIter<Text, Photo>(
+    photoEntries.vals(), Text.compare
   );
 
   // Separate index for O(1) duplicate detection without scanning all photos
-  private transient var hashIndex = HashMap.fromIter<Text, Text>(
-    hashIndexEntries.vals(), 16, Text.equal, Text.hash
+  private transient var hashIndex = Map.fromIter<Text, Text>(
+    hashIndexEntries.vals(), Text.compare
   );
 
-  private transient var tierGrants = HashMap.fromIter<Text, SubscriptionTier>(
-    tierGrantEntries.vals(), 16, Text.equal, Text.hash
+  private transient var tierGrants = Map.fromIter<Text, SubscriptionTier>(
+    tierGrantEntries.vals(), Text.compare
   );
 
   /// Per-minute upload rate limits keyed by principal text.
-  private transient var photoRateLimits = HashMap.fromIter<Text, (Nat, Int)>(
-    photoRateLimitEntries.vals(), 16, Text.equal, Text.hash
+  private transient var photoRateLimits = Map.fromIter<Text, (Nat, Int)>(
+    photoRateLimitEntries.vals(), Text.compare
   );
 
   // ─── Upgrade Hooks ───────────────────────────────────────────────────────────
 
   system func preupgrade() {
-    photoEntries          := Iter.toArray(photos.entries());
-    hashIndexEntries      := Iter.toArray(hashIndex.entries());
-    tierGrantEntries      := Iter.toArray(tierGrants.entries());
-    photoRateLimitEntries := Iter.toArray(photoRateLimits.entries());
+    photoEntries          := Iter.toArray(Map.entries(photos));
+    hashIndexEntries      := Iter.toArray(Map.entries(hashIndex));
+    tierGrantEntries      := Iter.toArray(Map.entries(tierGrants));
+    photoRateLimitEntries := Iter.toArray(Map.entries(photoRateLimits));
   };
 
   system func postupgrade() {
@@ -156,13 +156,13 @@ persistent actor Photo {
 
   private func countByJob(jobId: Text) : Nat {
     var n = 0;
-    for (p in photos.vals()) { if (p.jobId == jobId) { n += 1 } };
+    for (p in Map.values(photos)) { if (p.jobId == jobId) { n += 1 } };
     n
   };
 
   private func countByProperty(propertyId: Text) : Nat {
     var n = 0;
-    for (p in photos.vals()) { if (p.propertyId == propertyId) { n += 1 } };
+    for (p in Map.values(photos)) { if (p.propertyId == propertyId) { n += 1 } };
     n
   };
 
@@ -170,7 +170,7 @@ persistent actor Photo {
   /// Falls back to #Free for principals that have no admin-granted tier.
   /// Callers cannot influence this — it is set only via setTier() (admin-only).
   private func tierFor(p: Principal) : SubscriptionTier {
-    switch (tierGrants.get(Principal.toText(p))) {
+    switch (Map.get(tierGrants, Text.compare, Principal.toText(p))) {
       case (?t) { t };
       case null { #Free };
     }
@@ -184,19 +184,19 @@ persistent actor Photo {
   private func tryConsumePhotoSlot(uploader: Principal) : Bool {
     let key = Principal.toText(uploader);
     let now = Time.now();
-    switch (photoRateLimits.get(key)) {
+    switch (Map.get(photoRateLimits, Text.compare, key)) {
       case null {
-        photoRateLimits.put(key, (1, now));
+        Map.add(photoRateLimits, Text.compare, key, (1, now));
         true
       };
       case (?(count, windowStart)) {
         if (now - windowStart >= oneMinuteNs) {
-          photoRateLimits.put(key, (1, now));
+          Map.add(photoRateLimits, Text.compare, key, (1, now));
           true
         } else if (count >= perMinutePhotoLimit) {
           false
         } else {
-          photoRateLimits.put(key, (count + 1, windowStart));
+          Map.add(photoRateLimits, Text.compare, key, (count + 1, windowStart));
           true
         }
       };
@@ -231,7 +231,7 @@ persistent actor Photo {
     };
 
     // Duplicate check — O(1) via hash index
-    switch (hashIndex.get(hash)) {
+    switch (Map.get(hashIndex, Text.compare, hash)) {
       case (?existingId) { return #err(#Duplicate(existingId)) };
       case null          {};
     };
@@ -278,15 +278,15 @@ persistent actor Photo {
       createdAt   = Time.now();
     };
 
-    photos.put(id, photo);
-    hashIndex.put(hash, id);
+    Map.add(photos, Text.compare, id, photo);
+    Map.add(hashIndex, Text.compare, hash, id);
     #ok(photo)
   };
 
   /// Fetch the full photo record (including raw bytes).
   /// Caller must be the photo's owner or an admin.
   public shared(msg) func getPhoto(photoId: Text) : async Result.Result<Photo, Error> {
-    switch (photos.get(photoId)) {
+    switch (Map.get(photos, Text.compare, photoId)) {
       case null  { #err(#NotFound) };
       case (?p)  {
         if (p.owner != msg.caller and not isAdmin(msg.caller))
@@ -299,7 +299,7 @@ persistent actor Photo {
   /// Fetch only the raw bytes — avoids sending the full record for metadata-only callers.
   /// Caller must be the photo's owner or an admin.
   public shared(msg) func getPhotoData(photoId: Text) : async Result.Result<[Nat8], Error> {
-    switch (photos.get(photoId)) {
+    switch (Map.get(photos, Text.compare, photoId)) {
       case null  { #err(#NotFound) };
       case (?p)  {
         if (p.owner != msg.caller and not isAdmin(msg.caller))
@@ -315,7 +315,7 @@ persistent actor Photo {
     let syntheticJobId = "ROOM_" # roomId;
     let caller = msg.caller;
     let admin  = isAdmin(caller);
-    Iter.toArray(Iter.filter(photos.vals(), func(p: Photo) : Bool {
+    Iter.toArray(Iter.filter(Map.values(photos), func(p: Photo) : Bool {
       p.jobId == syntheticJobId and (admin or p.owner == caller)
     }))
   };
@@ -324,7 +324,7 @@ persistent actor Photo {
   public shared(msg) func getPhotosByJob(jobId: Text) : async [Photo] {
     let caller = msg.caller;
     let admin  = isAdmin(caller);
-    Iter.toArray(Iter.filter(photos.vals(), func(p: Photo) : Bool {
+    Iter.toArray(Iter.filter(Map.values(photos), func(p: Photo) : Bool {
       p.jobId == jobId and (admin or p.owner == caller)
     }))
   };
@@ -333,7 +333,7 @@ persistent actor Photo {
   public shared(msg) func getPhotosByProperty(propertyId: Text) : async [Photo] {
     let caller = msg.caller;
     let admin  = isAdmin(caller);
-    Iter.toArray(Iter.filter(photos.vals(), func(p: Photo) : Bool {
+    Iter.toArray(Iter.filter(Map.values(photos), func(p: Photo) : Bool {
       p.propertyId == propertyId and (admin or p.owner == caller)
     }))
   };
@@ -342,7 +342,7 @@ persistent actor Photo {
   public shared(msg) func getPhotosByPhase(jobId: Text, phase: ConstructionPhase) : async [Photo] {
     let caller = msg.caller;
     let admin  = isAdmin(caller);
-    Iter.toArray(Iter.filter(photos.vals(), func(p: Photo) : Bool {
+    Iter.toArray(Iter.filter(Map.values(photos), func(p: Photo) : Bool {
       p.jobId == jobId and p.phase == phase and (admin or p.owner == caller)
     }))
   };
@@ -353,7 +353,7 @@ persistent actor Photo {
   public shared(msg) func verifyPhoto(photoId: Text) : async Result.Result<Photo, Error> {
     switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (photos.get(photoId)) {
+    switch (Map.get(photos, Text.compare, photoId)) {
       case null { #err(#NotFound) };
       case (?existing) {
         if (existing.owner != msg.caller and not isAdmin(msg.caller))
@@ -378,7 +378,7 @@ persistent actor Photo {
           approvals   = Array.append(existing.approvals, [msg.caller]);
           createdAt   = existing.createdAt;
         };
-        photos.put(photoId, updated);
+        Map.add(photos, Text.compare, photoId, updated);
         #ok(updated)
       };
     }
@@ -388,13 +388,13 @@ persistent actor Photo {
   public shared(msg) func deletePhoto(photoId: Text) : async Result.Result<(), Error> {
     switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (photos.get(photoId)) {
+    switch (Map.get(photos, Text.compare, photoId)) {
       case null { #err(#NotFound) };
       case (?existing) {
         if (existing.owner != msg.caller and not isAdmin(msg.caller))
           return #err(#Unauthorized);
-        photos.delete(photoId);
-        hashIndex.delete(existing.hash);
+        Map.remove(photos, Text.compare, photoId);
+        Map.remove(hashIndex, Text.compare, existing.hash);
         #ok(())
       };
     }
@@ -407,7 +407,7 @@ persistent actor Photo {
   /// This is the only way to change quota limits — callers cannot pass their own tier.
   public shared(msg) func setTier(user: Principal, tier: SubscriptionTier) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#Unauthorized);
-    tierGrants.put(Principal.toText(user), tier);
+    Map.add(tierGrants, Text.compare, Principal.toText(user), tier);
     #ok(())
   };
 
@@ -439,12 +439,12 @@ persistent actor Photo {
   public query func getMetrics() : async Metrics {
     var verified   = 0;
     var totalBytes = 0;
-    for (p in photos.vals()) {
+    for (p in Map.values(photos)) {
       if (p.verified) { verified += 1 };
       totalBytes += p.size;
     };
     {
-      totalPhotos       = photos.size();
+      totalPhotos       = Map.size(photos);
       verifiedPhotos    = verified;
       totalStorageBytes = totalBytes;
       isPaused;

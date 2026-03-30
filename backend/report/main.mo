@@ -13,19 +13,19 @@
  * exactly as it was when the homeowner generated the report.
  */
 
-import Array     "mo:base/Array";
-import Blob      "mo:base/Blob";
-import HashMap   "mo:base/HashMap";
-import Int        "mo:base/Int";
-import Iter       "mo:base/Iter";
-import Nat        "mo:base/Nat";
-import Nat8       "mo:base/Nat8";
-import Option     "mo:base/Option";
-import Principal  "mo:base/Principal";
-import Random     "mo:base/Random";
-import Result     "mo:base/Result";
-import Text       "mo:base/Text";
-import Time       "mo:base/Time";
+import Array     "mo:core/Array";
+import Blob      "mo:core/Blob";
+import Map       "mo:core/Map";
+import Int        "mo:core/Int";
+import Iter       "mo:core/Iter";
+import Nat        "mo:core/Nat";
+import Nat8       "mo:core/Nat8";
+import Option     "mo:core/Option";
+import Principal  "mo:core/Principal";
+import Random     "mo:core/Random";
+import Result     "mo:core/Result";
+import Text       "mo:core/Text";
+import Time       "mo:core/Time";
 
 persistent actor Report {
 
@@ -231,17 +231,17 @@ persistent actor Report {
   // Initialised empty — postupgrade() populates both HashMaps so that we avoid
   // any type mismatch between the V0 stable arrays and the V1 HashMap types.
 
-  private transient var snapshots = HashMap.HashMap<Text, ReportSnapshot>(64, Text.equal, Text.hash);
-  private transient var links     = HashMap.HashMap<Text, ShareLink>(64, Text.equal, Text.hash);
-  private transient var certs     = HashMap.HashMap<Text, CertRecord>(16, Text.equal, Text.hash);
+  private transient var snapshots = Map.empty<Text, ReportSnapshot>();
+  private transient var links     = Map.empty<Text, ShareLink>();
+  private transient var certs     = Map.empty<Text, CertRecord>();
 
   // ─── Upgrade Hooks ────────────────────────────────────────────────────────────
 
   system func preupgrade() {
     // Always save current data to V2 arrays for the next upgrade.
-    snapshotEntriesV2 := Iter.toArray(snapshots.entries());
-    linkEntriesV2     := Iter.toArray(links.entries());
-    certEntries       := Iter.toArray(certs.entries());
+    snapshotEntriesV2 := Iter.toArray(Map.entries(snapshots));
+    linkEntriesV2     := Iter.toArray(Map.entries(links));
+    certEntries       := Iter.toArray(Map.entries(certs));
   };
 
   system func postupgrade() {
@@ -249,7 +249,7 @@ persistent actor Report {
     // linkEntries / snapshotEntries hold old records without the new fields.
     // Migrate them into the HashMaps with safe defaults, then clear.
     for ((k, v) in linkEntries.vals()) {
-      links.put(k, {
+      Map.add(links, Text.compare, k, {
         token            = v.token;
         snapshotId       = v.snapshotId;
         propertyId       = v.propertyId;
@@ -268,7 +268,7 @@ persistent actor Report {
     linkEntries := [];
 
     for ((k, v) in snapshotEntries.vals()) {
-      snapshots.put(k, {
+      Map.add(snapshots, Text.compare, k, {
         snapshotId        = v.snapshotId;
         propertyId        = v.propertyId;
         generatedBy       = v.generatedBy;
@@ -294,18 +294,18 @@ persistent actor Report {
 
     // ── Normal restore from V2 (all upgrades after 1.4.7) ─────────────────────
     for ((k, v) in linkEntriesV2.vals()) {
-      links.put(k, v);
+      Map.add(links, Text.compare, k, v);
     };
     linkEntriesV2 := [];
 
     for ((k, v) in snapshotEntriesV2.vals()) {
-      snapshots.put(k, v);
+      Map.add(snapshots, Text.compare, k, v);
     };
     snapshotEntriesV2 := [];
 
     // Restore certs (starts empty on first deploy; populated on subsequent upgrades).
     for ((k, v) in certEntries.vals()) {
-      certs.put(k, v);
+      Map.add(certs, Text.compare, k, v);
     };
     certEntries := [];
   };
@@ -524,7 +524,7 @@ persistent actor Report {
       permitCount        = countPermits(jobs);
       generatedAt        = now;
     };
-    snapshots.put(snapshotId, snapshot);
+    Map.add(snapshots, Text.compare, snapshotId, snapshot);
 
     let expiresAt : ?Time.Time = switch (expiryDays) {
       case null    { null };
@@ -546,7 +546,7 @@ persistent actor Report {
       hidePermits;
       hideDescriptions;
     };
-    links.put(token, link);
+    Map.add(links, Text.compare, token, link);
     #ok(link)
   };
 
@@ -555,13 +555,13 @@ persistent actor Report {
   /// Fetch the report snapshot for a share token.
   /// Increments view count; returns error if expired or revoked.
   public shared func getReport(token: Text) : async Result.Result<(ShareLink, ReportSnapshot), Error> {
-    switch (links.get(token)) {
+    switch (Map.get(links, Text.compare, token)) {
       case null { #err(#NotFound) };
       case (?link) {
         if (not link.isActive) return #err(#Revoked);
         if (isExpired(link))   return #err(#Expired);
 
-        switch (snapshots.get(link.snapshotId)) {
+        switch (Map.get(snapshots, Text.compare, link.snapshotId)) {
           case null      { #err(#NotFound) };
           case (?snap)   {
             // Increment view count
@@ -580,7 +580,7 @@ persistent actor Report {
               hidePermits      = link.hidePermits;
               hideDescriptions = link.hideDescriptions;
             };
-            links.put(token, updated);
+            Map.add(links, Text.compare, token, updated);
             // 14.2.3 — enforce disclosure flags on-chain before returning
             #ok((updated, applyDisclosure(snap, updated)))
           };
@@ -593,14 +593,14 @@ persistent actor Report {
 
   /// List all share links the caller created for a property.
   public shared(msg) func listShareLinks(propertyId: Text) : async [ShareLink] {
-    Iter.toArray(Iter.filter(links.vals(), func(l: ShareLink) : Bool {
+    Iter.toArray(Iter.filter(Map.values(links), func(l: ShareLink) : Bool {
       l.propertyId == propertyId and l.createdBy == msg.caller
     }))
   };
 
   /// Revoke a share link. Only the creator or an admin can do this.
   public shared(msg) func revokeShareLink(token: Text) : async Result.Result<(), Error> {
-    switch (links.get(token)) {
+    switch (Map.get(links, Text.compare, token)) {
       case null { #err(#NotFound) };
       case (?link) {
         if (link.createdBy != msg.caller and not isAdmin(msg.caller))
@@ -620,7 +620,7 @@ persistent actor Report {
           hidePermits      = link.hidePermits;
           hideDescriptions = link.hideDescriptions;
         };
-        links.put(token, revoked);
+        Map.add(links, Text.compare, token, revoked);
         #ok(())
       };
     }
@@ -678,14 +678,14 @@ persistent actor Report {
       payload    = payload;
       issuedAt   = Time.now();
     };
-    certs.put(certId, record);
+    Map.add(certs, Text.compare, certId, record);
     certId
   };
 
   /// Verify a cert by id. Returns the stored payload (JSON) or null.
   /// Public query — no authentication required; safe for lenders to call.
   public query func verifyCert(certId: Text) : async ?Text {
-    switch (certs.get(certId)) {
+    switch (Map.get(certs, Text.compare, certId)) {
       case null  null;
       case (?r)  ?r.payload;
     }
@@ -694,13 +694,13 @@ persistent actor Report {
   public query func getMetrics() : async Metrics {
     var active = 0;
     var views  = 0;
-    for (l in links.vals()) {
+    for (l in Map.values(links)) {
       if (l.isActive and not isExpired(l)) { active += 1 };
       views += l.viewCount;
     };
     {
-      totalReports    = snapshots.size();
-      totalShareLinks = links.size();
+      totalReports    = Map.size(snapshots);
+      totalShareLinks = Map.size(links);
       activeLinks     = active;
       totalViews      = views;
       isPaused;

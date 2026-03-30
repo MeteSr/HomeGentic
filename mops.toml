@@ -3,4 +3,4 @@ name = "homefax"
 version = "0.1.0"
 
 [dependencies]
-base = "0.11.3"
+core = "2.3.1"

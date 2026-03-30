@@ -23,6 +23,7 @@ import { marketService, jobToSummary, type PropertyProfile, type ProjectRecommen
 import { getRecentScoreEvents, categoryColor, categoryBg, type ScoreEvent } from "@/services/scoreEventService";
 import toast from "react-hot-toast";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { NeighborhoodBenchmark } from "@/components/NeighborhoodBenchmark";
 
 const S = {
   ink:      COLORS.plum,
@@ -803,6 +804,13 @@ export default function DashboardPage() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Neighborhood Benchmark (4.3.2) */}
+        {!loading && activeProperty?.zipCode && (
+          <div style={{ marginBottom: "2rem" }}>
+            <NeighborhoodBenchmark zipCode={activeProperty.zipCode} score={homefaxScore} />
           </div>
         )}
 

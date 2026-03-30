@@ -4,16 +4,16 @@
  * Homeowners post requests; contractors submit quotes; homeowner accepts one.
  */
 
-import Array    "mo:base/Array";
-import HashMap  "mo:base/HashMap";
-import Int      "mo:base/Int";
-import Iter     "mo:base/Iter";
-import Nat      "mo:base/Nat";
-import Option   "mo:base/Option";
-import Principal "mo:base/Principal";
-import Result   "mo:base/Result";
-import Text     "mo:base/Text";
-import Time     "mo:base/Time";
+import Array    "mo:core/Array";
+import Map      "mo:core/Map";
+import Int      "mo:core/Int";
+import Iter     "mo:core/Iter";
+import Nat      "mo:core/Nat";
+import Option   "mo:core/Option";
+import Principal "mo:core/Principal";
+import Result   "mo:core/Result";
+import Text     "mo:core/Text";
+import Time     "mo:core/Time";
 
 persistent actor Quote {
 
@@ -112,30 +112,30 @@ persistent actor Quote {
 
   // ─── Transient State ─────────────────────────────────────────────────────────
 
-  private transient var requests = HashMap.fromIter<Text, QuoteRequest>(
-    requestEntries.vals(), 16, Text.equal, Text.hash
+  private transient var requests = Map.fromIter<Text, QuoteRequest>(
+    requestEntries.vals(), Text.compare
   );
 
-  private transient var quotes = HashMap.fromIter<Text, Quote>(
-    quoteEntries.vals(), 16, Text.equal, Text.hash
+  private transient var quotes = Map.fromIter<Text, Quote>(
+    quoteEntries.vals(), Text.compare
   );
 
   // tracks daily submission counts per contractor
-  private transient var contractorRateLimits = HashMap.fromIter<Principal, (Nat, Int)>(
-    rateLimitEntries.vals(), 16, Principal.equal, Principal.hash
+  private transient var contractorRateLimits = Map.fromIter<Principal, (Nat, Int)>(
+    rateLimitEntries.vals(), Principal.compare
   );
 
-  private transient var tierGrants = HashMap.fromIter<Text, SubscriptionTier>(
-    tierGrantEntries.vals(), 16, Text.equal, Text.hash
+  private transient var tierGrants = Map.fromIter<Text, SubscriptionTier>(
+    tierGrantEntries.vals(), Text.compare
   );
 
   // ─── Upgrade Hooks ───────────────────────────────────────────────────────────
 
   system func preupgrade() {
-    requestEntries   := Iter.toArray(requests.entries());
-    quoteEntries     := Iter.toArray(quotes.entries());
-    rateLimitEntries := Iter.toArray(contractorRateLimits.entries());
-    tierGrantEntries := Iter.toArray(tierGrants.entries());
+    requestEntries   := Iter.toArray(Map.entries(requests));
+    quoteEntries     := Iter.toArray(Map.entries(quotes));
+    rateLimitEntries := Iter.toArray(Map.entries(contractorRateLimits));
+    tierGrantEntries := Iter.toArray(Map.entries(tierGrants));
   };
 
   system func postupgrade() {
@@ -176,7 +176,7 @@ persistent actor Quote {
   /// Count open requests for a homeowner.
   private func countOpenRequests(homeowner: Principal) : Nat {
     var n = 0;
-    for (r in requests.vals()) {
+    for (r in Map.values(requests)) {
       if (r.homeowner == homeowner and r.status == #Open) { n += 1 };
     };
     n
@@ -196,7 +196,7 @@ persistent actor Quote {
   /// Falls back to #Free for principals without an admin-granted tier.
   /// Callers cannot influence this — it is set only via setTier() (admin-only).
   private func tierFor(p: Principal) : SubscriptionTier {
-    switch (tierGrants.get(Principal.toText(p))) {
+    switch (Map.get(tierGrants, Text.compare, Principal.toText(p))) {
       case (?t) { t };
       case null { #Free };
     }
@@ -206,20 +206,20 @@ persistent actor Quote {
   /// Resets the window when 24 h have elapsed.
   private func tryConsumeSubmissionSlot(contractor: Principal) : Bool {
     let now = Time.now();
-    switch (contractorRateLimits.get(contractor)) {
+    switch (Map.get(contractorRateLimits, Principal.compare, contractor)) {
       case null {
-        contractorRateLimits.put(contractor, (1, now));
+        Map.add(contractorRateLimits, Principal.compare, contractor, (1, now));
         true
       };
       case (?(count, windowStart)) {
         if (now - windowStart >= oneDayNs) {
           // new day — reset window
-          contractorRateLimits.put(contractor, (1, now));
+          Map.add(contractorRateLimits, Principal.compare, contractor, (1, now));
           true
         } else if (count >= dailyQuoteLimit) {
           false
         } else {
-          contractorRateLimits.put(contractor, (count + 1, windowStart));
+          Map.add(contractorRateLimits, Principal.compare, contractor, (count + 1, windowStart));
           true
         }
       };
@@ -274,13 +274,13 @@ persistent actor Quote {
       status = #Open;
       createdAt = Time.now();
     };
-    requests.put(id, req);
+    Map.add(requests, Text.compare, id, req);
     #ok(req)
   };
 
   /// Fetch a single quote request by ID.
   public query func getQuoteRequest(requestId: Text) : async Result.Result<QuoteRequest, Error> {
-    switch (requests.get(requestId)) {
+    switch (Map.get(requests, Text.compare, requestId)) {
       case null { #err(#NotFound) };
       case (?r) { #ok(r) };
     }
@@ -289,7 +289,7 @@ persistent actor Quote {
   /// Fetch all open or quoted requests — visible to any contractor browsing the marketplace.
   public query func getOpenRequests() : async [QuoteRequest] {
     Iter.toArray(
-      Iter.filter(requests.vals(), func(r: QuoteRequest) : Bool {
+      Iter.filter(Map.values(requests), func(r: QuoteRequest) : Bool {
         r.status == #Open or r.status == #Quoted
       })
     )
@@ -298,7 +298,7 @@ persistent actor Quote {
   /// Fetch all requests created by the caller.
   public query(msg) func getMyQuoteRequests() : async [QuoteRequest] {
     Iter.toArray(
-      Iter.filter(requests.vals(), func(r: QuoteRequest) : Bool {
+      Iter.filter(Map.values(requests), func(r: QuoteRequest) : Bool {
         r.homeowner == msg.caller
       })
     )
@@ -314,7 +314,7 @@ persistent actor Quote {
   ) : async Result.Result<Quote, Error> {
     switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (requests.get(requestId)) {
+    switch (Map.get(requests, Text.compare, requestId)) {
       case null { return #err(#NotFound) };
       case (?req) {
         if (req.status != #Open and req.status != #Quoted)
@@ -339,7 +339,7 @@ persistent actor Quote {
           status = #Pending;
           createdAt = Time.now();
         };
-        quotes.put(id, q);
+        Map.add(quotes, Text.compare, id, q);
 
         // Advance request status to #Quoted if still #Open
         if (req.status == #Open) {
@@ -353,7 +353,7 @@ persistent actor Quote {
             status          = #Quoted;
             createdAt       = req.createdAt;
           };
-          requests.put(requestId, updated);
+          Map.add(requests, Text.compare, requestId, updated);
         };
 
         #ok(q)
@@ -363,11 +363,11 @@ persistent actor Quote {
 
   /// Fetch all quotes for a given request (visible to anyone).
   public query func getQuotesForRequest(requestId: Text) : async Result.Result<[Quote], Error> {
-    switch (requests.get(requestId)) {
+    switch (Map.get(requests, Text.compare, requestId)) {
       case null { #err(#NotFound) };
       case _ {
         let matches = Iter.toArray(
-          Iter.filter(quotes.vals(), func(q: Quote) : Bool { q.requestId == requestId })
+          Iter.filter(Map.values(quotes), func(q: Quote) : Bool { q.requestId == requestId })
         );
         #ok(matches)
       };
@@ -379,10 +379,10 @@ persistent actor Quote {
   public shared(msg) func acceptQuote(quoteId: Text) : async Result.Result<Quote, Error> {
     switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (quotes.get(quoteId)) {
+    switch (Map.get(quotes, Text.compare, quoteId)) {
       case null { return #err(#NotFound) };
       case (?q) {
-        switch (requests.get(q.requestId)) {
+        switch (Map.get(requests, Text.compare, q.requestId)) {
           case null { return #err(#NotFound) };
           case (?req) {
             if (req.homeowner != msg.caller) return #err(#Unauthorized);
@@ -401,10 +401,10 @@ persistent actor Quote {
               status     = #Accepted;
               createdAt  = q.createdAt;
             };
-            quotes.put(quoteId, accepted);
+            Map.add(quotes, Text.compare, quoteId, accepted);
 
             // Reject all other pending quotes for the same request
-            for ((otherId, other) in quotes.entries()) {
+            for ((otherId, other) in Map.entries(quotes)) {
               if (other.requestId == q.requestId and otherId != quoteId
                   and other.status == #Pending) {
                 let rejected: Quote = {
@@ -417,7 +417,7 @@ persistent actor Quote {
                   status     = #Rejected;
                   createdAt  = other.createdAt;
                 };
-                quotes.put(otherId, rejected);
+                Map.add(quotes, Text.compare, otherId, rejected);
               };
             };
 
@@ -432,7 +432,7 @@ persistent actor Quote {
               status      = #Accepted;
               createdAt   = req.createdAt;
             };
-            requests.put(req.id, closed);
+            Map.add(requests, Text.compare, req.id, closed);
 
             #ok(accepted)
           };
@@ -445,7 +445,7 @@ persistent actor Quote {
   public shared(msg) func closeQuoteRequest(requestId: Text) : async Result.Result<QuoteRequest, Error> {
     switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (requests.get(requestId)) {
+    switch (Map.get(requests, Text.compare, requestId)) {
       case null { #err(#NotFound) };
       case (?req) {
         if (req.homeowner != msg.caller) return #err(#Unauthorized);
@@ -462,7 +462,7 @@ persistent actor Quote {
           status      = #Closed;
           createdAt   = req.createdAt;
         };
-        requests.put(requestId, updated);
+        Map.add(requests, Text.compare, requestId, updated);
         #ok(updated)
       };
     }
@@ -475,7 +475,7 @@ persistent actor Quote {
   /// This is the only authoritative source for tier limits — callers cannot spoof.
   public shared(msg) func setTier(user: Principal, tier: SubscriptionTier) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#Unauthorized);
-    tierGrants.put(Principal.toText(user), tier);
+    Map.add(tierGrants, Text.compare, Principal.toText(user), tier);
     #ok(())
   };
 
@@ -507,7 +507,7 @@ persistent actor Quote {
   public query func getMetrics() : async Metrics {
     var open     = 0;
     var accepted = 0;
-    for (r in requests.vals()) {
+    for (r in Map.values(requests)) {
       switch (r.status) {
         case (#Open or #Quoted) { open     += 1 };
         case (#Accepted)        { accepted += 1 };
@@ -515,10 +515,10 @@ persistent actor Quote {
       };
     };
     {
-      totalRequests   = requests.size();
+      totalRequests   = Map.size(requests);
       openRequests    = open;
       acceptedRequests = accepted;
-      totalQuotes     = quotes.size();
+      totalQuotes     = Map.size(quotes);
       isPaused;
     }
   };

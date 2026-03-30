@@ -13,16 +13,16 @@
  *                         → if Critical → jobCanister.createSensorJob()
  */
 
-import Array    "mo:base/Array";
-import Float    "mo:base/Float";
-import HashMap  "mo:base/HashMap";
-import Iter     "mo:base/Iter";
-import Nat      "mo:base/Nat";
-import Option   "mo:base/Option";
-import Principal "mo:base/Principal";
-import Result   "mo:base/Result";
-import Text     "mo:base/Text";
-import Time     "mo:base/Time";
+import Array    "mo:core/Array";
+import Float    "mo:core/Float";
+import Map      "mo:core/Map";
+import Iter     "mo:core/Iter";
+import Nat      "mo:core/Nat";
+import Option   "mo:core/Option";
+import Principal "mo:core/Principal";
+import Result   "mo:core/Result";
+import Text     "mo:core/Text";
+import Time     "mo:core/Time";
 
 persistent actor Sensor {
 
@@ -111,23 +111,23 @@ persistent actor Sensor {
 
   // ─── Transient State ─────────────────────────────────────────────────────
 
-  private transient var devices = HashMap.fromIter<Text, SensorDevice>(
-    devicesEntries.vals(), 16, Text.equal, Text.hash
+  private transient var devices = Map.fromIter<Text, SensorDevice>(
+    devicesEntries.vals(), Text.compare
   );
-  private transient var events = HashMap.fromIter<Text, SensorEvent>(
-    eventsEntries.vals(), 64, Text.equal, Text.hash
+  private transient var events = Map.fromIter<Text, SensorEvent>(
+    eventsEntries.vals(), Text.compare
   );
   // externalDeviceId → internal device id
-  private transient var externalIdIdx = HashMap.fromIter<Text, Text>(
-    externalIdIdxEntries.vals(), 16, Text.equal, Text.hash
+  private transient var externalIdIdx = Map.fromIter<Text, Text>(
+    externalIdIdxEntries.vals(), Text.compare
   );
 
   // ─── Upgrade Hooks ────────────────────────────────────────────────────────
 
   system func preupgrade() {
-    devicesEntries       := Iter.toArray(devices.entries());
-    eventsEntries        := Iter.toArray(events.entries());
-    externalIdIdxEntries := Iter.toArray(externalIdIdx.entries());
+    devicesEntries       := Iter.toArray(Map.entries(devices));
+    eventsEntries        := Iter.toArray(Map.entries(events));
+    externalIdIdxEntries := Iter.toArray(Map.entries(externalIdIdx));
   };
 
   system func postupgrade() {
@@ -257,7 +257,7 @@ persistent actor Sensor {
     if (Text.size(externalDeviceId) == 0) return #err(#InvalidInput("externalDeviceId required"));
     if (Text.size(name)             == 0) return #err(#InvalidInput("name required"));
 
-    switch (externalIdIdx.get(externalDeviceId)) {
+    switch (Map.get(externalIdIdx, Text.compare, externalDeviceId)) {
       case (?_) { return #err(#AlreadyExists) };
       case null {};
     };
@@ -274,15 +274,15 @@ persistent actor Sensor {
       isActive         = true;
     };
 
-    devices.put(id, device);
-    externalIdIdx.put(externalDeviceId, id);
+    Map.add(devices, Text.compare, id, device);
+    Map.add(externalIdIdx, Text.compare, externalDeviceId, id);
     #ok(device)
   };
 
   /// Deactivate a device (owner or admin only).
   public shared(msg) func deactivateDevice(deviceId: Text) : async Result.Result<(), Error> {
     switch (requireActive()) { case (#err e) return #err e; case _ {} };
-    switch (devices.get(deviceId)) {
+    switch (Map.get(devices, Text.compare, deviceId)) {
       case null { #err(#NotFound) };
       case (?d) {
         if (d.homeowner != msg.caller and not isAdmin(msg.caller))
@@ -297,7 +297,7 @@ persistent actor Sensor {
           registeredAt     = d.registeredAt;
           isActive         = false;
         };
-        devices.put(deviceId, updated);
+        Map.add(devices, Text.compare, deviceId, updated);
         #ok(())
       };
     }
@@ -305,7 +305,7 @@ persistent actor Sensor {
 
   public query func getDevicesForProperty(propertyId: Text) : async [SensorDevice] {
     Iter.toArray(
-      Iter.filter(devices.vals(), func(d: SensorDevice) : Bool {
+      Iter.filter(Map.values(devices), func(d: SensorDevice) : Bool {
         d.propertyId == propertyId and d.isActive
       })
     )
@@ -336,11 +336,11 @@ persistent actor Sensor {
     if (Text.size(rawPayload) > MAX_PAYLOAD_BYTES)
       return #err(#InvalidInput("rawPayload exceeds 4096-byte limit"));
 
-    let deviceId = switch (externalIdIdx.get(externalDeviceId)) {
+    let deviceId = switch (Map.get(externalIdIdx, Text.compare, externalDeviceId)) {
       case null     { return #err(#NotFound) };
       case (?id)    { id };
     };
-    let device = switch (devices.get(deviceId)) {
+    let device = switch (Map.get(devices, Text.compare, deviceId)) {
       case null  { return #err(#NotFound) };
       case (?d)  { d };
     };
@@ -389,13 +389,13 @@ persistent actor Sensor {
       jobId      = maybeJobId;
     };
 
-    events.put(eventId, event);
+    Map.add(events, Text.compare, eventId, event);
     #ok(event)
   };
 
   public query func getEventsForProperty(propertyId: Text, limit: Nat) : async [SensorEvent] {
     let all = Iter.toArray(
-      Iter.filter(events.vals(), func(e: SensorEvent) : Bool {
+      Iter.filter(Map.values(events), func(e: SensorEvent) : Bool {
         e.propertyId == propertyId
       })
     );
@@ -408,7 +408,7 @@ persistent actor Sensor {
 
   public query func getPendingAlerts(propertyId: Text) : async [SensorEvent] {
     Iter.toArray(
-      Iter.filter(events.vals(), func(e: SensorEvent) : Bool {
+      Iter.filter(Map.values(events), func(e: SensorEvent) : Bool {
         e.propertyId == propertyId and isAlertworthy(e.severity)
       })
     )
@@ -458,12 +458,12 @@ persistent actor Sensor {
   public query func getMetrics() : async Metrics {
     var active   : Nat = 0;
     var critical : Nat = 0;
-    for (d in devices.vals()) { if (d.isActive) { active += 1 } };
-    for (e in events.vals())  { if (isCritical(e.severity)) { critical += 1 } };
+    for (d in Map.values(devices)) { if (d.isActive) { active += 1 } };
+    for (e in Map.values(events))  { if (isCritical(e.severity)) { critical += 1 } };
     {
-      totalDevices   = devices.size();
+      totalDevices   = Map.size(devices);
       activeDevices  = active;
-      totalEvents    = events.size();
+      totalEvents    = Map.size(events);
       criticalEvents = critical;
       jobsCreated    = jobsCreatedCount;
       isPaused;

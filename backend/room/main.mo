@@ -12,15 +12,15 @@
  *   - All text fields are size-capped to prevent abuse.
  */
 
-import Array     "mo:base/Array";
-import HashMap   "mo:base/HashMap";
-import Iter      "mo:base/Iter";
-import Nat       "mo:base/Nat";
-import Option    "mo:base/Option";
-import Principal "mo:base/Principal";
-import Result    "mo:base/Result";
-import Text      "mo:base/Text";
-import Time      "mo:base/Time";
+import Array     "mo:core/Array";
+import Map       "mo:core/Map";
+import Iter      "mo:core/Iter";
+import Nat       "mo:core/Nat";
+import Option    "mo:core/Option";
+import Principal "mo:core/Principal";
+import Result    "mo:core/Result";
+import Text      "mo:core/Text";
+import Time      "mo:core/Time";
 
 persistent actor Room {
 
@@ -106,14 +106,14 @@ persistent actor Room {
 
   // ─── Transient State ─────────────────────────────────────────────────────────
 
-  private transient var rooms = HashMap.fromIter<Text, RoomRecord>(
-    roomEntries.vals(), 16, Text.equal, Text.hash
+  private transient var rooms = Map.fromIter<Text, RoomRecord>(
+    roomEntries.vals(), Text.compare
   );
 
   // ─── Upgrade Hooks ───────────────────────────────────────────────────────────
 
   system func preupgrade() {
-    roomEntries := Iter.toArray(rooms.entries());
+    roomEntries := Iter.toArray(Map.entries(rooms));
   };
 
   system func postupgrade() {
@@ -202,13 +202,13 @@ persistent actor Room {
       updatedAt  = now;
     };
 
-    rooms.put(room.id, room);
+    Map.add(rooms, Text.compare, room.id, room);
     #ok(room)
   };
 
   /// Fetch a single room by ID.
   public query func getRoom(id: Text) : async Result.Result<RoomRecord, Error> {
-    switch (rooms.get(id)) {
+    switch (Map.get(rooms, Text.compare, id)) {
       case null  { #err(#NotFound) };
       case (?r)  { #ok(r) };
     }
@@ -217,7 +217,7 @@ persistent actor Room {
   /// Fetch all rooms for a property.
   public query func getRoomsByProperty(propertyId: Text) : async [RoomRecord] {
     Iter.toArray(
-      Iter.filter(rooms.vals(), func(r: RoomRecord) : Bool { r.propertyId == propertyId })
+      Iter.filter(Map.values(rooms), func(r: RoomRecord) : Bool { r.propertyId == propertyId })
     )
   };
 
@@ -225,7 +225,7 @@ persistent actor Room {
   public shared(msg) func updateRoom(id: Text, args: UpdateRoomArgs) : async Result.Result<RoomRecord, Error> {
     switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (rooms.get(id)) {
+    switch (Map.get(rooms, Text.compare, id)) {
       case null { #err(#NotFound) };
       case (?existing) {
         if (existing.owner != msg.caller) return #err(#Unauthorized);
@@ -251,7 +251,7 @@ persistent actor Room {
           createdAt  = existing.createdAt;
           updatedAt  = Time.now();
         };
-        rooms.put(id, updated);
+        Map.add(rooms, Text.compare, id, updated);
         #ok(updated)
       };
     }
@@ -261,11 +261,11 @@ persistent actor Room {
   public shared(msg) func deleteRoom(id: Text) : async Result.Result<(), Error> {
     switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (rooms.get(id)) {
+    switch (Map.get(rooms, Text.compare, id)) {
       case null    { #err(#NotFound) };
       case (?room) {
         if (room.owner != msg.caller) return #err(#Unauthorized);
-        rooms.delete(id);
+        Map.remove(rooms, Text.compare, id);
         #ok(())
       };
     }
@@ -277,7 +277,7 @@ persistent actor Room {
   public shared(msg) func addFixture(roomId: Text, args: AddFixtureArgs) : async Result.Result<RoomRecord, Error> {
     switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (rooms.get(roomId)) {
+    switch (Map.get(rooms, Text.compare, roomId)) {
       case null    { #err(#NotFound) };
       case (?room) {
         if (room.owner != msg.caller) return #err(#Unauthorized);
@@ -312,7 +312,7 @@ persistent actor Room {
           createdAt  = room.createdAt;
           updatedAt  = Time.now();
         };
-        rooms.put(roomId, updated);
+        Map.add(rooms, Text.compare, roomId, updated);
         #ok(updated)
       };
     }
@@ -322,7 +322,7 @@ persistent actor Room {
   public shared(msg) func updateFixture(roomId: Text, fixtureId: Text, args: AddFixtureArgs) : async Result.Result<RoomRecord, Error> {
     switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (rooms.get(roomId)) {
+    switch (Map.get(rooms, Text.compare, roomId)) {
       case null    { #err(#NotFound) };
       case (?room) {
         if (room.owner != msg.caller) return #err(#Unauthorized);
@@ -367,7 +367,7 @@ persistent actor Room {
           createdAt  = room.createdAt;
           updatedAt  = Time.now();
         };
-        rooms.put(roomId, updated);
+        Map.add(rooms, Text.compare, roomId, updated);
         #ok(updated)
       };
     }
@@ -377,7 +377,7 @@ persistent actor Room {
   public shared(msg) func removeFixture(roomId: Text, fixtureId: Text) : async Result.Result<RoomRecord, Error> {
     switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (rooms.get(roomId)) {
+    switch (Map.get(rooms, Text.compare, roomId)) {
       case null    { #err(#NotFound) };
       case (?room) {
         if (room.owner != msg.caller) return #err(#Unauthorized);
@@ -395,7 +395,7 @@ persistent actor Room {
           createdAt  = room.createdAt;
           updatedAt  = Time.now();
         };
-        rooms.put(roomId, updated);
+        Map.add(rooms, Text.compare, roomId, updated);
         #ok(updated)
       };
     }
@@ -405,11 +405,11 @@ persistent actor Room {
 
   public query func getMetrics() : async Metrics {
     var totalFixtures = 0;
-    for (r in rooms.vals()) {
+    for (r in Map.values(rooms)) {
       totalFixtures += r.fixtures.size();
     };
     {
-      totalRooms    = rooms.size();
+      totalRooms    = Map.size(rooms);
       totalFixtures;
       isPaused;
     }

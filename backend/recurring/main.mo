@@ -10,15 +10,15 @@
  *   - Buyer-facing summary: provider, contract status, frequency, last visit
  */
 
-import Array     "mo:base/Array";
-import HashMap   "mo:base/HashMap";
-import Iter      "mo:base/Iter";
-import Nat        "mo:base/Nat";
-import Option    "mo:base/Option";
-import Principal "mo:base/Principal";
-import Result    "mo:base/Result";
-import Text      "mo:base/Text";
-import Time      "mo:base/Time";
+import Array     "mo:core/Array";
+import Map       "mo:core/Map";
+import Iter      "mo:core/Iter";
+import Nat        "mo:core/Nat";
+import Option    "mo:core/Option";
+import Principal "mo:core/Principal";
+import Result    "mo:core/Result";
+import Text      "mo:core/Text";
+import Time      "mo:core/Time";
 
 persistent actor Recurring {
 
@@ -102,19 +102,19 @@ persistent actor Recurring {
 
   // ─── Transient State ─────────────────────────────────────────────────────────
 
-  private transient var services = HashMap.fromIter<Text, RecurringService>(
-    recurringEntries.vals(), 16, Text.equal, Text.hash
+  private transient var services = Map.fromIter<Text, RecurringService>(
+    recurringEntries.vals(), Text.compare
   );
 
-  private transient var visits = HashMap.fromIter<Text, VisitLog>(
-    visitEntries.vals(), 64, Text.equal, Text.hash
+  private transient var visits = Map.fromIter<Text, VisitLog>(
+    visitEntries.vals(), Text.compare
   );
 
   // ─── Upgrade Hooks ───────────────────────────────────────────────────────────
 
   system func preupgrade() {
-    recurringEntries := Iter.toArray(services.entries());
-    visitEntries     := Iter.toArray(visits.entries());
+    recurringEntries := Iter.toArray(Map.entries(services));
+    visitEntries     := Iter.toArray(Map.entries(visits));
   };
 
   system func postupgrade() {
@@ -187,13 +187,13 @@ persistent actor Recurring {
       createdAt          = now;
     };
 
-    services.put(id, svc);
+    Map.add(services, Text.compare, id, svc);
     #ok(svc)
   };
 
   /// Fetch a single recurring service by ID.
   public query func getRecurringService(serviceId: Text) : async Result.Result<RecurringService, Error> {
-    switch (services.get(serviceId)) {
+    switch (Map.get(services, Text.compare, serviceId)) {
       case null  { #err(#NotFound) };
       case (?s)  { #ok(s) };
     }
@@ -202,7 +202,7 @@ persistent actor Recurring {
   /// Fetch all recurring services for a given property.
   public query func getByProperty(propertyId: Text) : async [RecurringService] {
     Iter.toArray(
-      Iter.filter(services.vals(), func(s: RecurringService) : Bool {
+      Iter.filter(Map.values(services), func(s: RecurringService) : Bool {
         s.propertyId == propertyId
       })
     )
@@ -217,7 +217,7 @@ persistent actor Recurring {
   ) : async Result.Result<RecurringService, Error> {
     switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (services.get(serviceId)) {
+    switch (Map.get(services, Text.compare, serviceId)) {
       case null { #err(#NotFound) };
       case (?existing) {
         if (existing.homeowner != msg.caller and not isAdmin(msg.caller))
@@ -244,7 +244,7 @@ persistent actor Recurring {
           contractDocPhotoId = existing.contractDocPhotoId;
           createdAt          = existing.createdAt;
         };
-        services.put(serviceId, updated);
+        Map.add(services, Text.compare, serviceId, updated);
         #ok(updated)
       };
     }
@@ -259,7 +259,7 @@ persistent actor Recurring {
     switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
     if (Text.size(photoId) == 0) return #err(#InvalidInput("photoId cannot be empty"));
 
-    switch (services.get(serviceId)) {
+    switch (Map.get(services, Text.compare, serviceId)) {
       case null { #err(#NotFound) };
       case (?existing) {
         if (existing.homeowner != msg.caller and not isAdmin(msg.caller))
@@ -281,7 +281,7 @@ persistent actor Recurring {
           contractDocPhotoId = ?photoId;
           createdAt          = existing.createdAt;
         };
-        services.put(serviceId, updated);
+        Map.add(services, Text.compare, serviceId, updated);
         #ok(updated)
       };
     }
@@ -299,7 +299,7 @@ persistent actor Recurring {
     switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
     if (Text.size(visitDate) == 0) return #err(#InvalidInput("visitDate cannot be empty"));
 
-    switch (services.get(serviceId)) {
+    switch (Map.get(services, Text.compare, serviceId)) {
       case null { #err(#NotFound) };
       case (?svc) {
         if (svc.homeowner != msg.caller and not isAdmin(msg.caller))
@@ -316,7 +316,7 @@ persistent actor Recurring {
           note;
           createdAt  = now;
         };
-        visits.put(id, entry);
+        Map.add(visits, Text.compare, id, entry);
         #ok(entry)
       };
     }
@@ -325,7 +325,7 @@ persistent actor Recurring {
   /// Fetch all visit log entries for a recurring service, sorted by visitDate descending.
   public query func getVisitLogs(serviceId: Text) : async [VisitLog] {
     let matches = Iter.toArray(
-      Iter.filter(visits.vals(), func(v: VisitLog) : Bool { v.serviceId == serviceId })
+      Iter.filter(Map.values(visits), func(v: VisitLog) : Bool { v.serviceId == serviceId })
     );
     // Sort descending by visitDate (lexicographic works for YYYY-MM-DD)
     Array.sort(matches, func(a: VisitLog, b: VisitLog) : { #less; #equal; #greater } {
@@ -365,7 +365,7 @@ persistent actor Recurring {
     var active  = 0;
     var paused  = 0;
 
-    for (s in services.vals()) {
+    for (s in Map.values(services)) {
       switch (s.status) {
         case (#Active)    { active  += 1 };
         case (#Paused)    { paused  += 1 };
@@ -374,10 +374,10 @@ persistent actor Recurring {
     };
 
     {
-      totalServices  = services.size();
+      totalServices  = Map.size(services);
       activeServices = active;
       pausedServices = paused;
-      totalVisitLogs = visits.size();
+      totalVisitLogs = Map.size(visits);
       isPaused;
     }
   };
