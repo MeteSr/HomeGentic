@@ -802,10 +802,10 @@ Require modest new infrastructure; high product value.
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
 | 12.6.1 | Vitest coverage report in CI | ✅ Done | S | Add `--coverage` flag to `npm run test:unit`; configure Istanbul thresholds (target: 70% line coverage for services); fail CI below threshold |
-| 12.6.2 | Playwright visual regression baseline | ⬜ Missing | M | Capture screenshots of key pages (Dashboard, Report, Landing) as regression baseline; flag pixel diffs in CI — especially important during design migration (Section 11) |
-| 12.6.3 | Backend test coverage tracking | ⬜ Missing | S | Add a coverage summary table to `scripts/test-backend.sh` output; count pass/fail per canister; non-zero exit code on any failure |
-| 12.6.4 | Mock canister identity in unit tests | ⬜ Missing | M | Current unit tests use the mock-fallback pattern (no `CANISTER_ID` → mock data). Add a test utility that stubs canister actor calls so real IDL validation is exercised without a running replica |
-| 12.6.5 | E2E test data isolation | 🟡 Partial | S | `window.__e2e_properties` injection exists; extend to cover recurring services (`window.__e2e_recurring`), warranties, and score events so new e2e tests have consistent fixtures |
+| 12.6.2 | Playwright visual regression baseline | ✅ Done | M | Capture screenshots of key pages (Dashboard, Report, Landing) as regression baseline; flag pixel diffs in CI — especially important during design migration (Section 11) |
+| 12.6.3 | Backend test coverage tracking | ✅ Done | S | Add a coverage summary table to `scripts/test-backend.sh` output; count pass/fail per canister; non-zero exit code on any failure |
+| 12.6.4 | Mock canister identity in unit tests | ✅ Done | M | Current unit tests use the mock-fallback pattern (no `CANISTER_ID` → mock data). Add a test utility that stubs canister actor calls so real IDL validation is exercised without a running replica |
+| 12.6.5 | E2E test data isolation | ✅ Done | S | `window.__e2e_properties` injection exists; extend to cover recurring services (`window.__e2e_recurring`), warranties, and score events so new e2e tests have consistent fixtures |
 
 ---
 
