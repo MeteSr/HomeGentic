@@ -56,7 +56,9 @@ export function computeScoreWithDecay(
   decayPts: number,
 ): number {
   const raw = computeScore(jobs, properties);
-  return Math.max(raw - decayPts, SCORE_DECAY_FLOOR);
+  if (decayPts === 0) return raw;
+  // Floor only applies when decay brings score below zero (not as a universal minimum)
+  return decayPts >= raw ? SCORE_DECAY_FLOOR : raw - decayPts;
 }
 
 export function getScoreGrade(score: number): string {

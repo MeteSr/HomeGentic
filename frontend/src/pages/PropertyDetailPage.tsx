@@ -11,10 +11,24 @@ import { AddRoomModal } from "@/components/AddRoomModal";
 import { propertyService, Property } from "@/services/property";
 import { jobService, Job } from "@/services/job";
 import { photoService, Photo } from "@/services/photo";
-import { computeScore, getScoreGrade, recordSnapshot, premiumEstimate } from "@/services/scoreService";
+import { computeScore, computeScoreWithDecay, getScoreGrade, recordSnapshot, premiumEstimate, isCertified, loadHistory, scoreDelta, type ScoreSnapshot } from "@/services/scoreService";
+import { getAllDecayEvents, getAtRiskWarnings, getTotalDecay, type DecayEvent, type AtRiskWarning } from "@/services/scoreDecayService";
+import { systemAgesService, type SystemAges } from "@/services/systemAges";
+import { recurringService, type RecurringService, type VisitLog } from "@/services/recurringService";
+import { getRecentScoreEvents, type ScoreEvent } from "@/services/scoreEventService";
+import { getReEngagementPrompts, type ReEngagementPrompt } from "@/services/reEngagementService";
+import { marketService, jobToSummary, type PropertyProfile, type ProjectRecommendation } from "@/services/market";
+import { getWeeklyPulse } from "@/services/pulseService";
 import { roomService, Room as RoomRecord, type UpdateRoomArgs, type AddFixtureArgs, type Fixture } from "@/services/room";
 import { paymentService, type PlanTier } from "@/services/payment";
 import { UpgradeGate } from "@/components/UpgradeGate";
+import { ScorePanel } from "@/components/ScorePanel";
+import { ScoreActivityFeed } from "@/components/ScoreActivityFeed";
+import { AlertStack } from "@/components/AlertStack";
+import { MilestoneStack } from "@/components/MilestoneStack";
+import { ReEngagementStack } from "@/components/ReEngagementStack";
+import { MarketIntelPanel } from "@/components/MarketIntelPanel";
+import { RecurringServicesPanel } from "@/components/RecurringServicesPanel";
 import { usePropertyStore } from "@/store/propertyStore";
 import { useAuthStore } from "@/store/authStore";
 import toast from "react-hot-toast";
@@ -38,7 +52,7 @@ export default function PropertyDetailPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { properties: storeProperties } = usePropertyStore();
-  const { principal } = useAuthStore();
+  const { principal, profile } = useAuthStore();
   const [property, setProperty] = useState<Property | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const initialTab = (searchParams.get("tab") as Tab | null) ?? "timeline";
@@ -46,10 +60,15 @@ export default function PropertyDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showReportModal,  setShowReportModal]  = useState(false);
   const [showLogJobModal,  setShowLogJobModal]  = useState(false);
+  const [logJobPrefill,    setLogJobPrefill]    = useState<{ serviceType?: string; contractorName?: string } | undefined>(undefined);
   const [showQuoteModal,   setShowQuoteModal]   = useState(false);
   const [photosByJob, setPhotosByJob] = useState<Record<string, Photo[]>>({});
   const [rooms, setRooms] = useState<RoomRecord[]>([]);
   const [userTier, setUserTier] = useState<PlanTier>("Free");
+  const [systemAges,         setSystemAges]         = useState<SystemAges>({});
+  const [recurringServices,  setRecurringServices]  = useState<RecurringService[]>([]);
+  const [visitLogMap,        setVisitLogMap]        = useState<Record<string, VisitLog[]>>({});
+  const [scoreHistory,       setScoreHistory]       = useState<ScoreSnapshot[]>([]);
 
   useEffect(() => {
     paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch(() => {});
@@ -71,14 +90,29 @@ export default function PropertyDetailPage() {
         }
         setPhotosByJob(map);
       }).catch(() => {}),
+      // Load recurring services for Home Panel
+      recurringService.getByProperty(id).then(async (svcs) => {
+        setRecurringServices(svcs);
+        const logEntries = await Promise.all(
+          svcs.map(async (s) => {
+            const logs = await recurringService.getVisitLogs(s.id).catch(() => [] as VisitLog[]);
+            return [s.id, logs] as [string, VisitLog[]];
+          })
+        );
+        setVisitLogMap(Object.fromEntries(logEntries));
+      }).catch(() => {}),
     ]).finally(() => setLoading(false));
-  }, [id]);
+    // Load system ages and score history
+    setSystemAges(systemAgesService.get(id));
+    setScoreHistory(loadHistory(id));
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Record score snapshot whenever property + jobs are resolved
+  // Record score snapshot (with decay) whenever property + jobs are resolved
   useEffect(() => {
     if (!loading && property) {
-      const score = computeScore(jobs, [property]);
-      recordSnapshot(score, String(property.id));
+      const rawScore = computeScore(jobs, [property]);
+      const history  = recordSnapshot(rawScore, String(property.id));
+      setScoreHistory(history);
     }
   }, [loading, property, jobs]);
 
@@ -118,8 +152,67 @@ export default function PropertyDetailPage() {
 
   const totalValue = jobService.getTotalValue(jobs);
   const verifiedCount = jobService.getVerifiedCount(jobs);
-  const homefaxScore = property ? computeScore(jobs, [property]) : 0;
+
+  // Decay-aware score
+  const decayEvents: DecayEvent[] = React.useMemo(
+    () => !loading ? getAllDecayEvents(jobs, systemAges, Date.now()) : [],
+    [jobs, systemAges, loading]
+  );
+  const atRiskWarnings: AtRiskWarning[] = React.useMemo(
+    () => !loading ? getAtRiskWarnings(jobs, systemAges, Date.now()) : [],
+    [jobs, systemAges, loading]
+  );
+  const totalDecay   = getTotalDecay(decayEvents);
+  const homefaxScore = property ? computeScoreWithDecay(jobs, [property], totalDecay) : 0;
   const scoreGrade   = getScoreGrade(homefaxScore);
+  const delta        = scoreDelta(scoreHistory);
+  const certified    = isCertified(homefaxScore, jobs);
+
+  // Score activity feed (positive events + decay)
+  const scoreEvents: ScoreEvent[] = React.useMemo(
+    () => !loading && property ? getRecentScoreEvents(jobs, [property]) : [],
+    [jobs, property, loading]
+  );
+
+  // Contractor re-engagement prompts
+  const reEngagementPrompts: ReEngagementPrompt[] = React.useMemo(
+    () => !loading ? getReEngagementPrompts(jobs) : [],
+    [jobs, loading]
+  );
+
+  // ROI-ranked project recommendations
+  const recommendations: ProjectRecommendation[] = React.useMemo(() => {
+    if (!property) return [];
+    const profile: PropertyProfile = {
+      yearBuilt:    Number(property.yearBuilt),
+      squareFeet:   Number(property.squareFeet),
+      propertyType: String(property.propertyType),
+      state:        property.state,
+      zipCode:      property.zipCode,
+    };
+    return marketService.recommendValueAddingProjects(profile, jobs.map(jobToSummary), 0).slice(0, 3);
+  }, [property, jobs]);
+
+  // Weekly pulse tip
+  const pulseTip = React.useMemo(
+    () => !loading && property ? getWeeklyPulse([property], jobs) : null,
+    [property, jobs, loading]
+  );
+  const pulseEnabled = localStorage.getItem("homefax_pulse_enabled") !== "false";
+
+  // Score stagnation
+  const scoreStagnant = React.useMemo(() => {
+    if (scoreHistory.length < 2) return false;
+    const FOUR_WEEKS_MS = 28 * 24 * 60 * 60 * 1000;
+    const now     = Date.now();
+    const current = scoreHistory[scoreHistory.length - 1];
+    const old     = scoreHistory.find((s) => now - s.timestamp >= FOUR_WEEKS_MS);
+    if (!old) return false;
+    return current.score <= old.score;
+  }, [scoreHistory]);
+
+  // Account age (for milestone logic)
+  const accountAgeMs = profile?.createdAt ? Date.now() - Number(profile.createdAt) / 1_000_000 : 0;
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "timeline",  label: "Timeline" },
@@ -403,6 +496,84 @@ export default function PropertyDetailPage() {
           );
         })()}
 
+        {/* ── Home Panel (16.2) — visible only to single-property users ──────── */}
+        {storeProperties.length === 1 && !loading && (
+          <div style={{ marginBottom: "2rem" }}>
+            <ScorePanel
+              score={homefaxScore}
+              grade={scoreGrade}
+              delta={delta}
+              certified={certified}
+              premium={premiumEstimate(homefaxScore)}
+              market={property ? `${property.city}, ${property.state}` : ""}
+              onResaleReady={() => navigate("/resale-ready")}
+              onCopyCertLink={async () => {
+                if (!property) return;
+                const { certService } = await import("@/services/cert");
+                const payload = { address: property.address, score: homefaxScore, grade: scoreGrade, certified, generatedAt: Date.now() };
+                const { token } = await certService.issueCert(String(property.id), payload);
+                navigator.clipboard.writeText(`${window.location.origin}/cert/${token}`);
+                toast.success("Lender certificate link copied!");
+              }}
+            />
+            <AlertStack
+              atRiskWarnings={atRiskWarnings}
+              scoreStagnant={scoreStagnant}
+              pulseTip={pulseTip}
+              pulseEnabled={pulseEnabled}
+              userTier={userTier}
+              onLogJob={() => { setLogJobPrefill(undefined); setShowLogJobModal(true); }}
+              onNavigate={(path) => navigate(path)}
+            />
+            <MilestoneStack
+              verifiedJobCount={verifiedCount}
+              accountAgeMs={accountAgeMs}
+              certified={certified}
+              onNavigate={(path) => navigate(path)}
+            />
+            <ScoreActivityFeed scoreEvents={scoreEvents} decayEvents={decayEvents} />
+            <ReEngagementStack
+              prompts={reEngagementPrompts}
+              onRequestQuote={(prefill) => { setShowQuoteModal(true); }}
+              onLogJob={(prefill) => { setLogJobPrefill(prefill); setShowLogJobModal(true); }}
+            />
+            <MarketIntelPanel
+              recommendations={recommendations}
+              onLogJob={(prefill) => { setLogJobPrefill(prefill); setShowLogJobModal(true); }}
+              onSeeAll={() => navigate("/market")}
+            />
+            <RecurringServicesPanel
+              services={recurringServices}
+              visitLogMap={visitLogMap}
+              userTier={userTier}
+              onAddService={() => navigate("/recurring/new")}
+              onViewService={(svcId) => navigate(`/recurring/${svcId}`)}
+            />
+          </div>
+        )}
+
+        {/* Upsell card (16.3.3) — multi-property prompt for single-property users */}
+        {storeProperties.length === 1 && !loading && (
+          <div style={{
+            border: `1px solid ${COLORS.rule}`, background: COLORS.white,
+            padding: "1.25rem 1.5rem", marginBottom: "2rem",
+            borderRadius: 0, display: "flex", alignItems: "center",
+            justifyContent: "space-between", gap: "1rem", flexWrap: "wrap",
+          }}>
+            <div>
+              <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.25rem" }}>
+                Own more than one property?
+              </p>
+              <p style={{ fontSize: "0.875rem", fontWeight: 300, color: S.inkLight }}>
+                Track all your properties in one place — compare scores, share reports, and manage maintenance across your portfolio.
+              </p>
+            </div>
+            <Button variant="outline" onClick={() => navigate("/properties/new")}>
+              Add Another Property →
+            </Button>
+          </div>
+        )}
+
         {/* Tabs */}
         <div style={{ display: "flex", borderBottom: `1px solid ${COLORS.rule}`, marginBottom: "1.5rem" }}>
           {tabs.map((t) => (
@@ -444,6 +615,7 @@ export default function PropertyDetailPage() {
           jobService.getByProperty(id!).then(setJobs).catch(() => {});
         }}
         properties={storeProperties.length > 0 ? storeProperties : (property ? [property] : [])}
+        prefill={logJobPrefill}
       />
 
       <RequestQuoteModal

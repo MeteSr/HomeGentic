@@ -77,7 +77,7 @@ export function systemAgeDecayPts(ageYears: number, lifespanYears: number): numb
   if (lifespanYears <= 0 || ageYears < 0) return 0;
   const pct = ageYears / lifespanYears;
   if (pct <= 0.8) return 0;
-  return Math.min(Math.round((pct - 0.8) * 12.5), 5);
+  return Math.min(Math.ceil((pct - 0.8) * 12.5), 5);
 }
 
 export function getSystemAgeDecayEvents(
