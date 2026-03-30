@@ -88,6 +88,7 @@ export function Layout({ children }: LayoutProps) {
   };
 
   const isContractor = profile?.role === "Contractor";
+  const isRealtor    = profile?.role === "Realtor";
   const dashboardPath = isContractor ? "/contractor-dashboard" : "/dashboard";
 
   const navLinks = isContractor
@@ -95,12 +96,19 @@ export function Layout({ children }: LayoutProps) {
         { to: "/contractor-dashboard", label: "Dashboard" },
         { to: "/settings",             label: "Settings" },
       ]
+    : isRealtor
+    ? [
+        { to: "/agent-dashboard",   label: "Dashboard" },
+        { to: "/agent/marketplace", label: "Marketplace" },
+        { to: "/settings",          label: "Settings" },
+      ]
     : [
         { to: "/dashboard",      label: "Dashboard" },
         { to: "/market",         label: "Market" },
         { to: "/maintenance",    label: "Maintenance" },
         { to: "/contractors",    label: "Contractors" },
         { to: "/sensors",        label: "Sensors" },
+        { to: "/listing/new",    label: "List Home" },
         { to: "/properties/new", label: "Add Property" },
         { to: "/settings",       label: "Settings" },
       ];

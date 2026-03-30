@@ -36,6 +36,9 @@ import ResaleReadyPage from "@/pages/ResaleReadyPage";
 import RecurringServiceCreatePage from "@/pages/RecurringServiceCreatePage";
 import RecurringServiceDetailPage from "@/pages/RecurringServiceDetailPage";
 import NeighborhoodHealthPage from "@/pages/NeighborhoodHealthPage";
+import ListingNewPage       from "@/pages/ListingNewPage";
+import ListingDetailPage    from "@/pages/ListingDetailPage";
+import AgentMarketplacePage from "@/pages/AgentMarketplacePage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuthStore();
@@ -277,6 +280,30 @@ export default function App() {
           element={
             <ProtectedRoute>
               <RecurringServiceDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/listing/new"
+          element={
+            <ProtectedRoute>
+              <ListingNewPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/listing/:id"
+          element={
+            <ProtectedRoute>
+              <ListingDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/agent/marketplace"
+          element={
+            <ProtectedRoute>
+              <AgentMarketplacePage />
             </ProtectedRoute>
           }
         />

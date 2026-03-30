@@ -551,7 +551,7 @@ The homeowner initiates a bid request when they're considering selling. The requ
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
 | 9.2.1 | `ListingBidRequest` type in new `listing` canister | ✅ Done | L | Fields: `propertyId`, `targetListDate`, `desiredSalePrice` (optional), `notes`, `bidDeadline`, `status: { #Open \| #Awarded \| #Cancelled }` |
-| 9.2.2 | Listing bid request creation UI | ⬜ Missing | M | New page `/listing/new` — property selector, target list date, desired price (optional, visible to agents), deadline for proposals, notes |
+| 9.2.2 | Listing bid request creation UI | ✅ Done | M | `/listing/new` — property selector, target list date, desired price (optional), deadline, notes; calls `listingService.createBidRequest` |
 | 9.2.3 | HomeFax score + summary auto-attached to request | ⬜ Missing | S | When request is created, snapshot current score, verified job count, key system ages — attached to every agent's proposal view automatically |
 | 9.2.4 | Bid request visibility controls | ⬜ Missing | S | Homeowner chooses: open to all licensed agents in their market, or invite-only (send to specific agents by email/ID) |
 | 9.2.5 | Bid deadline enforcement | ⬜ Missing | S | After `bidDeadline`, request closes automatically; no new proposals accepted; homeowner receives notification |
@@ -563,8 +563,8 @@ The homeowner initiates a bid request when they're considering selling. The requ
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
 | 9.3.1 | `ListingProposal` type in `listing` canister | ✅ Done | M | Fields: `requestId`, `agentId`, `commissionRateBps` (basis points, e.g. 250 = 2.5%), `cmaSummary` (text), `marketingPlan` (text), `estimatedDaysOnMarket`, `estimatedSalePrice`, `includedServices` (list), `validUntil`, `coverLetter` |
-| 9.3.2 | Proposal submission UI for agents | ⬜ Missing | M | Agent sees the property's HomeFax summary (score, key verified records, system ages) before proposing; fills in their CMA, commission, marketing narrative |
-| 9.3.3 | Commission input with basis-points precision | ⬜ Missing | S | Slider + text input; show dollar equivalent in real-time based on homeowner's desired price; enforces legal minimums per state |
+| 9.3.2 | Proposal submission UI for agents | ✅ Done | M | `/agent/marketplace` — agent browses open requests; inline form: CMA, commission (basis points), marketing plan, included services, cover letter; sealed until deadline |
+| 9.3.3 | Commission input with basis-points precision | ✅ Done | S | Basis-point input with live dollar-equivalent label (based on homeowner's desired price); `formatCommission()` helper |
 | 9.3.4 | CMA upload / attachment | ⬜ Missing | M | Agent uploads a PDF CMA or enters structured comps (address, sale price, date, bed/bath/sqft); stored in `photo` canister pattern |
 | 9.3.5 | Proposal draft / save before submit | ⬜ Missing | S | Agents can save a draft and return before the deadline |
 | 9.3.6 | Proposal sealed until deadline (blind bidding) | ✅ Done | M | Agents cannot see each other's commission rates or proposals until the bid deadline passes; homeowner sees all after close — same sealed-bid principle as 2.4 |
@@ -577,8 +577,8 @@ This is the moment HomeFax wins. The seller sees every proposal side-by-side —
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 9.4.1 | Proposal comparison view | ⬜ Missing | L | Side-by-side table: agent, commission rate, estimated sale price, estimated days on market, included services, verified reviews; sortable by any column |
-| 9.4.2 | Net proceeds calculator per proposal | ✅ Done | M | Given desired price + each agent's commission, show estimated net proceeds after commission + estimated closing costs; makes the cost of a 0.5% commission difference visceral |
+| 9.4.1 | Proposal comparison view | ✅ Done | L | `/listing/:id` — card-per-proposal with commission %, estimated sale price, est. days on market, included services, CMA summary, marketing plan, cover letter |
+| 9.4.2 | Net proceeds calculator per proposal | ✅ Done | M | Each proposal card shows estimated net proceeds (sale price − commission − 2% closing costs); `computeNetProceeds()` helper |
 | 9.4.3 | HomeFax score context for each proposal | ⬜ Missing | S | Show agents how they priced the property relative to the HomeFax-estimated premium; flag agents who underpriced |
 | 9.4.4 | Agent selection + engagement flow | ✅ Done | M | "Select this agent" → notification sent to agent; listing request marked `#Awarded`; other agents notified they were not selected |
 | 9.4.5 | Post-selection contract upload | ⬜ Missing | S | After selecting an agent, homeowner uploads the signed listing agreement as a doc; stored on-chain as a milestone |

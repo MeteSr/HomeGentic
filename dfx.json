@@ -52,6 +52,10 @@
       "main": "backend/sensor/main.mo",
       "type": "motoko"
     },
+    "listing": {
+      "main": "backend/listing/main.mo",
+      "type": "motoko"
+    },
     "recurring": {
       "main": "backend/recurring/main.mo",
       "type": "motoko"

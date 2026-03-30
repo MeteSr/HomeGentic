@@ -39,6 +39,7 @@ export default defineConfig(({ mode }) => {
       "process.env.REPORT_CANISTER_ID": JSON.stringify(env.CANISTER_ID_REPORT || env.REPORT_CANISTER_ID || ""),
       "process.env.MAINTENANCE_CANISTER_ID": JSON.stringify(env.CANISTER_ID_MAINTENANCE || env.MAINTENANCE_CANISTER_ID || ""),
       "process.env.SENSOR_CANISTER_ID":     JSON.stringify(env.CANISTER_ID_SENSOR     || env.SENSOR_CANISTER_ID     || ""),
+      "process.env.LISTING_CANISTER_ID":    JSON.stringify(env.CANISTER_ID_LISTING    || env.LISTING_CANISTER_ID    || ""),
     },
     optimizeDeps: {
       esbuildOptions: {
