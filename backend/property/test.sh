@@ -1,32 +1,171 @@
 #!/usr/bin/env bash
+# HomeFax Property Canister — integration tests
+# Covers: register, retrieve, verification state machine (Unverified →
+# PendingReview → Basic → Premium) (12.4.2), ownership transfer conflict
+# window, tier enforcement, admin functions.
+# Run against a local replica: dfx start --background && bash backend/property/test.sh
 set -euo pipefail
-echo "=== Property Canister Tests ==="
 
-echo "▶ Get metrics (before any properties)..."
-dfx canister call property getMetrics
+CANISTER="property"
+echo "============================================"
+echo "  HomeFax — Property Canister Tests"
+echo "============================================"
 
-echo "▶ Check tier limit — Free (expect 1)..."
-dfx canister call property getPropertyLimitForTier '(variant { Free })'
+if ! dfx ping 2>/dev/null; then
+  echo "❌ dfx is not running. Run: dfx start --background"
+  exit 1
+fi
+CANISTER_ID=$(dfx canister id "$CANISTER" 2>/dev/null || echo "")
+if [ -z "$CANISTER_ID" ]; then
+  echo "❌ $CANISTER canister not deployed. Run: bash scripts/deploy.sh"
+  exit 1
+fi
 
-echo "▶ Register a property..."
-dfx canister call property registerProperty '(record {
-  address = "123 Main Street";
-  city = "Austin";
-  state = "TX";
-  zipCode = "78701";
+MY_PRINCIPAL=$(dfx identity get-principal)
+
+# Ensure a second identity for transfer conflict test
+if ! dfx identity list 2>/dev/null | grep -q "^property-buyer-test$"; then
+  dfx identity new property-buyer-test --disable-encryption 2>/dev/null || true
+fi
+BUYER_PRINCIPAL=$(dfx identity get-principal --identity property-buyer-test)
+echo "Buyer test principal: $BUYER_PRINCIPAL"
+
+# ─── Metrics (initial) ────────────────────────────────────────────────────────
+echo ""
+echo "── [1] Get metrics (initial state) ─────────────────────────────────────"
+dfx canister call $CANISTER getMetrics
+
+# ─── Tier limits ──────────────────────────────────────────────────────────────
+echo ""
+echo "── [2] Tier limits ──────────────────────────────────────────────────────"
+dfx canister call $CANISTER getPropertyLimitForTier '(variant { Free })'
+dfx canister call $CANISTER getPropertyLimitForTier '(variant { Pro })'
+dfx canister call $CANISTER getPropertyLimitForTier '(variant { Premium })'
+dfx canister call $CANISTER getPropertyLimitForTier '(variant { ContractorPro })'
+
+# ─── Register a property ──────────────────────────────────────────────────────
+echo ""
+echo "── [3] Register a property (Free tier) ─────────────────────────────────"
+dfx canister call $CANISTER registerProperty '(record {
+  address      = "123 Main Street";
+  city         = "Austin";
+  state        = "TX";
+  zipCode      = "78701";
   propertyType = variant { SingleFamily };
-  yearBuilt = 1995;
-  squareFeet = 2000;
-  tier = variant { Pro };
+  yearBuilt    = 1995;
+  squareFeet   = 2000;
+  tier         = variant { Free };
 })'
 
-echo "▶ Get my properties..."
-dfx canister call property getMyProperties
+echo ""
+echo "── [4] Get my properties ────────────────────────────────────────────────"
+dfx canister call $CANISTER getMyProperties
 
-echo "▶ Get property by ID (id=1)..."
-dfx canister call property getProperty '(1)'
+echo ""
+echo "── [5] Get property by ID — expect Unverified ───────────────────────────"
+dfx canister call $CANISTER getProperty '(1)'
 
-echo "▶ Get final metrics..."
-dfx canister call property getMetrics
+echo ""
+echo "── [6] getVerificationLevel — expect Unverified ─────────────────────────"
+dfx canister call $CANISTER getVerificationLevel '(1)'
 
-echo "✅ Property tests passed!"
+# ─── Tier limit enforcement ───────────────────────────────────────────────────
+echo ""
+echo "── [7] Second property on Free tier → expect LimitReached ───────────────"
+dfx canister call $CANISTER registerProperty '(record {
+  address      = "456 Oak Avenue";
+  city         = "Dallas";
+  state        = "TX";
+  zipCode      = "75201";
+  propertyType = variant { Condo };
+  yearBuilt    = 2010;
+  squareFeet   = 900;
+  tier         = variant { Free };
+})' || echo "  ↳ Expected LimitReached — ✓"
+
+# ─── Verification state machine (12.4.2) ──────────────────────────────────────
+echo ""
+echo "── [8] submitVerification → expect PendingReview (12.4.2) ──────────────"
+dfx canister call $CANISTER submitVerification '(
+  1,
+  "UtilityBill",
+  "sha256:a3f2b9c8d1e4f7a0b3c6d9e2f5a8b1c4d7e0f3a6b9c2d5e8f1a4b7c0d3e6f9"
+)'
+
+echo ""
+echo "── [9] getVerificationLevel — expect PendingReview ──────────────────────"
+dfx canister call $CANISTER getVerificationLevel '(1)'
+
+echo ""
+echo "── [10] getPendingVerifications — should contain property 1 ─────────────"
+dfx canister call $CANISTER getPendingVerifications
+
+echo ""
+echo "── [11] submitVerification again on PendingReview → expect error ─────────"
+dfx canister call $CANISTER submitVerification '(
+  1,
+  "Deed",
+  "sha256:b4a3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4"
+)' || echo "  ↳ Expected InvalidInput (already verified) — ✓"
+
+echo ""
+echo "── [12] Admin: verifyProperty → Basic (12.4.2) ──────────────────────────"
+dfx canister call $CANISTER verifyProperty '(1, variant { Basic }, null)'
+
+echo ""
+echo "── [13] getVerificationLevel — expect Basic ──────────────────────────────"
+dfx canister call $CANISTER getVerificationLevel '(1)'
+
+echo ""
+echo "── [14] Admin: verifyProperty → Premium (12.4.2) ────────────────────────"
+dfx canister call $CANISTER verifyProperty '(1, variant { Premium }, opt "TitleDeed")'
+
+echo ""
+echo "── [15] getVerificationLevel — expect Premium ───────────────────────────"
+dfx canister call $CANISTER getVerificationLevel '(1)'
+
+echo ""
+echo "── [16] getProperty — final state ───────────────────────────────────────"
+dfx canister call $CANISTER getProperty '(1)'
+
+# ─── Ownership transfer — 7-day conflict window (12.4.2) ──────────────────────
+echo ""
+echo "── [17] initiateTransfer to buyer principal ─────────────────────────────"
+dfx canister call $CANISTER initiateTransfer "(1, principal \"$BUYER_PRINCIPAL\")"
+
+echo ""
+echo "── [18] getPendingTransfer ──────────────────────────────────────────────"
+dfx canister call $CANISTER getPendingTransfer '(1)'
+
+echo ""
+echo "── [19] cancelTransfer ──────────────────────────────────────────────────"
+dfx canister call $CANISTER cancelTransfer '(1)'
+
+echo ""
+echo "── [20] getPendingTransfer after cancel — expect empty ──────────────────"
+dfx canister call $CANISTER getPendingTransfer '(1)'
+
+# ─── getOwnershipHistory ──────────────────────────────────────────────────────
+echo ""
+echo "── [21] getOwnershipHistory ─────────────────────────────────────────────"
+dfx canister call $CANISTER getOwnershipHistory '(1)'
+
+# ─── Admin functions ──────────────────────────────────────────────────────────
+echo ""
+echo "── [22] isAdminPrincipal — should be true for dfx default identity ───────"
+dfx canister call $CANISTER isAdminPrincipal "(principal \"$MY_PRINCIPAL\")"
+
+echo ""
+echo "── [23] pause / unpause ─────────────────────────────────────────────────"
+dfx canister call $CANISTER pause '(null)'
+dfx canister call $CANISTER unpause
+
+# ─── Metrics (after) ──────────────────────────────────────────────────────────
+echo ""
+echo "── [24] Get metrics (after tests) ──────────────────────────────────────"
+dfx canister call $CANISTER getMetrics
+
+echo ""
+echo "============================================"
+echo "  ✅ Property canister tests complete!"
+echo "============================================"

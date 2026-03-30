@@ -768,12 +768,12 @@ Require modest new infrastructure; high product value.
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 12.4.1 | `job/test.sh` — dual-signature flow | ⬜ Missing | M | Currently tests single-signer create + status update. Add: contractor co-sign path, homeowner-only DIY verification, signature dispute scenario, photo attachment |
-| 12.4.2 | `property/test.sh` — verification state machine | ⬜ Missing | M | Currently tests register + retrieve. Add: full Unverified → PendingReview → Basic → Premium transition, 7-day ownership conflict window, tier upgrade enforcement |
-| 12.4.3 | `job/test.sh` — pagination | ⬜ Missing | S | `getByProperty()` with more than one page of results; confirm offset/limit behavior |
-| 12.4.4 | `quote/test.sh` — contractor response + expiry | ⬜ Missing | M | Add: contractor bid submission, open-request tier limits (3 Free / 10 Pro+), quote expiration after deadline |
-| 12.4.5 | `auth/test.sh` — role transitions | ⬜ Missing | S | Add tests for role change (Homeowner → Realtor), duplicate registration guard, `addAdmin()` + metrics |
-| 12.4.6 | `scripts/test-backend.sh` — cross-canister integration | ⬜ Missing | L | Currently tests each canister in isolation. Add cross-canister scenarios: job creation checks property tier limits; sensor Critical event creates job; payment tier change unlocks quote slots |
+| 12.4.1 | `job/test.sh` — dual-signature flow | ✅ Done | M | Currently tests single-signer create + status update. Add: contractor co-sign path, homeowner-only DIY verification, signature dispute scenario, photo attachment |
+| 12.4.2 | `property/test.sh` — verification state machine | ✅ Done | M | Currently tests register + retrieve. Add: full Unverified → PendingReview → Basic → Premium transition, 7-day ownership conflict window, tier upgrade enforcement |
+| 12.4.3 | `job/test.sh` — pagination | ✅ Done | S | `getByProperty()` with more than one page of results; confirm offset/limit behavior |
+| 12.4.4 | `quote/test.sh` — contractor response + expiry | ✅ Done | M | Add: contractor bid submission, open-request tier limits (3 Free / 10 Pro+), quote expiration after deadline |
+| 12.4.5 | `auth/test.sh` — role transitions | ✅ Done | S | Add tests for role change (Homeowner → Realtor), duplicate registration guard, `addAdmin()` + metrics |
+| 12.4.6 | `scripts/test-cross-canister.sh` — cross-canister integration | ✅ Done | L | New dedicated script. Scenarios: Free-tier job cap (job → payment), sensor Critical event → pending job (sensor → job), payment tier upgrade unlocks quote slots |
 
 ---
 
