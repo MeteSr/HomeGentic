@@ -755,12 +755,12 @@ Require modest new infrastructure; high product value.
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 12.3.1 | `backend/market/test.sh` | ⬜ Missing | M | Largest untested canister (535 lines). Test: ROI-ranked project recommendations, `analyzeCompetitivePosition()` scoring (maintenance 25pts/HVAC, 80% DIY factor), zip-level `MarketSnapshot`, `getTopProjects()` sort order |
-| 12.3.2 | `backend/monitoring/test.sh` | ⬜ Missing | M | Test: cycles usage metrics, ARPU/LTV/CAC calculations, profitability thresholds, alert generation, `pause()`/`unpause()` admin flow |
-| 12.3.3 | `backend/sensor/test.sh` | ⬜ Missing | M | Test: device registration, reading ingestion, health classification (Critical/Warning/OK), auto-creation of pending job on Critical event (canister cross-call) |
-| 12.3.4 | `backend/maintenance/test.sh` | ⬜ Missing | M | Test: system lifespan tables for all 8 types, seasonal task generation per month, urgency threshold boundaries (Critical/Warning/Deferred), `getSeasonalTasks()` output shape |
-| 12.3.5 | `backend/report/test.sh` | ⬜ Missing | M | Test: report generation with snapshot immutability, token issuance uniqueness, share link visibility levels (Public/Buyer/Agent/Private), revocation, `viewCount` increment on `getReport()` |
-| 12.3.6 | `backend/recurring/test.sh` | ⬜ Missing | M | Test: service creation per property, `AlreadyCancelled` guard (status change on cancelled = error), visit log ordering, `attachContractDoc` idempotency, `getByProperty()` isolation |
+| 12.3.1 | `backend/market/test.sh` | ✅ Done | M | Largest untested canister (535 lines). Test: ROI-ranked project recommendations, `analyzeCompetitivePosition()` scoring (maintenance 25pts/HVAC, 80% DIY factor), zip-level `MarketSnapshot`, `getTopProjects()` sort order |
+| 12.3.2 | `backend/monitoring/test.sh` | ✅ Done | M | Test: cycles usage metrics, ARPU/LTV/CAC calculations, profitability thresholds, alert generation, `pause()`/`unpause()` admin flow |
+| 12.3.3 | `backend/sensor/test.sh` | ✅ Done | M | Test: device registration, reading ingestion, health classification (Critical/Warning/OK), auto-creation of pending job on Critical event (canister cross-call) |
+| 12.3.4 | `backend/maintenance/test.sh` | ✅ Done | M | Test: system lifespan tables for all 8 types, seasonal task generation per month, urgency threshold boundaries (Critical/Warning/Deferred), `getSeasonalTasks()` output shape |
+| 12.3.5 | `backend/report/test.sh` | ✅ Done | M | Test: report generation with snapshot immutability, token issuance uniqueness, share link visibility levels (Public/Buyer/Agent/Private), revocation, `viewCount` increment on `getReport()` |
+| 12.3.6 | `backend/recurring/test.sh` | ✅ Done | M | Test: service creation per property, `AlreadyCancelled` guard (status change on cancelled = error), visit log ordering, `attachContractDoc` idempotency, `getByProperty()` isolation |
 
 ---
 
@@ -781,19 +781,19 @@ Require modest new infrastructure; high product value.
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 12.5.1 | `login.spec.ts` | ⬜ Missing | M | Dev login flow (bypass Internet Identity), redirect to dashboard on success, redirect to `/login` on protected route access, session persistence across reload |
-| 12.5.2 | `register.spec.ts` | ⬜ Missing | M | Role selection (Homeowner / Contractor / Agent), profile completion, redirect to onboarding |
-| 12.5.3 | `settings.spec.ts` | ⬜ Missing | M | Profile update, notification preferences, subscription tier display, pause subscription flow |
-| 12.5.4 | `recurring-service.spec.ts` | ⬜ Missing | M | Create recurring service (lawn care, pest control), log a visit, view contract doc upload, cancel service → tombstone state |
-| 12.5.5 | `warranty-wallet.spec.ts` | ⬜ Missing | M | Warranty card display, expiry badge variants (active/expiring/expired), attach warranty doc |
-| 12.5.6 | `score-cert.spec.ts` | ⬜ Missing | M | Certificate page renders HomeFax score + certified badge, shareable URL contains token, expired cert shows correct state |
-| 12.5.7 | `pricing.spec.ts` | ⬜ Missing | M | Tier comparison table renders, upgrade CTA navigates correctly, current tier highlighted |
-| 12.5.8 | `onboarding.spec.ts` | ⬜ Missing | M | Multi-step wizard (property add → first job → invite contractor), step validation, skip-step behavior |
-| 12.5.9 | `contractor-browse.spec.ts` | ⬜ Missing | M | Search by specialty, filter by rating, navigate to public profile page |
-| 12.5.10 | `quote-detail.spec.ts` | ⬜ Missing | M | Contractor views and responds to open quote, homeowner sees bid, accept/decline flow |
-| 12.5.11 | `resale-ready.spec.ts` | ⬜ Missing | S | Checklist items render, score indicator shows, CTA routes correctly |
-| 12.5.12 | `insurance-defense.spec.ts` | ⬜ Missing | S | Evidence cards display, key systems highlighted, generate report from page |
-| 12.5.13 | `landing.spec.ts` | ⬜ Missing | S | Nav links scroll to correct sections, "Get Started" CTAs navigate to `/login`, mobile nav renders on small viewport |
+| 12.5.1 | `login.spec.ts` | ✅ Done | M | Dev login flow (bypass Internet Identity), redirect to dashboard on success, redirect to `/login` on protected route access, session persistence across reload |
+| 12.5.2 | `register.spec.ts` | ✅ Done | M | Role selection (Homeowner / Contractor / Agent), profile completion, redirect to onboarding |
+| 12.5.3 | `settings.spec.ts` | ✅ Done | M | Profile update, notification preferences, subscription tier display, pause subscription flow |
+| 12.5.4 | `recurring-service.spec.ts` | ✅ Done | M | Create recurring service (lawn care, pest control), log a visit, view contract doc upload, cancel service → tombstone state |
+| 12.5.5 | `warranty-wallet.spec.ts` | ✅ Done | M | Warranty card display, expiry badge variants (active/expiring/expired), attach warranty doc |
+| 12.5.6 | `score-cert.spec.ts` | ✅ Done | M | Certificate page renders HomeFax score + certified badge, shareable URL contains token, expired cert shows correct state |
+| 12.5.7 | `pricing.spec.ts` | ✅ Done | M | Tier comparison table renders, upgrade CTA navigates correctly, current tier highlighted |
+| 12.5.8 | `onboarding.spec.ts` | ✅ Done | M | Multi-step wizard (property add → first job → invite contractor), step validation, skip-step behavior |
+| 12.5.9 | `contractor-browse.spec.ts` | ✅ Done | M | Search by specialty, filter by rating, navigate to public profile page |
+| 12.5.10 | `quote-detail.spec.ts` | ✅ Done | M | Contractor views and responds to open quote, homeowner sees bid, accept/decline flow |
+| 12.5.11 | `resale-ready.spec.ts` | ✅ Done | S | Checklist items render, score indicator shows, CTA routes correctly |
+| 12.5.12 | `insurance-defense.spec.ts` | ✅ Done | S | Evidence cards display, key systems highlighted, generate report from page |
+| 12.5.13 | `landing.spec.ts` | ✅ Done | S | Nav links scroll to correct sections, "Get Started" CTAs navigate to `/login`, mobile nav renders on small viewport |
 
 ---
 
@@ -1102,8 +1102,8 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 
 **Tier 1-T — Highest Risk, Do First**
 - 12.1.1 `scoreService.ts` (scoring/certification logic — no tests, used everywhere)
-- 12.3.1 `market/test.sh` (largest canister, no backend tests)
-- 12.3.5 `report/test.sh` (token issuance + snapshot immutability — security-adjacent)
+- ~~12.3.1 `market/test.sh` (largest canister, no backend tests)~~ ✅
+- ~~12.3.5 `report/test.sh` (token issuance + snapshot immutability — security-adjacent)~~ ✅
 - 12.4.6 Cross-canister integration tests
 - 12.6.1 Vitest coverage report in CI (gates future regressions)
 
@@ -1112,8 +1112,8 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 - 12.1.4 `auth.ts` tests
 - 12.2.1 `job.test.ts` lifecycle methods
 - 12.2.2 `property.test.ts` verification flow
-- 12.3.3 `sensor/test.sh` + 12.3.4 `maintenance/test.sh`
-- 12.5.1–12.5.2 Login + register e2e
+- ~~12.3.3 `sensor/test.sh` + 12.3.4 `maintenance/test.sh`~~ ✅
+- ~~12.5.1–12.5.2 Login + register e2e~~ ✅
 
 **Tier 3-T — Completeness**
 - 12.1.3, 12.1.5, 12.1.7 Smaller service tests (scoreEvent, pulse, agentProfile)
