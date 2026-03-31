@@ -8,8 +8,10 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Send } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
-import { listingService } from "@/services/listing";
+import { listingService, BidVisibility } from "@/services/listing";
 import { usePropertyStore } from "@/store/propertyStore";
+import { useJobStore } from "@/store/jobStore";
+import { computeScore } from "@/services/scoreService";
 import toast from "react-hot-toast";
 import { COLORS, FONTS } from "@/theme";
 
@@ -49,8 +51,10 @@ const labelStyle: React.CSSProperties = {
 export default function ListingNewPage() {
   const navigate = useNavigate();
   const { properties } = usePropertyStore();
+  const { jobs } = useJobStore();
 
-  const [loading, setLoading] = useState(false);
+  const [loading,    setLoading]    = useState(false);
+  const [visibility, setVisibility] = useState<BidVisibility>("open");
   const [form, setForm] = useState({
     propertyId:       properties[0] ? String(properties[0].id) : "",
     targetListDate:   "",
@@ -70,6 +74,11 @@ export default function ListingNewPage() {
     const deadlineMs = new Date(form.bidDeadline).getTime();
     if (deadlineMs <= Date.now()) { toast.error("Bid deadline must be in the future"); return; }
 
+    // 9.2.3 — snapshot current score + verified job count
+    const score            = computeScore(jobs, properties);
+    const verifiedJobCount = jobs.filter((j) => j.verified).length;
+    const propertySnapshot = { score, verifiedJobCount, systemNotes: "" };
+
     setLoading(true);
     try {
       const req = await listingService.createBidRequest({
@@ -78,6 +87,8 @@ export default function ListingNewPage() {
         desiredSalePrice: form.desiredSalePrice ? Math.round(parseFloat(form.desiredSalePrice) * 100) : null,
         notes:            form.notes,
         bidDeadline:      deadlineMs,
+        propertySnapshot,
+        visibility,
       });
       toast.success("Listing request created — agents can now submit proposals.");
       navigate(`/listing/${req.id}`);
@@ -196,6 +207,37 @@ export default function ListingNewPage() {
               maxLength={5000}
               style={{ ...fieldStyle, resize: "vertical" }}
             />
+          </div>
+
+          {/* Visibility — 9.2.4 */}
+          <div>
+            <span style={labelStyle}>Proposal Visibility</span>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.35rem" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem",
+                fontFamily: S.sans, fontSize: "0.9rem", color: S.ink, cursor: "pointer" }}>
+                <input
+                  type="radio"
+                  name="visibility"
+                  value="open"
+                  checked={visibility === "open"}
+                  onChange={() => setVisibility("open")}
+                  aria-label="Open to all agents"
+                />
+                Open to all agents
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem",
+                fontFamily: S.sans, fontSize: "0.9rem", color: S.ink, cursor: "pointer" }}>
+                <input
+                  type="radio"
+                  name="visibility"
+                  value="inviteOnly"
+                  checked={visibility === "inviteOnly"}
+                  onChange={() => setVisibility("inviteOnly")}
+                  aria-label="Invite-only"
+                />
+                Invite-only (share link with specific agents)
+              </label>
+            </div>
           </div>
 
           {/* Submit */}

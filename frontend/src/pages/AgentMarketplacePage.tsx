@@ -1,17 +1,20 @@
 /**
  * AgentMarketplacePage — Epic 9.3 / 9.6
  * Agents browse open listing bid requests and submit sealed proposals.
+ * 9.3.4: CMA structured comps
+ * 9.3.5: Proposal draft save/load via localStorage
  */
 
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Send, Calendar, DollarSign, FileText } from "lucide-react";
+import { ArrowLeft, Send, Calendar, FileText, Plus, Trash2, Save } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import {
   listingService,
   formatCommission,
   type ListingBidRequest,
+  type CMAComp,
 } from "@/services/listing";
 import toast from "react-hot-toast";
 import { COLORS, FONTS } from "@/theme";
@@ -81,6 +84,27 @@ const emptyForm: ProposalForm = {
   coverLetter:           "",
 };
 
+const emptyComp = (): CMAComp => ({
+  address: "", salePriceCents: 0, bedrooms: 3, bathrooms: 2, sqft: 0, soldDate: "",
+});
+
+function draftKey(reqId: string) { return `proposal_draft_${reqId}`; }
+
+function loadDraft(reqId: string): { form: ProposalForm; comps: CMAComp[] } | null {
+  try {
+    const raw = localStorage.getItem(draftKey(reqId));
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function saveDraft(reqId: string, form: ProposalForm, comps: CMAComp[]) {
+  localStorage.setItem(draftKey(reqId), JSON.stringify({ form, comps }));
+}
+
+function clearDraft(reqId: string) {
+  localStorage.removeItem(draftKey(reqId));
+}
+
 export default function AgentMarketplacePage() {
   const navigate = useNavigate();
 
@@ -89,6 +113,7 @@ export default function AgentMarketplacePage() {
   const [activeReqId,  setActiveReqId]  = useState<string | null>(null);
   const [submitting,   setSubmitting]   = useState(false);
   const [form,         setForm]         = useState<ProposalForm>(emptyForm);
+  const [cmaComps,     setCmaComps]     = useState<CMAComp[]>([]);
 
   useEffect(() => {
     listingService.getOpenBidRequests()
@@ -103,11 +128,38 @@ export default function AgentMarketplacePage() {
 
   function openForm(reqId: string) {
     setActiveReqId(reqId);
-    setForm(emptyForm);
+    // 9.3.5 — restore draft if available
+    const draft = loadDraft(reqId);
+    if (draft) {
+      setForm(draft.form);
+      setCmaComps(draft.comps ?? []);
+    } else {
+      setForm(emptyForm);
+      setCmaComps([]);
+    }
   }
 
   function closeForm() {
     setActiveReqId(null);
+  }
+
+  function handleSaveDraft() {
+    if (!activeReqId) return;
+    saveDraft(activeReqId, form, cmaComps);
+    toast.success("Draft saved.");
+  }
+
+  // CMA comps helpers — 9.3.4
+  function addComp() {
+    setCmaComps((cs) => [...cs, emptyComp()]);
+  }
+
+  function removeComp(idx: number) {
+    setCmaComps((cs) => cs.filter((_, i) => i !== idx));
+  }
+
+  function updateComp(idx: number, field: keyof CMAComp, value: string | number) {
+    setCmaComps((cs) => cs.map((c, i) => i === idx ? { ...c, [field]: value } : c));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -131,7 +183,9 @@ export default function AgentMarketplacePage() {
         includedServices:      form.includedServices.split(",").map((s) => s.trim()).filter(Boolean),
         validUntil:            Date.now() + 30 * 86_400_000,
         coverLetter:           form.coverLetter,
+        cmaComps,
       });
+      clearDraft(activeReqId); // 9.3.5
       toast.success("Proposal submitted — it will remain sealed until the bid deadline.");
       closeForm();
     } catch (err: any) {
@@ -142,10 +196,10 @@ export default function AgentMarketplacePage() {
   }
 
   // Compute live commission dollar amount from form fields
-  const activeReq    = requests.find((r) => r.id === activeReqId);
-  const refPrice     = activeReq?.desiredSalePrice ?? null;
-  const commBps      = parseInt(form.commissionBps, 10) || 0;
-  const commDollars  = refPrice ? Math.round(refPrice * commBps / 10_000) : null;
+  const activeReq   = requests.find((r) => r.id === activeReqId);
+  const refPrice    = activeReq?.desiredSalePrice ?? null;
+  const commBps     = parseInt(form.commissionBps, 10) || 0;
+  const commDollars = refPrice ? Math.round(refPrice * commBps / 10_000) : null;
 
   return (
     <Layout>
@@ -211,6 +265,10 @@ export default function AgentMarketplacePage() {
               }}>
                 <Calendar size={11} />
                 Deadline: {formatDate(req.bidDeadline)}
+                {/* 9.2.5 — deadline info visible inline */}
+                {req.bidDeadline > Date.now() && (
+                  <span style={{ color: S.sage }}> · closes {formatDate(req.bidDeadline)}</span>
+                )}
               </div>
             </div>
 
@@ -317,6 +375,86 @@ export default function AgentMarketplacePage() {
                   />
                 </div>
 
+                {/* 9.3.4 — Structured CMA comps */}
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+                    <span style={labelStyle}>Comparable Sales (CMA)</span>
+                    <button
+                      type="button"
+                      onClick={addComp}
+                      style={{
+                        display: "flex", alignItems: "center", gap: "0.3rem",
+                        background: "none", border: `1px solid ${S.rule}`, cursor: "pointer",
+                        fontFamily: S.mono, fontSize: "0.65rem", color: S.ink,
+                        padding: "0.25rem 0.6rem", letterSpacing: "0.04em",
+                      }}
+                      aria-label="Add Comp"
+                    >
+                      <Plus size={11} /> Add Comp
+                    </button>
+                  </div>
+                  {cmaComps.map((comp, idx) => (
+                    <div key={idx} style={{ border: `1px solid ${S.rule}`, padding: "0.75rem", marginBottom: "0.5rem" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr auto", gap: "0.5rem", alignItems: "end" }}>
+                        <input
+                          type="text"
+                          placeholder="Comp address"
+                          value={comp.address}
+                          onChange={(e) => updateComp(idx, "address", e.target.value)}
+                          style={{ ...fieldStyle, padding: "0.4rem 0.5rem", fontSize: "0.8rem" }}
+                        />
+                        <input
+                          type="number"
+                          placeholder="Sale $"
+                          value={comp.salePriceCents ? comp.salePriceCents / 100 : ""}
+                          onChange={(e) => updateComp(idx, "salePriceCents", Math.round(parseFloat(e.target.value) * 100) || 0)}
+                          style={{ ...fieldStyle, padding: "0.4rem 0.5rem", fontSize: "0.8rem" }}
+                        />
+                        <input
+                          type="number"
+                          placeholder="Bed"
+                          value={comp.bedrooms}
+                          onChange={(e) => updateComp(idx, "bedrooms", parseInt(e.target.value) || 0)}
+                          style={{ ...fieldStyle, padding: "0.4rem 0.5rem", fontSize: "0.8rem" }}
+                        />
+                        <input
+                          type="number"
+                          placeholder="Bath"
+                          value={comp.bathrooms}
+                          onChange={(e) => updateComp(idx, "bathrooms", parseFloat(e.target.value) || 0)}
+                          style={{ ...fieldStyle, padding: "0.4rem 0.5rem", fontSize: "0.8rem" }}
+                        />
+                        <input
+                          type="number"
+                          placeholder="Sqft"
+                          value={comp.sqft || ""}
+                          onChange={(e) => updateComp(idx, "sqft", parseInt(e.target.value) || 0)}
+                          style={{ ...fieldStyle, padding: "0.4rem 0.5rem", fontSize: "0.8rem" }}
+                        />
+                        <input
+                          type="date"
+                          value={comp.soldDate}
+                          onChange={(e) => updateComp(idx, "soldDate", e.target.value)}
+                          style={{ ...fieldStyle, padding: "0.4rem 0.5rem", fontSize: "0.8rem" }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeComp(idx)}
+                          style={{ background: "none", border: "none", cursor: "pointer", color: S.inkLight, padding: "0.4rem" }}
+                          aria-label="Remove comp"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {cmaComps.length === 0 && (
+                    <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, margin: 0 }}>
+                      No comps added — click "Add Comp" to include comparable sales.
+                    </p>
+                  )}
+                </div>
+
                 <div>
                   <label htmlFor="marketing-plan" style={labelStyle}>Marketing Plan</label>
                   <textarea
@@ -352,11 +490,25 @@ export default function AgentMarketplacePage() {
                   />
                 </div>
 
-                <div style={{ display: "flex", gap: "0.75rem" }}>
+                <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
                   <Button type="submit" disabled={submitting} style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
                     <Send size={13} />
                     {submitting ? "Submitting…" : "Submit Proposal"}
                   </Button>
+                  {/* 9.3.5 — Save Draft */}
+                  <button
+                    type="button"
+                    onClick={handleSaveDraft}
+                    style={{
+                      display: "flex", alignItems: "center", gap: "0.35rem",
+                      background: "none", border: `1px solid ${S.rule}`, cursor: "pointer",
+                      fontFamily: S.mono, fontSize: "0.72rem", color: S.ink,
+                      letterSpacing: "0.06em", textTransform: "uppercase", padding: "0.5rem 1rem",
+                    }}
+                    aria-label="Save Draft"
+                  >
+                    <Save size={12} /> Save Draft
+                  </button>
                   <button
                     type="button"
                     onClick={closeForm}

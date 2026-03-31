@@ -143,6 +143,34 @@ export default function ListingDetailPage() {
               )}
             </div>
 
+            {/* 9.2.3 — Property snapshot */}
+            {request.propertySnapshot && (
+              <div style={{
+                border: `1px solid ${S.rule}`, padding: "1rem 1.5rem",
+                marginBottom: "1.5rem", background: "#fafafa",
+              }}>
+                <div style={{ fontFamily: S.mono, fontSize: "0.62rem", color: S.inkLight, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "0.75rem" }}>
+                  HomeFax Snapshot (at request creation)
+                </div>
+                <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap" }}>
+                  <div>
+                    <div style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, textTransform: "uppercase", marginBottom: "0.2rem" }}>Score</div>
+                    <div style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.25rem", color: S.ink }}>{request.propertySnapshot.score}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, textTransform: "uppercase", marginBottom: "0.2rem" }}>Verified Jobs</div>
+                    <div style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.25rem", color: S.ink }}>{request.propertySnapshot.verifiedJobCount}</div>
+                  </div>
+                  {request.propertySnapshot.systemNotes && (
+                    <div>
+                      <div style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, textTransform: "uppercase", marginBottom: "0.2rem" }}>System Ages</div>
+                      <div style={{ fontFamily: S.sans, fontSize: "0.85rem", color: S.ink }}>{request.propertySnapshot.systemNotes}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Sealed state */}
             {sealed && (
               <div style={{
@@ -271,6 +299,38 @@ export default function ListingDetailPage() {
                           </div>
                         </div>
                       )}
+                      {/* 9.3.4 — CMA comps */}
+                      {p.cmaComps && p.cmaComps.length > 0 && (
+                        <div style={{ marginBottom: "0.75rem" }}>
+                          <div style={{ fontFamily: S.mono, fontSize: "0.62rem", color: S.inkLight, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "0.4rem" }}>
+                            Comparable Sales
+                          </div>
+                          <div style={{ overflowX: "auto" }}>
+                            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: S.mono, fontSize: "0.72rem" }}>
+                              <thead>
+                                <tr style={{ borderBottom: `1px solid ${S.rule}` }}>
+                                  {["Address", "Sale Price", "Bed", "Bath", "Sqft", "Sold"].map((h) => (
+                                    <th key={h} style={{ textAlign: "left", padding: "0.3rem 0.5rem", color: S.inkLight, fontWeight: 500 }}>{h}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {p.cmaComps.map((c, i) => (
+                                  <tr key={i} style={{ borderBottom: `1px solid ${S.rule}` }}>
+                                    <td style={{ padding: "0.3rem 0.5rem", color: S.ink }}>{c.address}</td>
+                                    <td style={{ padding: "0.3rem 0.5rem", color: S.ink }}>{formatPrice(c.salePriceCents)}</td>
+                                    <td style={{ padding: "0.3rem 0.5rem", color: S.ink }}>{c.bedrooms}</td>
+                                    <td style={{ padding: "0.3rem 0.5rem", color: S.ink }}>{c.bathrooms}</td>
+                                    <td style={{ padding: "0.3rem 0.5rem", color: S.ink }}>{c.sqft.toLocaleString()}</td>
+                                    <td style={{ padding: "0.3rem 0.5rem", color: S.ink }}>{c.soldDate}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
                       {p.coverLetter && (
                         <div style={{ marginBottom: "0.75rem" }}>
                           <div style={{ fontFamily: S.mono, fontSize: "0.62rem", color: S.inkLight, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "0.2rem" }}>

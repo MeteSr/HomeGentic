@@ -468,15 +468,19 @@ describe("listingService.getProposalsForRequest — sealed until deadline", () =
   let svc: typeof listingService;
 
   beforeEach(async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2024-01-01T12:00:00Z"));
     vi.resetModules();
     const m = await import("@/services/listing");
     svc = m.listingService;
   });
 
+  afterEach(() => { vi.useRealTimers(); });
+
   it("returns proposals after the deadline has passed", async () => {
     const req = await svc.createBidRequest({
       propertyId: "p1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() - 1000, // already past
+      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 5_000, // 5s in future
     });
     await svc.submitProposal(req.id, {
       agentName: "Jane", agentBrokerage: "Realty", commissionBps: 250,
@@ -484,6 +488,7 @@ describe("listingService.getProposalsForRequest — sealed until deadline", () =
       estimatedSalePrice: 50_000_000, includedServices: [], validUntil: Date.now() + 86_400_000,
       coverLetter: "",
     });
+    vi.setSystemTime(new Date("2024-01-02T12:00:00Z")); // advance past deadline
     const proposals = await svc.getProposalsForRequest(req.id);
     expect(proposals).toHaveLength(1);
   });
@@ -506,7 +511,7 @@ describe("listingService.getProposalsForRequest — sealed until deadline", () =
   it("multiple proposals all returned after deadline", async () => {
     const req = await svc.createBidRequest({
       propertyId: "p1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() - 1000,
+      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 5_000,
     });
     const base = {
       agentBrokerage: "Realty", commissionBps: 250, cmaSummary: "comps",
@@ -516,6 +521,7 @@ describe("listingService.getProposalsForRequest — sealed until deadline", () =
     await svc.submitProposal(req.id, { ...base, agentName: "Jane" });
     await svc.submitProposal(req.id, { ...base, agentName: "Bob" });
     await svc.submitProposal(req.id, { ...base, agentName: "Alice" });
+    vi.setSystemTime(new Date("2024-01-02T12:00:00Z")); // advance past deadline
     const proposals = await svc.getProposalsForRequest(req.id);
     expect(proposals).toHaveLength(3);
   });
@@ -562,15 +568,19 @@ describe("listingService.acceptProposal", () => {
   let svc: typeof listingService;
 
   beforeEach(async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2024-01-01T12:00:00Z"));
     vi.resetModules();
     const m = await import("@/services/listing");
     svc = m.listingService;
   });
 
+  afterEach(() => { vi.useRealTimers(); });
+
   it("changes proposal status from Pending to Accepted", async () => {
     const req = await svc.createBidRequest({
       propertyId: "p1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() - 1000,
+      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 5_000,
     });
     const proposal = await svc.submitProposal(req.id, {
       agentName: "Jane", agentBrokerage: "Realty", commissionBps: 250,
@@ -587,7 +597,7 @@ describe("listingService.acceptProposal", () => {
   it("marks the parent BidRequest as Awarded", async () => {
     const req = await svc.createBidRequest({
       propertyId: "p1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() - 1000,
+      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 5_000,
     });
     const proposal = await svc.submitProposal(req.id, {
       agentName: "Jane", agentBrokerage: "Realty", commissionBps: 250,
@@ -603,7 +613,7 @@ describe("listingService.acceptProposal", () => {
   it("all other proposals on the same request become Rejected", async () => {
     const req = await svc.createBidRequest({
       propertyId: "p1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() - 1000,
+      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 5_000,
     });
     const base = {
       agentBrokerage: "Realty", commissionBps: 250, cmaSummary: "comps",

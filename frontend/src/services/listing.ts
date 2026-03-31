@@ -83,8 +83,26 @@ const idlFactory = ({ IDL }: any) => {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type BidRequestStatus = "Open" | "Awarded" | "Cancelled";
-export type ProposalStatus   = "Pending" | "Accepted" | "Rejected" | "Withdrawn";
+export type BidRequestStatus  = "Open" | "Awarded" | "Cancelled";
+export type ProposalStatus    = "Pending" | "Accepted" | "Rejected" | "Withdrawn";
+export type BidVisibility     = "open" | "inviteOnly";
+
+/** Snapshot of the property's HomeFax score at the time the bid request was created. */
+export interface PropertySnapshot {
+  score:             number;
+  verifiedJobCount:  number;
+  systemNotes:       string;  // e.g. "Roof: 8 yrs, HVAC: 5 yrs"
+}
+
+/** A single comparable sale entry for a CMA. */
+export interface CMAComp {
+  address:        string;
+  salePriceCents: number;
+  bedrooms:       number;
+  bathrooms:      number;
+  sqft:           number;
+  soldDate:       string;  // ISO date string
+}
 
 export interface ListingBidRequest {
   id:               string;
@@ -96,6 +114,11 @@ export interface ListingBidRequest {
   bidDeadline:      number;
   status:           BidRequestStatus;
   createdAt:        number;
+  // 9.2.3
+  propertySnapshot?: PropertySnapshot;
+  // 9.2.4
+  visibility:       BidVisibility;
+  invitedAgentIds:  string[];
 }
 
 export interface ListingProposal {
@@ -114,6 +137,8 @@ export interface ListingProposal {
   coverLetter:           string;
   status:                ProposalStatus;
   createdAt:             number;
+  // 9.3.4
+  cmaComps:              CMAComp[];
 }
 
 export interface SubmitProposalInput {
@@ -127,6 +152,8 @@ export interface SubmitProposalInput {
   includedServices:      string[];
   validUntil:            number;
   coverLetter:           string;
+  // 9.3.4
+  cmaComps?:             CMAComp[];
 }
 
 export interface CreateBidRequestInput {
@@ -135,6 +162,11 @@ export interface CreateBidRequestInput {
   desiredSalePrice: number | null;
   notes:            string;
   bidDeadline:      number;
+  // 9.2.3
+  propertySnapshot?: PropertySnapshot;
+  // 9.2.4
+  visibility?:      BidVisibility;
+  invitedAgentIds?: string[];
 }
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
@@ -179,6 +211,8 @@ function fromRawRequest(raw: any): ListingBidRequest {
     bidDeadline:      Number(raw.bidDeadline),
     status:           statusKey,
     createdAt:        Number(raw.createdAt),
+    visibility:       "open",
+    invitedAgentIds:  [],
   };
 }
 
@@ -200,6 +234,7 @@ function fromRawProposal(raw: any): ListingProposal {
     coverLetter:           raw.coverLetter,
     status:                statusKey,
     createdAt:             Number(raw.createdAt),
+    cmaComps:              [],
   };
 }
 
@@ -207,8 +242,10 @@ function fromRawProposal(raw: any): ListingProposal {
 
 function createListingService() {
   let _actor: any = null;
-  let requests: ListingBidRequest[] = [];
-  let proposals: ListingProposal[]  = [];
+  let requests:  ListingBidRequest[] = [];
+  let proposals: ListingProposal[]   = [];
+  let _reqSeq  = 0;
+  let _propSeq = 0;
 
   async function getActor() {
     if (_actor) return _actor;
@@ -219,16 +256,18 @@ function createListingService() {
 
   return {
   reset() {
-    _actor = null;
-    requests = [];
+    _actor    = null;
+    requests  = [];
     proposals = [];
+    _reqSeq   = 0;
+    _propSeq  = 0;
   },
 
   // ── createBidRequest ────────────────────────────────────────────────────────
   async createBidRequest(input: CreateBidRequestInput): Promise<ListingBidRequest> {
     if (!LISTING_CANISTER_ID) {
       const req: ListingBidRequest = {
-        id:               `BID_${Date.now()}`,
+        id:               `BID_${++_reqSeq}`,
         propertyId:       input.propertyId,
         homeowner:        "local",
         targetListDate:   input.targetListDate,
@@ -237,6 +276,9 @@ function createListingService() {
         bidDeadline:      input.bidDeadline,
         status:           "Open",
         createdAt:        Date.now(),
+        propertySnapshot: input.propertySnapshot,
+        visibility:       input.visibility       ?? "open",
+        invitedAgentIds:  input.invitedAgentIds  ?? [],
       };
       requests.push(req);
       return { ...req };
@@ -289,10 +331,13 @@ function createListingService() {
   },
 
   // ── getOpenBidRequests (agent view) ─────────────────────────────────────────
-  async getOpenBidRequests(): Promise<ListingBidRequest[]> {
+  // 9.2.4: inviteOnly requests are hidden from the general marketplace.
+  async getOpenBidRequests(callerAgentId = "local"): Promise<ListingBidRequest[]> {
     if (!LISTING_CANISTER_ID) {
       return requests.filter(
-        r => r.status === "Open" && !isDeadlinePassed(r.bidDeadline)
+        r => r.status === "Open"
+          && !isDeadlinePassed(r.bidDeadline)
+          && (r.visibility === "open" || r.invitedAgentIds.includes(callerAgentId))
       );
     }
     const actor = await getActor();
@@ -306,9 +351,11 @@ function createListingService() {
       const req = requests.find(r => r.id === requestId);
       if (!req) throw new Error(`BidRequest ${requestId} not found`);
       if (req.status !== "Open") throw new Error(`BidRequest ${requestId} is not accepting proposals (status: ${req.status})`);
+      // 9.2.5: deadline enforcement
+      if (isDeadlinePassed(req.bidDeadline)) throw new Error("Bid deadline has passed — no new proposals accepted");
 
       const proposal: ListingProposal = {
-        id:                    `PROP_${Date.now()}`,
+        id:                    `PROP_${++_propSeq}`,
         requestId,
         agentId:               "local",
         agentName:             input.agentName,
@@ -323,6 +370,7 @@ function createListingService() {
         coverLetter:           input.coverLetter,
         status:                "Pending",
         createdAt:             Date.now(),
+        cmaComps:              input.cmaComps ? [...input.cmaComps] : [],
       };
       proposals.push(proposal);
       return { ...proposal };

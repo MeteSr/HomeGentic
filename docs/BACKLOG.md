@@ -552,9 +552,9 @@ The homeowner initiates a bid request when they're considering selling. The requ
 |---|------|--------|------|-------|
 | 9.2.1 | `ListingBidRequest` type in new `listing` canister | ✅ Done | L | Fields: `propertyId`, `targetListDate`, `desiredSalePrice` (optional), `notes`, `bidDeadline`, `status: { #Open \| #Awarded \| #Cancelled }` |
 | 9.2.2 | Listing bid request creation UI | ✅ Done | M | `/listing/new` — property selector, target list date, desired price (optional), deadline, notes; calls `listingService.createBidRequest` |
-| 9.2.3 | HomeFax score + summary auto-attached to request | ⬜ Missing | S | When request is created, snapshot current score, verified job count, key system ages — attached to every agent's proposal view automatically |
-| 9.2.4 | Bid request visibility controls | ⬜ Missing | S | Homeowner chooses: open to all licensed agents in their market, or invite-only (send to specific agents by email/ID) |
-| 9.2.5 | Bid deadline enforcement | ⬜ Missing | S | After `bidDeadline`, request closes automatically; no new proposals accepted; homeowner receives notification |
+| 9.2.3 | HomeFax score + summary auto-attached to request | ✅ Done | S | `PropertySnapshot { score, verifiedJobCount, systemNotes }` captured from `scoreService` + job store at creation time; shown in `ListingDetailPage` |
+| 9.2.4 | Bid request visibility controls | ✅ Done | S | `visibility: "open" | "inviteOnly"` radio in `ListingNewPage`; `getOpenBidRequests` filters invite-only requests |
+| 9.2.5 | Bid deadline enforcement | ✅ Done | S | `submitProposal` throws `"Bid deadline has passed"` after deadline; service tests updated with `vi.useFakeTimers` |
 
 ---
 
@@ -565,8 +565,8 @@ The homeowner initiates a bid request when they're considering selling. The requ
 | 9.3.1 | `ListingProposal` type in `listing` canister | ✅ Done | M | Fields: `requestId`, `agentId`, `commissionRateBps` (basis points, e.g. 250 = 2.5%), `cmaSummary` (text), `marketingPlan` (text), `estimatedDaysOnMarket`, `estimatedSalePrice`, `includedServices` (list), `validUntil`, `coverLetter` |
 | 9.3.2 | Proposal submission UI for agents | ✅ Done | M | `/agent/marketplace` — agent browses open requests; inline form: CMA, commission (basis points), marketing plan, included services, cover letter; sealed until deadline |
 | 9.3.3 | Commission input with basis-points precision | ✅ Done | S | Basis-point input with live dollar-equivalent label (based on homeowner's desired price); `formatCommission()` helper |
-| 9.3.4 | CMA upload / attachment | ⬜ Missing | M | Agent uploads a PDF CMA or enters structured comps (address, sale price, date, bed/bath/sqft); stored in `photo` canister pattern |
-| 9.3.5 | Proposal draft / save before submit | ⬜ Missing | S | Agents can save a draft and return before the deadline |
+| 9.3.4 | CMA upload / attachment | ✅ Done | M | Structured comps form in `AgentMarketplacePage`: address, sale price, bed/bath/sqft, sold date; add/remove rows; `CMAComp[]` stored in proposal; comps table shown in `ListingDetailPage` |
+| 9.3.5 | Proposal draft / save before submit | ✅ Done | S | "Save Draft" button in proposal form; draft stored in `localStorage` keyed by requestId; auto-loaded when re-opening the form |
 | 9.3.6 | Proposal sealed until deadline (blind bidding) | ✅ Done | M | Agents cannot see each other's commission rates or proposals until the bid deadline passes; homeowner sees all after close — same sealed-bid principle as 2.4 |
 
 ---
