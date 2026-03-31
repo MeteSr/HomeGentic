@@ -86,6 +86,7 @@ const idlFactory = ({ IDL }: any) => {
 export type BidRequestStatus  = "Open" | "Awarded" | "Cancelled";
 export type ProposalStatus    = "Pending" | "Accepted" | "Rejected" | "Withdrawn";
 export type BidVisibility     = "open" | "inviteOnly";
+export type CounterStatus     = "Pending" | "Accepted" | "Rejected";
 
 /** Snapshot of the property's HomeFax score at the time the bid request was created. */
 export interface PropertySnapshot {
@@ -104,6 +105,29 @@ export interface CMAComp {
   soldDate:       string;  // ISO date string
 }
 
+/** Uploaded listing agreement, stored after agent acceptance. */
+export interface ContractFile {
+  name:       string;
+  uploadedAt: number;
+}
+
+/** A homeowner's counter-offer on a submitted proposal. */
+export interface CounterProposal {
+  id:            string;
+  proposalId:    string;
+  requestId:     string;
+  fromRole:      "homeowner" | "agent";
+  commissionBps: number;
+  notes:         string;
+  status:        CounterStatus;
+  createdAt:     number;
+}
+
+export interface CounterProposalInput {
+  commissionBps: number;
+  notes:         string;
+}
+
 export interface ListingBidRequest {
   id:               string;
   propertyId:       string;
@@ -119,6 +143,8 @@ export interface ListingBidRequest {
   // 9.2.4
   visibility:       BidVisibility;
   invitedAgentIds:  string[];
+  // 9.4.5
+  contractFile?:    ContractFile;
 }
 
 export interface ListingProposal {
@@ -244,8 +270,10 @@ function createListingService() {
   let _actor: any = null;
   let requests:  ListingBidRequest[] = [];
   let proposals: ListingProposal[]   = [];
-  let _reqSeq  = 0;
-  let _propSeq = 0;
+  let counters:  CounterProposal[]   = [];
+  let _reqSeq     = 0;
+  let _propSeq    = 0;
+  let _counterSeq = 0;
 
   async function getActor() {
     if (_actor) return _actor;
@@ -256,11 +284,13 @@ function createListingService() {
 
   return {
   reset() {
-    _actor    = null;
-    requests  = [];
-    proposals = [];
-    _reqSeq   = 0;
-    _propSeq  = 0;
+    _actor      = null;
+    requests    = [];
+    proposals   = [];
+    counters    = [];
+    _reqSeq     = 0;
+    _propSeq    = 0;
+    _counterSeq = 0;
   },
 
   // ── createBidRequest ────────────────────────────────────────────────────────
@@ -438,6 +468,67 @@ function createListingService() {
     const actor = await getActor();
     const result = await actor.acceptProposal(proposalId);
     if ("err" in result) throw new Error(JSON.stringify(result.err));
+  },
+
+  // ── uploadContract (9.4.5) ───────────────────────────────────────────────────
+  async uploadContract(requestId: string, fileName: string): Promise<void> {
+    if (!LISTING_CANISTER_ID) {
+      const req = requests.find((r) => r.id === requestId);
+      if (!req) throw new Error(`BidRequest ${requestId} not found`);
+      req.contractFile = { name: fileName, uploadedAt: Date.now() };
+      return;
+    }
+    // On-chain: would upload to photo canister and store hash here
+    throw new Error("uploadContract requires deployed canister");
+  },
+
+  // ── counterProposal (9.4.6) ──────────────────────────────────────────────────
+  async counterProposal(proposalId: string, input: CounterProposalInput): Promise<CounterProposal> {
+    if (!LISTING_CANISTER_ID) {
+      const proposal = proposals.find((p) => p.id === proposalId);
+      if (!proposal) throw new Error(`Proposal ${proposalId} not found`);
+      const counter: CounterProposal = {
+        id:            `COUNTER_${++_counterSeq}`,
+        proposalId,
+        requestId:     proposal.requestId,
+        fromRole:      "homeowner",
+        commissionBps: input.commissionBps,
+        notes:         input.notes,
+        status:        "Pending",
+        createdAt:     Date.now(),
+      };
+      counters.push(counter);
+      return { ...counter };
+    }
+    throw new Error("counterProposal requires deployed canister");
+  },
+
+  // ── respondToCounter (9.4.6) — agent accepts/rejects ────────────────────────
+  async respondToCounter(counterId: string, response: "accept" | "reject"): Promise<void> {
+    if (!LISTING_CANISTER_ID) {
+      const counter = counters.find((c) => c.id === counterId);
+      if (!counter) throw new Error(`Counter ${counterId} not found`);
+      counter.status = response === "accept" ? "Accepted" : "Rejected";
+      return;
+    }
+    throw new Error("respondToCounter requires deployed canister");
+  },
+
+  // ── getCountersForProposal (9.4.6) ───────────────────────────────────────────
+  async getCountersForProposal(proposalId: string): Promise<CounterProposal[]> {
+    if (!LISTING_CANISTER_ID) {
+      return counters.filter((c) => c.proposalId === proposalId);
+    }
+    throw new Error("getCountersForProposal requires deployed canister");
+  },
+
+  // ── getMyCounters (9.4.6) — agent views counters on their proposals ──────────
+  async getMyCounters(): Promise<CounterProposal[]> {
+    if (!LISTING_CANISTER_ID) {
+      const myProposalIds = new Set(proposals.map((p) => p.id));
+      return counters.filter((c) => myProposalIds.has(c.proposalId));
+    }
+    throw new Error("getMyCounters requires deployed canister");
   },
   };
 }

@@ -579,10 +579,10 @@ This is the moment HomeFax wins. The seller sees every proposal side-by-side —
 |---|------|--------|------|-------|
 | 9.4.1 | Proposal comparison view | ✅ Done | L | `/listing/:id` — card-per-proposal with commission %, estimated sale price, est. days on market, included services, CMA summary, marketing plan, cover letter |
 | 9.4.2 | Net proceeds calculator per proposal | ✅ Done | M | Each proposal card shows estimated net proceeds (sale price − commission − 2% closing costs); `computeNetProceeds()` helper |
-| 9.4.3 | HomeFax score context for each proposal | ⬜ Missing | S | Show agents how they priced the property relative to the HomeFax-estimated premium; flag agents who underpriced |
+| 9.4.3 | HomeFax score context for each proposal | ✅ Done | S | Snapshot section shows premium potential range from `premiumEstimate(score)`; each proposal card shows "Meets or exceeds target" / "Near target" / "Below target — underpriced" badge |
 | 9.4.4 | Agent selection + engagement flow | ✅ Done | M | "Select this agent" → notification sent to agent; listing request marked `#Awarded`; other agents notified they were not selected |
-| 9.4.5 | Post-selection contract upload | ⬜ Missing | S | After selecting an agent, homeowner uploads the signed listing agreement as a doc; stored on-chain as a milestone |
-| 9.4.6 | Counter-proposal flow | ⬜ Missing | L | Homeowner can counter on commission rate or terms; agent accepts/rejects/counter-counters; async threaded negotiation |
+| 9.4.5 | Post-selection contract upload | ✅ Done | S | Awarded requests show upload section; `uploadContract(requestId, filename)` stores on-chain; confirmed state shown after upload |
+| 9.4.6 | Counter-proposal flow | ✅ Done | L | Homeowner counters commission via counter form on proposal card; `counterProposal` / `respondToCounter` / `getCountersForProposal`; agents see pending counters in marketplace with Accept/Decline buttons |
 
 ---
 
@@ -711,8 +711,8 @@ Buildable without new canisters; leverages existing `quote`, `auth`, `report`, a
 ### Tier 2-S — Seller: Core Differentiators
 Require modest new infrastructure; high product value.
 
-- 9.2.4–9.2.6 Bid controls, deadline enforcement, sealed proposals (9.3.6)
-- 9.4.3–9.4.6 Score context, selection flow, contract upload, counter-proposal
+- 9.2.4–9.2.6 Bid controls, deadline enforcement, sealed proposals (9.3.6) — ✅ Done
+- 9.4.3–9.4.6 Score context, selection flow, contract upload, counter-proposal — ✅ Done
 - 9.5.1–9.5.4 Transaction tracking + agent performance scoring
 - 10.2.1–10.2.4 Pricing intelligence (requires comp data API)
 - 10.4.1–10.4.3 Showing management inbox + calendar

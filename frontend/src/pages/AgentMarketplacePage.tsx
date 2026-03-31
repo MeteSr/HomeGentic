@@ -15,6 +15,7 @@ import {
   formatCommission,
   type ListingBidRequest,
   type CMAComp,
+  type CounterProposal,
 } from "@/services/listing";
 import toast from "react-hot-toast";
 import { COLORS, FONTS } from "@/theme";
@@ -114,12 +115,16 @@ export default function AgentMarketplacePage() {
   const [submitting,   setSubmitting]   = useState(false);
   const [form,         setForm]         = useState<ProposalForm>(emptyForm);
   const [cmaComps,     setCmaComps]     = useState<CMAComp[]>([]);
+  const [myCounters,   setMyCounters]   = useState<CounterProposal[]>([]);
 
   useEffect(() => {
     listingService.getOpenBidRequests()
       .then(setRequests)
       .catch(() => toast.error("Failed to load open listings"))
       .finally(() => setLoading(false));
+    listingService.getMyCounters()
+      .then(setMyCounters)
+      .catch(() => {});
   }, []);
 
   function set(field: keyof ProposalForm, value: string) {
@@ -195,6 +200,16 @@ export default function AgentMarketplacePage() {
     }
   }
 
+  async function handleRespondToCounter(counterId: string, response: "accept" | "reject") {
+    try {
+      await listingService.respondToCounter(counterId, response);
+      setMyCounters((cs) => cs.filter((c) => c.id !== counterId));
+      toast.success(response === "accept" ? "Counter accepted." : "Counter declined.");
+    } catch {
+      toast.error("Failed to respond to counter.");
+    }
+  }
+
   // Compute live commission dollar amount from form fields
   const activeReq   = requests.find((r) => r.id === activeReqId);
   const refPrice    = activeReq?.desiredSalePrice ?? null;
@@ -224,6 +239,42 @@ export default function AgentMarketplacePage() {
         <p style={{ fontFamily: S.sans, fontSize: "0.9rem", color: S.inkLight, margin: "0 0 2rem" }}>
           Browse open listing bid requests and submit sealed proposals. Your commission and terms remain hidden until the deadline.
         </p>
+
+        {/* 9.4.6 — Pending counter offers from homeowners */}
+        {myCounters.filter((c) => c.status === "Pending").length > 0 && (
+          <div style={{ border: `1px solid ${S.rule}`, padding: "1.25rem 1.5rem", marginBottom: "2rem" }}>
+            <h2 style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.1rem", color: S.ink, margin: "0 0 1rem" }}>
+              Pending Counter Offers
+            </h2>
+            {myCounters.filter((c) => c.status === "Pending").map((counter) => (
+              <div key={counter.id} style={{ borderTop: `1px solid ${S.rule}`, paddingTop: "0.75rem", marginTop: "0.75rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.75rem" }}>
+                <div>
+                  <div style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "0.2rem" }}>
+                    Request {counter.requestId}
+                  </div>
+                  <div style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1rem", color: S.ink }}>
+                    {`${formatCommission(counter.commissionBps)}${counter.notes ? ` · "${counter.notes}"` : ""}`}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <Button onClick={() => handleRespondToCounter(counter.id, "accept")}>
+                    Accept
+                  </Button>
+                  <button
+                    onClick={() => handleRespondToCounter(counter.id, "reject")}
+                    style={{
+                      background: "none", border: `1px solid ${S.rule}`, cursor: "pointer",
+                      fontFamily: S.mono, fontSize: "0.72rem", color: S.inkLight,
+                      letterSpacing: "0.06em", textTransform: "uppercase", padding: "0.5rem 1rem",
+                    }}
+                  >
+                    Decline
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {loading && (
           <p style={{ fontFamily: S.mono, color: S.inkLight }}>Loading open listings…</p>

@@ -65,6 +65,11 @@ vi.mock("@/services/listing", () => {
       getProposalsForRequest: vi.fn().mockResolvedValue([proposal]),
       getMyProposals:         vi.fn().mockResolvedValue([proposal]),
       acceptProposal:         vi.fn().mockResolvedValue(undefined),
+      getMyCounters:          vi.fn().mockResolvedValue([]),
+      getCountersForProposal: vi.fn().mockResolvedValue([]),
+      uploadContract:         vi.fn().mockResolvedValue(undefined),
+      counterProposal:        vi.fn().mockResolvedValue(undefined),
+      respondToCounter:       vi.fn().mockResolvedValue(undefined),
     },
     computeNetProceeds: (price: number, commBps: number, closingBps: number) =>
       price - Math.round(price * commBps / 10_000) - Math.round(price * closingBps / 10_000),

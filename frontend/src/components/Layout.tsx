@@ -275,39 +275,41 @@ export function Layout({ children }: LayoutProps) {
         </div>
 
         {/* Mobile dropdown */}
-        <div className={`rsp-mobile-menu${menuOpen ? " open" : ""}`}>
-          {navLinks.map((link) => {
-            const active = location.pathname === link.to;
-            return (
-              <Link
-                key={link.to}
-                to={link.to}
-                className={`rsp-mobile-link${active ? " active" : ""}`}
-                onClick={() => setMenuOpen(false)}
-              >
-                {link.label}
-              </Link>
-            );
-          })}
-          <div className="rsp-mobile-divider" />
-          {principal && (
-            <span style={{
-              fontFamily: FONTS.mono,
-              fontSize: "0.65rem",
-              color: COLORS.plumMid,
-              padding: "0.5rem 0",
-            }}>
-              {principal.slice(0, 16)}…
-            </span>
-          )}
-          <button
-            className="rsp-mobile-link"
-            onClick={() => { logout(); setMenuOpen(false); }}
-            style={{ color: COLORS.plum, borderBottom: "none" }}
-          >
-            Sign Out
-          </button>
-        </div>
+        {menuOpen && (
+          <div className="rsp-mobile-menu open">
+            {navLinks.map((link) => {
+              const active = location.pathname === link.to;
+              return (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  className={`rsp-mobile-link${active ? " active" : ""}`}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
+            <div className="rsp-mobile-divider" />
+            {principal && (
+              <span style={{
+                fontFamily: FONTS.mono,
+                fontSize: "0.65rem",
+                color: COLORS.plumMid,
+                padding: "0.5rem 0",
+              }}>
+                {principal.slice(0, 16)}…
+              </span>
+            )}
+            <button
+              className="rsp-mobile-link"
+              onClick={() => { logout(); setMenuOpen(false); }}
+              style={{ color: COLORS.plum, borderBottom: "none" }}
+            >
+              Sign Out
+            </button>
+          </div>
+        )}
       </header>
 
       {/* Main content */}
