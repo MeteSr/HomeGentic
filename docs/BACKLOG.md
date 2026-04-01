@@ -383,20 +383,6 @@ The core retention challenge for HomeFax: value delivery is irregular. Homeowner
 
 ---
 
-### 12.1 Frontend Unit Tests — Missing Services
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 12.1.1 | `scoreService.ts` unit tests | ✅ Done | M | Highest risk gap. Tests needed for: `computeScore()` (40pt verified + 20pt value + 20pt verification + 20pt diversity rubric), `isCertified()` (score ≥88, ≥3 verified jobs, ≥2 key systems), `generateCertToken()` / `parseCertToken()` (Base64 encoding), `premiumEstimate()` (buyer premium ranges), `getScoreGrade()` (A+ through F) |
-| 12.1.2 | `recurringService.ts` unit tests | ✅ Done | M | Completely untested despite complex canister integration. Cover: `create()`, `getByProperty()`, `updateStatus()`, `addVisitLog()`, `getVisitLogs()`, `toSummary()` — especially mock store behavior and `AlreadyCancelled` error guard |
-| 12.1.3 | `scoreEventService.ts` unit tests | ✅ Done | S | Test `getRecentScoreEvents()` — 90-day window filter, max-12-events cap, deduplication, category assignment per event type |
-| 12.1.4 | `auth.ts` unit tests | ✅ Done | M | Test: `register()`, `getProfile()`, `updateProfile()`, `hasRole()`, BigInt time-field conversions, Opt unwrapping (`raw.field[0] ?? undefined` pattern), error propagation |
-| 12.1.5 | `pulseService.ts` unit tests | ✅ Done | S | Test `getWeeklyPulse()` — seasonal month detection, overdue service window (12 months), tip selection per season, empty-jobs edge case |
-| 12.1.6 | `agentTools.ts` unit tests | ✅ Done | L | Test each Claude tool execution path: `classify_home_issue`, `create_maintenance_job`, `create_quote_request`, `search_contractors`, `sign_job_verification`, `update_job_status`; error recovery when canister call fails mid-tool |
-| 12.1.7 | `agentProfile.ts` unit tests | ✅ Done | S | Test `appendToUrl()` / `fromParams()` round-trip, empty-param edge cases, `save()` / `load()` / `clear()` localStorage cycle |
-
----
-
 ### 12.2 Frontend Unit Tests — Gaps Within Existing Files
 
 | # | Item | Status | Size | Notes |
@@ -510,8 +496,6 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 
 ---
 
----
-
 ## 15. Free Tier Tightening — Conversion Urgency
 
 **Problem:** The free tier currently gives away the full value proposition — unlimited job logging, permanent shareable reports, full score breakdown, market intelligence, and warranty wallet. There is no natural forcing function to upgrade. A homeowner can prepare their home for sale entirely on the free tier.
@@ -576,26 +560,6 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 | 15.7.5 | "You're on Free" tier indicator in Settings | ✅ Done | S | `SettingsPage` shows the user's current tier prominently with a one-click upgrade CTA. Currently this exists but should be made more prominent for free users — show what they're missing with a short feature list. |
 
 ---
-
-## 16. Single-Property Home Screen — Closing the Dashboard Gap ⚠️ P0
-
-> **Why this is top priority:** The Dashboard drives nearly every retention, engagement, and conversion mechanic in HomeFax — score intelligence, decay alerts, re-engagement prompts, market recommendations, milestone banners, upgrade nudges. But single-property users — the statistical majority of early adopters — never see it. When a user has exactly one property, `DashboardPage` immediately redirects them to `PropertyDetailPage`. That page has a basic score and two action buttons. Everything else is invisible to these users. Every retention feature we build is wasted on our largest cohort until this is fixed.
->
-> **Design principle:** `PropertyDetailPage` already *is* the home screen for single-property users. It must feel complete — not like a Dashboard with features stripped out. Single-property users should never see a "Go to Dashboard" link or feel that they're on a lesser page. The property page gains a **Home Panel** above its tab bar that surfaces everything the Dashboard provides, contextualized to the single property they're looking at.
->
-> **Architecture:** Extract shared sections into standalone components (16.1 is the enabling task). Both `DashboardPage` and `PropertyDetailPage` then import the same components. No logic duplication. The property page detects `storeProperties.length === 1` to know it's acting as the home screen and renders the full Home Panel.
-
-### 16.3 Navigation & Routing Cleanup
-**Vision:** Single-property users should never encounter navigation that assumes a multi-property context. Fix any copy, links, or empty states that point them toward a Dashboard they'll never see.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 16.3.1 | Remove "← Back to Dashboard" from property page for single-property users | ✅ Done | S | `PropertyDetailPage` back button navigates to `/dashboard` — for single-property users this redirects back to the property page (infinite loop). Conditionally hide or replace with "← Home" that navigates to `/` when `storeProperties.length === 1`. |
-| 16.3.2 | Nav sidebar active state for single-property users | ✅ Done | S | The global nav highlights "Dashboard" as active. For single-property users whose home is `/properties/:id`, the sidebar shows nothing highlighted. Fix: treat the property detail route as "active home" when user has one property. |
-| 16.3.3 | "Add a second property" upsell on Home Panel | ✅ Done | S | At the bottom of the Home Panel, show a soft upsell: "Tracking a rental or vacation property? Add it to HomeFax." Links to `/properties/new`. Shown only after 30+ days of active use (account age check) to avoid overwhelming new users. |
-
----
-
 1. **16.1.1–16.1.7** Component extraction first — enables everything below without duplication
 2. **16.2.1** Score Panel + decay on property page — fixes the most visible score accuracy gap
 3. **16.2.2–16.2.5** Alert stack + feed + milestones + re-engagement — core retention parity
