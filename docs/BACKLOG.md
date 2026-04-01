@@ -630,10 +630,10 @@ Once an agent is selected, HomeFax stays in the transaction rather than disappea
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 10.2.1 | Comparable sales integration | ⬜ Missing | XL | Pull recent sold comps from ATTOM / Zillow / Redfin API (or public records) for the property's zip; display price/sqft, days on market, sale-to-list ratio |
-| 10.2.2 | HomeFax-adjusted price recommendation | ⬜ Missing | L | Take median comp price/sqft × sqft + HomeFax score premium (6.1.2) = suggested list price range; show the premium component explicitly ("Your verified records add an estimated $X–Y") |
-| 10.2.3 | Price history and reduction tracking | ⬜ Missing | S | If homeowner adjusts their list price, log the history with timestamps; buyers see stable or reduced pricing as signals |
-| 10.2.4 | Days-on-market estimator | ⬜ Missing | M | Based on comp DOM, season, and HomeFax score band — estimate expected time to offer; refreshes weekly |
+| 10.2.1 | Comparable sales integration | ✅ Done | XL | Pull recent sold comps from ATTOM / Zillow / Redfin API (or public records) for the property's zip; display price/sqft, days on market, sale-to-list ratio |
+| 10.2.2 | HomeFax-adjusted price recommendation | ✅ Done | L | Take median comp price/sqft × sqft + HomeFax score premium (6.1.2) = suggested list price range; show the premium component explicitly ("Your verified records add an estimated $X–Y") |
+| 10.2.3 | Price history and reduction tracking | ✅ Done | S | If homeowner adjusts their list price, log the history with timestamps; buyers see stable or reduced pricing as signals |
+| 10.2.4 | Days-on-market estimator | ✅ Done | M | Based on comp DOM, season, and HomeFax score band — estimate expected time to offer; refreshes weekly |
 
 ---
 
