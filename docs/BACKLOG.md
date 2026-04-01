@@ -250,55 +250,6 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 
 ---
 
-## Priority Tiers
-
-### Tier 1 — Complete MVP (existing canisters, polish existing flows)
-Items that use only what's already built. Ship these first.
-
-- ~~1.1.3 5-year calendar view~~ ✅ FiveYearCalendar in PredictiveMaintenancePage
-- ~~2.3.1–2.3.3 Warranty wallet (core)~~ ✅ WarrantyWalletPage + VoiceAgent alerts
-- ~~3.2.2 Document type taxonomy~~ ✅ DOC_TYPES in ConstructionPhotoUpload
-- ~~1.1.4 Per-task cost estimates~~ ✅
-- 2.1.5 Trust score auto-increment on verified jobs
-- 2.3.4–2.3.5 Warranty wallet (report + doc upload)
-- 3.1.2–3.1.4 Ownership transfer log + UI
-- 3.2.3 Permit/inspection upload flow
-- 4.1.2 Field-level disclosure toggles on report shares
-- ~~5.1.3 Issue classification → quote creation (voice agent)~~ ✅
-- 6.1.3 Dollar premium display on Dashboard
-- 6.4.1–6.4.4 Agent co-branding
-
-### Tier 2 — AI Differentiation (new Claude agent capabilities)
-Items that extend the voice agent layer. High leverage, no new canisters needed.
-
-- 1.2.2–1.2.6 Home genome onboarding (Claude Vision + batch ingest)
-- 5.1.4–5.1.6 Contractor search, work order draft, auto-log via agent
-- 5.2.1–5.2.3 Negotiation agent
-- 5.4.2 Permit requirement lookup tool
-- 5.4.4 Permit alert in job creation
-
-### Tier 3 — New Canisters / Infrastructure
-Items requiring new Motoko canisters or major backend work.
-
-- 1.4 Room digital twin (new `room` canister or extension to `property`)
-- 1.3 Utility intelligence (new `utility` canister + OAuth integrations)
-- 2.2 Escrow canister + ICP Ledger integration
-- 3.4 ICRC-7 title token NFT
-- 5.3 Market timing (requires external real estate API)
-
-### Tier 4 — vetKeys & On-Chain Privacy
-Requires `ic-vetkeys = "0.6"` (Rust) + `@dfinity/vetkeys` v0.4 (frontend). Achieves the same privacy guarantees previously attributed to ZKP circuits via ICP's threshold key derivation — no circuit development required.
-
-- 2.4.2 vetKeys sealed-bid reveal
-- 4.1.3–4.1.4 vetKeys permit / score threshold attestations
-- 4.2.3 vetKeys score certificate (income-blind mortgage proof)
-- 4.3.4 vetKeys aggregate privacy
-- 6.3.3 vetKeys canister attestation (buyer Q&A)
-
----
-
----
-
 ## 8. Retention & Anti-Churn — Designing Out Cancellation
 
 The core retention challenge for HomeFax: value delivery is irregular. Homeowners don't engage daily, so perceived value dies in quiet periods. Every item below addresses a specific churn cause identified in the retention analysis.
@@ -360,47 +311,6 @@ The core retention challenge for HomeFax: value delivery is irregular. Homeowner
 | 8.5.3 | Year-in-review email | ⬜ Missing | M | Email summarizing the year: jobs logged, score change, warranty reminders set, estimated value added |
 | 8.5.4 | Milestone share card | ✅ Done | S | Shareable image: "My home has a HomeFax score of 81 — 43 verified records over 12 months." Organic social distribution |
 | 8.5.5 | Advocate prompt at milestone | ✅ Done | S | After milestone screen, prompt referral: "Know a homeowner who should have this?" with referral link |
-
-## Updated Priority Tiers
-
-*(Tiers 1–4 from original backlog unchanged. Retention items added below.)*
-
-### Tier 1-R — Retention: High ROI, Low Effort
-Build these alongside Tier 1 MVP polish. Each addresses a root churn cause with minimal new infrastructure.
-
-- ~~8.1.4 In-app Pulse notification (S)~~ ✅ VoiceAgent proactive alert chips
-- ~~8.1.5 Pulse opt-out controls (S)~~ ✅ "Weekly Home Pulse" toggle in Settings Notifications tab
-- ~~8.2.3 Score sparkline on Dashboard (M)~~ ✅ ScoreSparkline + ScoreHistoryChart
-- ~~8.2.5 Score increase push notification (S)~~ ✅ In-app banner when scoreDelta > 0
-- ~~8.2.6 Score stagnation alert (S)~~ ✅ scoreStagnant nudge in DashboardPage
-- ~~8.3.1 Cancellation intent screen (M)~~ ✅ SettingsPage subscription tab
-- ~~8.3.4 Pause subscription option (S)~~ ✅
-- ~~8.4.3 Insurance-relevant job flags (S)~~ ✅ isInsuranceRelevant() + badge in JobCreatePage
-- ~~8.5.1 Annual milestone trigger (S)~~ ✅ showMilestone in DashboardPage
-- ~~8.6.1 Post-job completion notification (S)~~ ✅ "Record Locked On-Chain" success screen
-- ~~8.6.5 In-app job completion animation (S)~~ ✅ Overlay in ContractorDashboardPage
-- ~~8.6.6 3-service engagement milestone (S)~~ ✅ Dismissible banner when verifiedCount >= 3
-
-### Tier 2-R — Retention: Medium Effort, Core Differentiators
-- 8.1.1–8.1.3 Home Pulse digest with email delivery (L+M+M)
-- ~~8.2.1–8.2.2 Score event system + micro-increments (M+M)~~ ✅ scoreEventService.ts + Dashboard Score Activity feed
-- 8.2.4 Dollar value of score change (M) — requires 6.1.2 first
-- 8.3.1–8.3.2 Cancellation flow + read-only mode — 8.3.1 ✅; 8.3.2 remaining
-- ~~8.3.3 "Records stay on ICP" messaging~~ ✅ cancel confirm step
-- ~~8.4.1–8.4.2 Insurance Defense export (M+M)~~ ✅ InsuranceDefensePage + Quick Actions button
-- ~~8.5.2 Resale-ready milestone screen (M)~~ ✅ ResaleReadyPage + annual milestone CTA
-- 8.5.3 Year-in-review email (M) — needs email backend
-- ~~8.6.2 Next-service prompt from verified job (M)~~ ✅ Dashboard "Next Step" card
-- ~~8.6.4 Contractor re-engagement (M)~~ ✅ `reEngagementService.ts` + dashboard cards
-
-### Tier 3-R — Retention: Infrastructure-Heavy
-- 8.1.1–8.1.3 Home Pulse digest + email delivery (requires Claude backend + email service)
-- 8.1.6 Pulse personalization over time (M)
-- 8.3.2 Post-cancel read-only mode (M)
-- 8.3.5 Win-back email sequence (M)
-- 8.4.4 Insurer-specific export templates (L)
-- 8.5.3 Year-in-review email (M)
-- ~~8.6.4 Contractor re-engagement (M)~~ ✅
 
 ---
 
@@ -464,20 +374,6 @@ Build these alongside Tier 1 MVP polish. Each addresses a root churn cause with 
 |---|------|--------|------|-------|
 | 10.7.1 | "I changed my mind — find me an agent" flow | ⬜ Missing | S | One-click from FSBO dashboard to open a listing bid request (9.2); FSBO data (price history, showing count, offer history) transferred to the bid request as context for agents |
 | 10.7.2 | FSBO effort summary for agent proposals | ⬜ Missing | S | Agents bidding on a property that was previously FSBO see the seller's showing count, offer count, and days on market; this data strengthens the agent's proposal and HomeFax's positioning as the source of record |
-
----
-
-## Updated Priority Tiers (Seller Features)
-
-### Tier 3-S — Seller: Infrastructure-Heavy or Partnership-Dependent
-- 10.3.6 Flat-fee MLS integration (partner dependency)
-- 10.6.3 Legal document library (state-by-state legal review required)
-- 10.2.1 Comparable sales API integration (ATTOM / Zillow)
-- 9.1.5 Agent reviews (trust system evolution)
-
----
-
-*Last updated: 2026-03-27 (sprint 19)*
 
 ---
 
@@ -681,105 +577,6 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 
 ---
 
-### Priority Tiers — Free Tier Tightening
-
-**Tier 1-FT — Highest Conversion Impact (do first)**
-- 15.2.1 7-day report link TTL for free tier (the core forcing function)
-- 15.3.2 "Free Plan" banner on public reports (buyer-visible signal)
-- 15.1.1–15.1.2 5-job cap enforcement + UI prompt
-- 15.4.1–15.4.2 Score number visible, breakdown locked
-- 15.7.4 Update pricing page to reflect new gates
-
-**Tier 2-FT — Feature Gates**
-- 15.6.1 Recurring services locked
-- 15.6.2 Market intelligence locked
-- 15.6.3 Warranty wallet locked
-- 15.6.4 Agent marketplace + FSBO locked
-- 15.5.1 Maintenance calendar restricted to current month
-- 15.7.1 Reusable UpgradeGate component
-
-**Tier 3-FT — Polish & Retention**
-- 15.1.3 Job count progress bar on Dashboard
-- 15.2.2–15.2.4 Expiry warnings and better expired-link UX
-- 15.3.1 planTier field on snapshot
-- 15.3.3 Pro trust badge on clean reports
-- 15.4.3 Score cert breakdown for Pro+
-- 15.5.2 Cost estimate blur on maintenance tasks
-- 15.7.2–15.7.3 Dashboard nudge + notification at peak intent moment
-- 15.7.5 Tier indicator prominence in Settings
-
-### Priority Tiers — Security
-
-**Tier 1-SEC — Fix Before Production (blocking)**
-- 14.1.1 First-admin privilege escalation (all canisters)
-- 14.1.2 Weak report token generation
-- ~~14.2.1 Cross-canister job ownership verification~~ ✅
-- ~~14.2.3 Report disclosure enforcement moved to canister~~ ✅
-
-**Tier 2-SEC — Fix Before Public Beta**
-- ~~14.2.2 Dev identity isolation in build~~ ✅
-- ~~14.3.1 Text field size limits across all canisters~~ ✅
-- ~~14.3.2 Voice proxy rate limiting~~ ✅
-- ~~14.3.3 CORS fail-secure on missing env var~~ ✅
-- 14.4.2 Secrets audit + pre-commit hook
-- 14.4.5 `fetchRootKey` production assertion
-- 14.4.6 API key build-time verification
-
-**Tier 3-SEC — Hardening**
-- ~~14.3.3 CORS fail-secure on missing env var~~ ✅
-- ~~14.3.4 Content-Security-Policy header~~ ✅
-- 14.4.1 Warranty timestamp overflow clamp
-- 14.4.3 Canister upgrade runbook + schema version
-- 14.4.4 Canister pause timeout / multi-admin approval
-
-### Priority Tiers — Benchmark & Load Testing
-
-**Tier 1-B — Establish Baseline First**
-- 13.1.1–13.1.3 Cycles baseline for query + update calls (can't optimize what you haven't measured)
-- 13.4.4 Bundle size audit (quick win, high visibility)
-- 13.6.3 Cycles burn rate dashboard (operational necessity before launch)
-
-**Tier 2-B — Stress the Critical Paths**
-- 13.2.1 `getReport` concurrent read spike (most realistic viral scenario)
-- 13.2.2 `createJob` concurrent write test
-- 13.3.1 `market` canister algorithmic load
-- 13.4.1 Dashboard rendering with large dataset
-- 13.5.1 "Sell day" end-to-end scenario
-
-**Tier 3-B — Completeness & Automation**
-- 13.2.3–13.2.5 Remaining throughput tests
-- 13.3.2–13.3.4 Remaining algorithmic tests
-- 13.4.2–13.4.3 Remaining frontend perf tests
-- 13.5.2–13.5.4 Remaining journey scenarios
-- 13.6.1–13.6.2 Tooling harness + k6 suite
-- 13.6.4 CI regression gate (requires baseline first)
-
-### Priority Tiers — Test Coverage
-
-**Tier 1-T — Highest Risk, Do First**
-- 12.1.1 `scoreService.ts` (scoring/certification logic — no tests, used everywhere)
-- ~~12.3.1 `market/test.sh` (largest canister, no backend tests)~~ ✅
-- ~~12.3.5 `report/test.sh` (token issuance + snapshot immutability — security-adjacent)~~ ✅
-- 12.4.6 Cross-canister integration tests
-- 12.6.1 Vitest coverage report in CI (gates future regressions)
-
-**Tier 2-T — Core Workflow Gaps**
-- 12.1.2 `recurringService.ts` tests
-- 12.1.4 `auth.ts` tests
-- 12.2.1 `job.test.ts` lifecycle methods
-- 12.2.2 `property.test.ts` verification flow
-- ~~12.3.3 `sensor/test.sh` + 12.3.4 `maintenance/test.sh`~~ ✅
-- ~~12.5.1–12.5.2 Login + register e2e~~ ✅
-
-**Tier 3-T — Completeness**
-- 12.1.3, 12.1.5, 12.1.7 Smaller service tests (scoreEvent, pulse, agentProfile)
-- 12.2.3–12.2.7 Gaps within existing test files
-- 12.4.1–12.4.5 Gaps within existing backend scripts
-- 12.5.3–12.5.13 Remaining e2e page flows
-- 12.6.2–12.6.5 Test infrastructure improvements
-
----
-
 ## 16. Single-Property Home Screen — Closing the Dashboard Gap ⚠️ P0
 
 > **Why this is top priority:** The Dashboard drives nearly every retention, engagement, and conversion mechanic in HomeFax — score intelligence, decay alerts, re-engagement prompts, market recommendations, milestone banners, upgrade nudges. But single-property users — the statistical majority of early adopters — never see it. When a user has exactly one property, `DashboardPage` immediately redirects them to `PropertyDetailPage`. That page has a basic score and two action buttons. Everything else is invisible to these users. Every retention feature we build is wasted on our largest cohort until this is fixed.
@@ -798,10 +595,6 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 | 16.3.3 | "Add a second property" upsell on Home Panel | ✅ Done | S | At the bottom of the Home Panel, show a soft upsell: "Tracking a rental or vacation property? Add it to HomeFax." Links to `/properties/new`. Shown only after 30+ days of active use (account age check) to avoid overwhelming new users. |
 
 ---
-
-### Priority Tier — Section 16
-
-**16 must be done before any new retention or engagement features** — every feature we add to the Dashboard is wasted on the majority of users until 16 is complete. Recommended order:
 
 1. **16.1.1–16.1.7** Component extraction first — enables everything below without duplication
 2. **16.2.1** Score Panel + decay on property page — fixes the most visible score accuracy gap
