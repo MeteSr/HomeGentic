@@ -770,6 +770,30 @@ function createListingService() {
     }
     throw new Error("getAgentPerformanceRecords requires deployed canister");
   },
+
+  // ── createDirectInvite (9.6.2) — homeowner invites specific agent ─────────────
+  async createDirectInvite(agentId: string, propertyId: string): Promise<ListingBidRequest> {
+    if (!LISTING_CANISTER_ID) {
+      const id = `BID_DIRECT_${++_reqSeq}`;
+      const req: ListingBidRequest = {
+        id,
+        propertyId,
+        homeowner:        "local",
+        targetListDate:   Date.now() + 30 * 86_400_000,
+        desiredSalePrice: null,
+        notes:            "",
+        bidDeadline:      Date.now() + 7 * 86_400_000,
+        status:           "Open",
+        createdAt:        Date.now(),
+        visibility:       "inviteOnly",
+        invitedAgentIds:  [agentId],
+        propertySnapshot: null,
+      };
+      requests.push(req);
+      return { ...req };
+    }
+    throw new Error("createDirectInvite requires deployed canister");
+  },
   };
 }
 

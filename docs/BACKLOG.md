@@ -603,9 +603,9 @@ Once an agent is selected, HomeFax stays in the transaction rather than disappea
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 9.6.1 | Agent browse / search page | ⬜ Missing | M | `/agents` page: filter by market, commission range, avg days on market, HomeFax transaction history; similar to existing `ContractorBrowsePage` |
-| 9.6.2 | "Request proposal from this agent" direct invite | ⬜ Missing | S | From an agent's public profile, homeowner can send a direct bid invitation tied to their property |
-| 9.6.3 | HomeFax-verified transaction badge on agent profiles | ⬜ Missing | S | Agents who have closed transactions through HomeFax get a "HomeFax Verified Transaction" badge — drives agent adoption loop |
+| 9.6.1 | Agent browse / search page | ✅ Done | M | `/agents` page: filter by state, HomeFax-only toggle, avg days on market sort; cards link to `/agent/:id`; `AgentBrowsePage` mirrors `ContractorBrowsePage` pattern |
+| 9.6.2 | "Request proposal from this agent" direct invite | ✅ Done | S | From agent public profile, homeowner sends direct bid invitation; `listingService.createDirectInvite(agentId, propertyId)` creates an invite-only bid request |
+| 9.6.3 | HomeFax-verified transaction badge on agent profiles | ✅ Done | S | "HomeFax Verified Transaction" badge on public profile and browse card when `perfRecords.length > 0` (driven by 9.5.4 data) |
 
 ---
 

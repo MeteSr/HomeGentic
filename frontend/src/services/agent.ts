@@ -81,19 +81,22 @@ const idlFactory = ({ IDL }: any) => {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface AgentOnChainProfile {
-  id:                   string;
-  name:                 string;
-  brokerage:            string;
-  licenseNumber:        string;
-  statesLicensed:       string[];
-  bio:                  string;
-  phone:                string;
-  email:                string;
-  avgDaysOnMarket:      number;
-  listingsLast12Months: number;
-  isVerified:           boolean;
-  createdAt:            number;
-  updatedAt:            number;
+  id:                      string;
+  name:                    string;
+  brokerage:               string;
+  licenseNumber:           string;
+  statesLicensed:          string[];
+  bio:                     string;
+  phone:                   string;
+  email:                   string;
+  avgDaysOnMarket:         number;
+  listingsLast12Months:    number;
+  isVerified:              boolean;
+  // 9.6 — enriched fields (computed / denormalized)
+  homeFaxTransactionCount: number;
+  typicalCommissionBps:    number;
+  createdAt:               number;
+  updatedAt:               number;
 }
 
 export interface AgentReview {
@@ -136,19 +139,21 @@ export function computeAverageRating(reviews: AgentReview[]): number | null {
 
 function fromRawProfile(raw: any): AgentOnChainProfile {
   return {
-    id:                   raw.id.toText(),
-    name:                 raw.name,
-    brokerage:            raw.brokerage,
-    licenseNumber:        raw.licenseNumber,
-    statesLicensed:       raw.statesLicensed,
-    bio:                  raw.bio,
-    phone:                raw.phone,
-    email:                raw.email,
-    avgDaysOnMarket:      Number(raw.avgDaysOnMarket),
-    listingsLast12Months: Number(raw.listingsLast12Months),
-    isVerified:           raw.isVerified,
-    createdAt:            Number(raw.createdAt),
-    updatedAt:            Number(raw.updatedAt),
+    id:                      raw.id.toText(),
+    name:                    raw.name,
+    brokerage:               raw.brokerage,
+    licenseNumber:           raw.licenseNumber,
+    statesLicensed:          raw.statesLicensed,
+    bio:                     raw.bio,
+    phone:                   raw.phone,
+    email:                   raw.email,
+    avgDaysOnMarket:         Number(raw.avgDaysOnMarket),
+    listingsLast12Months:    Number(raw.listingsLast12Months),
+    isVerified:              raw.isVerified,
+    homeFaxTransactionCount: Number(raw.homeFaxTransactionCount ?? 0),
+    typicalCommissionBps:    Number(raw.typicalCommissionBps ?? 250),
+    createdAt:               Number(raw.createdAt),
+    updatedAt:               Number(raw.updatedAt),
   };
 }
 
@@ -194,19 +199,21 @@ function createAgentService() {
       if (!AGENT_CANISTER_ID) {
         if (_profiles.find((p) => p.id === _myId)) throw new Error("Profile already exists");
         const profile: AgentOnChainProfile = {
-          id:                   _myId,
-          name:                 input.name,
-          brokerage:            input.brokerage,
-          licenseNumber:        input.licenseNumber,
-          statesLicensed:       [...input.statesLicensed],
-          bio:                  input.bio,
-          phone:                input.phone,
-          email:                input.email,
-          avgDaysOnMarket:      0,
-          listingsLast12Months: 0,
-          isVerified:           false,
-          createdAt:            Date.now(),
-          updatedAt:            Date.now(),
+          id:                      _myId,
+          name:                    input.name,
+          brokerage:               input.brokerage,
+          licenseNumber:           input.licenseNumber,
+          statesLicensed:          [...input.statesLicensed],
+          bio:                     input.bio,
+          phone:                   input.phone,
+          email:                   input.email,
+          avgDaysOnMarket:         0,
+          listingsLast12Months:    0,
+          isVerified:              false,
+          homeFaxTransactionCount: 0,
+          typicalCommissionBps:    250,
+          createdAt:               Date.now(),
+          updatedAt:               Date.now(),
         };
         _profiles.push(profile);
         return { ...profile };
@@ -254,14 +261,14 @@ function createAgentService() {
         if (idx === -1) throw new Error("Profile not found");
         const updated: AgentOnChainProfile = {
           ..._profiles[idx],
-          name:           input.name,
-          brokerage:      input.brokerage,
-          licenseNumber:  input.licenseNumber,
-          statesLicensed: [...input.statesLicensed],
-          bio:            input.bio,
-          phone:          input.phone,
-          email:          input.email,
-          updatedAt:      Date.now(),
+          name:                 input.name,
+          brokerage:            input.brokerage,
+          licenseNumber:        input.licenseNumber,
+          statesLicensed:       [...input.statesLicensed],
+          bio:                  input.bio,
+          phone:                input.phone,
+          email:                input.email,
+          updatedAt:            Date.now(),
         };
         _profiles[idx] = updated;
         return { ...updated };

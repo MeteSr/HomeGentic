@@ -7,9 +7,12 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Layout } from "@/components/Layout";
+import { Button } from "@/components/Button";
 import { agentService, AgentOnChainProfile, AgentReview, computeAverageRating } from "@/services/agent";
 import { listingService, AgentPerformanceRecord } from "@/services/listing";
+import { usePropertyStore } from "@/store/propertyStore";
 import { COLORS, FONTS } from "@/theme";
+import toast from "react-hot-toast";
 
 const S = {
   ink:      COLORS.plum,
@@ -23,9 +26,13 @@ const S = {
 
 export default function AgentPublicPage() {
   const { id } = useParams<{ id: string }>();
+  const { properties } = usePropertyStore();
   const [profile, setProfile] = useState<AgentOnChainProfile | null | undefined>(undefined);
   const [reviews, setReviews] = useState<AgentReview[]>([]);
   const [perfRecords, setPerfRecords] = useState<AgentPerformanceRecord[]>([]);
+  // 9.6.2 — direct invite
+  const [inviteOpen,    setInviteOpen]    = useState(false);
+  const [selectedPropId, setSelectedPropId] = useState("");
 
   useEffect(() => {
     if (!id) return;
@@ -70,14 +77,69 @@ export default function AgentPublicPage() {
             {profile.brokerage} · {profile.licenseNumber}
           </p>
 
-          {profile.isVerified && (
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 6,
-              background: "#e6f4ea", border: "1px solid #34a853", borderRadius: 2,
-              padding: "4px 10px", marginTop: 8 }}>
-              <span style={{ fontFamily: S.mono, fontSize: "0.75rem", color: "#188038" }}>
-                HomeFax Verified
-              </span>
-            </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+            {profile.isVerified && (
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 6,
+                background: "#e6f4ea", border: "1px solid #34a853", borderRadius: 2,
+                padding: "4px 10px" }}>
+                <span style={{ fontFamily: S.mono, fontSize: "0.75rem", color: "#188038" }}>
+                  HomeFax Verified
+                </span>
+              </div>
+            )}
+            {/* 9.6.3 — HomeFax Verified Transaction badge */}
+            {perfRecords.length > 0 && (
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 6,
+                background: "#e8f4ff", border: "1px solid #1a73e8", borderRadius: 2,
+                padding: "4px 10px" }}>
+                <span style={{ fontFamily: S.mono, fontSize: "0.75rem", color: "#1a5c99" }}>
+                  HomeFax Verified Transaction
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* 9.6.2 — Request Proposal button */}
+          <div style={{ marginTop: 16 }}>
+            <Button onClick={() => setInviteOpen((o) => !o)}>
+              Request Proposal
+            </Button>
+          </div>
+
+          {/* 9.6.2 — Invite form */}
+          {inviteOpen && (
+            <form
+              aria-label="Request Proposal"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!selectedPropId) { toast.error("Select a property"); return; }
+                try {
+                  await listingService.createDirectInvite(id!, selectedPropId);
+                  toast.success("Proposal request sent to the agent.");
+                  setInviteOpen(false);
+                } catch (err: any) {
+                  toast.error(err?.message ?? "Failed to send invite");
+                }
+              }}
+              style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8, border: `1px solid ${S.rule}`, padding: "1rem" }}
+            >
+              <label htmlFor="invite-property" style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                Select Property
+              </label>
+              <select
+                id="invite-property"
+                aria-label="Select Property"
+                value={selectedPropId}
+                onChange={(e) => setSelectedPropId(e.target.value)}
+                style={{ padding: "0.4rem", border: `1px solid ${S.rule}`, fontFamily: S.mono, fontSize: "0.75rem" }}
+              >
+                <option value="">— choose a property —</option>
+                {properties.map((p: any) => (
+                  <option key={p.id} value={p.id}>{p.address}</option>
+                ))}
+              </select>
+              <Button type="submit" style={{ alignSelf: "flex-start" }}>Send Request</Button>
+            </form>
           )}
         </div>
 

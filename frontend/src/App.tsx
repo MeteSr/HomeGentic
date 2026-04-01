@@ -41,6 +41,7 @@ import ListingDetailPage    from "@/pages/ListingDetailPage";
 import AgentMarketplacePage  from "@/pages/AgentMarketplacePage";
 import AgentProfileEditPage  from "@/pages/AgentProfileEditPage";
 import AgentPublicPage       from "@/pages/AgentPublicPage";
+import AgentBrowsePage       from "@/pages/AgentBrowsePage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuthStore();
@@ -322,6 +323,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <AgentPublicPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/agents"
+          element={
+            <ProtectedRoute>
+              <AgentBrowsePage />
             </ProtectedRoute>
           }
         />
