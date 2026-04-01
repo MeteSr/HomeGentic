@@ -469,29 +469,6 @@ Build these alongside Tier 1 MVP polish. Each addresses a root churn cause with 
 
 ## Updated Priority Tiers (Seller Features)
 
-### Tier 1-S — Seller: High Impact, Low Infrastructure
-Buildable without new canisters; leverages existing `quote`, `auth`, `report`, and `photo` patterns.
-
-- 9.1.1 Realtor role in `auth` canister (see also 6.4.1 — consolidate)
-- 9.1.2–9.1.3 Agent profile + verification badge
-- 9.2.1–9.2.3 Listing bid request + score auto-attach (extend `quote` canister pattern)
-- 9.3.1–9.3.3 Proposal type + submission UI + commission input
-- 9.4.1–9.4.2 Proposal comparison + net proceeds calculator
-- 10.1.1–10.1.4 FSBO flag, activation flow, savings calculator, readiness score — ✅ Done
-- 10.3.1–10.3.3 Public listing page + HomeFax badge + report link
-- 10.5.1–10.5.3 Offer intake + comparison + net proceeds
-
-### Tier 2-S — Seller: Core Differentiators
-Require modest new infrastructure; high product value.
-
-- 9.2.4–9.2.6 Bid controls, deadline enforcement, sealed proposals (9.3.6) — ✅ Done
-- 9.4.3–9.4.6 Score context, selection flow, contract upload, counter-proposal — ✅ Done
-- 9.5.1–9.5.4 Transaction tracking + agent performance scoring — ✅ Done
-- 10.2.1–10.2.4 Pricing intelligence (requires comp data API)
-- 10.4.1–10.4.3 Showing management inbox + calendar
-- 10.6.1–10.6.2 Disclosure generator + completeness score
-- 10.7.1–10.7.2 FSBO → agent handoff
-
 ### Tier 3-S — Seller: Infrastructure-Heavy or Partnership-Dependent
 - 10.3.6 Flat-fee MLS integration (partner dependency)
 - 10.6.3 Legal document library (state-by-state legal review required)
@@ -535,66 +512,6 @@ Require modest new infrastructure; high product value.
 | 12.2.5 | `contractor.test.ts` — missing review rate-limiting | ✅ Done | S | Add tests for 10-reviews-per-day-per-user limit, composite key deduplication on reviews |
 | 12.2.6 | `sensor.test.ts` — missing anomaly detection | ⬜ Missing | M | Add tests for bulk reading ingestion, Critical event auto-creating a pending job (cross-service), alert threshold boundary values |
 | 12.2.7 | `maintenance.test.ts` — missing climate/material variants | ⬜ Missing | M | Add tests for climate-adjusted lifespan (once 1.1.5 lands) and all 8 system types at boundary ages (exactly at threshold years) |
-
----
-
-### 12.3 Backend Canister Tests — Fully Missing
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 12.3.1 | `backend/market/test.sh` | ✅ Done | M | Largest untested canister (535 lines). Test: ROI-ranked project recommendations, `analyzeCompetitivePosition()` scoring (maintenance 25pts/HVAC, 80% DIY factor), zip-level `MarketSnapshot`, `getTopProjects()` sort order |
-| 12.3.2 | `backend/monitoring/test.sh` | ✅ Done | M | Test: cycles usage metrics, ARPU/LTV/CAC calculations, profitability thresholds, alert generation, `pause()`/`unpause()` admin flow |
-| 12.3.3 | `backend/sensor/test.sh` | ✅ Done | M | Test: device registration, reading ingestion, health classification (Critical/Warning/OK), auto-creation of pending job on Critical event (canister cross-call) |
-| 12.3.4 | `backend/maintenance/test.sh` | ✅ Done | M | Test: system lifespan tables for all 8 types, seasonal task generation per month, urgency threshold boundaries (Critical/Warning/Deferred), `getSeasonalTasks()` output shape |
-| 12.3.5 | `backend/report/test.sh` | ✅ Done | M | Test: report generation with snapshot immutability, token issuance uniqueness, share link visibility levels (Public/Buyer/Agent/Private), revocation, `viewCount` increment on `getReport()` |
-| 12.3.6 | `backend/recurring/test.sh` | ✅ Done | M | Test: service creation per property, `AlreadyCancelled` guard (status change on cancelled = error), visit log ordering, `attachContractDoc` idempotency, `getByProperty()` isolation |
-
----
-
-### 12.4 Backend Canister Tests — Gaps Within Existing Scripts
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 12.4.1 | `job/test.sh` — dual-signature flow | ✅ Done | M | Currently tests single-signer create + status update. Add: contractor co-sign path, homeowner-only DIY verification, signature dispute scenario, photo attachment |
-| 12.4.2 | `property/test.sh` — verification state machine | ✅ Done | M | Currently tests register + retrieve. Add: full Unverified → PendingReview → Basic → Premium transition, 7-day ownership conflict window, tier upgrade enforcement |
-| 12.4.3 | `job/test.sh` — pagination | ✅ Done | S | `getByProperty()` with more than one page of results; confirm offset/limit behavior |
-| 12.4.4 | `quote/test.sh` — contractor response + expiry | ✅ Done | M | Add: contractor bid submission, open-request tier limits (3 Free / 10 Pro+), quote expiration after deadline |
-| 12.4.5 | `auth/test.sh` — role transitions | ✅ Done | S | Add tests for role change (Homeowner → Realtor), duplicate registration guard, `addAdmin()` + metrics |
-| 12.4.6 | `scripts/test-cross-canister.sh` — cross-canister integration | ✅ Done | L | New dedicated script. Scenarios: Free-tier job cap (job → payment), sensor Critical event → pending job (sensor → job), payment tier upgrade unlocks quote slots |
-
----
-
-### 12.5 E2E Tests — Missing Page Flows
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 12.5.1 | `login.spec.ts` | ✅ Done | M | Dev login flow (bypass Internet Identity), redirect to dashboard on success, redirect to `/login` on protected route access, session persistence across reload |
-| 12.5.2 | `register.spec.ts` | ✅ Done | M | Role selection (Homeowner / Contractor / Agent), profile completion, redirect to onboarding |
-| 12.5.3 | `settings.spec.ts` | ✅ Done | M | Profile update, notification preferences, subscription tier display, pause subscription flow |
-| 12.5.4 | `recurring-service.spec.ts` | ✅ Done | M | Create recurring service (lawn care, pest control), log a visit, view contract doc upload, cancel service → tombstone state |
-| 12.5.5 | `warranty-wallet.spec.ts` | ✅ Done | M | Warranty card display, expiry badge variants (active/expiring/expired), attach warranty doc |
-| 12.5.6 | `score-cert.spec.ts` | ✅ Done | M | Certificate page renders HomeFax score + certified badge, shareable URL contains token, expired cert shows correct state |
-| 12.5.7 | `pricing.spec.ts` | ✅ Done | M | Tier comparison table renders, upgrade CTA navigates correctly, current tier highlighted |
-| 12.5.8 | `onboarding.spec.ts` | ✅ Done | M | Multi-step wizard (property add → first job → invite contractor), step validation, skip-step behavior |
-| 12.5.9 | `contractor-browse.spec.ts` | ✅ Done | M | Search by specialty, filter by rating, navigate to public profile page |
-| 12.5.10 | `quote-detail.spec.ts` | ✅ Done | M | Contractor views and responds to open quote, homeowner sees bid, accept/decline flow |
-| 12.5.11 | `resale-ready.spec.ts` | ✅ Done | S | Checklist items render, score indicator shows, CTA routes correctly |
-| 12.5.12 | `insurance-defense.spec.ts` | ✅ Done | S | Evidence cards display, key systems highlighted, generate report from page |
-| 12.5.13 | `landing.spec.ts` | ✅ Done | S | Nav links scroll to correct sections, "Get Started" CTAs navigate to `/login`, mobile nav renders on small viewport |
-
----
-
-### 12.6 Test Infrastructure
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 12.6.1 | Vitest coverage report in CI | ✅ Done | S | Add `--coverage` flag to `npm run test:unit`; configure Istanbul thresholds (target: 70% line coverage for services); fail CI below threshold |
-| 12.6.2 | Playwright visual regression baseline | ✅ Done | M | Capture screenshots of key pages (Dashboard, Report, Landing) as regression baseline; flag pixel diffs in CI — especially important during design migration (Section 11) |
-| 12.6.3 | Backend test coverage tracking | ✅ Done | S | Add a coverage summary table to `scripts/test-backend.sh` output; count pass/fail per canister; non-zero exit code on any failure |
-| 12.6.4 | Mock canister identity in unit tests | ✅ Done | M | Current unit tests use the mock-fallback pattern (no `CANISTER_ID` → mock data). Add a test utility that stubs canister actor calls so real IDL validation is exercised without a running replica |
-| 12.6.5 | E2E test data isolation | ✅ Done | S | `window.__e2e_properties` injection exists; extend to cover recurring services (`window.__e2e_recurring`), warranties, and score events so new e2e tests have consistent fixtures |
-
----
 
 ---
 
@@ -683,36 +600,6 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 
 ---
 
-### 14.1 Critical — Fix Before Production
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 14.1.1 | First-admin privilege escalation | ✅ Exists | S | **CRITICAL.** All canisters share the same pattern: when `admins.size() == 0`, any caller can invoke `addAdmin()` and become admin — locking out the real deployer and gaining `pause()`/`unpause()` control over the entire platform. Affects: `auth`, `property`, `job`, `contractor`, `report`, `recurring`. Fix: add a one-time `initializeAdmin()` function gated by a `Bool` stable var (`initialized`), or hardcode the deployer principal at canister startup. |
-| 14.1.2 | Weak report share token generation | ✅ Exists | S | **CRITICAL.** Tokens are generated as `"RPT_" # counter # "_" # timestampMs` — fully deterministic and enumerable. An attacker who generates one report can predict adjacent tokens and access other homeowners' private reports without being invited. Fix: replace with IC certified randomness (`Random.blob()`) to generate a 32-byte random token. Never use sequential counters or timestamps as security tokens. File: `backend/report/main.mo` `nextIds()`. |
-
----
-
-### 14.2 High — Fix Before Launch
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 14.2.1 | Cross-canister job ownership not verified | ✅ Done | M | `job/main.mo` `createSensorJob()` cross-calls property canister (`getPropertyOwner`) when `propCanisterId` is set; rejects if passed `homeowner` ≠ actual owner. |
-| 14.2.2 | Dev identity bypass not structurally isolated | ✅ Done | S | `actor.ts` `loginWithLocalIdentity()` hard-throws in production behind `if (!import.meta.env.DEV)`; Vite dead-code-eliminates the branch entirely in prod builds. |
-| 14.2.3 | Report disclosure options enforced on frontend only | ✅ Done | M | `report/main.mo`: `hideAmounts/Contractors/Permits/Descriptions` stored as `?Bool` fields on `ShareLink` record; `applyDisclosure()` filters snapshot fields server-side in `getReport()` before returning to caller. |
-
----
-
-### 14.3 Medium — Fix Before Public Beta
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 14.3.1 | Missing text field size limits across canisters | ✅ Done | M | Upper-bound `Text.size` guards added to all remaining free-text params: maintenance (`systemName` >100, `taskDescription` >2000, `propertyId` >200), recurring (`providerName` >200, `notes`/`note` >2000, dates >10, optional phone/license), sensor (`name`/`externalDeviceId` >200), monitoring (`message` >2000), market (`zipCode` >20), report (`address` >500, `city` >100, `state` >50, `zipCode` >20). |
-| 14.3.2 | No rate limiting on voice agent proxy endpoints | ✅ Done | S | `express-rate-limit` middleware applied to all `/api/` routes: 30 req/min/IP, standard headers, JSON error body. File: `agents/voice/server.ts`. |
-| 14.3.3 | CORS origin fails open if env var missing | ✅ Done | S | `server.ts` throws on missing `FRONTEND_ORIGIN` in production (`NODE_ENV === "production"`); dev falls back to localhost with a console warn. |
-| 14.3.4 | Content-Security-Policy header | ✅ Done | S | **MEDIUM.** `frontend/index.html` has no CSP meta tag. While no `dangerouslySetInnerHTML` was found in the current codebase, absence of a CSP leaves the door open for XSS introduced by future changes or third-party scripts. Fix: add `<meta http-equiv="Content-Security-Policy">` restricting `script-src`, `style-src` (allow `fonts.googleapis.com`), `font-src` (allow `fonts.gstatic.com`), `connect-src` to IC endpoint. |
-
----
-
 ### 14.4 Low / Hardening
 
 | # | Item | Status | Size | Notes |
@@ -736,16 +623,6 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 **Strategy:** Free users get enough to feel the value and get hooked, but hit professional-grade walls at the exact moment they need to use it seriously — when preparing to list or sell.
 
 **The upgrade moment:** *"I'm ready to list — let me share my report"* → 7-day expiry warning → upgrade to Pro for a permanent, unbranded link.
-
----
-
-### 15.1 Job History Cap
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 15.1.1 | Enforce 5-job cap on free tier in `job` canister | ✅ Exists | S | `createJob()` cross-calls `payment.getTierForPrincipal(msg.caller)`. If `#Free` and caller already has ≥5 jobs, returns `#err(#TierLimitReached)`. Added `payCanisterId` stable var + `setPaymentCanisterId()` admin func. `deploy.sh` now wires all three inter-canister IDs post-deploy. |
-| 15.1.2 | Surface job cap in `JobCreatePage` | ✅ Exists | S | UpgradeGate shown when Free user has ≥5 jobs (fetched on mount). |
-| 15.1.3 | Show job count + cap progress on Dashboard | ✅ Done | S | Free users see "5/5 jobs logged" with a progress bar and upgrade CTA. Pro+ users see no cap indicator. |
 
 ---
 
@@ -777,15 +654,6 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 | 15.4.1 | Show score number on free tier, lock breakdown | ✅ Done | M | The score breakdown appears in two places: (1) `DashboardPage` — the per-property score section, and (2) `PropertyDetailPage` — the Score tab. Apply the gate in both. Free users see the large score number and grade (e.g., "74 · C+") unchanged. The four scoring pillars rendered below it (`scoreService.computeScore()` returns `verifiedJobPts`, `valuePts`, `verificationPts`, `diversityPts`) are replaced with a single `<UpgradeGate>` card (see 15.7.1): icon 🔍, title "Score Breakdown", description "See exactly what's dragging your score down — upgrade to Pro." The gate check is: `if (tier === "Free") show gate else show pillars`. Read tier from `paymentService.getSubscription()` called once in the page's `useEffect`, stored in local state. |
 | 15.4.2 | Lock improvement recommendations on free tier | ✅ Done | S | The "How to improve your score" action list (currently shown on Dashboard and PropertyDetailPage) is Pro-only. Free users see: "3 actions available — upgrade to see them." |
 | 15.4.3 | Show full breakdown in score cert for Pro+ | ⬜ Missing | S | `ScoreCertPage` shows full breakdown for Pro+. Free users who earn a cert (score ≥88) still get the cert number, but the detailed sub-scores are blurred with an upgrade prompt. |
-
----
-
-### 15.5 Predictive Maintenance Gating
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 15.5.1 | Restrict free tier to current-month maintenance view | ✅ Done | M | In `PredictiveMaintenancePage`, free users see only the current month's tasks. The 5-year calendar tab is replaced with a locked state: "See your full 5-year maintenance plan and cost estimates — upgrade to Pro." The urgency here is real: buyers ask "when is the HVAC due?" and only Pro can answer confidently. |
-| 15.5.2 | Lock per-task cost estimates on free tier | ✅ Done | S | The dollar ranges on each maintenance task (e.g., "$3,200–$5,800 to replace") are Pro-only. Free users see task names and urgency levels, but costs are hidden behind a blur with upgrade CTA. |
 
 ---
 
@@ -912,130 +780,6 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 
 ---
 
-## 11. Design System Migration — New UI Language
-
-**Vision:** Roll the new landing page design system (Fraunces serif, Plus Jakarta Sans, plum/sage/blush palette, rounded pill buttons, blob visuals) out across all authenticated app pages, replacing the current blueprint/editorial aesthetic. Delivers brand coherence from first impression through daily use.
-
-**Design tokens to propagate:**
-```
---plum: #2E2540        (replaces ink #0E0E0C as primary)
---sage: #7AAF76        (replaces rust #C94C2E as accent)
---sage-light: #E5F0E4  (replaces paper #F4F1EB as background tint)
---plum-mid: #6B5B7B    (replaces inkLight #7A7268 as muted text)
---white: #FDFCFA       (page background)
---blush: #F0CDBA       (warm accent surface)
---sky: #BAD5E8         (cool accent surface)
---butter: #F5E9BB      (highlight surface)
-Fraunces (serif headings, 700/900) replaces Playfair Display
-Plus Jakarta Sans (body, 300–700) replaces IBM Plex Sans
-IBM Plex Mono retained for labels and data values
-border-radius: pills (100px) for buttons; 20–24px for cards
-```
-
----
-
-### 11.1 Design Token Foundation
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 11.1.1 | Create `theme.ts` with new token constants | ✅ Done | S | Export `COLORS`, `FONTS`, `RADIUS` objects; replace inline `s = {...}` pattern used in every page component |
-| 11.1.2 | Update Google Fonts in `index.html` | ✅ Done | S | Add Fraunces + Plus Jakarta Sans; keep IBM Plex Mono; remove Playfair Display after migration complete |
-| 11.1.3 | Update global CSS resets in `index.css` | ✅ Done | S | Body font, background color, scrollbar, selection color aligned to new palette |
-| 11.1.4 | Update shared `Button.tsx` component | ✅ Done | S | Primary (plum fill, pill), secondary (sage-light fill, pill), ghost (border); replace current sharp-corner variants |
-| 11.1.5 | Update shared `Badge.tsx` component | ✅ Done | S | Pill shape, sage/blush/sky/butter surface variants matching new card language |
-| 11.1.6 | Update shared `Layout.tsx` nav + sidebar | ✅ Done | M | New nav: plum logo, sage accent on active item, white background with sage-mid bottom border; sidebar uses plum-mid text |
-
----
-
-### 11.2 Core Authenticated Pages
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 11.2.1 | `DashboardPage.tsx` | ✅ Done | M | Property cards → 20px radius, sage-light surface; score ring → sage gradient; section headers → Fraunces; stat pills → new palette |
-| 11.2.2 | `PropertyDetailPage.tsx` | ✅ Done | M | Tab bar → plum active state; cards → new radius + surface colors; action buttons → pill style |
-| 11.2.3 | `JobCreatePage.tsx` | ✅ Done | S | Form inputs → plum focus border; submit button → plum pill; success screen → sage-light background |
-| 11.2.4 | `SettingsPage.tsx` | ✅ Done | S | Section cards → 20px radius; tier badges → new badge variants; save button → plum pill |
-| 11.2.5 | `PricingPage.tsx` | ✅ Done | M | Tier cards → blush/sky/sage-light surfaces; CTA buttons → plum pill; recommended tier → plum card (dark) |
-| 11.2.6 | `OnboardingPage.tsx` | ✅ Done | M | Step indicators → sage dots; form cards → new radius; progress bar → sage gradient |
-
----
-
-### 11.3 Contractor & Quote Pages
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 11.3.1 | `ContractorDashboardPage.tsx` | ✅ Done | M | Job cards → new card style; trust score display → sage gradient bar; status badges → new variants |
-| 11.3.2 | `ContractorProfilePage.tsx` | ✅ Done | S | Profile header → plum background; form fields → new focus state; save → plum pill |
-| 11.3.3 | `ContractorBrowsePage.tsx` | ✅ Done | M | Contractor cards → 20px radius, hover sage border; filter pills → sage-light; search → plum focus |
-| 11.3.4 | `ContractorPublicPage.tsx` | ✅ Done | M | Public-facing — must look polished; hero → plum gradient; review cards → new card style |
-| 11.3.5 | `QuoteRequestPage.tsx` + `QuoteDetailPage.tsx` | ✅ Done | M | Quote cards → blush surface; status badges → new variants; action buttons → pill style |
-
----
-
-### 11.4 Feature Pages
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 11.4.1 | `PredictiveMaintenancePage.tsx` | ✅ Done | M | Calendar grid → sage-light cells; urgency badges → blush (Soon) / sky (Watch) / sage (Good); tab bar → new style |
-| 11.4.2 | `MarketIntelligencePage.tsx` | ✅ Done | S | ROI bars → sage gradient; project cards → 20px radius; category headers → Fraunces |
-| 11.4.3 | `WarrantyWalletPage.tsx` | ✅ Done | S | Warranty cards → butter surface for active, plum-mid text for expired; expiry badges → new variants |
-| 11.4.4 | `InsuranceDefensePage.tsx` | ✅ Done | S | Evidence cards → sky surface; score indicators → sage; action buttons → plum pill |
-| 11.4.5 | `ResaleReadyPage.tsx` | ✅ Done | S | Checklist items → sage checkmark; progress ring → sage gradient; CTA → plum pill |
-| 11.4.6 | `RecurringServiceCreatePage.tsx` + `RecurringServiceDetailPage.tsx` | ✅ Done | S | New pages — apply new design from the start rather than retrofitting |
-| 11.4.7 | `SensorPage.tsx` | ✅ Done | S | Device cards → sky surface (IoT = tech/cool); alert badges → blush for warning |
-| 11.4.8 | `SystemAgesPage.tsx` | ✅ Done | S | Age bars → sage (good) / blush (aging) / rust-equivalent warning; Fraunces system names |
-
----
-
-### 11.5 Report & Certificate Pages
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 11.5.1 | `ReportPage.tsx` (public share page) | ✅ Done | L | Highest-stakes public page; score display → Fraunces large number + sage gradient bar; section cards → new style; HomeFax badge → pill; "Powered by HomeFax" footer → plum |
-| 11.5.2 | `ScoreCertPage.tsx` | ✅ Done | M | Certificate → Fraunces display type + plum/sage palette; shareable badge → new style |
-| 11.5.3 | `GenerateReportModal.tsx` | ✅ Done | S | Modal → 20px radius, white background; form inputs → plum focus; generate button → plum pill |
-
----
-
-### 11.6 Admin & Agent Pages
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 11.6.1 | `AdminDashboardPage.tsx` | ✅ Done | M | Metric cards → new card style; charts → sage/plum palette; admin-only badge → plum dark |
-| 11.6.2 | `AgentDashboardPage.tsx` | ✅ Done | M | Pipeline cards → blush surface; proposal status badges → new variants; earnings summary → Fraunces numerals |
-
----
-
-### 11.7 Login & Auth Pages
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 11.7.1 | `LoginPage.tsx` | ✅ Done | S | Page background → sage-light; card → white, 24px radius; Internet Identity button → plum pill; dev login → ghost pill |
-| 11.7.2 | `RegisterPage.tsx` | ✅ Done | S | Same card style as login; role selector → pill toggle (Homeowner / Contractor / Agent) in plum/sage |
-
----
-
-### Priority Tiers — Design Migration
-
-**Tier 1-D — Highest Visibility (do first)**
-- 11.1.1–11.1.6 Token foundation + shared components (unlocks everything else)
-- 11.7.1–11.7.2 Login/Register (first authenticated experience)
-- 11.2.1 Dashboard (most-visited authenticated page)
-- 11.5.1 ReportPage (public-facing, buyer-visible)
-- 11.2.5 PricingPage (conversion-critical)
-
-**Tier 2-D — Core Workflows**
-- 11.2.2–11.2.4 Property detail, job create, settings
-- 11.3.1–11.3.5 Contractor + quote pages
-- 11.5.2–11.5.3 Score cert + generate modal
-
-**Tier 3-D — Feature Pages (after core is done)**
-- 11.4.1–11.4.8 All feature pages
-- 11.6.1–11.6.2 Admin + agent pages
-- 11.2.6 Onboarding
-
----
-
 ## 16. Single-Property Home Screen — Closing the Dashboard Gap ⚠️ P0
 
 > **Why this is top priority:** The Dashboard drives nearly every retention, engagement, and conversion mechanic in HomeFax — score intelligence, decay alerts, re-engagement prompts, market recommendations, milestone banners, upgrade nudges. But single-property users — the statistical majority of early adopters — never see it. When a user has exactly one property, `DashboardPage` immediately redirects them to `PropertyDetailPage`. That page has a basic score and two action buttons. Everything else is invisible to these users. Every retention feature we build is wasted on our largest cohort until this is fixed.
@@ -1043,33 +787,6 @@ border-radius: pills (100px) for buttons; 20–24px for cards
 > **Design principle:** `PropertyDetailPage` already *is* the home screen for single-property users. It must feel complete — not like a Dashboard with features stripped out. Single-property users should never see a "Go to Dashboard" link or feel that they're on a lesser page. The property page gains a **Home Panel** above its tab bar that surfaces everything the Dashboard provides, contextualized to the single property they're looking at.
 >
 > **Architecture:** Extract shared sections into standalone components (16.1 is the enabling task). Both `DashboardPage` and `PropertyDetailPage` then import the same components. No logic duplication. The property page detects `storeProperties.length === 1` to know it's acting as the home screen and renders the full Home Panel.
-
-### 16.1 Extract Shared Dashboard Components (Enabling Task)
-**Vision:** Before adding anything to the property page, extract the Dashboard's major sections into standalone, self-contained components. This keeps both pages maintainable and prevents a ~4,000-line monolith.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 16.1.1 | `<ScorePanel>` component | ✅ Done | M | Encapsulates: score arc, grade badge, delta chip, premium estimate, certified badge, score goal bar, breakdown modal trigger. Props: `jobs`, `properties`, `systemAges`, `scoreHistory`, `userTier`. Used by both Dashboard (multi-property selector) and PropertyDetailPage. |
-| 16.1.2 | `<ScoreActivityFeed>` component | ✅ Done | M | Encapsulates: positive score events + decay events merged feed, "Score Activity" header, 5-row cap. Props: `jobs`, `properties`, `systemAges`. Self-contained — calls `getRecentScoreEvents` and `getAllDecayEvents` internally. |
-| 16.1.3 | `<AlertStack>` component | ✅ Done | S | Renders any combination of: Score at Risk card (8.7.7), score stagnation nudge (8.2.6), upgrade banner, weekly Pulse tip — each as a dismissible card. Props: `alerts: AlertItem[]`. Caller builds the alert list; component handles dismiss state and styling. |
-| 16.1.4 | `<MilestoneStack>` component | ✅ Done | S | Renders annual milestone banner, 3-job milestone banner, HomeFax Certified banner — each dismissible via localStorage keys. Props: `jobs`, `properties`, `accountAgeMs`. |
-| 16.1.5 | `<ReEngagementStack>` component | ✅ Done | S | Renders re-engagement "Book Again" prompt cards (from `reEngagementService`). Props: `jobs`. Handles dismiss state internally via `homefax_reengage_*` localStorage. |
-| 16.1.6 | `<MarketIntelPanel>` component | ✅ Done | M | Encapsulates ROI project recommendations from `marketService`. Props: `property`, `jobs`. Renders top-3 ranked cards with ROI badge, cost estimate, and "Log Job" CTA pre-filled with service type. |
-| 16.1.7 | `<RecurringServicesPanel>` component | ✅ Done | S | Encapsulates the recurring service card list + visit log + "+ Add" CTA. Props: `propertyId`, `userTier`. Handles its own data fetching (recurring service list + visit logs). |
-
-### 16.2 Home Panel on PropertyDetailPage
-**Vision:** A collapsible "Home" section rendered above the tab bar on `PropertyDetailPage` when the user has exactly one property. It brings everything from the Dashboard to where single-property users already live. Disappears automatically if the user adds a second property (they'll use the real Dashboard).
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 16.2.1 | Score Panel on property page | ✅ Done | S | Replace current ad-hoc score display in `PropertyDetailPage` with `<ScorePanel>`. Add decay: swap `computeScore` → `computeScoreWithDecay`; load `systemAges` from `systemAgesService`. Score snapshot recording also updated. Condition: always shown (property page always shows score). |
-| 16.2.2 | Alert stack on property page | ✅ Done | S | When `storeProperties.length === 1`, render `<AlertStack>` above the tab bar. Alerts include: Score at Risk (8.7.7), stagnation nudge (8.2.6), upgrade banner, weekly Pulse tip. Each is dismissible. Alert list is computed from `jobs`, `systemAges`, `scoreHistory`, `userTier`. |
-| 16.2.3 | Score Activity feed on property page | ✅ Done | S | When `storeProperties.length === 1`, render `<ScoreActivityFeed>` in the Home section. Shows positive + decay events exactly as Dashboard does, including recovery prompts. Single-property users get full score transparency without navigating anywhere. |
-| 16.2.4 | Milestone banners on property page | ✅ Done | S | When `storeProperties.length === 1`, render `<MilestoneStack>`. Brings annual milestone, HomeFax Certified, and 3-job celebration to property page. (PropertyDetailPage already has a partial 3-job banner — replace it with the shared component.) |
-| 16.2.5 | Re-engagement prompts on property page | ✅ Done | S | When `storeProperties.length === 1`, render `<ReEngagementStack>`. "It's been 11 months — book your HVAC contractor again?" cards with "Request Quote →" CTA. |
-| 16.2.6 | Market Intelligence panel on property page | ✅ Done | M | When `storeProperties.length === 1`, render `<MarketIntelPanel>`. Top-3 ROI project recommendations contextualized to this property. Clicks open `LogJobModal` pre-filled with the recommended service type. |
-| 16.2.7 | Recurring Services panel on property page | ✅ Done | S | When `storeProperties.length === 1`, render `<RecurringServicesPanel>`. Single-property users can manage recurring contracts without knowing the Dashboard exists. |
-| 16.2.8 | Quick Actions upgrade on property page | ✅ Done | S | Current Log Job / Request Quote on property page are plain outline buttons. When `storeProperties.length === 1`, upgrade to modal-first UX (matching Dashboard — commit `8d5e5ca`). `LogJobModal` and `RequestQuoteModal` already imported; just wire them. |
 
 ### 16.3 Navigation & Routing Cleanup
 **Vision:** Single-property users should never encounter navigation that assumes a multi-property context. Fix any copy, links, or empty states that point them toward a Dashboard they'll never see.
