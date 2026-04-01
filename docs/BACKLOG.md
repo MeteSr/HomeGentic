@@ -17,19 +17,6 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 
 ## 1. Home Management — Differentiated Ops
 
-### 1.1 Predictive Maintenance Timeline
-**Vision:** AI models each home's aging curve (build year, materials, climate, service history) and produces a 5-year forward-looking maintenance calendar with cost estimates.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 1.1.1 | System lifespan estimates per age/type | ✅ Exists | — | `maintenance` canister + `systemAges.ts` service |
-| 1.1.2 | Seasonal task generation | ✅ Exists | — | `getSeasonalTasks()` in maintenance canister |
-| 1.1.3 | 5-year rolling calendar view | ✅ Exists | — | `FiveYearCalendar` component in `PredictiveMaintenancePage` — "Schedule" tab with year columns, per-year budget, completion checkboxes |
-| 1.1.4 | Per-task cost estimate ranges | ✅ Exists | — | `serviceCallLowCents`/`High` on `SystemPrediction`; numeric cents on `AnnualTask`; annual budget total on Annual Tasks tab; modal pre-fills service cost for Watch/Good, replacement cost for Critical/Soon |
-| 1.1.5 | Climate-adjusted aging model | ✅ Done | L | Pull zip-code weather normals; adjust HVAC/roof lifespan curves by region |
-| 1.1.6 | Material-aware forecasting | ✅ Done | L | `MATERIAL_SPECS` + `getMaterialMultiplier` in `maintenance.ts`; 5th param `materialOverrides` on `predictMaintenance` stacks with climate multiplier; `SystemPrediction.materialMultiplier` field |
-| 1.1.7 | Exportable PDF maintenance calendar | ✅ Done | M | Generate printable 12-month schedule with estimated costs |
-
 ### 1.2 "Home Genome" Onboarding
 **Vision:** NLP-powered bulk document ingestion at signup — PDFs, photos, receipts, inspection reports all parsed and auto-categorized into the historical record.
 
@@ -54,33 +41,7 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 | 1.3.5 | Utility dashboard UI | ⬜ Missing | M | New page or tab showing usage trends, baselines, anomaly events |
 | 1.3.6 | Smart meter direct integration (IoT) | ⬜ Missing | XL | `agents/iot-gateway` scaffolded but not implemented; extend for utility meters |
 
-### 1.4 Room-by-Room Digital Twin
-**Vision:** Each room has its own record — floor type, paint color, fixture model numbers, appliance brands. Catalogued for repairs, touch-ups, and buyer disclosure.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 1.4.1 | Room entity in `property` or new canister | ✅ Done | L | New Motoko stable type: `Room { id, propertyId, name, floorType, paintColor, fixtures: [Fixture] }` |
-| 1.4.2 | Room CRUD frontend | ✅ Done | M | Add "Rooms" tab to `PropertyDetailPage`; list, add, edit rooms |
-| 1.4.3 | Fixture/appliance inventory per room | ✅ Done | M | `Fixture { brand, model, serialNumber, installedDate, warrantyExpiry }` |
-| 1.4.4 | Warranty wallet (see 2.3) | ✅ Done | L | `warranty.ts` service: `warrantyExpiry`, `warrantyStatus`, `daysRemaining`, `getWarrantyJobs`; 90-day alert threshold; `WarrantyWalletPage` + dashboard alerts; HomeFax Report includes warrantyMonths |
-| 1.4.5 | Room photo gallery | ✅ Done | S | `getByRoom(roomId)` filters mock store by `ROOM_<roomId>` synthetic jobId; `upload` now persists to `MOCK_PHOTOS`; `getByJob`/`getByProperty` also use mock store |
-| 1.4.6 | Paint color lookup / match | ✅ Done | M | Store paint brand + color code; generate a "touch-up" reference card |
-| 1.4.7 | Room data in HomeFax Report export | ✅ Done | M | Include room finishes summary in generated report (buyer disclosure layer) |
-
----
-
 ## 2. Service Provider Network — Trust Infrastructure
-
-### 2.1 Proof-of-Work NFTs for Contractors
-**Vision:** Every completed job generates an on-chain credential for the contractor — verifiable, portable work history on ICP.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 2.1.1 | Dual-signature job verification | ✅ Exists | — | `job` canister has `homeownerSigned` + `contractorSigned` + `verified` flag |
-| 2.1.2 | On-chain job credential issuance | ✅ Done | L | On job verification, mint a credential record in `contractor` canister: `{ jobId, contractorId, serviceType, verifiedAt, homeownerPrincipal }` |
-| 2.1.3 | Contractor credential portfolio page | ✅ Done | M | New tab on `ContractorProfilePage` showing verified job history as credential cards |
-| 2.1.4 | Portable credential export | ✅ Done | M | Generate a shareable link / QR code to a contractor's verified work history |
-| 2.1.5 | Trust score driven by verified jobs | ✅ Done | S | `trustScore` exists in `contractor` canister; auto-increment on each verified job |
 
 ### 2.2 Escrow-Protected Job Completion
 **Vision:** Payment held in ICP smart contract escrow; released automatically when homeowner approves the job.
@@ -92,17 +53,6 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 | 2.2.3 | Escrow UI in quote flow | ⬜ Missing | L | Show escrow amount during quote acceptance; "Release Payment" button on job completion |
 | 2.2.4 | Dispute resolution flow | ⬜ Missing | L | Timed dispute window; admin arbitration; partial release logic |
 | 2.2.5 | Payment release = homeowner signature | ⬜ Missing | M | Wire `verifyJob()` homeowner sign to trigger escrow release |
-
-### 2.3 Warranty Wallet
-**Vision:** Every appliance/installation warranty stored digitally, linked to contractor, with auto-alert before expiration.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 2.3.1 | Warranty record type in job/fixture entity | ✅ Exists | — | `warrantyMonths` field on `Job`; expiry computed as `date + warrantyMonths * 30.44 days` |
-| 2.3.2 | Warranty entry UI | ✅ Exists | — | `warrantyMonths` input in `JobCreatePage` |
-| 2.3.3 | Expiry alert system | ✅ Exists | — | Proactive alerts in `useVoiceAgent` — warranties expiring ≤90 days surfaced as VoiceAgent chips |
-| 2.3.4 | Warranty summary in HomeFax Report | ✅ Done | M | Show "14 years warranty remaining on roof" in report output |
-| 2.3.5 | Warranty doc upload | ✅ Done | S | `photo` canister can store docs; add `phase: "Warranty"` and link to job |
 
 ### 2.4 Contractor Bidding with vetKeys Sealed Bids
 **Vision:** Homeowners see bids; contractors cannot see each other's prices. Bids are encrypted under the canister's IBE-derived key so only the canister can open them; after the window closes the canister compares in-canister and reveals only the winner.
@@ -117,27 +67,6 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 ---
 
 ## 3. ICP Blockchain Layer — Untouchable Differentiation
-
-### 3.1 Tamper-Evident Ownership Chain
-**Vision:** Every ownership transfer as an immutable canister event — independently verifiable without trusting HomeFax.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 3.1.1 | Property registration on-chain | ✅ Exists | — | `property` canister records owner principal + timestamp |
-| 3.1.2 | Ownership transfer event log | ✅ Done | L | Append-only `transfers: [{ from, to, timestamp, txHash }]` stable array in `property` canister |
-| 3.1.3 | Transfer UI | ✅ Done | M | "Transfer Property" in `SettingsTab`; requires both parties to sign |
-| 3.1.4 | Public ownership verification endpoint | ✅ Done | M | Unauthenticated query: `getOwnershipHistory(propertyId)` → returns full chain |
-
-### 3.2 Decentralized Document Vault
-**Vision:** Photos, permits, inspection reports in ICP canisters — not AWS. Breach-proof, shutdown-proof.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 3.2.1 | SHA-256 dedup photo storage | ✅ Exists | — | `photo` canister |
-| 3.2.2 | Document type taxonomy | ✅ Exists | — | `DOC_TYPES` in `ConstructionPhotoUpload.tsx`: Receipt, Invoice, Permit, Before/After Photo, Warranty Card, Inspection Report, Other |
-| 3.2.3 | Permit / inspection upload flow | ✅ Done | M | Dedicated upload UI in `PropertyDetailPage` Documents tab beyond receipts |
-| 3.2.4 | Per-tier storage quota enforcement | ✅ Done | S | `getQuota()` exists; quota banner shown; enforcement on upload needs hardening |
-| 3.2.5 | Canister-level access control | ✅ Done | M | Only property owner + authorized contractors can read documents; add caller check in `photo` canister |
 
 ### 3.3 "Dead Man's Switch" Continuity
 **Vision:** If HomeFax ceases to exist, homeowner records remain fully accessible on ICP.
@@ -204,18 +133,6 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 
 ## 5. AI Agents — The Self-Writing Internet Angle
 
-### 5.1 Natural Language Home Management
-**Vision:** "My kitchen faucet has been dripping for a week" → AI classifies, estimates urgency, finds plumber, schedules, drafts work order, logs job.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 5.1.1 | Voice agent (SSE streaming chat) | ✅ Exists | — | `agents/voice/server.ts` with Claude API |
-| 5.1.2 | Agentic tool-use loop (up to 5 turns) | ✅ Exists | — | `POST /api/agent` in voice server |
-| 5.1.3 | Issue classification tool | ✅ Exists | — | `classify_home_issue` → confirms with user → `create_quote_request` → `quoteService.createRequest()`; full classify-then-act loop in `tools.ts` and `agentTools.ts` |
-| 5.1.4 | Contractor search + schedule via agent | ✅ Done | L | Agent calls `contractor.search()`, proposes top 3, and pre-fills `QuoteRequestPage` |
-| 5.1.5 | Work order auto-draft from NL input | ✅ Done | M | Agent generates structured job description from homeowner's natural language input |
-| 5.1.6 | Auto-log completed job from conversation | ✅ Done | M | After contractor confirmation, agent calls `job.createJob()` with parsed fields |
-
 ### 5.2 Negotiation Agents
 **Vision:** AI negotiates contractor bids on homeowner's behalf using network-wide pricing history.
 
@@ -277,17 +194,6 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 | 6.3.1 | Buyer Q&A interface on shared report | ⬜ Missing | M | Buyers submit yes/no questions against the report; seller not required to respond manually |
 | 6.3.2 | Automated answer engine | ⬜ Missing | L | Query job records against structured question templates; return verified answer |
 | 6.3.3 | vetKeys canister attestation | ⬜ Missing | L | Canister queries its own on-chain records, derives the yes/no answer, and issues an IBE-encrypted signed response to the buyer's transport key — cryptographically bound to chain state, underlying records never revealed |
-
-### 6.4 Agent Co-Branding
-**Vision:** Real estate agents get a white-labeled HomeFax report with their brand, ICP verification intact.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 6.4.1 | Agent account type / role | ✅ Done | M | Add `Realtor` role to `auth` canister (partially referenced in code; needs full flow) |
-| 6.4.2 | Agent branding fields | ✅ Done | S | `AgentProfile { name, brokerage, logoUrl, phone }` in `auth` or new `agent` canister |
-| 6.4.3 | Co-branded report PDF template | ✅ Done | M | Report PDF renders agent logo + contact in footer/header |
-| 6.4.4 | Agent share link with co-branding | ✅ Done | M | Share links carry agent branding token; viewer sees agent info alongside HomeFax data |
-| 6.4.5 | Agent dashboard | ✅ Done | L | Agent can see all properties they've shared + view counts + buyer engagement |
 
 ### 6.5 "HomeFax Certified" Pre-Inspection Waiver
 **Vision:** Score ≥ 88 qualifies for waived/discounted inspection contingency — killer feature in competitive markets.
@@ -455,34 +361,6 @@ The core retention challenge for HomeFax: value delivery is irregular. Homeowner
 | 8.5.4 | Milestone share card | ✅ Done | S | Shareable image: "My home has a HomeFax score of 81 — 43 verified records over 12 months." Organic social distribution |
 | 8.5.5 | Advocate prompt at milestone | ✅ Done | S | After milestone screen, prompt referral: "Know a homeowner who should have this?" with referral link |
 
-### 8.6 Post-Service Habit Loop
-**Vision:** After every job: push notification → score increase → record on-chain → AI prompt for next related service. Three completions in year one → churn rate fraction of manual-only users.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 8.6.1 | Post-job completion notification | ✅ Exists | — | Job success screen in `JobCreatePage` shows "Record Locked On-Chain" with next-service tip after every submission |
-| 8.6.2 | Next-service prompt from completed job | ✅ Exists | — | Dashboard shows follow-up tip for most recent verified job ("Next Step" card) with "Add to Maintenance Schedule →" CTA; dismissible |
-| 8.6.3 | "Add to schedule" one-tap flow | ✅ Done | S | `PredictiveMaintenancePage` has schedule section; needs one-tap add from post-job prompt |
-| 8.6.4 | Contractor re-engagement via job history | ✅ Done | M | `reEngagementService.ts`: surfaces prompts when most recent verified contractor job is 10–13 months old. Dashboard shows dismissible "Book Again" cards with "Request Quote →" CTA. 17 tests. |
-| 8.6.5 | In-app job completion animation | ✅ Exists | — | "Job Verified" overlay in `ContractorDashboardPage` — 2.8s animated card with "Record Locked On-Chain" copy after contractor signs |
-| 8.6.6 | 3-service engagement milestone | ✅ Exists | — | Dismissible milestone banner in DashboardPage when `verifiedCount >= 3` |
-
-### 8.7 Score Decay & Depreciation Engine
-**Vision:** A HomeFax score that only goes up is a vanity metric. Like a credit score, it must reflect the *current* health of the home — not just its history. Warranties expire, appliances age past their rated lifespan, and maintenance gaps accumulate. This section models those forces as negative score events so the score stays honest and actionable. Crucially, every decay event becomes a conversion hook: "Log the HVAC tune-up you just did — recover 4 points."
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 8.7.1 | System-age depreciation model | ✅ Done | L | `SYSTEM_LIFESPANS` in `scoreDecayService.ts`; `systemAgeDecayPts(ageYears, lifespanYears)` linear ramp: 0 pts ≤80% lifespan, max 5 pts at ≥120%. `getSystemAgeDecayEvents(systemAges, currentYear)` emits events per overdue system. `systemAges` loaded from `systemAgesService` in DashboardPage on property change. |
-| 8.7.2 | Warranty expiration score events | ✅ Done | M | `getWarrantyDecayEvents(jobs, now)` — for each job with `warrantyMonths > 0` whose warranty has lapsed, emits a -2 pt `DecayEvent`. Events appear in Score Activity feed. `warrantyExpiryMs(jobDate, warrantyMonths)` exported helper. |
-| 8.7.3 | Overdue maintenance gap penalty | ✅ Done | M | `computeMaintenanceGapDecay(overdueCount)` — -1 pt per overdue critical task, capped at `MAINTENANCE_GAP_MAX_DECAY` (5). Wired into `getAllDecayEvents` via `overdueTaskCount` param (pass from maintenance canister when available). |
-| 8.7.4 | Inactivity decay | ✅ Done | S | `computeInactivityDecay(jobs, now)` — 6-month grace period, then -1 pt/month capped at `INACTIVITY_MAX_DECAY` (6). `getInactivityDecayEvent` returns a `DecayEvent` with recovery prompt. Returns 0 for homes with no history yet. |
-| 8.7.5 | Negative score event feed integration | ✅ Done | S | `DecayEvent` type in `scoreDecayService.ts`. Decay events merged into Score Activity feed in DashboardPage with tinted row backgrounds, negative pt badges, and inline recovery prompts (8.7.6). `decayCategoryColor`/`decayCategoryBg` helpers parallel to `scoreEventService`. |
-| 8.7.6 | Score recovery action prompts | ✅ Done | M | Each `DecayEvent` carries a `recoveryPrompt: string` with actionable plain-English guidance. Shown inline in the Score Activity feed. |
-| 8.7.7 | "Score at Risk" dashboard warning | ✅ Done | S | `getAtRiskWarnings(jobs, systemAges, now, lookaheadDays=30)` returns upcoming decay within N days (expiring warranties + approaching inactivity threshold). DashboardPage renders a warning card with amber styling when `atRiskWarnings.length > 0`, listing each upcoming hit with days remaining and a "Log a Job" CTA. |
-| 8.7.8 | Decay floor — minimum score guarantee | ✅ Done | S | `SCORE_DECAY_FLOOR = 30` in `scoreDecayService.ts`. `applyDecayFloor(score, floor?)` helper. `computeScoreWithDecay(jobs, properties, decayPts)` in `scoreService.ts` applies `Math.max(raw - decayPts, SCORE_DECAY_FLOOR)`. DashboardPage uses `computeScoreWithDecay` for `homefaxScore`. |
-
----
-
 ## Updated Priority Tiers
 
 *(Tiers 1–4 from original backlog unchanged. Retention items added below.)*
@@ -526,114 +404,9 @@ Build these alongside Tier 1 MVP polish. Each addresses a root churn cause with 
 
 ---
 
-## 9. Seller's Marketplace — Make Agents Compete
-
-**Strategic thesis:** HomeFax sits on the most valuable signal in a listing transaction — a verified, blockchain-anchored maintenance record and a quantified score. No other platform gives sellers this kind of leverage over agents before an agreement is signed. The natural move is to turn that signal into a competitive marketplace: agents submit structured proposals to win the listing, and sellers choose on merit, not familiarity. In a typical transaction, the seller never makes agents compete at all. HomeFax can make that the new normal.
-
----
-
-### 9.1 Agent Role & Profile
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 9.1.1 | `Realtor` role in `auth` canister | ✅ Done | M | Role referenced in code; needs full registration flow, profile fields, and license verification step |
-| 9.1.2 | Agent profile: brokerage, license #, markets served | ✅ Done | S | `AgentProfile { name, brokerage, licenseNumber, statesLicensed, avgDaysOnMarket, listingsLast12Months, bio }` — `agent` canister + `AgentProfileEditPage` |
-| 9.1.3 | Agent verification badge | ✅ Done | M | Admin `verifyAgent` on-chain; `HomeFax Verified` badge shown on profile edit and public pages |
-| 9.1.4 | Agent public profile page | ✅ Done | M | `/agent/:id` — credentials, stats, verified badge, on-chain reviews from homeowners |
-| 9.1.5 | Agent reviews from HomeFax transactions | ✅ Done | M | `addReview` on `agent` canister; rate-limited (10/day), composite-key dedup (reviewer+transactionId); TDD service + page tests |
-
----
-
-### 9.2 Listing Bid Request (Homeowner Side)
-
-The homeowner initiates a bid request when they're considering selling. The request automatically surfaces their HomeFax score, verified record count, and property details — agents see exactly what they're pitching before submitting.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 9.2.1 | `ListingBidRequest` type in new `listing` canister | ✅ Done | L | Fields: `propertyId`, `targetListDate`, `desiredSalePrice` (optional), `notes`, `bidDeadline`, `status: { #Open \| #Awarded \| #Cancelled }` |
-| 9.2.2 | Listing bid request creation UI | ✅ Done | M | `/listing/new` — property selector, target list date, desired price (optional), deadline, notes; calls `listingService.createBidRequest` |
-| 9.2.3 | HomeFax score + summary auto-attached to request | ✅ Done | S | `PropertySnapshot { score, verifiedJobCount, systemNotes }` captured from `scoreService` + job store at creation time; shown in `ListingDetailPage` |
-| 9.2.4 | Bid request visibility controls | ✅ Done | S | `visibility: "open" | "inviteOnly"` radio in `ListingNewPage`; `getOpenBidRequests` filters invite-only requests |
-| 9.2.5 | Bid deadline enforcement | ✅ Done | S | `submitProposal` throws `"Bid deadline has passed"` after deadline; service tests updated with `vi.useFakeTimers` |
-
----
-
-### 9.3 Agent Proposal Submission
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 9.3.1 | `ListingProposal` type in `listing` canister | ✅ Done | M | Fields: `requestId`, `agentId`, `commissionRateBps` (basis points, e.g. 250 = 2.5%), `cmaSummary` (text), `marketingPlan` (text), `estimatedDaysOnMarket`, `estimatedSalePrice`, `includedServices` (list), `validUntil`, `coverLetter` |
-| 9.3.2 | Proposal submission UI for agents | ✅ Done | M | `/agent/marketplace` — agent browses open requests; inline form: CMA, commission (basis points), marketing plan, included services, cover letter; sealed until deadline |
-| 9.3.3 | Commission input with basis-points precision | ✅ Done | S | Basis-point input with live dollar-equivalent label (based on homeowner's desired price); `formatCommission()` helper |
-| 9.3.4 | CMA upload / attachment | ✅ Done | M | Structured comps form in `AgentMarketplacePage`: address, sale price, bed/bath/sqft, sold date; add/remove rows; `CMAComp[]` stored in proposal; comps table shown in `ListingDetailPage` |
-| 9.3.5 | Proposal draft / save before submit | ✅ Done | S | "Save Draft" button in proposal form; draft stored in `localStorage` keyed by requestId; auto-loaded when re-opening the form |
-| 9.3.6 | Proposal sealed until deadline (blind bidding) | ✅ Done | M | Agents cannot see each other's commission rates or proposals until the bid deadline passes; homeowner sees all after close — same sealed-bid principle as 2.4 |
-
----
-
-### 9.4 Proposal Comparison & Agent Selection (Homeowner Side)
-
-This is the moment HomeFax wins. The seller sees every proposal side-by-side — normalized, comparable, with the HomeFax score as context — and picks on merit.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 9.4.1 | Proposal comparison view | ✅ Done | L | `/listing/:id` — card-per-proposal with commission %, estimated sale price, est. days on market, included services, CMA summary, marketing plan, cover letter |
-| 9.4.2 | Net proceeds calculator per proposal | ✅ Done | M | Each proposal card shows estimated net proceeds (sale price − commission − 2% closing costs); `computeNetProceeds()` helper |
-| 9.4.3 | HomeFax score context for each proposal | ✅ Done | S | Snapshot section shows premium potential range from `premiumEstimate(score)`; each proposal card shows "Meets or exceeds target" / "Near target" / "Below target — underpriced" badge |
-| 9.4.4 | Agent selection + engagement flow | ✅ Done | M | "Select this agent" → notification sent to agent; listing request marked `#Awarded`; other agents notified they were not selected |
-| 9.4.5 | Post-selection contract upload | ✅ Done | S | Awarded requests show upload section; `uploadContract(requestId, filename)` stores on-chain; confirmed state shown after upload |
-| 9.4.6 | Counter-proposal flow | ✅ Done | L | Homeowner counters commission via counter form on proposal card; `counterProposal` / `respondToCounter` / `getCountersForProposal`; agents see pending counters in marketplace with Accept/Decline buttons |
-
----
-
-### 9.5 Transaction Tracking (After Agent Selected)
-
-Once an agent is selected, HomeFax stays in the transaction rather than disappearing at agreement signing.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 9.5.1 | Listing milestone timeline | ✅ Done | M | Checklist: listing agreement signed → listed on MLS → first showing → offer received → under contract → inspection → appraisal → close. Agent and homeowner both update milestones |
-| 9.5.2 | Offer log | ✅ Done | M | Homeowner logs received offers (amount, contingencies, close date); HomeFax shows delta from listing price and HomeFax estimated premium |
-| 9.5.3 | Final sale price logging | ✅ Done | S | After close, record final sale price; compute and display actual premium over HomeFax baseline; feeds into 6.1.2 model training data |
-| 9.5.4 | Agent performance score post-close | ✅ Done | M | Compare: estimated days on market vs. actual, estimated sale price vs. actual, commission promised vs. charged; becomes part of agent's public profile |
-
----
-
-### 9.6 Agent Discovery (Without a Bid Request)
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 9.6.1 | Agent browse / search page | ✅ Done | M | `/agents` page: filter by state, HomeFax-only toggle, avg days on market sort; cards link to `/agent/:id`; `AgentBrowsePage` mirrors `ContractorBrowsePage` pattern |
-| 9.6.2 | "Request proposal from this agent" direct invite | ✅ Done | S | From agent public profile, homeowner sends direct bid invitation; `listingService.createDirectInvite(agentId, propertyId)` creates an invite-only bid request |
-| 9.6.3 | HomeFax-verified transaction badge on agent profiles | ✅ Done | S | "HomeFax Verified Transaction" badge on public profile and browse card when `perfRecords.length > 0` (driven by 9.5.4 data) |
-
----
-
 ## 10. For Sale By Owner (FSBO) Mode — Seller Without an Agent
 
 **Strategic thesis:** Roughly 10% of US home sales are FSBO. These sellers are underserved by every major platform — Zillow makes it cumbersome, FSBO.com is dated, and no one gives them tools that actually equip them to negotiate, price, and close confidently. HomeFax's verified maintenance record is the best FSBO asset that exists: it pre-answers buyer objections, replaces an inspection contingency, and signals a serious, prepared seller. The app should be the platform that makes FSBO actually work.
-
----
-
-### 10.1 FSBO Mode Activation
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 10.1.1 | FSBO flag on property record | ✅ Done | S | `fsboService` maintains FSBO state (isFsbo, listPriceCents, step, hasReport) in `services/fsbo.ts`; `setFsboMode` / `advanceStep` / `deactivate` |
-| 10.1.2 | FSBO mode activation flow | ✅ Done | M | `FsboPanel` component in `PropertyDetailPage`: 3-step checklist (set price → review report → go live → done); wired into PropertyDetailPage below score panel |
-| 10.1.3 | FSBO savings calculator | ✅ Done | S | `computeAgentCommissionSavings` (3% of list price); real-time display in FsboPanel as homeowner types list price |
-| 10.1.4 | Readiness score for FSBO | ✅ Done | M | `computeFsboReadiness(score, verifiedJobCount, hasReport)` → NotReady / Ready / OptimallyReady; missing-items list shown in panel |
-
----
-
-### 10.2 Pricing Intelligence
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 10.2.1 | Comparable sales integration | ✅ Done | XL | Pull recent sold comps from ATTOM / Zillow / Redfin API (or public records) for the property's zip; display price/sqft, days on market, sale-to-list ratio |
-| 10.2.2 | HomeFax-adjusted price recommendation | ✅ Done | L | Take median comp price/sqft × sqft + HomeFax score premium (6.1.2) = suggested list price range; show the premium component explicitly ("Your verified records add an estimated $X–Y") |
-| 10.2.3 | Price history and reduction tracking | ✅ Done | S | If homeowner adjusts their list price, log the history with timestamps; buyers see stable or reduced pricing as signals |
-| 10.2.4 | Days-on-market estimator | ✅ Done | M | Based on comp DOM, season, and HomeFax score band — estimate expected time to offer; refreshes weekly |
 
 ---
 
