@@ -102,6 +102,12 @@ const mockOpenRequest = {
   ...mockBidRequest, id: "BID_2", bidDeadline: _now + 7 * 86_400_000, status: "Open" as const,
 };
 
+vi.mock("@/services/payment", () => ({
+  paymentService: {
+    getMySubscription: vi.fn().mockResolvedValue({ tier: "Pro" }),
+  },
+}));
+
 vi.mock("@/services/property", () => ({
   propertyService: {
     getAll: vi.fn().mockResolvedValue([

@@ -42,6 +42,12 @@ const { mockRecord, mockProperty } = vi.hoisted(() => ({
 
 // ─── Service mocks ────────────────────────────────────────────────────────────
 
+vi.mock("@/services/payment", () => ({
+  paymentService: {
+    getMySubscription: vi.fn().mockResolvedValue({ tier: "Pro" }),
+  },
+}));
+
 vi.mock("@/services/fsbo", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/fsbo")>();
   return {

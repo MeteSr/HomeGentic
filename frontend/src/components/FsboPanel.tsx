@@ -10,7 +10,7 @@
  *   10.1.4 — FSBO readiness label + missing-items guidance
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { CheckCircle2, AlertTriangle, Star } from "lucide-react";
 import { Button } from "@/components/Button";
 import {
@@ -21,6 +21,8 @@ import {
   type FsboStep,
 } from "@/services/fsbo";
 import { mlsService, type MlsSubmitResult } from "@/services/mlsService";
+import { paymentService, type PlanTier } from "@/services/payment";
+import { UpgradeGate } from "@/components/UpgradeGate";
 import type { Property } from "@/services/property";
 import { COLORS, FONTS } from "@/theme";
 
@@ -73,6 +75,11 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
   const [mlsResult,   setMlsResult]   = useState<MlsSubmitResult | null>(null);
   const [mlsError,    setMlsError]    = useState<string | null>(null);
   const [mlsLoading,  setMlsLoading]  = useState(false);
+  const [userTier,    setUserTier]    = useState<PlanTier>("Free");
+
+  useEffect(() => {
+    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch(() => {});
+  }, []);
 
   const { readiness, missing } = computeFsboReadiness(score, verifiedJobCount, hasReport);
   const readinessLabel = READINESS_LABEL[readiness];
@@ -110,6 +117,16 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
     } finally {
       setMlsLoading(false);
     }
+  }
+
+  if (userTier === "Free") {
+    return (
+      <UpgradeGate
+        feature="Agent Marketplace &amp; FSBO"
+        description="Selling your home? Upgrade to Pro to make agents compete for your listing — or go FSBO with our full toolkit."
+        icon="🏡"
+      />
+    );
   }
 
   return (

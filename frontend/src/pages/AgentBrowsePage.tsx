@@ -10,6 +10,8 @@ import React, { useEffect, useState, useMemo } from "react";
 import { Search, ShieldCheck, Star } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { agentService, AgentOnChainProfile } from "@/services/agent";
+import { paymentService, type PlanTier } from "@/services/payment";
+import { UpgradeGate } from "@/components/UpgradeGate";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 
 const S = {
@@ -92,8 +94,10 @@ export default function AgentBrowsePage() {
   const [query,      setQuery]      = useState("");
   const [state,      setState]      = useState("All");
   const [homeFaxOnly, setHomeFaxOnly] = useState(false);
+  const [userTier,   setUserTier]   = useState<PlanTier>("Free");
 
   useEffect(() => {
+    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch(() => {});
     agentService.getAllProfiles().then(setAgents).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
@@ -118,6 +122,20 @@ export default function AgentBrowsePage() {
     }
     return [...list].sort((a, b) => a.avgDaysOnMarket - b.avgDaysOnMarket);
   }, [agents, state, homeFaxOnly, query]);
+
+  if (userTier === "Free") {
+    return (
+      <Layout>
+        <div style={{ maxWidth: "48rem", margin: "0 auto", padding: "2rem 1.5rem" }}>
+          <UpgradeGate
+            feature="Agent Marketplace &amp; FSBO"
+            description="Selling your home? Upgrade to Pro to make agents compete for your listing — or go FSBO with our full toolkit."
+            icon="🏡"
+          />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

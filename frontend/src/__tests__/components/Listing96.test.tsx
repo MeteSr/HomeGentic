@@ -65,6 +65,12 @@ vi.mock("@/services/listing", () => ({
   },
 }));
 
+vi.mock("@/services/payment", () => ({
+  paymentService: {
+    getMySubscription: vi.fn().mockResolvedValue({ tier: "Pro" }),
+  },
+}));
+
 vi.mock("@/store/authStore", () => ({
   useAuthStore: () => ({
     principal: "local",

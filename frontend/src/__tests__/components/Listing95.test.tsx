@@ -16,7 +16,7 @@ import { MemoryRouter, Routes, Route } from "react-router-dom";
 
 const {
   mockRequest, mockAwardedNoClose, mockProposal,
-  mockOffer, mockClose, mockPerformance, mockProfile,
+  mockOffer, mockOffer2, mockClose, mockPerformance, mockProfile,
 } = vi.hoisted(() => {
   const now = Date.now();
 
@@ -49,6 +49,16 @@ const {
     closeDate: "2025-03-15",
     loggedAt: now - 500,
     deltaFromListingPriceCents: 500_000,   // $5,000 above list
+    deltaFromHomeFaxEstimateCents: -14_500_000,
+  };
+
+  const mockOffer2 = {
+    id: "OFFER_2", requestId: "BID_1",
+    offerAmountCents: 50_500_000,
+    contingencies: ["financing", "inspection"],
+    closeDate: "2025-04-01",
+    loggedAt: now,
+    deltaFromListingPriceCents: 500_000,
     deltaFromHomeFaxEstimateCents: -14_500_000,
   };
 
@@ -100,7 +110,7 @@ const {
     createdAt: now - 86_400_000,
   };
 
-  return { mockRequest, mockAwardedNoClose, mockProposal, mockOffer, mockClose, mockPerformance, mockProfile };
+  return { mockRequest, mockAwardedNoClose, mockProposal, mockOffer, mockOffer2, mockClose, mockPerformance, mockProfile };
 });
 
 // ─── Service mocks ────────────────────────────────────────────────────────────
@@ -111,7 +121,7 @@ vi.mock("@/services/listing", () => ({
     getProposalsForRequest:     vi.fn().mockResolvedValue([mockProposal]),
     getCountersForProposal:     vi.fn().mockResolvedValue([]),
     updateMilestone:            vi.fn().mockResolvedValue(mockRequest),
-    logOffer:                   vi.fn().mockResolvedValue(mockOffer),
+    logOffer:                   vi.fn().mockResolvedValue(mockOffer2),
     logClose:                   vi.fn().mockResolvedValue(mockClose),
     logAgentPerformance:        vi.fn().mockResolvedValue(mockPerformance),
     getAgentPerformanceRecords: vi.fn().mockResolvedValue([mockPerformance]),

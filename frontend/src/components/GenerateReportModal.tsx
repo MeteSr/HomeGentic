@@ -8,6 +8,7 @@ import { jobService } from "@/services/job";
 import { recurringService } from "@/services/recurringService";
 import { computeScore, getScoreGrade } from "@/services/scoreService";
 import { paymentService, type PlanTier } from "@/services/payment";
+import { notificationService } from "@/services/notifications";
 import type { Property } from "@/services/property";
 import toast from "react-hot-toast";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
@@ -108,6 +109,13 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
       setFreshLink(link);
       setPreviewStats({ score, grade, verifiedCount });
       toast.success("HomeFax report created!");
+      if (userTier === "Free") {
+        notificationService.create({
+          type: "ReportExpiry",
+          message: "Your HomeFax report expires in 7 days — upgrade to Pro for a permanent link.",
+          propertyId,
+        });
+      }
     } catch (err: any) {
       toast.error(err.message || "Failed to generate report");
     } finally {

@@ -3,7 +3,7 @@
  * Homeowner creates a sealed-bid listing request.
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Send } from "lucide-react";
 import { Layout } from "@/components/Layout";
@@ -12,6 +12,8 @@ import { listingService, BidVisibility } from "@/services/listing";
 import { usePropertyStore } from "@/store/propertyStore";
 import { useJobStore } from "@/store/jobStore";
 import { computeScore } from "@/services/scoreService";
+import { paymentService, type PlanTier } from "@/services/payment";
+import { UpgradeGate } from "@/components/UpgradeGate";
 import toast from "react-hot-toast";
 import { COLORS, FONTS } from "@/theme";
 
@@ -52,16 +54,38 @@ export default function ListingNewPage() {
   const navigate = useNavigate();
   const { properties } = usePropertyStore();
   const { jobs } = useJobStore();
-
+  const [userTier,   setUserTier]   = useState<PlanTier>("Free");
   const [loading,    setLoading]    = useState(false);
   const [visibility, setVisibility] = useState<BidVisibility>("open");
   const [form, setForm] = useState({
-    propertyId:       properties[0] ? String(properties[0].id) : "",
+    propertyId:       "",
     targetListDate:   "",
     desiredSalePrice: "",
     notes:            "",
     bidDeadline:      "",
   });
+
+  useEffect(() => {
+    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (properties[0]) setForm((f) => ({ ...f, propertyId: String(properties[0].id) }));
+  }, [properties]);
+
+  if (userTier === "Free") {
+    return (
+      <Layout>
+        <div style={{ maxWidth: "48rem", margin: "0 auto", padding: "2rem 1.5rem" }}>
+          <UpgradeGate
+            feature="Agent Marketplace &amp; FSBO"
+            description="Selling your home? Upgrade to Pro to make agents compete for your listing — or go FSBO with our full toolkit."
+            icon="🏡"
+          />
+        </div>
+      </Layout>
+    );
+  }
 
   function set(field: string, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
