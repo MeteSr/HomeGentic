@@ -794,7 +794,7 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
 | 16.3.1 | Remove "← Back to Dashboard" from property page for single-property users | ✅ Done | S | `PropertyDetailPage` back button navigates to `/dashboard` — for single-property users this redirects back to the property page (infinite loop). Conditionally hide or replace with "← Home" that navigates to `/` when `storeProperties.length === 1`. |
-| 16.3.2 | Nav sidebar active state for single-property users | ⬜ Missing | S | The global nav highlights "Dashboard" as active. For single-property users whose home is `/properties/:id`, the sidebar shows nothing highlighted. Fix: treat the property detail route as "active home" when user has one property. |
+| 16.3.2 | Nav sidebar active state for single-property users | ✅ Done | S | The global nav highlights "Dashboard" as active. For single-property users whose home is `/properties/:id`, the sidebar shows nothing highlighted. Fix: treat the property detail route as "active home" when user has one property. |
 | 16.3.3 | "Add a second property" upsell on Home Panel | ✅ Done | S | At the bottom of the Home Panel, show a soft upsell: "Tracking a rental or vacation property? Add it to HomeFax." Links to `/properties/new`. Shown only after 30+ days of active use (account age check) to avoid overwhelming new users. |
 
 ---

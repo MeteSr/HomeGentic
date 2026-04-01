@@ -89,7 +89,14 @@ export function Layout({ children }: LayoutProps) {
 
   const isContractor = profile?.role === "Contractor";
   const isRealtor    = profile?.role === "Realtor";
+  const isHomeowner  = !isContractor && !isRealtor;
   const dashboardPath = isContractor ? "/contractor-dashboard" : "/dashboard";
+
+  // 16.3.2 — For single-property homeowners, /properties/:id is their home.
+  // Treat it as Dashboard-active so the nav always shows something highlighted.
+  const singlePropertyId =
+    isHomeowner && properties.length === 1 ? String(properties[0].id) : null;
+  const singlePropertyPath = singlePropertyId ? `/properties/${singlePropertyId}` : null;
 
   const navLinks = isContractor
     ? [
@@ -173,7 +180,13 @@ export function Layout({ children }: LayoutProps) {
           {/* Desktop nav links */}
           <nav className="rsp-nav-desktop" style={{ flex: 1 }}>
             {navLinks.map((link) => {
-              const active = location.pathname === link.to || location.pathname.startsWith(link.to + "/");
+              const directMatch = location.pathname === link.to || location.pathname.startsWith(link.to + "/");
+              const singlePropMatch =
+                link.to === "/dashboard" &&
+                singlePropertyPath !== null &&
+                (location.pathname === singlePropertyPath ||
+                  location.pathname.startsWith(singlePropertyPath + "/"));
+              const active = directMatch || singlePropMatch;
               return (
                 <Link key={link.to} to={link.to} style={linkStyle(active)}>
                   {link.label}
