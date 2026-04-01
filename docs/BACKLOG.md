@@ -558,10 +558,3 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 | 15.7.3 | Highlight the upgrade moment in-app notification | ⬜ Missing | S | Scope: in-app notification only (no email or push — those require external infrastructure not yet in place). When a free user's `generateReport()` call succeeds in `GenerateReportModal`, immediately call `notificationService.create({ type: "ReportExpiry", message: "Your HomeFax report expires in 7 days — upgrade to Pro for a permanent link.", propertyId })`. This surfaces in the notification bell on the next page load. The existing `notifications.ts` service and bell UI already support this; no new infrastructure needed. Email/push upgrade reminders are a separate future item once an email provider is integrated. |
 | 15.7.4 | Update `PricingPage` feature comparison table | ✅ Done | S | Reflect all new gates in the pricing table: add rows for Recurring Services, Market Intelligence, Warranty Wallet, Score Breakdown, 5-Year Maintenance Calendar, Permanent Report Links, Agent Marketplace, FSBO mode. Free column shows ✗ for all new locked items. |
 | 15.7.5 | "You're on Free" tier indicator in Settings | ✅ Done | S | `SettingsPage` shows the user's current tier prominently with a one-click upgrade CTA. Currently this exists but should be made more prominent for free users — show what they're missing with a short feature list. |
-
----
-1. **16.1.1–16.1.7** Component extraction first — enables everything below without duplication
-2. **16.2.1** Score Panel + decay on property page — fixes the most visible score accuracy gap
-3. **16.2.2–16.2.5** Alert stack + feed + milestones + re-engagement — core retention parity
-4. **16.3.1–16.3.2** Nav cleanup — prevents confusing UX regressions
-5. **16.2.6–16.2.8 + 16.3.3** Market Intel, Recurring, modal UX, upsell — full feature parity
