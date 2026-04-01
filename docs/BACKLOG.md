@@ -104,13 +104,13 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 | 2.3.4 | Warranty summary in HomeFax Report | ✅ Done | M | Show "14 years warranty remaining on roof" in report output |
 | 2.3.5 | Warranty doc upload | ✅ Done | S | `photo` canister can store docs; add `phase: "Warranty"` and link to job |
 
-### 2.4 Contractor Bidding with ZKP Pricing
-**Vision:** Homeowners see bids; contractors cannot see each other's prices. ZKPs attest "this is the lowest bid" without revealing other bids.
+### 2.4 Contractor Bidding with vetKeys Sealed Bids
+**Vision:** Homeowners see bids; contractors cannot see each other's prices. Bids are encrypted under the canister's IBE-derived key so only the canister can open them; after the window closes the canister compares in-canister and reveals only the winner.
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 2.4.1 | Sealed-bid quote submission | ⬜ Missing | L | Encrypt contractor bid price in `quote` canister; reveal only after bid window closes |
-| 2.4.2 | ZKP "lowest bid" attestation | ⬜ Missing | XL | Requires ZKP library on ICP (or Groth16 verifier canister); prove ordering without revealing values |
+| 2.4.1 | Sealed-bid quote submission | ⬜ Missing | L | Encrypt contractor bid price to canister IBE key via `@dfinity/vetkeys`; stored ciphertext in `quote` canister; reveal only after bid window closes |
+| 2.4.2 | vetKeys sealed-bid reveal | ⬜ Missing | L | After window close, canister calls `vetkd_derive_key` to decrypt all bids in-canister, compares, and returns lowest-bid winner to homeowner only — no ZKP circuit required |
 | 2.4.3 | Bid window timer | ⬜ Missing | M | Quote requests have a close date; after close, all bids revealed to homeowner only |
 | 2.4.4 | Blind bidding UI | ⬜ Missing | M | Contractor sees only their own submitted price, not competitors'; homeowner sees all after close |
 
@@ -160,17 +160,17 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 
 ---
 
-## 4. Zero-Knowledge Proofs — Privacy as a Feature
+## 4. vetKeys — Privacy as a Feature
 
 ### 4.1 Selective Disclosure Reports
-**Vision:** Sellers choose exactly what to share. ZKP-verified "all permits closed" without revealing contractor or cost.
+**Vision:** Sellers choose exactly what to share. vetKeys-attested "all permits closed" without revealing contractor or cost.
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
 | 4.1.1 | Visibility levels on report shares | ✅ Exists | — | `report` canister has `Full / Summary / ScoreOnly` visibility + revocation |
 | 4.1.2 | Field-level disclosure toggles | ✅ Done | M | UI in `ReportPage` to choose which fields are visible per share link |
-| 4.1.3 | ZKP "permits closed" attestation | ⬜ Missing | XL | Requires ZKP circuit; prove all permit fields = Closed without revealing job details |
-| 4.1.4 | ZKP "maintenance score above threshold" | ⬜ Missing | XL | Prove score ≥ N without revealing individual job records |
+| 4.1.3 | vetKeys permit attestation | ⬜ Missing | M | Canister derives per-buyer key via `vetkd_derive_key`, issues IBE-encrypted signed "all permits closed" claim; buyer decrypts attestation with transport key, never sees underlying job data |
+| 4.1.4 | vetKeys score threshold attestation | ⬜ Missing | M | Canister computes score, issues IBE-encrypted signed "score ≥ N" claim to requester's transport key without exposing individual job records |
 
 ### 4.2 Income-Blind Mortgage Proof
 **Vision:** Prove property maintained above a quality threshold to lenders — without personal financial disclosure.
@@ -179,7 +179,7 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 |---|------|--------|------|-------|
 | 4.2.1 | HomeFax score certification endpoint | ✅ Done | M | Canister returns a signed score certificate with no personal data |
 | 4.2.2 | Lender-facing score verification page | ✅ Done | M | Unauthenticated URL: lender enters certification code, sees score + grade only |
-| 4.2.3 | ZKP score proof (no raw data) | ⬜ Missing | XL | Full ZKP implementation; score proven without job record disclosure |
+| 4.2.3 | vetKeys score certificate | ⬜ Missing | L | Canister issues IBE-encrypted signed score attestation to lender's transport key; lender decrypts and reads score, no raw job records exposed |
 
 ### 4.3 Anonymous Neighborhood Benchmarking
 **Vision:** Compare maintenance score vs. similar homes in zip code — without revealing individual neighbor data.
@@ -189,7 +189,7 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 | 4.3.1 | Zip code aggregate query | ✅ Done | L | `neighborhood.ts` service: deterministic mock stats, `getPercentileRank()` pure helper, factory closure with cache. 24 tests. |
 | 4.3.2 | Neighborhood benchmarking UI | ✅ Done | M | `NeighborhoodBenchmark.tsx` component on dashboard — percentile bar, rank label, "Better than X% of N homes", trend, "View area →" link. |
 | 4.3.3 | Neighborhood Health Index public page | ✅ Done | L | `NeighborhoodHealthPage.tsx` at `/neighborhood/:zipCode` — public, no auth. Avg/median scores, distribution chart, trend, top systems. |
-| 4.3.4 | ZKP aggregate attestation | ⬜ Missing | XL | Prove neighborhood statistics without revealing any individual record |
+| 4.3.4 | vetKeys aggregate privacy | ⬜ Missing | L | Individual scores encrypted on-chain under per-homeowner derived keys; canister aggregates internally and publishes only zip-level statistics — no individual record exposed |
 
 ### 4.4 Buyer Verification Without Disclosure
 **Vision:** Buyer proves pre-approval to seller without revealing loan amount or lender.
@@ -197,7 +197,7 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
 | 4.4.1 | Buyer pre-approval credential schema | ⬜ Missing | L | Define verifiable credential structure; integrate with a lending API |
-| 4.4.2 | ZKP pre-approval proof | ⬜ Missing | XL | Prove "pre-approved for ≥ $X" without revealing the exact amount |
+| 4.4.2 | vetKeys IBE pre-approval attestation | ⬜ Missing | L | Lender issues credential encrypted to buyer's principal via IBE; canister verifies and re-issues "pre-approved ≥ $X" attestation encrypted to seller's transport key — exact amount never leaves the buyer |
 | 4.4.3 | Buyer credential UI in transaction flow | ⬜ Missing | M | Buyer submits credential; seller sees "Verified: pre-approved" only |
 
 ---
@@ -269,14 +269,14 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 | 6.2.2 | Embeddable badge widget | ✅ Done | M | `<iframe>` or JS snippet for listing agents to embed on property pages |
 | 6.2.3 | Zillow / Realtor.com API partnership | ⬜ Missing | XL | Requires partner API access; long-term business development item |
 
-### 6.3 Buyer Q&A via ZKP
-**Vision:** Buyer asks "Has the roof been replaced since 2010?" → ZKP-verified yes/no, no seller manual response needed.
+### 6.3 Buyer Q&A via vetKeys
+**Vision:** Buyer asks "Has the roof been replaced since 2010?" → vetKeys-attested yes/no, no seller manual response needed.
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
 | 6.3.1 | Buyer Q&A interface on shared report | ⬜ Missing | M | Buyers submit yes/no questions against the report; seller not required to respond manually |
 | 6.3.2 | Automated answer engine | ⬜ Missing | L | Query job records against structured question templates; return verified answer |
-| 6.3.3 | ZKP-verified answer | ⬜ Missing | XL | Prove answer is derived from on-chain data without revealing the underlying records |
+| 6.3.3 | vetKeys canister attestation | ⬜ Missing | L | Canister queries its own on-chain records, derives the yes/no answer, and issues an IBE-encrypted signed response to the buyer's transport key — cryptographically bound to chain state, underlying records never revealed |
 
 ### 6.4 Agent Co-Branding
 **Vision:** Real estate agents get a white-labeled HomeFax report with their brand, ICP verification intact.
@@ -333,7 +333,7 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 | 7.3.4 | Premium discount display for homeowner | ⬜ Missing | M | "Your score qualifies you for up to 12% off your home insurance — connect your insurer" |
 
 ### 7.4 Neighborhood Health Index
-**Vision:** Aggregate (ZKP-anonymized) data by zip code → HOA, city planner, and investor product.
+**Vision:** Aggregate (vetKeys-encrypted individual records) data by zip code → HOA, city planner, and investor product.
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
@@ -380,14 +380,14 @@ Items requiring new Motoko canisters or major backend work.
 - 3.4 ICRC-7 title token NFT
 - 5.3 Market timing (requires external real estate API)
 
-### Tier 4 — ZKP & Advanced Cryptography
-Requires ZKP circuit development on ICP. Long-horizon R&D.
+### Tier 4 — vetKeys & On-Chain Privacy
+Requires `ic-vetkeys = "0.6"` (Rust) + `@dfinity/vetkeys` v0.4 (frontend). Achieves the same privacy guarantees previously attributed to ZKP circuits via ICP's threshold key derivation — no circuit development required.
 
-- 2.4.2 ZKP bidding
-- 4.1.3–4.1.4 ZKP permit/score attestation
-- 4.2.3 Income-blind mortgage proof
-- 4.3.4 ZKP aggregate attestation
-- 6.3.3 ZKP buyer Q&A answers
+- 2.4.2 vetKeys sealed-bid reveal
+- 4.1.3–4.1.4 vetKeys permit / score threshold attestations
+- 4.2.3 vetKeys score certificate (income-blind mortgage proof)
+- 4.3.4 vetKeys aggregate privacy
+- 6.3.3 vetKeys canister attestation (buyer Q&A)
 
 ---
 
