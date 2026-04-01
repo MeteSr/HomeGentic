@@ -20,6 +20,8 @@ import {
   type FsboRecord,
   type FsboStep,
 } from "@/services/fsbo";
+import { mlsService, type MlsSubmitResult } from "@/services/mlsService";
+import type { Property } from "@/services/property";
 import { COLORS, FONTS } from "@/theme";
 
 const S = {
@@ -61,12 +63,16 @@ export interface FsboPanelProps {
   score:            number;
   verifiedJobCount: number;
   hasReport:        boolean;
+  property?:        Property;
 }
 
-export default function FsboPanel({ propertyId, score, verifiedJobCount, hasReport }: FsboPanelProps) {
-  const [record,    setRecord]    = useState<FsboRecord | null>(() => fsboService.getRecord(propertyId));
-  const [active,    setActive]    = useState(false);
-  const [listPrice, setListPrice] = useState("");
+export default function FsboPanel({ propertyId, score, verifiedJobCount, hasReport, property }: FsboPanelProps) {
+  const [record,      setRecord]      = useState<FsboRecord | null>(() => fsboService.getRecord(propertyId));
+  const [active,      setActive]      = useState(false);
+  const [listPrice,   setListPrice]   = useState("");
+  const [mlsResult,   setMlsResult]   = useState<MlsSubmitResult | null>(null);
+  const [mlsError,    setMlsError]    = useState<string | null>(null);
+  const [mlsLoading,  setMlsLoading]  = useState(false);
 
   const { readiness, missing } = computeFsboReadiness(score, verifiedJobCount, hasReport);
   const readinessLabel = READINESS_LABEL[readiness];
@@ -90,6 +96,20 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
   function handleAdvance() {
     const updated = fsboService.advanceStep(propertyId);
     setRecord(updated);
+  }
+
+  async function handleMlsSubmit() {
+    if (!record || !property) return;
+    setMlsLoading(true);
+    setMlsError(null);
+    try {
+      const result = await mlsService.submit(propertyId, record.listPriceCents, property.address);
+      setMlsResult(result);
+    } catch (err: any) {
+      setMlsError(err.message || "MLS submission failed");
+    } finally {
+      setMlsLoading(false);
+    }
   }
 
   return (
@@ -237,16 +257,49 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
 
           {/* Done */}
           {currentStep === "done" && (
-            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-              <Star size={20} color={S.sage} />
-              <div>
-                <div style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1rem", color: S.ink }}>
-                  Your FSBO listing is live!
-                </div>
-                <div style={{ fontFamily: S.sans, fontSize: "0.875rem", color: S.inkLight }}>
-                  Share your HomeFax listing link with potential buyers.
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
+                <Star size={20} color={S.sage} />
+                <div>
+                  <div style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1rem", color: S.ink }}>
+                    Your FSBO listing is live!
+                  </div>
+                  <div style={{ fontFamily: S.sans, fontSize: "0.875rem", color: S.inkLight }}>
+                    Share your HomeFax listing link with potential buyers.
+                  </div>
                 </div>
               </div>
+
+              {/* 10.3.6 — Flat-fee MLS submission */}
+              {property && !mlsResult && (
+                <div style={{ marginTop: "0.75rem" }}>
+                  {mlsLoading ? (
+                    <p style={{ fontFamily: S.mono, fontSize: "0.75rem", color: S.inkLight }}>Submitting…</p>
+                  ) : (
+                    <Button onClick={handleMlsSubmit} aria-label="Submit to MLS">
+                      Submit to MLS
+                    </Button>
+                  )}
+                  {mlsError && (
+                    <p style={{ fontFamily: S.sans, fontSize: "0.8rem", color: "#c0392b", marginTop: "0.5rem" }}>
+                      {mlsError}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {mlsResult && (
+                <div style={{ marginTop: "0.75rem" }}>
+                  <a
+                    href={mlsResult.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ fontFamily: S.sans, fontWeight: 600, fontSize: "0.875rem", color: S.sage, textDecoration: "underline" }}
+                  >
+                    View MLS Listing
+                  </a>
+                </div>
+              )}
             </div>
           )}
         </div>

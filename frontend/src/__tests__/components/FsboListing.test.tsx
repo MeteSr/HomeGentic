@@ -117,12 +117,34 @@ vi.mock("@/services/report", () => ({
   },
 }));
 
+vi.mock("@/services/showingRequest", () => ({
+  showingRequestService: {
+    create:          vi.fn().mockReturnValue({ id: "sr-1", propertyId: "42", name: "", contact: "", preferredTime: "", createdAt: Date.now() }),
+    getByProperty:   vi.fn().mockReturnValue([]),
+    __reset:         vi.fn(),
+  },
+}));
+
+vi.mock("@/services/notifications", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/services/notifications")>();
+  return {
+    ...actual,
+    notificationService: {
+      create:  vi.fn(),
+      getAll:  vi.fn().mockReturnValue([]),
+      __reset: vi.fn(),
+    },
+  };
+});
+
 import FsboListingPage from "@/pages/FsboListingPage";
 import { fsboService } from "@/services/fsbo";
 import { propertyService } from "@/services/property";
 import { jobService } from "@/services/job";
 import { photoService } from "@/services/photo";
 import { reportService } from "@/services/report";
+import { showingRequestService } from "@/services/showingRequest";
+import { notificationService } from "@/services/notifications";
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
@@ -413,5 +435,116 @@ describe("Full HomeFax report link — (10.3.3)", () => {
       screen.getByRole("link", { name: /view full maintenance history/i })
     );
     expect(vi.mocked(reportService.listShareLinks)).toHaveBeenCalledWith("42");
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// 10.3.4  Showing request form — logging + seller notification
+// ──────────────────────────────────────────────────────────────────────────────
+describe("Showing request logging and seller notification — (10.3.4)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(fsboService.getRecord).mockReturnValue(mockFsboRecord);
+    vi.mocked(propertyService.getProperty).mockResolvedValue(mockProperty);
+    vi.mocked(jobService.getByProperty).mockResolvedValue(mockJobs);
+    vi.mocked(photoService.getByProperty).mockResolvedValue(mockPhotos);
+    vi.mocked(reportService.listShareLinks).mockResolvedValue([]);
+  });
+
+  async function fillAndSubmitForm() {
+    await waitFor(() => screen.getByLabelText(/your name/i));
+    fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Jane Buyer" } });
+    fireEvent.change(screen.getByLabelText(/contact.*email.*phone|email or phone/i), { target: { value: "jane@example.com" } });
+    fireEvent.change(screen.getByLabelText(/preferred.*time|showing.*time/i), { target: { value: "Weekday evenings" } });
+    fireEvent.submit(screen.getByRole("form", { name: /showing request/i }));
+  }
+
+  it("form submission calls showingRequestService.create with propertyId and form data", async () => {
+    renderPage();
+    await fillAndSubmitForm();
+    await waitFor(() =>
+      expect(vi.mocked(showingRequestService.create)).toHaveBeenCalledWith(
+        expect.objectContaining({
+          propertyId:    "42",
+          name:          "Jane Buyer",
+          contact:       "jane@example.com",
+          preferredTime: "Weekday evenings",
+        })
+      )
+    );
+  });
+
+  it("form submission calls notificationService.create with type ShowingRequest", async () => {
+    renderPage();
+    await fillAndSubmitForm();
+    await waitFor(() =>
+      expect(vi.mocked(notificationService.create)).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "ShowingRequest" })
+      )
+    );
+  });
+
+  it("notification message includes the buyer's name", async () => {
+    renderPage();
+    await fillAndSubmitForm();
+    await waitFor(() => {
+      const call = vi.mocked(notificationService.create).mock.calls[0][0];
+      expect(call.message).toMatch(/Jane Buyer/i);
+    });
+  });
+
+  it("notification includes the correct propertyId", async () => {
+    renderPage();
+    await fillAndSubmitForm();
+    await waitFor(() => {
+      const call = vi.mocked(notificationService.create).mock.calls[0][0];
+      expect(call.propertyId).toBe("42");
+    });
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// 10.3.5  Listing page SEO and Open Graph tags
+// ──────────────────────────────────────────────────────────────────────────────
+describe("Listing page SEO and OG tags — (10.3.5)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(fsboService.getRecord).mockReturnValue(mockFsboRecord);
+    vi.mocked(propertyService.getProperty).mockResolvedValue(mockProperty);
+    vi.mocked(jobService.getByProperty).mockResolvedValue(mockJobs);
+    vi.mocked(photoService.getByProperty).mockResolvedValue(mockPhotos);
+    vi.mocked(reportService.listShareLinks).mockResolvedValue([]);
+    // Reset meta tags injected by previous tests
+    document.querySelectorAll('meta[property^="og:"], meta[name="description"]').forEach((el) => el.remove());
+    document.title = "";
+  });
+
+  it("sets document.title to include the property address", async () => {
+    renderPage();
+    await waitFor(() => expect(document.title).toMatch(/123 Maple Street/i));
+  });
+
+  it("sets document.title to include 'For Sale'", async () => {
+    renderPage();
+    await waitFor(() => expect(document.title).toMatch(/for sale/i));
+  });
+
+  it("sets og:title meta tag to include the property address", async () => {
+    renderPage();
+    await waitFor(() => {
+      const tag = document.querySelector('meta[property="og:title"]');
+      expect(tag).not.toBeNull();
+      expect(tag!.getAttribute("content")).toMatch(/123 Maple Street/i);
+    });
+  });
+
+  it("sets og:description meta tag to include price and city", async () => {
+    renderPage();
+    await waitFor(() => {
+      const tag = document.querySelector('meta[property="og:description"]');
+      expect(tag).not.toBeNull();
+      expect(tag!.getAttribute("content")).toMatch(/485,000|\$485/i);
+      expect(tag!.getAttribute("content")).toMatch(/Austin/i);
+    });
   });
 });

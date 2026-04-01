@@ -42,3 +42,37 @@ export function pendingQuoteCount(
 ): number {
   return requests.filter((r) => hasQuoteActivity(r.status)).length;
 }
+
+// ─── In-app notification store ────────────────────────────────────────────────
+
+export interface AppNotification {
+  id: string;
+  type: "ReportExpiry" | "ShowingRequest";
+  message: string;
+  propertyId: string;
+  createdAt: number;
+}
+
+function createNotificationService() {
+  let _store: AppNotification[] = [];
+
+  return {
+    create(input: Omit<AppNotification, "id" | "createdAt">): AppNotification {
+      const notification: AppNotification = {
+        ...input,
+        id: `notif-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        createdAt: Date.now(),
+      };
+      _store = [..._store, notification];
+      return notification;
+    },
+    getAll(): AppNotification[] {
+      return [..._store];
+    },
+    __reset() {
+      _store = [];
+    },
+  };
+}
+
+export const notificationService = createNotificationService();

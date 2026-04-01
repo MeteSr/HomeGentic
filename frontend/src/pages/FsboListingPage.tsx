@@ -15,6 +15,8 @@ import { photoService, type Photo } from "@/services/photo";
 import { fsboService, type FsboRecord } from "@/services/fsbo";
 import { reportService, type ShareLink } from "@/services/report";
 import { computeScore } from "@/services/scoreService";
+import { showingRequestService } from "@/services/showingRequest";
+import { notificationService } from "@/services/notifications";
 import { COLORS, FONTS } from "@/theme";
 
 const S = {
@@ -42,7 +44,7 @@ function humanType(type: string): string {
 
 // ─── Showing-request form ─────────────────────────────────────────────────────
 
-function ShowingRequestForm() {
+function ShowingRequestForm({ propertyId }: { propertyId: string }) {
   const [name,    setName]    = useState("");
   const [contact, setContact] = useState("");
   const [time,    setTime]    = useState("");
@@ -50,8 +52,12 @@ function ShowingRequestForm() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // In production this would POST to a canister or email endpoint.
-    // For now, mock success immediately.
+    showingRequestService.create({ propertyId, name, contact, preferredTime: time });
+    notificationService.create({
+      type: "ShowingRequest",
+      message: `New showing request from ${name} (${contact})`,
+      propertyId,
+    });
     setSent(true);
   }
 
@@ -154,6 +160,29 @@ export default function FsboListingPage() {
   const [photos,     setPhotos]     = useState<Photo[]>([]);
   const [fsbo,       setFsbo]       = useState<FsboRecord | null | undefined>(undefined);
   const [reportLink, setReportLink] = useState<ShareLink | null>(null);
+
+  // SEO: set document title and Open Graph meta tags once data is ready
+  useEffect(() => {
+    if (!property || !fsbo) return;
+    const price = "$" + (fsbo.listPriceCents / 100).toLocaleString("en-US", { maximumFractionDigits: 0 });
+    document.title = `${property.address} — For Sale by Owner | HomeFax`;
+
+    function setMeta(attr: string, value: string, content: string) {
+      let tag = document.querySelector(`meta[${attr}="${value}"]`);
+      if (!tag) {
+        tag = document.createElement("meta");
+        tag.setAttribute(attr, value);
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute("content", content);
+    }
+
+    setMeta("property", "og:title", `${property.address} — For Sale by Owner`);
+    setMeta("property", "og:description", `${price} · ${property.city}, ${property.state} · HomeFax Verified`);
+    setMeta("name", "description", `${property.address} — ${price} · ${property.city}, ${property.state}. Verified maintenance history on HomeFax.`);
+
+    return () => { document.title = "HomeFax"; };
+  }, [property, fsbo]);
 
   useEffect(() => {
     if (!propertyId) { setLoading(false); return; }
@@ -311,7 +340,7 @@ export default function FsboListingPage() {
         <h2 style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.1rem", color: S.ink, margin: "0 0 1rem" }}>
           Schedule a Showing
         </h2>
-        <ShowingRequestForm />
+        <ShowingRequestForm propertyId={propertyId!} />
       </div>
     </div>
   );
