@@ -320,19 +320,6 @@ The core retention challenge for HomeFax: value delivery is irregular. Homeowner
 
 ---
 
-### 10.3 Public FSBO Listing Page
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 10.3.1 | Public listing page per FSBO property | ✅ Done | L | Unauthenticated `/for-sale/:propertyId` page: photos, list price, property details, HomeFax score badge, verified record summary, contact form — clean, shareable URL |
-| 10.3.2 | HomeFax score badge as trust anchor | ✅ Done | S | On the public listing, the HomeFax score is front-and-center with a "Verified on ICP Blockchain" explainer; replaces the "trust us" gap that kills FSBO credibility |
-| 10.3.3 | Full HomeFax report link on listing | ✅ Done | S | A "View Full Maintenance History" button links to the shared HomeFax report (uses existing `report` canister share link); buyer sees everything the seller wants to disclose |
-| 10.3.4 | Showing request form on listing page | ✅ Done | M | Buyer submits name, contact, preferred time; notification sent to seller; all requests logged (no third-party scheduling tool required) |
-| 10.3.5 | Listing page SEO and shareability | ✅ Done | M | Open Graph tags, clean title/description with price + location; designed to be shared on Nextdoor, Facebook Marketplace, Craigslist without losing credibility |
-| 10.3.6 | Flat-fee MLS listing integration | ✅ Done | XL | Partner with a flat-fee MLS service (e.g. Houzeo, ListingSpark) to submit the FSBO listing to the MLS from within HomeFax; this single item 5×es FSBO buyer exposure |
-
----
-
 ### 10.4 Buyer Communication & Showing Management
 
 | # | Item | Status | Size | Notes |
@@ -548,13 +535,3 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 | 15.6.5 | Lock Insurance Defense on free tier | ✅ Done | S | `InsuranceDefensePage` is Pro-only. Free users see a locked state: "Build your evidence file for insurance claims — upgrade to Pro." |
 
 ---
-
-### 15.7 Upgrade Prompts & Conversion UX
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 15.7.1 | Consistent upgrade gate component | ✅ Done | M | Create `frontend/src/components/UpgradeGate.tsx`. Props: `icon: string` (emoji), `feature: string` (feature name for the heading), `description: string` (one-line value prop), `tier?: "Pro" \| "Premium"` (defaults to `"Pro"`). Renders a bordered card (sage-light background, sage-mid border, 20px radius matching new design system) with: the icon at 40px, a Fraunces heading, the description in body text, and a plum pill button "Upgrade to [tier] →" that navigates to `/pricing`. No blurred preview of actual content — use a simple placeholder illustration or leave the card empty behind the gate. Blurring real content requires rendering it first, which leaks the data to the DOM; a clean locked card is both simpler and safer. Used by: 15.4.1, 15.4.2, 15.5.1, 15.5.2, 15.6.1–15.6.5. |
-| 15.7.2 | Upgrade prompt on Dashboard for free users | ✅ Done | S | Free users see a persistent (but dismissible) upgrade banner on the Dashboard after logging their 3rd job: "You're building something valuable — unlock the full HomeFax experience." Triggers at job #3, not job #1 (let them get hooked first). |
-| 15.7.3 | Highlight the upgrade moment in-app notification | ✅ Done | S | Scope: in-app notification only (no email or push — those require external infrastructure not yet in place). When a free user's `generateReport()` call succeeds in `GenerateReportModal`, immediately call `notificationService.create({ type: "ReportExpiry", message: "Your HomeFax report expires in 7 days — upgrade to Pro for a permanent link.", propertyId })`. This surfaces in the notification bell on the next page load. The existing `notifications.ts` service and bell UI already support this; no new infrastructure needed. Email/push upgrade reminders are a separate future item once an email provider is integrated. |
-| 15.7.4 | Update `PricingPage` feature comparison table | ✅ Done | S | Reflect all new gates in the pricing table: add rows for Recurring Services, Market Intelligence, Warranty Wallet, Score Breakdown, 5-Year Maintenance Calendar, Permanent Report Links, Agent Marketplace, FSBO mode. Free column shows ✗ for all new locked items. |
-| 15.7.5 | "You're on Free" tier indicator in Settings | ✅ Done | S | `SettingsPage` shows the user's current tier prominently with a one-click upgrade CTA. Currently this exists but should be made more prominent for free users — show what they're missing with a short feature list. |
