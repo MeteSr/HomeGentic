@@ -174,7 +174,7 @@ function OfferRow({ offer, underContract, onUpdate, onContractUpdate }: OfferRow
       )}
 
       {countering && (
-        <form onSubmit={handleCounterSubmit} style={{ marginTop: "0.5rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+        <form aria-label="Counter Offer Form" onSubmit={handleCounterSubmit} style={{ marginTop: "0.5rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
           <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
             <div>
               <label

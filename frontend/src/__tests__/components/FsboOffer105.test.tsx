@@ -147,7 +147,7 @@ describe("FsboOfferPanel — offer intake form (10.5.1)", () => {
 
   it("renders an 'Offers' section heading", () => {
     renderPanel();
-    expect(screen.getByText(/offers/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^offers$/i })).toBeInTheDocument();
   });
 
   it("shows a 'Log Offer' form with buyer name field", () => {
@@ -253,7 +253,7 @@ describe("FsboOfferPanel — offer comparison view (10.5.2)", () => {
 
   it("shows escalation clause indicator when present", () => {
     renderPanel([mockOffer2]);
-    expect(screen.getByText(/escalation/i)).toBeInTheDocument();
+    expect(screen.getByText("Escalation")).toBeInTheDocument();
   });
 
   it("shows earnest money amount", () => {
@@ -288,7 +288,7 @@ describe("FsboOfferPanel — offer comparison view (10.5.2)", () => {
     renderPanel([mockOffer1]);
     fireEvent.click(screen.getByRole("button", { name: /accept offer/i }));
     await waitFor(() => {
-      expect(screen.getByText(/accepted/i)).toBeInTheDocument();
+      expect(screen.getByText("Accepted")).toBeInTheDocument();
     });
   });
 });
@@ -320,7 +320,7 @@ describe("FsboOfferPanel — counter-offer tracking (10.5.4)", () => {
 
     fireEvent.change(screen.getByLabelText(/counter amount/i), { target: { value: "505000" } });
     fireEvent.change(screen.getByLabelText(/counter notes/i),  { target: { value: "Please remove inspection contingency" } });
-    fireEvent.click(screen.getByRole("button", { name: /send counter/i }));
+    fireEvent.submit(screen.getByRole("form", { name: /counter offer form/i }));
 
     await waitFor(() => {
       expect(fsboOfferService.addCounter).toHaveBeenCalledWith(
