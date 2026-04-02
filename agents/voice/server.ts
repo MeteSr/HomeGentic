@@ -20,7 +20,7 @@ if (!allowedOrigin) {
   }
   console.warn("[voice-agent] FRONTEND_ORIGIN not set — defaulting to http://localhost:5173 (dev only)");
 }
-const origin = allowedOrigin ?? "http://localhost:5173";
+const origin = allowedOrigin ?? "http://localhost:3000";
 
 app.use(cors({ origin }));
 app.use(express.json({ limit: "64kb" }));
