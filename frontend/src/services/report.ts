@@ -81,6 +81,7 @@ const idlFactory = ({ IDL }: any) => {
     diyJobCount:       IDL.Nat,
     permitCount:       IDL.Nat,
     generatedAt:       IDL.Int,
+    planTier:          IDL.Text,
   });
 
   const ShareLink = IDL.Record({
@@ -207,6 +208,7 @@ export interface ReportSnapshot {
   diyJobCount:       number;
   permitCount:       number;
   generatedAt:       number;   // ms timestamp
+  planTier:          string;   // "Free" | "Pro" | "Premium" | "ContractorPro"; "" treated as "Free"
 }
 
 export interface ShareLink {
@@ -327,6 +329,7 @@ function fromSnapshot(raw: any): ReportSnapshot {
     diyJobCount:       Number(raw.diyJobCount),
     permitCount:       Number(raw.permitCount),
     generatedAt:       Number(raw.generatedAt) / 1_000_000,
+    planTier:          raw.planTier || "Free",
   };
 }
 
@@ -394,6 +397,7 @@ function createReportService() {
         diyJobCount:       jobs.filter((j) => j.isDiy).length,
         permitCount:       jobs.filter((j) => j.permitNumber).length,
         generatedAt:       now,
+        planTier:          "Free",
       };
       mockSnapshots.set(snapshotId, snapshot);
       const link: ShareLink = {

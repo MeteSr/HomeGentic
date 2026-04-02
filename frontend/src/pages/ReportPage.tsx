@@ -274,18 +274,27 @@ export default function ReportPage() {
           </div>
         )}
 
-        {/* Free plan banner (15.3.2) — shown when link has a short (≤7 day) TTL */}
-        {link && link.expiresAt && link.createdAt && (link.expiresAt - link.createdAt) <= 7 * 86_400_000 && (
+        {/* Free plan banner (15.3.2 / 15.3.3) — shown only for Free-tier snapshots */}
+        {snapshot.planTier === "Free" && (
           <div className="no-print" style={{ border: `1.5px solid ${COLORS.sageMid}`, background: COLORS.sageLight, padding: "0.875rem 1.25rem", marginBottom: "1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
             <div>
               <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: COLORS.sage }}>Generated with HomeFax Free</span>
               <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, marginTop: "0.2rem" }}>
-                This link expires {new Date(link.expiresAt).toLocaleDateString()}. The homeowner can upgrade to Pro for a permanent link.
+                Upgrade to remove this banner and unlock permanent sharing.
               </p>
             </div>
             <a href="/pricing" style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 0.875rem", border: `1px solid ${COLORS.plum}`, background: COLORS.plum, color: COLORS.white, cursor: "pointer", textDecoration: "none", whiteSpace: "nowrap" }}>
               Upgrade →
             </a>
+          </div>
+        )}
+
+        {/* Pro+ trust badge (15.3.3) — shown for Pro and Premium reports */}
+        {(snapshot.planTier === "Pro" || snapshot.planTier === "Premium" || snapshot.planTier === "ContractorPro") && (
+          <div className="no-print" style={{ border: `1.5px solid ${COLORS.sageMid}`, background: COLORS.sageLight, padding: "0.75rem 1.25rem", marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.625rem" }}>
+            <CheckCircle size={14} color={COLORS.sage} />
+            <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: COLORS.sage, fontWeight: 700 }}>Verified by HomeFax</span>
+            <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>— This report is powered by a HomeFax Pro subscription.</span>
           </div>
         )}
 
