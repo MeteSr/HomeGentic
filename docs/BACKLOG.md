@@ -266,17 +266,6 @@ The core retention challenge for HomeFax: value delivery is irregular. Homeowner
 | 8.1.5 | Pulse opt-out / frequency controls | ✅ Exists | — | "Weekly Home Pulse" toggle in Settings Notifications tab; persisted to localStorage; `DashboardPage` checks `homefax_pulse_enabled` before showing pulse tip |
 | 8.1.6 | Pulse content personalization over time | ⬜ Missing | M | Track which Pulse items the user acted on; Claude weights future digests toward high-signal topics |
 
-### 8.3 Cancellation Flow — Make It Feel Like Data Loss
-**Vision:** The cancel flow shows exactly what's at stake: verified records, active warranties, score, ICP chain of custody. Factually accurate, not manipulative.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 8.3.1 | Cancellation intent screen | ✅ Exists | — | `SubscriptionTab` in `SettingsPage` — idle → confirm (features-lost list) → loading → done state machine |
-| 8.3.2 | Post-cancel read-only mode | ✅ Done | M | Cancelled accounts retain read access to their on-chain records; score stops updating; reports become static |
-| 8.3.3 | "Your records stay on ICP" messaging | ✅ Exists | — | Green info box in cancel confirm step: "Your ICP records are permanent even after cancellation" |
-| 8.3.4 | Pause subscription option | ✅ Exists | — | `paymentService.pause(months)`/`resume()`/`getPauseState()` in localStorage; pause banner + 1/2/3-month buttons in SettingsPage; "Pause 1 month instead" shortcut in cancel confirm step |
-| 8.3.5 | Win-back email sequence | ✅ Done | M | 7/30/90-day post-cancel emails highlighting new records that would have been created; "Your home didn't stop aging" |
-
 ### 8.4 Insurance Defense Mode — Florida-Specific Retention Hook
 **Vision:** One-tap export of all maintenance records formatted for insurance company submission. One successful insurance interaction pays for 3+ years of HomeFax.
 
@@ -405,8 +394,6 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 
 ---
 
----
-
 ## 14. Security — Audit Findings & Hardening
 
 **Audit scope:** ~3,500 lines of Motoko across 14 canisters + ~2,000 lines of TypeScript/React + Express voice agent proxy. Audit completed 2026-03-27. Issues are ordered by severity.
@@ -424,36 +411,5 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 | 14.4.5 | Verify `fetchRootKey` is never called in production | ⬜ Missing | S | `actor.ts` correctly gates `shouldFetchRootKey: IS_LOCAL`. Add a CI lint rule or build-time assertion that fails if `fetchRootKey: true` appears in any production code path. This is a defense-in-depth check — a future developer could accidentally enable it. |
 | 14.4.6 | Anthropic API key not exposed to frontend — confirm in build | ⬜ Missing | S | The voice agent proxy correctly holds `ANTHROPIC_API_KEY` server-side and never sends it to the browser. Confirm this is enforced in the Vite config — no `VITE_ANTHROPIC_*` prefixed env var should exist, as Vite automatically inlines `VITE_*` vars into the bundle. Add a build step that greps `dist/` for the key pattern. |
 | 14.4.7 | Migrate `agents/iot-gateway` from deprecated `@dfinity/*` to `@icp-sdk/core` | ⬜ Missing | M | **LOW.** `@dfinity/{agent,candid,identity,principal}` 1.x are deprecated in favour of `@icp-sdk/core` (migration guide: https://js.icp.build/core/latest/upgrading/v5). Current installs are on 1.4.0 (patched, no CVEs). Migrate before the gateway is built out — the API surface is small (`HttpAgent`, `Actor`, `Ed25519KeyIdentity`, `IDL`) so the change should be mechanical. Do this before the IoT gateway (1.3.6) is productionised. |
-
----
-
-## 15. Free Tier Tightening — Conversion Urgency
-
-**Problem:** The free tier currently gives away the full value proposition — unlimited job logging, permanent shareable reports, full score breakdown, market intelligence, and warranty wallet. There is no natural forcing function to upgrade. A homeowner can prepare their home for sale entirely on the free tier.
-
-**Strategy:** Free users get enough to feel the value and get hooked, but hit professional-grade walls at the exact moment they need to use it seriously — when preparing to list or sell.
-
-**The upgrade moment:** *"I'm ready to list — let me share my report"* → 7-day expiry warning → upgrade to Pro for a permanent, unbranded link.
-
-
----
-
-### 15.3 Report Branding (Free Plan Watermark)
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 15.3.1 | Add `planTier` field to `ReportSnapshot` in `report` canister | ✅ Done | S | Add `planTier: Text` to the `ReportSnapshot` record type (use `Text` rather than importing the `Tier` variant from the payment canister to avoid inter-canister type coupling; valid values: `"Free"`, `"Pro"`, `"Premium"`, `"ContractorPro"`). In `generateReport()`, call `paymentCanister.getSubscription(msg.caller)`, read the tier, and store it in the snapshot. Requires `paymentCanisterId` stable var + `setPaymentCanisterId()` admin function (same pattern as 15.1.1). Update the IDL in `frontend/src/services/report.ts` to add `planTier: IDL.Text` to the `ReportSnapshot` record, and add `planTier: string` to the TypeScript interface. Old snapshots (before this field exists) will deserialize with an empty string — treat `""` as `"Free"` in the frontend. |
-| 15.3.2 | Render "Free Plan" banner on `ReportPage` for free-tier reports | ✅ Done | S | When `snapshot.planTier === "Free"`, show a banner at the top of the public report: "Generated with HomeFax Free — upgrade to remove this banner and unlock permanent sharing." Buyers see this; it signals to them that the seller hasn't committed to the platform. |
-| 15.3.3 | Remove banner from Pro+ reports | ✅ Done | S | Pro and Premium reports render with no banner, clean header, and a "Verified by HomeFax" trust badge instead. This makes the Pro report visually superior and the difference obvious. |
-
----
-
-### 15.4 Score Breakdown Gating
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 15.4.1 | Show score number on free tier, lock breakdown | ✅ Done | M | The score breakdown appears in two places: (1) `DashboardPage` — the per-property score section, and (2) `PropertyDetailPage` — the Score tab. Apply the gate in both. Free users see the large score number and grade (e.g., "74 · C+") unchanged. The four scoring pillars rendered below it (`scoreService.computeScore()` returns `verifiedJobPts`, `valuePts`, `verificationPts`, `diversityPts`) are replaced with a single `<UpgradeGate>` card (see 15.7.1): icon 🔍, title "Score Breakdown", description "See exactly what's dragging your score down — upgrade to Pro." The gate check is: `if (tier === "Free") show gate else show pillars`. Read tier from `paymentService.getSubscription()` called once in the page's `useEffect`, stored in local state. |
-| 15.4.2 | Lock improvement recommendations on free tier | ✅ Done | S | The "How to improve your score" action list (currently shown on Dashboard and PropertyDetailPage) is Pro-only. Free users see: "3 actions available — upgrade to see them." |
-| 15.4.3 | Show full breakdown in score cert for Pro+ | ✅ Done | S | `ScoreCertPage` shows full breakdown for Pro+. Free users who earn a cert (score ≥88) still get the cert number, but the detailed sub-scores are blurred with an upgrade prompt. |
 
 ---
