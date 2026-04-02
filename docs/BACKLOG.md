@@ -292,10 +292,10 @@ Establish cycles cost for every significant canister call before any optimizatio
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 13.4.1 | Dashboard rendering with large dataset | ⬜ Missing | M | Inject 25 properties + 200 jobs via `window.__e2e_*` and measure: time to first meaningful paint, React render time, scroll performance. The `Promise.all` in `DashboardPage` fetches all properties + jobs + recurring services in parallel — verify it doesn't block render |
-| 13.4.2 | ReportPage rendering with 200-job snapshot | ⬜ Missing | S | Load a report snapshot containing 200 job records, 10 recurring services. Measure render time — this is a public page that buyers see; slow renders kill trust |
-| 13.4.3 | Playwright performance baseline for key pages | ⬜ Missing | M | Use Playwright's `page.metrics()` to capture JS heap, DOM nodes, and layout duration for Dashboard, PropertyDetail, ReportPage. Commit as a baseline; alert on >20% regression. Ties into 12.6.2 |
-| 13.4.4 | Bundle size audit | ⬜ Missing | S | Run `npm run build` and analyze `frontend/dist/` with `vite-bundle-visualizer`. Identify any unexpectedly large dependencies. Target: initial JS bundle < 200KB gzipped |
+| 13.4.1 | Dashboard rendering with large dataset | ✅ Done | M | Inject 25 properties + 200 jobs via `window.__e2e_*` and measure: time to first meaningful paint, React render time, scroll performance. The `Promise.all` in `DashboardPage` fetches all properties + jobs + recurring services in parallel — verify it doesn't block render |
+| 13.4.2 | ReportPage rendering with 200-job snapshot | ✅ Done | S | Load a report snapshot containing 200 job records, 10 recurring services. Measure render time — this is a public page that buyers see; slow renders kill trust |
+| 13.4.3 | Playwright performance baseline for key pages | ✅ Done | M | Use Playwright's `page.metrics()` to capture JS heap, DOM nodes, and layout duration for Dashboard, PropertyDetail, ReportPage. Commit as a baseline; alert on >20% regression. Ties into 12.6.2 |
+| 13.4.4 | Bundle size audit | ✅ Done | S | Run `npm run build` and analyze `frontend/dist/` with `vite-bundle-visualizer`. Identify any unexpectedly large dependencies. Target: initial JS bundle < 200KB gzipped |
 
 ---
 
