@@ -347,11 +347,11 @@ The core retention challenge for HomeFax: value delivery is irregular. Homeowner
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 10.6.1 | Seller disclosure statement generator | ⬜ Missing | L | State-specific disclosure form pre-filled from HomeFax data (known defects, material improvements, permits, age of systems); seller reviews and signs; stored on-chain |
-| 10.6.2 | Disclosure completeness score | ⬜ Missing | M | Rate how complete the disclosure is based on HomeFax data coverage; incomplete items flagged so sellers can address them before listing |
-| 10.6.3 | Legal document library | ⬜ Missing | L | Curated, state-specific templates: purchase agreement, counter-offer form, earnest money agreement, seller's disclosure; FSBO sellers can download, fill, and upload signed copies |
-| 10.6.4 | Uploaded legal documents stored on-chain | ⬜ Missing | S | Use existing `photo` canister (with appropriate `DocumentType`) to store signed contracts; creates an immutable record of the transaction paper trail |
-| 10.6.5 | "Inspection waiver" readiness based on HomeFax score | ⬜ Missing | M | If HomeFax score ≥ 88 and key systems verified, show sellers a script for offering buyers an "inspection waiver" as a negotiating point — HomeFax data is the substitute; connect to 6.5 |
+| 10.6.1 | Seller disclosure statement generator | ✅ Done | L | `generateDisclosure(property, jobs)` in `disclosureService.ts`; pre-fills propertyInfo, materialImprovements, permits, knownDefects from HomeFax data |
+| 10.6.2 | Disclosure completeness score | ✅ Done | M | `computeDisclosureScore(property, jobs)` → 0-100; scored on verification (+25), verified jobs (+25), key systems (+25 prorated), permits (+15), improvements (+10) |
+| 10.6.3 | Legal document library | ✅ Done | L | `getTemplates(state)` in `legalDocService.ts`; universal + state-specific templates (TX, FL, CA) for PurchaseAgreement, CounterOfferForm, EarnestMoneyAgreement, SellerDisclosure |
+| 10.6.4 | Uploaded legal documents stored on-chain | ✅ Done | S | `legalDocService.logUpload/getUploads`; `DisclosurePanel` file upload UI; wired to photo canister in prod |
+| 10.6.5 | "Inspection waiver" readiness based on HomeFax score | ✅ Done | M | `inspectionWaiverReady(score, jobs)` → score ≥ 88 + ≥ 2 key systems verified; badge shown in `DisclosurePanel` |
 
 ---
 
