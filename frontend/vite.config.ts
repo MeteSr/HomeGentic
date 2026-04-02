@@ -53,12 +53,8 @@ export default defineConfig(({ mode }) => {
       environment: "jsdom",
       globals: true,
       pool: "threads",
-      poolOptions: {
-        threads: {
-          minThreads: 2,
-          maxThreads: 8,
-        },
-      },
+      minThreads: 2,
+      maxThreads: 8,
       setupFiles: ["./src/__tests__/setup.ts"],
       include: ["src/__tests__/**/*.test.{ts,tsx}"],
       alias: {

@@ -37,15 +37,15 @@ vi.mock("@/store/authStore", () => ({
   }),
 }));
 
-vi.mock("@/store/propertyStore", () => ({
-  usePropertyStore: () => ({
-    properties: [{ id: "42", address: "123 Maple St" }],
-  }),
-}));
+vi.mock("@/store/propertyStore", () => {
+  const properties = [{ id: "42", address: "123 Maple St" }];
+  return { usePropertyStore: () => ({ properties }) };
+});
 
-vi.mock("@/store/jobStore", () => ({
-  useJobStore: () => ({ jobs: [] }),
-}));
+vi.mock("@/store/jobStore", () => {
+  const jobs: never[] = [];
+  return { useJobStore: () => ({ jobs }) };
+});
 
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ logout: vi.fn() }),
@@ -148,12 +148,14 @@ function renderBrowse() {
 
 function renderFsboPanel(tier = "Pro") {
   return render(
-    <FsboPanel
-      propertyId="42"
-      score={72}
-      verifiedJobCount={3}
-      hasReport={true}
-    />
+    <MemoryRouter>
+      <FsboPanel
+        propertyId="42"
+        score={72}
+        verifiedJobCount={3}
+        hasReport={true}
+      />
+    </MemoryRouter>
   );
 }
 
@@ -171,7 +173,7 @@ describe("ListingNewPage — free tier gate (15.6.4)", () => {
     mockTier = "Free";
     renderListing();
     await waitFor(() =>
-      expect(screen.getByText(/upgrade to pro/i)).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: /upgrade to pro/i })).toBeInTheDocument()
     );
     expect(screen.queryByText(/list your home/i)).not.toBeInTheDocument();
   });
@@ -215,7 +217,7 @@ describe("AgentBrowsePage — free tier gate (15.6.4)", () => {
     mockTier = "Free";
     renderBrowse();
     await waitFor(() =>
-      expect(screen.getByText(/upgrade to pro/i)).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: /upgrade to pro/i })).toBeInTheDocument()
     );
     expect(screen.queryByText(/find an agent/i)).not.toBeInTheDocument();
   });
@@ -250,7 +252,7 @@ describe("FsboPanel — free tier gate (15.6.4)", () => {
     mockTier = "Free";
     renderFsboPanel();
     await waitFor(() =>
-      expect(screen.getByText(/upgrade to pro/i)).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: /upgrade to pro/i })).toBeInTheDocument()
     );
     expect(screen.queryByText(/sell this home yourself/i)).not.toBeInTheDocument();
   });
