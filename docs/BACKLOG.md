@@ -288,26 +288,11 @@ Establish cycles cost for every significant canister call before any optimizatio
 
 ---
 
-### 13.4 Frontend Rendering Performance
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 13.4.1 | Dashboard rendering with large dataset | ✅ Done | M | Inject 25 properties + 200 jobs via `window.__e2e_*` and measure: time to first meaningful paint, React render time, scroll performance. The `Promise.all` in `DashboardPage` fetches all properties + jobs + recurring services in parallel — verify it doesn't block render |
-| 13.4.2 | ReportPage rendering with 200-job snapshot | ✅ Done | S | Load a report snapshot containing 200 job records, 10 recurring services. Measure render time — this is a public page that buyers see; slow renders kill trust |
-| 13.4.3 | Playwright performance baseline for key pages | ✅ Done | M | Use Playwright's `page.metrics()` to capture JS heap, DOM nodes, and layout duration for Dashboard, PropertyDetail, ReportPage. Commit as a baseline; alert on >20% regression. Ties into 12.6.2 |
-| 13.4.4 | Bundle size audit | ✅ Done | S | Run `npm run build` and analyze `frontend/dist/` with `vite-bundle-visualizer`. Identify any unexpectedly large dependencies. Target: initial JS bundle < 200KB gzipped |
-
----
-
 ### 13.5 Load Test Scenarios — Realistic User Journeys
 
 End-to-end scenarios that combine multiple calls, matching how real users interact with the app.
 
 | # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 13.5.1 | "Sell day" scenario | ✅ Done | M | Sequence: load ResaleReady checklist → view HomeFax score → generate report → create listing bid request. Measure total wall-clock time and total cycles burned end-to-end. This is the highest-value user journey |
-| 13.5.2 | "Buyer due diligence" scenario | ✅ Done | S | Sequence: open shared report URL → view all sections → click score cert → view contractor public profiles. Entirely read-path; test with 100 concurrent "buyers" against one report token |
-| 13.5.3 | "Active homeowner" scenario | ✅ Done | M | Simulate a homeowner who logs 3 jobs, adds 2 visit logs, uploads a photo, and regenerates their report in a single session. Measures realistic write load per engaged user |
 | 13.5.4 | "Agent competition" scenario | ⬜ Missing | M | Once Section 9 (listing bid marketplace) is built: 10 agents simultaneously submit proposals to the same listing bid request. Tests write contention on the listing canister |
 
 ---
