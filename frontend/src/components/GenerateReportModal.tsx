@@ -322,6 +322,24 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
                 >
                   <Copy size={12} /> Copy Share Link
                 </button>
+
+                {/* Expiry status row (15.2.3) */}
+                {userTier === "Free" ? (
+                  <div style={{ marginTop: "0.75rem", padding: "0.5rem 0.75rem", background: "#fff8e6", border: "1px solid #e8c84a", borderRadius: RADIUS.sm, display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
+                    <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: "#7a5c00" }}>
+                      ⚠ This link expires in 7 days
+                    </span>
+                    <a href="/pricing" style={{ fontFamily: S.mono, fontSize: "0.6rem", color: COLORS.plum, textDecoration: "underline", whiteSpace: "nowrap" }}>
+                      Upgrade to Pro →
+                    </a>
+                  </div>
+                ) : (
+                  <div style={{ marginTop: "0.75rem", padding: "0.5rem 0.75rem", background: COLORS.sageLight, border: `1px solid ${COLORS.sageMid}`, borderRadius: RADIUS.sm, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: COLORS.sage }}>
+                      ✓ This link never expires
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           )}

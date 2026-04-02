@@ -126,7 +126,7 @@ export default function ReportPage() {
 
   if (state !== "loaded" || !snapshot) {
     const configs = {
-      expired:  { icon: <AlertTriangle size={40} color={S.rust} />,   title: "Report link expired",   body: "The homeowner's share link has passed its expiry date. Ask them to generate a new one." },
+      expired:  { icon: <AlertTriangle size={40} color={S.rust} />,   title: "HomeFax report expired",   body: "This HomeFax report has expired. The homeowner can upgrade to Pro to share a permanent link." },
       revoked:  { icon: <XCircle      size={40} color={S.rust} />,    title: "Report link revoked",   body: "The homeowner has revoked access to this report." },
       notfound: { icon: <FileText     size={40} color={S.inkLight} />, title: "Report not found",      body: "This link may be invalid or the report has been removed." },
       error:    { icon: <AlertTriangle size={40} color={S.rust} />,   title: "Unable to load report", body: error },
@@ -259,6 +259,18 @@ export default function ReportPage() {
               <Shield size={11} style={{ display: "inline", marginRight: "0.25rem" }} />
               Verified by HomeFax
             </div>
+          </div>
+        )}
+
+        {/* 48-hour expiry warning (15.2.2) — urgent banner when link expires soon */}
+        {link && link.expiresAt && (link.expiresAt - Date.now()) <= 48 * 3600_000 && (
+          <div className="no-print" style={{ border: `1.5px solid ${COLORS.rust}`, background: "#fff5f3", padding: "0.875rem 1.25rem", marginBottom: "1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+            <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: S.ink }}>
+              ⚠ This report link expires {new Date(link.expiresAt).toLocaleDateString()}. Upgrade to Pro for a permanent link.
+            </p>
+            <a href="/pricing" style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 0.875rem", border: `1px solid ${COLORS.plum}`, background: COLORS.plum, color: COLORS.white, cursor: "pointer", textDecoration: "none", whiteSpace: "nowrap" }}>
+              Upgrade to Pro →
+            </a>
           </div>
         )}
 
