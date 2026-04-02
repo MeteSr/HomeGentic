@@ -7,11 +7,17 @@
  */
 
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 
 // ─── Service mocks ────────────────────────────────────────────────────────────
+
+vi.mock("@/services/payment", () => ({
+  paymentService: {
+    getMySubscription: vi.fn().mockResolvedValue({ tier: "Pro" }),
+  },
+}));
 
 vi.mock("@/services/fsbo", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/fsbo")>();
@@ -40,7 +46,7 @@ import FsboPanel from "@/components/FsboPanel";
 import { computeFsboReadiness, computeAgentCommissionSavings } from "@/services/fsbo";
 import { fsboService } from "@/services/fsbo";
 
-function renderPanel(overrides: Partial<React.ComponentProps<typeof FsboPanel>> = {}) {
+async function renderPanel(overrides: Partial<React.ComponentProps<typeof FsboPanel>> = {}) {
   const defaults: React.ComponentProps<typeof FsboPanel> = {
     propertyId:       "prop-1",
     score:            75,
@@ -48,11 +54,15 @@ function renderPanel(overrides: Partial<React.ComponentProps<typeof FsboPanel>> 
     hasReport:        false,
     ...overrides,
   };
-  return render(
+  const result = render(
     <MemoryRouter>
       <FsboPanel {...defaults} />
     </MemoryRouter>
   );
+  // Flush the paymentService.getMySubscription() Promise so the tier
+  // updates from "Free" to "Pro" before tests begin interacting.
+  await act(async () => {});
+  return result;
 }
 
 // ─── 10.1.4 — Readiness scoring (pure logic, no component) ───────────────────
@@ -109,39 +119,39 @@ describe("FsboPanel — activation flow (10.1.2)", () => {
     vi.mocked(fsboService.getRecord).mockReturnValue(null);
   });
 
-  it("shows 'Sell This Home Yourself' heading", () => {
-    renderPanel();
+  it("shows 'Sell This Home Yourself' heading", async () => {
+    await renderPanel();
     expect(screen.getByText(/sell this home yourself/i)).toBeInTheDocument();
   });
 
-  it("shows the readiness label", () => {
-    renderPanel({ score: 75, verifiedJobCount: 3, hasReport: false });
+  it("shows the readiness label", async () => {
+    await renderPanel({ score: 75, verifiedJobCount: 3, hasReport: false });
     expect(screen.getByText(/ready|not ready|optimally ready/i)).toBeInTheDocument();
   });
 
-  it("shows 'Ready' for score 75 with 3 verified jobs", () => {
-    renderPanel({ score: 75, verifiedJobCount: 3, hasReport: false });
+  it("shows 'Ready' for score 75 with 3 verified jobs", async () => {
+    await renderPanel({ score: 75, verifiedJobCount: 3, hasReport: false });
     expect(screen.getByText(/\breadyb|^ready$/i)).toBeInTheDocument();
   });
 
-  it("shows 'Not Ready' for a low score", () => {
-    renderPanel({ score: 55, verifiedJobCount: 1, hasReport: false });
+  it("shows 'Not Ready' for a low score", async () => {
+    await renderPanel({ score: 55, verifiedJobCount: 1, hasReport: false });
     expect(screen.getByText(/not ready/i)).toBeInTheDocument();
   });
 
-  it("shows 'Optimally Ready' when all criteria met", () => {
-    renderPanel({ score: 90, verifiedJobCount: 4, hasReport: true });
+  it("shows 'Optimally Ready' when all criteria met", async () => {
+    await renderPanel({ score: 90, verifiedJobCount: 4, hasReport: true });
     expect(screen.getByText(/optimally ready/i)).toBeInTheDocument();
   });
 
-  it("shows missing items list when NotReady", () => {
-    renderPanel({ score: 55, verifiedJobCount: 1, hasReport: false });
+  it("shows missing items list when NotReady", async () => {
+    await renderPanel({ score: 55, verifiedJobCount: 1, hasReport: false });
     expect(screen.getByText(/score.*65|65\+/i)).toBeInTheDocument();
     expect(screen.getByText(/verified.*job|2 verified/i)).toBeInTheDocument();
   });
 
   it("clicking 'Activate FSBO' shows the step checklist with a price input", async () => {
-    renderPanel({ score: 75, verifiedJobCount: 3 });
+    await renderPanel({ score: 75, verifiedJobCount: 3 });
     fireEvent.click(screen.getByRole("button", { name: /activate fsbo|get started/i }));
     await waitFor(() => {
       expect(screen.getByLabelText(/list price/i)).toBeInTheDocument();
@@ -149,7 +159,7 @@ describe("FsboPanel — activation flow (10.1.2)", () => {
   });
 
   it("shows real-time savings estimate as price is typed", async () => {
-    renderPanel({ score: 75, verifiedJobCount: 3 });
+    await renderPanel({ score: 75, verifiedJobCount: 3 });
     fireEvent.click(screen.getByRole("button", { name: /activate fsbo|get started/i }));
     await waitFor(() => screen.getByLabelText(/list price/i));
     fireEvent.change(screen.getByLabelText(/list price/i), { target: { value: "485000" } });
@@ -160,7 +170,7 @@ describe("FsboPanel — activation flow (10.1.2)", () => {
   });
 
   it("submitting the price form calls fsboService.setFsboMode with cents", async () => {
-    renderPanel({ score: 75, verifiedJobCount: 3 });
+    await renderPanel({ score: 75, verifiedJobCount: 3 });
     fireEvent.click(screen.getByRole("button", { name: /activate fsbo|get started/i }));
     await waitFor(() => screen.getByLabelText(/list price/i));
     fireEvent.change(screen.getByLabelText(/list price/i), { target: { value: "485000" } });
@@ -176,7 +186,7 @@ describe("FsboPanel — activation flow (10.1.2)", () => {
       listPriceCents: 48_500_000, activatedAt: Date.now(),
       step: 2, hasReport: false,
     });
-    renderPanel({ score: 75, verifiedJobCount: 3 });
+    await renderPanel({ score: 75, verifiedJobCount: 3 });
     fireEvent.click(screen.getByRole("button", { name: /activate fsbo|get started/i }));
     await waitFor(() => screen.getByLabelText(/list price/i));
     fireEvent.change(screen.getByLabelText(/list price/i), { target: { value: "485000" } });
