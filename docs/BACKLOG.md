@@ -335,11 +335,11 @@ The core retention challenge for HomeFax: value delivery is irregular. Homeowner
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 10.5.1 | Offer intake form | ⬜ Missing | M | Structured form for seller to log received offers: buyer name, offer price, earnest money, contingencies (inspection, financing, appraisal, sale of home), proposed close date, escalation clause Y/N |
-| 10.5.2 | Offer comparison view | ⬜ Missing | M | Side-by-side comparison of all offers: net to seller after contingency risk, close date, strength of financing, contingency count; similar structure to 9.4.1 agent proposal comparison |
-| 10.5.3 | Net proceeds calculator per offer | ⬜ Missing | S | For each offer: price − estimated closing costs − any seller concessions = estimated net; comparable to 9.4.2 |
-| 10.5.4 | Counter-offer tracking | ⬜ Missing | M | Log counter-offers and responses; full thread per offer; timestamps on chain |
-| 10.5.5 | Accepted offer milestone | ⬜ Missing | S | When seller marks an offer accepted, FSBO listing moves to "Under Contract"; public page updated; HomeFax score snapshot taken |
+| 10.5.1 | Offer intake form | ✅ Done | M | `FsboOfferPanel` form: buyer name, price, earnest money, contingencies, close date, escalation clause |
+| 10.5.2 | Offer comparison view | ✅ Done | M | `FsboOfferPanel` offer list: net proceeds, contingency count, escalation indicator, earnest money per offer |
+| 10.5.3 | Net proceeds calculator per offer | ✅ Done | S | `computeFsboNetProceeds` (offer − 2% closing − concessions) + `computeContingencyRisk` in `fsboOffer.ts` |
+| 10.5.4 | Counter-offer tracking | ✅ Done | M | `fsboOfferService.addCounter` + counter thread UI in `FsboOfferPanel`; status transitions Active → Countered |
+| 10.5.5 | Accepted offer milestone | ✅ Done | S | `fsboOfferService.accept` → `fsboService.setUnderContract`; Under Contract banner; actions hidden |
 
 ---
 
