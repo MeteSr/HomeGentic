@@ -1,7 +1,7 @@
 /**
  * ICP client for the HomeFax IoT Gateway.
  *
- * Uses @dfinity/agent with an Ed25519 service identity to call the Sensor
+ * Uses @dfinity/agent (3.x) with an Ed25519 service identity to call the Sensor
  * canister's recordEvent() update method. The identity private key is loaded
  * from the GATEWAY_IDENTITY_SEED environment variable (32-byte hex string).
  *
@@ -135,11 +135,12 @@ export async function getSensorActor(): Promise<ActorSubclass<SensorActor>> {
 
   const host = process.env.ICP_HOST ?? "http://localhost:4943";
   const identity = buildIdentity();
-  const agent = new HttpAgent({ identity, host });
-
-  if (process.env.NODE_ENV !== "production") {
-    await agent.fetchRootKey();
-  }
+  // 14.4.7 — migrated to 3.x async HttpAgent.create() factory (was synchronous constructor in 1.x)
+  const agent = await HttpAgent.create({
+    identity,
+    host,
+    shouldFetchRootKey: process.env.NODE_ENV !== "production",
+  });
 
   _actor = Actor.createActor<SensorActor>(sensorIdlFactory, {
     agent,

@@ -56,6 +56,14 @@ const NINETY_DAYS   = 90 * 24 * 60 * 60 * 1000;
 // 14.4.1 — clamp warranty expiry to prevent Number overflow on extreme inputs
 const MAX_EXPIRY_MS = new Date("2100-01-01").getTime();
 
+/** Pure helper — exported for testing (14.4.1). */
+export function warrantyExpiryMs(startDateStr: string, warrantyMonths: number): number {
+  return Math.min(
+    new Date(startDateStr).getTime() + warrantyMonths * MS_PER_MONTH,
+    MAX_EXPIRY_MS,
+  );
+}
+
 // ── Hook ───────────────────────────────────────────────────────────────────────
 
 export function useVoiceAgent(): UseVoiceAgentReturn {
@@ -95,7 +103,7 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
       .filter((j) => j.warrantyMonths && j.warrantyMonths > 0)
       .map((j) => ({
         job:    j,
-        expiry: Math.min(new Date(j.date).getTime() + (j.warrantyMonths ?? 0) * MS_PER_MONTH, MAX_EXPIRY_MS),
+        expiry: warrantyExpiryMs(j.date, j.warrantyMonths ?? 0),
       }))
       .filter(({ expiry }) => expiry > now && expiry - now <= NINETY_DAYS)
       .map(({ job, expiry }) => ({

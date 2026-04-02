@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# .githooks/pre-commit
+#
+# To activate: git config core.hooksPath .githooks
+# (Run once after cloning — see docs/SECURITY.md)
+
+bash "$(git rev-parse --show-toplevel)/scripts/check-secrets.sh"

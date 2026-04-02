@@ -112,6 +112,7 @@ persistent actor Report {
     diyJobCount:        Nat;
     permitCount:        Nat;
     generatedAt:        Time.Time;
+    schemaVersion:      ?Nat;   // 14.4.3 — null = pre-14.4.3, 2 = current; use ?Nat so old records upgrade safely
   };
 
   /// Share link record — separate from the snapshot so we can revoke without
@@ -209,7 +210,7 @@ persistent actor Report {
   private var pauseExpiryNs         : ?Int        = null;
   private var adminListEntries      : [Principal] = [];
   private var adminInitialized      : Bool        = false;
-  private var snapshotSchemaVersion : Nat         = 1;   // unused; kept for compat
+  private var snapshotSchemaVersion : Nat         = 2;   // 14.4.3 — incremented when schema changes; kept as stable var for audit
   private var propCanisterId        : Text        = "";
 
   // Migration source (V0): same names as the deployed stable variables so the
@@ -288,6 +289,7 @@ persistent actor Report {
         diyJobCount       = v.diyJobCount;
         permitCount       = v.permitCount;
         generatedAt       = v.generatedAt;
+        schemaVersion     = ?1;   // V0 records — pre-1.4.7
       });
     };
     snapshotEntries := [];
@@ -435,6 +437,7 @@ persistent actor Report {
       diyJobCount       = snap.diyJobCount;
       permitCount       = if (doHidePermits) { 0 } else { snap.permitCount };
       generatedAt       = snap.generatedAt;
+      schemaVersion     = snap.schemaVersion;
     }
   };
 
@@ -527,6 +530,7 @@ persistent actor Report {
       diyJobCount        = countDiy(jobs);
       permitCount        = countPermits(jobs);
       generatedAt        = now;
+      schemaVersion      = ?2;   // 14.4.3 — current schema version
     };
     Map.add(snapshots, Text.compare, snapshotId, snapshot);
 
