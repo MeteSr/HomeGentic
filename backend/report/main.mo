@@ -159,13 +159,14 @@ persistent actor Report {
     isPaused:        Bool;
   };
 
-  // ─── V0 Migration Types ───────────────────────────────────────────────────────
-  // Exact copies of the stable types from the canister deployed before 1.4.7.
-  // `linkEntries` and `snapshotEntries` keep these names AND these types so that
-  // Motoko's upgrade runtime can match them by name and deserialise the old
-  // on-chain records into these arrays without a type error.
-  // postupgrade() migrates them into the V2 arrays and clears them.
+  // ─── Migration Types ──────────────────────────────────────────────────────────
+  // Each Vn type is the exact shape of ReportSnapshot / ShareLink at the time
+  // the corresponding stable variable was written to disk.  Keeping the same
+  // stable-variable NAME with the Vn type lets the Motoko upgrade runtime
+  // deserialise old on-chain bytes without an M0170 error.
+  // postupgrade() promotes every Vn entry to the current type and clears the var.
 
+  // V0 — deployed before 1.4.7 (no `rooms` field on snapshot, no disclosure flags on link)
   private type ShareLinkV0 = {
     token:      Text;
     snapshotId: Text;
@@ -201,6 +202,30 @@ persistent actor Report {
     generatedAt:       Time.Time;
   };
 
+  // V1 — written by `snapshotEntriesV2` before 14.4.3 (has `rooms`, no `schemaVersion`)
+  private type ReportSnapshotV1 = {
+    snapshotId:        Text;
+    propertyId:        Text;
+    generatedBy:       Principal;
+    address:           Text;
+    city:              Text;
+    state:             Text;
+    zipCode:           Text;
+    propertyType:      Text;
+    yearBuilt:         Nat;
+    squareFeet:        Nat;
+    verificationLevel: Text;
+    jobs:              [JobInput];
+    recurringServices: [RecurringServiceInput];
+    rooms:             ?[RoomInput];
+    totalAmountCents:  Nat;
+    verifiedJobCount:  Nat;
+    diyJobCount:       Nat;
+    permitCount:       Nat;
+    generatedAt:       Time.Time;
+    // NO schemaVersion
+  };
+
   // ─── Stable State ─────────────────────────────────────────────────────────────
 
   // reportCounter / snapshotSchemaVersion must keep their original names.
@@ -213,16 +238,22 @@ persistent actor Report {
   private var snapshotSchemaVersion : Nat         = 2;   // 14.4.3 — incremented when schema changes; kept as stable var for audit
   private var propCanisterId        : Text        = "";
 
-  // Migration source (V0): same names as the deployed stable variables so the
-  // runtime deserialisees old on-chain data into them on the first upgrade.
-  // Cleared in postupgrade() once data has been moved to the V2 arrays.
+  // Migration source V0: same names as the deployed stable variables so the
+  // runtime deserialises old on-chain data into them on first upgrade.
+  // Cleared in postupgrade() once data has been moved forward.
   private var linkEntries     : [(Text, ShareLinkV0)]      = [];
   private var snapshotEntries : [(Text, ReportSnapshotV0)] = [];
 
-  // Current (V2): used for all new data and for normal preupgrade/postupgrade
-  // serialisation after the one-time V0→V1 migration has run.
-  private var linkEntriesV2     : [(Text, ShareLink)]      = [];
-  private var snapshotEntriesV2 : [(Text, ReportSnapshot)] = [];
+  // Migration source V1: snapshotEntriesV2 keeps its original name so the
+  // runtime can read what was serialised by pre-14.4.3 code.  The type is now
+  // ReportSnapshotV1 (no schemaVersion) — matching the on-disk bytes exactly.
+  // Cleared in postupgrade() after migration to V3.
+  private var linkEntriesV2     : [(Text, ShareLink)]        = [];
+  private var snapshotEntriesV2 : [(Text, ReportSnapshotV1)] = [];
+
+  // Current (V3): used for all new data and normal preupgrade/postupgrade
+  // serialisation from 14.4.3 onwards.
+  private var snapshotEntriesV3 : [(Text, ReportSnapshot)] = [];
 
   // Cert state — new; starts empty so no migration needed.
   private var certCounter  : Nat                 = 0;
@@ -239,16 +270,15 @@ persistent actor Report {
   // ─── Upgrade Hooks ────────────────────────────────────────────────────────────
 
   system func preupgrade() {
-    // Always save current data to V2 arrays for the next upgrade.
-    snapshotEntriesV2 := Iter.toArray(Map.entries(snapshots));
+    // Always save current data to V3 (current) arrays for the next upgrade.
+    snapshotEntriesV3 := Iter.toArray(Map.entries(snapshots));
     linkEntriesV2     := Iter.toArray(Map.entries(links));
     certEntries       := Iter.toArray(Map.entries(certs));
   };
 
   system func postupgrade() {
-    // ── One-time V0→V1 migration (runs on the upgrade from pre-1.4.7) ─────────
-    // linkEntries / snapshotEntries hold old records without the new fields.
-    // Migrate them into the HashMaps with safe defaults, then clear.
+    // ── One-time V0 migration (upgrade from pre-1.4.7) ────────────────────────
+    // linkEntries / snapshotEntries: old records without rooms / disclosure flags.
     for ((k, v) in linkEntries.vals()) {
       Map.add(links, Text.compare, k, {
         token            = v.token;
@@ -260,7 +290,7 @@ persistent actor Report {
         viewCount        = v.viewCount;
         isActive         = v.isActive;
         createdAt        = v.createdAt;
-        hideAmounts      = null;   // default: nothing hidden
+        hideAmounts      = null;
         hideContractors  = null;
         hidePermits      = null;
         hideDescriptions = null;
@@ -289,23 +319,52 @@ persistent actor Report {
         diyJobCount       = v.diyJobCount;
         permitCount       = v.permitCount;
         generatedAt       = v.generatedAt;
-        schemaVersion     = ?1;   // V0 records — pre-1.4.7
+        schemaVersion     = ?1;   // V0 records migrated from pre-1.4.7
       });
     };
     snapshotEntries := [];
 
-    // ── Normal restore from V2 (all upgrades after 1.4.7) ─────────────────────
+    // ── V1→current migration (upgrade from 1.4.7–14.4.2, i.e. snapshotEntriesV2) ──
+    // These records have `rooms` but no `schemaVersion`.
+    for ((k, v) in snapshotEntriesV2.vals()) {
+      Map.add(snapshots, Text.compare, k, {
+        snapshotId        = v.snapshotId;
+        propertyId        = v.propertyId;
+        generatedBy       = v.generatedBy;
+        address           = v.address;
+        city              = v.city;
+        state             = v.state;
+        zipCode           = v.zipCode;
+        propertyType      = v.propertyType;
+        yearBuilt         = v.yearBuilt;
+        squareFeet        = v.squareFeet;
+        verificationLevel = v.verificationLevel;
+        jobs              = v.jobs;
+        recurringServices = v.recurringServices;
+        rooms             = v.rooms;
+        totalAmountCents  = v.totalAmountCents;
+        verifiedJobCount  = v.verifiedJobCount;
+        diyJobCount       = v.diyJobCount;
+        permitCount       = v.permitCount;
+        generatedAt       = v.generatedAt;
+        schemaVersion     = ?2;   // back-fill: these records are schema-current
+      });
+    };
+    snapshotEntriesV2 := [];
+
+    // ── Links V1 (same type across all versions — no migration needed) ─────────
     for ((k, v) in linkEntriesV2.vals()) {
       Map.add(links, Text.compare, k, v);
     };
     linkEntriesV2 := [];
 
-    for ((k, v) in snapshotEntriesV2.vals()) {
+    // ── Normal restore from V3 (14.4.3 and later upgrades) ────────────────────
+    for ((k, v) in snapshotEntriesV3.vals()) {
       Map.add(snapshots, Text.compare, k, v);
     };
-    snapshotEntriesV2 := [];
+    snapshotEntriesV3 := [];
 
-    // Restore certs (starts empty on first deploy; populated on subsequent upgrades).
+    // Restore certs (starts empty on first deploy).
     for ((k, v) in certEntries.vals()) {
       Map.add(certs, Text.compare, k, v);
     };
