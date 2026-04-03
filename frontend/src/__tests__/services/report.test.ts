@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { reportService } from "@/services/report";
 import type { PropertyInput, JobInput } from "@/services/report";
 
+beforeEach(() => { reportService.reset(); });
+
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
 function makeProperty(overrides: Partial<PropertyInput> = {}): PropertyInput {
