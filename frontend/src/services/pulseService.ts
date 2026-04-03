@@ -1,11 +1,170 @@
 /**
- * Home Pulse — rule-based weekly maintenance tip.
- * Returns a single actionable tip string, or null if nothing relevant applies.
- * Shown once per month (caller stores dismissal in localStorage).
+ * Home Pulse — weekly maintenance digest (8.1.1) + legacy single-tip helper.
+ *
+ * 8.1.1: createPulseService() — structured multi-item digest, Claude-powered
+ *        (falls back to deterministic mock when agent is offline).
+ * Legacy: getWeeklyPulse() — single-tip rule-based function (kept for
+ *         existing callers).
  */
 
 import type { Property } from "./property";
 import type { Job } from "./job";
+import { climateService, type Season } from "./climateService";
+
+const PULSE_AGENT_URL =
+  typeof import.meta !== "undefined"
+    ? (import.meta.env?.VITE_VOICE_AGENT_URL ?? "http://localhost:3001")
+    : "http://localhost:3001";
+
+// ─── 8.1.1 Types ──────────────────────────────────────────────────────────────
+
+export type PulseItemPriority = "high" | "medium" | "low";
+export type PulseItemCategory =
+  | "HVAC" | "Roofing" | "Plumbing" | "Electrical" | "Structural"
+  | "Seasonal" | "Safety" | "Efficiency" | "General";
+
+export interface PulseItem {
+  id:       string;
+  title:    string;
+  body:     string;
+  category: PulseItemCategory;
+  priority: PulseItemPriority;
+}
+
+export interface PulseDigest {
+  propertyId:  string;
+  headline:    string;
+  items:       PulseItem[];
+  climateZone: number;
+  season:      Season;
+  generatedAt: number;
+}
+
+export interface PulseContext {
+  propertyId:       string;
+  address:          string;
+  city:             string;
+  state:            string;
+  zipCode:          string;
+  yearBuilt:        number;
+  recentJobs:       Array<{ serviceType: string; date: string; amountCents: number }>;
+  systemAges:       Partial<Record<string, number>>;
+  userTopicWeights: Partial<Record<string, number>>;
+}
+
+// ─── System age thresholds ────────────────────────────────────────────────────
+
+const SYSTEM_AGE_THRESHOLDS: Record<string, { high: number; medium: number }> = {
+  HVAC:        { high: 12, medium: 8  },
+  Roof:        { high: 20, medium: 15 },
+  Plumbing:    { high: 20, medium: 12 },
+  Electrical:  { high: 25, medium: 15 },
+  WaterHeater: { high: 10, medium: 7  },
+};
+
+const SYSTEM_DISPLAY: Record<string, { name: string; category: PulseItemCategory }> = {
+  HVAC:        { name: "HVAC system",       category: "HVAC"       },
+  Roof:        { name: "roof",              category: "Roofing"    },
+  Plumbing:    { name: "plumbing",          category: "Plumbing"   },
+  Electrical:  { name: "electrical system", category: "Electrical" },
+  WaterHeater: { name: "water heater",      category: "Plumbing"   },
+};
+
+// ─── Mock digest builder ──────────────────────────────────────────────────────
+
+function buildMockDigest(ctx: PulseContext): PulseDigest {
+  const zone     = climateService.getZone(ctx.zipCode);
+  const season   = climateService.getSeason();
+  const seasonal = climateService.getSeasonalPriorities(zone.zone, season);
+
+  const items: PulseItem[] = [];
+  let counter = 0;
+  const itemId = () => `pulse-${++counter}`;
+
+  for (const [system, age] of Object.entries(ctx.systemAges)) {
+    if (!age) continue;
+    const threshold = SYSTEM_AGE_THRESHOLDS[system];
+    const display   = SYSTEM_DISPLAY[system];
+    if (!threshold || !display) continue;
+
+    const priority: PulseItemPriority =
+      age >= threshold.high   ? "high"   :
+      age >= threshold.medium ? "medium" : "low";
+    if (priority === "low") continue;
+
+    items.push({
+      id:       itemId(),
+      title:    `${display.name.charAt(0).toUpperCase() + display.name.slice(1)} ${priority === "high" ? "overdue for" : "approaching"} service`,
+      body:     `Your ${display.name} is approximately ${age} years old. ${priority === "high" ? "This is past the typical service interval — schedule an inspection soon." : "Consider scheduling a service in the coming months."}`,
+      category: display.category,
+      priority,
+    });
+  }
+
+  for (const task of seasonal.slice(0, 3)) {
+    items.push({
+      id:       itemId(),
+      title:    task,
+      body:     `Seasonal priority for ${zone.label} climate (${ctx.city}, ${ctx.state}) this ${season}.`,
+      category: "Seasonal",
+      priority: "medium",
+    });
+  }
+
+  const priorityOrder = { high: 0, medium: 1, low: 2 };
+
+  if (Object.keys(ctx.userTopicWeights).length > 0) {
+    items.sort((a, b) => {
+      const pDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+      if (pDiff !== 0) return pDiff;
+      return (ctx.userTopicWeights[b.category] ?? 0) - (ctx.userTopicWeights[a.category] ?? 0);
+    });
+  } else {
+    items.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+  }
+
+  const homeAge = new Date().getFullYear() - ctx.yearBuilt;
+  const headline =
+    items.some((i) => i.priority === "high")
+      ? `Your ${homeAge}-year-old home has items that need attention this ${season}.`
+      : `Your home is in good shape — here's what to keep an eye on this ${season}.`;
+
+  return { propertyId: ctx.propertyId, headline, items, climateZone: zone.zone, season, generatedAt: Date.now() };
+}
+
+// ─── 8.1.1 Factory ───────────────────────────────────────────────────────────
+
+export function createPulseService() {
+  const cache = new Map<string, PulseDigest>();
+
+  async function generateDigest(ctx: PulseContext): Promise<PulseDigest> {
+    try {
+      const res = await fetch(`${PULSE_AGENT_URL}/api/pulse`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify(ctx),
+        signal:  AbortSignal.timeout(8_000),
+      });
+      if (res.ok) {
+        const digest: PulseDigest = await res.json();
+        cache.set(ctx.propertyId, digest);
+        return digest;
+      }
+    } catch { /* agent offline → fall through */ }
+
+    const digest = buildMockDigest(ctx);
+    cache.set(ctx.propertyId, digest);
+    return digest;
+  }
+
+  function getCachedDigest(propertyId: string): PulseDigest | null {
+    return cache.get(propertyId) ?? null;
+  }
+
+  return { generateDigest, getCachedDigest };
+}
+
+export const pulseService = createPulseService();
 
 interface PulseTip {
   headline: string;

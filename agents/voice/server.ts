@@ -178,6 +178,84 @@ app.post("/api/maintenance/chat", async (req: Request, res: Response): Promise<v
   }
 });
 
+// ── POST /api/pulse ───────────────────────────────────────────────────────────
+// 8.1.1 — Home Pulse digest generation.
+// Request:  PulseContext (propertyId, address, zipCode, yearBuilt, systemAges, …)
+// Response: PulseDigest  (headline, items[], climateZone, season, generatedAt)
+//
+// Claude generates a hyper-local, hyper-specific Monday-morning digest by
+// combining: climate zone, current season, system ages, and topic weights.
+app.post("/api/pulse", async (req: Request, res: Response): Promise<void> => {
+  const ctx = req.body;
+
+  if (!ctx?.propertyId || !ctx?.zipCode) {
+    res.status(400).json({ error: "propertyId and zipCode are required" });
+    return;
+  }
+
+  const season = (() => {
+    const m = new Date().getMonth();
+    if (m === 11 || m <= 1) return "winter";
+    if (m <= 4)             return "spring";
+    if (m <= 7)             return "summer";
+    return "fall";
+  })();
+
+  const systemAgeLines = Object.entries(ctx.systemAges ?? {})
+    .filter(([, age]) => (age as number) > 0)
+    .map(([sys, age]) => `  - ${sys}: ${age} years since last service`)
+    .join("\n");
+
+  const weightLines = Object.entries(ctx.userTopicWeights ?? {})
+    .map(([topic, w]) => `  - ${topic}: weight ${w}`)
+    .join("\n");
+
+  const prompt = [
+    `Generate a Monday-morning Home Pulse digest for a homeowner.`,
+    `Property: ${ctx.address ?? ""}, ${ctx.city ?? ""}, ${ctx.state ?? ""} ${ctx.zipCode}`,
+    `Year built: ${ctx.yearBuilt ?? "unknown"}. Current season: ${season}.`,
+    systemAgeLines ? `System ages:\n${systemAgeLines}` : "",
+    weightLines ? `User topic interests (higher = more relevant to them):\n${weightLines}` : "",
+    ``,
+    `Return ONLY valid JSON in this exact shape (no markdown, no prose):`,
+    `{`,
+    `  "propertyId": "${ctx.propertyId}",`,
+    `  "headline": "<one engaging sentence tailored to this property>",`,
+    `  "items": [`,
+    `    { "id": "1", "title": "<short title>", "body": "<2-3 sentence detail>", "category": "<one of: HVAC|Roofing|Plumbing|Electrical|Structural|Seasonal|Safety|Efficiency|General>", "priority": "<high|medium|low>" }`,
+    `  ],`,
+    `  "climateZone": <1-8>,`,
+    `  "season": "${season}",`,
+    `  "generatedAt": ${Date.now()}`,
+    `}`,
+    `Include 3–5 items. Sort by priority (high first). Be specific to this home — mention system ages and local climate where relevant.`,
+  ].filter(Boolean).join("\n");
+
+  try {
+    const response = await anthropic.messages.create({
+      model:      "claude-sonnet-4-6",
+      max_tokens: 1024,
+      messages:   [{ role: "user", content: prompt }],
+    });
+
+    const text = response.content
+      .filter((b): b is Anthropic.Messages.TextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("");
+
+    // Extract JSON from response (Claude may add brief preamble despite instructions)
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      res.status(500).json({ error: "Claude did not return valid JSON" });
+      return;
+    }
+    res.json(JSON.parse(jsonMatch[0]));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    res.status(500).json({ error: msg });
+  }
+});
+
 // ── GET /health ───────────────────────────────────────────────────────────────
 app.get("/health", (_req, res) => {
   res.json({ ok: true, model: "claude-sonnet-4-6" });

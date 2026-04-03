@@ -214,10 +214,10 @@ The core retention challenge for HomeFax: value delivery is irregular. Homeowner
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 8.1.1 | Home Pulse digest generation (Claude) | ⬜ Missing | L | Claude agent generates digest from: property location, build year, system ages, local climate/season, recent job history |
-| 8.1.2 | Climate zone data integration | ⬜ Missing | M | Map zip code → NOAA climate zone; feed into digest and maintenance forecasts (see 1.1.5) |
-| 8.1.3 | Weekly digest email delivery | ⬜ Missing | M | Email template + send pipeline (Resend / SendGrid); one digest per active property per user |
-| 8.1.6 | Pulse content personalization over time | ⬜ Missing | M | Track which Pulse items the user acted on; Claude weights future digests toward high-signal topics |
+| 8.1.1 | Home Pulse digest generation (Claude) | ✅ Done | L | Claude agent generates digest from: property location, build year, system ages, local climate/season, recent job history |
+| 8.1.2 | Climate zone data integration | ✅ Done | M | Map zip code → NOAA climate zone; feed into digest and maintenance forecasts (see 1.1.5) |
+| 8.1.3 | Weekly digest email delivery | ✅ Done | M | Email template + send pipeline (Resend / SendGrid); one digest per active property per user |
+| 8.1.6 | Pulse content personalization over time | ✅ Done | M | Track which Pulse items the user acted on; Claude weights future digests toward high-signal topics |
 
 ### 8.4 Insurance Defense Mode — Florida-Specific Retention Hook
 **Vision:** One-tap export of all maintenance records formatted for insurance company submission. One successful insurance interaction pays for 3+ years of HomeFax.
