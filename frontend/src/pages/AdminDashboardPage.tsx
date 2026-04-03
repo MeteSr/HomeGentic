@@ -2,8 +2,9 @@ import React, { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { propertyService, Property, VerificationLevel, SubscriptionTier } from "@/services/property";
+import { monitoringService, CanisterMetrics, runwayDays, cyclesToUsd } from "@/services/monitoringService";
 import { useAuthStore } from "@/store/authStore";
-import { Shield, CheckCircle, XCircle, RefreshCw } from "lucide-react";
+import { Shield, CheckCircle, XCircle, RefreshCw, AlertTriangle } from "lucide-react";
 import toast from "react-hot-toast";
 import { COLORS, FONTS } from "@/theme";
 
@@ -18,8 +19,174 @@ const S = {
   mono:     FONTS.mono,
 };
 
-type Tab = "verifications" | "tiers";
+type Tab = "verifications" | "tiers" | "cycles";
 const TIERS: SubscriptionTier[] = ["Free", "Pro", "Premium", "ContractorPro"];
+
+// ─── 13.6.3: Cycles burn rate dashboard ──────────────────────────────────────
+
+const RUNWAY_WARN_DAYS  = 30;   // orange alert
+const RUNWAY_CRIT_DAYS  = 7;    // red alert
+
+function runwayColor(days: number | null): string {
+  if (days === null) return S.inkLight;
+  if (days < RUNWAY_CRIT_DAYS)  return S.rust;
+  if (days < RUNWAY_WARN_DAYS)  return "#d97706";
+  return "#16a34a";
+}
+
+function formatCycles(n: number): string {
+  if (n >= 1e12) return `${(n / 1e12).toFixed(2)}T`;
+  if (n >= 1e9)  return `${(n / 1e9).toFixed(1)}B`;
+  if (n >= 1e6)  return `${(n / 1e6).toFixed(1)}M`;
+  return `${n}`;
+}
+
+function CyclesDashboard() {
+  const [metrics,  setMetrics]  = useState<CanisterMetrics[] | null>(null);
+  const [loading,  setLoading]  = useState(false);
+  const [critCount, setCritCount] = useState(0);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [all, mon] = await Promise.all([
+        monitoringService.getAllCanisterMetrics(),
+        monitoringService.getMetrics(),
+      ]);
+      setMetrics(all);
+      setCritCount(mon.criticalAlerts);
+    } catch {
+      toast.error("Failed to load monitoring data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  if (loading || !metrics) {
+    return (
+      <div style={{ display: "flex", justifyContent: "center", padding: "3rem" }}>
+        <div className="spinner-lg" />
+      </div>
+    );
+  }
+
+  const totalBalance = metrics.reduce((s, m) => s + m.cyclesBalance, 0);
+  const totalBurn    = metrics.reduce((s, m) => s + m.cyclesBurned,  0);
+  const minRunway    = metrics
+    .map((m) => runwayDays(m.cyclesBalance, m.cyclesBurned))
+    .filter((d): d is number => d !== null)
+    .reduce((min, d) => Math.min(min, d), Infinity);
+
+  const atRisk = metrics.filter((m) => {
+    const d = runwayDays(m.cyclesBalance, m.cyclesBurned);
+    return d !== null && d < RUNWAY_WARN_DAYS;
+  });
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+
+      {/* Summary cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem" }}>
+        {[
+          { label: "Total Balance",     value: formatCycles(totalBalance),             sub: `$${cyclesToUsd(totalBalance).toFixed(2)} USD` },
+          { label: "Daily Burn (est.)", value: formatCycles(totalBurn),                sub: `$${cyclesToUsd(totalBurn).toFixed(4)}/day` },
+          { label: "Min Runway",        value: isFinite(minRunway) ? `${Math.floor(minRunway)}d` : "—", sub: minRunway < RUNWAY_WARN_DAYS ? "⚠ Top-up needed" : "Safe" },
+          { label: "Critical Alerts",   value: String(critCount),                       sub: critCount > 0 ? "Review alerts" : "All clear" },
+        ].map((c) => (
+          <div key={c.label} style={{ border: `1px solid ${S.rule}`, background: COLORS.white, padding: "0.875rem 1.25rem" }}>
+            <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.25rem" }}>{c.label}</p>
+            <p style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.4rem", lineHeight: 1, color: S.ink }}>{c.value}</p>
+            <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, marginTop: "0.25rem" }}>{c.sub}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* At-risk banner */}
+      {atRisk.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.875rem 1.25rem", border: `1px solid #d97706`, background: "#fffbeb" }}>
+          <AlertTriangle size={16} color="#d97706" />
+          <span style={{ fontFamily: S.mono, fontSize: "0.65rem", color: "#92400e" }}>
+            {atRisk.length} canister{atRisk.length > 1 ? "s" : ""} below {RUNWAY_WARN_DAYS}-day runway — top up cycles soon.
+          </span>
+        </div>
+      )}
+
+      {/* Per-canister table */}
+      <div style={{ border: `1px solid ${S.rule}`, background: COLORS.white }}>
+        <div style={{ padding: "0.875rem 1.25rem", borderBottom: `1px solid ${S.rule}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
+            Per-Canister Cycles
+          </span>
+          <button
+            onClick={load}
+            disabled={loading}
+            style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.375rem 0.875rem", border: `1px solid ${S.rule}`, background: COLORS.white, fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", color: S.inkLight }}
+          >
+            <RefreshCw size={11} />
+            Refresh
+          </button>
+        </div>
+
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.75rem", fontFamily: S.mono }}>
+          <thead>
+            <tr style={{ borderBottom: `1px solid ${S.rule}` }}>
+              {["Canister", "Balance", "Daily Burn", "Runway", "Memory", "Error Rate"].map((h) => (
+                <th key={h} style={{ padding: "0.625rem 1rem", textAlign: "left", fontWeight: 400, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {metrics
+              .slice()
+              .sort((a, b) => {
+                const da = runwayDays(a.cyclesBalance, a.cyclesBurned) ?? Infinity;
+                const db = runwayDays(b.cyclesBalance, b.cyclesBurned) ?? Infinity;
+                return da - db;   // lowest runway first
+              })
+              .map((m) => {
+                const runway = runwayDays(m.cyclesBalance, m.cyclesBurned);
+                const errRate = m.requestCount > 0 ? ((m.errorCount / m.requestCount) * 100).toFixed(1) + "%" : "—";
+                const memPct = m.memoryCapacity > 0 ? ((m.memoryBytes / m.memoryCapacity) * 100).toFixed(0) + "%" : "—";
+                const rowAlert = runway !== null && runway < RUNWAY_CRIT_DAYS;
+
+                return (
+                  <tr
+                    key={m.canisterId}
+                    style={{ borderBottom: `1px solid ${S.rule}`, background: rowAlert ? "#fff1f2" : "transparent" }}
+                  >
+                    <td style={{ padding: "0.625rem 1rem", fontSize: "0.65rem", color: S.ink }}>
+                      <code style={{ fontSize: "0.6rem" }}>{m.canisterId.slice(0, 18)}…</code>
+                    </td>
+                    <td style={{ padding: "0.625rem 1rem", color: S.ink }}>
+                      {formatCycles(m.cyclesBalance)}
+                    </td>
+                    <td style={{ padding: "0.625rem 1rem", color: S.inkLight }}>
+                      {formatCycles(m.cyclesBurned)}/day
+                    </td>
+                    <td style={{ padding: "0.625rem 1rem", fontWeight: 600, color: runwayColor(runway) }}>
+                      {runway !== null ? `${Math.floor(runway)}d` : "—"}
+                      {runway !== null && runway < RUNWAY_WARN_DAYS && " ⚠"}
+                    </td>
+                    <td style={{ padding: "0.625rem 1rem", color: S.inkLight }}>{memPct}</td>
+                    <td style={{ padding: "0.625rem 1rem", color: m.errorCount > 0 ? S.rust : S.inkLight }}>{errRate}</td>
+                  </tr>
+                );
+              })}
+          </tbody>
+        </table>
+      </div>
+
+      <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.06em", color: S.inkLight }}>
+        Daily burn estimated from last snapshot window. Alert threshold: {RUNWAY_WARN_DAYS}-day runway.
+        Sorted by lowest runway first.
+      </p>
+    </div>
+  );
+}
 
 function VerificationCard({
   property,
@@ -282,6 +449,7 @@ export default function AdminDashboardPage() {
           {([
             { id: "verifications", label: `Verifications${pending.length > 0 ? ` (${pending.length})` : ""}` },
             { id: "tiers",         label: "Subscription Tiers" },
+            { id: "cycles",        label: "Cycles & Health" },
           ] as { id: Tab; label: string }[]).map((t) => (
             <button
               key={t.id}
@@ -336,6 +504,8 @@ export default function AdminDashboardPage() {
         )}
 
         {tab === "tiers" && <TierManager />}
+
+        {tab === "cycles" && <CyclesDashboard />}
       </div>
     </Layout>
   );

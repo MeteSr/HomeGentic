@@ -1,0 +1,144 @@
+name: Performance Regression Gate
+
+# 13.6.4 — Runs the cycles baseline on every PR and fails if any call regresses
+# by more than 25% compared to the committed baseline in tests/perf-baselines/.
+#
+# The baseline CSVs (query-baseline.csv, update-baseline.csv) are committed to
+# the repo after running `bash scripts/benchmark.sh` locally. This job runs the
+# scripts in dry-run mode (no live replica required) and compares cycles_estimate
+# values only — latency is not gated in CI because it varies by runner.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      # Only run when canister code, services, or benchmark scripts change
+      - "backend/**"
+      - "frontend/src/services/**"
+      - "scripts/benchmark-*.mjs"
+      - "tests/perf-baselines/**"
+
+jobs:
+  perf-regression:
+    name: Cycles Regression Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run query baseline (dry-run)
+        id: query
+        run: |
+          mkdir -p tests/perf-baselines
+          node scripts/benchmark-queries.mjs --csv > /tmp/pr-queries.csv
+          echo "Generated PR query baseline:"
+          cat /tmp/pr-queries.csv
+
+      - name: Run update baseline (dry-run)
+        id: update
+        run: |
+          node scripts/benchmark-updates.mjs --csv > /tmp/pr-updates.csv
+          echo "Generated PR update baseline:"
+          cat /tmp/pr-updates.csv
+
+      - name: Compare against committed baseline
+        id: compare
+        run: |
+          node - <<'EOF'
+          const fs   = require("fs");
+          const path = require("path");
+
+          const REGRESSION_THRESHOLD = 0.25;   // 25% worse = fail
+          const CYCLES_COL = 5;                 // 0-indexed column in CSV
+
+          function parseCSV(file) {
+            if (!fs.existsSync(file)) return [];
+            return fs.readFileSync(file, "utf-8")
+              .trim().split("\n")
+              .slice(1)  // skip header
+              .map((line) => {
+                const cols = line.split(",");
+                return { key: `${cols[0]}.${cols[1]}`, cycles: parseInt(cols[CYCLES_COL], 10) };
+              })
+              .filter((r) => !isNaN(r.cycles));
+          }
+
+          const baselineQ = parseCSV("tests/perf-baselines/query-baseline.csv");
+          const baselineU = parseCSV("tests/perf-baselines/update-baseline.csv");
+          const prQ       = parseCSV("/tmp/pr-queries.csv");
+          const prU       = parseCSV("/tmp/pr-updates.csv");
+
+          const baseline = Object.fromEntries([...baselineQ, ...baselineU].map((r) => [r.key, r.cycles]));
+          const pr       = Object.fromEntries([...prQ,       ...prU      ].map((r) => [r.key, r.cycles]));
+
+          let failed = false;
+          const rows = [];
+
+          for (const [key, prCycles] of Object.entries(pr)) {
+            const baseCycles = baseline[key];
+            if (!baseCycles) {
+              rows.push(`  NEW   ${key}: ${(prCycles/1e6).toFixed(1)}M cycles (no baseline)`);
+              continue;
+            }
+            const ratio = prCycles / baseCycles;
+            const pct   = ((ratio - 1) * 100).toFixed(1);
+            const flag  = ratio > (1 + REGRESSION_THRESHOLD) ? "⚠ REGRESS" : ratio < 0.9 ? "✓ IMPROVE" : "  OK     ";
+            rows.push(`  ${flag}  ${key}: ${(prCycles/1e6).toFixed(1)}M (${pct > 0 ? "+" : ""}${pct}%)  baseline=${(baseCycles/1e6).toFixed(1)}M`);
+            if (ratio > (1 + REGRESSION_THRESHOLD)) failed = true;
+          }
+
+          const summary = rows.join("\n");
+          console.log("\n═══════════════════════════════════════════════════");
+          console.log("  Cycles Regression Report (13.6.4)");
+          console.log("═══════════════════════════════════════════════════");
+          console.log(summary);
+          console.log();
+
+          // Write summary to GitHub step summary
+          const md = [
+            "## Cycles Regression Report",
+            "",
+            `Threshold: **±${(REGRESSION_THRESHOLD * 100).toFixed(0)}%**  |  ${failed ? "❌ REGRESSION DETECTED" : "✅ All within threshold"}`,
+            "",
+            "```",
+            summary,
+            "```",
+          ].join("\n");
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY || "/dev/null", md + "\n");
+
+          if (failed) {
+            console.error("❌ Cycles regression exceeds 25% threshold on one or more operations.");
+            console.error("   Run `bash scripts/benchmark.sh --live` locally to investigate.");
+            process.exit(1);
+          } else {
+            console.log("✅ All operations within acceptable regression bounds.");
+          }
+          EOF
+
+      - name: Comment PR with regression report
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const summary = process.env.GITHUB_STEP_SUMMARY;
+            // Post the step summary as a PR comment for visibility
+            const body = [
+              "### 📊 Cycles Regression Report (13.6.4)",
+              "",
+              "Run `bash scripts/benchmark.sh --live` locally against a replica for real measurements.",
+              "This CI run used **dry-run mode** (estimates only — no live ICP replica).",
+              "",
+              `**Result:** ${ "${{ steps.compare.outcome }}" === "success" ? "✅ No regressions" : "❌ Regression detected — see job log" }`,
+            ].join("\n");
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });

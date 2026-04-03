@@ -301,9 +301,9 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 13.6.1 | `scripts/benchmark.sh` harness | ⬜ Missing | M | Bash/Node script that runs the full baseline suite (13.1.1 + 13.1.2) against a local replica and outputs a Markdown summary table. Run manually before each release; eventually CI on deploy |
-| 13.6.2 | k6 load test suite for Express proxy | ⬜ Missing | M | k6 scripts targeting `POST /api/agent` and `POST /api/chat` on the voice agent server (port 3001). Scenarios: 1 VU ramp to 50, sustained 50 VU for 5 minutes, spike to 200 VU. Measures Anthropic API latency contribution vs. canister latency |
-| 13.6.3 | Cycles burn rate dashboard | ⬜ Missing | M | Surface `monitoring` canister metrics in `AdminDashboardPage`: cycles remaining per canister, burn rate (cycles/day), estimated runway (days until top-up needed). Alert threshold at 30-day runway |
-| 13.6.4 | Performance regression gate in CI | ⬜ Missing | L | After baseline is established (13.1.1–13.1.2): add a CI step that runs the baseline script on every PR and fails if any call regresses by >25% in cycles cost. Requires a lightweight local replica in CI |
+| 13.6.1 | `scripts/benchmark.sh` harness | ✅ Exists | M | Runs 13.1.1+13.1.2 scripts with `--csv`, generates Markdown table, writes `tests/perf-baselines/{query,update}-baseline.csv` + `benchmark-report.md`. `--live` flag for real replica; dry-run by default. Stages files for git commit. |
+| 13.6.2 | k6 load test suite for Express proxy | ✅ Exists | M | `tests/k6/voice-agent-load.js` — 3 scenarios: ramp (1→50 VU), spike (200 VU, 30s), soak (25 VU, 10 min). Thresholds: chat p95<3s, agent p95<5s, health p99<50ms, error rate <5%. Custom Trend metrics for each endpoint. |
+| 13.6.3 | Cycles burn rate dashboard | ✅ Exists | M | `monitoringService.ts` + "Cycles & Health" tab in AdminDashboardPage. Shows balance/burn/runway per canister sorted by lowest runway. Orange banner at <30d, red cells at <7d. Mock data when canister not deployed. |
+| 13.6.4 | Performance regression gate in CI | ✅ Exists | L | `.github/workflows/perf-regression.yml` — triggers on PR to main. Runs both baselines in dry-run, compares cycles_estimate to committed CSVs, fails on >25% regression. Posts PR comment + GitHub step summary. Path-filtered to relevant files only. |
 
 ---
