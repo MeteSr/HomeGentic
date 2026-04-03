@@ -767,10 +767,8 @@ persistent actor Property {
   ) : async BulkImportResult {
     if (isPaused) { return { succeeded = []; failed = [] } };
 
-    var succeeded : [var Nat] = Array.init(rows.size(), 0);
-    var succCount = 0;
-    var failed    : [var BulkImportError] = Array.init(rows.size(), { index = 0; reason = "" });
-    var failCount = 0;
+    var succeeded : [Nat]             = [];
+    var failed    : [BulkImportError] = [];
 
     var i = 0;
     for (args in rows.vals()) {
@@ -783,11 +781,10 @@ persistent actor Property {
       };
 
       if (duplicate) {
-        failed[failCount] := { index = i; reason = "DuplicateAddress" };
-        failCount += 1;
+        failed := Array.concat(failed, [{ index = i; reason = "DuplicateAddress" }]);
       } else {
-        let newId = propertyCounter;
-        propertyCounter += 1;
+        let newId = nextId;
+        nextId += 1;
         let now = Time.now();
         let prop : Property = {
           id                  = newId;
@@ -809,15 +806,11 @@ persistent actor Property {
           isActive            = true;
         };
         Map.set(properties, Nat.compare, newId, prop);
-        succeeded[succCount] := newId;
-        succCount += 1;
+        succeeded := Array.concat(succeeded, [newId]);
       };
       i += 1;
     };
 
-    {
-      succeeded = Array.tabulate(succCount, func(k) { succeeded[k] });
-      failed    = Array.tabulate(failCount, func(k) { failed[k] });
-    }
+    { succeeded; failed }
   };
 }
