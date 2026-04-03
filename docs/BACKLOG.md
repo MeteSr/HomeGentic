@@ -282,9 +282,9 @@ Establish cycles cost for every significant canister call before any optimizatio
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
 | 13.3.1 | `market` canister — `analyzeCompetitivePosition()` under load | ✅ Exists | M | Pure JS O(C×N). 14 tests: correctness at 1/50/100×100 scale, N-scaling, C-scaling, 100×100 <500ms cap, 50 concurrent calls, recommendValueAddingProjects linear scaling. All green. |
-| 13.3.2 | `maintenance` canister — `predictMaintenance()` at scale | ⬜ Missing | S | Call with build years from 1950 to 2024 for all 8 system types. Verify constant-time lookup (should be table-driven, not iterative). Measure with 1, 10, and 50 concurrent calls |
-| 13.3.3 | `report` canister — snapshot size growth | ⬜ Missing | S | Generate reports with 0, 10, 50, 200 jobs and measure: snapshot serialization cycles, stable memory footprint, `getReport` deserialization time. Identify the point where large job histories create noticeable latency |
-| 13.3.4 | `monitoring` canister — metrics aggregation under load | ⬜ Missing | S | Call `getMetrics()` while simultaneously running 13.2.1–13.2.4. Verify the monitoring canister doesn't become a bottleneck when all other canisters are logging to it concurrently |
+| 13.3.2 | `maintenance` canister — `predictMaintenance()` at scale | ✅ Exists | S | 11 tests: all 9 systems × build years 1950–2024, J-scaling guard, 1000 calls <1000ms, all 5 climate zones, 50 concurrent calls. Green. |
+| 13.3.3 | `report` canister — snapshot size growth | ✅ Exists | S | 16 tests: correctness at 0/10/50/200 jobs, JSON footprint linear (no O(N²)), 200-job <200KB, generateReport/getReport timing, 20 concurrent calls with unique tokens. Green. |
+| 13.3.4 | `monitoring` canister — metrics aggregation under load | ✅ Exists | S | 16 tests: JS model mirrors Motoko HashMap logic; alert generation, O(C) calculateCostMetrics, O(A) getMetrics, 13-canister production scale <5ms, 1000 reads <100ms, concurrent reads+writes. Green. |
 
 ---
 
