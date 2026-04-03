@@ -49,8 +49,8 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 3.3.2 | Public read query on all record canisters | ⬜ Missing | M | Unauthenticated queries for property/job/photo data given owner principal |
-| 3.3.4 | "Your data, your keys" marketing page | ⬜ Missing | S | Landing page section explaining ICP data sovereignty |
+| 3.3.2 | Public read query on all record canisters | ✅ Done | M | Unauthenticated queries for property/job/photo data given owner principal |
+| 3.3.4 | "Your data, your keys" marketing page | ✅ Done | S | Landing page section explaining ICP data sovereignty |
 
 ### 3.4 ICP-Native Home Title Tokens
 **Vision:** Partner with title companies to tokenize property deeds on ICP.
