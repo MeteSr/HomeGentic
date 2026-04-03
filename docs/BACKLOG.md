@@ -258,10 +258,10 @@ Establish cycles cost for every significant canister call before any optimizatio
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 13.1.1 | Baseline script for query calls | ⬜ Missing | S | Node.js script using `@dfinity/agent` that calls each read endpoint once and records cycles consumed; output CSV: canister, method, cycles_before, cycles_after, delta. Targets: `getMyProperties`, `getByProperty` (jobs), `getReport(token)`, `getSeasonalTasks`, `predictMaintenance` |
-| 13.1.2 | Baseline script for update calls | ⬜ Missing | S | Same pattern for write paths: `createJob`, `generateReport`, `addVisitLog`, `createRecurringService`, `createRequest` (quote). Update calls go through consensus — latency matters as much as cycles |
-| 13.1.3 | Identify top-3 cycles-heavy operations | ⬜ Missing | S | Run 13.1.1 + 13.1.2, sort by delta, flag any call above 1B cycles as a review candidate. `analyzeCompetitivePosition()` (market, 535 lines) and `predictMaintenance()` (iterates 8 systems) are the likely suspects |
-| 13.1.4 | Integrate baseline into `monitoring` canister metrics | ⬜ Missing | M | Expose a `cyclesPerCall` map in `monitoring` canister's `metrics()` query; update it on each significant call so cost-per-operation is visible in the admin dashboard over time |
+| 13.1.1 | Baseline script for query calls | ✅ Exists | S | `scripts/benchmark-queries.mjs` — 8 query targets (getMyProperties, getJobsForProperty, getReport, getSeasonalTasks, predictMaintenance, recommendValueAddingProjects, getMetrics, getOpenRequests). `--live` hits real replica; `--csv` outputs CSV; `--repeat N` averages. |
+| 13.1.2 | Baseline script for update calls | ✅ Exists | S | `scripts/benchmark-updates.mjs` — 7 update targets (createJob, generateReport, addVisitLog, createRecurringService, createRequest, recordCanisterMetrics, uploadPhoto). Same flags as 13.1.1. Consensus overhead modeled at +3M cycles. |
+| 13.1.3 | Identify top-3 cycles-heavy operations | ✅ Exists | S | 24 tests validate ICP cost model, verify scripts exist with correct columns/flags, identify top-3 (all update calls). generateReport is heaviest query+update. Operations above 1B cycles flagged. Full cost table logged in CI. |
+| 13.1.4 | Integrate baseline into `monitoring` canister metrics | ✅ Exists | M | `MethodCyclesSummary` type added; `recordCallCycles(method, cycles)` update func with EMA (α=0.2); `cyclesPerCallEntries` stable var; `getMetrics()` now returns `cyclesPerCall: [MethodCyclesSummary]`. |
 
 ---
 

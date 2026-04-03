@@ -95,11 +95,22 @@ persistent actor Monitoring {
     #InvalidInput: Text;
   };
 
+  /// Per-method cycles summary stored by recordCallCycles().
+  /// avgCycles is a rolling average; sampleCount tracks how many observations
+  /// went into the average so callers can judge statistical confidence.
+  public type MethodCyclesSummary = {
+    method:       Text;
+    avgCycles:    Nat;
+    sampleCount:  Nat;
+    lastUpdatedAt: Int;
+  };
+
   public type Metrics = {
     totalCanisters: Nat;
-    activeAlerts: Nat;
+    activeAlerts:   Nat;
     criticalAlerts: Nat;
-    isPaused: Bool;
+    isPaused:       Bool;
+    cyclesPerCall:  [MethodCyclesSummary];   // 13.1.4 — per-method cost baseline
   };
 
   // ─── Constants ───────────────────────────────────────────────────────────────
@@ -131,6 +142,7 @@ persistent actor Monitoring {
   private var adminListEntries: [Principal] = [];
   private var metricsEntries: [(Principal, CanisterMetrics)] = [];
   private var alertEntries: [(Text, Alert)] = [];
+  private var cyclesPerCallEntries: [(Text, MethodCyclesSummary)] = [];   // 13.1.4
 
   // ─── Transient State ─────────────────────────────────────────────────────────
 
@@ -142,16 +154,22 @@ persistent actor Monitoring {
     alertEntries.vals(), Text.compare
   );
 
+  private transient var cyclesPerCall = Map.fromIter<Text, MethodCyclesSummary>(
+    cyclesPerCallEntries.vals(), Text.compare
+  );
+
   // ─── Upgrade Hooks ───────────────────────────────────────────────────────────
 
   system func preupgrade() {
-    metricsEntries := Iter.toArray(Map.entries(canisterMetrics));
-    alertEntries   := Iter.toArray(Map.entries(alerts));
+    metricsEntries       := Iter.toArray(Map.entries(canisterMetrics));
+    alertEntries         := Iter.toArray(Map.entries(alerts));
+    cyclesPerCallEntries := Iter.toArray(Map.entries(cyclesPerCall));
   };
 
   system func postupgrade() {
-    metricsEntries := [];
-    alertEntries   := [];
+    metricsEntries       := [];
+    alertEntries         := [];
+    cyclesPerCallEntries := [];
   };
 
   // ─── Private Helpers ─────────────────────────────────────────────────────────
@@ -285,6 +303,37 @@ persistent actor Monitoring {
     };
     Map.add(canisterMetrics, Principal.compare, canisterId, m);
     evaluateAlerts(m);
+  };
+
+  // ─── 13.1.4: Per-method cycles baseline ──────────────────────────────────────
+
+  /// Record the observed cycles cost for a canister method call.
+  /// Uses an exponential moving average (α=0.2) so recent samples have more
+  /// weight without requiring a sliding window or full history.
+  ///
+  /// Callers: any canister may call this after a significant operation completes.
+  /// The `method` string should be "canister.methodName" (e.g. "report.generateReport").
+  public func recordCallCycles(method: Text, cycles: Nat) : async () {
+    if (Text.size(method) == 0) return;
+    let now = Time.now();
+    let updated : MethodCyclesSummary = switch (Map.get(cyclesPerCall, Text.compare, method)) {
+      case null {
+        // First observation
+        { method; avgCycles = cycles; sampleCount = 1; lastUpdatedAt = now }
+      };
+      case (?existing) {
+        // Exponential moving average: new_avg = 0.8 × old_avg + 0.2 × sample
+        let alpha = 20;   // 20% weight to new sample (integer arithmetic: ×100)
+        let newAvg = (existing.avgCycles * (100 - alpha) + cycles * alpha) / 100;
+        {
+          method;
+          avgCycles     = newAvg;
+          sampleCount   = existing.sampleCount + 1;
+          lastUpdatedAt = now;
+        }
+      };
+    };
+    Map.add(cyclesPerCall, Text.compare, method, updated);
   };
 
   /// Aggregate cost breakdown across all reported canisters.
@@ -531,6 +580,7 @@ persistent actor Monitoring {
       activeAlerts   = active;
       criticalAlerts = critical;
       isPaused;
+      cyclesPerCall  = Iter.toArray(Map.values(cyclesPerCall));   // 13.1.4
     }
   };
 }
