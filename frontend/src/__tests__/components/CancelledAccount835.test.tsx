@@ -88,9 +88,11 @@ async function renderSettings() {
 }
 
 async function navigateToSubscriptionTab() {
-  const btn = screen.queryByRole("button", { name: /subscription/i })
-    ?? screen.queryByText(/subscription/i);
-  if (btn) fireEvent.click(btn);
+  await act(async () => {
+    const btn = screen.queryByRole("button", { name: /subscription/i })
+      ?? screen.queryByText(/subscription/i);
+    if (btn) fireEvent.click(btn);
+  });
 }
 
 async function triggerCancel() {
