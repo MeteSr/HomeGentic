@@ -49,16 +49,6 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 | 2.2.4 | Dispute resolution flow | ⬜ Missing | L | Timed dispute window; admin arbitration; partial release logic |
 | 2.2.5 | Payment release = homeowner signature | ⬜ Missing | M | Wire `verifyJob()` homeowner sign to trigger escrow release |
 
-### 2.4 Contractor Bidding with vetKeys Sealed Bids
-**Vision:** Homeowners see bids; contractors cannot see each other's prices. Bids are encrypted under the canister's IBE-derived key so only the canister can open them; after the window closes the canister compares in-canister and reveals only the winner.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 2.4.1 | Sealed-bid quote submission | ✅ Exists | L | `sealedBidService.submitSealedBid()` stores IBE ciphertext (mock: base64 JSON; production: vetKeys IBE); canister `submitSealedBid()` enforces window + indexes by contractor; ciphertext never exposes plaintext amount |
-| 2.4.2 | vetKeys sealed-bid reveal | ✅ Exists | L | `sealedBidService.revealBids()` + canister `revealBids()` — decrypts all bids after closeAt, marks lowest isWinner; in production canister calls `vetkd_derive_key`; mock uses little-endian byte decode |
-| 2.4.3 | Bid window timer | ✅ Exists | M | `QuoteRequest.closeAt: ?Time.Time`; `isBidWindowOpen()` helper; `submitSealedBid` rejects after closeAt; `revealBids` rejects before closeAt; `createSealedBidRequest` requires future closeAt |
-| 2.4.4 | Blind bidding UI | ✅ Exists | M | `getMyBid()` returns own ciphertext only (no amountCents field); `getRevealedBids()` empty before reveal, returns all bids with amounts after; `getWinner()` returns lowest-bid RevealedBid |
-
 ---
 
 ## 3. ICP Blockchain Layer — Untouchable Differentiation
@@ -252,42 +242,6 @@ The core retention challenge for HomeFax: value delivery is irregular. Homeowner
 
 ---
 
-### 13.1 Cycles Baseline — Cost Per Operation
-
-Establish cycles cost for every significant canister call before any optimization work. Without a baseline, you can't measure improvement or catch regressions.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 13.1.1 | Baseline script for query calls | ✅ Exists | S | `scripts/benchmark-queries.mjs` — 8 query targets (getMyProperties, getJobsForProperty, getReport, getSeasonalTasks, predictMaintenance, recommendValueAddingProjects, getMetrics, getOpenRequests). `--live` hits real replica; `--csv` outputs CSV; `--repeat N` averages. |
-| 13.1.2 | Baseline script for update calls | ✅ Exists | S | `scripts/benchmark-updates.mjs` — 7 update targets (createJob, generateReport, addVisitLog, createRecurringService, createRequest, recordCanisterMetrics, uploadPhoto). Same flags as 13.1.1. Consensus overhead modeled at +3M cycles. |
-| 13.1.3 | Identify top-3 cycles-heavy operations | ✅ Exists | S | 24 tests validate ICP cost model, verify scripts exist with correct columns/flags, identify top-3 (all update calls). generateReport is heaviest query+update. Operations above 1B cycles flagged. Full cost table logged in CI. |
-| 13.1.4 | Integrate baseline into `monitoring` canister metrics | ✅ Exists | M | `MethodCyclesSummary` type added; `recordCallCycles(method, cycles)` update func with EMA (α=0.2); `cyclesPerCallEntries` stable var; `getMetrics()` now returns `cyclesPerCall: [MethodCyclesSummary]`. |
-
----
-
-### 13.2 Canister Throughput & Concurrency
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 13.2.1 | Concurrent read stress test — `getReport` | ✅ Exists | M | 200 concurrent reads: 0% error rate, p99<5×p50, <500ms wall-clock, viewCount consistency. Also flagged: mock ID collision under concurrent create (canister uses Nat increment). |
-| 13.2.2 | Concurrent write stress test — `createJob` | ✅ Exists | M | 50 concurrent creates: 0% errors, all valid Job objects, p95<5×p50, <200ms wall-clock. Mock uses Date.now() for ID (collision-prone at ms resolution) — real canister uses atomic Nat. |
-| 13.2.3 | Contractor dashboard poll simulation | ✅ Exists | S | 50×10 poll rounds <500ms, no per-round degradation, cycles cost model: 1000 polls/min ≈ $0.74/month — well within ICP economics. |
-| 13.2.4 | Report generation spike | ✅ Exists | M | 25 simultaneous generateReport(): 0% errors, unique tokens, all immediately readable, <200ms wall-clock, p99<5×p50. |
-| 13.2.5 | Cross-canister call latency | ✅ Exists | M | 5 chain patterns: A (create+status+read <50ms), B (sensor→job auto-create <30ms), C (10 concurrent chains 0% errors), D (generate+share+read <20ms), E (4-hop <10× 1-hop). |
-
----
-
-### 13.3 Algorithmic Load — Heavy Canister Methods
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 13.3.1 | `market` canister — `analyzeCompetitivePosition()` under load | ✅ Exists | M | Pure JS O(C×N). 14 tests: correctness at 1/50/100×100 scale, N-scaling, C-scaling, 100×100 <500ms cap, 50 concurrent calls, recommendValueAddingProjects linear scaling. All green. |
-| 13.3.2 | `maintenance` canister — `predictMaintenance()` at scale | ✅ Exists | S | 11 tests: all 9 systems × build years 1950–2024, J-scaling guard, 1000 calls <1000ms, all 5 climate zones, 50 concurrent calls. Green. |
-| 13.3.3 | `report` canister — snapshot size growth | ✅ Exists | S | 16 tests: correctness at 0/10/50/200 jobs, JSON footprint linear (no O(N²)), 200-job <200KB, generateReport/getReport timing, 20 concurrent calls with unique tokens. Green. |
-| 13.3.4 | `monitoring` canister — metrics aggregation under load | ✅ Exists | S | 16 tests: JS model mirrors Motoko HashMap logic; alert generation, O(C) calculateCostMetrics, O(A) getMetrics, 13-canister production scale <5ms, 1000 reads <100ms, concurrent reads+writes. Green. |
-
----
-
 ### 13.5 Load Test Scenarios — Realistic User Journeys
 
 End-to-end scenarios that combine multiple calls, matching how real users interact with the app.
@@ -295,15 +249,5 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 | # | Item | Status | Size | Notes |
 | 13.5.4 | "Agent competition" scenario | ⬜ Missing | M | Once Section 9 (listing bid marketplace) is built: 10 agents simultaneously submit proposals to the same listing bid request. Tests write contention on the listing canister |
 
----
-
-### 13.6 Infrastructure & Tooling
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 13.6.1 | `scripts/benchmark.sh` harness | ✅ Exists | M | Runs 13.1.1+13.1.2 scripts with `--csv`, generates Markdown table, writes `tests/perf-baselines/{query,update}-baseline.csv` + `benchmark-report.md`. `--live` flag for real replica; dry-run by default. Stages files for git commit. |
-| 13.6.2 | k6 load test suite for Express proxy | ✅ Exists | M | `tests/k6/voice-agent-load.js` — 3 scenarios: ramp (1→50 VU), spike (200 VU, 30s), soak (25 VU, 10 min). Thresholds: chat p95<3s, agent p95<5s, health p99<50ms, error rate <5%. Custom Trend metrics for each endpoint. |
-| 13.6.3 | Cycles burn rate dashboard | ✅ Exists | M | `monitoringService.ts` + "Cycles & Health" tab in AdminDashboardPage. Shows balance/burn/runway per canister sorted by lowest runway. Orange banner at <30d, red cells at <7d. Mock data when canister not deployed. |
-| 13.6.4 | Performance regression gate in CI | ✅ Exists | L | `.github/workflows/perf-regression.yml` — triggers on PR to main. Runs both baselines in dry-run, compares cycles_estimate to committed CSVs, fails on >25% regression. Posts PR comment + GitHub step summary. Path-filtered to relevant files only. |
 
 ---
