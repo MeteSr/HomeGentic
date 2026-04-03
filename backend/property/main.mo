@@ -805,7 +805,7 @@ persistent actor Property {
           updatedAt           = now;
           isActive            = true;
         };
-        Map.set(properties, Nat.compare, newId, prop);
+        Map.add(properties, Nat.compare, newId, prop);
         succeeded := Array.concat(succeeded, [newId]);
       };
       i += 1;
