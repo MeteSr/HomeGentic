@@ -179,11 +179,11 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 7.2.1 | Builder account role | ⬜ Missing | M | New role in `auth` canister; can create properties without Internet Identity ownership check |
-| 7.2.2 | Bulk property import | ⬜ Missing | L | CSV/API upload of a development's unit list; creates property records in batch |
-| 7.2.3 | Subcontractor record import | ⬜ Missing | L | Builder uploads all subcontractor job records during construction phase |
-| 7.2.4 | Ownership transfer to first buyer | ⬜ Missing | M | Builder initiates transfer at closing; buyer accepts via Internet Identity |
-| 7.2.5 | Builder dashboard | ⬜ Missing | M | Builder views all their developments + per-unit HomeFax scores |
+| 7.2.1 | Builder account role | ✅ Done | M | New role in `auth` canister; can create properties without Internet Identity ownership check |
+| 7.2.2 | Bulk property import | ✅ Done | L | CSV/API upload of a development's unit list; creates property records in batch |
+| 7.2.3 | Subcontractor record import | ✅ Done | L | Builder uploads all subcontractor job records during construction phase |
+| 7.2.4 | Ownership transfer to first buyer | ✅ Done | M | Builder initiates transfer at closing; buyer accepts via Internet Identity |
+| 7.2.5 | Builder dashboard | ✅ Done | M | Builder views all their developments + per-unit HomeFax scores |
 
 ### 7.3 Insurance Premium Integration
 **Vision:** Partner with home insurers to offer premium discounts for high HomeFax scores.

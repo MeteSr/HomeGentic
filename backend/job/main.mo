@@ -567,6 +567,62 @@ persistent actor Job {
     }
   };
 
+  // ─── Builder: subcontractor record import ────────────────────────────────────
+
+  /// Batch-import job records on behalf of a Builder.
+  ///
+  /// • Designed for the construction phase before first-buyer transfer.
+  /// • Jobs are pre-verified — the builder attests to the work.
+  /// • Both homeownerSigned and contractorSigned are set to true.
+  /// • The `homeowner` field is set to the calling Builder principal.
+  ///   After ownership transfer it will not match the new owner; the
+  ///   Report canister reads verified=true which is the canonical signal.
+  public shared(msg) func builderImportJob(
+    propertyId:     Text,
+    serviceType:    ServiceType,
+    contractorName: Text,
+    amount:         Nat,
+    completedDate:  Time.Time,
+    description:    Text,
+    permitNumber:   ?Text,
+    warrantyMonths: ?Nat
+  ) : async Result.Result<Job, Error> {
+    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+
+    if (Text.size(propertyId)    == 0) return #err(#InvalidInput("propertyId cannot be empty"));
+    if (Text.size(contractorName) == 0) return #err(#InvalidInput("contractorName is required"));
+    if (amount == 0)                   return #err(#InvalidInput("amount must be greater than 0"));
+    if (Text.size(description)   == 0) return #err(#InvalidInput("description cannot be empty"));
+
+    let id  = nextJobId();
+    let now = Time.now();
+    let serviceTypeKey = serviceType;
+
+    let job: Job = {
+      id;
+      propertyId;
+      homeowner        = msg.caller;
+      contractor       = null;
+      title            = contractorName;
+      serviceType      = serviceTypeKey;
+      description;
+      contractorName   = ?contractorName;
+      amount;
+      completedDate;
+      permitNumber;
+      warrantyMonths;
+      isDiy            = false;
+      status           = #Verified;
+      verified         = true;
+      homeownerSigned  = true;
+      contractorSigned = true;
+      createdAt        = now;
+    };
+
+    Map.set(jobs, Text.compare, id, job);
+    #ok(job)
+  };
+
   public query func getMetrics() : async Metrics {
     var pending   = 0;
     var completed = 0;

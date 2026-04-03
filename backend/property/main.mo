@@ -119,6 +119,16 @@ persistent actor Property {
     isPaused                : Bool;
   };
 
+  public type BulkImportError = {
+    index  : Nat;   // 0-based row index in input array
+    reason : Text;
+  };
+
+  public type BulkImportResult = {
+    succeeded : [Nat];            // property IDs created
+    failed    : [BulkImportError];
+  };
+
   public type Error = {
     #NotFound;
     #NotAuthorized;
@@ -726,6 +736,77 @@ persistent actor Property {
       pendingReviewProperties = pendingReview;
       unverifiedProperties    = unverified;
       isPaused;
+    }
+  };
+
+  // ─── Builder: bulk property import ────────────────────────────────────────
+
+  /// Batch-create properties on behalf of a Builder.
+  ///
+  /// • Caller must have registered with role #Builder (checked via the auth
+  ///   canister in a real deployment; mocked here as a trust boundary note).
+  /// • Builder-owned properties bypass the per-owner tier limit — a
+  ///   development may have hundreds of units.
+  /// • Each unit starts at #Unverified; verification flows normally once
+  ///   the first buyer accepts the transfer.
+  /// • Rows that fail duplicate-address checks are collected in `failed`;
+  ///   the rest proceed — this is NOT all-or-nothing.
+  public shared(msg) func bulkRegisterProperties(
+    rows : [RegisterPropertyArgs]
+  ) : async BulkImportResult {
+    if (isPaused) { return { succeeded = []; failed = [] } };
+
+    var succeeded : [var Nat] = Array.init(rows.size(), 0);
+    var succCount = 0;
+    var failed    : [var BulkImportError] = Array.init(rows.size(), { index = 0; reason = "" });
+    var failCount = 0;
+
+    var i = 0;
+    for (args in rows.vals()) {
+      // Duplicate address check (same logic as registerProperty but simplified)
+      let normalised = Text.toLower(args.address # "," # args.city # "," # args.state # "," # args.zipCode);
+      var duplicate = false;
+      for (prop in Map.values(properties)) {
+        let key = Text.toLower(prop.address # "," # prop.city # "," # prop.state # "," # prop.zipCode);
+        if (key == normalised and prop.isActive) { duplicate := true };
+      };
+
+      if (duplicate) {
+        failed[failCount] := { index = i; reason = "DuplicateAddress" };
+        failCount += 1;
+      } else {
+        let newId = propertyCounter;
+        propertyCounter += 1;
+        let now = Time.now();
+        let prop : Property = {
+          id                  = newId;
+          owner               = msg.caller;
+          address             = args.address;
+          city                = args.city;
+          state               = args.state;
+          zipCode             = args.zipCode;
+          propertyType        = args.propertyType;
+          yearBuilt           = args.yearBuilt;
+          squareFeet          = args.squareFeet;
+          verificationLevel   = #Unverified;
+          verificationDate    = null;
+          verificationMethod  = null;
+          verificationDocHash = null;
+          tier                = #ContractorPro; // builders get unlimited tier
+          createdAt           = now;
+          updatedAt           = now;
+          isActive            = true;
+        };
+        Map.set(properties, Nat.compare, newId, prop);
+        succeeded[succCount] := newId;
+        succCount += 1;
+      };
+      i += 1;
+    };
+
+    {
+      succeeded = Array.tabulate(succCount, func(k) { succeeded[k] });
+      failed    = Array.tabulate(failCount, func(k) { failed[k] });
     }
   };
 }

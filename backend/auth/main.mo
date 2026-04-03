@@ -1,7 +1,7 @@
 /**
  * HomeFax Auth Canister
  * Handles user registration, profiles, and role management.
- * Supports Homeowner, Contractor, and Realtor roles.
+ * Supports Homeowner, Contractor, Realtor, and Builder roles.
  */
 
 import Map "mo:core/Map";
@@ -21,6 +21,7 @@ persistent actor Auth {
     #Homeowner;
     #Contractor;
     #Realtor;
+    #Builder;
   };
 
   /// Complete user profile stored on-chain
@@ -51,6 +52,7 @@ persistent actor Auth {
     homeowners: Nat;
     contractors: Nat;
     realtors: Nat;
+    builders: Nat;
     isPaused: Bool;
   };
 
@@ -234,6 +236,7 @@ persistent actor Auth {
           case (#Homeowner, #Homeowner) { true };
           case (#Contractor, #Contractor) { true };
           case (#Realtor, #Realtor) { true };
+          case (#Builder, #Builder) { true };
           case _ { false };
         }
       };
@@ -247,12 +250,14 @@ persistent actor Auth {
     var homeowners = 0;
     var contractors = 0;
     var realtors = 0;
+    var builders = 0;
 
     for (profile in Map.values(users)) {
       switch (profile.role) {
         case (#Homeowner) { homeowners += 1 };
         case (#Contractor) { contractors += 1 };
         case (#Realtor) { realtors += 1 };
+        case (#Builder) { builders += 1 };
       };
     };
 
@@ -261,6 +266,7 @@ persistent actor Auth {
       homeowners;
       contractors;
       realtors;
+      builders;
       isPaused;
     }
   };
