@@ -33,6 +33,14 @@ import type {
 const app = express();
 const port = Number(process.env.IOT_GATEWAY_PORT) || 3002;
 
+// Rate limiting for webhook endpoints
+const moenFloLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 const ecobeeLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 60, // max 60 requests per minute per IP for Ecobee webhook
@@ -154,7 +162,7 @@ app.post("/webhooks/ecobee", ecobeeLimiter, async (req: Request, res: Response):
 // ── POST /webhooks/moen-flo ───────────────────────────────────────────────────
 // Moen Flo cloud sends leak/flow alerts here.
 // Validates X-Moen-Signature HMAC-SHA256.
-app.post("/webhooks/moen-flo", async (req: Request, res: Response): Promise<void> => {
+app.post("/webhooks/moen-flo", moenFloLimiter, async (req: Request, res: Response): Promise<void> => {
   if (!verifyHmac(req, "x-moen-signature", process.env.MOEN_FLO_WEBHOOK_SECRET)) {
     console.warn("[moen-flo] rejected — invalid signature");
     res.status(401).json({ error: "Unauthorized" });
