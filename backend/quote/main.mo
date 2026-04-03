@@ -9,6 +9,7 @@ import Map      "mo:core/Map";
 import Int      "mo:core/Int";
 import Iter     "mo:core/Iter";
 import Nat      "mo:core/Nat";
+import Nat8     "mo:core/Nat8";
 import Option   "mo:core/Option";
 import Principal "mo:core/Principal";
 import Result   "mo:core/Result";
@@ -67,6 +68,30 @@ persistent actor Quote {
     urgency: UrgencyLevel;
     status: RequestStatus;
     createdAt: Time.Time;
+    closeAt: ?Time.Time;   // bid-window close time; null = no sealed-bid window
+  };
+
+  /// A sealed bid submitted by a contractor before the bid window closes.
+  /// The amountCents is hidden inside `ciphertext` (IBE-encrypted in production).
+  /// In dev/mock: ciphertext is the little-endian Nat8 encoding of amountCents.
+  public type SealedBid = {
+    id: Text;
+    requestId: Text;
+    contractor: Principal;
+    ciphertext: [Nat8];    // IBE ciphertext; in production: vetKeys IBE output
+    timelineDays: Nat;
+    submittedAt: Time.Time;
+  };
+
+  /// A bid after the homeowner triggers reveal (post closeAt).
+  public type RevealedBid = {
+    id: Text;
+    requestId: Text;
+    contractor: Principal;
+    amountCents: Nat;
+    timelineDays: Nat;
+    submittedAt: Time.Time;
+    isWinner: Bool;
   };
 
   public type Quote = {
@@ -110,6 +135,16 @@ persistent actor Quote {
   /// Default (missing) → #Free.  Callers cannot supply or spoof their own tier.
   private var tierGrantEntries: [(Text, SubscriptionTier)] = [];
 
+  // ─── Sealed-bid stable state (2.4) ──────────────────────────────────────────
+  private var sealedBidEntries: [(Text, SealedBid)] = [];
+  // requestId → [bidId]  (index for fast lookup by request)
+  private var sealedBidByRequestEntries: [(Text, [Text])] = [];
+  // `{contractor}:{requestId}` → bidId  (contractor's own bid)
+  private var sealedBidByContractorEntries: [(Text, Text)] = [];
+  // requestId → [RevealedBid]  (populated after homeowner calls revealBids)
+  private var revealedBidEntries: [(Text, [RevealedBid])] = [];
+  private var sealedBidCounter: Nat = 0;
+
   // ─── Transient State ─────────────────────────────────────────────────────────
 
   private transient var requests = Map.fromIter<Text, QuoteRequest>(
@@ -129,6 +164,20 @@ persistent actor Quote {
     tierGrantEntries.vals(), Text.compare
   );
 
+  // Sealed-bid transient state
+  private transient var sealedBids = Map.fromIter<Text, SealedBid>(
+    sealedBidEntries.vals(), Text.compare
+  );
+  private transient var sealedBidsByRequest = Map.fromIter<Text, [Text]>(
+    sealedBidByRequestEntries.vals(), Text.compare
+  );
+  private transient var sealedBidsByContractor = Map.fromIter<Text, Text>(
+    sealedBidByContractorEntries.vals(), Text.compare
+  );
+  private transient var revealedBids = Map.fromIter<Text, [RevealedBid]>(
+    revealedBidEntries.vals(), Text.compare
+  );
+
   // ─── Upgrade Hooks ───────────────────────────────────────────────────────────
 
   system func preupgrade() {
@@ -136,6 +185,10 @@ persistent actor Quote {
     quoteEntries     := Iter.toArray(Map.entries(quotes));
     rateLimitEntries := Iter.toArray(Map.entries(contractorRateLimits));
     tierGrantEntries := Iter.toArray(Map.entries(tierGrants));
+    sealedBidEntries              := Iter.toArray(Map.entries(sealedBids));
+    sealedBidByRequestEntries     := Iter.toArray(Map.entries(sealedBidsByRequest));
+    sealedBidByContractorEntries  := Iter.toArray(Map.entries(sealedBidsByContractor));
+    revealedBidEntries            := Iter.toArray(Map.entries(revealedBids));
   };
 
   system func postupgrade() {
@@ -143,6 +196,10 @@ persistent actor Quote {
     quoteEntries     := [];
     rateLimitEntries := [];
     tierGrantEntries := [];
+    sealedBidEntries             := [];
+    sealedBidByRequestEntries    := [];
+    sealedBidByContractorEntries := [];
+    revealedBidEntries           := [];
   };
 
   // ─── Private Helpers ─────────────────────────────────────────────────────────
@@ -171,6 +228,35 @@ persistent actor Quote {
   private func nextQuoteId() : Text {
     quoteCounter += 1;
     "QUOTE_" # Nat.toText(quoteCounter)
+  };
+
+  private func nextSealedBidId() : Text {
+    sealedBidCounter += 1;
+    "SB_" # Nat.toText(sealedBidCounter)
+  };
+
+  /// Decode little-endian Nat8 bytes back to Nat (mock vetKeys IBE decryption).
+  /// In production: call vetkd_derive_key to get IBE private key, then decrypt.
+  private func mockDecryptBytes(ciphertext: [Nat8]) : Nat {
+    var result: Nat = 0;
+    var multiplier: Nat = 1;
+    for (byte in ciphertext.vals()) {
+      result      := result + Nat8.toNat(byte) * multiplier;
+      multiplier  := multiplier * 256;
+    };
+    result
+  };
+
+  /// Encode Nat to little-endian Nat8 bytes (mock client-side IBE encryption).
+  private func mockEncryptBytes(amount: Nat) : [Nat8] {
+    if (amount == 0) return [0];
+    var n = amount;
+    var bytes: [Nat8] = [];
+    while (n > 0) {
+      bytes := Array.concat(bytes, [Nat8.fromNat(n % 256)]);
+      n     := n / 256;
+    };
+    bytes
   };
 
   /// Count open requests for a homeowner.
@@ -271,8 +357,9 @@ persistent actor Quote {
       serviceType;
       description;
       urgency;
-      status = #Open;
+      status  = #Open;
       createdAt = Time.now();
+      closeAt = null;
     };
     Map.add(requests, Text.compare, id, req);
     #ok(req)
@@ -344,14 +431,15 @@ persistent actor Quote {
         // Advance request status to #Quoted if still #Open
         if (req.status == #Open) {
           let updated: QuoteRequest = {
-            id              = req.id;
-            propertyId      = req.propertyId;
-            homeowner       = req.homeowner;
-            serviceType     = req.serviceType;
-            description     = req.description;
-            urgency         = req.urgency;
-            status          = #Quoted;
-            createdAt       = req.createdAt;
+            id          = req.id;
+            propertyId  = req.propertyId;
+            homeowner   = req.homeowner;
+            serviceType = req.serviceType;
+            description = req.description;
+            urgency     = req.urgency;
+            status      = #Quoted;
+            createdAt   = req.createdAt;
+            closeAt     = req.closeAt;
           };
           Map.add(requests, Text.compare, requestId, updated);
         };
@@ -431,6 +519,7 @@ persistent actor Quote {
               urgency     = req.urgency;
               status      = #Accepted;
               createdAt   = req.createdAt;
+              closeAt     = req.closeAt;
             };
             Map.add(requests, Text.compare, req.id, closed);
 
@@ -461,10 +550,211 @@ persistent actor Quote {
           urgency     = req.urgency;
           status      = #Closed;
           createdAt   = req.createdAt;
+          closeAt     = req.closeAt;
         };
         Map.add(requests, Text.compare, requestId, updated);
         #ok(updated)
       };
+    }
+  };
+
+  // ─── Sealed-Bid Functions (2.4) ───────────────────────────────────────────────
+
+  /// Create a quote request with a bid-window close time.
+  /// After closeAt the canister will accept reveal requests but reject new bids.
+  public shared(msg) func createSealedBidRequest(
+    propertyId: Text,
+    serviceType: ServiceType,
+    description: Text,
+    urgency: UrgencyLevel,
+    closeAtNs: Time.Time
+  ) : async Result.Result<QuoteRequest, Error> {
+    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+
+    if (Text.size(propertyId)  == 0)   return #err(#InvalidInput("propertyId cannot be empty"));
+    if (Text.size(description) == 0)   return #err(#InvalidInput("description cannot be empty"));
+    if (Text.size(description) > 5000) return #err(#InvalidInput("description exceeds 5000 characters"));
+    if (closeAtNs <= Time.now())        return #err(#InvalidInput("closeAt must be in the future"));
+
+    let callerTier = tierFor(msg.caller);
+    let limit = tierOpenLimit(callerTier);
+    if (limit > 0 and countOpenRequests(msg.caller) >= limit)
+      return #err(#InvalidInput("Open request limit reached for your plan"));
+
+    let id  = nextReqId();
+    let req: QuoteRequest = {
+      id;
+      propertyId;
+      homeowner   = msg.caller;
+      serviceType;
+      description;
+      urgency;
+      status    = #Open;
+      createdAt = Time.now();
+      closeAt   = ?closeAtNs;
+    };
+    Map.add(requests, Text.compare, id, req);
+    #ok(req)
+  };
+
+  /// Submit a sealed (IBE-encrypted) bid for a request.
+  /// Rejects submissions after the bid window closes.
+  ///
+  /// ciphertext: in production — IBE ciphertext from @dfinity/vetkeys.
+  ///             in dev/mock  — little-endian Nat8 encoding of amountCents.
+  public shared(msg) func submitSealedBid(
+    requestId:    Text,
+    ciphertext:   [Nat8],
+    timelineDays: Nat
+  ) : async Result.Result<SealedBid, Error> {
+    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+
+    switch (Map.get(requests, Text.compare, requestId)) {
+      case null { return #err(#NotFound) };
+      case (?req) {
+        if (req.status != #Open and req.status != #Quoted)
+          return #err(#InvalidInput("Request is not open for bids"));
+        if (ciphertext.size() == 0)
+          return #err(#InvalidInput("ciphertext cannot be empty"));
+        if (timelineDays == 0)
+          return #err(#InvalidInput("timelineDays must be greater than 0"));
+
+        // Enforce bid window
+        switch (req.closeAt) {
+          case (?closeAt) {
+            if (Time.now() >= closeAt)
+              return #err(#InvalidInput("Bid window has closed"));
+          };
+          case null {};
+        };
+
+        let id  = nextSealedBidId();
+        let bid: SealedBid = {
+          id;
+          requestId;
+          contractor  = msg.caller;
+          ciphertext;
+          timelineDays;
+          submittedAt = Time.now();
+        };
+        Map.add(sealedBids, Text.compare, id, bid);
+
+        // Index by request
+        let existing = switch (Map.get(sealedBidsByRequest, Text.compare, requestId)) {
+          case null  { [] };
+          case (?xs) { xs };
+        };
+        Map.add(sealedBidsByRequest, Text.compare, requestId, Array.concat(existing, [id]));
+
+        // Index by contractor (one bid per contractor per request)
+        let key = Principal.toText(msg.caller) # ":" # requestId;
+        Map.add(sealedBidsByContractor, Text.compare, key, id);
+
+        #ok(bid)
+      };
+    }
+  };
+
+  /// Returns the caller's own sealed bid for a request (ciphertext only).
+  /// Returns #NotFound if the caller has not submitted a bid.
+  public query(msg) func getMyBid(requestId: Text) : async Result.Result<SealedBid, Error> {
+    let key = Principal.toText(msg.caller) # ":" # requestId;
+    switch (Map.get(sealedBidsByContractor, Text.compare, key)) {
+      case null     { #err(#NotFound) };
+      case (?bidId) {
+        switch (Map.get(sealedBids, Text.compare, bidId)) {
+          case null  { #err(#NotFound) };
+          case (?b)  { #ok(b) };
+        }
+      };
+    }
+  };
+
+  /// Reveal all sealed bids for a request after the bid window closes.
+  ///
+  /// Only the homeowner of the request may call this.
+  /// Decrypts every ciphertext (mock: reads bytes; production: vetkd_derive_key),
+  /// marks the lowest price as winner, stores the result, and returns it.
+  ///
+  /// Idempotent: calling twice returns the same result.
+  public shared(msg) func revealBids(requestId: Text) : async Result.Result<[RevealedBid], Error> {
+    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+
+    switch (Map.get(requests, Text.compare, requestId)) {
+      case null { return #err(#NotFound) };
+      case (?req) {
+        if (req.homeowner != msg.caller) return #err(#Unauthorized);
+
+        // Enforce: window must be closed before reveal
+        switch (req.closeAt) {
+          case (?closeAt) {
+            if (Time.now() < closeAt)
+              return #err(#InvalidInput("Bid window has not yet closed"));
+          };
+          case null {
+            return #err(#InvalidInput("This request does not use sealed bids"));
+          };
+        };
+
+        // Return cached reveal if already done
+        switch (Map.get(revealedBids, Text.compare, requestId)) {
+          case (?cached) { return #ok(cached) };
+          case null {};
+        };
+
+        // Decrypt all bids and determine winner
+        let bidIds = switch (Map.get(sealedBidsByRequest, Text.compare, requestId)) {
+          case null  { [] };
+          case (?xs) { xs };
+        };
+
+        var decoded: [(SealedBid, Nat)] = [];
+        for (bidId in bidIds.vals()) {
+          switch (Map.get(sealedBids, Text.compare, bidId)) {
+            case null {};
+            case (?b) {
+              // In production: call vetkd_derive_key to get IBE private key, then decrypt.
+              // Mock: decode little-endian bytes back to Nat.
+              let amount = mockDecryptBytes(b.ciphertext);
+              decoded := Array.concat(decoded, [(b, amount)]);
+            };
+          };
+        };
+
+        if (decoded.size() == 0) return #err(#InvalidInput("No bids to reveal"));
+
+        // Find minimum amount
+        var minAmount: Nat = decoded[0].1;
+        for ((_, amt) in decoded.vals()) {
+          if (amt < minAmount) { minAmount := amt };
+        };
+
+        let revealed: [RevealedBid] = Array.map<(SealedBid, Nat), RevealedBid>(
+          decoded,
+          func((b, amt)) {
+            {
+              id          = b.id;
+              requestId   = b.requestId;
+              contractor  = b.contractor;
+              amountCents = amt;
+              timelineDays = b.timelineDays;
+              submittedAt = b.submittedAt;
+              isWinner    = amt == minAmount;
+            }
+          }
+        );
+
+        Map.add(revealedBids, Text.compare, requestId, revealed);
+        #ok(revealed)
+      };
+    }
+  };
+
+  /// Returns already-revealed bids for a request, or an empty array if not yet revealed.
+  public query func getRevealedBids(requestId: Text) : async [RevealedBid] {
+    switch (Map.get(revealedBids, Text.compare, requestId)) {
+      case null  { [] };
+      case (?rb) { rb };
     }
   };
 

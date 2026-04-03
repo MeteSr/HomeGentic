@@ -28,6 +28,7 @@ const idlFactory = ({ IDL }: any) => {
     urgency:     UrgencyLevel,
     status:      RequestStatus,
     createdAt:   IDL.Int,
+    closeAt:     IDL.Opt(IDL.Int),
   });
   const Quote = IDL.Record({
     id:         IDL.Text,
@@ -95,6 +96,7 @@ export interface QuoteRequest {
   description: string;
   status:      QuoteRequestStatus;
   createdAt:   number;   // ms
+  closeAt?:    number;   // ms — bid window close time; undefined = no sealed-bid window
 }
 
 export interface Quote {
@@ -172,6 +174,7 @@ const QUOTE_STATUS_MAP: Record<string, QuoteStatus> = {
 };
 
 function fromRequest(raw: any): QuoteRequest {
+  const closeAtArr = raw.closeAt as bigint[] | undefined;
   return {
     id:          raw.id,
     propertyId:  raw.propertyId,
@@ -181,6 +184,9 @@ function fromRequest(raw: any): QuoteRequest {
     description: raw.description,
     status:      REQUEST_STATUS_MAP[Object.keys(raw.status)[0]] ?? "open",
     createdAt:   Number(raw.createdAt) / 1_000_000,
+    closeAt:     closeAtArr && closeAtArr.length > 0
+                   ? Number(closeAtArr[0]) / 1_000_000
+                   : undefined,
   };
 }
 

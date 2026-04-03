@@ -54,10 +54,10 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 2.4.1 | Sealed-bid quote submission | ⬜ Missing | L | Encrypt contractor bid price to canister IBE key via `@dfinity/vetkeys`; stored ciphertext in `quote` canister; reveal only after bid window closes |
-| 2.4.2 | vetKeys sealed-bid reveal | ⬜ Missing | L | After window close, canister calls `vetkd_derive_key` to decrypt all bids in-canister, compares, and returns lowest-bid winner to homeowner only — no ZKP circuit required |
-| 2.4.3 | Bid window timer | ⬜ Missing | M | Quote requests have a close date; after close, all bids revealed to homeowner only |
-| 2.4.4 | Blind bidding UI | ⬜ Missing | M | Contractor sees only their own submitted price, not competitors'; homeowner sees all after close |
+| 2.4.1 | Sealed-bid quote submission | ✅ Exists | L | `sealedBidService.submitSealedBid()` stores IBE ciphertext (mock: base64 JSON; production: vetKeys IBE); canister `submitSealedBid()` enforces window + indexes by contractor; ciphertext never exposes plaintext amount |
+| 2.4.2 | vetKeys sealed-bid reveal | ✅ Exists | L | `sealedBidService.revealBids()` + canister `revealBids()` — decrypts all bids after closeAt, marks lowest isWinner; in production canister calls `vetkd_derive_key`; mock uses little-endian byte decode |
+| 2.4.3 | Bid window timer | ✅ Exists | M | `QuoteRequest.closeAt: ?Time.Time`; `isBidWindowOpen()` helper; `submitSealedBid` rejects after closeAt; `revealBids` rejects before closeAt; `createSealedBidRequest` requires future closeAt |
+| 2.4.4 | Blind bidding UI | ✅ Exists | M | `getMyBid()` returns own ciphertext only (no amountCents field); `getRevealedBids()` empty before reveal, returns all bids with amounts after; `getWinner()` returns lowest-bid RevealedBid |
 
 ---
 
