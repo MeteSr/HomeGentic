@@ -301,6 +301,52 @@ const CSS = `
   .hfl-persona-arrow { transition: transform .2s; display: inline-block; }
   .hfl-persona:hover .hfl-persona-arrow { transform: translateX(4px); }
 
+  /* YOUR DATA — 3.3.4 */
+  .hfl-data {
+    padding: 96px 56px; background: var(--plum);
+    display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center;
+  }
+  .hfl-data-eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(122,175,118,0.18); color: var(--sage);
+    padding: 6px 16px; border-radius: 100px;
+    font-size: 12px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+    margin-bottom: 24px;
+  }
+  .hfl-data h2 {
+    font-family: 'Fraunces', serif; font-size: 44px; font-weight: 900;
+    color: white; line-height: 1.15; letter-spacing: -1px; margin-bottom: 20px;
+  }
+  .hfl-data h2 em { color: var(--sage); font-style: normal; }
+  .hfl-data-lead {
+    font-size: 17px; color: rgba(253,252,250,0.7); line-height: 1.7; margin-bottom: 36px;
+  }
+  .hfl-data-cards { display: flex; flex-direction: column; gap: 14px; }
+  .hfl-data-card {
+    background: rgba(253,252,250,0.06); border: 1px solid rgba(253,252,250,0.1);
+    border-radius: 16px; padding: 22px 24px; display: flex; gap: 18px; align-items: flex-start;
+    transition: background .2s, border-color .2s;
+  }
+  .hfl-data-card:hover { background: rgba(253,252,250,0.1); border-color: rgba(122,175,118,0.4); }
+  .hfl-data-card-icon {
+    font-size: 26px; flex-shrink: 0; margin-top: 2px;
+  }
+  .hfl-data-card-title {
+    font-weight: 700; color: white; font-size: 15px; margin-bottom: 4px;
+  }
+  .hfl-data-card-body {
+    font-size: 13px; color: rgba(253,252,250,0.6); line-height: 1.6;
+  }
+  .hfl-data-note {
+    margin-top: 28px; font-size: 12px; color: rgba(253,252,250,0.35);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .hfl-data-note::before { content: ""; display: block; width: 20px; height: 1px; background: rgba(253,252,250,0.2); }
+  @media (max-width: 860px) {
+    .hfl-data { grid-template-columns: 1fr; padding: 64px 24px; gap: 48px; }
+    .hfl-data h2 { font-size: 34px; }
+  }
+
   /* FOOTER */
   .hfl-footer {
     background: var(--plum); color: rgba(253,252,250,0.65); padding: 36px 56px;
@@ -695,6 +741,54 @@ export default function LandingPage() {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* ── Your Data — 3.3.4 ──────────────────────────────────────────── */}
+        <section id="hfl-data" className="hfl-data">
+          <div>
+            <div className="hfl-data-eyebrow">🔒 Your Data</div>
+            <h2>Your records.<br /><em>Forever yours.</em></h2>
+            <p className="hfl-data-lead">
+              Most apps keep your data on their servers. If they shut down, your records disappear.
+              HomeFax is different — every record you log lives on a public blockchain that no one
+              controls, including us. You own it completely.
+            </p>
+            <p className="hfl-data-note">
+              No lock-in. No middleman. No expiry date.
+            </p>
+          </div>
+          <div className="hfl-data-cards">
+            {[
+              {
+                icon: "🏠",
+                title: "Your home, your history",
+                body: "Every repair, permit, and inspection you log is yours to keep — whether you stay with HomeFax for one year or ten.",
+              },
+              {
+                icon: "📥",
+                title: "Download anytime",
+                body: "Export your full record as a PDF or raw data file whenever you want. No hoops, no waiting, no fees.",
+              },
+              {
+                icon: "🔗",
+                title: "Survives us",
+                body: "Even if HomeFax ever closed tomorrow, your records would still be readable by anyone with the address. That's the promise.",
+              },
+              {
+                icon: "🔐",
+                title: "Private by default",
+                body: "Only you decide who sees what. Sharing a HomeFax Report with a buyer is your choice — nothing is public until you say so.",
+              },
+            ].map((card) => (
+              <div key={card.title} className="hfl-data-card">
+                <div className="hfl-data-card-icon">{card.icon}</div>
+                <div>
+                  <div className="hfl-data-card-title">{card.title}</div>
+                  <div className="hfl-data-card-body">{card.body}</div>
+                </div>
+              </div>
+            ))}
           </div>
         </section>
 

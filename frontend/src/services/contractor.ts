@@ -228,7 +228,28 @@ function createContractorService() {
 
   async getContractor(principalText: string): Promise<ContractorProfile | null> {
     if (!CONTRACTOR_CANISTER_ID) {
-      return mockContractors.find((c) => c.id === principalText) ?? null;
+      const fromMock = mockContractors.find((c) => c.id === principalText);
+      if (fromMock) return fromMock;
+      // Playwright e2e injection
+      const e2eContractors = typeof window !== "undefined" && (window as any).__e2e_contractors;
+      if (e2eContractors) {
+        const raw = (e2eContractors as any[]).find((c) => c.principal === principalText);
+        if (raw) return {
+          id:            raw.principal,
+          name:          raw.name,
+          specialty:     raw.specialty ?? "",
+          email:         raw.email ?? "",
+          phone:         raw.phone ?? "",
+          bio:           raw.bio ?? null,
+          licenseNumber: raw.licenseNumber ?? null,
+          serviceArea:   raw.serviceArea ?? null,
+          trustScore:    raw.trustScore ?? 0,
+          jobsCompleted: raw.jobsCompleted ?? 0,
+          isVerified:    raw.isVerified ?? false,
+          createdAt:     raw.createdAt ?? 0,
+        };
+      }
+      return null;
     }
     const a = await getActor();
     const { Principal: P } = await import("@dfinity/principal");

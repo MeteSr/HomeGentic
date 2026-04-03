@@ -238,6 +238,14 @@ persistent actor Job {
     #ok(matches)
   };
 
+  /// 3.3.2 — Unauthenticated public read: returns all jobs whose homeowner field
+  /// matches the given principal. Enables data portability without authentication.
+  public query func getJobsByOwner(owner: Principal) : async [Job] {
+    Iter.toArray(
+      Iter.filter(Map.values(jobs), func(j: Job) : Bool { j.homeowner == owner })
+    )
+  };
+
   /// Fetch jobs where the caller is the linked contractor and has not yet signed.
   public query(msg) func getJobsPendingMySignature() : async [Job] {
     Iter.toArray(Iter.filter(Map.values(jobs), func(j: Job) : Bool {

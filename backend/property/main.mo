@@ -501,6 +501,17 @@ persistent actor Property {
     )
   };
 
+  /// 3.3.2 — Unauthenticated public read: returns all active properties owned
+  /// by the given principal. Enables data portability — anyone can verify a
+  /// homeowner's records using only their Internet Identity principal.
+  public query func getPropertiesByOwner(owner: Principal) : async [Property] {
+    Iter.toArray(
+      Iter.filter(Map.values(properties), func(p: Property) : Bool {
+        p.owner == owner and p.isActive
+      })
+    )
+  };
+
   public query func getProperty(id: Nat) : async Result.Result<Property, Error> {
     switch (Map.get(properties, Nat.compare, id)) {
       case null  { #err(#NotFound) };
