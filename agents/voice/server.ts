@@ -414,9 +414,66 @@ Rules:
   }
 });
 
+// ── Volusia County ArcGIS permit fetch (§17.5.1) ─────────────────────────────
+
+const VOLUSIA_CITIES = new Set([
+  "daytona beach", "deltona", "ormond beach", "port orange", "holly hill",
+  "south daytona", "new smyrna beach", "edgewater", "deland", "debary",
+  "orange city", "ponce inlet", "oak hill", "lake helen", "pierson",
+  "osteen", "enterprise", "volusia county",
+]);
+
+function isVolusiaCounty(city: string, state: string): boolean {
+  return state.trim().toLowerCase() === "fl" &&
+    VOLUSIA_CITIES.has(city.trim().toLowerCase());
+}
+
+const AMANDA_FOLDER_TYPE_MAP: Record<string, string> = {
+  elec: "Electrical Permit", mech: "Mechanical Permit",
+  plmb: "Plumbing Permit",   roof: "Roofing Permit",
+  wind: "Window Permit",     wtrh: "Water Heater Permit",
+  solr: "Solar Permit",      insul: "Insulation Permit",
+  floor: "Flooring Permit",
+};
+
+function mapAmandaStatus(s: string): "Open" | "Finaled" | "Expired" | "Cancelled" {
+  const l = s.toLowerCase();
+  if (/final|certificate|closed|complet/.test(l)) return "Finaled";
+  if (/expir/.test(l))                            return "Expired";
+  if (/void|cancel|withdraw/.test(l))             return "Cancelled";
+  return "Open";
+}
+
+async function fetchVolusiaPermits(address: string): Promise<any[]> {
+  const street = address.split(",")[0].trim();
+  const params = new URLSearchParams({
+    where:             `FOLDERDESCRIPTION LIKE '%${street}%'`,
+    outFields:         "FOLDERNAME,FOLDERTYPE,STATUSDESC,INDATE,FOLDERDESCRIPTION,FOLDERLINK",
+    resultRecordCount: "50",
+    f:                 "json",
+  });
+  const url = `https://maps5.vcgov.org/arcgis/rest/services/CurrentProjects/MapServer/1/query?${params.toString()}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Volusia ArcGIS error: ${res.status}`);
+  const data = await res.json();
+  return (data.features ?? []).map((f: any) => {
+    const a = f.attributes;
+    const folderType = (a.FOLDERTYPE ?? "").toLowerCase();
+    return {
+      permitNumber:  a.FOLDERNAME ?? "",
+      permitType:    AMANDA_FOLDER_TYPE_MAP[folderType] ?? "Building Permit",
+      description:   a.FOLDERDESCRIPTION ?? "",
+      issuedDate:    a.INDATE ? new Date(a.INDATE).toISOString().slice(0, 10) : "",
+      status:        mapAmandaStatus(a.STATUSDESC ?? ""),
+      estimatedValueCents: undefined,
+      contractorName:      undefined,
+    };
+  });
+}
+
 // ── POST /api/permits/import (§17.5.1) ───────────────────────────────────────
 // Accepts { propertyId, address, city, state, zip }
-// Queries OpenPermit.org for the parcel and returns matched permit records.
+// Routes to Volusia County ArcGIS (no key) or OpenPermit.org (requires OPEN_PERMIT_API_KEY).
 // Returns { permits: OpenPermitRecord[] }
 app.post("/api/permits/import", async (req: Request, res: Response): Promise<void> => {
   const { address, city, state, zip } = req.body;
@@ -426,18 +483,21 @@ app.post("/api/permits/import", async (req: Request, res: Response): Promise<voi
   }
 
   try {
-    // OpenPermit.org base URL — requires OPEN_PERMIT_API_KEY in .env for production
+    // Volusia County pilot — direct ArcGIS, no API key needed
+    if (isVolusiaCounty(city, state)) {
+      const permits = await fetchVolusiaPermits(address);
+      res.json({ permits });
+      return;
+    }
+
+    // All other cities — OpenPermit.org (requires key)
     const apiKey = process.env.OPEN_PERMIT_API_KEY;
     if (!apiKey) {
-      // Dev mode: return empty permits rather than failing
       res.json({ permits: [] });
       return;
     }
 
-    const query = new URLSearchParams({
-      address, city, state, zip,
-      limit: "20",
-    });
+    const query = new URLSearchParams({ address, city, state, zip, limit: "20" });
     const upstream = await fetch(
       `https://api.openpermit.org/v1/permits?${query.toString()}`,
       { headers: { Authorization: `Bearer ${apiKey}` } }
@@ -447,17 +507,16 @@ app.post("/api/permits/import", async (req: Request, res: Response): Promise<voi
       return;
     }
     const data = await upstream.json();
-    // OpenPermit wraps results in { results: [...] }
     const raw: any[] = data.results ?? [];
     const permits = raw.map((p: any) => ({
-      permitNumber:         p.permit_number ?? p.id ?? "",
-      permitType:           p.permit_type ?? p.type ?? "Building Permit",
-      description:          p.description ?? p.work_description ?? "",
-      issuedDate:           (p.issued_date ?? p.issue_date ?? "").slice(0, 10),
-      status:               normalizePermitStatus(p.status ?? ""),
-      estimatedValueCents:  p.estimated_value ? Math.round(p.estimated_value * 100) : undefined,
-      contractorLicense:    p.contractor_license ?? undefined,
-      contractorName:       p.contractor_name   ?? undefined,
+      permitNumber:        p.permit_number ?? p.id ?? "",
+      permitType:          p.permit_type ?? p.type ?? "Building Permit",
+      description:         p.description ?? p.work_description ?? "",
+      issuedDate:          (p.issued_date ?? p.issue_date ?? "").slice(0, 10),
+      status:              normalizePermitStatus(p.status ?? ""),
+      estimatedValueCents: p.estimated_value ? Math.round(p.estimated_value * 100) : undefined,
+      contractorLicense:   p.contractor_license ?? undefined,
+      contractorName:      p.contractor_name   ?? undefined,
     }));
     res.json({ permits });
   } catch (err: any) {

@@ -94,6 +94,24 @@ export function permitToJobInput(permit: OpenPermitRecord, propertyId: string): 
 // Keyed as "city:state" (lowercase) for O(1) lookup.
 
 const SUPPORTED_CITIES = new Set([
+  // Volusia County, FL — pilot; direct ArcGIS, no API key required
+  "daytona beach:fl",
+  "deltona:fl",
+  "ormond beach:fl",
+  "port orange:fl",
+  "holly hill:fl",
+  "south daytona:fl",
+  "new smyrna beach:fl",
+  "edgewater:fl",
+  "deland:fl",
+  "debary:fl",
+  "orange city:fl",
+  "ponce inlet:fl",
+  "oak hill:fl",
+  "lake helen:fl",
+  "pierson:fl",
+  "volusia county:fl",
+  // OpenPermit.org coverage
   "los angeles:ca",
   "houston:tx",
   "phoenix:az",
