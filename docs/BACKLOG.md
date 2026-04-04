@@ -268,11 +268,11 @@ The features below address the core signup conversion gap: a new homeowner visit
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 17.1.1 | Zip-code price benchmark data source | ⬜ Missing | L | Aggregate from closed bids in the `quote` canister (anonymized) + seed with Homewyse / RSMeans baseline data; store in a new `pricing_benchmark` canister or extend `price` canister |
-| 17.1.2 | `get_price_benchmark` agent tool | ⬜ Missing | M | Takes `serviceType` + `zipCode`; returns `{ low, median, high }` in dollars with sample size; agent quotes ranges conversationally |
-| 17.1.3 | Price benchmark UI widget on quote request page | ⬜ Missing | M | Show "Typical cost in [zip]: $800–$1,200" inline before the homeowner submits; no login required to view |
-| 17.1.4 | Public price lookup page (no login) | ⬜ Missing | M | `/prices?service=roofing&zip=33101` — shareable, SEO-indexed; CTA to "Get quotes from verified contractors" drives registration |
-| 17.1.5 | Benchmark confidence indicator | ⬜ Missing | S | Show sample size ("based on 47 local jobs") and last-updated date; hide widget when sample < 5 to avoid misleading ranges |
+| 17.1.1 | Zip-code price benchmark data source | ✅ Exists | L | Seed data (Homewyse/RSMeans baselines) in relay `PRICE_SEED`; relay endpoint `GET /api/price-benchmark`; production: augment with closed bids from `quote` canister |
+| 17.1.2 | `get_price_benchmark` agent tool | ✅ Exists | M | `agentTools.ts` + `agents/voice/tools.ts`; returns `{ low, median, high, sampleSize, lastUpdated }` — falls back gracefully when < 5 samples |
+| 17.1.3 | Price benchmark UI widget on quote request page | ✅ Exists | M | `PriceBenchmarkWidget` rendered in `QuoteRequestPage` using selected property's `zipCode` |
+| 17.1.4 | Public price lookup page (no login) | ✅ Exists | M | `PriceLookupPage` at `/prices?service=Roofing&zip=32114`; search form fallback when no params |
+| 17.1.5 | Benchmark confidence indicator | ✅ Exists | S | `hasSufficientSamples()` gate (< 5 → hide widget / show "Not enough data"); sample size + lastUpdated shown in widget and page |
 
 ### 17.2 Zero-Effort Onboarding — Instant Value Before First Login
 

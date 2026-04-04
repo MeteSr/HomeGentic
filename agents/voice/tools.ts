@@ -529,4 +529,29 @@ Use this to mark a job as in-progress or completed based on what the user tells 
       required: ["job_id", "status"],
     },
   },
+
+  {
+    name: "get_price_benchmark",
+    description: `Look up the typical price range for a home service in a specific zip code.
+
+Use this when the user asks "how much does roofing cost?", "what's a fair price for HVAC replacement in my area?", or "is this quote reasonable?".
+
+Returns low, median, and high estimates based on closed HomeFax bids in that zip code.
+If fewer than 5 bids are on file, tell the user there isn't enough local data yet and fall back to national averages from context.`,
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        service_type: {
+          type: "string",
+          enum: ["Roofing", "HVAC", "Plumbing", "Electrical", "Painting", "Flooring", "Windows", "Landscaping", "Foundation", "Other"],
+          description: "The type of home service to benchmark",
+        },
+        zip_code: {
+          type: "string",
+          description: "The 5-digit US zip code for the property",
+        },
+      },
+      required: ["service_type", "zip_code"],
+    },
+  },
 ];

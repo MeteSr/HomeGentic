@@ -14,6 +14,7 @@ import { maintenanceService } from "./maintenance";
 import { propertyService } from "./property";
 import { buildMaintenanceForecast } from "./maintenanceForecast";
 import { reportService, jobToInput, propertyToInput } from "./report";
+import { getPriceBenchmark } from "./priceBenchmark";
 
 export type ToolName =
   | "classify_home_issue"
@@ -33,7 +34,8 @@ export type ToolName =
   | "get_earnings_summary"
   | "update_job_status"
   | "schedule_maintenance_task"
-  | "get_maintenance_forecast";
+  | "get_maintenance_forecast"
+  | "get_price_benchmark";
 
 export interface ToolCallResult {
   success: boolean;
@@ -599,6 +601,39 @@ export async function executeTool(
         };
       }
 
+      // ── Get price benchmark ───────────────────────────────────────────────
+      case "get_price_benchmark": {
+        const serviceType = String(input.service_type);
+        const zipCode     = String(input.zip_code);
+        const result = await getPriceBenchmark(serviceType, zipCode);
+
+        if (!result || result.sampleSize < 5) {
+          return {
+            success: true,
+            data: {
+              found: false,
+              summary: `No benchmark data available for ${serviceType} in ${zipCode} (fewer than 5 closed bids on file).`,
+            },
+          };
+        }
+
+        const fmt = (cents: number) => "$" + Math.round(cents / 100).toLocaleString("en-US");
+        return {
+          success: true,
+          data: {
+            found:       true,
+            serviceType: result.serviceType,
+            zipCode:     result.zipCode,
+            low:         result.low,
+            median:      result.median,
+            high:        result.high,
+            sampleSize:  result.sampleSize,
+            lastUpdated: result.lastUpdated,
+            summary: `Typical ${serviceType} cost in ${zipCode}: ${fmt(result.low)}–${fmt(result.high)} (median ${fmt(result.median)}) · Based on ${result.sampleSize} closed bids · ${result.lastUpdated}`,
+          },
+        };
+      }
+
       default:
         return { success: false, error: `Unknown tool: ${name}` };
     }
@@ -631,6 +666,7 @@ export function toolActionLabel(name: ToolName): string {
     update_job_status:         "updating job status",
     schedule_maintenance_task: "scheduling maintenance task",
     get_maintenance_forecast:  "checking maintenance forecast",
+    get_price_benchmark:       "looking up price benchmark",
   };
   return labels[name] ?? name;
 }

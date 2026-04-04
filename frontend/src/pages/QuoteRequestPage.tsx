@@ -7,6 +7,7 @@ import { PhotoQuotaDisplay } from "@/components/PhotoQuotaDisplay";
 import { quoteService, Urgency } from "@/services/quote";
 import { jobService, Job } from "@/services/job";
 import { getPriceRange, PriceRange, SERVICE_SUBCATEGORIES } from "@/services/market";
+import { PriceBenchmarkWidget } from "@/components/PriceBenchmarkWidget";
 import { usePropertyStore } from "@/store/propertyStore";
 import toast from "react-hot-toast";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
@@ -211,6 +212,14 @@ export default function QuoteRequestPage() {
               </div>
             </div>
           )}
+
+          {/* §17.1.3 — Zip-code price benchmark widget */}
+          {(() => {
+            const selectedProperty = properties.find((p) => String(p.id) === form.propertyId);
+            return selectedProperty?.zipCode ? (
+              <PriceBenchmarkWidget serviceType={form.serviceType} zipCode={selectedProperty.zipCode} />
+            ) : null;
+          })()}
 
           {/* Price range estimate */}
           {priceRange && (
