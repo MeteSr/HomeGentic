@@ -317,10 +317,10 @@ The features below address the core signup conversion gap: a new homeowner visit
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
 | 17.5.1 | Municipal permit API integration | ✅ Exists | XL | `permitImport.ts` service + `POST /api/permits/import` relay on voice server; queries OpenPermit.org (requires `OPEN_PERMIT_API_KEY`); 24-city MVP coverage; `mapPermitTypeToServiceType` maps 9 permit categories; returns empty list in dev when key absent |
-| 17.5.2 | Permit → job record mapping | ⬜ Missing | M | Map permit fields (type, issue date, value, contractor license) to `create_maintenance_job` input; status defaults to `verified` when permit is closed |
-| 17.5.3 | Post-registration permit import trigger | ⬜ Missing | M | After `propertyService.register()` succeeds, auto-trigger permit lookup in the background; notify user "We found 3 permits on record for your address — added to your history" |
-| 17.5.4 | Permit import review UI | ⬜ Missing | M | Show imported permits as "Pending review" before committing; homeowner confirms, edits, or dismisses each; avoids polluting records with mismatched data |
-| 17.5.5 | Permit import coverage indicator | ⬜ Missing | S | Show "Permit data available for [city]" or "Permit data not available in your area" during registration so users know what to expect |
+| 17.5.2 | Permit → job record mapping | ✅ Exists | M | `permitToJobInput()` maps OpenPermitRecord → job input; `createJobsFromPermits()` calls `jobService.create()` for each confirmed permit with permitNumber injected |
+| 17.5.3 | Post-registration permit import trigger | ✅ Exists | M | `triggerPermitImport()` called in `PropertyRegisterPage.handleSubmit` after registration; routes to review step (step 4) if permits found; skips to dashboard if none |
+| 17.5.4 | Permit import review UI | ✅ Exists | M | `PermitImportReviewPanel` component: per-permit checkboxes, contractor/cost display, "Add to History" (confirmed subset) + "Skip" actions; wired as step 4 in `PropertyRegisterPage` |
+| 17.5.5 | Permit import coverage indicator | ✅ Exists | S | `PermitCoverageIndicator` shown in step 1 of `PropertyRegisterPage` when city+state filled; "✓ Permit data available for Daytona Beach" or "not available" |
 
 ### 17.6 Email Receipt Forwarding → Auto-Log
 

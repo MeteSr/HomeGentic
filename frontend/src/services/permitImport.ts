@@ -9,6 +9,8 @@
  */
 
 import type { Job, JobStatus } from "./job";
+import { jobService } from "./job";
+import type { Property } from "./property";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -184,4 +186,42 @@ export async function importPermitsForProperty(
     imported:      permits.length,
     permits,
   };
+}
+
+// ── 17.5.2 — createJobsFromPermits ───────────────────────────────────────────
+
+/** Write confirmed permits to the job canister. Call after user reviews. */
+export async function createJobsFromPermits(
+  _propertyId: string,
+  permits: ImportedPermit[],
+): Promise<Job[]> {
+  if (permits.length === 0) return [];
+  return Promise.all(
+    permits.map((p) =>
+      jobService.create({
+        ...(p.jobInput as any),
+        permitNumber: p.permit.permitNumber,
+      })
+    )
+  );
+}
+
+// ── 17.5.3 — triggerPermitImport ─────────────────────────────────────────────
+
+/**
+ * Run after property registration. Fetches permits for the property and
+ * returns them for user review — does NOT auto-create jobs.
+ * The caller shows the PermitImportReviewPanel, then calls createJobsFromPermits
+ * with the confirmed subset.
+ */
+export async function triggerPermitImport(
+  property: Pick<Property, "id" | "address" | "city" | "state" | "zipCode">,
+): Promise<PermitImportResult> {
+  return importPermitsForProperty(
+    property.id,
+    property.address,
+    property.city,
+    property.state,
+    property.zipCode,
+  );
 }

@@ -6,6 +6,9 @@ import { Button } from "@/components/Button";
 import { propertyService, PropertyType, SubscriptionTier } from "@/services/property";
 import { usePropertyStore } from "@/store/propertyStore";
 import { AddressAutocomplete } from "@/components/AddressAutocomplete";
+import { triggerPermitImport, createJobsFromPermits, type ImportedPermit, type PermitImportResult } from "@/services/permitImport";
+import PermitCoverageIndicator from "@/components/PermitCoverageIndicator";
+import PermitImportReviewPanel from "@/components/PermitImportReviewPanel";
 import toast from "react-hot-toast";
 import { COLORS, FONTS } from "@/theme";
 
@@ -37,6 +40,8 @@ export default function PropertyRegisterPage() {
   const { addProperty } = usePropertyStore();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [permitResult, setPermitResult] = useState<PermitImportResult | null>(null);
+  const [registeredPropertyId, setRegisteredPropertyId] = useState<string | null>(null);
   const [form, setForm] = useState<FormData>({
     address: "", city: "", state: "", zipCode: "",
     propertyType: "SingleFamily", yearBuilt: "", squareFeet: "", tier: "Free",
@@ -56,12 +61,29 @@ export default function PropertyRegisterPage() {
       });
       addProperty(property);
       toast.success("Property registered!");
-      navigate("/dashboard");
+
+      // §17.5.3 — trigger permit import in background; show review step if found
+      const result = await triggerPermitImport(property).catch(() => null);
+      if (result?.citySupported && result.permits.length > 0) {
+        setRegisteredPropertyId(property.id);
+        setPermitResult(result);
+        setStep(4);
+      } else {
+        navigate("/dashboard");
+      }
     } catch (err: any) {
       toast.error(err.message || "Registration failed");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePermitConfirm = async (confirmed: ImportedPermit[]) => {
+    if (registeredPropertyId && confirmed.length > 0) {
+      await createJobsFromPermits(registeredPropertyId, confirmed).catch(() => {});
+      toast.success(`${confirmed.length} permit record${confirmed.length !== 1 ? "s" : ""} added to your history.`);
+    }
+    navigate("/dashboard");
   };
 
   return (
@@ -83,19 +105,21 @@ export default function PropertyRegisterPage() {
         </h1>
 
         {/* Step indicator */}
-        <div style={{ display: "flex", borderTop: `1px solid ${S.rule}`, borderLeft: `1px solid ${S.rule}`, marginBottom: "1.5rem" }}>
-          {[1, 2, 3].map((n) => (
-            <div key={n} style={{
-              flex: 1, padding: "0.625rem", textAlign: "center",
-              borderRight: `1px solid ${S.rule}`, borderBottom: `1px solid ${S.rule}`,
-              fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase",
-              color: step === n ? S.rust : step > n ? S.inkLight : COLORS.rule,
-              background: step === n ? COLORS.blush : COLORS.white,
-            }}>
-              {n === 1 ? "Address" : n === 2 ? "Details" : "Confirm"}
-            </div>
-          ))}
-        </div>
+        {step < 4 && (
+          <div style={{ display: "flex", borderTop: `1px solid ${S.rule}`, borderLeft: `1px solid ${S.rule}`, marginBottom: "1.5rem" }}>
+            {[1, 2, 3].map((n) => (
+              <div key={n} style={{
+                flex: 1, padding: "0.625rem", textAlign: "center",
+                borderRight: `1px solid ${S.rule}`, borderBottom: `1px solid ${S.rule}`,
+                fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase",
+                color: step === n ? S.rust : step > n ? S.inkLight : COLORS.rule,
+                background: step === n ? COLORS.blush : COLORS.white,
+              }}>
+                {n === 1 ? "Address" : n === 2 ? "Details" : "Confirm"}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Step 1 */}
         {step === 1 && (
@@ -132,6 +156,10 @@ export default function PropertyRegisterPage() {
                 <label className="form-label">ZIP Code *</label>
                 <input className="form-input" placeholder="78701" value={form.zipCode} onChange={(e) => update("zipCode", e.target.value)} />
               </div>
+              {/* §17.5.5 — permit coverage indicator */}
+              {form.city && form.state && (
+                <PermitCoverageIndicator city={form.city} state={form.state} />
+              )}
             </div>
             <Button style={{ width: "100%", marginTop: "1.5rem" }} disabled={!form.address || !form.city || !form.state || !form.zipCode} onClick={() => setStep(2)} iconRight={<ArrowRight size={14} />}>
               Next: Property Details
@@ -194,6 +222,15 @@ export default function PropertyRegisterPage() {
               <Button style={{ flex: 1 }} disabled={!form.yearBuilt || !form.squareFeet} onClick={() => setStep(3)} iconRight={<ArrowRight size={14} />}>Review</Button>
             </div>
           </div>
+        )}
+
+        {/* Step 4 — §17.5.4 Permit import review */}
+        {step === 4 && permitResult && (
+          <PermitImportReviewPanel
+            permits={permitResult.permits}
+            onConfirm={handlePermitConfirm}
+            onDismissAll={() => navigate("/dashboard")}
+          />
         )}
 
         {/* Step 3 */}
