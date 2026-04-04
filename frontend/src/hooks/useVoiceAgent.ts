@@ -130,9 +130,33 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
       .filter((j) => !j.homeownerSigned && !j.isDiy)
       .map((j) => j.id);
 
-    const openQuoteCount = quotes.filter(
+    const openQuotes = quotes.filter(
       (q) => q.status === "open" || q.status === "quoted"
-    ).length;
+    );
+    const openQuoteCount = openQuotes.length;
+
+    // Fetch bid counts for each open request (best-effort, batched)
+    const openQuoteRequests = await (async () => {
+      if (openQuotes.length === 0) return [];
+      try {
+        const { quoteService } = await import("../services/quote");
+        const bidCountMap = await quoteService.getBidCountMap(openQuotes.map((q) => q.id));
+        return openQuotes.map((q) => ({
+          id:          q.id,
+          serviceType: q.serviceType,
+          description: q.description,
+          urgency:     q.urgency,
+          status:      q.status,
+          bidCount:    bidCountMap[q.id] ?? 0,
+        }));
+      } catch {
+        return openQuotes.map((q) => ({
+          id: q.id, serviceType: q.serviceType,
+          description: q.description, urgency: q.urgency,
+          status: q.status, bidCount: 0,
+        }));
+      }
+    })();
 
     // ── Score ──────────────────────────────────────────────────────────────────
     const score     = computeScore(jobs, properties);
@@ -225,6 +249,7 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
       expiringWarranties,
       pendingSignatureJobIds,
       openQuoteCount,
+      openQuoteRequests,
     };
   };
 

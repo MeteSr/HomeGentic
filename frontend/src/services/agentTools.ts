@@ -25,6 +25,9 @@ export type ToolName =
   | "submit_contractor_review"
   | "share_report"
   | "revoke_report_link"
+  | "list_bids"
+  | "accept_bid"
+  | "decline_quote"
   | "update_job_status"
   | "schedule_maintenance_task"
   | "get_maintenance_forecast";
@@ -313,6 +316,83 @@ export async function executeTool(
         };
       }
 
+      // ── List bids ─────────────────────────────────────────────────────────
+      case "list_bids": {
+        if (!input.request_id) {
+          return { success: false, error: "request_id is required" };
+        }
+        const requestId = String(input.request_id);
+        const quotes = await quoteService.getQuotesForRequest(requestId);
+
+        if (quotes.length === 0) {
+          return {
+            success: true,
+            data: { bids: [], summary: "No bids have been submitted for this request yet." },
+          };
+        }
+
+        const sorted = [...quotes].sort((a, b) => a.amount - b.amount);
+        const top3   = sorted.slice(0, 3);
+
+        // Fetch contractor profiles for the top bids (best-effort)
+        const enriched = await Promise.all(
+          top3.map(async (q) => {
+            const profile = await contractorService.getContractor(q.contractor).catch(() => null);
+            return {
+              quoteId:        q.id,
+              contractorName: profile?.name ?? null,
+              trustScore:     profile?.trustScore ?? null,
+              amount:         q.amount,
+              amountDollars:  q.amount / 100,
+              timelineDays:   q.timeline,
+            };
+          })
+        );
+
+        const lowestDollars = (sorted[0].amount / 100).toLocaleString("en-US", { minimumFractionDigits: 0 });
+        const summary = `${quotes.length} bid${quotes.length !== 1 ? "s" : ""} received. Lowest: $${lowestDollars}. ` +
+          enriched
+            .map((b, i) => {
+              const name = b.contractorName ?? "Unknown contractor";
+              return `${i + 1}. ${name} — $${(b.amount / 100).toLocaleString()} in ${b.timelineDays} day${b.timelineDays !== 1 ? "s" : ""}`;
+            })
+            .join("; ");
+
+        return { success: true, data: { bids: enriched, summary } };
+      }
+
+      // ── Accept bid ────────────────────────────────────────────────────────
+      case "accept_bid": {
+        if (!input.quote_id) {
+          return { success: false, error: "quote_id is required" };
+        }
+        const quoteId = String(input.quote_id);
+        await quoteService.accept(quoteId);
+        return {
+          success: true,
+          data: {
+            quoteId,
+            summary: `Bid ${quoteId} accepted. The contractor will be notified and the quote request is now closed.`,
+          },
+        };
+      }
+
+      // ── Decline quote ─────────────────────────────────────────────────────
+      case "decline_quote": {
+        if (!input.request_id) {
+          return { success: false, error: "request_id is required" };
+        }
+        const requestId = String(input.request_id);
+        await quoteService.close(requestId);
+        return {
+          success: true,
+          data: {
+            requestId,
+            summary: `Quote request ${requestId} closed. All pending bids have been declined.`,
+          },
+        };
+      }
+
       // ── Update job status ──────────────────────────────────────────────────
       case "update_job_status": {
         const jobId = String(input.job_id);
@@ -438,6 +518,9 @@ export function toolActionLabel(name: ToolName): string {
     search_contractors:        "searching contractors",
     sign_job_verification:     "signing job verification",
     submit_contractor_review:  "submitting contractor review",
+    list_bids:                 "fetching bids",
+    accept_bid:                "accepting bid",
+    decline_quote:             "closing quote request",
     share_report:              "generating report share link",
     revoke_report_link:        "revoking report link",
     update_job_status:         "updating job status",

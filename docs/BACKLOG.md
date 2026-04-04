@@ -203,10 +203,10 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 16.2.1 | Inject open quotes + bids into agent context | ⬜ Missing | M | In `buildContext()`, fetch full quote requests (not just count); for each open request include: service type, description, bid count, top bid amount and contractor name; add to `AgentContext` |
-| 16.2.2 | `list_bids` tool | ⬜ Missing | M | Returns all bids for a given quote request ID, sorted by amount; agent summarises top 3 with contractor name, trust score, and price |
-| 16.2.3 | `accept_bid` tool | ⬜ Missing | M | Accepts a bid by contractor ID on a given quote request; calls `quoteService.acceptBid()`; agent confirms intent before calling |
-| 16.2.4 | `decline_quote` tool | ⬜ Missing | S | Closes a quote request without accepting any bid; agent asks for reason and records it |
+| 16.2.1 | Inject open quotes + bids into agent context | ✅ Exists | M | `buildContext()` fetches open/quoted requests + `getBidCountMap()`; injects `openQuoteRequests[]` into `AgentContext`; system prompt renders each request with bid count |
+| 16.2.2 | `list_bids` tool | ✅ Exists | M | Fetches bids via `quoteService.getQuotesForRequest()`, sorts by amount, enriches top 3 with contractor name + trust score via `contractorService.getContractor()` |
+| 16.2.3 | `accept_bid` tool | ✅ Exists | M | Calls `quoteService.accept(quoteId)`; agent always confirms before calling |
+| 16.2.4 | `decline_quote` tool | ✅ Exists | S | Calls `quoteService.close(requestId)`; confirms with user before calling |
 
 ### 16.3 Score Trend & Coaching
 

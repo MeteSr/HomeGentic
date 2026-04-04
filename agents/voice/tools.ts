@@ -299,6 +299,66 @@ After returning Critical or Soon predictions, offer to schedule a maintenance ta
   },
 
   {
+    name: "list_bids",
+    description: `List the bids (contractor quotes) submitted for an open quote request, sorted by price.
+
+Use this when the user asks "what bids have I received?", "who bid on my HVAC job?", or "show me quotes for my roofing request".
+The quote request ID is shown in the open quote requests section of context.
+
+Returns top 3 bids with contractor name, trust score, price, and timeline.
+After listing, offer to accept the best bid or close the request.`,
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        request_id: {
+          type: "string",
+          description: "The quote request ID to fetch bids for (from context: [ID: ...])",
+        },
+      },
+      required: ["request_id"],
+    },
+  },
+
+  {
+    name: "accept_bid",
+    description: `Accept a contractor's bid on a quote request, closing the request to further bidding.
+
+Use this when the user confirms they want to hire a specific contractor from the list_bids results.
+ALWAYS confirm with the user before calling: "Just to confirm — you'd like to accept [contractor name]'s bid of $[amount]?"
+
+The quote_id comes from the list_bids result, not the request ID.`,
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        quote_id: {
+          type: "string",
+          description: "The ID of the specific bid (quote) to accept",
+        },
+      },
+      required: ["quote_id"],
+    },
+  },
+
+  {
+    name: "decline_quote",
+    description: `Close a quote request without accepting any bid.
+
+Use this when the user says "cancel this request", "I don't need this anymore", or "close the quote".
+Ask for a brief reason (optional) and confirm before calling.
+After closing: "Done — all pending bids have been declined and the request is closed."`,
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        request_id: {
+          type: "string",
+          description: "The quote request ID to close",
+        },
+      },
+      required: ["request_id"],
+    },
+  },
+
+  {
     name: "share_report",
     description: `Generate a HomeFax report share link for a property.
 

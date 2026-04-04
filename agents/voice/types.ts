@@ -93,12 +93,24 @@ export interface RecommendationSummary {
   rationale:             string;
 }
 
+export interface QuoteRequestSummary {
+  id:                   string;
+  serviceType:          string;
+  description:          string;
+  urgency:              string;
+  status:               string;
+  bidCount:             number;
+  lowestBidDollars?:    number;
+  lowestBidContractor?: string;
+}
+
 export interface AgentContext {
   properties:            PropertyContext[];
   recentJobs:            JobContext[];
   expiringWarranties:    WarrantyAlert[];
   pendingSignatureJobIds: string[];
   openQuoteCount:        number;
+  openQuoteRequests?:    QuoteRequestSummary[];
   score?:                ScoreContext;
   scoreTrend?:           ScoreTrend;
   topRecommendations?:   RecommendationSummary[];

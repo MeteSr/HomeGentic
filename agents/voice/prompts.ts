@@ -40,9 +40,19 @@ export function buildSystemPrompt(ctx: AgentContext): string {
       : "";
 
   const quotesSection =
-    ctx.openQuoteCount > 0
-      ? `\nOpen quote requests: ${ctx.openQuoteCount} (contractors may be responding)`
-      : "";
+    ctx.openQuoteRequests && ctx.openQuoteRequests.length > 0
+      ? "\nOpen quote requests awaiting bids:\n" +
+        ctx.openQuoteRequests
+          .map((q) => {
+            const bids = q.bidCount === 0
+              ? "no bids yet"
+              : `${q.bidCount} bid${q.bidCount !== 1 ? "s" : ""}${q.lowestBidDollars ? `, lowest $${q.lowestBidDollars.toLocaleString()}` : ""}`;
+            return `- [ID: ${q.id}] ${q.serviceType} (${q.urgency}): "${q.description.slice(0, 80)}" — ${bids}`;
+          })
+          .join("\n")
+      : ctx.openQuoteCount > 0
+        ? `\nOpen quote requests: ${ctx.openQuoteCount} (contractors may be responding)`
+        : "";
 
   const scoreSection = ctx.score
     ? (() => {
