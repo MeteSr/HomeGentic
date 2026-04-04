@@ -224,8 +224,8 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 16.4.1 | Post-sign review prompt | ⬜ Missing | S | After `sign_job_verification` succeeds and a contractor was involved, agent follows up: "Would you like to leave a review for [contractor]? It helps other homeowners and improves their trust score." |
-| 16.4.2 | `submit_contractor_review` tool | ⬜ Missing | M | Collects rating (1–5) and optional comment conversationally; calls `contractorService.submitReview()`; enforces the existing 10-reviews/day/user rate limit via error handling |
+| 16.4.1 | Post-sign review prompt | ✅ Exists | S | `sign_job_verification` result now includes `contractorName` + `contractorPrincipal`; system prompt instructs agent to follow up with review offer when principal is present |
+| 16.4.2 | `submit_contractor_review` tool | ✅ Exists | M | Tool in `agentTools.ts` + `agents/voice/tools.ts`; calls `contractorService.submitReview(principal, rating, comment, jobId)`; rate-limit errors surfaced gracefully |
 
 ### 16.5 Natural Language Report Sharing
 

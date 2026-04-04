@@ -299,6 +299,46 @@ After returning Critical or Soon predictions, offer to schedule a maintenance ta
   },
 
   {
+    name: "submit_contractor_review",
+    description: `Submit a star rating and optional comment for a contractor after a job is signed.
+
+Use this ONLY after sign_job_verification succeeds and the tool result contains a contractorPrincipal.
+
+Prompt pattern (do not skip this — reviews are important for trust):
+"Would you like to leave a review for [contractor name]? It takes just a few seconds and helps other homeowners."
+
+If the user agrees:
+1. Ask "How would you rate the work from 1 to 5 stars?"
+2. Optionally ask "Any comments you'd like to add?"
+3. Confirm, then call this tool.
+
+Do NOT call this tool without explicit user consent.
+Rate-limit errors (10 reviews/day) should be communicated gracefully: "You've already submitted several reviews today — you can add this one tomorrow."`,
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        contractor_principal: {
+          type: "string",
+          description: "The ICP principal of the contractor being reviewed (from sign_job_verification result)",
+        },
+        job_id: {
+          type: "string",
+          description: "The job ID this review is for",
+        },
+        rating: {
+          type: "number",
+          description: "Star rating from 1 (poor) to 5 (excellent)",
+        },
+        comment: {
+          type: "string",
+          description: "Optional written feedback. Omit if the user has nothing to add.",
+        },
+      },
+      required: ["contractor_principal", "job_id", "rating"],
+    },
+  },
+
+  {
     name: "update_job_status",
     description: `Update the status of an existing maintenance job.
 Use this to mark a job as in-progress or completed based on what the user tells you.`,

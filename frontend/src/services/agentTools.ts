@@ -21,6 +21,7 @@ export type ToolName =
   | "draft_work_order"
   | "search_contractors"
   | "sign_job_verification"
+  | "submit_contractor_review"
   | "update_job_status"
   | "schedule_maintenance_task"
   | "get_maintenance_forecast";
@@ -188,7 +189,42 @@ export async function executeTool(
         const summary = job.status === "verified"
           ? `Job ${jobId} is now fully verified on-chain`
           : `Homeowner signature submitted for ${jobId} — awaiting contractor co-signature`;
-        return { success: true, data: { jobId, status: job.status, summary } };
+        const data: Record<string, unknown> = { jobId, status: job.status, summary };
+        // Include contractor context so agent can prompt for a review (16.4.1)
+        if (!job.isDiy && job.contractorName) {
+          data.contractorName = job.contractorName;
+        }
+        if (!job.isDiy && job.contractor) {
+          data.contractorPrincipal = job.contractor;
+        }
+        return { success: true, data };
+      }
+
+      // ── Submit contractor review ───────────────────────────────────────────
+      case "submit_contractor_review": {
+        const contractorPrincipal = input.contractor_principal
+          ? String(input.contractor_principal)
+          : null;
+        const rating = input.rating != null ? Number(input.rating) : null;
+
+        if (!contractorPrincipal) {
+          return { success: false, error: "contractor_principal is required" };
+        }
+        if (rating == null || isNaN(rating)) {
+          return { success: false, error: "rating is required (1–5)" };
+        }
+
+        const jobId   = input.job_id ? String(input.job_id) : "";
+        const comment = input.comment ? String(input.comment) : "";
+
+        await contractorService.submitReview(contractorPrincipal, rating, comment, jobId);
+
+        return {
+          success: true,
+          data: {
+            summary: `${rating}-star review submitted. Thank you — this helps other homeowners find quality contractors.`,
+          },
+        };
       }
 
       // ── Update job status ──────────────────────────────────────────────────
@@ -315,6 +351,7 @@ export function toolActionLabel(name: ToolName): string {
     draft_work_order:          "drafting work order",
     search_contractors:        "searching contractors",
     sign_job_verification:     "signing job verification",
+    submit_contractor_review:  "submitting contractor review",
     update_job_status:         "updating job status",
     schedule_maintenance_task: "scheduling maintenance task",
     get_maintenance_forecast:  "checking maintenance forecast",
