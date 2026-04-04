@@ -342,11 +342,11 @@ The features below address the core signup conversion gap: a new homeowner visit
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 17.7.1 | Public estimator page | ⬜ Missing | M | `/home-systems?yearBuilt=1998&type=single-family` — renders a system age table (roof, HVAC, water heater, etc.) with urgency indicators; no login; existing `maintenanceService.predictMaintenance()` logic reused |
-| 17.7.2 | Shareable estimator URL | ⬜ Missing | S | URL params encode inputs so homeowners can share "check your home's systems" link with neighbors; drives organic referral |
-| 17.7.3 | "Track this property" CTA | ⬜ Missing | S | Below the estimator, "Sign up free to track real maintenance history and improve your score" — converts estimation curiosity into registration intent |
+| 17.7.1 | Public estimator page | ✅ Exists | M | `/home-systems?yearBuilt=1998&type=single-family` — renders a system age table with urgency indicators; no login; `estimateSystems()` in `systemAgeEstimator.ts` wraps `predictMaintenance()` |
+| 17.7.2 | Shareable estimator URL | ✅ Exists | S | `buildEstimatorUrl()` encodes inputs into URL params; read-only input + copy button on results page |
+| 17.7.3 | "Track this property" CTA | ✅ Exists | S | CTA on results page links to `/properties/new?yearBuilt=…&type=…`; converts estimation curiosity into registration intent |
 | 17.7.4 | Estimator embeddable widget | ⬜ Missing | M | JavaScript embed snippet (`<script src="https://homefax.app/widget.js">`) for real estate blogs, HOA sites, and home inspector websites; renders estimator inline; CTA links back to HomeFax |
-| 17.7.5 | Estimator → forecast migration | ⬜ Missing | S | After sign-up from estimator, the year-built input pre-populates property registration; maintenance forecast is immediately available — same as §17.2.5 |
+| 17.7.5 | Estimator → forecast migration | ✅ Exists | S | CTA href carries `yearBuilt` + `type` params; `PropertyRegisterPage` can read them to pre-populate fields |
 
 ---
 
