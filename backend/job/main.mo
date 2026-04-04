@@ -627,7 +627,7 @@ persistent actor Job {
       createdAt        = now;
     };
 
-    Map.set(jobs, Text.compare, id, job);
+    Map.add(jobs, Text.compare, id, job);
     #ok(job)
   };
 

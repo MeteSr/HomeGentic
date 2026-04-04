@@ -20,10 +20,6 @@
       "main": "backend/quote/main.mo",
       "type": "motoko"
     },
-    "price": {
-      "main": "backend/price/main.mo",
-      "type": "motoko"
-    },
     "payment": {
       "main": "backend/payment/main.mo",
       "type": "motoko"
@@ -62,10 +58,6 @@
     },
     "recurring": {
       "main": "backend/recurring/main.mo",
-      "type": "motoko"
-    },
-    "room": {
-      "main": "backend/room/main.mo",
       "type": "motoko"
     },
     "internet_identity": {

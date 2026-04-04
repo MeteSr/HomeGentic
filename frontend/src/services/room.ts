@@ -1,7 +1,7 @@
 import { Actor } from "@dfinity/agent";
 import { getAgent } from "./actor";
 
-const ROOM_CANISTER_ID = (process.env as any).CANISTER_ID_ROOM || "";
+const ROOM_CANISTER_ID = (process.env as any).CANISTER_ID_PROPERTY || "";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -115,34 +115,33 @@ const idlFactory = ({ IDL }: any) => {
   });
 
   const Error = IDL.Variant({
-    NotFound:     IDL.Null,
-    Unauthorized: IDL.Null,
-    InvalidInput: IDL.Text,
-    Paused:       IDL.Null,
+    NotFound:      IDL.Null,
+    NotAuthorized: IDL.Null,
+    InvalidInput:  IDL.Text,
+    Paused:        IDL.Null,
+    LimitReached:  IDL.Null,
+    DuplicateAddress: IDL.Null,
+    AddressConflict:  IDL.Int,
   });
 
-  const Metrics = IDL.Record({
+  const RoomMetrics = IDL.Record({
     totalRooms:    IDL.Nat,
     totalFixtures: IDL.Nat,
-    isPaused:      IDL.Bool,
   });
 
   const RoomResult    = IDL.Variant({ ok: RoomRecord, err: Error });
   const UnitResult    = IDL.Variant({ ok: IDL.Null,   err: Error });
 
   return IDL.Service({
-    createRoom:    IDL.Func([CreateRoomArgs], [RoomResult], []),
-    getRoom:       IDL.Func([IDL.Text], [RoomResult], ["query"]),
+    createRoom:         IDL.Func([CreateRoomArgs], [RoomResult], []),
+    getRoom:            IDL.Func([IDL.Text], [RoomResult], ["query"]),
     getRoomsByProperty: IDL.Func([IDL.Text], [IDL.Vec(RoomRecord)], ["query"]),
-    updateRoom:    IDL.Func([IDL.Text, UpdateRoomArgs], [RoomResult], []),
-    deleteRoom:    IDL.Func([IDL.Text], [UnitResult], []),
-    addFixture:    IDL.Func([IDL.Text, AddFixtureArgs], [RoomResult], []),
-    updateFixture: IDL.Func([IDL.Text, IDL.Text, AddFixtureArgs], [RoomResult], []),
-    removeFixture: IDL.Func([IDL.Text, IDL.Text], [RoomResult], []),
-    getMetrics:    IDL.Func([], [Metrics], ["query"]),
-    addAdmin:      IDL.Func([IDL.Principal], [UnitResult], []),
-    pause:         IDL.Func([IDL.Opt(IDL.Nat)], [UnitResult], []),
-    unpause:       IDL.Func([], [UnitResult], []),
+    updateRoom:         IDL.Func([IDL.Text, UpdateRoomArgs], [RoomResult], []),
+    deleteRoom:         IDL.Func([IDL.Text], [UnitResult], []),
+    addFixture:         IDL.Func([IDL.Text, AddFixtureArgs], [RoomResult], []),
+    updateFixture:      IDL.Func([IDL.Text, IDL.Text, AddFixtureArgs], [RoomResult], []),
+    removeFixture:      IDL.Func([IDL.Text, IDL.Text], [RoomResult], []),
+    getRoomMetrics:     IDL.Func([], [RoomMetrics], ["query"]),
   });
 };
 

@@ -182,5 +182,18 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 |---|------|--------|------|-------|
 | 13.5.4 | "Agent competition" scenario | ⬜ Missing | M | Once Section 9 (listing bid marketplace) is built: 10 agents simultaneously submit proposals to the same listing bid request. Tests write contention on the listing canister |
 
+---
+
+## 14. Technical Debt & Architecture
+
+### 14.1 Inter-Canister Call Audit (post-consolidation)
+**Context:** The `price` canister was merged into `payment`, and the `room` canister was merged into `property`. Any code that still calls these as separate canisters (by principal ID or service binding) will break silently in production.
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 14.1.1 | Audit all canisters for cross-calls to `price` | ⬜ Missing | S | Grep all `.mo` files for `price` canister principal references; update any `actor(priceId)` calls to use `payment` canister's `getPricing`/`getAllPricing` queries instead |
+| 14.1.2 | Audit all canisters for cross-calls to `room` | ⬜ Missing | S | Grep all `.mo` files for `room` canister principal references; update any actor calls to target `property` canister's room methods |
+| 14.1.3 | Remove `backend/price/` and `backend/room/` directories | ⬜ Missing | S | After confirming no remaining references, `git rm` the old canister directories to prevent confusion |
+| 14.1.4 | Update CLAUDE.md canister map | ⬜ Missing | S | Remove `price` and `room` rows; update `payment` row to note merged pricing queries; update `property` row to note merged room/fixture CRUD |
 
 ---

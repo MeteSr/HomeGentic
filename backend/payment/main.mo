@@ -17,6 +17,16 @@ persistent actor Payment {
 
   public type Error = { #NotFound; #NotAuthorized; #PaymentFailed: Text };
 
+  // Merged from price canister
+  public type PricingInfo = {
+    tier:                  Tier;
+    priceUSD:              Nat;
+    periodDays:            Nat;
+    propertyLimit:         Nat;
+    photosPerJob:          Nat;
+    quoteRequestsPerMonth: Nat;
+  };
+
   private var subscriptionEntries: [(Principal, Subscription)] = [];
   private transient var subscriptions = Map.fromIter<Principal, Subscription>(
     subscriptionEntries.vals(), Principal.compare
@@ -53,6 +63,26 @@ persistent actor Payment {
       case null { #ok({ owner = msg.caller; tier = #Free; expiresAt = 0; createdAt = Time.now() }) };
       case (?s) { #ok(s) };
     }
+  };
+
+  // ─── Pricing queries (merged from price canister) ────────────────────────────
+
+  public query func getPricing(tier: Tier) : async PricingInfo {
+    switch (tier) {
+      case (#Free)          { { tier = #Free;          priceUSD = 0;  periodDays = 0;   propertyLimit = 1; photosPerJob = 5;  quoteRequestsPerMonth = 3  } };
+      case (#Pro)           { { tier = #Pro;           priceUSD = 9;  periodDays = 30;  propertyLimit = 5; photosPerJob = 20; quoteRequestsPerMonth = 10 } };
+      case (#Premium)       { { tier = #Premium;       priceUSD = 49; periodDays = 365; propertyLimit = 0; photosPerJob = 0;  quoteRequestsPerMonth = 0  } };
+      case (#ContractorPro) { { tier = #ContractorPro; priceUSD = 29; periodDays = 30;  propertyLimit = 0; photosPerJob = 50; quoteRequestsPerMonth = 0  } };
+    }
+  };
+
+  public query func getAllPricing() : async [PricingInfo] {
+    [
+      { tier = #Free;          priceUSD = 0;  periodDays = 0;   propertyLimit = 1; photosPerJob = 5;  quoteRequestsPerMonth = 3  },
+      { tier = #Pro;           priceUSD = 9;  periodDays = 30;  propertyLimit = 5; photosPerJob = 20; quoteRequestsPerMonth = 10 },
+      { tier = #Premium;       priceUSD = 49; periodDays = 365; propertyLimit = 0; photosPerJob = 0;  quoteRequestsPerMonth = 0  },
+      { tier = #ContractorPro; priceUSD = 29; periodDays = 30;  propertyLimit = 0; photosPerJob = 50; quoteRequestsPerMonth = 0  },
+    ]
   };
 
   /// Inter-canister helper: look up the tier for an explicit Principal.

@@ -20,6 +20,14 @@ const idlFactory = ({ IDL }: any) => {
     NotAuthorized: IDL.Null,
     PaymentFailed: IDL.Text,
   });
+  const PricingInfo = IDL.Record({
+    tier:                  Tier,
+    priceUSD:              IDL.Nat,
+    periodDays:            IDL.Nat,
+    propertyLimit:         IDL.Nat,
+    photosPerJob:          IDL.Nat,
+    quoteRequestsPerMonth: IDL.Nat,
+  });
   return IDL.Service({
     subscribe: IDL.Func(
       [Tier],
@@ -29,6 +37,16 @@ const idlFactory = ({ IDL }: any) => {
     getMySubscription: IDL.Func(
       [],
       [IDL.Variant({ ok: Subscription, err: Error })],
+      ["query"]
+    ),
+    getPricing: IDL.Func(
+      [Tier],
+      [PricingInfo],
+      ["query"]
+    ),
+    getAllPricing: IDL.Func(
+      [],
+      [IDL.Vec(PricingInfo)],
       ["query"]
     ),
   });
@@ -204,6 +222,33 @@ export const paymentService = {
 
   getPlan(tier: PlanTier): Plan {
     return PLANS.find((p) => p.tier === tier) ?? PLANS[0];
+  },
+
+  async getPricing(tier: PlanTier): Promise<{ priceUSD: number; periodDays: number; propertyLimit: number; photosPerJob: number; quoteRequestsPerMonth: number } | null> {
+    if (!PAYMENT_CANISTER_ID) return null;
+    const a = await getActor();
+    const result = await a.getPricing({ [tier]: null });
+    return {
+      priceUSD:              Number(result.priceUSD),
+      periodDays:            Number(result.periodDays),
+      propertyLimit:         Number(result.propertyLimit),
+      photosPerJob:          Number(result.photosPerJob),
+      quoteRequestsPerMonth: Number(result.quoteRequestsPerMonth),
+    };
+  },
+
+  async getAllPricing(): Promise<Array<{ tier: PlanTier; priceUSD: number; periodDays: number; propertyLimit: number; photosPerJob: number; quoteRequestsPerMonth: number }>> {
+    if (!PAYMENT_CANISTER_ID) return [];
+    const a = await getActor();
+    const results = await a.getAllPricing();
+    return (results as any[]).map((r) => ({
+      tier:                  Object.keys(r.tier)[0] as PlanTier,
+      priceUSD:              Number(r.priceUSD),
+      periodDays:            Number(r.periodDays),
+      propertyLimit:         Number(r.propertyLimit),
+      photosPerJob:          Number(r.photosPerJob),
+      quoteRequestsPerMonth: Number(r.quoteRequestsPerMonth),
+    }));
   },
 
   reset() {
