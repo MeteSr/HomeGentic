@@ -316,7 +316,7 @@ The features below address the core signup conversion gap: a new homeowner visit
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 17.5.1 | Municipal permit API integration | ⬜ Missing | XL | OpenPermit.org (covers ~200 cities) + city-specific APIs (NYC DOB, Austin ISD, etc.); create `permitImport` service in `backend/` |
+| 17.5.1 | Municipal permit API integration | ✅ Exists | XL | `permitImport.ts` service + `POST /api/permits/import` relay on voice server; queries OpenPermit.org (requires `OPEN_PERMIT_API_KEY`); 24-city MVP coverage; `mapPermitTypeToServiceType` maps 9 permit categories; returns empty list in dev when key absent |
 | 17.5.2 | Permit → job record mapping | ⬜ Missing | M | Map permit fields (type, issue date, value, contractor license) to `create_maintenance_job` input; status defaults to `verified` when permit is closed |
 | 17.5.3 | Post-registration permit import trigger | ⬜ Missing | M | After `propertyService.register()` succeeds, auto-trigger permit lookup in the background; notify user "We found 3 permits on record for your address — added to your history" |
 | 17.5.4 | Permit import review UI | ⬜ Missing | M | Show imported permits as "Pending review" before committing; homeowner confirms, edits, or dismisses each; avoids polluting records with mismatched data |

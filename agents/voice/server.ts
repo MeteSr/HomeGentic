@@ -414,6 +414,65 @@ Rules:
   }
 });
 
+// ── POST /api/permits/import (§17.5.1) ───────────────────────────────────────
+// Accepts { propertyId, address, city, state, zip }
+// Queries OpenPermit.org for the parcel and returns matched permit records.
+// Returns { permits: OpenPermitRecord[] }
+app.post("/api/permits/import", async (req: Request, res: Response): Promise<void> => {
+  const { address, city, state, zip } = req.body;
+  if (!address || !city || !state || !zip) {
+    res.status(400).json({ error: "address, city, state, and zip are required" });
+    return;
+  }
+
+  try {
+    // OpenPermit.org base URL — requires OPEN_PERMIT_API_KEY in .env for production
+    const apiKey = process.env.OPEN_PERMIT_API_KEY;
+    if (!apiKey) {
+      // Dev mode: return empty permits rather than failing
+      res.json({ permits: [] });
+      return;
+    }
+
+    const query = new URLSearchParams({
+      address, city, state, zip,
+      limit: "20",
+    });
+    const upstream = await fetch(
+      `https://api.openpermit.org/v1/permits?${query.toString()}`,
+      { headers: { Authorization: `Bearer ${apiKey}` } }
+    );
+    if (!upstream.ok) {
+      res.status(502).json({ error: `OpenPermit upstream error: ${upstream.status}` });
+      return;
+    }
+    const data = await upstream.json();
+    // OpenPermit wraps results in { results: [...] }
+    const raw: any[] = data.results ?? [];
+    const permits = raw.map((p: any) => ({
+      permitNumber:         p.permit_number ?? p.id ?? "",
+      permitType:           p.permit_type ?? p.type ?? "Building Permit",
+      description:          p.description ?? p.work_description ?? "",
+      issuedDate:           (p.issued_date ?? p.issue_date ?? "").slice(0, 10),
+      status:               normalizePermitStatus(p.status ?? ""),
+      estimatedValueCents:  p.estimated_value ? Math.round(p.estimated_value * 100) : undefined,
+      contractorLicense:    p.contractor_license ?? undefined,
+      contractorName:       p.contractor_name   ?? undefined,
+    }));
+    res.json({ permits });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message ?? "Internal server error" });
+  }
+});
+
+function normalizePermitStatus(raw: string): "Open" | "Finaled" | "Expired" | "Cancelled" {
+  const s = raw.toLowerCase();
+  if (s.includes("final") || s.includes("closed") || s.includes("complete")) return "Finaled";
+  if (s.includes("expir"))    return "Expired";
+  if (s.includes("cancel") || s.includes("void")) return "Cancelled";
+  return "Open";
+}
+
 // ── GET /health ───────────────────────────────────────────────────────────────
 app.get("/health", (_req, res) => {
   res.json({ ok: true, model: "claude-sonnet-4-6" });
