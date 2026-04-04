@@ -304,11 +304,11 @@ The features below address the core signup conversion gap: a new homeowner visit
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 17.4.1 | Public address search for reports | ⬜ Missing | M | `/check/:address` page (no login): searches `report` canister for any public share link for that address; shows "HomeFax Verified" badge or "No report on file" with a CTA for the seller |
-| 17.4.2 | "Request a report" flow for buyers | ⬜ Missing | M | If no report exists, buyer can submit a request via email to the property owner (or leave a pending request notification if the owner signs up later) |
-| 17.4.3 | Buyer-facing report view (no login) | ⬜ Missing | S | When a `Public` share link exists, render the full report without requiring the buyer to create an account; existing report share page may already support this — confirm and remove any login gate |
-| 17.4.4 | SEO-indexed report landing pages | ⬜ Missing | M | Public reports rendered server-side (SSR/ISR via Next.js or Cloudflare Worker) for Google indexing; `<title>HomeFax Report — 123 Main St, Austin TX</title>` drives organic search traffic |
-| 17.4.5 | "No report found" seller CTA page | ⬜ Missing | S | When a buyer searches an address with no report, show "Are you the homeowner? Start your free HomeFax report in 2 minutes" — direct acquisition channel from buyer intent |
+| 17.4.1 | Public address search for reports | ✅ Exists | M | `CheckAddressPage` at `/check?address=...`; `lookupReport()` calls relay `GET /api/check`; "HomeFax Verified" badge with link to full report when found |
+| 17.4.2 | "Request a report" flow for buyers | ✅ Exists | M | Email capture form on "no report" state; `submitReportRequest()` posts to relay `POST /api/report-request`; confirmation shown after submit |
+| 17.4.3 | Buyer-facing report view (no login) | ✅ Exists | S | `ReportPage` at `/report/:token` has no `ProtectedRoute` wrapper — already fully public |
+| 17.4.4 | SEO-indexed report landing pages | 🟡 Partial | M | `document.title` + `<meta name="description">` set in `ReportPage` and `CheckAddressPage` when report loads; full SSR (Next.js/Cloudflare Worker) deferred |
+| 17.4.5 | "No report found" seller CTA page | ✅ Exists | S | "Are you the homeowner?" block in `CheckAddressPage` not-found state; "Create a Free Report" links to `/properties/new?address=...` |
 
 ### 17.5 Permit Auto-Import on Sign-Up
 

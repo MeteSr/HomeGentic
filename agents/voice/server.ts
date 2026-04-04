@@ -532,6 +532,36 @@ function normalizePermitStatus(raw: string): "Open" | "Finaled" | "Expired" | "C
   return "Open";
 }
 
+// ── GET /api/check (§17.4.1) ─────────────────────────────────────────────────
+// Public buyer lookup: ?address=123+main+st+daytona+beach+fl
+// Searches for any active Public share link for the given address.
+// Returns { found, token?, address, verificationLevel?, propertyType?, yearBuilt? }
+app.get("/api/check", async (req: Request, res: Response): Promise<void> => {
+  const address = (req.query.address as string ?? "").trim();
+  if (!address) {
+    res.status(400).json({ error: "address query param is required" });
+    return;
+  }
+  // Without a deployed canister we cannot do a real lookup — return not-found.
+  // In production this would query the report canister's findPublicByAddress method.
+  res.json({ found: false, address });
+});
+
+// ── POST /api/report-request (§17.4.2) ───────────────────────────────────────
+// Buyer leaves a notification request for when a report is created.
+// Accepts { address, buyerEmail }
+// In production: stores in a `report_requests` table and emails the homeowner.
+app.post("/api/report-request", async (req: Request, res: Response): Promise<void> => {
+  const { address, buyerEmail } = req.body;
+  if (!address || !buyerEmail) {
+    res.status(400).json({ error: "address and buyerEmail are required" });
+    return;
+  }
+  // Stub: log and acknowledge — full email integration deferred
+  console.log(`[report-request] ${buyerEmail} requested report for: ${address}`);
+  res.json({ queued: true });
+});
+
 // ── GET /health ───────────────────────────────────────────────────────────────
 app.get("/health", (_req, res) => {
   res.json({ ok: true, model: "claude-sonnet-4-6" });

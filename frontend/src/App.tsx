@@ -47,6 +47,7 @@ const AgentPublicPage            = React.lazy(() => import("@/pages/AgentPublicP
 const AgentBrowsePage            = React.lazy(() => import("@/pages/AgentBrowsePage"));
 const FsboListingPage            = React.lazy(() => import("@/pages/FsboListingPage"));
 const HomeSystemsEstimatorPage   = React.lazy(() => import("@/pages/HomeSystemsEstimatorPage"));
+const CheckAddressPage           = React.lazy(() => import("@/pages/CheckAddressPage"));
 
 const PageLoader = () => (
   <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#F4F1EB" }}>
@@ -112,6 +113,7 @@ export default function App() {
 
           {/* Public — no auth required */}
           <Route path="/home-systems"          element={<HomeSystemsEstimatorPage />} />
+          <Route path="/check"                 element={<CheckAddressPage />} />
           <Route path="/report/:token"         element={<ReportPage />} />
           <Route path="/badge/:token"          element={<BadgePage />} />
           <Route path="/cert/:token"           element={<ScoreCertPage />} />
