@@ -258,6 +258,98 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 
 ---
 
+## 17. Growth & Activation — "Inexplicable Not To Sign Up"
+
+The features below address the core signup conversion gap: a new homeowner visits HomeFax, reads the pitch, but has no immediate, personally-felt reason to create an account today. Each item below corresponds to a product lever that makes the value tangible before sign-up, or dramatically lowers the cost of getting that value.
+
+### 17.1 Pre-Quote Price Benchmarking by Zip Code
+
+**Vision:** Before a homeowner ever submits a quote request, show them what that job actually costs in their area. Eliminates "am I getting ripped off?" anxiety and makes HomeFax the first stop for any repair decision.
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 17.1.1 | Zip-code price benchmark data source | ⬜ Missing | L | Aggregate from closed bids in the `quote` canister (anonymized) + seed with Homewyse / RSMeans baseline data; store in a new `pricing_benchmark` canister or extend `price` canister |
+| 17.1.2 | `get_price_benchmark` agent tool | ⬜ Missing | M | Takes `serviceType` + `zipCode`; returns `{ low, median, high }` in dollars with sample size; agent quotes ranges conversationally |
+| 17.1.3 | Price benchmark UI widget on quote request page | ⬜ Missing | M | Show "Typical cost in [zip]: $800–$1,200" inline before the homeowner submits; no login required to view |
+| 17.1.4 | Public price lookup page (no login) | ⬜ Missing | M | `/prices?service=roofing&zip=33101` — shareable, SEO-indexed; CTA to "Get quotes from verified contractors" drives registration |
+| 17.1.5 | Benchmark confidence indicator | ⬜ Missing | S | Show sample size ("based on 47 local jobs") and last-updated date; hide widget when sample < 5 to avoid misleading ranges |
+
+### 17.2 Zero-Effort Onboarding — Instant Value Before First Login
+
+**Vision:** Enter your address → get a real maintenance forecast in under 30 seconds. No account needed for the first impression; account creation locks in the data.
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 17.2.1 | Public address → forecast endpoint | ⬜ Missing | M | Unauthenticated API: accepts address, returns `MaintenanceForecastContext` derived from year built + property type (sourced from public records or user input); no canister write, stateless |
+| 17.2.2 | Pre-auth forecast landing page | ⬜ Missing | M | `/instant-forecast` page: address autocomplete + year-built input → renders forecast summary (critical systems, estimated 10-year budget); no login wall |
+| 17.2.3 | "Save your forecast" conversion CTA | ⬜ Missing | S | After forecast renders, prompt "Create a free account to track this property and log maintenance" — one click preserves the forecast into the user's registered property |
+| 17.2.4 | Public records year-built lookup | ⬜ Missing | L | Integrate ATTOM Data or a county assessor API to auto-fill year built from address; reduces user friction to zero inputs |
+| 17.2.5 | Forecast → account migration | ⬜ Missing | S | After sign-up, pre-populate `propertyService.register()` with the address and year built from the pre-auth session; forecast is immediately available in the dashboard |
+
+### 17.3 Score → Dollar Value Translation
+
+**Vision:** Replace the abstract "your score is 74/100" with "your verified maintenance records add an estimated $18,400 to your home's resale value." Converts an engagement metric into a financial asset the homeowner owns.
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 17.3.1 | Score-to-dollar conversion model | ⬜ Missing | L | Model maps score + property value (estimated from Zestimate API or user-entered) to resale premium; basis: NAR/NerdWallet data showing documented maintenance = 1–3% value uplift; store coefficients in `market` canister |
+| 17.3.2 | Dollar value display on score page | ⬜ Missing | M | "Your HomeFax records are worth approximately $[X] in buyer confidence" shown prominently on `ScorePage`; updates as score changes |
+| 17.3.3 | Dollar delta on job log | ⬜ Missing | S | When a job is logged and verified, show "+$[estimated delta] added to your home's documented value" in the confirmation UI |
+| 17.3.4 | Property value input / Zestimate integration | ⬜ Missing | M | Allow homeowner to enter estimated home value; optional: pull from Zillow Zestimate API if available; store on `property` canister as `estimatedValueDollars` |
+| 17.3.5 | Score value section in HomeFax Report | ⬜ Missing | S | Report includes "Documented maintenance value: $[X]" line in the summary section shown to buyers |
+
+### 17.4 Buyer-Side Product — Public Report Lookup
+
+**Vision:** Buyers search by address to pull a public HomeFax report before making an offer. This is the top-of-funnel for homeowner sign-ups: buyers ask sellers "why don't you have a HomeFax report?"
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 17.4.1 | Public address search for reports | ⬜ Missing | M | `/check/:address` page (no login): searches `report` canister for any public share link for that address; shows "HomeFax Verified" badge or "No report on file" with a CTA for the seller |
+| 17.4.2 | "Request a report" flow for buyers | ⬜ Missing | M | If no report exists, buyer can submit a request via email to the property owner (or leave a pending request notification if the owner signs up later) |
+| 17.4.3 | Buyer-facing report view (no login) | ⬜ Missing | S | When a `Public` share link exists, render the full report without requiring the buyer to create an account; existing report share page may already support this — confirm and remove any login gate |
+| 17.4.4 | SEO-indexed report landing pages | ⬜ Missing | M | Public reports rendered server-side (SSR/ISR via Next.js or Cloudflare Worker) for Google indexing; `<title>HomeFax Report — 123 Main St, Austin TX</title>` drives organic search traffic |
+| 17.4.5 | "No report found" seller CTA page | ⬜ Missing | S | When a buyer searches an address with no report, show "Are you the homeowner? Start your free HomeFax report in 2 minutes" — direct acquisition channel from buyer intent |
+
+### 17.5 Permit Auto-Import on Sign-Up
+
+**Vision:** On registration, pull every permit on record for the address from municipal databases and pre-populate the job history. The homeowner sees value before they type a single thing.
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 17.5.1 | Municipal permit API integration | ⬜ Missing | XL | OpenPermit.org (covers ~200 cities) + city-specific APIs (NYC DOB, Austin ISD, etc.); create `permitImport` service in `backend/` |
+| 17.5.2 | Permit → job record mapping | ⬜ Missing | M | Map permit fields (type, issue date, value, contractor license) to `create_maintenance_job` input; status defaults to `verified` when permit is closed |
+| 17.5.3 | Post-registration permit import trigger | ⬜ Missing | M | After `propertyService.register()` succeeds, auto-trigger permit lookup in the background; notify user "We found 3 permits on record for your address — added to your history" |
+| 17.5.4 | Permit import review UI | ⬜ Missing | M | Show imported permits as "Pending review" before committing; homeowner confirms, edits, or dismisses each; avoids polluting records with mismatched data |
+| 17.5.5 | Permit import coverage indicator | ⬜ Missing | S | Show "Permit data available for [city]" or "Permit data not available in your area" during registration so users know what to expect |
+
+### 17.6 Email Receipt Forwarding → Auto-Log
+
+**Vision:** Forward any contractor receipt to receipts@homefax.app and the job is logged automatically. Zero-friction logging that works without opening the app.
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 17.6.1 | Inbound email endpoint | ⬜ Missing | L | Set up `receipts@homefax.app` via Postmark / SendGrid Inbound Parse or AWS SES; route to a new `emailParser` Node.js service |
+| 17.6.2 | Email → principal mapping | ⬜ Missing | M | User registers a forwarding email address in account settings (stored on `auth` canister); inbound email matched to principal by `From` or `Reply-To` header |
+| 17.6.3 | Claude vision receipt extraction | ⬜ Missing | M | `emailParser` passes attachments (PDF/JPG invoices) to Claude API with vision; extracts contractor, service, date, amount using same prompt as §16.6 |
+| 17.6.4 | Extracted job → canister write | ⬜ Missing | M | After extraction, calls `jobService.create()` on behalf of the matched principal; sets `status: "pending_homeowner"` so homeowner can review before it counts toward score |
+| 17.6.5 | Confirmation email to homeowner | ⬜ Missing | S | Send "We logged a [service] job for $[amount] on [date] — tap to confirm or edit" email with a magic link back to the pending job |
+| 17.6.6 | Email forwarding setup UI | ⬜ Missing | S | Account settings page: "Forward receipts to receipts@homefax.app from [your email]" with copy button and status indicator |
+| 17.6.7 | Attachment-less email handling | ⬜ Missing | S | If email has no attachment, parse the email body as plain text receipt; fall back to asking the homeowner to resend with the attachment |
+
+### 17.7 Public System Age Estimator (No Login)
+
+**Vision:** Enter your home's year built → see estimated ages and remaining lifespan of every major system. No login. Drives sign-up by making abstract risk concrete and personal.
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 17.7.1 | Public estimator page | ⬜ Missing | M | `/home-systems?yearBuilt=1998&type=single-family` — renders a system age table (roof, HVAC, water heater, etc.) with urgency indicators; no login; existing `maintenanceService.predictMaintenance()` logic reused |
+| 17.7.2 | Shareable estimator URL | ⬜ Missing | S | URL params encode inputs so homeowners can share "check your home's systems" link with neighbors; drives organic referral |
+| 17.7.3 | "Track this property" CTA | ⬜ Missing | S | Below the estimator, "Sign up free to track real maintenance history and improve your score" — converts estimation curiosity into registration intent |
+| 17.7.4 | Estimator embeddable widget | ⬜ Missing | M | JavaScript embed snippet (`<script src="https://homefax.app/widget.js">`) for real estate blogs, HOA sites, and home inspector websites; renders estimator inline; CTA links back to HomeFax |
+| 17.7.5 | Estimator → forecast migration | ⬜ Missing | S | After sign-up from estimator, the year-built input pre-populates property registration; maintenance forecast is immediately available — same as §17.2.5 |
+
+---
+
 ## 14. Technical Debt & Architecture
 
 ### 14.1 Inter-Canister Call Audit (post-consolidation)
