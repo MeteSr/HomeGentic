@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader2, Mic, MicOff, Volume2, X, History, ChevronDown, ChevronUp, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, Mic, MicOff, Volume2, X, History, ChevronDown, ChevronUp, AlertTriangle, CheckCircle, XCircle, Paperclip } from "lucide-react";
 import { useVoiceAgent } from "../hooks/useVoiceAgent";
 import { COLORS, FONTS, RADIUS } from "@/theme";
 
@@ -18,11 +18,13 @@ export function VoiceAgent() {
   const navigate = useNavigate();
   const {
     state, transcript, response, error, isSupported,
-    alerts, history, clearHistory,
+    alerts, history, clearHistory, pendingImage,
     startListening, stopListening, reset,
+    attachImage, clearImage, sendImageToAgent,
   } = useVoiceAgent();
 
   const [showHistory, setShowHistory] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isSupported) return null;
 
@@ -172,6 +174,27 @@ export function VoiceAgent() {
         </div>
       )}
 
+      {/* Pending image indicator */}
+      {pendingImage && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: "0.5rem",
+          background: COLORS.plum, border: `1px solid ${COLORS.rule}`,
+          padding: "0.35rem 0.75rem", borderRadius: RADIUS.sm,
+        }}>
+          <Paperclip size={10} color={COLORS.sage} />
+          <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: COLORS.plumMid }}>
+            Image attached — tap mic to describe it
+          </span>
+          <button
+            onClick={clearImage}
+            style={{ background: "none", border: "none", cursor: "pointer", color: COLORS.plumMid, padding: 0, display: "flex" }}
+            aria-label="Remove image"
+          >
+            <X size={10} />
+          </button>
+        </div>
+      )}
+
       {/* Mic button */}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.375rem" }}>
         <button
@@ -205,6 +228,40 @@ export function VoiceAgent() {
           {isIdle       && "Ask HomeFax"}
         </span>
       </div>
+
+      {/* Hidden file input for image attachment (16.6.1) */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/gif,image/webp"
+        style={{ display: "none" }}
+        aria-label="Attach receipt or photo"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) attachImage(file);
+          e.target.value = "";
+        }}
+      />
+
+      {/* Attach button */}
+      {isIdle && (
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          aria-label="Attach a receipt or photo"
+          title="Attach a receipt or photo for the agent to read"
+          style={{
+            width: "2rem", height: "2rem",
+            borderRadius: RADIUS.pill,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            border: `1px solid ${COLORS.rule}`,
+            backgroundColor: COLORS.plum,
+            cursor: "pointer",
+            alignSelf: "flex-end",
+          }}
+        >
+          <Paperclip size={13} color={pendingImage ? COLORS.sage : COLORS.plumMid} />
+        </button>
+      )}
     </div>
   );
 }

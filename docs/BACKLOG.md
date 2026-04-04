@@ -240,9 +240,9 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 16.6.1 | Image upload in chat UI | ⬜ Missing | M | Add file/photo input to the `VoiceAgent` component; encode image as base64 and attach to the `/api/agent` payload |
-| 16.6.2 | Vision support in agent server | ⬜ Missing | M | Update `/api/agent` request handler to accept an optional `imageBase64` field; pass it as an `image` content block in the Claude API message |
-| 16.6.3 | Receipt extraction → job pre-fill | ⬜ Missing | M | Agent extracts contractor name, service type, amount, and date from the image; confirms the extracted values with the user before calling `create_maintenance_job`; handles illegible receipts gracefully |
+| 16.6.1 | Image upload in chat UI | ✅ Exists | M | `VoiceAgent` has a hidden file input + paperclip button; `attachImage(file)` in `useVoiceAgent` calls `fileToBase64()` and stores `pendingImage` state; pending indicator shown with X to clear |
+| 16.6.2 | Vision support in agent server | ✅ Exists | M | `buildImageUserMessage()` in `imageUtils.ts` builds Claude-compatible `[image, text]` content block; `runAgentLoop` prepends it when `pendingImage` is set; server JSON limit raised to 5MB |
+| 16.6.3 | Receipt extraction → job pre-fill | ✅ Exists | M | System prompt instructs agent to extract contractor/service/date/amount from image, confirm all fields before calling `create_maintenance_job`, and handle illegible images gracefully |
 
 ### 16.7 Contractor Role Context
 

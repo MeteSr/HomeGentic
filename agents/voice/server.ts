@@ -23,7 +23,7 @@ if (!allowedOrigin) {
 const origin = allowedOrigin ?? "http://localhost:3000";
 
 app.use(cors({ origin }));
-app.use(express.json({ limit: "64kb" }));
+app.use(express.json({ limit: "5mb" }));  // raised for base64 image payloads (16.6)
 
 // 14.3.2 — rate limiting: 30 req/min/IP on all /api/ routes
 const apiLimiter = rateLimit({

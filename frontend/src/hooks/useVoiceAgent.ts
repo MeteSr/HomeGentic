@@ -10,6 +10,7 @@ import { marketService, jobToSummary } from "../services/market";
 import { buildMaintenanceForecast } from "../services/maintenanceForecast";
 import { buildScoreTrend } from "../services/scoreTrend";
 import { loadHistory } from "../services/scoreService";
+import { buildImageUserMessage, fileToBase64, type SupportedImageMimeType } from "../services/imageUtils";
 
 // ── Minimal message types (mirrors Anthropic SDK without importing it) ─────────
 
@@ -40,17 +41,21 @@ export interface ProactiveAlert {
 }
 
 export interface UseVoiceAgentReturn {
-  state:           VoiceAgentState;
-  transcript:      string;
-  response:        string;
-  error:           string | null;
-  isSupported:     boolean;
-  alerts:          ProactiveAlert[];
-  history:         AgentAction[];
-  clearHistory:    () => void;
-  startListening:  () => void;
-  stopListening:   () => void;
-  reset:           () => void;
+  state:              VoiceAgentState;
+  transcript:         string;
+  response:           string;
+  error:              string | null;
+  isSupported:        boolean;
+  alerts:             ProactiveAlert[];
+  history:            AgentAction[];
+  pendingImage:       { base64: string; mimeType: string } | null;
+  clearHistory:       () => void;
+  startListening:     () => void;
+  stopListening:      () => void;
+  reset:              () => void;
+  attachImage:        (file: File) => Promise<void>;
+  clearImage:         () => void;
+  sendImageToAgent:   (userText: string) => void;
 }
 
 // ── Config ─────────────────────────────────────────────────────────────────────
@@ -78,6 +83,7 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
   const [response,   setResponse]   = useState("");
   const [error,      setError]      = useState<string | null>(null);
   const [alerts,     setAlerts]     = useState<ProactiveAlert[]>([]);
+  const [pendingImage, setPendingImage] = useState<{ base64: string; mimeType: string } | null>(null);
 
   const recognitionRef     = useRef<any>(null);
   const finalTranscriptRef = useRef("");
@@ -272,13 +278,19 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
 
   // ── Agentic loop ─────────────────────────────────────────────────────────────
 
-  const runAgentLoop = useCallback(async (userMessage: string) => {
+  const runAgentLoop = useCallback(async (userMessage: string, image?: { base64: string; mimeType: string }) => {
     setState("processing");
     setResponse("");
 
     try {
       const context = await buildContext();
-      const messages: MessageParam[] = [{ role: "user", content: userMessage }];
+
+      // If an image is attached, prepend it as an image+text content block (16.6.2)
+      const firstMessage: MessageParam = image
+        ? buildImageUserMessage(userMessage, image.base64, image.mimeType) as unknown as MessageParam
+        : { role: "user", content: userMessage };
+
+      const messages: MessageParam[] = [firstMessage];
 
       for (let turn = 0; turn < MAX_TURNS; turn++) {
         const res = await fetch(`${PROXY_URL}/api/agent`, {
@@ -432,13 +444,35 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
     setTranscript("");
     setResponse("");
     setError(null);
+    setPendingImage(null);
     finalTranscriptRef.current = "";
     setState("idle");
   }, []);
 
+  // ── Image attachment helpers (16.6.1) ─────────────────────────────────────
+
+  const attachImage = useCallback(async (file: File) => {
+    try {
+      const base64 = await fileToBase64(file);
+      setPendingImage({ base64, mimeType: file.type as SupportedImageMimeType });
+    } catch {
+      setError("Could not read the selected image. Please try again.");
+    }
+  }, []);
+
+  const clearImage = useCallback(() => setPendingImage(null), []);
+
+  /** Sends a text message together with the currently attached image. */
+  const sendImageToAgent = useCallback((userText: string) => {
+    if (!pendingImage) return;
+    setPendingImage(null);
+    runAgentLoop(userText, pendingImage);
+  }, [pendingImage, runAgentLoop]);
+
   return {
     state, transcript, response, error, isSupported,
-    alerts, history, clearHistory,
+    alerts, history, clearHistory, pendingImage,
     startListening, stopListening, reset,
+    attachImage, clearImage, sendImageToAgent,
   };
 }
