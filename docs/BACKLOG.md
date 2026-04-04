@@ -184,6 +184,80 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 
 ---
 
+## 16. AI Agent — Expanded Capabilities
+
+### 16.1 Predictive Maintenance Intelligence
+
+**Context:** `maintenanceService.predictMaintenance()` already computes system lifespan estimates, replacement windows, and cost forecasts from year built + job history. The agent currently ignores this entirely. Wiring it in turns generic maintenance advice into property-specific predictions.
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 16.1.1 | Inject predictive maintenance data into agent context | ⬜ Missing | M | In `buildContext()`, call `maintenanceService.predictMaintenance()` for the first (or active) property; add a `maintenancePredictions` field to `AgentContext` and render it in `prompts.ts` |
+| 16.1.2 | System lifespan section in system prompt | ⬜ Missing | S | For each system with a predicted replacement window within 5 years, include: system name, estimated remaining life, replacement cost range, and urgency; agent uses this to give data-driven answers to "is my roof due?" |
+| 16.1.3 | `get_maintenance_forecast` tool | ⬜ Missing | M | Explicit tool for when the user asks about a specific system; returns remaining life estimate, next recommended service, and cost range; calls `maintenanceService.predictMaintenance()` filtered to requested system |
+| 16.1.4 | Proactive replacement alerts in agent greeting | ⬜ Missing | S | If any system is within 12 months of predicted end-of-life, surface it as a proactive alert alongside existing warranty/signature alerts |
+
+### 16.2 Bid Management
+
+**Context:** The agent knows a quote request exists (`openQuoteCount`) but cannot show, compare, or act on bids. The full quote → bid → accept/decline loop is invisible.
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 16.2.1 | Inject open quotes + bids into agent context | ⬜ Missing | M | In `buildContext()`, fetch full quote requests (not just count); for each open request include: service type, description, bid count, top bid amount and contractor name; add to `AgentContext` |
+| 16.2.2 | `list_bids` tool | ⬜ Missing | M | Returns all bids for a given quote request ID, sorted by amount; agent summarises top 3 with contractor name, trust score, and price |
+| 16.2.3 | `accept_bid` tool | ⬜ Missing | M | Accepts a bid by contractor ID on a given quote request; calls `quoteService.acceptBid()`; agent confirms intent before calling |
+| 16.2.4 | `decline_quote` tool | ⬜ Missing | S | Closes a quote request without accepting any bid; agent asks for reason and records it |
+
+### 16.3 Score Trend & Coaching
+
+**Context:** Score history is already stored as weekly snapshots in localStorage. The agent can report the current score but cannot explain movement or proactively coach users toward the next milestone.
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 16.3.1 | Inject score trend into agent context | ⬜ Missing | S | In `buildContext()`, call `loadHistory()` from `scoreService`; compute delta vs. previous snapshot; add `scoreDelta` and `scoreHistory` (last 4 snapshots) to context |
+| 16.3.2 | Score trend section in system prompt | ⬜ Missing | S | If delta is non-zero, include: "Score moved from X to Y since last week (+/- Z pts)" so agent can explain changes without being asked |
+| 16.3.3 | Score milestone coaching | ⬜ Missing | M | When user is within 5 pts of a grade boundary (e.g. 75 → B, 88 → HomeFax Certified), agent proactively identifies the single cheapest action to cross it and volunteers it unprompted |
+
+### 16.4 Post-Job Review Prompting
+
+**Context:** After a job is signed, the agent currently says nothing more. Contractor reviews are a trust signal that benefit the whole marketplace — closing the loop in-conversation is the highest-leverage place to collect them.
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 16.4.1 | Post-sign review prompt | ⬜ Missing | S | After `sign_job_verification` succeeds and a contractor was involved, agent follows up: "Would you like to leave a review for [contractor]? It helps other homeowners and improves their trust score." |
+| 16.4.2 | `submit_contractor_review` tool | ⬜ Missing | M | Collects rating (1–5) and optional comment conversationally; calls `contractorService.submitReview()`; enforces the existing 10-reviews/day/user rate limit via error handling |
+
+### 16.5 Natural Language Report Sharing
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 16.5.1 | `share_report` tool | ⬜ Missing | M | User says "share my report with my realtor"; agent asks for visibility level (Public / Private / LinkOnly) and optional expiry; calls `reportService.createShareLink()`; returns the URL for the user to copy |
+| 16.5.2 | `revoke_report_link` tool | ⬜ Missing | S | User says "revoke the report I shared last week"; agent lists active share links and confirms before calling `reportService.revokeLink()` |
+
+### 16.6 Receipt & Document Photo Parsing (Vision)
+
+**Context:** Claude supports vision in the API. If a user attaches a photo of a receipt or contractor invoice, the agent can extract job details and pre-fill `create_maintenance_job` — dramatically lowering logging friction.
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 16.6.1 | Image upload in chat UI | ⬜ Missing | M | Add file/photo input to the `VoiceAgent` component; encode image as base64 and attach to the `/api/agent` payload |
+| 16.6.2 | Vision support in agent server | ⬜ Missing | M | Update `/api/agent` request handler to accept an optional `imageBase64` field; pass it as an `image` content block in the Claude API message |
+| 16.6.3 | Receipt extraction → job pre-fill | ⬜ Missing | M | Agent extracts contractor name, service type, amount, and date from the image; confirms the extracted values with the user before calling `create_maintenance_job`; handles illegible receipts gracefully |
+
+### 16.7 Contractor Role Context
+
+**Context:** The agent currently has no awareness of the logged-in user's role. A contractor logging in gets the homeowner experience — no lead feed, no bid tools, no earnings summary.
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 16.7.1 | Inject role + contractor profile into agent context | ⬜ Missing | M | In `buildContext()`, read role from `useAuthStore`; if Contractor, fetch contractor profile and inject `specialties`, `trustScore`, `jobsCompleted`, `isVerified`; pass role to `AgentContext` |
+| 16.7.2 | Role-aware system prompt branching | ⬜ Missing | S | `buildSystemPrompt()` renders a contractor-specific persona and instructions when `ctx.role === "Contractor"`: focus on leads, bids, job signing, and earnings rather than homeowner maintenance |
+| 16.7.3 | `list_leads` tool | ⬜ Missing | M | Returns open quote requests matching the contractor's `specialties[]`; agent summarises top opportunities by urgency and estimated value |
+| 16.7.4 | `submit_bid` tool | ⬜ Missing | M | Contractor describes their bid conversationally; agent collects amount and notes, confirms, calls `quoteService.submitBid()`; follows up with "I'll notify you when the homeowner responds" |
+| 16.7.5 | `get_earnings_summary` tool | ⬜ Missing | S | Returns completed job count, total earnings, and pending payment amount; reads from `jobService` filtered to contractor's principal |
+
+---
+
 ## 14. Technical Debt & Architecture
 
 ### 14.1 Inter-Canister Call Audit (post-consolidation)
