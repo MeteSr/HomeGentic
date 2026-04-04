@@ -44,6 +44,42 @@ export function buildSystemPrompt(ctx: AgentContext): string {
       ? `\nOpen quote requests: ${ctx.openQuoteCount} (contractors may be responding)`
       : "";
 
+  const scoreSection = ctx.score
+    ? (() => {
+        const s = ctx.score;
+        const bd = s.breakdown;
+        const parts = [
+          `\nHomeFax Score: ${s.score}/100 (grade ${s.grade})`,
+          `  Breakdown — verified jobs: ${bd.verifiedJobPts}/40 pts, ` +
+            `documented value: ${bd.valuePts}/20 pts, ` +
+            `property verification: ${bd.verificationPts}/20 pts, ` +
+            `job diversity: ${bd.diversityPts}/20 pts`,
+        ];
+        if (s.recentEvents.length > 0) {
+          parts.push(
+            "  Recent score events: " +
+              s.recentEvents.slice(0, 4).map((e) => `${e.label} (+${e.pts} pts)`).join(", ")
+          );
+        }
+        if (s.nextActions.length > 0) {
+          parts.push("  To improve the score: " + s.nextActions.join("; "));
+        }
+        return parts.join("\n");
+      })()
+    : "";
+
+  const recsSection =
+    ctx.topRecommendations && ctx.topRecommendations.length > 0
+      ? "\nTop value-add project recommendations:\n" +
+        ctx.topRecommendations
+          .map(
+            (r) =>
+              `- ${r.name} (${r.priority} priority): ~$${r.estimatedCostDollars.toLocaleString()}, ` +
+              `${r.estimatedRoiPercent}% ROI — ${r.rationale}`
+          )
+          .join("\n")
+      : "";
+
   return `You are the HomeFax Assistant — a knowledgeable, friendly advisor specializing in home maintenance and property value.
 
 Your areas of expertise:
@@ -82,5 +118,5 @@ Voice response rules — these are mandatory:
 - Write as you would speak: natural, conversational, clear.
 - For cost estimates, give a realistic range (e.g. "typically between eight hundred and twelve hundred dollars") and note that local rates vary.
 - If the user's property or job data is relevant to their question, reference it directly.
-${propertySection}${jobSection}${warrantySection}${pendingSection}${quotesSection}`;
+${propertySection}${jobSection}${warrantySection}${pendingSection}${quotesSection}${scoreSection}${recsSection}`;
 }

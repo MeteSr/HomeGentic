@@ -4,6 +4,9 @@ import { jobService } from "../services/job";
 import { quoteService } from "../services/quote";
 import { executeTool, toolActionLabel, type ToolName } from "../services/agentTools";
 import { useAgentHistory, type AgentAction } from "./useAgentHistory";
+import { computeScore, computeBreakdown, getScoreGrade } from "../services/scoreService";
+import { getRecentScoreEvents } from "../services/scoreEventService";
+import { marketService, jobToSummary } from "../services/market";
 
 // ── Minimal message types (mirrors Anthropic SDK without importing it) ─────────
 
@@ -122,6 +125,53 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
       (q) => q.status === "open" || q.status === "quoted"
     ).length;
 
+    // ── Score ──────────────────────────────────────────────────────────────────
+    const score     = computeScore(jobs, properties);
+    const grade     = getScoreGrade(score);
+    const breakdown = computeBreakdown(jobs, properties);
+    const events    = getRecentScoreEvents(jobs, properties);
+
+    // Derive plain-English next-action tips from what's missing in the breakdown
+    const nextActions: string[] = [];
+    if (breakdown.verifiedJobPts < 40) {
+      const needed = Math.ceil((40 - breakdown.verifiedJobPts) / 4);
+      nextActions.push(`verify ${needed} more job${needed > 1 ? "s" : ""} to gain up to ${40 - breakdown.verifiedJobPts} pts`);
+    }
+    if (breakdown.diversityPts < 20) {
+      const verifiedTypes = new Set(jobs.filter((j) => j.verified || j.status === "verified").map((j) => j.serviceType)).size;
+      const needed = Math.ceil((20 - breakdown.diversityPts) / 4);
+      if (needed > 0) nextActions.push(`document ${needed} more system type${needed > 1 ? "s" : ""} (e.g. HVAC, Roofing, Plumbing, Electrical) for up to ${20 - breakdown.diversityPts} diversity pts`);
+    }
+    if (breakdown.valuePts < 20) {
+      nextActions.push(`log more job costs — each additional $2,500 documented adds 1 value pt (up to 20 pts)`);
+    }
+    if (breakdown.verificationPts < 20 && properties.some((p) => p.verificationLevel === "Unverified" || p.verificationLevel === "PendingReview")) {
+      nextActions.push(`complete property verification to earn 5–10 verification pts`);
+    }
+
+    // ── Value-add recommendations (top 3, first property) ────────────────────
+    const topRecommendations = (() => {
+      if (properties.length === 0) return [];
+      const p = properties[0];
+      const profile = {
+        yearBuilt:    Number(p.yearBuilt),
+        squareFeet:   Number(p.squareFeet),
+        propertyType: String(p.propertyType),
+        state:        p.state,
+        zipCode:      p.zipCode,
+      };
+      const jobSummaries = jobs.map(jobToSummary);
+      return marketService.recommendValueAddingProjects(profile, jobSummaries, 0)
+        .slice(0, 3)
+        .map((r) => ({
+          name:                 r.name,
+          estimatedCostDollars: Math.round(r.estimatedCostCents / 100),
+          estimatedRoiPercent:  r.estimatedRoiPercent,
+          priority:             r.priority,
+          rationale:            r.rationale,
+        }));
+    })();
+
     return {
       properties: properties.map((p) => ({
         id:                String(p.id),
@@ -134,6 +184,14 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
         squareFeet:        Number(p.squareFeet),
         verificationLevel: p.verificationLevel,
       })),
+      score: {
+        score,
+        grade,
+        breakdown,
+        recentEvents: events.slice(0, 5).map((e) => ({ label: e.label, pts: e.pts, category: e.category })),
+        nextActions,
+      },
+      topRecommendations,
       recentJobs: jobs.slice(0, 15).map((j) => ({
         id:             j.id,
         serviceType:    j.serviceType,

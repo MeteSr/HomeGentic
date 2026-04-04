@@ -197,3 +197,115 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 | 14.1.4 | Update CLAUDE.md canister map | ⬜ Missing | S | Remove `price` and `room` rows; update `payment` row to note merged pricing queries; update `property` row to note merged room/fixture CRUD |
 
 ---
+
+## 15. Native Mobile Apps (iOS & Android)
+
+**Vision:** React Native app (one codebase, two roles) giving homeowners and contractors on-the-go access to HomeFax. V1 is read-first with push notifications; write operations come in V2.
+
+**Key constraints:**
+- Authentication via Internet Identity requires a WebView bridge (SafariViewController on iOS, Chrome Custom Tab on Android) with a `homefax://auth` deep-link callback to capture the delegation.
+- No in-app purchases. Upgrade CTAs open `https://homefax.app/pricing` in the browser (Apple policy compliance — App Store will reject any upgrade UI that collects payment inside the app).
+- Push notifications require new backend infrastructure (APNs + FCM relay) — the ICP canisters have no native push capability.
+
+**Architecture decision — agent-first UI:**
+The primary interface is a chat window backed by the existing voice agent (`agents/voice/server.ts`). The agent handles most task initiation conversationally (log a job, request a quote, find a contractor, view score, browse leads, submit a bid). Traditional screens are built only where chat is genuinely worse: photo upload (camera), report viewing (WebView/PDF), and list scanning. This significantly reduces V1 screen count — §15.4 and §15.5 native screens become targeted complements to the agent, not the primary affordance. Tab nav is a fallback.
+
+**What the agent can handle via tools (expand `agents/voice/tools.ts`):**
+- Homeowner: view score + explain, browse job history, log a job, request a quote, find a contractor, sign a job, share a report
+- Contractor: browse leads filtered by specialties, submit a bid, view pending signatures, view earnings summary
+
+**What still needs dedicated UI:**
+- Photo capture and upload (camera is irreplaceable)
+- Report viewing (PDF/WebView rendering)
+- Onboarding / property registration (address autocomplete UX)
+
+### 15.1 Foundation & Setup
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 15.1.1 | React Native scaffold (Expo managed workflow) | ⬜ Missing | M | `npx create-expo-app homefax-mobile --template expo-template-blank-typescript`; monorepo under `mobile/` |
+| 15.1.2 | Shared TypeScript service layer | ⬜ Missing | M | Wire `@dfinity/agent` + polyfills (`react-native-get-random-values`, `text-encoding`, `node-libs-react-native`) into the mobile app; reuse `frontend/src/services/` types |
+| 15.1.3 | Design token port | ⬜ Missing | S | Copy color/font tokens from `frontend/src/theme.ts` into `mobile/src/theme.ts`; use `react-native-google-fonts` for IBM Plex Mono/Sans and Playfair Display |
+| 15.1.4 | Navigation scaffold | ⬜ Missing | S | React Navigation v7: minimal tab navigator (Chat, Photos, Report, Settings); chat tab is the home screen |
+| 15.1.5 | Deep-link scheme registration | ⬜ Missing | S | Register `homefax://` URI scheme in `app.json` (iOS `CFBundleURLSchemes`, Android intent filter); needed for II auth callback and push tap routing |
+
+### 15.2 Authentication — Internet Identity WebView Bridge
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 15.2.1 | II WebView auth flow | ⬜ Missing | L | Open `https://identity.ic0.app` in `expo-web-browser` (SafariViewController/CCT); intercept `homefax://auth?delegation=...` deep link; parse and store delegation in `expo-secure-store` |
+| 15.2.2 | Delegation storage + session restore | ⬜ Missing | M | On app launch, read stored delegation from `expo-secure-store`; reconstruct `DelegationIdentity` for `HttpAgent`; re-auth if expired |
+| 15.2.3 | Biometric unlock (optional, V1.1) | ⬜ Missing | M | Gate app re-open on Face ID / fingerprint via `expo-local-authentication`; still requires II for first login and after delegation expiry |
+| 15.2.4 | Role detection on login | ⬜ Missing | S | After auth, call `authService.getProfile()` to determine Homeowner vs. Contractor; route to appropriate tab set |
+
+### 15.3 Push Notifications Infrastructure
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 15.3.1 | Push token registration endpoint | ⬜ Missing | L | New relay service (Node.js or new `notifications` canister): store `(principal → [APNs/FCM token])` mapping; expose `registerToken(principal, token, platform)` |
+| 15.3.2 | APNs integration | ⬜ Missing | L | Server-side APNs HTTP/2 push with `node-apn` or Apple's provider API; configure iOS push entitlement in `app.json` |
+| 15.3.3 | FCM integration | ⬜ Missing | L | Server-side FCM v1 API with service account credentials; configure `google-services.json` in Expo |
+| 15.3.4 | Canister event → push relay hooks | ⬜ Missing | L | Canister post-update logic (or off-chain polling job) detects relevant events (new lead, job signed, score change) and calls the relay to dispatch push; start with polling for simplicity |
+| 15.3.5 | In-app permission prompt | ⬜ Missing | S | Request push permissions on first meaningful interaction (not on launch); use `expo-notifications` |
+| 15.3.6 | Notification tap → deep link routing | ⬜ Missing | S | Tapped notification payload includes route (e.g. `homefax://jobs/123`); `Linking` listener opens the correct screen |
+
+### 15.4 Homeowner V1 Features (Read-Only)
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 15.4.1 | Property list screen | ⬜ Missing | S | Mirrors `DashboardPage`; list cards with score badge; tap → property detail |
+| 15.4.2 | HomeFax Score screen | ⬜ Missing | S | Score dial + recent events feed; mirrors web `ScorePage` |
+| 15.4.3 | Job history screen | ⬜ Missing | S | Read-only list of completed and pending jobs; tap → job detail with photos |
+| 15.4.4 | Report WebView | ⬜ Missing | S | Open HomeFax report in embedded `WebView` (or `expo-web-browser`) rather than rebuilding the full report component natively |
+| 15.4.5 | Push: score change notification | ⬜ Missing | M | Notify homeowner when HomeFax Score changes by ≥5 points; requires 15.3 relay |
+| 15.4.6 | Push: new job pending signature | ⬜ Missing | M | Notify homeowner when a contractor marks a job complete and awaits their signature |
+| 15.4.7 | Upgrade CTA (browser deep-link) | ⬜ Missing | S | "Upgrade to Pro" buttons call `Linking.openURL("https://homefax.app/pricing")`; no in-app payment UI |
+
+### 15.5 Contractor V1 Features (Read-Only)
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 15.5.1 | Lead feed screen | ⬜ Missing | M | Open quote requests filtered to contractor's `specialties[]`; mirrors `ContractorDashboardPage` lead list |
+| 15.5.2 | Job pending signature screen | ⬜ Missing | S | List of jobs awaiting homeowner or contractor signature; read-only in V1 |
+| 15.5.3 | Earnings summary screen | ⬜ Missing | S | Read-only view of completed jobs count and value; mirrors contractor dashboard earnings widget |
+| 15.5.4 | Push: new lead in my trades | ⬜ Missing | M | Notify contractor when a new quote request matches any of their `specialties`; requires 15.3 relay |
+| 15.5.5 | Push: bid accepted / not selected | ⬜ Missing | M | Notify contractor of bid outcome when homeowner selects or declines |
+| 15.5.6 | Upgrade CTA (browser deep-link) | ⬜ Missing | S | ContractorPro upgrade CTA calls `Linking.openURL("https://homefax.app/pricing")` |
+
+### 15.6 App Store & Play Store Submission
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 15.6.1 | iOS App Store submission | ⬜ Missing | M | Apple Developer account, provisioning profiles, `eas build --platform ios`, TestFlight beta, store listing (screenshots, privacy policy URL, app description) |
+| 15.6.2 | Android Play Store submission | ⬜ Missing | M | Google Play Developer account, `eas build --platform android`, internal track → production, store listing |
+| 15.6.3 | Privacy disclosures | ⬜ Missing | S | Both stores require data collection disclosures; document what is collected (principal, device push token, usage analytics if any) |
+| 15.6.4 | App Store review: no in-app purchases | ⬜ Missing | S | Ensure no upgrade UI collects payment inside the app; reviewer notes explaining browser redirect for subscriptions |
+
+### 15.7 Agent Tool Expansion (Mobile-Specific)
+
+Extend `agents/voice/tools.ts` so the mobile chat interface can drive the full task surface. The web voice agent has read tools today; these additions cover write operations and mobile-specific needs.
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 15.7.1 | `log_job` tool | ⬜ Missing | M | Agent collects service type, contractor (optional), date, cost, notes conversationally; calls `jobService.create()`; responds with confirmation and updated score delta |
+| 15.7.2 | `request_quote` tool | ⬜ Missing | M | Agent collects service type, description, urgency; calls `quoteService.create()`; responds with matched contractor count |
+| 15.7.3 | `submit_bid` tool (contractor) | ⬜ Missing | M | Agent collects bid amount and notes for a specific quote request ID; calls `quoteService.submitBid()` |
+| 15.7.4 | `sign_job` tool | ⬜ Missing | M | Agent confirms intent with user, calls `jobService.verifyJob()`; both homeowner and contractor roles |
+| 15.7.5 | `find_contractor` tool | ⬜ Missing | S | Agent accepts service type + optional location; calls `contractorService.search()`; returns top 3 with trust scores |
+| 15.7.6 | `get_score` tool | ⬜ Missing | S | Returns current HomeFax score + top 3 contributing factors with plain-English explanation |
+| 15.7.7 | `list_leads` tool (contractor) | ⬜ Missing | S | Returns open quote requests matching caller's `specialties[]`; agent summarises top opportunities |
+| 15.7.8 | `open_report` tool | ⬜ Missing | S | Returns shareable report URL; agent instructs user to tap link which opens WebView screen |
+| 15.7.9 | `upload_photos` handoff tool | ⬜ Missing | S | Agent cannot take photos; this tool returns a deep link (`homefax://photos/job/:id`) that the app intercepts to open the native camera screen |
+| 15.7.10 | Tool error handling + clarification loop | ⬜ Missing | M | Agent asks follow-up questions when required fields are missing rather than returning a raw error; max 3 clarification turns per tool call |
+
+### 15.8 V2 Write Operations (Future)
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| 15.8.1 | Log a job (homeowner) | ⬜ Missing | L | Create job record from mobile; upload photos via `expo-image-picker` → `photo` canister |
+| 15.8.2 | Request a quote (homeowner) | ⬜ Missing | M | Submit quote request form; mirrors `QuoteRequestPage` |
+| 15.8.3 | Submit a bid (contractor) | ⬜ Missing | M | Contractor submits bid amount and notes on a lead from the lead feed |
+| 15.8.4 | Sign a job (both roles) | ⬜ Missing | M | Homeowner and contractor sign job completion from mobile; requires II delegation with appropriate permissions |
+| 15.8.5 | Camera-first photo upload | ⬜ Missing | L | Native camera integration; compress + hash before upload; show upload progress; wire to `photo` canister quota checks |
+
+---
