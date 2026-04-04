@@ -44,7 +44,7 @@ persistent actor Payment {
     let durationNs : Int = switch (tier) {
       case (#Free) { 0 };
       case (#Pro) { 30 * 24 * 60 * 60 * 1_000_000_000 };
-      case (#Premium) { 365 * 24 * 60 * 60 * 1_000_000_000 };
+      case (#Premium) { 30 * 24 * 60 * 60 * 1_000_000_000 };
       case (#ContractorPro) { 30 * 24 * 60 * 60 * 1_000_000_000 };
     };
     let now = Time.now();
@@ -71,7 +71,7 @@ persistent actor Payment {
     switch (tier) {
       case (#Free)          { { tier = #Free;          priceUSD = 0;  periodDays = 0;   propertyLimit = 1; photosPerJob = 5;  quoteRequestsPerMonth = 3  } };
       case (#Pro)           { { tier = #Pro;           priceUSD = 9;  periodDays = 30;  propertyLimit = 5; photosPerJob = 20; quoteRequestsPerMonth = 10 } };
-      case (#Premium)       { { tier = #Premium;       priceUSD = 49; periodDays = 365; propertyLimit = 0; photosPerJob = 0;  quoteRequestsPerMonth = 0  } };
+      case (#Premium)       { { tier = #Premium;       priceUSD = 49; periodDays = 30;  propertyLimit = 0; photosPerJob = 0;  quoteRequestsPerMonth = 0  } };
       case (#ContractorPro) { { tier = #ContractorPro; priceUSD = 29; periodDays = 30;  propertyLimit = 0; photosPerJob = 50; quoteRequestsPerMonth = 0  } };
     }
   };
@@ -80,7 +80,7 @@ persistent actor Payment {
     [
       { tier = #Free;          priceUSD = 0;  periodDays = 0;   propertyLimit = 1; photosPerJob = 5;  quoteRequestsPerMonth = 3  },
       { tier = #Pro;           priceUSD = 9;  periodDays = 30;  propertyLimit = 5; photosPerJob = 20; quoteRequestsPerMonth = 10 },
-      { tier = #Premium;       priceUSD = 49; periodDays = 365; propertyLimit = 0; photosPerJob = 0;  quoteRequestsPerMonth = 0  },
+      { tier = #Premium;       priceUSD = 49; periodDays = 30;  propertyLimit = 0; photosPerJob = 0;  quoteRequestsPerMonth = 0  },
       { tier = #ContractorPro; priceUSD = 29; periodDays = 30;  propertyLimit = 0; photosPerJob = 50; quoteRequestsPerMonth = 0  },
     ]
   };
