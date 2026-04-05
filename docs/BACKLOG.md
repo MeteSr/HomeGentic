@@ -184,95 +184,9 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 
 ---
 
-## 16. AI Agent — Expanded Capabilities
-
-### 16.1 Predictive Maintenance Intelligence
-
-**Context:** `maintenanceService.predictMaintenance()` already computes system lifespan estimates, replacement windows, and cost forecasts from year built + job history. The agent currently ignores this entirely. Wiring it in turns generic maintenance advice into property-specific predictions.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 16.1.1 | Inject predictive maintenance data into agent context | ✅ Exists | M | `buildMaintenanceForecast()` in `maintenanceForecast.ts` injected via `buildContext()` in `useVoiceAgent.ts` |
-| 16.1.2 | System lifespan section in system prompt | ✅ Exists | S | Rendered in `agents/voice/prompts.ts` — urgent systems with % life used, years remaining, cost range; stable systems listed briefly |
-| 16.1.3 | `get_maintenance_forecast` tool | ✅ Exists | M | Specific system lookup (case-insensitive) + overview mode; graceful messages for unknown systems and no properties |
-| 16.1.4 | Proactive replacement alerts in agent greeting | ✅ Exists | S | `"maintenance"` alert fires in `useVoiceAgent.ts` when `criticalSystems.length > 0` |
-
-### 16.2 Bid Management
-
-**Context:** The agent knows a quote request exists (`openQuoteCount`) but cannot show, compare, or act on bids. The full quote → bid → accept/decline loop is invisible.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 16.2.1 | Inject open quotes + bids into agent context | ✅ Exists | M | `buildContext()` fetches open/quoted requests + `getBidCountMap()`; injects `openQuoteRequests[]` into `AgentContext`; system prompt renders each request with bid count |
-| 16.2.2 | `list_bids` tool | ✅ Exists | M | Fetches bids via `quoteService.getQuotesForRequest()`, sorts by amount, enriches top 3 with contractor name + trust score via `contractorService.getContractor()` |
-| 16.2.3 | `accept_bid` tool | ✅ Exists | M | Calls `quoteService.accept(quoteId)`; agent always confirms before calling |
-| 16.2.4 | `decline_quote` tool | ✅ Exists | S | Calls `quoteService.close(requestId)`; confirms with user before calling |
-
-### 16.3 Score Trend & Coaching
-
-**Context:** Score history is already stored as weekly snapshots in localStorage. The agent can report the current score but cannot explain movement or proactively coach users toward the next milestone.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 16.3.1 | Inject score trend into agent context | ✅ Exists | S | `buildScoreTrend()` in `scoreTrend.ts` calls `loadHistory()` + `scoreDelta()`; injected as `scoreTrend` in `buildContext()` |
-| 16.3.2 | Score trend section in system prompt | ✅ Exists | S | Rendered in `agents/voice/prompts.ts` — "Score moved up/down from X → Y (+/- Z pts since last week)" when delta is non-zero |
-| 16.3.3 | Score milestone coaching | ✅ Exists | M | `computeMilestoneCoaching()` detects within-5-pts of grade/Certified boundaries; picks cheapest free action first (pending job sign-off), then diversity, value, verification |
-
-### 16.4 Post-Job Review Prompting
-
-**Context:** After a job is signed, the agent currently says nothing more. Contractor reviews are a trust signal that benefit the whole marketplace — closing the loop in-conversation is the highest-leverage place to collect them.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 16.4.1 | Post-sign review prompt | ✅ Exists | S | `sign_job_verification` result now includes `contractorName` + `contractorPrincipal`; system prompt instructs agent to follow up with review offer when principal is present |
-| 16.4.2 | `submit_contractor_review` tool | ✅ Exists | M | Tool in `agentTools.ts` + `agents/voice/tools.ts`; calls `contractorService.submitReview(principal, rating, comment, jobId)`; rate-limit errors surfaced gracefully |
-
-### 16.5 Natural Language Report Sharing
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 16.5.1 | `share_report` tool | ✅ Exists | M | Calls `reportService.generateReport()` with property + jobs from services; returns `shareUrl(token)`; supports `Public`/`BuyerOnly` visibility and optional `expiry_days` |
-| 16.5.2 | `revoke_report_link` tool | ✅ Exists | S | Two-mode tool: `list_links_for_property` shows active links first; `token` revokes after user confirms; calls `reportService.revokeShareLink()` |
-
-### 16.6 Receipt & Document Photo Parsing (Vision)
-
-**Context:** Claude supports vision in the API. If a user attaches a photo of a receipt or contractor invoice, the agent can extract job details and pre-fill `create_maintenance_job` — dramatically lowering logging friction.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 16.6.1 | Image upload in chat UI | ✅ Exists | M | `VoiceAgent` has a hidden file input + paperclip button; `attachImage(file)` in `useVoiceAgent` calls `fileToBase64()` and stores `pendingImage` state; pending indicator shown with X to clear |
-| 16.6.2 | Vision support in agent server | ✅ Exists | M | `buildImageUserMessage()` in `imageUtils.ts` builds Claude-compatible `[image, text]` content block; `runAgentLoop` prepends it when `pendingImage` is set; server JSON limit raised to 5MB |
-| 16.6.3 | Receipt extraction → job pre-fill | ✅ Exists | M | System prompt instructs agent to extract contractor/service/date/amount from image, confirm all fields before calling `create_maintenance_job`, and handle illegible images gracefully |
-
-### 16.7 Contractor Role Context
-
-**Context:** The agent currently has no awareness of the logged-in user's role. A contractor logging in gets the homeowner experience — no lead feed, no bid tools, no earnings summary.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 16.7.1 | Inject role + contractor profile into agent context | ✅ Exists | M | `buildContext()` reads role from `useAuthStore`; if Contractor, calls `contractorService.getMyProfile()` and injects `ContractorContext` into `AgentContext.contractorProfile` |
-| 16.7.2 | Role-aware system prompt branching | ✅ Exists | S | `buildSystemPrompt()` branches to `buildContractorSystemPrompt()` when `ctx.role === "Contractor"` — separate persona focused on leads, bids, earnings, and job signing |
-| 16.7.3 | `list_leads` tool | ✅ Exists | M | Calls `contractorService.getMyProfile()` for specialties, `quoteService.getOpenRequests()` for leads, filters + sorts by urgency, caps at 5 |
-| 16.7.4 | `submit_bid` tool | ✅ Exists | M | Calls `quoteService.submitQuote(requestId, amountCents, timelineDays, validUntilMs)`; converts dollars→cents; 30-day validity default |
-| 16.7.5 | `get_earnings_summary` tool | ✅ Exists | S | Filters `jobService.getAll()` by `job.contractor === profile.id`; sums verified job earnings; counts pending (completed/in-progress) separately |
-
----
-
 ## 17. Growth & Activation — "Inexplicable Not To Sign Up"
 
 The features below address the core signup conversion gap: a new homeowner visits HomeFax, reads the pitch, but has no immediate, personally-felt reason to create an account today. Each item below corresponds to a product lever that makes the value tangible before sign-up, or dramatically lowers the cost of getting that value.
-
-### 17.1 Pre-Quote Price Benchmarking by Zip Code
-
-**Vision:** Before a homeowner ever submits a quote request, show them what that job actually costs in their area. Eliminates "am I getting ripped off?" anxiety and makes HomeFax the first stop for any repair decision.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 17.1.1 | Zip-code price benchmark data source | ✅ Exists | L | Seed data (Homewyse/RSMeans baselines) in relay `PRICE_SEED`; relay endpoint `GET /api/price-benchmark`; production: augment with closed bids from `quote` canister |
-| 17.1.2 | `get_price_benchmark` agent tool | ✅ Exists | M | `agentTools.ts` + `agents/voice/tools.ts`; returns `{ low, median, high, sampleSize, lastUpdated }` — falls back gracefully when < 5 samples |
-| 17.1.3 | Price benchmark UI widget on quote request page | ✅ Exists | M | `PriceBenchmarkWidget` rendered in `QuoteRequestPage` using selected property's `zipCode` |
-| 17.1.4 | Public price lookup page (no login) | ✅ Exists | M | `PriceLookupPage` at `/prices?service=Roofing&zip=32114`; search form fallback when no params |
-| 17.1.5 | Benchmark confidence indicator | ✅ Exists | S | `hasSufficientSamples()` gate (< 5 → hide widget / show "Not enough data"); sample size + lastUpdated shown in widget and page |
 
 ### 17.2 Zero-Effort Onboarding — Instant Value Before First Login
 
@@ -286,18 +200,6 @@ The features below address the core signup conversion gap: a new homeowner visit
 | 17.2.4 | Public records year-built lookup | ✅ Exists | L | `lookupYearBuilt(address)` in `instantForecast.ts`; relay stub `GET /api/lookup-year-built` in voice server (returns null); auto-fill on address blur; ATTOM Data integration deferred |
 | 17.2.5 | Forecast → account migration | ⬜ Missing | S | Pre-populate `propertyService.register()` from URL params (`address`, `yearBuilt`, `state`); system overrides pass as `systemAges` so the first dashboard view is accurate |
 
-### 17.3 Score → Dollar Value Translation
-
-**Vision:** Replace the abstract "your score is 74/100" with "your verified maintenance records add an estimated $18,400 to your home's resale value." Converts an engagement metric into a financial asset the homeowner owns.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 17.3.1 | Score-to-dollar conversion model | ✅ Exists | L | `scoreToValue.ts`: `scoreToValueByHomePrice(score, homeValueDollars)` (0.5–9% bands); `getDocumentedValueEstimate` picks best available: homeValue > zip median > flat bands |
-| 17.3.2 | Dollar value display on score page | ✅ Exists | M | `ScoreValueBanner` rendered in `PropertyDetailPage`; uses zip-aware or home-value-aware estimate; `PropertyEstimatedValueInput` persists user-entered value in localStorage |
-| 17.3.3 | Dollar delta on job log | ✅ Exists | S | `JobValueDelta` component shown on `JobCreatePage` success screen; uses `estimateJobValueDelta(serviceType, score)` |
-| 17.3.4 | Property value input / Zestimate integration | ✅ Exists | M | `PropertyEstimatedValueInput` component; localStorage-backed (`hf_est_val_{propertyId}`); Zestimate API integration deferred |
-| 17.3.5 | Score value section in HomeFax Report | ✅ Exists | S | `DocumentedValueSection` replaces flat "Estimated Buyer Premium" in `ReportPage`; uses `getDocumentedValueEstimate` with zip when available |
-
 ### 17.4 Buyer-Side Product — Public Report Lookup
 
 **Vision:** Buyers search by address to pull a public HomeFax report before making an offer. This is the top-of-funnel for homeowner sign-ups: buyers ask sellers "why don't you have a HomeFax report?"
@@ -309,18 +211,6 @@ The features below address the core signup conversion gap: a new homeowner visit
 | 17.4.3 | Buyer-facing report view (no login) | ✅ Exists | S | `ReportPage` at `/report/:token` has no `ProtectedRoute` wrapper — already fully public |
 | 17.4.4 | SEO-indexed report landing pages | 🟡 Partial | M | `document.title` + `<meta name="description">` set in `ReportPage` and `CheckAddressPage` when report loads; full SSR (Next.js/Cloudflare Worker) deferred |
 | 17.4.5 | "No report found" seller CTA page | ✅ Exists | S | "Are you the homeowner?" block in `CheckAddressPage` not-found state; "Create a Free Report" links to `/properties/new?address=...` |
-
-### 17.5 Permit Auto-Import on Sign-Up
-
-**Vision:** On registration, pull every permit on record for the address from municipal databases and pre-populate the job history. The homeowner sees value before they type a single thing.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 17.5.1 | Municipal permit API integration | ✅ Exists | XL | `permitImport.ts` service + `POST /api/permits/import` relay on voice server; queries OpenPermit.org (requires `OPEN_PERMIT_API_KEY`); 24-city MVP coverage; `mapPermitTypeToServiceType` maps 9 permit categories; returns empty list in dev when key absent |
-| 17.5.2 | Permit → job record mapping | ✅ Exists | M | `permitToJobInput()` maps OpenPermitRecord → job input; `createJobsFromPermits()` calls `jobService.create()` for each confirmed permit with permitNumber injected |
-| 17.5.3 | Post-registration permit import trigger | ✅ Exists | M | `triggerPermitImport()` called in `PropertyRegisterPage.handleSubmit` after registration; routes to review step (step 4) if permits found; skips to dashboard if none |
-| 17.5.4 | Permit import review UI | ✅ Exists | M | `PermitImportReviewPanel` component: per-permit checkboxes, contractor/cost display, "Add to History" (confirmed subset) + "Skip" actions; wired as step 4 in `PropertyRegisterPage` |
-| 17.5.5 | Permit import coverage indicator | ✅ Exists | S | `PermitCoverageIndicator` shown in step 1 of `PropertyRegisterPage` when city+state filled; "✓ Permit data available for Daytona Beach" or "not available" |
 
 ### 17.6 Email Receipt Forwarding → Auto-Log
 
@@ -342,25 +232,7 @@ The features below address the core signup conversion gap: a new homeowner visit
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 17.7.1 | Public estimator page | ✅ Exists | M | `/home-systems?yearBuilt=1998&type=single-family` — renders a system age table with urgency indicators; no login; `estimateSystems(yearBuilt, state?, overrides?)` in `systemAgeEstimator.ts` supports per-system override years (e.g. `?hvac=2000`) to correct predictions for upgraded systems |
-| 17.7.2 | Shareable estimator URL | ✅ Exists | S | `buildEstimatorUrl()` encodes inputs + per-system override params into URL; `parseEstimatorParams()` reads them back |
-| 17.7.3 | "Track this property" CTA | ✅ Exists | S | CTA on results page links to `/properties/new?yearBuilt=…&type=…`; converts estimation curiosity into registration intent |
 | 17.7.4 | Estimator embeddable widget | ⬜ Missing | M | JavaScript embed snippet (`<script src="https://homefax.app/widget.js">`) for real estate blogs, HOA sites, and home inspector websites; renders estimator inline; CTA links back to HomeFax |
-| 17.7.5 | Estimator → forecast migration | ✅ Exists | S | CTA href carries `yearBuilt` + `type` params; `PropertyRegisterPage` can read them to pre-populate fields |
-
----
-
-## 14. Technical Debt & Architecture
-
-### 14.1 Inter-Canister Call Audit (post-consolidation)
-**Context:** The `price` canister was merged into `payment`, and the `room` canister was merged into `property`. Any code that still calls these as separate canisters (by principal ID or service binding) will break silently in production.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 14.1.1 | Audit all canisters for cross-calls to `price` | ✅ Exists | S | Grepped all `.mo` files — no `actor(priceCanisterId)` calls found; pricing already served by `payment` canister |
-| 14.1.2 | Audit all canisters for cross-calls to `room` | ✅ Exists | S | Grepped all `.mo` files — no `actor(roomCanisterId)` calls found; room/fixture CRUD already in `property` canister |
-| 14.1.3 | Remove `backend/price/` and `backend/room/` directories | ✅ Exists | S | `git rm`'d both directories; also removed `price` from `scripts/test-backend.sh` CANISTERS array |
-| 14.1.4 | Update CLAUDE.md canister map | ✅ Exists | S | Removed `price` row; updated `payment` to note merged pricing queries; updated `property` to note merged room/fixture CRUD; added `listing`, `agent`, `recurring` rows that were missing |
 
 ---
 
