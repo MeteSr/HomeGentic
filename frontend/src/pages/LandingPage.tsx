@@ -411,6 +411,36 @@ const CSS = `
     .hfl-footer-links { flex-wrap: wrap; justify-content: center; }
   }
 
+  /* ── NARROW PHONE (≤480px) ───────────────────────────────────────────── */
+  @media (max-width: 480px) {
+    .hfl h1 { font-size: clamp(32px, 10vw, 42px); letter-spacing: -1px; }
+    .hfl-eyebrow { font-size: 11px; padding: 6px 14px; }
+
+    /* Stack CTA buttons full-width */
+    .hfl-actions { flex-direction: column; align-items: stretch; }
+    .hfl-btn-main, .hfl-btn-soft { width: 100%; text-align: center; padding: 15px 20px; }
+
+    /* Single-column lifecycle steps */
+    .hfl-flow { grid-template-columns: 1fr; gap: 28px; }
+    .hfl-step { display: flex; align-items: flex-start; gap: 20px; text-align: left; }
+    .hfl-step-icon { width: 60px; height: 60px; font-size: 24px; flex-shrink: 0; margin: 0; }
+
+    /* Numbers bar: 2×2 → tighter */
+    .hfl-numbers { padding: 24px 16px; gap: 12px; }
+    .hfl-nbar-num { font-size: 26px; }
+    .hfl-nbar-lbl { font-size: 11px; }
+
+    /* Reduce section padding */
+    .hfl-lifecycle { padding: 48px 16px; }
+    .hfl-features  { padding: 0 16px 48px; }
+    .hfl-testimonials { padding: 0 16px 48px; }
+    .hfl-cta { padding: 0 16px 48px; }
+    .hfl-cta-inner { padding: 36px 16px; }
+    .hfl-cta h2 { font-size: 28px; }
+    .hfl-report { margin: 0 16px 48px; padding: 32px 20px; }
+    .hfl h2 { font-size: 28px; }
+  }
+
   @media (min-width: 901px) and (max-width: 1100px) {
     .hfl-nav { padding: 16px 32px; }
     .hfl-hero { padding: 120px 32px 64px; gap: 40px; }
@@ -452,7 +482,7 @@ export default function LandingPage() {
 
         {/* ── Nav ─────────────────────────────────────────────────────────── */}
         <nav className="hfl-nav">
-          <a href="/" className="hfl-logo">Home<span>Fax</span></a>
+          <a href="/" className="hfl-logo">HomeGen<span>tic</span></a>
           <ul>
             <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-features"); }}>For Homeowners</a></li>
             <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-features"); }}>Service Network</a></li>
