@@ -11,6 +11,8 @@ import { useAuthStore } from "@/store/authStore";
 import { isNewSince, countNew } from "@/services/notifications";
 import toast from "react-hot-toast";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
+import { ResponsiveGrid } from "@/components/ResponsiveGrid";
 
 const S = {
   ink:      COLORS.plum,
@@ -261,6 +263,7 @@ export default function ContractorDashboardPage() {
   const [modalRequest,  setModalRequest]  = useState<QuoteRequest | null>(null);
   const [loading,       setLoading]       = useState(true);
   const [showBidHistory, setShowBidHistory] = useState(false);
+  const { isMobile } = useBreakpoint();
 
   useEffect(() => {
     Promise.all([
@@ -391,7 +394,7 @@ export default function ContractorDashboardPage() {
         )}
 
         {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", borderTop: `1px solid ${S.rule}`, borderLeft: `1px solid ${S.rule}`, marginBottom: "2.5rem" }}>
+        <ResponsiveGrid cols={{ mobile: 2, tablet: 4, desktop: 7 }} style={{ borderTop: `1px solid ${S.rule}`, borderLeft: `1px solid ${S.rule}`, marginBottom: "2.5rem" }} gap="0">
           {[
             { label: "Open Leads",         value: loading ? "…" : newLeadsCount },
             { label: "New Since Last Visit", value: loading ? "…" : newSinceLogin, alert: newSinceLogin > 0 },
@@ -418,10 +421,10 @@ export default function ContractorDashboardPage() {
               </div>
             );
           })}
-        </div>
+        </ResponsiveGrid>
 
         {/* Two-column layout */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "1.5rem", alignItems: "start" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 320px", gap: "1.5rem", alignItems: "start" }}>
 
           {/* Pending Signatures */}
           <div>
