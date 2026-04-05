@@ -195,9 +195,9 @@ homefax/
 | Tier | Properties | Photos/Job | Open Quote Requests | Price |
 |---|---|---|---|---|
 | Free | 1 | 5 | 3 | $0 |
-| Pro | 5 | 20 | 10 | $9/mo |
+| Pro | 5 | 20 | 10 | $10/mo |
 | Premium | 25 | Unlimited | 10 | $49/yr |
-| ContractorPro | Unlimited | 50 | Unlimited | $29/mo |
+| ContractorPro | Unlimited | 50 | Unlimited | $49/mo |
 
 Limits are enforced server-side in the `property`, `photo`, and `quote` canisters.
 

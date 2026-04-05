@@ -261,11 +261,11 @@ The primary interface is a chat window backed by the existing voice agent (`agen
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 15.1.1 | React Native scaffold (Expo managed workflow) | ⬜ Missing | M | `npx create-expo-app homefax-mobile --template expo-template-blank-typescript`; monorepo under `mobile/` |
+| 15.1.1 | React Native scaffold (Expo managed workflow) | ✅ Exists | M | `mobile/` scaffolded with `create-expo-app` (blank-typescript); `@react-navigation/native` + `@react-navigation/bottom-tabs` installed |
 | 15.1.2 | Shared TypeScript service layer | ⬜ Missing | M | Wire `@dfinity/agent` + polyfills (`react-native-get-random-values`, `text-encoding`, `node-libs-react-native`) into the mobile app; reuse `frontend/src/services/` types |
-| 15.1.3 | Design token port | ⬜ Missing | S | Copy color/font tokens from `frontend/src/theme.ts` into `mobile/src/theme.ts`; use `react-native-google-fonts` for IBM Plex Mono/Sans and Playfair Display |
-| 15.1.4 | Navigation scaffold | ⬜ Missing | S | React Navigation v7: minimal tab navigator (Chat, Photos, Report, Settings); chat tab is the home screen |
-| 15.1.5 | Deep-link scheme registration | ⬜ Missing | S | Register `homefax://` URI scheme in `app.json` (iOS `CFBundleURLSchemes`, Android intent filter); needed for II auth callback and push tap routing |
+| 15.1.3 | Design token port | ✅ Exists | S | `mobile/src/theme.ts` — colors, fonts, spacing, borderWidth/borderRadius tokens ported from web design system |
+| 15.1.4 | Navigation scaffold | ✅ Exists | S | `mobile/src/navigation/TabNavigator.tsx` — 4-tab bottom navigator (Chat, Photos, Report, Settings); deep-link config in `App.tsx` |
+| 15.1.5 | Deep-link scheme registration | ✅ Exists | S | `homefax://` scheme registered in `app.json`: `scheme`, `ios.infoPlist.CFBundleURLTypes`, `android.intentFilters`; linking config wired in `NavigationContainer` |
 
 ### 15.2 Authentication — Internet Identity WebView Bridge
 

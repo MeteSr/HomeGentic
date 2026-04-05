@@ -121,7 +121,7 @@ The frontend reflects tier state but never gates logic unilaterally.
 ┌─────────────────┬────────────┬───────────┬───────────┬────────────────┐
 │                 │   Free     │    Pro    │  Premium  │ ContractorPro  │
 ├─────────────────┼────────────┼───────────┼───────────┼────────────────┤
-│ Price           │ $0         │ $9 / mo   │ $49 / yr  │ $29 / mo       │
+│ Price           │ $0         │ $10 / mo  │ $49 / yr  │ $49 / mo       │
 │ Properties      │ 1          │ 5         │ 25        │ unlimited      │
 │ Photos / job    │ 5          │ 20        │ unlimited │ 50             │
 │ Open quotes     │ 3          │ 10        │ 10        │ unlimited      │

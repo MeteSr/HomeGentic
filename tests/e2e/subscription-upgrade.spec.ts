@@ -62,7 +62,7 @@ test.describe("Subscription Upgrade — /settings (Subscription tab)", () => {
     });
 
     test("shows monthly price for Pro plan", async ({ page }) => {
-      await expect(page.getByText(/\$9/)).toBeVisible();
+      await expect(page.getByText(/\$10/)).toBeVisible();
     });
 
     test("shows annual price for Premium plan", async ({ page }) => {

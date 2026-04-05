@@ -40,9 +40,9 @@ describe("PLANS", () => {
     expect(premium.quoteRequests).toBe(Infinity);
   });
 
-  it("ContractorPro tier is $29/month", () => {
+  it("ContractorPro tier is $49/month", () => {
     const cp = PLANS.find((p) => p.tier === "ContractorPro")!;
-    expect(cp.price).toBe(29);
+    expect(cp.price).toBe(49);
     expect(cp.period).toBe("month");
     expect(cp.photosPerJob).toBe(50);
     expect(cp.quoteRequests).toBe(Infinity);

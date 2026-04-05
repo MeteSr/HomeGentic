@@ -117,7 +117,7 @@ export const PLANS: Plan[] = [
   },
   {
     tier: "ContractorPro",
-    price: 29,
+    price: 49,
     period: "month",
     features: [
       "Contractor profile listing",
