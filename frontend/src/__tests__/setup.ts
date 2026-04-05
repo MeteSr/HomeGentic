@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom";
-import { cleanup } from "@testing-library/react";
+import { cleanup, act } from "@testing-library/react";
 import { afterEach } from "vitest";
 
 // Vitest global setup — runs before each test file.
@@ -33,5 +33,9 @@ if (typeof (globalThis as any).requestAnimationFrame !== "function") {
   (globalThis as any).cancelAnimationFrame = () => {};
 }
 
-// Cleanup React Testing Library mounts after each test.
-afterEach(() => cleanup());
+// Flush all pending async state updates (useEffect promise chains) before
+// cleanup so React doesn't warn "state update should be wrapped in act(...)".
+afterEach(async () => {
+  await act(async () => {});
+  cleanup();
+});
