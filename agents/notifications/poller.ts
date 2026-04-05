@@ -14,37 +14,35 @@
 import { dispatchToUser } from "./dispatcher";
 import type { NotificationEvent } from "./types";
 
+export type EventFetcher = () => Promise<NotificationEvent[]>;
+
 const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS) || 30_000;
 
 // ── Canister stubs ────────────────────────────────────────────────────────────
 // TODO: replace with real `@dfinity/agent` calls to the quote/job canisters.
 
-async function fetchNewLeadEvents(): Promise<NotificationEvent[]> {
+const defaultFetchNewLeadEvents: EventFetcher = async () => {
   // query canister: quote.getUnnotifiedRequests()
   // returns { requestId, serviceType, zipCode, contractorPrincipal }[]
   return [];
-}
+};
 
-async function fetchJobSignedEvents(): Promise<NotificationEvent[]> {
+const defaultFetchJobSignedEvents: EventFetcher = async () => {
   // query canister: job.getRecentlySignedJobs(since: lastPollAt)
   // returns { jobId, contractorPrincipal, serviceType }[]
   return [];
-}
+};
 
 // ── Poll loop ─────────────────────────────────────────────────────────────────
 
-async function poll(): Promise<void> {
-  try {
-    const events: NotificationEvent[] = [
-      ...(await fetchNewLeadEvents()),
-      ...(await fetchJobSignedEvents()),
-    ];
+export async function pollOnce(
+  fetchers: EventFetcher[] = [defaultFetchNewLeadEvents, defaultFetchJobSignedEvents]
+): Promise<void> {
+  const results = await Promise.all(fetchers.map((f) => f()));
+  const events: NotificationEvent[] = results.flat();
 
-    for (const event of events) {
-      await dispatchToUser(event.principal, event.payload);
-    }
-  } catch (err) {
-    console.error("[poller] error during poll:", err);
+  for (const event of events) {
+    await dispatchToUser(event.principal, event.payload);
   }
 }
 
@@ -53,7 +51,9 @@ let intervalHandle: ReturnType<typeof setInterval> | null = null;
 export function startPoller(): void {
   if (intervalHandle) return; // already running
   console.log(`[poller] starting — interval ${POLL_INTERVAL_MS}ms`);
-  intervalHandle = setInterval(poll, POLL_INTERVAL_MS);
+  intervalHandle = setInterval(() => {
+    pollOnce().catch((err) => console.error("[poller] error during poll:", err));
+  }, POLL_INTERVAL_MS);
 }
 
 export function stopPoller(): void {

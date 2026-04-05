@@ -283,7 +283,7 @@ The primary interface is a chat window backed by the existing voice agent (`agen
 | 15.3.1 | Push token registration endpoint | ✅ Exists | L | `agents/notifications/` relay (port 3002): in-memory token store (`store.ts`), `POST /api/push/register` + `/unregister` + `/send`; 9 unit tests |
 | 15.3.2 | APNs integration | ✅ Exists | L | `apns.ts` — JWT provider token (ES256, no extra dep), HTTP/2 `sendApns()`; skips gracefully when `APNS_KEY_ID/TEAM_ID/PRIVATE_KEY` not set; iOS `aps-environment` entitlement in `app.json` |
 | 15.3.3 | FCM integration | ✅ Exists | L | `fcm.ts` — service-account JWT → OAuth token exchange, FCM v1 API `sendFcm()`; skips when `FCM_PROJECT_ID/FCM_SERVICE_ACCOUNT_JSON` not set |
-| 15.3.4 | Canister event → push relay hooks | 🟡 Partial | L | `poller.ts` — 30 s polling loop with `new_lead` + `job_signed` stubs; `dispatcher.ts` fans out to all devices, auto-evicts stale tokens (APNs 410 / FCM UNREGISTERED) |
+| 15.3.4 | Canister event → push relay hooks | ✅ Exists | L | `poller.ts` — 30 s polling loop with `new_lead` + `job_signed` stubs; `dispatcher.ts` fans out to all devices, auto-evicts stale tokens (APNs 410 / FCM UNREGISTERED) |
 | 15.3.5 | In-app permission prompt | ✅ Exists | S | `useNotifications` hook — deferred permission request after auth, Expo push token registered with relay via `notificationService.ts` |
 | 15.3.6 | Notification tap → deep link routing | ✅ Exists | S | `addNotificationResponseReceivedListener` extracts `route` from payload data, calls `Linking.openURL("homegentic://…")`; `App.tsx` linking config expanded with `jobs/:jobId` + `leads/:leadId` + `earnings` |
 
