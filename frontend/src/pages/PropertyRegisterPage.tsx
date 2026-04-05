@@ -13,6 +13,7 @@ import PermitCoverageIndicator from "@/components/PermitCoverageIndicator";
 import PermitImportReviewPanel from "@/components/PermitImportReviewPanel";
 import toast from "react-hot-toast";
 import { COLORS, FONTS } from "@/theme";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
 
 const S = {
   ink:      COLORS.plum,
@@ -43,6 +44,7 @@ export default function PropertyRegisterPage() {
   const { addProperty } = usePropertyStore();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const { isMobile } = useBreakpoint();
   const [permitResult, setPermitResult] = useState<PermitImportResult | null>(null);
   const [registeredPropertyId, setRegisteredPropertyId] = useState<string | null>(null);
   const [pendingSystemAges, setPendingSystemAges] = useState<SystemAges>({});
@@ -164,7 +166,7 @@ export default function PropertyRegisterPage() {
                   }}
                 />
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "1rem" }}>
                 <div>
                   <label className="form-label">City *</label>
                   <input className="form-input" placeholder="Austin" value={form.city} onChange={(e) => update("city", e.target.value)} />
@@ -195,7 +197,7 @@ export default function PropertyRegisterPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               <div>
                 <label className="form-label">Property Type *</label>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1px", background: S.rule }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "1px", background: S.rule }}>
                   {PROPERTY_TYPES.map((t) => (
                     <div key={t} onClick={() => update("propertyType", t)} style={{
                       padding: "0.75rem", cursor: "pointer",
@@ -210,7 +212,7 @@ export default function PropertyRegisterPage() {
                   ))}
                 </div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "1rem" }}>
                 <div>
                   <label className="form-label">Year Built *</label>
                   <input className="form-input" type="number" placeholder="1985" min="1800" max={new Date().getFullYear()} value={form.yearBuilt} onChange={(e) => update("yearBuilt", e.target.value)} />

@@ -14,6 +14,7 @@ import { JobValueDelta } from "@/components/JobValueDelta";
 import { computeScore } from "@/services/scoreService";
 import toast from "react-hot-toast";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
 
 const S = {
   ink:      COLORS.plum,
@@ -59,6 +60,7 @@ export default function JobCreatePage() {
   const [submitted, setSubmitted] = useState(false);
   const [loggedServiceType, setLoggedServiceType] = useState("");
   const [scoreAtSubmit, setScoreAtSubmit] = useState(0);
+  const { isMobile } = useBreakpoint();
   const [form, setForm] = useState({
     propertyId:      editJob ? editJob.propertyId                                              : "",
     serviceType:     editJob ? editJob.serviceType     : prefill?.serviceType    ?? SERVICE_TYPES[0],
@@ -323,7 +325,7 @@ export default function JobCreatePage() {
             </div>
           )}
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "1rem" }}>
             <div>
               <label className="form-label">{form.isDiy ? "Materials Cost *" : "Amount Paid *"}</label>
               <div style={{ position: "relative" }}>

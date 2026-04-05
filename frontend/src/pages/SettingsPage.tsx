@@ -13,6 +13,7 @@ import { usePropertyStore } from "@/store/propertyStore";
 import { useJobStore } from "@/store/jobStore";
 import toast from "react-hot-toast";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
 
 const S = {
   ink:      COLORS.plum,
@@ -37,6 +38,7 @@ const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
 export default function SettingsPage() {
   const [tab, setTab] = useState<Tab>("account");
   const { profile, setProfile } = useAuthStore();
+  const { isMobile } = useBreakpoint();
 
   return (
     <Layout>
@@ -49,9 +51,9 @@ export default function SettingsPage() {
           Settings
         </h1>
 
-        <div style={{ display: "flex", gap: "1.5rem" }}>
+        <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: "1.5rem" }}>
           {/* Sidebar */}
-          <div style={{ width: "12rem", flexShrink: 0, border: `1px solid ${S.rule}` }}>
+          <div style={{ width: isMobile ? "100%" : "12rem", flexShrink: 0, border: `1px solid ${S.rule}` }}>
             {TABS.map((t, i) => (
               <button
                 key={t.key}
