@@ -388,3 +388,26 @@ Extend `agents/voice/tools.ts` so the mobile chat interface can drive the full t
 | MS.11 | Google Play production release | ⬜ Missing | L | Promote from internal track → production in Play Console. Requires MS.6 + MS.7. Play Store review is typically faster than Apple's (hours to 1 day). |
 
 ---
+
+## EPIC: SEO — Pre-rendered Public Pages
+
+**Goal:** Make HomeGentic's public-facing pages crawlable, shareable, and rankable without changing the hosting infrastructure. Key pages should render as real static HTML so Google indexes them on first crawl, and social link previews (Twitter/Slack/iMessage) show meaningful titles, descriptions, and images.
+
+**Situation:** The app is a pure client-side SPA (React + Vite on ICP assets canister). Today only `FsboListingPage` has dynamic OG tags; every other page serves the same static fallback title/description from `index.html`. There is no `robots.txt`, no `sitemap.xml`, no structured data, and no canonical URL strategy.
+
+**Approach:** `vite-plugin-ssg` (or `vite-ssg`) generates static HTML shells at build time for each known public route. Each shell contains fully-resolved `<title>`, `<meta>`, OG tags, and JSON-LD in the `<head>` — so crawlers and link unfurlers get real content without executing JavaScript. Dynamic data pages (contractor profiles, listing pages) get pre-rendered with a loading skeleton; `react-helmet-async` then hydrates the real title/meta once the canister responds. Authenticated-only routes are excluded from pre-rendering entirely.
+
+**Dependency order:** SEO.1 (helmet) is a prerequisite for all per-page meta work. SEO.2 (SSG build) must land before SEO.5 (sitemap) since the sitemap references the same route list. SEO.3–SEO.4 can proceed in parallel after SEO.1.
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| SEO.1 | `react-helmet-async` — per-route `<title>` and meta | ⬜ Missing | M | Install `react-helmet-async`. Wrap app in `<HelmetProvider>`. Add `<Helmet>` to `LandingPage`, `FsboListingPage`, `ContractorPublicPage`, `AgentPublicPage`, `ScoreCertPage`, `ListingDetailPage`, `InstantForecastPage`, `CheckAddressPage`. Migrate existing `document.title` + `setMeta` calls to Helmet. Each page sets `title`, `description`, `og:title`, `og:description`, `og:type`, `og:url`. |
+| SEO.2 | `vite-plugin-ssg` build integration | ⬜ Missing | L | Install `vite-plugin-ssg`. Define the static route manifest (landing, pricing, public profile patterns, listing patterns). Update `vite.config.ts` to run SSG in production builds. Verify ICP assets canister serves pre-rendered HTML correctly (add `_redirects` or 404 fallback so deep links still work in SPA mode). Add SSG build step to CI. |
+| SEO.3 | `og:image` for key pages | ⬜ Missing | M | Static brand OG image (`public/og-default.png`, 1200×630) used as fallback on all pages. Dynamic OG image for `FsboListingPage`: compose address + price + HomeGentic Score into a template using `@vercel/og` or a Canvas-based build-time script. `ScoreCertPage` gets its score badge as `og:image`. |
+| SEO.4 | JSON-LD structured data | ⬜ Missing | M | `LandingPage`: `Organization` + `WebSite` schema with `SearchAction`. `FsboListingPage`: `RealEstateListing` schema (address, price, description, image). `ContractorPublicPage` + `AgentPublicPage`: `LocalBusiness` / `Person` schema with `aggregateRating` if reviews exist. `ScoreCertPage`: `CreativeWork` schema with the score as `description`. |
+| SEO.5 | `sitemap.xml` + `robots.txt` | ⬜ Missing | S | Static `robots.txt` in `public/`: allow all crawlers, point to sitemap. Build-time `sitemap.xml` generator (Vite plugin or `scripts/gen-sitemap.ts`) that emits one `<url>` per static route plus a `<sitemapindex>` pointer to a dynamic sitemap for listing/profile pages. Dynamic sitemap served from a canister query endpoint. |
+| SEO.6 | Canonical URLs | ⬜ Missing | S | Add `<link rel="canonical" href="https://homegentic.app/...">` via Helmet on every public page. Prevents duplicate-content penalties if the app is reachable at multiple ICP gateway origins (`ic0.app`, `raw.ic0.app`, custom domain). |
+| SEO.7 | Landing page content depth | ⬜ Missing | M | `LandingPage` currently has minimal crawlable text — most content is inside React components that Googlebot may not wait for. Add a server-rendered FAQ section (5–8 questions targeting high-intent queries: "how to prove home maintenance", "home maintenance records for sale", "verified contractor work history") as static HTML within the SSG shell. |
+| SEO.8 | Core Web Vitals baseline | ⬜ Missing | S | Run Lighthouse on the pre-rendered landing page. Target LCP < 2.5 s, CLS < 0.1, INP < 200 ms. The Google Fonts `preconnect` is already in place; likely wins: add `font-display: swap`, lazy-load below-fold images, defer non-critical scripts. Document baseline scores in `docs/PERFORMANCE.md`. |
+
+---
