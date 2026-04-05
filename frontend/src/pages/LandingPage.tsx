@@ -485,6 +485,32 @@ export default function LandingPage() {
         <meta property="og:description" content="Prove your home's history. Verified maintenance records for homeowners, contractors, and buyers." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://homegentic.app/" />
+        <meta property="og:image" content="https://homegentic.app/og-default.png" />
+        <link rel="canonical" href="https://homegentic.app/" />
+        <script type="application/ld+json">{JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          "name": "HomeGentic",
+          "url": "https://homegentic.app/",
+          "description": "Verified home maintenance records on the blockchain.",
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://homegentic.app/check?address={search_term_string}",
+            "query-input": "required name=search_term_string"
+          }
+        })}</script>
+        <script type="application/ld+json">{JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            { "@type": "Question", "name": "How do I prove my home maintenance history to buyers?", "acceptedAnswer": { "@type": "Answer", "text": "HomeGentic creates a blockchain-backed record of every repair, inspection, and upgrade you complete." } },
+            { "@type": "Question", "name": "What are home maintenance records and why do they matter for sale?", "acceptedAnswer": { "@type": "Answer", "text": "Home maintenance records are documented proof of repairs and system upkeep. Homes with verified maintenance history sell faster." } },
+            { "@type": "Question", "name": "How does verified contractor work history work?", "acceptedAnswer": { "@type": "Answer", "text": "Both homeowner and contractor digitally sign the record, making it tamper-proof and verifiable by third parties." } },
+            { "@type": "Question", "name": "Can I use HomeGentic to track DIY home repairs?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Homeowners can log DIY jobs themselves, marked as self-verified in the maintenance timeline." } },
+            { "@type": "Question", "name": "How does HomeGentic help with home insurance claims?", "acceptedAnswer": { "@type": "Answer", "text": "HomeGentic's Insurance Defense report compiles your verified job history into a shareable document insurers can reference during claims." } },
+            { "@type": "Question", "name": "Is my maintenance data private?", "acceptedAnswer": { "@type": "Answer", "text": "Your data lives on the Internet Computer blockchain under your control. You choose what to share and with whom." } },
+          ]
+        })}</script>
       </Helmet>
       <style>{CSS}</style>
       <div className="hfl">
@@ -830,6 +856,44 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
+        </section>
+
+        {/* ── FAQ (SEO.7 — static, crawlable) ─────────────────────────────── */}
+        <section data-faq style={{ background: "var(--white)", padding: "80px 56px", maxWidth: "860px", margin: "0 auto" }}>
+          <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 900, fontSize: "2rem", color: "var(--plum)", marginBottom: "2.5rem", textAlign: "center" }}>
+            Frequently Asked Questions
+          </h2>
+          {[
+            {
+              q: "How do I prove my home maintenance history to buyers?",
+              a: "HomeGentic creates a blockchain-backed record of every repair, inspection, and upgrade you complete. Share a verified report link with any buyer — no login required on their end.",
+            },
+            {
+              q: "What are home maintenance records and why do they matter for sale?",
+              a: "Home maintenance records are documented proof of repairs and system upkeep. Homes with verified maintenance history sell faster and command higher prices because buyers can confirm the property's condition.",
+            },
+            {
+              q: "How does verified contractor work history work?",
+              a: "When a contractor completes a job on HomeGentic, both the homeowner and contractor digitally sign the record. This dual-signature makes the entry tamper-proof and verifiable by third parties.",
+            },
+            {
+              q: "Can I use HomeGentic to track DIY home repairs?",
+              a: "Yes. Homeowners can log DIY jobs themselves. These are marked as self-verified and still appear in your maintenance timeline — giving you a complete picture of your home's history.",
+            },
+            {
+              q: "How does HomeGentic help with home insurance claims?",
+              a: "An up-to-date maintenance record demonstrates due diligence. HomeGentic's Insurance Defense report compiles your verified job history into a shareable document insurers can reference during claims.",
+            },
+            {
+              q: "Is my maintenance data private?",
+              a: "Your data lives on the Internet Computer blockchain under your control. You choose what to share and with whom. Reports are only accessible to people you give the link to.",
+            },
+          ].map(({ q, a }, i) => (
+            <div key={i} style={{ borderTop: "1px solid var(--sage-light)", padding: "1.25rem 0" }}>
+              <p data-faq-question style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700, fontSize: "1rem", color: "var(--plum)", margin: "0 0 0.5rem" }}>{q}</p>
+              <p data-faq-answer style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 400, fontSize: "0.9rem", color: "var(--charcoal)", margin: 0, lineHeight: 1.6 }}>{a}</p>
+            </div>
+          ))}
         </section>
 
         {/* ── Footer ──────────────────────────────────────────────────────── */}

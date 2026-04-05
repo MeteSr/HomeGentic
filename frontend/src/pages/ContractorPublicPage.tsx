@@ -109,6 +109,9 @@ export default function ContractorPublicPage() {
           <meta property="og:title" content="Contractor Profile | HomeGentic" />
           <meta property="og:description" content="Verified contractor profile on HomeGentic." />
           <meta property="og:type" content="website" />
+          <meta property="og:image" content="https://homegentic.app/og-default.png" />
+          <link rel="canonical" href="https://homegentic.app/contractor" />
+          <script type="application/ld+json">{JSON.stringify({ "@context": "https://schema.org", "@type": "LocalBusiness", "name": "Contractor | HomeGentic", "description": "Verified contractor on HomeGentic." })}</script>
         </Helmet>
         <div style={{ display: "flex", justifyContent: "center", padding: "4rem" }}>
           <div className="spinner-lg" />
@@ -137,6 +140,16 @@ export default function ContractorPublicPage() {
         <meta property="og:title" content={helmetTitle} />
         <meta property="og:description" content={helmetDesc} />
         <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://homegentic.app/og-default.png" />
+        <link rel="canonical" href={`https://homegentic.app/contractor/${id}`} />
+        <script type="application/ld+json">{JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "LocalBusiness",
+          "name": helmetName,
+          "description": helmetDesc,
+          "url": `https://homegentic.app/contractor/${id}`,
+          "image": "https://homegentic.app/og-default.png",
+        })}</script>
       </Helmet>
       <div style={{ maxWidth: "38rem", margin: "0 auto", padding: isMobile ? "1rem" : "2rem 1.5rem" }}>
 

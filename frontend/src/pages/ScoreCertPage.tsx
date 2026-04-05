@@ -63,6 +63,9 @@ export default function ScoreCertPage() {
           <meta property="og:title" content="Score Certificate | HomeGentic" />
           <meta property="og:description" content="HomeGentic Score Certificate." />
           <meta property="og:type" content="website" />
+          <meta property="og:image" content="https://homegentic.app/og-default.png" />
+          <link rel="canonical" href="https://homegentic.app/cert" />
+          <script type="application/ld+json">{JSON.stringify({ "@context": "https://schema.org", "@type": "CreativeWork", "name": "HomeGentic Score Certificate", "description": "Blockchain-verified home maintenance score certificate." })}</script>
         </Helmet>
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: S.paper, padding: outerPad }}>
         <div style={{ textAlign: "center", maxWidth: "28rem" }}>
@@ -98,6 +101,15 @@ export default function ScoreCertPage() {
         <meta property="og:title" content={certTitle} />
         <meta property="og:description" content={certDesc} />
         <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://homegentic.app/og-default.png" />
+        <link rel="canonical" href={`https://homegentic.app/cert/${token}`} />
+        <script type="application/ld+json">{JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "CreativeWork",
+          "name": certTitle,
+          "description": certDesc,
+          "url": `https://homegentic.app/cert/${token}`,
+        })}</script>
       </Helmet>
     <div style={{ minHeight: "100vh", background: S.paper, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: outerPad }}>
       <div style={{ width: "100%", maxWidth: "32rem", background: COLORS.white, border: `1px solid ${S.rule}` }}>

@@ -68,6 +68,9 @@ export default function AgentPublicPage() {
           <meta property="og:title" content="Agent Profile | HomeGentic" />
           <meta property="og:description" content="Verified real estate agent profile on HomeGentic." />
           <meta property="og:type" content="website" />
+          <meta property="og:image" content="https://homegentic.app/og-default.png" />
+          <link rel="canonical" href="https://homegentic.app/agent" />
+          <script type="application/ld+json">{JSON.stringify({ "@context": "https://schema.org", "@type": "Person", "name": "Agent", "description": "Verified real estate agent on HomeGentic." })}</script>
         </Helmet>
         <p style={{ fontFamily: S.mono, color: S.inkLight }}>Loading…</p>
       </Layout>
@@ -92,6 +95,16 @@ export default function AgentPublicPage() {
         <meta property="og:title" content={helmetTitle} />
         <meta property="og:description" content={helmetDesc} />
         <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://homegentic.app/og-default.png" />
+        <link rel="canonical" href={`https://homegentic.app/agent/${id}`} />
+        <script type="application/ld+json">{JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Person",
+          "name": helmetName,
+          "description": helmetDesc,
+          "url": `https://homegentic.app/agent/${id}`,
+          "image": "https://homegentic.app/og-default.png",
+        })}</script>
       </Helmet>
       <div style={{ maxWidth: 720, margin: "0 auto", padding: isMobile ? "1rem" : "2rem 1rem" }}>
         {/* Header */}

@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && npm run check:security",
-    "build:ssg": "npm run build && node scripts/prerender.mjs",
+    "build:ssg": "npm run build && node scripts/prerender.mjs && npm run gen:sitemap",
+    "gen:sitemap": "node scripts/gen-sitemap.mjs",
     "check:security": "node scripts/security-checks.mjs",
     "preview": "vite preview",
     "test": "vitest run",

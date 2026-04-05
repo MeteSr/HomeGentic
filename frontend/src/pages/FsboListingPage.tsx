@@ -210,6 +210,9 @@ export default function FsboListingPage() {
           <meta property="og:title" content="For Sale by Owner | HomeGentic" />
           <meta property="og:description" content="Verified FSBO listings on HomeGentic." />
           <meta property="og:type" content="website" />
+          <meta property="og:image" content="https://homegentic.app/og-default.png" />
+          <link rel="canonical" href="https://homegentic.app/for-sale" />
+          <script type="application/ld+json">{JSON.stringify({ "@context": "https://schema.org", "@type": "RealEstateListing", "name": "For Sale by Owner | HomeGentic", "description": "Verified FSBO listing on HomeGentic." })}</script>
         </Helmet>
         <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: S.mono, color: S.inkLight }}>
           Loading…
@@ -228,6 +231,9 @@ export default function FsboListingPage() {
           <meta property="og:title" content="Not Listed For Sale | HomeGentic" />
           <meta property="og:description" content="This property is not currently available via FSBO." />
           <meta property="og:type" content="website" />
+          <meta property="og:image" content="https://homegentic.app/og-default.png" />
+          <link rel="canonical" href="https://homegentic.app/for-sale" />
+          <script type="application/ld+json">{JSON.stringify({ "@context": "https://schema.org", "@type": "RealEstateListing", "name": "For Sale by Owner | HomeGentic", "description": "Verified FSBO listing on HomeGentic." })}</script>
         </Helmet>
         <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "0.5rem" }}>
           <p style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.5rem", color: S.ink }}>Not Listed For Sale</p>
@@ -250,6 +256,16 @@ export default function FsboListingPage() {
         <meta property="og:description" content={helmetDesc} />
         <meta property="og:type" content="website" />
         <meta property="og:url" content={`https://homegentic.app/for-sale/${propertyId}`} />
+        <meta property="og:image" content="https://homegentic.app/og-default.png" />
+        <link rel="canonical" href={`https://homegentic.app/for-sale/${propertyId}`} />
+        <script type="application/ld+json">{JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "RealEstateListing",
+          "name": helmetTitle,
+          "description": helmetDesc,
+          "url": `https://homegentic.app/for-sale/${propertyId}`,
+          "image": "https://homegentic.app/og-default.png",
+        })}</script>
       </Helmet>
     <div style={{ maxWidth: "860px", margin: "0 auto", padding: isMobile ? "1rem" : "2rem 1rem", fontFamily: S.sans }}>
 

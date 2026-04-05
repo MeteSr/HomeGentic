@@ -281,6 +281,8 @@ export default function InstantForecastPage() {
         <meta property="og:description" content="Free instant home maintenance forecast. No login required." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://homegentic.app/instant-forecast" />
+        <meta property="og:image" content="https://homegentic.app/og-default.png" />
+        <link rel="canonical" href="https://homegentic.app/instant-forecast" />
       </Helmet>
     <div style={{ minHeight: "100vh", background: S.paper, color: S.ink }}>
       <TopBar />

@@ -265,6 +265,8 @@ export default function CheckAddressPage() {
       <meta property="og:title" content={helmetTitle} />
       <meta property="og:description" content={helmetDesc} />
       <meta property="og:type" content="website" />
+      <meta property="og:image" content="https://homegentic.app/og-default.png" />
+      <link rel="canonical" href="https://homegentic.app/check" />
     </Helmet>
   );
 
