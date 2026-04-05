@@ -314,10 +314,10 @@ The primary interface is a chat window backed by the existing voice agent (`agen
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 15.6.1 | iOS App Store submission | ⬜ Missing | M | Apple Developer account, provisioning profiles, `eas build --platform ios`, TestFlight beta, store listing (screenshots, privacy policy URL, app description) |
-| 15.6.2 | Android Play Store submission | ⬜ Missing | M | Google Play Developer account, `eas build --platform android`, internal track → production, store listing |
-| 15.6.3 | Privacy disclosures | ⬜ Missing | S | Both stores require data collection disclosures; document what is collected (principal, device push token, usage analytics if any) |
-| 15.6.4 | App Store review: no in-app purchases | ⬜ Missing | S | Ensure no upgrade UI collects payment inside the app; reviewer notes explaining browser redirect for subscriptions |
+| 15.6.1 | iOS App Store submission | ✅ Exists | M | Apple Developer account, provisioning profiles, `eas build --platform ios`, TestFlight beta, store listing (screenshots, privacy policy URL, app description) |
+| 15.6.2 | Android Play Store submission | ✅ Exists | M | Google Play Developer account, `eas build --platform android`, internal track → production, store listing |
+| 15.6.3 | Privacy disclosures | ✅ Exists | S | Both stores require data collection disclosures; document what is collected (principal, device push token, usage analytics if any) |
+| 15.6.4 | App Store review: no in-app purchases | ✅ Exists | S | Ensure no upgrade UI collects payment inside the app; reviewer notes explaining browser redirect for subscriptions |
 
 ### 15.7 Agent Tool Expansion (Mobile-Specific)
 
