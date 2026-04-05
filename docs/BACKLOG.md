@@ -411,3 +411,26 @@ Extend `agents/voice/tools.ts` so the mobile chat interface can drive the full t
 | SEO.8 | Core Web Vitals baseline | ⬜ Missing | S | Run Lighthouse on the pre-rendered landing page. Target LCP < 2.5 s, CLS < 0.1, INP < 200 ms. The Google Fonts `preconnect` is already in place; likely wins: add `font-display: swap`, lazy-load below-fold images, defer non-critical scripts. Document baseline scores in `docs/PERFORMANCE.md`. |
 
 ---
+
+## EPIC: Mobile & Tablet Responsive Layout
+
+**Goal:** Make every page in the web app usable on phones (≥320px) and tablets (≥768px). The navigation shell is already responsive; the problem is the ~40 interior pages, which were built desktop-first using inline React styles that cannot respond to media queries.
+
+**Situation:** There are 94 fixed multi-column CSS grid layouts defined as inline `style` objects — they never reflow on narrow viewports. No responsive hook (`useBreakpoint`, `useMediaQuery`) exists anywhere in the codebase, so every fix today requires touching each page individually with window-width logic. The right fix is to build a shared responsive layer first, then use it to fix pages in priority order.
+
+**Dependency order:** MOB.1 (shared infrastructure) must land first — all subsequent items depend on `useBreakpoint` and `<ResponsiveGrid>`. MOB.2–MOB.4 (public pages) are highest priority as they affect unconverted visitors. MOB.5–MOB.8 (authenticated pages) follow. MOB.9 (touch targets) and MOB.10 (tablet polish) are a final pass.
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| MOB.1 | Shared responsive infrastructure | ⬜ Missing | M | Add `useBreakpoint()` hook (`frontend/src/hooks/useBreakpoint.ts`) returning `{ isMobile: boolean, isTablet: boolean }` via `window.matchMedia`. Add `<ResponsiveGrid cols={{ mobile: 1, tablet: 2, desktop: n }}>` wrapper component that swaps `gridTemplateColumns` based on breakpoint. Add `breakpoints.ts` constants (`MOBILE = 640`, `TABLET = 1024`). All subsequent items use these primitives instead of inline fixed grids. |
+| MOB.2 | Landing page — phone polish | 🟡 Partial | S | Media queries exist at 860/900/1100px but the hero section has a fixed-width `320px` mock UI card and some sections need padding adjustments below 480px. Verify and fix. |
+| MOB.3 | Public profile pages | ⬜ Missing | M | `ContractorPublicPage`, `AgentPublicPage`, `ListingDetailPage`, `ScoreCertPage` — no responsive handling at all. Replace fixed multi-column stat grids with `<ResponsiveGrid>`. Ensure review cards and action CTAs stack cleanly on phone. |
+| MOB.4 | FSBO listing page | 🟡 Partial | S | `document.title` and OG tags are handled; layout has some responsive work. Audit at 390px: photo hero, price/stats row, negotiation panel, offer form all need to be verified at phone width. |
+| MOB.5 | Homeowner dashboard | ⬜ Missing | L | `DashboardPage` has a `repeat(5, 1fr)` KPI stat row, a `repeat(auto-fill, minmax(15rem, 1fr))` property grid (fine), and a `2fr 1fr 1fr 1fr 1fr` job table header that breaks on mobile. Replace KPI row with `<ResponsiveGrid cols={{ mobile: 2, tablet: 3, desktop: 5 }}>`. Convert job table to card stack on mobile. |
+| MOB.6 | Contractor dashboard | ⬜ Missing | L | `ContractorDashboardPage` has a `repeat(7, 1fr)` 7-day calendar strip and a `1fr 320px` two-panel layout. Calendar needs horizontal scroll with snap on mobile. Two-panel layout should stack vertically below tablet. `repeat(1fr 1fr)` KPI grid → `<ResponsiveGrid>`. |
+| MOB.7 | Agent dashboard + marketplace | ⬜ Missing | L | `AgentDashboardPage` has a `2fr 1fr 1fr auto auto auto` listings table and a `repeat(3, 1fr)` KPI row. `AgentMarketplacePage` has a 7-column bid comparison table. Tables need horizontal scroll containers on mobile; KPI rows need `<ResponsiveGrid>`. |
+| MOB.8 | Core form pages | ⬜ Missing | M | `JobCreatePage`, `QuoteRequestPage`, `PropertyRegisterPage`, `SystemAgesPage`, `ContractorProfilePage` — audit all form layouts at 390px. Fixed-width input groups and two-column field pairs need to stack. `SettingsPage` has a fixed `width: 12rem` sidebar panel that doesn't collapse — needs to become a top tab row on mobile. |
+| MOB.9 | Touch targets & tap interactions | ⬜ Missing | S | Audit all interactive elements for minimum 44×44px tap target size (Apple HIG / WCAG 2.5.5). Primary offenders: icon-only buttons, small mono-label nav links, tight table row actions. Add `min-height: 44px` and adequate padding to all tappable elements. Remove `:hover`-only state changes that have no touch equivalent. |
+| MOB.10 | Tablet layout pass (768px–1024px) | ⬜ Missing | M | After MOB.1–MOB.9, do a dedicated tablet audit. Most grids will be handled by `<ResponsiveGrid>` by this point; this pass focuses on pages where 2-column tablet layout looks worse than either phone (1-col) or desktop (3+ col) — particularly dashboard stat rows and the agent marketplace. |
+
+---
