@@ -10,6 +10,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { Shield, AlertTriangle, CheckCircle } from "lucide-react";
 import { parseCertToken } from "@/services/scoreService";
 import { certService } from "@/services/cert";
@@ -55,6 +56,14 @@ export default function ScoreCertPage() {
 
   if (!payload) {
     return (
+      <>
+        <Helmet>
+          <title>Score Certificate | HomeGentic</title>
+          <meta name="description" content="HomeGentic Score Certificate — blockchain-verified home maintenance score." />
+          <meta property="og:title" content="Score Certificate | HomeGentic" />
+          <meta property="og:description" content="HomeGentic Score Certificate." />
+          <meta property="og:type" content="website" />
+        </Helmet>
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: S.paper, padding: outerPad }}>
         <div style={{ textAlign: "center", maxWidth: "28rem" }}>
           <AlertTriangle size={40} color={S.rust} style={{ margin: "0 auto 1rem" }} />
@@ -69,6 +78,7 @@ export default function ScoreCertPage() {
           </p>
         </div>
       </div>
+      </>
     );
   }
 
@@ -77,7 +87,18 @@ export default function ScoreCertPage() {
     year: "numeric", month: "long", day: "numeric",
   });
 
+  const certTitle = `HomeGentic Score Certificate — Grade ${payload.grade}`;
+  const certDesc = `HomeGentic Score ${payload.score}/100, Grade ${payload.grade}. Certified on ${generatedDate}.`;
+
   return (
+    <>
+      <Helmet>
+        <title>{certTitle} | HomeGentic</title>
+        <meta name="description" content={certDesc} />
+        <meta property="og:title" content={certTitle} />
+        <meta property="og:description" content={certDesc} />
+        <meta property="og:type" content="website" />
+      </Helmet>
     <div style={{ minHeight: "100vh", background: S.paper, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: outerPad }}>
       <div style={{ width: "100%", maxWidth: "32rem", background: COLORS.white, border: `1px solid ${S.rule}` }}>
 
@@ -265,5 +286,6 @@ export default function ScoreCertPage() {
         Score is computed from verified job records stored on the ICP blockchain.
       </p>
     </div>
+    </>
   );
 }

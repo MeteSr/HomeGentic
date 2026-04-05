@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 
 /* ─── Styles ──────────────────────────────────────────────────────────────── */
 const CSS = `
@@ -477,6 +478,14 @@ export default function LandingPage() {
 
   return (
     <>
+      <Helmet>
+        <title>HomeGentic — Verified Home Maintenance Records</title>
+        <meta name="description" content="HomeGentic gives homeowners a verified, blockchain-backed record of every repair, upgrade, and inspection — boosting home value and buyer confidence." />
+        <meta property="og:title" content="HomeGentic — Verified Home Maintenance Records" />
+        <meta property="og:description" content="Prove your home's history. Verified maintenance records for homeowners, contractors, and buyers." />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://homegentic.app/" />
+      </Helmet>
       <style>{CSS}</style>
       <div className="hfl">
 

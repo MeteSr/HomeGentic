@@ -8,6 +8,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { ShieldCheck } from "lucide-react";
 import { propertyService, type Property } from "@/services/property";
 import { jobService, type Job } from "@/services/job";
@@ -164,28 +165,12 @@ export default function FsboListingPage() {
   const [fsbo,       setFsbo]       = useState<FsboRecord | null | undefined>(undefined);
   const [reportLink, setReportLink] = useState<ShareLink | null>(null);
 
-  // SEO: set document title and Open Graph meta tags once data is ready
-  useEffect(() => {
-    if (!property || !fsbo) return;
-    const price = "$" + (fsbo.listPriceCents / 100).toLocaleString("en-US", { maximumFractionDigits: 0 });
-    document.title = `${property.address} — For Sale by Owner | HomeGentic`;
-
-    function setMeta(attr: string, value: string, content: string) {
-      let tag = document.querySelector(`meta[${attr}="${value}"]`);
-      if (!tag) {
-        tag = document.createElement("meta");
-        tag.setAttribute(attr, value);
-        document.head.appendChild(tag);
-      }
-      tag.setAttribute("content", content);
-    }
-
-    setMeta("property", "og:title", `${property.address} — For Sale by Owner`);
-    setMeta("property", "og:description", `${price} · ${property.city}, ${property.state} · HomeGentic Verified`);
-    setMeta("name", "description", `${property.address} — ${price} · ${property.city}, ${property.state}. Verified maintenance history on HomeGentic.`);
-
-    return () => { document.title = "HomeGentic"; };
-  }, [property, fsbo]);
+  const helmetTitle = property && fsbo
+    ? `${property.address} — For Sale by Owner | HomeGentic`
+    : "For Sale by Owner | HomeGentic";
+  const helmetDesc = property && fsbo
+    ? `${property.address} — $${(fsbo.listPriceCents / 100).toLocaleString("en-US", { maximumFractionDigits: 0 })} · ${property.city}, ${property.state}. Verified maintenance history on HomeGentic.`
+    : "Browse verified FSBO listings with blockchain-backed maintenance history on HomeGentic.";
 
   useEffect(() => {
     if (!propertyId) { setLoading(false); return; }
@@ -218,19 +203,37 @@ export default function FsboListingPage() {
   // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: S.mono, color: S.inkLight }}>
-        Loading…
-      </div>
+      <>
+        <Helmet>
+          <title>For Sale by Owner | HomeGentic</title>
+          <meta name="description" content="Browse verified FSBO listings with blockchain-backed maintenance history on HomeGentic." />
+          <meta property="og:title" content="For Sale by Owner | HomeGentic" />
+          <meta property="og:description" content="Verified FSBO listings on HomeGentic." />
+          <meta property="og:type" content="website" />
+        </Helmet>
+        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: S.mono, color: S.inkLight }}>
+          Loading…
+        </div>
+      </>
     );
   }
 
   // ── Not for sale ───────────────────────────────────────────────────────────
   if (!fsbo || !fsbo.isFsbo || !property) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "0.5rem" }}>
-        <p style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.5rem", color: S.ink }}>Not Listed For Sale</p>
-        <p style={{ fontFamily: S.sans, fontSize: "0.875rem", color: S.inkLight }}>This property is not currently available via FSBO.</p>
-      </div>
+      <>
+        <Helmet>
+          <title>Not Listed For Sale | HomeGentic</title>
+          <meta name="description" content="This property is not currently listed for sale via FSBO on HomeGentic." />
+          <meta property="og:title" content="Not Listed For Sale | HomeGentic" />
+          <meta property="og:description" content="This property is not currently available via FSBO." />
+          <meta property="og:type" content="website" />
+        </Helmet>
+        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "0.5rem" }}>
+          <p style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.5rem", color: S.ink }}>Not Listed For Sale</p>
+          <p style={{ fontFamily: S.sans, fontSize: "0.875rem", color: S.inkLight }}>This property is not currently available via FSBO.</p>
+        </div>
+      </>
     );
   }
 
@@ -239,6 +242,15 @@ export default function FsboListingPage() {
   const firstPhoto   = photos[0] ?? null;
 
   return (
+    <>
+      <Helmet>
+        <title>{helmetTitle}</title>
+        <meta name="description" content={helmetDesc} />
+        <meta property="og:title" content={helmetTitle} />
+        <meta property="og:description" content={helmetDesc} />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={`https://homegentic.app/for-sale/${propertyId}`} />
+      </Helmet>
     <div style={{ maxWidth: "860px", margin: "0 auto", padding: isMobile ? "1rem" : "2rem 1rem", fontFamily: S.sans }}>
 
       {/* ── Photo ─────────────────────────────────────────────────────────── */}
@@ -346,5 +358,6 @@ export default function FsboListingPage() {
         <ShowingRequestForm propertyId={propertyId!} />
       </div>
     </div>
+    </>
   );
 }

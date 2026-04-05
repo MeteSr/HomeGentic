@@ -7,6 +7,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { ArrowLeft, Star, ShieldCheck, Wrench, MessageSquare, Mail, Phone, Award } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
@@ -93,9 +94,22 @@ export default function ContractorPublicPage() {
     }
   };
 
+  const helmetName = contractor?.name ?? "Contractor";
+  const helmetTitle = `${helmetName} — Verified Contractor | HomeGentic`;
+  const helmetDesc = contractor
+    ? `${helmetName} is a verified contractor on HomeGentic with a trust score of ${contractor.trustScore ?? 0}. View credentials, reviews, and verified job history.`
+    : "Verified contractor profile on HomeGentic.";
+
   if (loading) {
     return (
       <Layout>
+        <Helmet>
+          <title>Contractor Profile | HomeGentic</title>
+          <meta name="description" content="Verified contractor profile on HomeGentic." />
+          <meta property="og:title" content="Contractor Profile | HomeGentic" />
+          <meta property="og:description" content="Verified contractor profile on HomeGentic." />
+          <meta property="og:type" content="website" />
+        </Helmet>
         <div style={{ display: "flex", justifyContent: "center", padding: "4rem" }}>
           <div className="spinner-lg" />
         </div>
@@ -117,6 +131,13 @@ export default function ContractorPublicPage() {
 
   return (
     <Layout>
+      <Helmet>
+        <title>{helmetTitle}</title>
+        <meta name="description" content={helmetDesc} />
+        <meta property="og:title" content={helmetTitle} />
+        <meta property="og:description" content={helmetDesc} />
+        <meta property="og:type" content="website" />
+      </Helmet>
       <div style={{ maxWidth: "38rem", margin: "0 auto", padding: isMobile ? "1rem" : "2rem 1.5rem" }}>
 
         <button

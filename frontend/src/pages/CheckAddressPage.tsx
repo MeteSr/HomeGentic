@@ -9,6 +9,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { Shield, Search, ArrowRight, CheckCircle } from "lucide-react";
 import { lookupReport, submitReportRequest, type BuyerLookupResult } from "@/services/buyerLookup";
 import { COLORS, FONTS } from "@/theme";
@@ -245,18 +246,31 @@ export default function CheckAddressPage() {
     lookupReport(rawAddress)
       .then((r) => {
         setResult(r);
-        // §17.4.4 — set document title for SEO
-        document.title = r.found
-          ? `HomeGentic Report — ${r.address}`
-          : `HomeGentic — No Report Found — ${rawAddress}`;
       })
       .catch(() => setResult({ found: false, address: rawAddress }))
       .finally(() => setLoading(false));
   }, [rawAddress]);
 
-  if (!rawAddress)           return <SearchForm />;
-  if (loading)               return <LoadingState />;
-  if (!result)               return <LoadingState />;
-  if (result.found)          return <FoundResult result={result as any} />;
-  return <NotFoundResult address={result.address || rawAddress} />;
+  const helmetTitle = result?.found
+    ? `HomeGentic Report — ${result.address}`
+    : rawAddress
+      ? `Check Address — ${rawAddress} | HomeGentic`
+      : "Check Address | HomeGentic";
+  const helmetDesc = "Verify a property's HomeGentic maintenance report. Search by address to see if a verified home history is available.";
+
+  const helmet = (
+    <Helmet>
+      <title>{helmetTitle}</title>
+      <meta name="description" content={helmetDesc} />
+      <meta property="og:title" content={helmetTitle} />
+      <meta property="og:description" content={helmetDesc} />
+      <meta property="og:type" content="website" />
+    </Helmet>
+  );
+
+  if (!rawAddress)           return <>{helmet}<SearchForm /></>;
+  if (loading)               return <>{helmet}<LoadingState /></>;
+  if (!result)               return <>{helmet}<LoadingState /></>;
+  if (result.found)          return <>{helmet}<FoundResult result={result as any} /></>;
+  return <>{helmet}<NotFoundResult address={result.address || rawAddress} /></>;
 }

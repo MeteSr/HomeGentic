@@ -6,6 +6,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { Layout } from "@/components/Layout";
 import { ResponsiveGrid } from "@/components/ResponsiveGrid";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
@@ -50,9 +51,24 @@ export default function AgentPublicPage() {
     }).catch(() => setProfile(null));
   }, [id]);
 
+  const helmetName = profile && profile !== undefined ? (profile as any).name ?? "Agent" : "Agent";
+  const helmetTitle = profile && profile !== undefined
+    ? `${(profile as any).name ?? "Agent"} — Real Estate Agent | HomeGentic`
+    : "Agent Profile | HomeGentic";
+  const helmetDesc = profile && profile !== undefined
+    ? `${(profile as any).name ?? "Agent"} is a verified real estate agent on HomeGentic. View their listings, reviews, and track record.`
+    : "Verified real estate agent profile on HomeGentic.";
+
   if (profile === undefined) {
     return (
       <Layout>
+        <Helmet>
+          <title>Agent Profile | HomeGentic</title>
+          <meta name="description" content="Verified real estate agent profile on HomeGentic." />
+          <meta property="og:title" content="Agent Profile | HomeGentic" />
+          <meta property="og:description" content="Verified real estate agent profile on HomeGentic." />
+          <meta property="og:type" content="website" />
+        </Helmet>
         <p style={{ fontFamily: S.mono, color: S.inkLight }}>Loading…</p>
       </Layout>
     );
@@ -70,6 +86,13 @@ export default function AgentPublicPage() {
 
   return (
     <Layout>
+      <Helmet>
+        <title>{helmetTitle}</title>
+        <meta name="description" content={helmetDesc} />
+        <meta property="og:title" content={helmetTitle} />
+        <meta property="og:description" content={helmetDesc} />
+        <meta property="og:type" content="website" />
+      </Helmet>
       <div style={{ maxWidth: 720, margin: "0 auto", padding: isMobile ? "1rem" : "2rem 1rem" }}>
         {/* Header */}
         <div style={{ marginBottom: "1.5rem" }}>
