@@ -21,6 +21,9 @@
             "CFBundleURLSchemes": ["homefax"]
           }
         ]
+      },
+      "entitlements": {
+        "aps-environment": "production"
       }
     },
     "android": {
@@ -43,6 +46,16 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "scheme": "homefax"
+    "scheme": "homefax",
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon":  "./assets/icon.png",
+          "color": "#C94C2E",
+          "sounds": []
+        }
+      ]
+    ]
   }
 }

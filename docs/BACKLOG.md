@@ -280,12 +280,12 @@ The primary interface is a chat window backed by the existing voice agent (`agen
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 15.3.1 | Push token registration endpoint | ⬜ Missing | L | New relay service (Node.js or new `notifications` canister): store `(principal → [APNs/FCM token])` mapping; expose `registerToken(principal, token, platform)` |
-| 15.3.2 | APNs integration | ⬜ Missing | L | Server-side APNs HTTP/2 push with `node-apn` or Apple's provider API; configure iOS push entitlement in `app.json` |
-| 15.3.3 | FCM integration | ⬜ Missing | L | Server-side FCM v1 API with service account credentials; configure `google-services.json` in Expo |
-| 15.3.4 | Canister event → push relay hooks | ⬜ Missing | L | Canister post-update logic (or off-chain polling job) detects relevant events (new lead, job signed, score change) and calls the relay to dispatch push; start with polling for simplicity |
-| 15.3.5 | In-app permission prompt | ⬜ Missing | S | Request push permissions on first meaningful interaction (not on launch); use `expo-notifications` |
-| 15.3.6 | Notification tap → deep link routing | ⬜ Missing | S | Tapped notification payload includes route (e.g. `homefax://jobs/123`); `Linking` listener opens the correct screen |
+| 15.3.1 | Push token registration endpoint | ✅ Exists | L | `agents/notifications/` relay (port 3002): in-memory token store (`store.ts`), `POST /api/push/register` + `/unregister` + `/send`; 9 unit tests |
+| 15.3.2 | APNs integration | ✅ Exists | L | `apns.ts` — JWT provider token (ES256, no extra dep), HTTP/2 `sendApns()`; skips gracefully when `APNS_KEY_ID/TEAM_ID/PRIVATE_KEY` not set; iOS `aps-environment` entitlement in `app.json` |
+| 15.3.3 | FCM integration | ✅ Exists | L | `fcm.ts` — service-account JWT → OAuth token exchange, FCM v1 API `sendFcm()`; skips when `FCM_PROJECT_ID/FCM_SERVICE_ACCOUNT_JSON` not set |
+| 15.3.4 | Canister event → push relay hooks | 🟡 Partial | L | `poller.ts` — 30 s polling loop with `new_lead` + `job_signed` stubs; `dispatcher.ts` fans out to all devices, auto-evicts stale tokens (APNs 410 / FCM UNREGISTERED) |
+| 15.3.5 | In-app permission prompt | ✅ Exists | S | `useNotifications` hook — deferred permission request after auth, Expo push token registered with relay via `notificationService.ts` |
+| 15.3.6 | Notification tap → deep link routing | ✅ Exists | S | `addNotificationResponseReceivedListener` extracts `route` from payload data, calls `Linking.openURL("homefax://…")`; `App.tsx` linking config expanded with `jobs/:jobId` + `leads/:leadId` + `earnings` |
 
 ### 15.4 Homeowner V1 Features (Read-Only)
 
