@@ -198,7 +198,7 @@ The features below address the core signup conversion gap: a new homeowner visit
 | 17.2.2 | Pre-auth forecast landing page | ✅ Exists | M | `/instant-forecast` page: address + year-built entry form → system forecast table with urgency + cost estimates; inline per-row "Last replaced: [year]" override inputs correct upgraded-system predictions; `computeTenYearBudget`, `parseForecastParams`, `buildForecastUrl` in `instantForecast.ts`; `estimateSystems()` updated with per-system override support |
 | 17.2.3 | "Save your forecast" conversion CTA | ✅ Exists | S | "Save your forecast" link on results page → `/properties/new?address=...&yearBuilt=...` |
 | 17.2.4 | Public records year-built lookup | ✅ Exists | L | `lookupYearBuilt(address)` in `instantForecast.ts`; relay stub `GET /api/lookup-year-built` in voice server (returns null); auto-fill on address blur; ATTOM Data integration deferred |
-| 17.2.5 | Forecast → account migration | ⬜ Missing | S | Pre-populate `propertyService.register()` from URL params (`address`, `yearBuilt`, `state`); system overrides pass as `systemAges` so the first dashboard view is accurate |
+| 17.2.5 | Forecast → account migration | ✅ Exists | S | Pre-populate `propertyService.register()` from URL params (`address`, `yearBuilt`, `state`); system overrides pass as `systemAges` so the first dashboard view is accurate |
 
 ### 17.4 Buyer-Side Product — Public Report Lookup
 

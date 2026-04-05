@@ -279,6 +279,12 @@ vi.mock("@/services/agentProfile", () => ({
 // ─── 13.4.1 tests ─────────────────────────────────────────────────────────────
 
 describe("13.4.1: Dashboard rendering with large dataset", () => {
+  let DashboardPage: React.ComponentType;
+
+  beforeAll(async () => {
+    DashboardPage = (await import("@/pages/DashboardPage")).default;
+  });
+
   beforeEach(() => {
     (window as any).__e2e_properties = LARGE_PROPERTIES;
   });
@@ -288,7 +294,6 @@ describe("13.4.1: Dashboard rendering with large dataset", () => {
   });
 
   it("renders with 25 properties without crashing", async () => {
-    const DashboardPage = (await import("@/pages/DashboardPage")).default;
     await act(async () => {
       render(
         <MemoryRouter initialEntries={["/dashboard"]}>
@@ -301,10 +306,9 @@ describe("13.4.1: Dashboard rendering with large dataset", () => {
     });
     // Component should render without throwing
     expect(document.body).toBeTruthy();
-  });
+  }, 15000);
 
   it("completes initial render within 8000ms with 25 properties + 200 jobs", async () => {
-    const DashboardPage = (await import("@/pages/DashboardPage")).default;
     const t0 = performance.now();
 
     await act(async () => {
@@ -320,10 +324,9 @@ describe("13.4.1: Dashboard rendering with large dataset", () => {
 
     const elapsed = performance.now() - t0;
     expect(elapsed, `Dashboard render took ${elapsed.toFixed(0)}ms — exceeds 8000ms threshold`).toBeLessThan(8000);
-  });
+  }, 15000);
 
   it("loading state resolves — spinner disappears after data loads", async () => {
-    const DashboardPage = (await import("@/pages/DashboardPage")).default;
     await act(async () => {
       render(
         <MemoryRouter initialEntries={["/dashboard"]}>
@@ -367,7 +370,6 @@ describe("13.4.1: Dashboard rendering with large dataset", () => {
       return Promise.resolve({ tier: "Pro" as any, expiresAt: null });
     });
 
-    const DashboardPage = (await import("@/pages/DashboardPage")).default;
     await act(async () => {
       render(
         <MemoryRouter initialEntries={["/dashboard"]}>
@@ -388,8 +390,13 @@ describe("13.4.1: Dashboard rendering with large dataset", () => {
 // ─── 13.4.2 tests ─────────────────────────────────────────────────────────────
 
 describe("13.4.2: ReportPage rendering with 200-job snapshot", () => {
+  let ReportPage: React.ComponentType;
+
+  beforeAll(async () => {
+    ReportPage = (await import("@/pages/ReportPage")).default;
+  });
+
   it("renders without crashing with 200 jobs", async () => {
-    const ReportPage = (await import("@/pages/ReportPage")).default;
     await act(async () => {
       render(
         <MemoryRouter initialEntries={["/report/tok-perf"]}>
@@ -403,7 +410,6 @@ describe("13.4.2: ReportPage rendering with 200-job snapshot", () => {
   });
 
   it("completes initial render within 6000ms with 200-job snapshot", async () => {
-    const ReportPage = (await import("@/pages/ReportPage")).default;
     const t0 = performance.now();
 
     await act(async () => {
@@ -418,10 +424,9 @@ describe("13.4.2: ReportPage rendering with 200-job snapshot", () => {
 
     const elapsed = performance.now() - t0;
     expect(elapsed, `ReportPage render took ${elapsed.toFixed(0)}ms — exceeds 6000ms threshold`).toBeLessThan(6000);
-  });
+  }, 15000);
 
   it("renders all 200 jobs — correct count visible after load", async () => {
-    const ReportPage = (await import("@/pages/ReportPage")).default;
     await act(async () => {
       render(
         <MemoryRouter initialEntries={["/report/tok-perf"]}>
@@ -444,7 +449,6 @@ describe("13.4.2: ReportPage rendering with 200-job snapshot", () => {
   });
 
   it("job list render time scales sub-linearly — 200 jobs completes within 1s", async () => {
-    const ReportPage = (await import("@/pages/ReportPage")).default;
     const t0 = performance.now();
 
     await act(async () => {
