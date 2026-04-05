@@ -14,6 +14,7 @@ import { Shield, AlertTriangle, CheckCircle } from "lucide-react";
 import { parseCertToken } from "@/services/scoreService";
 import { certService } from "@/services/cert";
 import { COLORS, FONTS } from "@/theme";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
 
 const S = {
   ink:      COLORS.plum,
@@ -37,6 +38,10 @@ const GRADE_CONFIG: Record<string, { color: string; bg: string }> = {
 
 export default function ScoreCertPage() {
   const { token } = useParams<{ token: string }>();
+  const { isMobile } = useBreakpoint();
+  const outerPad  = isMobile ? "1rem"   : "2rem";
+  const innerPad  = isMobile ? "1.25rem 1rem" : "2rem 2.5rem";
+
   const payload = token ? parseCertToken(token) : null;
   const certId  = (payload as any)?.certId as string | undefined;
 
@@ -50,7 +55,7 @@ export default function ScoreCertPage() {
 
   if (!payload) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: S.paper, padding: "2rem" }}>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: S.paper, padding: outerPad }}>
         <div style={{ textAlign: "center", maxWidth: "28rem" }}>
           <AlertTriangle size={40} color={S.rust} style={{ margin: "0 auto 1rem" }} />
           <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.5rem", color: S.ink, marginBottom: "0.5rem" }}>
@@ -73,11 +78,11 @@ export default function ScoreCertPage() {
   });
 
   return (
-    <div style={{ minHeight: "100vh", background: S.paper, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "2rem" }}>
+    <div style={{ minHeight: "100vh", background: S.paper, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: outerPad }}>
       <div style={{ width: "100%", maxWidth: "32rem", background: COLORS.white, border: `1px solid ${S.rule}` }}>
 
         {/* Header */}
-        <div style={{ background: S.ink, padding: "2rem 2.5rem" }}>
+        <div style={{ background: S.ink, padding: innerPad }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.5rem", opacity: 0.7 }}>
             <Shield size={14} color={COLORS.white} />
             <span style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.2em", textTransform: "uppercase", color: COLORS.white }}>
@@ -94,7 +99,7 @@ export default function ScoreCertPage() {
         </div>
 
         {/* Score block */}
-        <div style={{ padding: "2rem 2.5rem", borderBottom: `1px solid ${S.rule}` }}>
+        <div style={{ padding: innerPad, borderBottom: `1px solid ${S.rule}` }}>
           <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.75rem" }}>
             HomeGentic Score
           </p>
@@ -135,7 +140,7 @@ export default function ScoreCertPage() {
         </div>
 
         {/* On-chain verification status */}
-        <div style={{ padding: "0.875rem 2.5rem", borderBottom: `1px solid ${S.rule}`, background: onChain === true ? COLORS.sageLight : onChain === false ? COLORS.butter : COLORS.white }}>
+        <div style={{ padding: isMobile ? "0.875rem 1rem" : "0.875rem 2.5rem", borderBottom: `1px solid ${S.rule}`, background: onChain === true ? COLORS.sageLight : onChain === false ? COLORS.butter : COLORS.white }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
             {onChain === null && (
               <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: S.inkLight }}>
@@ -175,7 +180,7 @@ export default function ScoreCertPage() {
           ];
 
           return (
-            <div style={{ padding: "1.5rem 2.5rem", borderBottom: `1px solid ${S.rule}`, background: COLORS.white }}>
+            <div style={{ padding: innerPad, borderBottom: `1px solid ${S.rule}`, background: COLORS.white }}>
               <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.875rem" }}>
                 Score Breakdown
               </p>
@@ -221,7 +226,7 @@ export default function ScoreCertPage() {
         })()}
 
         {/* What this means */}
-        <div style={{ padding: "1.5rem 2.5rem", borderBottom: `1px solid ${S.rule}`, background: COLORS.white }}>
+        <div style={{ padding: innerPad, borderBottom: `1px solid ${S.rule}`, background: COLORS.white }}>
           <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.875rem" }}>
             What this means
           </p>
@@ -244,7 +249,7 @@ export default function ScoreCertPage() {
         </div>
 
         {/* Footer */}
-        <div style={{ padding: "1rem 2.5rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ padding: isMobile ? "1rem" : "1rem 2.5rem", display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", gap: isMobile ? "0.25rem" : 0 }}>
           <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.06em", color: S.inkLight }}>
             homegentic.io · Blockchain-verified home history
           </span>

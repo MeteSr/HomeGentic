@@ -13,6 +13,7 @@ import { Button } from "@/components/Button";
 import { contractorService, ContractorProfile, JobCredential } from "@/services/contractor";
 import toast from "react-hot-toast";
 import { COLORS, FONTS } from "@/theme";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
 
 const S = {
   ink:      COLORS.plum,
@@ -48,6 +49,7 @@ function StarRating({ value, onChange }: { value: number; onChange: (v: number) 
 export default function ContractorPublicPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isMobile } = useBreakpoint();
   const [contractor,   setContractor]   = useState<ContractorProfile | null>(null);
   const [credentials,  setCredentials]  = useState<JobCredential[]>([]);
   const [loading,      setLoading]      = useState(true);
@@ -115,7 +117,7 @@ export default function ContractorPublicPage() {
 
   return (
     <Layout>
-      <div style={{ maxWidth: "38rem", margin: "0 auto", padding: "2rem 1.5rem" }}>
+      <div style={{ maxWidth: "38rem", margin: "0 auto", padding: isMobile ? "1rem" : "2rem 1.5rem" }}>
 
         <button
           onClick={() => navigate(-1)}
@@ -156,7 +158,7 @@ export default function ContractorPublicPage() {
                 <ShieldCheck size={13} /> Verified contractor
               </div>
             )}
-            <div style={{ display: "flex", gap: "2rem" }}>
+            <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap" }}>
               <div>
                 <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.15rem" }}>Jobs Completed</p>
                 <p style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.125rem" }}>{contractor.jobsCompleted}</p>
@@ -201,7 +203,7 @@ export default function ContractorPublicPage() {
           </div>
           <button
             onClick={() => navigate("/quotes/new", { state: { prefill: { serviceType: contractor.specialties[0] ?? "", contractorName: contractor.name } } })}
-            style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", padding: "0.625rem 1.25rem", background: S.rust, color: COLORS.white, border: "none", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", flexShrink: 0 }}
+            style={{ display: isMobile ? "flex" : "inline-flex", width: isMobile ? "100%" : "auto", justifyContent: "center", alignItems: "center", gap: "0.5rem", padding: "0.625rem 1.25rem", background: S.rust, color: COLORS.white, border: "none", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", flexShrink: 0 }}
           >
             <MessageSquare size={13} /> Request Quote
           </button>

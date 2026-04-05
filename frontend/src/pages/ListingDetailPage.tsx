@@ -12,6 +12,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { ArrowLeft, Lock, CheckCircle2, Clock, Upload, RefreshCw } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
@@ -72,6 +73,7 @@ function priceContextBadge(estimatedSalePrice: number, desiredSalePrice: number 
 export default function ListingDetailPage() {
   const navigate = useNavigate();
   const { id }   = useParams<{ id: string }>();
+  const { isMobile } = useBreakpoint();
 
   const [request,        setRequest]       = useState<ListingBidRequest | null>(null);
   const [proposals,      setProposals]     = useState<ListingProposal[]>([]);
@@ -432,7 +434,7 @@ export default function ListingDetailPage() {
                 )}
                 {/* Log offer form */}
                 <form aria-label="Log offer" onSubmit={handleLogOffer} style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "0.75rem" }}>
                     <div>
                       <label htmlFor="offer-amount" style={{ display: "block", fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.25rem" }}>
                         Offer Amount ($)
@@ -489,7 +491,7 @@ export default function ListingDetailPage() {
                   Record Final Sale
                 </h2>
                 <form aria-label="Record final sale" onSubmit={handleLogClose} style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "0.75rem" }}>
                     <div>
                       <label htmlFor="final-sale-price" style={{ display: "block", fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.25rem" }}>
                         Final Sale Price ($)

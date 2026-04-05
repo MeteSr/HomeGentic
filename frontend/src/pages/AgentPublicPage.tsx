@@ -7,6 +7,8 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Layout } from "@/components/Layout";
+import { ResponsiveGrid } from "@/components/ResponsiveGrid";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { Button } from "@/components/Button";
 import { agentService, AgentOnChainProfile, AgentReview, computeAverageRating } from "@/services/agent";
 import { listingService, AgentPerformanceRecord } from "@/services/listing";
@@ -26,6 +28,7 @@ const S = {
 
 export default function AgentPublicPage() {
   const { id } = useParams<{ id: string }>();
+  const { isMobile } = useBreakpoint();
   const { properties } = usePropertyStore();
   const [profile, setProfile] = useState<AgentOnChainProfile | null | undefined>(undefined);
   const [reviews, setReviews] = useState<AgentReview[]>([]);
@@ -67,7 +70,7 @@ export default function AgentPublicPage() {
 
   return (
     <Layout>
-      <div style={{ maxWidth: 720, margin: "0 auto", padding: "2rem 1rem" }}>
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: isMobile ? "1rem" : "2rem 1rem" }}>
         {/* Header */}
         <div style={{ marginBottom: "1.5rem" }}>
           <h1 style={{ fontFamily: S.serif, color: S.ink, margin: 0 }}>
@@ -144,7 +147,7 @@ export default function AgentPublicPage() {
         </div>
 
         {/* Stats */}
-        <div style={{ display: "flex", gap: "2rem", marginBottom: "1.5rem",
+        <div style={{ display: "flex", gap: isMobile ? "1.25rem" : "2rem", flexWrap: "wrap", marginBottom: "1.5rem",
           borderTop: `1px solid ${S.rule}`, borderBottom: `1px solid ${S.rule}`,
           padding: "1rem 0" }}>
           <div>
@@ -248,7 +251,7 @@ export default function AgentPublicPage() {
                 textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.75rem" }}>
                 Agent Performance ({perfRecords.length} transaction{perfRecords.length !== 1 ? "s" : ""})
               </div>
-              <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap" }}>
+              <ResponsiveGrid cols={{ mobile: 2, tablet: 2, desktop: 4 }} gap="1.5rem">
                 <div>
                   <div style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, textTransform: "uppercase", marginBottom: "0.2rem" }}>Overall Score</div>
                   <div style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.5rem", color: S.ink }}>{overallScore}</div>
@@ -265,7 +268,7 @@ export default function AgentPublicPage() {
                   <div style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, textTransform: "uppercase", marginBottom: "0.2rem" }}>Commission Honesty</div>
                   <div style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.5rem", color: S.ink }}>{commissionScore}</div>
                 </div>
-              </div>
+              </ResponsiveGrid>
             </div>
           );
         })()}
