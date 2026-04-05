@@ -73,7 +73,7 @@ function AgentCard({ agent }: { agent: AgentOnChainProfile }) {
               <ShieldCheck size={11} /> HomeGentic Verified
             </span>
           )}
-          {agent.homeFaxTransactionCount > 0 && (
+          {agent.homeGenticTransactionCount > 0 && (
             <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "#1a5c3a" }}>
               <Star size={10} /> HomeGentic Verified Transaction
             </span>
@@ -93,7 +93,7 @@ export default function AgentBrowsePage() {
   const [loading,    setLoading]    = useState(true);
   const [query,      setQuery]      = useState("");
   const [state,      setState]      = useState("All");
-  const [homeFaxOnly, setHomeGenticOnly] = useState(false);
+  const [homeGenticOnly, setHomeGenticOnly] = useState(false);
   const [userTier,   setUserTier]   = useState<PlanTier>("Free");
 
   useEffect(() => {
@@ -111,7 +111,7 @@ export default function AgentBrowsePage() {
   const filtered = useMemo(() => {
     let list = agents;
     if (state !== "All") list = list.filter((a) => a.statesLicensed.includes(state));
-    if (homeFaxOnly) list = list.filter((a) => a.homeFaxTransactionCount > 0);
+    if (homeGenticOnly) list = list.filter((a) => a.homeGenticTransactionCount > 0);
     if (query.trim()) {
       const q = query.trim().toLowerCase();
       list = list.filter((a) =>
@@ -121,7 +121,7 @@ export default function AgentBrowsePage() {
       );
     }
     return [...list].sort((a, b) => a.avgDaysOnMarket - b.avgDaysOnMarket);
-  }, [agents, state, homeFaxOnly, query]);
+  }, [agents, state, homeGenticOnly, query]);
 
   if (userTier === "Free") {
     return (
@@ -171,7 +171,7 @@ export default function AgentBrowsePage() {
           <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, cursor: "pointer", userSelect: "none" }}>
             <input
               type="checkbox"
-              checked={homeFaxOnly}
+              checked={homeGenticOnly}
               onChange={(e) => setHomeGenticOnly(e.target.checked)}
               aria-label="HomeGentic Only"
             />

@@ -136,7 +136,7 @@ export default function SupportPage() {
         <header style={{ borderBottom: `1px solid ${S.rule}`, position: "sticky", top: 0, background: S.paper, zIndex: 50 }}>
           <div style={{ maxWidth: "80rem", margin: "0 auto", padding: "0 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", height: "3.5rem" }}>
             <Link to="/" style={{ textDecoration: "none", fontFamily: S.serif, fontWeight: 900, fontSize: "1.1rem", letterSpacing: "-0.5px", color: S.ink }}>
-              Home<span style={{ color: S.sage }}>Fax</span>
+              Home<span style={{ color: S.sage }}>Gentic</span>
             </Link>
             <nav style={{ display: "flex", gap: "1.5rem", alignItems: "center" }}>
               <Link to="/pricing" style={{ textDecoration: "none", fontFamily: S.mono, fontSize: "0.7rem", letterSpacing: "0.06em", color: S.inkLight }}>PRICING</Link>
@@ -254,7 +254,7 @@ export default function SupportPage() {
         <footer style={{ borderTop: `1px solid ${S.rule}`, padding: "2rem 1.5rem" }}>
           <div style={{ maxWidth: "56rem", margin: "0 auto", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
             <Link to="/" style={{ textDecoration: "none", fontFamily: S.serif, fontWeight: 900, fontSize: "1rem", color: S.ink }}>
-              Home<span style={{ color: S.sage }}>Fax</span>
+              Home<span style={{ color: S.sage }}>Gentic</span>
             </Link>
             <div style={{ display: "flex", gap: "1.5rem" }}>
               <Link to="/privacy" style={{ textDecoration: "none", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>PRIVACY</Link>

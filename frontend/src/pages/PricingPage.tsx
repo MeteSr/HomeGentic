@@ -53,7 +53,7 @@ export default function PricingPage() {
       <header style={{ borderBottom: `1px solid ${S.rule}`, position: "sticky", top: 0, background: S.paper, zIndex: 50 }}>
         <div style={{ maxWidth: "80rem", margin: "0 auto", padding: "0 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", height: "3.5rem" }}>
           <Link to="/" style={{ textDecoration: "none", fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.1rem", letterSpacing: "-0.5px", color: COLORS.plum }}>
-            Home<span style={{ color: COLORS.sage }}>Fax</span>
+            Home<span style={{ color: COLORS.sage }}>Gentic</span>
           </Link>
           <Button size="sm" onClick={login}>Get Started Free</Button>
         </div>

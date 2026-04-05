@@ -27,7 +27,7 @@ const { mockProfile, mockReview } = vi.hoisted(() => {
     avgDaysOnMarket:      21,
     listingsLast12Months: 8,
     isVerified:              true,
-    homeFaxTransactionCount: 5,
+    homeGenticTransactionCount: 5,
     typicalCommissionBps:    250,
     createdAt:               Date.now() - 100_000,
     updatedAt:               Date.now() - 50_000,

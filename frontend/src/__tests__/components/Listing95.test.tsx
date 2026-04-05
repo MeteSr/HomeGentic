@@ -66,7 +66,7 @@ const {
     requestId: "BID_1",
     finalSalePriceCents: 51_800_000,   // $518,000
     actualCloseDateMs: now - 2_000,
-    homeFaxBaselineCents: 35_000_000,
+    homeGenticBaselineCents: 35_000_000,
     actualPremiumCents: 16_800_000,
     recordedAt: now - 1_000,
   };

@@ -183,7 +183,7 @@ export interface TransactionClose {
   requestId:           string;
   finalSalePriceCents: number;
   actualCloseDateMs:   number;
-  homeFaxBaselineCents: number;
+  homeGenticBaselineCents: number;
   actualPremiumCents:  number;
   recordedAt:          number;
 }
@@ -326,11 +326,11 @@ export function initMilestones(): Milestone[] {
 export function computeOfferDeltas(
   offerAmountCents: number,
   desiredSalePrice: number | null,
-  homeFaxEstimateMidCents: number | null,
+  homeGenticEstimateMidCents: number | null,
 ): { deltaFromListingPriceCents: number | null; deltaFromHomeGenticEstimateCents: number | null } {
   return {
     deltaFromListingPriceCents:    desiredSalePrice       !== null ? offerAmountCents - desiredSalePrice       : null,
-    deltaFromHomeGenticEstimateCents: homeFaxEstimateMidCents !== null ? offerAmountCents - homeFaxEstimateMidCents : null,
+    deltaFromHomeGenticEstimateCents: homeGenticEstimateMidCents !== null ? offerAmountCents - homeGenticEstimateMidCents : null,
   };
 }
 
@@ -714,7 +714,7 @@ function createListingService() {
         requestId,
         finalSalePriceCents: input.finalSalePriceCents,
         actualCloseDateMs:   input.actualCloseDateMs,
-        homeFaxBaselineCents: 0,  // set from propertySnapshot.score in real impl
+        homeGenticBaselineCents: 0,  // set from propertySnapshot.score in real impl
         actualPremiumCents:  0,
         recordedAt:          Date.now(),
       };

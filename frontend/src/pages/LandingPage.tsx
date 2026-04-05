@@ -898,7 +898,7 @@ export default function LandingPage() {
 
         {/* ── Footer ──────────────────────────────────────────────────────── */}
         <footer className="hfl-footer">
-          <div className="hfl-footer-logo">Home<span>Fax</span></div>
+          <div className="hfl-footer-logo">Home<span>Gentic</span></div>
           <div className="hfl-footer-links">
             <a onClick={(e) => { e.preventDefault(); scrollTo("hfl-features"); }}>For Homeowners</a>
             <a onClick={(e) => { e.preventDefault(); scrollTo("hfl-features"); }}>Service Network</a>

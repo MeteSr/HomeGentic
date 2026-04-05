@@ -84,7 +84,7 @@ vi.mock("@/services/agent", () => ({
         licenseNumber: "LIC-001", bio: "Agent bio",
         statesLicensed: ["TX"], avgDaysOnMarket: 20,
         listingsLast12Months: 5, isVerified: true,
-        homeFaxTransactionCount: 2, typicalCommissionBps: 250,
+        homeGenticTransactionCount: 2, typicalCommissionBps: 250,
         phone: "555-0001", email: "alice@example.com",
         createdAt: 0, updatedAt: 0,
       },

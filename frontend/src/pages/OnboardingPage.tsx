@@ -120,7 +120,7 @@ export default function OnboardingPage() {
 
       {/* Logo */}
       <div style={{ display: "flex", alignItems: "center", marginBottom: "3rem", cursor: "pointer" }} onClick={() => navigate("/")}>
-        <span style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.25rem", letterSpacing: "-0.5px", color: COLORS.plum }}>Home<span style={{ color: COLORS.sage }}>Fax</span></span>
+        <span style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.25rem", letterSpacing: "-0.5px", color: COLORS.plum }}>Home<span style={{ color: COLORS.sage }}>Gentic</span></span>
       </div>
 
       {/* Card */}

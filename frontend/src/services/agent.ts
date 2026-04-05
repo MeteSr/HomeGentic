@@ -93,7 +93,7 @@ export interface AgentOnChainProfile {
   listingsLast12Months:    number;
   isVerified:              boolean;
   // 9.6 — enriched fields (computed / denormalized)
-  homeFaxTransactionCount: number;
+  homeGenticTransactionCount: number;
   typicalCommissionBps:    number;
   createdAt:               number;
   updatedAt:               number;
@@ -150,7 +150,7 @@ function fromRawProfile(raw: any): AgentOnChainProfile {
     avgDaysOnMarket:         Number(raw.avgDaysOnMarket),
     listingsLast12Months:    Number(raw.listingsLast12Months),
     isVerified:              raw.isVerified,
-    homeFaxTransactionCount: Number(raw.homeFaxTransactionCount ?? 0),
+    homeGenticTransactionCount: Number(raw.homeGenticTransactionCount ?? 0),
     typicalCommissionBps:    Number(raw.typicalCommissionBps ?? 250),
     createdAt:               Number(raw.createdAt),
     updatedAt:               Number(raw.updatedAt),
@@ -210,7 +210,7 @@ function createAgentService() {
           avgDaysOnMarket:         0,
           listingsLast12Months:    0,
           isVerified:              false,
-          homeFaxTransactionCount: 0,
+          homeGenticTransactionCount: 0,
           typicalCommissionBps:    250,
           createdAt:               Date.now(),
           updatedAt:               Date.now(),
