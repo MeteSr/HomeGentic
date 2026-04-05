@@ -262,7 +262,7 @@ The primary interface is a chat window backed by the existing voice agent (`agen
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
 | 15.1.1 | React Native scaffold (Expo managed workflow) | ✅ Exists | M | `mobile/` scaffolded with `create-expo-app` (blank-typescript); `@react-navigation/native` + `@react-navigation/bottom-tabs` installed |
-| 15.1.2 | Shared TypeScript service layer | ⬜ Missing | M | Wire `@dfinity/agent` + polyfills (`react-native-get-random-values`, `text-encoding`, `node-libs-react-native`) into the mobile app; reuse `frontend/src/services/` types |
+| 15.1.2 | Shared TypeScript service layer | ✅ Exists | M | Polyfills (`react-native-get-random-values`, `text-encoding`) imported at top of `index.ts`; `propertyService.ts` and `jobService.ts` with mock-fallback pattern; `agentService.ts` bridges to voice proxy (7 unit tests) |
 | 15.1.3 | Design token port | ✅ Exists | S | `mobile/src/theme.ts` — colors, fonts, spacing, borderWidth/borderRadius tokens ported from web design system |
 | 15.1.4 | Navigation scaffold | ✅ Exists | S | `mobile/src/navigation/TabNavigator.tsx` — 4-tab bottom navigator (Chat, Photos, Report, Settings); deep-link config in `App.tsx` |
 | 15.1.5 | Deep-link scheme registration | ✅ Exists | S | `homefax://` scheme registered in `app.json`: `scheme`, `ios.infoPlist.CFBundleURLTypes`, `android.intentFilters`; linking config wired in `NavigationContainer` |
@@ -291,13 +291,13 @@ The primary interface is a chat window backed by the existing voice agent (`agen
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 15.4.1 | Property list screen | ⬜ Missing | S | Mirrors `DashboardPage`; list cards with score badge; tap → property detail |
-| 15.4.2 | HomeFax Score screen | ⬜ Missing | S | Score dial + recent events feed; mirrors web `ScorePage` |
-| 15.4.3 | Job history screen | ⬜ Missing | S | Read-only list of completed and pending jobs; tap → job detail with photos |
+| 15.4.1 | Property list screen | ✅ Exists | S | `PropertyListScreen.tsx` — score badge, built year, tap → PropertyDetail |
+| 15.4.2 | HomeFax Score screen | ✅ Exists | S | Score hero in `PropertyDetailScreen.tsx` — large score number, letter grade, address |
+| 15.4.3 | Job history screen | ✅ Exists | S | Job list in `PropertyDetailScreen.tsx` — service type, description, date, amount, DIY flag, verified dot |
 | 15.4.4 | Report WebView | ⬜ Missing | S | Open HomeFax report in embedded `WebView` (or `expo-web-browser`) rather than rebuilding the full report component natively |
 | 15.4.5 | Push: score change notification | ⬜ Missing | M | Notify homeowner when HomeFax Score changes by ≥5 points; requires 15.3 relay |
 | 15.4.6 | Push: new job pending signature | ⬜ Missing | M | Notify homeowner when a contractor marks a job complete and awaits their signature |
-| 15.4.7 | Upgrade CTA (browser deep-link) | ⬜ Missing | S | "Upgrade to Pro" buttons call `Linking.openURL("https://homefax.app/pricing")`; no in-app payment UI |
+| 15.4.7 | Upgrade CTA (browser deep-link) | ✅ Exists | S | Upgrade banner in `PropertyDetailScreen.tsx` calls `Linking.openURL("https://homefax.app/pricing")` |
 
 ### 15.5 Contractor V1 Features (Read-Only)
 

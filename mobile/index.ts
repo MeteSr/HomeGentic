@@ -1,3 +1,8 @@
+// Polyfills required by @dfinity/agent in React Native.
+// Must be the very first imports before any dfinity package is loaded.
+import "react-native-get-random-values"; // crypto.getRandomValues
+import "text-encoding";                  // TextEncoder / TextDecoder
+
 import { registerRootComponent } from 'expo';
 
 import App from './App';

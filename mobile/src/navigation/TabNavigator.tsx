@@ -2,9 +2,9 @@ import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Text } from "react-native";
 import { colors, fonts } from "../theme";
-import ChatScreen    from "../screens/ChatScreen";
-import PhotosScreen  from "../screens/PhotosScreen";
-import ReportScreen  from "../screens/ReportScreen";
+import ChatStack      from "./ChatStack";
+import PhotosScreen   from "../screens/PhotosScreen";
+import ReportScreen   from "../screens/ReportScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 
 export type TabParamList = {
@@ -55,9 +55,10 @@ export default function TabNavigator() {
     >
       <Tab.Screen
         name="Chat"
-        component={ChatScreen}
+        component={ChatStack}
         options={{
           tabBarLabel: "CHAT",
+          headerShown: false,
           tabBarIcon: ({ focused }) => <TabIcon label="◎" focused={focused} />,
         }}
       />
