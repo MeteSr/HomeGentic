@@ -356,11 +356,11 @@ Extend `agents/voice/tools.ts` so the mobile chat interface can drive the full t
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| AI.1 | Define `AIProvider` interface | ⬜ Missing | S | New `agents/voice/provider.ts`: `stream()`, `complete()`, `completeWithTools()` methods with normalized types for tool definitions, tool call results, and streaming chunks — no SDK types exposed |
-| AI.2 | Implement `AnthropicProvider` | ⬜ Missing | M | Class wrapping `@anthropic-ai/sdk`: translates normalized tool schema → Anthropic wire format, maps `content_block_delta`/`text_delta` events → normalized chunks, extracts `ToolUseBlock`/`TextBlock` from responses. No Anthropic types leak outside this class |
-| AI.3 | Wire provider into `server.ts` via DI | ⬜ Missing | M | Replace all direct `anthropic.messages.*` calls in route handlers with `AIProvider` interface calls. Instantiate the concrete provider once at startup, selected by `AI_PROVIDER` env var |
-| AI.4 | Extract model name to config | ⬜ Missing | S | Remove the five hardcoded `"claude-sonnet-4-6"` strings. Add `AI_MODEL` to `.env.example`; provider reads it at startup. Route handlers never reference a model name |
-| AI.5 | Normalize tool schema in `tools.ts` | ⬜ Missing | S | Rewrite `HOMEFAX_TOOLS` using the normalized tool definition type from AI.1. Each provider implementation converts to its own wire format — route handlers and tool definitions remain provider-agnostic |
-| AI.6 | Remove provider-specific strings | ⬜ Missing | S | Replace `"Claude did not return valid JSON"` and equivalents with provider-agnostic wording. Update `GET /health` to return `AI_MODEL` from env instead of the hardcoded string |
+| AI.1 | Define `AIProvider` interface | ✅ Exists | S | New `agents/voice/provider.ts`: `stream()`, `complete()`, `completeWithTools()` methods with normalized types for tool definitions, tool call results, and streaming chunks — no SDK types exposed |
+| AI.2 | Implement `AnthropicProvider` | ✅ Exists | M | Class wrapping `@anthropic-ai/sdk`: translates normalized tool schema → Anthropic wire format, maps `content_block_delta`/`text_delta` events → normalized chunks, extracts `ToolUseBlock`/`TextBlock` from responses. No Anthropic types leak outside this class |
+| AI.3 | Wire provider into `server.ts` via DI | ✅ Exists | M | Replace all direct `anthropic.messages.*` calls in route handlers with `AIProvider` interface calls. Instantiate the concrete provider once at startup, selected by `AI_PROVIDER` env var |
+| AI.4 | Extract model name to config | ✅ Exists | S | Remove the five hardcoded `"claude-sonnet-4-6"` strings. Add `AI_MODEL` to `.env.example`; provider reads it at startup. Route handlers never reference a model name |
+| AI.5 | Normalize tool schema in `tools.ts` | ✅ Exists | S | Rewrite `HOMEFAX_TOOLS` using the normalized tool definition type from AI.1. Each provider implementation converts to its own wire format — route handlers and tool definitions remain provider-agnostic |
+| AI.6 | Remove provider-specific strings | ✅ Exists | S | Replace `"Claude did not return valid JSON"` and equivalents with provider-agnostic wording. Update `GET /health` to return `AI_MODEL` from env instead of the hardcoded string |
 
 ---
