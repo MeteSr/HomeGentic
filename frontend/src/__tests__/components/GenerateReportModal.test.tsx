@@ -216,7 +216,7 @@ describe("notificationService — (15.7.3)", () => {
   it("create stores a notification and returns it", () => {
     const n = realNotificationService.create({
       type: "ReportExpiry",
-      message: "Your HomeFax report expires in 7 days — upgrade to Pro for a permanent link.",
+      message: "Your HomeGentic report expires in 7 days — upgrade to Pro for a permanent link.",
       propertyId: "42",
     });
     expect(n.type).toBe("ReportExpiry");

@@ -1,5 +1,5 @@
 /**
- * Image encoding utilities for the HomeFax voice agent.
+ * Image encoding utilities for the HomeGentic voice agent.
  * Builds Claude-compatible image message blocks from browser File/Blob inputs.
  */
 

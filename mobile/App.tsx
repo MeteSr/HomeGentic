@@ -10,7 +10,7 @@ import { colors } from "./src/theme";
 // Deep-link → screen mapping.
 // Routes emitted in push notification payloads must match these paths.
 const linking = {
-  prefixes: ["homefax://"],
+  prefixes: ["homegentic://"],
   config: {
     screens: {
       Chat:     "chat",

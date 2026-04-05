@@ -21,7 +21,7 @@ export const MILESTONES: Milestone[] = [
   { score: 60, label: "Grade C" },
   { score: 70, label: "Grade B" },
   { score: 80, label: "Grade A" },
-  { score: 88, label: "HomeFax Certified™" },
+  { score: 88, label: "HomeGentic Certified™" },
   { score: 90, label: "Grade A+" },
 ];
 
@@ -49,7 +49,7 @@ export interface ScoreTrendContext {
 
 /**
  * Returns coaching when the current score is within COACHING_WINDOW pts of
- * the next grade boundary or HomeFax Certified threshold. Returns null otherwise.
+ * the next grade boundary or HomeGentic Certified threshold. Returns null otherwise.
  *
  * Action priority (cheapest first):
  *   1. Pending contractor jobs that can be verified for free (+4 pts each)

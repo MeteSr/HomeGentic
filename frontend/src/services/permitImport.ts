@@ -1,7 +1,7 @@
 /**
  * §17.5.1 — Municipal Permit API Integration
  *
- * Fetches permit records from the HomeFax relay (POST /api/permits/import),
+ * Fetches permit records from the HomeGentic relay (POST /api/permits/import),
  * which in turn queries OpenPermit.org for supported cities.
  *
  * Pure functions (mapPermitTypeToServiceType, permitToJobInput, isPermitDataAvailable)
@@ -42,7 +42,7 @@ export interface PermitImportResult {
   permits:       ImportedPermit[];
 }
 
-// ── Permit type → HomeFax service type ───────────────────────────────────────
+// ── Permit type → HomeGentic service type ───────────────────────────────────────
 
 const PERMIT_TYPE_MAP: Array<[RegExp, string]> = [
   [/electric/i,                    "Electrical"],

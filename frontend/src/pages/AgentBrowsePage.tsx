@@ -2,7 +2,7 @@
  * Agent browse page — /agents (Epic 9.6.1)
  *
  * Searchable, filterable directory of agent profiles.
- * Filter: state, HomeFax-only toggle, max avg DOM.
+ * Filter: state, HomeGentic-only toggle, max avg DOM.
  * Each card links to /agent/:id.
  */
 
@@ -70,12 +70,12 @@ function AgentCard({ agent }: { agent: AgentOnChainProfile }) {
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.25rem" }}>
           {agent.isVerified && (
             <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.sage }}>
-              <ShieldCheck size={11} /> HomeFax Verified
+              <ShieldCheck size={11} /> HomeGentic Verified
             </span>
           )}
           {agent.homeFaxTransactionCount > 0 && (
             <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "#1a5c3a" }}>
-              <Star size={10} /> HomeFax Verified Transaction
+              <Star size={10} /> HomeGentic Verified Transaction
             </span>
           )}
         </div>
@@ -93,7 +93,7 @@ export default function AgentBrowsePage() {
   const [loading,    setLoading]    = useState(true);
   const [query,      setQuery]      = useState("");
   const [state,      setState]      = useState("All");
-  const [homeFaxOnly, setHomeFaxOnly] = useState(false);
+  const [homeFaxOnly, setHomeGenticOnly] = useState(false);
   const [userTier,   setUserTier]   = useState<PlanTier>("Free");
 
   useEffect(() => {
@@ -150,7 +150,7 @@ export default function AgentBrowsePage() {
             Find an Agent
           </h1>
           <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight, marginTop: "0.375rem" }}>
-            Realtors with HomeFax-verified transaction records
+            Realtors with HomeGentic-verified transaction records
           </p>
         </div>
 
@@ -167,15 +167,15 @@ export default function AgentBrowsePage() {
             />
           </div>
 
-          {/* HomeFax-only toggle */}
+          {/* HomeGentic-only toggle */}
           <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, cursor: "pointer", userSelect: "none" }}>
             <input
               type="checkbox"
               checked={homeFaxOnly}
-              onChange={(e) => setHomeFaxOnly(e.target.checked)}
-              aria-label="HomeFax Only"
+              onChange={(e) => setHomeGenticOnly(e.target.checked)}
+              aria-label="HomeGentic Only"
             />
-            HomeFax Only
+            HomeGentic Only
           </label>
         </div>
 

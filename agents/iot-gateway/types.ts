@@ -1,5 +1,5 @@
 /**
- * Shared types for the HomeFax IoT Gateway.
+ * Shared types for the HomeGentic IoT Gateway.
  *
  * Webhook payloads from Nest, Ecobee, and Moen Flo are all normalized into a
  * SensorReading before being forwarded to the sensor canister.

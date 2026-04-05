@@ -113,7 +113,7 @@ export default function LoginPage() {
 
         <div style={{ marginTop: "1.25rem", textAlign: "center" }}>
           <Link to="/" style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", color: COLORS.plumMid, textDecoration: "none" }}>
-            ← Back to HomeFax
+            ← Back to HomeGentic
           </Link>
         </div>
       </div>

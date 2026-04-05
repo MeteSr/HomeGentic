@@ -29,8 +29,8 @@ test.describe("PropertyDetailPage — /properties/:id", () => {
     await expect(page).toHaveURL("/dashboard");
   });
 
-  test("Share HomeFax Report button is visible", async ({ page }) => {
-    await expect(page.getByRole("button", { name: /share homefax report/i })).toBeVisible();
+  test("Share HomeGentic Report button is visible", async ({ page }) => {
+    await expect(page.getByRole("button", { name: /share homegentic report/i })).toBeVisible();
   });
 
   // ── Verification banner ────────────────────────────────────────────────────
@@ -141,8 +141,8 @@ test.describe("PropertyDetailPage — /properties/:id", () => {
 
   // ── Report modal ────────────────────────────────────────────────────────────
 
-  test("clicking Share HomeFax Report opens a modal", async ({ page }) => {
-    await page.getByRole("button", { name: /share homefax report/i }).click();
+  test("clicking Share HomeGentic Report opens a modal", async ({ page }) => {
+    await page.getByRole("button", { name: /share homegentic report/i }).click();
     // Modal should appear — look for generate/close pattern
     await expect(page.locator("[role='dialog'], [style*='position: fixed']").first()).toBeVisible();
   });

@@ -54,7 +54,7 @@ fi
 
 echo ""
 echo "══════════════════════════════════════════════════════════════════════"
-echo "  HomeFax Benchmark Harness (13.6.1)"
+echo "  HomeGentic Benchmark Harness (13.6.1)"
 echo "  Mode: $MODE"
 echo "══════════════════════════════════════════════════════════════════════"
 echo ""
@@ -79,7 +79,7 @@ TIMESTAMP="$(date -u '+%Y-%m-%d %H:%M UTC')"
 GIT_SHA="$(cd "$ROOT" && git rev-parse --short HEAD 2>/dev/null || echo 'unknown')"
 
 {
-  echo "# HomeFax Benchmark Report"
+  echo "# HomeGentic Benchmark Report"
   echo ""
   echo "> Generated: ${TIMESTAMP}  |  Commit: \`${GIT_SHA}\`  |  Mode: \`${MODE}\`"
   echo ""

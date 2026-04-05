@@ -10,8 +10,8 @@ test.describe("InstantForecastPage — /instant-forecast", () => {
       await page.goto("/instant-forecast");
     });
 
-    test("shows HomeFax logo", async ({ page }) => {
-      await expect(page.getByText(/HomeFax/).first()).toBeVisible();
+    test("shows HomeGentic logo", async ({ page }) => {
+      await expect(page.getByText(/HomeGentic/).first()).toBeVisible();
     });
 
     test("shows 'Instant home maintenance forecast' heading", async ({ page }) => {

@@ -1,7 +1,7 @@
 /**
  * Market Timing Service — 5.3.2 / 5.3.3
  *
- * Combines HomeFax score × zip code × season × local market conditions
+ * Combines HomeGentic score × zip code × season × local market conditions
  * into a listing recommendation and estimated price premium.
  */
 
@@ -124,9 +124,9 @@ export function createMarketTimingService() {
       reasoning.push("Winter listings typically see fewer showings — spring may yield a better result.");
 
     if (score >= 70)
-      reasoning.push(`Your HomeFax score of ${score} demonstrates verified maintenance history, supporting an estimated $${premiumRange.low.toLocaleString()}–$${premiumRange.high.toLocaleString()} premium.`);
+      reasoning.push(`Your HomeGentic score of ${score} demonstrates verified maintenance history, supporting an estimated $${premiumRange.low.toLocaleString()}–$${premiumRange.high.toLocaleString()} premium.`);
     else if (score >= 40)
-      reasoning.push(`Improving your HomeFax score could add $${premiumRange.low.toLocaleString()}–$${premiumRange.high.toLocaleString()} in buyer confidence premium.`);
+      reasoning.push(`Improving your HomeGentic score could add $${premiumRange.low.toLocaleString()}–$${premiumRange.high.toLocaleString()} in buyer confidence premium.`);
     else
       reasoning.push("Logging verified maintenance records before listing will strengthen buyer confidence.");
 
@@ -136,13 +136,13 @@ export function createMarketTimingService() {
       headline = `Listing now could yield an estimated $${premiumRange.low.toLocaleString()}–$${premiumRange.high.toLocaleString()} above market — ${season} conditions favor sellers in ${zip}.`;
     } else if (recommendation === "wait") {
       headline = score < 40
-        ? "Build your HomeFax score before listing to maximize your sale price."
+        ? "Build your HomeGentic score before listing to maximize your sale price."
         : `${season.charAt(0).toUpperCase() + season.slice(1)} market conditions in ${zip} suggest waiting for a better window.`;
     } else {
       const pct = Math.round((snap.listToSaleRatio - 1) * 100);
       headline = pct >= 0
         ? `Market is balanced in ${zip} — homes are selling at ${pct > 0 ? `${pct}% above` : ""} list price.`
-        : `Market conditions in ${zip} are mixed — your HomeFax score adds an estimated $${premiumRange.low.toLocaleString()} premium.`;
+        : `Market conditions in ${zip} are mixed — your HomeGentic score adds an estimated $${premiumRange.low.toLocaleString()} premium.`;
     }
 
     return {

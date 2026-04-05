@@ -1,8 +1,8 @@
 /**
  * reportQAService — Epic 10.4.4
  *
- * Buyers can submit questions against a property's HomeFax report.
- * Sellers can review them; HomeFax data may auto-answer common questions.
+ * Buyers can submit questions against a property's HomeGentic report.
+ * Sellers can review them; HomeGentic data may auto-answer common questions.
  */
 
 export interface ReportQA {

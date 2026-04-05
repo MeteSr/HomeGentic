@@ -1,4 +1,4 @@
-# HomeFax — Manual Test Runbook
+# HomeGentic — Manual Test Runbook
 
 These tests cover critical user journeys that automated tests cannot adequately
 validate: real authentication, two-device workflows, subjective quality, and
@@ -54,7 +54,7 @@ The real production auth path has never been exercised by a test runner.
 ## MT-02 — Dual-Signature Job Verification (Two Sessions)
 
 **Why manual:** The dual-sig trust mechanism requires two distinct authenticated
-principals acting in sequence. This is the core trust differentiation of HomeFax
+principals acting in sequence. This is the core trust differentiation of HomeGentic
 and has never been tested across two real sessions.
 
 **Prerequisites**
@@ -77,7 +77,7 @@ and has never been tested across two real sessions.
 | 9 | Click **Sign as Contractor** | Contractor | `contractorSigned = true`; status = `verified` |
 | 10 | In Session A, refresh the job | Homeowner | Status badge shows **Verified**; both signatures shown |
 | 11 | Navigate to `/dashboard` in Session A | Homeowner | "Verified Jobs" count incremented by 1 |
-| 12 | Navigate to `/properties/:id` in Session A | Homeowner | HomeFax Score updated; timeline shows the verified job |
+| 12 | Navigate to `/properties/:id` in Session A | Homeowner | HomeGentic Score updated; timeline shows the verified job |
 
 **Watch for**
 - Job status not updating without a full page reload (stale Zustand cache)
@@ -205,7 +205,7 @@ The TTS output quality also requires a human ear.
 | 1 | "What systems in my home need replacing soon?" | Lists Critical/Soon systems with urgency context |
 | 2 | "How much should I budget for maintenance this year?" | Cites cost estimates from predictive maintenance |
 | 3 | "Log a job — I replaced my water heater last week for twelve hundred dollars" | Calls `create_job` tool; confirms job created |
-| 4 | "What's my HomeFax score?" | Returns score value and grade |
+| 4 | "What's my HomeGentic score?" | Returns score value and grade |
 | 5 | "Find me a plumber" | Calls `get_contractors` tool; returns contractor names |
 | 6 | "Request a quote for roofing" | Calls `create_quote_request` tool; confirms request |
 | 7 | "Show me ROI projects I should do before selling" | Calls market intelligence tool; returns ranked list |

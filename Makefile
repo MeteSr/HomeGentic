@@ -3,7 +3,7 @@
 NETWORK ?= local
 
 help:
-	@echo "HomeFax — Available commands:"
+	@echo "HomeGentic — Available commands:"
 	@echo "  make start               Start local dfx replica"
 	@echo "  make stop                Stop dfx replica"
 	@echo "  make deploy              Deploy all canisters in parallel (local)"

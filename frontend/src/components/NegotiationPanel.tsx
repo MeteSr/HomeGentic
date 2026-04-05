@@ -1,9 +1,9 @@
 /**
  * NegotiationPanel — 5.2.3
  *
- * Renders the "Let HomeFax negotiate" opt-in toggle and per-quote analysis
+ * Renders the "Let HomeGentic negotiate" opt-in toggle and per-quote analysis
  * inside QuoteDetailPage. Users must explicitly opt-in before any analysis runs.
- * HomeFax never contacts contractors — analysis is for the homeowner only.
+ * HomeGentic never contacts contractors — analysis is for the homeowner only.
  */
 
 import React, { useEffect, useState } from "react";
@@ -87,7 +87,7 @@ export function NegotiationPanel({ request, quotes, zip }: Props) {
         <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
           <Sparkles size={14} color={S.plum} />
           <span style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 600 }}>
-            HomeFax Negotiation Analysis
+            HomeGentic Negotiation Analysis
           </span>
         </div>
         <input
@@ -105,8 +105,8 @@ export function NegotiationPanel({ request, quotes, zip }: Props) {
             fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em",
             color: S.inkLight, lineHeight: 1.6, marginTop: "0.75rem",
           }}>
-            HomeFax will compare these quotes against network-wide pricing data for {request.serviceType} work in your zip code.
-            <strong style={{ color: S.plum }}> HomeFax never contacts contractors directly</strong> —
+            HomeGentic will compare these quotes against network-wide pricing data for {request.serviceType} work in your zip code.
+            <strong style={{ color: S.plum }}> HomeGentic never contacts contractors directly</strong> —
             the analysis is yours to act on. Enable the toggle above to opt in.
           </p>
         </div>

@@ -26,8 +26,8 @@ export function ReEngagementStack({
     () =>
       new Set(
         Object.keys(localStorage)
-          .filter((k) => k.startsWith("homefax_reengage_"))
-          .map((k) => k.replace("homefax_reengage_", ""))
+          .filter((k) => k.startsWith("homegentic_reengage_"))
+          .map((k) => k.replace("homegentic_reengage_", ""))
       )
   );
 
@@ -36,7 +36,7 @@ export function ReEngagementStack({
   if (visible.length === 0) return null;
 
   function dismiss(jobId: string) {
-    localStorage.setItem(`homefax_reengage_${jobId}`, "1");
+    localStorage.setItem(`homegentic_reengage_${jobId}`, "1");
     setDismissed((prev) => new Set([...prev, jobId]));
   }
 

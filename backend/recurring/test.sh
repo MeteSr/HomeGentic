@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# HomeFax Recurring Services Canister Tests
+# HomeGentic Recurring Services Canister Tests
 # Tests: createRecurringService (all service types, frequencies), getByProperty,
 # addVisitLog, getVisitLogs, updateStatus (Active→Paused→Cancelled),
 # cancelRecurringService idempotency (#AlreadyCancelled), pause/unpause
 set -euo pipefail
 
 echo "============================================"
-echo "  HomeFax — Recurring Services Canister Tests"
+echo "  HomeGentic — Recurring Services Canister Tests"
 echo "============================================"
 
 if ! dfx ping 2>/dev/null; then

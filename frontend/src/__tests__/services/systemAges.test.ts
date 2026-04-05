@@ -14,26 +14,26 @@ describe("systemAgesService.get", () => {
   });
 
   it("returns stored ages for a property", () => {
-    localStorage.setItem("homefax_system_ages_prop-1", JSON.stringify({ HVAC: 2018 }));
+    localStorage.setItem("homegentic_system_ages_prop-1", JSON.stringify({ HVAC: 2018 }));
     expect(systemAgesService.get("prop-1")).toEqual({ HVAC: 2018 });
   });
 
   it("is keyed per property — different IDs don't bleed", () => {
-    localStorage.setItem("homefax_system_ages_prop-1", JSON.stringify({ HVAC: 2018 }));
-    localStorage.setItem("homefax_system_ages_prop-2", JSON.stringify({ Roofing: 2015 }));
+    localStorage.setItem("homegentic_system_ages_prop-1", JSON.stringify({ HVAC: 2018 }));
+    localStorage.setItem("homegentic_system_ages_prop-2", JSON.stringify({ Roofing: 2015 }));
 
     expect(systemAgesService.get("prop-1")).toEqual({ HVAC: 2018 });
     expect(systemAgesService.get("prop-2")).toEqual({ Roofing: 2015 });
   });
 
   it("returns empty object when stored value is malformed JSON", () => {
-    localStorage.setItem("homefax_system_ages_prop-1", "not-json{{");
+    localStorage.setItem("homegentic_system_ages_prop-1", "not-json{{");
     expect(systemAgesService.get("prop-1")).toEqual({});
   });
 
   it("returns all systems when multiple are stored", () => {
     const ages = { HVAC: 2018, Roofing: 2010, "Water Heater": 2020 };
-    localStorage.setItem("homefax_system_ages_prop-1", JSON.stringify(ages));
+    localStorage.setItem("homegentic_system_ages_prop-1", JSON.stringify(ages));
     expect(systemAgesService.get("prop-1")).toEqual(ages);
   });
 });
@@ -43,7 +43,7 @@ describe("systemAgesService.get", () => {
 describe("systemAgesService.set", () => {
   it("persists ages to localStorage", () => {
     systemAgesService.set("prop-1", { HVAC: 2019 });
-    const raw = localStorage.getItem("homefax_system_ages_prop-1");
+    const raw = localStorage.getItem("homegentic_system_ages_prop-1");
     expect(JSON.parse(raw!)).toEqual({ HVAC: 2019 });
   });
 

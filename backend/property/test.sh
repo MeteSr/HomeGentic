@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# HomeFax Property Canister — integration tests
+# HomeGentic Property Canister — integration tests
 # Covers: register, retrieve, verification state machine (Unverified →
 # PendingReview → Basic → Premium) (12.4.2), ownership transfer conflict
 # window, tier enforcement, admin functions.
@@ -8,7 +8,7 @@ set -euo pipefail
 
 CANISTER="property"
 echo "============================================"
-echo "  HomeFax — Property Canister Tests"
+echo "  HomeGentic — Property Canister Tests"
 echo "============================================"
 
 if ! dfx ping 2>/dev/null; then

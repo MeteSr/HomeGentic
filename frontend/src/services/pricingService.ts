@@ -2,7 +2,7 @@
  * Pricing Intelligence Service — Epic 10.2
  *
  * Pure computation helpers for price recommendations and DOM estimation.
- * Depends on premiumEstimate() from scoreService for the HomeFax score premium model.
+ * Depends on premiumEstimate() from scoreService for the HomeGentic score premium model.
  */
 
 import { premiumEstimate } from "@/services/scoreService";
@@ -12,9 +12,9 @@ import { premiumEstimate } from "@/services/scoreService";
 export interface PriceRecommendation {
   /** Base price = pricePerSqFtCents × sqFt */
   baseCents: number;
-  /** HomeFax premium lower bound in cents (null when score < 40) */
+  /** HomeGentic premium lower bound in cents (null when score < 40) */
   premiumLowCents: number | null;
-  /** HomeFax premium upper bound in cents (null when score < 40) */
+  /** HomeGentic premium upper bound in cents (null when score < 40) */
   premiumHighCents: number | null;
   /** Suggested list price low = baseCents + premiumLowCents (or baseCents when no premium) */
   suggestedLowCents: number;
@@ -31,15 +31,15 @@ export interface DomEstimate {
   high: number;
 }
 
-// ─── 10.2.2 — HomeFax-adjusted price recommendation ──────────────────────────
+// ─── 10.2.2 — HomeGentic-adjusted price recommendation ──────────────────────────
 
 /**
  * Computes a suggested list price range using comp-derived price/sqft data and
- * the HomeFax score premium model (premiumEstimate from scoreService — 6.1.2).
+ * the HomeGentic score premium model (premiumEstimate from scoreService — 6.1.2).
  *
  * @param pricePerSqFtCents  Median comp price per square foot in cents
  * @param sqFt               Subject property square footage
- * @param score              HomeFax score (0–100)
+ * @param score              HomeGentic score (0–100)
  */
 export function computePriceRecommendation(
   pricePerSqFtCents: number,
@@ -104,11 +104,11 @@ function scoreDomFactor(score: number): number {
 
 /**
  * Estimates days on market by adjusting the comp median DOM for season and
- * HomeFax score band.
+ * HomeGentic score band.
  *
  * @param compMedianDom  Median days-on-market from comparable sales
  * @param month          Current month (1–12)
- * @param score          HomeFax score (0–100)
+ * @param score          HomeGentic score (0–100)
  */
 export function estimateDaysOnMarket(
   compMedianDom: number,

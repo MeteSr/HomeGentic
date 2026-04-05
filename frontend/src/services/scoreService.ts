@@ -1,5 +1,5 @@
 /**
- * HomeFax Score Service
+ * HomeGentic Score Service
  *
  * Computes a 0–100 score from local job + property data and persists
  * weekly snapshots to localStorage so the Dashboard can render a sparkline.
@@ -21,7 +21,7 @@ export interface ScoreSnapshot {
 }
 
 const historyKey = (propertyId?: string | null) =>
-  propertyId ? `homefax_score_${propertyId}` : "homefax_score_history";
+  propertyId ? `homegentic_score_${propertyId}` : "homegentic_score_history";
 const MAX_SNAPSHOTS = 12; // keep ~3 months of weekly snapshots
 
 export function computeScore(jobs: Job[], properties: Property[]): number {
@@ -110,9 +110,9 @@ export function scoreDelta(history: ScoreSnapshot[]): number {
 }
 
 /**
- * Determines whether a property qualifies for the HomeFax Certified™ designation.
+ * Determines whether a property qualifies for the HomeGentic Certified™ designation.
  * Criteria (front-end heuristic; canister enforcement is a Tier 3 item):
- *   - HomeFax Score ≥ 88
+ *   - HomeGentic Score ≥ 88
  *   - At least 3 verified jobs on record
  *   - At least 2 of the 4 key systems have a verified job: HVAC, Roofing, Plumbing, Electrical
  */
@@ -174,7 +174,7 @@ export function parseCertToken(token: string): CertPayload | null {
 }
 
 /**
- * Estimates the home-value dollar change corresponding to a HomeFax score increase.
+ * Estimates the home-value dollar change corresponding to a HomeGentic score increase.
  * Returns null if the delta is zero or negative, or if toScore is below 40.
  *
  * Dollar-per-point rates are calibrated to the backlog example (8.2.4):
@@ -195,7 +195,7 @@ export function scoreValueDelta(fromScore: number, toScore: number): number | nu
 }
 
 /**
- * Estimates the buyer-premium dollar range associated with a HomeFax score.
+ * Estimates the buyer-premium dollar range associated with a HomeGentic score.
  * Based on industry research: verified maintenance history lifts sale price
  * 1–10% in typical US markets. Returns null below score 40 (not enough signal).
  *
@@ -293,7 +293,7 @@ export function getMedianHomeValue(zip: string): number {
 }
 
 /**
- * Score band → [lowPct, highPct] of median home value that the HomeFax premium
+ * Score band → [lowPct, highPct] of median home value that the HomeGentic premium
  * represents. Based on 2024 industry research: verified history lifts price 0.5–9%.
  */
 const SCORE_BANDS: Array<{ minScore: number; lowPct: number; highPct: number }> = [

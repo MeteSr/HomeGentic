@@ -49,7 +49,7 @@ const {
     closeDate: "2025-03-15",
     loggedAt: now - 500,
     deltaFromListingPriceCents: 500_000,   // $5,000 above list
-    deltaFromHomeFaxEstimateCents: -14_500_000,
+    deltaFromHomeGenticEstimateCents: -14_500_000,
   };
 
   const mockOffer2 = {
@@ -59,7 +59,7 @@ const {
     closeDate: "2025-04-01",
     loggedAt: now,
     deltaFromListingPriceCents: 500_000,
-    deltaFromHomeFaxEstimateCents: -14_500_000,
+    deltaFromHomeGenticEstimateCents: -14_500_000,
   };
 
   const mockClose = {
@@ -375,12 +375,12 @@ describe("ListingDetailPage — final sale price (9.5.3)", () => {
     });
   });
 
-  it("shows the actual HomeFax premium after close", async () => {
+  it("shows the actual HomeGentic premium after close", async () => {
     vi.mocked(listingService.getBidRequest).mockResolvedValue(mockRequest as any);
     vi.mocked(listingService.getProposalsForRequest).mockResolvedValue([mockProposal as any]);
     renderDetail();
     await waitFor(() => {
-      expect(screen.getByText(/actual premium|homefax premium/i)).toBeInTheDocument();
+      expect(screen.getByText(/actual premium|homegentic premium/i)).toBeInTheDocument();
     });
   });
 });

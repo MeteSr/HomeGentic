@@ -1,7 +1,7 @@
 /**
  * ReportQAPanel — Epic 10.4.4
  *
- * Buyer-facing: submit questions about a property's HomeFax report.
+ * Buyer-facing: submit questions about a property's HomeGentic report.
  * Seller-facing: review submitted questions.
  */
 

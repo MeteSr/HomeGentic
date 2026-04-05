@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# HomeFax — Cross-Canister Integration Tests (12.4.6)
+# HomeGentic — Cross-Canister Integration Tests (12.4.6)
 #
 # Tests scenarios that span multiple canisters:
 #   1. Property tier limit enforced by job canister (job → payment cross-call)
@@ -11,7 +11,7 @@
 set -euo pipefail
 
 echo "============================================"
-echo "  HomeFax — Cross-Canister Integration Tests"
+echo "  HomeGentic — Cross-Canister Integration Tests"
 echo "============================================"
 
 if ! dfx ping 2>/dev/null; then

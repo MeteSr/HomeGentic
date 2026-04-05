@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest an idea for HomeFax
+about: Suggest an idea for HomeGentic
 title: '[FEATURE] '
 labels: enhancement
 ---

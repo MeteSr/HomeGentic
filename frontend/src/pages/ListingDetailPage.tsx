@@ -1,7 +1,7 @@
 /**
  * ListingDetailPage — Epic 9.4 / 9.5
  * Homeowner views submitted proposals, compares side-by-side, and accepts one.
- * 9.4.3 — HomeFax score context per proposal
+ * 9.4.3 — HomeGentic score context per proposal
  * 9.4.5 — Post-selection contract upload
  * 9.4.6 — Counter-proposal flow
  * 9.5.1 — Listing milestone timeline
@@ -243,7 +243,7 @@ export default function ListingDetailPage() {
 
   const sealed = request ? !isDeadlinePassed(request.bidDeadline) : false;
 
-  // 9.4.3 — HomeFax premium potential from snapshot
+  // 9.4.3 — HomeGentic premium potential from snapshot
   const premiumRange = request?.propertySnapshot
     ? premiumEstimate(request.propertySnapshot.score)
     : null;
@@ -302,7 +302,7 @@ export default function ListingDetailPage() {
             {request.propertySnapshot && (
               <div style={{ border: `1px solid ${S.rule}`, padding: "1rem 1.5rem", marginBottom: "1.5rem", background: "#fafafa" }}>
                 <div style={{ fontFamily: S.mono, fontSize: "0.62rem", color: S.inkLight, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "0.75rem" }}>
-                  HomeFax Snapshot (at request creation)
+                  HomeGentic Snapshot (at request creation)
                 </div>
                 <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap" }}>
                   <div>
@@ -537,7 +537,7 @@ export default function ListingDetailPage() {
                     <div style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.25rem", color: S.ink }}>{formatPrice(closeData.finalSalePriceCents)}</div>
                   </div>
                   <div>
-                    <div style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, textTransform: "uppercase", marginBottom: "0.2rem" }}>Actual HomeFax Premium</div>
+                    <div style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, textTransform: "uppercase", marginBottom: "0.2rem" }}>Actual HomeGentic Premium</div>
                     <div style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.25rem", color: S.sage }}>{formatPrice(closeData.actualPremiumCents)}</div>
                   </div>
                 </div>

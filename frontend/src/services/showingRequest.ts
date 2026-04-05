@@ -75,7 +75,7 @@ export function generateIcal(showings: ShowingRequest[]): string {
     const dt = new Date(s.createdAt).toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
     return [
       "BEGIN:VEVENT",
-      `UID:${s.id}@homefax`,
+      `UID:${s.id}@homegentic`,
       `DTSTART:${dt}`,
       `DTEND:${dt}`,
       `SUMMARY:Showing — ${s.name}`,
@@ -87,7 +87,7 @@ export function generateIcal(showings: ShowingRequest[]): string {
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//HomeFax//Showings//EN",
+    "PRODID:-//HomeGentic//Showings//EN",
     ...(events ? [events] : []),
     "END:VCALENDAR",
   ].join("\r\n");

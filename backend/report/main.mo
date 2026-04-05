@@ -1,5 +1,5 @@
 /**
- * HomeFax Report Canister
+ * HomeGentic Report Canister
  *
  * Generates certified property history snapshots and manages share links.
  *
@@ -506,7 +506,7 @@ persistent actor Report {
   ///
   /// Rejects with #UnverifiedProperty if the property canister is configured
   /// and the property has not reached #Basic or #Premium verification.
-  /// This prevents unverified homeowners from sharing "official" HomeFax
+  /// This prevents unverified homeowners from sharing "official" HomeGentic
   /// reports with buyers or insurers.
   ///
   /// Pass expiryDays = null for a link that never expires.

@@ -108,11 +108,11 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
       setLinks((prev) => [link, ...prev]);
       setFreshLink(link);
       setPreviewStats({ score, grade, verifiedCount });
-      toast.success("HomeFax report created!");
+      toast.success("HomeGentic report created!");
       if (userTier === "Free") {
         notificationService.create({
           type: "ReportExpiry",
-          message: "Your HomeFax report expires in 7 days — upgrade to Pro for a permanent link.",
+          message: "Your HomeGentic report expires in 7 days — upgrade to Pro for a permanent link.",
           propertyId,
         });
       }
@@ -175,7 +175,7 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
             <Shield size={16} color={COLORS.sage} />
             <div>
               <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.2rem" }}>
-                HomeFax Report
+                HomeGentic Report
               </p>
               <h2 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.1rem", lineHeight: 1, color: COLORS.white }}>
                 {property.address}
@@ -296,7 +296,7 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
                 </p>
                 <div style={{ display: "flex", gap: "1.25rem", marginBottom: "0.875rem" }}>
                   <div>
-                    <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.15rem" }}>HomeFax Score</p>
+                    <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.15rem" }}>HomeGentic Score</p>
                     <p style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.25rem", lineHeight: 1, color: S.ink }}>
                       {previewStats.score} <span style={{ fontFamily: S.mono, fontWeight: 400, fontSize: "0.7rem", color: S.inkLight }}>{previewStats.grade}</span>
                     </p>

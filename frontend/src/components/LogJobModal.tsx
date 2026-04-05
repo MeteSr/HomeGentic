@@ -164,7 +164,7 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
               Record Locked On-Chain
             </p>
             <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: COLORS.plumMid, marginBottom: "1.5rem" }}>
-              Your maintenance record has been added to your HomeFax report.
+              Your maintenance record has been added to your HomeGentic report.
             </p>
             <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}>
               <button

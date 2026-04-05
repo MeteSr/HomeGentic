@@ -61,7 +61,7 @@ test.describe("13.5.1: 'Sell day' scenario — full resale journey", () => {
     await page.waitForLoadState("networkidle");
     await expect(page.locator("body")).not.toBeEmpty();
 
-    // Step 2: View HomeFax score (on resale-ready page)
+    // Step 2: View HomeGentic score (on resale-ready page)
     const scoreEl = page.locator("text=/\\d+/").first();
     await scoreEl.waitFor({ state: "visible", timeout: 5000 }).catch(() => {});
     // Score renders — page is live

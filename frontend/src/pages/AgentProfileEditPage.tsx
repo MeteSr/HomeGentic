@@ -116,7 +116,7 @@ export default function AgentProfileEditPage() {
             background: "#e6f4ea", border: "1px solid #34a853", borderRadius: 2,
             padding: "4px 10px", marginBottom: "1.5rem" }}>
             <span style={{ fontFamily: S.mono, fontSize: "0.75rem", color: "#188038" }}>
-              HomeFax Verified
+              HomeGentic Verified
             </span>
           </div>
         ) : existing && (

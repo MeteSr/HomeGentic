@@ -1,5 +1,5 @@
 {
-  "name": "@homefax/iot-gateway",
+  "name": "@homegentic/iot-gateway",
   "version": "0.1.0",
   "private": true,
   "scripts": {

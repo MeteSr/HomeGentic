@@ -1,4 +1,4 @@
-# HomeFax Deployment Guide
+# HomeGentic Deployment Guide
 
 ## Local Development
 

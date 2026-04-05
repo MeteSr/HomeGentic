@@ -1,5 +1,5 @@
 /**
- * HomeFax Maintenance Prediction Canister
+ * HomeGentic Maintenance Prediction Canister
  *
  * Deterministic prediction engine for home system health and maintenance scheduling.
  *

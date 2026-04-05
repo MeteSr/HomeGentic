@@ -70,7 +70,7 @@ export function useNotifications(): void {
       const data  = response.notification.request.content.data;
       const route = parseNotificationRoute(data);
       if (route) {
-        Linking.openURL(`homefax://${route}`).catch((err) =>
+        Linking.openURL(`homegentic://${route}`).catch((err) =>
           console.error("[useNotifications] deep-link failed:", err)
         );
       }

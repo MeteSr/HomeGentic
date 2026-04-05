@@ -2,7 +2,7 @@
 
 **14.4.3 — Stable memory schema migration safety**
 
-This document describes the safe upgrade procedure for HomeFax canisters and the schema versioning convention for `ReportSnapshot`.
+This document describes the safe upgrade procedure for HomeGentic canisters and the schema versioning convention for `ReportSnapshot`.
 
 ---
 

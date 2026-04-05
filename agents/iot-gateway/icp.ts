@@ -1,5 +1,5 @@
 /**
- * ICP client for the HomeFax IoT Gateway.
+ * ICP client for the HomeGentic IoT Gateway.
  *
  * Uses @dfinity/agent (3.x) with an Ed25519 service identity to call the Sensor
  * canister's recordEvent() update method. The identity private key is loaded

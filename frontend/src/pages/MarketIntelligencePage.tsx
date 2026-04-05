@@ -207,7 +207,7 @@ export default function MarketIntelligencePage() {
                 <div style={{ background: S.ink, padding: "2rem", color: COLORS.white, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
                   <div>
                     <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.5rem" }}>
-                      Overall HomeFax Score
+                      Overall HomeGentic Score
                     </p>
                     <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem" }}>
                       <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "3rem", lineHeight: 1 }}>{analysis.overallScore}</span>

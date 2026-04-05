@@ -41,7 +41,7 @@ describe("save / load / clear", () => {
   });
 
   it("load() returns null if localStorage contains invalid JSON", () => {
-    localStorage.setItem("homefax_agent_profile", "not-json{{{");
+    localStorage.setItem("homegentic_agent_profile", "not-json{{{");
     expect(agentProfileService.load()).toBeNull();
   });
 });

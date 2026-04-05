@@ -1,8 +1,8 @@
-# HomeFax
+# HomeGentic
 
 **The Carfax for Homes** — Blockchain-verified home maintenance history on the Internet Computer Protocol (ICP).
 
-HomeFax gives homeowners an immutable, tamper-proof record of every repair, upgrade, and inspection. Buyers and agents can verify a property's full history before closing — building trust and increasing home values.
+HomeGentic gives homeowners an immutable, tamper-proof record of every repair, upgrade, and inspection. Buyers and agents can verify a property's full history before closing — building trust and increasing home values.
 
 ---
 
@@ -128,7 +128,7 @@ User speaks
 ## Project Structure
 
 ```
-homefax/
+homegentic/
 ├── dfx.json                      # ICP canister configuration (13 canisters + Internet Identity)
 ├── mops.toml                     # Motoko package manager config
 ├── package.json                  # Root scripts
@@ -280,10 +280,10 @@ ICP's [vetKeys](https://internetcomputer.org/docs/current/developer-docs/integra
 - **Buyer disclosure packages** — share a time-limited, scoped view of verified history without exposing raw cost or contractor data
 - **Contractor-gated access** — contractors can only read the job records they are linked to
 
-> **Note:** `test_key_1` is available on local replicas and testnets today. Production use of `key_1` on ICP mainnet requires DFINITY approval. HomeFax will ship this feature once mainnet access is generally available.
+> **Note:** `test_key_1` is available on local replicas and testnets today. Production use of `key_1` on ICP mainnet requires DFINITY approval. HomeGentic will ship this feature once mainnet access is generally available.
 
 ---
 
 ## License
 
-MIT © HomeFax 2026
+MIT © HomeGentic 2026

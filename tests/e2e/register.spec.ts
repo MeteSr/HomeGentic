@@ -9,8 +9,8 @@ test.describe("RegisterPage — /register", () => {
 
   // ── Page structure ────────────────────────────────────────────────────────
 
-  test("shows HomeFax logo", async ({ page }) => {
-    await expect(page.getByText(/HomeFax/)).toBeVisible();
+  test("shows HomeGentic logo", async ({ page }) => {
+    await expect(page.getByText(/HomeGentic/)).toBeVisible();
   });
 
   test("shows 3-step indicator: Role, Details, Confirm", async ({ page }) => {

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# HomeFax — Backend Test Coordinator (12.6.3)
+# HomeGentic — Backend Test Coordinator (12.6.3)
 #
 # Runs each canister's test.sh in sequence, tracks pass/fail per canister,
 # prints a coverage summary table, and exits non-zero if any canister failed.
@@ -49,7 +49,7 @@ declare -a FAILED=()
 declare -a SKIPPED=()
 
 echo "============================================"
-echo "  HomeFax — Backend Test Suite"
+echo "  HomeGentic — Backend Test Suite"
 echo "============================================"
 echo "  Running ${#CANISTERS[@]} canister(s)"
 echo ""

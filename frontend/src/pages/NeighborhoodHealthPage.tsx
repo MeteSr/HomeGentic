@@ -2,7 +2,7 @@
  * NeighborhoodHealthPage (4.3.3)
  *
  * Public page at /neighborhood/:zipCode — no auth required.
- * Shows aggregate HomeFax score data for the zip code:
+ * Shows aggregate HomeGentic score data for the zip code:
  *   • Average and median scores
  *   • Score distribution (5-bucket bar chart)
  *   • Year-over-year trend
@@ -75,7 +75,7 @@ export default function NeighborhoodHealthPage() {
           style={{ display: "flex", alignItems: "center", gap: "0.375rem", color: S.inkLight, textDecoration: "none", fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase" }}
         >
           <ArrowLeft size={12} />
-          HomeFax
+          HomeGentic
         </Link>
         <span style={{ color: S.rule }}>·</span>
         <div style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
@@ -100,7 +100,7 @@ export default function NeighborhoodHealthPage() {
           {zipCode}
         </h1>
         <p style={{ fontSize: "0.65rem", color: S.inkLight, letterSpacing: "0.08em", marginBottom: "2.5rem" }}>
-          NEIGHBORHOOD HEALTH INDEX — HOMEFAX
+          NEIGHBORHOOD HEALTH INDEX — HOMEGENTIC
         </p>
 
         {loading && (
@@ -298,7 +298,7 @@ export default function NeighborhoodHealthPage() {
 
             {/* Footer note */}
             <p style={{ fontSize: "0.55rem", color: S.inkLight, letterSpacing: "0.06em", lineHeight: 1.6 }}>
-              Data reflects HomeFax-tracked homes in {zipCode}.
+              Data reflects HomeGentic-tracked homes in {zipCode}.
               Scores are computed from verified maintenance records.
               Updated periodically as homeowners log new jobs.
             </p>

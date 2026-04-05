@@ -1,11 +1,11 @@
-# Contributing to HomeFax
+# Contributing to HomeGentic
 
-Thank you for your interest in contributing to HomeFax!
+Thank you for your interest in contributing to HomeGentic!
 
 ## Getting Started
 
 1. Fork the repository
-2. Clone your fork: `git clone https://github.com/your-username/homefax.git`
+2. Clone your fork: `git clone https://github.com/your-username/homegentic.git`
 3. Install DFX: `sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"`
 4. Install Node.js 20+
 5. Start the local replica: `make start`

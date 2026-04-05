@@ -127,7 +127,7 @@ export default function PropertyVerifyPage() {
         <div style={{ border: `1px solid ${S.rule}`, background: COLORS.blush, padding: "0.875rem 1rem", marginBottom: "2rem", display: "flex", gap: "0.75rem" }}>
           <AlertCircle size={14} color={S.rust} style={{ flexShrink: 0, marginTop: "0.1rem" }} />
           <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.ink, lineHeight: 1.65, margin: 0 }}>
-            Verified properties can generate shareable HomeFax reports and command higher buyer trust.
+            Verified properties can generate shareable HomeGentic reports and command higher buyer trust.
           </p>
         </div>
 
@@ -212,7 +212,7 @@ export default function PropertyVerifyPage() {
         </div>
 
         <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight, lineHeight: 1.65, marginBottom: "1.75rem" }}>
-          Your document is stored on ICP and only accessible to HomeFax admins for review. A SHA-256 hash is recorded on-chain so the file cannot be altered after submission.
+          Your document is stored on ICP and only accessible to HomeGentic admins for review. A SHA-256 hash is recorded on-chain so the file cannot be altered after submission.
         </p>
 
         <Button size="lg" style={{ width: "100%" }} disabled={!file || submitting} onClick={handleSubmit} icon={<Shield size={14} />}>

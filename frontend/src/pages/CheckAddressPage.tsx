@@ -1,5 +1,5 @@
 /**
- * §17.4.1 — Public address search for HomeFax reports
+ * §17.4.1 — Public address search for HomeGentic reports
  * §17.4.2 — Buyer report request form (no report on file)
  * §17.4.4 — document.title set with address for SEO
  * §17.4.5 — Seller CTA when no report found
@@ -29,7 +29,7 @@ function TopBar() {
   return (
     <div style={{ borderBottom: `1px solid ${S.rule}`, padding: "0.875rem 1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
       <Link to="/" style={{ fontFamily: S.mono, fontSize: "0.7rem", letterSpacing: "0.14em", textTransform: "uppercase", color: S.ink, textDecoration: "none", fontWeight: 700 }}>
-        HomeFax
+        HomeGentic
       </Link>
       <Link to="/login" style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, textDecoration: "none" }}>
         Sign in
@@ -60,7 +60,7 @@ function SearchForm() {
           Check any home's maintenance history
         </h1>
         <p style={{ fontFamily: S.sans, fontSize: "0.9rem", color: S.inkLight, marginBottom: "2rem" }}>
-          Enter a property address to see if the seller has a verified HomeFax report on file.
+          Enter a property address to see if the seller has a verified HomeGentic report on file.
         </p>
 
         <div style={{ display: "flex", gap: "0.5rem" }}>
@@ -104,7 +104,7 @@ function FoundResult({ result }: { result: BuyerLookupResult & { found: true } }
         <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", padding: "0.5rem 1rem", background: COLORS.sageLight, border: `1px solid ${COLORS.sageMid}`, marginBottom: "1.5rem" }}>
           <Shield size={16} color={S.sage} />
           <span style={{ fontFamily: S.mono, fontSize: "0.7rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.sage, fontWeight: 700 }}>
-            HomeFax Verified
+            HomeGentic Verified
           </span>
         </div>
 
@@ -152,7 +152,7 @@ function NotFoundResult({ address }: { address: string }) {
           No report on file
         </h1>
         <p style={{ fontFamily: S.sans, fontSize: "0.9rem", color: S.inkLight, marginBottom: "2rem" }}>
-          This property doesn't have a HomeFax report yet. You can request one from the seller or be notified if one is created.
+          This property doesn't have a HomeGentic report yet. You can request one from the seller or be notified if one is created.
         </p>
 
         {/* §17.4.5 — Seller CTA */}
@@ -161,7 +161,7 @@ function NotFoundResult({ address }: { address: string }) {
             Are you the homeowner?
           </p>
           <p style={{ fontFamily: S.sans, fontSize: "0.875rem", color: S.inkLight, marginBottom: "1rem" }}>
-            Start a free HomeFax report in 2 minutes. Buyers are already searching for this address.
+            Start a free HomeGentic report in 2 minutes. Buyers are already searching for this address.
           </p>
           <Link
             to={registerHref}
@@ -247,8 +247,8 @@ export default function CheckAddressPage() {
         setResult(r);
         // §17.4.4 — set document title for SEO
         document.title = r.found
-          ? `HomeFax Report — ${r.address}`
-          : `HomeFax — No Report Found — ${rawAddress}`;
+          ? `HomeGentic Report — ${r.address}`
+          : `HomeGentic — No Report Found — ${rawAddress}`;
       })
       .catch(() => setResult({ found: false, address: rawAddress }))
       .finally(() => setLoading(false));

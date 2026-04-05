@@ -9,8 +9,8 @@ test.describe("PricingPage — /pricing", () => {
 
   // ── Page structure ────────────────────────────────────────────────────────
 
-  test("shows HomeFax logo in nav", async ({ page }) => {
-    await expect(page.getByText(/HomeFax/)).toBeVisible();
+  test("shows HomeGentic logo in nav", async ({ page }) => {
+    await expect(page.getByText(/HomeGentic/)).toBeVisible();
   });
 
   test("shows 'Get Started Free' nav button", async ({ page }) => {

@@ -111,7 +111,7 @@ export default function AgentDashboardPage() {
           Agent Dashboard
         </h1>
         <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight, marginBottom: "2rem" }}>
-          All HomeFax share links you've generated — track views and manage access.
+          All HomeGentic share links you've generated — track views and manage access.
         </p>
 
         {/* Summary stats */}
@@ -137,7 +137,7 @@ export default function AgentDashboardPage() {
           <div style={{ border: `1px dashed ${S.rule}`, padding: "3rem", textAlign: "center" }}>
             <p style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.125rem", marginBottom: "0.5rem" }}>No share links yet</p>
             <p style={{ fontSize: "0.875rem", color: S.inkLight, fontWeight: 300, maxWidth: "24rem", margin: "0 auto 1.5rem" }}>
-              Generate a HomeFax report from a property's detail page to create a shareable link.
+              Generate a HomeGentic report from a property's detail page to create a shareable link.
             </p>
             <Button variant="outline" onClick={() => navigate("/dashboard")}>Go to Dashboard</Button>
           </div>

@@ -31,7 +31,7 @@ export interface FsboReadinessResult {
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
 /**
- * 10.1.4 — Compute FSBO readiness from HomeFax score, verified job count,
+ * 10.1.4 — Compute FSBO readiness from HomeGentic score, verified job count,
  * and whether a public report already exists.
  *
  *   NotReady       — score < 65 OR verifiedJobs < 2
@@ -45,16 +45,16 @@ export function computeFsboReadiness(
 ): FsboReadinessResult {
   const missing: string[] = [];
 
-  if (score < 65)            missing.push(`Improve your HomeFax score (currently ${score} — need 65+)`);
+  if (score < 65)            missing.push(`Improve your HomeGentic score (currently ${score} — need 65+)`);
   if (verifiedJobCount < 2)  missing.push("Add at least 2 verified maintenance jobs");
 
   if (missing.length > 0) return { readiness: "NotReady", missing };
 
   // Check Optimally Ready upgrade requirements
   const optMissing: string[] = [];
-  if (score < 85)            optMissing.push("Reach HomeFax score of 85+ for optimal listing position");
+  if (score < 85)            optMissing.push("Reach HomeGentic score of 85+ for optimal listing position");
   if (verifiedJobCount < 3)  optMissing.push("Add a 3rd verified job to show comprehensive maintenance history");
-  if (!hasReport)            optMissing.push("Generate a public HomeFax report for buyer confidence");
+  if (!hasReport)            optMissing.push("Generate a public HomeGentic report for buyer confidence");
 
   if (optMissing.length === 0) return { readiness: "OptimallyReady", missing: [] };
 

@@ -58,7 +58,7 @@ describe("NegotiationPanel — consent gate (5.2.3)", () => {
 
   it("shows consent description copy before opt-in", () => {
     render(<NegotiationPanel request={MOCK_REQUEST} quotes={MOCK_QUOTES} zip="94103" />);
-    expect(screen.getAllByText(/HomeFax/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/HomeGentic/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/never contacts contractors/i)).toBeDefined();
   });
 

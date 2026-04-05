@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# HomeFax Quote Canister — integration tests
+# HomeGentic Quote Canister — integration tests
 # Covers: request creation, contractor bid submission, accept/reject flow,
 # tier open-request limits (Free = 3, Pro = 10), closeQuoteRequest (12.4.4).
 # Run against a local replica: dfx start --background && bash backend/quote/test.sh
@@ -7,7 +7,7 @@ set -euo pipefail
 
 CANISTER="quote"
 echo "============================================"
-echo "  HomeFax — Quote Canister Tests"
+echo "  HomeGentic — Quote Canister Tests"
 echo "============================================"
 
 if ! dfx ping 2>/dev/null; then

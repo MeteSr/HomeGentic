@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# HomeFax Monitoring Canister Tests
+# HomeGentic Monitoring Canister Tests
 # Tests: cycles metrics, cost/profitability calculations, alert generation,
 # pause/unpause admin flow, generateDailyReport output
 set -euo pipefail
 
 echo "============================================"
-echo "  HomeFax — Monitoring Canister Tests"
+echo "  HomeGentic — Monitoring Canister Tests"
 echo "============================================"
 
 if ! dfx ping 2>/dev/null; then

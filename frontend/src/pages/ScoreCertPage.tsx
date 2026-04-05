@@ -1,7 +1,7 @@
 /**
  * Lender Score Certificate — /cert/:token
  *
- * Public, unauthenticated. Shows only HomeFax Score + grade + certified status.
+ * Public, unauthenticated. Shows only HomeGentic Score + grade + certified status.
  * No job details, no personal data.
  *
  * The token is base64-encoded JSON (see scoreService.generateCertToken).
@@ -60,7 +60,7 @@ export default function ScoreCertPage() {
             This certificate link is invalid or has been corrupted. Ask the homeowner to generate a new one.
           </p>
           <p style={{ marginTop: "2rem", fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>
-            Powered by <strong style={{ color: S.ink }}>HomeFax</strong>
+            Powered by <strong style={{ color: S.ink }}>HomeGentic</strong>
           </p>
         </div>
       </div>
@@ -81,7 +81,7 @@ export default function ScoreCertPage() {
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.5rem", opacity: 0.7 }}>
             <Shield size={14} color={COLORS.white} />
             <span style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.2em", textTransform: "uppercase", color: COLORS.white }}>
-              HOMEFAX
+              HOMEGENTIC
             </span>
             <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: COLORS.plumMid }}>Score Certificate</span>
           </div>
@@ -96,7 +96,7 @@ export default function ScoreCertPage() {
         {/* Score block */}
         <div style={{ padding: "2rem 2.5rem", borderBottom: `1px solid ${S.rule}` }}>
           <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.75rem" }}>
-            HomeFax Score
+            HomeGentic Score
           </p>
           <div style={{ display: "flex", alignItems: "baseline", gap: "1rem", marginBottom: "1rem" }}>
             <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "4rem", lineHeight: 1, color: S.ink }}>
@@ -125,11 +125,11 @@ export default function ScoreCertPage() {
           {/* Certified badge */}
           {payload.certified ? (
             <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", border: `1px solid ${COLORS.plumMid}`, padding: "0.625rem 1.25rem", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, background: COLORS.butter }}>
-              ★ HomeFax Certified™ — Pre-Inspection Ready
+              ★ HomeGentic Certified™ — Pre-Inspection Ready
             </div>
           ) : (
             <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", border: `1px solid ${S.rule}`, padding: "0.625rem 1.25rem", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight }}>
-              <Shield size={12} /> Verified HomeFax Property
+              <Shield size={12} /> Verified HomeGentic Property
             </div>
           )}
         </div>
@@ -230,7 +230,7 @@ export default function ScoreCertPage() {
               "Maintenance history has been documented and cryptographically verified on the Internet Computer blockchain.",
               "Records cannot be altered or deleted retroactively.",
               payload.certified
-                ? "This property meets HomeFax Certified™ standards — score ≥ 88 with verified coverage of key systems."
+                ? "This property meets HomeGentic Certified™ standards — score ≥ 88 with verified coverage of key systems."
                 : `Score of ${payload.score} reflects documented maintenance. Higher scores indicate more comprehensive verified history.`,
             ].map((line, i) => (
               <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem" }}>
@@ -246,7 +246,7 @@ export default function ScoreCertPage() {
         {/* Footer */}
         <div style={{ padding: "1rem 2.5rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.06em", color: S.inkLight }}>
-            homefax.io · Blockchain-verified home history
+            homegentic.io · Blockchain-verified home history
           </span>
           <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.06em", color: S.inkLight }}>
             {payload.score}/100

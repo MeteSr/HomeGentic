@@ -1,7 +1,7 @@
 /**
  * E2E: Job lifecycle — create → sign → verify
  *
- * This is the core HomeFax value proposition: a homeowner creates a job,
+ * This is the core HomeGentic value proposition: a homeowner creates a job,
  * both parties sign it, and the record becomes permanently verified on-chain.
  *
  * Test data (from MOCK_JOBS in frontend/src/services/job.ts):
@@ -272,16 +272,16 @@ test.describe("Property detail page", () => {
     await expect(page.getByText("$11,830")).toBeVisible();
   });
 
-  test("Share HomeFax Report button is visible", async ({ page }) => {
+  test("Share HomeGentic Report button is visible", async ({ page }) => {
     await expect(
-      page.getByRole("button", { name: "Share HomeFax Report" })
+      page.getByRole("button", { name: "Share HomeGentic Report" })
     ).toBeVisible();
   });
 
-  test("Share HomeFax Report button opens the report modal", async ({
+  test("Share HomeGentic Report button opens the report modal", async ({
     page,
   }) => {
-    await page.getByRole("button", { name: "Share HomeFax Report" }).click();
+    await page.getByRole("button", { name: "Share HomeGentic Report" }).click();
     // The GenerateReportModal renders expiry options
     await expect(page.getByText(/7 days|generate report|never/i)).toBeVisible();
   });

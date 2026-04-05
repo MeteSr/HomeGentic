@@ -152,7 +152,7 @@ export async function injectRecurringServices(page: Page) {
 
 /**
  * Injects mock score events into window.__e2e_score_events.
- * Each event represents a job completion that contributed to the HomeFax score.
+ * Each event represents a job completion that contributed to the HomeGentic score.
  */
 export async function injectScoreEvents(page: Page) {
   await page.addInitScript(() => {

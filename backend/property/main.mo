@@ -1,5 +1,5 @@
 /**
- * HomeFax Property Canister
+ * HomeGentic Property Canister
  *
  * Handles property registration, ownership verification, and tier-based limits.
  *

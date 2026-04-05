@@ -1,4 +1,4 @@
-// HomeFax Job Canister — Candid IDL
+// HomeGentic Job Canister — Candid IDL
 // Tracks home maintenance jobs with dual-signature (homeowner + contractor)
 // on-chain verification. DIY jobs require homeowner signature only.
 

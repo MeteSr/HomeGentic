@@ -127,7 +127,7 @@ export default function InsuranceDefensePage() {
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
             <div>
               <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.25rem" }}>
-                HomeFax — Insurance Defense Report
+                HomeGentic — Insurance Defense Report
               </p>
               <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "2rem", lineHeight: 1, marginBottom: "0.375rem" }}>
                 Maintenance &amp; Inspection History
@@ -282,10 +282,10 @@ export default function InsuranceDefensePage() {
                 <strong>Verification note:</strong> Records marked "ICP Verified" have been digitally signed by both the homeowner and contractor on the Internet Computer blockchain.
                 The immutable record includes a cryptographic timestamp and dual-party signature that cannot be altered retroactively.
                 Self-reported records have not been independently verified but remain on-chain as homeowner-attested entries.
-                HomeFax Inc. does not guarantee insurer acceptance of this documentation. Contact your insurer for submission requirements.
+                HomeGentic Inc. does not guarantee insurer acceptance of this documentation. Contact your insurer for submission requirements.
               </p>
               <p style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight, marginTop: "0.75rem" }}>
-                Report ID: HFX-{Date.now().toString(36).toUpperCase()} · Generated {generatedAt} · homefax.app
+                Report ID: HFX-{Date.now().toString(36).toUpperCase()} · Generated {generatedAt} · homegentic.app
               </p>
             </div>
           </>
@@ -313,7 +313,7 @@ export default function InsuranceDefensePage() {
               <button
                 onClick={() => {
                   if (savingsInput.trim()) {
-                    localStorage.setItem("homefax_insurance_success", JSON.stringify({ text: savingsInput, ts: Date.now() }));
+                    localStorage.setItem("homegentic_insurance_success", JSON.stringify({ text: savingsInput, ts: Date.now() }));
                   }
                   setSuccessSubmitted(true);
                 }}
@@ -335,7 +335,7 @@ export default function InsuranceDefensePage() {
         <div className="no-print" style={{ maxWidth: "56rem", margin: "1.5rem auto", padding: "0 1.5rem" }}>
           <div style={{ border: `1px solid ${COLORS.sageMid}`, background: COLORS.sageLight, padding: "1rem 1.5rem", display: "flex", alignItems: "center", gap: "0.625rem" }}>
             <CheckCircle size={14} color={S.sage} />
-            <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.sage }}>Thank you — your story helps other HomeFax users know what's possible.</p>
+            <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.sage }}>Thank you — your story helps other HomeGentic users know what's possible.</p>
           </div>
         </div>
       )}

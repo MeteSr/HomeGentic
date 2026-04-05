@@ -1,12 +1,12 @@
 /**
  * NeighborhoodBenchmark (4.3.2)
  *
- * Shows a homeowner how their HomeFax score ranks within their zip code.
+ * Shows a homeowner how their HomeGentic score ranks within their zip code.
  * E.g. "Your score is in the top 23% of 78701 — better than 77% of homes."
  *
  * Props:
  *   zipCode  – from the property record
- *   score    – current computed HomeFax score (0–100)
+ *   score    – current computed HomeGentic score (0–100)
  */
 
 import React, { useEffect, useState } from "react";

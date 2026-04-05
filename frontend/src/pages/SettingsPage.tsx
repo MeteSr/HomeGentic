@@ -159,7 +159,7 @@ function AgentBrandingSection() {
           Agent Co-Branding
         </p>
         <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: S.inkLight, fontWeight: 300 }}>
-          Your branding appears on HomeFax reports you share with buyers. ICP verification remains intact.
+          Your branding appears on HomeGentic reports you share with buyers. ICP verification remains intact.
         </p>
       </div>
       <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -530,7 +530,7 @@ function SubscriptionTab({ profile }: { profile: any }) {
               Read-only mode
             </p>
             <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, lineHeight: 1.5 }}>
-              Your records are read-only. Your HomeFax score won't update, and existing reports are static.
+              Your records are read-only. Your HomeGentic score won't update, and existing reports are static.
               Reactivate Pro to resume tracking and generate new reports.
             </p>
           </div>
@@ -604,15 +604,15 @@ function NotificationsTab() {
   const [emailJob, setEmailJob] = useState(false);
   const [smsAlerts, setSmsAlerts] = useState(false);
   const [pulseEnabled, setPulseEnabled] = useState(() =>
-    localStorage.getItem("homefax_pulse_enabled") !== "false"
+    localStorage.getItem("homegentic_pulse_enabled") !== "false"
   );
   const [scoreAlerts, setScoreAlerts] = useState(() =>
-    localStorage.getItem("homefax_score_alerts") !== "false"
+    localStorage.getItem("homegentic_score_alerts") !== "false"
   );
 
   function savePrefs() {
-    localStorage.setItem("homefax_pulse_enabled", pulseEnabled ? "true" : "false");
-    localStorage.setItem("homefax_score_alerts", scoreAlerts ? "true" : "false");
+    localStorage.setItem("homegentic_pulse_enabled", pulseEnabled ? "true" : "false");
+    localStorage.setItem("homegentic_score_alerts", scoreAlerts ? "true" : "false");
     toast.success("Preferences saved");
   }
 
@@ -622,7 +622,7 @@ function NotificationsTab() {
         <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>Notifications</p>
       </div>
       <ToggleRow label="Weekly Home Pulse"     desc="In-app maintenance tips on your dashboard" value={pulseEnabled}  onChange={setPulseEnabled} />
-      <ToggleRow label="Score Change Alerts"   desc="Banner when your HomeFax Score increases"  value={scoreAlerts}   onChange={setScoreAlerts} />
+      <ToggleRow label="Score Change Alerts"   desc="Banner when your HomeGentic Score increases"  value={scoreAlerts}   onChange={setScoreAlerts} />
       <ToggleRow label="Email: Job Verified"   desc="When a job is verified on-chain"           value={emailVerified} onChange={setEmailVerified} />
       <ToggleRow label="Email: Quote Received" desc="When a contractor submits a quote"         value={emailQuote}    onChange={setEmailQuote} />
       <ToggleRow label="Email: Job Updates"    desc="Status changes on your jobs"               value={emailJob}      onChange={setEmailJob} />
@@ -652,7 +652,7 @@ function ContractorPrivacyTab() {
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement("a");
       a.href     = url;
-      a.download = `homefax-contractor-export-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `homegentic-contractor-export-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
       toast.success("Export downloaded");
@@ -671,7 +671,7 @@ function ContractorPrivacyTab() {
       <ToggleRow label="Public Profile"        desc="Appear in homeowner contractor searches and the contractor directory" value={profileVisible} onChange={setProfileVisible} />
       <ToggleRow label="Show Trust Score"      desc="Display your trust score on your public profile"                     value={showTrustScore} onChange={setShowTrustScore} />
       <ToggleRow label="Show Jobs Completed"   desc="Display your completed job count on your public profile"             value={showJobCount}   onChange={setShowJobCount} />
-      <ToggleRow label="Share Analytics"       desc="Help improve HomeFax with anonymous usage data"                      value={analyticsShare} onChange={setAnalyticsShare} />
+      <ToggleRow label="Share Analytics"       desc="Help improve HomeGentic with anonymous usage data"                      value={analyticsShare} onChange={setAnalyticsShare} />
       <div style={{ padding: "1.25rem", display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
         <Button onClick={() => toast.success("Privacy settings saved")}>Save Privacy Settings</Button>
       </div>
@@ -740,7 +740,7 @@ function PrivacyTab() {
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement("a");
       a.href     = url;
-      a.download = `homefax-export-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `homegentic-export-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
       toast.success("Export downloaded");
@@ -756,9 +756,9 @@ function PrivacyTab() {
       <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${S.rule}` }}>
         <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>Privacy</p>
       </div>
-      <ToggleRow label="Public HomeFax Report"   desc="Allow anyone with the link to view your property history" value={publicReport}    onChange={setPublicReport} />
+      <ToggleRow label="Public HomeGentic Report"   desc="Allow anyone with the link to view your property history" value={publicReport}    onChange={setPublicReport} />
       <ToggleRow label="Contractor Visibility"   desc="Allow contractors to find and view your properties"       value={contractorView}  onChange={setContractorView} />
-      <ToggleRow label="Share Analytics"         desc="Help improve HomeFax with anonymous usage data"           value={analyticsShare}  onChange={setAnalyticsShare} />
+      <ToggleRow label="Share Analytics"         desc="Help improve HomeGentic with anonymous usage data"           value={analyticsShare}  onChange={setAnalyticsShare} />
       <div style={{ padding: "1.25rem", display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
         <Button onClick={() => toast.success("Privacy settings saved")}>Save Privacy Settings</Button>
       </div>

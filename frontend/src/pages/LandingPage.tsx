@@ -456,7 +456,7 @@ export default function LandingPage() {
           <ul>
             <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-features"); }}>For Homeowners</a></li>
             <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-features"); }}>Service Network</a></li>
-            <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-report"); }}>HomeFax Report</a></li>
+            <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-report"); }}>HomeGentic Report</a></li>
             <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-sell"); }}>Sell Smarter</a></li>
             <li><a onClick={(e) => { e.preventDefault(); navigate("/pricing"); }}>Buy</a></li>
           </ul>
@@ -475,7 +475,7 @@ export default function LandingPage() {
             </div>
             <h1>Own It.<br /><em>Prove It.</em><br />Sell It.</h1>
             <p className="hfl-sub">
-              HomeFax tracks every repair, reminds you before things break, and builds
+              HomeGentic tracks every repair, reminds you before things break, and builds
               the complete maintenance record your home deserves — so when it's time to sell,
               you're ready to command a premium or make agents compete for your listing.
             </p>
@@ -487,7 +487,7 @@ export default function LandingPage() {
             </div>
             <div className="hfl-actions">
               <button className="hfl-btn-main" onClick={() => navigate("/login")}>Get Started Free →</button>
-              <button className="hfl-btn-soft" onClick={() => navigate("/login")}>See a HomeFax Report</button>
+              <button className="hfl-btn-soft" onClick={() => navigate("/login")}>See a HomeGentic Report</button>
             </div>
           </div>
 
@@ -503,7 +503,7 @@ export default function LandingPage() {
                   <div className="hfl-dc-addr">327 Keech Street, Daytona Beach FL</div>
                   <div className="hfl-dc-score-row">
                     <div>
-                      <div className="hfl-dc-score-lbl">HomeFax Score</div>
+                      <div className="hfl-dc-score-lbl">HomeGentic Score</div>
                       <div className="hfl-dc-num">91</div>
                     </div>
                     <div style={{ flex: 1 }}>
@@ -530,7 +530,7 @@ export default function LandingPage() {
                   <div className="hfl-dc-ver-row">
                     <span style={{ fontSize: 18 }}>📋</span>
                     <span className="hfl-dc-ver-text">
-                      <strong>HomeFax Report Ready</strong> — 14 records verified, share in one click
+                      <strong>HomeGentic Report Ready</strong> — 14 records verified, share in one click
                     </span>
                   </div>
                 </div>
@@ -549,7 +549,7 @@ export default function LandingPage() {
         <div className="hfl-numbers">
           {[
             { num: "40+",    label: "Data points in your score" },
-            { num: "Avg 47", label: "Records per HomeFax Report" },
+            { num: "Avg 47", label: "Records per HomeGentic Report" },
             { num: "3×",     label: "More offers when score is shared" },
             { num: "Free",   label: "To start — no credit card needed" },
           ].map((n) => (
@@ -564,12 +564,12 @@ export default function LandingPage() {
         <section id="hfl-features" className="hfl-lifecycle">
           <div className="hfl-kicker">How It Works</div>
           <h2>Own It. Manage It.<br />Prove It. Sell It.</h2>
-          <p className="hfl-sec-sub">HomeFax works across the entire homeownership lifecycle — from move-in to sale day.</p>
+          <p className="hfl-sec-sub">HomeGentic works across the entire homeownership lifecycle — from move-in to sale day.</p>
           <div className="hfl-flow">
             {[
               { icon: "🏠", title: "Set Up Your Home", desc: "Add your property and import existing records. AI agents begin organizing your home's history automatically." },
               { icon: "🔧", title: "Manage & Maintain", desc: "Schedule services with verified providers. Every job is logged, receipted, and stored on your permanent record." },
-              { icon: "📋", title: "Generate Your Report", desc: "Your HomeFax Report is a tamper-proof property biography. Share it with buyers or attach it to any listing." },
+              { icon: "📋", title: "Generate Your Report", desc: "Your HomeGentic Report is a tamper-proof property biography. Share it with buyers or attach it to any listing." },
               { icon: "🏆", title: "Sell With Confidence", desc: "List with the agent who wins your bid — or go FSBO with our full suite of seller tools. Your home, your terms." },
             ].map((s) => (
               <div key={s.title} className="hfl-step">
@@ -588,7 +588,7 @@ export default function LandingPage() {
               <div>
                 <div className="hfl-bc-icon">📋</div>
                 <h3>The Verified Home Record</h3>
-                <p>Every service, every repair, every renovation — documented, signed, and stored permanently. Your HomeFax is the Carfax your home deserves.</p>
+                <p>Every service, every repair, every renovation — documented, signed, and stored permanently. Your HomeGentic is the Carfax your home deserves.</p>
                 <ul className="hfl-bc-list">
                   <li>Full ownership &amp; transaction history</li>
                   <li>Verified contractor records &amp; warranties</li>
@@ -606,7 +606,7 @@ export default function LandingPage() {
             <div className="hfl-bc hfl-bc-sage">
               <div className="hfl-bc-icon">🤖</div>
               <h3>AI Property Agents</h3>
-              <p>Autonomous AI agents monitor your home, flag upcoming maintenance, find verified service providers, and keep your HomeFax score climbing.</p>
+              <p>Autonomous AI agents monitor your home, flag upcoming maintenance, find verified service providers, and keep your HomeGentic score climbing.</p>
             </div>
             <div className="hfl-bc hfl-bc-blush">
               <div className="hfl-bc-icon">👷</div>
@@ -629,15 +629,15 @@ export default function LandingPage() {
         {/* ── Report CTA ──────────────────────────────────────────────────── */}
         <section id="hfl-report" className="hfl-report">
           <div>
-            <div className="hfl-rc-label">The HomeFax Report</div>
+            <div className="hfl-rc-label">The HomeGentic Report</div>
             <h2>Your Home's Verified<br /><em>Biography</em></h2>
             <p>
-              When it's time to sell, your HomeFax Report is a tamper-proof document showing
+              When it's time to sell, your HomeGentic Report is a tamper-proof document showing
               every owner, every service, every improvement. Buyers love it. Agents share it.
               Homes with it sell first.
             </p>
             <div className="hfl-rc-actions">
-              <button className="hfl-rc-btn" onClick={() => navigate("/login")}>Generate My HomeFax →</button>
+              <button className="hfl-rc-btn" onClick={() => navigate("/login")}>Generate My HomeGentic →</button>
               <button className="hfl-rc-ghost" onClick={() => window.open("/sample-report", "_blank", "noopener,noreferrer")}>View Sample Report</button>
             </div>
           </div>
@@ -645,12 +645,12 @@ export default function LandingPage() {
             <div className="hfl-report-mock">
               <div className="hfl-mock-top">
                 <span className="hfl-mock-addr">327 Keech Street, Daytona Beach FL</span>
-                <span className="hfl-mock-badge">HomeFax ✓</span>
+                <span className="hfl-mock-badge">HomeGentic ✓</span>
               </div>
               <div className="hfl-mock-score">
                 <div className="hfl-mock-num">91</div>
                 <div style={{ flex: 1 }}>
-                  <div className="hfl-mock-score-lbl">HomeFax Property Score</div>
+                  <div className="hfl-mock-score-lbl">HomeGentic Property Score</div>
                   <div className="hfl-mock-bar"><div className="hfl-mock-bar-fill" /></div>
                 </div>
               </div>
@@ -675,11 +675,11 @@ export default function LandingPage() {
 
         {/* ── Testimonials ────────────────────────────────────────────────── */}
         <section className="hfl-testimonials">
-          <h2>Homeowners Love HomeFax</h2>
+          <h2>Homeowners Love HomeGentic</h2>
           <div className="hfl-test-grid">
             {[
               {
-                quote: "We got $28k over asking. Our buyers said the HomeFax Report was the reason they felt comfortable waiving the inspection contingency. It's a game changer.",
+                quote: "We got $28k over asking. Our buyers said the HomeGentic Report was the reason they felt comfortable waiving the inspection contingency. It's a game changer.",
                 name: "Sarah M.", role: "Seller · Austin, TX", avi: "hfl-avi-1", emoji: "👩",
               },
               {
@@ -687,7 +687,7 @@ export default function LandingPage() {
                 name: "Marcus T.", role: "Seller · Denver, CO", avi: "hfl-avi-2", emoji: "👨",
               },
               {
-                quote: "The AI agent reminded me my HVAC was overdue, booked a verified tech, and logged it to my HomeFax automatically. When I sold six months later, it was right there in the report.",
+                quote: "The AI agent reminded me my HVAC was overdue, booked a verified tech, and logged it to my HomeGentic automatically. When I sold six months later, it was right there in the report.",
                 name: "Priya K.", role: "Homeowner · Seattle, WA", avi: "hfl-avi-3", emoji: "👩",
               },
             ].map((t) => (
@@ -712,11 +712,11 @@ export default function LandingPage() {
             <div className="hfl-cta-blob1" />
             <div className="hfl-cta-blob2" />
             <h2>How do you want to start?</h2>
-            <p className="hfl-cta-sub">HomeFax works for every stage of homeownership. Pick what fits you now.</p>
+            <p className="hfl-cta-sub">HomeGentic works for every stage of homeownership. Pick what fits you now.</p>
             <div className="hfl-personas">
               {[
                 {
-                  icon: "🏠", role: "Homeowner", title: "Build My HomeFax",
+                  icon: "🏠", role: "Homeowner", title: "Build My HomeGentic",
                   desc: "Log services, track maintenance, grow your property score, and be ready to sell on your terms.",
                   cta: "Get started free",
                 },
@@ -752,7 +752,7 @@ export default function LandingPage() {
             <h2>Your records.<br /><em>Forever yours.</em></h2>
             <p className="hfl-data-lead">
               Most apps keep your data on their servers. If they shut down, your records disappear.
-              HomeFax is different — every record you log lives on a public blockchain that no one
+              HomeGentic is different — every record you log lives on a public blockchain that no one
               controls, including us. You own it completely.
             </p>
             <p className="hfl-data-note">
@@ -764,7 +764,7 @@ export default function LandingPage() {
               {
                 icon: "🏠",
                 title: "Your home, your history",
-                body: "Every repair, permit, and inspection you log is yours to keep — whether you stay with HomeFax for one year or ten.",
+                body: "Every repair, permit, and inspection you log is yours to keep — whether you stay with HomeGentic for one year or ten.",
               },
               {
                 icon: "📥",
@@ -774,12 +774,12 @@ export default function LandingPage() {
               {
                 icon: "🔗",
                 title: "Survives us",
-                body: "Even if HomeFax ever closed tomorrow, your records would still be readable by anyone with the address. That's the promise.",
+                body: "Even if HomeGentic ever closed tomorrow, your records would still be readable by anyone with the address. That's the promise.",
               },
               {
                 icon: "🔐",
                 title: "Private by default",
-                body: "Only you decide who sees what. Sharing a HomeFax Report with a buyer is your choice — nothing is public until you say so.",
+                body: "Only you decide who sees what. Sharing a HomeGentic Report with a buyer is your choice — nothing is public until you say so.",
               },
             ].map((card) => (
               <div key={card.title} className="hfl-data-card">
@@ -805,7 +805,7 @@ export default function LandingPage() {
             <a href="#">Privacy</a>
             <a href="#">Terms</a>
           </div>
-          <p>© 2026 HomeFax Inc.</p>
+          <p>© 2026 HomeGentic Inc.</p>
         </footer>
 
       </div>

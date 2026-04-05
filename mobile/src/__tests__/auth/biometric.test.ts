@@ -38,8 +38,8 @@ describe("biometricPromptReason", () => {
     expect(biometricPromptReason("MyApp")).toContain("MyApp");
   });
 
-  it("uses HomeFax as the default app name", () => {
-    expect(biometricPromptReason()).toContain("HomeFax");
+  it("uses HomeGentic as the default app name", () => {
+    expect(biometricPromptReason()).toContain("HomeGentic");
   });
 });
 

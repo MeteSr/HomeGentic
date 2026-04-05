@@ -3,7 +3,7 @@
  *
  * publicRecordService allows unauthenticated lookup of any homeowner's
  * properties and jobs given their principal. This is the "dead man's switch"
- * — records are readable by anyone even if HomeFax shuts down.
+ * — records are readable by anyone even if HomeGentic shuts down.
  */
 
 import { describe, it, expect, beforeEach } from "vitest";

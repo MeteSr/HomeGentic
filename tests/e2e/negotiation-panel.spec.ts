@@ -70,8 +70,8 @@ test.describe("NegotiationPanel — consent gate (e2e)", () => {
     await page.goto("/quotes/qr-neg");
   });
 
-  test("shows the HomeFax Negotiation Analysis toggle", async ({ page }) => {
-    await expect(page.getByText(/HomeFax Negotiation Analysis/i)).toBeVisible();
+  test("shows the HomeGentic Negotiation Analysis toggle", async ({ page }) => {
+    await expect(page.getByText(/HomeGentic Negotiation Analysis/i)).toBeVisible();
   });
 
   test("shows the opt-in checkbox unchecked by default", async ({ page }) => {

@@ -1,5 +1,5 @@
 /**
- * HomeFax Monitoring Canister
+ * HomeGentic Monitoring Canister
  * Cost tracking, metrics aggregation, profitability analysis, and alerting.
  * Aggregates health data pushed by all other canisters.
  */
@@ -503,7 +503,7 @@ persistent actor Monitoring {
     };
 
     "═══════════════════════════════════════════\n" #
-    "  HomeFax Daily Report — " # Int.toText(Time.now() / 1_000_000_000) # "s\n" #
+    "  HomeGentic Daily Report — " # Int.toText(Time.now() / 1_000_000_000) # "s\n" #
     "═══════════════════════════════════════════\n" #
     "\n── USERS ──────────────────────────────────\n" #
     "  Total users      : " # Nat.toText(bm.totalUsers) # "\n" #

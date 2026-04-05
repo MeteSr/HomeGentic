@@ -5,7 +5,7 @@ import type { PushPayload } from "./types";
 const KEY_ID      = process.env.APNS_KEY_ID;
 const TEAM_ID     = process.env.APNS_TEAM_ID;
 const PRIVATE_KEY = process.env.APNS_PRIVATE_KEY?.replace(/\\n/g, "\n");
-const BUNDLE_ID   = process.env.APNS_BUNDLE_ID ?? "app.homefax.mobile";
+const BUNDLE_ID   = process.env.APNS_BUNDLE_ID ?? "app.homegentic.mobile";
 const APNS_ORIGIN = process.env.NODE_ENV === "production"
   ? "https://api.push.apple.com"
   : "https://api.sandbox.push.apple.com";

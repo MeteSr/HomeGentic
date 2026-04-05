@@ -43,7 +43,7 @@ export default function RegisterPage() {
     try {
       const profile = await authService.register({ role, email, phone });
       setProfile(profile);
-      toast.success("Welcome to HomeFax!");
+      toast.success("Welcome to HomeGentic!");
       navigate(profile.role === "Contractor" ? "/contractor-dashboard" : "/onboarding");
     } catch (err: any) {
       toast.error(err.message || "Registration failed");
@@ -125,7 +125,7 @@ export default function RegisterPage() {
                 </div>
                 <h2 style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.75rem", marginBottom: "0.5rem", color: COLORS.plum }}>I am a…</h2>
                 <p style={{ fontWeight: 300, fontSize: "0.9rem", color: COLORS.plumMid, marginBottom: "1.5rem" }}>
-                  Choose your role to get started with HomeFax.
+                  Choose your role to get started with HomeGentic.
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem", marginBottom: "1.5rem" }}>
                   {ROLES.map((r) => {
@@ -211,7 +211,7 @@ export default function RegisterPage() {
                 </div>
                 <h2 style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.75rem", marginBottom: "0.5rem", color: COLORS.plum }}>Confirm</h2>
                 <p style={{ fontWeight: 300, fontSize: "0.9rem", color: COLORS.plumMid, marginBottom: "1.5rem" }}>
-                  Review and submit to create your HomeFax account.
+                  Review and submit to create your HomeGentic account.
                 </p>
                 <div style={{
                   border: `1.5px solid ${COLORS.rule}`,

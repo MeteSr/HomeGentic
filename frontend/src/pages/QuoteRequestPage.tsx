@@ -135,7 +135,7 @@ export default function QuoteRequestPage() {
           Request a Quote
         </h1>
         <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight, marginBottom: "1.5rem" }}>
-          Get competitive quotes from verified HomeFax contractors.
+          Get competitive quotes from verified HomeGentic contractors.
         </p>
 
         {/* Preferred contractor banner (when arriving from contractor profile) */}
@@ -241,7 +241,7 @@ export default function QuoteRequestPage() {
               </div>
               <div style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.06em", color: S.inkLight }}>
                 {priceRange.source === "local"
-                  ? `Based on ${priceRange.sampleSize} verified job${priceRange.sampleSize !== 1 ? "s" : ""} in your HomeFax history`
+                  ? `Based on ${priceRange.sampleSize} verified job${priceRange.sampleSize !== 1 ? "s" : ""} in your HomeGentic history`
                   : "Based on 2024 Remodeling Magazine national averages, adjusted for your state"}
               </div>
             </div>

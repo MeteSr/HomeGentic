@@ -1,7 +1,7 @@
 /**
  * TDD tests for Epic 9.4 — Proposal comparison enhancements
  *
- *   9.4.3 — HomeFax score context per proposal (flag underpriced)
+ *   9.4.3 — HomeGentic score context per proposal (flag underpriced)
  *   9.4.5 — Post-selection contract upload
  *   9.4.6 — Counter-proposal flow (homeowner counters; agent accepts/rejects)
  */
@@ -144,7 +144,7 @@ function renderMarketplace() {
 
 // ─── 9.4.3 Score context ──────────────────────────────────────────────────────
 
-describe("ListingDetailPage — HomeFax score context (9.4.3)", () => {
+describe("ListingDetailPage — HomeGentic score context (9.4.3)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(listingService.getBidRequest).mockResolvedValue(mockRequest as any);
@@ -152,10 +152,10 @@ describe("ListingDetailPage — HomeFax score context (9.4.3)", () => {
     vi.mocked(listingService.getCountersForProposal).mockResolvedValue([]);
   });
 
-  it("shows HomeFax premium potential label", async () => {
+  it("shows HomeGentic premium potential label", async () => {
     renderDetail();
     await waitFor(() => {
-      expect(screen.getByText(/premium potential|homefax range|homefax estimate/i)).toBeInTheDocument();
+      expect(screen.getByText(/premium potential|homegentic range|homegentic estimate/i)).toBeInTheDocument();
     });
   });
 

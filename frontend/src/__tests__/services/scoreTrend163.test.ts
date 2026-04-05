@@ -164,7 +164,7 @@ describe("computeMilestoneCoaching", () => {
     expect(result!.milestoneLabel).toMatch(/grade a/i);
   });
 
-  it("sets correct milestone and label for HomeFax Certified (88)", () => {
+  it("sets correct milestone and label for HomeGentic Certified (88)", () => {
     const result = computeMilestoneCoaching(85, makeBreakdown({ verifiedJobPts: 36 }), []);
     expect(result!.milestone).toBe(88);
     expect(result!.milestoneLabel).toMatch(/certified/i);
@@ -224,7 +224,7 @@ describe("computeMilestoneCoaching", () => {
 // ─── MILESTONES export ────────────────────────────────────────────────────────
 
 describe("MILESTONES constant", () => {
-  it("includes grade boundaries and HomeFax Certified", () => {
+  it("includes grade boundaries and HomeGentic Certified", () => {
     const scores = MILESTONES.map((m) => m.score);
     expect(scores).toContain(70);
     expect(scores).toContain(80);

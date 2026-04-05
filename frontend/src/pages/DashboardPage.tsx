@@ -57,10 +57,10 @@ export default function DashboardPage() {
   const [showScoreBreakdown,  setShowScoreBreakdown]  = useState(false);
   const [showScoreChart,      setShowScoreChart]      = useState(false);
   const [scoreGoal, setScoreGoalState] = useState<number | null>(null);
-  const [milestoneDismissed,    setMilestoneDismissed]    = useState(() => !!localStorage.getItem("homefax_milestone_dismissed"));
-  const [milestone3Dismissed,   setMilestone3Dismissed]   = useState(() => !!localStorage.getItem("homefax_3job_milestone"));
-  const [upgradeBannerDismissed, setUpgradeBannerDismissed] = useState(() => !!localStorage.getItem("homefax_upgrade_banner_dismissed"));
-  const [pulseDismissed,        setPulseDismissed]        = useState(() => !!localStorage.getItem(`homefax_pulse_${new Date().toISOString().slice(0, 7)}`));
+  const [milestoneDismissed,    setMilestoneDismissed]    = useState(() => !!localStorage.getItem("homegentic_milestone_dismissed"));
+  const [milestone3Dismissed,   setMilestone3Dismissed]   = useState(() => !!localStorage.getItem("homegentic_3job_milestone"));
+  const [upgradeBannerDismissed, setUpgradeBannerDismissed] = useState(() => !!localStorage.getItem("homegentic_upgrade_banner_dismissed"));
+  const [pulseDismissed,        setPulseDismissed]        = useState(() => !!localStorage.getItem(`homegentic_pulse_${new Date().toISOString().slice(0, 7)}`));
   const [scoreIncreaseDismissed, setScoreIncreaseDismissed] = useState(() => false);
   const [scoreHistory, setScoreHistory] = useState<ScoreSnapshot[]>([]);
   const [showLogJobModal,  setShowLogJobModal]  = useState(false);
@@ -174,19 +174,19 @@ export default function DashboardPage() {
     [jobs, systemAges, loading]
   );
   const totalDecay    = getTotalDecay(decayEvents);
-  const homefaxScore  = activeProperty ? computeScoreWithDecay(jobs, [activeProperty], totalDecay) : 0;
-  const scoreGrade    = getScoreGrade(homefaxScore);
+  const homegenticScore  = activeProperty ? computeScoreWithDecay(jobs, [activeProperty], totalDecay) : 0;
+  const scoreGrade    = getScoreGrade(homegenticScore);
   const delta         = scoreDelta(scoreHistory);
-  const prevScore     = homefaxScore - delta;
-  const scoreValueChange = scoreValueDelta(prevScore, homefaxScore);
+  const prevScore     = homegenticScore - delta;
+  const scoreValueChange = scoreValueDelta(prevScore, homegenticScore);
 
   const hasProperty  = properties.length > 0;
   const hasVerified  = properties.some((p) => p.verificationLevel !== "Unverified" && p.verificationLevel !== "PendingReview");
   const hasJob       = jobs.length > 0;
   const showBanner   = !loading && !(hasProperty && hasVerified && hasJob) && !bannerDismissed;
-  const certified    = isCertified(homefaxScore, jobs);
+  const certified    = isCertified(homegenticScore, jobs);
 
-  const scoreAlertsEnabled = localStorage.getItem("homefax_score_alerts") !== "false";
+  const scoreAlertsEnabled = localStorage.getItem("homegentic_score_alerts") !== "false";
   const showScoreIncrease  = !loading && hasJob && delta > 0 && scoreAlertsEnabled && !scoreIncreaseDismissed;
 
   // Next-service prompt (8.6.2) — most recently verified job's follow-up tip
@@ -202,7 +202,7 @@ export default function DashboardPage() {
     .filter((j) => j.status === "verified")
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] ?? null;
   const nextServiceTip = recentVerified ? NEXT_SERVICE_TIPS[recentVerified.serviceType] ?? null : null;
-  const nextServiceKey = `homefax_next_service_${recentVerified?.id ?? ""}`;
+  const nextServiceKey = `homegentic_next_service_${recentVerified?.id ?? ""}`;
   const [nextServiceDismissed, setNextServiceDismissed] = React.useState(
     () => !!localStorage.getItem(nextServiceKey)
   );
@@ -214,7 +214,7 @@ export default function DashboardPage() {
     [jobs, loading]
   );
   const [dismissedReEngagements, setDismissedReEngagements] = React.useState<Set<string>>(
-    () => new Set(Object.keys(localStorage).filter((k) => k.startsWith("homefax_reengage_")).map((k) => k.replace("homefax_reengage_", "")))
+    () => new Set(Object.keys(localStorage).filter((k) => k.startsWith("homegentic_reengage_")).map((k) => k.replace("homegentic_reengage_", "")))
   );
   const visibleReEngagements = reEngagementPrompts.filter((p) => !dismissedReEngagements.has(p.jobId));
 
@@ -267,13 +267,13 @@ export default function DashboardPage() {
   const accountAgeMs = profile?.createdAt
     ? Date.now() - Number(profile.createdAt) / 1_000_000
     : 0;
-  const milestoneKey  = "homefax_milestone_dismissed";
+  const milestoneKey  = "homegentic_milestone_dismissed";
   const showMilestone = !loading && hasJob && !milestoneDismissed
     && accountAgeMs >= 11 * 30 * 24 * 60 * 60 * 1000;
 
   // Home Pulse — rule-based weekly maintenance focus tip
-  const pulseKey     = `homefax_pulse_${new Date().toISOString().slice(0, 7)}`;
-  const pulseEnabled = localStorage.getItem("homefax_pulse_enabled") !== "false";
+  const pulseKey     = `homegentic_pulse_${new Date().toISOString().slice(0, 7)}`;
+  const pulseEnabled = localStorage.getItem("homegentic_pulse_enabled") !== "false";
   const pulseTip     = React.useMemo(() => getWeeklyPulse(properties, jobs), [properties, jobs]);
   const showPulse    = !loading && hasProperty && !!pulseTip && !pulseDismissed && pulseEnabled;
 
@@ -317,7 +317,7 @@ export default function DashboardPage() {
   }, [activeProperty, jobs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Score goal helpers
-  const scoreGoalKey = activePropertyId ? `homefax_score_goal_${activePropertyId}` : "homefax_score_goal";
+  const scoreGoalKey = activePropertyId ? `homegentic_score_goal_${activePropertyId}` : "homegentic_score_goal";
   const setScoreGoal = (goal: number | null) => {
     setScoreGoalState(goal);
     if (goal === null) localStorage.removeItem(scoreGoalKey);
@@ -325,8 +325,8 @@ export default function DashboardPage() {
   };
 
   const scoreGoalGap = React.useMemo((): string | null => {
-    if (!scoreGoal || homefaxScore >= scoreGoal) return null;
-    const gap = scoreGoal - homefaxScore;
+    if (!scoreGoal || homegenticScore >= scoreGoal) return null;
+    const gap = scoreGoal - homegenticScore;
     // Determine easiest action to close gap
     const verifiedJobs  = jobs.filter((j) => j.verified).length;
     const needVerified  = Math.ceil(gap / 4); // 4 pts per verified job
@@ -337,12 +337,12 @@ export default function DashboardPage() {
     if (verifiedJobs === 0) return `Start verifying jobs — each adds up to 4 pts toward ${scoreGoal}`;
     if (uniqueTypes < 5)   return `Log a new service type to add diversity points toward ${scoreGoal}`;
     return `Log $${needValueK}K in documented work to reach ${scoreGoal}`;
-  }, [scoreGoal, homefaxScore, jobs]);
+  }, [scoreGoal, homegenticScore, jobs]);
 
   // Record score snapshot once data is loaded
   useEffect(() => {
     if (!loading && activePropertyId && (jobs.length > 0 || properties.length > 0)) {
-      const history = recordSnapshot(homefaxScore, activePropertyId);
+      const history = recordSnapshot(homegenticScore, activePropertyId);
       setScoreHistory(history);
     }
   }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -366,7 +366,7 @@ export default function DashboardPage() {
   // Load per-property score goal when active property changes
   useEffect(() => {
     if (activePropertyId) {
-      const v = localStorage.getItem(`homefax_score_goal_${activePropertyId}`);
+      const v = localStorage.getItem(`homegentic_score_goal_${activePropertyId}`);
       setScoreGoalState(v ? parseInt(v, 10) : null);
     }
   }, [activePropertyId]);
@@ -493,7 +493,7 @@ export default function DashboardPage() {
                 <p style={{ fontSize: "0.8rem", color: S.inkLight, fontWeight: 300 }}>
                   {!hasProperty ? "Add your first property to start building your home's verified history."
                     : !hasVerified ? "Verify ownership so buyers can trust your history."
-                    : "Log your first job to add value to your HomeFax report."}
+                    : "Log your first job to add value to your HomeGentic report."}
                 </p>
               </div>
             </div>
@@ -526,7 +526,7 @@ export default function DashboardPage() {
           }}>
             <div>
               <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.rust, marginBottom: "0.25rem" }}>
-                One Year of HomeFax
+                One Year of HomeGentic
               </p>
               <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: "0.875rem", color: S.paper, fontWeight: 300 }}>
                 You've been building your verified home history for nearly a year.{" "}
@@ -569,7 +569,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <button
-              onClick={() => { localStorage.setItem("homefax_3job_milestone", "1"); setMilestone3Dismissed(true); }}
+              onClick={() => { localStorage.setItem("homegentic_3job_milestone", "1"); setMilestone3Dismissed(true); }}
               style={{ background: "none", border: "none", cursor: "pointer", color: S.sage, flexShrink: 0 }}
             >
               <X size={15} />
@@ -605,7 +605,7 @@ export default function DashboardPage() {
                 See Plans →
               </button>
               <button
-                onClick={() => { localStorage.setItem("homefax_upgrade_banner_dismissed", "1"); setUpgradeBannerDismissed(true); }}
+                onClick={() => { localStorage.setItem("homegentic_upgrade_banner_dismissed", "1"); setUpgradeBannerDismissed(true); }}
                 style={{ background: "none", border: "none", cursor: "pointer", color: S.inkLight }}
               >
                 <X size={15} />
@@ -663,7 +663,7 @@ export default function DashboardPage() {
                   Score Hasn't Moved in 30 Days
                 </p>
                 <p style={{ fontSize: "0.8rem", fontWeight: 300, color: S.inkLight }}>
-                  Log a recent job or verify a property to keep your HomeFax Score growing.
+                  Log a recent job or verify a property to keep your HomeGentic Score growing.
                 </p>
               </div>
             </div>
@@ -723,8 +723,8 @@ export default function DashboardPage() {
               </span>
               <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: COLORS.sage, opacity: 0.75 }}>
                 {scoreValueChange != null
-                  ? `— Your score went from ${prevScore} to ${homefaxScore}. A ${delta}-point increase ≈ $${scoreValueChange.toLocaleString()} in estimated home value.`
-                  : `— Your HomeFax Score is now ${homefaxScore}. Keep logging jobs to grow your record.`}
+                  ? `— Your score went from ${prevScore} to ${homegenticScore}. A ${delta}-point increase ≈ $${scoreValueChange.toLocaleString()} in estimated home value.`
+                  : `— Your HomeGentic Score is now ${homegenticScore}. Keep logging jobs to grow your record.`}
               </span>
             </div>
             <button
@@ -745,7 +745,7 @@ export default function DashboardPage() {
             { label: "Verification", value: activeProperty?.verificationLevel === "PendingReview" ? "Pending" : (activeProperty?.verificationLevel ?? "—") },
             { label: "Verified Jobs",    value: String(verifiedCount) },
             { label: "Total Value",      value: `$${(totalValue / 100).toLocaleString()}` },
-            { label: "HomeFax Premium™", value: `$${Math.round((totalValue / 100) * 0.03).toLocaleString()}` },
+            { label: "HomeGentic Premium™", value: `$${Math.round((totalValue / 100) * 0.03).toLocaleString()}` },
           ].map((stat) => (
             <div key={stat.label} style={{ padding: "1.25rem 1.5rem", borderRadius: RADIUS.card, background: COLORS.white, border: `1px solid ${COLORS.rule}`, boxShadow: SHADOWS.card }}>
               <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.625rem" }}>
@@ -756,13 +756,13 @@ export default function DashboardPage() {
               </div>
             </div>
           ))}
-          {/* HomeFax Score — accent cell */}
+          {/* HomeGentic Score — accent cell */}
           <div style={{ padding: "1.25rem 1.5rem", borderRadius: RADIUS.card, background: COLORS.plum, boxShadow: SHADOWS.hover }}>
             <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.625rem" }}>
-              HomeFax Score
+              HomeGentic Score
             </div>
             <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem", marginBottom: "0.5rem" }}>
-              <span style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "2rem", lineHeight: 1, color: COLORS.white }}>{homefaxScore}</span>
+              <span style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "2rem", lineHeight: 1, color: COLORS.white }}>{homegenticScore}</span>
               <span style={{ fontFamily: S.mono, fontSize: "0.7rem", color: COLORS.plumMid }}>/100 · {scoreGrade}</span>
             </div>
             {delta !== 0 && (
@@ -826,7 +826,7 @@ export default function DashboardPage() {
                 borderRadius: showScoreBreakdown ? `${RADIUS.card}px ${RADIUS.card}px 0 0` : RADIUS.card,
               }}
             >
-              <span style={{ flex: 1 }}>How is my HomeFax Score calculated?</span>
+              <span style={{ flex: 1 }}>How is my HomeGentic Score calculated?</span>
               <span style={{ fontSize: "0.75rem" }}>{showScoreBreakdown ? "▲" : "▼"}</span>
             </button>
             {showScoreBreakdown && userTier === "Free" && (
@@ -860,7 +860,7 @@ export default function DashboardPage() {
                 ))}
                 <div style={{ padding: "0.875rem 1rem", display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "0.5rem", background: COLORS.white }}>
                   <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight }}>Total</span>
-                  <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.25rem", color: S.ink }}>{homefaxScore}</span>
+                  <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.25rem", color: S.ink }}>{homegenticScore}</span>
                   <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>/100</span>
                 </div>
               </div>
@@ -871,7 +871,7 @@ export default function DashboardPage() {
         {/* Neighborhood Benchmark (4.3.2) */}
         {!loading && activeProperty?.zipCode && (
           <div style={{ marginBottom: "2rem" }}>
-            <NeighborhoodBenchmark zipCode={activeProperty.zipCode} score={homefaxScore} />
+            <NeighborhoodBenchmark zipCode={activeProperty.zipCode} score={homegenticScore} />
           </div>
         )}
 
@@ -903,34 +903,34 @@ export default function DashboardPage() {
                     <button
                       key={g}
                       onClick={() => setScoreGoal(g)}
-                      disabled={homefaxScore >= g}
+                      disabled={homegenticScore >= g}
                       style={{
-                        flex: 1, padding: "0.875rem", border: `1px solid ${COLORS.rule}`, borderRadius: RADIUS.sm, cursor: homefaxScore >= g ? "default" : "pointer",
-                        background: homefaxScore >= g ? COLORS.sageLight : COLORS.white,
-                        opacity: homefaxScore >= g ? 0.6 : 1,
+                        flex: 1, padding: "0.875rem", border: `1px solid ${COLORS.rule}`, borderRadius: RADIUS.sm, cursor: homegenticScore >= g ? "default" : "pointer",
+                        background: homegenticScore >= g ? COLORS.sageLight : COLORS.white,
+                        opacity: homegenticScore >= g ? 0.6 : 1,
                       }}
                     >
-                      <div style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, color: homefaxScore >= g ? COLORS.sage : S.ink }}>
+                      <div style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, color: homegenticScore >= g ? COLORS.sage : S.ink }}>
                         {g}
                       </div>
                       <div style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight, marginTop: "0.25rem" }}>
                         {g === 60 ? "Good" : g === 75 ? "Great" : g === 88 ? "Excellent" : "Perfect"}
                       </div>
-                      {homefaxScore >= g && (
+                      {homegenticScore >= g && (
                         <div style={{ fontFamily: S.mono, fontSize: "0.5rem", color: COLORS.sage, marginTop: "0.2rem" }}>✓ Achieved</div>
                       )}
                     </button>
                   ))}
                 </div>
               </div>
-            ) : homefaxScore >= scoreGoal ? (
+            ) : homegenticScore >= scoreGoal ? (
               /* Goal achieved celebration */
               <div style={{ padding: "1.5rem", textAlign: "center" }}>
                 <p style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.5rem", color: COLORS.sage, marginBottom: "0.375rem" }}>
-                  Goal reached — {homefaxScore}/{scoreGoal} ✓
+                  Goal reached — {homegenticScore}/{scoreGoal} ✓
                 </p>
                 <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, marginBottom: "1rem" }}>
-                  Your HomeFax Score hit {scoreGoal}. Set a new goal to keep improving.
+                  Your HomeGentic Score hit {scoreGoal}. Set a new goal to keep improving.
                 </p>
                 <button
                   onClick={() => setScoreGoal(null)}
@@ -944,7 +944,7 @@ export default function DashboardPage() {
               <div style={{ padding: "1.25rem" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
                   <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>
-                    Current: <strong style={{ color: S.ink }}>{homefaxScore}</strong>
+                    Current: <strong style={{ color: S.ink }}>{homegenticScore}</strong>
                   </span>
                   <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>
                     Goal: <strong style={{ color: S.rust }}>{scoreGoal}</strong>
@@ -953,7 +953,7 @@ export default function DashboardPage() {
                 <div style={{ height: "6px", background: S.rule, marginBottom: "0.75rem", borderRadius: 100 }}>
                   <div style={{
                     height: "100%",
-                    width: `${(homefaxScore / scoreGoal) * 100}%`,
+                    width: `${(homegenticScore / scoreGoal) * 100}%`,
                     background: `linear-gradient(to right, ${COLORS.sage}, ${COLORS.sageMid})`,
                     transition: "width 0.5s ease",
                     borderRadius: 100,
@@ -1035,7 +1035,7 @@ export default function DashboardPage() {
 
         {/* Buyer Premium Estimate */}
         {!loading && hasJob && hasProperty && (() => {
-          const est = premiumEstimate(homefaxScore);
+          const est = premiumEstimate(homegenticScore);
           if (!est) return null;
           const market = activeProperty ? `${activeProperty.city}, ${activeProperty.state}` : "your market";
           return (
@@ -1057,7 +1057,7 @@ export default function DashboardPage() {
                 </div>
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
                   <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight, marginBottom: "0.625rem" }}>
-                    HomeFax Score <strong style={{ color: S.ink }}>{homefaxScore}</strong> · Grade <strong style={{ color: S.ink }}>{scoreGrade}</strong>
+                    HomeGentic Score <strong style={{ color: S.ink }}>{homegenticScore}</strong> · Grade <strong style={{ color: S.ink }}>{scoreGrade}</strong>
                   </div>
                   <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end", flexWrap: "wrap" }}>
                     <button
@@ -1071,7 +1071,7 @@ export default function DashboardPage() {
                         onClick={async () => {
                           const payload = {
                             address:     activeProperty.address,
-                            score:       homefaxScore,
+                            score:       homegenticScore,
                             grade:       scoreGrade,
                             certified,
                             generatedAt: Date.now(),
@@ -1092,7 +1092,7 @@ export default function DashboardPage() {
                 </div>
               </div>
               <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.04em", color: S.inkLight, marginTop: "0.875rem", borderTop: `1px solid ${S.rule}`, paddingTop: "0.625rem", lineHeight: 1.6 }}>
-                Based on verified maintenance records for score band {homefaxScore < 55 ? "40–54" : homefaxScore < 70 ? "55–69" : homefaxScore < 85 ? "70–84" : "85+"}.
+                Based on verified maintenance records for score band {homegenticScore < 55 ? "40–54" : homegenticScore < 70 ? "55–69" : homegenticScore < 85 ? "70–84" : "85+"}.
                 Buyers and lenders pay more for homes with documented, verified maintenance history. Individual market conditions vary.
               </p>
             </div>
@@ -1381,7 +1381,7 @@ export default function DashboardPage() {
             </div>
             <button
               onClick={() => {
-                localStorage.setItem(`homefax_reengage_${prompt.jobId}`, "1");
+                localStorage.setItem(`homegentic_reengage_${prompt.jobId}`, "1");
                 setDismissedReEngagements((prev) => new Set([...prev, prompt.jobId]));
               }}
               style={{ background: "none", border: "none", cursor: "pointer", color: S.inkLight, flexShrink: 0 }}

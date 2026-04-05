@@ -280,7 +280,7 @@ export default function ContractorPublicPage() {
                 <StarRating value={rating} onChange={setRating} />
               </div>
               <div>
-                <label className="form-label">Job ID * <span style={{ fontWeight: 300, textTransform: "none", letterSpacing: 0 }}>(from your HomeFax records)</span></label>
+                <label className="form-label">Job ID * <span style={{ fontWeight: 300, textTransform: "none", letterSpacing: 0 }}>(from your HomeGentic records)</span></label>
                 <input
                   className="form-input"
                   placeholder="e.g. JOB_1"

@@ -8,7 +8,7 @@ export function shouldPromptBiometric(hasHardware: boolean, isEnrolled: boolean)
 }
 
 /** Pure — the reason string shown in the system biometric dialog */
-export function biometricPromptReason(appName = "HomeFax"): string {
+export function biometricPromptReason(appName = "HomeGentic"): string {
   return `Unlock ${appName}`;
 }
 

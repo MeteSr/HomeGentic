@@ -33,7 +33,7 @@ export default function ReportScreen() {
     <View style={styles.container}>
       <Text style={styles.label}>VIEW REPORT</Text>
       <Text style={styles.hint}>
-        Enter a report token or paste a full share link to open the HomeFax report.
+        Enter a report token or paste a full share link to open the HomeGentic report.
       </Text>
 
       <View style={styles.row}>

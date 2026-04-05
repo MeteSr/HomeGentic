@@ -25,7 +25,7 @@ test.describe("ScoreCertPage — /cert/:token", () => {
       await page.goto(`/cert/${VALID_TOKEN}`);
     });
 
-    test("shows HomeFax Lender Certificate heading", async ({ page }) => {
+    test("shows HomeGentic Lender Certificate heading", async ({ page }) => {
       await expect(page.getByText(/Certificate/i)).toBeVisible();
     });
 
@@ -41,9 +41,9 @@ test.describe("ScoreCertPage — /cert/:token", () => {
       await expect(page.getByText("A+")).toBeVisible();
     });
 
-    test("shows 'Powered by HomeFax' footer", async ({ page }) => {
+    test("shows 'Powered by HomeGentic' footer", async ({ page }) => {
       await expect(page.getByText(/Powered by/i)).toBeVisible();
-      await expect(page.getByText(/HomeFax/)).toBeVisible();
+      await expect(page.getByText(/HomeGentic/)).toBeVisible();
     });
 
     test("shows the generated date", async ({ page }) => {
@@ -67,7 +67,7 @@ test.describe("ScoreCertPage — /cert/:token", () => {
       await expect(page.getByText(/generate a new one/i)).toBeVisible();
     });
 
-    test("shows 'Powered by HomeFax' footer even on error state", async ({ page }) => {
+    test("shows 'Powered by HomeGentic' footer even on error state", async ({ page }) => {
       await expect(page.getByText(/Powered by/i)).toBeVisible();
     });
   });

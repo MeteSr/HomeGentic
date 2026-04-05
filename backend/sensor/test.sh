@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# HomeFax Sensor Canister Tests
+# HomeGentic Sensor Canister Tests
 # Tests: device registration, reading ingestion, health classification
 # (Critical/Warning/Info), pending alert queries, and auto-job creation
 # on Critical events (requires job canister to be wired up).
 set -euo pipefail
 
 echo "============================================"
-echo "  HomeFax — Sensor Canister Tests"
+echo "  HomeGentic — Sensor Canister Tests"
 echo "============================================"
 
 if ! dfx ping 2>/dev/null; then

@@ -2,7 +2,7 @@
  * Resale-Ready Milestone Screen (8.5.2)
  *
  * Full-page milestone view shown at the 12-month mark (and accessible anytime).
- * Shows record depth, HomeFax score, and what a buyer would see.
+ * Shows record depth, HomeGentic score, and what a buyer would see.
  */
 
 import React, { useEffect, useState } from "react";
@@ -160,7 +160,7 @@ export default function ResaleReadyPage() {
         {/* Stats grid */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", border: `1px solid ${S.rule}`, marginBottom: "2rem" }}>
           {[
-            { label: "HomeFax Score",     value: String(score),                          sub: grade },
+            { label: "HomeGentic Score",     value: String(score),                          sub: grade },
             { label: "Verified Records",  value: String(verifiedJobs.length),            sub: "blockchain-signed" },
             { label: "Value Documented",  value: `$${(totalValue / 100).toLocaleString()}`, sub: "across all jobs" },
             { label: "Systems Covered",   value: String(uniqueTypes),                    sub: "service categories" },
@@ -187,26 +187,26 @@ export default function ResaleReadyPage() {
                 ${premium.low.toLocaleString()} – ${premium.high.toLocaleString()}
               </p>
               <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, marginTop: "0.375rem" }}>
-                Based on HomeFax Score {score} ({grade}). Verified records typically add 1–10% in US markets.
+                Based on HomeGentic Score {score} ({grade}). Verified records typically add 1–10% in US markets.
               </p>
             </div>
             <TrendingUp size={36} color={`${S.sage}88`} />
           </div>
         )}
 
-        {/* HomeFax Certified badge */}
+        {/* HomeGentic Certified badge */}
         {certified && (
           <div style={{ border: `2px solid ${S.gold}`, padding: "1.25rem 1.5rem", marginBottom: "2rem", background: COLORS.butter, display: "flex", alignItems: "center", gap: "1rem" }}>
             <Shield size={28} color={S.gold} />
             <div>
               <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.gold, marginBottom: "0.125rem" }}>
-                HomeFax Certified™
+                HomeGentic Certified™
               </p>
               <p style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1rem" }}>
                 Score ≥ 88 — qualifies for pre-inspection waiver consideration
               </p>
               <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, marginTop: "0.2rem" }}>
-                Ask your real estate agent about listing with HomeFax Certified status.
+                Ask your real estate agent about listing with HomeGentic Certified status.
               </p>
             </div>
           </div>
@@ -267,7 +267,7 @@ export default function ResaleReadyPage() {
                   onClick={() => {
                     const verifiedCount = jobs.filter((j) => j.verified || j.status === "verified").length;
                     const grade = getScoreGrade(score);
-                    const text = `My home at ${property.address} has a HomeFax Score of ${score} (${grade}) — ${verifiedCount} verified maintenance records on the blockchain. Ready to sell with full documented history. #HomeFax #HomeMaintenance`;
+                    const text = `My home at ${property.address} has a HomeGentic Score of ${score} (${grade}) — ${verifiedCount} verified maintenance records on the blockchain. Ready to sell with full documented history. #HomeGentic #HomeMaintenance`;
                     navigator.clipboard.writeText(text);
                     toast.success("Share text copied!");
                   }}
@@ -346,13 +346,13 @@ export default function ResaleReadyPage() {
               Know a homeowner who should have this?
             </p>
             <p style={{ fontSize: "0.875rem", color: S.ink, fontWeight: 300, lineHeight: 1.5 }}>
-              Every homeowner deserves verified records before they sell. Share HomeFax with a neighbor, friend, or family member.
+              Every homeowner deserves verified records before they sell. Share HomeGentic with a neighbor, friend, or family member.
             </p>
           </div>
           <button
             onClick={() => {
               navigator.clipboard.writeText(window.location.origin);
-              toast.success("HomeFax link copied — share it with a friend!");
+              toast.success("HomeGentic link copied — share it with a friend!");
             }}
             style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${S.rust}`, color: S.rust, background: "none", cursor: "pointer", flexShrink: 0 }}
           >

@@ -1,7 +1,7 @@
 import type { ToolDefinition } from "./provider";
 
 /**
- * Tool schemas exposed to the AI agent for agentic HomeFax interactions.
+ * Tool schemas exposed to the AI agent for agentic HomeGentic interactions.
  *
  * Uses the normalized ToolDefinition type (AI.5). AnthropicProvider.toAnthropicTools()
  * converts these to the Anthropic wire format before sending to the API.
@@ -10,7 +10,7 @@ import type { ToolDefinition } from "./provider";
  * tools to read data it already has. These tools are write-only and execute
  * in the browser under the authenticated user's ICP identity.
  */
-export const HOMEFAX_TOOLS: ToolDefinition[] = [
+export const HOMEGENTIC_TOOLS: ToolDefinition[] = [
   {
     name: "create_maintenance_job",
     description: `Record a completed home maintenance or repair job on the blockchain.
@@ -200,7 +200,7 @@ YOU compose all the work order fields based on the homeowner's description, then
 
   {
     name: "search_contractors",
-    description: `Search the HomeFax contractor directory by service type.
+    description: `Search the HomeGentic contractor directory by service type.
 
 Use this when the user wants to find a vetted contractor for upcoming work.
 Returns up to 3 contractors sorted by trust score. After showing results, offer to open a quote request.`,
@@ -363,7 +363,7 @@ After closing: "Done — all pending bids have been declined and the request is 
 
   {
     name: "share_report",
-    description: `Generate a HomeFax report share link for a property.
+    description: `Generate a HomeGentic report share link for a property.
 
 Use this when the user says "share my report", "send my report to my realtor", "create a report link", etc.
 
@@ -395,7 +395,7 @@ After returning the URL, say: "Here's your share link — copy it and send it di
 
   {
     name: "revoke_report_link",
-    description: `List or revoke an active HomeFax report share link.
+    description: `List or revoke an active HomeGentic report share link.
 
 Two modes:
 1. LIST — call with list_links_for_property to show the user their active share links before revoking.
@@ -536,9 +536,9 @@ Use this to mark a job as in-progress or completed based on what the user tells 
   // ── 15.7.6 ───────────────────────────────────────────────────────────────────
   {
     name: "get_score",
-    description: `Return the homeowner's current HomeFax Score, letter grade, and the top 3 factors driving it.
+    description: `Return the homeowner's current HomeGentic Score, letter grade, and the top 3 factors driving it.
 
-Use this when the user asks "what's my score?", "how am I doing?", "why is my score low?", or anything about their HomeFax rating.
+Use this when the user asks "what's my score?", "how am I doing?", "why is my score low?", or anything about their HomeGentic rating.
 
 After returning the score, briefly explain the top contributing factor in plain English.
 If the score is below 70, suggest one specific action to improve it.`,
@@ -581,7 +581,7 @@ Use this when the user wants to attach a photo, receipt image, or documentation 
 
 Use this when the user asks "how much does roofing cost?", "what's a fair price for HVAC replacement in my area?", or "is this quote reasonable?".
 
-Returns low, median, and high estimates based on closed HomeFax bids in that zip code.
+Returns low, median, and high estimates based on closed HomeGentic bids in that zip code.
 If fewer than 5 bids are on file, tell the user there isn't enough local data yet and fall back to national averages from context.`,
     parameters: {
       type: "object" as const,

@@ -15,7 +15,7 @@ test.describe("ResaleReadyPage — /resale-ready", () => {
     await expect(page.getByRole("heading", { name: /resale|ready|milestone/i }).first()).toBeVisible();
   });
 
-  test("shows HomeFax score value", async ({ page }) => {
+  test("shows HomeGentic score value", async ({ page }) => {
     // Score is numeric — computed from injected jobs
     await expect(page.getByText(/\d{2,3}/).first()).toBeVisible();
   });

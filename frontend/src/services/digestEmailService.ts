@@ -62,7 +62,7 @@ function renderHtml(digest: PulseDigest, address: string): string {
 
   return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HomeFax Weekly Pulse</title></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HomeGentic Weekly Pulse</title></head>
 <body style="margin:0;padding:0;background:#F4F1EB;font-family:'Arial',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#F4F1EB;">
     <tr><td align="center" style="padding:32px 16px;">
@@ -70,7 +70,7 @@ function renderHtml(digest: PulseDigest, address: string): string {
         <!-- Header -->
         <tr>
           <td style="padding:32px 40px 24px;border-bottom:2px solid #0E0E0C;">
-            <div style="font-family:monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:#7A7268;margin-bottom:8px;">HomeFax · Weekly Home Pulse</div>
+            <div style="font-family:monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:#7A7268;margin-bottom:8px;">HomeGentic · Weekly Home Pulse</div>
             <div style="font-family:'Georgia',serif;font-size:26px;font-weight:900;color:#0E0E0C;line-height:1.2;">${seasonCap} Digest</div>
             <div style="font-family:monospace;font-size:12px;color:#7A7268;margin-top:6px;">${address}</div>
           </td>
@@ -92,7 +92,7 @@ function renderHtml(digest: PulseDigest, address: string): string {
         <!-- Footer -->
         <tr>
           <td style="padding:24px 40px 32px;border-top:1px solid #C8C3B8;margin-top:16px;">
-            <div style="font-family:monospace;font-size:11px;color:#7A7268;text-transform:uppercase;letter-spacing:0.06em;">HomeFax — your home's maintenance record on the blockchain.</div>
+            <div style="font-family:monospace;font-size:11px;color:#7A7268;text-transform:uppercase;letter-spacing:0.06em;">HomeGentic — your home's maintenance record on the blockchain.</div>
           </td>
         </tr>
       </table>
@@ -107,7 +107,7 @@ function renderHtml(digest: PulseDigest, address: string): string {
 function renderText(digest: PulseDigest, address: string): string {
   const seasonCap = digest.season.charAt(0).toUpperCase() + digest.season.slice(1);
   const lines: string[] = [
-    `HomeFax Weekly Home Pulse — ${seasonCap} Digest`,
+    `HomeGentic Weekly Home Pulse — ${seasonCap} Digest`,
     address,
     "=".repeat(50),
     "",
@@ -119,7 +119,7 @@ function renderText(digest: PulseDigest, address: string): string {
       "",
     ]),
     "─".repeat(50),
-    "HomeFax — your home's maintenance record on the blockchain.",
+    "HomeGentic — your home's maintenance record on the blockchain.",
   ];
   return lines.join("\n");
 }

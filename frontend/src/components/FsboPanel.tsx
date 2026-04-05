@@ -57,7 +57,7 @@ const READINESS_COLOR: Record<string, string> = {
 
 const STEP_LABELS: Record<FsboStep, string> = {
   1:    "Step 1 — Enter Your Asking Price",
-  2:    "Step 2 — Review Your HomeFax Report",
+  2:    "Step 2 — Review Your HomeGentic Report",
   3:    "Step 3 — Go Live",
   done: "You're Live!",
 };
@@ -158,7 +158,7 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
         Sell This Home Yourself
       </h2>
       <p style={{ fontFamily: S.sans, fontSize: "0.875rem", color: S.inkLight, margin: "0 0 1rem" }}>
-        Use your HomeFax record to sell without paying a listing agent.
+        Use your HomeGentic record to sell without paying a listing agent.
       </p>
 
       {/* 10.1.4 — Readiness */}
@@ -267,10 +267,10 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
           {currentStep === 2 && (
             <div>
               <h3 style={{ fontFamily: S.mono, fontSize: "0.75rem", color: S.ink, margin: "0 0 0.75rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                Step 2 — Review Your HomeFax Report
+                Step 2 — Review Your HomeGentic Report
               </h3>
               <p style={{ fontFamily: S.sans, fontSize: "0.875rem", color: S.inkLight, margin: "0 0 1rem" }}>
-                Review your HomeFax report before sharing it with buyers.
+                Review your HomeGentic report before sharing it with buyers.
                 {!hasReport && " No public report yet — generate one from the Reports tab."}
               </p>
               <Button onClick={handleAdvance}>
@@ -286,7 +286,7 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
                 Step 3 — Go Live
               </h3>
               <p style={{ fontFamily: S.sans, fontSize: "0.875rem", color: S.inkLight, margin: "0 0 1rem" }}>
-                Your FSBO listing page will be visible at a shareable URL with your HomeFax badge.
+                Your FSBO listing page will be visible at a shareable URL with your HomeGentic badge.
               </p>
               <Button onClick={handleAdvance}>
                 Publish FSBO Listing
@@ -304,7 +304,7 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
                     Your FSBO listing is live!
                   </div>
                   <div style={{ fontFamily: S.sans, fontSize: "0.875rem", color: S.inkLight }}>
-                    Share your HomeFax listing link with potential buyers.
+                    Share your HomeGentic listing link with potential buyers.
                   </div>
                 </div>
               </div>

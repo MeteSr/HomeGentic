@@ -401,7 +401,7 @@ describe("AgentMarketplacePage", () => {
 describe("ListingDetailPage — property snapshot (9.2.3)", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("shows the HomeFax score from the property snapshot", async () => {
+  it("shows the HomeGentic score from the property snapshot", async () => {
     vi.mocked(listingService.getBidRequest).mockResolvedValueOnce(mockBidRequest as any);
     vi.mocked(listingService.getProposalsForRequest).mockResolvedValueOnce([mockProposal as any]);
     renderPage(<ListingDetailPage />, "/listing/BID_1", "/listing/:id");

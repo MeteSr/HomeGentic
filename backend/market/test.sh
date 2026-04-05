@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# HomeFax Market Canister Tests
+# HomeGentic Market Canister Tests
 # Tests: ROI project recommendations, analyzeCompetitivePosition scoring,
 # MarketSnapshot storage/retrieval, getTopProjects sort order
 set -euo pipefail
 
 echo "============================================"
-echo "  HomeFax — Market Canister Tests"
+echo "  HomeGentic — Market Canister Tests"
 echo "============================================"
 
 if ! dfx ping 2>/dev/null; then

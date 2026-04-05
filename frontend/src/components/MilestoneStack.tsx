@@ -12,9 +12,9 @@ const S = {
   serif:    FONTS.serif,
 };
 
-const MILESTONE_KEY  = "homefax_milestone_dismissed";
-const MILESTONE3_KEY = "homefax_3job_milestone";
-const CERTIFIED_KEY  = "homefax_certified_dismissed";
+const MILESTONE_KEY  = "homegentic_milestone_dismissed";
+const MILESTONE3_KEY = "homegentic_3job_milestone";
+const CERTIFIED_KEY  = "homegentic_certified_dismissed";
 
 export interface MilestoneStackProps {
   verifiedJobCount: number;
@@ -76,7 +76,7 @@ export function MilestoneStack({
                 marginBottom: "0.25rem",
               }}
             >
-              One Year of HomeFax
+              One Year of HomeGentic
             </p>
             <p
               style={{
@@ -198,7 +198,7 @@ export function MilestoneStack({
         </div>
       )}
 
-      {/* HomeFax Certified */}
+      {/* HomeGentic Certified */}
       {showCertified && (
         <div
           style={{
@@ -225,10 +225,10 @@ export function MilestoneStack({
                 marginBottom: "0.2rem",
               }}
             >
-              HomeFax Certified
+              HomeGentic Certified
             </p>
             <p style={{ fontSize: "0.875rem", fontWeight: 300, color: S.ink }}>
-              Your home has achieved HomeFax Certified status. Share your report to attract buyers.
+              Your home has achieved HomeGentic Certified status. Share your report to attract buyers.
             </p>
           </div>
           <button

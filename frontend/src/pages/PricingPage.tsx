@@ -21,7 +21,7 @@ const FEATURES_TABLE = [
   { feature: "Properties",                   Free: "1",    Pro: "5",    Premium: "Unlimited", ContractorPro: "—" },
   { feature: "Photos per job",               Free: "5",    Pro: "20",   Premium: "Unlimited", ContractorPro: "50" },
   { feature: "Quote requests/mo",            Free: "3",    Pro: "10",   Premium: "Unlimited", ContractorPro: "Unlimited" },
-  { feature: "Public HomeFax report",        Free: true,   Pro: true,   Premium: true,        ContractorPro: false },
+  { feature: "Public HomeGentic report",        Free: true,   Pro: true,   Premium: true,        ContractorPro: false },
   { feature: "Blockchain verified",          Free: true,   Pro: true,   Premium: true,        ContractorPro: true },
   { feature: "Score breakdown",             Free: false,  Pro: true,   Premium: true,        ContractorPro: false },
   { feature: "Warranty Wallet",             Free: false,  Pro: true,   Premium: true,        ContractorPro: false },
@@ -39,7 +39,7 @@ const FEATURES_TABLE = [
 const FAQS = [
   { q: "How does blockchain verification work?", a: "Every maintenance job is stored as an immutable record on the Internet Computer Protocol. The data is cryptographically signed and cannot be altered — not even by us." },
   { q: "What is ICP?", a: "The Internet Computer Protocol is a decentralized cloud platform developed by DFINITY. Unlike traditional cloud storage, data on ICP is governed by a decentralized protocol — no single company can take it down." },
-  { q: "Is my personal data secure?", a: "HomeFax uses Internet Identity for authentication — no passwords or emails are stored. Your property data is stored on-chain and only accessible to principals (identities) you authorize." },
+  { q: "Is my personal data secure?", a: "HomeGentic uses Internet Identity for authentication — no passwords or emails are stored. Your property data is stored on-chain and only accessible to principals (identities) you authorize." },
   { q: "Can I cancel anytime?", a: "Yes. Cancel your subscription at any time from your Settings page. Your data remains accessible and your blockchain records are permanent — even after cancellation." },
 ];
 

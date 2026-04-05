@@ -63,10 +63,10 @@ describe("CheckAddressPage — report found", () => {
     });
   });
 
-  it("shows 'HomeFax Verified' badge when report found", async () => {
+  it("shows 'HomeGentic Verified' badge when report found", async () => {
     renderPage("?address=123+Main+St+Daytona+Beach+FL");
     await waitFor(() =>
-      expect(screen.getByText(/HomeFax Verified/i)).toBeInTheDocument()
+      expect(screen.getByText(/HomeGentic Verified/i)).toBeInTheDocument()
     );
   });
 
@@ -96,7 +96,7 @@ describe("CheckAddressPage — report found", () => {
   it("sets document.title with the address when report found", async () => {
     renderPage("?address=123+Main+St+Daytona+Beach+FL");
     await waitFor(() =>
-      expect(document.title).toContain("HomeFax")
+      expect(document.title).toContain("HomeGentic")
     );
   });
 });

@@ -1,4 +1,4 @@
-// HomeFax Report Canister — Candid IDL
+// HomeGentic Report Canister — Candid IDL
 // Generates certified, immutable property-history snapshots and manages
 // share links. Anyone with a share token can read the snapshot via getReport().
 

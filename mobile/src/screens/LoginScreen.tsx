@@ -15,7 +15,7 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.wordmark}>HOMEFAX</Text>
+      <Text style={styles.wordmark}>HOMEGENTIC</Text>
       <Text style={styles.tagline}>Your home's permanent record.</Text>
 
       <View style={styles.divider} />

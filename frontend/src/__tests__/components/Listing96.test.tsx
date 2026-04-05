@@ -3,7 +3,7 @@
  *
  *   9.6.1 — Agent browse / search page (/agents)
  *   9.6.2 — "Request proposal from this agent" direct invite
- *   9.6.3 — HomeFax-verified transaction badge on agent profiles
+ *   9.6.3 — HomeGentic-verified transaction badge on agent profiles
  */
 
 import React from "react";
@@ -146,20 +146,20 @@ describe("AgentBrowsePage — directory (9.6.1)", () => {
     });
   });
 
-  it("HomeFax-only checkbox shows only agents with transactions", async () => {
+  it("HomeGentic-only checkbox shows only agents with transactions", async () => {
     renderBrowse();
     await waitFor(() => screen.getByText("Bob Torres"));
-    fireEvent.click(screen.getByRole("checkbox", { name: /homefax only/i }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /homegentic only/i }));
     await waitFor(() => {
       expect(screen.getByText("Alice Chen")).toBeInTheDocument();
       expect(screen.queryByText("Bob Torres")).not.toBeInTheDocument();
     });
   });
 
-  it("shows HomeFax Verified Transaction badge on qualifying cards", async () => {
+  it("shows HomeGentic Verified Transaction badge on qualifying cards", async () => {
     renderBrowse();
     await waitFor(() => {
-      expect(screen.getByText(/homefax verified transaction/i)).toBeInTheDocument();
+      expect(screen.getByText(/homegentic verified transaction/i)).toBeInTheDocument();
     });
   });
 
@@ -223,11 +223,11 @@ describe("AgentPublicPage — verified transaction badge (9.6.3)", () => {
     vi.mocked(agentService.getReviews).mockResolvedValue([]);
   });
 
-  it("shows 'HomeFax Verified Transaction' badge when agent has perf records", async () => {
+  it("shows 'HomeGentic Verified Transaction' badge when agent has perf records", async () => {
     vi.mocked(listingService.getAgentPerformanceRecords).mockResolvedValue([mockPerf as any]);
     renderProfile();
     await waitFor(() => {
-      expect(screen.getByText(/homefax verified transaction/i)).toBeInTheDocument();
+      expect(screen.getByText(/homegentic verified transaction/i)).toBeInTheDocument();
     });
   });
 
@@ -235,6 +235,6 @@ describe("AgentPublicPage — verified transaction badge (9.6.3)", () => {
     vi.mocked(listingService.getAgentPerformanceRecords).mockResolvedValue([]);
     renderProfile();
     await waitFor(() => screen.getByText("Alice Chen"));
-    expect(screen.queryByText(/homefax verified transaction/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/homegentic verified transaction/i)).not.toBeInTheDocument();
   });
 });

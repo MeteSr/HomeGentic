@@ -379,7 +379,7 @@ export default function ContractorProfilePage() {
               <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.25rem" }}>Trust Score</p>
               <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, lineHeight: 1.5 }}>
                 {existing.jobsCompleted} job{existing.jobsCompleted !== 1 ? "s" : ""} completed.
-                Score improves as you complete verified HomeFax jobs.
+                Score improves as you complete verified HomeGentic jobs.
               </p>
             </div>
           </div>

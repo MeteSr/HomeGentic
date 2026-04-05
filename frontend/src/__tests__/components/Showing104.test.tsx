@@ -4,7 +4,7 @@
  *   10.4.1 — Showing request inbox (accept / decline / propose alternate time)
  *   10.4.2 — Showing calendar (list of confirmed showings, iCal export)
  *   10.4.3 — Post-showing feedback request (send request, log response)
- *   10.4.4 — Buyer Q&A via HomeFax report (submit question, seller sees it)
+ *   10.4.4 — Buyer Q&A via HomeGentic report (submit question, seller sees it)
  */
 
 import React from "react";
@@ -384,7 +384,7 @@ describe("ShowingInbox — post-showing feedback (10.4.3)", () => {
   });
 });
 
-// ─── 10.4.4 Buyer Q&A via HomeFax report ─────────────────────────────────────
+// ─── 10.4.4 Buyer Q&A via HomeGentic report ─────────────────────────────────────
 
 describe("ReportQAPanel — buyer Q&A (10.4.4)", () => {
   beforeEach(() => {

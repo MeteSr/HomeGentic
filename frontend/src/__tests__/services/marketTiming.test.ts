@@ -1,7 +1,7 @@
 /**
  * TDD — 5.3.2 + 5.3.3: Market Timing Intelligence
  *
- * marketTimingService combines HomeFax score × zip × season → estimated
+ * marketTimingService combines HomeGentic score × zip × season → estimated
  * price premium and a "list now" recommendation.
  */
 

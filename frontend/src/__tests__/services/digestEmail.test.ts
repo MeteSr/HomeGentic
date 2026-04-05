@@ -65,9 +65,9 @@ describe("digestEmailService.renderHtml (8.1.3)", () => {
     expect(html.toLowerCase()).toMatch(/high|urgent|priority/);
   });
 
-  it("includes HomeFax branding", () => {
+  it("includes HomeGentic branding", () => {
     const html = svc.renderHtml(makeDigest(), "100 Elm St");
-    expect(html.toLowerCase()).toContain("homefax");
+    expect(html.toLowerCase()).toContain("homegentic");
   });
 });
 

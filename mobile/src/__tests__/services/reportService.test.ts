@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-import { buildReportUrl, HOMEFAX_WEB_URL } from "../../services/reportService";
+import { buildReportUrl, HOMEGENTIC_WEB_URL } from "../../services/reportService";
 
 describe("buildReportUrl", () => {
   it("returns a URL containing the token", () => {
@@ -19,8 +19,8 @@ describe("buildReportUrl", () => {
     expect(url).toContain("/report/");
   });
 
-  it("uses HOMEFAX_WEB_URL as the base", () => {
+  it("uses HOMEGENTIC_WEB_URL as the base", () => {
     const url = buildReportUrl("tok");
-    expect(url).toContain(HOMEFAX_WEB_URL.replace(/\/$/, ""));
+    expect(url).toContain(HOMEGENTIC_WEB_URL.replace(/\/$/, ""));
   });
 });

@@ -2,7 +2,7 @@
  * Webhook payload normalizers for Nest, Ecobee, and Moen Flo.
  *
  * Each handler validates the incoming payload and returns a SensorReading
- * (or null if the event is not actionable for HomeFax).
+ * (or null if the event is not actionable for HomeGentic).
  */
 
 import type {

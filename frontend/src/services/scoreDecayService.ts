@@ -1,7 +1,7 @@
 /**
  * Score Decay & Depreciation Engine (8.7)
  *
- * Models the forces that reduce a HomeFax score over time:
+ * Models the forces that reduce a HomeGentic score over time:
  *   8.7.1  System-age depreciation — systems aging past rated lifespan
  *   8.7.2  Warranty expiration     — coverage lapsing on logged jobs
  *   8.7.3  Maintenance gap penalty — critical tasks left overdue

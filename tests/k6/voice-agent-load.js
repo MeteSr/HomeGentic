@@ -1,5 +1,5 @@
 /**
- * 13.6.2 — k6 load test suite: HomeFax voice agent Express proxy
+ * 13.6.2 — k6 load test suite: HomeGentic voice agent Express proxy
  *
  * Targets the voice agent server running at http://localhost:3001
  * (agents/voice/server.ts, Express port 3001).

@@ -23,7 +23,7 @@ export interface AlertStackProps {
   onNavigate:      (path: string) => void;
 }
 
-const PULSE_KEY = `homefax_pulse_${new Date().toISOString().slice(0, 7)}`;
+const PULSE_KEY = `homegentic_pulse_${new Date().toISOString().slice(0, 7)}`;
 
 export function AlertStack({
   atRiskWarnings,
@@ -38,7 +38,7 @@ export function AlertStack({
     () => !!localStorage.getItem(PULSE_KEY)
   );
   const [upgradeDismissed, setUpgradeDismissed] = useState(
-    () => !!localStorage.getItem("homefax_upgrade_banner_dismissed")
+    () => !!localStorage.getItem("homegentic_upgrade_banner_dismissed")
   );
 
   const showPulse   = pulseEnabled && !!pulseTip && !pulseDismissed;
@@ -182,7 +182,7 @@ export function AlertStack({
                 Score Hasn't Moved in 30 Days
               </p>
               <p style={{ fontSize: "0.8rem", fontWeight: 300, color: S.inkLight }}>
-                Log a recent job or verify a property to keep your HomeFax Score growing.
+                Log a recent job or verify a property to keep your HomeGentic Score growing.
               </p>
             </div>
           </div>
@@ -358,7 +358,7 @@ export function AlertStack({
             </button>
             <button
               onClick={() => {
-                localStorage.setItem("homefax_upgrade_banner_dismissed", "1");
+                localStorage.setItem("homegentic_upgrade_banner_dismissed", "1");
                 setUpgradeDismissed(true);
               }}
               style={{

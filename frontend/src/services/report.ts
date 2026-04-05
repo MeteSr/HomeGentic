@@ -1,5 +1,5 @@
 /**
- * Report service — generates HomeFax share links and fetches report snapshots.
+ * Report service — generates HomeGentic share links and fetches report snapshots.
  * Wired to the report canister; falls back to an in-memory store when
  * REPORT_CANISTER_ID is not set (local dev without dfx).
  */

@@ -1,7 +1,7 @@
 /**
  * Disclosure Service — Epic 10.6
  *
- *  10.6.1  generateDisclosure   — pre-fill disclosure statement from HomeFax data
+ *  10.6.1  generateDisclosure   — pre-fill disclosure statement from HomeGentic data
  *  10.6.2  computeDisclosureScore — 0-100 completeness score
  *  10.6.5  inspectionWaiverReady — score ≥ 88 + 2 key systems verified
  */
@@ -18,7 +18,7 @@ function isVerified(job: Job): boolean {
 // ─── 10.6.2 ──────────────────────────────────────────────────────────────────
 
 /**
- * Scores how complete a seller's disclosure is based on HomeFax data coverage.
+ * Scores how complete a seller's disclosure is based on HomeGentic data coverage.
  *
  * Rubric (max 100):
  *   +25  Property verified (Basic or Premium)
@@ -85,7 +85,7 @@ export interface DisclosureStatement {
 }
 
 /**
- * Pre-fills a seller disclosure statement from HomeFax property and job data.
+ * Pre-fills a seller disclosure statement from HomeGentic property and job data.
  * The seller reviews and can annotate before signing.
  */
 export function generateDisclosure(
@@ -125,7 +125,7 @@ export function generateDisclosure(
 
 /**
  * Returns true when a seller can offer buyers an "inspection waiver" backed by
- * HomeFax data: score ≥ 88 and at least 2 of the 4 key systems are verified.
+ * HomeGentic data: score ≥ 88 and at least 2 of the 4 key systems are verified.
  */
 export function inspectionWaiverReady(score: number, jobs: Job[]): boolean {
   if (score < 88) return false;

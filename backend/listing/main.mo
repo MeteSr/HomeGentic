@@ -1,5 +1,5 @@
 /**
- * HomeFax Listing Canister
+ * HomeGentic Listing Canister
  * Sealed-bid marketplace where homeowners invite agents to compete for
  * their listing. Proposals are hidden until the bid deadline passes.
  */

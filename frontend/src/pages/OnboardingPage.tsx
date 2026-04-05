@@ -39,9 +39,9 @@ function buildSteps(properties: Property[], jobs: Job[], firstPropertyId: bigint
   return [
     { id: "add-property",     icon: <Home size={20} />,       title: "Add your first property",         body: "Register your home on-chain and start building its verified maintenance history.",                                                                                                               cta: hasProperty ? "View my property" : "Add property", href: propPath,                                     done: hasProperty  },
     { id: "verify-ownership", icon: <ShieldCheck size={20} />, title: "Verify ownership",               body: "Upload a utility bill, deed, or tax record to earn a verification badge that buyers trust.",                                                                                                     cta: "Verify now",                                      href: `${propPath}/verify`,                            done: verified     },
-    { id: "import-docs",      icon: <FolderOpen size={20} />, title: "Import historical documents",     body: "Bulk-upload existing receipts, permits, inspection reports, and warranties. Duplicates are auto-detected — drag in everything and HomeFax sorts it out.",                                       cta: "Import documents",                                href: `${propPath}?tab=documents`,                     done: hasDocs      },
+    { id: "import-docs",      icon: <FolderOpen size={20} />, title: "Import historical documents",     body: "Bulk-upload existing receipts, permits, inspection reports, and warranties. Duplicates are auto-detected — drag in everything and HomeGentic sorts it out.",                                       cta: "Import documents",                                href: `${propPath}?tab=documents`,                     done: hasDocs      },
     { id: "system-ages",      icon: <Wrench size={20} />,     title: "Set your system ages",            body: "Tell us when your HVAC, roof, water heater, and other systems were last replaced — so predictions reflect reality, not just your home's build year.",                                          cta: "Set system ages",                                 href: hasProperty && firstPropertyId != null ? `/properties/${firstPropertyId}/systems` : "/dashboard", done: hasSystemAges },
-    { id: "log-job",          icon: <Wrench size={20} />,     title: "Log your first maintenance job",  body: "Every repair, renovation, or upgrade you record adds real value to your HomeFax report.",                                                                                                       cta: "Log a job",                                       href: "/jobs/new",                                     done: hasJob       },
+    { id: "log-job",          icon: <Wrench size={20} />,     title: "Log your first maintenance job",  body: "Every repair, renovation, or upgrade you record adds real value to your HomeGentic report.",                                                                                                       cta: "Log a job",                                       href: "/jobs/new",                                     done: hasJob       },
   ];
 }
 
@@ -163,7 +163,7 @@ export default function OnboardingPage() {
                 </div>
                 {allDone && (
                   <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: S.sage, marginTop: "0.5rem", textAlign: "center" }}>
-                    ✓ Setup complete — your HomeFax profile is ready.
+                    ✓ Setup complete — your HomeGentic profile is ready.
                   </p>
                 )}
               </div>

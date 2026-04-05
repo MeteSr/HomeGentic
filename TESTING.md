@@ -1,4 +1,4 @@
-# HomeFax Testing Guide
+# HomeGentic Testing Guide
 
 ## Running All Backend Tests
 

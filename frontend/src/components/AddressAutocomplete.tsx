@@ -40,7 +40,7 @@ function loadGoogleMaps(apiKey: string): Promise<void> {
     return scriptPromise;
   }
   scriptPromise = new Promise((resolve, reject) => {
-    const callbackName = "__homefax_gm_cb";
+    const callbackName = "__homegentic_gm_cb";
     (window as any)[callbackName] = () => resolve();
     const script = document.createElement("script");
     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=${callbackName}`;

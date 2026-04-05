@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to HomeFax are documented here.
+All notable changes to HomeGentic are documented here.
 
 ## [0.1.0] - 2026-03-24
 

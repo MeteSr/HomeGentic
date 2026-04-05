@@ -2,7 +2,7 @@
  * Agent (Realtor) branding profile — stored in localStorage until
  * a dedicated `agent` canister is built (backlog 6.4.2).
  *
- * Fields are injected into HomeFax share links as query params so that
+ * Fields are injected into HomeGentic share links as query params so that
  * the report viewer can render the co-branded header.
  */
 
@@ -37,7 +37,7 @@ function sanitizeAgentProfile(profile: AgentProfile): AgentProfile {
   return { name, brokerage, phone, logoUrl };
 }
 
-const STORAGE_KEY = "homefax_agent_profile";
+const STORAGE_KEY = "homegentic_agent_profile";
 
 export const agentProfileService = {
   load(): AgentProfile | null {

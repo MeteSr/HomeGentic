@@ -76,7 +76,7 @@ export const PLANS: Plan[] = [
       "5 photos per job",
       "3 quote requests/month",
       "Basic blockchain record",
-      "Public HomeFax report",
+      "Public HomeGentic report",
     ],
     propertyLimit: 1,
     photosPerJob: 5,
@@ -184,31 +184,31 @@ export const paymentService = {
 
   /** Record cancellation timestamp in localStorage (8.3.2). */
   recordCancellation(): void {
-    localStorage.setItem("homefax_cancelled_at", String(Date.now()));
+    localStorage.setItem("homegentic_cancelled_at", String(Date.now()));
   },
 
   /** Returns { cancelledAt } if the account was cancelled, null otherwise (8.3.2). */
   getCancellationInfo(): { cancelledAt: number } | null {
-    const raw = localStorage.getItem("homefax_cancelled_at");
+    const raw = localStorage.getItem("homegentic_cancelled_at");
     if (!raw) return null;
     return { cancelledAt: Number(raw) };
   },
 
   pause(months: 1 | 2 | 3): void {
     const resumeAt = Date.now() + months * 30 * 24 * 60 * 60 * 1000;
-    localStorage.setItem("homefax_sub_paused_until", String(resumeAt));
+    localStorage.setItem("homegentic_sub_paused_until", String(resumeAt));
   },
 
   resume(): void {
-    localStorage.removeItem("homefax_sub_paused_until");
+    localStorage.removeItem("homegentic_sub_paused_until");
   },
 
   getPauseState(): { pausedUntil: number; daysLeft: number } | null {
-    const raw = localStorage.getItem("homefax_sub_paused_until");
+    const raw = localStorage.getItem("homegentic_sub_paused_until");
     if (!raw) return null;
     const pausedUntil = Number(raw);
     if (Date.now() >= pausedUntil) {
-      localStorage.removeItem("homefax_sub_paused_until");
+      localStorage.removeItem("homegentic_sub_paused_until");
       return null;
     }
     const daysLeft = Math.ceil((pausedUntil - Date.now()) / (24 * 60 * 60 * 1000));

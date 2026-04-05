@@ -1,5 +1,5 @@
 /**
- * HomeFax Badge — /badge/:token
+ * HomeGentic Badge — /badge/:token
  *
  * Public, unauthenticated. Renders a compact property score badge that can
  * be embedded in listing sites via <iframe>. Supports:
@@ -46,7 +46,7 @@ function ScorePill({ score, grade }: { score: number; grade: string }) {
           {grade}
         </p>
         <p style={{ fontFamily: S.mono, fontSize: "0.45rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", lineHeight: 1.4 }}>
-          HomeFax Score
+          HomeGentic Score
         </p>
       </div>
     </div>
@@ -86,7 +86,7 @@ function BadgeCard({ snapshot, score }: { snapshot: ReportSnapshot; score: numbe
       <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", marginBottom: "0.875rem", opacity: 0.55 }}>
         <Shield size={11} color={COLORS.white} />
         <span style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.55rem", letterSpacing: "0.2em", textTransform: "uppercase", color: COLORS.white }}>
-          HOMEFAX
+          HOMEGENTIC
         </span>
       </div>
 
@@ -127,7 +127,7 @@ function BadgeCard({ snapshot, score }: { snapshot: ReportSnapshot; score: numbe
       {/* Footer */}
       <div style={{ marginTop: "0.875rem", paddingTop: "0.625rem", borderTop: "1px solid rgba(255,255,255,0.08)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ fontFamily: S.mono, fontSize: "0.45rem", letterSpacing: "0.06em", color: "rgba(255,255,255,0.3)" }}>
-          homefax.io
+          homegentic.io
         </span>
         <span style={{ fontFamily: S.mono, fontSize: "0.45rem", letterSpacing: "0.06em", color: "rgba(255,255,255,0.3)" }}>
           ICP Blockchain
@@ -192,7 +192,7 @@ export default function BadgePage() {
 
   const badgeUrl   = `${window.location.origin}/badge/${token}`;
   const reportUrl  = `${window.location.origin}/report/${token}`;
-  const embedCode  = `<iframe src="${badgeUrl}?embed=1" width="288" height="212" frameborder="0" style="border:none;" title="HomeFax Property Score"></iframe>`;
+  const embedCode  = `<iframe src="${badgeUrl}?embed=1" width="288" height="212" frameborder="0" style="border:none;" title="HomeGentic Property Score"></iframe>`;
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -220,7 +220,7 @@ export default function BadgePage() {
         <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginBottom: "2.5rem" }}>
           <Shield size={16} color={S.sage} />
           <span style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.2em", textTransform: "uppercase", color: S.ink }}>
-            HOMEFAX
+            HOMEGENTIC
           </span>
           <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>· Property Badge</span>
         </div>
@@ -246,7 +246,7 @@ export default function BadgePage() {
               textDecoration: "none",
             }}
           >
-            <ExternalLink size={12} /> View Full HomeFax Report
+            <ExternalLink size={12} /> View Full HomeGentic Report
           </a>
         </div>
 

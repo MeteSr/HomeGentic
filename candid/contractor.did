@@ -1,4 +1,4 @@
-// HomeFax Contractor Canister — Candid IDL
+// HomeGentic Contractor Canister — Candid IDL
 // Contractor profiles, trust scores, on-chain job credentials, and
 // rate-limited reviews (10/day/user, composite-key deduplication).
 

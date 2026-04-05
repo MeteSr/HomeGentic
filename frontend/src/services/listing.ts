@@ -88,7 +88,7 @@ export type ProposalStatus    = "Pending" | "Accepted" | "Rejected" | "Withdrawn
 export type BidVisibility     = "open" | "inviteOnly";
 export type CounterStatus     = "Pending" | "Accepted" | "Rejected";
 
-/** Snapshot of the property's HomeFax score at the time the bid request was created. */
+/** Snapshot of the property's HomeGentic score at the time the bid request was created. */
 export interface PropertySnapshot {
   score:             number;
   verifiedJobCount:  number;
@@ -168,7 +168,7 @@ export interface OfferEntry {
   closeDate:                     string;
   loggedAt:                      number;
   deltaFromListingPriceCents:    number | null;
-  deltaFromHomeFaxEstimateCents: number | null;
+  deltaFromHomeGenticEstimateCents: number | null;
 }
 
 export interface LogOfferInput {
@@ -322,15 +322,15 @@ export function initMilestones(): Milestone[] {
   }));
 }
 
-/** Compute delta between an offer and listing/HomeFax price points. */
+/** Compute delta between an offer and listing/HomeGentic price points. */
 export function computeOfferDeltas(
   offerAmountCents: number,
   desiredSalePrice: number | null,
   homeFaxEstimateMidCents: number | null,
-): { deltaFromListingPriceCents: number | null; deltaFromHomeFaxEstimateCents: number | null } {
+): { deltaFromListingPriceCents: number | null; deltaFromHomeGenticEstimateCents: number | null } {
   return {
     deltaFromListingPriceCents:    desiredSalePrice       !== null ? offerAmountCents - desiredSalePrice       : null,
-    deltaFromHomeFaxEstimateCents: homeFaxEstimateMidCents !== null ? offerAmountCents - homeFaxEstimateMidCents : null,
+    deltaFromHomeGenticEstimateCents: homeFaxEstimateMidCents !== null ? offerAmountCents - homeFaxEstimateMidCents : null,
   };
 }
 
@@ -683,7 +683,7 @@ function createListingService() {
     if (!LISTING_CANISTER_ID) {
       const req = requests.find((r) => r.id === requestId);
       if (!req) throw new Error(`BidRequest ${requestId} not found`);
-      const { deltaFromListingPriceCents, deltaFromHomeFaxEstimateCents } = computeOfferDeltas(
+      const { deltaFromListingPriceCents, deltaFromHomeGenticEstimateCents } = computeOfferDeltas(
         input.offerAmountCents,
         req.desiredSalePrice,
         null,
@@ -696,7 +696,7 @@ function createListingService() {
         closeDate:                     input.closeDate,
         loggedAt:                      Date.now(),
         deltaFromListingPriceCents,
-        deltaFromHomeFaxEstimateCents,
+        deltaFromHomeGenticEstimateCents,
       };
       if (!req.offers) req.offers = [];
       req.offers.push(entry);

@@ -1,12 +1,12 @@
 /**
- * HomeFax Sensor Canister
+ * HomeGentic Sensor Canister
  *
  * Manages IoT device registrations and processes inbound sensor events from
  * smart-home platforms (Nest, Ecobee, Moen Flo).
  *
  * Critical events (water leak, HVAC failure, pipe-freeze risk) automatically
  * trigger a cross-canister call to the Job canister to open a pending job for
- * the property owner — making HomeFax genuinely passive for smart-home owners.
+ * the property owner — making HomeGentic genuinely passive for smart-home owners.
  *
  * Flow:
  *   IoT gateway (Node.js) → recordEvent() → classify severity

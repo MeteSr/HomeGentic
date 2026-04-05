@@ -42,12 +42,12 @@ describe("ScorePanel", () => {
 
   it("hides certified badge when not certified", () => {
     render(<ScorePanel {...defaultProps} certified={false} />);
-    expect(screen.queryByLabelText("HomeFax Certified")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("HomeGentic Certified")).not.toBeInTheDocument();
   });
 
   it("shows certified badge when certified", () => {
     render(<ScorePanel {...defaultProps} certified={true} />);
-    expect(screen.getByLabelText("HomeFax Certified")).toBeInTheDocument();
+    expect(screen.getByLabelText("HomeGentic Certified")).toBeInTheDocument();
   });
 
   it("hides premium range when premium is null", () => {

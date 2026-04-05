@@ -38,7 +38,7 @@ const internetIdentityUrl =
     : "https://identity.ic0.app";
 
 module.exports = {
-  entry: "./src/homefax_frontend/src/index.tsx",
+  entry: "./src/homegentic_frontend/src/index.tsx",
   mode: isDevelopment ? "development" : "production",
   devtool: isDevelopment ? "source-map" : false,
   output: {
@@ -75,13 +75,13 @@ module.exports = {
   },
   plugins: [
     new HtmlWebpackPlugin({
-      template: "./src/homefax_frontend/assets/index.html",
+      template: "./src/homegentic_frontend/assets/index.html",
       filename: "index.html",
     }),
     new CopyPlugin({
       patterns: [
         {
-          from: "src/homefax_frontend/assets",
+          from: "src/homegentic_frontend/assets",
           to: ".",
           filter: (resourcePath) => !resourcePath.endsWith("index.html"),
         },

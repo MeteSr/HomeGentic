@@ -19,7 +19,7 @@ describe("buildIIAuthUrl", () => {
     expect(url).toMatch(/^https:\/\/identity\.ic0\.app/);
   });
 
-  it("includes the redirect_uri query param pointing to homefax://auth", () => {
+  it("includes the redirect_uri query param pointing to homegentic://auth", () => {
     const url = buildIIAuthUrl(SESSION_KEY);
     expect(url).toContain("redirect_uri=");
     expect(url).toContain(encodeURIComponent(REDIRECT_URI));
@@ -59,7 +59,7 @@ describe("parseAuthCallback", () => {
     publicKey: "aabbcc",
   });
 
-  const validUrl = `homefax://auth?delegation=${encodeURIComponent(
+  const validUrl = `homegentic://auth?delegation=${encodeURIComponent(
     btoa(DELEGATION_JSON)
   )}&pubkey=aabbcc`;
 
@@ -71,11 +71,11 @@ describe("parseAuthCallback", () => {
   });
 
   it("returns null when delegation param is missing", () => {
-    expect(parseAuthCallback("homefax://auth?pubkey=aabbcc")).toBeNull();
+    expect(parseAuthCallback("homegentic://auth?pubkey=aabbcc")).toBeNull();
   });
 
   it("returns null when pubkey param is missing", () => {
-    const url = `homefax://auth?delegation=${encodeURIComponent(btoa(DELEGATION_JSON))}`;
+    const url = `homegentic://auth?delegation=${encodeURIComponent(btoa(DELEGATION_JSON))}`;
     expect(parseAuthCallback(url)).toBeNull();
   });
 
@@ -84,12 +84,12 @@ describe("parseAuthCallback", () => {
   });
 
   it("returns null when base64 delegation is malformed", () => {
-    expect(parseAuthCallback("homefax://auth?delegation=!!!invalid&pubkey=aa")).toBeNull();
+    expect(parseAuthCallback("homegentic://auth?delegation=!!!invalid&pubkey=aa")).toBeNull();
   });
 
   it("returns null when decoded delegation is not valid JSON", () => {
     const badBase64 = btoa("not-json{{{");
-    expect(parseAuthCallback(`homefax://auth?delegation=${encodeURIComponent(badBase64)}&pubkey=aa`)).toBeNull();
+    expect(parseAuthCallback(`homegentic://auth?delegation=${encodeURIComponent(badBase64)}&pubkey=aa`)).toBeNull();
   });
 });
 

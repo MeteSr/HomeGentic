@@ -200,7 +200,7 @@ export function VoiceAgent() {
         <button
           onClick={isListening ? stopListening : isIdle ? startListening : undefined}
           disabled={isProcessing || isSpeaking}
-          aria-label={isListening ? "Stop listening" : "Ask HomeFax"}
+          aria-label={isListening ? "Stop listening" : "Ask HomeGentic"}
           style={{
             width: "3.25rem", height: "3.25rem",
             borderRadius: RADIUS.pill,
@@ -225,7 +225,7 @@ export function VoiceAgent() {
           {isListening  && "Listening"}
           {isProcessing && "Thinking"}
           {isSpeaking   && "Speaking"}
-          {isIdle       && "Ask HomeFax"}
+          {isIdle       && "Ask HomeGentic"}
         </span>
       </div>
 

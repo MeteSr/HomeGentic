@@ -172,10 +172,10 @@ export default function PropertyDetailPage() {
     [jobs, systemAges, loading]
   );
   const totalDecay   = getTotalDecay(decayEvents);
-  const homefaxScore = property ? computeScoreWithDecay(jobs, [property], totalDecay) : 0;
-  const scoreGrade   = getScoreGrade(homefaxScore);
+  const homegenticScore = property ? computeScoreWithDecay(jobs, [property], totalDecay) : 0;
+  const scoreGrade   = getScoreGrade(homegenticScore);
   const delta        = scoreDelta(scoreHistory);
-  const certified    = isCertified(homefaxScore, jobs);
+  const certified    = isCertified(homegenticScore, jobs);
 
   // Score activity feed (positive events + decay)
   const scoreEvents: ScoreEvent[] = React.useMemo(
@@ -207,7 +207,7 @@ export default function PropertyDetailPage() {
     () => !loading && property ? getWeeklyPulse([property], jobs) : null,
     [property, jobs, loading]
   );
-  const pulseEnabled = localStorage.getItem("homefax_pulse_enabled") !== "false";
+  const pulseEnabled = localStorage.getItem("homegentic_pulse_enabled") !== "false";
 
   // Score stagnation
   const scoreStagnant = React.useMemo(() => {
@@ -299,7 +299,7 @@ export default function PropertyDetailPage() {
             <Button variant="outline" icon={<Wrench size={14} />} onClick={() => setShowLogJobModal(true)}>Log Job</Button>
             <Button variant="outline" icon={<MessageSquare size={14} />} onClick={() => setShowQuoteModal(true)}>Request Quote</Button>
             <Button icon={<Share2 size={14} />} onClick={() => setShowReportModal(true)}>
-              Share HomeFax Report
+              Share HomeGentic Report
             </Button>
           </div>
         </div>
@@ -317,7 +317,7 @@ export default function PropertyDetailPage() {
                 Ownership not verified
               </p>
               <p style={{ fontSize: "0.8rem", color: S.inkLight, fontWeight: 300 }}>
-                Upload a utility bill, deed, or tax record to confirm ownership. Unverified properties cannot generate shareable HomeFax reports.
+                Upload a utility bill, deed, or tax record to confirm ownership. Unverified properties cannot generate shareable HomeGentic reports.
               </p>
             </div>
             <Button size="sm" onClick={() => navigate(`/properties/${property.id}/verify`)}>
@@ -360,14 +360,14 @@ export default function PropertyDetailPage() {
               </div>
             </div>
           ))}
-          {/* HomeFax Score — accent cell */}
+          {/* HomeGentic Score — accent cell */}
           <div style={{ padding: "1.25rem", borderRadius: RADIUS.card, border: `1px solid ${COLORS.plum}`, background: COLORS.plum, boxShadow: SHADOWS.card }}>
             <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.6)", marginBottom: "0.5rem" }}>
-              HomeFax Score
+              HomeGentic Score
             </div>
             <div style={{ display: "flex", alignItems: "baseline", gap: "0.375rem" }}>
               <div style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.75rem", lineHeight: 1, color: COLORS.white }}>
-                {homefaxScore}
+                {homegenticScore}
               </div>
               <div style={{ fontFamily: S.mono, fontSize: "0.7rem", color: "rgba(255,255,255,0.7)" }}>
                 {scoreGrade}
@@ -377,10 +377,10 @@ export default function PropertyDetailPage() {
         </div>
 
         {/* §17.3.2 — Score → Dollar Value (zip-aware + home value personalization) */}
-        {!loading && homefaxScore >= 40 && property && (
+        {!loading && homegenticScore >= 40 && property && (
           <div style={{ marginBottom: "1.5rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
             <ScoreValueBanner
-              score={homefaxScore}
+              score={homegenticScore}
               zip={property.zipCode || undefined}
               homeValueDollars={estimatedHomeDollars ?? undefined}
             />
@@ -392,7 +392,7 @@ export default function PropertyDetailPage() {
         )}
 
         {/* Improvement actions (15.4.2) */}
-        {!loading && homefaxScore > 0 && (() => {
+        {!loading && homegenticScore > 0 && (() => {
           const unverified = jobs.filter((j) => j.status !== "verified").length;
           const uniqueTypes = new Set(jobs.map((j) => j.serviceType)).size;
           const actions = [
@@ -448,17 +448,17 @@ export default function PropertyDetailPage() {
         {storeProperties.length === 1 && !loading && (
           <div style={{ marginBottom: "2rem" }}>
             <ScorePanel
-              score={homefaxScore}
+              score={homegenticScore}
               grade={scoreGrade}
               delta={delta}
               certified={certified}
-              premium={premiumEstimate(homefaxScore)}
+              premium={premiumEstimate(homegenticScore)}
               market={property ? `${property.city}, ${property.state}` : ""}
               onResaleReady={() => navigate("/resale-ready")}
               onCopyCertLink={async () => {
                 if (!property) return;
                 const { certService } = await import("@/services/cert");
-                const payload = { address: property.address, score: homefaxScore, grade: scoreGrade, certified, generatedAt: Date.now(), planTier: userTier, breakdown: computeBreakdown(jobs, [property]) };
+                const payload = { address: property.address, score: homegenticScore, grade: scoreGrade, certified, generatedAt: Date.now(), planTier: userTier, breakdown: computeBreakdown(jobs, [property]) };
                 const { token } = await certService.issueCert(String(property.id), payload);
                 navigator.clipboard.writeText(`${window.location.origin}/cert/${token}`);
                 toast.success("Lender certificate link copied!");
@@ -505,7 +505,7 @@ export default function PropertyDetailPage() {
           <div style={{ marginBottom: "2rem" }}>
             <FsboPanel
               propertyId={String(property.id)}
-              score={homefaxScore}
+              score={homegenticScore}
               verifiedJobCount={verifiedCount}
               hasReport={false}
             />
@@ -806,7 +806,7 @@ function TimelineTab({ property, jobs, onVerify, currentPrincipal, photosByJob, 
               Home History Taking Shape
             </p>
             <p style={{ fontSize: "0.8rem", color: S.inkLight, fontWeight: 300 }}>
-              {verifiedCount} verified jobs on-chain. Your HomeFax report is ready to impress buyers.
+              {verifiedCount} verified jobs on-chain. Your HomeGentic report is ready to impress buyers.
             </p>
           </div>
         </div>

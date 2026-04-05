@@ -4,7 +4,7 @@
  * Unauthenticated /for-sale/:propertyId page showing:
  *   - Property address and details (type, year built, sq ft)
  *   - List price (formatted)
- *   - HomeFax score badge with "Verified on ICP" label
+ *   - HomeGentic score badge with "Verified on ICP" label
  *   - Verified job count summary
  *   - Photo gallery (first photo shown)
  *   - Contact / showing-request form (name, contact, preferred time)
@@ -204,14 +204,14 @@ describe("FsboListingPage (10.3.1)", () => {
     await waitFor(() => expect(screen.getByText(/\$485,000/)).toBeInTheDocument());
   });
 
-  // ── HomeFax score badge ─────────────────────────────────────────────────────
+  // ── HomeGentic score badge ─────────────────────────────────────────────────────
 
-  it("shows the HomeFax score", async () => {
+  it("shows the HomeGentic score", async () => {
     renderPage();
     // score from 2 verified jobs (2*4=8) + value + verification(Basic=5)
     // Just check a numeric score is displayed inside a score badge
     await waitFor(() => {
-      expect(screen.getByText(/homefax score/i)).toBeInTheDocument();
+      expect(screen.getByText(/homegentic score/i)).toBeInTheDocument();
     });
   });
 
@@ -315,9 +315,9 @@ describe("FsboListingPage (10.3.1)", () => {
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
-// 10.3.2  HomeFax score badge as trust anchor
+// 10.3.2  HomeGentic score badge as trust anchor
 // ──────────────────────────────────────────────────────────────────────────────
-describe("HomeFax score badge as trust anchor — (10.3.2)", () => {
+describe("HomeGentic score badge as trust anchor — (10.3.2)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(fsboService.getRecord).mockReturnValue(mockFsboRecord);
@@ -330,7 +330,7 @@ describe("HomeFax score badge as trust anchor — (10.3.2)", () => {
   it("score badge section carries an accessible landmark label", async () => {
     renderPage();
     await waitFor(() => {
-      expect(screen.getByRole("region", { name: /homefax score/i })).toBeInTheDocument();
+      expect(screen.getByRole("region", { name: /homegentic score/i })).toBeInTheDocument();
     });
   });
 
@@ -338,7 +338,7 @@ describe("HomeFax score badge as trust anchor — (10.3.2)", () => {
     renderPage();
     await waitFor(() => {
       // score region must contain a number
-      const region = screen.getByRole("region", { name: /homefax score/i });
+      const region = screen.getByRole("region", { name: /homegentic score/i });
       expect(region.textContent).toMatch(/\d+/);
     });
   });
@@ -346,7 +346,7 @@ describe("HomeFax score badge as trust anchor — (10.3.2)", () => {
   it("score badge shows 'Verified on ICP Blockchain' trust label", async () => {
     renderPage();
     await waitFor(() => {
-      const region = screen.getByRole("region", { name: /homefax score/i });
+      const region = screen.getByRole("region", { name: /homegentic score/i });
       expect(region).toHaveTextContent(/verified on icp blockchain/i);
     });
   });
@@ -363,9 +363,9 @@ describe("HomeFax score badge as trust anchor — (10.3.2)", () => {
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
-// 10.3.3  Full HomeFax report link on listing
+// 10.3.3  Full HomeGentic report link on listing
 // ──────────────────────────────────────────────────────────────────────────────
-describe("Full HomeFax report link — (10.3.3)", () => {
+describe("Full HomeGentic report link — (10.3.3)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(fsboService.getRecord).mockReturnValue({ ...mockFsboRecord, hasReport: true });

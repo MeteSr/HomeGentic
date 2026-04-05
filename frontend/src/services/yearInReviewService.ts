@@ -144,7 +144,7 @@ export function createYearInReviewService() {
 
     return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HomeFax ${s.reviewYear} Year in Review</title></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HomeGentic ${s.reviewYear} Year in Review</title></head>
 <body style="margin:0;padding:0;background:#F4F1EB;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#F4F1EB;">
     <tr><td align="center" style="padding:32px 16px;">
@@ -153,7 +153,7 @@ export function createYearInReviewService() {
         <!-- Header -->
         <tr>
           <td style="padding:40px 40px 28px;border-bottom:3px solid #0E0E0C;">
-            <div style="font-family:monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:#7A7268;margin-bottom:10px;">HomeFax · Annual Report</div>
+            <div style="font-family:monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:#7A7268;margin-bottom:10px;">HomeGentic · Annual Report</div>
             <div style="font-family:'Georgia',serif;font-size:32px;font-weight:900;color:#0E0E0C;line-height:1.1;">${s.reviewYear}<br>Year in Review</div>
             <div style="font-family:monospace;font-size:12px;color:#7A7268;margin-top:10px;">${ctx.address} · ${ctx.city}, ${ctx.state}</div>
           </td>
@@ -186,7 +186,7 @@ export function createYearInReviewService() {
                 </td>
                 <td width="50%" style="vertical-align:top;border-left:1px solid #C8C3B8;padding-left:20px;">
                   <table cellpadding="0" cellspacing="0">
-                    <tr><td style="${statLabel}">HomeFax Score</td></tr>
+                    <tr><td style="${statLabel}">HomeGentic Score</td></tr>
                     <tr><td style="${statVal}">${s.scoreEnd} <span style="font-size:14px;color:#7A7268;">${grade}</span></td></tr>
                     <tr><td style="${statLabel}">Score Change</td></tr>
                     <tr><td style="${statVal};color:${s.scoreChange >= 0 ? "#2A6E3A" : "#C94C2E"};">${delta}</td></tr>
@@ -215,7 +215,7 @@ export function createYearInReviewService() {
         <!-- Footer -->
         <tr>
           <td style="padding:0 40px 32px;border-top:1px solid #C8C3B8;">
-            <div style="font-family:monospace;font-size:11px;color:#7A7268;text-transform:uppercase;letter-spacing:0.06em;margin-top:24px;">HomeFax — your home's permanent maintenance record.</div>
+            <div style="font-family:monospace;font-size:11px;color:#7A7268;text-transform:uppercase;letter-spacing:0.06em;margin-top:24px;">HomeGentic — your home's permanent maintenance record.</div>
           </td>
         </tr>
 
@@ -235,7 +235,7 @@ export function createYearInReviewService() {
     const topTypes = s.topServiceTypes.slice(0, 3).join(", ") || "—";
 
     return [
-      `HomeFax — ${s.reviewYear} Year in Review`,
+      `HomeGentic — ${s.reviewYear} Year in Review`,
       `${ctx.address}, ${ctx.city}, ${ctx.state}`,
       "=".repeat(50),
       "",
@@ -253,14 +253,14 @@ export function createYearInReviewService() {
         ? `Est. value added:     ${cents(s.estimatedValueAddedCents)}`
         : "",
       "",
-      `HOMEFAX SCORE`,
+      `HOMEGENTIC SCORE`,
       `─`.repeat(30),
       `End of year:  ${s.scoreEnd} (${grade})`,
       `Change:       ${delta}`,
       `Top work:     ${topTypes}`,
       "",
       "─".repeat(50),
-      "HomeFax — your home's permanent maintenance record.",
+      "HomeGentic — your home's permanent maintenance record.",
     ].filter((l) => l !== undefined).join("\n");
   }
 

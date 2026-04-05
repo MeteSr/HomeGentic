@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 
-const STORAGE_KEY = "homefax_agent_history";
+const STORAGE_KEY = "homegentic_agent_history";
 const MAX_ENTRIES  = 50;
 
 export interface AgentAction {

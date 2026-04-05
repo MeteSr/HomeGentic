@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "HomeFax",
-    "slug": "homefax",
+    "name": "HomeGentic",
+    "slug": "homegentic",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,21 +14,21 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.homefax.mobile",
+      "bundleIdentifier": "app.homegentic.mobile",
       "infoPlist": {
         "CFBundleURLTypes": [
           {
-            "CFBundleURLSchemes": ["homefax"]
+            "CFBundleURLSchemes": ["homegentic"]
           }
         ],
-        "NSFaceIDUsageDescription": "HomeFax uses Face ID to unlock your session when you re-open the app."
+        "NSFaceIDUsageDescription": "HomeGentic uses Face ID to unlock your session when you re-open the app."
       },
       "entitlements": {
         "aps-environment": "production"
       }
     },
     "android": {
-      "package": "app.homefax.mobile",
+      "package": "app.homegentic.mobile",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F4F1EB"
@@ -39,7 +39,7 @@
         {
           "action": "VIEW",
           "autoVerify": true,
-          "data": [{ "scheme": "homefax" }],
+          "data": [{ "scheme": "homegentic" }],
           "category": ["BROWSABLE", "DEFAULT"]
         }
       ]
@@ -47,7 +47,7 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "scheme": "homefax",
+    "scheme": "homegentic",
     "plugins": [
       [
         "expo-notifications",

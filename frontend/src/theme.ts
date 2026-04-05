@@ -1,4 +1,4 @@
-// ─── HomeFax Design Tokens ─────────────────────────────────────────────────────
+// ─── HomeGentic Design Tokens ─────────────────────────────────────────────────────
 // Single source of truth for inline-style components.
 // CSS classes (index.css) use the :root custom properties.
 

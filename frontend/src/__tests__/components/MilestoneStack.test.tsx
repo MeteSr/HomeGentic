@@ -27,7 +27,7 @@ describe("MilestoneStack", () => {
         verifiedJobCount={1}
       />
     );
-    expect(screen.getByText("One Year of HomeFax")).toBeInTheDocument();
+    expect(screen.getByText("One Year of HomeGentic")).toBeInTheDocument();
   });
 
   it("does not show annual milestone when verifiedJobCount is 0", () => {
@@ -38,7 +38,7 @@ describe("MilestoneStack", () => {
         verifiedJobCount={0}
       />
     );
-    expect(screen.queryByText("One Year of HomeFax")).not.toBeInTheDocument();
+    expect(screen.queryByText("One Year of HomeGentic")).not.toBeInTheDocument();
   });
 
   it("shows 3-job milestone when verifiedJobCount >= 3", () => {
@@ -59,7 +59,7 @@ describe("MilestoneStack", () => {
 
   it("shows certified banner when certified is true", () => {
     render(<MilestoneStack {...defaultProps} certified={true} />);
-    expect(screen.getByText("HomeFax Certified")).toBeInTheDocument();
+    expect(screen.getByText("HomeGentic Certified")).toBeInTheDocument();
   });
 
   it("dismisses annual milestone on X click", () => {
@@ -71,7 +71,7 @@ describe("MilestoneStack", () => {
       />
     );
     fireEvent.click(screen.getByLabelText("Dismiss annual milestone"));
-    expect(screen.queryByText("One Year of HomeFax")).not.toBeInTheDocument();
+    expect(screen.queryByText("One Year of HomeGentic")).not.toBeInTheDocument();
   });
 
   it("dismisses 3-job milestone on X click", () => {

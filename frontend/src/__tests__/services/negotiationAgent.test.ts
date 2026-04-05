@@ -126,7 +126,7 @@ describe("negotiationAgentService — analyzeQuote mock fallback (5.2.2)", () =>
     expect(r.benchmarkUsed).toHaveProperty("p75");
   });
 
-  it("HomeFax never contacts contractors — analyzeQuote has no side effects on quoteService", async () => {
+  it("HomeGentic never contacts contractors — analyzeQuote has no side effects on quoteService", async () => {
     // The service only returns analysis; it does not mutate any quote state.
     // This is verified by the fact that analyzeQuote only returns a value
     // and does not call quoteService.accept / quoteService.submitQuote.

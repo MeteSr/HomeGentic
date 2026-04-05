@@ -65,12 +65,12 @@ const FOLDER_TYPE_MAP: Record<string, string> = {
   floor: "Flooring",
 };
 
-/** Returns the HomeFax service type for an AMANDA FOLDERTYPE code. */
+/** Returns the HomeGentic service type for an AMANDA FOLDERTYPE code. */
 export function mapAmandaFolderType(code: string): string {
   return FOLDER_TYPE_MAP[code.trim().toLowerCase()] ?? "General";
 }
 
-/** Converts a HomeFax service type to a human-readable permit type label. */
+/** Converts a HomeGentic service type to a human-readable permit type label. */
 function toPermitTypeLabel(serviceType: string): string {
   if (serviceType === "General")      return "Building Permit";
   if (serviceType === "HVAC")         return "Mechanical Permit";

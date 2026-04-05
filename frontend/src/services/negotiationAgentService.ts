@@ -5,7 +5,7 @@
  * Claude as the reasoning engine.
  *
  * IMPORTANT: Users must explicitly opt-in (grant consent) per quote request
- * before any analysis runs. HomeFax never contacts contractors directly —
+ * before any analysis runs. HomeGentic never contacts contractors directly —
  * this service only returns analysis for the homeowner to act on.
  */
 

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# HomeFax Maintenance Canister Tests
+# HomeGentic Maintenance Canister Tests
 # Tests: predictMaintenance (urgency thresholds, DIY systems, job history),
 # addScheduleEntry, getScheduleEntries, markCompleted, pause/unpause
 set -euo pipefail
 
 echo "============================================"
-echo "  HomeFax — Maintenance Canister Tests"
+echo "  HomeGentic — Maintenance Canister Tests"
 echo "============================================"
 
 if ! dfx ping 2>/dev/null; then

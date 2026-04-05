@@ -1,4 +1,4 @@
-// HomeFax design tokens — ported from frontend/src/theme.ts
+// HomeGentic design tokens — ported from frontend/src/theme.ts
 // Editorial blueprint aesthetic: sharp corners, warm paper tones, serif display
 
 export const colors = {

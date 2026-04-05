@@ -129,7 +129,7 @@ export default function JobCreatePage() {
   };
 
   const showPermitField = PERMIT_SERVICE_TYPES.has(form.serviceType);
-  const nextServiceTip  = NEXT_SERVICE[loggedServiceType] ?? "Log your next job to keep your HomeFax Score growing.";
+  const nextServiceTip  = NEXT_SERVICE[loggedServiceType] ?? "Log your next job to keep your HomeGentic Score growing.";
 
   // ── Success screen ────────────────────────────────────────────────────────
   if (submitted) {
@@ -146,7 +146,7 @@ export default function JobCreatePage() {
             {loggedServiceType} logged
           </h2>
           <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: S.inkLight, marginBottom: "2rem" }}>
-            Your maintenance record has been added to your HomeFax report.
+            Your maintenance record has been added to your HomeGentic report.
           </p>
 
           {/* §17.3.3 — Dollar value delta */}

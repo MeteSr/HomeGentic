@@ -1,4 +1,4 @@
-// HomeFax Property Canister — Candid IDL
+// HomeGentic Property Canister — Candid IDL
 // Canister responsible for property registration, ownership verification,
 // and the 7-day conflict-resolution window.
 

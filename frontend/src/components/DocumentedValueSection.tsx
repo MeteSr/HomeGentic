@@ -1,5 +1,5 @@
 /**
- * §17.3.5 — "Documented maintenance value" section for HomeFax Report.
+ * §17.3.5 — "Documented maintenance value" section for HomeGentic Report.
  * Buyer-facing; uses best available estimate.
  */
 

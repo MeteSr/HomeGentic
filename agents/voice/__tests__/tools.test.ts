@@ -1,7 +1,7 @@
 /**
- * HOMEFAX_TOOLS schema tests.
+ * HOMEGENTIC_TOOLS schema tests.
  *
- * AI.5 — HOMEFAX_TOOLS now uses the normalized ToolDefinition type
+ * AI.5 — HOMEGENTIC_TOOLS now uses the normalized ToolDefinition type
  *         (parameters instead of input_schema). AnthropicProvider.toAnthropicTools()
  *         is responsible for converting to Anthropic wire format.
  *
@@ -9,12 +9,12 @@
  * have been updated from .input_schema → .parameters.
  */
 
-import { HOMEFAX_TOOLS } from "../tools";
+import { HOMEGENTIC_TOOLS } from "../tools";
 import type { ToolDefinition } from "../provider";
 
 function getTool(name: string): ToolDefinition {
-  const t = HOMEFAX_TOOLS.find((t) => t.name === name);
-  if (!t) throw new Error(`Tool "${name}" not found in HOMEFAX_TOOLS`);
+  const t = HOMEGENTIC_TOOLS.find((t) => t.name === name);
+  if (!t) throw new Error(`Tool "${name}" not found in HOMEGENTIC_TOOLS`);
   return t;
 }
 
@@ -26,24 +26,24 @@ function getProperties(name: string): Record<string, any> {
   return getTool(name).parameters.properties ?? {};
 }
 
-// ── AI.5: HOMEFAX_TOOLS uses normalized ToolDefinition ────────────────────────
+// ── AI.5: HOMEGENTIC_TOOLS uses normalized ToolDefinition ────────────────────────
 
-describe("AI.5 — HOMEFAX_TOOLS normalized schema", () => {
+describe("AI.5 — HOMEGENTIC_TOOLS normalized schema", () => {
   it("every tool has parameters (not input_schema)", () => {
-    for (const tool of HOMEFAX_TOOLS) {
+    for (const tool of HOMEGENTIC_TOOLS) {
       expect(tool).toHaveProperty("parameters");
       expect(tool).not.toHaveProperty("input_schema");
     }
   });
 
   it("every tool's parameters.type is 'object'", () => {
-    for (const tool of HOMEFAX_TOOLS) {
+    for (const tool of HOMEGENTIC_TOOLS) {
       expect(tool.parameters.type).toBe("object");
     }
   });
 
   it("every tool has a non-empty name and description", () => {
-    for (const tool of HOMEFAX_TOOLS) {
+    for (const tool of HOMEGENTIC_TOOLS) {
       expect(typeof tool.name).toBe("string");
       expect(tool.name.length).toBeGreaterThan(0);
       expect(typeof tool.description).toBe("string");
@@ -94,7 +94,7 @@ describe("existing tools — schema regression", () => {
 // ── 15.7.6 get_score ─────────────────────────────────────────────────────────
 
 describe("get_score tool (15.7.6)", () => {
-  it("exists in HOMEFAX_TOOLS", () => {
+  it("exists in HOMEGENTIC_TOOLS", () => {
     expect(() => getTool("get_score")).not.toThrow();
   });
 
@@ -117,7 +117,7 @@ describe("get_score tool (15.7.6)", () => {
 // ── 15.7.9 upload_photos ─────────────────────────────────────────────────────
 
 describe("upload_photos tool (15.7.9)", () => {
-  it("exists in HOMEFAX_TOOLS", () => {
+  it("exists in HOMEGENTIC_TOOLS", () => {
     expect(() => getTool("upload_photos")).not.toThrow();
   });
 

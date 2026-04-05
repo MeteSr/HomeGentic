@@ -358,12 +358,12 @@ table { border-collapse: collapse; }
   display: none; /* hide the map pin icons */
 }
 
-/* ─── Print / PDF (HomeFax Report) ───────────────────────────────────────────── */
+/* ─── Print / PDF (HomeGentic Report) ───────────────────────────────────────────── */
 
 @media print {
   .no-print { display: none !important; }
   body { background-color: white; }
-  #homefax-report { max-width: 100% !important; padding: 0 !important; }
+  #homegentic-report { max-width: 100% !important; padding: 0 !important; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   [data-report-card] { break-inside: avoid; }
 }

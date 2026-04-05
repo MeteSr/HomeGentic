@@ -14,37 +14,37 @@ test.describe("Report page — /report/:token (public)", () => {
     await expect(page.getByText(/invalid or the report has been removed/i)).toBeVisible();
   });
 
-  test("shows HomeFax branding in the error state", async ({ page }) => {
+  test("shows HomeGentic branding in the error state", async ({ page }) => {
     await page.goto("/report/RPT_bad_token");
-    await expect(page.getByText(/HomeFax/i)).toBeVisible();
+    await expect(page.getByText(/HomeGentic/i)).toBeVisible();
   });
 });
 
 // ─── Generate and view a report ───────────────────────────────────────────────
 
 test.describe("Generate report flow", () => {
-  test("authenticated user sees 'Share HomeFax Report' button on property detail", async ({
+  test("authenticated user sees 'Share HomeGentic Report' button on property detail", async ({
     page,
   }) => {
     await injectTestAuth(page);
     await page.goto("/properties/1");
     await expect(
-      page.getByRole("button", { name: /share homefax report/i })
+      page.getByRole("button", { name: /share homegentic report/i })
     ).toBeVisible();
   });
 
   test("clicking Share button opens the report modal", async ({ page }) => {
     await injectTestAuth(page);
     await page.goto("/properties/1");
-    await page.getByRole("button", { name: /share homefax report/i }).click();
-    await expect(page.getByText("HomeFax Report")).toBeVisible();
+    await page.getByRole("button", { name: /share homegentic report/i }).click();
+    await expect(page.getByText("HomeGentic Report")).toBeVisible();
     await expect(page.getByRole("button", { name: /generate report link/i })).toBeVisible();
   });
 
   test("modal shows expiry option buttons", async ({ page }) => {
     await injectTestAuth(page);
     await page.goto("/properties/1");
-    await page.getByRole("button", { name: /share homefax report/i }).click();
+    await page.getByRole("button", { name: /share homegentic report/i }).click();
 
     for (const label of ["7 days", "30 days", "90 days", "Never"]) {
       await expect(page.getByRole("button", { name: label })).toBeVisible();

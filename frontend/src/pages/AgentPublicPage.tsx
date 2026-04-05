@@ -83,17 +83,17 @@ export default function AgentPublicPage() {
                 background: "#e6f4ea", border: "1px solid #34a853", borderRadius: 2,
                 padding: "4px 10px" }}>
                 <span style={{ fontFamily: S.mono, fontSize: "0.75rem", color: "#188038" }}>
-                  HomeFax Verified
+                  HomeGentic Verified
                 </span>
               </div>
             )}
-            {/* 9.6.3 — HomeFax Verified Transaction badge */}
+            {/* 9.6.3 — HomeGentic Verified Transaction badge */}
             {perfRecords.length > 0 && (
               <div style={{ display: "inline-flex", alignItems: "center", gap: 6,
                 background: "#e8f4ff", border: "1px solid #1a73e8", borderRadius: 2,
                 padding: "4px 10px" }}>
                 <span style={{ fontFamily: S.mono, fontSize: "0.75rem", color: "#1a5c99" }}>
-                  HomeFax Verified Transaction
+                  HomeGentic Verified Transaction
                 </span>
               </div>
             )}

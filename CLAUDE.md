@@ -80,7 +80,7 @@ All 13 active canisters use `persistent actor` + stable variable preupgrade/post
 | **sensor** | IoT device registry, auto-creates pending jobs for Critical events |
 | **monitoring** | Cycles usage, cost metrics, profitability (ARPU/LTV/CAC), alerting |
 | **listing** | FSBO listing lifecycle, sealed-bid offers, agent matching |
-| **agent** | Realtor profiles, reviews, HomeFax transaction count |
+| **agent** | Realtor profiles, reviews, HomeGentic transaction count |
 | **recurring** | Recurring service contracts (HVAC, pest, landscaping) and visit logs |
 
 ### Tier System (enforced server-side in multiple canisters)

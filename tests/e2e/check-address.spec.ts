@@ -34,8 +34,8 @@ test.describe("CheckAddressPage — /check", () => {
       await page.goto("/check");
     });
 
-    test("shows HomeFax logo", async ({ page }) => {
-      await expect(page.getByText(/HomeFax/).first()).toBeVisible();
+    test("shows HomeGentic logo", async ({ page }) => {
+      await expect(page.getByText(/HomeGentic/).first()).toBeVisible();
     });
 
     test("shows 'Check any home's maintenance history' heading", async ({ page }) => {
@@ -78,7 +78,7 @@ test.describe("CheckAddressPage — /check", () => {
 
   // ── Result: report found ───────────────────────────────────────────────────
 
-  test.describe("result: HomeFax report found", () => {
+  test.describe("result: HomeGentic report found", () => {
     test.beforeEach(async ({ page }) => {
       await mockLookup(page, FOUND_RESPONSE);
       await page.goto("/check?address=456+Oak+Ave");
@@ -86,8 +86,8 @@ test.describe("CheckAddressPage — /check", () => {
       await page.waitForSelector("[aria-label='loading']", { state: "hidden" }).catch(() => {});
     });
 
-    test("shows 'HomeFax Verified' badge", async ({ page }) => {
-      await expect(page.getByText(/HomeFax Verified/i)).toBeVisible();
+    test("shows 'HomeGentic Verified' badge", async ({ page }) => {
+      await expect(page.getByText(/HomeGentic Verified/i)).toBeVisible();
     });
 
     test("shows the matched address", async ({ page }) => {
@@ -114,7 +114,7 @@ test.describe("CheckAddressPage — /check", () => {
 
     test("sets document.title to include the address", async ({ page }) => {
       const title = await page.title();
-      expect(title).toMatch(/HomeFax.*Report/);
+      expect(title).toMatch(/HomeGentic.*Report/);
     });
   });
 

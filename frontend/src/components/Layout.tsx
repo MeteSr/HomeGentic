@@ -97,7 +97,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [feedJobs,    setFeedJobs]    = useState<Job[]>([]);
   const [feedLoaded,  setFeedLoaded]  = useState(false);
   const [lastReadAt,  setLastReadAt]  = useState<number>(() =>
-    parseInt(localStorage.getItem("homefax_feed_read") ?? "0", 10)
+    parseInt(localStorage.getItem("homegentic_feed_read") ?? "0", 10)
   );
 
   useEffect(() => {
@@ -112,7 +112,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     setFeedOpen(true);
     const now = Date.now();
     setLastReadAt(now);
-    localStorage.setItem("homefax_feed_read", String(now));
+    localStorage.setItem("homegentic_feed_read", String(now));
   };
 
   const toggleSidebar = () => {

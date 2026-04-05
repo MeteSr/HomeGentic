@@ -1,5 +1,5 @@
 /**
- * HomeFax Auth Canister
+ * HomeGentic Auth Canister
  * Handles user registration, profiles, and role management.
  * Supports Homeowner, Contractor, Realtor, and Builder roles.
  */
@@ -16,7 +16,7 @@ persistent actor Auth {
 
   // ─── Types ──────────────────────────────────────────────────────────────────
 
-  /// User roles available in the HomeFax platform
+  /// User roles available in the HomeGentic platform
   public type UserRole = {
     #Homeowner;
     #Contractor;

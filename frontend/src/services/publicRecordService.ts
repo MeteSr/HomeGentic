@@ -3,7 +3,7 @@
  *
  * Unauthenticated lookup of any homeowner's properties and jobs by principal.
  * This is the "dead man's switch" — records are readable by anyone even if
- * HomeFax shuts down.
+ * HomeGentic shuts down.
  */
 
 export interface PublicProperty {

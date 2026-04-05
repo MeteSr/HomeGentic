@@ -99,10 +99,10 @@ app.post("/api/push/send", async (req: Request, res: Response): Promise<void> =>
 
 // ── GET /health ───────────────────────────────────────────────────────────────
 app.get("/health", (_req, res) => {
-  res.json({ ok: true, service: "homefax-notifications" });
+  res.json({ ok: true, service: "homegentic-notifications" });
 });
 
 app.listen(port, () => {
-  console.log(`HomeFax notification relay → http://localhost:${port}`);
+  console.log(`HomeGentic notification relay → http://localhost:${port}`);
   startPoller();
 });

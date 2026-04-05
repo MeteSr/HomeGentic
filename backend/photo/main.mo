@@ -1,5 +1,5 @@
 /**
- * HomeFax Photo Canister
+ * HomeGentic Photo Canister
  * Stores construction/maintenance phase photos with tier-based quotas,
  * SHA-256 duplicate prevention, and multi-approval verification.
  */

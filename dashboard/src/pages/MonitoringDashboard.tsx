@@ -56,7 +56,7 @@ export default function MonitoringDashboard() {
   return (
     <div style={{ padding: 32, fontFamily: "sans-serif", maxWidth: 900 }}>
       <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 8 }}>
-        HomeFax — Monitoring Dashboard
+        HomeGentic — Monitoring Dashboard
       </h1>
       <p style={{ color: "#6b7280", marginBottom: 24 }}>
         Last refreshed: {lastRefresh.toLocaleTimeString()}

@@ -3,7 +3,7 @@
  *
  * Tests the Volusia-specific permit layer adapter:
  *   - isVolusiaCounty        → city+state → boolean
- *   - mapAmandaFolderType    → FOLDERTYPE short code → HomeFax service type
+ *   - mapAmandaFolderType    → FOLDERTYPE short code → HomeGentic service type
  *   - mapAmandaStatus        → STATUSDESC string → OpenPermit status enum
  *   - parseAmandaRecord      → raw ArcGIS feature → OpenPermitRecord
  */

@@ -1,5 +1,5 @@
 /**
- * HomeFax Market Intelligence Canister
+ * HomeGentic Market Intelligence Canister
  *
  * On-chain competitive analysis and ROI-ranked project recommendations.
  *

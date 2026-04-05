@@ -337,7 +337,7 @@ export default function ContractorDashboardPage() {
               Job Verified
             </p>
             <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, marginTop: "0.5rem" }}>
-              The homeowner's HomeFax Score has been updated.
+              The homeowner's HomeGentic Score has been updated.
             </p>
           </div>
         </div>

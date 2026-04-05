@@ -1,5 +1,5 @@
 /**
- * Public HomeFax Report — /report/:token
+ * Public HomeGentic Report — /report/:token
  *
  * Accessible without authentication. Renders a print-ready property history
  * report. Use browser Print → Save as PDF to generate a PDF copy.
@@ -26,8 +26,8 @@ const S = {
 };
 
 const VERIFICATION_CONFIG: Record<string, { color: string; bg: string; label: string; description: string }> = {
-  Premium:    { color: S.sage,      bg: COLORS.sageLight, label: "HomeFax Premium Verified", description: "Comprehensive blockchain-verified maintenance history" },
-  Basic:      { color: COLORS.plum, bg: COLORS.sky,       label: "HomeFax Basic Verified",   description: "Key maintenance records blockchain-verified" },
+  Premium:    { color: S.sage,      bg: COLORS.sageLight, label: "HomeGentic Premium Verified", description: "Comprehensive blockchain-verified maintenance history" },
+  Basic:      { color: COLORS.plum, bg: COLORS.sky,       label: "HomeGentic Basic Verified",   description: "Key maintenance records blockchain-verified" },
   Unverified: { color: S.inkLight,  bg: S.paper,          label: "Unverified",               description: "Maintenance history self-reported by homeowner" },
 };
 
@@ -109,10 +109,10 @@ export default function ReportPage() {
     reportService.getReport(token).then(({ link, snapshot }) => {
       setLink(link); setSnapshot(snapshot); setState("loaded");
       // §17.4.4 — SEO: set document title + meta description for Google indexing
-      document.title = `HomeFax Report — ${snapshot.address}`;
+      document.title = `HomeGentic Report — ${snapshot.address}`;
       const meta = document.querySelector<HTMLMetaElement>("meta[name='description']")
         ?? (() => { const m = document.createElement("meta"); m.name = "description"; document.head.appendChild(m); return m; })();
-      meta.content = `Verified maintenance history for ${snapshot.address}. HomeFax Score: ${snapshot.score ?? "N/A"}/100. ${snapshot.verifiedJobCount} verified job${snapshot.verifiedJobCount !== 1 ? "s" : ""}.`;
+      meta.content = `Verified maintenance history for ${snapshot.address}. HomeGentic Score: ${snapshot.score ?? "N/A"}/100. ${snapshot.verifiedJobCount} verified job${snapshot.verifiedJobCount !== 1 ? "s" : ""}.`;
     }).catch((err: Error) => {
       const msg = err.message.toLowerCase();
       if (msg.includes("expired"))       setState("expired");
@@ -132,7 +132,7 @@ export default function ReportPage() {
 
   if (state !== "loaded" || !snapshot) {
     const configs = {
-      expired:  { icon: <AlertTriangle size={40} color={S.rust} />,   title: "HomeFax report expired",   body: "This HomeFax report has expired. The homeowner can upgrade to Pro to share a permanent link." },
+      expired:  { icon: <AlertTriangle size={40} color={S.rust} />,   title: "HomeGentic report expired",   body: "This HomeGentic report has expired. The homeowner can upgrade to Pro to share a permanent link." },
       revoked:  { icon: <XCircle      size={40} color={S.rust} />,    title: "Report link revoked",   body: "The homeowner has revoked access to this report." },
       notfound: { icon: <FileText     size={40} color={S.inkLight} />, title: "Report not found",      body: "This link may be invalid or the report has been removed." },
       error:    { icon: <AlertTriangle size={40} color={S.rust} />,   title: "Unable to load report", body: error },
@@ -145,7 +145,7 @@ export default function ReportPage() {
           <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.5rem", color: S.ink, marginBottom: "0.5rem" }}>{cfg.title}</h1>
           <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>{cfg.body}</p>
           <p style={{ marginTop: "2rem", fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>
-            Powered by <strong style={{ color: S.ink }}>HomeFax</strong> — blockchain-verified home history
+            Powered by <strong style={{ color: S.ink }}>HomeGentic</strong> — blockchain-verified home history
           </p>
         </div>
       </div>
@@ -199,13 +199,13 @@ export default function ReportPage() {
       </div>
 
       {/* Report document */}
-      <div id="homefax-report" style={{ maxWidth: "52rem", margin: "0 auto", padding: "2rem 1.5rem 4rem", background: COLORS.white, minHeight: "100vh", fontFamily: S.mono }}>
+      <div id="homegentic-report" style={{ maxWidth: "52rem", margin: "0 auto", padding: "2rem 1.5rem 4rem", background: COLORS.white, minHeight: "100vh", fontFamily: S.mono }}>
 
         {/* Cover */}
         <div style={{ background: S.ink, padding: "2.5rem", color: COLORS.white, marginBottom: "2rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginBottom: "2rem", opacity: 0.7 }}>
             <Shield size={16} />
-            <span style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.7rem", letterSpacing: "0.2em", textTransform: "uppercase" }}>HOMEFAX</span>
+            <span style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.7rem", letterSpacing: "0.2em", textTransform: "uppercase" }}>HOMEGENTIC</span>
             <span style={{ fontFamily: S.mono, fontSize: "0.65rem", color: COLORS.plumMid }}>Property History Report</span>
           </div>
 
@@ -239,7 +239,7 @@ export default function ReportPage() {
             </div>
             {certified && (
               <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", border: `1px solid ${COLORS.plumMid}`, padding: "0.5rem 1.25rem", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.butter, background: "rgba(201,168,76,0.12)" }}>
-                ★ HomeFax Certified™
+                ★ HomeGentic Certified™
               </div>
             )}
           </div>
@@ -263,7 +263,7 @@ export default function ReportPage() {
             </div>
             <div style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, textAlign: "right" }}>
               <Shield size={11} style={{ display: "inline", marginRight: "0.25rem" }} />
-              Verified by HomeFax
+              Verified by HomeGentic
             </div>
           </div>
         )}
@@ -284,7 +284,7 @@ export default function ReportPage() {
         {snapshot.planTier === "Free" && (
           <div className="no-print" style={{ border: `1.5px solid ${COLORS.sageMid}`, background: COLORS.sageLight, padding: "0.875rem 1.25rem", marginBottom: "1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
             <div>
-              <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: COLORS.sage }}>Generated with HomeFax Free</span>
+              <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: COLORS.sage }}>Generated with HomeGentic Free</span>
               <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, marginTop: "0.2rem" }}>
                 Upgrade to remove this banner and unlock permanent sharing.
               </p>
@@ -299,8 +299,8 @@ export default function ReportPage() {
         {(snapshot.planTier === "Pro" || snapshot.planTier === "Premium" || snapshot.planTier === "ContractorPro") && (
           <div className="no-print" style={{ border: `1.5px solid ${COLORS.sageMid}`, background: COLORS.sageLight, padding: "0.75rem 1.25rem", marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.625rem" }}>
             <CheckCircle size={14} color={COLORS.sage} />
-            <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: COLORS.sage, fontWeight: 700 }}>Verified by HomeFax</span>
-            <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>— This report is powered by a HomeFax Pro subscription.</span>
+            <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: COLORS.sage, fontWeight: 700 }}>Verified by HomeGentic</span>
+            <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>— This report is powered by a HomeGentic Pro subscription.</span>
           </div>
         )}
 
@@ -629,14 +629,14 @@ export default function ReportPage() {
             Interested in this property?
           </p>
           <p style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.35rem", color: S.ink, marginBottom: "0.625rem" }}>
-            Get the Complete HomeFax Report
+            Get the Complete HomeGentic Report
           </p>
           <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: S.inkLight, maxWidth: "24rem", margin: "0 auto 1.25rem", lineHeight: 1.6 }}>
             Ask the homeowner to share the full version — including contractor contacts, all photos,
             receipts, and permit verification.
           </p>
           <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", border: `1px solid ${S.ink}`, padding: "0.625rem 1.75rem", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.ink, fontWeight: 600 }}>
-            <Shield size={11} /> homefax.io
+            <Shield size={11} /> homegentic.io
           </div>
         </div>
 
@@ -644,7 +644,7 @@ export default function ReportPage() {
         <div style={{ marginTop: "3rem", paddingTop: "1.5rem", borderTop: `1px solid ${S.rule}`, textAlign: "center" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", marginBottom: "0.625rem" }}>
             <Shield size={14} color={S.rust} />
-            <span style={{ fontFamily: S.mono, fontWeight: 900, fontSize: "0.7rem", letterSpacing: "0.2em", textTransform: "uppercase", color: S.ink }}>HOMEFAX</span>
+            <span style={{ fontFamily: S.mono, fontWeight: 900, fontSize: "0.7rem", letterSpacing: "0.2em", textTransform: "uppercase", color: S.ink }}>HOMEGENTIC</span>
           </div>
           <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: S.inkLight, maxWidth: "28rem", margin: "0 auto" }}>
             This report was generated from records anchored on the Internet Computer blockchain.

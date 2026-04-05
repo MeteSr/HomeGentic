@@ -141,7 +141,7 @@ describe("share_report", () => {
     vi.mocked(propertyService.getMyProperties).mockResolvedValue([prop] as any);
     vi.mocked(jobService.getAll).mockResolvedValue([job] as any);
     vi.mocked(reportService.generateReport).mockResolvedValue(link as any);
-    vi.mocked(reportService.shareUrl).mockReturnValue("https://homefax.app/report/TOKEN_ABC");
+    vi.mocked(reportService.shareUrl).mockReturnValue("https://homegentic.app/report/TOKEN_ABC");
 
     const result = await executeTool("share_report", {
       property_id: "1",
@@ -149,7 +149,7 @@ describe("share_report", () => {
     });
 
     expect(result.success).toBe(true);
-    expect(result.data?.url).toBe("https://homefax.app/report/TOKEN_ABC");
+    expect(result.data?.url).toBe("https://homegentic.app/report/TOKEN_ABC");
     expect(result.data?.token).toBe("TOKEN_ABC");
     expect(reportService.generateReport).toHaveBeenCalled();
   });
@@ -161,7 +161,7 @@ describe("share_report", () => {
     vi.mocked(propertyService.getMyProperties).mockResolvedValue([prop] as any);
     vi.mocked(jobService.getAll).mockResolvedValue([] as any);
     vi.mocked(reportService.generateReport).mockResolvedValue(link as any);
-    vi.mocked(reportService.shareUrl).mockReturnValue("https://homefax.app/report/TOKEN_BUYER");
+    vi.mocked(reportService.shareUrl).mockReturnValue("https://homegentic.app/report/TOKEN_BUYER");
 
     const result = await executeTool("share_report", {
       property_id: "1",
@@ -180,7 +180,7 @@ describe("share_report", () => {
     vi.mocked(propertyService.getMyProperties).mockResolvedValue([prop] as any);
     vi.mocked(jobService.getAll).mockResolvedValue([] as any);
     vi.mocked(reportService.generateReport).mockResolvedValue(link as any);
-    vi.mocked(reportService.shareUrl).mockReturnValue("https://homefax.app/report/TOKEN_EXP");
+    vi.mocked(reportService.shareUrl).mockReturnValue("https://homegentic.app/report/TOKEN_EXP");
 
     await executeTool("share_report", {
       property_id:  "1",
@@ -199,7 +199,7 @@ describe("share_report", () => {
     vi.mocked(propertyService.getMyProperties).mockResolvedValue([prop] as any);
     vi.mocked(jobService.getAll).mockResolvedValue([] as any);
     vi.mocked(reportService.generateReport).mockResolvedValue(link as any);
-    vi.mocked(reportService.shareUrl).mockReturnValue("https://homefax.app/report/TOKEN_NOEXP");
+    vi.mocked(reportService.shareUrl).mockReturnValue("https://homegentic.app/report/TOKEN_NOEXP");
 
     await executeTool("share_report", {
       property_id: "1",
@@ -248,7 +248,7 @@ describe("share_report", () => {
     vi.mocked(propertyService.getMyProperties).mockResolvedValue([prop] as any);
     vi.mocked(jobService.getAll).mockResolvedValue([] as any);
     vi.mocked(reportService.generateReport).mockResolvedValue(link as any);
-    vi.mocked(reportService.shareUrl).mockReturnValue("https://homefax.app/report/TOKEN_SUMMARY");
+    vi.mocked(reportService.shareUrl).mockReturnValue("https://homegentic.app/report/TOKEN_SUMMARY");
 
     const result = await executeTool("share_report", {
       property_id: "1",

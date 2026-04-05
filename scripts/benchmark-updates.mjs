@@ -160,7 +160,7 @@ const results = [];
 
 if (!CSV_ONLY) {
   console.log(`\n${"═".repeat(72)}`);
-  console.log(`  HomeFax — Update Baseline (13.1.2)   mode=${LIVE ? "LIVE" : "DRY-RUN"}   repeat=${REPEAT}`);
+  console.log(`  HomeGentic — Update Baseline (13.1.2)   mode=${LIVE ? "LIVE" : "DRY-RUN"}   repeat=${REPEAT}`);
   console.log(`${"═".repeat(72)}\n`);
   if (!LIVE) {
     console.log("  Note: dry-run latency simulates local-replica consensus (~200ms).");

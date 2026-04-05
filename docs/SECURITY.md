@@ -1,4 +1,4 @@
-# HomeFax Security
+# HomeGentic Security
 
 ## Authentication
 - All user authentication is handled via Internet Identity (decentralized, no passwords)

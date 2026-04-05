@@ -12,15 +12,15 @@ export interface WinBackMessage {
 }
 
 const MESSAGES: Record<7 | 30 | 90, string> = {
-  7:  "Your home didn't stop aging. It's been a week — keep your maintenance record current with HomeFax Pro.",
-  30: "30 days of home aging go untracked. Your roof, HVAC, and plumbing didn't pause — your records did. Come back to HomeFax.",
-  90: "90 days since you left. Buyers ask for maintenance history — make sure yours is ready when it matters most. Rejoin HomeFax Pro.",
+  7:  "Your home didn't stop aging. It's been a week — keep your maintenance record current with HomeGentic Pro.",
+  30: "30 days of home aging go untracked. Your roof, HVAC, and plumbing didn't pause — your records did. Come back to HomeGentic.",
+  90: "90 days since you left. Buyers ask for maintenance history — make sure yours is ready when it matters most. Rejoin HomeGentic Pro.",
 };
 
 const WINDOWS: Array<7 | 30 | 90> = [7, 30, 90];
 
-const STORAGE_KEY    = "homefax_winback";
-const SENT_KEY       = "homefax_winback_sent";
+const STORAGE_KEY    = "homegentic_winback";
+const SENT_KEY       = "homegentic_winback_sent";
 
 interface WinBackEntry {
   cancelledAt: number;

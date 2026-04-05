@@ -41,8 +41,8 @@ test.describe("PriceLookupPage — /prices", () => {
       await page.goto("/prices");
     });
 
-    test("shows HomeFax logo", async ({ page }) => {
-      await expect(page.getByText(/HomeFax/).first()).toBeVisible();
+    test("shows HomeGentic logo", async ({ page }) => {
+      await expect(page.getByText(/HomeGentic/).first()).toBeVisible();
     });
 
     test("shows 'Home repair cost lookup' heading", async ({ page }) => {

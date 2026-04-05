@@ -134,7 +134,7 @@ test.describe("PredictiveMaintenancePage — /maintenance", () => {
 
     test("AI Advisor tab shows the chat interface", async ({ page }) => {
       await page.getByRole("button", { name: /ai advisor/i }).click();
-      await expect(page.getByText(/HomeFax Maintenance Advisor/i)).toBeVisible();
+      await expect(page.getByText(/HomeGentic Maintenance Advisor/i)).toBeVisible();
     });
 
     test("AI Advisor shows initial greeting message", async ({ page }) => {

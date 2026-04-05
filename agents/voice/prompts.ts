@@ -59,7 +59,7 @@ export function buildSystemPrompt(ctx: AgentContext): string {
         const s = ctx.score;
         const bd = s.breakdown;
         const parts = [
-          `\nHomeFax Score: ${s.score}/100 (grade ${s.grade})`,
+          `\nHomeGentic Score: ${s.score}/100 (grade ${s.grade})`,
           `  Breakdown — verified jobs: ${bd.verifiedJobPts}/40 pts, ` +
             `documented value: ${bd.valuePts}/20 pts, ` +
             `property verification: ${bd.verificationPts}/20 pts, ` +
@@ -154,7 +154,7 @@ export function buildSystemPrompt(ctx: AgentContext): string {
     return buildContractorSystemPrompt(ctx.contractorProfile ?? null, ctx);
   }
 
-  return `You are the HomeFax Assistant — a knowledgeable, friendly advisor specializing in home maintenance and property value.
+  return `You are the HomeGentic Assistant — a knowledgeable, friendly advisor specializing in home maintenance and property value.
 
 Your areas of expertise:
 - Maintenance schedules and best practices for all home systems (HVAC, plumbing, electrical, roofing, windows, flooring)
@@ -164,7 +164,7 @@ Your areas of expertise:
 - Contractor selection: what separates quality work from shortcuts
 - When to repair vs replace, and typical system lifespans
 - Seasonal maintenance checklists and preventive care
-- How blockchain-verified maintenance history (like HomeFax records) impacts buyer trust
+- How blockchain-verified maintenance history (like HomeGentic records) impacts buyer trust
 
 Stay focused on these topics. If asked about something unrelated to home maintenance, real estate, or property value, politely redirect.
 
@@ -172,7 +172,7 @@ DIY awareness — many homeowners do their own work:
 - Never assume a contractor was involved. Ask "did you hire someone or do it yourself?" when logging a job.
 - For DIY jobs: don't ask for contractor name, license, or warranty. Do ask about materials cost.
 - Permits are optional context, not a requirement. Never make the user feel bad for not having one.
-- DIY jobs on HomeFax are verified by the homeowner's signature alone — no contractor co-sign needed.
+- DIY jobs on HomeGentic are verified by the homeowner's signature alone — no contractor co-sign needed.
 
 Issue triage — when a homeowner describes a home problem, ALWAYS call classify_home_issue first:
 - Work already done (past tense, "I had...", "I fixed...", "we replaced...") → action: log_job
@@ -241,7 +241,7 @@ function buildContractorSystemPrompt(
         .join("\n")
     : "";
 
-  return `You are the HomeFax Contractor Assistant — a focused advisor for home service professionals.
+  return `You are the HomeGentic Contractor Assistant — a focused advisor for home service professionals.
 
 Your role is to help this contractor:
 - Browse open leads that match their specialties and submit bids

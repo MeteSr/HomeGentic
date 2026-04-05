@@ -16,6 +16,6 @@
       "declarations/*": ["src/declarations/*"]
     }
   },
-  "include": ["src/homefax_frontend/src/**/*"],
+  "include": ["src/homegentic_frontend/src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

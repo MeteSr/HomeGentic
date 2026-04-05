@@ -1,6 +1,6 @@
-# HomeFax Product Backlog
+# HomeGentic Product Backlog
 
-Derived from the HomeFax product vision. Items are grouped by domain, tagged with estimated complexity (S/M/L/XL), and annotated with what already exists in the codebase.
+Derived from the HomeGentic product vision. Items are grouped by domain, tagged with estimated complexity (S/M/L/XL), and annotated with what already exists in the codebase.
 
 ---
 
@@ -51,7 +51,7 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 |---|------|--------|------|-------|
 | 3.4.1 | ICRC-1 / ICRC-7 NFT canister for title | ⬜ Missing | XL | Implement an NFT standard canister; each token = one property title |
 | 3.4.2 | Title company API integration | ⬜ Missing | XL | Partner integration; legal/regulatory layer required |
-| 3.4.3 | Tokenized deed display in HomeFax Report | ⬜ Missing | M | Show "Title token on-chain since [date]" badge in report |
+| 3.4.3 | Tokenized deed display in HomeGentic Report | ⬜ Missing | M | Show "Title token on-chain since [date]" badge in report |
 
 ---
 
@@ -103,10 +103,10 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 
 ---
 
-## 6. HomeFax Report — The Resale Weapon
+## 6. HomeGentic Report — The Resale Weapon
 
 ### 6.2 Listing Platform Integration & Badge
-**Vision:** HomeFax-verified homes display a badge on Zillow/Realtor.com.
+**Vision:** HomeGentic-verified homes display a badge on Zillow/Realtor.com.
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
@@ -121,7 +121,7 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 | 6.3.2 | Automated answer engine | ⬜ Missing | L | Query job records against structured question templates; return verified answer |
 | 6.3.3 | vetKeys canister attestation | ⬜ Missing | L | Canister queries its own on-chain records, derives the yes/no answer, and issues an IBE-encrypted signed response to the buyer's transport key — cryptographically bound to chain state, underlying records never revealed |
 
-### 6.5 "HomeFax Certified" Pre-Inspection Waiver
+### 6.5 "HomeGentic Certified" Pre-Inspection Waiver
 **Vision:** Score ≥ 88 qualifies for waived/discounted inspection contingency — killer feature in competitive markets.
 
 | # | Item | Status | Size | Notes |
@@ -133,7 +133,7 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 ## 7. Platform & Business Model Differentiation
 
 ### 7.1 Homeowner-Owned Data Sovereignty
-**Vision:** Explicitly market that data lives on ICP canisters the homeowner owns — HomeFax is just the interface.
+**Vision:** Explicitly market that data lives on ICP canisters the homeowner owns — HomeGentic is just the interface.
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
@@ -141,12 +141,12 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 
 
 ### 7.3 Insurance Premium Integration
-**Vision:** Partner with home insurers to offer premium discounts for high HomeFax scores.
+**Vision:** Partner with home insurers to offer premium discounts for high HomeGentic scores.
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
 | 7.3.1 | Insurer-facing score API | ⬜ Missing | M | Authenticated API endpoint: given property ID, return score + key risk factors |
-| 7.3.2 | Score-to-risk mapping model | ⬜ Missing | L | Map HomeFax dimensions (HVAC age, roof age, verified maintenance) to actuarial risk factors |
+| 7.3.2 | Score-to-risk mapping model | ⬜ Missing | L | Map HomeGentic dimensions (HVAC age, roof age, verified maintenance) to actuarial risk factors |
 | 7.3.3 | Insurance partner program page | ⬜ Missing | S | Marketing/landing page for insurer partnerships |
 | 7.3.4 | Premium discount display for homeowner | ⬜ Missing | M | "Your score qualifies you for up to 12% off your home insurance — connect your insurer" |
 
@@ -162,10 +162,10 @@ Derived from the HomeFax product vision. Items are grouped by domain, tagged wit
 
 ## 8. Retention & Anti-Churn — Designing Out Cancellation
 
-The core retention challenge for HomeFax: value delivery is irregular. Homeowners don't engage daily, so perceived value dies in quiet periods. Every item below addresses a specific churn cause identified in the retention analysis.
+The core retention challenge for HomeGentic: value delivery is irregular. Homeowners don't engage daily, so perceived value dies in quiet periods. Every item below addresses a specific churn cause identified in the retention analysis.
 
 ### 8.4 Insurance Defense Mode — Florida-Specific Retention Hook
-**Vision:** One-tap export of all maintenance records formatted for insurance company submission. One successful insurance interaction pays for 3+ years of HomeFax.
+**Vision:** One-tap export of all maintenance records formatted for insurance company submission. One successful insurance interaction pays for 3+ years of HomeGentic.
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
@@ -186,7 +186,7 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 
 ## 17. Growth & Activation — "Inexplicable Not To Sign Up"
 
-The features below address the core signup conversion gap: a new homeowner visits HomeFax, reads the pitch, but has no immediate, personally-felt reason to create an account today. Each item below corresponds to a product lever that makes the value tangible before sign-up, or dramatically lowers the cost of getting that value.
+The features below address the core signup conversion gap: a new homeowner visits HomeGentic, reads the pitch, but has no immediate, personally-felt reason to create an account today. Each item below corresponds to a product lever that makes the value tangible before sign-up, or dramatically lowers the cost of getting that value.
 
 ### 17.2 Zero-Effort Onboarding — Instant Value Before First Login
 
@@ -202,11 +202,11 @@ The features below address the core signup conversion gap: a new homeowner visit
 
 ### 17.4 Buyer-Side Product — Public Report Lookup
 
-**Vision:** Buyers search by address to pull a public HomeFax report before making an offer. This is the top-of-funnel for homeowner sign-ups: buyers ask sellers "why don't you have a HomeFax report?"
+**Vision:** Buyers search by address to pull a public HomeGentic report before making an offer. This is the top-of-funnel for homeowner sign-ups: buyers ask sellers "why don't you have a HomeGentic report?"
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 17.4.1 | Public address search for reports | ✅ Exists | M | `CheckAddressPage` at `/check?address=...`; `lookupReport()` calls relay `GET /api/check`; "HomeFax Verified" badge with link to full report when found |
+| 17.4.1 | Public address search for reports | ✅ Exists | M | `CheckAddressPage` at `/check?address=...`; `lookupReport()` calls relay `GET /api/check`; "HomeGentic Verified" badge with link to full report when found |
 | 17.4.2 | "Request a report" flow for buyers | ✅ Exists | M | Email capture form on "no report" state; `submitReportRequest()` posts to relay `POST /api/report-request`; confirmation shown after submit |
 | 17.4.3 | Buyer-facing report view (no login) | ✅ Exists | S | `ReportPage` at `/report/:token` has no `ProtectedRoute` wrapper — already fully public |
 | 17.4.4 | SEO-indexed report landing pages | 🟡 Partial | M | `document.title` + `<meta name="description">` set in `ReportPage` and `CheckAddressPage` when report loads; full SSR (Next.js/Cloudflare Worker) deferred |
@@ -214,16 +214,16 @@ The features below address the core signup conversion gap: a new homeowner visit
 
 ### 17.6 Email Receipt Forwarding → Auto-Log
 
-**Vision:** Forward any contractor receipt to receipts@homefax.app and the job is logged automatically. Zero-friction logging that works without opening the app.
+**Vision:** Forward any contractor receipt to receipts@homegentic.app and the job is logged automatically. Zero-friction logging that works without opening the app.
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 17.6.1 | Inbound email endpoint | ⬜ Missing | L | Set up `receipts@homefax.app` via Postmark / SendGrid Inbound Parse or AWS SES; route to a new `emailParser` Node.js service |
+| 17.6.1 | Inbound email endpoint | ⬜ Missing | L | Set up `receipts@homegentic.app` via Postmark / SendGrid Inbound Parse or AWS SES; route to a new `emailParser` Node.js service |
 | 17.6.2 | Email → principal mapping | ⬜ Missing | M | User registers a forwarding email address in account settings (stored on `auth` canister); inbound email matched to principal by `From` or `Reply-To` header |
 | 17.6.3 | Claude vision receipt extraction | ⬜ Missing | M | `emailParser` passes attachments (PDF/JPG invoices) to Claude API with vision; extracts contractor, service, date, amount using same prompt as §16.6 |
 | 17.6.4 | Extracted job → canister write | ⬜ Missing | M | After extraction, calls `jobService.create()` on behalf of the matched principal; sets `status: "pending_homeowner"` so homeowner can review before it counts toward score |
 | 17.6.5 | Confirmation email to homeowner | ⬜ Missing | S | Send "We logged a [service] job for $[amount] on [date] — tap to confirm or edit" email with a magic link back to the pending job |
-| 17.6.6 | Email forwarding setup UI | ⬜ Missing | S | Account settings page: "Forward receipts to receipts@homefax.app from [your email]" with copy button and status indicator |
+| 17.6.6 | Email forwarding setup UI | ⬜ Missing | S | Account settings page: "Forward receipts to receipts@homegentic.app from [your email]" with copy button and status indicator |
 | 17.6.7 | Attachment-less email handling | ⬜ Missing | S | If email has no attachment, parse the email body as plain text receipt; fall back to asking the homeowner to resend with the attachment |
 
 ### 17.7 Public System Age Estimator (No Login)
@@ -232,17 +232,17 @@ The features below address the core signup conversion gap: a new homeowner visit
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 17.7.4 | Estimator embeddable widget | ⬜ Missing | M | JavaScript embed snippet (`<script src="https://homefax.app/widget.js">`) for real estate blogs, HOA sites, and home inspector websites; renders estimator inline; CTA links back to HomeFax |
+| 17.7.4 | Estimator embeddable widget | ⬜ Missing | M | JavaScript embed snippet (`<script src="https://homegentic.app/widget.js">`) for real estate blogs, HOA sites, and home inspector websites; renders estimator inline; CTA links back to HomeGentic |
 
 ---
 
 ## 15. Native Mobile Apps (iOS & Android)
 
-**Vision:** React Native app (one codebase, two roles) giving homeowners and contractors on-the-go access to HomeFax. V1 is read-first with push notifications; write operations come in V2.
+**Vision:** React Native app (one codebase, two roles) giving homeowners and contractors on-the-go access to HomeGentic. V1 is read-first with push notifications; write operations come in V2.
 
 **Key constraints:**
-- Authentication via Internet Identity requires a WebView bridge (SafariViewController on iOS, Chrome Custom Tab on Android) with a `homefax://auth` deep-link callback to capture the delegation.
-- No in-app purchases. Upgrade CTAs open `https://homefax.app/pricing` in the browser (Apple policy compliance — App Store will reject any upgrade UI that collects payment inside the app).
+- Authentication via Internet Identity requires a WebView bridge (SafariViewController on iOS, Chrome Custom Tab on Android) with a `homegentic://auth` deep-link callback to capture the delegation.
+- No in-app purchases. Upgrade CTAs open `https://homegentic.app/pricing` in the browser (Apple policy compliance — App Store will reject any upgrade UI that collects payment inside the app).
 - Push notifications require new backend infrastructure (APNs + FCM relay) — the ICP canisters have no native push capability.
 
 **Architecture decision — agent-first UI:**
@@ -265,13 +265,13 @@ The primary interface is a chat window backed by the existing voice agent (`agen
 | 15.1.2 | Shared TypeScript service layer | ✅ Exists | M | Polyfills (`react-native-get-random-values`, `text-encoding`) imported at top of `index.ts`; `propertyService.ts` and `jobService.ts` with mock-fallback pattern; `agentService.ts` bridges to voice proxy (7 unit tests) |
 | 15.1.3 | Design token port | ✅ Exists | S | `mobile/src/theme.ts` — colors, fonts, spacing, borderWidth/borderRadius tokens ported from web design system |
 | 15.1.4 | Navigation scaffold | ✅ Exists | S | `mobile/src/navigation/TabNavigator.tsx` — 4-tab bottom navigator (Chat, Photos, Report, Settings); deep-link config in `App.tsx` |
-| 15.1.5 | Deep-link scheme registration | ✅ Exists | S | `homefax://` scheme registered in `app.json`: `scheme`, `ios.infoPlist.CFBundleURLTypes`, `android.intentFilters`; linking config wired in `NavigationContainer` |
+| 15.1.5 | Deep-link scheme registration | ✅ Exists | S | `homegentic://` scheme registered in `app.json`: `scheme`, `ios.infoPlist.CFBundleURLTypes`, `android.intentFilters`; linking config wired in `NavigationContainer` |
 
 ### 15.2 Authentication — Internet Identity WebView Bridge
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 15.2.1 | II WebView auth flow | ✅ Exists | L | `useAuth.ts`: opens II in `expo-web-browser` via `openAuthSessionAsync`, listens for `homefax://auth` deep link, parses delegation from callback URL; `buildIIAuthUrl` / `parseAuthCallback` / `isDelegationExpired` in `authUtils.ts` (15 unit tests) |
+| 15.2.1 | II WebView auth flow | ✅ Exists | L | `useAuth.ts`: opens II in `expo-web-browser` via `openAuthSessionAsync`, listens for `homegentic://auth` deep link, parses delegation from callback URL; `buildIIAuthUrl` / `parseAuthCallback` / `isDelegationExpired` in `authUtils.ts` (15 unit tests) |
 | 15.2.2 | Delegation storage + session restore | ✅ Exists | M | `authStorage.ts`: `saveAuth` / `loadAuth` / `clearAuth` via `expo-secure-store`; `useAuth` restores session on mount and re-auths if delegation is expired |
 | 15.2.3 | Biometric unlock | ✅ Exists | M | `biometricService.ts` — `shouldPromptBiometric`, `biometricPromptReason`, `biometricNotAvailableReason` pure helpers (10 tests) + `checkBiometricStatus` + `authenticateWithBiometrics`; `useAuth.restoreSession` gates session hydration behind biometric prompt; skips transparently when device unsupported; delegation preserved on cancel so user can retry; `NSFaceIDUsageDescription` in `app.json` |
 | 15.2.4 | Role detection on login | ✅ Exists | S | `authTypes.ts` + `authService.ts`: `getProfile(agent)` calls auth canister; `fromProfile` transformation (7 unit tests); `AuthState.authenticated` now carries `profile: UserProfile \| null` |
@@ -285,19 +285,19 @@ The primary interface is a chat window backed by the existing voice agent (`agen
 | 15.3.3 | FCM integration | ✅ Exists | L | `fcm.ts` — service-account JWT → OAuth token exchange, FCM v1 API `sendFcm()`; skips when `FCM_PROJECT_ID/FCM_SERVICE_ACCOUNT_JSON` not set |
 | 15.3.4 | Canister event → push relay hooks | 🟡 Partial | L | `poller.ts` — 30 s polling loop with `new_lead` + `job_signed` stubs; `dispatcher.ts` fans out to all devices, auto-evicts stale tokens (APNs 410 / FCM UNREGISTERED) |
 | 15.3.5 | In-app permission prompt | ✅ Exists | S | `useNotifications` hook — deferred permission request after auth, Expo push token registered with relay via `notificationService.ts` |
-| 15.3.6 | Notification tap → deep link routing | ✅ Exists | S | `addNotificationResponseReceivedListener` extracts `route` from payload data, calls `Linking.openURL("homefax://…")`; `App.tsx` linking config expanded with `jobs/:jobId` + `leads/:leadId` + `earnings` |
+| 15.3.6 | Notification tap → deep link routing | ✅ Exists | S | `addNotificationResponseReceivedListener` extracts `route` from payload data, calls `Linking.openURL("homegentic://…")`; `App.tsx` linking config expanded with `jobs/:jobId` + `leads/:leadId` + `earnings` |
 
 ### 15.4 Homeowner V1 Features (Read-Only)
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
 | 15.4.1 | Property list screen | ✅ Exists | S | `PropertyListScreen.tsx` — score badge, built year, tap → PropertyDetail |
-| 15.4.2 | HomeFax Score screen | ✅ Exists | S | Score hero in `PropertyDetailScreen.tsx` — large score number, letter grade, address |
+| 15.4.2 | HomeGentic Score screen | ✅ Exists | S | Score hero in `PropertyDetailScreen.tsx` — large score number, letter grade, address |
 | 15.4.3 | Job history screen | ✅ Exists | S | Job list in `PropertyDetailScreen.tsx` — service type, description, date, amount, DIY flag, verified dot |
 | 15.4.4 | Report WebView | ✅ Exists | S | `ReportScreen.tsx` — token/URL input + `expo-web-browser` opens the full web report; no native rebuild needed |
-| 15.4.5 | Push: score change notification | ⬜ Missing | M | Notify homeowner when HomeFax Score changes by ≥5 points; requires 15.3 relay |
+| 15.4.5 | Push: score change notification | ⬜ Missing | M | Notify homeowner when HomeGentic Score changes by ≥5 points; requires 15.3 relay |
 | 15.4.6 | Push: new job pending signature | ⬜ Missing | M | Notify homeowner when a contractor marks a job complete and awaits their signature |
-| 15.4.7 | Upgrade CTA (browser deep-link) | ✅ Exists | S | Upgrade banner in `PropertyDetailScreen.tsx` calls `Linking.openURL("https://homefax.app/pricing")` |
+| 15.4.7 | Upgrade CTA (browser deep-link) | ✅ Exists | S | Upgrade banner in `PropertyDetailScreen.tsx` calls `Linking.openURL("https://homegentic.app/pricing")` |
 
 ### 15.5 Contractor V1 Features (Read-Only)
 
@@ -308,7 +308,7 @@ The primary interface is a chat window backed by the existing voice agent (`agen
 | 15.5.3 | Earnings summary screen | ✅ Exists | S | `EarningsScreen.tsx` — total earned, verified jobs, pending count via `getEarningsSummary` |
 | 15.5.4 | Push: new lead in my trades | ⬜ Missing | M | Notify contractor when a new quote request matches any of their `specialties`; requires 15.3 relay |
 | 15.5.5 | Push: bid accepted / not selected | ⬜ Missing | M | Notify contractor of bid outcome when homeowner selects or declines |
-| 15.5.6 | Upgrade CTA (browser deep-link) | ✅ Exists | S | Upgrade banner in `EarningsScreen.tsx` calls `Linking.openURL("https://homefax.app/pricing")` |
+| 15.5.6 | Upgrade CTA (browser deep-link) | ✅ Exists | S | Upgrade banner in `EarningsScreen.tsx` calls `Linking.openURL("https://homegentic.app/pricing")` |
 
 ### 15.6 App Store & Play Store Submission
 
@@ -333,7 +333,7 @@ Extend `agents/voice/tools.ts` so the mobile chat interface can drive the full t
 | 15.7.6 | `get_score` tool | ✅ Exists | S | `get_score` added to `tools.ts`; accepts optional `property_id`; instructs Claude to explain top factor and suggest one improvement if score < 70 |
 | 15.7.7 | `list_leads` tool (contractor) | ✅ Exists | S | `list_leads` in `tools.ts` |
 | 15.7.8 | `open_report` tool | ✅ Exists | S | `share_report` in `tools.ts` |
-| 15.7.9 | `upload_photos` handoff tool | ✅ Exists | S | `upload_photos` added to `tools.ts`; returns `homefax://photos/job/:id` deep link; agent instructs user to tap it |
+| 15.7.9 | `upload_photos` handoff tool | ✅ Exists | S | `upload_photos` added to `tools.ts`; returns `homegentic://photos/job/:id` deep link; agent instructs user to tap it |
 | 15.7.10 | Tool error handling + clarification loop | ✅ Exists | M | Clarification loop guidance added to `buildSystemPrompt` in `prompts.ts`: ask one field at a time, max 3 questions per task, never invent required field values |
 
 ### 15.8 V2 Write Operations (Future)
@@ -360,7 +360,7 @@ Extend `agents/voice/tools.ts` so the mobile chat interface can drive the full t
 | AI.2 | Implement `AnthropicProvider` | ✅ Exists | M | Class wrapping `@anthropic-ai/sdk`: translates normalized tool schema → Anthropic wire format, maps `content_block_delta`/`text_delta` events → normalized chunks, extracts `ToolUseBlock`/`TextBlock` from responses. No Anthropic types leak outside this class |
 | AI.3 | Wire provider into `server.ts` via DI | ✅ Exists | M | Replace all direct `anthropic.messages.*` calls in route handlers with `AIProvider` interface calls. Instantiate the concrete provider once at startup, selected by `AI_PROVIDER` env var |
 | AI.4 | Extract model name to config | ✅ Exists | S | Remove the five hardcoded `"claude-sonnet-4-6"` strings. Add `AI_MODEL` to `.env.example`; provider reads it at startup. Route handlers never reference a model name |
-| AI.5 | Normalize tool schema in `tools.ts` | ✅ Exists | S | Rewrite `HOMEFAX_TOOLS` using the normalized tool definition type from AI.1. Each provider implementation converts to its own wire format — route handlers and tool definitions remain provider-agnostic |
+| AI.5 | Normalize tool schema in `tools.ts` | ✅ Exists | S | Rewrite `HOMEGENTIC_TOOLS` using the normalized tool definition type from AI.1. Each provider implementation converts to its own wire format — route handlers and tool definitions remain provider-agnostic |
 | AI.6 | Remove provider-specific strings | ✅ Exists | S | Replace `"Claude did not return valid JSON"` and equivalents with provider-agnostic wording. Update `GET /health` to return `AI_MODEL` from env instead of the hardcoded string |
 
 ---

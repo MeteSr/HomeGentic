@@ -17,7 +17,7 @@ test.describe("QuoteRequestPage — /quotes/new", () => {
   });
 
   test("shows descriptive subtitle", async ({ page }) => {
-    await expect(page.getByText(/verified HomeFax contractors/i)).toBeVisible();
+    await expect(page.getByText(/verified HomeGentic contractors/i)).toBeVisible();
   });
 
   test("Back button is present", async ({ page }) => {

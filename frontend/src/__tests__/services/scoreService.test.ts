@@ -324,7 +324,7 @@ describe("recordSnapshot / loadHistory / scoreDelta", () => {
     const now = Date.now();
     const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
     localStorage.setItem(
-      "homefax_score_history",
+      "homegentic_score_history",
       JSON.stringify([{ score: 60, timestamp: sevenDaysAgo }])
     );
     recordSnapshot(70);
@@ -335,7 +335,7 @@ describe("recordSnapshot / loadHistory / scoreDelta", () => {
     const now = Date.now();
     const twoDaysAgo = now - 2 * 24 * 60 * 60 * 1000;
     localStorage.setItem(
-      "homefax_score_history",
+      "homegentic_score_history",
       JSON.stringify([{ score: 60, timestamp: twoDaysAgo }])
     );
     recordSnapshot(65);
@@ -349,7 +349,7 @@ describe("recordSnapshot / loadHistory / scoreDelta", () => {
       score:     50 + i,
       timestamp: Date.now() - (13 - i) * 7 * 24 * 60 * 60 * 1000,
     }));
-    localStorage.setItem("homefax_score_history", JSON.stringify(history));
+    localStorage.setItem("homegentic_score_history", JSON.stringify(history));
     recordSnapshot(99);
     expect(loadHistory()).toHaveLength(12);
     expect(loadHistory()[11].score).toBe(99);

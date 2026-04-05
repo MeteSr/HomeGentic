@@ -2,7 +2,7 @@
  * FsboListingPage — Epic 10.3.1
  *
  * Public, unauthenticated page at /for-sale/:propertyId.
- * Shows list price, property details, HomeFax score badge,
+ * Shows list price, property details, HomeGentic score badge,
  * verified job summary, photo gallery, and a showing-request form.
  */
 
@@ -165,7 +165,7 @@ export default function FsboListingPage() {
   useEffect(() => {
     if (!property || !fsbo) return;
     const price = "$" + (fsbo.listPriceCents / 100).toLocaleString("en-US", { maximumFractionDigits: 0 });
-    document.title = `${property.address} — For Sale by Owner | HomeFax`;
+    document.title = `${property.address} — For Sale by Owner | HomeGentic`;
 
     function setMeta(attr: string, value: string, content: string) {
       let tag = document.querySelector(`meta[${attr}="${value}"]`);
@@ -178,10 +178,10 @@ export default function FsboListingPage() {
     }
 
     setMeta("property", "og:title", `${property.address} — For Sale by Owner`);
-    setMeta("property", "og:description", `${price} · ${property.city}, ${property.state} · HomeFax Verified`);
-    setMeta("name", "description", `${property.address} — ${price} · ${property.city}, ${property.state}. Verified maintenance history on HomeFax.`);
+    setMeta("property", "og:description", `${price} · ${property.city}, ${property.state} · HomeGentic Verified`);
+    setMeta("name", "description", `${property.address} — ${price} · ${property.city}, ${property.state}. Verified maintenance history on HomeGentic.`);
 
-    return () => { document.title = "HomeFax"; };
+    return () => { document.title = "HomeGentic"; };
   }, [property, fsbo]);
 
   useEffect(() => {
@@ -278,9 +278,9 @@ export default function FsboListingPage() {
         ))}
       </div>
 
-      {/* ── HomeFax score badge ─────────────────────────────────────────────── */}
+      {/* ── HomeGentic score badge ─────────────────────────────────────────────── */}
       <section
-        aria-label="HomeFax Score"
+        aria-label="HomeGentic Score"
         style={{ border: `1.5px solid ${S.sage}`, padding: "1rem 1.25rem", marginBottom: "1.5rem", background: COLORS.sageLight }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "0.5rem" }}>
@@ -289,7 +289,7 @@ export default function FsboListingPage() {
           </div>
           <div>
             <div style={{ fontFamily: S.mono, fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.08em", color: S.inkLight, marginBottom: "0.15rem" }}>
-              HomeFax Score
+              HomeGentic Score
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontFamily: S.mono, fontSize: "0.65rem", color: S.sage }}>
               <ShieldCheck size={13} />

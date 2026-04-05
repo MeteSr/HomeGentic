@@ -1,5 +1,5 @@
 /**
- * HomeFax Job Canister
+ * HomeGentic Job Canister
  * Tracks home maintenance jobs with dual-signature verification.
  *
  * DIY jobs (contractor = null) are verified by homeowner signature alone.

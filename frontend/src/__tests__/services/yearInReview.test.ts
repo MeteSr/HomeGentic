@@ -188,8 +188,8 @@ describe("yearInReviewService.renderHtml (8.5.3)", () => {
     expect(svc.renderHtml(ctx())).toContain("Jordan");
   });
 
-  it("includes HomeFax branding", () => {
-    expect(svc.renderHtml(ctx()).toLowerCase()).toContain("homefax");
+  it("includes HomeGentic branding", () => {
+    expect(svc.renderHtml(ctx()).toLowerCase()).toContain("homegentic");
   });
 
   it("includes the score change", () => {
@@ -226,8 +226,8 @@ describe("yearInReviewService.renderText (8.5.3)", () => {
     expect(svc.renderText(makeCtx({ ownerName: "Alex" }))).toContain("Alex");
   });
 
-  it("includes HomeFax", () => {
-    expect(svc.renderText(makeCtx()).toLowerCase()).toContain("homefax");
+  it("includes HomeGentic", () => {
+    expect(svc.renderText(makeCtx()).toLowerCase()).toContain("homegentic");
   });
 });
 

@@ -111,7 +111,7 @@ describe("fileToBase64", () => {
   });
 
   it("roundtrips — decoding the base64 recovers the original bytes", async () => {
-    const originalText = "HomeFax receipt content";
+    const originalText = "HomeGentic receipt content";
     const blob = new Blob([originalText], { type: "image/jpeg" });
     const file = new File([blob], "r.jpg", { type: "image/jpeg" });
 

@@ -9,8 +9,8 @@ test.describe("LandingPage — /", () => {
 
   // ── Nav ───────────────────────────────────────────────────────────────────
 
-  test("shows HomeFax logo in nav", async ({ page }) => {
-    await expect(page.getByText(/HomeFax/).first()).toBeVisible();
+  test("shows HomeGentic logo in nav", async ({ page }) => {
+    await expect(page.getByText(/HomeGentic/).first()).toBeVisible();
   });
 
   test("shows nav links: Features, How It Works, Pricing", async ({ page }) => {
@@ -39,7 +39,7 @@ test.describe("LandingPage — /", () => {
   // ── Hero content ──────────────────────────────────────────────────────────
 
   test("shows hero heading text", async ({ page }) => {
-    // The hero h1 contains some variant of HomeFax value proposition
+    // The hero h1 contains some variant of HomeGentic value proposition
     await expect(page.locator("h1").first()).toBeVisible();
   });
 

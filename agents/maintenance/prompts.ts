@@ -54,7 +54,7 @@ Estimated budget for urgent work: ${formatUSD(totalBudgetLowCents)}–${formatUS
 `;
   }
 
-  return `You are the HomeFax Maintenance Advisor — a knowledgeable, practical home maintenance consultant.
+  return `You are the HomeGentic Maintenance Advisor — a knowledgeable, practical home maintenance consultant.
 
 Your focus areas:
 - Explaining system health predictions in plain language (no jargon, no scare tactics)

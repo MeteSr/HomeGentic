@@ -1,7 +1,7 @@
 /**
  * §17.1 — Pre-quote price benchmarking by zip code
  *
- * 17.1.1 — Seed data aggregated from closed HomeFax bids + Homewyse/RSMeans baseline.
+ * 17.1.1 — Seed data aggregated from closed HomeGentic bids + Homewyse/RSMeans baseline.
  *           Real-time data served by the relay at GET /api/price-benchmark.
  * 17.1.2 — getPriceBenchmark → used by the get_price_benchmark agent tool.
  * 17.1.5 — hasSufficientSamples: hide widget when sampleSize < 5.

@@ -1,5 +1,5 @@
 /**
- * HomeFax Quote Canister
+ * HomeGentic Quote Canister
  * Quote request / submission system with tier-based rate limiting.
  * Homeowners post requests; contractors submit quotes; homeowner accepts one.
  */

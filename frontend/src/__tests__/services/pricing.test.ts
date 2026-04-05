@@ -2,7 +2,7 @@
  * TDD — Epic 10.2 Pricing Intelligence
  *
  * 10.2.1  Comparable sales  — CompSale type + compService mock interface
- * 10.2.2  HomeFax-adjusted price recommendation — computePriceRecommendation()
+ * 10.2.2  HomeGentic-adjusted price recommendation — computePriceRecommendation()
  * 10.2.3  Price history tracking — fsboService.logPriceChange / getPriceHistory
  * 10.2.4  DOM estimator — estimateDaysOnMarket()
  */
@@ -23,7 +23,7 @@ import { compService } from "@/services/compService";
 import type { CompSale } from "@/services/compService";
 
 // ──────────────────────────────────────────────────────────────────────────────
-// 10.2.2  HomeFax-adjusted price recommendation
+// 10.2.2  HomeGentic-adjusted price recommendation
 // ──────────────────────────────────────────────────────────────────────────────
 describe("computePriceRecommendation — (10.2.2)", () => {
   it("returns base price = pricePerSqFtCents × sqFt", () => {

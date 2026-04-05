@@ -5,7 +5,7 @@
  *     - fromSnapshot() maps raw.planTier, defaulting "" → "Free"
  *     - TypeScript interface has planTier: string
  *
- *   15.3.3 — Pro+ reports: no banner, "Verified by HomeFax" trust badge
+ *   15.3.3 — Pro+ reports: no banner, "Verified by HomeGentic" trust badge
  *     - planTier "Pro"     → badge shown, free banner hidden
  *     - planTier "Premium" → badge shown, free banner hidden
  *     - planTier "Free"    → free banner shown, badge hidden
@@ -132,24 +132,24 @@ describe("ReportPage — Pro plan trust badge (15.3.3)", () => {
     vi.clearAllMocks();
   });
 
-  it("shows 'Verified by HomeFax' trust badge for Pro tier", async () => {
+  it("shows 'Verified by HomeGentic' trust badge for Pro tier", async () => {
     await renderReport("Pro");
-    expect(screen.getByText(/verified by homefax/i)).toBeInTheDocument();
+    expect(screen.getByText(/verified by homegentic/i)).toBeInTheDocument();
   });
 
-  it("shows 'Verified by HomeFax' trust badge for Premium tier", async () => {
+  it("shows 'Verified by HomeGentic' trust badge for Premium tier", async () => {
     await renderReport("Premium");
-    expect(screen.getByText(/verified by homefax/i)).toBeInTheDocument();
+    expect(screen.getByText(/verified by homegentic/i)).toBeInTheDocument();
   });
 
   it("does NOT show free-plan banner for Pro tier", async () => {
     await renderReport("Pro");
-    expect(screen.queryByText(/generated with homefax free/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/generated with homegentic free/i)).not.toBeInTheDocument();
   });
 
   it("does NOT show free-plan banner for Premium tier", async () => {
     await renderReport("Premium");
-    expect(screen.queryByText(/generated with homefax free/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/generated with homegentic free/i)).not.toBeInTheDocument();
   });
 });
 
@@ -158,16 +158,16 @@ describe("ReportPage — Free plan banner (15.3.3)", () => {
     vi.clearAllMocks();
   });
 
-  it("shows 'Generated with HomeFax Free' banner for Free tier", async () => {
+  it("shows 'Generated with HomeGentic Free' banner for Free tier", async () => {
     await renderReport("Free");
-    expect(screen.getByText(/generated with homefax free/i)).toBeInTheDocument();
+    expect(screen.getByText(/generated with homegentic free/i)).toBeInTheDocument();
   });
 
   it("does NOT show the trust badge for Free tier", async () => {
     await renderReport("Free");
-    // The Pro trust badge is distinct from the agent co-branding "Verified by HomeFax" line
-    // Pro trust badge has text like "Verified by HomeFax Pro" or similar badge text
+    // The Pro trust badge is distinct from the agent co-branding "Verified by HomeGentic" line
+    // Pro trust badge has text like "Verified by HomeGentic Pro" or similar badge text
     // Free tier should have no such badge
-    expect(screen.queryByText(/verified by homefax pro|homefax pro verified/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/verified by homegentic pro|homegentic pro verified/i)).not.toBeInTheDocument();
   });
 });

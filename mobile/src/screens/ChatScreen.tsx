@@ -55,7 +55,7 @@ export default function ChatScreen() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerLabel}>ASK HOMEFAX</Text>
+        <Text style={styles.headerLabel}>ASK HOMEGENTIC</Text>
         <View style={{ flexDirection: "row", gap: spacing.md }}>
           <TouchableOpacity
             onPress={() => navigation.navigate("PropertyList")}

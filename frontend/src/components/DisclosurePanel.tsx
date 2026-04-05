@@ -1,7 +1,7 @@
 /**
  * DisclosurePanel — Epic 10.6
  *
- *  10.6.1  Pre-filled disclosure statement from HomeFax data
+ *  10.6.1  Pre-filled disclosure statement from HomeGentic data
  *  10.6.2  Disclosure completeness score
  *  10.6.3  Legal document library
  *  10.6.4  Uploaded legal documents

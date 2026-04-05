@@ -1,7 +1,7 @@
 /**
  * §17.4 — Buyer Report Lookup
  *
- * Lets buyers search for a HomeFax report by property address without login.
+ * Lets buyers search for a HomeGentic report by property address without login.
  * Calls the voice-agent relay which queries the report canister for public links.
  */
 

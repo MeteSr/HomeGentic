@@ -58,7 +58,7 @@ export default function PropertyDetailScreen({ route }: Props) {
   );
 
   function openUpgrade() {
-    Linking.openURL("https://homefax.app/pricing");
+    Linking.openURL("https://homegentic.app/pricing");
   }
 
   return (
@@ -70,7 +70,7 @@ export default function PropertyDetailScreen({ route }: Props) {
           <Text style={styles.scoreNum}>{property.score}</Text>
           <View style={styles.scoreRight}>
             <Text style={styles.scoreGrade}>{property.scoreGrade}</Text>
-            <Text style={styles.scoreLabel}>HomeFax Score</Text>
+            <Text style={styles.scoreLabel}>HomeGentic Score</Text>
           </View>
         </View>
       </View>

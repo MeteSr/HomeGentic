@@ -66,7 +66,7 @@ export default function EarningsScreen() {
       {/* Upgrade CTA (15.5.6) */}
       <TouchableOpacity
         style={styles.upgradeBanner}
-        onPress={() => Linking.openURL("https://homefax.app/pricing")}
+        onPress={() => Linking.openURL("https://homegentic.app/pricing")}
         accessibilityRole="button"
         accessibilityLabel="Upgrade to ContractorPro"
       >

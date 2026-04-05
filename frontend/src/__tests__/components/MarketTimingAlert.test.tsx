@@ -22,7 +22,7 @@ const { mockAnalysis, mockRec } = vi.hoisted(() => {
     reasoning:        [
       "Homes in 78701 are selling in ~31 days.",
       "Spring is historically the strongest selling season.",
-      "Your HomeFax score of 78 supports an estimated premium.",
+      "Your HomeGentic score of 78 supports an estimated premium.",
     ],
     daysOnMarket:   31,
     activeListings: 1100,

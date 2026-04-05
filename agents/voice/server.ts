@@ -4,7 +4,7 @@ import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { buildSystemPrompt } from "./prompts";
 import { buildMaintenanceSystemPrompt } from "../maintenance/prompts";
-import { HOMEFAX_TOOLS } from "./tools";
+import { HOMEGENTIC_TOOLS } from "./tools";
 import { resolveModel, PROVIDER_JSON_ERROR } from "./provider";
 import { createAnthropicProvider } from "./anthropicProvider";
 import { parseForecastQueryParams, estimateSystems, computeTenYearBudget } from "./forecast";
@@ -93,7 +93,7 @@ app.post("/api/agent", async (req: Request, res: Response): Promise<void> => {
   try {
     const result = await provider.completeWithTools({
       system:    buildSystemPrompt(context ?? { properties: [], recentJobs: [] }),
-      tools:     HOMEFAX_TOOLS,
+      tools:     HOMEGENTIC_TOOLS,
       messages,
       maxTokens: 1024,
     });
@@ -177,7 +177,7 @@ app.post("/api/classify", async (req: Request, res: Response): Promise<void> => 
 
   const mediaType = mimeType as "image/jpeg" | "image/png" | "image/gif" | "image/webp" | "application/pdf";
 
-  const systemPrompt = `You are a home document classifier for the HomeFax platform.
+  const systemPrompt = `You are a home document classifier for the HomeGentic platform.
 Classify the document and extract metadata. Respond ONLY with valid JSON — no markdown, no prose.
 
 JSON shape:
@@ -301,7 +301,7 @@ app.post("/api/pulse", async (req: Request, res: Response): Promise<void> => {
 //   { quoteId, verdict, percentile, suggestedCounterCents?, rationale, generatedAt }
 //
 // NOTE: This endpoint only returns analysis for the homeowner.
-// HomeFax never contacts contractors on the homeowner's behalf.
+// HomeGentic never contacts contractors on the homeowner's behalf.
 app.post("/api/negotiate", async (req: Request, res: Response): Promise<void> => {
   const { quote, request: qrequest, zip, benchmark } = req.body;
 
@@ -312,7 +312,7 @@ app.post("/api/negotiate", async (req: Request, res: Response): Promise<void> =>
 
   const fmtK = (c: number) => `$${(c / 100).toFixed(0)}`;
 
-  const systemPrompt = `You are a real estate negotiation analyst for HomeFax.
+  const systemPrompt = `You are a real estate negotiation analyst for HomeGentic.
 Analyze a contractor quote against market pricing benchmarks and return ONLY valid JSON — no markdown, no prose.
 
 JSON shape:
@@ -330,7 +330,7 @@ Rules:
 - percentile = where this quote sits in the 0–100 distribution
 - suggestedCounterCents = only when verdict is "high"; suggest 3-7% above median
 - rationale must cite the specific p25/median/p75 figures
-- HomeFax never contacts contractors — only provide analysis for the homeowner`;
+- HomeGentic never contacts contractors — only provide analysis for the homeowner`;
 
   const userMsg = [
     `Service type: ${qrequest.serviceType}`,
@@ -515,7 +515,7 @@ app.post("/api/report-request", async (req: Request, res: Response): Promise<voi
 // ── GET /api/price-benchmark (§17.1.2) ───────────────────────────────────────
 // Returns price benchmark for a service type + zip code.
 // ?service=Roofing&zip=32114
-// Seed data sourced from Homewyse/RSMeans baselines + closed HomeFax bids.
+// Seed data sourced from Homewyse/RSMeans baselines + closed HomeGentic bids.
 // Production: query closed bids from the `quote` canister, grouped by service+zip.
 const PRICE_SEED: Record<string, { low: number; median: number; high: number; sampleSize: number }> = {
   "Roofing":     { low: 800000,  median: 1400000, high: 2200000, sampleSize: 47 },
@@ -609,6 +609,6 @@ app.get("/health", (_req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`HomeFax voice agent proxy → http://localhost:${port}`);
+  console.log(`HomeGentic voice agent proxy → http://localhost:${port}`);
   console.log(`Accepting requests from ${origin}`);
 });

@@ -46,7 +46,7 @@ export function ScorePanel({
       {/* Score + grade */}
       <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem", marginBottom: "0.5rem" }}>
         <span
-          aria-label="HomeFax Score"
+          aria-label="HomeGentic Score"
           style={{
             fontFamily: S.serif,
             fontWeight: 900,
@@ -92,7 +92,7 @@ export function ScorePanel({
       {/* Certified badge */}
       {certified && (
         <div
-          aria-label="HomeFax Certified"
+          aria-label="HomeGentic Certified"
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -110,7 +110,7 @@ export function ScorePanel({
           }}
         >
           <ShieldCheck size={11} />
-          HomeFax Certified
+          HomeGentic Certified
         </div>
       )}
 

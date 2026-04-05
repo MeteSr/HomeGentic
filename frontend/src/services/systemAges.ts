@@ -22,7 +22,7 @@ export type SystemName = typeof TRACKED_SYSTEMS[number];
 /** Record<systemName, installYear> — only the systems the user has set. */
 export type SystemAges = Partial<Record<SystemName, number>>;
 
-const storageKey = (propertyId: string) => `homefax_system_ages_${propertyId}`;
+const storageKey = (propertyId: string) => `homegentic_system_ages_${propertyId}`;
 
 export const systemAgesService = {
   get(propertyId: string): SystemAges {

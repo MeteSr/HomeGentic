@@ -1,4 +1,4 @@
-# HomeFax API Reference
+# HomeGentic API Reference
 
 ## Auth Canister
 

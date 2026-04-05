@@ -9,8 +9,8 @@ test.describe("LoginPage — /login", () => {
 
   // ── Page structure ────────────────────────────────────────────────────────
 
-  test("shows HomeFax logo", async ({ page }) => {
-    await expect(page.getByText(/HomeFax/)).toBeVisible();
+  test("shows HomeGentic logo", async ({ page }) => {
+    await expect(page.getByText(/HomeGentic/)).toBeVisible();
   });
 
   test("shows 'Sign In' eyebrow label", async ({ page }) => {
@@ -66,12 +66,12 @@ test.describe("LoginPage — /login", () => {
 
   // ── Back link ─────────────────────────────────────────────────────────────
 
-  test("shows '← Back to HomeFax' link", async ({ page }) => {
-    await expect(page.getByText(/← Back to HomeFax/)).toBeVisible();
+  test("shows '← Back to HomeGentic' link", async ({ page }) => {
+    await expect(page.getByText(/← Back to HomeGentic/)).toBeVisible();
   });
 
   test("back link navigates to /", async ({ page }) => {
-    await page.getByText(/← Back to HomeFax/).click();
+    await page.getByText(/← Back to HomeGentic/).click();
     await expect(page).toHaveURL("/");
   });
 

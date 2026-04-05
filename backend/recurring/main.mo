@@ -1,5 +1,5 @@
 /**
- * HomeFax Recurring Services Canister
+ * HomeGentic Recurring Services Canister
  *
  * Tracks ongoing home service contracts (lawn care, pest control, pool
  * maintenance, etc.) with a lightweight visit log per service.

@@ -2,7 +2,7 @@
 // No side effects — safe to unit-test without native modules.
 
 export const II_URL = "https://identity.ic0.app";
-export const REDIRECT_URI = "homefax://auth";
+export const REDIRECT_URI = "homegentic://auth";
 
 // 8 hours expressed in nanoseconds (ICP delegation TTL unit)
 const DEFAULT_TTL_NS = BigInt(8 * 60 * 60) * BigInt(1_000_000_000);

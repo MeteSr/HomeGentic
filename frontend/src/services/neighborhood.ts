@@ -1,7 +1,7 @@
 /**
  * Neighborhood benchmarking service (4.3.1).
  *
- * Aggregates HomeFax scores by zip code and computes percentile rankings.
+ * Aggregates HomeGentic scores by zip code and computes percentile rankings.
  * When NEIGHBORHOOD_CANISTER_ID is not set, returns deterministic mock data
  * generated from the zip code string so tests and dev are fully reproducible.
  *

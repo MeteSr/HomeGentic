@@ -77,17 +77,17 @@ test.describe("VoiceAgent — floating mic widget", () => {
 
   test("shows the mic button on the dashboard", async ({ page }) => {
     await page.goto("/dashboard");
-    await expect(page.getByRole("button", { name: /ask homefax/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /ask homegentic/i })).toBeVisible();
   });
 
   test("shows the mic button on the maintenance page", async ({ page }) => {
     await page.goto("/maintenance");
-    await expect(page.getByRole("button", { name: /ask homefax/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /ask homegentic/i })).toBeVisible();
   });
 
   test("mic button is initially in idle state (Mic icon)", async ({ page }) => {
     await page.goto("/dashboard");
-    const btn = page.getByRole("button", { name: /ask homefax/i });
+    const btn = page.getByRole("button", { name: /ask homegentic/i });
     await expect(btn).toBeVisible();
     await expect(btn).toBeEnabled();
   });
@@ -107,7 +107,7 @@ test.describe("VoiceAgent — floating mic widget", () => {
     await mockAgentEndpoint(page, { type: "answer", text: "Your HVAC system is 23 years old and may need replacement." });
     await page.goto("/dashboard");
 
-    const micBtn = page.getByRole("button", { name: /ask homefax/i });
+    const micBtn = page.getByRole("button", { name: /ask homegentic/i });
     await micBtn.click();
 
     // The mock SpeechRecognition fires a transcript after 100ms
@@ -122,7 +122,7 @@ test.describe("VoiceAgent — floating mic widget", () => {
     });
     await page.goto("/dashboard");
 
-    const micBtn = page.getByRole("button", { name: /ask homefax/i });
+    const micBtn = page.getByRole("button", { name: /ask homegentic/i });
     await micBtn.click();
 
     // Wait for agent response to appear in the bubble
@@ -135,7 +135,7 @@ test.describe("VoiceAgent — floating mic widget", () => {
     await mockAgentEndpoint(page, { type: "answer", text: "Here are your replacement priorities." });
     await page.goto("/dashboard");
 
-    await page.getByRole("button", { name: /ask homefax/i }).click();
+    await page.getByRole("button", { name: /ask homegentic/i }).click();
 
     // Transcript is shown in italic in the bubble
     await expect(
@@ -147,7 +147,7 @@ test.describe("VoiceAgent — floating mic widget", () => {
     await mockAgentEndpoint(page, { type: "answer", text: "All systems look good." });
     await page.goto("/dashboard");
 
-    await page.getByRole("button", { name: /ask homefax/i }).click();
+    await page.getByRole("button", { name: /ask homegentic/i }).click();
     await expect(page.getByText(/all systems look good/i)).toBeVisible({ timeout: 5000 });
 
     await page.getByRole("button", { name: /dismiss/i }).click();
@@ -186,7 +186,7 @@ test.describe("VoiceAgent — floating mic widget", () => {
     );
 
     await page.goto("/dashboard");
-    await page.getByRole("button", { name: /ask homefax/i }).click();
+    await page.getByRole("button", { name: /ask homegentic/i }).click();
 
     await expect(page.getByText(/working on it/i)).toBeVisible({ timeout: 5000 });
   });
@@ -197,7 +197,7 @@ test.describe("VoiceAgent — floating mic widget", () => {
     await mockAgentEndpoint(page, { type: "answer", text: "Your roof is in good shape." });
     await page.goto("/dashboard");
 
-    await page.getByRole("button", { name: /ask homefax/i }).click();
+    await page.getByRole("button", { name: /ask homegentic/i }).click();
     await expect(page.getByText(/your roof is in good shape/i)).toBeVisible({ timeout: 5000 });
 
     // History panel should now appear
@@ -213,7 +213,7 @@ test.describe("AI Advisor chat — /maintenance", () => {
     await injectTestProperties(page);
     await page.goto("/maintenance");
     await page.getByRole("button", { name: /ai advisor/i }).click();
-    await expect(page.getByText(/HomeFax Maintenance Advisor/i)).toBeVisible();
+    await expect(page.getByText(/HomeGentic Maintenance Advisor/i)).toBeVisible();
   });
 
   test("shows initial greeting message", async ({ page }) => {
@@ -223,7 +223,7 @@ test.describe("AI Advisor chat — /maintenance", () => {
   test("shows a text input or mic trigger in the advisor tab", async ({ page }) => {
     // The AI Advisor renders the VoiceAgent or a dedicated text input
     const hasTextInput = await page.getByRole("textbox").count();
-    const hasMicBtn    = await page.getByRole("button", { name: /ask homefax/i }).count();
+    const hasMicBtn    = await page.getByRole("button", { name: /ask homegentic/i }).count();
     expect(hasTextInput + hasMicBtn).toBeGreaterThan(0);
   });
 });

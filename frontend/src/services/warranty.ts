@@ -2,7 +2,7 @@
  * Warranty wallet service (1.4.4).
  *
  * Pure calculation helpers — no canister calls, no state.
- * Used by WarrantyWalletPage, DashboardPage, and any HomeFax Report integration.
+ * Used by WarrantyWalletPage, DashboardPage, and any HomeGentic Report integration.
  */
 
 import type { Job } from "./job";

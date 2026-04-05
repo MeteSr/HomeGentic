@@ -183,7 +183,7 @@ function EstimatorResults({ yearBuilt, propertyType, state }: { yearBuilt: numbe
           to="/"
           style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: S.inkLight, textDecoration: "none" }}
         >
-          HomeFax
+          HomeGentic
         </Link>
         <Link
           to="/login"
@@ -319,7 +319,7 @@ function EstimatorResults({ yearBuilt, propertyType, state }: { yearBuilt: numbe
               Track this property for free
             </div>
             <p style={{ fontFamily: S.sans, fontSize: "0.85rem", color: S.inkLight, margin: 0 }}>
-              Log real maintenance jobs, earn a HomeFax Score, and get a verified report when you sell. Your {yearBuilt} home details are pre-filled.
+              Log real maintenance jobs, earn a HomeGentic Score, and get a verified report when you sell. Your {yearBuilt} home details are pre-filled.
             </p>
           </div>
           <Link

@@ -119,7 +119,28 @@
       "WebSearch",
       "Bash(mops search:*)",
       "Bash(mops add:*)",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "Bash(tasklist /FI \"IMAGENAME eq node.exe\" /FO CSV)",
+      "Bash(taskkill /F /PID 5994 /PID 6018 /PID 6030 /PID 6068 /PID 6090 /PID 6103 /PID 6042 /PID 6006)",
+      "Bash(cmd.exe:*)",
+      "Bash(kill -9 6042 6103 6006)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(sed -i 's/| 8\\\\.3\\\\.2 | Post-cancel read-only mode | ⬜ Missing |/| 8.3.2 | Post-cancel read-only mode | ✅ Done |/' docs/BACKLOG.md)",
+      "Bash(sed -i 's/| 8\\\\.3\\\\.5 | Win-back email sequence | ⬜ Missing |/| 8.3.5 | Win-back email sequence | ✅ Done |/' docs/BACKLOG.md)",
+      "Read(//tmp/**)",
+      "Bash(chmod +x:*)",
+      "Bash(sed:*)",
+      "WebFetch(domain:opendata-volusiacountyfl.hub.arcgis.com)",
+      "WebFetch(domain:connectlivepermits.org)",
+      "WebFetch(domain:maps5.vcgov.org)",
+      "WebFetch(domain:www.volusia.org)",
+      "WebFetch(domain:permitguide.volusia.org)",
+      "Bash(npx create-expo-app@latest:*)",
+      "Bash(npx jest:*)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\('dependencies',{}\\).get\\('jest','not found'\\)\\)\")",
+      "Bash(npx ts-node:*)",
+      "Bash(npx expo:*)",
+      "Bash(find . -type f -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/.claude/*' -not -path '*/dist/*' -not -path '*/coverage/*' -not -path '*/.mops/*' -not -path '*/.dfx/*' '\\(' -name '*.ts' -o -name '*.tsx' -o -name '*.mo' -o -name '*.json' -o -name '*.md' -o -name '*.html' -o -name '*.sh' -o -name '*.toml' -o -name '*.css' -o -name '*.did' -o -name '*.js' -o -name '*.mjs' -o -name '*.env' -o -name '*.env.example' -o -name sample-report '\\)' -exec sed -i 's/HomeFax/HomeGentic/g; s/homefax/homegentic/g; s/HOMEFAX/HOMEGENTIC/g' '{}' +)"
     ]
   }
 }

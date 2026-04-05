@@ -313,7 +313,7 @@ export default function SensorPage() {
             How it works
           </p>
           <p style={{ fontSize: "0.8rem", fontWeight: 300, lineHeight: 1.6, color: S.inkLight }}>
-            Your IoT gateway forwards events from Nest, Ecobee, and Moen Flo to HomeFax.
+            Your IoT gateway forwards events from Nest, Ecobee, and Moen Flo to HomeGentic.
             Critical events — water leaks, HVAC faults, pipe-freeze risk — automatically open a pending job
             on your property record so nothing falls through the cracks.
           </p>

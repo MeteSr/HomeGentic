@@ -75,7 +75,7 @@ describe("ReEngagementStack", () => {
   });
 
   it("hides prompt already dismissed via localStorage on mount", () => {
-    localStorage.setItem("homefax_reengage_job-1", "1");
+    localStorage.setItem("homegentic_reengage_job-1", "1");
     render(<ReEngagementStack {...defaultProps} prompts={[prompt]} />);
     expect(screen.queryByText(/Book Smith HVAC again/)).not.toBeInTheDocument();
   });

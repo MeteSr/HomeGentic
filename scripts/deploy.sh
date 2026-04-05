@@ -4,7 +4,7 @@ set -euo pipefail
 NETWORK=${1:-local}
 
 echo "============================================"
-echo "  HomeFax — Deployment ($NETWORK)"
+echo "  HomeGentic — Deployment ($NETWORK)"
 echo "============================================"
 
 # ── Load DFX identity from CI secret (non-local deploys only) ──────────────────

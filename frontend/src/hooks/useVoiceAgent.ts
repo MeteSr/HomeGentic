@@ -400,7 +400,7 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
       const msg =
         e instanceof Error
           ? e.message
-          : "Could not reach the HomeFax assistant. Please try again.";
+          : "Could not reach the HomeGentic assistant. Please try again.";
       setError(msg);
       setState("error");
     }

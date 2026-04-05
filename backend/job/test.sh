@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# HomeFax Job Canister — integration tests
+# HomeGentic Job Canister — integration tests
 # Covers: basic CRUD, dual-signature flow (12.4.1), DIY verification,
 # pagination / multi-job listing (12.4.3), error guards.
 # Run against a local replica: dfx start --background && bash backend/job/test.sh
@@ -7,7 +7,7 @@ set -euo pipefail
 
 CANISTER="job"
 echo "============================================"
-echo "  HomeFax — Job Canister Tests"
+echo "  HomeGentic — Job Canister Tests"
 echo "============================================"
 
 if ! dfx ping 2>/dev/null; then

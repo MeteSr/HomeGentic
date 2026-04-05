@@ -192,7 +192,7 @@ describe("AgentPublicPage", () => {
   it("shows verified badge when agent is verified", async () => {
     renderPage(<AgentPublicPage />, "/agent/agent-principal-1", "/agent/:id");
     await waitFor(() => {
-      expect(screen.getByText(/HomeFax Verified/i)).toBeInTheDocument();
+      expect(screen.getByText(/HomeGentic Verified/i)).toBeInTheDocument();
     });
   });
 
@@ -200,7 +200,7 @@ describe("AgentPublicPage", () => {
     vi.mocked(agentService.getPublicProfile).mockResolvedValueOnce({ ...mockProfile, isVerified: false });
     renderPage(<AgentPublicPage />, "/agent/agent-principal-1", "/agent/:id");
     await waitFor(() => {
-      expect(screen.queryByText(/HomeFax Verified/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/HomeGentic Verified/i)).not.toBeInTheDocument();
     });
   });
 

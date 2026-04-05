@@ -1,6 +1,6 @@
-# HomeFax — Architecture
+# HomeGentic — Architecture
 
-HomeFax is a **home maintenance intelligence platform** built entirely on the
+HomeGentic is a **home maintenance intelligence platform** built entirely on the
 Internet Computer Protocol (ICP). Every record — job, photo hash, score,
 report, quote — lives as stable on-chain state inside Motoko canisters.
 No traditional database. No centralized server. No single point of failure.
@@ -103,7 +103,7 @@ All 15 canisters use `persistent actor` + stable variable
 ├──────────────────┼─────────────────────────────────────────────────────────┤
 │ listing          │ FSBO listing lifecycle, sealed-bid offers, agent match  │
 ├──────────────────┼─────────────────────────────────────────────────────────┤
-│ agent            │ Realtor profiles, reviews, HomeFax transaction count    │
+│ agent            │ Realtor profiles, reviews, HomeGentic transaction count    │
 ├──────────────────┼─────────────────────────────────────────────────────────┤
 │ recurring        │ Recurring service contracts (HVAC, pest, landscaping)  │
 │                  │ Visit logs per contract                                 │
@@ -217,9 +217,9 @@ load without authentication and call the voice-agent relay for data.
 
 | Route                      | What it does                                                    |
 |----------------------------|-----------------------------------------------------------------|
-| `/check?address=`          | Buyer lookup — checks if a HomeFax report exists for an address |
+| `/check?address=`          | Buyer lookup — checks if a HomeGentic report exists for an address |
 | `/report/:token`           | Public report view — shareable snapshot with visibility levels  |
-| `/cert/:token`             | Score certificate — embeddable proof of HomeFax score           |
+| `/cert/:token`             | Score certificate — embeddable proof of HomeGentic score           |
 | `/badge/:token`            | Shareable verified badge                                        |
 | `/home-systems`            | System Age Estimator — year built → urgency table for 9 systems |
 | `/instant-forecast`        | Instant Forecast — address + year built → 10-yr maintenance budget, per-system override inputs |

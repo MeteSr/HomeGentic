@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# HomeFax Auth Canister — integration tests
+# HomeGentic Auth Canister — integration tests
 # Covers: register, profile, role check, duplicate registration guard,
 # updateProfile validation, recordLogin, addAdmin, pause/unpause (12.4.5).
 # Run against a local replica: dfx start --background && bash backend/auth/test.sh
@@ -7,7 +7,7 @@ set -euo pipefail
 
 CANISTER="auth"
 echo "============================================"
-echo "  HomeFax — Auth Canister Tests"
+echo "  HomeGentic — Auth Canister Tests"
 echo "============================================"
 
 if ! dfx ping 2>/dev/null; then
@@ -39,7 +39,7 @@ echo ""
 echo "── [2] Register as Homeowner ────────────────────────────────────────────"
 dfx canister call $CANISTER register '(record {
   role  = variant { Homeowner };
-  email = "homeowner@homefax.app";
+  email = "homeowner@homegentic.app";
   phone = "512-555-0001"
 })'
 
@@ -64,7 +64,7 @@ echo ""
 echo "── [7] Register again → expect AlreadyExists (12.4.5) ──────────────────"
 dfx canister call $CANISTER register '(record {
   role  = variant { Realtor };
-  email = "duplicate@homefax.app";
+  email = "duplicate@homegentic.app";
   phone = "512-555-9999"
 })' || echo "  ↳ Expected AlreadyExists — ✓"
 
@@ -72,7 +72,7 @@ dfx canister call $CANISTER register '(record {
 echo ""
 echo "── [8] updateProfile — change email and phone (12.4.5) ─────────────────"
 dfx canister call $CANISTER updateProfile '(record {
-  email = "updated@homefax.app";
+  email = "updated@homegentic.app";
   phone = "512-555-0099"
 })'
 
@@ -109,7 +109,7 @@ echo ""
 echo "── [14] Register secondary identity as Contractor (12.4.5) ──────────────"
 dfx canister call $CANISTER register '(record {
   role  = variant { Contractor };
-  email = "contractor@homefax.app";
+  email = "contractor@homegentic.app";
   phone = "512-555-0002"
 })' --identity auth-admin-test
 
@@ -125,7 +125,7 @@ if ! dfx identity list 2>/dev/null | grep -q "^auth-realtor-test$"; then
 fi
 dfx canister call $CANISTER register '(record {
   role  = variant { Realtor };
-  email = "realtor@homefax.app";
+  email = "realtor@homegentic.app";
   phone = ""
 })' --identity auth-realtor-test
 

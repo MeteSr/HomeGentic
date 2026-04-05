@@ -1,5 +1,5 @@
 /**
- * HomeFax Contractor Canister
+ * HomeGentic Contractor Canister
  *
  * Contractor profile registration with field validation.
  * Reviews with:

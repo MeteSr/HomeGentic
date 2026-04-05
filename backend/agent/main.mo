@@ -1,5 +1,5 @@
 /**
- * HomeFax Agent Canister — Epic 9.1
+ * HomeGentic Agent Canister — Epic 9.1
  *
  * On-chain profile for licensed real estate agents (Realtors).
  * Mirrors the Contractor canister pattern with:
@@ -263,7 +263,7 @@ persistent actor Agent {
 
   // ─── Reviews ──────────────────────────────────────────────────────────────────
 
-  /// Post a review for an agent after a completed HomeFax transaction.
+  /// Post a review for an agent after a completed HomeGentic transaction.
   /// Rate-limited to 10/day per reviewer. Deduplication on reviewer+transactionId.
   public shared(msg) func addReview(args: AddReviewArgs) : async Result.Result<AgentReview, Error> {
     switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
@@ -304,7 +304,7 @@ persistent actor Agent {
 
   // ─── Admin: Verification ──────────────────────────────────────────────────────
 
-  /// Grant a HomeFax Verified badge to an agent. Admin-only.
+  /// Grant a HomeGentic Verified badge to an agent. Admin-only.
   public shared(msg) func verifyAgent(agentId: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#Unauthorized);
     switch (Map.get(agents, Principal.compare, agentId)) {

@@ -164,7 +164,7 @@ const results = [];
 
 if (!CSV_ONLY) {
   console.log(`\n${"═".repeat(72)}`);
-  console.log(`  HomeFax — Query Baseline (13.1.1)   mode=${LIVE ? "LIVE" : "DRY-RUN"}   repeat=${REPEAT}`);
+  console.log(`  HomeGentic — Query Baseline (13.1.1)   mode=${LIVE ? "LIVE" : "DRY-RUN"}   repeat=${REPEAT}`);
   console.log(`${"═".repeat(72)}\n`);
 }
 

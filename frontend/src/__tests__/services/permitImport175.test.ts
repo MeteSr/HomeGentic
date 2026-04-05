@@ -2,7 +2,7 @@
  * §17.5.1 — Municipal Permit API Integration
  *
  * Tests the permit import service layer:
- *   - mapPermitTypeToServiceType  → permit type string → HomeFax service type
+ *   - mapPermitTypeToServiceType  → permit type string → HomeGentic service type
  *   - permitToJobInput            → OpenPermitRecord → Job create input
  *   - isPermitDataAvailable       → city+state coverage check
  *   - importPermitsForProperty    → async import with mocked relay fetch

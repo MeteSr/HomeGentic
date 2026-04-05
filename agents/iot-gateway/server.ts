@@ -1,8 +1,8 @@
 /**
- * HomeFax IoT Gateway
+ * HomeGentic IoT Gateway
  *
  * Node.js/Express bridge that receives webhooks from smart-home platforms and
- * forwards normalized sensor readings to the HomeFax Sensor canister on ICP.
+ * forwards normalized sensor readings to the HomeGentic Sensor canister on ICP.
  *
  * Supported platforms:
  *   POST /webhooks/nest      — Google Nest (SDM API Pub/Sub push)
@@ -202,7 +202,7 @@ app.get("/health", (_req: Request, res: Response) => {
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 app.listen(port, () => {
-  console.log(`HomeFax IoT Gateway → http://localhost:${port}`);
+  console.log(`HomeGentic IoT Gateway → http://localhost:${port}`);
   console.log(`Gateway principal: ${getGatewayPrincipal()}`);
   console.log(`Sensor canister:   ${process.env.SENSOR_CANISTER_ID ?? "(set SENSOR_CANISTER_ID)"}`);
 });

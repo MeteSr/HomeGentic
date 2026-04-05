@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Create a report to help us improve HomeFax
+about: Create a report to help us improve HomeGentic
 title: '[BUG] '
 labels: bug
 ---

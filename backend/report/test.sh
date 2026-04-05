@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# HomeFax Report Canister Tests
+# HomeGentic Report Canister Tests
 # Tests: generateReport (immutable snapshot + share token), getReport (viewCount),
 # listShareLinks, revokeShareLink, revoked/unknown token errors, pause/unpause
 set -euo pipefail
 
 echo "============================================"
-echo "  HomeFax — Report Canister Tests"
+echo "  HomeGentic — Report Canister Tests"
 echo "============================================"
 
 if ! dfx ping 2>/dev/null; then

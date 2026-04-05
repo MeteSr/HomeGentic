@@ -45,8 +45,8 @@ test.describe("DashboardPage — /dashboard", () => {
     await expect(page.getByText("$11,830")).toBeVisible();
   });
 
-  test("shows HomeFax Premium stat", async ({ page }) => {
-    await expect(page.getByText(/HomeFax Premium/)).toBeVisible();
+  test("shows HomeGentic Premium stat", async ({ page }) => {
+    await expect(page.getByText(/HomeGentic Premium/)).toBeVisible();
   });
 
   // ── Quick Actions ───────────────────────────────────────────────────────────
