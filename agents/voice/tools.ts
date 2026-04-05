@@ -530,6 +530,48 @@ Use this to mark a job as in-progress or completed based on what the user tells 
     },
   },
 
+  // ── 15.7.6 ───────────────────────────────────────────────────────────────────
+  {
+    name: "get_score",
+    description: `Return the homeowner's current HomeFax Score, letter grade, and the top 3 factors driving it.
+
+Use this when the user asks "what's my score?", "how am I doing?", "why is my score low?", or anything about their HomeFax rating.
+
+After returning the score, briefly explain the top contributing factor in plain English.
+If the score is below 70, suggest one specific action to improve it.`,
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        property_id: {
+          type: "string",
+          description: "The property ID to get the score for. Omit to use the first property.",
+        },
+      },
+      required: [],
+    },
+  },
+
+  // ── 15.7.9 ───────────────────────────────────────────────────────────────────
+  {
+    name: "upload_photos",
+    description: `Return a deep link to the native camera screen so the user can upload photos to a job.
+
+The agent cannot capture photos directly — use this tool to hand off to the camera screen.
+After returning the deep link, say: "Tap that link to open the camera and add photos directly to this job."
+
+Use this when the user wants to attach a photo, receipt image, or documentation to a specific job.`,
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        job_id: {
+          type: "string",
+          description: "The job ID to upload photos to",
+        },
+      },
+      required: ["job_id"],
+    },
+  },
+
   {
     name: "get_price_benchmark",
     description: `Look up the typical price range for a home service in a specific zip code.

@@ -274,7 +274,7 @@ The primary interface is a chat window backed by the existing voice agent (`agen
 | 15.2.1 | II WebView auth flow | ✅ Exists | L | `useAuth.ts`: opens II in `expo-web-browser` via `openAuthSessionAsync`, listens for `homefax://auth` deep link, parses delegation from callback URL; `buildIIAuthUrl` / `parseAuthCallback` / `isDelegationExpired` in `authUtils.ts` (15 unit tests) |
 | 15.2.2 | Delegation storage + session restore | ✅ Exists | M | `authStorage.ts`: `saveAuth` / `loadAuth` / `clearAuth` via `expo-secure-store`; `useAuth` restores session on mount and re-auths if delegation is expired |
 | 15.2.3 | Biometric unlock (optional, V1.1) | ⬜ Missing | M | Gate app re-open on Face ID / fingerprint via `expo-local-authentication`; still requires II for first login and after delegation expiry |
-| 15.2.4 | Role detection on login | ⬜ Missing | S | After auth, call `authService.getProfile()` to determine Homeowner vs. Contractor; route to appropriate tab set |
+| 15.2.4 | Role detection on login | ✅ Exists | S | `authTypes.ts` + `authService.ts`: `getProfile(agent)` calls auth canister; `fromProfile` transformation (7 unit tests); `AuthState.authenticated` now carries `profile: UserProfile \| null` |
 
 ### 15.3 Push Notifications Infrastructure
 
@@ -325,16 +325,16 @@ Extend `agents/voice/tools.ts` so the mobile chat interface can drive the full t
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| 15.7.1 | `log_job` tool | ⬜ Missing | M | Agent collects service type, contractor (optional), date, cost, notes conversationally; calls `jobService.create()`; responds with confirmation and updated score delta |
-| 15.7.2 | `request_quote` tool | ⬜ Missing | M | Agent collects service type, description, urgency; calls `quoteService.create()`; responds with matched contractor count |
-| 15.7.3 | `submit_bid` tool (contractor) | ⬜ Missing | M | Agent collects bid amount and notes for a specific quote request ID; calls `quoteService.submitBid()` |
-| 15.7.4 | `sign_job` tool | ⬜ Missing | M | Agent confirms intent with user, calls `jobService.verifyJob()`; both homeowner and contractor roles |
-| 15.7.5 | `find_contractor` tool | ⬜ Missing | S | Agent accepts service type + optional location; calls `contractorService.search()`; returns top 3 with trust scores |
-| 15.7.6 | `get_score` tool | ⬜ Missing | S | Returns current HomeFax score + top 3 contributing factors with plain-English explanation |
-| 15.7.7 | `list_leads` tool (contractor) | ⬜ Missing | S | Returns open quote requests matching caller's `specialties[]`; agent summarises top opportunities |
-| 15.7.8 | `open_report` tool | ⬜ Missing | S | Returns shareable report URL; agent instructs user to tap link which opens WebView screen |
-| 15.7.9 | `upload_photos` handoff tool | ⬜ Missing | S | Agent cannot take photos; this tool returns a deep link (`homefax://photos/job/:id`) that the app intercepts to open the native camera screen |
-| 15.7.10 | Tool error handling + clarification loop | ⬜ Missing | M | Agent asks follow-up questions when required fields are missing rather than returning a raw error; max 3 clarification turns per tool call |
+| 15.7.1 | `log_job` tool | ✅ Exists | M | `create_maintenance_job` in `tools.ts` covers this — collects service type, DIY flag, cost, date, contractor name, permit, warranty |
+| 15.7.2 | `request_quote` tool | ✅ Exists | M | `create_quote_request` in `tools.ts` |
+| 15.7.3 | `submit_bid` tool (contractor) | ✅ Exists | M | `submit_bid` in `tools.ts` |
+| 15.7.4 | `sign_job` tool | ✅ Exists | M | `sign_job_verification` in `tools.ts` |
+| 15.7.5 | `find_contractor` tool | ✅ Exists | S | `search_contractors` in `tools.ts` |
+| 15.7.6 | `get_score` tool | ✅ Exists | S | `get_score` added to `tools.ts`; accepts optional `property_id`; instructs Claude to explain top factor and suggest one improvement if score < 70 |
+| 15.7.7 | `list_leads` tool (contractor) | ✅ Exists | S | `list_leads` in `tools.ts` |
+| 15.7.8 | `open_report` tool | ✅ Exists | S | `share_report` in `tools.ts` |
+| 15.7.9 | `upload_photos` handoff tool | ✅ Exists | S | `upload_photos` added to `tools.ts`; returns `homefax://photos/job/:id` deep link; agent instructs user to tap it |
+| 15.7.10 | Tool error handling + clarification loop | ✅ Exists | M | Clarification loop guidance added to `buildSystemPrompt` in `prompts.ts`: ask one field at a time, max 3 questions per task, never invent required field values |
 
 ### 15.8 V2 Write Operations (Future)
 

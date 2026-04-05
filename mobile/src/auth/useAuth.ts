@@ -6,11 +6,12 @@ import { DelegationChain, DelegationIdentity } from "@dfinity/identity";
 import { HttpAgent } from "@dfinity/agent";
 import { buildIIAuthUrl, parseAuthCallback, isDelegationExpired, REDIRECT_URI } from "./authUtils";
 import { saveAuth, loadAuth, clearAuth, StoredAuth } from "./authStorage";
+import { getProfile, UserProfile } from "../services/authService";
 
 export type AuthState =
   | { status: "idle" }
   | { status: "loading" }
-  | { status: "authenticated"; principal: string; identity: DelegationIdentity; agent: HttpAgent }
+  | { status: "authenticated"; principal: string; profile: UserProfile | null; identity: DelegationIdentity; agent: HttpAgent }
   | { status: "error"; message: string };
 
 /** Session keypair persisted in memory for the current app lifecycle */
@@ -63,7 +64,8 @@ export function useAuth() {
       const identity = buildIdentityFromStored(sessionIdentity, stored);
       const agent = buildAgent(identity);
       const principal = identity.getPrincipal().toText();
-      setAuthState({ status: "authenticated", principal, identity, agent });
+      const profile = await getProfile(agent).catch(() => null);
+      setAuthState({ status: "authenticated", principal, profile, identity, agent });
     } catch {
       setAuthState({ status: "idle" });
     }
@@ -115,7 +117,8 @@ export function useAuth() {
       const identity = buildIdentityFromStored(sessionIdentity, stored);
       const agent = buildAgent(identity);
       const principal = identity.getPrincipal().toText();
-      setAuthState({ status: "authenticated", principal, identity, agent });
+      const profile = await getProfile(agent).catch(() => null);
+      setAuthState({ status: "authenticated", principal, profile, identity, agent });
     } catch (err: any) {
       setAuthState({ status: "error", message: err?.message ?? "Failed to restore identity" });
     }
