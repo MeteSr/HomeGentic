@@ -26,6 +26,8 @@ import { getRecentScoreEvents, categoryColor, categoryBg, type ScoreEvent } from
 import { getReEngagementPrompts, type ReEngagementPrompt } from "@/services/reEngagementService";
 import toast from "react-hot-toast";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
+import { ResponsiveGrid } from "@/components/ResponsiveGrid";
 import { NeighborhoodBenchmark } from "@/components/NeighborhoodBenchmark";
 import { ScoreActivityFeed } from "@/components/ScoreActivityFeed";
 import UpgradeModal from "@/components/UpgradeModal";
@@ -69,6 +71,7 @@ export default function DashboardPage() {
   const [userTier,         setUserTier]         = useState<PlanTier>("Free");
   const [systemAges,       setSystemAges]       = useState<SystemAges>({});
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const { isMobile } = useBreakpoint();
 
   useEffect(() => {
     loadProperties().then((props) => {
@@ -740,7 +743,7 @@ export default function DashboardPage() {
           <>
 
         {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: "1rem", marginBottom: "2.5rem" }}>
+        <ResponsiveGrid cols={{ mobile: 2, tablet: 3, desktop: 5 }} gap="1rem" style={{ marginBottom: "2.5rem" }}>
           {[
             { label: "Verification", value: activeProperty?.verificationLevel === "PendingReview" ? "Pending" : (activeProperty?.verificationLevel ?? "—") },
             { label: "Verified Jobs",    value: String(verifiedCount) },
@@ -772,7 +775,7 @@ export default function DashboardPage() {
             )}
             <ScoreSparkline history={scoreHistory} onExpand={() => setShowScoreChart((v) => !v)} />
           </div>
-        </div>
+        </ResponsiveGrid>
 
         {/* Free-tier job cap progress bar (15.1.3) */}
         {!loading && userTier === "Free" && (
@@ -1141,8 +1144,9 @@ export default function DashboardPage() {
               Property Comparison
             </div>
             <div style={{ border: `1px solid ${S.rule}`, borderRadius: RADIUS.card, overflow: "hidden" }}>
+              <div style={{ overflowX: isMobile ? "auto" : "visible" }}>
               {/* Header */}
-              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", padding: "0.5rem 1rem", background: S.paper, borderBottom: `1px solid ${S.rule}` }}>
+              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", padding: "0.5rem 1rem", background: S.paper, borderBottom: `1px solid ${S.rule}`, minWidth: isMobile ? "600px" : undefined }}>
                 {["Address", "Score", "Value Added", "Verified Jobs", "Level"].map((h) => (
                   <div key={h} style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>{h}</div>
                 ))}
@@ -1155,6 +1159,7 @@ export default function DashboardPage() {
                     onClick={() => navigate(`/properties/${row.property.id}`)}
                     style={{
                       display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr",
+                      minWidth: isMobile ? "600px" : undefined,
                       padding: "0.875rem 1rem", alignItems: "center",
                       borderBottom: i < propertyComparison.length - 1 ? `1px solid ${S.rule}` : "none",
                       background: isTop ? COLORS.sageLight : COLORS.white,
@@ -1178,6 +1183,7 @@ export default function DashboardPage() {
                   </div>
                 );
               })}
+              </div> {/* /scroll wrapper */}
             </div>
           </div>
         )}
