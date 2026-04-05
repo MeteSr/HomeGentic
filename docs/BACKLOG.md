@@ -343,7 +343,7 @@ Extend `agents/voice/tools.ts` so the mobile chat interface can drive the full t
 | 15.8.1 | Log a job (homeowner) | ✅ Exists | L | `LogJobScreen.tsx` — service-type chips, description, amount ($→cents), date, DIY toggle, optional contractor/permit/photo; `jobFormService.ts` pure helpers (24 tests); `useFocusEffect` re-fetch on PropertyDetail; `expo-image-picker` base64 upload stub |
 | 15.8.2 | Request a quote (homeowner) | ✅ Exists | M | `QuoteRequestScreen.tsx` — service-type chips, urgency selector (colour-coded), description; `MyQuotesScreen.tsx` — urgency-bar list with status badges; `quoteFormService.ts` pure helpers (13 tests); `quoteService.ts` mock; PropertyDetail footer links to both screens |
 | 15.8.3 | Submit a bid (contractor) | ✅ Exists | M | `LeadDetailScreen.tsx` rewritten with `bidFormService.ts` pure helpers (22 tests) + `bidService.submitBid` mock; amount ($→cents), timeline (1–365 days), optional notes; confirmation Alert before submit |
-| 15.8.4 | Sign a job (both roles) | ⬜ Missing | M | Homeowner and contractor sign job completion from mobile; requires II delegation with appropriate permissions |
+| 15.8.4 | Sign a job (both roles) | ✅ Exists | M | `SignJobScreen.tsx` — job summary card, legal acknowledgment checkbox, `canSign` guard, `signJob` mock; `signJobService.ts` pure helpers (8 tests); PendingSignaturesScreen rows tappable → SignJob (contractor); ChatStack + ContractorStack both carry the SignJob route |
 | 15.8.5 | Camera-first photo upload | ⬜ Missing | L | Native camera integration; compress + hash before upload; show upload progress; wire to `photo` canister quota checks |
 
 ---

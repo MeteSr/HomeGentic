@@ -7,6 +7,8 @@ import PropertyDetailScreen  from "../screens/PropertyDetailScreen";
 import LogJobScreen          from "../screens/LogJobScreen";
 import QuoteRequestScreen    from "../screens/QuoteRequestScreen";
 import MyQuotesScreen        from "../screens/MyQuotesScreen";
+import SignJobScreen         from "../screens/SignJobScreen";
+import type { SignableJob, SignRole } from "../services/signJobService";
 import { colors, fonts } from "../theme";
 
 export type ChatStackParamList = {
@@ -16,6 +18,7 @@ export type ChatStackParamList = {
   LogJob:         { propertyId: string; propertyAddress: string };
   QuoteRequest:   { propertyId: string; propertyAddress: string };
   MyQuotes:       { propertyId: string; propertyAddress: string };
+  SignJob:        { job: SignableJob; currentRole: SignRole };
 };
 
 const Stack = createNativeStackNavigator<ChatStackParamList>();
@@ -61,6 +64,11 @@ export default function ChatStack() {
         name="MyQuotes"
         component={MyQuotesScreen}
         options={{ title: "QUOTE REQUESTS" }}
+      />
+      <Stack.Screen
+        name="SignJob"
+        component={SignJobScreen}
+        options={{ title: "SIGN JOB" }}
       />
     </Stack.Navigator>
   );

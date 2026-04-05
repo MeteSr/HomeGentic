@@ -1,11 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
   FlatList,
+  TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
 } from "react-native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { ContractorStackParamList } from "../navigation/ContractorStack";
 import {
   getPendingSignatureJobs,
   sortPendingJobs,
@@ -13,14 +17,33 @@ import {
   formatEarnings,
   PendingSignatureJob,
 } from "../services/contractorService";
+import type { SignableJob } from "../services/signJobService";
 import { colors, fonts, spacing, borderWidth } from "../theme";
 
-function JobRow({ job }: { job: PendingSignatureJob }) {
+type Nav = NativeStackNavigationProp<ContractorStackParamList>;
+
+function toSignableJob(job: PendingSignatureJob): SignableJob {
+  return {
+    id:              job.id,
+    serviceType:     job.serviceType,
+    propertyAddress: job.propertyAddress,
+    amountCents:     job.amountCents,
+    completedDate:   job.completedDate,
+    awaitingRole:    job.awaitingRole,
+  };
+}
+
+function JobRow({ job, onPress }: { job: PendingSignatureJob; onPress: () => void }) {
   const isActionRequired = job.awaitingRole === "contractor";
   const statusColor = isActionRequired ? colors.rust : colors.inkLight;
 
   return (
-    <View style={styles.row}>
+    <TouchableOpacity
+      style={styles.row}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${job.serviceType} at ${job.propertyAddress}`}
+    >
       <View style={[styles.indicator, { backgroundColor: statusColor }]} />
       <View style={styles.rowBody}>
         <View style={styles.rowTop}>
@@ -35,19 +58,23 @@ function JobRow({ job }: { job: PendingSignatureJob }) {
           <Text style={styles.metaText}>{formatEarnings(job.amountCents)}</Text>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
 export default function PendingSignaturesScreen() {
+  const navigation            = useNavigation<Nav>();
   const [jobs, setJobs]       = useState<PendingSignatureJob[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    getPendingSignatureJobs()
-      .then((all) => setJobs(sortPendingJobs(all)))
-      .finally(() => setLoading(false));
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      getPendingSignatureJobs()
+        .then((all) => setJobs(sortPendingJobs(all)))
+        .finally(() => setLoading(false));
+    }, [])
+  );
 
   if (loading) {
     return <View style={styles.center}><ActivityIndicator color={colors.rust} /></View>;
@@ -64,7 +91,15 @@ export default function PendingSignaturesScreen() {
       <FlatList
         data={jobs}
         keyExtractor={(j) => j.id}
-        renderItem={({ item }) => <JobRow job={item} />}
+        renderItem={({ item }) => (
+            <JobRow
+              job={item}
+              onPress={() => navigation.navigate("SignJob", {
+                job:         toSignableJob(item),
+                currentRole: "contractor",
+              })}
+            />
+          )}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <View style={styles.emptyState}>
