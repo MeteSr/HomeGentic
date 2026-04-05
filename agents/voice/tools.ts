@@ -1,13 +1,16 @@
-import Anthropic from "@anthropic-ai/sdk";
+import type { ToolDefinition } from "./provider";
 
 /**
- * Tool schemas exposed to Claude for agentic HomeFax interactions.
+ * Tool schemas exposed to the AI agent for agentic HomeFax interactions.
  *
- * Read operations are handled via context injection — Claude doesn't need
+ * Uses the normalized ToolDefinition type (AI.5). AnthropicProvider.toAnthropicTools()
+ * converts these to the Anthropic wire format before sending to the API.
+ *
+ * Read operations are handled via context injection — the agent doesn't need
  * tools to read data it already has. These tools are write-only and execute
  * in the browser under the authenticated user's ICP identity.
  */
-export const HOMEFAX_TOOLS: Anthropic.Messages.Tool[] = [
+export const HOMEFAX_TOOLS: ToolDefinition[] = [
   {
     name: "create_maintenance_job",
     description: `Record a completed home maintenance or repair job on the blockchain.
@@ -32,7 +35,7 @@ Permit guidance — only ask if relevant to the service type:
 After creating the job, always follow up:
 "To strengthen this record, you can add photos or a receipt on the job details page. Would you like to do that now?"`,
 
-    input_schema: {
+    parameters: {
       type: "object" as const,
       properties: {
         property_id: {
@@ -97,7 +100,7 @@ This step ensures you take the right action:
 
 After classifying, tell the user what you determined and confirm before acting.
 Example: "It sounds like your roof is leaking and you need a contractor — want me to open a quote request for roofing work?"`,
-    input_schema: {
+    parameters: {
       type: "object" as const,
       properties: {
         description: {
@@ -133,7 +136,7 @@ Example: "It sounds like your roof is leaking and you need a contractor — want
     description: `Open a quote request so contractors can submit bids for upcoming work.
 Use this when the user wants to get price estimates for home maintenance or repairs they haven't done yet.
 Always confirm the type of work and urgency before calling this tool.`,
-    input_schema: {
+    parameters: {
       type: "object" as const,
       properties: {
         property_id: {
@@ -166,7 +169,7 @@ Always confirm the type of work and urgency before calling this tool.`,
 Use this when the user wants to document work needed before contacting contractors — so they get apples-to-apples bids and don't forget key details.
 
 YOU compose all the work order fields based on the homeowner's description, then call this tool. The tool returns formatted text the user can copy or share with contractors.`,
-    input_schema: {
+    parameters: {
       type: "object" as const,
       properties: {
         service_type: {
@@ -201,7 +204,7 @@ YOU compose all the work order fields based on the homeowner's description, then
 
 Use this when the user wants to find a vetted contractor for upcoming work.
 Returns up to 3 contractors sorted by trust score. After showing results, offer to open a quote request.`,
-    input_schema: {
+    parameters: {
       type: "object" as const,
       properties: {
         service_type: {
@@ -220,7 +223,7 @@ Returns up to 3 contractors sorted by trust score. After showing results, offer 
 DIY jobs are verified by homeowner signature alone.
 Contractor jobs require both homeowner AND contractor to sign.
 Use this when the user explicitly confirms they want to verify a specific job.`,
-    input_schema: {
+    parameters: {
       type: "object" as const,
       properties: {
         job_id: {
@@ -239,7 +242,7 @@ Use this when the user explicitly confirms they want to verify a specific job.`,
 Use this when the user wants to plan ahead for a known upcoming maintenance need — e.g. "remind me to replace the roof in 2026" or "schedule HVAC service for next spring".
 
 Always confirm the system name, year, and property before calling this tool.`,
-    input_schema: {
+    parameters: {
       type: "object" as const,
       properties: {
         property_id: {
@@ -285,7 +288,7 @@ This is computed from the property's year built, job history, and local climate 
 Call with system_name for a focused response. Omit system_name to return the top urgent items.
 
 After returning Critical or Soon predictions, offer to schedule a maintenance task or open a quote request.`,
-    input_schema: {
+    parameters: {
       type: "object" as const,
       properties: {
         system_name: {
@@ -307,7 +310,7 @@ The quote request ID is shown in the open quote requests section of context.
 
 Returns top 3 bids with contractor name, trust score, price, and timeline.
 After listing, offer to accept the best bid or close the request.`,
-    input_schema: {
+    parameters: {
       type: "object" as const,
       properties: {
         request_id: {
@@ -327,7 +330,7 @@ Use this when the user confirms they want to hire a specific contractor from the
 ALWAYS confirm with the user before calling: "Just to confirm — you'd like to accept [contractor name]'s bid of $[amount]?"
 
 The quote_id comes from the list_bids result, not the request ID.`,
-    input_schema: {
+    parameters: {
       type: "object" as const,
       properties: {
         quote_id: {
@@ -346,7 +349,7 @@ The quote_id comes from the list_bids result, not the request ID.`,
 Use this when the user says "cancel this request", "I don't need this anymore", or "close the quote".
 Ask for a brief reason (optional) and confirm before calling.
 After closing: "Done — all pending bids have been declined and the request is closed."`,
-    input_schema: {
+    parameters: {
       type: "object" as const,
       properties: {
         request_id: {
@@ -369,7 +372,7 @@ Before calling this tool, confirm:
 - Expiry: ask "Would you like the link to expire? If so, how many days?" — omit for no expiry
 
 After returning the URL, say: "Here's your share link — copy it and send it directly to your realtor or buyer."`,
-    input_schema: {
+    parameters: {
       type: "object" as const,
       properties: {
         property_id: {
@@ -400,7 +403,7 @@ Two modes:
 
 Always list first, then confirm with the user before revoking.
 After revoking: "Done — that link can no longer be accessed by anyone."`,
-    input_schema: {
+    parameters: {
       type: "object" as const,
       properties: {
         list_links_for_property: {
@@ -432,7 +435,7 @@ If the user agrees:
 
 Do NOT call this tool without explicit user consent.
 Rate-limit errors (10 reviews/day) should be communicated gracefully: "You've already submitted several reviews today — you can add this one tomorrow."`,
-    input_schema: {
+    parameters: {
       type: "object" as const,
       properties: {
         contractor_principal: {
@@ -463,7 +466,7 @@ Rate-limit errors (10 reviews/day) should be communicated gracefully: "You've al
 Use this when the contractor asks "what jobs are available?", "any new leads?", or "show me open requests".
 Returns up to 5 matching requests with request IDs, service type, urgency, and description.
 After listing, offer to help submit a bid on any of the shown requests.`,
-    input_schema: {
+    parameters: {
       type: "object" as const,
       properties: {},
       required: [],
@@ -477,7 +480,7 @@ After listing, offer to help submit a bid on any of the shown requests.`,
 Use this when the contractor wants to bid on a job shown in list_leads.
 ALWAYS confirm before calling: "Just to confirm — you'd like to bid $[amount] with a [X]-day timeline?"
 After success: "Done — your bid has been submitted. I'll let you know when the homeowner responds."`,
-    input_schema: {
+    parameters: {
       type: "object" as const,
       properties: {
         request_id: {
@@ -502,7 +505,7 @@ After success: "Done — your bid has been submitted. I'll let you know when the
     description: `Return the contractor's earnings summary: verified job count, total earned, and jobs in progress.
 
 Use this when the contractor asks "how much have I earned?", "how many jobs have I done?", or "what's my income?"`,
-    input_schema: {
+    parameters: {
       type: "object" as const,
       properties: {},
       required: [],
@@ -513,7 +516,7 @@ Use this when the contractor asks "how much have I earned?", "how many jobs have
     name: "update_job_status",
     description: `Update the status of an existing maintenance job.
 Use this to mark a job as in-progress or completed based on what the user tells you.`,
-    input_schema: {
+    parameters: {
       type: "object" as const,
       properties: {
         job_id: {
@@ -539,7 +542,7 @@ Use this when the user asks "what's my score?", "how am I doing?", "why is my sc
 
 After returning the score, briefly explain the top contributing factor in plain English.
 If the score is below 70, suggest one specific action to improve it.`,
-    input_schema: {
+    parameters: {
       type: "object" as const,
       properties: {
         property_id: {
@@ -560,7 +563,7 @@ The agent cannot capture photos directly — use this tool to hand off to the ca
 After returning the deep link, say: "Tap that link to open the camera and add photos directly to this job."
 
 Use this when the user wants to attach a photo, receipt image, or documentation to a specific job.`,
-    input_schema: {
+    parameters: {
       type: "object" as const,
       properties: {
         job_id: {
@@ -580,7 +583,7 @@ Use this when the user asks "how much does roofing cost?", "what's a fair price 
 
 Returns low, median, and high estimates based on closed HomeFax bids in that zip code.
 If fewer than 5 bids are on file, tell the user there isn't enough local data yet and fall back to national averages from context.`,
-    input_schema: {
+    parameters: {
       type: "object" as const,
       properties: {
         service_type: {

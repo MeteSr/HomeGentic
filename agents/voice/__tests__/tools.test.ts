@@ -1,18 +1,56 @@
-import { HOMEFAX_TOOLS } from "../tools";
+/**
+ * HOMEFAX_TOOLS schema tests.
+ *
+ * AI.5 — HOMEFAX_TOOLS now uses the normalized ToolDefinition type
+ *         (parameters instead of input_schema). AnthropicProvider.toAnthropicTools()
+ *         is responsible for converting to Anthropic wire format.
+ *
+ * Pre-existing regression guards are retained; only the accessor helpers
+ * have been updated from .input_schema → .parameters.
+ */
 
-function getTool(name: string) {
+import { HOMEFAX_TOOLS } from "../tools";
+import type { ToolDefinition } from "../provider";
+
+function getTool(name: string): ToolDefinition {
   const t = HOMEFAX_TOOLS.find((t) => t.name === name);
   if (!t) throw new Error(`Tool "${name}" not found in HOMEFAX_TOOLS`);
   return t;
 }
 
 function getRequired(name: string): string[] {
-  return (getTool(name).input_schema as any).required ?? [];
+  return getTool(name).parameters.required ?? [];
 }
 
 function getProperties(name: string): Record<string, any> {
-  return (getTool(name).input_schema as any).properties ?? {};
+  return getTool(name).parameters.properties ?? {};
 }
+
+// ── AI.5: HOMEFAX_TOOLS uses normalized ToolDefinition ────────────────────────
+
+describe("AI.5 — HOMEFAX_TOOLS normalized schema", () => {
+  it("every tool has parameters (not input_schema)", () => {
+    for (const tool of HOMEFAX_TOOLS) {
+      expect(tool).toHaveProperty("parameters");
+      expect(tool).not.toHaveProperty("input_schema");
+    }
+  });
+
+  it("every tool's parameters.type is 'object'", () => {
+    for (const tool of HOMEFAX_TOOLS) {
+      expect(tool.parameters.type).toBe("object");
+    }
+  });
+
+  it("every tool has a non-empty name and description", () => {
+    for (const tool of HOMEFAX_TOOLS) {
+      expect(typeof tool.name).toBe("string");
+      expect(tool.name.length).toBeGreaterThan(0);
+      expect(typeof tool.description).toBe("string");
+      expect(tool.description.length).toBeGreaterThan(0);
+    }
+  });
+});
 
 // ── Existing tools — regression guard ────────────────────────────────────────
 

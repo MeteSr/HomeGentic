@@ -2,10 +2,11 @@ import "dotenv/config";
 import express, { Request, Response } from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
-import Anthropic from "@anthropic-ai/sdk";
 import { buildSystemPrompt } from "./prompts";
 import { buildMaintenanceSystemPrompt } from "../maintenance/prompts";
 import { HOMEFAX_TOOLS } from "./tools";
+import { resolveModel, PROVIDER_JSON_ERROR } from "./provider";
+import { createAnthropicProvider } from "./anthropicProvider";
 import { parseForecastQueryParams, estimateSystems, computeTenYearBudget } from "./forecast";
 import type { ChatRequest } from "./types";
 import type { MaintenanceContext } from "../maintenance/prompts";
@@ -36,9 +37,8 @@ const apiLimiter = rateLimit({
 });
 app.use("/api/", apiLimiter);
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+const provider = createAnthropicProvider();
+const MODEL    = resolveModel();
 
 // ── POST /api/chat ────────────────────────────────────────────────────────────
 // Accepts { message, context }, streams Claude's response as SSE.
@@ -58,20 +58,12 @@ app.post("/api/chat", async (req: Request, res: Response): Promise<void> => {
   res.flushHeaders();
 
   try {
-    const stream = anthropic.messages.stream({
-      model: "claude-sonnet-4-6",
-      max_tokens: 200, // ~150 words — right for voice
-      system: buildSystemPrompt(context ?? { properties: [], recentJobs: [] }),
-      messages: [{ role: "user", content: message.trim() }],
-    });
-
-    for await (const event of stream) {
-      if (
-        event.type === "content_block_delta" &&
-        event.delta.type === "text_delta"
-      ) {
-        res.write(`data: ${JSON.stringify({ text: event.delta.text })}\n\n`);
-      }
+    for await (const chunk of provider.stream({
+      system:    buildSystemPrompt(context ?? { properties: [], recentJobs: [] }),
+      messages:  [{ role: "user", content: message.trim() }],
+      maxTokens: 200, // ~150 words — right for voice
+    })) {
+      res.write(`data: ${JSON.stringify({ text: chunk.text })}\n\n`);
     }
 
     res.write("data: [DONE]\n\n");
@@ -84,7 +76,7 @@ app.post("/api/chat", async (req: Request, res: Response): Promise<void> => {
 });
 
 // ── POST /api/agent ───────────────────────────────────────────────────────────
-// Agentic endpoint: runs one turn of the Claude tool-use loop.
+// Agentic endpoint: runs one turn of the AI agent tool-use loop.
 // Caller maintains conversation history and executes tool calls in the browser.
 //
 // Request:  { messages: MessageParam[], context: AgentContext }
@@ -99,37 +91,20 @@ app.post("/api/agent", async (req: Request, res: Response): Promise<void> => {
   }
 
   try {
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 1024,
-      system: buildSystemPrompt(context ?? { properties: [], recentJobs: [] }),
-      tools: HOMEFAX_TOOLS,
+    const result = await provider.completeWithTools({
+      system:    buildSystemPrompt(context ?? { properties: [], recentJobs: [] }),
+      tools:     HOMEFAX_TOOLS,
       messages,
+      maxTokens: 1024,
     });
 
-    const toolUseBlocks = response.content.filter(
-      (b): b is Anthropic.Messages.ToolUseBlock => b.type === "tool_use"
-    );
-
-    if (toolUseBlocks.length > 0) {
+    if (result.type === "tool_calls") {
       // Return tool calls to the frontend for execution under the user's identity
-      res.json({
-        type: "tool_calls",
-        assistantMessage: { role: "assistant", content: response.content },
-        toolCalls: toolUseBlocks.map((b) => ({
-          id: b.id,
-          name: b.name,
-          input: b.input,
-        })),
-      });
+      res.json(result);
       return;
     }
 
-    // Final answer — extract text
-    const textBlock = response.content.find(
-      (b): b is Anthropic.Messages.TextBlock => b.type === "text"
-    );
-    res.json({ type: "answer", text: textBlock?.text ?? "" });
+    res.json(result);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     res.status(500).json({ error: msg });
@@ -154,20 +129,12 @@ app.post("/api/maintenance/chat", async (req: Request, res: Response): Promise<v
   res.flushHeaders();
 
   try {
-    const stream = anthropic.messages.stream({
-      model: "claude-sonnet-4-6",
-      max_tokens: 512,
-      system: buildMaintenanceSystemPrompt(context ?? { yearBuilt: 2000 }),
-      messages: [{ role: "user", content: message.trim() }],
-    });
-
-    for await (const event of stream) {
-      if (
-        event.type === "content_block_delta" &&
-        event.delta.type === "text_delta"
-      ) {
-        res.write(`data: ${JSON.stringify({ text: event.delta.text })}\n\n`);
-      }
+    for await (const chunk of provider.stream({
+      system:    buildMaintenanceSystemPrompt(context ?? { yearBuilt: 2000 }),
+      messages:  [{ role: "user", content: message.trim() }],
+      maxTokens: 512,
+    })) {
+      res.write(`data: ${JSON.stringify({ text: chunk.text })}\n\n`);
     }
 
     res.write("data: [DONE]\n\n");
@@ -225,11 +192,9 @@ JSON shape:
 }`;
 
   try {
-    const response = await anthropic.messages.create({
-      model:      "claude-sonnet-4-6",
-      max_tokens: 512,
-      system:     systemPrompt,
-      messages: [{
+    const text = await provider.complete({
+      system:    systemPrompt,
+      messages:  [{
         role: "user",
         content: [{
           type:   "image",
@@ -239,16 +204,12 @@ JSON shape:
           text: `File name: ${fileName}\nClassify this home document.`,
         }],
       }],
+      maxTokens: 512,
     });
-
-    const text = response.content
-      .filter((b): b is Anthropic.Messages.TextBlock => b.type === "text")
-      .map((b) => b.text)
-      .join("");
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      res.status(500).json({ error: "Claude did not return valid JSON" });
+      res.status(500).json({ error: PROVIDER_JSON_ERROR });
       return;
     }
     const result = JSON.parse(jsonMatch[0]);
@@ -314,21 +275,15 @@ app.post("/api/pulse", async (req: Request, res: Response): Promise<void> => {
   ].filter(Boolean).join("\n");
 
   try {
-    const response = await anthropic.messages.create({
-      model:      "claude-sonnet-4-6",
-      max_tokens: 1024,
-      messages:   [{ role: "user", content: prompt }],
+    const text = await provider.complete({
+      messages:  [{ role: "user", content: prompt }],
+      maxTokens: 1024,
     });
 
-    const text = response.content
-      .filter((b): b is Anthropic.Messages.TextBlock => b.type === "text")
-      .map((b) => b.text)
-      .join("");
-
-    // Extract JSON from response (Claude may add brief preamble despite instructions)
+    // Extract JSON (provider may add brief preamble despite instructions)
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      res.status(500).json({ error: "Claude did not return valid JSON" });
+      res.status(500).json({ error: PROVIDER_JSON_ERROR });
       return;
     }
     res.json(JSON.parse(jsonMatch[0]));
@@ -389,21 +344,15 @@ Rules:
   ].join("\n");
 
   try {
-    const response = await anthropic.messages.create({
-      model:      "claude-sonnet-4-6",
-      max_tokens: 512,
-      system:     systemPrompt,
-      messages:   [{ role: "user", content: userMsg }],
+    const text = await provider.complete({
+      system:    systemPrompt,
+      messages:  [{ role: "user", content: userMsg }],
+      maxTokens: 512,
     });
-
-    const text = response.content
-      .filter((b): b is Anthropic.Messages.TextBlock => b.type === "text")
-      .map((b) => b.text)
-      .join("");
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      res.status(500).json({ error: "Claude did not return valid JSON" });
+      res.status(500).json({ error: PROVIDER_JSON_ERROR });
       return;
     }
     const result = JSON.parse(jsonMatch[0]);
@@ -656,7 +605,7 @@ app.get("/api/price-benchmark", (req: Request, res: Response): void => {
 
 // ── GET /health ───────────────────────────────────────────────────────────────
 app.get("/health", (_req, res) => {
-  res.json({ ok: true, model: "claude-sonnet-4-6" });
+  res.json({ ok: true, model: MODEL });
 });
 
 app.listen(port, () => {
