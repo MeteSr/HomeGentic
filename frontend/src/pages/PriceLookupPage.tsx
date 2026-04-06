@@ -14,34 +14,24 @@ import {
   buildPriceLookupUrl,
   type PriceBenchmarkResult,
 } from "@/services/priceBenchmark";
-import { COLORS, FONTS } from "@/theme";
+import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { PublicNav } from "@/components/PublicNav";
+import { PublicFooter } from "@/components/PublicFooter";
 
 const SERVICE_TYPES = ["HVAC", "Roofing", "Plumbing", "Electrical", "Flooring", "Painting", "Landscaping", "Windows", "Foundation", "Other"];
 
 const S = {
-  ink:      COLORS.plum,
-  inkLight: COLORS.plumMid,
-  rule:     COLORS.rule,
-  sage:     COLORS.sage,
-  serif:    FONTS.serif,
-  mono:     FONTS.mono,
-  sans:     FONTS.sans,
+  ink:       COLORS.plum,
+  inkLight:  COLORS.plumMid,
+  rule:      COLORS.rule,
+  sage:      COLORS.sage,
+  sageLight: COLORS.sageLight,
+  sageMid:   COLORS.sageMid,
+  butter:    COLORS.butter,
+  serif:     FONTS.serif,
+  mono:      FONTS.mono,
+  sans:      FONTS.sans,
 };
-
-// ── TopBar ────────────────────────────────────────────────────────────────────
-
-function TopBar() {
-  return (
-    <div style={{ borderBottom: `1px solid ${S.rule}`, padding: "0.875rem 1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-      <Link to="/" style={{ fontFamily: S.mono, fontSize: "0.7rem", letterSpacing: "0.14em", textTransform: "uppercase", color: S.ink, textDecoration: "none", fontWeight: 700 }}>
-        HomeGentic
-      </Link>
-      <Link to="/login" style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, textDecoration: "none" }}>
-        Sign in
-      </Link>
-    </div>
-  );
-}
 
 // ── Search form ───────────────────────────────────────────────────────────────
 
@@ -52,55 +42,75 @@ function SearchForm({ defaultService = "", defaultZip = "" }: { defaultService?:
   const href = zip.trim() ? buildPriceLookupUrl(service, zip.trim()) : "#";
 
   return (
-    <div style={{ maxWidth: "32rem", margin: "4rem auto", padding: "0 1.5rem" }}>
-      <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.sage, marginBottom: "0.5rem" }}>
-        Price Intelligence
-      </div>
-      <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "clamp(1.5rem,4vw,2rem)", lineHeight: 1.1, color: S.ink, marginBottom: "1.5rem" }}>
-        Home repair cost lookup
-      </h1>
+    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "3rem 1.5rem" }}>
+      <div style={{ width: "100%", maxWidth: "34rem" }}>
+        {/* Eyebrow */}
+        <div style={{ display: "inline-flex", alignItems: "center", background: S.butter, color: S.ink, padding: "5px 16px", borderRadius: RADIUS.pill, fontSize: "0.75rem", fontWeight: 600, marginBottom: "1.25rem", border: `1px solid rgba(46,37,64,0.1)`, fontFamily: S.sans }}>
+          Price Intelligence
+        </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-        <label style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
-          <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
-            Service Type
-          </span>
-          <select
-            aria-label="service type"
-            value={service}
-            onChange={(e) => setService(e.target.value)}
-            style={{ padding: "0.625rem 0.875rem", border: `1px solid ${S.rule}`, fontFamily: S.sans, fontSize: "0.9rem", outline: "none", background: COLORS.white }}
+        <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "clamp(1.75rem, 4vw, 2.5rem)", lineHeight: 1.1, color: S.ink, marginBottom: "0.75rem" }}>
+          Home repair cost lookup
+        </h1>
+        <p style={{ fontFamily: S.sans, fontSize: "0.9375rem", color: S.inkLight, marginBottom: "2.5rem", lineHeight: 1.7, fontWeight: 300 }}>
+          See real price benchmarks from closed bids in your zip code before you hire.
+        </p>
+
+        <div style={{ background: COLORS.white, border: `1px solid ${S.rule}`, borderRadius: RADIUS.card, padding: "2rem", boxShadow: SHADOWS.card, display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+            <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
+              Service Type
+            </span>
+            <select
+              aria-label="service type"
+              value={service}
+              onChange={(e) => setService(e.target.value)}
+              style={{
+                padding: "0.75rem 1rem", border: `1px solid ${S.rule}`,
+                borderRadius: RADIUS.input, fontFamily: S.sans, fontSize: "0.9375rem",
+                outline: "none", background: COLORS.white, color: S.ink,
+              }}
+            >
+              {SERVICE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </label>
+
+          <label style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+            <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
+              Zip Code
+            </span>
+            <input
+              aria-label="zip code"
+              type="text"
+              value={zip}
+              onChange={(e) => setZip(e.target.value)}
+              placeholder="32114"
+              maxLength={10}
+              style={{
+                padding: "0.75rem 1rem", border: `1px solid ${S.rule}`,
+                borderRadius: RADIUS.input, fontFamily: S.sans, fontSize: "0.9375rem",
+                outline: "none", background: COLORS.white, color: S.ink,
+              }}
+            />
+          </label>
+
+          <Link
+            to={href}
+            style={{
+              padding: "0.875rem", background: zip.trim() ? S.ink : S.rule, color: COLORS.white,
+              textDecoration: "none", borderRadius: RADIUS.pill,
+              fontFamily: S.sans, fontSize: "0.9375rem", fontWeight: 600,
+              textAlign: "center", pointerEvents: zip.trim() ? "auto" : "none",
+              transition: "background 0.15s",
+            }}
           >
-            {SERVICE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </label>
+            Look Up Prices
+          </Link>
+        </div>
 
-        <label style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
-          <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
-            Zip Code
-          </span>
-          <input
-            aria-label="zip code"
-            type="text"
-            value={zip}
-            onChange={(e) => setZip(e.target.value)}
-            placeholder="32114"
-            maxLength={10}
-            style={{ padding: "0.625rem 0.875rem", border: `1px solid ${S.rule}`, fontFamily: S.sans, fontSize: "0.9rem", outline: "none" }}
-          />
-        </label>
-
-        <Link
-          to={href}
-          style={{
-            padding: "0.75rem", background: zip.trim() ? S.ink : S.rule, color: COLORS.white,
-            textDecoration: "none", fontFamily: S.mono, fontSize: "0.7rem", letterSpacing: "0.12em",
-            textTransform: "uppercase", textAlign: "center",
-            pointerEvents: zip.trim() ? "auto" : "none",
-          }}
-        >
-          Look Up Prices
-        </Link>
+        <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight, textAlign: "center", marginTop: "1.25rem" }}>
+          FREE · NO ACCOUNT REQUIRED
+        </p>
       </div>
     </div>
   );
@@ -110,7 +120,7 @@ function SearchForm({ defaultService = "", defaultZip = "" }: { defaultService?:
 
 function LoadingState() {
   return (
-    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
+    <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center" }}>
       <div role="status" aria-label="loading" className="spinner-lg" />
     </div>
   );
@@ -123,32 +133,49 @@ function BenchmarkResult({ result, service, zip }: { result: PriceBenchmarkResul
   const sufficient = hasSufficientSamples(result);
 
   return (
-    <div style={{ maxWidth: "36rem", margin: "3rem auto", padding: "0 1.5rem" }}>
-      <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.sage, marginBottom: "0.5rem" }}>
+    <div style={{ flex: 1, maxWidth: "40rem", margin: "0 auto", padding: "3rem 1.5rem", width: "100%" }}>
+      {/* Eyebrow */}
+      <div style={{ display: "inline-flex", alignItems: "center", background: S.butter, color: S.ink, padding: "5px 16px", borderRadius: RADIUS.pill, fontSize: "0.75rem", fontWeight: 600, marginBottom: "1.25rem", border: `1px solid rgba(46,37,64,0.1)`, fontFamily: S.sans }}>
         Price Benchmark · {zip}
       </div>
-      <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1.1, color: S.ink, marginBottom: "1.5rem" }}>
+
+      <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "clamp(1.5rem, 4vw, 2rem)", lineHeight: 1.1, color: S.ink, marginBottom: "2rem" }}>
         {service} in {zip}
       </h1>
 
       {!sufficient ? (
-        <div style={{ padding: "1.5rem", border: `1px solid ${S.rule}` }}>
-          <p style={{ fontFamily: S.sans, fontSize: "0.9rem", color: S.inkLight }}>
+        <div style={{ padding: "1.75rem", border: `1px solid ${S.rule}`, borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
+          <p style={{ fontFamily: S.sans, fontSize: "0.9375rem", color: S.inkLight, lineHeight: 1.7, fontWeight: 300 }}>
             Not enough data — fewer than 5 closed bids on file for this zip code and service type.
           </p>
         </div>
       ) : (
-        <div style={{ padding: "1.5rem", border: `1px solid ${S.rule}`, display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem" }}>
-            <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "2rem", color: S.ink }}>{fmt(result.low)}</span>
-            <span style={{ fontFamily: S.mono, fontSize: "0.8rem", color: S.inkLight }}>–</span>
-            <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "2rem", color: S.ink }}>{fmt(result.high)}</span>
+        <div style={{ border: `1px solid ${S.rule}`, borderRadius: RADIUS.card, overflow: "hidden", boxShadow: SHADOWS.card }}>
+          {/* Price range */}
+          <div style={{ padding: "2rem", background: S.sageLight, borderBottom: `1px solid ${S.sageMid}` }}>
+            <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.75rem" }}>
+              Typical Range
+            </p>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "0.625rem" }}>
+              <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "2.25rem", color: S.ink }}>{fmt(result.low)}</span>
+              <span style={{ fontFamily: S.mono, fontSize: "1rem", color: S.inkLight }}>–</span>
+              <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "2.25rem", color: S.ink }}>{fmt(result.high)}</span>
+            </div>
           </div>
-          <div style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight }}>
-            Median: {fmt(result.median)}
-          </div>
-          <div style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight }}>
-            Based on {result.sampleSize} closed bids · Last updated {result.lastUpdated}
+          {/* Median & meta */}
+          <div style={{ padding: "1.25rem 2rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>MEDIAN</span>
+              <span style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.25rem", color: S.ink }}>{fmt(result.median)}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight }}>SAMPLE SIZE</span>
+              <span style={{ fontFamily: S.mono, fontSize: "0.75rem", color: S.inkLight }}>{result.sampleSize} bids</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight }}>LAST UPDATED</span>
+              <span style={{ fontFamily: S.mono, fontSize: "0.75rem", color: S.inkLight }}>{result.lastUpdated}</span>
+            </div>
           </div>
         </div>
       )}
@@ -172,8 +199,8 @@ export default function PriceLookupPage() {
   const service = searchParams.get("service") ?? "";
   const zip     = searchParams.get("zip") ?? "";
 
-  const [result,  setResult]  = useState<PriceBenchmarkResult | null | undefined>(undefined);
-  const [loading, setLoading] = useState(false);
+  const [result,   setResult]   = useState<PriceBenchmarkResult | null | undefined>(undefined);
+  const [loading,  setLoading]  = useState(false);
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
@@ -189,35 +216,37 @@ export default function PriceLookupPage() {
       .finally(() => setLoading(false));
   }, [service, zip]);
 
+  const showForm   = !service || !zip;
+  const showResult = service && zip && !loading && result !== undefined && result !== null;
+  const showNoData = service && zip && !loading && notFound;
+
   return (
-    <div style={{ minHeight: "100vh", background: COLORS.white }}>
-      <TopBar />
+    <div style={{ minHeight: "100vh", background: COLORS.white, display: "flex", flexDirection: "column" }}>
+      <PublicNav />
 
-      {/* No params — show search form */}
-      {(!service || !zip) && <SearchForm defaultService={service} defaultZip={zip} />}
-
-      {/* Loading */}
+      {showForm && <SearchForm defaultService={service} defaultZip={zip} />}
       {service && zip && loading && <LoadingState />}
 
-      {/* No data from relay */}
-      {service && zip && !loading && notFound && (
-        <div style={{ maxWidth: "36rem", margin: "3rem auto", padding: "0 1.5rem" }}>
-          <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.5rem", color: S.ink, marginBottom: "1rem" }}>
+      {showNoData && (
+        <div style={{ flex: 1, maxWidth: "40rem", margin: "0 auto", padding: "3rem 1.5rem", width: "100%" }}>
+          <div style={{ display: "inline-flex", alignItems: "center", background: S.butter, color: S.ink, padding: "5px 16px", borderRadius: RADIUS.pill, fontSize: "0.75rem", fontWeight: 600, marginBottom: "1.25rem", border: `1px solid rgba(46,37,64,0.1)`, fontFamily: S.sans }}>
+            No Data
+          </div>
+          <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "clamp(1.5rem, 4vw, 2rem)", color: S.ink, marginBottom: "1rem" }}>
             {service} in {zip}
           </h1>
-          <p style={{ fontFamily: S.sans, fontSize: "0.9rem", color: S.inkLight }}>
-            No data available for this combination.
+          <p style={{ fontFamily: S.sans, fontSize: "0.9375rem", color: S.inkLight, lineHeight: 1.7, fontWeight: 300, marginBottom: "1.5rem" }}>
+            No pricing data available for this combination yet.
           </p>
-          <Link to="/prices" style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, textDecoration: "none", marginTop: "1.5rem", display: "inline-block" }}>
+          <Link to="/prices" style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, textDecoration: "none" }}>
             ← Search another
           </Link>
         </div>
       )}
 
-      {/* Result */}
-      {service && zip && !loading && result !== undefined && result !== null && (
-        <BenchmarkResult result={result} service={service} zip={zip} />
-      )}
+      {showResult && <BenchmarkResult result={result} service={service} zip={zip} />}
+
+      <PublicFooter />
     </div>
   );
 }
