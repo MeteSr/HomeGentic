@@ -16,10 +16,13 @@ vi.mock("@/services/job", () => ({
   },
 }));
 
-const RELAY_PERMITS = [
-  { permitNumber: "2020-ROOF-01", permitType: "Roofing Permit",    description: "Shingle replacement", issuedDate: "2020-05-10", status: "Finaled" },
-  { permitNumber: "2021-ELEC-02", permitType: "Electrical Permit", description: "Panel upgrade",        issuedDate: "2021-06-15", status: "Finaled", estimatedValueCents: 350000, contractorName: "Bright Spark" },
-];
+vi.mock("@/services/aiProxy", () => ({
+  aiProxyService: {
+    importPermits: vi.fn(),
+  },
+}));
+
+import { aiProxyService } from "@/services/aiProxy";
 
 import { jobService } from "@/services/job";
 
@@ -92,9 +95,15 @@ describe("triggerPermitImport", () => {
   });
 
   it("returns imported count and permits for a supported city", async () => {
-    global.fetch = vi.fn().mockResolvedValueOnce({
-      ok: true, json: async () => ({ permits: RELAY_PERMITS }),
-    } as any);
+    vi.mocked(aiProxyService.importPermits).mockResolvedValueOnce(
+      JSON.stringify({
+        source: "openpermit",
+        data: { results: [
+          { permit_number: "2020-ROOF-01", permit_type: "Roofing Permit",    description: "Shingle replacement", issued_date: "2020-05-10", status: "Finaled" },
+          { permit_number: "2021-ELEC-02", permit_type: "Electrical Permit", description: "Panel upgrade",        issued_date: "2021-06-15", status: "Finaled", estimated_value: 3500, contractor_name: "Bright Spark" },
+        ]},
+      })
+    );
 
     const result = await triggerPermitImport({
       id: "prop-1", address: "456 Oak Ave", city: "Daytona Beach", state: "FL", zipCode: "32114",
@@ -104,9 +113,15 @@ describe("triggerPermitImport", () => {
   });
 
   it("does NOT auto-create jobs — returns permits for review", async () => {
-    global.fetch = vi.fn().mockResolvedValueOnce({
-      ok: true, json: async () => ({ permits: RELAY_PERMITS }),
-    } as any);
+    vi.mocked(aiProxyService.importPermits).mockResolvedValueOnce(
+      JSON.stringify({
+        source: "openpermit",
+        data: { results: [
+          { permit_number: "2020-ROOF-01", permit_type: "Roofing Permit", description: "Shingle replacement", issued_date: "2020-05-10", status: "Finaled" },
+          { permit_number: "2021-ELEC-02", permit_type: "Electrical Permit", description: "Panel upgrade", issued_date: "2021-06-15", status: "Finaled" },
+        ]},
+      })
+    );
 
     await triggerPermitImport({
       id: "prop-1", address: "456 Oak Ave", city: "Daytona Beach", state: "FL", zipCode: "32114",
@@ -115,9 +130,15 @@ describe("triggerPermitImport", () => {
   });
 
   it("returns the raw permits for the review UI", async () => {
-    global.fetch = vi.fn().mockResolvedValueOnce({
-      ok: true, json: async () => ({ permits: RELAY_PERMITS }),
-    } as any);
+    vi.mocked(aiProxyService.importPermits).mockResolvedValueOnce(
+      JSON.stringify({
+        source: "openpermit",
+        data: { results: [
+          { permit_number: "2020-ROOF-01", permit_type: "Roofing Permit", description: "Shingle replacement", issued_date: "2020-05-10", status: "Finaled" },
+          { permit_number: "2021-ELEC-02", permit_type: "Electrical Permit", description: "Panel upgrade", issued_date: "2021-06-15", status: "Finaled" },
+        ]},
+      })
+    );
 
     const result = await triggerPermitImport({
       id: "prop-1", address: "456 Oak Ave", city: "Daytona Beach", state: "FL", zipCode: "32114",

@@ -5,7 +5,7 @@
  *   - mapPermitTypeToServiceType  → permit type string → HomeGentic service type
  *   - permitToJobInput            → OpenPermitRecord → Job create input
  *   - isPermitDataAvailable       → city+state coverage check
- *   - importPermitsForProperty    → async import with mocked relay fetch
+ *   - importPermitsForProperty    → async import with mocked ai_proxy canister
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -17,6 +17,14 @@ import {
   type OpenPermitRecord,
   type PermitImportResult,
 } from "@/services/permitImport";
+
+vi.mock("@/services/aiProxy", () => ({
+  aiProxyService: {
+    importPermits: vi.fn(),
+  },
+}));
+
+import { aiProxyService } from "@/services/aiProxy";
 
 // ── mapPermitTypeToServiceType ────────────────────────────────────────────────
 
@@ -155,34 +163,38 @@ describe("isPermitDataAvailable", () => {
   });
 });
 
-// ── importPermitsForProperty ──────────────────────────────────────────────────
+// ── importPermitsForProperty ─────────────────────────────��────────────────────
+//
+// The canister returns a JSON string: { source: "openpermit", data: { results: [...] } }
+// mapCanisterResponse maps data.results[].permit_type / permit_number / etc.
 
-const MOCK_RELAY_RESPONSE = {
-  permits: [
-    {
-      permitNumber:         "2019-ROOF-0045",
-      permitType:           "Roofing Permit",
-      description:          "Shingle replacement",
-      issuedDate:           "2019-04-10",
-      status:               "Finaled",
-      estimatedValueCents:  220_000,
-      contractorName:       "Top Notch Roofing",
-    },
-    {
-      permitNumber:         "2021-ELEC-00123",
-      permitType:           "Electrical Permit",
-      description:          "Panel upgrade",
-      issuedDate:           "2021-06-15",
-      status:               "Finaled",
-      estimatedValueCents:  350_000,
-    },
-  ],
-};
+const MOCK_CANISTER_RESPONSE = JSON.stringify({
+  source: "openpermit",
+  data: {
+    results: [
+      {
+        permit_number:   "2019-ROOF-0045",
+        permit_type:     "Roofing Permit",
+        description:     "Shingle replacement",
+        issued_date:     "2019-04-10",
+        status:          "Finaled",
+        estimated_value: 2200,
+        contractor_name: "Top Notch Roofing",
+      },
+      {
+        permit_number:   "2021-ELEC-00123",
+        permit_type:     "Electrical Permit",
+        description:     "Panel upgrade",
+        issued_date:     "2021-06-15",
+        status:          "Finaled",
+        estimated_value: 3500,
+      },
+    ],
+  },
+});
 
 describe("importPermitsForProperty", () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
+  beforeEach(() => vi.restoreAllMocks());
 
   it("returns citySupported: false and empty permits when city not supported", async () => {
     const result = await importPermitsForProperty("prop-1", "123 Main St", "Smalltown", "WY", "82001");
@@ -191,33 +203,22 @@ describe("importPermitsForProperty", () => {
     expect(result.imported).toBe(0);
   });
 
-  it("fetches from the relay for a supported city", async () => {
-    global.fetch = vi.fn().mockResolvedValueOnce({
-      ok:   true,
-      json: async () => MOCK_RELAY_RESPONSE,
-    } as any);
+  it("calls aiProxyService.importPermits for a supported city", async () => {
+    vi.mocked(aiProxyService.importPermits).mockResolvedValueOnce(MOCK_CANISTER_RESPONSE);
 
     await importPermitsForProperty("prop-1", "456 Oak Ave", "Austin", "TX", "78701");
-    expect(global.fetch).toHaveBeenCalledOnce();
-    const [url] = (global.fetch as any).mock.calls[0];
-    expect(url).toContain("/api/permits/import");
+    expect(aiProxyService.importPermits).toHaveBeenCalledWith("456 Oak Ave", "Austin", "TX", "78701");
   });
 
   it("returns citySupported: true for a supported city", async () => {
-    global.fetch = vi.fn().mockResolvedValueOnce({
-      ok:   true,
-      json: async () => MOCK_RELAY_RESPONSE,
-    } as any);
+    vi.mocked(aiProxyService.importPermits).mockResolvedValueOnce(MOCK_CANISTER_RESPONSE);
 
     const result = await importPermitsForProperty("prop-1", "456 Oak Ave", "Austin", "TX", "78701");
     expect(result.citySupported).toBe(true);
   });
 
-  it("maps relay permits to ImportedPermit entries", async () => {
-    global.fetch = vi.fn().mockResolvedValueOnce({
-      ok:   true,
-      json: async () => MOCK_RELAY_RESPONSE,
-    } as any);
+  it("maps canister permits to ImportedPermit entries", async () => {
+    vi.mocked(aiProxyService.importPermits).mockResolvedValueOnce(MOCK_CANISTER_RESPONSE);
 
     const result = await importPermitsForProperty("prop-1", "456 Oak Ave", "Austin", "TX", "78701");
     expect(result.permits).toHaveLength(2);
@@ -226,48 +227,36 @@ describe("importPermitsForProperty", () => {
   });
 
   it("reports correct imported count", async () => {
-    global.fetch = vi.fn().mockResolvedValueOnce({
-      ok:   true,
-      json: async () => MOCK_RELAY_RESPONSE,
-    } as any);
+    vi.mocked(aiProxyService.importPermits).mockResolvedValueOnce(MOCK_CANISTER_RESPONSE);
 
     const result = await importPermitsForProperty("prop-1", "456 Oak Ave", "Austin", "TX", "78701");
     expect(result.imported).toBe(2);
   });
 
-  it("returns empty result when relay returns no permits", async () => {
-    global.fetch = vi.fn().mockResolvedValueOnce({
-      ok:   true,
-      json: async () => ({ permits: [] }),
-    } as any);
+  it("returns empty result when canister returns null", async () => {
+    vi.mocked(aiProxyService.importPermits).mockResolvedValueOnce(null);
 
     const result = await importPermitsForProperty("prop-1", "456 Oak Ave", "Austin", "TX", "78701");
     expect(result.imported).toBe(0);
     expect(result.permits).toHaveLength(0);
   });
 
-  it("throws when relay returns a non-OK response", async () => {
-    global.fetch = vi.fn().mockResolvedValueOnce({
-      ok:     false,
-      status: 503,
-    } as any);
+  it("returns empty result when canister returns no permits", async () => {
+    vi.mocked(aiProxyService.importPermits).mockResolvedValueOnce(
+      JSON.stringify({ source: "openpermit", data: { results: [] } })
+    );
 
-    await expect(
-      importPermitsForProperty("prop-1", "456 Oak Ave", "Austin", "TX", "78701")
-    ).rejects.toThrow();
+    const result = await importPermitsForProperty("prop-1", "456 Oak Ave", "Austin", "TX", "78701");
+    expect(result.imported).toBe(0);
+    expect(result.permits).toHaveLength(0);
   });
 
-  it("includes address in relay request body", async () => {
-    global.fetch = vi.fn().mockResolvedValueOnce({
-      ok:   true,
-      json: async () => ({ permits: [] }),
-    } as any);
+  it("returns citySupported: false when canister returns unsupported source", async () => {
+    vi.mocked(aiProxyService.importPermits).mockResolvedValueOnce(
+      JSON.stringify({ source: "unsupported", data: null })
+    );
 
-    await importPermitsForProperty("prop-1", "456 Oak Ave", "Austin", "TX", "78701");
-    const body = JSON.parse((global.fetch as any).mock.calls[0][1].body);
-    expect(body.address).toBe("456 Oak Ave");
-    expect(body.city).toBe("Austin");
-    expect(body.state).toBe("TX");
-    expect(body.zip).toBe("78701");
+    const result = await importPermitsForProperty("prop-1", "456 Oak Ave", "Austin", "TX", "78701");
+    expect(result.citySupported).toBe(false);
   });
 });
