@@ -290,3 +290,36 @@ echo ""
 echo "============================================"
 echo "  ✅ Report canister tests complete!"
 echo "============================================"
+
+# ─── §47 Trusted Canister (inter-canister whitelist) ─────────────────────────
+# report calls property.getVerificationLevel — so report's canister principal
+# must be in property's trusted list. These tests verify the report canister's
+# own trusted canister management (for any future callers) and document the
+# trust dependency on property.
+
+echo ""
+echo "── [19] addTrustedCanister on report — admin can add ────────────────────"
+MY_PRINCIPAL=$(dfx identity get-principal)
+if ! dfx identity list 2>/dev/null | grep -q "^canister-caller-test$"; then
+  dfx identity new canister-caller-test --disable-encryption 2>/dev/null || true
+fi
+CALLER_TEST_PRINCIPAL=$(dfx identity get-principal --identity canister-caller-test)
+dfx canister call report addTrustedCanister "(principal \"$CALLER_TEST_PRINCIPAL\")"
+echo "  ↳ addTrustedCanister succeeded — ✓"
+
+echo ""
+echo "── [20] getTrustedCanisters on report ───────────────────────────────────"
+dfx canister call report getTrustedCanisters | grep -q "$CALLER_TEST_PRINCIPAL" \
+  && echo "  ↳ principal present — ✓" \
+  || (echo "  ↳ ❌ principal NOT found"; exit 1)
+
+echo ""
+echo "── [21] removeTrustedCanister on report ─────────────────────────────────"
+dfx canister call report removeTrustedCanister "(principal \"$CALLER_TEST_PRINCIPAL\")"
+dfx canister call report getTrustedCanisters | grep -q "$CALLER_TEST_PRINCIPAL" \
+  && echo "  ↳ ❌ Principal still in list after removal" \
+  || echo "  ↳ Principal correctly removed — ✓"
+
+echo ""
+echo "  NOTE: report's own principal must be in property's trustedCanisters list"
+echo "  for getVerificationLevel cross-calls to succeed. Wired by deploy.sh."

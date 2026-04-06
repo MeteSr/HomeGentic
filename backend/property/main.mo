@@ -226,8 +226,9 @@ persistent actor Property {
   private var nextId     : Nat       = 1;
   private var isPaused          : Bool        = false;
   private var pauseExpiryNs     : ?Int        = null;
-  private var admins            : [Principal] = [];
-  private var adminInitialized  : Bool        = false;
+  private var admins                   : [Principal] = [];
+  private var adminInitialized         : Bool        = false;
+  private var trustedCanisterEntries   : [Principal] = [];
 
   /// Migration buffers — cleared after first upgrade with this code.
   private var propertyEntries        : [(Nat, Property)]              = [];
@@ -279,7 +280,7 @@ persistent actor Property {
   private let ONE_MINUTE_NS       : Int = 60_000_000_000;
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
-    if (isAdmin(caller)) return true;
+    if (isAdmin(caller) or isTrustedCanister(caller)) return true;
     let key = Principal.toText(caller);
     let now = Time.now();
     switch (Map.get(updateCallLimits, Text.compare, key)) {
@@ -294,6 +295,10 @@ persistent actor Property {
 
   private func isAdmin(caller: Principal) : Bool {
     Option.isSome(Array.find<Principal>(admins, func(a) { a == caller }))
+  };
+
+  private func isTrustedCanister(p: Principal) : Bool {
+    Option.isSome(Array.find<Principal>(trustedCanisterEntries, func(t) { t == p }))
   };
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
@@ -783,6 +788,26 @@ persistent actor Property {
     admins := Array.concat(admins, [newAdmin]);
     adminInitialized := true;
     #ok(())
+  };
+
+  /// Register a canister principal as trusted for inter-canister calls.
+  /// Trusted canisters (job, report) bypass per-principal rate limiting. Admin only.
+  public shared(msg) func addTrustedCanister(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (not isTrustedCanister(p)) {
+      trustedCanisterEntries := Array.concat(trustedCanisterEntries, [p]);
+    };
+    #ok(())
+  };
+
+  public shared(msg) func removeTrustedCanister(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    trustedCanisterEntries := Array.filter<Principal>(trustedCanisterEntries, func(t) { t != p });
+    #ok(())
+  };
+
+  public query func getTrustedCanisters() : async [Principal] {
+    trustedCanisterEntries
   };
 
   public shared(msg) func pause(durationSeconds: ?Nat) : async Result.Result<(), Error> {

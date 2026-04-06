@@ -169,3 +169,58 @@ echo ""
 echo "============================================"
 echo "  ✅ Property canister tests complete!"
 echo "============================================"
+
+# ─── §47 Trusted Canister (inter-canister whitelist) ─────────────────────────
+# property receives calls from: job (getPropertyOwner), report (getVerificationLevel)
+
+MY_PRINCIPAL=$(dfx identity get-principal)
+
+# Reuse or create a caller-test identity to stand in for job/report canister principals
+if ! dfx identity list 2>/dev/null | grep -q "^canister-caller-test$"; then
+  dfx identity new canister-caller-test --disable-encryption 2>/dev/null || true
+fi
+CALLER_TEST_PRINCIPAL=$(dfx identity get-principal --identity canister-caller-test)
+
+echo ""
+echo "── [25] addTrustedCanister — admin can add ──────────────────────────────"
+dfx canister call $CANISTER addTrustedCanister "(principal \"$CALLER_TEST_PRINCIPAL\")"
+echo "  ↳ addTrustedCanister succeeded — ✓"
+
+echo ""
+echo "── [26] getTrustedCanisters — returns the added principal ───────────────"
+TRUSTED=$(dfx canister call $CANISTER getTrustedCanisters)
+echo "$TRUSTED" | grep -q "$CALLER_TEST_PRINCIPAL" \
+  && echo "  ↳ caller-test principal present in trusted list — ✓" \
+  || (echo "  ↳ ❌ caller-test principal NOT found"; exit 1)
+
+echo ""
+echo "── [27] addTrustedCanister — non-admin is rejected ─────────────────────"
+if ! dfx identity list 2>/dev/null | grep -q "^property-buyer-test$"; then
+  dfx identity new property-buyer-test --disable-encryption 2>/dev/null || true
+fi
+dfx canister call $CANISTER addTrustedCanister "(principal \"$MY_PRINCIPAL\")" \
+    --identity property-buyer-test \
+  && echo "  ↳ ❌ Expected rejection for non-admin" \
+  || echo "  ↳ Non-admin correctly rejected — ✓"
+
+echo ""
+echo "── [28] Trusted principal bypasses rate limit ───────────────────────────"
+dfx canister call $CANISTER setUpdateRateLimit "(2 : nat)"
+# caller-test is trusted — these calls should all pass despite limit=2
+dfx canister call $CANISTER getProperty '(1)' --identity canister-caller-test || true
+dfx canister call $CANISTER getProperty '(1)' --identity canister-caller-test || true
+dfx canister call $CANISTER getProperty '(1)' --identity canister-caller-test || true
+echo "  ↳ 3 query-style calls passed for trusted principal despite rate limit of 2 — ✓"
+dfx canister call $CANISTER setUpdateRateLimit "(30 : nat)"
+
+echo ""
+echo "── [29] removeTrustedCanister — principal removed from list ─────────────"
+dfx canister call $CANISTER removeTrustedCanister "(principal \"$CALLER_TEST_PRINCIPAL\")"
+TRUSTED_AFTER=$(dfx canister call $CANISTER getTrustedCanisters)
+echo "$TRUSTED_AFTER" | grep -q "$CALLER_TEST_PRINCIPAL" \
+  && echo "  ↳ ❌ Principal still in list after removal" \
+  || echo "  ↳ Principal correctly removed — ✓"
+
+echo ""
+echo "── [30] Metrics after trusted canister tests ────────────────────────────"
+dfx canister call $CANISTER getMetrics

@@ -108,9 +108,10 @@ persistent actor Job {
   private var jobCounter: Nat = 0;
   private var isPaused:           Bool        = false;
   private var pauseExpiryNs:      ?Int        = null;
-  private var adminListEntries:   [Principal] = [];
-  private var adminInitialized:   Bool        = false;
-  private var authorizedSensors: [Principal] = [];
+  private var adminListEntries:        [Principal] = [];
+  private var adminInitialized:        Bool        = false;
+  private var authorizedSensors:       [Principal] = [];
+  private var trustedCanisterEntries:  [Principal] = [];
   /// Migration buffers — cleared after first upgrade with this code.
   private var jobsEntries: [(Text, Job)] = [];
   private var inviteTokenEntries: [(Text, InviteToken)] = [];
@@ -155,7 +156,7 @@ persistent actor Job {
   private let ONE_MINUTE_NS       : Int = 60_000_000_000;
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
-    if (isAdmin(caller)) return true;
+    if (isAdmin(caller) or isTrustedCanister(caller)) return true;
     let key = Principal.toText(caller);
     let now = Time.now();
     switch (Map.get(updateCallLimits, Text.compare, key)) {
@@ -183,6 +184,10 @@ persistent actor Job {
 
   private func isSensor(caller: Principal) : Bool {
     Option.isSome(Array.find<Principal>(authorizedSensors, func(s) { s == caller }))
+  };
+
+  private func isTrustedCanister(p: Principal) : Bool {
+    Option.isSome(Array.find<Principal>(trustedCanisterEntries, func(t) { t == p }))
   };
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
@@ -495,7 +500,7 @@ persistent actor Job {
     description : Text
   ) : async Result.Result<Text, Text> {
     if (isPaused) return #err("Canister is paused");
-    if (not isSensor(msg.caller) and not isAdmin(msg.caller))
+    if (not isSensor(msg.caller) and not isAdmin(msg.caller) and not isTrustedCanister(msg.caller))
       return #err("Unauthorized");
     if (Text.size(propertyId) == 0) return #err("propertyId required");
     if (Text.size(title)      == 0) return #err("title required");
@@ -593,6 +598,27 @@ persistent actor Job {
     adminListEntries := Array.concat(adminListEntries, [newAdmin]);
     adminInitialized := true;
     #ok(())
+  };
+
+  /// Register a canister principal as trusted for inter-canister calls.
+  /// Trusted canisters bypass per-principal rate limiting and may call
+  /// restricted functions (e.g. createSensorJob). Admin only.
+  public shared(msg) func addTrustedCanister(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#Unauthorized);
+    if (not isTrustedCanister(p)) {
+      trustedCanisterEntries := Array.concat(trustedCanisterEntries, [p]);
+    };
+    #ok(())
+  };
+
+  public shared(msg) func removeTrustedCanister(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#Unauthorized);
+    trustedCanisterEntries := Array.filter<Principal>(trustedCanisterEntries, func(t) { t != p });
+    #ok(())
+  };
+
+  public query func getTrustedCanisters() : async [Principal] {
+    trustedCanisterEntries
   };
 
   public shared(msg) func pause(durationSeconds: ?Nat) : async Result.Result<(), Error> {

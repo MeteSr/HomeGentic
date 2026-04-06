@@ -327,3 +327,76 @@ echo ""
 echo "============================================"
 echo "  ✅ Job canister tests complete!"
 echo "============================================"
+
+# ─── §47 Trusted Canister (inter-canister whitelist) ─────────────────────────
+
+MY_PRINCIPAL=$(dfx identity get-principal)
+
+# Ensure a sensor-test identity exists (stands in for the sensor canister principal)
+if ! dfx identity list 2>/dev/null | grep -q "^sensor-test$"; then
+  dfx identity new sensor-test --disable-encryption 2>/dev/null || true
+fi
+SENSOR_TEST_PRINCIPAL=$(dfx identity get-principal --identity sensor-test)
+
+echo ""
+echo "── [31] addTrustedCanister — admin can add a trusted principal ──────────"
+dfx canister call $CANISTER addTrustedCanister "(principal \"$SENSOR_TEST_PRINCIPAL\")"
+echo "  ↳ addTrustedCanister succeeded — ✓"
+
+echo ""
+echo "── [32] getTrustedCanisters — returns the added principal ───────────────"
+TRUSTED=$(dfx canister call $CANISTER getTrustedCanisters)
+echo "$TRUSTED" | grep -q "$SENSOR_TEST_PRINCIPAL" \
+  && echo "  ↳ sensor-test principal present in trusted list — ✓" \
+  || (echo "  ↳ ❌ sensor-test principal NOT found in trusted list"; exit 1)
+
+echo ""
+echo "── [33] addTrustedCanister — non-admin is rejected ─────────────────────"
+dfx canister call $CANISTER addTrustedCanister "(principal \"$MY_PRINCIPAL\")" \
+    --identity contractor-test \
+  && echo "  ↳ ❌ Expected rejection — non-admin should not be able to add" \
+  || echo "  ↳ Non-admin correctly rejected — ✓"
+
+echo ""
+echo "── [34] Trusted principal bypasses rate limit ───────────────────────────"
+dfx canister call $CANISTER setUpdateRateLimit "(2 : nat)"
+# sensor-test is in trusted list — 3 calls should all succeed despite limit=2
+dfx canister call $CANISTER createJob '(
+  "TRUST_PROP_1", "Trusted Bypass 1", variant { Plumbing }, "trust test", null, null, null, null
+)' --identity sensor-test
+dfx canister call $CANISTER createJob '(
+  "TRUST_PROP_2", "Trusted Bypass 2", variant { Plumbing }, "trust test", null, null, null, null
+)' --identity sensor-test
+dfx canister call $CANISTER createJob '(
+  "TRUST_PROP_3", "Trusted Bypass 3", variant { Plumbing }, "trust test", null, null, null, null
+)' --identity sensor-test
+echo "  ↳ 3 calls succeeded despite rate limit of 2 — ✓"
+dfx canister call $CANISTER setUpdateRateLimit "(30 : nat)"
+
+echo ""
+echo "── [35] createSensorJob — untrusted identity is rejected ────────────────"
+if ! dfx identity list 2>/dev/null | grep -q "^untrusted-test$"; then
+  dfx identity new untrusted-test --disable-encryption 2>/dev/null || true
+fi
+UNTRUSTED_PRINCIPAL=$(dfx identity get-principal --identity untrusted-test)
+dfx canister call $CANISTER createSensorJob \
+  "(\"PROP_SENSOR_1\", principal \"$UNTRUSTED_PRINCIPAL\", \"Leak Detected\", variant { Plumbing }, \"sensor alert\")" \
+  --identity untrusted-test \
+  && echo "  ↳ ❌ Expected rejection — untrusted principal should not call createSensorJob" \
+  || echo "  ↳ Untrusted principal correctly rejected from createSensorJob — ✓"
+
+echo ""
+echo "── [36] createSensorJob — trusted principal is accepted ─────────────────"
+dfx canister call $CANISTER createSensorJob \
+  "(\"PROP_SENSOR_1\", principal \"$MY_PRINCIPAL\", \"Leak Detected\", variant { Plumbing }, \"sensor alert\")" \
+  --identity sensor-test \
+  && echo "  ↳ Trusted principal accepted for createSensorJob — ✓" \
+  || echo "  ↳ ❌ Trusted principal was rejected — implementation needed"
+
+echo ""
+echo "── [37] removeTrustedCanister — principal removed from list ─────────────"
+dfx canister call $CANISTER removeTrustedCanister "(principal \"$SENSOR_TEST_PRINCIPAL\")"
+TRUSTED_AFTER=$(dfx canister call $CANISTER getTrustedCanisters)
+echo "$TRUSTED_AFTER" | grep -q "$SENSOR_TEST_PRINCIPAL" \
+  && echo "  ↳ ❌ Principal still in list after removal" \
+  || echo "  ↳ Principal correctly removed from trusted list — ✓"

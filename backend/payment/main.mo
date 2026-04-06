@@ -1,9 +1,11 @@
-import Map "mo:core/Map";
-import Iter "mo:core/Iter";
+import Array     "mo:core/Array";
+import Map       "mo:core/Map";
+import Iter      "mo:core/Iter";
+import Option    "mo:core/Option";
 import Principal "mo:core/Principal";
-import Result "mo:core/Result";
-import Text "mo:core/Text";
-import Time "mo:core/Time";
+import Result    "mo:core/Result";
+import Text      "mo:core/Text";
+import Time      "mo:core/Time";
 
 persistent actor Payment {
 
@@ -45,12 +47,18 @@ persistent actor Payment {
 
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
 
-  private var updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
+  private var updateCallLimits        : Map.Map<Text, (Nat, Int)> = Map.empty();
   /// Admin-adjustable rate limit — default 30/min.
-  private var maxUpdatesPerMin : Nat = 30;
-  private let ONE_MINUTE_NS       : Int = 60_000_000_000;
+  private var maxUpdatesPerMin        : Nat = 30;
+  private let ONE_MINUTE_NS           : Int = 60_000_000_000;
+  private var trustedCanisterEntries  : [Principal] = [];
+
+  private func isTrustedCanister(p: Principal) : Bool {
+    Option.isSome(Array.find<Principal>(trustedCanisterEntries, func(t) { t == p }))
+  };
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
+    if (isTrustedCanister(caller)) return true;
     let key = Principal.toText(caller);
     let now = Time.now();
     switch (Map.get(updateCallLimits, Text.compare, key)) {
@@ -68,6 +76,23 @@ persistent actor Payment {
   /// deployment layer (only the controller should call this).
   public shared func setUpdateRateLimit(n: Nat) : async () {
     maxUpdatesPerMin := n;
+  };
+
+  /// Register a canister principal as trusted for inter-canister calls.
+  /// Trusted canisters (job) bypass per-principal rate limiting.
+  /// No admin list in payment — protect at the deployment layer (controller only).
+  public shared func addTrustedCanister(p: Principal) : async () {
+    if (not isTrustedCanister(p)) {
+      trustedCanisterEntries := Array.concat(trustedCanisterEntries, [p]);
+    };
+  };
+
+  public shared func removeTrustedCanister(p: Principal) : async () {
+    trustedCanisterEntries := Array.filter<Principal>(trustedCanisterEntries, func(t) { t != p });
+  };
+
+  public query func getTrustedCanisters() : async [Principal] {
+    trustedCanisterEntries
   };
 
   system func postupgrade() {

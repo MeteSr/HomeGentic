@@ -94,6 +94,10 @@ JOB_ID=$(dfx canister id job --network "$NETWORK" 2>/dev/null || echo "")
 PAYMENT_ID=$(dfx canister id payment --network "$NETWORK" 2>/dev/null || echo "")
 CONTRACTOR_ID=$(dfx canister id contractor --network "$NETWORK" 2>/dev/null || echo "")
 PROPERTY_ID=$(dfx canister id property --network "$NETWORK" 2>/dev/null || echo "")
+SENSOR_ID=$(dfx canister id sensor --network "$NETWORK" 2>/dev/null || echo "")
+REPORT_ID=$(dfx canister id report --network "$NETWORK" 2>/dev/null || echo "")
+
+# ── Canister ID wiring (target canister ID strings for cross-calls) ────────────
 
 if [ -n "$JOB_ID" ] && [ -n "$PAYMENT_ID" ]; then
   echo "  Wiring payment -> job (tier cap enforcement)..."
@@ -108,6 +112,43 @@ fi
 if [ -n "$JOB_ID" ] && [ -n "$PROPERTY_ID" ]; then
   echo "  Wiring property -> job..."
   dfx canister call job setPropertyCanisterId "(\"$PROPERTY_ID\")" --network "$NETWORK"
+fi
+
+# ── Trusted canister wiring (derived from call topology) ──────────────────────
+# These mirror the actual inter-canister call graph so each canister auto-trusts
+# its known callers. Admins can add external canisters later via addTrustedCanister.
+
+echo ""
+echo "============================================"
+echo "  Wiring Trusted Canister Lists"
+echo "============================================"
+
+# payment trusts job (job calls getTierForPrincipal)
+if [ -n "$JOB_ID" ] && [ -n "$PAYMENT_ID" ]; then
+  echo "  payment: trusting job canister ($JOB_ID)..."
+  dfx canister call payment addTrustedCanister "(principal \"$JOB_ID\")" --network "$NETWORK"
+fi
+
+# contractor trusts job (job calls recordJobVerified)
+if [ -n "$JOB_ID" ] && [ -n "$CONTRACTOR_ID" ]; then
+  echo "  contractor: trusting job canister ($JOB_ID)..."
+  dfx canister call contractor addTrustedCanister "(principal \"$JOB_ID\")" --network "$NETWORK"
+fi
+
+# property trusts job (job calls getPropertyOwner) and report (report calls getVerificationLevel)
+if [ -n "$JOB_ID" ] && [ -n "$PROPERTY_ID" ]; then
+  echo "  property: trusting job canister ($JOB_ID)..."
+  dfx canister call property addTrustedCanister "(principal \"$JOB_ID\")" --network "$NETWORK"
+fi
+if [ -n "$REPORT_ID" ] && [ -n "$PROPERTY_ID" ]; then
+  echo "  property: trusting report canister ($REPORT_ID)..."
+  dfx canister call property addTrustedCanister "(principal \"$REPORT_ID\")" --network "$NETWORK"
+fi
+
+# job trusts sensor (sensor calls createSensorJob)
+if [ -n "$SENSOR_ID" ] && [ -n "$JOB_ID" ]; then
+  echo "  job: trusting sensor canister ($SENSOR_ID)..."
+  dfx canister call job addTrustedCanister "(principal \"$SENSOR_ID\")" --network "$NETWORK"
 fi
 
 echo ""
