@@ -50,5 +50,8 @@
     "ts-jest": "^29.4.9",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "private": true,
+  "overrides": {
+    "@tootallnate/once": "^3.0.1"
+  }
 }
