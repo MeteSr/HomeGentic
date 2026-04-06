@@ -103,43 +103,30 @@ persistent actor Agent {
   private var adminInitialized:   Bool        = false;
   private var reviewCounter:      Nat         = 0;
 
+  /// Migration buffers — cleared after first upgrade with this code.
   private var agentEntries:           [(Principal, AgentProfile)] = [];
   private var reviewEntries:          [(Text, AgentReview)]       = [];
   private var reviewKeyEntries:       [(Text, Text)]              = [];
   private var reviewRateLimitEntries: [(Text, (Nat, Int))]        = [];
 
-  // ─── Transient State ──────────────────────────────────────────────────────────
+  // ─── Stable State ────────────────────────────────────────────────────────────
 
-  private transient var agents = Map.fromIter<Principal, AgentProfile>(
-    agentEntries.vals(), Principal.compare
-  );
-
-  private transient var reviews = Map.fromIter<Text, AgentReview>(
-    reviewEntries.vals(), Text.compare
-  );
-
+  private var agents        = Map.empty<Principal, AgentProfile>();
+  private var reviews       = Map.empty<Text, AgentReview>();
   /// compositeKey = "reviewerPrincipal|transactionId" → reviewId
-  private transient var reviewKeys = Map.fromIter<Text, Text>(
-    reviewKeyEntries.vals(), Text.compare
-  );
+  private var reviewKeys    = Map.empty<Text, Text>();
+  private var reviewRateLimits = Map.empty<Text, (Nat, Int)>();
 
-  private transient var reviewRateLimits = Map.fromIter<Text, (Nat, Int)>(
-    reviewRateLimitEntries.vals(), Text.compare
-  );
-
-  // ─── Upgrade Hooks ────────────────────────────────────────────────────────────
-
-  system func preupgrade() {
-    agentEntries           := Iter.toArray(Map.entries(agents));
-    reviewEntries          := Iter.toArray(Map.entries(reviews));
-    reviewKeyEntries       := Iter.toArray(Map.entries(reviewKeys));
-    reviewRateLimitEntries := Iter.toArray(Map.entries(reviewRateLimits));
-  };
+  // ─── Upgrade Hook ────────────────────────────────────────────────────────────
 
   system func postupgrade() {
-    agentEntries           := [];
-    reviewEntries          := [];
-    reviewKeyEntries       := [];
+    for ((k, v) in agentEntries.vals())           { Map.add(agents,           Principal.compare, k, v) };
+    agentEntries := [];
+    for ((k, v) in reviewEntries.vals())           { Map.add(reviews,          Text.compare,      k, v) };
+    reviewEntries := [];
+    for ((k, v) in reviewKeyEntries.vals())        { Map.add(reviewKeys,       Text.compare,      k, v) };
+    reviewKeyEntries := [];
+    for ((k, v) in reviewRateLimitEntries.vals())  { Map.add(reviewRateLimits, Text.compare,      k, v) };
     reviewRateLimitEntries := [];
   };
 

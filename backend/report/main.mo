@@ -259,22 +259,16 @@ persistent actor Report {
   private var certCounter  : Nat                 = 0;
   private var certEntries  : [(Text, CertRecord)] = [];
 
-  // ─── Transient State ──────────────────────────────────────────────────────────
-  // Initialised empty — postupgrade() populates both HashMaps so that we avoid
-  // any type mismatch between the V0 stable arrays and the V1 HashMap types.
+  // ─── Stable State ────────────────────────────────────────────────────────────
+  // Maps are stable directly (mo:core/Map uses a stable B-tree). The V0→V3
+  // migration in postupgrade() runs once, then entries arrays are cleared.
+  // On all subsequent upgrades these maps persist in stable memory as-is.
 
-  private transient var snapshots = Map.empty<Text, ReportSnapshot>();
-  private transient var links     = Map.empty<Text, ShareLink>();
-  private transient var certs     = Map.empty<Text, CertRecord>();
+  private var snapshots = Map.empty<Text, ReportSnapshot>();
+  private var links     = Map.empty<Text, ShareLink>();
+  private var certs     = Map.empty<Text, CertRecord>();
 
-  // ─── Upgrade Hooks ────────────────────────────────────────────────────────────
-
-  system func preupgrade() {
-    // Always save current data to V3 (current) arrays for the next upgrade.
-    snapshotEntriesV3 := Iter.toArray(Map.entries(snapshots));
-    linkEntriesV2     := Iter.toArray(Map.entries(links));
-    certEntries       := Iter.toArray(Map.entries(certs));
-  };
+  // ─── Upgrade Hook ────────────────────────────────────────────────────────────
 
   system func postupgrade() {
     // ── One-time V0 migration (upgrade from pre-1.4.7) ────────────────────────

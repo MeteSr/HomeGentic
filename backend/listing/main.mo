@@ -77,28 +77,21 @@ persistent actor Listing {
   private var adminListEntries: [Principal] = [];
   private var adminInitialized: Bool = false;
 
+  /// Migration buffers — cleared after first upgrade with this code.
   private var requestEntries:  [(Text, ListingBidRequest)] = [];
   private var proposalEntries: [(Text, ListingProposal)]   = [];
 
-  // ─── Transient State ─────────────────────────────────────────────────────────
+  // ─── Stable State ────────────────────────────────────────────────────────────
 
-  private transient var requests = Map.fromIter<Text, ListingBidRequest>(
-    requestEntries.vals(), Text.compare
-  );
+  private var requests  = Map.empty<Text, ListingBidRequest>();
+  private var proposals = Map.empty<Text, ListingProposal>();
 
-  private transient var proposals = Map.fromIter<Text, ListingProposal>(
-    proposalEntries.vals(), Text.compare
-  );
-
-  // ─── Upgrade Hooks ───────────────────────────────────────────────────────────
-
-  system func preupgrade() {
-    requestEntries  := Iter.toArray(Map.entries(requests));
-    proposalEntries := Iter.toArray(Map.entries(proposals));
-  };
+  // ─── Upgrade Hook ────────────────────────────────────────────────────────────
 
   system func postupgrade() {
-    requestEntries  := [];
+    for ((k, v) in requestEntries.vals())  { Map.add(requests,  Text.compare, k, v) };
+    requestEntries := [];
+    for ((k, v) in proposalEntries.vals()) { Map.add(proposals, Text.compare, k, v) };
     proposalEntries := [];
   };
 

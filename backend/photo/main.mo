@@ -81,47 +81,30 @@ persistent actor Photo {
   private var isPaused: Bool = false;
   private var pauseExpiryNs: ?Int = null;
   private var adminListEntries: [Principal] = [];
-  private var photoEntries: [(Text, Photo)] = [];
-  private var hashIndexEntries: [(Text, Text)] = []; // sha256 -> photoId
-  /// Admin-managed tier grants keyed by principal text.
-  /// Default (missing) → #Free.  Updated by setTier() when a subscription event fires.
-  private var tierGrantEntries: [(Text, SubscriptionTier)] = [];
-  /// (count, windowStartNs) for per-minute upload rate limiting, keyed by principal text.
-  private var photoRateLimitEntries: [(Text, (Nat, Int))] = [];
+  /// Migration buffers — cleared after first upgrade with this code.
+  private var photoEntries:          [(Text, Photo)]              = [];
+  private var hashIndexEntries:      [(Text, Text)]               = [];
+  private var tierGrantEntries:      [(Text, SubscriptionTier)]   = [];
+  private var photoRateLimitEntries: [(Text, (Nat, Int))]         = [];
 
-  // ─── Transient State (rebuilt from stable after each upgrade) ────────────────
+  // ─── Stable State ────────────────────────────────────────────────────────────
 
-  private transient var photos = Map.fromIter<Text, Photo>(
-    photoEntries.vals(), Text.compare
-  );
+  private var photos      = Map.empty<Text, Photo>();
+  /// sha256 → photoId — O(1) duplicate detection.
+  private var hashIndex   = Map.empty<Text, Text>();
+  private var tierGrants  = Map.empty<Text, SubscriptionTier>();
+  private var photoRateLimits = Map.empty<Text, (Nat, Int)>();
 
-  // Separate index for O(1) duplicate detection without scanning all photos
-  private transient var hashIndex = Map.fromIter<Text, Text>(
-    hashIndexEntries.vals(), Text.compare
-  );
-
-  private transient var tierGrants = Map.fromIter<Text, SubscriptionTier>(
-    tierGrantEntries.vals(), Text.compare
-  );
-
-  /// Per-minute upload rate limits keyed by principal text.
-  private transient var photoRateLimits = Map.fromIter<Text, (Nat, Int)>(
-    photoRateLimitEntries.vals(), Text.compare
-  );
-
-  // ─── Upgrade Hooks ───────────────────────────────────────────────────────────
-
-  system func preupgrade() {
-    photoEntries          := Iter.toArray(Map.entries(photos));
-    hashIndexEntries      := Iter.toArray(Map.entries(hashIndex));
-    tierGrantEntries      := Iter.toArray(Map.entries(tierGrants));
-    photoRateLimitEntries := Iter.toArray(Map.entries(photoRateLimits));
-  };
+  // ─── Upgrade Hook ────────────────────────────────────────────────────────────
 
   system func postupgrade() {
-    photoEntries          := [];
-    hashIndexEntries      := [];
-    tierGrantEntries      := [];
+    for ((k, v) in photoEntries.vals())          { Map.add(photos,          Text.compare, k, v) };
+    photoEntries := [];
+    for ((k, v) in hashIndexEntries.vals())      { Map.add(hashIndex,       Text.compare, k, v) };
+    hashIndexEntries := [];
+    for ((k, v) in tierGrantEntries.vals())      { Map.add(tierGrants,      Text.compare, k, v) };
+    tierGrantEntries := [];
+    for ((k, v) in photoRateLimitEntries.vals()) { Map.add(photoRateLimits, Text.compare, k, v) };
     photoRateLimitEntries := [];
   };
 

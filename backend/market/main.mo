@@ -115,22 +115,20 @@ persistent actor MarketIntelligence {
 
   private var isPaused:          Bool = false;
   private var pauseExpiryNs:     ?Int = null;
-  private var adminListEntries:  [Principal] = [];
-  private var snapshotEntries:   [(Text, MarketSnapshot)] = [];
+  private var adminListEntries: [Principal] = [];
+  /// Migration buffer — cleared after first upgrade with this code.
+  private var snapshotEntries: [(Text, MarketSnapshot)] = [];
 
-  // ─── Transient State ──────────────────────────────────────────────────────────
+  // ─── Stable State ────────────────────────────────────────────────────────────
 
-  private transient var snapshots = Map.fromIter<Text, MarketSnapshot>(
-    snapshotEntries.vals(), Text.compare
-  );
+  private var snapshots = Map.empty<Text, MarketSnapshot>();
 
-  // ─── Upgrade Hooks ────────────────────────────────────────────────────────────
-
-  system func preupgrade() {
-    snapshotEntries := Iter.toArray(Map.entries(snapshots));
-  };
+  // ─── Upgrade Hook ────────────────────────────────────────────────────────────
 
   system func postupgrade() {
+    for ((k, v) in snapshotEntries.vals()) {
+      Map.add(snapshots, Text.compare, k, v);
+    };
     snapshotEntries := [];
   };
 

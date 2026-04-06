@@ -105,34 +105,26 @@ persistent actor Sensor {
   private var eventCounter    : Nat         = 0;
   private var jobsCreatedCount : Nat        = 0;
 
+  /// Migration buffers — cleared after first upgrade with this code.
   private var devicesEntries       : [(Text, SensorDevice)] = [];
   private var eventsEntries        : [(Text, SensorEvent)]  = [];
   private var externalIdIdxEntries : [(Text, Text)]          = [];
 
-  // ─── Transient State ─────────────────────────────────────────────────────
+  // ─── Stable State ────────────────────────────────────────────────────────
 
-  private transient var devices = Map.fromIter<Text, SensorDevice>(
-    devicesEntries.vals(), Text.compare
-  );
-  private transient var events = Map.fromIter<Text, SensorEvent>(
-    eventsEntries.vals(), Text.compare
-  );
-  // externalDeviceId → internal device id
-  private transient var externalIdIdx = Map.fromIter<Text, Text>(
-    externalIdIdxEntries.vals(), Text.compare
-  );
+  private var devices      = Map.empty<Text, SensorDevice>();
+  private var events       = Map.empty<Text, SensorEvent>();
+  /// externalDeviceId → internal device id
+  private var externalIdIdx = Map.empty<Text, Text>();
 
-  // ─── Upgrade Hooks ────────────────────────────────────────────────────────
-
-  system func preupgrade() {
-    devicesEntries       := Iter.toArray(Map.entries(devices));
-    eventsEntries        := Iter.toArray(Map.entries(events));
-    externalIdIdxEntries := Iter.toArray(Map.entries(externalIdIdx));
-  };
+  // ─── Upgrade Hook ────────────────────────────────────────────────────────
 
   system func postupgrade() {
-    devicesEntries       := [];
-    eventsEntries        := [];
+    for ((k, v) in devicesEntries.vals())       { Map.add(devices,       Text.compare, k, v) };
+    devicesEntries := [];
+    for ((k, v) in eventsEntries.vals())        { Map.add(events,        Text.compare, k, v) };
+    eventsEntries := [];
+    for ((k, v) in externalIdIdxEntries.vals()) { Map.add(externalIdIdx, Text.compare, k, v) };
     externalIdIdxEntries := [];
   };
 

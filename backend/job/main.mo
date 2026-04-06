@@ -111,6 +111,7 @@ persistent actor Job {
   private var adminListEntries:   [Principal] = [];
   private var adminInitialized:   Bool        = false;
   private var authorizedSensors: [Principal] = [];
+  /// Migration buffers — cleared after first upgrade with this code.
   private var jobsEntries: [(Text, Job)] = [];
   private var inviteTokenEntries: [(Text, InviteToken)] = [];
   /// Contractor canister ID — set post-deploy via setContractorCanisterId().
@@ -125,25 +126,21 @@ persistent actor Job {
   /// the Free-tier job cap (max 5 jobs per homeowner).
   private var payCanisterId:      Text        = "";
 
-  // ─── Transient State ─────────────────────────────────────────────────────────
+  // ─── Stable State ────────────────────────────────────────────────────────────
 
-  private transient var jobs = Map.fromIter<Text, Job>(
-    jobsEntries.vals(), Text.compare
-  );
+  private var jobs        = Map.empty<Text, Job>();
+  private var inviteTokens = Map.empty<Text, InviteToken>();
 
-  private transient var inviteTokens = Map.fromIter<Text, InviteToken>(
-    inviteTokenEntries.vals(), Text.compare
-  );
-
-  // ─── Upgrade Hooks ───────────────────────────────────────────────────────────
-
-  system func preupgrade() {
-    jobsEntries        := Iter.toArray(Map.entries(jobs));
-    inviteTokenEntries := Iter.toArray(Map.entries(inviteTokens));
-  };
+  // ─── Upgrade Hook ────────────────────────────────────────────────────────────
 
   system func postupgrade() {
-    jobsEntries        := [];
+    for ((k, v) in jobsEntries.vals()) {
+      Map.add(jobs, Text.compare, k, v);
+    };
+    jobsEntries := [];
+    for ((k, v) in inviteTokenEntries.vals()) {
+      Map.add(inviteTokens, Text.compare, k, v);
+    };
     inviteTokenEntries := [];
   };
 

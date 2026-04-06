@@ -123,53 +123,35 @@ persistent actor Contractor {
   /// When non-empty, recordJobVerified() accepts calls from the job canister.
   private var jobCanisterId:      Text        = "";
 
+  /// Migration buffers — cleared after first upgrade with this code.
   private var contractorEntries:      [(Principal, ContractorProfile)] = [];
   private var reviewEntries:          [(Text, Review)]                 = [];
   private var credentialEntries:      [(Nat, JobCredential)]           = [];
-  /// compositeKey = "reviewerPrincipal|jobId" → reviewId.
-  /// O(1) duplicate check — prevents two reviews from the same person for the same job.
   private var reviewKeyEntries:       [(Text, Text)]                   = [];
-  /// (count, windowStartNs) keyed by reviewer principal text.
   private var reviewRateLimitEntries: [(Text, (Nat, Int))]             = [];
 
-  // ─── Transient State ──────────────────────────────────────────────────────────
+  // ─── Stable State ────────────────────────────────────────────────────────────
 
-  private transient var contractors = Map.fromIter<Principal, ContractorProfile>(
-    contractorEntries.vals(), Principal.compare
-  );
-
-  private transient var reviews = Map.fromIter<Text, Review>(
-    reviewEntries.vals(), Text.compare
-  );
-
-  private transient var credentials = Map.fromIter<Nat, JobCredential>(
-    credentialEntries.vals(), Nat.compare
-  );
-
-  private transient var reviewKeys = Map.fromIter<Text, Text>(
-    reviewKeyEntries.vals(), Text.compare
-  );
-
+  private var contractors    = Map.empty<Principal, ContractorProfile>();
+  private var reviews        = Map.empty<Text, Review>();
+  private var credentials    = Map.empty<Nat, JobCredential>();
+  /// compositeKey = "reviewerPrincipal|jobId" → reviewId.
+  private var reviewKeys     = Map.empty<Text, Text>();
   /// Daily review rate limits per reviewer.
-  private transient var reviewRateLimits = Map.fromIter<Text, (Nat, Int)>(
-    reviewRateLimitEntries.vals(), Text.compare
-  );
+  private var reviewRateLimits = Map.empty<Text, (Nat, Int)>();
 
-  // ─── Upgrade Hooks ────────────────────────────────────────────────────────────
-
-  system func preupgrade() {
-    contractorEntries      := Iter.toArray(Map.entries(contractors));
-    reviewEntries          := Iter.toArray(Map.entries(reviews));
-    credentialEntries      := Iter.toArray(Map.entries(credentials));
-    reviewKeyEntries       := Iter.toArray(Map.entries(reviewKeys));
-    reviewRateLimitEntries := Iter.toArray(Map.entries(reviewRateLimits));
-  };
+  // ─── Upgrade Hook ────────────────────────────────────────────────────────────
 
   system func postupgrade() {
-    contractorEntries      := [];
-    reviewEntries          := [];
-    credentialEntries      := [];
-    reviewKeyEntries       := [];
+    for ((k, v) in contractorEntries.vals())      { Map.add(contractors,    Principal.compare, k, v) };
+    contractorEntries := [];
+    for ((k, v) in reviewEntries.vals())           { Map.add(reviews,        Text.compare,      k, v) };
+    reviewEntries := [];
+    for ((k, v) in credentialEntries.vals())       { Map.add(credentials,    Nat.compare,       k, v) };
+    credentialEntries := [];
+    for ((k, v) in reviewKeyEntries.vals())        { Map.add(reviewKeys,     Text.compare,      k, v) };
+    reviewKeyEntries := [];
+    for ((k, v) in reviewRateLimitEntries.vals())  { Map.add(reviewRateLimits, Text.compare,    k, v) };
     reviewRateLimitEntries := [];
   };
 

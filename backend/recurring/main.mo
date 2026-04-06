@@ -97,29 +97,22 @@ persistent actor Recurring {
   private var pauseExpiryNs     : ?Int        = null;
   private var adminListEntries  : [Principal] = [];
   private var adminInitialized  : Bool        = false;
-  private var recurringEntries  : [(Text, RecurringService)] = [];
-  private var visitEntries      : [(Text, VisitLog)]         = [];
+  /// Migration buffers — cleared after first upgrade with this code.
+  private var recurringEntries : [(Text, RecurringService)] = [];
+  private var visitEntries     : [(Text, VisitLog)]         = [];
 
-  // ─── Transient State ─────────────────────────────────────────────────────────
+  // ─── Stable State ────────────────────────────────────────────────────────────
 
-  private transient var services = Map.fromIter<Text, RecurringService>(
-    recurringEntries.vals(), Text.compare
-  );
+  private var services = Map.empty<Text, RecurringService>();
+  private var visits   = Map.empty<Text, VisitLog>();
 
-  private transient var visits = Map.fromIter<Text, VisitLog>(
-    visitEntries.vals(), Text.compare
-  );
-
-  // ─── Upgrade Hooks ───────────────────────────────────────────────────────────
-
-  system func preupgrade() {
-    recurringEntries := Iter.toArray(Map.entries(services));
-    visitEntries     := Iter.toArray(Map.entries(visits));
-  };
+  // ─── Upgrade Hook ────────────────────────────────────────────────────────────
 
   system func postupgrade() {
+    for ((k, v) in recurringEntries.vals()) { Map.add(services, Text.compare, k, v) };
     recurringEntries := [];
-    visitEntries     := [];
+    for ((k, v) in visitEntries.vals())     { Map.add(visits,   Text.compare, k, v) };
+    visitEntries := [];
   };
 
   // ─── Private Helpers ─────────────────────────────────────────────────────────

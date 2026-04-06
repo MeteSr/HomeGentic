@@ -140,35 +140,25 @@ persistent actor Monitoring {
   private var isPaused: Bool = false;
   private var pauseExpiryNs: ?Int = null;
   private var adminListEntries: [Principal] = [];
-  private var metricsEntries: [(Principal, CanisterMetrics)] = [];
-  private var alertEntries: [(Text, Alert)] = [];
-  private var cyclesPerCallEntries: [(Text, MethodCyclesSummary)] = [];   // 13.1.4
+  /// Migration buffers — cleared after first upgrade with this code.
+  private var metricsEntries:       [(Principal, CanisterMetrics)]  = [];
+  private var alertEntries:         [(Text, Alert)]                 = [];
+  private var cyclesPerCallEntries: [(Text, MethodCyclesSummary)]   = [];
 
-  // ─── Transient State ─────────────────────────────────────────────────────────
+  // ─── Stable State ────────────────────────────────────────────────────────────
 
-  private transient var canisterMetrics = Map.fromIter<Principal, CanisterMetrics>(
-    metricsEntries.vals(), Principal.compare
-  );
+  private var canisterMetrics = Map.empty<Principal, CanisterMetrics>();
+  private var alerts          = Map.empty<Text, Alert>();
+  private var cyclesPerCall   = Map.empty<Text, MethodCyclesSummary>();
 
-  private transient var alerts = Map.fromIter<Text, Alert>(
-    alertEntries.vals(), Text.compare
-  );
-
-  private transient var cyclesPerCall = Map.fromIter<Text, MethodCyclesSummary>(
-    cyclesPerCallEntries.vals(), Text.compare
-  );
-
-  // ─── Upgrade Hooks ───────────────────────────────────────────────────────────
-
-  system func preupgrade() {
-    metricsEntries       := Iter.toArray(Map.entries(canisterMetrics));
-    alertEntries         := Iter.toArray(Map.entries(alerts));
-    cyclesPerCallEntries := Iter.toArray(Map.entries(cyclesPerCall));
-  };
+  // ─── Upgrade Hook ────────────────────────────────────────────────────────────
 
   system func postupgrade() {
-    metricsEntries       := [];
-    alertEntries         := [];
+    for ((k, v) in metricsEntries.vals())       { Map.add(canisterMetrics, Principal.compare, k, v) };
+    metricsEntries := [];
+    for ((k, v) in alertEntries.vals())         { Map.add(alerts,          Text.compare,      k, v) };
+    alertEntries := [];
+    for ((k, v) in cyclesPerCallEntries.vals()) { Map.add(cyclesPerCall,   Text.compare,      k, v) };
     cyclesPerCallEntries := [];
   };
 

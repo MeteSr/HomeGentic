@@ -82,26 +82,25 @@ persistent actor Auth {
   private var admins: [Principal] = [];
   private var adminInitialized: Bool = false;
 
-  /// Stable entries for HashMap persistence across upgrades
+  /// Migration buffer — populated by the last old-code preupgrade, cleared once.
+  /// After the first upgrade with this code, this array is always [].
   private var userEntries: [(Principal, UserProfile)] = [];
 
-  // ─── Mutable State ───────────────────────────────────────────────────────────
+  // ─── Stable State ────────────────────────────────────────────────────────────
 
-  /// In-memory Map for fast lookups; rebuilt from stable entries on upgrade
-  private transient var users = Map.fromIter<Principal, UserProfile>(
-    userEntries.vals(),
-    Principal.compare
-  );
+  /// Map is stable directly (mo:core/Map uses a stable B-tree internally).
+  /// No preupgrade serialisation required — eliminates the upgrade instruction-limit footgun.
+  private var users = Map.empty<Principal, UserProfile>();
 
-  // ─── Upgrade Hooks ───────────────────────────────────────────────────────────
+  // ─── Upgrade Hook ────────────────────────────────────────────────────────────
 
-  /// Save Map contents to stable variables before canister upgrade
-  system func preupgrade() {
-    userEntries := Iter.toArray(Map.entries(users));
-  };
-
-  /// Clear stable entries after upgrade (data is back in HashMap)
+  /// One-time migration: if userEntries is non-empty (i.e. we are upgrading from
+  /// the old transient-Map pattern), load its contents into the now-stable Map
+  /// and clear the buffer.  On all subsequent upgrades this is a no-op.
   system func postupgrade() {
+    for ((k, v) in userEntries.vals()) {
+      Map.add(users, Principal.compare, k, v);
+    };
     userEntries := [];
   };
 

@@ -229,69 +229,44 @@ persistent actor Property {
   private var admins            : [Principal] = [];
   private var adminInitialized  : Bool        = false;
 
-  private var propertyEntries  : [(Nat, Property)] = [];
-  /// Maps normalised address key → property ID of the first registrant.
-  private var addressIdxEntries : [(Text, Nat)]     = [];
-  /// Admin-managed tier grants keyed by principal text.
-  /// Default (missing) → #Free.  Callers cannot supply or spoof their own tier.
-  private var tierGrantEntries  : [(Text, SubscriptionTier)] = [];
-  /// Append-only ownership transfer log. Key is auto-incrementing transfer ID.
-  private var transferCounter   : Nat = 0;
-  private var transferEntries   : [(Nat, TransferRecord)]    = [];
-  /// Pending transfers keyed by propertyId. At most one pending transfer per property.
-  private var pendingTransferEntries : [(Nat, PendingTransfer)] = [];
+  /// Migration buffers — cleared after first upgrade with this code.
+  private var propertyEntries        : [(Nat, Property)]              = [];
+  private var addressIdxEntries      : [(Text, Nat)]                  = [];
+  private var tierGrantEntries       : [(Text, SubscriptionTier)]     = [];
+  private var transferCounter        : Nat                            = 0;
+  private var transferEntries        : [(Nat, TransferRecord)]        = [];
+  private var pendingTransferEntries : [(Nat, PendingTransfer)]       = [];
 
-  // Room stable state
-  private var roomCounter    : Nat                   = 0;
-  private var fixtureCounter : Nat                   = 0;
-  private var roomEntries    : [(Text, RoomRecord)]  = [];
+  // Room state
+  private var roomCounter    : Nat                  = 0;
+  private var fixtureCounter : Nat                  = 0;
+  private var roomEntries    : [(Text, RoomRecord)] = [];
 
-  // ─── Transient State ──────────────────────────────────────────────────────
+  // ─── Stable State ────────────────────────────────────────────────────────
 
-  private transient var properties = Map.fromIter<Nat, Property>(
-    propertyEntries.vals(), Nat.compare
-  );
-
+  private var properties      = Map.empty<Nat, Property>();
   /// Address key → first-registered property ID.
-  /// Used for duplicate detection and conflict resolution.
-  private transient var addressIdx = Map.fromIter<Text, Nat>(
-    addressIdxEntries.vals(), Text.compare
-  );
+  private var addressIdx      = Map.empty<Text, Nat>();
+  private var tierGrants      = Map.empty<Text, SubscriptionTier>();
+  private var transfers       = Map.empty<Nat, TransferRecord>();
+  private var pendingTransfers = Map.empty<Nat, PendingTransfer>();
+  private var rooms           = Map.empty<Text, RoomRecord>();
 
-  private transient var tierGrants = Map.fromIter<Text, SubscriptionTier>(
-    tierGrantEntries.vals(), Text.compare
-  );
-
-  private transient var transfers = Map.fromIter<Nat, TransferRecord>(
-    transferEntries.vals(), Nat.compare
-  );
-
-  private transient var pendingTransfers = Map.fromIter<Nat, PendingTransfer>(
-    pendingTransferEntries.vals(), Nat.compare
-  );
-
-  private transient var rooms = Map.fromIter<Text, RoomRecord>(
-    roomEntries.vals(), Text.compare
-  );
-
-  // ─── Upgrade Hooks ────────────────────────────────────────────────────────
-
-  system func preupgrade() {
-    propertyEntries        := Iter.toArray(Map.entries(properties));
-    addressIdxEntries      := Iter.toArray(Map.entries(addressIdx));
-    tierGrantEntries       := Iter.toArray(Map.entries(tierGrants));
-    transferEntries        := Iter.toArray(Map.entries(transfers));
-    pendingTransferEntries := Iter.toArray(Map.entries(pendingTransfers));
-    roomEntries            := Iter.toArray(Map.entries(rooms));
-  };
+  // ─── Upgrade Hook ────────────────────────────────────────────────────────
 
   system func postupgrade() {
-    propertyEntries        := [];
-    addressIdxEntries      := [];
-    tierGrantEntries       := [];
-    transferEntries        := [];
+    for ((k, v) in propertyEntries.vals())        { Map.add(properties,       Nat.compare,  k, v) };
+    propertyEntries := [];
+    for ((k, v) in addressIdxEntries.vals())      { Map.add(addressIdx,       Text.compare, k, v) };
+    addressIdxEntries := [];
+    for ((k, v) in tierGrantEntries.vals())       { Map.add(tierGrants,       Text.compare, k, v) };
+    tierGrantEntries := [];
+    for ((k, v) in transferEntries.vals())        { Map.add(transfers,        Nat.compare,  k, v) };
+    transferEntries := [];
+    for ((k, v) in pendingTransferEntries.vals()) { Map.add(pendingTransfers, Nat.compare,  k, v) };
     pendingTransferEntries := [];
-    roomEntries            := [];
+    for ((k, v) in roomEntries.vals())            { Map.add(rooms,            Text.compare, k, v) };
+    roomEntries := [];
   };
 
   // ─── Private Helpers ──────────────────────────────────────────────────────

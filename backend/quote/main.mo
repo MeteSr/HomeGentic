@@ -127,79 +127,47 @@ persistent actor Quote {
   private var pauseExpiryNs: ?Int = null;
   private var adminListEntries: [Principal] = [];
 
-  private var requestEntries: [(Text, QuoteRequest)] = [];
-  private var quoteEntries: [(Text, Quote)] = [];
-  // (submissionCount, windowStart) keyed by contractor principal
-  private var rateLimitEntries: [(Principal, (Nat, Int))] = [];
-  /// Admin-managed tier grants keyed by principal text.
-  /// Default (missing) → #Free.  Callers cannot supply or spoof their own tier.
-  private var tierGrantEntries: [(Text, SubscriptionTier)] = [];
-
-  // ─── Sealed-bid stable state (2.4) ──────────────────────────────────────────
-  private var sealedBidEntries: [(Text, SealedBid)] = [];
-  // requestId → [bidId]  (index for fast lookup by request)
-  private var sealedBidByRequestEntries: [(Text, [Text])] = [];
-  // `{contractor}:{requestId}` → bidId  (contractor's own bid)
-  private var sealedBidByContractorEntries: [(Text, Text)] = [];
-  // requestId → [RevealedBid]  (populated after homeowner calls revealBids)
-  private var revealedBidEntries: [(Text, [RevealedBid])] = [];
+  /// Migration buffers — cleared after first upgrade with this code.
+  private var requestEntries:               [(Text, QuoteRequest)]       = [];
+  private var quoteEntries:                 [(Text, Quote)]              = [];
+  private var rateLimitEntries:             [(Principal, (Nat, Int))]    = [];
+  private var tierGrantEntries:             [(Text, SubscriptionTier)]   = [];
+  private var sealedBidEntries:             [(Text, SealedBid)]          = [];
+  private var sealedBidByRequestEntries:    [(Text, [Text])]             = [];
+  private var sealedBidByContractorEntries: [(Text, Text)]               = [];
+  private var revealedBidEntries:           [(Text, [RevealedBid])]      = [];
   private var sealedBidCounter: Nat = 0;
 
-  // ─── Transient State ─────────────────────────────────────────────────────────
+  // ─── Stable State ────────────────────────────────────────────────────────────
 
-  private transient var requests = Map.fromIter<Text, QuoteRequest>(
-    requestEntries.vals(), Text.compare
-  );
+  private var requests               = Map.empty<Text, QuoteRequest>();
+  private var quotes                 = Map.empty<Text, Quote>();
+  private var contractorRateLimits   = Map.empty<Principal, (Nat, Int)>();
+  private var tierGrants             = Map.empty<Text, SubscriptionTier>();
+  private var sealedBids             = Map.empty<Text, SealedBid>();
+  private var sealedBidsByRequest    = Map.empty<Text, [Text]>();
+  private var sealedBidsByContractor = Map.empty<Text, Text>();
+  private var revealedBids           = Map.empty<Text, [RevealedBid]>();
 
-  private transient var quotes = Map.fromIter<Text, Quote>(
-    quoteEntries.vals(), Text.compare
-  );
-
-  // tracks daily submission counts per contractor
-  private transient var contractorRateLimits = Map.fromIter<Principal, (Nat, Int)>(
-    rateLimitEntries.vals(), Principal.compare
-  );
-
-  private transient var tierGrants = Map.fromIter<Text, SubscriptionTier>(
-    tierGrantEntries.vals(), Text.compare
-  );
-
-  // Sealed-bid transient state
-  private transient var sealedBids = Map.fromIter<Text, SealedBid>(
-    sealedBidEntries.vals(), Text.compare
-  );
-  private transient var sealedBidsByRequest = Map.fromIter<Text, [Text]>(
-    sealedBidByRequestEntries.vals(), Text.compare
-  );
-  private transient var sealedBidsByContractor = Map.fromIter<Text, Text>(
-    sealedBidByContractorEntries.vals(), Text.compare
-  );
-  private transient var revealedBids = Map.fromIter<Text, [RevealedBid]>(
-    revealedBidEntries.vals(), Text.compare
-  );
-
-  // ─── Upgrade Hooks ───────────────────────────────────────────────────────────
-
-  system func preupgrade() {
-    requestEntries   := Iter.toArray(Map.entries(requests));
-    quoteEntries     := Iter.toArray(Map.entries(quotes));
-    rateLimitEntries := Iter.toArray(Map.entries(contractorRateLimits));
-    tierGrantEntries := Iter.toArray(Map.entries(tierGrants));
-    sealedBidEntries              := Iter.toArray(Map.entries(sealedBids));
-    sealedBidByRequestEntries     := Iter.toArray(Map.entries(sealedBidsByRequest));
-    sealedBidByContractorEntries  := Iter.toArray(Map.entries(sealedBidsByContractor));
-    revealedBidEntries            := Iter.toArray(Map.entries(revealedBids));
-  };
+  // ─── Upgrade Hook ────────────────────────────────────────────────────────────
 
   system func postupgrade() {
-    requestEntries   := [];
-    quoteEntries     := [];
+    for ((k, v) in requestEntries.vals())               { Map.add(requests,               Text.compare,      k, v) };
+    requestEntries := [];
+    for ((k, v) in quoteEntries.vals())                 { Map.add(quotes,                 Text.compare,      k, v) };
+    quoteEntries := [];
+    for ((k, v) in rateLimitEntries.vals())             { Map.add(contractorRateLimits,   Principal.compare, k, v) };
     rateLimitEntries := [];
+    for ((k, v) in tierGrantEntries.vals())             { Map.add(tierGrants,             Text.compare,      k, v) };
     tierGrantEntries := [];
-    sealedBidEntries             := [];
-    sealedBidByRequestEntries    := [];
+    for ((k, v) in sealedBidEntries.vals())             { Map.add(sealedBids,             Text.compare,      k, v) };
+    sealedBidEntries := [];
+    for ((k, v) in sealedBidByRequestEntries.vals())    { Map.add(sealedBidsByRequest,    Text.compare,      k, v) };
+    sealedBidByRequestEntries := [];
+    for ((k, v) in sealedBidByContractorEntries.vals()) { Map.add(sealedBidsByContractor, Text.compare,      k, v) };
     sealedBidByContractorEntries := [];
-    revealedBidEntries           := [];
+    for ((k, v) in revealedBidEntries.vals())           { Map.add(revealedBids,           Text.compare,      k, v) };
+    revealedBidEntries := [];
   };
 
   // ─── Private Helpers ─────────────────────────────────────────────────────────

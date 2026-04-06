@@ -37,16 +37,15 @@ persistent actor Payment {
     quoteRequestsPerMonth: Nat;
   };
 
+  /// Migration buffer — cleared after first upgrade with this code.
   private var subscriptionEntries: [(Principal, Subscription)] = [];
-  private transient var subscriptions = Map.fromIter<Principal, Subscription>(
-    subscriptionEntries.vals(), Principal.compare
-  );
 
-  system func preupgrade() {
-    subscriptionEntries := Iter.toArray(Map.entries(subscriptions));
-  };
+  private var subscriptions = Map.empty<Principal, Subscription>();
 
   system func postupgrade() {
+    for ((k, v) in subscriptionEntries.vals()) {
+      Map.add(subscriptions, Principal.compare, k, v);
+    };
     subscriptionEntries := [];
   };
 
