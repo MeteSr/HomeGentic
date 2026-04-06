@@ -132,17 +132,41 @@ persistent actor Agent {
 
   // ─── Private Helpers ──────────────────────────────────────────────────────────
 
+  // ─── Update-call rate limit (cycle-drain protection) ────────────────────────
+
+  private var updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
+  private let MAX_UPDATES_PER_MIN : Nat = 120;
+  private let ONE_MINUTE_NS       : Int = 60_000_000_000;
+
+  private func tryConsumeUpdateSlot(caller: Principal) : Bool {
+    if (isAdmin(caller)) return true;
+    let key = Principal.toText(caller);
+    let now = Time.now();
+    switch (Map.get(updateCallLimits, Text.compare, key)) {
+      case null { Map.add(updateCallLimits, Text.compare, key, (1, now)); true };
+      case (?(count, windowStart)) {
+        if (now - windowStart >= ONE_MINUTE_NS) { Map.add(updateCallLimits, Text.compare, key, (1, now)); true }
+        else if (count >= MAX_UPDATES_PER_MIN) { false }
+        else { Map.add(updateCallLimits, Text.compare, key, (count + 1, windowStart)); true }
+      };
+    }
+  };
+
   private func isAdmin(p: Principal) : Bool {
     Option.isSome(Array.find<Principal>(adminListEntries, func(a) { a == p }))
   };
 
-  private func requireActive() : Result.Result<(), Error> {
-    if (not isPaused) return #ok(());
-    switch (pauseExpiryNs) {
-      case (?expiry) { if (Time.now() >= expiry) return #ok(()) };
-      case null {};
+  private func requireActive(caller: Principal) : Result.Result<(), Error> {
+    if (isPaused) {
+      switch (pauseExpiryNs) {
+        case (?expiry) { if (Time.now() < expiry) return #err(#Paused) };
+        case null { return #err(#Paused) };
+      };
     };
-    #err(#Paused)
+    if (not tryConsumeUpdateSlot(caller)) {
+      return #err(#RateLimitExceeded)
+    };
+    #ok(())
   };
 
   private let oneDayNs       : Int = 24 * 60 * 60 * 1_000_000_000;
@@ -174,7 +198,7 @@ persistent actor Agent {
 
   /// Register a new agent profile. Caller becomes the profile's Principal.
   public shared(msg) func register(args: RegisterArgs) : async Result.Result<AgentProfile, Error> {
-    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     if (Map.get(agents, Principal.compare, msg.caller) != null) return #err(#AlreadyExists);
     if (Text.size(args.name)          == 0) return #err(#InvalidInput("name cannot be empty"));
     if (Text.size(args.brokerage)     == 0) return #err(#InvalidInput("brokerage cannot be empty"));
@@ -219,7 +243,7 @@ persistent actor Agent {
 
   /// Update the caller's mutable profile fields.
   public shared(msg) func updateProfile(args: UpdateArgs) : async Result.Result<AgentProfile, Error> {
-    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     switch (Map.get(agents, Principal.compare, msg.caller)) {
       case null { #err(#NotFound) };
       case (?existing) {
@@ -253,7 +277,7 @@ persistent actor Agent {
   /// Post a review for an agent after a completed HomeGentic transaction.
   /// Rate-limited to 10/day per reviewer. Deduplication on reviewer+transactionId.
   public shared(msg) func addReview(args: AddReviewArgs) : async Result.Result<AgentReview, Error> {
-    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     if (Map.get(agents, Principal.compare, args.agentId) == null) return #err(#NotFound);
     if (args.rating < 1 or args.rating > 5) return #err(#InvalidInput("rating must be 1–5"));
     if (Text.size(args.transactionId) == 0) return #err(#InvalidInput("transactionId cannot be empty"));

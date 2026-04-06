@@ -175,17 +175,41 @@ persistent actor Quote {
   private let oneDayNs : Int = 24 * 60 * 60 * 1_000_000_000;
   private let dailyQuoteLimit : Nat = 20;
 
+  // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
+
+  private var updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
+  private let MAX_UPDATES_PER_MIN : Nat = 120;
+  private let ONE_MINUTE_NS       : Int = 60_000_000_000;
+
+  private func tryConsumeUpdateSlot(caller: Principal) : Bool {
+    if (isAdmin(caller)) return true;
+    let key = Principal.toText(caller);
+    let now = Time.now();
+    switch (Map.get(updateCallLimits, Text.compare, key)) {
+      case null { Map.add(updateCallLimits, Text.compare, key, (1, now)); true };
+      case (?(count, windowStart)) {
+        if (now - windowStart >= ONE_MINUTE_NS) { Map.add(updateCallLimits, Text.compare, key, (1, now)); true }
+        else if (count >= MAX_UPDATES_PER_MIN) { false }
+        else { Map.add(updateCallLimits, Text.compare, key, (count + 1, windowStart)); true }
+      };
+    }
+  };
+
   private func isAdmin(caller: Principal) : Bool {
     Option.isSome(Array.find<Principal>(adminListEntries, func(a) { a == caller }))
   };
 
-  private func requireActive() : Result.Result<(), Error> {
-    if (not isPaused) return #ok(());
-    switch (pauseExpiryNs) {
-      case (?expiry) { if (Time.now() >= expiry) return #ok(()) };
-      case null {};
+  private func requireActive(caller: Principal) : Result.Result<(), Error> {
+    if (isPaused) {
+      switch (pauseExpiryNs) {
+        case (?expiry) { if (Time.now() < expiry) return #err(#InvalidInput("Canister is paused")) };
+        case null { return #err(#InvalidInput("Canister is paused")) };
+      };
     };
-    #err(#InvalidInput("Canister is paused"))
+    if (not tryConsumeUpdateSlot(caller)) {
+      return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(MAX_UPDATES_PER_MIN) # " update calls per minute per principal."))
+    };
+    #ok(())
   };
 
   private func nextReqId() : Text {
@@ -291,7 +315,7 @@ persistent actor Quote {
     description: Text,
     urgency: UrgencyLevel
   ) : async Result.Result<QuoteRequest, Error> {
-    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     if (Text.size(propertyId)  == 0)   return #err(#InvalidInput("propertyId cannot be empty"));
     if (Text.size(description) == 0)   return #err(#InvalidInput("description cannot be empty"));
@@ -367,7 +391,7 @@ persistent actor Quote {
     timeline: Nat,
     validUntil: Time.Time
   ) : async Result.Result<Quote, Error> {
-    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     switch (Map.get(requests, Text.compare, requestId)) {
       case null { return #err(#NotFound) };
@@ -433,7 +457,7 @@ persistent actor Quote {
   /// Accept a quote. Only the request's homeowner may call this.
   /// Accepting one quote rejects all others and closes the request.
   public shared(msg) func acceptQuote(quoteId: Text) : async Result.Result<Quote, Error> {
-    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     switch (Map.get(quotes, Text.compare, quoteId)) {
       case null { return #err(#NotFound) };
@@ -500,7 +524,7 @@ persistent actor Quote {
 
   /// Manually close an open request. Only the homeowner may do this.
   public shared(msg) func closeQuoteRequest(requestId: Text) : async Result.Result<QuoteRequest, Error> {
-    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     switch (Map.get(requests, Text.compare, requestId)) {
       case null { #err(#NotFound) };
@@ -537,7 +561,7 @@ persistent actor Quote {
     urgency: UrgencyLevel,
     closeAtNs: Time.Time
   ) : async Result.Result<QuoteRequest, Error> {
-    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     if (Text.size(propertyId)  == 0)   return #err(#InvalidInput("propertyId cannot be empty"));
     if (Text.size(description) == 0)   return #err(#InvalidInput("description cannot be empty"));
@@ -575,7 +599,7 @@ persistent actor Quote {
     ciphertext:   [Nat8],
     timelineDays: Nat
   ) : async Result.Result<SealedBid, Error> {
-    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     switch (Map.get(requests, Text.compare, requestId)) {
       case null { return #err(#NotFound) };
@@ -646,7 +670,7 @@ persistent actor Quote {
   ///
   /// Idempotent: calling twice returns the same result.
   public shared(msg) func revealBids(requestId: Text) : async Result.Result<[RevealedBid], Error> {
-    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     switch (Map.get(requests, Text.compare, requestId)) {
       case null { return #err(#NotFound) };

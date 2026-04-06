@@ -15,7 +15,7 @@ persistent actor Payment {
     createdAt: Int;
   };
 
-  public type Error = { #NotFound; #NotAuthorized; #PaymentFailed: Text };
+  public type Error = { #NotFound; #NotAuthorized; #PaymentFailed: Text; #RateLimited };
 
   public type SubscriptionStats = {
     total: Nat;       // number of principals with an explicit subscription record
@@ -42,6 +42,25 @@ persistent actor Payment {
 
   private var subscriptions = Map.empty<Principal, Subscription>();
 
+  // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
+
+  private var updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
+  private let MAX_UPDATES_PER_MIN : Nat = 120;
+  private let ONE_MINUTE_NS       : Int = 60_000_000_000;
+
+  private func tryConsumeUpdateSlot(caller: Principal) : Bool {
+    let key = Principal.toText(caller);
+    let now = Time.now();
+    switch (Map.get(updateCallLimits, Text.compare, key)) {
+      case null { Map.add(updateCallLimits, Text.compare, key, (1, now)); true };
+      case (?(count, windowStart)) {
+        if (now - windowStart >= ONE_MINUTE_NS) { Map.add(updateCallLimits, Text.compare, key, (1, now)); true }
+        else if (count >= MAX_UPDATES_PER_MIN) { false }
+        else { Map.add(updateCallLimits, Text.compare, key, (count + 1, windowStart)); true }
+      };
+    }
+  };
+
   system func postupgrade() {
     for ((k, v) in subscriptionEntries.vals()) {
       Map.add(subscriptions, Principal.compare, k, v);
@@ -50,6 +69,7 @@ persistent actor Payment {
   };
 
   public shared(msg) func subscribe(tier: Tier) : async Result.Result<Subscription, Error> {
+    if (not tryConsumeUpdateSlot(msg.caller)) return #err(#RateLimited);
     let durationNs : Int = switch (tier) {
       case (#Free) { 0 };
       case (#Pro) { 30 * 24 * 60 * 60 * 1_000_000_000 };

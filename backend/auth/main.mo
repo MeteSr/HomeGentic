@@ -82,6 +82,9 @@ persistent actor Auth {
   private var admins: [Principal] = [];
   private var adminInitialized: Bool = false;
 
+  /// Per-principal update-call rate limiting (cycle-drain protection).
+  private var updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
+
   /// Migration buffer — populated by the last old-code preupgrade, cleared once.
   /// After the first upgrade with this code, this array is always [].
   private var userEntries: [(Principal, UserProfile)] = [];
@@ -110,13 +113,47 @@ persistent actor Auth {
     Array.find<Principal>(admins, func (a) { a == caller }) != null
   };
 
-  private func requireActive() : Result.Result<(), Error> {
-    if (not isPaused) return #ok(());
-    switch (pauseExpiryNs) {
-      case (?expiry) { if (Time.now() >= expiry) return #ok(()) };
-      case null {};
+  // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
+
+  private let MAX_UPDATES_PER_MIN : Nat = 120;
+  private let ONE_MINUTE_NS       : Int = 60_000_000_000;
+
+  /// Returns true and bumps the counter if the caller is under the 120/min limit.
+  /// Admins are always exempt. Window resets after 60 s.
+  private func tryConsumeUpdateSlot(caller: Principal) : Bool {
+    if (isAdmin(caller)) return true;
+    let key = Principal.toText(caller);
+    let now = Time.now();
+    switch (Map.get(updateCallLimits, Text.compare, key)) {
+      case null {
+        Map.add(updateCallLimits, Text.compare, key, (1, now));
+        true
+      };
+      case (?(count, windowStart)) {
+        if (now - windowStart >= ONE_MINUTE_NS) {
+          Map.add(updateCallLimits, Text.compare, key, (1, now));
+          true
+        } else if (count >= MAX_UPDATES_PER_MIN) {
+          false
+        } else {
+          Map.add(updateCallLimits, Text.compare, key, (count + 1, windowStart));
+          true
+        }
+      };
+    }
+  };
+
+  private func requireActive(caller: Principal) : Result.Result<(), Error> {
+    if (isPaused) {
+      switch (pauseExpiryNs) {
+        case (?expiry) { if (Time.now() < expiry) return #err(#Paused) };
+        case null { return #err(#Paused) };
+      };
     };
-    #err(#Paused)
+    if (not tryConsumeUpdateSlot(caller)) {
+      return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(MAX_UPDATES_PER_MIN) # " update calls per minute per principal."))
+    };
+    #ok(())
   };
 
   // ─── Admin Controls ───────────────────────────────────────────────────────────
@@ -152,7 +189,7 @@ persistent actor Auth {
 
   /// Register a new user with a role, email, and phone number
   public shared(msg) func register(args: RegisterArgs) : async Result.Result<UserProfile, Error> {
-    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     let caller = msg.caller;
 
@@ -189,7 +226,7 @@ persistent actor Auth {
 
   /// Update the caller's email and phone
   public shared(msg) func updateProfile(args: UpdateArgs) : async Result.Result<UserProfile, Error> {
-    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     switch (Map.get(users, Principal.compare, msg.caller)) {
       case null { #err(#NotFound) };

@@ -146,6 +146,36 @@ persistent actor Job {
 
   // ─── Private Helpers ─────────────────────────────────────────────────────────
 
+  // ─── Rate Limit (cycle-drain protection, §enterprise/#46) ────────────────────
+
+  private var updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
+
+  private let MAX_UPDATES_PER_MIN : Nat = 120;
+  private let ONE_MINUTE_NS       : Int = 60_000_000_000;
+
+  private func tryConsumeUpdateSlot(caller: Principal) : Bool {
+    if (isAdmin(caller)) return true;
+    let key = Principal.toText(caller);
+    let now = Time.now();
+    switch (Map.get(updateCallLimits, Text.compare, key)) {
+      case null {
+        Map.add(updateCallLimits, Text.compare, key, (1, now));
+        true
+      };
+      case (?(count, windowStart)) {
+        if (now - windowStart >= ONE_MINUTE_NS) {
+          Map.add(updateCallLimits, Text.compare, key, (1, now));
+          true
+        } else if (count >= MAX_UPDATES_PER_MIN) {
+          false
+        } else {
+          Map.add(updateCallLimits, Text.compare, key, (count + 1, windowStart));
+          true
+        }
+      };
+    }
+  };
+
   private func isAdmin(caller: Principal) : Bool {
     Option.isSome(Array.find<Principal>(adminListEntries, func(a) { a == caller }))
   };
@@ -154,13 +184,17 @@ persistent actor Job {
     Option.isSome(Array.find<Principal>(authorizedSensors, func(s) { s == caller }))
   };
 
-  private func requireActive() : Result.Result<(), Error> {
-    if (not isPaused) return #ok(());
-    switch (pauseExpiryNs) {
-      case (?expiry) { if (Time.now() >= expiry) return #ok(()) };
-      case null {};
+  private func requireActive(caller: Principal) : Result.Result<(), Error> {
+    if (isPaused) {
+      switch (pauseExpiryNs) {
+        case (?expiry) { if (Time.now() < expiry) return #err(#InvalidInput("Canister is paused")) };
+        case null { return #err(#InvalidInput("Canister is paused")) };
+      };
     };
-    #err(#InvalidInput("Canister is paused"))
+    if (not tryConsumeUpdateSlot(caller)) {
+      return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(MAX_UPDATES_PER_MIN) # " update calls per minute per principal."))
+    };
+    #ok(())
   };
 
   private func nextJobId() : Text {
@@ -184,7 +218,7 @@ persistent actor Job {
     warrantyMonths: ?Nat,
     isDiy: Bool
   ) : async Result.Result<Job, Error> {
-    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     if (Text.size(propertyId)   == 0) return #err(#InvalidInput("propertyId cannot be empty"));
     if (Text.size(title)        == 0) return #err(#InvalidInput("title cannot be empty"));
@@ -289,7 +323,7 @@ persistent actor Job {
 
   /// Update a job's status. Only the homeowner (or admin) can do this on unverified jobs.
   public shared(msg) func updateJobStatus(jobId: Text, status: JobStatus) : async Result.Result<Job, Error> {
-    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     switch (Map.get(jobs, Text.compare, jobId)) {
       case null { #err(#NotFound) };
@@ -327,7 +361,7 @@ persistent actor Job {
   /// Link a contractor Principal to a job. Only the homeowner can do this.
   /// Not applicable to DIY jobs.
   public shared(msg) func linkContractor(jobId: Text, contractorPrincipal: Principal) : async Result.Result<Job, Error> {
-    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     switch (Map.get(jobs, Text.compare, jobId)) {
       case null { #err(#NotFound) };
@@ -368,7 +402,7 @@ persistent actor Job {
   ///   DIY job        — homeowner signature alone is sufficient.
   ///   Contractor job — both homeowner AND contractor must sign.
   public shared(msg) func verifyJob(jobId: Text) : async Result.Result<Job, Error> {
-    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     switch (Map.get(jobs, Text.compare, jobId)) {
       case null { #err(#NotFound) };
@@ -626,7 +660,7 @@ persistent actor Job {
     permitNumber:   ?Text,
     warrantyMonths: ?Nat
   ) : async Result.Result<Job, Error> {
-    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     if (Text.size(propertyId)    == 0) return #err(#InvalidInput("propertyId cannot be empty"));
     if (Text.size(contractorName) == 0) return #err(#InvalidInput("contractorName is required"));
@@ -684,7 +718,7 @@ persistent actor Job {
     jobId:           Text,
     propertyAddress: Text
   ) : async Result.Result<Text, Error> {
-    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     let job = switch (Map.get(jobs, Text.compare, jobId)) {
       case null    { return #err(#NotFound) };

@@ -110,17 +110,41 @@ persistent actor Photo {
 
   // ─── Private Helpers ─────────────────────────────────────────────────────────
 
+  // ─── Update-call rate limit (cycle-drain protection) ────────────────────────
+
+  private var updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
+  private let MAX_UPDATES_PER_MIN : Nat = 120;
+  private let ONE_MINUTE_NS       : Int = 60_000_000_000;
+
+  private func tryConsumeUpdateSlot(caller: Principal) : Bool {
+    if (isAdmin(caller)) return true;
+    let key = Principal.toText(caller);
+    let now = Time.now();
+    switch (Map.get(updateCallLimits, Text.compare, key)) {
+      case null { Map.add(updateCallLimits, Text.compare, key, (1, now)); true };
+      case (?(count, windowStart)) {
+        if (now - windowStart >= ONE_MINUTE_NS) { Map.add(updateCallLimits, Text.compare, key, (1, now)); true }
+        else if (count >= MAX_UPDATES_PER_MIN) { false }
+        else { Map.add(updateCallLimits, Text.compare, key, (count + 1, windowStart)); true }
+      };
+    }
+  };
+
   private func isAdmin(p: Principal) : Bool {
     Option.isSome(Array.find<Principal>(adminListEntries, func(a) { a == p }))
   };
 
-  private func requireActive() : Result.Result<(), Error> {
-    if (not isPaused) return #ok(());
-    switch (pauseExpiryNs) {
-      case (?expiry) { if (Time.now() >= expiry) return #ok(()) };
-      case null {};
+  private func requireActive(caller: Principal) : Result.Result<(), Error> {
+    if (isPaused) {
+      switch (pauseExpiryNs) {
+        case (?expiry) { if (Time.now() < expiry) return #err(#InvalidInput("Canister is paused")) };
+        case null { return #err(#InvalidInput("Canister is paused")) };
+      };
     };
-    #err(#InvalidInput("Canister is paused"))
+    if (not tryConsumeUpdateSlot(caller)) {
+      return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(MAX_UPDATES_PER_MIN) # " update calls per minute per principal."))
+    };
+    #ok(())
   };
 
   private func nextPhotoId() : Text {
@@ -199,7 +223,7 @@ persistent actor Photo {
     hash: Text,
     data: [Nat8]
   ) : async Result.Result<Photo, Error> {
-    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     if (Text.size(jobId) == 0)      return #err(#InvalidInput("jobId cannot be empty"));
     if (Text.size(propertyId) == 0) return #err(#InvalidInput("propertyId cannot be empty"));
@@ -334,7 +358,7 @@ persistent actor Photo {
   /// Adds caller to approvals; sets verified = true on first approval.
   /// Idempotent: calling again after already approving is a no-op.
   public shared(msg) func verifyPhoto(photoId: Text) : async Result.Result<Photo, Error> {
-    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     switch (Map.get(photos, Text.compare, photoId)) {
       case null { #err(#NotFound) };
@@ -369,7 +393,7 @@ persistent actor Photo {
 
   /// Delete a photo. Owner or admin only. Also removes the hash index entry.
   public shared(msg) func deletePhoto(photoId: Text) : async Result.Result<(), Error> {
-    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     switch (Map.get(photos, Text.compare, photoId)) {
       case null { #err(#NotFound) };

@@ -271,17 +271,41 @@ persistent actor Property {
 
   // ─── Private Helpers ──────────────────────────────────────────────────────
 
+  // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
+
+  private var updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
+  private let MAX_UPDATES_PER_MIN : Nat = 120;
+  private let ONE_MINUTE_NS       : Int = 60_000_000_000;
+
+  private func tryConsumeUpdateSlot(caller: Principal) : Bool {
+    if (isAdmin(caller)) return true;
+    let key = Principal.toText(caller);
+    let now = Time.now();
+    switch (Map.get(updateCallLimits, Text.compare, key)) {
+      case null { Map.add(updateCallLimits, Text.compare, key, (1, now)); true };
+      case (?(count, windowStart)) {
+        if (now - windowStart >= ONE_MINUTE_NS) { Map.add(updateCallLimits, Text.compare, key, (1, now)); true }
+        else if (count >= MAX_UPDATES_PER_MIN) { false }
+        else { Map.add(updateCallLimits, Text.compare, key, (count + 1, windowStart)); true }
+      };
+    }
+  };
+
   private func isAdmin(caller: Principal) : Bool {
     Option.isSome(Array.find<Principal>(admins, func(a) { a == caller }))
   };
 
-  private func requireActive() : Result.Result<(), Error> {
-    if (not isPaused) return #ok(());
-    switch (pauseExpiryNs) {
-      case (?expiry) { if (Time.now() >= expiry) return #ok(()) };
-      case null {};
+  private func requireActive(caller: Principal) : Result.Result<(), Error> {
+    if (isPaused) {
+      switch (pauseExpiryNs) {
+        case (?expiry) { if (Time.now() < expiry) return #err(#Paused) };
+        case null { return #err(#Paused) };
+      };
     };
-    #err(#Paused)
+    if (not tryConsumeUpdateSlot(caller)) {
+      return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(MAX_UPDATES_PER_MIN) # " update calls per minute per principal."))
+    };
+    #ok(())
   };
 
   private func countOwnerProperties(owner: Principal) : Nat {
@@ -340,7 +364,7 @@ persistent actor Property {
   public shared(msg) func registerProperty(
     args: RegisterPropertyArgs
   ) : async Result.Result<Property, Error> {
-    switch (requireActive()) { case (#err e) return #err e; case _ {} };
+    switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
 
     if (Text.size(args.address) == 0)
       return #err(#InvalidInput("Address cannot be empty"));
@@ -450,7 +474,7 @@ persistent actor Property {
     method       : Text,
     documentHash : Text
   ) : async Result.Result<Property, Error> {
-    switch (requireActive()) { case (#err e) return #err e; case _ {} };
+    switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
 
     if (Text.size(method)       == 0) return #err(#InvalidInput("method required"));
     if (Text.size(documentHash) == 0) return #err(#InvalidInput("documentHash required"));
@@ -618,7 +642,7 @@ persistent actor Property {
     propertyId : Nat,
     to         : Principal
   ) : async Result.Result<PendingTransfer, Error> {
-    switch (requireActive()) { case (#err e) return #err e; case _ {} };
+    switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
 
     switch (Map.get(properties, Nat.compare, propertyId)) {
       case null { #err(#NotFound) };
@@ -644,7 +668,7 @@ persistent actor Property {
     propertyId : Nat,
     txHash     : Text
   ) : async Result.Result<Property, Error> {
-    switch (requireActive()) { case (#err e) return #err e; case _ {} };
+    switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
 
     switch (Map.get(pendingTransfers, Nat.compare, propertyId)) {
       case null { #err(#NotFound) };
@@ -874,7 +898,7 @@ persistent actor Property {
 
   /// Create a new room for a property. Caller becomes the owner.
   public shared(msg) func createRoom(args: CreateRoomArgs) : async Result.Result<RoomRecord, Error> {
-    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     if (Text.size(args.propertyId) == 0)   return #err(#InvalidInput("propertyId cannot be empty"));
     if (Text.size(args.name)       == 0)   return #err(#InvalidInput("name cannot be empty"));
@@ -921,7 +945,7 @@ persistent actor Property {
 
   /// Update room metadata. Only the owner may update.
   public shared(msg) func updateRoom(id: Text, args: UpdateRoomArgs) : async Result.Result<RoomRecord, Error> {
-    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     switch (Map.get(rooms, Text.compare, id)) {
       case null { #err(#NotFound) };
@@ -957,7 +981,7 @@ persistent actor Property {
 
   /// Delete a room and all its fixtures. Only the owner may delete.
   public shared(msg) func deleteRoom(id: Text) : async Result.Result<(), Error> {
-    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     switch (Map.get(rooms, Text.compare, id)) {
       case null    { #err(#NotFound) };
@@ -971,7 +995,7 @@ persistent actor Property {
 
   /// Add a fixture to a room. Only the room owner may add fixtures.
   public shared(msg) func addFixture(roomId: Text, args: AddFixtureArgs) : async Result.Result<RoomRecord, Error> {
-    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     switch (Map.get(rooms, Text.compare, roomId)) {
       case null    { #err(#NotFound) };
@@ -1015,7 +1039,7 @@ persistent actor Property {
 
   /// Update an existing fixture within a room.
   public shared(msg) func updateFixture(roomId: Text, fixtureId: Text, args: AddFixtureArgs) : async Result.Result<RoomRecord, Error> {
-    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     switch (Map.get(rooms, Text.compare, roomId)) {
       case null    { #err(#NotFound) };
@@ -1069,7 +1093,7 @@ persistent actor Property {
 
   /// Remove a fixture from a room.
   public shared(msg) func removeFixture(roomId: Text, fixtureId: Text) : async Result.Result<RoomRecord, Error> {
-    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     switch (Map.get(rooms, Text.compare, roomId)) {
       case null    { #err(#NotFound) };
