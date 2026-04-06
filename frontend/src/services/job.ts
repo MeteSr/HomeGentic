@@ -182,6 +182,12 @@ export interface InvitePreview {
   alreadySigned:   boolean;
 }
 
+/** Input shape accepted by jobService.create (mirrors the Candid createJob call). */
+export type JobCreateInput = Omit<Job,
+  "id" | "createdAt" | "status" | "photos" | "verified" |
+  "homeownerSigned" | "contractorSigned" | "homeowner" | "contractor"
+>;
+
 // ─── Converters ───────────────────────────────────────────────────────────────
 
 const STATUS_MAP: Record<string, JobStatus> = {

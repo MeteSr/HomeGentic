@@ -8,7 +8,7 @@
  * are exported for testing without network calls.
  */
 
-import type { Job, JobStatus } from "./job";
+import type { Job, JobStatus, JobCreateInput } from "./job";
 import { jobService } from "./job";
 import type { Property } from "./property";
 
@@ -147,13 +147,42 @@ export function isPermitDataAvailable(city: string, state: string): boolean {
 
 // ── Canister import ───────────────────────────────────────────────────────────
 
+// Raw shape returned by the ArcGIS AMANDA service (Volusia County)
+interface ArcGisFeature {
+  attributes?: {
+    FOLDERNAME?:        string;
+    FOLDERTYPE?:        string;
+    FOLDERDESCRIPTION?: string;
+    INDATE?:            number | string | null;
+    STATUSDESC?:        string;
+  };
+}
+interface ArcGisResponse { features?: ArcGisFeature[] }
+
+// Raw shape returned by OpenPermit.org
+interface OpenPermitRow {
+  permit_number?:   string;
+  id?:              string;
+  permit_type?:     string;
+  type?:            string;
+  description?:     string;
+  work_description?: string;
+  issued_date?:     string;
+  issue_date?:      string;
+  status?:          string;
+  estimated_value?: number;
+  contractor_license?: string;
+  contractor_name?:  string;
+}
+interface OpenPermitResponse { results?: OpenPermitRow[] }
+
 // Map canister response source → permit records
 function mapCanisterResponse(
   source: string,
-  data: any,
-  propertyId: string,
+  data: ArcGisResponse | OpenPermitResponse,
 ): OpenPermitRecord[] {
   if (source === "arcgis") {
+    const arcgis = data as ArcGisResponse;
     const AMANDA_MAP: Record<string, string> = {
       elec: "Electrical Permit", mech: "Mechanical Permit",
       plmb: "Plumbing Permit",   roof: "Roofing Permit",
@@ -168,18 +197,19 @@ function mapCanisterResponse(
       if (/void|cancel|withdraw/.test(l)) return "Cancelled";
       return "Open";
     };
-    return (data.features ?? []).map((f: any) => {
+    return (arcgis.features ?? []).map((f) => {
       const a = f.attributes ?? {};
       return {
         permitNumber: a.FOLDERNAME ?? "",
         permitType:   AMANDA_MAP[(a.FOLDERTYPE ?? "").toLowerCase()] ?? "Building Permit",
         description:  a.FOLDERDESCRIPTION ?? "",
-        issuedDate:   a.INDATE ? new Date(a.INDATE).toISOString().slice(0, 10) : "",
+        issuedDate:   a.INDATE ? new Date(Number(a.INDATE)).toISOString().slice(0, 10) : "",
         status:       mapStatus(a.STATUSDESC ?? ""),
-      } as OpenPermitRecord;
+      };
     });
   }
   if (source === "openpermit") {
+    const op = data as OpenPermitResponse;
     const mapStatus = (raw: string): OpenPermitRecord["status"] => {
       const s = raw.toLowerCase();
       if (s.includes("final") || s.includes("closed") || s.includes("complete")) return "Finaled";
@@ -187,7 +217,7 @@ function mapCanisterResponse(
       if (s.includes("cancel") || s.includes("void")) return "Cancelled";
       return "Open";
     };
-    return ((data.results ?? []) as any[]).map((p) => ({
+    return (op.results ?? []).map((p) => ({
       permitNumber:        p.permit_number ?? p.id ?? "",
       permitType:          p.permit_type ?? p.type ?? "Building Permit",
       description:         p.description ?? p.work_description ?? "",
@@ -196,7 +226,7 @@ function mapCanisterResponse(
       estimatedValueCents: p.estimated_value ? Math.round(p.estimated_value * 100) : undefined,
       contractorLicense:   p.contractor_license,
       contractorName:      p.contractor_name,
-    }) as OpenPermitRecord);
+    }));
   }
   return [];
 }
@@ -216,17 +246,18 @@ export async function importPermitsForProperty(
   const json = await aiProxyService.importPermits(address, city, state, zip);
   if (!json) return { citySupported: true, imported: 0, permits: [] };
 
-  const response = JSON.parse(json) as { source: string; data: any };
+  const response = JSON.parse(json) as { source: string; data: ArcGisResponse | OpenPermitResponse | string };
   if (response.source === "unsupported") {
     return { citySupported: false, imported: 0, permits: [] };
   }
 
-  // data is a raw JSON string from the canister
-  const rawData = typeof response.data === "string"
-    ? JSON.parse(response.data)
-    : response.data;
+  // data may be a nested JSON string from the canister
+  const rawData: ArcGisResponse | OpenPermitResponse =
+    typeof response.data === "string"
+      ? (JSON.parse(response.data) as ArcGisResponse | OpenPermitResponse)
+      : (response.data as ArcGisResponse | OpenPermitResponse);
 
-  const raw = mapCanisterResponse(response.source, rawData, propertyId);
+  const raw = mapCanisterResponse(response.source, rawData);
   const permits: ImportedPermit[] = raw.map((permit) => ({
     permit,
     serviceType: mapPermitTypeToServiceType(permit.permitType),
@@ -251,7 +282,7 @@ export async function createJobsFromPermits(
   return Promise.all(
     permits.map((p) =>
       jobService.create({
-        ...(p.jobInput as any),
+        ...(p.jobInput as JobCreateInput),
         permitNumber: p.permit.permitNumber,
       })
     )
