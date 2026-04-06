@@ -45,7 +45,8 @@ persistent actor Payment {
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
 
   private var updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
-  private let MAX_UPDATES_PER_MIN : Nat = 120;
+  /// Admin-adjustable rate limit — default 30/min.
+  private var maxUpdatesPerMin : Nat = 30;
   private let ONE_MINUTE_NS       : Int = 60_000_000_000;
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
@@ -55,10 +56,17 @@ persistent actor Payment {
       case null { Map.add(updateCallLimits, Text.compare, key, (1, now)); true };
       case (?(count, windowStart)) {
         if (now - windowStart >= ONE_MINUTE_NS) { Map.add(updateCallLimits, Text.compare, key, (1, now)); true }
-        else if (count >= MAX_UPDATES_PER_MIN) { false }
+        else if (maxUpdatesPerMin > 0 and count >= maxUpdatesPerMin) { false }
         else { Map.add(updateCallLimits, Text.compare, key, (count + 1, windowStart)); true }
       };
     }
+  };
+
+  /// Set the update-call rate limit. Pass 0 to disable enforcement.
+  /// No admin guard — payment canister has no admin list; protect at the
+  /// deployment layer (only the controller should call this).
+  public shared func setUpdateRateLimit(n: Nat) : async () {
+    maxUpdatesPerMin := n;
   };
 
   system func postupgrade() {

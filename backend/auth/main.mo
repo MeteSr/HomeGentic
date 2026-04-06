@@ -115,7 +115,9 @@ persistent actor Auth {
 
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
 
-  private let MAX_UPDATES_PER_MIN : Nat = 120;
+  /// Admin-adjustable rate limit — default 30/min. Lower for tighter protection,
+  /// raise for bulk-operation accounts, set to 0 to disable enforcement.
+  private var maxUpdatesPerMin : Nat = 30;
   private let ONE_MINUTE_NS       : Int = 60_000_000_000;
 
   /// Returns true and bumps the counter if the caller is under the 120/min limit.
@@ -133,7 +135,7 @@ persistent actor Auth {
         if (now - windowStart >= ONE_MINUTE_NS) {
           Map.add(updateCallLimits, Text.compare, key, (1, now));
           true
-        } else if (count >= MAX_UPDATES_PER_MIN) {
+        } else if (maxUpdatesPerMin > 0 and count >= maxUpdatesPerMin) {
           false
         } else {
           Map.add(updateCallLimits, Text.compare, key, (count + 1, windowStart));
@@ -151,12 +153,19 @@ persistent actor Auth {
       };
     };
     if (not tryConsumeUpdateSlot(caller)) {
-      return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(MAX_UPDATES_PER_MIN) # " update calls per minute per principal."))
+      return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(maxUpdatesPerMin) # " update calls per minute per principal."))
     };
     #ok(())
   };
 
   // ─── Admin Controls ───────────────────────────────────────────────────────────
+
+  /// Set the update-call rate limit (admin only). Pass 0 to disable enforcement.
+  public shared(msg) func setUpdateRateLimit(n: Nat) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    maxUpdatesPerMin := n;
+    #ok(())
+  };
 
   /// Add a new admin principal
   public shared(msg) func addAdmin(newAdmin: Principal) : async Result.Result<(), Error> {

@@ -243,9 +243,84 @@ echo "── [24] createInviteToken as contractor → expect NotAuthorized ─�
 dfx canister call $CANISTER createInviteToken "(\"$JOB_ID\")" --identity contractor-test \
   || echo "  ↳ Expected NotAuthorized (only homeowner can create invite) — ✓"
 
+# ─── Rate Limit Tests ─────────────────────────────────────────────────────────
+echo ""
+echo "── [25] setUpdateRateLimit to 3 (admin) ────────────────────────────────"
+# Ensure we have admin rights first (first addAdmin call bootstraps)
+dfx canister call $CANISTER addAdmin "(principal \"$(dfx identity get-principal)\")"
+dfx canister call $CANISTER setUpdateRateLimit "(3 : nat)"
+
+echo ""
+echo "── [26] 3 update calls succeed under the limit ─────────────────────────"
+dfx canister call $CANISTER createJob '(
+  "PROP_RL_1",
+  "Rate Limit Test Job 1",
+  variant { Plumbing },
+  "RL test",
+  null,
+  null,
+  null,
+  null
+)' --identity contractor-test
+dfx canister call $CANISTER createJob '(
+  "PROP_RL_2",
+  "Rate Limit Test Job 2",
+  variant { Plumbing },
+  "RL test",
+  null,
+  null,
+  null,
+  null
+)' --identity contractor-test
+dfx canister call $CANISTER createJob '(
+  "PROP_RL_3",
+  "Rate Limit Test Job 3",
+  variant { Plumbing },
+  "RL test",
+  null,
+  null,
+  null,
+  null
+)' --identity contractor-test
+echo "  ↳ 3 calls succeeded — ✓"
+
+echo ""
+echo "── [27] 4th call is rejected (rate limit exceeded) ─────────────────────"
+dfx canister call $CANISTER createJob '(
+  "PROP_RL_4",
+  "Rate Limit Test Job 4",
+  variant { Plumbing },
+  "RL test",
+  null,
+  null,
+  null,
+  null
+)' --identity contractor-test \
+  && echo "  ↳ ❌ Expected rate limit error — call should have failed" \
+  || echo "  ↳ Rate limit correctly rejected 4th call — ✓"
+
+echo ""
+echo "── [28] Admin identity is exempt from rate limit ───────────────────────"
+dfx canister call $CANISTER createJob '(
+  "PROP_RL_ADMIN",
+  "Admin Exempt Test",
+  variant { Plumbing },
+  "Admin bypass test",
+  null,
+  null,
+  null,
+  null
+)'
+echo "  ↳ Admin call succeeded despite limit — ✓"
+
+echo ""
+echo "── [29] Reset rate limit to 30 (production default) ────────────────────"
+dfx canister call $CANISTER setUpdateRateLimit "(30 : nat)"
+echo "  ↳ Rate limit restored to 30/min — ✓"
+
 # ─── Metrics (after tests) ────────────────────────────────────────────────────
 echo ""
-echo "── [25] Get metrics (after tests) ──────────────────────────────────────"
+echo "── [30] Get metrics (after tests) ──────────────────────────────────────"
 dfx canister call $CANISTER getMetrics
 
 echo ""

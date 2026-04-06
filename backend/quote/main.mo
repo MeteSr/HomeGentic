@@ -178,7 +178,8 @@ persistent actor Quote {
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
 
   private var updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
-  private let MAX_UPDATES_PER_MIN : Nat = 120;
+  /// Admin-adjustable rate limit — default 30/min.
+  private var maxUpdatesPerMin : Nat = 30;
   private let ONE_MINUTE_NS       : Int = 60_000_000_000;
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
@@ -189,7 +190,7 @@ persistent actor Quote {
       case null { Map.add(updateCallLimits, Text.compare, key, (1, now)); true };
       case (?(count, windowStart)) {
         if (now - windowStart >= ONE_MINUTE_NS) { Map.add(updateCallLimits, Text.compare, key, (1, now)); true }
-        else if (count >= MAX_UPDATES_PER_MIN) { false }
+        else if (maxUpdatesPerMin > 0 and count >= maxUpdatesPerMin) { false }
         else { Map.add(updateCallLimits, Text.compare, key, (count + 1, windowStart)); true }
       };
     }
@@ -207,7 +208,7 @@ persistent actor Quote {
       };
     };
     if (not tryConsumeUpdateSlot(caller)) {
-      return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(MAX_UPDATES_PER_MIN) # " update calls per minute per principal."))
+      return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(maxUpdatesPerMin) # " update calls per minute per principal."))
     };
     #ok(())
   };
@@ -758,6 +759,13 @@ persistent actor Quote {
   public shared(msg) func setTier(user: Principal, tier: SubscriptionTier) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#Unauthorized);
     Map.add(tierGrants, Text.compare, Principal.toText(user), tier);
+    #ok(())
+  };
+
+  /// Set the update-call rate limit (admin only). Pass 0 to disable enforcement.
+  public shared(msg) func setUpdateRateLimit(n: Nat) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#Unauthorized);
+    maxUpdatesPerMin := n;
     #ok(())
   };
 
