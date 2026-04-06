@@ -39,12 +39,13 @@ describe("getPriceBenchmark", () => {
     } as any);
 
     const result = await getPriceBenchmark("Roofing", "32114");
-    expect(result.serviceType).toBe("Roofing");
-    expect(result.zipCode).toBe("32114");
-    expect(result.low).toBe(800000);
-    expect(result.median).toBe(1400000);
-    expect(result.high).toBe(2200000);
-    expect(result.sampleSize).toBe(23);
+    expect(result).not.toBeNull();
+    expect(result!.serviceType).toBe("Roofing");
+    expect(result!.zipCode).toBe("32114");
+    expect(result!.low).toBe(800000);
+    expect(result!.median).toBe(1400000);
+    expect(result!.high).toBe(2200000);
+    expect(result!.sampleSize).toBe(23);
   });
 
   it("calls the relay at /api/price-benchmark with service and zip query params", async () => {

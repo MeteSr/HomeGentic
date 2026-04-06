@@ -112,7 +112,7 @@ export default function ReportPage() {
       document.title = `HomeGentic Report — ${snapshot.address}`;
       const meta = document.querySelector<HTMLMetaElement>("meta[name='description']")
         ?? (() => { const m = document.createElement("meta"); m.name = "description"; document.head.appendChild(m); return m; })();
-      meta.content = `Verified maintenance history for ${snapshot.address}. HomeGentic Score: ${snapshot.score ?? "N/A"}/100. ${snapshot.verifiedJobCount} verified job${snapshot.verifiedJobCount !== 1 ? "s" : ""}.`;
+      meta.content = `Verified maintenance history for ${snapshot.address}. ${snapshot.verifiedJobCount} verified job${snapshot.verifiedJobCount !== 1 ? "s" : ""}.`;
     }).catch((err: Error) => {
       const msg = err.message.toLowerCase();
       if (msg.includes("expired"))       setState("expired");

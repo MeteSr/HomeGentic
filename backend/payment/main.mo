@@ -2,6 +2,7 @@ import Map "mo:core/Map";
 import Iter "mo:core/Iter";
 import Principal "mo:core/Principal";
 import Result "mo:core/Result";
+import Text "mo:core/Text";
 import Time "mo:core/Time";
 
 persistent actor Payment {

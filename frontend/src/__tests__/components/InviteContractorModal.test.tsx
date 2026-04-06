@@ -44,16 +44,19 @@ import { jobService } from "@/services/job";
 const MOCK_JOB: Job = {
   id:               "job-1",
   propertyId:       "prop-1",
+  homeowner:        "aaaaa-aa",
   serviceType:      "Plumbing",
   contractorName:   "Pipe Dreams Inc",
   description:      "Fix kitchen sink",
   amount:           25000,
-  completedDate:    new Date("2024-06-15").getTime(),
+  date:             "2024-06-15",
   homeownerSigned:  true,
   contractorSigned: false,
   isDiy:            false,
   verified:         false,
   photos:           [],
+  status:           "completed",
+  createdAt:        new Date("2024-06-15").getTime(),
 };
 
 function renderModal(overrides: Partial<Parameters<typeof InviteContractorModal>[0]> = {}) {

@@ -83,13 +83,13 @@ export default function PropertyRegisterPage() {
 
       // §17.2.5 — seed system ages from forecast migration params
       if (Object.keys(pendingSystemAges).length > 0) {
-        systemAgesService.set(property.id, pendingSystemAges);
+        systemAgesService.set(String(property.id), pendingSystemAges);
       }
 
       // §17.5.3 — trigger permit import in background; show review step if found
       const result = await triggerPermitImport(property).catch(() => null);
       if (result?.citySupported && result.permits.length > 0) {
-        setRegisteredPropertyId(property.id);
+        setRegisteredPropertyId(String(property.id));
         setPermitResult(result);
         setStep(4);
       } else {

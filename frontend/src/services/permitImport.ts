@@ -218,7 +218,7 @@ export async function triggerPermitImport(
   property: Pick<Property, "id" | "address" | "city" | "state" | "zipCode">,
 ): Promise<PermitImportResult> {
   return importPermitsForProperty(
-    property.id,
+    String(property.id),
     property.address,
     property.city,
     property.state,
