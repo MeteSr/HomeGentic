@@ -236,7 +236,7 @@ export default function PriceLookupPage() {
             {service} in {zip}
           </h1>
           <p style={{ fontFamily: S.sans, fontSize: "0.9375rem", color: S.inkLight, lineHeight: 1.7, fontWeight: 300, marginBottom: "1.5rem" }}>
-            No pricing data available for this combination yet.
+            No data available for this combination yet.
           </p>
           <Link to="/prices" style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, textDecoration: "none" }}>
             ← Search another
