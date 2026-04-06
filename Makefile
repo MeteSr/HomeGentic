@@ -1,4 +1,4 @@
-.PHONY: help start stop deploy deploy-one test clean status upgrade frontend init-data dev
+.PHONY: help start stop deploy deploy-one test clean status upgrade frontend init-data dev dev-full
 
 NETWORK ?= local
 
@@ -13,10 +13,14 @@ help:
 	@echo "  make status              Show canister status"
 	@echo "  make upgrade             Upgrade all canisters"
 	@echo "  make dev                 Start replica, deploy canisters, and run frontend"
+	@echo "  make dev-full            Full local stack: replica + canisters + frontend + voice + dashboard"
 	@echo "  make clean               Clean local dfx state"
 
 dev:
 	dfx start --clean --background && bash scripts/deploy.sh && cd frontend && npm run dev
+
+dev-full:
+	bash scripts/dev.sh
 
 start:
 	dfx start --background

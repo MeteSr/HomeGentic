@@ -48,7 +48,7 @@ fi
 # Parallel deploys race on canister_ids.json (each process read→add→write);
 # the last writer wins and all other IDs are lost. Sequential is the safe default.
 
-CANISTERS=(auth property job contractor quote payment photo report maintenance market sensor monitoring)
+CANISTERS=(auth property job contractor quote payment photo report maintenance market sensor monitoring listing agent recurring)
 LOG_DIR=$(mktemp -d /tmp/dfx-deploy-XXXXXX)
 
 echo "▶ Deploying ${#CANISTERS[@]} canisters..."
