@@ -106,11 +106,20 @@ export class RateLimitedEmailProvider implements EmailProvider {
     this.tick();
 
     if (this.dailyCount >= DAILY_LIMIT) {
+      console.warn(
+        `[email] Daily limit reached (${DAILY_LIMIT}/day). ` +
+        `Monthly usage: ${this.monthlyCount}/${MONTHLY_LIMIT}. ` +
+        `Consider upgrading to Resend's paid plan ($20/mo for 50k emails).`
+      );
       throw new EmailRateLimitError(
         `Daily email limit reached (${DAILY_LIMIT}/day). Resets at midnight UTC.`
       );
     }
     if (this.monthlyCount >= MONTHLY_LIMIT) {
+      console.warn(
+        `[email] Monthly limit reached (3,000/month). ` +
+        `Upgrade to Resend's paid plan ($20/mo for 50k emails).`
+      );
       throw new EmailRateLimitError(
         `Monthly email limit reached (3,000/month). Resets ${this.currentMonth}-01 UTC.`
       );

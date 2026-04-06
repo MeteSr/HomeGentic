@@ -252,6 +252,23 @@ describe("RateLimitedEmailProvider — daily limit (100/day)", () => {
     ).rejects.toThrow(/100/);
   });
 
+  it("logs a console.warn with upgrade hint when daily limit is hit", async () => {
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    const stub = new StubEmailProvider();
+    const limited = new RateLimitedEmailProvider(stub);
+
+    for (let i = 0; i < 100; i++) {
+      await limited.send({ to: "u@h.com", subject: "S", html: "<p/>" });
+    }
+
+    await expect(
+      limited.send({ to: "u@h.com", subject: "S", html: "<p/>" })
+    ).rejects.toBeInstanceOf(EmailRateLimitError);
+
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/paid plan/i));
+    warn.mockRestore();
+  });
+
   it("does not count failed sends toward the daily limit", async () => {
     const stub = new StubEmailProvider();
     const limited = new RateLimitedEmailProvider(stub);
@@ -298,6 +315,31 @@ describe("RateLimitedEmailProvider — monthly limit (3,000/month)", () => {
     await expect(
       limited.send({ to: "u@h.com", subject: "S", html: "<p/>" })
     ).rejects.toBeInstanceOf(EmailRateLimitError);
+  });
+
+  it("logs a console.warn with upgrade hint when monthly limit is hit", async () => {
+    jest.useFakeTimers();
+    const base = new Date("2026-08-01T00:00:00Z");
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+
+    const stub = new StubEmailProvider();
+    const limited = new RateLimitedEmailProvider(stub);
+
+    for (let day = 0; day < 30; day++) {
+      jest.setSystemTime(new Date(base.getTime() + day * 86_400_000));
+      for (let i = 0; i < 100; i++) {
+        await limited.send({ to: "u@h.com", subject: "S", html: "<p/>" });
+      }
+    }
+
+    jest.setSystemTime(new Date("2026-08-31T00:00:00Z"));
+    await expect(
+      limited.send({ to: "u@h.com", subject: "S", html: "<p/>" })
+    ).rejects.toBeInstanceOf(EmailRateLimitError);
+
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/paid plan/i));
+    warn.mockRestore();
+    jest.useRealTimers();
   });
 
   it("monthly limit error message mentions 3,000/month", async () => {
