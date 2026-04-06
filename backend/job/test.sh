@@ -195,9 +195,57 @@ dfx canister call $CANISTER createJob "(
   false
 )" || echo "  ↳ Expected InvalidInput (future date) — ✓"
 
+# ─── Invite token flow ────────────────────────────────────────────────────────
+echo ""
+echo "── [18] createInviteToken — homeowner creates token for contractor job ───"
+INVITE_OUT=$(dfx canister call $CANISTER createInviteToken "(\"$JOB_ID\")")
+echo "$INVITE_OUT"
+INVITE_TOKEN=$(echo "$INVITE_OUT" | grep -oP '"[a-zA-Z0-9_-]{16,}"' | head -1 | tr -d '"')
+echo "  → Invite token: $INVITE_TOKEN"
+
+echo ""
+echo "── [19] getJobByInviteToken — contractor reads invite ───────────────────"
+GET_INVITE=$(dfx canister call $CANISTER getJobByInviteToken "(\"$INVITE_TOKEN\")" --identity contractor-test)
+echo "$GET_INVITE"
+if echo "$GET_INVITE" | grep -q "$JOB_ID"; then
+  echo "  ✓ Invite token returns correct job"
+else
+  echo "  ↳ Job data shown above"
+fi
+
+echo ""
+echo "── [20] redeemInviteToken — contractor redeems token ───────────────────"
+REDEEM_OUT=$(dfx canister call $CANISTER redeemInviteToken "(\"$INVITE_TOKEN\")" --identity contractor-test)
+echo "$REDEEM_OUT"
+if echo "$REDEEM_OUT" | grep -qiE "ok|success|redeemed"; then
+  echo "  ✓ Token redeemed successfully"
+else
+  echo "  ↳ Redemption result shown above"
+fi
+
+echo ""
+echo "── [21] redeemInviteToken again → expect AlreadyRedeemed / error ────────"
+dfx canister call $CANISTER redeemInviteToken "(\"$INVITE_TOKEN\")" --identity contractor-test \
+  || echo "  ↳ Expected error for double-redeem — ✓"
+
+echo ""
+echo "── [22] createInviteToken on DIY job → expect NotAuthorized / error ─────"
+dfx canister call $CANISTER createInviteToken "(\"$DIY_ID\")" \
+  || echo "  ↳ Expected error (DIY jobs cannot have contractor invites) — ✓"
+
+echo ""
+echo "── [23] getJobByInviteToken with unknown token → expect error ───────────"
+dfx canister call $CANISTER getJobByInviteToken '("INVALID_TOKEN_XYZ")' \
+  || echo "  ↳ Expected NotFound for unknown token — ✓"
+
+echo ""
+echo "── [24] createInviteToken as contractor → expect NotAuthorized ──────────"
+dfx canister call $CANISTER createInviteToken "(\"$JOB_ID\")" --identity contractor-test \
+  || echo "  ↳ Expected NotAuthorized (only homeowner can create invite) — ✓"
+
 # ─── Metrics (after tests) ────────────────────────────────────────────────────
 echo ""
-echo "── [18] Get metrics (after tests) ──────────────────────────────────────"
+echo "── [25] Get metrics (after tests) ──────────────────────────────────────"
 dfx canister call $CANISTER getMetrics
 
 echo ""

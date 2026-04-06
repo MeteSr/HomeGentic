@@ -100,3 +100,102 @@ test.describe("Visual regression — Register page", () => {
     await expect(page).toHaveScreenshot("register-step1.png", SNAPSHOT_OPTS);
   });
 });
+
+// ── Check Address page (public) ───────────────────────────────────────────────
+
+test.describe("Visual regression — Check Address page", () => {
+  test("check address form matches baseline", async ({ page }) => {
+    await page.goto("/check");
+    await page.waitForLoadState("networkidle");
+    await page.addStyleTag({ content: "*, *::before, *::after { animation: none !important; transition: none !important; }" });
+    await expect(page).toHaveScreenshot("check-address-form.png", SNAPSHOT_OPTS);
+  });
+
+  test("check address — report found matches baseline", async ({ page }) => {
+    await page.route("**/api/check**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          found: true,
+          token: "tok_visual_test",
+          address: "456 Oak Ave, Austin, TX 78701",
+          verificationLevel: "Premium",
+          propertyType: "SingleFamily",
+          yearBuilt: 1998,
+        }),
+      })
+    );
+    await page.goto("/check?address=456+Oak+Ave%2C+Austin%2C+TX");
+    await page.waitForLoadState("networkidle");
+    await page.addStyleTag({ content: "*, *::before, *::after { animation: none !important; transition: none !important; }" });
+    await expect(page).toHaveScreenshot("check-address-found.png", SNAPSHOT_OPTS);
+  });
+});
+
+// ── Price Lookup page (public) ────────────────────────────────────────────────
+
+test.describe("Visual regression — Price Lookup page", () => {
+  test("price lookup form matches baseline", async ({ page }) => {
+    await page.goto("/prices");
+    await page.waitForLoadState("networkidle");
+    await page.addStyleTag({ content: "*, *::before, *::after { animation: none !important; transition: none !important; }" });
+    await expect(page).toHaveScreenshot("price-lookup-form.png", SNAPSHOT_OPTS);
+  });
+
+  test("price lookup — benchmark result matches baseline", async ({ page }) => {
+    await page.route("**/api/price-benchmark**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          low: 800000,
+          high: 1500000,
+          median: 1100000,
+          sampleSize: 12,
+          lastUpdated: "2026-03-01",
+        }),
+      })
+    );
+    await page.goto("/prices?service=HVAC&zip=32114");
+    await page.waitForLoadState("networkidle");
+    await page.addStyleTag({ content: "*, *::before, *::after { animation: none !important; transition: none !important; }" });
+    await expect(page).toHaveScreenshot("price-lookup-result.png", SNAPSHOT_OPTS);
+  });
+});
+
+// ── Instant Forecast page (public) ───────────────────────────────────────────
+
+test.describe("Visual regression — Instant Forecast page", () => {
+  test("instant forecast form matches baseline", async ({ page }) => {
+    await page.goto("/instant-forecast");
+    await page.waitForLoadState("networkidle");
+    await page.addStyleTag({ content: "*, *::before, *::after { animation: none !important; transition: none !important; }" });
+    await expect(page).toHaveScreenshot("instant-forecast-form.png", SNAPSHOT_OPTS);
+  });
+
+  test("instant forecast — results view matches baseline", async ({ page }) => {
+    await page.goto("/instant-forecast?address=123+Elm+St%2C+Dallas%2C+TX&yearBuilt=1992");
+    await page.waitForLoadState("networkidle");
+    await page.addStyleTag({ content: "*, *::before, *::after { animation: none !important; transition: none !important; }" });
+    await expect(page).toHaveScreenshot("instant-forecast-results.png", SNAPSHOT_OPTS);
+  });
+});
+
+// ── Home Systems Estimator page (public) ──────────────────────────────────────
+
+test.describe("Visual regression — Home Systems Estimator page", () => {
+  test("home systems estimator form matches baseline", async ({ page }) => {
+    await page.goto("/home-systems");
+    await page.waitForLoadState("networkidle");
+    await page.addStyleTag({ content: "*, *::before, *::after { animation: none !important; transition: none !important; }" });
+    await expect(page).toHaveScreenshot("home-systems-form.png", SNAPSHOT_OPTS);
+  });
+
+  test("home systems estimator — results view matches baseline", async ({ page }) => {
+    await page.goto("/home-systems?yearBuilt=1988&type=single-family&state=TX");
+    await page.waitForLoadState("networkidle");
+    await page.addStyleTag({ content: "*, *::before, *::after { animation: none !important; transition: none !important; }" });
+    await expect(page).toHaveScreenshot("home-systems-results.png", SNAPSHOT_OPTS);
+  });
+});
