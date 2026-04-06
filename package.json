@@ -16,6 +16,8 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:canister": "bash scripts/test-backend.sh",
+    "test:upgrade": "cd tests/upgrade && npm test",
+    "setup:pocketic": "bash scripts/setup-pocketic.sh",
     "frontend": "cd frontend && npm run dev",
     "generate": "dfx generate",
     "status": "bash scripts/status.sh",
