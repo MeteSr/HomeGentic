@@ -112,6 +112,35 @@ export const idlFactory = ({ IDL }: any) => {
       })],
       ["query"]
     ),
+    createInviteToken: IDL.Func(
+      [IDL.Text, IDL.Text],   // jobId, propertyAddress
+      [IDL.Variant({ ok: IDL.Text, err: Error })],
+      []
+    ),
+    getJobByInviteToken: IDL.Func(
+      [IDL.Text],             // token
+      [IDL.Variant({
+        ok: IDL.Record({
+          jobId:           IDL.Text,
+          title:           IDL.Text,
+          serviceType:     ServiceType,
+          description:     IDL.Text,
+          amount:          IDL.Nat,
+          completedDate:   IDL.Int,
+          propertyAddress: IDL.Text,
+          contractorName:  IDL.Opt(IDL.Text),
+          expiresAt:       IDL.Int,
+          alreadySigned:   IDL.Bool,
+        }),
+        err: Error,
+      })],
+      ["query"]
+    ),
+    redeemInviteToken: IDL.Func(
+      [IDL.Text],             // token
+      [IDL.Variant({ ok: Job, err: Error })],
+      []
+    ),
   });
 };
 
@@ -138,6 +167,19 @@ export interface Job {
   contractorSigned: boolean;
   photos: string[];
   createdAt: number;         // ms
+}
+
+export interface InvitePreview {
+  jobId:           string;
+  title:           string;
+  serviceType:     string;
+  description:     string;
+  amount:          number;   // cents
+  completedDate:   number;   // ms
+  propertyAddress: string;
+  contractorName?: string;
+  expiresAt:       number;   // ms
+  alreadySigned:   boolean;
 }
 
 // ─── Converters ───────────────────────────────────────────────────────────────
@@ -355,6 +397,71 @@ function createJobService() {
 
   getVerifiedCount(jobs: Job[]): number {
     return jobs.filter((j) => j.status === "verified").length;
+  },
+
+  async createInviteToken(jobId: string, propertyAddress: string): Promise<string> {
+    if (!JOB_CANISTER_ID) return `MOCK_INV_${jobId}`;
+    const a = await getActor();
+    const result = await a.createInviteToken(jobId, propertyAddress);
+    if ("ok" in result) return result.ok as string;
+    const key = Object.keys(result.err)[0];
+    const val = (result.err as any)[key];
+    throw new Error(typeof val === "string" ? val : key);
+  },
+
+  async getJobByInviteToken(token: string): Promise<InvitePreview> {
+    if (!JOB_CANISTER_ID) {
+      // Mock preview for development
+      return {
+        jobId:           "MOCK_JOB",
+        title:           "HVAC Service",
+        serviceType:     "HVAC",
+        description:     "Annual HVAC tune-up and filter replacement",
+        amount:          25000,
+        completedDate:   Date.now(),
+        propertyAddress: "123 Main St, Austin TX 78701",
+        contractorName:  "Cool Air Services",
+        expiresAt:       Date.now() + 48 * 60 * 60 * 1000,
+        alreadySigned:   false,
+      };
+    }
+    const a = await getActor();
+    const result = await a.getJobByInviteToken(token);
+    if ("ok" in result) {
+      const r = result.ok as any;
+      return {
+        jobId:           r.jobId,
+        title:           r.title,
+        serviceType:     Object.keys(r.serviceType)[0],
+        description:     r.description,
+        amount:          Number(r.amount),
+        completedDate:   Number(r.completedDate) / 1_000_000,
+        propertyAddress: r.propertyAddress,
+        contractorName:  r.contractorName[0] ?? undefined,
+        expiresAt:       Number(r.expiresAt) / 1_000_000,
+        alreadySigned:   r.alreadySigned,
+      };
+    }
+    const key = Object.keys(result.err)[0];
+    const val = (result.err as any)[key];
+    throw new Error(typeof val === "string" ? val : key);
+  },
+
+  async redeemInviteToken(token: string): Promise<Job> {
+    if (!JOB_CANISTER_ID) {
+      return {
+        id: "MOCK_JOB", propertyId: "1", homeowner: "mock",
+        serviceType: "HVAC", amount: 25000,
+        date: new Date().toISOString().split("T")[0],
+        description: "Mock job", isDiy: false,
+        status: "verified", verified: true,
+        homeownerSigned: true, contractorSigned: true,
+        photos: [], createdAt: Date.now(),
+      };
+    }
+    const a = await getActor();
+    const result = await a.redeemInviteToken(token);
+    return unwrapJob(result);
   },
 
   reset() {

@@ -4,10 +4,11 @@ import { ArrowLeft, Share2, Shield, Wrench, MessageSquare, Calendar, DollarSign,
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { Badge } from "@/components/Badge";
-import { GenerateReportModal } from "@/components/GenerateReportModal";
-import { LogJobModal } from "@/components/LogJobModal";
-import { RequestQuoteModal } from "@/components/RequestQuoteModal";
-import { AddRoomModal } from "@/components/AddRoomModal";
+import { GenerateReportModal }     from "@/components/GenerateReportModal";
+import { LogJobModal }              from "@/components/LogJobModal";
+import { RequestQuoteModal }        from "@/components/RequestQuoteModal";
+import { AddRoomModal }             from "@/components/AddRoomModal";
+import { InviteContractorModal }    from "@/components/InviteContractorModal";
 import { propertyService, Property } from "@/services/property";
 import { jobService, Job } from "@/services/job";
 import { photoService, Photo } from "@/services/photo";
@@ -63,6 +64,7 @@ export default function PropertyDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showReportModal,  setShowReportModal]  = useState(false);
   const [showLogJobModal,  setShowLogJobModal]  = useState(false);
+  const [inviteJob,        setInviteJob]        = useState<Job | null>(null);
   const [logJobPrefill,    setLogJobPrefill]    = useState<{ serviceType?: string; contractorName?: string } | undefined>(undefined);
   const [showQuoteModal,   setShowQuoteModal]   = useState(false);
   const [photosByJob, setPhotosByJob] = useState<Record<string, Photo[]>>({});
@@ -557,7 +559,7 @@ export default function PropertyDetailPage() {
           ))}
         </div>
 
-        {tab === "timeline"  && <TimelineTab property={property} jobs={jobs} onVerify={handleVerify} currentPrincipal={principal} photosByJob={photosByJob} onPhotoUpload={handlePhotoUpload} />}
+        {tab === "timeline"  && <TimelineTab property={property} jobs={jobs} onVerify={handleVerify} currentPrincipal={principal} photosByJob={photosByJob} onPhotoUpload={handlePhotoUpload} onInviteContractor={setInviteJob} />}
         {tab === "jobs"      && <JobsTab jobs={jobs} />}
         {tab === "rooms"     && <RoomsTab propertyId={id!} rooms={rooms} onRoomsChange={setRooms} photosByJob={photosByJob} onRoomPhotoUpload={handleRoomPhotoUpload} />}
         {tab === "documents" && <DocumentsTab propertyId={id!} />}
@@ -584,6 +586,14 @@ export default function PropertyDetailPage() {
         onSuccess={(quoteId) => { setShowQuoteModal(false); navigate(`/quotes/${quoteId}`); }}
         properties={storeProperties.length > 0 ? storeProperties : (property ? [property] : [])}
       />
+
+      {inviteJob && property && (
+        <InviteContractorModal
+          job={inviteJob}
+          propertyAddress={`${property.address}, ${property.city} ${property.state} ${property.zipCode}`}
+          onClose={() => setInviteJob(null)}
+        />
+      )}
     </Layout>
   );
 }
@@ -736,13 +746,14 @@ function warrantyStatus(job: Job): { label: string; color: string; bg: string } 
   return { label: `Warranty: ${monthsLeft}mo left`, color: COLORS.sage, bg: COLORS.sageLight };
 }
 
-function TimelineTab({ property, jobs, onVerify, currentPrincipal, photosByJob, onPhotoUpload }: {
+function TimelineTab({ property, jobs, onVerify, currentPrincipal, photosByJob, onPhotoUpload, onInviteContractor }: {
   property: Property;
   jobs: Job[];
   onVerify: (id: string) => void;
   currentPrincipal: string | null;
   photosByJob: Record<string, Photo[]>;
   onPhotoUpload: (jobId: string, file: File) => void;
+  onInviteContractor: (job: Job) => void;
 }) {
   const S = { ink: COLORS.plum, rule: COLORS.rule, rust: COLORS.sage, inkLight: COLORS.plumMid, sage: COLORS.sage, mono: FONTS.mono, serif: FONTS.serif };
   const navigate = useNavigate();
@@ -973,9 +984,21 @@ function TimelineTab({ property, jobs, onVerify, currentPrincipal, photosByJob, 
                         </button>
                       )}
                       {job.homeownerSigned && !job.contractorSigned && !job.isDiy && !job.verified && (
-                        <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight }}>
-                          Awaiting contractor signature
-                        </span>
+                        <>
+                          <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight }}>
+                            Awaiting contractor signature
+                          </span>
+                          <button
+                            onClick={() => onInviteContractor(job)}
+                            style={{
+                              padding: "0.25rem 0.75rem",
+                              fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase",
+                              color: S.sage, background: "none", border: `1px solid ${S.sage}`, cursor: "pointer",
+                            }}
+                          >
+                            Invite →
+                          </button>
+                        </>
                       )}
                     </div>
                   )}

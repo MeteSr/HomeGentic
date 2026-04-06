@@ -5,11 +5,12 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { useAuthStore } from "@/store/authStore";
 
 // Critical path — kept static (first paint)
-import LandingPage        from "@/pages/LandingPage";
-import LoginPage          from "@/pages/LoginPage";
-import PricingPage        from "@/pages/PricingPage";
-import PrivacyPolicyPage  from "@/pages/PrivacyPolicyPage";
-import SupportPage        from "@/pages/SupportPage";
+import LandingPage           from "@/pages/LandingPage";
+import LoginPage             from "@/pages/LoginPage";
+import PricingPage           from "@/pages/PricingPage";
+import PrivacyPolicyPage     from "@/pages/PrivacyPolicyPage";
+import SupportPage           from "@/pages/SupportPage";
+import ContractorVerifyPage  from "@/pages/ContractorVerifyPage";
 
 // All other pages lazy-loaded (split into separate chunks)
 const RegisterPage               = React.lazy(() => import("@/pages/RegisterPage"));
@@ -122,6 +123,7 @@ export default function App() {
           <Route path="/check"                 element={<CheckAddressPage />} />
           <Route path="/prices"                element={<PriceLookupPage />} />
           <Route path="/instant-forecast"     element={<InstantForecastPage />} />
+          <Route path="/verify/:token"          element={<ContractorVerifyPage />} />
           <Route path="/report/:token"         element={<ReportPage />} />
           <Route path="/badge/:token"          element={<BadgePage />} />
           <Route path="/cert/:token"           element={<ScoreCertPage />} />

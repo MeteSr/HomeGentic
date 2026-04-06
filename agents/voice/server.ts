@@ -655,6 +655,90 @@ app.get("/api/email/usage", (_req: Request, res: Response): void => {
   res.json(emailProvider.usage());
 });
 
+// ── POST /api/invite/send-email ───────────────────────────────────────────────
+// Sends a contractor invite email with job details and the single-use verify URL.
+// Request:  { to, contractorName?, propertyAddress, serviceType, amount, verifyUrl }
+// Response: { sent: true } | { error }
+app.post("/api/invite/send-email", async (req: Request, res: Response): Promise<void> => {
+  const { to, contractorName, propertyAddress, serviceType, amount, verifyUrl } = req.body;
+
+  if (!to || !propertyAddress || !serviceType || !verifyUrl) {
+    res.status(400).json({ error: "to, propertyAddress, serviceType, and verifyUrl are required" });
+    return;
+  }
+
+  const greeting = contractorName ? `Hi ${contractorName},` : "Hi,";
+  const amountStr = typeof amount === "number" ? `$${(amount / 100).toLocaleString()}` : "";
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<body style="font-family: 'IBM Plex Sans', Arial, sans-serif; background: #F4F1EB; margin: 0; padding: 2rem;">
+  <div style="max-width: 480px; margin: 0 auto; background: #fff; border: 1px solid #C8C3B8; padding: 2rem;">
+    <p style="font-family: Georgia, serif; font-size: 1.5rem; font-weight: 900; margin: 0 0 1.5rem; color: #2E2540;">
+      Home<span style="color: #5A7A5A;">Gentic</span>
+    </p>
+    <p style="color: #2E2540; margin-bottom: 1rem;">${greeting}</p>
+    <p style="color: #2E2540; line-height: 1.6; margin-bottom: 1.5rem;">
+      A homeowner at <strong>${propertyAddress}</strong> has asked you to confirm and co-sign the following job record on the HomeGentic verified home history platform:
+    </p>
+    <div style="background: #F0F4F0; border: 1px solid #C8C3B8; padding: 1rem; margin-bottom: 1.5rem;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem; color: #2E2540;">
+        <tr><td style="padding: 0.375rem 0; color: #7A7268; width: 40%;">Service</td><td><strong>${serviceType}</strong></td></tr>
+        ${amountStr ? `<tr><td style="padding: 0.375rem 0; color: #7A7268;">Amount</td><td><strong>${amountStr}</strong></td></tr>` : ""}
+        <tr><td style="padding: 0.375rem 0; color: #7A7268;">Property</td><td>${propertyAddress}</td></tr>
+      </table>
+    </div>
+    <p style="color: #2E2540; line-height: 1.6; margin-bottom: 1.5rem;">
+      Tap the button below to review the job details and add your digital signature. No account required — it takes less than 30 seconds.
+    </p>
+    <a href="${verifyUrl}" style="display: inline-block; background: #2E2540; color: #fff; text-decoration: none; padding: 0.875rem 2rem; font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase;">
+      Confirm &amp; Sign →
+    </a>
+    <p style="color: #7A7268; font-size: 0.75rem; margin-top: 1.5rem; line-height: 1.6;">
+      This link expires in 48 hours and can only be used once. If you have questions, contact the homeowner directly.
+    </p>
+    <hr style="border: none; border-top: 1px solid #C8C3B8; margin: 1.5rem 0;" />
+    <p style="color: #7A7268; font-size: 0.7rem;">
+      HomeGentic · Verified Home History · Internet Computer blockchain
+    </p>
+  </div>
+</body>
+</html>`.trim();
+
+  const text = [
+    greeting,
+    "",
+    `A homeowner at ${propertyAddress} has asked you to confirm and co-sign a job record on HomeGentic.`,
+    "",
+    `Service: ${serviceType}`,
+    amountStr ? `Amount: ${amountStr}` : "",
+    `Property: ${propertyAddress}`,
+    "",
+    `Confirm and sign here (link expires in 48 hours):`,
+    verifyUrl,
+    "",
+    "HomeGentic · Verified Home History",
+  ].filter((l) => l !== undefined).join("\n");
+
+  try {
+    await emailProvider.send({
+      to,
+      subject: `Please confirm your work at ${propertyAddress}`,
+      html,
+      text,
+    });
+    res.json({ sent: true });
+  } catch (err) {
+    if (err instanceof EmailRateLimitError) {
+      res.status(429).json({ error: err.message });
+      return;
+    }
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    res.status(500).json({ error: msg });
+  }
+});
+
 // ── GET /health ───────────────────────────────────────────────────────────────
 app.get("/health", (_req, res) => {
   res.json({ ok: true, model: MODEL });

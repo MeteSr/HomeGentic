@@ -6,15 +6,18 @@
  * Contractor jobs require both homeowner AND contractor signatures.
  */
 
-import Array  "mo:core/Array";
-import Map    "mo:core/Map";
-import Iter   "mo:core/Iter";
-import Nat    "mo:core/Nat";
-import Option "mo:core/Option";
+import Array     "mo:core/Array";
+import Blob      "mo:core/Blob";
+import Map       "mo:core/Map";
+import Iter      "mo:core/Iter";
+import Nat       "mo:core/Nat";
+import Nat8      "mo:core/Nat8";
+import Option    "mo:core/Option";
 import Principal "mo:core/Principal";
-import Result "mo:core/Result";
-import Text   "mo:core/Text";
-import Time   "mo:core/Time";
+import Random    "mo:core/Random";
+import Result    "mo:core/Result";
+import Text      "mo:core/Text";
+import Time      "mo:core/Time";
 
 persistent actor Job {
 
@@ -76,6 +79,30 @@ persistent actor Job {
     isPaused: Bool;
   };
 
+  /// Short-lived token that lets a contractor sign a job without having an account.
+  public type InviteToken = {
+    token:           Text;     // "INV_<32 hex chars>" — unguessable
+    jobId:           Text;
+    propertyAddress: Text;     // denormalised at creation — avoids cross-canister call on verify page
+    createdAt:       Int;
+    expiresAt:       Int;      // createdAt + 48 hours
+    usedAt:          ?Int;     // null until redeemed
+  };
+
+  /// Subset of job data returned to the public verify page (no auth required).
+  public type InvitePreview = {
+    jobId:           Text;
+    title:           Text;
+    serviceType:     ServiceType;
+    description:     Text;
+    amount:          Nat;
+    completedDate:   Int;
+    propertyAddress: Text;
+    contractorName:  ?Text;
+    expiresAt:       Int;
+    alreadySigned:   Bool;
+  };
+
   // ─── Stable State ────────────────────────────────────────────────────────────
 
   private var jobCounter: Nat = 0;
@@ -85,6 +112,7 @@ persistent actor Job {
   private var adminInitialized:   Bool        = false;
   private var authorizedSensors: [Principal] = [];
   private var jobsEntries: [(Text, Job)] = [];
+  private var inviteTokenEntries: [(Text, InviteToken)] = [];
   /// Contractor canister ID — set post-deploy via setContractorCanisterId().
   /// When set, verifyJob() notifies the contractor canister on full verification.
   private var contrCanisterId:    Text        = "";
@@ -103,14 +131,20 @@ persistent actor Job {
     jobsEntries.vals(), Text.compare
   );
 
+  private transient var inviteTokens = Map.fromIter<Text, InviteToken>(
+    inviteTokenEntries.vals(), Text.compare
+  );
+
   // ─── Upgrade Hooks ───────────────────────────────────────────────────────────
 
   system func preupgrade() {
-    jobsEntries := Iter.toArray(Map.entries(jobs));
+    jobsEntries        := Iter.toArray(Map.entries(jobs));
+    inviteTokenEntries := Iter.toArray(Map.entries(inviteTokens));
   };
 
   system func postupgrade() {
-    jobsEntries := [];
+    jobsEntries        := [];
+    inviteTokenEntries := [];
   };
 
   // ─── Private Helpers ─────────────────────────────────────────────────────────
@@ -629,6 +663,135 @@ persistent actor Job {
 
     Map.add(jobs, Text.compare, id, job);
     #ok(job)
+  };
+
+  // ─── Contractor Invite Tokens ─────────────────────────────────────────────────
+
+  private func blobToHex(b : Blob) : Text {
+    let hex   = ['0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'];
+    let bytes = Blob.toArray(b);
+    var result = "";
+    for (byte in bytes.vals()) {
+      let n = Nat8.toNat(byte);
+      result #= Text.fromChar(hex[n / 16]);
+      result #= Text.fromChar(hex[n % 16]);
+    };
+    result
+  };
+
+  /// Create a single-use invite token for a job so a contractor can sign
+  /// without needing a HomeGentic account.  Caller must be the job's homeowner.
+  /// propertyAddress is supplied by the frontend (already loaded in the UI).
+  /// Token expires after 48 hours.
+  public shared(msg) func createInviteToken(
+    jobId:           Text,
+    propertyAddress: Text
+  ) : async Result.Result<Text, Error> {
+    switch (requireActive()) { case (#err(e)) return #err(e); case _ {} };
+
+    let job = switch (Map.get(jobs, Text.compare, jobId)) {
+      case null    { return #err(#NotFound) };
+      case (?j)    { j };
+    };
+
+    if (job.homeowner != msg.caller) return #err(#Unauthorized);
+    if (job.isDiy)                   return #err(#InvalidInput("DIY jobs do not require contractor signature"));
+    if (job.contractorSigned)        return #err(#InvalidInput("Contractor has already signed this job"));
+
+    let randBytes = await Random.blob();
+    let token     = "INV_" # blobToHex(randBytes);
+    let now       = Time.now();
+    let entry : InviteToken = {
+      token;
+      jobId;
+      propertyAddress;
+      createdAt = now;
+      expiresAt = now + 48 * 60 * 60 * 1_000_000_000;
+      usedAt    = null;
+    };
+    Map.add(inviteTokens, Text.compare, token, entry);
+    #ok(token)
+  };
+
+  /// Return a safe preview of the job for the public verify page.
+  /// No authentication required — the token is the credential.
+  public query func getJobByInviteToken(token: Text) : async Result.Result<InvitePreview, Error> {
+    let invite = switch (Map.get(inviteTokens, Text.compare, token)) {
+      case null    { return #err(#NotFound) };
+      case (?i)    { i };
+    };
+    let job = switch (Map.get(jobs, Text.compare, invite.jobId)) {
+      case null    { return #err(#NotFound) };
+      case (?j)    { j };
+    };
+    #ok({
+      jobId           = job.id;
+      title           = job.title;
+      serviceType     = job.serviceType;
+      description     = job.description;
+      amount          = job.amount;
+      completedDate   = job.completedDate;
+      propertyAddress = invite.propertyAddress;
+      contractorName  = job.contractorName;
+      expiresAt       = invite.expiresAt;
+      alreadySigned   = job.contractorSigned;
+    })
+  };
+
+  /// Redeem an invite token: mark the contractor's signature on the job.
+  /// Caller identity is not checked — the token is the credential.
+  /// Sets contractorSigned = true; if homeownerSigned is also true, auto-verifies.
+  public shared func redeemInviteToken(token: Text) : async Result.Result<Job, Error> {
+    let invite = switch (Map.get(inviteTokens, Text.compare, token)) {
+      case null    { return #err(#NotFound) };
+      case (?i)    { i };
+    };
+
+    if (invite.usedAt != null)            return #err(#InvalidInput("This invite link has already been used"));
+    if (Time.now() > invite.expiresAt)    return #err(#InvalidInput("This invite link has expired"));
+
+    let job = switch (Map.get(jobs, Text.compare, invite.jobId)) {
+      case null    { return #err(#NotFound) };
+      case (?j)    { j };
+    };
+
+    if (job.contractorSigned)             return #err(#AlreadyVerified);
+
+    let bothSigned = job.homeownerSigned;
+    let updated : Job = {
+      id               = job.id;
+      propertyId       = job.propertyId;
+      homeowner        = job.homeowner;
+      contractor       = job.contractor;
+      title            = job.title;
+      serviceType      = job.serviceType;
+      description      = job.description;
+      contractorName   = job.contractorName;
+      amount           = job.amount;
+      completedDate    = job.completedDate;
+      permitNumber     = job.permitNumber;
+      warrantyMonths   = job.warrantyMonths;
+      isDiy            = job.isDiy;
+      status           = if (bothSigned) #Verified else job.status;
+      verified         = bothSigned;
+      homeownerSigned  = job.homeownerSigned;
+      contractorSigned = true;
+      createdAt        = job.createdAt;
+    };
+    Map.add(jobs, Text.compare, job.id, updated);
+
+    // Mark token as used
+    let usedInvite : InviteToken = {
+      token           = invite.token;
+      jobId           = invite.jobId;
+      propertyAddress = invite.propertyAddress;
+      createdAt       = invite.createdAt;
+      expiresAt       = invite.expiresAt;
+      usedAt          = ?Time.now();
+    };
+    Map.add(inviteTokens, Text.compare, token, usedInvite);
+
+    #ok(updated)
   };
 
   public query func getMetrics() : async Metrics {

@@ -149,13 +149,16 @@ describe("job IDL factory", () => {
   it("exposes the expected methods", () => {
     const svc = extractService(jobIdlFactory);
     expect(Object.keys(svc).sort()).toEqual([
+      "createInviteToken",
       "createJob",
       "getCertificationData",
       "getJob",
+      "getJobByInviteToken",
       "getJobsForProperty",
       "getJobsPendingMySignature",
       "getMetrics",
       "linkContractor",
+      "redeemInviteToken",
       "updateJobStatus",
       "verifyJob",
     ]);
@@ -170,6 +173,7 @@ describe("job IDL factory", () => {
     expect(queries).toEqual([
       "getCertificationData",
       "getJob",
+      "getJobByInviteToken",
       "getJobsForProperty",
       "getJobsPendingMySignature",
       "getMetrics",

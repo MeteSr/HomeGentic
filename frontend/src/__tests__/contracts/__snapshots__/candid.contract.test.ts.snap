@@ -68,6 +68,16 @@ exports[`auth IDL factory > full signature snapshot 1`] = `
 
 exports[`job IDL factory > full signature snapshot 1`] = `
 {
+  "createInviteToken": {
+    "args": [
+      "text",
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:text; err:variant {InvalidInput:text; NotFound; AlreadyVerified; Unauthorized}}",
+    ],
+  },
   "createJob": {
     "args": [
       "text",
@@ -108,6 +118,17 @@ exports[`job IDL factory > full signature snapshot 1`] = `
       "variant {ok:record {id:text; completedDate:int; status:variant {InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}; err:variant {InvalidInput:text; NotFound; AlreadyVerified; Unauthorized}}",
     ],
   },
+  "getJobByInviteToken": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:record {completedDate:int; title:text; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; expiresAt:int; alreadySigned:bool; jobId:text; description:text; propertyAddress:text; amount:nat; contractorName:opt text}; err:variant {InvalidInput:text; NotFound; AlreadyVerified; Unauthorized}}",
+    ],
+  },
   "getJobsForProperty": {
     "args": [
       "text",
@@ -141,6 +162,15 @@ exports[`job IDL factory > full signature snapshot 1`] = `
     "args": [
       "text",
       "principal",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; completedDate:int; status:variant {InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}; err:variant {InvalidInput:text; NotFound; AlreadyVerified; Unauthorized}}",
+    ],
+  },
+  "redeemInviteToken": {
+    "args": [
+      "text",
     ],
     "mode": [],
     "rets": [
