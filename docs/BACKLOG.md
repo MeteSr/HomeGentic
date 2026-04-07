@@ -434,3 +434,35 @@ Extend `agents/voice/tools.ts` so the mobile chat interface can drive the full t
 | MOB.10 | Tablet layout pass (768px–1024px) | ✅ Exists | M | After MOB.1–MOB.9, do a dedicated tablet audit. Most grids will be handled by `<ResponsiveGrid>` by this point; this pass focuses on pages where 2-column tablet layout looks worse than either phone (1-col) or desktop (3+ col) — particularly dashboard stat rows and the agent marketplace. |
 
 ---
+
+## EPIC: ICP Mainnet Production Readiness
+
+Items identified during ICP production-readiness audit (2026-04-06). Grouped by severity. All blockers must be resolved before any `--network ic` deploy.
+
+### Blockers — will cause silent failure on first mainnet deploy
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| PROD.1 | Rotate exposed Anthropic API key | 🟡 Partial | S | `.env` confirmed not in git history. `deploy.sh` now validates `ANTHROPIC_API_KEY` is set for non-local deploys. **Manual step still required:** revoke the exposed key at console.anthropic.com and generate a new one. |
+| PROD.2 | Set `VOICE_AGENT_API_KEY` + `VITE_VOICE_AGENT_API_KEY` | ✅ Exists | S | `deploy.sh` pre-flight block now validates both vars are set for non-local deploys and aborts with a clear error if either is missing. |
+| PROD.3 | Cycles funding step in `deploy.sh` for mainnet | ✅ Exists | M | `deploy.sh` now has a Cycles Balance Check section (non-local only): reads balance via `dfx canister status`, calls `dfx canister deposit-cycles` to top up to 2T when below 500B. Local deploys continue using fabricated cycles. |
+| PROD.4 | Fix mainnet deploy workflow flag bug | ✅ Exists | S | `deploy-mainnet.yml` now calls `bash scripts/deploy.sh ic` (positional arg). Also wired all missing CI secrets: `ANTHROPIC_API_KEY`, `VOICE_AGENT_API_KEY`, `VITE_VOICE_AGENT_API_KEY`, `VITE_VOICE_AGENT_URL`, `BACKUP_CONTROLLER_PRINCIPAL`, `RESEND_*`, `OPEN_PERMIT_API_KEY`. Added Node.js + frontend dep install steps so `npm run build` in deploy.sh succeeds in CI. |
+| PROD.5 | Add `frontend` canister to `deploy.sh` deploy sequence | ✅ Exists | S | `deploy.sh` now ends with a Build Frontend step (`npm run build`) followed by `dfx deploy frontend`. `DEPLOYMENT.md` updated with correct positional argument syntax and build-before-deploy ordering documented. |
+
+### High — ICP-specific risks
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| PROD.6 | Verify preupgrade hooks in all canisters | ✅ Exists | M | Verified safe: all 16 canisters use `persistent actor` + `mo:core/Map` (stable B-tree). No `preupgrade` is needed — vars are implicitly stable and the B-tree persists natively. The `postupgrade` hooks are one-time migration patterns only. 18 static tests now encode this invariant. |
+| PROD.7 | Add first-admin wiring for all canisters in `deploy.sh` | ✅ Exists | S | `deploy.sh` now has a Bootstrapping Canister Admins section that calls `addAdmin` for all 14 canisters with an admin list (`ADMIN_CANISTERS` array). `payment` excluded (no admin by design); `ai_proxy` handled separately in its own section. |
+| PROD.8 | Pull-based cycles monitoring via IC management canister | ✅ Exists | L | `monitoring/main.mo` now has `system func heartbeat()` throttled to ~5-minute intervals. Scans stored metric timestamps and fires a `#Stale` / `#Warning` alert for any canister that hasn't pushed metrics in >1 hour. New `#Stale` alert category added. |
+| PROD.9 | Canister controller hardening | ✅ Exists | M | `deploy.sh` now has a Controller Hardening section: reads `BACKUP_CONTROLLER_PRINCIPAL` env var, calls `dfx canister update-settings --add-controller` for all canisters when set, warns with instructions when unset on non-local. `DEPLOYMENT.md` documents add/rotate/remove controller procedures. `BACKUP_CONTROLLER_PRINCIPAL` wired into `deploy-mainnet.yml` as a CI secret. |
+
+### Low — should fix before real traffic
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| PROD.10 | Remove localhost entries from `index.html` connect-src | ✅ Exists | S | Added `stripDevCsp` Vite plugin in `vite.config.ts`. In production builds (`ctx.server` absent) it strips `http://localhost:*` and `ws://localhost:*` from the meta CSP tag. In dev the plugin is a no-op so the ICP agent can still reach the local replica at `:4943`. |
+| PROD.11 | Remove dead `PRICE_CANISTER_ID` define from `vite.config.ts` | ✅ Exists | S | `process.env.PRICE_CANISTER_ID` removed from `vite.config.ts` define block. |
+
+---

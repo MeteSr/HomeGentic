@@ -69,7 +69,11 @@
       "id": "rdmx6-jaaaa-aaaaa-aaadq-cai"
     },
     "frontend": {
-      "dependencies": ["auth", "property", "internet_identity", "recurring"],
+      "dependencies": [
+        "auth", "property", "job", "contractor", "quote", "payment",
+        "photo", "report", "maintenance", "market", "sensor", "monitoring",
+        "listing", "agent", "recurring", "ai_proxy", "internet_identity"
+      ],
       "source": ["frontend/dist"],
       "type": "assets",
       "workspace": "frontend"

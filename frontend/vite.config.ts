@@ -3,12 +3,30 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
+// PROD.10 — strip dev-only localhost endpoints from the meta-tag CSP in production.
+// In dev the Vite dev server does NOT serve HTTP response headers, so the only CSP
+// in effect is the <meta> tag. http://localhost:4943 must stay there for the ICP
+// agent to connect to the local replica.
+// In production the assets canister serves a stricter HTTP header CSP (from
+// .ic-assets.json5) that does NOT include localhost. Both policies are enforced
+// simultaneously; the meta tag localhost entries are therefore unreachable anyway,
+// but they still leak dev topology. This plugin removes them from the built HTML.
+const stripDevCsp = {
+  name: "strip-dev-csp",
+  transformIndexHtml(html: string, ctx: { server?: unknown }): string {
+    if (ctx.server) return html; // dev server running — keep localhost entries
+    return html
+      .replace(/\s*http:\/\/localhost:\d+/g, "")
+      .replace(/\s*ws:\/\/localhost:\*/g, "");
+  },
+};
+
 export default defineConfig(({ mode }) => {
   // Load .env from project root (where dfx outputs canister IDs after deploy)
   const env = loadEnv(mode, path.resolve(__dirname, ".."), "");
 
   return {
-    plugins: [react()],
+    plugins: [react(), stripDevCsp],
     envDir: path.resolve(__dirname, ".."),
     resolve: {
       alias: {
@@ -32,7 +50,6 @@ export default defineConfig(({ mode }) => {
       "process.env.JOB_CANISTER_ID": JSON.stringify(env.CANISTER_ID_JOB || env.JOB_CANISTER_ID || ""),
       "process.env.CONTRACTOR_CANISTER_ID": JSON.stringify(env.CANISTER_ID_CONTRACTOR || env.CONTRACTOR_CANISTER_ID || ""),
       "process.env.QUOTE_CANISTER_ID": JSON.stringify(env.CANISTER_ID_QUOTE || env.QUOTE_CANISTER_ID || ""),
-      "process.env.PRICE_CANISTER_ID": JSON.stringify(env.CANISTER_ID_PRICE || env.PRICE_CANISTER_ID || ""),
       "process.env.PAYMENT_CANISTER_ID": JSON.stringify(env.CANISTER_ID_PAYMENT || env.PAYMENT_CANISTER_ID || ""),
       "process.env.PHOTO_CANISTER_ID": JSON.stringify(env.CANISTER_ID_PHOTO || env.PHOTO_CANISTER_ID || ""),
       "process.env.MONITORING_CANISTER_ID": JSON.stringify(env.CANISTER_ID_MONITORING || env.MONITORING_CANISTER_ID || ""),

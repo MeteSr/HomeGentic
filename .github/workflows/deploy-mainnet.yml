@@ -11,9 +11,27 @@ jobs:
       - uses: actions/checkout@v6
       - name: Install DFX
         uses: dfinity/setup-dfx@main
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
       - name: Install mops
         run: npm install -g ic-mops
+      - name: Install frontend deps
+        run: npm ci --prefix frontend
       - name: Deploy to mainnet
-        run: bash scripts/deploy.sh --network ic
+        # Network is a positional arg ($1); --network ic would set NETWORK="--network"
+        # and silently deploy to local. Must be: bash scripts/deploy.sh ic
+        run: bash scripts/deploy.sh ic
         env:
           DFX_IDENTITY_PEM: ${{ secrets.MAINNET_IDENTITY_PEM }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          VOICE_AGENT_API_KEY: ${{ secrets.VOICE_AGENT_API_KEY }}
+          VITE_VOICE_AGENT_API_KEY: ${{ secrets.VITE_VOICE_AGENT_API_KEY }}
+          VITE_VOICE_AGENT_URL: ${{ secrets.VITE_VOICE_AGENT_URL }}
+          BACKUP_CONTROLLER_PRINCIPAL: ${{ secrets.BACKUP_CONTROLLER_PRINCIPAL }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_FROM_ADDRESS: ${{ secrets.RESEND_FROM_ADDRESS }}
+          OPEN_PERMIT_API_KEY: ${{ secrets.OPEN_PERMIT_API_KEY }}

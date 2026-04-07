@@ -65,6 +65,7 @@ persistent actor Monitoring {
     #Memory;
     #Milestone;
     #TopUp;
+    #Stale;   // canister has not pushed metrics within the expected window
   };
 
   public type Alert = {
@@ -604,5 +605,40 @@ persistent actor Monitoring {
       isPaused;
       cyclesPerCall  = Iter.toArray(Map.values(cyclesPerCall));   // 13.1.4
     }
+  };
+
+  // ─── Heartbeat — pull-side staleness detection ───────────────────────────────
+  //
+  // Each canister is expected to push metrics via recordCanisterMetrics() at least
+  // once per hour.  A canister approaching freeze will stop executing and therefore
+  // stop pushing — meaning the push-based model goes blind at the worst moment.
+  //
+  // This heartbeat runs on every consensus round (~1 s) but only does real work
+  // every STALE_CHECK_INTERVAL rounds (~5 min).  It scans stored metrics and fires
+  // a #Stale alert for any canister whose updatedAt is > 1 hour old, giving the
+  // on-call operator an early warning before cycles actually reach zero.
+  //
+  // NOTE: This does NOT require the monitoring canister to be a controller of the
+  // monitored canisters — it only reads already-stored metric timestamps.
+
+  private var heartbeatTick : Nat = 0;
+  private let STALE_CHECK_INTERVAL : Nat = 300;          // ~5 min at ~1 tick/sec
+  private let STALE_THRESHOLD_NS   : Int = 3_600_000_000_000; // 1 hour in nanoseconds
+
+  system func heartbeat() : async () {
+    heartbeatTick += 1;
+    if (heartbeatTick % STALE_CHECK_INTERVAL != 0) return;
+
+    let now = Time.now();
+    for (m in Map.values(canisterMetrics)) {
+      if (now - m.updatedAt > STALE_THRESHOLD_NS) {
+        createAlert(
+          #Warning,
+          #Stale,
+          ?m.canisterId,
+          "Stale metrics: canister has not reported in >1 h — may be frozen or unresponsive"
+        );
+      };
+    };
   };
 }

@@ -47,7 +47,15 @@ if (!allowedOrigin) {
 const origin = allowedOrigin ?? "http://localhost:3000";
 
 app.use(cors({ origin }));
-app.use(express.json({ limit: "5mb" }));  // raised for base64 image payloads (16.6)
+// 50 kb default — sufficient for all text payloads; prevents DoS on every route.
+// /api/classify gets its own 5 mb parser (base64 image payloads) registered below.
+app.use((req, res, next) => {
+  if (req.path === "/api/classify") {
+    express.json({ limit: "5mb" })(req, res, next);
+  } else {
+    express.json({ limit: "50kb" })(req, res, next);
+  }
+});
 
 // 14.3.2 — rate limiting: 30 req/min/IP on all /api/ routes
 const apiLimiter = rateLimit({
@@ -463,7 +471,27 @@ app.get("/health", (_req, res) => {
   res.json({ ok: true, model: MODEL });
 });
 
-app.listen(port, () => {
+const httpServer = app.listen(port, () => {
   console.log(`HomeGentic voice agent proxy → http://localhost:${port}`);
   console.log(`Accepting requests from ${origin}`);
 });
+
+// ── Graceful shutdown ─────────────────────────────────────────────────────────
+// Stop accepting new connections, then let in-flight SSE streams drain before
+// exiting.  Without this a SIGTERM (deploy, container restart) kills open SSE
+// connections mid-stream, causing the frontend to show a hard error.
+function shutdown(signal: string): void {
+  console.log(`[voice-agent] ${signal} received — shutting down gracefully`);
+  httpServer.close(() => {
+    console.log("[voice-agent] all connections closed — exiting");
+    process.exit(0);
+  });
+  // Force-exit after 10 s so a hung stream never blocks a deploy indefinitely.
+  setTimeout(() => {
+    console.error("[voice-agent] forced exit after 10 s");
+    process.exit(1);
+  }, 10_000).unref();
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT",  () => shutdown("SIGINT"));
