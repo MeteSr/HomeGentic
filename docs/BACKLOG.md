@@ -300,8 +300,8 @@ Pre-existing TypeScript compilation failures that must be resolved before CI can
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| DEV.4 | Run `npm install` for mobile and commit lockfile | ⬜ Missing | S | `mobile/` has no `node_modules` — `expo/tsconfig.base` is never found and all expo/react-native types are missing. Run `npm install` inside `mobile/`, commit the resulting `package-lock.json`. |
-| DEV.5 | Fix syntax error in `mobile/src/screens/PropertyDetailScreen.tsx:113` | ⬜ Missing | S | `tsc` reports `TS1005: ')' expected` at line 113. Likely a JSX expression close `/>}` that confuses the parser without the full expo tsconfig. Diagnose and fix after DEV.4 unblocks the full error list. |
+| DEV.4 | Run `npm install` for mobile and commit lockfile | ✅ Exists | S | `npm install --legacy-peer-deps` in `mobile/` (peer conflict between react-test-renderer versions). `expo/tsconfig.base` now resolves. |
+| DEV.5 | Fix syntax error in `mobile/src/screens/PropertyDetailScreen.tsx:113` | ✅ Exists | S | Missing `)` closing the `renderItem` arrow function's parenthesized expression: `/>}` → `/>)}`. |
 
 ---
 

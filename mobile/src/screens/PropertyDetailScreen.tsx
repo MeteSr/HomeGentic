@@ -110,7 +110,7 @@ export default function PropertyDetailScreen({ route }: Props) {
                   jobId:          item.id,
                   jobServiceType: item.serviceType,
                 })}
-              />}
+              />)}
           contentContainerStyle={{ paddingBottom: 0 }}
           ListEmptyComponent={
             <Text style={styles.empty}>No jobs logged yet.</Text>
