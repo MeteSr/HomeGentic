@@ -230,6 +230,34 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </Link>
         </div>
 
+        {/* Collapse / expand toggle */}
+        <button
+          onClick={toggleSidebar}
+          title={sidebarOpen ? "Collapse" : "Expand"}
+          style={{
+            ...itemBase(),
+            width:        "100%",
+            border:       "none",
+            borderBottom: `1px solid ${COLORS.rule}`,
+            cursor:       "pointer",
+          }}
+        >
+          {sidebarOpen
+            ? <ChevronLeft  size={17} style={{ flexShrink: 0 }} />
+            : <ChevronRight size={17} style={{ flexShrink: 0 }} />
+          }
+          {sidebarOpen && (
+            <span style={{
+              fontFamily:    FONTS.mono,
+              fontSize:      "0.6rem",
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+            }}>
+              Collapse
+            </span>
+          )}
+        </button>
+
         {/* Nav links */}
         <div style={{ flex: 1, paddingTop: "0.375rem", overflowY: "auto", overflowX: "hidden" }}>
           {navLinks.map((link) => {
@@ -258,7 +286,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           })}
         </div>
 
-        {/* Bottom: activity, sign out, principal, collapse toggle */}
+        {/* Bottom: activity, sign out, principal */}
         <div style={{ borderTop: `1px solid ${COLORS.rule}`, flexShrink: 0 }}>
 
           {/* Activity bell */}
@@ -319,33 +347,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
           )}
 
-          {/* Collapse / expand toggle */}
-          <button
-            onClick={toggleSidebar}
-            title={sidebarOpen ? "Collapse" : "Expand"}
-            style={{
-              ...itemBase(),
-              width:       "100%",
-              border:      "none",
-              borderTop:   `1px solid ${COLORS.rule}`,
-              cursor:      "pointer",
-            }}
-          >
-            {sidebarOpen
-              ? <ChevronLeft  size={17} style={{ flexShrink: 0 }} />
-              : <ChevronRight size={17} style={{ flexShrink: 0 }} />
-            }
-            {sidebarOpen && (
-              <span style={{
-                fontFamily:    FONTS.mono,
-                fontSize:      "0.6rem",
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-              }}>
-                Collapse
-              </span>
-            )}
-          </button>
         </div>
       </nav>
 
