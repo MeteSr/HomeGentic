@@ -339,11 +339,13 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
       const messages: MessageParam[] = [firstMessage];
 
       for (let turn = 0; turn < MAX_TURNS; turn++) {
+        const { principal } = useAuthStore.getState();
         const res = await fetch(`${PROXY_URL}/api/agent`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             ...(VOICE_API_KEY ? { "x-api-key": VOICE_API_KEY } : {}),
+            ...(principal    ? { "x-icp-principal": principal } : {}),
           },
           body: JSON.stringify({ messages, context }),
         });

@@ -71,6 +71,32 @@ app.use("/api/", (req: Request, res: Response, next: express.NextFunction): void
   next();
 });
 
+// ── Structured request logging ────────────────────────────────────────────────
+// Emits one JSON line per /api/ request on completion.
+// Format is stable so any log aggregator (Datadog, Loki, CloudWatch) can parse it.
+// Fields: ts (ISO), method, path, status, latencyMs, ip, principal.
+// "principal" is the ICP principal from x-icp-principal header if sent by the
+// frontend, otherwise "anon". Never logs request bodies (no PII leakage).
+app.use("/api/", (req: Request, res: Response, next: express.NextFunction): void => {
+  const start = Date.now();
+  res.on("finish", () => {
+    const entry = {
+      ts:        new Date().toISOString(),
+      method:    req.method,
+      path:      req.path,
+      status:    res.statusCode,
+      latencyMs: Date.now() - start,
+      ip:        (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0].trim()
+                   ?? req.socket.remoteAddress ?? "unknown",
+      principal: (req.headers["x-icp-principal"] as string | undefined) ?? "anon",
+    };
+    // Use process.stdout.write for JSON-lines — avoids console.log's extra newline handling
+    // and keeps lines machine-parseable even when piped.
+    process.stdout.write(JSON.stringify(entry) + "\n");
+  });
+  next();
+});
+
 const provider = createAnthropicProvider();
 const MODEL    = resolveModel();
 
