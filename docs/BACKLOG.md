@@ -292,9 +292,9 @@ Pre-existing TypeScript compilation failures that must be resolved before CI can
 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
-| DEV.1 | Fix voice agent `tsconfig.json` rootDir | ⬜ Missing | S | `rootDir: "."` excludes `../maintenance/prompts.ts` which `server.ts` imports. Fix: widen `rootDir` to `".."` and update `include` to `["voice/*.ts", "maintenance/*.ts"]` (or use a monorepo project reference). |
-| DEV.2 | Add missing type devDependencies to voice agent | ⬜ Missing | S | `tsc` reports `Cannot find module` for `@anthropic-ai/sdk`, `express`, `cors`, `express-rate-limit`. Add `@types/express`, `@types/cors`, `@types/express-rate-limit`, `@anthropic-ai/sdk` to `agents/voice/package.json` devDependencies. |
-| DEV.3 | Fix implicit `any` params in `agents/voice/server.ts` | ⬜ Missing | S | `strict: true` catches untyped `req`, `res`, `next` parameters in two middleware functions (~lines 52 and 470). Annotate with `Request`, `Response`, `NextFunction` from express. |
+| DEV.1 | Fix voice agent `tsconfig.json` rootDir | ✅ Exists | S | Widened `rootDir` to `".."` and updated `include` to cover `../maintenance/*.ts`. |
+| DEV.2 | Add missing type devDependencies to voice agent | ✅ Exists | S | `npm install` in `agents/voice/` resolved all missing modules; removed deprecated `@types/express-rate-limit` stub (express-rate-limit bundles its own types). |
+| DEV.3 | Fix implicit `any` params in `agents/voice/server.ts` | ✅ Exists | S | Resolved automatically once `@types/express` was installed — TypeScript infers `req`/`res`/`next` types from the express callback context. |
 
 ### Mobile (`mobile/`)
 
