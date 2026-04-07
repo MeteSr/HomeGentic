@@ -5,7 +5,7 @@ const CONTRACTOR_CANISTER_ID = (process.env as any).CONTRACTOR_CANISTER_ID || ""
 
 // ─── IDL ──────────────────────────────────────────────────────────────────────
 
-const idlFactory = ({ IDL }: any) => {
+export const idlFactory = ({ IDL }: any) => {
   const ServiceType = IDL.Variant({
     Roofing: IDL.Null, HVAC: IDL.Null, Plumbing: IDL.Null, Electrical: IDL.Null,
     Painting: IDL.Null, Flooring: IDL.Null, Windows: IDL.Null, Landscaping: IDL.Null,

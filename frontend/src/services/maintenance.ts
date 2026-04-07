@@ -12,7 +12,7 @@ const MAINTENANCE_CANISTER_ID = (process.env as any).MAINTENANCE_CANISTER_ID || 
 
 // ─── IDL (schedule methods only) ─────────────────────────────────────────────
 
-const idlFactory = ({ IDL }: any) => {
+export const idlFactory = ({ IDL }: any) => {
   const ScheduleEntry = IDL.Record({
     id:                 IDL.Text,
     propertyId:         IDL.Text,

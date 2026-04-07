@@ -16,12 +16,17 @@ export type {
 } from "./property";
 export { propertyService } from "./property";
 
-export type { JobStatus, Job, InvitePreview } from "./job";
+export type { JobStatus, Job, JobCreateInput, InvitePreview } from "./job";
 export { jobService, INSURANCE_SERVICE_TYPES, isInsuranceRelevant } from "./job";
 
 export type { PlanTier, Plan } from "./payment";
 export { PLANS, paymentService } from "./payment";
 
-export * from "./contractor";
-export * from "./quote";
-export * from "./photo";
+export type { ContractorProfile, JobCredential, RegisterContractorArgs, UpdateContractorArgs } from "./contractor";
+export { contractorService } from "./contractor";
+
+export type { Urgency, QuoteRequestStatus, QuoteStatus, QuoteRequest, Quote } from "./quote";
+export { quoteService } from "./quote";
+
+export type { Photo, PhotoQuota } from "./photo";
+export { photoService } from "./photo";

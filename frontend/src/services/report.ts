@@ -15,7 +15,7 @@ const REPORT_CANISTER_ID = (process.env as any).REPORT_CANISTER_ID || "";
 
 // ─── IDL ──────────────────────────────────────────────────────────────────────
 
-const idlFactory = ({ IDL }: any) => {
+export const idlFactory = ({ IDL }: any) => {
   const VisibilityLevel = IDL.Variant({ Public: IDL.Null, BuyerOnly: IDL.Null });
 
   const JobInput = IDL.Record({

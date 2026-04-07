@@ -5,7 +5,7 @@ const RECURRING_CANISTER_ID = (process.env as any).RECURRING_CANISTER_ID || "";
 
 // ─── IDL ──────────────────────────────────────────────────────────────────────
 
-const idlFactory = ({ IDL }: any) => {
+export const idlFactory = ({ IDL }: any) => {
   const RecurringServiceType = IDL.Variant({
     LawnCare:        IDL.Null,
     PestControl:     IDL.Null,

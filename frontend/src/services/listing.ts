@@ -5,7 +5,7 @@ const LISTING_CANISTER_ID = (process.env as any).LISTING_CANISTER_ID || "";
 
 // ─── IDL ──────────────────────────────────────────────────────────────────────
 
-const idlFactory = ({ IDL }: any) => {
+export const idlFactory = ({ IDL }: any) => {
   const BidRequestStatus = IDL.Variant({
     Open: IDL.Null, Awarded: IDL.Null, Cancelled: IDL.Null,
   });

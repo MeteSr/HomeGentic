@@ -5,7 +5,7 @@ const PHOTO_CANISTER_ID = (process.env as any).PHOTO_CANISTER_ID || "";
 
 // ─── IDL ──────────────────────────────────────────────────────────────────────
 
-const idlFactory = ({ IDL }: any) => {
+export const idlFactory = ({ IDL }: any) => {
   const ConstructionPhase = IDL.Variant({
     PreConstruction: IDL.Null, Foundation: IDL.Null, Framing: IDL.Null,
     Electrical: IDL.Null, Plumbing: IDL.Null, HVAC: IDL.Null,

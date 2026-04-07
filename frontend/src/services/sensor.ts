@@ -5,7 +5,7 @@ const SENSOR_CANISTER_ID = (process.env as any).SENSOR_CANISTER_ID || "";
 
 // ─── IDL ──────────────────────────────────────────────────────────────────────
 
-const idlFactory = ({ IDL }: any) => {
+export const idlFactory = ({ IDL }: any) => {
   const DeviceSource = IDL.Variant({
     Nest: IDL.Null, Ecobee: IDL.Null, MoenFlo: IDL.Null, Manual: IDL.Null,
   });

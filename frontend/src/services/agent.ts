@@ -12,7 +12,7 @@ const AGENT_CANISTER_ID = (process.env as any).AGENT_CANISTER_ID || "";
 
 // ─── IDL ──────────────────────────────────────────────────────────────────────
 
-const idlFactory = ({ IDL }: any) => {
+export const idlFactory = ({ IDL }: any) => {
   const AgentProfile = IDL.Record({
     id:                   IDL.Principal,
     name:                 IDL.Text,

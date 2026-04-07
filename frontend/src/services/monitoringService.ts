@@ -14,7 +14,7 @@ const MONITORING_CANISTER_ID = (import.meta as any).env?.VITE_MONITORING_CANISTE
 
 // ─── IDL ──────────────────────────────────────────────────────────────────────
 
-const idlFactory = ({ IDL }: any) => {
+export const idlFactory = ({ IDL }: any) => {
   const CanisterMetrics = IDL.Record({
     canisterId:        IDL.Principal,
     cyclesBalance:     IDL.Nat,
