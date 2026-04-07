@@ -408,9 +408,24 @@ const CSS = `
 
   /* ── MOBILE ────────────────────────────────────────────────────────────── */
   @media (max-width: 900px) {
-    .hfl-nav { padding: 16px 24px; }
+    .hfl-nav { padding: 16px 24px; flex-wrap: wrap; }
     .hfl-nav ul { display: none; }
+    .hfl-nav ul.hfl-menu-open {
+      display: flex; flex-direction: column; gap: 0;
+      width: 100%; order: 3;
+      background: var(--white); border-top: 1px solid var(--rule);
+      padding: 8px 0 16px;
+    }
+    .hfl-nav ul.hfl-menu-open li { width: 100%; }
+    .hfl-nav ul.hfl-menu-open li a {
+      display: block; padding: 12px 0; font-size: 15px;
+      border-bottom: 1px solid var(--rule);
+    }
     .hfl-hamburger { display: block; }
+    .hfl-hamburger.hfl-menu-open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .hfl-hamburger.hfl-menu-open span:nth-child(2) { opacity: 0; }
+    .hfl-hamburger.hfl-menu-open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+    .hfl-hamburger span { transition: transform .2s, opacity .2s; }
 
     .hfl-hero { grid-template-columns: 1fr; padding: 96px 24px 48px; gap: 0; }
     .hfl-hero-right { display: none; }
@@ -502,6 +517,20 @@ const CSS = `
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = React.useState(false);
+
+  // Close menu on scroll or ESC
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = () => setMenuOpen(false);
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
+    window.addEventListener("scroll", close, { passive: true });
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("scroll", close);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
 
   useEffect(() => {
     if (!document.getElementById("hf-landing-fonts")) {
@@ -562,16 +591,21 @@ export default function LandingPage() {
         {/* ── Nav ─────────────────────────────────────────────────────────── */}
         <nav className="hfl-nav">
           <a href="/" className="hfl-logo">HomeGen<span>tic</span></a>
-          <ul>
-            <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-features"); }}>For Homeowners</a></li>
-            <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-features"); }}>Service Network</a></li>
-            <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-report"); }}>HomeGentic Report</a></li>
-            <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-sell"); }}>Sell Smarter</a></li>
-            <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-tools"); }}>Free Tools</a></li>
-            <li><a onClick={(e) => { e.preventDefault(); navigate("/pricing"); }}>Pricing</a></li>
+          <ul className={menuOpen ? "hfl-menu-open" : undefined}>
+            <li><a onClick={(e) => { e.preventDefault(); setMenuOpen(false); scrollTo("hfl-features"); }}>For Homeowners</a></li>
+            <li><a onClick={(e) => { e.preventDefault(); setMenuOpen(false); scrollTo("hfl-features"); }}>Service Network</a></li>
+            <li><a onClick={(e) => { e.preventDefault(); setMenuOpen(false); scrollTo("hfl-report"); }}>HomeGentic Report</a></li>
+            <li><a onClick={(e) => { e.preventDefault(); setMenuOpen(false); scrollTo("hfl-sell"); }}>Sell Smarter</a></li>
+            <li><a onClick={(e) => { e.preventDefault(); setMenuOpen(false); scrollTo("hfl-tools"); }}>Free Tools</a></li>
+            <li><a onClick={(e) => { e.preventDefault(); setMenuOpen(false); navigate("/pricing"); }}>Pricing</a></li>
           </ul>
           <button className="hfl-nav-pill" onClick={() => navigate("/login")}>🏡 Start Free</button>
-          <button className="hfl-hamburger" aria-label="Menu">
+          <button
+            className={`hfl-hamburger${menuOpen ? " hfl-menu-open" : ""}`}
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((o) => !o)}
+          >
             <span /><span /><span />
           </button>
         </nav>
