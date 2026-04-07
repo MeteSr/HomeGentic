@@ -393,6 +393,10 @@ const CSS = `
   .hfl-footer-links { display: flex; gap: 24px; }
   .hfl-footer-links a { color: rgba(253,252,250,0.5); text-decoration: none; font-size: 13px; transition: color .2s; cursor: pointer; }
   .hfl-footer-links a:hover { color: rgba(253,252,250,0.85); }
+  .hfl-footer-right { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+  .hfl-footer-social { display: flex; gap: 14px; }
+  .hfl-footer-social a { color: rgba(253,252,250,0.45); transition: color .2s; display: flex; align-items: center; }
+  .hfl-footer-social a:hover { color: var(--sage); }
 
   /* ENTRANCE ANIMATIONS */
   @keyframes hfl-fadeUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
@@ -448,6 +452,7 @@ const CSS = `
 
     .hfl-footer { flex-direction: column; gap: 20px; text-align: center; padding: 28px 24px; }
     .hfl-footer-links { flex-wrap: wrap; justify-content: center; }
+    .hfl-footer-right { align-items: center; }
   }
 
   /* ── NARROW PHONE (≤480px) ───────────────────────────────────────────── */
@@ -1004,7 +1009,17 @@ export default function LandingPage() {
             <Link to="/privacy" style={{ color: "rgba(253,252,250,0.5)", textDecoration: "none", fontSize: "13px", transition: "color .2s" }}>Privacy</Link>
             <Link to="/support" style={{ color: "rgba(253,252,250,0.5)", textDecoration: "none", fontSize: "13px", transition: "color .2s" }}>Support</Link>
           </div>
-          <p>© 2026 HomeGentic Inc.</p>
+          <div className="hfl-footer-right">
+            <div className="hfl-footer-social">
+              {/* TODO: replace href with production X/Twitter account URL */}
+              <a href="#" aria-label="HomeGentic on X" rel="noopener noreferrer">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                </svg>
+              </a>
+            </div>
+            <p>© 2026 HomeGentic Inc.</p>
+          </div>
         </footer>
 
       </div>
