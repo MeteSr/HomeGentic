@@ -284,6 +284,27 @@ The primary interface is a chat window backed by the existing voice agent (`agen
 
 ---
 
+## EPIC: Build & Compilation Health
+
+Pre-existing TypeScript compilation failures that must be resolved before CI can cover these components.
+
+### Voice Agent (`agents/voice/`)
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| DEV.1 | Fix voice agent `tsconfig.json` rootDir | ⬜ Missing | S | `rootDir: "."` excludes `../maintenance/prompts.ts` which `server.ts` imports. Fix: widen `rootDir` to `".."` and update `include` to `["voice/*.ts", "maintenance/*.ts"]` (or use a monorepo project reference). |
+| DEV.2 | Add missing type devDependencies to voice agent | ⬜ Missing | S | `tsc` reports `Cannot find module` for `@anthropic-ai/sdk`, `express`, `cors`, `express-rate-limit`. Add `@types/express`, `@types/cors`, `@types/express-rate-limit`, `@anthropic-ai/sdk` to `agents/voice/package.json` devDependencies. |
+| DEV.3 | Fix implicit `any` params in `agents/voice/server.ts` | ⬜ Missing | S | `strict: true` catches untyped `req`, `res`, `next` parameters in two middleware functions (~lines 52 and 470). Annotate with `Request`, `Response`, `NextFunction` from express. |
+
+### Mobile (`mobile/`)
+
+| # | Item | Status | Size | Notes |
+|---|------|--------|------|-------|
+| DEV.4 | Run `npm install` for mobile and commit lockfile | ⬜ Missing | S | `mobile/` has no `node_modules` — `expo/tsconfig.base` is never found and all expo/react-native types are missing. Run `npm install` inside `mobile/`, commit the resulting `package-lock.json`. |
+| DEV.5 | Fix syntax error in `mobile/src/screens/PropertyDetailScreen.tsx:113` | ⬜ Missing | S | `tsc` reports `TS1005: ')' expected` at line 113. Likely a JSX expression close `/>}` that confuses the parser without the full expo tsconfig. Diagnose and fix after DEV.4 unblocks the full error list. |
+
+---
+
 ## EPIC: ICP Mainnet Production Readiness
 
 Items identified during ICP production-readiness audit (2026-04-06). Grouped by severity. All blockers must be resolved before any `--network ic` deploy.
