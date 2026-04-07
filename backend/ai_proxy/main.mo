@@ -222,16 +222,7 @@ persistent actor AiProxy {
   ];
 
   private func climateZoneFor(state: Text) : Text {
-    let upper = Text.map(state, func(c: Char) : Char {
-      if (c >= 'a' and c <= 'z') {
-        // convert to uppercase by subtracting ASCII offset (32)
-        let code = Nat32.fromNat(Nat.fromInt(Int.abs(Text.size(Text.fromChar(c)))) + 96);
-        // Use Char.fromNat32 workaround via known mappings is complex in Motoko
-        // Simpler: just do direct comparison
-        c
-      } else { c }
-    });
-    // Direct lookup since we store uppercase already
+    // STATE_ZONES keys are uppercase — callers pass uppercase state codes
     switch (Array.find<(Text, Text)>(STATE_ZONES, func(pair) { pair.0 == state })) {
       case (?(_, zone)) { zone };
       case null         { "mixed" };
