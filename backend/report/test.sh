@@ -69,7 +69,12 @@ RESULT=$(dfx canister call report generateReport '(
   },
   vec {},
   null,
-  variant { Public }
+  variant { Public },
+  null,
+  null,
+  null,
+  null,
+  null
 )')
 echo "$RESULT"
 TOKEN1=$(echo "$RESULT" | grep -oP '(?<=token = ")[^"]+' | head -1 || echo "")
@@ -116,7 +121,12 @@ RESULT2=$(dfx canister call report generateReport '(
     }
   },
   opt 7,
-  variant { BuyerOnly }
+  variant { BuyerOnly },
+  null,
+  null,
+  null,
+  null,
+  null
 )')
 echo "$RESULT2"
 TOKEN2=$(echo "$RESULT2" | grep -oP '(?<=token = ")[^"]+' | head -1 || echo "")
@@ -153,7 +163,12 @@ RESULT3=$(dfx canister call report generateReport '(
   },
   vec {},
   null,
-  variant { Public }
+  variant { Public },
+  null,
+  null,
+  null,
+  null,
+  null
 )')
 echo "$RESULT3"
 TOKEN3=$(echo "$RESULT3" | grep -oP '(?<=token = ")[^"]+' | head -1 || echo "")
@@ -229,7 +244,12 @@ dfx canister call report generateReport '(
   vec {},
   vec {},
   null,
-  variant { Public }
+  variant { Public },
+  null,
+  null,
+  null,
+  null,
+  null
 )' || echo "  ↳ Expected InvalidInput — ✓"
 
 # ─── Pause / Unpause ──────────────────────────────────────────────────────────
@@ -254,7 +274,12 @@ dfx canister call report generateReport '(
   vec {},
   vec {},
   null,
-  variant { Public }
+  variant { Public },
+  null,
+  null,
+  null,
+  null,
+  null
 )' || echo "  ↳ Rejected while paused — ✓"
 
 echo ""
@@ -278,7 +303,12 @@ dfx canister call report generateReport '(
   vec {},
   vec {},
   null,
-  variant { Public }
+  variant { Public },
+  null,
+  null,
+  null,
+  null,
+  null
 )'
 
 # ─── Final metrics ────────────────────────────────────────────────────────────

@@ -35,7 +35,9 @@ dfx canister call market analyzeCompetitivePosition '(
     zipCode      = "78701";
     propertyType = "SingleFamily";
     yearBuilt    = 1990;
-    squareFeet   = 1800
+    squareFeet   = 1800;
+    state        = "TX";
+    jobs         = vec {}
   },
   vec {}
 )'
@@ -48,31 +50,33 @@ dfx canister call market analyzeCompetitivePosition '(
     zipCode      = "78701";
     propertyType = "SingleFamily";
     yearBuilt    = 1990;
-    squareFeet   = 1800
-  },
-  vec {
-    record {
-      serviceType  = "HVAC";
-      amountCents  = 350000;
-      isVerified   = true;
-      isDiy        = false;
-      completedDate = "2023-06-01"
-    };
-    record {
-      serviceType  = "Roofing";
-      amountCents  = 1200000;
-      isVerified   = true;
-      isDiy        = false;
-      completedDate = "2022-03-15"
-    };
-    record {
-      serviceType  = "Painting";
-      amountCents  = 80000;
-      isVerified   = false;
-      isDiy        = true;
-      completedDate = "2024-01-10"
+    squareFeet   = 1800;
+    state        = "TX";
+    jobs         = vec {
+      record {
+        serviceType   = "HVAC";
+        completedYear = 2023;
+        amountCents   = 350000;
+        isVerified    = true;
+        isDiy         = false
+      };
+      record {
+        serviceType   = "Roofing";
+        completedYear = 2022;
+        amountCents   = 1200000;
+        isVerified    = true;
+        isDiy         = false
+      };
+      record {
+        serviceType   = "Painting";
+        completedYear = 2024;
+        amountCents   = 80000;
+        isVerified    = false;
+        isDiy         = true
+      }
     }
-  }
+  },
+  vec {}
 )'
 
 echo ""
@@ -83,24 +87,26 @@ dfx canister call market analyzeCompetitivePosition '(
     zipCode      = "78704";
     propertyType = "Condo";
     yearBuilt    = 2005;
-    squareFeet   = 900
-  },
-  vec {
-    record {
-      serviceType  = "Painting";
-      amountCents  = 50000;
-      isVerified   = false;
-      isDiy        = true;
-      completedDate = "2024-02-01"
-    };
-    record {
-      serviceType  = "Flooring";
-      amountCents  = 120000;
-      isVerified   = false;
-      isDiy        = true;
-      completedDate = "2023-11-01"
+    squareFeet   = 900;
+    state        = "TX";
+    jobs         = vec {
+      record {
+        serviceType   = "Painting";
+        completedYear = 2024;
+        amountCents   = 50000;
+        isVerified    = false;
+        isDiy         = true
+      };
+      record {
+        serviceType   = "Flooring";
+        completedYear = 2023;
+        amountCents   = 120000;
+        isVerified    = false;
+        isDiy         = true
+      }
     }
-  }
+  },
+  vec {}
 )'
 
 # ─── recommendValueAddingProjects ────────────────────────────────────────────
@@ -108,47 +114,50 @@ echo ""
 echo "── [5] recommendValueAddingProjects — SingleFamily, no existing projects ─"
 dfx canister call market recommendValueAddingProjects '(
   record {
-    propertyId   = "PROP_1";
     zipCode      = "78701";
     propertyType = "SingleFamily";
     yearBuilt    = 1990;
-    squareFeet   = 1800
+    squareFeet   = 1800;
+    state        = "TX"
   },
-  vec {}
+  vec {},
+  0
 )'
 
 echo ""
 echo "── [6] recommendValueAddingProjects — Condo (expect condo-relevant projects)"
 dfx canister call market recommendValueAddingProjects '(
   record {
-    propertyId   = "PROP_2";
     zipCode      = "78704";
     propertyType = "Condo";
     yearBuilt    = 2005;
-    squareFeet   = 900
+    squareFeet   = 900;
+    state        = "TX"
   },
-  vec {}
+  vec {},
+  0
 )'
 
 echo ""
 echo "── [7] recommendValueAddingProjects — projects already done are filtered ─"
 dfx canister call market recommendValueAddingProjects '(
   record {
-    propertyId   = "PROP_1";
     zipCode      = "78701";
     propertyType = "SingleFamily";
     yearBuilt    = 1990;
-    squareFeet   = 1800
+    squareFeet   = 1800;
+    state        = "TX"
   },
   vec {
     record {
-      serviceType  = "HVAC";
-      amountCents  = 350000;
-      isVerified   = true;
-      isDiy        = false;
-      completedDate = "2023-06-01"
+      serviceType   = "HVAC";
+      completedYear = 2023;
+      amountCents   = 350000;
+      isVerified    = true;
+      isDiy         = false
     }
-  }
+  },
+  0
 )'
 
 # ─── MarketSnapshot ───────────────────────────────────────────────────────────

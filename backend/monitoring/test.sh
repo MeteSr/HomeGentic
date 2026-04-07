@@ -50,33 +50,11 @@ dfx canister call monitoring calculateCostMetrics '(0)'
 # ─── Profitability ────────────────────────────────────────────────────────────
 echo ""
 echo "── [7] calculateProfitability — mixed tier distribution ─────────────────"
-dfx canister call monitoring calculateProfitability '(
-  record {
-    totalUsers         = 500;
-    activeUsers        = 400;
-    newUsersToday      = 12;
-    revenueUsd         = 4500.0;
-    freeUsers          = 300;
-    proUsers           = 150;
-    premiumUsers       = 40;
-    contractorProUsers = 10
-  }
-)'
+dfx canister call monitoring calculateProfitability '(4500.0, 500, 400)'
 
 echo ""
 echo "── [8] calculateProfitability — all free tier (should show negative) ────"
-dfx canister call monitoring calculateProfitability '(
-  record {
-    totalUsers         = 1000;
-    activeUsers        = 200;
-    newUsersToday      = 5;
-    revenueUsd         = 0.0;
-    freeUsers          = 1000;
-    proUsers           = 0;
-    premiumUsers       = 0;
-    contractorProUsers = 0
-  }
-)'
+dfx canister call monitoring calculateProfitability '(0.0, 1000, 200)'
 
 # ─── canister metrics + alert triggers ────────────────────────────────────────
 echo ""
@@ -84,11 +62,12 @@ echo "── [9] recordCanisterMetrics — healthy canister ──────�
 AUTH_ID=$(dfx canister id auth 2>/dev/null || echo "aaaaa-aa")
 dfx canister call monitoring recordCanisterMetrics "(
   principal \"$AUTH_ID\",
-  \"auth\",
   100_000_000_000_000,
   50000,
   0,
+  1073741824,
   1000000,
+  0,
   45
 )"
 
@@ -96,11 +75,12 @@ echo ""
 echo "── [10] recordCanisterMetrics — low cycles (should trigger Warning alert) "
 dfx canister call monitoring recordCanisterMetrics "(
   principal \"$AUTH_ID\",
-  \"auth\",
   8_000_000_000_000,
   50000,
   0,
+  1073741824,
   1000000,
+  0,
   45
 )"
 
@@ -112,11 +92,12 @@ echo ""
 echo "── [12] recordCanisterMetrics — critical cycles (should trigger Critical) "
 dfx canister call monitoring recordCanisterMetrics "(
   principal \"$AUTH_ID\",
-  \"auth\",
   2_000_000_000_000,
   50000,
   0,
+  1073741824,
   1000000,
+  0,
   45
 )"
 

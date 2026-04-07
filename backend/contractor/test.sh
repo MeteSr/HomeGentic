@@ -5,7 +5,7 @@ echo "=== Contractor Canister Tests ==="
 echo "▶ Register as contractor..."
 dfx canister call contractor register '(record {
   name = "ACME Services";
-  specialty = "Plumbing";
+  specialties = vec { variant { Plumbing } };
   email = "acme@contractors.com";
   phone = "555-9001";
 })'

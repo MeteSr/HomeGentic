@@ -258,9 +258,11 @@ dfx canister call $CANISTER createJob '(
   variant { Plumbing },
   "RL test",
   null,
+  0,
+  1718409600000000000,
   null,
   null,
-  null
+  true
 )' --identity contractor-test
 dfx canister call $CANISTER createJob '(
   "PROP_RL_2",
@@ -268,9 +270,11 @@ dfx canister call $CANISTER createJob '(
   variant { Plumbing },
   "RL test",
   null,
+  0,
+  1718409600000000000,
   null,
   null,
-  null
+  true
 )' --identity contractor-test
 dfx canister call $CANISTER createJob '(
   "PROP_RL_3",
@@ -278,9 +282,11 @@ dfx canister call $CANISTER createJob '(
   variant { Plumbing },
   "RL test",
   null,
+  0,
+  1718409600000000000,
   null,
   null,
-  null
+  true
 )' --identity contractor-test
 echo "  ↳ 3 calls succeeded — ✓"
 
@@ -292,9 +298,11 @@ dfx canister call $CANISTER createJob '(
   variant { Plumbing },
   "RL test",
   null,
+  0,
+  1718409600000000000,
   null,
   null,
-  null
+  true
 )' --identity contractor-test \
   && echo "  ↳ ❌ Expected rate limit error — call should have failed" \
   || echo "  ↳ Rate limit correctly rejected 4th call — ✓"
@@ -307,9 +315,11 @@ dfx canister call $CANISTER createJob '(
   variant { Plumbing },
   "Admin bypass test",
   null,
+  0,
+  1718409600000000000,
   null,
   null,
-  null
+  true
 )'
 echo "  ↳ Admin call succeeded despite limit — ✓"
 
@@ -361,15 +371,9 @@ echo ""
 echo "── [34] Trusted principal bypasses rate limit ───────────────────────────"
 dfx canister call $CANISTER setUpdateRateLimit "(2 : nat)"
 # sensor-test is in trusted list — 3 calls should all succeed despite limit=2
-dfx canister call $CANISTER createJob '(
-  "TRUST_PROP_1", "Trusted Bypass 1", variant { Plumbing }, "trust test", null, null, null, null
-)' --identity sensor-test
-dfx canister call $CANISTER createJob '(
-  "TRUST_PROP_2", "Trusted Bypass 2", variant { Plumbing }, "trust test", null, null, null, null
-)' --identity sensor-test
-dfx canister call $CANISTER createJob '(
-  "TRUST_PROP_3", "Trusted Bypass 3", variant { Plumbing }, "trust test", null, null, null, null
-)' --identity sensor-test
+dfx canister call $CANISTER createJob '("TRUST_PROP_1", "Trusted Bypass 1", variant { Plumbing }, "trust test", null, 0, 1718409600000000000, null, null, true)' --identity sensor-test
+dfx canister call $CANISTER createJob '("TRUST_PROP_2", "Trusted Bypass 2", variant { Plumbing }, "trust test", null, 0, 1718409600000000000, null, null, true)' --identity sensor-test
+dfx canister call $CANISTER createJob '("TRUST_PROP_3", "Trusted Bypass 3", variant { Plumbing }, "trust test", null, 0, 1718409600000000000, null, null, true)' --identity sensor-test
 echo "  ↳ 3 calls succeeded despite rate limit of 2 — ✓"
 dfx canister call $CANISTER setUpdateRateLimit "(30 : nat)"
 

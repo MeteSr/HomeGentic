@@ -40,23 +40,19 @@ dfx canister call sensor getMetrics
 echo ""
 echo "── [2] Register a Nest thermostat ───────────────────────────────────────"
 dfx canister call sensor registerDevice '(
-  record {
-    propertyId       = "PROP_1";
-    externalDeviceId = "nest-abc123";
-    source           = variant { Nest };
-    name             = "Living Room Thermostat"
-  }
+  "PROP_1",
+  "nest-abc123",
+  variant { Nest },
+  "Living Room Thermostat"
 )'
 
 echo ""
 echo "── [3] Register a Moen Flo water sensor ─────────────────────────────────"
 dfx canister call sensor registerDevice '(
-  record {
-    propertyId       = "PROP_1";
-    externalDeviceId = "moen-flo-xyz789";
-    source           = variant { MoenFlo };
-    name             = "Main Water Line Shutoff"
-  }
+  "PROP_1",
+  "moen-flo-xyz789",
+  variant { MoenFlo },
+  "Main Water Line Shutoff"
 )'
 
 echo ""
@@ -67,8 +63,7 @@ dfx canister call sensor getDevicesForProperty '("PROP_1")'
 echo ""
 echo "── [5] recordEvent — HVAC filter reminder (Info severity) ───────────────"
 dfx canister call sensor recordEvent '(
-  "DEVICE_1",
-  "PROP_1",
+  "nest-abc123",
   variant { HvacFilterDue },
   0.0,
   "",
@@ -78,8 +73,7 @@ dfx canister call sensor recordEvent '(
 echo ""
 echo "── [6] recordEvent — high humidity (Warning severity) ───────────────────"
 dfx canister call sensor recordEvent '(
-  "DEVICE_1",
-  "PROP_1",
+  "nest-abc123",
   variant { HighHumidity },
   72.5,
   "%RH",
@@ -90,8 +84,7 @@ dfx canister call sensor recordEvent '(
 echo ""
 echo "── [7] recordEvent — water leak CRITICAL (should auto-create pending job) "
 dfx canister call sensor recordEvent '(
-  "DEVICE_2",
-  "PROP_1",
+  "moen-flo-xyz789",
   variant { WaterLeak },
   8.3,
   "L/min",
@@ -101,8 +94,7 @@ dfx canister call sensor recordEvent '(
 echo ""
 echo "── [8] recordEvent — low temperature CRITICAL (pipe freeze risk) ────────"
 dfx canister call sensor recordEvent '(
-  "DEVICE_1",
-  "PROP_1",
+  "nest-abc123",
   variant { LowTemperature },
   2.1,
   "°C",
@@ -122,8 +114,7 @@ dfx canister call sensor getPendingAlerts '("PROP_1")'
 echo ""
 echo "── [11] recordEvent — HVAC alert (Critical) ─────────────────────────────"
 dfx canister call sensor recordEvent '(
-  "DEVICE_1",
-  "PROP_1",
+  "nest-abc123",
   variant { HvacAlert },
   0.0,
   "",
@@ -137,7 +128,7 @@ dfx canister call sensor getEventsForProperty '("PROP_1", 5)'
 # ─── Device deactivation ──────────────────────────────────────────────────────
 echo ""
 echo "── [13] deactivateDevice ────────────────────────────────────────────────"
-dfx canister call sensor deactivateDevice '("DEVICE_2")'
+dfx canister call sensor deactivateDevice '("DEV_2")'
 
 echo ""
 echo "── [14] getDevicesForProperty — deactivated device should still appear ──"
