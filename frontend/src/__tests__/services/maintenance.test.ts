@@ -7,7 +7,10 @@ import type { Job } from "@/services/job";
 const CURRENT_YEAR = 2026;
 
 beforeAll(() => {
-  vi.useFakeTimers();
+  // Only fake Date — leaving setTimeout/setInterval real so that Vitest's
+  // own timeout mechanism and the global afterEach (setup.ts, which awaits
+  // a setTimeout(0) to flush React state) continue to work.
+  vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date(`${CURRENT_YEAR}-06-15`));
 });
 

@@ -468,7 +468,7 @@ describe("listingService.getProposalsForRequest — sealed until deadline", () =
   let svc: typeof listingService;
 
   beforeEach(async () => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2024-01-01T12:00:00Z"));
     vi.resetModules();
     const m = await import("@/services/listing");
@@ -568,7 +568,7 @@ describe("listingService.acceptProposal", () => {
   let svc: typeof listingService;
 
   beforeEach(async () => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2024-01-01T12:00:00Z"));
     vi.resetModules();
     const m = await import("@/services/listing");

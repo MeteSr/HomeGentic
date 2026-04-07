@@ -15,7 +15,7 @@ import type { Job } from "@/services/job";
 const NOW = new Date("2026-01-15T00:00:00Z").getTime();
 
 beforeAll(() => {
-  vi.useFakeTimers();
+  vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(NOW);
 });
 

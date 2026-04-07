@@ -9,7 +9,7 @@ import type { Job } from "@/services/job";
 const TODAY = "2026-03-29";
 
 beforeEach(() => {
-  vi.useFakeTimers();
+  vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-03-29T12:00:00Z"));
   docIngestionService.reset();
 });
