@@ -164,13 +164,11 @@ dfx canister call market recommendValueAddingProjects '(
 echo ""
 echo "── [8] recordMarketSnapshot ─────────────────────────────────────────────"
 dfx canister call market recordMarketSnapshot '(
-  record {
-    zipCode          = "78701";
-    medianScore      = 74;
-    sampleSize       = 150;
-    topServiceTypes  = vec { "HVAC"; "Roofing"; "Plumbing" };
-    avgVerifiedJobs  = 4
-  }
+  "78701",
+  45000000,
+  30,
+  22500,
+  variant { Rising }
 )'
 
 echo ""

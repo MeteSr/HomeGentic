@@ -129,6 +129,8 @@ dfx canister call monitoring generateDailyReport '(
 echo ""
 echo "── [16] createInfoAlert ─────────────────────────────────────────────────"
 dfx canister call monitoring createInfoAlert '(
+  variant { Milestone },
+  null,
   "Deploy completed — all 13 canisters upgraded successfully"
 )'
 

@@ -198,7 +198,7 @@ dfx canister call $CANISTER createJob "(
 # ─── Invite token flow ────────────────────────────────────────────────────────
 echo ""
 echo "── [18] createInviteToken — homeowner creates token for contractor job ───"
-INVITE_OUT=$(dfx canister call $CANISTER createInviteToken "(\"$JOB_ID\")")
+INVITE_OUT=$(dfx canister call $CANISTER createInviteToken "(\"$JOB_ID\", \"123 Main St, Austin TX 78701\")")
 echo "$INVITE_OUT"
 INVITE_TOKEN=$(echo "$INVITE_OUT" | grep -oP '"[a-zA-Z0-9_-]{16,}"' | head -1 | tr -d '"')
 echo "  → Invite token: $INVITE_TOKEN"
@@ -230,7 +230,7 @@ dfx canister call $CANISTER redeemInviteToken "(\"$INVITE_TOKEN\")" --identity c
 
 echo ""
 echo "── [22] createInviteToken on DIY job → expect NotAuthorized / error ─────"
-dfx canister call $CANISTER createInviteToken "(\"$DIY_ID\")" \
+dfx canister call $CANISTER createInviteToken "(\"$DIY_ID\", \"123 Main St, Austin TX 78701\")" \
   || echo "  ↳ Expected error (DIY jobs cannot have contractor invites) — ✓"
 
 echo ""
@@ -240,7 +240,7 @@ dfx canister call $CANISTER getJobByInviteToken '("INVALID_TOKEN_XYZ")' \
 
 echo ""
 echo "── [24] createInviteToken as contractor → expect NotAuthorized ──────────"
-dfx canister call $CANISTER createInviteToken "(\"$JOB_ID\")" --identity contractor-test \
+dfx canister call $CANISTER createInviteToken "(\"$JOB_ID\", \"123 Main St, Austin TX 78701\")" --identity contractor-test \
   || echo "  ↳ Expected NotAuthorized (only homeowner can create invite) — ✓"
 
 # ─── Rate Limit Tests ─────────────────────────────────────────────────────────

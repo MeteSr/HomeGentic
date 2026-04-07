@@ -45,7 +45,7 @@ REQ_OUT=$(dfx canister call $CANISTER createQuoteRequest '(
   variant { Medium }
 )')
 echo "$REQ_OUT"
-REQ_ID=$(echo "$REQ_OUT" | grep -oP '"QR_[^"]+"' | head -1 | tr -d '"')
+REQ_ID=$(echo "$REQ_OUT" | grep -oP '"REQ_[^"]+"' | head -1 | tr -d '"')
 echo "  → Request ID: $REQ_ID"
 
 # ─── Get request by ID ────────────────────────────────────────────────────────
