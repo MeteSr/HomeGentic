@@ -188,17 +188,6 @@ End-to-end scenarios that combine multiple calls, matching how real users intera
 
 The features below address the core signup conversion gap: a new homeowner visits HomeGentic, reads the pitch, but has no immediate, personally-felt reason to create an account today. Each item below corresponds to a product lever that makes the value tangible before sign-up, or dramatically lowers the cost of getting that value.
 
-### 17.2 Zero-Effort Onboarding — Instant Value Before First Login
-
-**Vision:** Enter your address → get a real maintenance forecast in under 30 seconds. No account needed for the first impression; account creation locks in the data.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 17.2.1 | Public address → forecast endpoint | ✅ Exists | M | `GET /api/instant-forecast` in voice relay — `forecast.ts` inlines SYSTEMS table, climate zone multipliers, `urgencyFor`, `estimateSystems`, `computeTenYearBudget`, `parseForecastQueryParams`; accepts `address`, `yearBuilt`, `state?`, + per-system override params; returns systems array sorted by urgency + `tenYearBudget`; 34 unit tests |
-| 17.2.2 | Pre-auth forecast landing page | ✅ Exists | M | `/instant-forecast` page: address + year-built entry form → system forecast table with urgency + cost estimates; inline per-row "Last replaced: [year]" override inputs correct upgraded-system predictions; `computeTenYearBudget`, `parseForecastParams`, `buildForecastUrl` in `instantForecast.ts`; `estimateSystems()` updated with per-system override support |
-| 17.2.3 | "Save your forecast" conversion CTA | ✅ Exists | S | "Save your forecast" link on results page → `/properties/new?address=...&yearBuilt=...` |
-| 17.2.4 | Public records year-built lookup | ✅ Exists | L | `lookupYearBuilt(address)` in `instantForecast.ts`; relay stub `GET /api/lookup-year-built` in voice server (returns null); auto-fill on address blur; ATTOM Data integration deferred |
-| 17.2.5 | Forecast → account migration | ✅ Exists | S | Pre-populate `propertyService.register()` from URL params (`address`, `yearBuilt`, `state`); system overrides pass as `systemAges` so the first dashboard view is accurate |
 
 ### 17.4 Buyer-Side Product — Public Report Lookup
 
@@ -257,58 +246,7 @@ The primary interface is a chat window backed by the existing voice agent (`agen
 - Report viewing (PDF/WebView rendering)
 - Onboarding / property registration (address autocomplete UX)
 
-### 15.1 Foundation & Setup
 
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 15.1.1 | React Native scaffold (Expo managed workflow) | ✅ Exists | M | `mobile/` scaffolded with `create-expo-app` (blank-typescript); `@react-navigation/native` + `@react-navigation/bottom-tabs` installed |
-| 15.1.2 | Shared TypeScript service layer | ✅ Exists | M | Polyfills (`react-native-get-random-values`, `text-encoding`) imported at top of `index.ts`; `propertyService.ts` and `jobService.ts` with mock-fallback pattern; `agentService.ts` bridges to voice proxy (7 unit tests) |
-| 15.1.3 | Design token port | ✅ Exists | S | `mobile/src/theme.ts` — colors, fonts, spacing, borderWidth/borderRadius tokens ported from web design system |
-| 15.1.4 | Navigation scaffold | ✅ Exists | S | `mobile/src/navigation/TabNavigator.tsx` — 4-tab bottom navigator (Chat, Photos, Report, Settings); deep-link config in `App.tsx` |
-| 15.1.5 | Deep-link scheme registration | ✅ Exists | S | `homegentic://` scheme registered in `app.json`: `scheme`, `ios.infoPlist.CFBundleURLTypes`, `android.intentFilters`; linking config wired in `NavigationContainer` |
-
-### 15.2 Authentication — Internet Identity WebView Bridge
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 15.2.1 | II WebView auth flow | ✅ Exists | L | `useAuth.ts`: opens II in `expo-web-browser` via `openAuthSessionAsync`, listens for `homegentic://auth` deep link, parses delegation from callback URL; `buildIIAuthUrl` / `parseAuthCallback` / `isDelegationExpired` in `authUtils.ts` (15 unit tests) |
-| 15.2.2 | Delegation storage + session restore | ✅ Exists | M | `authStorage.ts`: `saveAuth` / `loadAuth` / `clearAuth` via `expo-secure-store`; `useAuth` restores session on mount and re-auths if delegation is expired |
-| 15.2.3 | Biometric unlock | ✅ Exists | M | `biometricService.ts` — `shouldPromptBiometric`, `biometricPromptReason`, `biometricNotAvailableReason` pure helpers (10 tests) + `checkBiometricStatus` + `authenticateWithBiometrics`; `useAuth.restoreSession` gates session hydration behind biometric prompt; skips transparently when device unsupported; delegation preserved on cancel so user can retry; `NSFaceIDUsageDescription` in `app.json` |
-| 15.2.4 | Role detection on login | ✅ Exists | S | `authTypes.ts` + `authService.ts`: `getProfile(agent)` calls auth canister; `fromProfile` transformation (7 unit tests); `AuthState.authenticated` now carries `profile: UserProfile \| null` |
-
-### 15.3 Push Notifications Infrastructure
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 15.3.1 | Push token registration endpoint | ✅ Exists | L | `agents/notifications/` relay (port 3002): in-memory token store (`store.ts`), `POST /api/push/register` + `/unregister` + `/send`; 9 unit tests |
-| 15.3.2 | APNs integration | ✅ Exists | L | `apns.ts` — JWT provider token (ES256, no extra dep), HTTP/2 `sendApns()`; skips gracefully when `APNS_KEY_ID/TEAM_ID/PRIVATE_KEY` not set; iOS `aps-environment` entitlement in `app.json` |
-| 15.3.3 | FCM integration | ✅ Exists | L | `fcm.ts` — service-account JWT → OAuth token exchange, FCM v1 API `sendFcm()`; skips when `FCM_PROJECT_ID/FCM_SERVICE_ACCOUNT_JSON` not set |
-| 15.3.4 | Canister event → push relay hooks | ✅ Exists | L | `poller.ts` — 30 s polling loop with `new_lead` + `job_signed` stubs; `dispatcher.ts` fans out to all devices, auto-evicts stale tokens (APNs 410 / FCM UNREGISTERED) |
-| 15.3.5 | In-app permission prompt | ✅ Exists | S | `useNotifications` hook — deferred permission request after auth, Expo push token registered with relay via `notificationService.ts` |
-| 15.3.6 | Notification tap → deep link routing | ✅ Exists | S | `addNotificationResponseReceivedListener` extracts `route` from payload data, calls `Linking.openURL("homegentic://…")`; `App.tsx` linking config expanded with `jobs/:jobId` + `leads/:leadId` + `earnings` |
-
-### 15.4 Homeowner V1 Features (Read-Only)
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 15.4.1 | Property list screen | ✅ Exists | S | `PropertyListScreen.tsx` — score badge, built year, tap → PropertyDetail |
-| 15.4.2 | HomeGentic Score screen | ✅ Exists | S | Score hero in `PropertyDetailScreen.tsx` — large score number, letter grade, address |
-| 15.4.3 | Job history screen | ✅ Exists | S | Job list in `PropertyDetailScreen.tsx` — service type, description, date, amount, DIY flag, verified dot |
-| 15.4.4 | Report WebView | ✅ Exists | S | `ReportScreen.tsx` — token/URL input + `expo-web-browser` opens the full web report; no native rebuild needed |
-| 15.4.5 | Push: score change notification | ✅ Exists | M | Notify homeowner when HomeGentic Score changes by ≥5 points; requires 15.3 relay |
-| 15.4.6 | Push: new job pending signature | ✅ Exists | M | Notify homeowner when a contractor marks a job complete and awaits their signature |
-| 15.4.7 | Upgrade CTA (browser deep-link) | ✅ Exists | S | Upgrade banner in `PropertyDetailScreen.tsx` calls `Linking.openURL("https://homegentic.app/pricing")` |
-
-### 15.5 Contractor V1 Features (Read-Only)
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 15.5.1 | Lead feed screen | ✅ Exists | M | `LeadFeedScreen.tsx` — urgency-sorted cards with colour bar; `filterLeadsBySpecialties` + `ContractorStack` stack navigator |
-| 15.5.2 | Job pending signature screen | ✅ Exists | S | `PendingSignaturesScreen.tsx` — rust/grey colour indicator, `formatPendingStatus` + `sortPendingJobs`; accessible via PENDING tap on EarningsScreen (`EarningsStack`) |
-| 15.5.3 | Earnings summary screen | ✅ Exists | S | `EarningsScreen.tsx` — total earned, verified jobs, pending count via `getEarningsSummary` |
-| 15.5.4 | Push: new lead in my trades | ✅ Exists | M | Notify contractor when a new quote request matches any of their `specialties`; requires 15.3 relay |
-| 15.5.5 | Push: bid accepted / not selected | ✅ Exists | M | Notify contractor of bid outcome when homeowner selects or declines |
-| 15.5.6 | Upgrade CTA (browser deep-link) | ✅ Exists | S | Upgrade banner in `EarningsScreen.tsx` calls `Linking.openURL("https://homegentic.app/pricing")` |
 
 ### 15.6 App Store & Play Store Submission
 
@@ -319,49 +257,6 @@ The primary interface is a chat window backed by the existing voice agent (`agen
 | 15.6.3 | Privacy disclosures | ✅ Exists | S | Both stores require data collection disclosures; document what is collected (principal, device push token, usage analytics if any) |
 | 15.6.4 | App Store review: no in-app purchases | ✅ Exists | S | Ensure no upgrade UI collects payment inside the app; reviewer notes explaining browser redirect for subscriptions |
 
-### 15.7 Agent Tool Expansion (Mobile-Specific)
-
-Extend `agents/voice/tools.ts` so the mobile chat interface can drive the full task surface. The web voice agent has read tools today; these additions cover write operations and mobile-specific needs.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 15.7.1 | `log_job` tool | ✅ Exists | M | `create_maintenance_job` in `tools.ts` covers this — collects service type, DIY flag, cost, date, contractor name, permit, warranty |
-| 15.7.2 | `request_quote` tool | ✅ Exists | M | `create_quote_request` in `tools.ts` |
-| 15.7.3 | `submit_bid` tool (contractor) | ✅ Exists | M | `submit_bid` in `tools.ts` |
-| 15.7.4 | `sign_job` tool | ✅ Exists | M | `sign_job_verification` in `tools.ts` |
-| 15.7.5 | `find_contractor` tool | ✅ Exists | S | `search_contractors` in `tools.ts` |
-| 15.7.6 | `get_score` tool | ✅ Exists | S | `get_score` added to `tools.ts`; accepts optional `property_id`; instructs Claude to explain top factor and suggest one improvement if score < 70 |
-| 15.7.7 | `list_leads` tool (contractor) | ✅ Exists | S | `list_leads` in `tools.ts` |
-| 15.7.8 | `open_report` tool | ✅ Exists | S | `share_report` in `tools.ts` |
-| 15.7.9 | `upload_photos` handoff tool | ✅ Exists | S | `upload_photos` added to `tools.ts`; returns `homegentic://photos/job/:id` deep link; agent instructs user to tap it |
-| 15.7.10 | Tool error handling + clarification loop | ✅ Exists | M | Clarification loop guidance added to `buildSystemPrompt` in `prompts.ts`: ask one field at a time, max 3 questions per task, never invent required field values |
-
-### 15.8 V2 Write Operations (Future)
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| 15.8.1 | Log a job (homeowner) | ✅ Exists | L | `LogJobScreen.tsx` — service-type chips, description, amount ($→cents), date, DIY toggle, optional contractor/permit/photo; `jobFormService.ts` pure helpers (24 tests); `useFocusEffect` re-fetch on PropertyDetail; `expo-image-picker` base64 upload stub |
-| 15.8.2 | Request a quote (homeowner) | ✅ Exists | M | `QuoteRequestScreen.tsx` — service-type chips, urgency selector (colour-coded), description; `MyQuotesScreen.tsx` — urgency-bar list with status badges; `quoteFormService.ts` pure helpers (13 tests); `quoteService.ts` mock; PropertyDetail footer links to both screens |
-| 15.8.3 | Submit a bid (contractor) | ✅ Exists | M | `LeadDetailScreen.tsx` rewritten with `bidFormService.ts` pure helpers (22 tests) + `bidService.submitBid` mock; amount ($→cents), timeline (1–365 days), optional notes; confirmation Alert before submit |
-| 15.8.4 | Sign a job (both roles) | ✅ Exists | M | `SignJobScreen.tsx` — job summary card, legal acknowledgment checkbox, `canSign` guard, `signJob` mock; `signJobService.ts` pure helpers (8 tests); PendingSignaturesScreen rows tappable → SignJob (contractor); ChatStack + ContractorStack both carry the SignJob route |
-| 15.8.5 | Camera-first photo upload | ✅ Exists | L | `PhotoUploadScreen.tsx` — opens camera on mount, gallery fallback, full-screen preview with retake; `photoUploadService.ts` validates MIME type (JPEG/PNG), 10 MB cap, formats file size (11 tests); ⊕ camera button on every PropertyDetail job row |
-
----
-
-## EPIC: AI Provider Abstraction
-
-**Goal:** Decouple all AI inference calls from the Anthropic SDK so that any compatible provider (OpenAI, Gemini, local LLM, etc.) can be swapped in by changing configuration, not code.
-
-**Motivation:** `agents/voice/server.ts` imports and calls `@anthropic-ai/sdk` directly in every route handler. Anthropic-specific types (`ToolUseBlock`, `TextBlock`), streaming event shapes (`content_block_delta`), tool schema format, and hardcoded model strings (`claude-sonnet-4-6`) are scattered across the file. There is no seam between the Express routes and the AI provider.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| AI.1 | Define `AIProvider` interface | ✅ Exists | S | New `agents/voice/provider.ts`: `stream()`, `complete()`, `completeWithTools()` methods with normalized types for tool definitions, tool call results, and streaming chunks — no SDK types exposed |
-| AI.2 | Implement `AnthropicProvider` | ✅ Exists | M | Class wrapping `@anthropic-ai/sdk`: translates normalized tool schema → Anthropic wire format, maps `content_block_delta`/`text_delta` events → normalized chunks, extracts `ToolUseBlock`/`TextBlock` from responses. No Anthropic types leak outside this class |
-| AI.3 | Wire provider into `server.ts` via DI | ✅ Exists | M | Replace all direct `anthropic.messages.*` calls in route handlers with `AIProvider` interface calls. Instantiate the concrete provider once at startup, selected by `AI_PROVIDER` env var |
-| AI.4 | Extract model name to config | ✅ Exists | S | Remove the five hardcoded `"claude-sonnet-4-6"` strings. Add `AI_MODEL` to `.env.example`; provider reads it at startup. Route handlers never reference a model name |
-| AI.5 | Normalize tool schema in `tools.ts` | ✅ Exists | S | Rewrite `HOMEGENTIC_TOOLS` using the normalized tool definition type from AI.1. Each provider implementation converts to its own wire format — route handlers and tool definitions remain provider-agnostic |
-| AI.6 | Remove provider-specific strings | ✅ Exists | S | Replace `"Claude did not return valid JSON"` and equivalents with provider-agnostic wording. Update `GET /health` to return `AI_MODEL` from env instead of the hardcoded string |
 
 ---
 
@@ -389,52 +284,6 @@ Extend `agents/voice/tools.ts` so the mobile chat interface can drive the full t
 
 ---
 
-## EPIC: SEO — Pre-rendered Public Pages
-
-**Goal:** Make HomeGentic's public-facing pages crawlable, shareable, and rankable without changing the hosting infrastructure. Key pages should render as real static HTML so Google indexes them on first crawl, and social link previews (Twitter/Slack/iMessage) show meaningful titles, descriptions, and images.
-
-**Situation:** The app is a pure client-side SPA (React + Vite on ICP assets canister). Today only `FsboListingPage` has dynamic OG tags; every other page serves the same static fallback title/description from `index.html`. There is no `robots.txt`, no `sitemap.xml`, no structured data, and no canonical URL strategy.
-
-**Approach:** `vite-plugin-ssg` (or `vite-ssg`) generates static HTML shells at build time for each known public route. Each shell contains fully-resolved `<title>`, `<meta>`, OG tags, and JSON-LD in the `<head>` — so crawlers and link unfurlers get real content without executing JavaScript. Dynamic data pages (contractor profiles, listing pages) get pre-rendered with a loading skeleton; `react-helmet-async` then hydrates the real title/meta once the canister responds. Authenticated-only routes are excluded from pre-rendering entirely.
-
-**Dependency order:** SEO.1 (helmet) is a prerequisite for all per-page meta work. SEO.2 (SSG build) must land before SEO.5 (sitemap) since the sitemap references the same route list. SEO.3–SEO.4 can proceed in parallel after SEO.1.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| SEO.1 | `react-helmet-async` — per-route `<title>` and meta | ✅ Exists | M | Install `react-helmet-async`. Wrap app in `<HelmetProvider>`. Add `<Helmet>` to `LandingPage`, `FsboListingPage`, `ContractorPublicPage`, `AgentPublicPage`, `ScoreCertPage`, `ListingDetailPage`, `InstantForecastPage`, `CheckAddressPage`. Migrate existing `document.title` + `setMeta` calls to Helmet. Each page sets `title`, `description`, `og:title`, `og:description`, `og:type`, `og:url`. |
-| SEO.2 | `vite-plugin-ssg` build integration | ✅ Exists | L | Install `vite-plugin-ssg`. Define the static route manifest (landing, pricing, public profile patterns, listing patterns). Update `vite.config.ts` to run SSG in production builds. Verify ICP assets canister serves pre-rendered HTML correctly (add `_redirects` or 404 fallback so deep links still work in SPA mode). Add SSG build step to CI. |
-| SEO.3 | `og:image` for key pages | ✅ Exists | M | Static brand OG image (`public/og-default.png`, 1200×630) used as fallback on all pages. Dynamic OG image for `FsboListingPage`: compose address + price + HomeGentic Score into a template using `@vercel/og` or a Canvas-based build-time script. `ScoreCertPage` gets its score badge as `og:image`. |
-| SEO.4 | JSON-LD structured data | ✅ Exists | M | `LandingPage`: `Organization` + `WebSite` schema with `SearchAction`. `FsboListingPage`: `RealEstateListing` schema (address, price, description, image). `ContractorPublicPage` + `AgentPublicPage`: `LocalBusiness` / `Person` schema with `aggregateRating` if reviews exist. `ScoreCertPage`: `CreativeWork` schema with the score as `description`. |
-| SEO.5 | `sitemap.xml` + `robots.txt` | ✅ Exists | S | Static `robots.txt` in `public/`: allow all crawlers, point to sitemap. Build-time `sitemap.xml` generator (Vite plugin or `scripts/gen-sitemap.ts`) that emits one `<url>` per static route plus a `<sitemapindex>` pointer to a dynamic sitemap for listing/profile pages. Dynamic sitemap served from a canister query endpoint. |
-| SEO.6 | Canonical URLs | ✅ Exists | S | Add `<link rel="canonical" href="https://homegentic.app/...">` via Helmet on every public page. Prevents duplicate-content penalties if the app is reachable at multiple ICP gateway origins (`ic0.app`, `raw.ic0.app`, custom domain). |
-| SEO.7 | Landing page content depth | ✅ Exists | M | `LandingPage` currently has minimal crawlable text — most content is inside React components that Googlebot may not wait for. Add a server-rendered FAQ section (5–8 questions targeting high-intent queries: "how to prove home maintenance", "home maintenance records for sale", "verified contractor work history") as static HTML within the SSG shell. |
-| SEO.8 | Core Web Vitals baseline | ✅ Exists | S | Run Lighthouse on the pre-rendered landing page. Target LCP < 2.5 s, CLS < 0.1, INP < 200 ms. The Google Fonts `preconnect` is already in place; likely wins: add `font-display: swap`, lazy-load below-fold images, defer non-critical scripts. Document baseline scores in `docs/PERFORMANCE.md`. |
-
----
-
-## EPIC: Mobile & Tablet Responsive Layout
-
-**Goal:** Make every page in the web app usable on phones (≥320px) and tablets (≥768px). The navigation shell is already responsive; the problem is the ~40 interior pages, which were built desktop-first using inline React styles that cannot respond to media queries.
-
-**Situation:** There are 94 fixed multi-column CSS grid layouts defined as inline `style` objects — they never reflow on narrow viewports. No responsive hook (`useBreakpoint`, `useMediaQuery`) exists anywhere in the codebase, so every fix today requires touching each page individually with window-width logic. The right fix is to build a shared responsive layer first, then use it to fix pages in priority order.
-
-**Dependency order:** MOB.1 (shared infrastructure) must land first — all subsequent items depend on `useBreakpoint` and `<ResponsiveGrid>`. MOB.2–MOB.4 (public pages) are highest priority as they affect unconverted visitors. MOB.5–MOB.8 (authenticated pages) follow. MOB.9 (touch targets) and MOB.10 (tablet polish) are a final pass.
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| MOB.1 | Shared responsive infrastructure | ✅ Exists | M | Add `useBreakpoint()` hook (`frontend/src/hooks/useBreakpoint.ts`) returning `{ isMobile: boolean, isTablet: boolean }` via `window.matchMedia`. Add `<ResponsiveGrid cols={{ mobile: 1, tablet: 2, desktop: n }}>` wrapper component that swaps `gridTemplateColumns` based on breakpoint. Add `breakpoints.ts` constants (`MOBILE = 640`, `TABLET = 1024`). All subsequent items use these primitives instead of inline fixed grids. |
-| MOB.2 | Landing page — phone polish | ✅ Exists | S | Media queries exist at 860/900/1100px but the hero section has a fixed-width `320px` mock UI card and some sections need padding adjustments below 480px. Verify and fix. |
-| MOB.3 | Public profile pages | ✅ Exists | M | `ContractorPublicPage`, `AgentPublicPage`, `ListingDetailPage`, `ScoreCertPage` — no responsive handling at all. Replace fixed multi-column stat grids with `<ResponsiveGrid>`. Ensure review cards and action CTAs stack cleanly on phone. |
-| MOB.4 | FSBO listing page | ✅ Exists | S | `document.title` and OG tags are handled; layout has some responsive work. Audit at 390px: photo hero, price/stats row, negotiation panel, offer form all need to be verified at phone width. |
-| MOB.5 | Homeowner dashboard | ✅ Exists | L | `DashboardPage` has a `repeat(5, 1fr)` KPI stat row, a `repeat(auto-fill, minmax(15rem, 1fr))` property grid (fine), and a `2fr 1fr 1fr 1fr 1fr` job table header that breaks on mobile. Replace KPI row with `<ResponsiveGrid cols={{ mobile: 2, tablet: 3, desktop: 5 }}>`. Convert job table to card stack on mobile. |
-| MOB.6 | Contractor dashboard | ✅ Exists | L | `ContractorDashboardPage` has a `repeat(7, 1fr)` 7-day calendar strip and a `1fr 320px` two-panel layout. Calendar needs horizontal scroll with snap on mobile. Two-panel layout should stack vertically below tablet. `repeat(1fr 1fr)` KPI grid → `<ResponsiveGrid>`. |
-| MOB.7 | Agent dashboard + marketplace | ✅ Exists | L | `AgentDashboardPage` has a `2fr 1fr 1fr auto auto auto` listings table and a `repeat(3, 1fr)` KPI row. `AgentMarketplacePage` has a 7-column bid comparison table. Tables need horizontal scroll containers on mobile; KPI rows need `<ResponsiveGrid>`. |
-| MOB.8 | Core form pages | ✅ Exists | M | `JobCreatePage`, `QuoteRequestPage`, `PropertyRegisterPage`, `SystemAgesPage`, `ContractorProfilePage` — audit all form layouts at 390px. Fixed-width input groups and two-column field pairs need to stack. `SettingsPage` has a fixed `width: 12rem` sidebar panel that doesn't collapse — needs to become a top tab row on mobile. |
-| MOB.9 | Touch targets & tap interactions | ✅ Exists | S | Audit all interactive elements for minimum 44×44px tap target size (Apple HIG / WCAG 2.5.5). Primary offenders: icon-only buttons, small mono-label nav links, tight table row actions. Add `min-height: 44px` and adequate padding to all tappable elements. Remove `:hover`-only state changes that have no touch equivalent. |
-| MOB.10 | Tablet layout pass (768px–1024px) | ✅ Exists | M | After MOB.1–MOB.9, do a dedicated tablet audit. Most grids will be handled by `<ResponsiveGrid>` by this point; this pass focuses on pages where 2-column tablet layout looks worse than either phone (1-col) or desktop (3+ col) — particularly dashboard stat rows and the agent marketplace. |
-
----
-
 ## EPIC: ICP Mainnet Production Readiness
 
 Items identified during ICP production-readiness audit (2026-04-06). Grouped by severity. All blockers must be resolved before any `--network ic` deploy.
@@ -444,25 +293,5 @@ Items identified during ICP production-readiness audit (2026-04-06). Grouped by 
 | # | Item | Status | Size | Notes |
 |---|------|--------|------|-------|
 | PROD.1 | Rotate exposed Anthropic API key | 🟡 Partial | S | `.env` confirmed not in git history. `deploy.sh` now validates `ANTHROPIC_API_KEY` is set for non-local deploys. **Manual step still required:** revoke the exposed key at console.anthropic.com and generate a new one. |
-| PROD.2 | Set `VOICE_AGENT_API_KEY` + `VITE_VOICE_AGENT_API_KEY` | ✅ Exists | S | `deploy.sh` pre-flight block now validates both vars are set for non-local deploys and aborts with a clear error if either is missing. |
-| PROD.3 | Cycles funding step in `deploy.sh` for mainnet | ✅ Exists | M | `deploy.sh` now has a Cycles Balance Check section (non-local only): reads balance via `dfx canister status`, calls `dfx canister deposit-cycles` to top up to 2T when below 500B. Local deploys continue using fabricated cycles. |
-| PROD.4 | Fix mainnet deploy workflow flag bug | ✅ Exists | S | `deploy-mainnet.yml` now calls `bash scripts/deploy.sh ic` (positional arg). Also wired all missing CI secrets: `ANTHROPIC_API_KEY`, `VOICE_AGENT_API_KEY`, `VITE_VOICE_AGENT_API_KEY`, `VITE_VOICE_AGENT_URL`, `BACKUP_CONTROLLER_PRINCIPAL`, `RESEND_*`, `OPEN_PERMIT_API_KEY`. Added Node.js + frontend dep install steps so `npm run build` in deploy.sh succeeds in CI. |
-| PROD.5 | Add `frontend` canister to `deploy.sh` deploy sequence | ✅ Exists | S | `deploy.sh` now ends with a Build Frontend step (`npm run build`) followed by `dfx deploy frontend`. `DEPLOYMENT.md` updated with correct positional argument syntax and build-before-deploy ordering documented. |
-
-### High — ICP-specific risks
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| PROD.6 | Verify preupgrade hooks in all canisters | ✅ Exists | M | Verified safe: all 16 canisters use `persistent actor` + `mo:core/Map` (stable B-tree). No `preupgrade` is needed — vars are implicitly stable and the B-tree persists natively. The `postupgrade` hooks are one-time migration patterns only. 18 static tests now encode this invariant. |
-| PROD.7 | Add first-admin wiring for all canisters in `deploy.sh` | ✅ Exists | S | `deploy.sh` now has a Bootstrapping Canister Admins section that calls `addAdmin` for all 14 canisters with an admin list (`ADMIN_CANISTERS` array). `payment` excluded (no admin by design); `ai_proxy` handled separately in its own section. |
-| PROD.8 | Pull-based cycles monitoring via IC management canister | ✅ Exists | L | `monitoring/main.mo` now has `system func heartbeat()` throttled to ~5-minute intervals. Scans stored metric timestamps and fires a `#Stale` / `#Warning` alert for any canister that hasn't pushed metrics in >1 hour. New `#Stale` alert category added. |
-| PROD.9 | Canister controller hardening | ✅ Exists | M | `deploy.sh` now has a Controller Hardening section: reads `BACKUP_CONTROLLER_PRINCIPAL` env var, calls `dfx canister update-settings --add-controller` for all canisters when set, warns with instructions when unset on non-local. `DEPLOYMENT.md` documents add/rotate/remove controller procedures. `BACKUP_CONTROLLER_PRINCIPAL` wired into `deploy-mainnet.yml` as a CI secret. |
-
-### Low — should fix before real traffic
-
-| # | Item | Status | Size | Notes |
-|---|------|--------|------|-------|
-| PROD.10 | Remove localhost entries from `index.html` connect-src | ✅ Exists | S | Added `stripDevCsp` Vite plugin in `vite.config.ts`. In production builds (`ctx.server` absent) it strips `http://localhost:*` and `ws://localhost:*` from the meta CSP tag. In dev the plugin is a no-op so the ICP agent can still reach the local replica at `:4943`. |
-| PROD.11 | Remove dead `PRICE_CANISTER_ID` define from `vite.config.ts` | ✅ Exists | S | `process.env.PRICE_CANISTER_ID` removed from `vite.config.ts` define block. |
 
 ---
