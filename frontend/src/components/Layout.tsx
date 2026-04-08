@@ -7,18 +7,20 @@
  * Mobile (≤640 px): sidebar hidden; sticky top bar with hamburger overlay.
  */
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   Bell, Wrench, ShieldAlert, Clock, CheckCircle2, AlertTriangle,
   LayoutDashboard, TrendingUp, Users, Cpu, Home as HomeIcon, PlusSquare,
   Settings, Store, ChevronLeft, ChevronRight, LogOut, Menu, X,
+  ArrowUpCircle,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthStore } from "@/store/authStore";
 import { usePropertyStore } from "@/store/propertyStore";
 import { jobService, type Job } from "@/services/job";
 import { VoiceAgent } from "./VoiceAgent";
+import UpgradeModal from "./UpgradeModal";
 import { COLORS, FONTS } from "@/theme";
 
 // ─── Activity event types ─────────────────────────────────────────────────────
@@ -89,16 +91,31 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const navigate               = useNavigate();
   const location               = useLocation();
 
-  const [sidebarOpen, setSidebarOpen] = useState(() =>
+  const [sidebarOpen,  setSidebarOpen]  = useState(() =>
     localStorage.getItem("hf_sidebar") !== "closed"
   );
-  const [mobileOpen,  setMobileOpen]  = useState(false);
-  const [feedOpen,    setFeedOpen]    = useState(false);
-  const [feedJobs,    setFeedJobs]    = useState<Job[]>([]);
-  const [feedLoaded,  setFeedLoaded]  = useState(false);
-  const [lastReadAt,  setLastReadAt]  = useState<number>(() =>
+  const [mobileOpen,   setMobileOpen]   = useState(false);
+  const [feedOpen,     setFeedOpen]     = useState(false);
+  const [feedJobs,     setFeedJobs]     = useState<Job[]>([]);
+  const [feedLoaded,   setFeedLoaded]   = useState(false);
+  const [lastReadAt,   setLastReadAt]   = useState<number>(() =>
     parseInt(localStorage.getItem("homegentic_feed_read") ?? "0", 10)
   );
+  const [userMenuOpen,  setUserMenuOpen]  = useState(false);
+  const [upgradeOpen,   setUpgradeOpen]   = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close user menu on outside click
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [userMenuOpen]);
 
   useEffect(() => {
     if (!feedOpen || feedLoaded) return;
@@ -122,6 +139,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
       return next;
     });
   };
+
+  const displayName = profile?.name ?? "User";
+  const initials    = displayName.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
 
   const isContractor = profile?.role === "Contractor";
   const isRealtor    = profile?.role === "Realtor";
@@ -286,7 +306,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           })}
         </div>
 
-        {/* Bottom: activity, sign out, principal */}
+        {/* Bottom: activity bell + user menu button */}
         <div style={{ borderTop: `1px solid ${COLORS.rule}`, flexShrink: 0 }}>
 
           {/* Activity bell */}
@@ -299,20 +319,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <Bell size={17} />
               {unread > 0 && (
                 <span style={{
-                  position:      "absolute",
-                  top:           "-4px",
-                  right:         "-5px",
-                  width:         "14px",
-                  height:        "14px",
-                  background:    COLORS.sage,
-                  borderRadius:  "50%",
-                  display:       "flex",
-                  alignItems:    "center",
-                  justifyContent:"center",
-                  fontFamily:    FONTS.mono,
-                  fontSize:      "0.45rem",
-                  color:         COLORS.white,
-                  fontWeight:    700,
+                  position:       "absolute",
+                  top:            "-4px",
+                  right:          "-5px",
+                  width:          "14px",
+                  height:         "14px",
+                  background:     COLORS.sage,
+                  borderRadius:   "50%",
+                  display:        "flex",
+                  alignItems:     "center",
+                  justifyContent: "center",
+                  fontFamily:     FONTS.mono,
+                  fontSize:       "0.45rem",
+                  color:          COLORS.white,
+                  fontWeight:     700,
                 }}>
                   {unread > 9 ? "9+" : unread}
                 </span>
@@ -321,31 +341,115 @@ export function Layout({ children }: { children: React.ReactNode }) {
             {sidebarOpen && <span style={labelStyle}>Activity</span>}
           </button>
 
-          {/* Sign out */}
-          <button
-            onClick={logout}
-            title={!sidebarOpen ? "Sign Out" : undefined}
-            style={{ ...itemBase(), width: "100%", border: "none", cursor: "pointer" }}
-          >
-            <LogOut size={17} style={{ flexShrink: 0 }} />
-            {sidebarOpen && <span style={labelStyle}>Sign Out</span>}
-          </button>
+          {/* User menu anchor */}
+          <div ref={userMenuRef} style={{ position: "relative" }}>
 
-          {/* Principal — expanded only */}
-          {sidebarOpen && principal && (
-            <div style={{
-              padding:        "0.25rem 1.125rem 0.375rem",
-              fontFamily:     FONTS.mono,
-              fontSize:       "0.55rem",
-              color:          COLORS.plumMid,
-              letterSpacing:  "0.04em",
-              overflow:       "hidden",
-              textOverflow:   "ellipsis",
-              whiteSpace:     "nowrap",
-            }}>
-              {principal.slice(0, 14)}…
-            </div>
-          )}
+            {/* Popover menu — renders above the button */}
+            {userMenuOpen && (
+              <div style={{
+                position:   "absolute",
+                bottom:     "calc(100% + 4px)",
+                left:       sidebarOpen ? "0.5rem" : "50%",
+                transform:  sidebarOpen ? "none" : "translateX(-50%)",
+                width:      "220px",
+                background: COLORS.white,
+                border:     `1px solid ${COLORS.rule}`,
+                boxShadow:  "0 4px 16px rgba(14,14,12,0.12)",
+                zIndex:     500,
+                paddingTop: "0.25rem",
+                paddingBottom: "0.25rem",
+              }}>
+                {/* User header */}
+                <div style={{
+                  padding:      "0.625rem 1rem 0.5rem",
+                  borderBottom: `1px solid ${COLORS.rule}`,
+                }}>
+                  <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, color: COLORS.plum, marginBottom: "0.1rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {displayName}
+                  </p>
+                  {principal && (
+                    <p style={{ fontFamily: FONTS.mono, fontSize: "0.55rem", letterSpacing: "0.04em", color: COLORS.plumMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {principal.slice(0, 20)}…
+                    </p>
+                  )}
+                </div>
+
+                {/* Settings */}
+                <button
+                  onClick={() => { setUserMenuOpen(false); navigate("/settings"); }}
+                  style={{ display: "flex", alignItems: "center", gap: "0.625rem", width: "100%", padding: "0.55rem 1rem", background: "none", border: "none", cursor: "pointer", fontFamily: FONTS.sans, fontSize: "0.875rem", color: COLORS.plum, textAlign: "left" }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = COLORS.sageLight; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "none"; }}
+                >
+                  <Settings size={15} style={{ flexShrink: 0, color: COLORS.plumMid }} />
+                  Settings
+                </button>
+
+                <div style={{ height: "1px", background: COLORS.rule, margin: "0.25rem 0" }} />
+
+                {/* Upgrade plan */}
+                <button
+                  onClick={() => { setUserMenuOpen(false); setUpgradeOpen(true); }}
+                  style={{ display: "flex", alignItems: "center", gap: "0.625rem", width: "100%", padding: "0.55rem 1rem", background: "none", border: "none", cursor: "pointer", fontFamily: FONTS.sans, fontSize: "0.875rem", color: COLORS.plum, textAlign: "left" }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = COLORS.sageLight; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "none"; }}
+                >
+                  <ArrowUpCircle size={15} style={{ flexShrink: 0, color: COLORS.sage }} />
+                  Upgrade plan
+                </button>
+
+                <div style={{ height: "1px", background: COLORS.rule, margin: "0.25rem 0" }} />
+
+                {/* Sign out */}
+                <button
+                  onClick={() => { setUserMenuOpen(false); logout(); }}
+                  style={{ display: "flex", alignItems: "center", gap: "0.625rem", width: "100%", padding: "0.55rem 1rem", background: "none", border: "none", cursor: "pointer", fontFamily: FONTS.sans, fontSize: "0.875rem", color: COLORS.plum, textAlign: "left" }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = COLORS.sageLight; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "none"; }}
+                >
+                  <LogOut size={15} style={{ flexShrink: 0, color: COLORS.plumMid }} />
+                  Sign out
+                </button>
+              </div>
+            )}
+
+            {/* Avatar button */}
+            <button
+              onClick={() => setUserMenuOpen((o) => !o)}
+              title={!sidebarOpen ? displayName : undefined}
+              style={{
+                ...itemBase(),
+                width:   "100%",
+                border:  "none",
+                cursor:  "pointer",
+                gap:     sidebarOpen ? "0.625rem" : 0,
+              }}
+            >
+              {/* Avatar circle */}
+              <div style={{
+                width:          "26px",
+                height:         "26px",
+                borderRadius:   "50%",
+                background:     COLORS.plum,
+                color:          COLORS.white,
+                display:        "flex",
+                alignItems:     "center",
+                justifyContent: "center",
+                fontFamily:     FONTS.mono,
+                fontSize:       "0.6rem",
+                fontWeight:     700,
+                flexShrink:     0,
+                letterSpacing:  "0.03em",
+              }}>
+                {initials}
+              </div>
+              {sidebarOpen && (
+                <span style={{ ...labelStyle, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, textAlign: "left" }}>
+                  {displayName}
+                </span>
+              )}
+            </button>
+          </div>
 
         </div>
       </nav>
@@ -447,6 +551,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Floating voice agent */}
       <VoiceAgent />
+
+      {/* Upgrade modal — triggered from user menu */}
+      <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
 
       {/* ── Activity feed drawer ─────────────────────────────────────────────── */}
       {feedOpen && (
