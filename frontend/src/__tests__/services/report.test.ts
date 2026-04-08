@@ -236,6 +236,7 @@ describe("reportService.getReport — expired link", () => {
     const link = await reportService.generateReport("prop-exp", makeProperty(), [], [], [], 1, "Public");
 
     // Advance time beyond 1 day
+    vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(Date.now() + 2 * 24 * 60 * 60 * 1000);
     try {
       await expect(reportService.getReport(link.token)).rejects.toThrow("expired");

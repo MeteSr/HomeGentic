@@ -53,6 +53,7 @@ function makeJob(overrides: Partial<Job> = {}): Job {
 
 describe("getWeeklyPulse", () => {
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(NOW);
   });
 

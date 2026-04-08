@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { getRecentScoreEvents, categoryColor, categoryBg } from "@/services/scoreEventService";
 import type { Job } from "@/services/job";
 import type { Property } from "@/services/property";
@@ -52,7 +52,12 @@ function makeProperty(overrides: Partial<Property> = {}): Property {
 
 describe("getRecentScoreEvents", () => {
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(NOW_MS);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("returns empty array for empty inputs", () => {
