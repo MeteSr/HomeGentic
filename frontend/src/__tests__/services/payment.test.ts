@@ -18,7 +18,7 @@ describe("PLANS", () => {
     expect(free.price).toBe(0);
     expect(free.period).toBe("free");
     expect(free.propertyLimit).toBe(1);
-    expect(free.photosPerJob).toBe(5);
+    expect(free.photosPerJob).toBe(2);
     expect(free.quoteRequests).toBe(3);
   });
 
@@ -27,22 +27,22 @@ describe("PLANS", () => {
     expect(pro.price).toBe(10);
     expect(pro.period).toBe("month");
     expect(pro.propertyLimit).toBe(5);
-    expect(pro.photosPerJob).toBe(20);
+    expect(pro.photosPerJob).toBe(10);
     expect(pro.quoteRequests).toBe(10);
   });
 
-  it("Premium tier is $49/month with unlimited properties", () => {
+  it("Premium tier is $20/month with unlimited properties", () => {
     const premium = PLANS.find((p) => p.tier === "Premium")!;
-    expect(premium.price).toBe(49);
+    expect(premium.price).toBe(20);
     expect(premium.period).toBe("month");
     expect(premium.propertyLimit).toBe(Infinity);
     expect(premium.photosPerJob).toBe(Infinity);
     expect(premium.quoteRequests).toBe(Infinity);
   });
 
-  it("ContractorPro tier is $49/month", () => {
+  it("ContractorPro tier is $30/month", () => {
     const cp = PLANS.find((p) => p.tier === "ContractorPro")!;
-    expect(cp.price).toBe(49);
+    expect(cp.price).toBe(30);
     expect(cp.period).toBe("month");
     expect(cp.photosPerJob).toBe(50);
     expect(cp.quoteRequests).toBe(Infinity);

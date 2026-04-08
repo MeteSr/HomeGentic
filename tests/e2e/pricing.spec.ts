@@ -55,8 +55,8 @@ test.describe("PricingPage — /pricing", () => {
     await expect(page.getByText(/\$9/)).toBeVisible();
   });
 
-  test("shows $49 price for Premium tier", async ({ page }) => {
-    await expect(page.getByText(/\$49/)).toBeVisible();
+  test("shows $20 price for Premium tier", async ({ page }) => {
+    await expect(page.getByText(/\$20/)).toBeVisible();
   });
 
   // ── Feature comparison table ──────────────────────────────────────────────

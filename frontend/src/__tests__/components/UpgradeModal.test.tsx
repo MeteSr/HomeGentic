@@ -109,7 +109,7 @@ describe("UpgradeModal", () => {
   it("shows Premium plan card with price", () => {
     renderModal();
     expect(screen.getByRole("button", { name: /select premium/i })).toBeInTheDocument();
-    expect(screen.getAllByText(/\$49/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/\$20/).length).toBeGreaterThan(0);
   });
 
   it("shows at least one feature for each plan", () => {

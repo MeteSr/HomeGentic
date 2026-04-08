@@ -64,7 +64,7 @@ const FAQS: FaqItem[] = [
   },
   {
     q: "I'm a contractor — how do I appear in the contractor directory?",
-    a: "Sign up for a ContractorPro subscription ($49/month), then complete your contractor profile under Contractor → Profile. Your profile goes live in the directory immediately. Homeowners can leave reviews only after a completed job — you cannot solicit or purchase reviews.",
+    a: "Sign up for a ContractorPro subscription ($30/month), then complete your contractor profile under Contractor → Profile. Your profile goes live in the directory immediately. Homeowners can leave reviews only after a completed job — you cannot solicit or purchase reviews.",
   },
   {
     q: "How do I delete my account?",

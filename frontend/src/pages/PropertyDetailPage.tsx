@@ -1614,10 +1614,10 @@ function SettingsTab({ property, currentPrincipal }: { property: Property; curre
             </p>
             <p style={{ fontSize: "0.8rem", color: S.inkLight, fontWeight: 300, lineHeight: 1.5 }}>
               {property.tier === "Pro"
-                ? "5 properties · 20 photos per job · 10 open quotes"
+                ? "5 properties · 10 photos per job · 10 open quotes"
                 : property.tier === "Premium"
                 ? "25 properties · unlimited photos · full history exports"
-                : "1 property · 5 photos per job · 3 open quotes"}
+                : "1 property · 2 photos per job · 3 open quotes"}
             </p>
           </div>
           {(!property.tier || property.tier === "Free") && (

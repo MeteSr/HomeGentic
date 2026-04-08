@@ -87,13 +87,13 @@ export const PLANS: Plan[] = [
     period: "free",
     features: [
       "1 property",
-      "5 photos per job",
+      "2 photos per job",
       "3 quote requests/month",
       "Basic blockchain record",
       "Public HomeGentic report",
     ],
     propertyLimit: 1,
-    photosPerJob: 5,
+    photosPerJob: 2,
     quoteRequests: 3,
   },
   {
@@ -102,19 +102,19 @@ export const PLANS: Plan[] = [
     period: "month",
     features: [
       "5 properties",
-      "20 photos per job",
+      "10 photos per job",
       "10 quote requests/month",
       "Verified badge",
       "Priority support",
       "Export PDF report",
     ],
     propertyLimit: 5,
-    photosPerJob: 20,
+    photosPerJob: 10,
     quoteRequests: 10,
   },
   {
     tier: "Premium",
-    price: 49,
+    price: 20,
     period: "month",
     features: [
       "Unlimited properties",
@@ -131,7 +131,7 @@ export const PLANS: Plan[] = [
   },
   {
     tier: "ContractorPro",
-    price: 49,
+    price: 30,
     period: "month",
     features: [
       "Contractor profile listing",
