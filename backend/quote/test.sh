@@ -109,7 +109,7 @@ REQ2_OUT=$(dfx canister call $CANISTER createQuoteRequest '(
   variant { Low }
 )')
 echo "$REQ2_OUT"
-REQ2_ID=$(echo "$REQ2_OUT" | grep -oP '"QR_[^"]+"' | head -1 | tr -d '"')
+REQ2_ID=$(echo "$REQ2_OUT" | grep -oP '"REQ_[^"]+"' | head -1 | tr -d '"')
 echo "  → Request 2 ID: $REQ2_ID"
 
 echo ""
@@ -144,7 +144,7 @@ dfx canister call $CANISTER createQuoteRequest '(
 # ─── Unknown request → NotFound ───────────────────────────────────────────────
 echo ""
 echo "── [17] getQuoteRequest unknown ID → expect NotFound ────────────────────"
-dfx canister call $CANISTER getQuoteRequest '"QR_NONEXISTENT"' \
+dfx canister call $CANISTER getQuoteRequest '"REQ_NONEXISTENT"' \
   || echo "  ↳ Expected NotFound — ✓"
 
 # ─── submitQuote with zero amount → error ─────────────────────────────────────
@@ -156,7 +156,7 @@ dfx canister call $CANISTER createQuoteRequest '(
   "Test request for invalid bid.",
   variant { Low }
 )' > /tmp/qr_tmp.txt
-TMP_REQ=$(cat /tmp/qr_tmp.txt | grep -oP '"QR_[^"]+"' | head -1 | tr -d '"')
+TMP_REQ=$(cat /tmp/qr_tmp.txt | grep -oP '"REQ_[^"]+"' | head -1 | tr -d '"')
 dfx canister call $CANISTER submitQuote "(
   \"$TMP_REQ\",
   0,
