@@ -123,13 +123,17 @@ dfx canister call $CANISTER getQuoteRequest "(\"$REQ2_ID\")"
 # ─── Tier open-request limit — Free = 3 (12.4.4) ─────────────────────────────
 echo ""
 echo "── [15] Free tier limit: create 3 requests to hit cap (12.4.4) ──────────"
+LIMIT_REQ_IDS=()
 for i in 1 2 3; do
-  dfx canister call $CANISTER createQuoteRequest "(
+  OUT=$(dfx canister call $CANISTER createQuoteRequest "(
     \"PROP_LIMIT\",
     variant { Roofing },
     \"Tier limit test request $i — filling open slot.\",
     variant { Low }
-  )" > /dev/null && echo "  → Request $i created"
+  )")
+  ID=$(echo "$OUT" | grep -oP '"REQ_[^"]+"' | head -1 | tr -d '"')
+  LIMIT_REQ_IDS+=("$ID")
+  echo "  → Request $i created ($ID)"
 done
 
 echo ""
@@ -140,6 +144,14 @@ dfx canister call $CANISTER createQuoteRequest '(
   "This 4th request should fail on Free tier limit.",
   variant { Low }
 )' || echo "  ↳ Expected LimitReached on Free tier (max 3 open) — ✓"
+
+# Close the 3 limit-test requests so subsequent tests aren't blocked by the cap
+echo ""
+echo "── [16-cleanup] Close limit-test requests to restore open slot ──────────"
+for ID in "${LIMIT_REQ_IDS[@]}"; do
+  [ -n "$ID" ] && dfx canister call $CANISTER closeQuoteRequest "(\"$ID\")" > /dev/null
+done
+echo "  ↳ Limit-test requests closed — ✓"
 
 # ─── Unknown request → NotFound ───────────────────────────────────────────────
 echo ""
