@@ -115,8 +115,10 @@ describe("payment IDL factory", () => {
     expect(Object.keys(svc).sort()).toEqual([
       "getAllPricing",
       "getMySubscription",
+      "getPriceQuote",
       "getPricing",
       "getSubscriptionStats",
+      "grantSubscription",
       "subscribe",
     ]);
   });

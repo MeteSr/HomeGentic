@@ -219,6 +219,15 @@ exports[`payment IDL factory > full signature snapshot 1`] = `
       "variant {ok:record {expiresAt:int; owner:principal; createdAt:int; tier:variant {Pro; Premium; Free; ContractorPro}}; err:variant {PaymentFailed:text; NotFound; NotAuthorized}}",
     ],
   },
+  "getPriceQuote": {
+    "args": [
+      "variant {Pro; Premium; Free; ContractorPro}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:nat; err:variant {PaymentFailed:text; NotFound; NotAuthorized}}",
+    ],
+  },
   "getPricing": {
     "args": [
       "variant {Pro; Premium; Free; ContractorPro}",
@@ -237,6 +246,16 @@ exports[`payment IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "record {pro:nat; total:nat; premium:nat; contractorPro:nat; free:nat; estimatedMrrUsd:nat; activePaid:nat}",
+    ],
+  },
+  "grantSubscription": {
+    "args": [
+      "principal",
+      "variant {Pro; Premium; Free; ContractorPro}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {expiresAt:int; owner:principal; createdAt:int; tier:variant {Pro; Premium; Free; ContractorPro}}; err:variant {PaymentFailed:text; NotFound; NotAuthorized}}",
     ],
   },
   "subscribe": {

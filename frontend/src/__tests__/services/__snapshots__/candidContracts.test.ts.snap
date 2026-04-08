@@ -101,8 +101,10 @@ getMetrics(0) -> (1) [query]"
 exports[`Candid contract snapshots — method arity > payment 1`] = `
 "getAllPricing(0) -> (1) [query]
 getMySubscription(0) -> (1) [query]
+getPriceQuote(1) -> (1)
 getPricing(1) -> (1) [query]
 getSubscriptionStats(0) -> (1) [query]
+grantSubscription(2) -> (1)
 subscribe(1) -> (1)"
 `;
 
