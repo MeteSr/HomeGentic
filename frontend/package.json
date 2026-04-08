@@ -9,10 +9,11 @@
     "gen:sitemap": "node scripts/gen-sitemap.mjs",
     "check:security": "node scripts/security-checks.mjs",
     "preview": "vite preview",
-    "test": "vitest run",
-    "test:unit": "vitest run",
-    "test:unit:watch": "vitest",
-    "test:unit:coverage": "vitest run --coverage"
+    "test": "vitest run --exclude 'src/__tests__/perf/**'",
+    "test:unit": "vitest run --exclude 'src/__tests__/perf/**'",
+    "test:unit:watch": "vitest --exclude 'src/__tests__/perf/**'",
+    "test:unit:coverage": "vitest run --coverage --exclude 'src/__tests__/perf/**'",
+    "test:perf": "vitest run src/__tests__/perf"
   },
   "dependencies": {
     "@dfinity/vetkeys": "0.4.0",

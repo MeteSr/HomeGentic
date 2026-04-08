@@ -184,7 +184,10 @@ describe("ICP.6 — dfx.json frontend dependencies include all deployed canister
     ).toEqual([]);
   });
 
-  it("internet_identity is also listed (needed for auth flow)", () => {
-    expect(frontendDeps).toContain("internet_identity");
+  it("internet_identity is NOT a pull dep (auth-client connects by canister ID directly)", () => {
+    // internet_identity was removed from dfx.json as a pull dependency because
+    // @dfinity/auth-client resolves the II canister at its well-known canister ID
+    // at runtime — no dfx pull dep required. Asserting absence to prevent re-adding.
+    expect(frontendDeps).not.toContain("internet_identity");
   });
 });

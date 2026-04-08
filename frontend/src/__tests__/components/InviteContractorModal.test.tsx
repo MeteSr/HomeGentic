@@ -132,21 +132,22 @@ describe("InviteContractorModal — token ready", () => {
 // ── Job summary line ──────────────────────────────────────────────────────────
 
 describe("InviteContractorModal — job summary", () => {
-  it("shows serviceType in the summary", async () => {
-    (jobService.createInviteToken as any).mockResolvedValue("INV_x");
+  beforeEach(() => {
+    // Keep in loading state — summary renders before token arrives
+    (jobService.createInviteToken as any).mockImplementation(() => new Promise(() => {}));
+  });
+
+  it("shows serviceType in the summary", () => {
     renderModal();
-    // Summary is rendered immediately (before token loads)
     expect(screen.getByText(/Plumbing/)).toBeInTheDocument();
   });
 
   it("shows formatted amount in the summary", () => {
-    (jobService.createInviteToken as any).mockResolvedValue("INV_x");
     renderModal();
     expect(screen.getByText(/\$250/)).toBeInTheDocument();
   });
 
   it("shows property address in the summary", () => {
-    (jobService.createInviteToken as any).mockResolvedValue("INV_x");
     renderModal();
     expect(screen.getByText(/456 Elm St/)).toBeInTheDocument();
   });
@@ -253,7 +254,8 @@ describe("InviteContractorModal — token error", () => {
 
 describe("InviteContractorModal — close", () => {
   beforeEach(() => {
-    (jobService.createInviteToken as any).mockResolvedValue("INV_close1");
+    // Keep in loading state — close buttons render before token arrives
+    (jobService.createInviteToken as any).mockImplementation(() => new Promise(() => {}));
   });
 
   it("calls onClose when the X button is clicked", async () => {
@@ -274,14 +276,17 @@ describe("InviteContractorModal — close", () => {
 // ── Contractor name in header ─────────────────────────────────────────────────
 
 describe("InviteContractorModal — header", () => {
+  beforeEach(() => {
+    // Keep in loading state — header renders before token arrives
+    (jobService.createInviteToken as any).mockImplementation(() => new Promise(() => {}));
+  });
+
   it("includes contractor name in heading when job has contractorName", () => {
-    (jobService.createInviteToken as any).mockResolvedValue("INV_x");
     renderModal();
     expect(screen.getByText(/invite.*pipe dreams/i)).toBeInTheDocument();
   });
 
   it("shows generic 'Invite Contractor' heading when no contractorName", () => {
-    (jobService.createInviteToken as any).mockResolvedValue("INV_x");
     renderModal({ job: { ...MOCK_JOB, contractorName: "" } });
     expect(screen.getByText(/invite contractor/i)).toBeInTheDocument();
   });
