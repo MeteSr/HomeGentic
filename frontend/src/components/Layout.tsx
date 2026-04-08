@@ -416,6 +416,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             {/* Avatar button */}
             <button
               onClick={() => setUserMenuOpen((o) => !o)}
+              aria-label={displayName}
               title={!sidebarOpen ? displayName : undefined}
               style={{
                 ...itemBase(),
