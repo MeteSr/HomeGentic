@@ -36,7 +36,7 @@ const PROPERTY_TYPES: PropertyType[] = ["SingleFamily", "Condo", "Townhouse", "M
 const TIERS: { value: SubscriptionTier; label: string; price: string; desc: string }[] = [
   { value: "Free",    label: "Free",    price: "$0",     desc: "1 property, 2 photos/job" },
   { value: "Pro",     label: "Pro",     price: "$10/mo", desc: "5 properties, 10 photos/job" },
-  { value: "Premium", label: "Premium", price: "$20/mo", desc: "Unlimited everything" },
+  { value: "Premium", label: "Premium", price: "$20/mo", desc: "20 properties, 30 photos/job" },
 ];
 
 export default function PropertyRegisterPage() {

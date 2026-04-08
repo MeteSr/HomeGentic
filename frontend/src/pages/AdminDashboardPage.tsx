@@ -324,7 +324,7 @@ function TierManager() {
           {[
             { tier: "Free",          props: "1 property",      quotes: "3 open requests" },
             { tier: "Pro",           props: "5 properties",    quotes: "10 open requests" },
-            { tier: "Premium",       props: "25 properties",   quotes: "10 open requests" },
+            { tier: "Premium",       props: "20 properties",   quotes: "10 open requests" },
             { tier: "ContractorPro", props: "Unlimited",       quotes: "Unlimited" },
           ].map((r) => (
             <div key={r.tier} style={{ background: COLORS.white, padding: "0.625rem 0.875rem", border: `1px solid ${S.rule}` }}>

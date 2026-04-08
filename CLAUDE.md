@@ -89,7 +89,7 @@ All 13 active canisters use `persistent actor` + stable variable preupgrade/post
 |---|---|---|---|---|
 | Free | 1 | 2 | 3 | $0 |
 | Pro | 5 | 10 | 10 | $10/mo |
-| Premium | 25 | unlimited | 10 | $20/mo |
+| Premium | 20 | 30 | 10 | $20/mo |
 | ContractorPro | unlimited | 50 | unlimited | $30/mo |
 
 ### Frontend Service Layer

@@ -352,7 +352,7 @@ persistent actor Property {
     switch tier {
       case (#Free)          { 1  };
       case (#Pro)           { 5  };
-      case (#Premium)       { 25 };
+      case (#Premium)       { 20 };
       case (#ContractorPro) { 0  };  // 0 = unlimited
     }
   };
@@ -415,7 +415,7 @@ persistent actor Property {
     let limit = switch (callerTier) {
       case (#Free)          { 1  };
       case (#Pro)           { 5  };
-      case (#Premium)       { 25 };
+      case (#Premium)       { 20 };
       case (#ContractorPro) { 0  };
     };
     if (limit > 0 and countOwnerProperties(caller) >= limit) {

@@ -157,7 +157,7 @@ persistent actor Photo {
     switch (tier) {
       case (#Free)          { { tier; maxPerJob = 2;   maxPerProperty = 10  } };
       case (#Pro)           { { tier; maxPerJob = 10;  maxPerProperty = 100 } };
-      case (#Premium)       { { tier; maxPerJob = 0;   maxPerProperty = 0   } };  // 0 = unlimited
+      case (#Premium)       { { tier; maxPerJob = 30;  maxPerProperty = 0   } };
       case (#ContractorPro) { { tier; maxPerJob = 50;  maxPerProperty = 0   } };
     }
   };
@@ -253,7 +253,7 @@ persistent actor Photo {
         " Upgrade to Pro ($10/mo) for 10 photos/job, or Premium ($20/mo) for unlimited."
       };
       case (#Pro) {
-        " Upgrade to Premium ($20/mo) for unlimited photos/job, or ContractorPro ($30/mo) for 50."
+        " Upgrade to Premium ($20/mo) for 30 photos/job, or ContractorPro ($30/mo) for 50."
       };
       case _ { "" };
     };

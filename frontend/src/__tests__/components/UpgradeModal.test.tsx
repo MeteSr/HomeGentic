@@ -115,7 +115,7 @@ describe("UpgradeModal", () => {
   it("shows at least one feature for each plan", () => {
     renderModal();
     expect(screen.getByText(/5 properties/i)).toBeInTheDocument();       // Pro feature
-    expect(screen.getByText(/unlimited properties/i)).toBeInTheDocument(); // Premium feature
+    expect(screen.getByText(/20 properties/i)).toBeInTheDocument();         // Premium feature
   });
 
   it("calls paymentService.subscribe('Pro') when Pro plan is selected", async () => {

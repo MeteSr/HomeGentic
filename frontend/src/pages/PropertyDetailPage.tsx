@@ -1616,7 +1616,7 @@ function SettingsTab({ property, currentPrincipal }: { property: Property; curre
               {property.tier === "Pro"
                 ? "5 properties · 10 photos per job · 10 open quotes"
                 : property.tier === "Premium"
-                ? "25 properties · unlimited photos · full history exports"
+                ? "20 properties · 30 photos per job · full history exports"
                 : "1 property · 2 photos per job · 3 open quotes"}
             </p>
           </div>
