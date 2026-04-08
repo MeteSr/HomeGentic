@@ -28,20 +28,21 @@ if [ "$NETWORK" = "local" ]; then
   fi
 fi
 
-# ── Ensure wallet is initialized and topped up before parallel deploy ───────────
-# Without this, 12 simultaneous `dfx deploy` processes race to create the wallet
-# on a clean replica start. The losers exit 0 without deploying anything.
-# We also top up the wallet unconditionally — cycles are free on local replica
-# and a depleted wallet silently fails canister creation (IC0504).
+# ── Ensure the deploying identity has enough cycles (local only) ─────────────
+# dfx 0.15+ removed `dfx wallet create`; on a fresh local replica the identity
+# has no wallet canister and doesn't need one — dfx deploy uses the system
+# subnet's implicit cycles on local networks.  We fabricate cycles directly to
+# the deploying identity's default canister if a wallet already exists, but we
+# no longer try to create one (that subcommand is gone).
 if [ "$NETWORK" = "local" ]; then
-  if ! dfx identity get-wallet --network local >/dev/null 2>&1; then
-    echo "▶ Initializing local wallet..."
-    dfx wallet --network local create
+  WALLET_ID=$(dfx identity get-wallet --network local 2>/dev/null || true)
+  if [ -n "$WALLET_ID" ]; then
+    echo "▶ Topping up local wallet ($WALLET_ID) with 10T cycles..."
+    dfx ledger fabricate-cycles --canister "$WALLET_ID" --t 10
+    echo "  ✓ Wallet ready"
+  else
+    echo "  (no wallet canister — dfx 0.15+ handles cycles automatically on local)"
   fi
-  WALLET_ID=$(dfx identity get-wallet --network local)
-  echo "▶ Topping up local wallet ($WALLET_ID) with 10T cycles..."
-  dfx ledger fabricate-cycles --canister "$WALLET_ID" --t 10
-  echo "  ✓ Wallet ready"
 fi
 
 # ── Pre-flight checks (non-local networks only) ──────────────────────────────────
