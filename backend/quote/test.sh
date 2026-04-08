@@ -179,3 +179,61 @@ echo ""
 echo "============================================"
 echo "  ✅ Quote canister tests complete!"
 echo "============================================"
+
+# ─── §EXP Payment-wired tier enforcement ─────────────────────────────────────
+# After setPaymentCanisterId is called, open-request limits must consult the
+# payment canister (not a local map) for the caller's tier.
+
+echo ""
+echo "=== Quote — Payment-Wired Tier Enforcement Tests ==="
+
+PAYMENT_ID=$(dfx canister id payment 2>/dev/null || echo "")
+if [ -z "$PAYMENT_ID" ]; then
+  echo "⚠️  payment canister not deployed — skipping payment-wired tests"
+else
+
+  MY_PRINCIPAL=$(dfx identity get-principal)
+
+  echo ""
+  echo "── [EXP-1] setPaymentCanisterId — wires quote to payment canister ───────"
+  dfx canister call $CANISTER setPaymentCanisterId "(principal \"$PAYMENT_ID\")"
+  echo "  ↳ setPaymentCanisterId succeeded — ✓"
+
+  echo ""
+  echo "── [EXP-2] Free tier: 4th open request → expect LimitReached ────────────"
+  # 3 open requests already created in [15]. Make sure caller is Free.
+  dfx canister call payment grantSubscription "(principal \"$MY_PRINCIPAL\", variant { Free })"
+  dfx canister call $CANISTER createQuoteRequest '(
+    "PROP_PAYMENT_WIRED",
+    variant { Roofing },
+    "4th open request — should fail on Free tier via payment canister",
+    variant { Low }
+  )' && echo "  ↳ ❌ Expected LimitReached for Free tier via payment canister" \
+       || echo "  ↳ Free tier open-request limit enforced via payment canister — ✓"
+
+  echo ""
+  echo "── [EXP-3] Grant Pro → 4th open request succeeds (limit = 10) ───────────"
+  dfx canister call payment grantSubscription "(principal \"$MY_PRINCIPAL\", variant { Pro })"
+  dfx canister call $CANISTER createQuoteRequest '(
+    "PROP_PAYMENT_WIRED",
+    variant { Roofing },
+    "4th open request — Pro tier allows 10",
+    variant { Low }
+  )' && echo "  ↳ Pro tier allows 4th open request via payment canister — ✓" \
+       || echo "  ↳ ❌ Pro tier should allow 4th open request"
+
+  echo ""
+  echo "── [EXP-4] Downgrade to Free → next new request rejected ────────────────"
+  dfx canister call payment grantSubscription "(principal \"$MY_PRINCIPAL\", variant { Free })"
+  dfx canister call $CANISTER createQuoteRequest '(
+    "PROP_PAYMENT_WIRED",
+    variant { Plumbing },
+    "Should fail — back to Free tier limit",
+    variant { Low }
+  )' && echo "  ↳ ❌ Expected LimitReached after downgrade to Free" \
+       || echo "  ↳ Downgraded to Free — open-request limit re-enforced via payment canister — ✓"
+
+  echo ""
+  echo "✅ Quote payment-wired tier enforcement tests complete!"
+
+fi

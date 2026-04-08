@@ -229,6 +229,10 @@ persistent actor Property {
   private var admins                   : [Principal] = [];
   private var adminInitialized         : Bool        = false;
   private var trustedCanisterEntries   : [Principal] = [];
+  /// Payment canister ID — set post-deploy via setPaymentCanisterId().
+  /// When set, registerProperty() cross-calls getTierForPrincipal() instead of
+  /// reading the local tierGrants map.
+  private var payCanisterId            : Text        = "";
 
   /// Migration buffers — cleared after first upgrade with this code.
   private var propertyEntries        : [(Nat, Property)]              = [];
@@ -409,9 +413,16 @@ persistent actor Property {
     };
 
     // ── Tier limit check ────────────────────────────────────────────────────
-    // Tier is authoritative from admin-managed grants — caller's args.tier is
-    // stored as metadata but NEVER used to enforce limits.
-    let callerTier = tierFor(caller);
+    // When payment canister is wired, tier comes from getTierForPrincipal();
+    // otherwise falls back to the local admin-grant map.
+    let callerTier : SubscriptionTier = if (payCanisterId != "") {
+      let payActor = actor(payCanisterId) : actor {
+        getTierForPrincipal : (Principal) -> async { #Free; #Pro; #Premium; #ContractorPro };
+      };
+      await payActor.getTierForPrincipal(caller)
+    } else {
+      tierFor(caller)
+    };
     let limit = switch (callerTier) {
       case (#Free)          { 1  };
       case (#Pro)           { 5  };
@@ -773,6 +784,14 @@ persistent actor Property {
   public shared(msg) func setTier(user: Principal, tier: SubscriptionTier) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     Map.add(tierGrants, Text.compare, Principal.toText(user), tier);
+    #ok(())
+  };
+
+  /// Wire the property canister to the payment canister for live tier enforcement.
+  /// Must be called once after both canisters are deployed.
+  public shared(msg) func setPaymentCanisterId(id: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    payCanisterId := Principal.toText(id);
     #ok(())
   };
 

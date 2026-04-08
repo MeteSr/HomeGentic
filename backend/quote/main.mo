@@ -126,6 +126,10 @@ persistent actor Quote {
   private var isPaused: Bool = false;
   private var pauseExpiryNs: ?Int = null;
   private var adminListEntries: [Principal] = [];
+  /// Payment canister ID — set post-deploy via setPaymentCanisterId().
+  /// When set, createQuoteRequest() cross-calls getTierForPrincipal() instead of
+  /// reading the local tierGrants map.
+  private var payCanisterId: Text = "";
 
   /// Migration buffers — cleared after first upgrade with this code.
   private var requestEntries:               [(Text, QuoteRequest)]       = [];
@@ -322,15 +326,24 @@ persistent actor Quote {
     if (Text.size(description) == 0)   return #err(#InvalidInput("description cannot be empty"));
     if (Text.size(description) > 5000) return #err(#InvalidInput("description exceeds 5000 characters"));
 
-    let callerTier = tierFor(msg.caller);
+    // When payment canister is wired, tier comes from getTierForPrincipal();
+    // otherwise falls back to the local admin-grant map.
+    let callerTier : SubscriptionTier = if (payCanisterId != "") {
+      let payActor = actor(payCanisterId) : actor {
+        getTierForPrincipal : (Principal) -> async { #Free; #Pro; #Premium; #ContractorPro };
+      };
+      await payActor.getTierForPrincipal(msg.caller)
+    } else {
+      tierFor(msg.caller)
+    };
     let limit = tierOpenLimit(callerTier);
     if (limit > 0 and countOpenRequests(msg.caller) >= limit) {
       let upgradeHint = switch (callerTier) {
         case (#Free) {
-          " Upgrade to Pro ($9.99/mo) for 10 concurrent requests, or Premium ($24.99/mo)."
+          " Upgrade to Pro ($10/mo) for 10 concurrent requests, or Premium ($20/mo)."
         };
         case (#Pro or #Premium) {
-          " Upgrade to ContractorPro ($49.99/mo) for unlimited requests."
+          " Upgrade to ContractorPro ($30/mo) for unlimited requests."
         };
         case _ { "" };
       };
@@ -569,7 +582,14 @@ persistent actor Quote {
     if (Text.size(description) > 5000) return #err(#InvalidInput("description exceeds 5000 characters"));
     if (closeAtNs <= Time.now())        return #err(#InvalidInput("closeAt must be in the future"));
 
-    let callerTier = tierFor(msg.caller);
+    let callerTier : SubscriptionTier = if (payCanisterId != "") {
+      let payActor = actor(payCanisterId) : actor {
+        getTierForPrincipal : (Principal) -> async { #Free; #Pro; #Premium; #ContractorPro };
+      };
+      await payActor.getTierForPrincipal(msg.caller)
+    } else {
+      tierFor(msg.caller)
+    };
     let limit = tierOpenLimit(callerTier);
     if (limit > 0 and countOpenRequests(msg.caller) >= limit)
       return #err(#InvalidInput("Open request limit reached for your plan"));
@@ -759,6 +779,14 @@ persistent actor Quote {
   public shared(msg) func setTier(user: Principal, tier: SubscriptionTier) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#Unauthorized);
     Map.add(tierGrants, Text.compare, Principal.toText(user), tier);
+    #ok(())
+  };
+
+  /// Wire the quote canister to the payment canister for live tier enforcement.
+  /// Must be called once after both canisters are deployed.
+  public shared(msg) func setPaymentCanisterId(id: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#Unauthorized);
+    payCanisterId := Principal.toText(id);
     #ok(())
   };
 

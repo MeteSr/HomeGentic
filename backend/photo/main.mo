@@ -81,6 +81,10 @@ persistent actor Photo {
   private var isPaused: Bool = false;
   private var pauseExpiryNs: ?Int = null;
   private var adminListEntries: [Principal] = [];
+  /// Payment canister ID — set post-deploy via setPaymentCanisterId().
+  /// When set, uploadPhoto() cross-calls getTierForPrincipal() instead of
+  /// reading the local tierGrants map.
+  private var payCanisterId: Text = "";
   /// Migration buffers — cleared after first upgrade with this code.
   private var photoEntries:          [(Text, Photo)]              = [];
   private var hashIndexEntries:      [(Text, Text)]               = [];
@@ -244,8 +248,17 @@ persistent actor Photo {
       case null          {};
     };
 
-    // Tier quota checks — tier is authoritative from canister state, not caller input
-    let quota = quotaFor(tierFor(msg.caller));
+    // Tier quota checks — when payment canister is wired, tier comes from
+    // getTierForPrincipal(); otherwise falls back to the local admin-grant map.
+    let callerTierRaw : SubscriptionTier = if (payCanisterId != "") {
+      let payActor = actor(payCanisterId) : actor {
+        getTierForPrincipal : (Principal) -> async { #Free; #Pro; #Premium; #ContractorPro };
+      };
+      await payActor.getTierForPrincipal(msg.caller)
+    } else {
+      tierFor(msg.caller)
+    };
+    let quota = quotaFor(callerTierRaw);
 
     let callerTier = quota.tier;
     let upgradeHint = switch (callerTier) {
@@ -416,6 +429,14 @@ persistent actor Photo {
   public shared(msg) func setTier(user: Principal, tier: SubscriptionTier) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#Unauthorized);
     Map.add(tierGrants, Text.compare, Principal.toText(user), tier);
+    #ok(())
+  };
+
+  /// Wire the photo canister to the payment canister for live tier enforcement.
+  /// Must be called once after both canisters are deployed.
+  public shared(msg) func setPaymentCanisterId(id: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#Unauthorized);
+    payCanisterId := Principal.toText(id);
     #ok(())
   };
 

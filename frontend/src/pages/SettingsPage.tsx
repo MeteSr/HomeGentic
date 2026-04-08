@@ -367,12 +367,36 @@ function SubscriptionTab({ profile }: { profile: any }) {
           <div style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
               <Badge variant="info" size="lg">{tier}</Badge>
-              <span style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>
-                {expiresAt
-                  ? `Renews ${new Date(expiresAt).toLocaleDateString()}`
-                  : "Active subscription"}
+              <span style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: expiresAt && expiresAt < Date.now() ? COLORS.rust : S.inkLight }}>
+                {expiresAt && expiresAt < Date.now()
+                  ? "Expired"
+                  : expiresAt
+                    ? `Renews ${new Date(expiresAt).toLocaleDateString()}`
+                    : "Active subscription"}
               </span>
             </div>
+            {expiresAt && expiresAt < Date.now() && (
+              <button
+                onClick={() => handleUpgrade(tier)}
+                disabled={upgrading !== null}
+                aria-label={`Renew ${tier}`}
+                style={{
+                  alignSelf:   "flex-start",
+                  background:  COLORS.rust,
+                  color:       COLORS.white,
+                  border:      "none",
+                  padding:     "0.45rem 1rem",
+                  fontFamily:  S.mono,
+                  fontWeight:  700,
+                  fontSize:    "0.65rem",
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  cursor:      upgrading ? "wait" : "pointer",
+                }}
+              >
+                {upgrading === tier ? "Processing…" : "Renew →"}
+              </button>
+            )}
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem" }}>
               {currentPlan.features.map((f) => (
                 <span key={f} style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.06em", color: S.inkLight, border: `1px solid ${S.rule}`, padding: "0.15rem 0.5rem", background: S.paper }}>

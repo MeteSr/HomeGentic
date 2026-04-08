@@ -193,6 +193,8 @@ JOB_ID=$(dfx canister id job --network "$NETWORK" 2>/dev/null || echo "")
 PAYMENT_ID=$(dfx canister id payment --network "$NETWORK" 2>/dev/null || echo "")
 CONTRACTOR_ID=$(dfx canister id contractor --network "$NETWORK" 2>/dev/null || echo "")
 PROPERTY_ID=$(dfx canister id property --network "$NETWORK" 2>/dev/null || echo "")
+PHOTO_ID=$(dfx canister id photo --network "$NETWORK" 2>/dev/null || echo "")
+QUOTE_ID=$(dfx canister id quote --network "$NETWORK" 2>/dev/null || echo "")
 SENSOR_ID=$(dfx canister id sensor --network "$NETWORK" 2>/dev/null || echo "")
 REPORT_ID=$(dfx canister id report --network "$NETWORK" 2>/dev/null || echo "")
 
@@ -201,6 +203,21 @@ REPORT_ID=$(dfx canister id report --network "$NETWORK" 2>/dev/null || echo "")
 if [ -n "$JOB_ID" ] && [ -n "$PAYMENT_ID" ]; then
   echo "  Wiring payment -> job (tier cap enforcement)..."
   dfx canister call job setPaymentCanisterId "(\"$PAYMENT_ID\")" --network "$NETWORK"
+fi
+
+if [ -n "$PROPERTY_ID" ] && [ -n "$PAYMENT_ID" ]; then
+  echo "  Wiring payment -> property (live tier enforcement)..."
+  dfx canister call property setPaymentCanisterId "(principal \"$PAYMENT_ID\")" --network "$NETWORK"
+fi
+
+if [ -n "$PHOTO_ID" ] && [ -n "$PAYMENT_ID" ]; then
+  echo "  Wiring payment -> photo (live tier enforcement)..."
+  dfx canister call photo setPaymentCanisterId "(principal \"$PAYMENT_ID\")" --network "$NETWORK"
+fi
+
+if [ -n "$QUOTE_ID" ] && [ -n "$PAYMENT_ID" ]; then
+  echo "  Wiring payment -> quote (live tier enforcement)..."
+  dfx canister call quote setPaymentCanisterId "(principal \"$PAYMENT_ID\")" --network "$NETWORK"
 fi
 
 if [ -n "$JOB_ID" ] && [ -n "$CONTRACTOR_ID" ]; then
@@ -222,10 +239,22 @@ echo "============================================"
 echo "  Wiring Trusted Canister Lists"
 echo "============================================"
 
-# payment trusts job (job calls getTierForPrincipal)
+# payment trusts job/property/photo/quote (all call getTierForPrincipal)
 if [ -n "$JOB_ID" ] && [ -n "$PAYMENT_ID" ]; then
   echo "  payment: trusting job canister ($JOB_ID)..."
   dfx canister call payment addTrustedCanister "(principal \"$JOB_ID\")" --network "$NETWORK"
+fi
+if [ -n "$PROPERTY_ID" ] && [ -n "$PAYMENT_ID" ]; then
+  echo "  payment: trusting property canister ($PROPERTY_ID)..."
+  dfx canister call payment addTrustedCanister "(principal \"$PROPERTY_ID\")" --network "$NETWORK"
+fi
+if [ -n "$PHOTO_ID" ] && [ -n "$PAYMENT_ID" ]; then
+  echo "  payment: trusting photo canister ($PHOTO_ID)..."
+  dfx canister call payment addTrustedCanister "(principal \"$PHOTO_ID\")" --network "$NETWORK"
+fi
+if [ -n "$QUOTE_ID" ] && [ -n "$PAYMENT_ID" ]; then
+  echo "  payment: trusting quote canister ($QUOTE_ID)..."
+  dfx canister call payment addTrustedCanister "(principal \"$QUOTE_ID\")" --network "$NETWORK"
 fi
 
 # contractor trusts job (job calls recordJobVerified)

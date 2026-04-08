@@ -224,3 +224,76 @@ echo "$TRUSTED_AFTER" | grep -q "$CALLER_TEST_PRINCIPAL" \
 echo ""
 echo "── [30] Metrics after trusted canister tests ────────────────────────────"
 dfx canister call $CANISTER getMetrics
+
+# ─── §EXP Payment-wired tier enforcement ─────────────────────────────────────
+# After setPaymentCanisterId is called, tierFor must consult the payment
+# canister (not the local tierGrants map) to determine the caller's tier.
+
+echo ""
+echo "=== Property — Payment-Wired Tier Enforcement Tests ==="
+
+PAYMENT_ID=$(dfx canister id payment 2>/dev/null || echo "")
+if [ -z "$PAYMENT_ID" ]; then
+  echo "⚠️  payment canister not deployed — skipping payment-wired tests"
+else
+
+  MY_PRINCIPAL=$(dfx identity get-principal)
+
+  echo ""
+  echo "── [EXP-1] setPaymentCanisterId — wires property to payment canister ────"
+  dfx canister call $CANISTER setPaymentCanisterId "(principal \"$PAYMENT_ID\")"
+  echo "  ↳ setPaymentCanisterId succeeded — ✓"
+
+  echo ""
+  echo "── [EXP-2] On Free tier: second property → expect LimitReached ──────────"
+  # Ensure caller is Free in the payment canister
+  dfx canister call payment grantSubscription "(principal \"$MY_PRINCIPAL\", variant { Free })"
+  dfx canister call $CANISTER registerProperty '(record {
+    address      = "999 Payment-Wired Street";
+    city         = "Austin";
+    state        = "TX";
+    zipCode      = "78701";
+    propertyType = variant { SingleFamily };
+    yearBuilt    = 2000;
+    squareFeet   = 1500;
+    tier         = variant { Free };
+  })' && echo "  ↳ ❌ Expected LimitReached for Free tier via payment canister" \
+       || echo "  ↳ Free tier limit enforced via payment canister — ✓"
+
+  echo ""
+  echo "── [EXP-3] Grant Pro via payment canister → second property succeeds ─────"
+  dfx canister call payment grantSubscription "(principal \"$MY_PRINCIPAL\", variant { Pro })"
+  dfx canister call $CANISTER registerProperty '(record {
+    address      = "999 Payment-Wired Street";
+    city         = "Austin";
+    state        = "TX";
+    zipCode      = "78701";
+    propertyType = variant { SingleFamily };
+    yearBuilt    = 2000;
+    squareFeet   = 1500;
+    tier         = variant { Pro };
+  })' && echo "  ↳ Pro tier allows second property via payment canister — ✓" \
+       || echo "  ↳ ❌ Pro tier should allow second property"
+
+  echo ""
+  echo "── [EXP-4] Downgrade back to Free → further registrations rejected ──────"
+  dfx canister call payment grantSubscription "(principal \"$MY_PRINCIPAL\", variant { Free })"
+  dfx canister call $CANISTER registerProperty '(record {
+    address      = "888 Downgraded Lane";
+    city         = "Austin";
+    state        = "TX";
+    zipCode      = "78701";
+    propertyType = variant { SingleFamily };
+    yearBuilt    = 2005;
+    squareFeet   = 1200;
+    tier         = variant { Free };
+  })' && echo "  ↳ ❌ Expected LimitReached after downgrade" \
+       || echo "  ↳ Downgraded to Free — limit correctly re-enforced via payment canister — ✓"
+
+  # Restore Pro for remaining tests
+  dfx canister call payment grantSubscription "(principal \"$MY_PRINCIPAL\", variant { Pro })" > /dev/null
+
+  echo ""
+  echo "✅ Property payment-wired tier enforcement tests complete!"
+
+fi
