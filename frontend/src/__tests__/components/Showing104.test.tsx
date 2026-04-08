@@ -96,7 +96,7 @@ vi.mock("@/services/showingFeedback", () => ({
 
 vi.mock("@/services/reportQA", () => ({
   reportQAService: {
-    ask:           vi.fn().mockResolvedValue(mockQA),
+    ask:           vi.fn().mockResolvedValue({ ...mockQA, id: "qa-2" }),
     getByProperty: vi.fn().mockReturnValue([mockQA]),
   },
 }));
@@ -403,7 +403,7 @@ describe("ReportQAPanel — buyer Q&A (10.4.4)", () => {
   });
 
   it("submitting a question calls reportQAService.ask with propertyId and question", async () => {
-    vi.mocked(reportQAService.ask).mockResolvedValue(mockQA as any);
+    vi.mocked(reportQAService.ask).mockResolvedValue({ ...mockQA, id: "qa-2" } as any);
     renderQAPanel();
     fireEvent.change(screen.getByLabelText(/your question/i), {
       target: { value: "Is the roof newer than 10 years?" },
@@ -418,7 +418,7 @@ describe("ReportQAPanel — buyer Q&A (10.4.4)", () => {
   });
 
   it("clears the input after successful submission", async () => {
-    vi.mocked(reportQAService.ask).mockResolvedValue(mockQA as any);
+    vi.mocked(reportQAService.ask).mockResolvedValue({ ...mockQA, id: "qa-2" } as any);
     renderQAPanel();
     fireEvent.change(screen.getByLabelText(/your question/i), {
       target: { value: "Is the roof newer than 10 years?" },
