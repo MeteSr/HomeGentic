@@ -81,7 +81,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     optimizeDeps: {
-      esbuildOptions: {
+      rolldownOptions: {
         define: {
           global: "globalThis",
         },
