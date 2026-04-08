@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { User, CreditCard, Bell, Lock, CheckCircle, LayoutDashboard, Download } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
@@ -37,7 +37,9 @@ const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
 ];
 
 export default function SettingsPage() {
-  const [tab, setTab] = useState<Tab>("account");
+  const [searchParams] = useSearchParams();
+  const initialTab = (searchParams.get("tab") as Tab | null) ?? "account";
+  const [tab, setTab] = useState<Tab>(TABS.some((t) => t.key === initialTab) ? initialTab : "account");
   const { profile, setProfile } = useAuthStore();
   const { isMobile } = useBreakpoint();
 

@@ -130,7 +130,7 @@ describe("UpgradeModal", () => {
     renderModal();
     fireEvent.click(screen.getByRole("button", { name: /select pro/i }));
     await waitFor(() => {
-      expect(paymentService.subscribe).toHaveBeenCalledWith("Pro");
+      expect(paymentService.subscribe).toHaveBeenCalledWith("Pro", expect.any(Function));
     });
   });
 
@@ -138,7 +138,7 @@ describe("UpgradeModal", () => {
     renderModal();
     fireEvent.click(screen.getByRole("button", { name: /select premium/i }));
     await waitFor(() => {
-      expect(paymentService.subscribe).toHaveBeenCalledWith("Premium");
+      expect(paymentService.subscribe).toHaveBeenCalledWith("Premium", expect.any(Function));
     });
   });
 

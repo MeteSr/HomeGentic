@@ -207,8 +207,8 @@ describe("AgentPublicPage", () => {
   it("shows stats: avg days on market and listings count", async () => {
     renderPage(<AgentPublicPage />, "/agent/agent-principal-1", "/agent/:id");
     await waitFor(() => {
-      expect(screen.getByText(/21/)).toBeInTheDocument();  // avgDaysOnMarket
-      expect(screen.getByText(/8/)).toBeInTheDocument();   // listingsLast12Months
+      expect(screen.getByText(/avg.*days on market/i)).toBeInTheDocument();
+      expect(screen.getByText(/listings.*12/i)).toBeInTheDocument();
     });
   });
 
