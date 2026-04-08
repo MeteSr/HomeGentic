@@ -6,6 +6,7 @@ import { authService, UserRole } from "@/services/auth";
 import { useAuthStore } from "@/store/authStore";
 import toast from "react-hot-toast";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { isValidEmail, isValidPhone } from "@/utils/validators";
 
 const ROLES: { value: UserRole; label: string; icon: React.ReactNode; desc: string }[] = [
   {
@@ -35,10 +36,14 @@ export default function RegisterPage() {
   const [role, setRole] = useState<UserRole | null>(null);
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
     if (!role) return;
+    if (email && !isValidEmail(email)) { setEmailError("Enter a valid email address"); return; }
+    if (phone && !isValidPhone(phone)) { setPhoneError("Enter a valid phone number"); return; }
     setLoading(true);
     try {
       const profile = await authService.register({ role, email, phone });
@@ -183,11 +188,25 @@ export default function RegisterPage() {
                 <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginBottom: "1.5rem" }}>
                   <div>
                     <label className="form-label">Email address (optional)</label>
-                    <input type="email" className="form-input" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+                    <input
+                      type="email" className="form-input" placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => { setEmail(e.target.value); setEmailError(null); }}
+                      onBlur={() => { if (email && !isValidEmail(email)) setEmailError("Enter a valid email address"); }}
+                      style={emailError ? { borderColor: COLORS.rust } : undefined}
+                    />
+                    {emailError && <p style={{ color: COLORS.rust, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: FONTS.mono }}>{emailError}</p>}
                   </div>
                   <div>
                     <label className="form-label">Phone number (optional)</label>
-                    <input type="tel" className="form-input" placeholder="+1 (555) 000-0000" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                    <input
+                      type="tel" className="form-input" placeholder="+1 (555) 000-0000"
+                      value={phone}
+                      onChange={(e) => { setPhone(e.target.value); setPhoneError(null); }}
+                      onBlur={() => { if (phone && !isValidPhone(phone)) setPhoneError("Enter a valid phone number"); }}
+                      style={phoneError ? { borderColor: COLORS.rust } : undefined}
+                    />
+                    {phoneError && <p style={{ color: COLORS.rust, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: FONTS.mono }}>{phoneError}</p>}
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: "0.75rem" }}>

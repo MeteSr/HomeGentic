@@ -10,6 +10,7 @@ import { Button } from "@/components/Button";
 import { agentService, CreateAgentProfileInput } from "@/services/agent";
 import toast from "react-hot-toast";
 import { COLORS, FONTS } from "@/theme";
+import { isValidEmail, isValidPhone } from "@/utils/validators";
 
 const S = {
   ink:      COLORS.plum,
@@ -66,9 +67,11 @@ export default function AgentProfileEditPage() {
     setForm((f) => ({ ...f, [key]: value }));
 
   const handleSave = async () => {
-    if (!form.name.trim())          { toast.error("Name is required"); return; }
-    if (!form.brokerage.trim())     { toast.error("Brokerage is required"); return; }
-    if (!form.licenseNumber.trim()) { toast.error("License number is required"); return; }
+    if (!form.name.trim())                                { toast.error("Name is required"); return; }
+    if (!form.brokerage.trim())                           { toast.error("Brokerage is required"); return; }
+    if (!form.licenseNumber.trim())                       { toast.error("License number is required"); return; }
+    if (form.email && !isValidEmail(form.email))          { toast.error("Enter a valid email address"); return; }
+    if (form.phone && !isValidPhone(form.phone))          { toast.error("Enter a valid phone number"); return; }
 
     const input: CreateAgentProfileInput = {
       name:           form.name.trim(),
@@ -194,27 +197,35 @@ export default function AgentProfileEditPage() {
             />
           </label>
 
-          <label style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.inkLight }}>
+          <div style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.inkLight }}>
             PHONE
             <input
-              type="text"
+              type="tel"
               value={form.phone}
               onChange={(e) => update("phone", e.target.value)}
-              style={{ display: "block", width: "100%", padding: "0.5rem",
-                border: `1px solid ${S.rule}`, fontFamily: S.mono, marginTop: 4 }}
+              style={{ display: "block", width: "100%", padding: "0.5rem", marginTop: 4,
+                border: `1px solid ${form.phone && !isValidPhone(form.phone) ? COLORS.rust : S.rule}`,
+                fontFamily: S.mono }}
             />
-          </label>
+            {form.phone && !isValidPhone(form.phone) && (
+              <span style={{ color: COLORS.rust, fontSize: "0.65rem", marginTop: "0.2rem", display: "block" }}>Enter a valid phone number</span>
+            )}
+          </div>
 
-          <label style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.inkLight }}>
+          <div style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.inkLight }}>
             EMAIL
             <input
               type="email"
               value={form.email}
               onChange={(e) => update("email", e.target.value)}
-              style={{ display: "block", width: "100%", padding: "0.5rem",
-                border: `1px solid ${S.rule}`, fontFamily: S.mono, marginTop: 4 }}
+              style={{ display: "block", width: "100%", padding: "0.5rem", marginTop: 4,
+                border: `1px solid ${form.email && !isValidEmail(form.email) ? COLORS.rust : S.rule}`,
+                fontFamily: S.mono }}
             />
-          </label>
+            {form.email && !isValidEmail(form.email) && (
+              <span style={{ color: COLORS.rust, fontSize: "0.65rem", marginTop: "0.2rem", display: "block" }}>Enter a valid email address</span>
+            )}
+          </div>
 
           <Button type="submit" disabled={saving}>
             {saving ? "Saving…" : "Save Profile"}

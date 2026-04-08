@@ -6,6 +6,7 @@ import { Button } from "@/components/Button";
 import { contractorService, ContractorProfile } from "@/services/contractor";
 import toast from "react-hot-toast";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { isValidEmail, isValidPhone } from "@/utils/validators";
 
 const S = {
   ink:      COLORS.plum,
@@ -99,9 +100,11 @@ export default function ContractorProfilePage() {
   const isEditing = existing !== null;
 
   const handleSave = async () => {
-    if (!form.name.trim())  { toast.error("Name is required"); return; }
-    if (!form.email.trim()) { toast.error("Email is required"); return; }
-    if (!form.phone.trim()) { toast.error("Phone is required"); return; }
+    if (!form.name.trim())          { toast.error("Name is required"); return; }
+    if (!form.email.trim())         { toast.error("Email is required"); return; }
+    if (!isValidEmail(form.email))  { toast.error("Enter a valid email address"); return; }
+    if (!form.phone.trim())         { toast.error("Phone is required"); return; }
+    if (!isValidPhone(form.phone))  { toast.error("Enter a valid phone number"); return; }
 
     if (form.specialties.length === 0) { toast.error("Select at least one trade"); return; }
 
@@ -291,7 +294,11 @@ export default function ContractorProfilePage() {
                     placeholder="you@example.com"
                     value={form.email}
                     onChange={(e) => update("email", e.target.value)}
+                    style={form.email && !isValidEmail(form.email) ? { borderColor: COLORS.rust } : undefined}
                   />
+                  {form.email && !isValidEmail(form.email) && (
+                    <p style={{ color: COLORS.rust, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: FONTS.mono }}>Enter a valid email address</p>
+                  )}
                 </div>
                 <div>
                   <label className="form-label">Phone *</label>
@@ -301,7 +308,11 @@ export default function ContractorProfilePage() {
                     placeholder="(512) 555-0100"
                     value={form.phone}
                     onChange={(e) => update("phone", e.target.value)}
+                    style={form.phone && !isValidPhone(form.phone) ? { borderColor: COLORS.rust } : undefined}
                   />
+                  {form.phone && !isValidPhone(form.phone) && (
+                    <p style={{ color: COLORS.rust, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: FONTS.mono }}>Enter a valid phone number</p>
+                  )}
                 </div>
               </div>
             </div>

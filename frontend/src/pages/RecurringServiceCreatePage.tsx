@@ -8,6 +8,7 @@ import { paymentService, type PlanTier } from "@/services/payment";
 import { usePropertyStore } from "@/store/propertyStore";
 import { UpgradeGate } from "@/components/UpgradeGate";
 import toast from "react-hot-toast";
+import { isValidPhone } from "@/utils/validators";
 import { COLORS, FONTS } from "@/theme";
 
 const S = {
@@ -204,7 +205,15 @@ export default function RecurringServiceCreatePage() {
             </div>
             <div>
               <label className="form-label">Phone <span style={{ color: S.inkLight, fontWeight: 300 }}>(optional)</span></label>
-              <input className="form-input" placeholder="e.g. (555) 000-0000" value={form.providerPhone} onChange={(e) => update("providerPhone", e.target.value)} />
+              <input
+                className="form-input" type="tel" placeholder="e.g. (555) 000-0000"
+                value={form.providerPhone}
+                onChange={(e) => update("providerPhone", e.target.value)}
+                style={form.providerPhone && !isValidPhone(form.providerPhone) ? { borderColor: COLORS.rust } : undefined}
+              />
+              {form.providerPhone && !isValidPhone(form.providerPhone) && (
+                <p style={{ color: COLORS.rust, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: S.mono }}>Enter a valid phone number</p>
+              )}
             </div>
           </div>
 

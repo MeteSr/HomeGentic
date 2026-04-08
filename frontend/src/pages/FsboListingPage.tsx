@@ -20,6 +20,7 @@ import { showingRequestService } from "@/services/showingRequest";
 import { notificationService } from "@/services/notifications";
 import { COLORS, FONTS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
+import { isValidEmailOrPhone } from "@/utils/validators";
 
 const S = {
   ink:      COLORS.plum,
@@ -55,6 +56,7 @@ export function ShowingRequestForm({ propertyId }: { propertyId: string }) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!isValidEmailOrPhone(contact)) return;
     showingRequestService.create({ propertyId, name, contact, preferredTime: time });
     notificationService.create({
       type: "ShowingRequest",
@@ -110,8 +112,12 @@ export function ShowingRequestForm({ propertyId }: { propertyId: string }) {
           value={contact}
           onChange={(e) => setContact(e.target.value)}
           required
-          style={{ width: "100%", padding: "0.5rem", border: `1px solid ${S.rule}`, fontFamily: S.sans, fontSize: "0.875rem", boxSizing: "border-box" }}
+          style={{ width: "100%", padding: "0.5rem", fontFamily: S.sans, fontSize: "0.875rem", boxSizing: "border-box",
+            border: `1px solid ${contact && !isValidEmailOrPhone(contact) ? COLORS.rust : S.rule}` }}
         />
+        {contact && !isValidEmailOrPhone(contact) && (
+          <p style={{ color: COLORS.rust, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: FONTS.mono }}>Enter a valid email or phone number</p>
+        )}
       </div>
 
       <div>

@@ -13,6 +13,7 @@ import PermitCoverageIndicator from "@/components/PermitCoverageIndicator";
 import PermitImportReviewPanel from "@/components/PermitImportReviewPanel";
 import toast from "react-hot-toast";
 import { COLORS, FONTS } from "@/theme";
+import { isValidZip, isValidUsState } from "@/utils/validators";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 
 const S = {
@@ -173,19 +174,44 @@ export default function PropertyRegisterPage() {
                 </div>
                 <div>
                   <label className="form-label">State *</label>
-                  <input className="form-input" placeholder="TX" maxLength={2} value={form.state} onChange={(e) => update("state", e.target.value.toUpperCase())} />
+                  <input
+                    className="form-input" placeholder="TX" maxLength={2}
+                    value={form.state}
+                    onChange={(e) => update("state", e.target.value.toUpperCase())}
+                    style={form.state.length === 2 && !isValidUsState(form.state) ? { borderColor: COLORS.rust } : undefined}
+                  />
+                  {form.state.length === 2 && !isValidUsState(form.state) && (
+                    <p style={{ color: COLORS.rust, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: FONTS.mono }}>Enter a valid US state abbreviation</p>
+                  )}
                 </div>
               </div>
               <div>
                 <label className="form-label">ZIP Code *</label>
-                <input className="form-input" placeholder="78701" value={form.zipCode} onChange={(e) => update("zipCode", e.target.value)} />
+                <input
+                  className="form-input" placeholder="78701"
+                  value={form.zipCode}
+                  onChange={(e) => update("zipCode", e.target.value)}
+                  style={form.zipCode && !isValidZip(form.zipCode) ? { borderColor: COLORS.rust } : undefined}
+                />
+                {form.zipCode && !isValidZip(form.zipCode) && (
+                  <p style={{ color: COLORS.rust, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: FONTS.mono }}>Enter a 5-digit ZIP code (e.g. 78701)</p>
+                )}
               </div>
               {/* §17.5.5 — permit coverage indicator */}
               {form.city && form.state && (
                 <PermitCoverageIndicator city={form.city} state={form.state} />
               )}
             </div>
-            <Button style={{ width: "100%", marginTop: "1.5rem" }} disabled={!form.address || !form.city || !form.state || !form.zipCode} onClick={() => setStep(2)} iconRight={<ArrowRight size={14} />}>
+            <Button
+              style={{ width: "100%", marginTop: "1.5rem" }}
+              disabled={
+                !form.address || !form.city ||
+                !isValidUsState(form.state) ||
+                !isValidZip(form.zipCode)
+              }
+              onClick={() => setStep(2)}
+              iconRight={<ArrowRight size={14} />}
+            >
               Next: Property Details
             </Button>
           </div>

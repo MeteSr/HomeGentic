@@ -14,6 +14,7 @@ import { useJobStore } from "@/store/jobStore";
 import toast from "react-hot-toast";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
+import { isValidEmail, isValidPhone, isValidHttpsUrl } from "@/utils/validators";
 
 const S = {
   ink:      COLORS.plum,
@@ -93,6 +94,8 @@ function AccountTab({ profile, setProfile }: { profile: any; setProfile: any }) 
   const [loading, setLoading] = useState(false);
 
   const handleSave = async () => {
+    if (email && !isValidEmail(email)) { toast.error("Enter a valid email address"); return; }
+    if (phone && !isValidPhone(phone)) { toast.error("Enter a valid phone number"); return; }
     setLoading(true);
     try {
       const updated = await authService.updateProfile({ email, phone });
@@ -120,11 +123,23 @@ function AccountTab({ profile, setProfile }: { profile: any; setProfile: any }) 
           </div>
           <div>
             <label className="form-label">Email Address</label>
-            <input className="form-input" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input className="form-input" type="email" placeholder="you@example.com" value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              style={email && !isValidEmail(email) ? { borderColor: COLORS.rust } : undefined}
+            />
+            {email && !isValidEmail(email) && (
+              <p style={{ color: COLORS.rust, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: FONTS.mono }}>Enter a valid email address</p>
+            )}
           </div>
           <div>
             <label className="form-label">Phone Number</label>
-            <input className="form-input" type="tel" placeholder="+1 (555) 000-0000" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <input className="form-input" type="tel" placeholder="+1 (555) 000-0000" value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              style={phone && !isValidPhone(phone) ? { borderColor: COLORS.rust } : undefined}
+            />
+            {phone && !isValidPhone(phone) && (
+              <p style={{ color: COLORS.rust, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: FONTS.mono }}>Enter a valid phone number</p>
+            )}
           </div>
           <Button loading={loading} onClick={handleSave} icon={<CheckCircle size={14} />}>Save Changes</Button>
         </div>
@@ -144,6 +159,8 @@ function AgentBrandingSection() {
   const [logoUrl,   setLogoUrl]   = useState(saved?.logoUrl   ?? "");
 
   const handleSave = () => {
+    if (phone && !isValidPhone(phone)) { toast.error("Enter a valid phone number"); return; }
+    if (logoUrl && !isValidHttpsUrl(logoUrl)) { toast.error("Logo URL must start with https://"); return; }
     agentProfileService.save({ name, brokerage, phone, logoUrl });
     toast.success("Agent branding saved");
   };
@@ -175,11 +192,23 @@ function AgentBrandingSection() {
         </div>
         <div>
           <label className="form-label">Phone</label>
-          <input className="form-input" type="tel" placeholder="+1 (512) 000-0000" value={phone} onChange={(e) => setBrandPhone(e.target.value)} />
+          <input className="form-input" type="tel" placeholder="+1 (512) 000-0000" value={phone}
+            onChange={(e) => setBrandPhone(e.target.value)}
+            style={phone && !isValidPhone(phone) ? { borderColor: COLORS.rust } : undefined}
+          />
+          {phone && !isValidPhone(phone) && (
+            <p style={{ color: COLORS.rust, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: FONTS.mono }}>Enter a valid phone number</p>
+          )}
         </div>
         <div>
           <label className="form-label">Logo URL <span style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight, textTransform: "none", letterSpacing: 0 }}>(optional — https://)</span></label>
-          <input className="form-input" type="url" placeholder="https://yourbrokerage.com/logo.png" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} />
+          <input className="form-input" type="url" placeholder="https://yourbrokerage.com/logo.png" value={logoUrl}
+            onChange={(e) => setLogoUrl(e.target.value)}
+            style={logoUrl && !isValidHttpsUrl(logoUrl) ? { borderColor: COLORS.rust } : undefined}
+          />
+          {logoUrl && !isValidHttpsUrl(logoUrl) && (
+            <p style={{ color: COLORS.rust, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: FONTS.mono }}>Must be a valid https:// URL</p>
+          )}
         </div>
         {/* Preview */}
         {(name || brokerage) && (

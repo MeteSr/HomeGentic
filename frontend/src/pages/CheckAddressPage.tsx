@@ -15,6 +15,7 @@ import { lookupReport, submitReportRequest, type BuyerLookupResult } from "@/ser
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 import { PublicNav } from "@/components/PublicNav";
 import { PublicFooter } from "@/components/PublicFooter";
+import { isValidEmail } from "@/utils/validators";
 
 const S = {
   ink:       COLORS.plum,
@@ -160,7 +161,7 @@ function NotFoundResult({ address }: { address: string }) {
   const registerHref = `/properties/new?address=${encodeURIComponent(address)}`;
 
   const handleRequest = async () => {
-    if (!email.trim()) return;
+    if (!email.trim() || !isValidEmail(email)) return;
     setSubmitting(true);
     await submitReportRequest(address, email.trim());
     setSubmitted(true);
@@ -233,15 +234,19 @@ function NotFoundResult({ address }: { address: string }) {
                       placeholder="you@example.com"
                       style={{
                         width: "100%", padding: "0.625rem 0.875rem",
-                        border: `1px solid ${S.rule}`, borderRadius: RADIUS.input,
+                        border: `1px solid ${email && !isValidEmail(email) ? COLORS.rust : S.rule}`,
+                        borderRadius: RADIUS.input,
                         fontFamily: S.sans, fontSize: "0.875rem", outline: "none",
                         background: COLORS.white, boxSizing: "border-box",
                       }}
                     />
+                    {email && !isValidEmail(email) && (
+                      <span style={{ color: COLORS.rust, fontSize: "0.65rem", marginTop: "0.2rem", display: "block", fontFamily: S.mono }}>Enter a valid email address</span>
+                    )}
                   </label>
                   <button
                     onClick={handleRequest}
-                    disabled={!email.trim() || submitting}
+                    disabled={!email.trim() || !isValidEmail(email) || submitting}
                     aria-label="notify me"
                     style={{
                       alignSelf: "flex-end", padding: "0.625rem 1.25rem",

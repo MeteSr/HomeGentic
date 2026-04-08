@@ -18,6 +18,7 @@ import { X, Copy, Check, Mail, Loader2 } from "lucide-react";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 import { jobService } from "@/services/job";
 import type { Job } from "@/services/job";
+import { isValidEmail } from "@/utils/validators";
 
 interface Props {
   job:             Job;
@@ -62,7 +63,7 @@ export function InviteContractorModal({ job, propertyAddress, onClose }: Props) 
   }
 
   async function handleEmail() {
-    if (!verifyUrl || !email.includes("@")) return;
+    if (!verifyUrl || !isValidEmail(email)) return;
     setSending(true);
     try {
       const { aiProxyService } = await import("@/services/aiProxy");
@@ -197,32 +198,41 @@ export function InviteContractorModal({ job, propertyAddress, onClose }: Props) 
                 Or send by email:
               </p>
               <div style={{ display: "flex", gap: "0.5rem" }}>
-                <input
-                  type="email"
-                  placeholder="contractor@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") void handleEmail(); }}
-                  style={{
-                    flex: 1, padding: "0.5rem 0.75rem",
-                    fontFamily: S.sans, fontSize: "0.8rem",
-                    border: `1px solid ${S.rule}`, borderRadius: RADIUS.input,
-                    background: COLORS.white, outline: "none",
-                  }}
-                />
+                <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                  <input
+                    type="email"
+                    placeholder="contractor@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") void handleEmail(); }}
+                    style={{
+                      padding: "0.5rem 0.75rem",
+                      fontFamily: S.sans, fontSize: "0.8rem",
+                      border: `1px solid ${email && !isValidEmail(email) ? COLORS.rust : S.rule}`,
+                      borderRadius: RADIUS.input,
+                      background: COLORS.white, outline: "none",
+                    }}
+                  />
+                  {email && !isValidEmail(email) && (
+                    <span style={{ color: COLORS.rust, fontSize: "0.65rem", marginTop: "0.2rem", fontFamily: S.mono }}>
+                      Enter a valid email address
+                    </span>
+                  )}
+                </div>
                 <button
                   onClick={() => void handleEmail()}
-                  disabled={sending || sent || !email.includes("@")}
+                  disabled={sending || sent || !isValidEmail(email)}
                   style={{
                     display: "flex", alignItems: "center", gap: "0.375rem",
                     padding: "0.5rem 1rem",
                     background: sent ? COLORS.sage : COLORS.plum,
                     color: "#fff", border: "none",
                     borderRadius: RADIUS.input,
-                    cursor: sending || sent || !email.includes("@") ? "not-allowed" : "pointer",
+                    cursor: sending || sent || !isValidEmail(email) ? "not-allowed" : "pointer",
                     fontFamily: S.mono, fontSize: "0.7rem",
-                    opacity: !email.includes("@") ? 0.5 : 1,
+                    opacity: !isValidEmail(email) ? 0.5 : 1,
                     transition: "background 0.2s",
+                    alignSelf: "flex-start",
                   }}
                 >
                   {sending ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : <Mail size={13} />}
