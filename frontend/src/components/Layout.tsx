@@ -13,7 +13,7 @@ import {
   Bell, Wrench, ShieldAlert, Clock, CheckCircle2, AlertTriangle, MessageSquare,
   LayoutDashboard, TrendingUp, Users, Cpu, Home as HomeIcon, PlusSquare,
   Settings, Store, ChevronLeft, ChevronRight, LogOut, Menu, X,
-  ArrowUpCircle,
+  ArrowUpCircle, Paperclip,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthStore } from "@/store/authStore";
@@ -21,7 +21,7 @@ import { usePropertyStore } from "@/store/propertyStore";
 import { jobService, type Job } from "@/services/job";
 import { quoteService, type QuoteRequest } from "@/services/quote";
 import { paymentService } from "@/services/payment";
-import { VoiceAgent } from "./VoiceAgent";
+import { VoiceAgent, voiceAgentFileInputRef } from "./VoiceAgent";
 import UpgradeModal from "./UpgradeModal";
 import { COLORS, FONTS } from "@/theme";
 
@@ -399,6 +399,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 >
                   <Settings size={15} style={{ flexShrink: 0, color: COLORS.plumMid }} />
                   Settings
+                </button>
+
+                {/* Attach receipt / photo to voice agent */}
+                <button
+                  onClick={() => { setUserMenuOpen(false); voiceAgentFileInputRef.current?.click(); }}
+                  style={{ display: "flex", alignItems: "center", gap: "0.625rem", width: "100%", padding: "0.55rem 1rem", background: "none", border: "none", cursor: "pointer", fontFamily: FONTS.sans, fontSize: "0.875rem", color: COLORS.plum, textAlign: "left" }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = COLORS.sageLight; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "none"; }}
+                >
+                  <Paperclip size={15} style={{ flexShrink: 0, color: COLORS.plumMid }} />
+                  Attach receipt or photo
                 </button>
 
                 <div style={{ height: "1px", background: COLORS.rule, margin: "0.25rem 0" }} />

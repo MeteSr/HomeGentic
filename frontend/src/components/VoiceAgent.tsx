@@ -1,8 +1,11 @@
-import { useState, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader2, Mic, MicOff, Volume2, X, History, ChevronDown, ChevronUp, AlertTriangle, CheckCircle, XCircle, Paperclip } from "lucide-react";
 import { useVoiceAgent } from "../hooks/useVoiceAgent";
 import { COLORS, FONTS, RADIUS } from "@/theme";
+
+/** Called by Layout's avatar menu to open the agent's file picker. */
+export const voiceAgentFileInputRef: { current: HTMLInputElement | null } = { current: null };
 
 const S = {
   ink:      COLORS.plum,
@@ -200,7 +203,7 @@ export function VoiceAgent() {
 
       {/* Hidden file input for image attachment (16.6.1) */}
       <input
-        ref={fileInputRef}
+        ref={(el) => { (fileInputRef as React.MutableRefObject<HTMLInputElement | null>).current = el; voiceAgentFileInputRef.current = el; }}
         type="file"
         accept="image/jpeg,image/png,image/gif,image/webp"
         style={{ display: "none" }}
@@ -212,25 +215,6 @@ export function VoiceAgent() {
         }}
       />
 
-      {/* Attach button */}
-      {isIdle && (
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          aria-label="Attach a receipt or photo"
-          title="Attach a receipt or photo for the agent to read"
-          style={{
-            width: "2rem", height: "2rem",
-            borderRadius: RADIUS.pill,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            border: `1px solid ${COLORS.rule}`,
-            backgroundColor: COLORS.plum,
-            cursor: "pointer",
-            alignSelf: "flex-end",
-          }}
-        >
-          <Paperclip size={13} color={pendingImage ? COLORS.sage : COLORS.plumMid} />
-        </button>
-      )}
     </div>
   );
 }
