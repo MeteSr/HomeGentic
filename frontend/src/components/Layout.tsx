@@ -13,7 +13,7 @@ import {
   Bell, Wrench, ShieldAlert, Clock, CheckCircle2, AlertTriangle, MessageSquare,
   LayoutDashboard, TrendingUp, Users, Cpu, Home as HomeIcon, PlusSquare,
   Settings, Store, ChevronLeft, ChevronRight, LogOut, Menu, X,
-  ArrowUpCircle, Paperclip,
+  ArrowUpCircle, Paperclip, Zap,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthStore } from "@/store/authStore";
@@ -21,6 +21,7 @@ import { usePropertyStore } from "@/store/propertyStore";
 import { jobService, type Job } from "@/services/job";
 import { quoteService, type QuoteRequest } from "@/services/quote";
 import { paymentService } from "@/services/payment";
+import { billService, type BillRecord } from "@/services/billService";
 import { VoiceAgent, voiceAgentFileInputRef } from "./VoiceAgent";
 import UpgradeModal from "./UpgradeModal";
 import { COLORS, FONTS } from "@/theme";
@@ -29,14 +30,14 @@ import { COLORS, FONTS } from "@/theme";
 
 interface ActivityEvent {
   id:        string;
-  type:      "pending_verification" | "warranty_expiring" | "job_pending_sig" | "recent_job" | "open_quote";
+  type:      "pending_verification" | "warranty_expiring" | "job_pending_sig" | "recent_job" | "open_quote" | "bill_anomaly";
   title:     string;
   detail:    string;
   href:      string;
   timestamp: number;
 }
 
-function deriveEvents(properties: any[], jobs: Job[], quotes: QuoteRequest[]): ActivityEvent[] {
+function deriveEvents(properties: any[], jobs: Job[], quotes: QuoteRequest[], bills: BillRecord[]): ActivityEvent[] {
   const events: ActivityEvent[] = [];
   const now = Date.now();
 
@@ -73,6 +74,19 @@ function deriveEvents(properties: any[], jobs: Job[], quotes: QuoteRequest[]): A
     events.push({ id: "open-quotes", type: "open_quote", title: `${openQuotes.length} open quote request${openQuotes.length !== 1 ? "s" : ""}`, detail: "Contractors may have responded", href: "/quotes", timestamp: now });
   }
 
+  for (const b of bills) {
+    if (b.anomalyFlag) {
+      events.push({
+        id:        `bill-anomaly-${b.id}`,
+        type:      "bill_anomaly",
+        title:     `${b.billType} bill spike detected`,
+        detail:    b.anomalyReason ?? `${b.provider} bill is above your 3-month average`,
+        href:      `/properties/${b.propertyId}?tab=bills`,
+        timestamp: b.uploadedAt,
+      });
+    }
+  }
+
   return events.sort((a, b) => b.timestamp - a.timestamp).slice(0, 20);
 }
 
@@ -105,6 +119,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [feedOpen,     setFeedOpen]     = useState(false);
   const [feedJobs,     setFeedJobs]     = useState<Job[]>([]);
   const [feedQuotes,   setFeedQuotes]   = useState<QuoteRequest[]>([]);
+  const [feedBills,    setFeedBills]    = useState<BillRecord[]>([]);
   const [feedLoaded,   setFeedLoaded]   = useState(false);
   const [lastReadAt,   setLastReadAt]   = useState<number>(() =>
     parseInt(localStorage.getItem("homegentic_feed_read") ?? "0", 10)
@@ -132,16 +147,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!feedOpen || feedLoaded) return;
+    const propertyIds = properties.map((p: any) => String(p.id));
     Promise.all([
       jobService.getAll().catch(() => [] as Job[]),
       quoteService.getRequests().catch(() => [] as QuoteRequest[]),
-    ]).then(([jobs, quotes]) => {
+      Promise.all(
+        propertyIds.map((pid) => billService.getBillsForProperty(pid).catch(() => [] as BillRecord[]))
+      ).then((nested) => nested.flat()),
+    ]).then(([jobs, quotes, bills]) => {
       setFeedJobs(jobs);
       setFeedQuotes(quotes);
+      setFeedBills(bills);
     }).finally(() => setFeedLoaded(true));
   }, [feedOpen, feedLoaded]);
 
-  const events = useMemo(() => deriveEvents(properties, feedJobs, feedQuotes), [properties, feedJobs, feedQuotes]);
+  const events = useMemo(() => deriveEvents(properties, feedJobs, feedQuotes, feedBills), [properties, feedJobs, feedQuotes, feedBills]);
   const unread  = events.filter((e) => e.timestamp > lastReadAt).length;
 
   const openFeed = () => {
@@ -646,6 +666,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     job_pending_sig:      <Clock size={14} color={COLORS.sage} />,
                     recent_job:           <Wrench size={14} color={COLORS.plumMid} />,
                     open_quote:           <MessageSquare size={14} color={COLORS.sage} />,
+                    bill_anomaly:         <Zap size={14} color="#C94C2E" />,
                   };
                   const isUnread = event.timestamp > lastReadAt;
                   return (

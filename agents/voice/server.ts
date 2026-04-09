@@ -289,6 +289,77 @@ JSON shape:
   }
 });
 
+// ── POST /api/extract-bill ────────────────────────────────────────────────────
+// Epic #49 Story 1 — Bill-specific extraction from uploaded utility bill images/PDFs.
+// Request:  { fileName, mimeType, base64Data }
+// Response: BillExtraction
+//   { billType, provider, periodStart, periodEnd, amountCents,
+//     usageAmount?, usageUnit?, confidence, description }
+app.post("/api/extract-bill", async (req: Request, res: Response): Promise<void> => {
+  const { fileName, mimeType, base64Data } = req.body;
+
+  if (!fileName || !mimeType || !base64Data) {
+    res.status(400).json({ error: "fileName, mimeType, and base64Data are required" });
+    return;
+  }
+
+  const supportedTypes = [
+    "image/jpeg", "image/png", "image/gif", "image/webp",
+    "application/pdf",
+  ];
+  if (!supportedTypes.includes(mimeType)) {
+    res.status(400).json({ error: "Unsupported file type. Upload an image or PDF." });
+    return;
+  }
+
+  const mediaType = mimeType as "image/jpeg" | "image/png" | "image/gif" | "image/webp" | "application/pdf";
+
+  const systemPrompt = `You are a utility bill extractor for the HomeGentic home management platform.
+Extract structured data from the uploaded utility bill. Respond ONLY with valid JSON — no markdown, no prose.
+
+JSON shape:
+{
+  "billType": "<one of: Electric|Gas|Water|Internet|Telecom|Other>",
+  "provider": "<utility company name, e.g. FPL, TECO, Duke Energy>",
+  "periodStart": "<YYYY-MM-DD or omit if unclear>",
+  "periodEnd": "<YYYY-MM-DD or omit if unclear>",
+  "amountCents": <integer total amount due in US cents, or omit if unclear>,
+  "usageAmount": <numeric usage quantity, e.g. 842 for 842 kWh, or omit>,
+  "usageUnit": "<kWh|gallons|therms|Mbps or omit>",
+  "confidence": "<high|medium|low>",
+  "description": "<one sentence describing what you see>"
+}`;
+
+  try {
+    const text = await provider.complete({
+      system:    systemPrompt,
+      messages:  [{
+        role: "user",
+        content: [{
+          type:   "image",
+          source: { type: "base64", media_type: mediaType, data: base64Data },
+        }, {
+          type: "text",
+          text: `File name: ${fileName}\nExtract the utility bill data from this document.`,
+        }],
+      }],
+      maxTokens: 512,
+    });
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      res.status(500).json({ error: PROVIDER_JSON_ERROR });
+      return;
+    }
+    const result = JSON.parse(jsonMatch[0]);
+    result.rawFileName = fileName;
+    res.json(result);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    res.status(500).json({ error: msg });
+  }
+});
+
 // ── POST /api/pulse ───────────────────────────────────────────────────────────
 // 8.1.1 — Home Pulse digest generation.
 // Request:  PulseContext (propertyId, address, zipCode, yearBuilt, systemAges, …)

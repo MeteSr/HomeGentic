@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Share2, Shield, Wrench, MessageSquare, Calendar, DollarSign, AlertCircle, Star } from "lucide-react";
+import { ArrowLeft, Share2, Shield, Wrench, MessageSquare, Calendar, DollarSign, AlertCircle, Star, Upload, Zap, Trash2 } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { Badge } from "@/components/Badge";
@@ -24,6 +24,7 @@ import { marketService, jobToSummary, type PropertyProfile, type ProjectRecommen
 import { getWeeklyPulse } from "@/services/pulseService";
 import { roomService, Room as RoomRecord, type UpdateRoomArgs, type AddFixtureArgs, type Fixture } from "@/services/room";
 import { paymentService, type PlanTier } from "@/services/payment";
+import { billService, extractBill, type BillRecord, type BillExtraction, type BillType } from "@/services/billService";
 import { UpgradeGate } from "@/components/UpgradeGate";
 import { ScorePanel } from "@/components/ScorePanel";
 import { ScoreActivityFeed } from "@/components/ScoreActivityFeed";
@@ -49,7 +50,7 @@ const S = {
   mono:     FONTS.mono,
 };
 
-type Tab = "timeline" | "jobs" | "rooms" | "documents" | "settings";
+type Tab = "timeline" | "jobs" | "rooms" | "documents" | "bills" | "settings";
 
 export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -230,6 +231,7 @@ export default function PropertyDetailPage() {
     { key: "jobs",      label: `Jobs (${jobs.length})` },
     { key: "rooms",     label: `Rooms (${rooms.length})` },
     { key: "documents", label: "Documents" },
+    { key: "bills",     label: "Bills" },
     { key: "settings",  label: "Settings" },
   ];
 
@@ -563,6 +565,7 @@ export default function PropertyDetailPage() {
         {tab === "jobs"      && <JobsTab jobs={jobs} />}
         {tab === "rooms"     && <RoomsTab propertyId={id!} rooms={rooms} onRoomsChange={setRooms} photosByJob={photosByJob} onRoomPhotoUpload={handleRoomPhotoUpload} />}
         {tab === "documents" && <DocumentsTab propertyId={id!} />}
+        {tab === "bills"     && <BillsTab propertyId={id!} />}
         {tab === "settings"  && <SettingsTab property={property} currentPrincipal={principal ?? ""} />}
       </div>
 
@@ -2188,4 +2191,296 @@ function RoomsTab({
       </div>
     </div>
   );
+}
+
+// ─── Bills Tab ────────────────────────────────────────────────────────────────
+
+const BILL_TYPE_LABELS: Record<BillType, string> = {
+  Electric: "Electric",
+  Gas:      "Gas",
+  Water:    "Water",
+  Internet: "Internet",
+  Telecom:  "Telecom/Cable",
+  Other:    "Other",
+};
+
+function BillsTab({ propertyId }: { propertyId: string }) {
+  const [bills, setBills]             = useState<BillRecord[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [uploading, setUploading]     = useState(false);
+  const [extraction, setExtraction]   = useState<BillExtraction | null>(null);
+  const [confirmArgs, setConfirmArgs] = useState<Partial<BillRecord> | null>(null);
+  const fileInputRef                  = React.useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    billService.getBillsForProperty(propertyId)
+      .then(setBills)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [propertyId]);
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setExtraction(null);
+    try {
+      const base64Data = await fileToBase64(file);
+      const result = await extractBill(file.name, file.type, base64Data);
+      setExtraction(result);
+      setConfirmArgs({
+        billType:    result.billType ?? "Other",
+        provider:    result.provider ?? "",
+        periodStart: result.periodStart ?? "",
+        periodEnd:   result.periodEnd ?? "",
+        amountCents: result.amountCents ?? 0,
+        usageAmount: result.usageAmount,
+        usageUnit:   result.usageUnit,
+      });
+    } catch {
+      toast.error("Could not extract bill data. Please fill in the details manually.");
+      setConfirmArgs({ billType: "Other", provider: "", periodStart: "", periodEnd: "", amountCents: 0 });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleConfirmSave() {
+    if (!confirmArgs) return;
+    try {
+      const saved = await billService.addBill({
+        propertyId,
+        billType:    (confirmArgs.billType as BillType) ?? "Other",
+        provider:    confirmArgs.provider ?? "",
+        periodStart: confirmArgs.periodStart ?? "",
+        periodEnd:   confirmArgs.periodEnd ?? "",
+        amountCents: confirmArgs.amountCents ?? 0,
+        usageAmount: confirmArgs.usageAmount,
+        usageUnit:   confirmArgs.usageUnit,
+      });
+      setBills((prev) => [saved, ...prev]);
+      setConfirmArgs(null);
+      setExtraction(null);
+      toast.success("Bill saved.");
+      if (saved.anomalyFlag) {
+        toast(`Anomaly detected: ${saved.anomalyReason}`, { icon: "⚠️", duration: 6000 });
+      }
+    } catch {
+      toast.error("Failed to save bill.");
+    }
+  }
+
+  async function handleDelete(id: string) {
+    try {
+      await billService.deleteBill(id);
+      setBills((prev) => prev.filter((b) => b.id !== id));
+      toast.success("Bill removed.");
+    } catch {
+      toast.error("Failed to remove bill.");
+    }
+  }
+
+  const ink      = COLORS.plum;
+  const rule     = COLORS.rule;
+  const inkLight = COLORS.plumMid;
+
+  return (
+    <div style={{ padding: "2rem 0" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+        <div>
+          <h3 style={{ fontFamily: FONTS.serif, fontSize: "1.25rem", fontWeight: 700, color: ink, margin: 0 }}>
+            Utility Bills
+          </h3>
+          <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: inkLight, margin: "0.25rem 0 0" }}>
+            Upload bills to track usage, detect anomalies, and surface savings opportunities.
+          </p>
+        </div>
+        <Button onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+          <Upload size={14} style={{ marginRight: "0.4rem" }} />
+          {uploading ? "Extracting…" : "Upload Bill"}
+        </Button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+          style={{ display: "none" }}
+          onChange={handleFileChange}
+        />
+      </div>
+
+      {confirmArgs && (
+        <div style={{ border: `1px solid ${rule}`, background: COLORS.white, padding: "1.5rem", marginBottom: "1.5rem" }}>
+          <h4 style={{ fontFamily: FONTS.serif, fontSize: "1rem", fontWeight: 700, color: ink, margin: "0 0 0.25rem" }}>
+            Confirm Bill Details
+          </h4>
+          {extraction && (
+            <p style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", color: inkLight, margin: "0 0 1rem" }}>
+              {extraction.description} (confidence: {extraction.confidence})
+            </p>
+          )}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+            <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+              <span style={{ fontFamily: FONTS.mono, fontSize: "0.65rem", textTransform: "uppercase" as const, letterSpacing: "0.08em", color: inkLight }}>Bill Type</span>
+              <select
+                value={confirmArgs.billType ?? "Other"}
+                onChange={(e) => setConfirmArgs((p) => ({ ...p!, billType: e.target.value as BillType }))}
+                style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", padding: "0.4rem 0.5rem", border: `1px solid ${rule}`, color: ink, background: COLORS.white }}
+              >
+                {(Object.keys(BILL_TYPE_LABELS) as BillType[]).map((t) => (
+                  <option key={t} value={t}>{BILL_TYPE_LABELS[t]}</option>
+                ))}
+              </select>
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+              <span style={{ fontFamily: FONTS.mono, fontSize: "0.65rem", textTransform: "uppercase" as const, letterSpacing: "0.08em", color: inkLight }}>Provider</span>
+              <input
+                type="text"
+                value={confirmArgs.provider ?? ""}
+                onChange={(e) => setConfirmArgs((p) => ({ ...p!, provider: e.target.value }))}
+                placeholder="e.g. FPL, TECO"
+                style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", padding: "0.4rem 0.5rem", border: `1px solid ${rule}`, color: ink, background: COLORS.white }}
+              />
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+              <span style={{ fontFamily: FONTS.mono, fontSize: "0.65rem", textTransform: "uppercase" as const, letterSpacing: "0.08em", color: inkLight }}>Period Start</span>
+              <input
+                type="date"
+                value={confirmArgs.periodStart ?? ""}
+                onChange={(e) => setConfirmArgs((p) => ({ ...p!, periodStart: e.target.value }))}
+                style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", padding: "0.4rem 0.5rem", border: `1px solid ${rule}`, color: ink, background: COLORS.white }}
+              />
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+              <span style={{ fontFamily: FONTS.mono, fontSize: "0.65rem", textTransform: "uppercase" as const, letterSpacing: "0.08em", color: inkLight }}>Period End</span>
+              <input
+                type="date"
+                value={confirmArgs.periodEnd ?? ""}
+                onChange={(e) => setConfirmArgs((p) => ({ ...p!, periodEnd: e.target.value }))}
+                style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", padding: "0.4rem 0.5rem", border: `1px solid ${rule}`, color: ink, background: COLORS.white }}
+              />
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+              <span style={{ fontFamily: FONTS.mono, fontSize: "0.65rem", textTransform: "uppercase" as const, letterSpacing: "0.08em", color: inkLight }}>Amount ($)</span>
+              <input
+                type="number"
+                min={0}
+                step={0.01}
+                value={confirmArgs.amountCents != null ? (confirmArgs.amountCents / 100).toFixed(2) : ""}
+                onChange={(e) => setConfirmArgs((p) => ({ ...p!, amountCents: Math.round(parseFloat(e.target.value) * 100) || 0 }))}
+                placeholder="0.00"
+                style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", padding: "0.4rem 0.5rem", border: `1px solid ${rule}`, color: ink, background: COLORS.white }}
+              />
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+              <span style={{ fontFamily: FONTS.mono, fontSize: "0.65rem", textTransform: "uppercase" as const, letterSpacing: "0.08em", color: inkLight }}>Usage (optional)</span>
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                <input
+                  type="number"
+                  min={0}
+                  value={confirmArgs.usageAmount ?? ""}
+                  onChange={(e) => setConfirmArgs((p) => ({ ...p!, usageAmount: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                  placeholder="842"
+                  style={{ flex: 1, fontFamily: FONTS.sans, fontSize: "0.875rem", padding: "0.4rem 0.5rem", border: `1px solid ${rule}`, color: ink, background: COLORS.white }}
+                />
+                <select
+                  value={confirmArgs.usageUnit ?? "kWh"}
+                  onChange={(e) => setConfirmArgs((p) => ({ ...p!, usageUnit: e.target.value }))}
+                  style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", padding: "0.4rem 0.5rem", border: `1px solid ${rule}`, color: ink, background: COLORS.white }}
+                >
+                  <option value="kWh">kWh</option>
+                  <option value="gallons">gallons</option>
+                  <option value="therms">therms</option>
+                  <option value="Mbps">Mbps</option>
+                </select>
+              </div>
+            </label>
+          </div>
+          <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.25rem" }}>
+            <Button onClick={handleConfirmSave}>Save Bill</Button>
+            <Button
+              onClick={() => { setConfirmArgs(null); setExtraction(null); }}
+              style={{ background: "transparent", border: `1px solid ${rule}`, color: inkLight }}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ display: "flex", justifyContent: "center", padding: "3rem" }}>
+          <div className="spinner-lg" />
+        </div>
+      ) : bills.length === 0 && !confirmArgs ? (
+        <div style={{ textAlign: "center", padding: "3rem", color: inkLight, fontFamily: FONTS.sans, fontSize: "0.9rem" }}>
+          No bills uploaded yet. Upload a utility bill to start tracking.
+        </div>
+      ) : (
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ borderBottom: `1px solid ${rule}` }}>
+              {["Type", "Provider", "Period", "Amount", "Usage", ""].map((h) => (
+                <th key={h} style={{ fontFamily: FONTS.mono, fontSize: "0.65rem", textTransform: "uppercase" as const, letterSpacing: "0.08em", color: inkLight, textAlign: "left", padding: "0.5rem 0.75rem", fontWeight: 500 }}>
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {[...bills].sort((a, b) => b.uploadedAt - a.uploadedAt).map((bill) => (
+              <tr key={bill.id} style={{ borderBottom: `1px solid ${rule}` }}>
+                <td style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: ink, padding: "0.75rem" }}>
+                  {BILL_TYPE_LABELS[bill.billType]}
+                </td>
+                <td style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: ink, padding: "0.75rem" }}>
+                  {bill.provider}
+                </td>
+                <td style={{ fontFamily: FONTS.mono, fontSize: "0.8rem", color: inkLight, padding: "0.75rem", whiteSpace: "nowrap" as const }}>
+                  {bill.periodStart} → {bill.periodEnd}
+                </td>
+                <td style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: ink, padding: "0.75rem", fontWeight: 600 }}>
+                  ${(bill.amountCents / 100).toFixed(2)}
+                </td>
+                <td style={{ fontFamily: FONTS.mono, fontSize: "0.8rem", color: inkLight, padding: "0.75rem" }}>
+                  {bill.usageAmount != null && bill.usageUnit
+                    ? `${bill.usageAmount.toLocaleString()} ${bill.usageUnit}`
+                    : "—"}
+                </td>
+                <td style={{ padding: "0.75rem", whiteSpace: "nowrap" as const }}>
+                  {bill.anomalyFlag && (
+                    <span
+                      title={bill.anomalyReason}
+                      style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", fontFamily: FONTS.mono, fontSize: "0.7rem", color: "#C94C2E", marginRight: "0.75rem" }}
+                    >
+                      <Zap size={12} /> Anomaly
+                    </span>
+                  )}
+                  <button
+                    onClick={() => handleDelete(bill.id)}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: inkLight, padding: "0.25rem" }}
+                    title="Remove bill"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = (reader.result as string).split(",")[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }

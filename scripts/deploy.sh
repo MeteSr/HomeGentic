@@ -94,7 +94,7 @@ fi
 # Parallel deploys race on canister_ids.json (each process read→add→write);
 # the last writer wins and all other IDs are lost. Sequential is the safe default.
 
-CANISTERS=(auth property job contractor quote payment photo report maintenance market sensor monitoring listing agent recurring ai_proxy)
+CANISTERS=(auth property job contractor quote payment photo report maintenance market sensor monitoring listing agent recurring bills ai_proxy)
 LOG_DIR=$(mktemp -d /tmp/dfx-deploy-XXXXXX)
 
 echo "▶ Deploying ${#CANISTERS[@]} canisters..."
@@ -299,7 +299,7 @@ echo "  Deployer principal: $DEPLOYER"
 
 # All canisters that expose addAdmin, excluding payment (no admin) and
 # ai_proxy (handled below alongside its API-key wiring).
-ADMIN_CANISTERS=(auth property job contractor quote photo report maintenance market sensor listing agent recurring monitoring)
+ADMIN_CANISTERS=(auth property job contractor quote photo report maintenance market sensor listing agent recurring bills monitoring)
 
 for canister in "${ADMIN_CANISTERS[@]}"; do
   echo "  $canister: adding deployer as admin..."

@@ -60,6 +60,10 @@
       "main": "backend/agent/main.mo",
       "type": "motoko"
     },
+    "bills": {
+      "main": "backend/bills/main.mo",
+      "type": "motoko"
+    },
     "recurring": {
       "main": "backend/recurring/main.mo",
       "type": "motoko"
@@ -68,7 +72,7 @@
       "dependencies": [
         "auth", "property", "job", "contractor", "quote", "payment",
         "photo", "report", "maintenance", "market", "sensor", "monitoring",
-        "listing", "agent", "recurring", "ai_proxy"
+        "listing", "agent", "recurring", "bills", "ai_proxy"
       ],
       "source": ["frontend/dist"],
       "type": "assets",
