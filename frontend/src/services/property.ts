@@ -161,6 +161,8 @@ export interface RegisterPropertyArgs {
 }
 
 let _actor: any = null;
+let _mockProperties: Property[] = [];
+let _mockNextId = BigInt(1);
 
 async function getActor() {
   if (!_actor) {
@@ -206,6 +208,26 @@ function unwrap(result: any): Property {
 
 export const propertyService = {
   async registerProperty(args: RegisterPropertyArgs): Promise<Property> {
+    if (!PROPERTY_CANISTER_ID) {
+      const mock: Property = {
+        id:                _mockNextId++,
+        owner:             "local-dev",
+        address:           args.address,
+        city:              args.city,
+        state:             args.state,
+        zipCode:           args.zipCode,
+        propertyType:      args.propertyType,
+        yearBuilt:         BigInt(args.yearBuilt),
+        squareFeet:        BigInt(args.squareFeet),
+        verificationLevel: "Unverified",
+        tier:              args.tier,
+        createdAt:         BigInt(Date.now()),
+        updatedAt:         BigInt(Date.now()),
+        isActive:          true,
+      };
+      _mockProperties.push(mock);
+      return { ...mock };
+    }
     const a = await getActor();
     const result = await a.registerProperty({
       address: args.address,
@@ -221,6 +243,7 @@ export const propertyService = {
   },
 
   async getMyProperties(): Promise<Property[]> {
+    if (!PROPERTY_CANISTER_ID) return _mockProperties.map((p) => ({ ...p }));
     const a = await getActor();
     const props = await a.getMyProperties();
     return (props as any[]).map(fromProperty);
