@@ -10,7 +10,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
-  Bell, Wrench, ShieldAlert, Clock, CheckCircle2, AlertTriangle,
+  Bell, Wrench, ShieldAlert, Clock, CheckCircle2, AlertTriangle, MessageSquare,
   LayoutDashboard, TrendingUp, Users, Cpu, Home as HomeIcon, PlusSquare,
   Settings, Store, ChevronLeft, ChevronRight, LogOut, Menu, X,
   ArrowUpCircle,
@@ -19,6 +19,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAuthStore } from "@/store/authStore";
 import { usePropertyStore } from "@/store/propertyStore";
 import { jobService, type Job } from "@/services/job";
+import { quoteService, type QuoteRequest } from "@/services/quote";
 import { paymentService } from "@/services/payment";
 import { VoiceAgent } from "./VoiceAgent";
 import UpgradeModal from "./UpgradeModal";
@@ -28,14 +29,14 @@ import { COLORS, FONTS } from "@/theme";
 
 interface ActivityEvent {
   id:        string;
-  type:      "pending_verification" | "warranty_expiring" | "job_pending_sig" | "recent_job";
+  type:      "pending_verification" | "warranty_expiring" | "job_pending_sig" | "recent_job" | "open_quote";
   title:     string;
   detail:    string;
   href:      string;
   timestamp: number;
 }
 
-function deriveEvents(properties: any[], jobs: Job[]): ActivityEvent[] {
+function deriveEvents(properties: any[], jobs: Job[], quotes: QuoteRequest[]): ActivityEvent[] {
   const events: ActivityEvent[] = [];
   const now = Date.now();
 
@@ -65,6 +66,11 @@ function deriveEvents(properties: any[], jobs: Job[]): ActivityEvent[] {
     if (!events.some((e) => e.id.startsWith(`sig-${j.id}`) || e.id.startsWith(`wty-${j.id}`))) {
       events.push({ id: `job-${j.id}`, type: "recent_job", title: j.serviceType, detail: `${j.isDiy ? "DIY" : j.contractorName ?? ""} · $${(j.amount / 100).toLocaleString()} · ${j.date}`, href: `/properties/${j.propertyId}`, timestamp: j.createdAt ?? now });
     }
+  }
+
+  const openQuotes = quotes.filter((q) => q.status === "open" || q.status === "quoted");
+  if (openQuotes.length > 0) {
+    events.push({ id: "open-quotes", type: "open_quote", title: `${openQuotes.length} open quote request${openQuotes.length !== 1 ? "s" : ""}`, detail: "Contractors may have responded", href: "/quotes", timestamp: now });
   }
 
   return events.sort((a, b) => b.timestamp - a.timestamp).slice(0, 20);
@@ -98,6 +104,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [mobileOpen,   setMobileOpen]   = useState(false);
   const [feedOpen,     setFeedOpen]     = useState(false);
   const [feedJobs,     setFeedJobs]     = useState<Job[]>([]);
+  const [feedQuotes,   setFeedQuotes]   = useState<QuoteRequest[]>([]);
   const [feedLoaded,   setFeedLoaded]   = useState(false);
   const [lastReadAt,   setLastReadAt]   = useState<number>(() =>
     parseInt(localStorage.getItem("homegentic_feed_read") ?? "0", 10)
@@ -125,10 +132,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!feedOpen || feedLoaded) return;
-    jobService.getAll().then(setFeedJobs).catch(() => {}).finally(() => setFeedLoaded(true));
+    Promise.all([
+      jobService.getAll().catch(() => [] as Job[]),
+      quoteService.getRequests().catch(() => [] as QuoteRequest[]),
+    ]).then(([jobs, quotes]) => {
+      setFeedJobs(jobs);
+      setFeedQuotes(quotes);
+    }).finally(() => setFeedLoaded(true));
   }, [feedOpen, feedLoaded]);
 
-  const events = useMemo(() => deriveEvents(properties, feedJobs), [properties, feedJobs]);
+  const events = useMemo(() => deriveEvents(properties, feedJobs, feedQuotes), [properties, feedJobs, feedQuotes]);
   const unread  = events.filter((e) => e.timestamp > lastReadAt).length;
 
   const openFeed = () => {
@@ -621,6 +634,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     warranty_expiring:    <AlertTriangle size={14} color={COLORS.sage} />,
                     job_pending_sig:      <Clock size={14} color={COLORS.sage} />,
                     recent_job:           <Wrench size={14} color={COLORS.plumMid} />,
+                    open_quote:           <MessageSquare size={14} color={COLORS.sage} />,
                   };
                   const isUnread = event.timestamp > lastReadAt;
                   return (

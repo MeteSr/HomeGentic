@@ -41,37 +41,6 @@ export function VoiceAgent() {
       alignItems: "flex-end", gap: "0.75rem",
     }}>
 
-      {/* Proactive alert chips — shown only when idle and no bubble */}
-      {isIdle && !hasBubble && alerts.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.375rem" }}>
-          {alerts.map((alert, i) => (
-            <div
-              key={i}
-              style={{
-                display: "flex", alignItems: "center", gap: "0.5rem",
-                background: COLORS.plum, border: `1px solid ${COLORS.rule}`,
-                padding: "0.4rem 0.75rem",
-                borderRadius: RADIUS.sm,
-                maxWidth: "18rem",
-              }}
-            >
-              <AlertTriangle size={11} color={alert.type === "warranty" ? COLORS.butter : COLORS.sage} style={{ flexShrink: 0 }} />
-              <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: COLORS.plumMid, flex: 1, lineHeight: 1.4 }}>
-                {alert.message}
-              </span>
-              {alert.href && (
-                <button
-                  onClick={() => navigate(alert.href!)}
-                  style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.sage, background: "none", border: "none", cursor: "pointer", whiteSpace: "nowrap", padding: 0 }}
-                >
-                  {alert.actionLabel ?? "View"} →
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* Speech bubble */}
       {hasBubble && (
         <div style={{
