@@ -44,7 +44,8 @@ const FAQS = [
 ];
 
 export default function PricingPage() {
-  const { login } = useAuth();
+  const { login, devLogin } = useAuth();
+  const handleLogin = import.meta.env.DEV ? devLogin : login;
   const navigate  = useNavigate();
 
   return (
@@ -55,7 +56,7 @@ export default function PricingPage() {
           <Link to="/" style={{ textDecoration: "none", fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.1rem", letterSpacing: "-0.5px", color: COLORS.plum }}>
             Home<span style={{ color: COLORS.sage }}>Gentic</span>
           </Link>
-          <Button size="sm" onClick={login}>Get Started Free</Button>
+          <Button size="sm" onClick={handleLogin}>Get Started Free</Button>
         </div>
       </header>
 
@@ -113,7 +114,7 @@ export default function PricingPage() {
                   ))}
                 </ul>
 
-                <Button variant={isPopular ? "secondary" : "outline"} style={{ width: "100%", background: isPopular ? COLORS.sage : undefined, color: isPopular ? COLORS.white : undefined, borderColor: isPopular ? COLORS.sage : undefined }} onClick={login}>
+                <Button variant={isPopular ? "secondary" : "outline"} style={{ width: "100%", background: isPopular ? COLORS.sage : undefined, color: isPopular ? COLORS.white : undefined, borderColor: isPopular ? COLORS.sage : undefined }} onClick={handleLogin}>
                   {plan.price === 0 ? "Get Started Free" : `Upgrade to ${plan.tier}`}
                 </Button>
               </div>

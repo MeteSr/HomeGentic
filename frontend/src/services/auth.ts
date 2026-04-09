@@ -86,6 +86,7 @@ export interface RegisterArgs {
 }
 
 let _actor: any = null;
+let _mockProfile: UserProfile | null = null;
 
 async function getActor() {
   if (!_actor) {
@@ -119,6 +120,19 @@ function unwrap(result: any): UserProfile {
 
 export const authService = {
   async register(args: RegisterArgs): Promise<UserProfile> {
+    if (!AUTH_CANISTER_ID) {
+      _mockProfile = {
+        principal:    "local-dev",
+        role:         args.role,
+        email:        args.email,
+        phone:        args.phone,
+        createdAt:    BigInt(Date.now()),
+        updatedAt:    BigInt(Date.now()),
+        isActive:     true,
+        lastLoggedIn: null,
+      };
+      return { ..._mockProfile };
+    }
     const a = await getActor();
     const result = await a.register({
       role: { [args.role]: null },
@@ -129,12 +143,21 @@ export const authService = {
   },
 
   async getProfile(): Promise<UserProfile> {
+    if (!AUTH_CANISTER_ID) {
+      if (!_mockProfile) throw new Error("NotFound");
+      return { ..._mockProfile };
+    }
     const a = await getActor();
     const result = await a.getProfile();
     return unwrap(result);
   },
 
   async updateProfile(args: { email: string; phone: string }): Promise<UserProfile> {
+    if (!AUTH_CANISTER_ID) {
+      if (!_mockProfile) throw new Error("NotFound");
+      _mockProfile = { ..._mockProfile, email: args.email, phone: args.phone, updatedAt: BigInt(Date.now()) };
+      return { ..._mockProfile };
+    }
     const a = await getActor();
     const result = await a.updateProfile(args);
     return unwrap(result);
@@ -147,11 +170,13 @@ export const authService = {
   },
 
   async hasRole(role: UserRole): Promise<boolean> {
+    if (!AUTH_CANISTER_ID) return _mockProfile?.role === role;
     const a = await getActor();
     return a.hasRole({ [role]: null });
   },
 
   reset() {
     _actor = null;
+    _mockProfile = null;
   },
 };
