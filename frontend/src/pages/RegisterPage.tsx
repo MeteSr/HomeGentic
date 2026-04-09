@@ -211,7 +211,12 @@ export default function RegisterPage() {
                 </div>
                 <div style={{ display: "flex", gap: "0.75rem" }}>
                   <Button variant="outline" onClick={() => setStep(1)} icon={<ArrowLeft size={16} />}>Back</Button>
-                  <Button onClick={() => setStep(3)} iconRight={<ArrowRight size={16} />} style={{ flex: 1 }}>Review</Button>
+                  <Button
+                    disabled={(email !== "" && !isValidEmail(email)) || (phone !== "" && !isValidPhone(phone))}
+                    onClick={() => setStep(3)}
+                    iconRight={<ArrowRight size={16} />}
+                    style={{ flex: 1 }}
+                  >Review</Button>
                 </div>
               </>
             )}
