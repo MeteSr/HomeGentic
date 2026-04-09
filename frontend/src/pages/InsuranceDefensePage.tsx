@@ -8,14 +8,20 @@
 
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Printer, ShieldCheck, CheckCircle, Clock } from "lucide-react";
+import { ArrowLeft, Printer, ShieldCheck, CheckCircle, Clock, Zap, ChevronDown, ChevronUp, Sparkles, Wifi } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { propertyService, Property } from "@/services/property";
 import { jobService, Job, INSURANCE_SERVICE_TYPES } from "@/services/job";
+import { sensorService, type SensorDevice, type SensorEvent } from "@/services/sensor";
 import { paymentService, type PlanTier } from "@/services/payment";
 import { UpgradeGate } from "@/components/UpgradeGate";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import {
+  estimateInsurerDiscount,
+  type InsurerDiscountResult,
+  type DiscountCategory,
+} from "@/services/insurerDiscountService";
 
 const S = {
   ink:      COLORS.plum,
@@ -57,6 +63,13 @@ export default function InsuranceDefensePage() {
   const [savingsInput,      setSavingsInput]       = useState("");
   const [userTier, setUserTier] = useState<PlanTier>("Free");
 
+  // ── Sensor discount estimator state ──────────────────────────────────────
+  const [sensorDevices,    setSensorDevices]    = useState<SensorDevice[]>([]);
+  const [discountResult,   setDiscountResult]   = useState<InsurerDiscountResult | null>(null);
+  const [discountLoading,  setDiscountLoading]  = useState(false);
+  const [discountError,    setDiscountError]    = useState<string | null>(null);
+  const [discountExpanded, setDiscountExpanded] = useState(true);
+
   useEffect(() => {
     paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch(() => {});
     Promise.all([
@@ -65,8 +78,51 @@ export default function InsuranceDefensePage() {
     ]).then(([props, js]) => {
       setProperties(props);
       setJobs(js);
+      // Load sensor devices for all properties
+      Promise.all(props.map((p) => sensorService.getDevicesForProperty(String(p.id))))
+        .then((perProp) => setSensorDevices(perProp.flat()))
+        .catch(() => {});
     }).finally(() => setLoading(false));
   }, []);
+
+  async function handleEstimateDiscount() {
+    if (properties.length === 0) return;
+    setDiscountLoading(true);
+    setDiscountError(null);
+    try {
+      // Gather critical event count across all properties
+      const eventsPerProp = await Promise.all(
+        properties.map((p) =>
+          sensorService.getEventsForProperty(String(p.id), 200).catch(() => [] as SensorEvent[])
+        )
+      );
+      const criticalEventCount = eventsPerProp.flat()
+        .filter((e) => e.severity === "Critical" && Date.now() - e.timestamp < 90 * 24 * 60 * 60 * 1000)
+        .length;
+
+      const firstProp = properties[0];
+      const result = await estimateInsurerDiscount({
+        state:   firstProp.state ?? "FL",
+        zipCode: firstProp.zipCode ?? "",
+        properties: properties.map((p) => ({
+          address:           p.address,
+          yearBuilt:         Number(p.yearBuilt),
+          verificationLevel: String(p.verificationLevel),
+        })),
+        devices: sensorDevices.map((d) => ({ source: d.source, name: d.name })),
+        criticalEventCount,
+        verifiedJobTypes: [...new Set(
+          insuranceJobs.filter((j) => j.status === "verified").map((j) => j.serviceType)
+        )],
+        totalVerifiedJobs: insuranceJobs.filter((j) => j.status === "verified").length,
+      });
+      setDiscountResult(result);
+    } catch (err) {
+      setDiscountError(err instanceof Error ? err.message : "Failed to estimate discount");
+    } finally {
+      setDiscountLoading(false);
+    }
+  }
 
   const insuranceJobs = jobs.filter((j) => INSURANCE_SERVICE_TYPES.has(j.serviceType));
   const verifiedCount = insuranceJobs.filter((j) => j.status === "verified").length;
@@ -116,6 +172,166 @@ export default function InsuranceDefensePage() {
             This report is formatted for insurer submission. Use <strong>Print → Save as PDF</strong> to generate a file.
             Florida insurers commonly require Roofing, HVAC, Electrical, and Plumbing records.
           </p>
+        </div>
+      </div>
+
+      {/* ── Smart Home Discount Estimator (screen-only) ─────────────────────── */}
+      <div className="no-print" style={{ maxWidth: "56rem", margin: "0 auto", padding: "0 1.5rem 1.5rem" }}>
+        <div style={{ border: `1px solid ${COLORS.sky}`, background: "#EEF6FB" }}>
+          {/* Header row */}
+          <button
+            onClick={() => setDiscountExpanded((x) => !x)}
+            style={{
+              width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "0.875rem 1.25rem", background: "none", border: "none", cursor: "pointer",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+              <Zap size={15} color={COLORS.sky} />
+              <span style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plum, fontWeight: 600 }}>
+                Smart Home Discount Estimator
+              </span>
+              {discountResult && (
+                <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", background: COLORS.sky, color: COLORS.plum, padding: "0.2rem 0.6rem" }}>
+                  {discountResult.discountRangeMin}–{discountResult.discountRangeMax}% est. savings
+                </span>
+              )}
+            </div>
+            {discountExpanded ? <ChevronUp size={14} color={COLORS.plumMid} /> : <ChevronDown size={14} color={COLORS.plumMid} />}
+          </button>
+
+          {discountExpanded && (
+            <div style={{ borderTop: `1px solid ${COLORS.sky}`, padding: "1.25rem" }}>
+              {/* Device summary + CTA */}
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem", marginBottom: "1rem", flexWrap: "wrap" }}>
+                <div>
+                  <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.375rem" }}>
+                    Connected devices detected
+                  </p>
+                  {sensorDevices.length === 0 ? (
+                    <p style={{ fontSize: "0.8rem", color: COLORS.plumMid, fontFamily: FONTS.sans }}>
+                      No smart devices registered.{" "}
+                      <button onClick={() => navigate("/sensors")} style={{ background: "none", border: "none", cursor: "pointer", color: COLORS.sage, fontFamily: FONTS.mono, fontSize: "0.7rem", textDecoration: "underline" }}>
+                        Add sensors →
+                      </button>
+                    </p>
+                  ) : (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem" }}>
+                      {sensorDevices.map((d) => (
+                        <span key={d.id} style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", border: `1px solid ${COLORS.sky}`, background: "#D6EBF6", padding: "0.2rem 0.6rem", fontFamily: FONTS.mono, fontSize: "0.6rem", color: COLORS.plum }}>
+                          <Wifi size={9} /> {d.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={handleEstimateDiscount}
+                  disabled={discountLoading || properties.length === 0}
+                  style={{
+                    display: "flex", alignItems: "center", gap: "0.4rem",
+                    background: COLORS.plum, color: COLORS.white, border: "none",
+                    fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.08em",
+                    padding: "0.625rem 1.125rem", cursor: discountLoading ? "wait" : "pointer",
+                    opacity: (discountLoading || properties.length === 0) ? 0.6 : 1,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  <Sparkles size={12} />
+                  {discountLoading ? "Analysing…" : discountResult ? "Re-analyse" : "Estimate My Discount"}
+                </button>
+              </div>
+
+              {discountError && (
+                <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: COLORS.rust, marginBottom: "1rem" }}>
+                  {discountError}
+                </p>
+              )}
+
+              {discountResult && (
+                <>
+                  {/* Discount range banner */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", padding: "1rem 1.25rem", background: COLORS.white, border: `1px solid ${COLORS.sky}`, marginBottom: "1rem", flexWrap: "wrap" }}>
+                    <div style={{ textAlign: "center" }}>
+                      <p style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "2rem", lineHeight: 1, color: COLORS.plum }}>
+                        {discountResult.discountRangeMin}–{discountResult.discountRangeMax}%
+                      </p>
+                      <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid }}>Estimated Annual Discount</p>
+                    </div>
+                    <div style={{ flex: 1, minWidth: "200px" }}>
+                      <p style={{ fontSize: "0.8rem", fontFamily: FONTS.sans, color: COLORS.plum, lineHeight: 1.5 }}>
+                        Based on your {sensorDevices.length} connected device{sensorDevices.length !== 1 ? "s" : ""} and {insuranceJobs.filter((j) => j.status === "verified").length} blockchain-verified maintenance records.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Qualifying categories */}
+                  <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.5rem" }}>
+                    Discount Categories
+                  </p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem", marginBottom: "1rem" }}>
+                    {discountResult.qualifyingCategories.map((cat: DiscountCategory) => {
+                      const color = cat.status === "qualifying" ? COLORS.sage
+                                  : cat.status === "potential"  ? "#D97706"
+                                  : COLORS.plumMid;
+                      const bg    = cat.status === "qualifying" ? COLORS.sageLight
+                                  : cat.status === "potential"  ? "#FEF3C7"
+                                  : COLORS.white;
+                      return (
+                        <div key={cat.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.625rem 0.875rem", border: `1px solid ${cat.status === "qualifying" ? COLORS.sageMid : COLORS.rule}`, background: bg, flexWrap: "wrap", gap: "0.375rem" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flex: 1 }}>
+                            {cat.status === "qualifying"
+                              ? <CheckCircle size={12} color={COLORS.sage} />
+                              : cat.status === "potential"
+                              ? <Clock size={12} color="#D97706" />
+                              : <Clock size={12} color={COLORS.plumMid} />}
+                            <div>
+                              <p style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", fontWeight: 500, color: COLORS.plum }}>{cat.name}</p>
+                              <p style={{ fontFamily: S.mono, fontSize: "0.55rem", color: COLORS.plumMid }}>{cat.basis}</p>
+                            </div>
+                          </div>
+                          <span style={{ fontFamily: S.mono, fontSize: "0.65rem", fontWeight: 600, color, whiteSpace: "nowrap" }}>
+                            {cat.discountRange}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Insurer programs */}
+                  <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.5rem" }}>
+                    Programs You May Qualify For
+                  </p>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", gap: "0.625rem", marginBottom: "1rem" }}>
+                    {discountResult.programs.map((prog) => (
+                      <div key={prog.insurer + prog.programName} style={{ border: `1px solid ${COLORS.rule}`, padding: "0.875rem", background: COLORS.white }}>
+                        <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.2rem" }}>{prog.insurer}</p>
+                        <p style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", fontWeight: 600, color: COLORS.plum, marginBottom: "0.2rem" }}>{prog.programName}</p>
+                        <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: COLORS.sage, marginBottom: "0.375rem" }}>{prog.estimatedDiscount}</p>
+                        <p style={{ fontFamily: FONTS.sans, fontSize: "0.7rem", color: COLORS.plumMid, lineHeight: 1.4 }}>{prog.notes}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Recommendations */}
+                  <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.5rem" }}>
+                    Recommended Next Steps
+                  </p>
+                  <ol style={{ paddingLeft: "1.25rem", margin: 0 }}>
+                    {discountResult.recommendations.map((rec, i) => (
+                      <li key={i} style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", color: COLORS.plum, lineHeight: 1.5, marginBottom: "0.375rem" }}>
+                        {rec}
+                      </li>
+                    ))}
+                  </ol>
+
+                  <p style={{ fontFamily: S.mono, fontSize: "0.5rem", color: COLORS.plumMid, marginTop: "0.75rem" }}>
+                    Estimates generated by AI. Verify discount eligibility directly with your insurer. Generated {new Date(discountResult.generatedAt).toLocaleString()}.
+                  </p>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -275,6 +491,28 @@ export default function InsuranceDefensePage() {
                 </div>
               </div>
             ))}
+
+            {/* Connected device inventory (printed for insurer) */}
+            {sensorDevices.length > 0 && (
+              <div style={{ marginBottom: "2rem", border: `1px solid ${S.rule}` }}>
+                <div style={{ background: S.ink, color: S.paper, padding: "0.75rem 1.25rem" }}>
+                  <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase" }}>
+                    Connected Smart-Home Devices
+                  </p>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 0, background: S.paper }}>
+                  {sensorDevices.map((d, i) => (
+                    <div key={d.id} style={{ padding: "0.75rem 1rem", borderRight: "1px solid #e5e5e5", borderBottom: "1px solid #e5e5e5" }}>
+                      <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight }}>{d.source}</p>
+                      <p style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.ink }}>{d.name}</p>
+                      <p style={{ fontFamily: S.mono, fontSize: "0.5rem", color: d.isActive ? S.sage : S.inkLight }}>
+                        {d.isActive ? "Active" : "Inactive"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Footer disclaimer */}
             <div style={{ borderTop: `1px solid ${S.rule}`, paddingTop: "1.5rem", marginTop: "1rem" }}>

@@ -537,6 +537,114 @@ app.post("/api/errors", (req: Request, res: Response): void => {
 
 
 
+// ── POST /api/insurer-discount ────────────────────────────────────────────────
+// Epic #50 — Sensor × Insurer Discount Estimator.
+// Analyses a homeowner's connected devices and verified maintenance records
+// against common insurer discount programs and returns an estimated savings
+// range with qualifying categories and program recommendations.
+//
+// Request:  InsurerDiscountRequest (see type below)
+// Response: InsurerDiscountResult
+//   { discountRangeMin, discountRangeMax, qualifyingCategories,
+//     programs, recommendations, generatedAt }
+//
+// 5 mb body limit is inherited from the JSON middleware above (all non-classify
+// routes are capped at 50 kb — this payload is text-only so that's fine).
+app.post("/api/insurer-discount", async (req: Request, res: Response): Promise<void> => {
+  const {
+    state,
+    zipCode,
+    properties = [],
+    devices    = [],
+    criticalEventCount = 0,
+    verifiedJobTypes   = [],
+    totalVerifiedJobs  = 0,
+  } = req.body ?? {};
+
+  if (!state || !zipCode) {
+    res.status(400).json({ error: "state and zipCode are required" });
+    return;
+  }
+
+  const deviceLines = (devices as Array<{ source: string; name: string }>)
+    .map((d) => `  - ${d.name} (${d.source})`)
+    .join("\n") || "  None registered";
+
+  const jobLines = verifiedJobTypes.length
+    ? (verifiedJobTypes as string[]).map((t) => `  - ${t}`).join("\n")
+    : "  None on record";
+
+  const propLines = (properties as Array<{ address: string; yearBuilt: number; verificationLevel: string }>)
+    .map((p) => `  - ${p.address} (built ${p.yearBuilt}, ${p.verificationLevel} verification)`)
+    .join("\n") || "  None";
+
+  const systemPrompt = `You are a home insurance discount analyst for the HomeGentic platform.
+Analyse the homeowner's smart devices and verified maintenance records, then estimate their insurance discount eligibility.
+Focus on US residential property insurance, especially Florida (Citizens, UPC, Hippo, Neptune) but apply general knowledge for other states.
+Respond ONLY with valid JSON — no markdown, no prose.
+
+JSON shape:
+{
+  "discountRangeMin": <integer percent, e.g. 5>,
+  "discountRangeMax": <integer percent, e.g. 20>,
+  "qualifyingCategories": [
+    {
+      "name": "<discount category name>",
+      "discountRange": "<e.g. 5–10%>",
+      "basis": "<device or record that qualifies them>",
+      "status": "<qualifying|potential|missing>"
+    }
+  ],
+  "programs": [
+    {
+      "insurer": "<insurer name>",
+      "programName": "<program name>",
+      "estimatedDiscount": "<e.g. up to 15%>",
+      "notes": "<1 sentence on how to apply or what's required>"
+    }
+  ],
+  "recommendations": ["<actionable step to unlock more savings>"],
+  "generatedAt": <ms timestamp>
+}
+
+Rules:
+- qualifyingCategories must cover ALL discount types the homeowner could access (qualifying, potential, or missing)
+- programs should list 2–4 real insurer programs relevant to their state
+- recommendations should be 3–5 specific, actionable steps ordered by impact
+- discountRangeMin/Max should be conservative and evidence-based`;
+
+  const userMsg = [
+    `State: ${state} | Zip: ${zipCode}`,
+    `Properties:\n${propLines}`,
+    `Connected smart devices:\n${deviceLines}`,
+    `Critical sensor alerts in last 90 days: ${criticalEventCount}`,
+    `Verified maintenance job types:\n${jobLines}`,
+    `Total verified jobs on ICP blockchain: ${totalVerifiedJobs}`,
+    ``,
+    `Estimate insurance discount eligibility for this homeowner.`,
+  ].join("\n");
+
+  try {
+    const text = await provider.complete({
+      system:    systemPrompt,
+      messages:  [{ role: "user", content: userMsg }],
+      maxTokens: 1024,
+    });
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      res.status(500).json({ error: PROVIDER_JSON_ERROR });
+      return;
+    }
+    const result = JSON.parse(jsonMatch[0]);
+    result.generatedAt = result.generatedAt ?? Date.now();
+    res.json(result);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    res.status(500).json({ error: msg });
+  }
+});
+
 // ── GET /health ───────────────────────────────────────────────────────────────
 app.get("/health", (_req, res) => {
   res.json({ ok: true, model: MODEL });
