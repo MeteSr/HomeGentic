@@ -48,6 +48,13 @@ const ecobeeLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const nestLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Store raw body for HMAC verification before JSON parsing
 app.use(
   express.json({
@@ -96,7 +103,7 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
 // ── POST /webhooks/nest ───────────────────────────────────────────────────────
 // Google SDM API sends Pub/Sub push messages here.
 // Validates the Google-Cloud-Token bearer token.
-app.post("/webhooks/nest", async (req: Request, res: Response): Promise<void> => {
+app.post("/webhooks/nest", nestLimiter, async (req: Request, res: Response): Promise<void> => {
   const token = (req.headers["google-cloud-token"] ??
     req.headers["authorization"]?.replace("Bearer ", "")) as string | undefined;
   const expected = process.env.NEST_WEBHOOK_SECRET;

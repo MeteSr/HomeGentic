@@ -215,7 +215,7 @@ function AgentBrandingSection() {
         {/* Preview */}
         {(name || brokerage) && (
           <div style={{ border: `1px solid ${S.rule}`, padding: "0.875rem 1.25rem", background: COLORS.white, display: "flex", alignItems: "center", gap: "0.875rem" }}>
-            {logoUrl && (
+            {logoUrl && isValidHttpsUrl(logoUrl) && (
               <img src={logoUrl} alt="logo" style={{ height: "2rem", objectFit: "contain", flexShrink: 0 }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
             )}
             <div>

@@ -12,6 +12,10 @@ on:
   pull_request:
     branches: [main]
     paths:
+
+permissions:
+  contents: read
+  pull-requests: write
       # Only run when canister code, services, or benchmark scripts change
       - "backend/**"
       - "frontend/src/services/**"

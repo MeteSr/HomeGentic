@@ -9,6 +9,8 @@ src/frontend/node_modules/
 # Build output
 src/frontend/dist/
 dist/
+frontend/dist/
+frontend/coverage/
 
 # Environment
 .env
