@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, CheckCircle } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
-import { propertyService, PropertyType, SubscriptionTier } from "@/services/property";
+import { propertyService, PropertyType } from "@/services/property";
+import { lookupPropertyDetails } from "@/services/propertyLookup";
 import { usePropertyStore } from "@/store/propertyStore";
 import { AddressAutocomplete } from "@/components/AddressAutocomplete";
 import { triggerPermitImport, createJobsFromPermits, type ImportedPermit, type PermitImportResult } from "@/services/permitImport";
@@ -29,15 +30,9 @@ const S = {
 interface FormData {
   address: string; city: string; state: string; zipCode: string;
   propertyType: PropertyType; yearBuilt: string; squareFeet: string;
-  tier: SubscriptionTier;
 }
 
 const PROPERTY_TYPES: PropertyType[] = ["SingleFamily", "Condo", "Townhouse", "MultiFamily"];
-const TIERS: { value: SubscriptionTier; label: string; price: string; desc: string }[] = [
-  { value: "Free",    label: "Free",    price: "$0",     desc: "1 property, 2 photos/job" },
-  { value: "Pro",     label: "Pro",     price: "$10/mo", desc: "5 properties, 10 photos/job" },
-  { value: "Premium", label: "Premium", price: "$20/mo", desc: "20 properties, 30 photos/job" },
-];
 
 export default function PropertyRegisterPage() {
   const navigate = useNavigate();
@@ -45,13 +40,14 @@ export default function PropertyRegisterPage() {
   const { addProperty } = usePropertyStore();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [lookingUp, setLookingUp] = useState(false);
   const { isMobile } = useBreakpoint();
   const [permitResult, setPermitResult] = useState<PermitImportResult | null>(null);
   const [registeredPropertyId, setRegisteredPropertyId] = useState<string | null>(null);
   const [pendingSystemAges, setPendingSystemAges] = useState<SystemAges>({});
   const [form, setForm] = useState<FormData>({
     address: "", city: "", state: "", zipCode: "",
-    propertyType: "SingleFamily", yearBuilt: "", squareFeet: "", tier: "Free",
+    propertyType: "SingleFamily", yearBuilt: "", squareFeet: "",
   });
 
   // §17.2.5 — pre-populate from instant-forecast "Save your forecast" URL
@@ -70,6 +66,23 @@ export default function PropertyRegisterPage() {
   const update = (key: keyof FormData, value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
 
+  const goToStep2 = async () => {
+    setStep(2);
+    setLookingUp(true);
+    try {
+      const result = await lookupPropertyDetails(form.address, form.city, form.state, form.zipCode);
+      if (result) {
+        setForm((f) => ({
+          ...f,
+          yearBuilt:  result.yearBuilt     ? String(result.yearBuilt)     : f.yearBuilt,
+          squareFeet: result.squareFootage  ? String(result.squareFootage) : f.squareFeet,
+        }));
+      }
+    } finally {
+      setLookingUp(false);
+    }
+  };
+
   const handleSubmit = async () => {
     setLoading(true);
     try {
@@ -77,7 +90,7 @@ export default function PropertyRegisterPage() {
         address: form.address, city: form.city, state: form.state,
         zipCode: form.zipCode, propertyType: form.propertyType,
         yearBuilt: parseInt(form.yearBuilt), squareFeet: parseInt(form.squareFeet),
-        tier: form.tier,
+        tier: "Free",
       });
       addProperty(property);
       toast.success("Property registered!");
@@ -209,7 +222,7 @@ export default function PropertyRegisterPage() {
                 !isValidUsState(form.state) ||
                 !isValidZip(form.zipCode)
               }
-              onClick={() => setStep(2)}
+              onClick={goToStep2}
               iconRight={<ArrowRight size={14} />}
             >
               Next: Property Details
@@ -240,30 +253,18 @@ export default function PropertyRegisterPage() {
               </div>
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "1rem" }}>
                 <div>
-                  <label className="form-label">Year Built *</label>
-                  <input className="form-input" type="number" placeholder="1985" min="1800" max={new Date().getFullYear()} value={form.yearBuilt} onChange={(e) => update("yearBuilt", e.target.value)} />
+                  <label className="form-label">
+                    Year Built *
+                    {lookingUp && <span style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight, marginLeft: "0.5rem" }}>fetching…</span>}
+                  </label>
+                  <input className="form-input" type="number" placeholder="1985" min="1800" max={new Date().getFullYear()} value={form.yearBuilt} onChange={(e) => update("yearBuilt", e.target.value)} disabled={lookingUp} />
                 </div>
                 <div>
-                  <label className="form-label">Square Feet *</label>
-                  <input className="form-input" type="number" placeholder="2000" min="100" value={form.squareFeet} onChange={(e) => update("squareFeet", e.target.value)} />
-                </div>
-              </div>
-              <div>
-                <label className="form-label">Plan</label>
-                <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: S.rule }}>
-                  {TIERS.map((t) => (
-                    <div key={t.value} onClick={() => update("tier", t.value)} style={{
-                      padding: "0.875rem 1rem", cursor: "pointer",
-                      background: form.tier === t.value ? COLORS.blush : COLORS.white,
-                      display: "flex", justifyContent: "space-between", alignItems: "center",
-                    }}>
-                      <div>
-                        <span style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: form.tier === t.value ? S.rust : S.ink }}>{t.label}</span>
-                        <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, marginLeft: "0.75rem" }}>{t.desc}</span>
-                      </div>
-                      <span style={{ fontFamily: S.mono, fontSize: "0.75rem", fontWeight: 500, color: form.tier === t.value ? S.rust : S.inkLight }}>{t.price}</span>
-                    </div>
-                  ))}
+                  <label className="form-label">
+                    Square Feet *
+                    {lookingUp && <span style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight, marginLeft: "0.5rem" }}>fetching…</span>}
+                  </label>
+                  <input className="form-input" type="number" placeholder="2000" min="100" value={form.squareFeet} onChange={(e) => update("squareFeet", e.target.value)} disabled={lookingUp} />
                 </div>
               </div>
             </div>
@@ -297,7 +298,6 @@ export default function PropertyRegisterPage() {
               { label: "Type",       value: form.propertyType === "SingleFamily" ? "Single Family" : form.propertyType },
               { label: "Year Built", value: form.yearBuilt },
               { label: "Sq Ft",      value: form.squareFeet },
-              { label: "Plan",       value: form.tier },
             ].map((row, i, arr) => (
               <div key={row.label} style={{
                 display: "flex", justifyContent: "space-between", alignItems: "center",
