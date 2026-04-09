@@ -22,12 +22,10 @@
  */
 
 import Array     "mo:core/Array";
-import Char      "mo:core/Char";
 import Float     "mo:core/Float";
 import Map       "mo:core/Map";
 import Iter      "mo:core/Iter";
 import Nat       "mo:core/Nat";
-import Nat32     "mo:core/Nat32";
 import Option    "mo:core/Option";
 import Principal "mo:core/Principal";
 import Result    "mo:core/Result";
@@ -167,32 +165,29 @@ persistent actor Bills {
   };
 
   /// Compute 3-month rolling average amountCents for a (propertyId, billType, homeowner).
-  /// Returns null if fewer than 2 prior bills exist (insufficient baseline).
+  /// Uses uploadedAt timestamps — bills uploaded within the last 3 months relative to
+  /// `refNs` are included. Returns null if fewer than 2 prior bills exist.
   private func rollingAverage(
     propertyId: Text,
     billType: BillType,
     homeowner: Principal,
     excludeId: Text,
-    periodEndRef: Text,
+    refNs: Int,
   ) : ?Float {
     var sum  : Float = 0.0;
     var count: Nat   = 0;
-
-    let refYear  = if (Text.size(periodEndRef) >= 4) Text.subText(periodEndRef, 0, 4) else "0000";
-    let refMonth = if (Text.size(periodEndRef) >= 7) Text.subText(periodEndRef, 5, 7) else "00";
+    let threeMonthsNs : Int = 3 * ONE_MONTH_NS;
 
     for ((_, b) in Map.entries(bills)) {
       if (b.id != excludeId
           and b.propertyId == propertyId
           and Principal.equal(b.homeowner, homeowner)
-          and billTypeEq(b.billType, billType))
+          and billTypeEq(b.billType, billType)
+          and b.uploadedAt < refNs
+          and refNs - b.uploadedAt <= threeMonthsNs)
       {
-        let bYear  = if (Text.size(b.periodEnd) >= 4) Text.subText(b.periodEnd, 0, 4) else "0000";
-        let bMonth = if (Text.size(b.periodEnd) >= 7) Text.subText(b.periodEnd, 5, 7) else "00";
-        if (withinThreeMonths(bYear, bMonth, refYear, refMonth)) {
-          sum   += Float.fromInt(b.amountCents);
-          count += 1;
-        }
+        sum   += Float.fromInt(b.amountCents);
+        count += 1;
       }
     };
     if (count < 2) null
@@ -209,28 +204,6 @@ persistent actor Bills {
       case (#Other,    #Other)    true;
       case _                      false;
     }
-  };
-
-  /// Returns true if (y2,m2) is within 3 calendar months before (y1,m1).
-  private func withinThreeMonths(y2: Text, m2: Text, y1: Text, m1: Text) : Bool {
-    let yi2 = textToNat(y2);
-    let mi2 = textToNat(m2);
-    let yi1 = textToNat(y1);
-    let mi1 = textToNat(m1);
-    let total2 = yi2 * 12 + mi2;
-    let total1 = yi1 * 12 + mi1;
-    total2 < total1 and total1 - total2 <= 3
-  };
-
-  private func textToNat(t: Text) : Nat {
-    var n : Nat = 0;
-    for (c in t.chars()) {
-      let code = Nat32.toNat(Char.toNat32(c));
-      if (code >= 48 and code <= 57) {
-        n := n * 10 + (code - 48)
-      }
-    };
-    n
   };
 
   // ─── Core: Bill Operations ────────────────────────────────────────────────────
@@ -277,7 +250,7 @@ persistent actor Bills {
     let id = nextBillId();
 
     let (anomalyFlag, anomalyReason) = switch (rollingAverage(
-      args.propertyId, args.billType, msg.caller, id, args.periodEnd
+      args.propertyId, args.billType, msg.caller, id, now
     )) {
       case null { (false, null) };
       case (?avg) {
@@ -314,7 +287,7 @@ persistent actor Bills {
   /// Return all bills for a property. Caller must be the homeowner.
   public shared(msg) func getBillsForProperty(propertyId: Text) : async Result.Result<[BillRecord], Error> {
     let result = Array.filter<BillRecord>(
-      Iter.toArray(Map.vals(bills)),
+      Iter.toArray(Map.values(bills)),
       func(b) {
         b.propertyId == propertyId and Principal.equal(b.homeowner, msg.caller)
       }
@@ -331,7 +304,7 @@ persistent actor Bills {
         if (not Principal.equal(b.homeowner, msg.caller) and not isAdmin(msg.caller)) {
           return #err(#Unauthorized)
         };
-        Map.delete(bills, Text.compare, id);
+        ignore Map.delete(bills, Text.compare, id);
         #ok(())
       };
     }
