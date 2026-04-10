@@ -1,11 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, ShieldCheck, AlertTriangle, Clock } from "lucide-react";
+import { ArrowLeft, ShieldCheck, AlertTriangle, Clock, ScanLine } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { jobService, Job } from "@/services/job";
 import { propertyService, Property } from "@/services/property";
 import { paymentService, type PlanTier } from "@/services/payment";
 import { warrantyStatus, warrantyExpiry, daysRemaining, type WarrantyStatus } from "@/services/warranty";
+import { extractDocument, fileToBase64, type DocumentExtraction } from "@/services/documentOcr";
 import { UpgradeGate } from "@/components/UpgradeGate";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 
@@ -133,6 +134,141 @@ function Section({ title, items, emptyText }: { title: string; items: WarrantyJo
   );
 }
 
+// ─── Scan Document panel ──────────────────────────────────────────────────────
+
+type ScanStep = "idle" | "extracting" | "confirm";
+
+interface ScanForm {
+  brand:         string;
+  modelNumber:   string;
+  serialNumber:  string;
+  warrantyMonths: string;
+  serviceType:   string;
+  purchaseDate:  string;
+  description:   string;
+}
+
+function ScanDocumentPanel() {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [step,       setStep]       = useState<ScanStep>("idle");
+  const [extraction, setExtraction] = useState<DocumentExtraction | null>(null);
+  const [form,       setForm]       = useState<ScanForm>({ brand: "", modelNumber: "", serialNumber: "", warrantyMonths: "", serviceType: "", purchaseDate: "", description: "" });
+  const [error,      setError]      = useState<string | null>(null);
+  const [submitted,  setSubmitted]  = useState(false);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError(null);
+    setStep("extracting");
+    try {
+      const b64 = await fileToBase64(file);
+      const result = await extractDocument(file.name, file.type, b64);
+      setExtraction(result);
+      setForm({
+        brand:         result.brand         ?? "",
+        modelNumber:   result.modelNumber   ?? "",
+        serialNumber:  result.serialNumber  ?? "",
+        warrantyMonths: result.warrantyMonths != null ? String(result.warrantyMonths) : "",
+        serviceType:   result.serviceType   ?? "",
+        purchaseDate:  result.purchaseDate  ?? "",
+        description:   result.description,
+      });
+      setStep("confirm");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Extraction failed");
+      setStep("idle");
+    }
+  }
+
+  function handleChange(field: keyof ScanForm, value: string) {
+    setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitted(true);
+    setStep("idle");
+    setExtraction(null);
+  }
+
+  const isLowConfidence = extraction?.confidence === "low";
+
+  return (
+    <div style={{ border: `1px solid ${S.rule}`, padding: "1.25rem 1.5rem", marginBottom: "2rem" }}>
+      <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.75rem" }}>
+        Scan Document
+      </div>
+
+      {submitted && (
+        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.sage, marginBottom: "0.75rem" }}>
+          ✓ Document registered. Log a job with this appliance to save the warranty.
+        </p>
+      )}
+
+      {error && (
+        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: "#C94C2E", marginBottom: "0.75rem" }}>
+          {error}
+        </p>
+      )}
+
+      {step === "idle" && !submitted && (
+        <>
+          <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, marginBottom: "1rem" }}>
+            Upload a photo of an appliance manual or warranty card. Brand, model, serial number, and warranty term will be extracted automatically.
+          </p>
+          <button
+            onClick={() => fileRef.current?.click()}
+            style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${S.ink}`, background: "none", color: S.ink, cursor: "pointer" }}
+          >
+            <ScanLine size={13} /> Scan Document
+          </button>
+          <input ref={fileRef} type="file" accept="image/*,application/pdf" style={{ display: "none" }} onChange={handleFile} />
+        </>
+      )}
+
+      {step === "extracting" && (
+        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight }}>Extracting document data…</p>
+      )}
+
+      {step === "confirm" && extraction && (
+        <form onSubmit={handleSubmit}>
+          {isLowConfidence && (
+            <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: "#B45309", background: "#FEF3C7", padding: "0.5rem 0.75rem", marginBottom: "1rem", border: "1px solid #FCD34D" }}>
+              Low confidence — review carefully before saving. Fields may be inaccurate.
+            </p>
+          )}
+          <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, marginBottom: "1rem" }}>{extraction.description}</p>
+
+          {(["brand", "modelNumber", "serialNumber", "serviceType", "purchaseDate", "warrantyMonths"] as const).map((field) => (
+            <div key={field} style={{ marginBottom: "0.75rem" }}>
+              <label style={{ display: "block", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight, marginBottom: "0.25rem", textTransform: "uppercase" }}>
+                {field === "warrantyMonths" ? "Warranty (months)" : field === "modelNumber" ? "Model #" : field === "serialNumber" ? "Serial #" : field === "purchaseDate" ? "Purchase Date" : field === "serviceType" ? "Category" : "Brand"}
+              </label>
+              <input
+                value={form[field]}
+                onChange={(e) => handleChange(field, e.target.value)}
+                style={{ width: "100%", fontFamily: S.mono, fontSize: "0.8rem", padding: "0.4rem 0.5rem", border: `1px solid ${S.rule}`, background: COLORS.white, color: S.ink, outline: "none", boxSizing: "border-box" }}
+              />
+            </div>
+          ))}
+
+          <div style={{ display: "flex", gap: "0.75rem", marginTop: "1rem" }}>
+            <button type="submit" style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${S.rust}`, background: S.rust, color: S.paper, cursor: "pointer" }}>
+              Save to Wallet
+            </button>
+            <button type="button" onClick={() => { setStep("idle"); setExtraction(null); }} style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, background: "none", border: "none", cursor: "pointer", padding: "0.5rem" }}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
+
 export default function WarrantyWalletPage() {
   const navigate = useNavigate();
   const [warrantyJobs, setWarrantyJobs] = useState<WarrantyJob[]>([]);
@@ -198,6 +334,8 @@ export default function WarrantyWalletPage() {
         <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight, marginBottom: "2rem" }}>
           Warranties logged across all your maintenance jobs.
         </p>
+
+        <ScanDocumentPanel />
 
         {!loaded ? (
           <div style={{ display: "flex", justifyContent: "center", padding: "3rem" }}>

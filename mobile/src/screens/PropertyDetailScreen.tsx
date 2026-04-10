@@ -144,6 +144,20 @@ export default function PropertyDetailScreen({ route }: Props) {
                 <Text style={styles.sectionLabel}>UTILITY BILLS</Text>
                 <Text style={styles.quotesArrow}>UPLOAD BILL  ›</Text>
               </TouchableOpacity>
+
+              {/* Document OCR entry point (Issue #51) */}
+              <TouchableOpacity
+                style={styles.quotesRow}
+                onPress={() => navigation.navigate("ScanDocument", {
+                  propertyId:      property.id,
+                  propertyAddress: property.address,
+                })}
+                accessibilityRole="button"
+                accessibilityLabel="Scan appliance manual or warranty"
+              >
+                <Text style={styles.sectionLabel}>DOCUMENTS</Text>
+                <Text style={styles.quotesArrow}>SCAN DOCUMENT  ›</Text>
+              </TouchableOpacity>
             </>
           }
         />

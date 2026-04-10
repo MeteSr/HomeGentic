@@ -7,6 +7,11 @@ import { buildMaintenanceSystemPrompt } from "../maintenance/prompts";
 import { HOMEGENTIC_TOOLS } from "./tools";
 import { resolveModel, PROVIDER_JSON_ERROR } from "./provider";
 import { createAnthropicProvider } from "./anthropicProvider";
+import {
+  buildDocumentSystemPrompt,
+  normalizeExtraction,
+  SUPPORTED_MIME_TYPES,
+} from "./extractDocumentHelpers";
 import type { ChatRequest } from "./types";
 import type { MaintenanceContext } from "../maintenance/prompts";
 // NOTE: Email (Resend), permits, price-benchmark, forecast, check, report-request
@@ -354,6 +359,57 @@ JSON shape:
     const result = JSON.parse(jsonMatch[0]);
     result.rawFileName = fileName;
     res.json(result);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    res.status(500).json({ error: msg });
+  }
+});
+
+// ── POST /api/extract-document ───────────────────────────────────────────────
+// Issue #51 — General document OCR: appliance manuals, warranty cards, receipts,
+// inspection reports, permits.
+// Request:  { fileName, mimeType, base64Data }
+// Response: DocumentExtraction
+//   { documentType, brand?, modelNumber?, serialNumber?, purchaseDate?,
+//     warrantyMonths?, serviceType?, confidence, description }
+app.post("/api/extract-document", async (req: Request, res: Response): Promise<void> => {
+  const { fileName, mimeType, base64Data } = req.body;
+
+  if (!fileName || !mimeType || !base64Data) {
+    res.status(400).json({ error: "fileName, mimeType, and base64Data are required" });
+    return;
+  }
+
+  if (!(SUPPORTED_MIME_TYPES as readonly string[]).includes(mimeType)) {
+    res.status(400).json({ error: "Unsupported file type. Upload an image or PDF." });
+    return;
+  }
+
+  const mediaType = mimeType as "image/jpeg" | "image/png" | "image/gif" | "image/webp" | "application/pdf";
+
+  try {
+    const text = await provider.complete({
+      system:   buildDocumentSystemPrompt(),
+      messages: [{
+        role: "user",
+        content: [{
+          type:   "image",
+          source: { type: "base64", media_type: mediaType, data: base64Data },
+        }, {
+          type: "text",
+          text: `File name: ${fileName}\nExtract the home document data from this file.`,
+        }],
+      }],
+      maxTokens: 512,
+    });
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      res.status(500).json({ error: PROVIDER_JSON_ERROR });
+      return;
+    }
+    const raw = JSON.parse(jsonMatch[0]);
+    res.json(normalizeExtraction(raw));
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     res.status(500).json({ error: msg });
