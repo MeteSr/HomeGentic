@@ -18,6 +18,25 @@ import Time      "mo:core/Time";
 
 persistent actor Monitoring {
 
+  // ─── Management canister interface (for checkCycleLevels) ────────────────────
+
+  type ICActor = actor {
+    canister_status : shared { canister_id : Principal } -> async {
+      status      : { #running; #stopping; #stopped };
+      cycles      : Nat;
+      memory_size : Nat;
+      settings    : {
+        controllers        : [Principal];
+        freezing_threshold : Nat;
+        memory_allocation  : Nat;
+        compute_allocation : Nat;
+      };
+      module_hash : ?Blob;
+    };
+  };
+
+  private let IC : ICActor = actor("aaaaa-aa");
+
   // ─── Types ──────────────────────────────────────────────────────────────────
 
   public type CanisterMetrics = {
@@ -90,6 +109,21 @@ persistent actor Monitoring {
     contractorProUsers: Nat;
   };
 
+  /// A registered canister entry for cycle-level polling.
+  public type TrackedCanister = {
+    id   : Principal;
+    name : Text;        // human label, e.g. "auth", "job"
+  };
+
+  /// Result of a single canister cycle-level check.
+  public type CycleLevelResult = {
+    id          : Principal;
+    name        : Text;
+    cycles      : Nat;          // 0 if canister_status call failed (not a controller)
+    status      : Text;         // "ok" | "warning" | "critical" | "unknown"
+    fromCache   : Bool;         // true = fell back to last recordCanisterMetrics value
+  };
+
   public type Error = {
     #NotFound;
     #Unauthorized;
@@ -141,6 +175,10 @@ persistent actor Monitoring {
   private var isPaused: Bool = false;
   private var pauseExpiryNs: ?Int = null;
   private var adminListEntries: [Principal] = [];
+  /// Registry of canisters to poll in checkCycleLevels().
+  private var trackedCanisterEntries : [TrackedCanister] = [];
+  /// Configurable low-cycle threshold — default 1T cycles (issue #55).
+  private var lowCycleThresholdT : Nat = 1_000_000_000_000;
   /// Migration buffers — cleared after first upgrade with this code.
   private var metricsEntries:       [(Principal, CanisterMetrics)]  = [];
   private var alertEntries:         [(Text, Alert)]                 = [];
@@ -554,6 +592,92 @@ persistent actor Monitoring {
     "  Active alerts    : " # Nat.toText(activeAlertCount) # "\n" #
     "  Critical         : " # Nat.toText(critCount) # "\n" #
     "═══════════════════════════════════════════\n"
+  };
+
+  // ─── Cycle Level Polling (issue #55) ─────────────────────────────────────────
+
+  /// Register a canister for cycle-level polling via checkCycleLevels().
+  /// Admin-only. Safe to call multiple times — updates name if already registered.
+  public shared(msg) func registerCanister(id: Principal, name: Text) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#Unauthorized);
+    if (Text.size(name) == 0)   return #err(#InvalidInput("name cannot be empty"));
+    // Remove existing entry for this id if present, then append.
+    let filtered = Array.filter<TrackedCanister>(
+      trackedCanisterEntries, func(c) { c.id != id }
+    );
+    trackedCanisterEntries := Array.concat(filtered, [{ id; name }]);
+    #ok(())
+  };
+
+  /// Remove a canister from the polling registry. Admin-only.
+  public shared(msg) func unregisterCanister(id: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#Unauthorized);
+    trackedCanisterEntries := Array.filter<TrackedCanister>(
+      trackedCanisterEntries, func(c) { c.id != id }
+    );
+    #ok(())
+  };
+
+  /// Return the current registry of tracked canisters.
+  public query func getTrackedCanisters() : async [TrackedCanister] {
+    trackedCanisterEntries
+  };
+
+  /// Update the low-cycle alert threshold. Default: 1T cycles. Admin-only.
+  public shared(msg) func setLowCycleThreshold(threshold: Nat) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#Unauthorized);
+    lowCycleThresholdT := threshold;
+    #ok(())
+  };
+
+  /// Query cycle balances for all registered canisters via the IC management
+  /// canister. Requires this canister to be a controller of each target.
+  ///
+  /// When canister_status is unavailable (not a controller, or local dev),
+  /// falls back to the last balance recorded via recordCanisterMetrics().
+  /// Results include a `fromCache` flag and a `status` label:
+  ///   "ok"       — balance >= 2× lowCycleThresholdT
+  ///   "warning"  — balance between lowCycleThresholdT and 2×
+  ///   "critical" — balance below lowCycleThresholdT
+  ///   "unknown"  — no data available
+  public func checkCycleLevels() : async [CycleLevelResult] {
+    var results : [CycleLevelResult] = [];
+    for (tracked in trackedCanisterEntries.vals()) {
+      let result : CycleLevelResult = try {
+        let s = await IC.canister_status({ canister_id = tracked.id });
+        let bal = s.cycles;
+        let st  = if (bal < lowCycleThresholdT)      { "critical" }
+                  else if (bal < lowCycleThresholdT * 2) { "warning" }
+                  else                               { "ok" };
+        // Auto-fire alerts for critical balances found via poll.
+        if (bal < criticalCyclesT) {
+          createAlert(#Critical, #Cycles, ?tracked.id,
+            "Cycles critically low (" # tracked.name # "): " #
+            Nat.toText(bal / 1_000_000_000) # "B remaining");
+        } else if (bal < warningCyclesT) {
+          createAlert(#Warning, #Cycles, ?tracked.id,
+            "Cycles below 10T (" # tracked.name # "): " #
+            Nat.toText(bal / 1_000_000_000) # "B remaining");
+        };
+        { id = tracked.id; name = tracked.name; cycles = bal; status = st; fromCache = false }
+      } catch (_) {
+        // Not a controller or canister unreachable — fall back to stored metrics.
+        switch (Map.get(canisterMetrics, Principal.compare, tracked.id)) {
+          case (?m) {
+            let bal = m.cyclesBalance;
+            let st  = if (bal < lowCycleThresholdT)          { "critical" }
+                      else if (bal < lowCycleThresholdT * 2) { "warning" }
+                      else                                    { "ok" };
+            { id = tracked.id; name = tracked.name; cycles = bal; status = st; fromCache = true }
+          };
+          case null {
+            { id = tracked.id; name = tracked.name; cycles = 0; status = "unknown"; fromCache = true }
+          };
+        }
+      };
+      results := Array.concat(results, [result]);
+    };
+    results
   };
 
   // ─── Admin Functions ──────────────────────────────────────────────────────────
