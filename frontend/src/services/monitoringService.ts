@@ -39,9 +39,31 @@ export const idlFactory = ({ IDL }: any) => {
     isPaused:       IDL.Bool,
     cyclesPerCall:  IDL.Vec(MethodCyclesSummary),
   });
+  const TrackedCanister = IDL.Record({
+    id:   IDL.Principal,
+    name: IDL.Text,
+  });
+  const CycleLevelResult = IDL.Record({
+    id:        IDL.Principal,
+    name:      IDL.Text,
+    cycles:    IDL.Nat,
+    status:    IDL.Text,
+    fromCache: IDL.Bool,
+  });
+  const Error = IDL.Variant({
+    NotFound:     IDL.Null,
+    Unauthorized: IDL.Null,
+    InvalidInput: IDL.Text,
+  });
+  const ResultUnit = IDL.Variant({ ok: IDL.Null, err: Error });
   return IDL.Service({
-    getAllCanisterMetrics: IDL.Func([], [IDL.Vec(CanisterMetrics)], ["query"]),
-    getMetrics:           IDL.Func([], [Metrics],                  ["query"]),
+    getAllCanisterMetrics:  IDL.Func([], [IDL.Vec(CanisterMetrics)], ["query"]),
+    getMetrics:            IDL.Func([], [Metrics],                  ["query"]),
+    checkCycleLevels:      IDL.Func([], [IDL.Vec(CycleLevelResult)], []),
+    getTrackedCanisters:   IDL.Func([], [IDL.Vec(TrackedCanister)], ["query"]),
+    registerCanister:      IDL.Func([IDL.Principal, IDL.Text], [ResultUnit], []),
+    unregisterCanister:    IDL.Func([IDL.Principal],            [ResultUnit], []),
+    setLowCycleThreshold:  IDL.Func([IDL.Nat],                  [ResultUnit], []),
   });
 };
 
@@ -74,6 +96,20 @@ export interface MonitoringMetrics {
   cyclesPerCall:  MethodCyclesSummary[];
 }
 
+export interface TrackedCanister {
+  id:   string;   // Principal as text
+  name: string;
+}
+
+export interface CycleLevelResult {
+  id:        string;   // Principal as text
+  name:      string;
+  cycles:    number;
+  /** "ok" | "warning" | "critical" | "unknown" */
+  status:    string;
+  fromCache: boolean;
+}
+
 // ─── Computed helpers ─────────────────────────────────────────────────────────
 
 /** Estimated days of runway remaining given current balance and daily burn. */
@@ -99,8 +135,9 @@ export function canisterLabel(canisterId: string): string {
 
 const MOCK_CANISTER_NAMES = [
   "auth", "property", "job", "contractor", "quote",
-  "payment", "photo", "price", "report", "market",
-  "maintenance", "sensor", "monitoring",
+  "payment", "photo", "report", "market",
+  "maintenance", "sensor", "monitoring", "listing",
+  "agent", "recurring", "bills",
 ];
 
 function mockMetrics(): CanisterMetrics[] {
@@ -115,6 +152,16 @@ function mockMetrics(): CanisterMetrics[] {
     avgResponseTimeMs: 50 + i * 10,
     updatedAt:         Date.now() * 1_000_000,
   }));
+}
+
+function mockCycleLevels(): CycleLevelResult[] {
+  return MOCK_CANISTER_NAMES.map((name, i) => {
+    const cycles = 20_000_000_000_000 - i * 500_000_000_000;
+    const status = cycles < 1_000_000_000_000 ? "critical"
+                 : cycles < 2_000_000_000_000 ? "warning"
+                 : "ok";
+    return { id: `mock-${name}-canister-id`, name, cycles, status, fromCache: true };
+  });
 }
 
 // ─── Service ──────────────────────────────────────────────────────────────────
@@ -146,6 +193,28 @@ function createMonitoringService() {
         avgResponseTimeMs: Number(r.avgResponseTimeMs),
         updatedAt:         Number(r.updatedAt),
       }));
+    },
+
+    async checkCycleLevels(): Promise<CycleLevelResult[]> {
+      if (!MONITORING_CANISTER_ID) return mockCycleLevels();
+      const a = await getActor();
+      const raw = await a.checkCycleLevels() as any[];
+      return raw.map((r: any) => ({
+        id:        r.id.toText(),
+        name:      r.name,
+        cycles:    Number(r.cycles),
+        status:    r.status,
+        fromCache: Boolean(r.fromCache),
+      }));
+    },
+
+    async getTrackedCanisters(): Promise<TrackedCanister[]> {
+      if (!MONITORING_CANISTER_ID) return MOCK_CANISTER_NAMES.map((name) => ({
+        id: `mock-${name}-canister-id`, name,
+      }));
+      const a = await getActor();
+      const raw = await a.getTrackedCanisters() as any[];
+      return raw.map((r: any) => ({ id: r.id.toText(), name: r.name }));
     },
 
     async getMetrics(): Promise<MonitoringMetrics> {

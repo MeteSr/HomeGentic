@@ -45,7 +45,8 @@ JOB_OUT=$(dfx canister call $CANISTER createJob '(
   1718409600000000000,
   opt "HVAC-2024-0412",
   opt 120,
-  false
+  false,
+  null
 )')
 echo "$JOB_OUT"
 JOB_ID=$(echo "$JOB_OUT" | grep -oP '"JOB_[0-9]+"' | head -1 | tr -d '"')
@@ -64,7 +65,8 @@ DIY_OUT=$(dfx canister call $CANISTER createJob '(
   1722816000000000000,
   null,
   null,
-  true
+  true,
+  null
 )')
 echo "$DIY_OUT"
 DIY_ID=$(echo "$DIY_OUT" | grep -oP '"JOB_[0-9]+"' | head -1 | tr -d '"')
@@ -83,7 +85,8 @@ dfx canister call $CANISTER createJob '(
   1714521600000000000,
   null,
   opt 24,
-  false
+  false,
+  null
 )' > /dev/null
 dfx canister call $CANISTER createJob '(
   "PROP_1",
@@ -95,7 +98,8 @@ dfx canister call $CANISTER createJob '(
   1716249600000000000,
   null,
   null,
-  false
+  false,
+  null
 )' > /dev/null
 echo "  → 2 additional jobs created"
 
@@ -192,7 +196,8 @@ dfx canister call $CANISTER createJob "(
   $FUTURE_NS,
   null,
   null,
-  false
+  false,
+  null
 )" || echo "  ↳ Expected InvalidInput (future date) — ✓"
 
 # ─── Invite token flow ────────────────────────────────────────────────────────
@@ -210,7 +215,8 @@ INVITE_JOB_OUT=$(dfx canister call $CANISTER createJob '(
   1700000000000000000,
   null,
   null,
-  false
+  false,
+  null
 )')
 echo "$INVITE_JOB_OUT"
 INVITE_JOB_ID=$(echo "$INVITE_JOB_OUT" | grep -oP '"JOB_[0-9]+"' | head -1 | tr -d '"')
@@ -282,7 +288,8 @@ dfx canister call $CANISTER createJob '(
   1718409600000000000,
   null,
   null,
-  true
+  true,
+  null
 )' --identity contractor-test
 dfx canister call $CANISTER createJob '(
   "PROP_RL_2",
@@ -294,7 +301,8 @@ dfx canister call $CANISTER createJob '(
   1718409600000000000,
   null,
   null,
-  true
+  true,
+  null
 )' --identity contractor-test
 dfx canister call $CANISTER createJob '(
   "PROP_RL_3",
@@ -306,7 +314,8 @@ dfx canister call $CANISTER createJob '(
   1718409600000000000,
   null,
   null,
-  true
+  true,
+  null
 )' --identity contractor-test
 echo "  ↳ 3 calls succeeded — ✓"
 
@@ -322,7 +331,8 @@ dfx canister call $CANISTER createJob '(
   1718409600000000000,
   null,
   null,
-  true
+  true,
+  null
 )' --identity contractor-test \
   && echo "  ↳ ❌ Expected rate limit error — call should have failed" \
   || echo "  ↳ Rate limit correctly rejected 4th call — ✓"
@@ -339,7 +349,8 @@ dfx canister call $CANISTER createJob '(
   1718409600000000000,
   null,
   null,
-  true
+  true,
+  null
 )'
 echo "  ↳ Admin call succeeded despite limit — ✓"
 
@@ -391,9 +402,9 @@ echo ""
 echo "── [34] Trusted principal bypasses rate limit ───────────────────────────"
 dfx canister call $CANISTER setUpdateRateLimit "(2 : nat)"
 # sensor-test is in trusted list — 3 calls should all succeed despite limit=2
-dfx canister call $CANISTER createJob '("TRUST_PROP_1", "Trusted Bypass 1", variant { Plumbing }, "trust test", null, 0, 1718409600000000000, null, null, true)' --identity sensor-test
-dfx canister call $CANISTER createJob '("TRUST_PROP_2", "Trusted Bypass 2", variant { Plumbing }, "trust test", null, 0, 1718409600000000000, null, null, true)' --identity sensor-test
-dfx canister call $CANISTER createJob '("TRUST_PROP_3", "Trusted Bypass 3", variant { Plumbing }, "trust test", null, 0, 1718409600000000000, null, null, true)' --identity sensor-test
+dfx canister call $CANISTER createJob '("TRUST_PROP_1", "Trusted Bypass 1", variant { Plumbing }, "trust test", null, 0, 1718409600000000000, null, null, true, null)' --identity sensor-test
+dfx canister call $CANISTER createJob '("TRUST_PROP_2", "Trusted Bypass 2", variant { Plumbing }, "trust test", null, 0, 1718409600000000000, null, null, true, null)' --identity sensor-test
+dfx canister call $CANISTER createJob '("TRUST_PROP_3", "Trusted Bypass 3", variant { Plumbing }, "trust test", null, 0, 1718409600000000000, null, null, true, null)' --identity sensor-test
 echo "  ↳ 3 calls succeeded despite rate limit of 2 — ✓"
 dfx canister call $CANISTER setUpdateRateLimit "(30 : nat)"
 

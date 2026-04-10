@@ -95,8 +95,13 @@ markCompleted(1) -> (1)"
 `;
 
 exports[`Candid contract snapshots — method arity > monitoring 1`] = `
-"getAllCanisterMetrics(0) -> (1) [query]
-getMetrics(0) -> (1) [query]"
+"checkCycleLevels(0) -> (1)
+getAllCanisterMetrics(0) -> (1) [query]
+getMetrics(0) -> (1) [query]
+getTrackedCanisters(0) -> (1) [query]
+registerCanister(2) -> (1)
+setLowCycleThreshold(1) -> (1)
+unregisterCanister(1) -> (1)"
 `;
 
 exports[`Candid contract snapshots — method arity > payment 1`] = `

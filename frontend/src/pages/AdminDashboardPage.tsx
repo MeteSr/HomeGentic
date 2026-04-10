@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { propertyService, Property, VerificationLevel, SubscriptionTier } from "@/services/property";
-import { monitoringService, CanisterMetrics, runwayDays, cyclesToUsd } from "@/services/monitoringService";
+import { monitoringService, CanisterMetrics, CycleLevelResult, runwayDays, cyclesToUsd } from "@/services/monitoringService";
 import { jobService, Job } from "@/services/job";
 import { referralService } from "@/services/referralService";
 import { useAuthStore } from "@/store/authStore";
@@ -43,9 +43,20 @@ function formatCycles(n: number): string {
   return `${n}`;
 }
 
+function statusDot(status: string): { color: string; label: string } {
+  switch (status) {
+    case "critical": return { color: "#dc2626", label: "Critical" };
+    case "warning":  return { color: "#d97706", label: "Warning"  };
+    case "ok":       return { color: "#16a34a", label: "OK"       };
+    default:         return { color: S.inkLight, label: "Unknown"  };
+  }
+}
+
 function CyclesDashboard() {
-  const [metrics,  setMetrics]  = useState<CanisterMetrics[] | null>(null);
-  const [loading,  setLoading]  = useState(false);
+  const [metrics,   setMetrics]   = useState<CanisterMetrics[] | null>(null);
+  const [levels,    setLevels]    = useState<CycleLevelResult[] | null>(null);
+  const [loading,   setLoading]   = useState(false);
+  const [polling,   setPolling]   = useState(false);
   const [critCount, setCritCount] = useState(0);
 
   const load = async () => {
@@ -64,7 +75,19 @@ function CyclesDashboard() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  const pollCycleLevels = async () => {
+    setPolling(true);
+    try {
+      const results = await monitoringService.checkCycleLevels();
+      setLevels(results);
+    } catch {
+      toast.error("Failed to poll cycle levels");
+    } finally {
+      setPolling(false);
+    }
+  };
+
+  useEffect(() => { load(); pollCycleLevels(); }, []);
 
   if (loading || !metrics) {
     return (
@@ -85,6 +108,9 @@ function CyclesDashboard() {
     const d = runwayDays(m.cyclesBalance, m.cyclesBurned);
     return d !== null && d < RUNWAY_WARN_DAYS;
   });
+
+  const criticalLevels = levels?.filter((l) => l.status === "critical") ?? [];
+  const warningLevels  = levels?.filter((l) => l.status === "warning")  ?? [];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
@@ -115,11 +141,82 @@ function CyclesDashboard() {
         </div>
       )}
 
+      {/* ── Cycle Health Panel (issue #55) ── */}
+      <div style={{ border: `1px solid ${S.rule}`, background: COLORS.white }}>
+        <div style={{ padding: "0.875rem 1.25rem", borderBottom: `1px solid ${S.rule}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
+              Cycle Health
+            </span>
+            {levels && (
+              <span style={{ marginLeft: "0.75rem", fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight }}>
+                {criticalLevels.length > 0 && <span style={{ color: "#dc2626" }}>{criticalLevels.length} critical </span>}
+                {warningLevels.length  > 0 && <span style={{ color: "#d97706" }}>{warningLevels.length} warning </span>}
+                {criticalLevels.length === 0 && warningLevels.length === 0 && <span style={{ color: "#16a34a" }}>all OK</span>}
+              </span>
+            )}
+          </div>
+          <button
+            onClick={pollCycleLevels}
+            disabled={polling}
+            style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.375rem 0.875rem", border: `1px solid ${S.rule}`, background: COLORS.white, fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", color: S.inkLight }}
+          >
+            <RefreshCw size={11} />
+            {polling ? "Polling…" : "Poll Now"}
+          </button>
+        </div>
+
+        {levels ? (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "0", borderTop: `1px solid ${S.rule}` }}>
+            {levels
+              .slice()
+              .sort((a, b) => {
+                const rank = (s: string) => s === "critical" ? 0 : s === "warning" ? 1 : s === "unknown" ? 3 : 2;
+                return rank(a.status) - rank(b.status);
+              })
+              .map((l) => {
+                const dot = statusDot(l.status);
+                return (
+                  <div
+                    key={l.id}
+                    style={{
+                      padding: "0.75rem 1rem",
+                      borderRight: `1px solid ${S.rule}`,
+                      borderBottom: `1px solid ${S.rule}`,
+                      background: l.status === "critical" ? "#fff1f2" : l.status === "warning" ? "#fffbeb" : "transparent",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", marginBottom: "0.25rem" }}>
+                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: dot.color, display: "inline-block", flexShrink: 0 }} />
+                      <span style={{ fontFamily: S.mono, fontSize: "0.65rem", fontWeight: 600, color: S.ink }}>{l.name}</span>
+                    </div>
+                    <div style={{ fontFamily: S.mono, fontSize: "0.6rem", color: dot.color, fontWeight: 600 }}>{dot.label}</div>
+                    <div style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight, marginTop: "0.125rem" }}>
+                      {l.cycles > 0 ? formatCycles(l.cycles) : "—"}
+                      {l.fromCache && <span title="Cached — not a controller"> *</span>}
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        ) : (
+          <div style={{ padding: "1.5rem", textAlign: "center", fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>
+            {polling ? "Polling cycle levels…" : "No data — click Poll Now"}
+          </div>
+        )}
+
+        <div style={{ padding: "0.5rem 1rem", borderTop: `1px solid ${S.rule}` }}>
+          <span style={{ fontFamily: S.mono, fontSize: "0.5rem", color: S.inkLight }}>
+            * = cached balance (monitoring canister not a controller of this canister). Green ≥ 2T · Yellow 1–2T · Red &lt; 1T.
+          </span>
+        </div>
+      </div>
+
       {/* Per-canister table */}
       <div style={{ border: `1px solid ${S.rule}`, background: COLORS.white }}>
         <div style={{ padding: "0.875rem 1.25rem", borderBottom: `1px solid ${S.rule}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
-            Per-Canister Cycles
+            Per-Canister Metrics
           </span>
           <button
             onClick={load}

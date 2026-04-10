@@ -133,16 +133,13 @@ jobs:
           dfx start --background --clean
           bash scripts/deploy.sh
 
-      - name: Start frontend dev server
-        run: cd frontend && npm run dev &
+      - name: Run E2E tests
+        # Playwright's webServer config starts the Vite dev server and waits
+        # for it — no need to start it manually. reuseExistingServer is set
+        # to true in CI so Playwright owns the server lifecycle.
+        run: npm run test:e2e
         env:
           DFX_NETWORK: local
-
-      - name: Wait for frontend
-        run: npx wait-on http://localhost:3000 --timeout 60000
-
-      - name: Run E2E tests
-        run: npm run test:e2e
 
       - name: Upload E2E artifacts on failure
         if: failure()

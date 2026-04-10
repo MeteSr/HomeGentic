@@ -1,0 +1,93 @@
+name: Cycle Watchdog
+
+# Runs every 6 hours to check canister cycle balances and top up any that
+# are below the trigger threshold. Also runs on manual dispatch for ad-hoc checks.
+# Issue #55: Canister Cycle Top-Up Automation & Alerting
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'   # every 6 hours at :00
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run — report only, no top-up'
+        required: false
+        default: 'false'
+        type: boolean
+      network:
+        description: 'Target network'
+        required: false
+        default: 'ic'
+        type: choice
+        options: [ic, local]
+
+permissions:
+  contents: read
+
+jobs:
+  cycle-watchdog:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install DFX
+        uses: dfinity/setup-dfx@main
+
+      - name: Install mops
+        run: npm install -g ic-mops
+
+      - name: Set DFX identity from secret
+        run: |
+          mkdir -p ~/.config/dfx/identity/default
+          echo "$DFX_IDENTITY_PEM" > ~/.config/dfx/identity/default/identity.pem
+          chmod 600 ~/.config/dfx/identity/default/identity.pem
+        env:
+          DFX_IDENTITY_PEM: ${{ secrets.MAINNET_IDENTITY_PEM }}
+
+      - name: Run cycle health check
+        id: health
+        run: |
+          bash scripts/check-cycle-health.sh 2>&1 | tee cycle-health.log
+          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+        env:
+          DFX_NETWORK: ${{ inputs.network || 'ic' }}
+          CRITICAL_CYCLES: '500000000'
+          WARNING_CYCLES:  '1000000000000'
+        continue-on-error: true
+
+      - name: Top up low canisters
+        if: ${{ inputs.dry_run != 'true' }}
+        run: |
+          DRY_FLAG=""
+          if [ "${{ inputs.dry_run }}" = "true" ]; then DRY_FLAG="--dry-run"; fi
+          bash scripts/top-up-canisters.sh $DRY_FLAG 2>&1 | tee top-up.log
+        env:
+          DFX_NETWORK:      ${{ inputs.network || 'ic' }}
+          TOP_UP_TRIGGER_T: '2'
+          TOP_UP_TARGET_T:  '5'
+
+      - name: Upload cycle health report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cycle-health-${{ github.run_id }}
+          path: |
+            cycle-health.log
+            top-up.log
+          retention-days: 14
+
+      - name: Post summary
+        if: always()
+        run: |
+          echo "## Cycle Watchdog Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat cycle-health.log >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail if critical canisters found
+        if: ${{ steps.health.outputs.exit_code != '0' }}
+        run: |
+          echo "❌ Critical cycle balance detected — see cycle-health.log"
+          exit 1

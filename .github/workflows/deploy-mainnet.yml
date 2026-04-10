@@ -38,3 +38,12 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RESEND_FROM_ADDRESS: ${{ secrets.RESEND_FROM_ADDRESS }}
           OPEN_PERMIT_API_KEY: ${{ secrets.OPEN_PERMIT_API_KEY }}
+
+      - name: Post-deploy cycle health gate
+        # Fail the deploy if any canister is critically low on cycles (< 500M).
+        # Issue #55: prevents deploying into a degraded state.
+        run: bash scripts/check-cycle-health.sh
+        env:
+          DFX_NETWORK:     ic
+          CRITICAL_CYCLES: '500000000'
+          WARNING_CYCLES:  '1000000000000'
