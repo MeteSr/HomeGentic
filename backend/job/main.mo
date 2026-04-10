@@ -360,6 +360,7 @@ persistent actor Job {
           homeownerSigned  = existing.homeownerSigned;
           contractorSigned = existing.contractorSigned;
           createdAt        = existing.createdAt;
+          sourceQuoteId    = existing.sourceQuoteId;
         };
         Map.add(jobs, Text.compare, jobId, updated);
         #ok(updated)
@@ -398,6 +399,7 @@ persistent actor Job {
           homeownerSigned  = existing.homeownerSigned;
           contractorSigned = existing.contractorSigned;
           createdAt        = existing.createdAt;
+          sourceQuoteId    = existing.sourceQuoteId;
         };
         Map.add(jobs, Text.compare, jobId, updated);
         #ok(updated)
@@ -457,6 +459,7 @@ persistent actor Job {
           homeownerSigned  = newHomeownerSigned;
           contractorSigned = newContractorSigned;
           createdAt        = existing.createdAt;
+          sourceQuoteId    = existing.sourceQuoteId;
         };
         Map.add(jobs, Text.compare, jobId, updated);
 
@@ -550,6 +553,7 @@ persistent actor Job {
       homeownerSigned  = false;
       contractorSigned = false;
       createdAt        = now;
+      sourceQuoteId    = null;
     };
 
     Map.add(jobs, Text.compare, id, job);
@@ -727,6 +731,7 @@ persistent actor Job {
       homeownerSigned  = true;
       contractorSigned = true;
       createdAt        = now;
+      sourceQuoteId    = null;
     };
 
     Map.add(jobs, Text.compare, id, job);
@@ -845,6 +850,7 @@ persistent actor Job {
       homeownerSigned  = job.homeownerSigned;
       contractorSigned = true;
       createdAt        = job.createdAt;
+      sourceQuoteId    = job.sourceQuoteId;
     };
     Map.add(jobs, Text.compare, job.id, updated);
 
