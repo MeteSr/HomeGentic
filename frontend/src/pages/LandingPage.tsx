@@ -27,7 +27,7 @@ const CSS = `
     font-family: 'Fraunces', serif; font-size: 22px; font-weight: 900;
     color: var(--plum); text-decoration: none; letter-spacing: -0.5px; flex-shrink: 0;
   }
-  .hfl-logo span { color: var(--sage); }
+  .hfl-logo span { color: var(--sage); font-style: italic; font-weight: 300; }
   .hfl-nav-links {
     display: flex; gap: 4px; list-style: none;
     position: absolute; left: 50%; transform: translateX(-50%);
