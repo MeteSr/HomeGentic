@@ -874,6 +874,71 @@ Rules:
   }
 });
 
+// ── POST /api/stripe/create-checkout ─────────────────────────────────────────
+// Creates a Stripe Checkout Session server-side and returns the hosted URL.
+// Bypasses ICP HTTP outcalls which have Content-Type header issues in local dev.
+app.post("/api/stripe/create-checkout", requireApiKey, async (req: Request, res: Response) => {
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeSecretKey) {
+    res.status(500).json({ error: "STRIPE_SECRET_KEY not configured" });
+    return;
+  }
+
+  const { tier, billing, successUrl, cancelUrl, gift, principal } = req.body as {
+    tier:       string;
+    billing:    string;
+    successUrl: string;
+    cancelUrl:  string;
+    gift?:      { recipientEmail: string; recipientName: string; senderName: string; giftMessage: string; deliveryDate: string };
+    principal:  string;
+  };
+
+  const PRICE_MAP: Record<string, string | undefined> = {
+    ProMonthly:           process.env.STRIPE_PRICE_PRO_MONTHLY,
+    ProYearly:            process.env.STRIPE_PRICE_PRO_YEARLY,
+    PremiumMonthly:       process.env.STRIPE_PRICE_PREMIUM_MONTHLY,
+    PremiumYearly:        process.env.STRIPE_PRICE_PREMIUM_YEARLY,
+    ContractorProMonthly: process.env.STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY,
+    ContractorProYearly:  process.env.STRIPE_PRICE_CONTRACTOR_PRO_YEARLY,
+  };
+
+  const priceId = PRICE_MAP[`${tier}${billing}`];
+  if (!priceId) {
+    res.status(400).json({ error: `No price configured for ${tier} ${billing}` });
+    return;
+  }
+
+  try {
+    const Stripe = (await import("stripe")).default;
+    const stripe = new Stripe(stripeSecretKey);
+
+    const session = await stripe.checkout.sessions.create({
+      mode:       "subscription",
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: successUrl,
+      cancel_url:  cancelUrl,
+      metadata: {
+        principal,
+        tier,
+        billing,
+        is_gift: gift ? "true" : "false",
+        ...(gift && {
+          recipient_email: gift.recipientEmail,
+          recipient_name:  gift.recipientName,
+          sender_name:     gift.senderName,
+          delivery_date:   gift.deliveryDate,
+          gift_message:    gift.giftMessage,
+        }),
+      },
+    });
+
+    res.json({ url: session.url });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Stripe error";
+    res.status(500).json({ error: msg });
+  }
+});
+
 // ── GET /health ───────────────────────────────────────────────────────────────
 app.get("/health", (_req, res) => {
   res.json({ ok: true, model: MODEL });

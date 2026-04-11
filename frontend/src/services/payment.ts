@@ -1,7 +1,8 @@
 import { Actor } from "@icp-sdk/core/agent";
-import { getAgent } from "./actor";
+import { getAgent, getPrincipal } from "./actor";
 
 const PAYMENT_CANISTER_ID = (process.env as any).PAYMENT_CANISTER_ID || "";
+const VOICE_AGENT_URL     = (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:3001";
 
 // ─── IDL ──────────────────────────────────────────────────────────────────────
 
@@ -438,29 +439,26 @@ export const paymentService = {
     billing: BillingCycle,
     gift?:   GiftMeta,
   ): Promise<void> {
-    if (!PAYMENT_CANISTER_ID) throw new Error("Payment canister not deployed");
-    const a = await getActor();
+    // Stripe checkout is proxied through the Express voice server to avoid
+    // ICP HTTP outcall header issues in local dev. The canister handles
+    // subscription verification after payment.
+    const principal = await getPrincipal().catch(() => "");
+    const successUrl = `${window.location.origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl  = `${window.location.origin}/payment-failure`;
 
-    const giftArg = gift
-      ? [{ recipientEmail: gift.recipientEmail, recipientName: gift.recipientName,
-           senderName: gift.senderName, giftMessage: gift.giftMessage,
-           deliveryDate: gift.deliveryDate }]
-      : [];
+    const body: Record<string, unknown> = { tier, billing, successUrl, cancelUrl, principal };
+    if (gift) body.gift = gift;
 
-    const result = await a.createStripeCheckoutSession(
-      { [tier]: null },
-      { [billing]: null },
-      giftArg,
-    );
+    const resp = await fetch(`${VOICE_AGENT_URL}/api/stripe/create-checkout`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify(body),
+    });
 
-    if ("err" in result) {
-      const key    = Object.keys(result.err)[0];
-      const detail = (result.err as any)[key];
-      throw new Error(typeof detail === "string" ? detail : key);
-    }
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error ?? "Checkout failed");
 
-    // Redirect to Stripe-hosted checkout page
-    window.location.href = result.ok.url;
+    window.location.href = data.url;
   },
 
   /**
