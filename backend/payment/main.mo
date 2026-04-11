@@ -326,6 +326,28 @@ persistent actor Payment {
     Text.replace(s1, #text "\"", "\\\"")
   };
 
+  /// Percent-encode a string for use as a value in application/x-www-form-urlencoded.
+  private func urlEncode(s: Text) : Text {
+    var result = "";
+    for (c in s.chars()) {
+      result #= switch (c) {
+        case ' '  { "+" };
+        case ':'  { "%3A" };
+        case '/'  { "%2F" };
+        case '?'  { "%3F" };
+        case '='  { "%3D" };
+        case '&'  { "%26" };
+        case '{'  { "%7B" };
+        case '}'  { "%7D" };
+        case '@'  { "%40" };
+        case '+'  { "%2B" };
+        case '#'  { "%23" };
+        case _    { Text.fromChar(c) };
+      };
+    };
+    result
+  };
+
   private func priceIdFor(cfg: StripeConfig, tier: Tier, billing: BillingPeriod) : ?Text {
     switch (tier, billing) {
       case (#Pro,           #Monthly) { ?cfg.priceIds.proMonthly };
@@ -410,43 +432,39 @@ persistent actor Payment {
     let callerText = Principal.toText(msg.caller);
     let isGift     = Option.isSome(gift);
 
-    // metadata fields shared by all sessions
-    var meta =
-      "\"principal\":\"" # jsonEsc(callerText)          # "\"," #
-      "\"tier\":\""      # jsonEsc(tierToText(tier))    # "\"," #
-      "\"billing\":\""   # jsonEsc(billingToText(billing)) # "\"," #
-      "\"is_gift\":\""   # (if isGift "true" else "false") # "\"";
-
-    switch (gift) {
-      case (?g) {
-        meta #= "," #
-          "\"recipient_email\":\"" # jsonEsc(g.recipientEmail) # "\"," #
-          "\"recipient_name\":\""  # jsonEsc(g.recipientName)  # "\"," #
-          "\"sender_name\":\""     # jsonEsc(g.senderName)     # "\"," #
-          "\"delivery_date\":\""   # jsonEsc(g.deliveryDate)   # "\"," #
-          "\"gift_message\":\""    # jsonEsc(g.giftMessage)    # "\"";
-      };
-      case null {};
-    };
-
     let successUrl = cfg.successUrl #
       (if (Text.contains(cfg.successUrl, #char '?')) "&" else "?") #
       "session_id={CHECKOUT_SESSION_ID}";
 
-    let body = "{" #
-      "\"mode\":\"subscription\"," #
-      "\"line_items\":[{\"price\":\"" # priceId # "\",\"quantity\":1}]," #
-      "\"success_url\":\"" # jsonEsc(successUrl) # "\"," #
-      "\"cancel_url\":\""  # jsonEsc(cfg.cancelUrl) # "\"," #
-      "\"metadata\":{" # meta # "}" #
-    "}";
+    var body =
+      "mode=subscription" #
+      "&line_items[0][price]="    # priceId #
+      "&line_items[0][quantity]=1" #
+      "&success_url="             # urlEncode(successUrl) #
+      "&cancel_url="              # urlEncode(cfg.cancelUrl) #
+      "&metadata[principal]="     # urlEncode(callerText) #
+      "&metadata[tier]="          # urlEncode(tierToText(tier)) #
+      "&metadata[billing]="       # urlEncode(billingToText(billing)) #
+      "&metadata[is_gift]="       # (if isGift "true" else "false");
+
+    switch (gift) {
+      case (?g) {
+        body #=
+          "&metadata[recipient_email]=" # urlEncode(g.recipientEmail) #
+          "&metadata[recipient_name]="  # urlEncode(g.recipientName)  #
+          "&metadata[sender_name]="     # urlEncode(g.senderName)     #
+          "&metadata[delivery_date]="   # urlEncode(g.deliveryDate)   #
+          "&metadata[gift_message]="    # urlEncode(g.giftMessage);
+      };
+      case null {};
+    };
 
     try {
       let response = await (with cycles = 3_000_000_000) ic.http_request({
         url                = "https://api.stripe.com/v1/checkout/sessions";
         max_response_bytes = ?Nat64.fromNat(8192);
         headers            = [
-          { name = "Content-Type";  value = "application/json" },
+          { name = "Content-Type";  value = "application/x-www-form-urlencoded" },
           { name = "Authorization"; value = "Bearer " # cfg.secretKey },
         ];
         body      = ?Text.encodeUtf8(body);
