@@ -542,7 +542,7 @@ const CSS = `
     margin-bottom: 24px;
   }
   .hfl-data h2 { color: white; letter-spacing: -1px; margin-bottom: 20px; }
-  .hfl-data h2 em { color: var(--sage); font-style: normal; }
+  .hfl-data h2 em { color: var(--sage); }
   .hfl-data-lead { font-size: 17px; color: rgba(253,252,250,0.7); line-height: 1.7; margin-bottom: 36px; }
   .hfl-data-cards { display: flex; flex-direction: column; gap: 14px; }
   .hfl-data-card {
@@ -878,13 +878,6 @@ export default function LandingPage() {
       desc: "Every contractor in our network is credentialed, reviewed, and bonded. Their completed work is automatically logged to your home's permanent record.",
       bullets: ["Credentialed & background-checked providers", "Work auto-signed and logged to your record", "Verified receipts & warranties on file", "Rate-limited reviews — real feedback only"],
       cta: "Browse the network",
-    },
-    {
-      icon: "🏡", kicker: "Your Data",
-      heading: <>Your records.<br /><em>Forever yours.</em></>,
-      desc: "Your data lives on the Internet Computer blockchain under your control. If HomeGentic ever closed tomorrow, every record would still be readable by anyone with the address.",
-      bullets: ["Blockchain-stored — no one can delete it", "Download full record as PDF anytime", "Private by default — you control sharing", "No lock-in, no middleman, no expiry"],
-      cta: "Learn about ICP",
     },
   ];
 
@@ -1290,30 +1283,6 @@ export default function LandingPage() {
                   </div>
                 </>)}
 
-                {activeFeature === 4 && (<>
-                  <div style={{ background: "rgba(253,252,250,0.08)", padding: "18px 22px", borderBottom: "1px solid rgba(253,252,250,0.08)" }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "var(--sage)", letterSpacing: "1.5px", textTransform: "uppercase" as const, marginBottom: 8 }}>⬡ Internet Computer</div>
-                    <div style={{ fontFamily: "'Fraunces',serif", fontSize: 15, fontWeight: 700, color: "white", marginBottom: 4 }}>Your Records</div>
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>327 Keech Street · Principal ID: 2vxsx-aa</div>
-                  </div>
-                  <div style={{ padding: "16px 22px", display: "flex", flexDirection: "column" as const, gap: 10 }}>
-                    {[
-                      { icon: "🏠", title: "47 records",      sub: "Stored on-chain · never expiring",       ok: true },
-                      { icon: "📥", title: "Export ready",    sub: "Download PDF or raw data anytime",        ok: true },
-                      { icon: "🔐", title: "Private by default", sub: "Only you control who sees what",       ok: true },
-                      { icon: "🔗", title: "Survives us",     sub: "Readable even if HomeGentic closes",      ok: true },
-                    ].map((d) => (
-                      <div key={d.title} style={{ background: "rgba(253,252,250,0.06)", border: "1px solid rgba(253,252,250,0.1)", borderRadius: 10, padding: "10px 14px", display: "flex", alignItems: "center", gap: 12, fontSize: 12 }}>
-                        <span style={{ fontSize: 18 }}>{d.icon}</span>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 700, color: "white", marginBottom: 2 }}>{d.title}</div>
-                          <div style={{ color: "rgba(253,252,250,0.5)" }}>{d.sub}</div>
-                        </div>
-                        {d.ok && <span style={{ fontSize: 11, fontWeight: 700, color: "var(--sage)" }}>✓</span>}
-                      </div>
-                    ))}
-                  </div>
-                </>)}
               </div>
             </div>
           </div>
