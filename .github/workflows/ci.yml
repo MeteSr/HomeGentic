@@ -10,8 +10,42 @@ permissions:
   contents: read
 
 jobs:
+  motoko-check:
+    name: Motoko compile check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache DFX binary
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/dfinity
+          key: dfx-${{ runner.os }}-${{ hashFiles('dfx.json') }}
+
+      - name: Install DFX
+        uses: dfinity/setup-dfx@main
+
+      - name: Cache mops packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/mops
+          key: mops-${{ runner.os }}-${{ hashFiles('mops.toml') }}
+
+      - name: Install mops
+        run: npm install -g ic-mops
+
+      - name: Install Motoko dependencies
+        run: mops install
+
+      - name: Compile all canisters
+        # dfx build runs moc on every main.mo without starting a replica.
+        # Catches type errors, unused non-unit returns, and bad imports
+        # before the slower test-backend job spins up a replica.
+        run: dfx build --all
+
   test-backend:
     runs-on: ubuntu-latest
+    needs: [motoko-check]
     steps:
       - uses: actions/checkout@v4
 
@@ -95,7 +129,7 @@ jobs:
 
   test-e2e:
     runs-on: ubuntu-latest
-    needs: [test-frontend]
+    needs: [test-frontend, motoko-check]
     steps:
       - uses: actions/checkout@v4
 
