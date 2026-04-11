@@ -561,7 +561,11 @@ const CSS = `
   .hfl-data-note::before { content: ""; display: block; width: 20px; height: 1px; background: rgba(253,252,250,0.2); }
 
   /* ── FREE TOOLS ───────────────────────────────────────────────────────── */
-  .hfl-tools { padding: 80px 56px; background: var(--sage-light); }
+  .hfl-tools { padding: 0 56px 100px; }
+  .hfl-tools-inner {
+    background: var(--sage-light); border-radius: 28px; padding: 64px 72px;
+    border: 2px solid var(--sage-mid); position: relative; overflow: hidden;
+  }
   .hfl-tools-header { text-align: center; margin-bottom: 48px; }
   .hfl-tools-eyebrow {
     display: inline-flex; align-items: center; gap: 8px;
@@ -796,7 +800,8 @@ const CSS = `
     .hfl-data-inner { grid-template-columns: 1fr; padding: 40px 28px; gap: 48px; border-radius: 8px 20px 20px 20px; }
     .hfl-data h2 { font-size: 34px; }
 
-    .hfl-tools { padding: 56px 24px; }
+    .hfl-tools { padding: 0 24px 64px; }
+    .hfl-tools-inner { padding: 40px 28px; border-radius: 20px; }
     .hfl-tools-grid { grid-template-columns: 1fr 1fr; }
 
     .hfl-footer { padding: 48px 24px 28px; }
@@ -830,7 +835,9 @@ const CSS = `
     .hfl-how { padding: 80px 32px; }
     .hfl-feat { padding: 72px 32px; gap: 48px; }
     .hfl-report { margin-left: 32px; margin-right: 32px; padding: 56px 48px; }
-    .hfl-testimonials, .hfl-cta, .hfl-tools { padding-left: 32px; padding-right: 32px; }
+    .hfl-testimonials, .hfl-cta { padding-left: 32px; padding-right: 32px; }
+    .hfl-tools { padding: 0 32px 80px; }
+    .hfl-tools-inner { padding: 52px 48px; }
     .hfl-data { padding: 0 32px 80px; }
     .hfl-data-inner { padding: 56px 48px; }
     .hfl-footer { padding: 52px 32px 28px; }
@@ -1495,6 +1502,7 @@ export default function LandingPage() {
 
         {/* ── Free Tools ──────────────────────────────────────────────────── */}
         <section id="hfl-tools" className="hfl-tools">
+          <div className="hfl-tools-inner">
           <div className="hfl-tools-header">
             <div className="hfl-tools-eyebrow">✦ No account needed</div>
             <h2>Free tools for buyers &amp; homeowners</h2>
@@ -1533,6 +1541,7 @@ export default function LandingPage() {
                 <span className="hfl-tool-cta">{tool.cta}</span>
               </a>
             ))}
+          </div>
           </div>
         </section>
 
