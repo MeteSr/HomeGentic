@@ -51,8 +51,8 @@ jobs:
         # build is already verified in the test-frontend job.
         # jq is pre-installed on all GitHub-hosted runners.
         run: |
-          MOTOKO_CANISTERS=$(jq -r '[.canisters | to_entries[] | select(.value.type != "assets") | .key] | join(" ")' dfx.json)
-          dfx build $MOTOKO_CANISTERS
+          jq -r '.canisters | to_entries[] | select(.value.type != "assets") | .key' dfx.json | \
+          while read -r canister; do dfx build "$canister" || exit 1; done
 
   test-backend:
     runs-on: ubuntu-latest
