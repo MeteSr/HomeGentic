@@ -43,7 +43,8 @@ export default function RegisterPage() {
 
   const handleSubmit = async () => {
     if (!role) return;
-    if (email && !isValidEmail(email)) { setEmailError("Enter a valid email address"); return; }
+    if (!email) { setEmailError("Email is required"); return; }
+    if (!isValidEmail(email)) { setEmailError("Enter a valid email address"); return; }
     if (phone && !isValidPhone(phone)) { setPhoneError("Enter a valid phone number"); return; }
     setLoading(true);
     try {
@@ -184,16 +185,16 @@ export default function RegisterPage() {
                 </div>
                 <h2 style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.75rem", marginBottom: "0.5rem", color: COLORS.plum }}>Your details</h2>
                 <p style={{ fontWeight: 300, fontSize: "0.9rem", color: COLORS.plumMid, marginBottom: "1.5rem" }}>
-                  Optional — used for notifications only. Never shared.
+                  Used for notifications and gift delivery. Never shared.
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginBottom: "1.5rem" }}>
                   <div>
-                    <label className="form-label">Email address (optional)</label>
+                    <label className="form-label">Email address *</label>
                     <input
                       type="email" className="form-input" placeholder="you@example.com"
                       value={email}
                       onChange={(e) => { setEmail(e.target.value); setEmailError(null); }}
-                      onBlur={() => { if (email && !isValidEmail(email)) setEmailError("Enter a valid email address"); }}
+                      onBlur={() => { if (!isValidEmail(email)) setEmailError(email ? "Enter a valid email address" : "Email is required"); }}
                       style={emailError ? { borderColor: COLORS.rust } : undefined}
                     />
                     {emailError && <p style={{ color: COLORS.rust, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: FONTS.mono }}>{emailError}</p>}
@@ -213,7 +214,7 @@ export default function RegisterPage() {
                 <div style={{ display: "flex", gap: "0.75rem" }}>
                   <Button variant="outline" onClick={() => setStep(1)} icon={<ArrowLeft size={16} />}>Back</Button>
                   <Button
-                    disabled={(email !== "" && !isValidEmail(email)) || (phone !== "" && !isValidPhone(phone))}
+                    disabled={!email || !isValidEmail(email) || (phone !== "" && !isValidPhone(phone))}
                     onClick={() => setStep(3)}
                     iconRight={<ArrowRight size={16} />}
                     style={{ flex: 1 }}
