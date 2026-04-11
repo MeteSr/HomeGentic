@@ -511,7 +511,7 @@ const CSS = `
   .hfl-cta-blob2 { position: absolute; bottom: -80px; left: -40px; width: 280px; height: 280px; background: radial-gradient(circle, var(--sky), transparent 70%); pointer-events: none; }
   .hfl-cta h2 { letter-spacing: -2px; margin-bottom: 14px; position: relative; }
   .hfl-cta-sub { font-size: 18px; color: var(--plum-mid); margin-bottom: 52px; max-width: 480px; margin-left: auto; margin-right: auto; line-height: 1.65; position: relative; }
-  .hfl-personas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; max-width: 760px; margin: 0 auto; position: relative; }
+  .hfl-personas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; max-width: 1020px; margin: 0 auto; position: relative; }
   .hfl-persona {
     background: white; border-radius: 20px; padding: 32px 24px;
     border: 2px solid transparent; transition: border-color .2s, box-shadow .2s, transform .2s;
@@ -786,7 +786,8 @@ const CSS = `
     .hfl-cta-inner { padding: 48px 24px; }
     .hfl-cta h2 { font-size: 34px; letter-spacing: -1px; }
     .hfl-cta-sub { font-size: 15px; }
-    .hfl-personas { grid-template-columns: 1fr; max-width: 100%; }
+    .hfl-personas { grid-template-columns: 1fr 1fr; max-width: 100%; }
+    .hfl-personas > *:last-child:nth-child(odd) { grid-column: span 2; max-width: 340px; margin: 0 auto; }
 
     .hfl-data { grid-template-columns: 1fr; padding: 64px 24px; gap: 48px; }
     .hfl-data h2 { font-size: 34px; }
@@ -854,7 +855,7 @@ export default function LandingPage() {
     },
     {
       icon: "⚖️", kicker: "Sell Smarter",
-      heading: <>Make agents<br /><em>compete for you</em></>,
+      heading: <>Make agents compete<br /><em>for your listing</em></>,
       desc: "Post your listing intent and let verified agents submit competing proposals. Compare commissions and net proceeds side by side — or go FSBO.",
       bullets: ["Competing agent proposals within 48 hours", "Compare commissions & estimated net proceeds", "FSBO mode with showing management & offer inbox", "Sealed-bid offer management"],
       cta: "List your home",
@@ -1260,7 +1261,18 @@ export default function LandingPage() {
                         </div>
                       </div>
                     ))}
-                    <div style={{ fontSize: 11, color: "var(--plum-mid)", fontWeight: 600, padding: "8px 0 0", display: "flex", alignItems: "center", gap: 8 }}>
+                    {/* Contractor bid snippet */}
+                    <div style={{ background: "var(--butter)", border: "1px solid rgba(46,37,64,0.1)", borderRadius: 10, padding: "12px 14px" }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: "var(--plum)", letterSpacing: "1.5px", textTransform: "uppercase" as const, marginBottom: 6 }}>⚡ Open Quote Request</div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--plum)", marginBottom: 4 }}>Roof inspection + repair estimate</div>
+                      <div style={{ fontSize: 11, color: "var(--plum-mid)", marginBottom: 8 }}>3 contractors have submitted bids · Closes in 48 hrs</div>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--plum)", background: "rgba(46,37,64,0.08)", borderRadius: 100, padding: "3px 10px" }}>$420</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--plum)", background: "rgba(46,37,64,0.08)", borderRadius: 100, padding: "3px 10px" }}>$395</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--sage)", background: "rgba(122,175,118,0.2)", borderRadius: 100, padding: "3px 10px" }}>$380 ✦ lowest</span>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--plum-mid)", fontWeight: 600, padding: "4px 0 0", display: "flex", alignItems: "center", gap: 8 }}>
                       👷 <span>Work auto-logged to your HomeGentic Record</span>
                     </div>
                   </div>
@@ -1418,7 +1430,12 @@ export default function LandingPage() {
                   cta: "Apply to join",
                 },
                 {
-                  icon: "🏆", role: "Ready to Sell", title: "Make Agents Compete",
+                  icon: "🏡", role: "Real Estate Agent", title: "Win More Listings",
+                  desc: "Submit proposals on active listing intents, showcase your track record, and earn verified reviews directly on HomeGentic.",
+                  cta: "Join as an agent",
+                },
+                {
+                  icon: "🏆", role: "Ready to Sell", title: "Make Agents Compete for Your Listing",
                   desc: "Post your listing intent, collect competing agent proposals, or go FSBO with our full seller toolkit.",
                   cta: "Start selling smarter",
                 },
