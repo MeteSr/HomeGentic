@@ -392,32 +392,39 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {/* User menu anchor */}
           <div ref={userMenuRef} style={{ position: "relative" }}>
 
-            {/* Popover menu — renders above the button */}
+            {/* Backdrop */}
+            {userMenuOpen && (
+              <div
+                style={{ position: "fixed", inset: 0, zIndex: 9998 }}
+                onClick={() => setUserMenuOpen(false)}
+              />
+            )}
+
+            {/* Popover menu — fixed, overlays sidebar and main content */}
             {userMenuOpen && (
               <div style={{
-                position:   "absolute",
-                bottom:     "calc(100% + 4px)",
-                left:       sidebarOpen ? "0.5rem" : "50%",
-                transform:  sidebarOpen ? "none" : "translateX(-50%)",
-                width:      "220px",
-                background: COLORS.white,
-                border:     `1px solid ${COLORS.rule}`,
-                boxShadow:  "0 4px 16px rgba(14,14,12,0.12)",
-                zIndex:     500,
-                paddingTop: "0.25rem",
-                paddingBottom: "0.25rem",
+                position:      "fixed",
+                bottom:        "1rem",
+                left:          "1rem",
+                width:         "280px",
+                background:    COLORS.white,
+                border:        `1px solid ${COLORS.rule}`,
+                boxShadow:     "0 8px 32px rgba(14,14,12,0.18)",
+                zIndex:        9999,
+                paddingTop:    "0.375rem",
+                paddingBottom: "0.375rem",
               }}>
                 {/* User header */}
                 <div style={{
-                  padding:      "0.625rem 1rem 0.5rem",
+                  padding:      "0.875rem 1.125rem 0.75rem",
                   borderBottom: `1px solid ${COLORS.rule}`,
                 }}>
-                  <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, color: COLORS.plum, marginBottom: "0.1rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <p style={{ fontFamily: FONTS.sans, fontSize: "0.9375rem", fontWeight: 600, color: COLORS.plum, marginBottom: "0.2rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {displayName}
                   </p>
                   {principal && (
-                    <p style={{ fontFamily: FONTS.mono, fontSize: "0.55rem", letterSpacing: "0.04em", color: COLORS.plumMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {principal.slice(0, 20)}…
+                    <p style={{ fontFamily: FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: COLORS.plumMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {principal.slice(0, 24)}…
                     </p>
                   )}
                 </div>
@@ -425,48 +432,48 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 {/* Settings */}
                 <button
                   onClick={() => { setUserMenuOpen(false); navigate("/settings"); }}
-                  style={{ display: "flex", alignItems: "center", gap: "0.625rem", width: "100%", padding: "0.55rem 1rem", background: "none", border: "none", cursor: "pointer", fontFamily: FONTS.sans, fontSize: "0.875rem", color: COLORS.plum, textAlign: "left" }}
+                  style={{ display: "flex", alignItems: "center", gap: "0.75rem", width: "100%", padding: "0.7rem 1.125rem", background: "none", border: "none", cursor: "pointer", fontFamily: FONTS.sans, fontSize: "0.9375rem", color: COLORS.plum, textAlign: "left" }}
                   onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = COLORS.sageLight; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "none"; }}
                 >
-                  <Settings size={15} style={{ flexShrink: 0, color: COLORS.plumMid }} />
+                  <Settings size={16} style={{ flexShrink: 0, color: COLORS.plumMid }} />
                   Settings
                 </button>
 
                 {/* Attach receipt / photo to voice agent */}
                 <button
                   onClick={() => { setUserMenuOpen(false); voiceAgentFileInputRef.current?.click(); }}
-                  style={{ display: "flex", alignItems: "center", gap: "0.625rem", width: "100%", padding: "0.55rem 1rem", background: "none", border: "none", cursor: "pointer", fontFamily: FONTS.sans, fontSize: "0.875rem", color: COLORS.plum, textAlign: "left" }}
+                  style={{ display: "flex", alignItems: "center", gap: "0.75rem", width: "100%", padding: "0.7rem 1.125rem", background: "none", border: "none", cursor: "pointer", fontFamily: FONTS.sans, fontSize: "0.9375rem", color: COLORS.plum, textAlign: "left" }}
                   onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = COLORS.sageLight; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "none"; }}
                 >
-                  <Paperclip size={15} style={{ flexShrink: 0, color: COLORS.plumMid }} />
+                  <Paperclip size={16} style={{ flexShrink: 0, color: COLORS.plumMid }} />
                   Attach receipt or photo
                 </button>
 
-                <div style={{ height: "1px", background: COLORS.rule, margin: "0.25rem 0" }} />
+                <div style={{ height: "1px", background: COLORS.rule, margin: "0.3rem 0" }} />
 
                 {/* Upgrade plan */}
                 <button
                   onClick={() => { setUserMenuOpen(false); setUpgradeOpen(true); }}
-                  style={{ display: "flex", alignItems: "center", gap: "0.625rem", width: "100%", padding: "0.55rem 1rem", background: "none", border: "none", cursor: "pointer", fontFamily: FONTS.sans, fontSize: "0.875rem", color: COLORS.plum, textAlign: "left" }}
+                  style={{ display: "flex", alignItems: "center", gap: "0.75rem", width: "100%", padding: "0.7rem 1.125rem", background: "none", border: "none", cursor: "pointer", fontFamily: FONTS.sans, fontSize: "0.9375rem", color: COLORS.plum, textAlign: "left" }}
                   onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = COLORS.sageLight; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "none"; }}
                 >
-                  <ArrowUpCircle size={15} style={{ flexShrink: 0, color: COLORS.sage }} />
+                  <ArrowUpCircle size={16} style={{ flexShrink: 0, color: COLORS.sage }} />
                   Upgrade plan
                 </button>
 
-                <div style={{ height: "1px", background: COLORS.rule, margin: "0.25rem 0" }} />
+                <div style={{ height: "1px", background: COLORS.rule, margin: "0.3rem 0" }} />
 
                 {/* Sign out */}
                 <button
                   onClick={() => { setUserMenuOpen(false); logout(); }}
-                  style={{ display: "flex", alignItems: "center", gap: "0.625rem", width: "100%", padding: "0.55rem 1rem", background: "none", border: "none", cursor: "pointer", fontFamily: FONTS.sans, fontSize: "0.875rem", color: COLORS.plum, textAlign: "left" }}
+                  style={{ display: "flex", alignItems: "center", gap: "0.75rem", width: "100%", padding: "0.7rem 1.125rem", background: "none", border: "none", cursor: "pointer", fontFamily: FONTS.sans, fontSize: "0.9375rem", color: COLORS.plum, textAlign: "left" }}
                   onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = COLORS.sageLight; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "none"; }}
                 >
-                  <LogOut size={15} style={{ flexShrink: 0, color: COLORS.plumMid }} />
+                  <LogOut size={16} style={{ flexShrink: 0, color: COLORS.plumMid }} />
                   Sign out
                 </button>
               </div>
