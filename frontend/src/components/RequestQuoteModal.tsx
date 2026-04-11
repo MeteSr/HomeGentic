@@ -117,7 +117,7 @@ export function RequestQuoteModal({ isOpen, onClose, onSuccess, properties, pref
           flexShrink: 0,
         }}>
           <div>
-            <p style={{ fontFamily: FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.16em", textTransform: "uppercase", color: COLORS.sage, marginBottom: "0.2rem" }}>
+            <p style={{ fontFamily: FONTS.sans, fontSize: "0.7rem", fontWeight: 600, color: COLORS.sage, marginBottom: "0.2rem" }}>
               Contractor Network
             </p>
             <h2 style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.25rem", lineHeight: 1, color: COLORS.plum }}>
@@ -137,7 +137,7 @@ export function RequestQuoteModal({ isOpen, onClose, onSuccess, properties, pref
         <div style={{ padding: "1.25rem 1.5rem", display: "flex", flexDirection: "column", gap: "1.125rem" }}>
 
           {properties.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "1.5rem 0", color: COLORS.plumMid, fontFamily: FONTS.mono, fontSize: "0.7rem" }}>
+            <div style={{ textAlign: "center", padding: "1.5rem 0", color: COLORS.plumMid, fontFamily: FONTS.sans, fontSize: "0.85rem", fontWeight: 300 }}>
               Add a property before requesting quotes.
             </div>
           ) : (
@@ -178,7 +178,7 @@ export function RequestQuoteModal({ isOpen, onClose, onSuccess, properties, pref
                         transition: "border-color 0.15s, background 0.15s",
                       }}
                     >
-                      <div style={{ fontFamily: FONTS.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", color: form.urgency === opt.value ? COLORS.sage : COLORS.plum, marginBottom: "0.15rem", display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                      <div style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", fontWeight: 600, color: form.urgency === opt.value ? COLORS.sage : COLORS.plum, marginBottom: "0.15rem", display: "flex", alignItems: "center", gap: "0.3rem" }}>
                         {opt.value === "emergency" && <Zap size={10} />}
                         {opt.label}
                       </div>

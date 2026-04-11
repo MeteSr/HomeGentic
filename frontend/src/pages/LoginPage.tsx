@@ -142,14 +142,14 @@ export default function LoginPage() {
             borderTop: `1px solid ${COLORS.rule}`,
           }}>
             <Lock size={11} color={COLORS.plumMid} />
-            <p style={{ fontFamily: FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.plumMid, margin: 0 }}>
+            <p style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", fontWeight: 300, color: COLORS.plumMid, margin: 0 }}>
               Secured by Internet Identity — no passwords stored
             </p>
           </div>
 
           {import.meta.env.DEV && (
             <div style={{ marginTop: "1.25rem", borderTop: `1px solid ${COLORS.rule}`, paddingTop: "1.25rem" }}>
-              <p style={{ fontFamily: FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.625rem" }}>
+              <p style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", fontWeight: 300, color: COLORS.plumMid, marginBottom: "0.625rem" }}>
                 Local dev only
               </p>
               <Button

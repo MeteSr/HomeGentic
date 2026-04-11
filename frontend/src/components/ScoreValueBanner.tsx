@@ -26,13 +26,13 @@ export function ScoreValueBanner({ score, zip, homeValueDollars }: ScoreValueBan
       flexDirection: "column",
       gap:        "0.25rem",
     }}>
-      <div style={{ fontFamily: FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: COLORS.sage }}>
+      <div style={{ fontFamily: FONTS.sans, fontSize: "0.7rem", fontWeight: 600, color: COLORS.sage }}>
         Documented value · buyer confidence
       </div>
       <div style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, color: COLORS.plum }}>
         {formatValueRange(result)}
       </div>
-      <div style={{ fontFamily: FONTS.mono, fontSize: "0.55rem", color: COLORS.plumMid }}>
+      <div style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", fontWeight: 300, color: COLORS.plumMid }}>
         Estimated buyer premium from verified maintenance records · score {score}/100
       </div>
     </div>

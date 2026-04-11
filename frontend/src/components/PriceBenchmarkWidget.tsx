@@ -37,7 +37,7 @@ export function PriceBenchmarkWidget({ serviceType, zipCode }: PriceBenchmarkWid
       flexDirection: "column",
       gap:        "0.25rem",
     }}>
-      <div style={{ fontFamily: FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: COLORS.plumMid }}>
+      <div style={{ fontFamily: FONTS.sans, fontSize: "0.7rem", fontWeight: 600, color: COLORS.plumMid }}>
         Typical cost in {result.zipCode}
       </div>
       <div style={{ display: "flex", alignItems: "baseline", gap: "0.375rem" }}>
@@ -52,7 +52,7 @@ export function PriceBenchmarkWidget({ serviceType, zipCode }: PriceBenchmarkWid
           median {fmt(result.median)}
         </span>
       </div>
-      <div style={{ fontFamily: FONTS.mono, fontSize: "0.55rem", color: COLORS.plumMid }}>
+      <div style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", fontWeight: 300, color: COLORS.plumMid }}>
         Based on {result.sampleSize} closed bids · {result.lastUpdated}
       </div>
     </div>
