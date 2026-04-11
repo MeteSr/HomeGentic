@@ -37,10 +37,17 @@ jobs:
       - name: Install Motoko dependencies
         run: mops install
 
+      - name: Start replica (needed for canister create)
+        run: dfx start --background --clean
+
+      - name: Create canister stubs
+        # Registers canister IDs in local state so dfx build can resolve them.
+        # Does not deploy Wasm — just allocates IDs.
+        run: dfx canister create --all
+
       - name: Compile all canisters
-        # dfx build runs moc on every main.mo without starting a replica.
-        # Catches type errors, unused non-unit returns, and bad imports
-        # before the slower test-backend job spins up a replica.
+        # Runs moc on every main.mo. Catches type errors, unused non-unit
+        # returns, and bad imports before test-backend spins up a full deploy.
         run: dfx build --all
 
   test-backend:
