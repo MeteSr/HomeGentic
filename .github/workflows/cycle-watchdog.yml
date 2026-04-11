@@ -30,7 +30,7 @@ jobs:
     environment: production
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install DFX
         uses: dfinity/setup-dfx@main
