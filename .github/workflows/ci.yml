@@ -45,10 +45,14 @@ jobs:
         # Does not deploy Wasm — just allocates IDs.
         run: dfx canister create --all
 
-      - name: Compile all canisters
-        # Runs moc on every main.mo. Catches type errors, unused non-unit
-        # returns, and bad imports before test-backend spins up a full deploy.
-        run: dfx build --all
+      - name: Compile all Motoko canisters
+        # Build every canister whose type is not "assets" (i.e. all Motoko
+        # canisters). The frontend asset canister is excluded — its TypeScript
+        # build is already verified in the test-frontend job.
+        # jq is pre-installed on all GitHub-hosted runners.
+        run: |
+          MOTOKO_CANISTERS=$(jq -r '[.canisters | to_entries[] | select(.value.type != "assets") | .key] | join(" ")' dfx.json)
+          dfx build $MOTOKO_CANISTERS
 
   test-backend:
     runs-on: ubuntu-latest
