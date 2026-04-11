@@ -495,27 +495,17 @@ const CSS = `
   .hfl-testimonials-header h2 { margin-bottom: 12px; }
   .hfl-testimonials-header p { font-size: 17px; color: var(--plum-mid); }
   .hfl-featured-quote {
-    background: white; border-radius: 18px; overflow: hidden;
-    box-shadow: 0 20px 60px rgba(46,37,64,0.18); margin-bottom: 22px;
+    background: var(--plum); border-radius: 24px; padding: 52px 60px;
+    margin-bottom: 22px; position: relative; overflow: hidden;
   }
-  .hfl-fq-header {
-    background: var(--plum); padding: 16px 28px;
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .hfl-fq-header-title { font-family: 'Fraunces', serif; font-size: 15px; color: white; font-weight: 700; }
-  .hfl-fq-header-badge { background: var(--sage); color: var(--plum); font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 100px; letter-spacing: 1px; }
-  .hfl-fq-body {
-    background: var(--sage-light); padding: 48px 52px 44px;
-    position: relative; overflow: hidden;
-  }
-  .hfl-fq-body::before {
-    content: '"'; position: absolute; top: -28px; left: 32px;
+  .hfl-featured-quote::before {
+    content: '"'; position: absolute; top: -32px; left: 36px;
     font-family: 'Fraunces', serif; font-size: 200px; font-weight: 900;
-    color: rgba(46,37,64,0.07); line-height: 1; pointer-events: none;
+    color: rgba(122,175,118,0.12); line-height: 1; pointer-events: none;
   }
   .hfl-featured-quote-text {
     font-family: 'Fraunces', serif; font-size: clamp(20px, 2.5vw, 28px);
-    font-weight: 600; color: var(--plum); line-height: 1.5; margin-bottom: 32px;
+    font-weight: 600; color: white; line-height: 1.5; margin-bottom: 32px;
     max-width: 720px; position: relative;
   }
   .hfl-featured-quote-text em { color: var(--sage); font-style: italic; }
@@ -523,16 +513,16 @@ const CSS = `
   .hfl-featured-avi {
     width: 52px; height: 52px; border-radius: 50%; background: var(--blush);
     display: flex; align-items: center; justify-content: center; font-size: 26px;
-    border: 2px solid rgba(46,37,64,0.12); flex-shrink: 0;
+    border: 2px solid rgba(122,175,118,0.4); flex-shrink: 0;
   }
-  .hfl-featured-name { font-size: 15px; font-weight: 700; color: var(--plum); margin-bottom: 3px; }
-  .hfl-featured-role { font-size: 13px; color: var(--plum-mid); }
+  .hfl-featured-name { font-size: 15px; font-weight: 700; color: white; margin-bottom: 3px; }
+  .hfl-featured-role { font-size: 13px; color: rgba(253,252,250,0.55); }
   .hfl-featured-result { margin-left: auto; text-align: right; flex-shrink: 0; }
   .hfl-featured-result-num {
     font-family: 'Fraunces', serif; font-size: 38px; font-weight: 900;
     color: var(--sage); line-height: 1; margin-bottom: 4px;
   }
-  .hfl-featured-result-lbl { font-size: 12px; color: var(--plum-mid); }
+  .hfl-featured-result-lbl { font-size: 12px; color: rgba(253,252,250,0.5); }
   .hfl-test-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
   .hfl-test-card {
     background: white; border-radius: 20px; padding: 30px;
@@ -837,7 +827,7 @@ const CSS = `
     .hfl-fdd-cols { grid-template-columns: 1fr; gap: 0; }
     .hfl-fdd-row:last-child { border-bottom: 1px solid rgba(253,252,250,0.08); }
     .hfl-testimonials { padding: 0 24px 64px; }
-    .hfl-fq-body { padding: 32px 24px; }
+    .hfl-featured-quote { padding: 36px 28px; }
     .hfl-featured-result { display: none; }
     .hfl-test-grid { grid-template-columns: 1fr; }
 
@@ -1403,25 +1393,19 @@ export default function LandingPage() {
           </div>
 
           <div className="hfl-featured-quote">
-            <div className="hfl-fq-header">
-              <span className="hfl-fq-header-title">Homeowner Spotlight</span>
-              <span className="hfl-fq-header-badge">★★★★★ Verified</span>
-            </div>
-            <div className="hfl-fq-body">
-              <p className="hfl-featured-quote-text">
-                "We got <em>$28k over asking</em>. Our buyers said the HomeGentic Report was
-                the reason they felt comfortable waiving the inspection contingency. It's a game changer."
-              </p>
-              <div className="hfl-featured-author">
-                <div className="hfl-featured-avi">👩</div>
-                <div>
-                  <div className="hfl-featured-name">Sarah M.</div>
-                  <div className="hfl-featured-role">Seller · Austin, TX</div>
-                </div>
-                <div className="hfl-featured-result">
-                  <div className="hfl-featured-result-num">+$28k</div>
-                  <div className="hfl-featured-result-lbl">over asking price</div>
-                </div>
+            <p className="hfl-featured-quote-text">
+              "We got <em>$28k over asking</em>. Our buyers said the HomeGentic Report was
+              the reason they felt comfortable waiving the inspection contingency. It's a game changer."
+            </p>
+            <div className="hfl-featured-author">
+              <div className="hfl-featured-avi">👩</div>
+              <div>
+                <div className="hfl-featured-name">Sarah M.</div>
+                <div className="hfl-featured-role">Seller · Austin, TX</div>
+              </div>
+              <div className="hfl-featured-result">
+                <div className="hfl-featured-result-num">+$28k</div>
+                <div className="hfl-featured-result-lbl">over asking price</div>
               </div>
             </div>
           </div>
