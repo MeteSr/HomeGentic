@@ -143,7 +143,6 @@ export default function PricingPage() {
           <Link to="/" style={{ textDecoration: "none", fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.1rem", letterSpacing: "-0.5px", color: COLORS.plum }}>
             Home<span style={{ color: COLORS.sage }}>Gentic</span>
           </Link>
-          <Button size="sm" onClick={handleLogin}>Get Started Free</Button>
         </div>
       </header>
 

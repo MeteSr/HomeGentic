@@ -51,8 +51,8 @@ const FAQS: FaqItem[] = [
     a: "Spreadsheets are self-reported and editable — buyers can't verify them. HomeGentic records are dual-signed by homeowner and contractor, timestamped on-chain, and linked to contractor credentials. That's what makes them verifiable.",
   },
   {
-    q: "Do contractors need to be on HomeGentic to log work?",
-    a: "Contractors need a HomeGentic account to co-sign a job record. However, homeowners can log jobs independently as self-verified entries for any work performed by off-platform providers.",
+    q: "Can I get a job verified if my contractor isn't on HomeGentic?",
+    a: "Yes. Log the job yourself and HomeGentic generates a single-use co-sign link. Send it to your contractor — they don't need an account. They open the link, review the job details, and sign off. Once both parties have signed, the record becomes fully dual-verified. The link expires after 48 hours, so it's worth sending right after the work is done. If the contractor doesn't sign in time, the record stays in your timeline as homeowner-verified — still useful, just not dual-signed.",
   },
   {
     q: "What subscription tier do I need?",

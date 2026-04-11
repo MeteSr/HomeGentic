@@ -499,11 +499,6 @@ const CSS = `
     background: linear-gradient(135deg, var(--blush), var(--butter)); border-radius: 24px; padding: 52px 60px;
     margin-bottom: 22px; position: relative; overflow: hidden;
   }
-  .hfl-featured-quote::before {
-    content: '"'; position: absolute; top: -32px; left: 36px;
-    font-family: 'Fraunces', serif; font-size: 200px; font-weight: 900;
-    color: rgba(46,37,64,0.07); line-height: 1; pointer-events: none;
-  }
   .hfl-featured-quote-text {
     font-family: 'Fraunces', serif; font-size: clamp(20px, 2.5vw, 28px);
     font-weight: 600; color: var(--plum); line-height: 1.5; margin-bottom: 32px;
@@ -614,7 +609,7 @@ const CSS = `
   }
   .hfl-tools h2 { font-size: clamp(28px, 4vw, 42px); color: var(--plum); }
   .hfl-tools-sub { font-size: 16px; color: var(--plum-mid); margin-top: 12px; line-height: 1.7; }
-  .hfl-tools-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .hfl-tools-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; position: relative; z-index: 1; }
   .hfl-tool-card {
     background: white; border-radius: 20px; padding: 28px 24px;
     display: flex; flex-direction: column; gap: 12px;
@@ -743,7 +738,7 @@ const CSS = `
     display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 48px; margin-bottom: 52px;
   }
   .hfl-footer-logo { font-family: 'Fraunces', serif; font-size: 24px; font-weight: 900; color: white; margin-bottom: 14px; display: block; text-decoration: none; }
-  .hfl-footer-logo span { color: var(--sage); }
+  .hfl-footer-logo span { color: var(--sage); font-style: italic; font-weight: 300; }
   .hfl-footer-tagline { font-size: 14px; color: rgba(253,252,250,0.45); line-height: 1.65; max-width: 220px; margin-bottom: 24px; }
   .hfl-footer-social { display: flex; gap: 10px; }
   .hfl-footer-social a {
@@ -898,7 +893,7 @@ export default function LandingPage() {
     {
       icon: "📋", kicker: "The Verified Record",
       heading: <>The Carfax<br /><em>your home deserves</em></>,
-      desc: "Every service, repair, and renovation — documented, signed, and stored permanently on the Internet Computer blockchain. No middlemen, no expiry.",
+      desc: "Every service, repair, and renovation — documented, signed, and stored permanently on the blockchain. No middlemen, no expiry.",
       bullets: ["Full ownership & transaction history", "Verified contractor records & warranties", "Permitted renovations on file", "AI agents continuously update your score"],
       cta: "Build my record",
     },
@@ -913,7 +908,7 @@ export default function LandingPage() {
       icon: "⚖️", kicker: "Sell Smarter",
       heading: <>Make agents compete<br /><em>for your listing</em></>,
       desc: "Post your listing intent and let verified agents submit competing proposals. Compare commissions and net proceeds side by side — or go FSBO.",
-      bullets: ["Competing agent proposals within 48 hours", "Compare commissions & estimated net proceeds", "FSBO mode with showing management & offer inbox", "Sealed-bid offer management"],
+      bullets: ["Competing agent proposals within 48 hours", "Compare strategy, commissions & estimated net proceeds", "FSBO mode with showing management & offer inbox", "Sealed-bid offer management"],
       cta: "List your home",
     },
     {
@@ -1000,7 +995,7 @@ export default function LandingPage() {
           </ul>
           <div className="hfl-nav-actions">
             <button className="hfl-nav-signin" onClick={() => navigate("/login")}>Sign in</button>
-            <button className="hfl-nav-pill" onClick={() => navigate("/login")}>Start Free →</button>
+            <button className="hfl-nav-pill" onClick={() => navigate("/login")}>Start Free</button>
             <button
               className={`hfl-hamburger${menuOpen ? " hfl-menu-open" : ""}`}
               aria-label={menuOpen ? "Close menu" : "Open menu"}
@@ -1022,7 +1017,7 @@ export default function LandingPage() {
               you're ready to command a premium.
             </p>
             <div className="hfl-actions">
-              <button className="hfl-btn-main" onClick={() => navigate("/login")}>Get Started Free →</button>
+              <button className="hfl-btn-main" onClick={() => navigate("/login")}>Get Started Free</button>
               <button className="hfl-btn-soft" onClick={() => navigate("/login")}>See a HomeGentic Report</button>
             </div>
             <div className="hfl-hero-trust">
@@ -1156,7 +1151,7 @@ export default function LandingPage() {
                   ))}
                 </ul>
                 <button className="hfl-sc-cta" onClick={() => navigate("/login")}>
-                  {FEATURES[activeFeature].cta} →
+                  {FEATURES[activeFeature].cta}
                 </button>
               </div>
 
@@ -1212,7 +1207,7 @@ export default function LandingPage() {
                     <div className="hfl-ai-notice">
                       <div className="hfl-ai-notice-tag"><span>⚡</span> HomeGentic noticed</div>
                       <p>Your water heater (2013) is past average lifespan. Want a verified quote before winter?</p>
-                      <button className="hfl-ai-notice-btn">Yes, get me quotes →</button>
+                      <button className="hfl-ai-notice-btn">Yes, get me quotes</button>
                     </div>
                     <div className="hfl-ai-user-msg">
                       <div className="hfl-ai-user-icon">🎤</div>
@@ -1313,7 +1308,7 @@ export default function LandingPage() {
               Homes with it sell first.
             </p>
             <div className="hfl-rc-actions">
-              <button className="hfl-rc-btn" onClick={() => navigate("/login")}>Generate My HomeGentic →</button>
+              <button className="hfl-rc-btn" onClick={() => navigate("/login")}>Generate My HomeGentic</button>
               <button className="hfl-rc-ghost" onClick={() => window.open("/sample-report", "_blank", "noopener,noreferrer")}>View Sample Report</button>
             </div>
           </div>
@@ -1360,7 +1355,7 @@ export default function LandingPage() {
             <div className="hfl-fdd-cols">
               {([
                 { icon: ShieldCheck,  title: "Insurance Defense Mode",      tagline: "Fight a rate hike or claim denial with a single report.",        desc: "Generates a print-ready document of every insurance-relevant job — roof, HVAC, electrical, plumbing — sorted by system and dated, ready to hand to your insurer." },
-                { icon: TrendingUp,   title: "Market Intelligence",         tagline: "Know which renovations actually pay off in your zip code.",       desc: "Uses 2024 Remodeling Magazine data to rank projects by ROI for your area. Compares your score to similar nearby properties so you see exactly where you stand." },
+                { icon: TrendingUp,   title: "Market Intelligence",         tagline: "Know which renovations actually pay off in your zip code.",       desc: "Uses remodeling data to rank projects by ROI for your area. Compares your score to similar nearby properties so you see exactly where you stand." },
                   { icon: CalendarDays, title: "5-Year Maintenance Calendar", tagline: "Budget for the future instead of being blindsided.",             desc: "Based on your home's system ages and service history, HomeGentic generates a personalized 5-year schedule with projected costs for every task." },
                 { icon: Archive,      title: "Warranty Wallet",             tagline: "Every warranty, receipt, and manual — attached to your home.",   desc: "Store appliance warranties, installation receipts, and product manuals tied to the exact job they belong to. Linked to your blockchain record, not buried in your email." },
                 { icon: RefreshCw,    title: "Recurring Services",          tagline: "Never miss the HVAC tune-up that prevents a $12k failure.",      desc: "Log ongoing service contracts — HVAC, pest control, landscaping — and HomeGentic tracks every visit, sends reminders, and builds a documented history automatically." },
@@ -1387,7 +1382,7 @@ export default function LandingPage() {
         <section className="hfl-testimonials">
           <div className="hfl-testimonials-header">
             <div className="hfl-kicker">★ Homeowner Stories</div>
-            <h2>Homeowners Love HomeGentic</h2>
+            <h2>Homeowners Love Home<em>Gentic</em></h2>
             <p>Real results from real people who took control of their home's story.</p>
           </div>
 
@@ -1475,7 +1470,7 @@ export default function LandingPage() {
                   <div className="hfl-persona-title">{p.title}</div>
                   <div className="hfl-persona-desc">{p.desc}</div>
                   <div className="hfl-persona-cta">
-                    {p.cta} <span className="hfl-persona-arrow">→</span>
+                    {p.cta}
                   </div>
                 </div>
               ))}
@@ -1487,15 +1482,11 @@ export default function LandingPage() {
         <section id="hfl-data" className="hfl-data">
           <div className="hfl-data-inner">
             <div>
-              <div className="hfl-data-eyebrow">🔒 Your Data</div>
               <h2>Your records.<br /><em>Forever yours.</em></h2>
               <p className="hfl-data-lead">
                 Most apps keep your data on their servers. If they shut down, your records disappear.
                 HomeGentic is different — every record you log lives on a public blockchain that no one
                 controls, including us. You own it completely.
-              </p>
-              <p className="hfl-data-note">
-                No lock-in. No middleman. No expiry date.
               </p>
             </div>
             <div className="hfl-data-cards">
@@ -1523,8 +1514,7 @@ export default function LandingPage() {
             <div className="hfl-cta-blob1" />
             <div className="hfl-cta-blob2" />
           <div className="hfl-tools-header">
-            <div className="hfl-tools-eyebrow">✦ No account needed</div>
-            <h2>Free tools for buyers &amp; homeowners</h2>
+            <h2>Free tools</h2>
             <p className="hfl-tools-sub">Try these before you sign up — no login, no credit card.</p>
           </div>
           <div className="hfl-tools-grid">
@@ -1532,22 +1522,22 @@ export default function LandingPage() {
               {
                 icon: "🔍", label: "Buyer tool", title: "HomeGentic Report Lookup",
                 desc: "Enter any address to see if the owner has a verified HomeGentic maintenance report ready to share.",
-                cta: "Check an address →", href: "/check",
+                cta: "Check an address", href: "/check",
               },
               {
                 icon: "📅", label: "Planning tool", title: "Instant System Forecast",
                 desc: "Enter your home's year built and get a 10-year cost forecast for HVAC, roof, plumbing, electrical, and more.",
-                cta: "Get my forecast →", href: "/instant-forecast",
+                cta: "Get my forecast", href: "/instant-forecast",
               },
               {
                 icon: "💰", label: "Pricing tool", title: "Contractor Price Lookup",
                 desc: "See what homeowners in your area actually pay for roofing, HVAC, plumbing, flooring, and other common jobs.",
-                cta: "Look up prices →", href: "/prices",
+                cta: "Look up prices", href: "/prices",
               },
               {
                 icon: "⚙️", label: "Estimator", title: "Home Systems Estimator",
                 desc: "Get lifespan estimates and replacement cost ranges for every major system in your home based on install year.",
-                cta: "Estimate my systems →", href: "/home-systems",
+                cta: "Estimate my systems", href: "/home-systems",
               },
             ].map((tool) => (
               <a key={tool.href} href={tool.href} className="hfl-tool-card">
@@ -1612,7 +1602,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="hfl-footer-bottom">
-            <span>© 2026 HomeGentic Inc. — Built on the Internet Computer</span>
+            <span>© 2026 HomeGentic Inc.</span>
             <div className="hfl-footer-bottom-links">
               <Link to="/privacy">Privacy</Link>
               <Link to="/terms">Terms</Link>

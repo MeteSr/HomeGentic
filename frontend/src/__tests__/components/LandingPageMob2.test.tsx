@@ -31,7 +31,6 @@ describe("LandingPage — branding", () => {
 describe("LandingPage — key sections render", () => {
   it("renders the hero headline", () => {
     renderLanding();
-    // h1 contains 'home' or 'HomeGentic' — just confirm it mounts
     const h1 = document.querySelector("h1");
     expect(h1).not.toBeNull();
   });
@@ -42,22 +41,16 @@ describe("LandingPage — key sections render", () => {
     expect(btns.length).toBeGreaterThan(0);
   });
 
-  it("renders the numbers bar (4 stats)", () => {
-    const { container } = renderLanding();
-    const nbar = container.querySelectorAll(".hfl-nbar");
-    expect(nbar.length).toBe(4);
-  });
-
-  it("renders 4 lifecycle steps", () => {
+  it("renders 4 How It Works steps", () => {
     const { container } = renderLanding();
     const steps = container.querySelectorAll(".hfl-step");
     expect(steps.length).toBe(4);
   });
 
-  it("renders 3 persona cards", () => {
+  it("renders 4 persona cards", () => {
     const { container } = renderLanding();
     const personas = container.querySelectorAll(".hfl-persona");
-    expect(personas.length).toBe(3);
+    expect(personas.length).toBe(4);
   });
 });
 
