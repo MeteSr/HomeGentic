@@ -216,6 +216,77 @@ const CSS = `
     border-radius: 12px; padding: 10px 14px; font-size: 12px; color: rgba(253,252,250,0.8);
   }
 
+  /* AI VOICE SECTION */
+  .hfl-ai { padding: 0 56px 100px; }
+  .hfl-ai-inner {
+    background: var(--plum); border-radius: 28px; padding: 80px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 72px; align-items: center;
+  }
+  .hfl-ai-kicker {
+    font-size: 12px; font-weight: 700; color: var(--sage);
+    letter-spacing: 2px; text-transform: uppercase; margin-bottom: 20px;
+  }
+  .hfl-ai-inner h2 { color: white; margin-bottom: 18px; font-size: 44px; letter-spacing: -1px; line-height: 1.08; }
+  .hfl-ai-inner h2 em { color: var(--sage); font-style: italic; font-weight: 300; }
+  .hfl-ai-lead { font-size: 16px; color: rgba(253,252,250,0.68); line-height: 1.7; margin-bottom: 40px; }
+  .hfl-ai-pillars { display: flex; flex-direction: column; gap: 24px; }
+  .hfl-ai-pillar { display: flex; gap: 16px; }
+  .hfl-ai-pillar-icon {
+    width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 20px;
+  }
+  .hfl-ai-pillar-icon-1 { background: rgba(122,175,118,0.2); }
+  .hfl-ai-pillar-icon-2 { background: rgba(240,205,186,0.2); }
+  .hfl-ai-pillar h4 { font-size: 15px; font-weight: 700; color: white; margin-bottom: 6px; }
+  .hfl-ai-pillar p { font-size: 13px; color: rgba(253,252,250,0.6); line-height: 1.65; }
+  .hfl-ai-demo {
+    background: rgba(253,252,250,0.06); border: 1px solid rgba(253,252,250,0.12);
+    border-radius: 20px; overflow: hidden;
+  }
+  .hfl-ai-demo-hdr {
+    background: rgba(253,252,250,0.1); padding: 14px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid rgba(253,252,250,0.08);
+  }
+  .hfl-ai-demo-hdr-l { display: flex; align-items: center; gap: 10px; }
+  .hfl-ai-demo-name { font-size: 13px; font-weight: 700; color: white; }
+  .hfl-ai-demo-live { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--sage); font-weight: 600; }
+  .hfl-ai-demo-dot { width: 6px; height: 6px; background: var(--sage); border-radius: 50%; animation: hfl-pulse 2s infinite; }
+  .hfl-ai-demo-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+  .hfl-ai-proactive {
+    background: rgba(245,233,187,0.12); border: 1px solid rgba(245,233,187,0.22);
+    border-radius: 14px; padding: 14px 16px;
+  }
+  .hfl-ai-pro-tag {
+    font-size: 10px; font-weight: 700; color: #F5E9BB; letter-spacing: 1.5px;
+    text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+  }
+  .hfl-ai-proactive p { font-size: 13px; color: rgba(253,252,250,0.85); line-height: 1.6; margin-bottom: 12px; }
+  .hfl-ai-pro-btn {
+    background: var(--sage); color: var(--plum); font-size: 12px; font-weight: 700;
+    padding: 6px 14px; border-radius: 100px; border: none; cursor: pointer;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+  .hfl-ai-user-msg { display: flex; align-items: flex-start; gap: 10px; padding-left: 4px; }
+  .hfl-ai-user-icon {
+    width: 28px; height: 28px; background: rgba(253,252,250,0.12); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; margin-top: 2px;
+  }
+  .hfl-ai-user-msg p { font-size: 13px; color: rgba(253,252,250,0.6); line-height: 1.5; font-style: italic; }
+  .hfl-ai-response { background: rgba(122,175,118,0.15); border-radius: 14px; padding: 14px 16px; }
+  .hfl-ai-response-tag { font-size: 10px; font-weight: 700; color: var(--sage); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 8px; }
+  .hfl-ai-response p { font-size: 13px; color: rgba(253,252,250,0.85); line-height: 1.6; }
+  .hfl-ai-mic-row {
+    padding: 16px 20px; border-top: 1px solid rgba(253,252,250,0.08);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .hfl-ai-mic-btn {
+    width: 40px; height: 40px; background: var(--sage); border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+    box-shadow: 0 0 0 8px rgba(122,175,118,0.15);
+  }
+  .hfl-ai-mic-hint { font-size: 12px; color: rgba(253,252,250,0.4); }
+
   /* REPORT CTA */
   .hfl-report {
     margin: 0 56px 100px;
@@ -624,6 +695,7 @@ export default function LandingPage() {
               you're ready to command a premium or make agents compete for your listing.
             </p>
             <div className="hfl-pills">
+              <div className="hfl-pill">🎤 Voice AI Agent</div>
               <div className="hfl-pill">🔧 Property Management</div>
               <div className="hfl-pill">👷 Verified Contractors</div>
               <div className="hfl-pill">📋 Verified Home Report</div>
@@ -748,9 +820,9 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="hfl-bc hfl-bc-sage">
-              <div className="hfl-bc-icon">🤖</div>
-              <h3>AI Property Agents</h3>
-              <p>Autonomous AI agents monitor your home, flag upcoming maintenance, find verified service providers, and keep your HomeGentic score climbing.</p>
+              <div className="hfl-bc-icon">🎤</div>
+              <h3>Talk To Your Home</h3>
+              <p>Ask your AI anything — and it reaches out first when something needs attention. Voice-powered, home-aware, always on.</p>
             </div>
             <div className="hfl-bc hfl-bc-blush">
               <div className="hfl-bc-icon">👷</div>
@@ -766,6 +838,68 @@ export default function LandingPage() {
               <div className="hfl-bc-icon">🏡</div>
               <h3>Sell It Yourself</h3>
               <p>Not ready for an agent? Our FSBO mode gives you pricing intelligence, a public listing page, showing management, and an offer inbox — everything you need to close on your own terms.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* ── AI Voice & Proactive ────────────────────────────────────────── */}
+        <section className="hfl-ai">
+          <div className="hfl-ai-inner">
+            <div>
+              <div className="hfl-ai-kicker">✦ AI Home Intelligence</div>
+              <h2>Your home has a voice.<br /><em>So do you.</em></h2>
+              <p className="hfl-ai-lead">
+                HomeGentic doesn't just store your records — it thinks about them.
+                Ask your home anything. And when something needs your attention,
+                it reaches out first.
+              </p>
+              <div className="hfl-ai-pillars">
+                <div className="hfl-ai-pillar">
+                  <div className="hfl-ai-pillar-icon hfl-ai-pillar-icon-1">🎤</div>
+                  <div>
+                    <h4>Talk to your home</h4>
+                    <p>Tap the mic and ask anything — "When was my roof last serviced?" "What's my biggest risk this winter?" "Find me a plumber who's worked on my street." Your entire verified history is the context.</p>
+                  </div>
+                </div>
+                <div className="hfl-ai-pillar">
+                  <div className="hfl-ai-pillar-icon hfl-ai-pillar-icon-2">⚡</div>
+                  <div>
+                    <h4>Your home reaches out first</h4>
+                    <p>When your water heater ages out, when a utility bill spikes, when a sensor event triggers — your AI flags it before you think to ask. Proactive, not reactive.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="hfl-ai-demo">
+              <div className="hfl-ai-demo-hdr">
+                <div className="hfl-ai-demo-hdr-l">
+                  <span style={{ fontSize: 18 }}>🏠</span>
+                  <span className="hfl-ai-demo-name">HomeGentic AI</span>
+                </div>
+                <div className="hfl-ai-demo-live">
+                  <div className="hfl-ai-demo-dot" />
+                  Live
+                </div>
+              </div>
+              <div className="hfl-ai-demo-body">
+                <div className="hfl-ai-proactive">
+                  <div className="hfl-ai-pro-tag"><span>⚡</span> HomeGentic noticed</div>
+                  <p>Your water heater (installed 2013) is past average lifespan. Winter is the worst time for failures — want me to find a verified quote before that happens?</p>
+                  <button className="hfl-ai-pro-btn">Yes, get me quotes →</button>
+                </div>
+                <div className="hfl-ai-user-msg">
+                  <div className="hfl-ai-user-icon">🎤</div>
+                  <p>"What's my biggest maintenance risk heading into winter?"</p>
+                </div>
+                <div className="hfl-ai-response">
+                  <div className="hfl-ai-response-tag">HomeGentic AI</div>
+                  <p>Based on your records: your roof was last inspected in 2021 and your furnace filter is 3 months overdue. I'd prioritize both before the cold. Want me to schedule a checkup?</p>
+                </div>
+              </div>
+              <div className="hfl-ai-mic-row">
+                <div className="hfl-ai-mic-btn">🎤</div>
+                <span className="hfl-ai-mic-hint">Tap to ask anything about your home…</span>
+              </div>
             </div>
           </div>
         </section>
