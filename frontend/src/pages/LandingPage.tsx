@@ -438,8 +438,9 @@ const CSS = `
     background: var(--plum);
     border-radius: 8px 40px 40px 40px;
     border: 1px solid rgba(122,175,118,0.15);
-    padding: 72px 80px;
+    padding: 64px 72px;
     position: relative; overflow: hidden;
+    display: grid; grid-template-columns: 340px 1fr; gap: 72px; align-items: start;
   }
   .hfl-fdd-inner::before {
     content: "";
@@ -455,12 +456,12 @@ const CSS = `
     background: radial-gradient(circle, rgba(186,213,232,0.08) 0%, transparent 65%);
     pointer-events: none;
   }
-  .hfl-fdd-header { max-width: 560px; margin-bottom: 56px; position: relative; }
+  .hfl-fdd-header { position: relative; }
   .hfl-fdd-header h2 { color: white; margin-bottom: 16px; }
   .hfl-fdd-header h2 em { color: var(--sage); }
-  .hfl-fdd-header p { font-size: 17px; color: rgba(253,252,250,0.65); line-height: 1.7; }
+  .hfl-fdd-header p { font-size: 16px; color: rgba(253,252,250,0.65); line-height: 1.7; }
   .hfl-fdd-cols {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 0 64px; position: relative;
+    display: flex; flex-direction: column; position: relative;
   }
   .hfl-fdd-row {
     display: flex; align-items: flex-start; gap: 20px;
@@ -823,8 +824,7 @@ const CSS = `
     .hfl-report > div:last-child { display: none; }
 
     .hfl-fdd { padding: 0 24px 64px; }
-    .hfl-fdd-inner { padding: 40px 28px; border-radius: 8px 20px 20px 20px; }
-    .hfl-fdd-cols { grid-template-columns: 1fr; gap: 0; }
+    .hfl-fdd-inner { padding: 40px 28px; border-radius: 8px 20px 20px 20px; grid-template-columns: 1fr; gap: 36px; }
     .hfl-fdd-row:last-child { border-bottom: 1px solid rgba(253,252,250,0.08); }
     .hfl-testimonials { padding: 0 24px 64px; }
     .hfl-featured-quote { padding: 36px 28px; }
@@ -878,7 +878,7 @@ const CSS = `
     .hfl-feat { padding: 72px 32px; gap: 48px; }
     .hfl-report { margin-left: 32px; margin-right: 32px; padding: 56px 48px; }
     .hfl-fdd { padding: 0 32px 80px; }
-    .hfl-fdd-inner { padding: 56px 48px; }
+    .hfl-fdd-inner { padding: 56px 48px; grid-template-columns: 1fr; gap: 40px; }
     .hfl-testimonials, .hfl-cta { padding-left: 32px; padding-right: 32px; }
     .hfl-tools { padding: 0 32px 80px; }
     .hfl-tools-inner { padding: 52px 48px; }
