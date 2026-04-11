@@ -28,14 +28,14 @@ export function DocumentedValueSection({ score, zip, homeValueDollars }: Documen
       gap:        "0.75rem",
     }}>
       <div>
-        <p style={{ fontFamily: FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.25rem" }}>
+        <p style={{ fontFamily: FONTS.sans, fontSize: "0.7rem", fontWeight: 600, color: COLORS.plumMid, marginBottom: "0.25rem" }}>
           Documented Maintenance Value
         </p>
         <p style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, color: COLORS.plum }}>
           {formatValueRange(result)}
         </p>
       </div>
-      <p style={{ fontFamily: FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: COLORS.plumMid, maxWidth: "22rem" }}>
+      <p style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", fontWeight: 300, color: COLORS.plumMid, maxWidth: "22rem" }}>
         Estimated buyer premium based on verified maintenance history · score {score}/100
       </p>
     </div>

@@ -35,8 +35,8 @@ const inputStyle: React.CSSProperties = {
 
 const labelStyle: React.CSSProperties = {
   display: "block",
-  fontFamily: FONTS.mono, fontSize: "0.6rem",
-  letterSpacing: "0.08em", textTransform: "uppercase",
+  fontFamily: FONTS.sans, fontSize: "0.75rem",
+  fontWeight: 600,
   color: COLORS.plumMid, marginBottom: "0.25rem",
 };
 
@@ -116,7 +116,7 @@ export function AddRoomModal({ isOpen, onClose, onSuccess, propertyId }: AddRoom
           <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
             <Home size={15} color={COLORS.sage} />
             <div>
-              <p style={{ fontFamily: FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.16em", textTransform: "uppercase", color: COLORS.sage, marginBottom: "0.2rem" }}>
+              <p style={{ fontFamily: FONTS.sans, fontSize: "0.7rem", fontWeight: 600, color: COLORS.sage, marginBottom: "0.2rem" }}>
                 Room Digital Twin
               </p>
               <h2 style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.25rem", lineHeight: 1, color: COLORS.plum }}>

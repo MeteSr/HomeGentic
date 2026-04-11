@@ -68,17 +68,16 @@ export function NeighborhoodBenchmark({ zipCode, score }: Props) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.875rem" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
           <MapPin size={14} color={COLORS.plumMid} />
-          <span style={{ fontFamily: FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: COLORS.plumMid }}>
+          <span style={{ fontFamily: FONTS.sans, fontSize: "0.7rem", fontWeight: 600, color: COLORS.plumMid }}>
             Neighborhood Rank · {zipCode}
           </span>
         </div>
         <button
           onClick={() => navigate(`/neighborhood/${zipCode}`)}
           style={{
-            fontFamily: FONTS.mono,
-            fontSize: "0.55rem",
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
+            fontFamily: FONTS.sans,
+            fontSize: "0.75rem",
+            fontWeight: 500,
             color: COLORS.sage,
             background: "none",
             border: "none",
@@ -133,10 +132,10 @@ export function NeighborhoodBenchmark({ zipCode, score }: Props) {
 
       {/* Sub-text */}
       <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-        <span style={{ fontFamily: FONTS.mono, fontSize: "0.6rem", color: COLORS.plumMid }}>
+        <span style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", fontWeight: 300, color: COLORS.plumMid }}>
           Better than {percentile}% of {stats.sampleCount} homes
         </span>
-        <span style={{ fontFamily: FONTS.mono, fontSize: "0.6rem", color: COLORS.plumMid }}>
+        <span style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", fontWeight: 300, color: COLORS.plumMid }}>
           {trendLabel}
         </span>
       </div>

@@ -132,7 +132,7 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
           flexShrink: 0,
         }}>
           <div>
-            <p style={{ fontFamily: FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.16em", textTransform: "uppercase", color: COLORS.sage, marginBottom: "0.2rem" }}>
+            <p style={{ fontFamily: FONTS.sans, fontSize: "0.7rem", fontWeight: 600, color: COLORS.sage, marginBottom: "0.2rem" }}>
               Maintenance Record
             </p>
             <h2 style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.25rem", lineHeight: 1, color: COLORS.plum }}>
@@ -160,7 +160,7 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
             }}>
               <CheckCircle size={24} color={COLORS.sage} />
             </div>
-            <p style={{ fontFamily: FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: COLORS.sage, marginBottom: "0.375rem" }}>
+            <p style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", fontWeight: 600, color: COLORS.sage, marginBottom: "0.375rem" }}>
               Record Locked On-Chain
             </p>
             <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: COLORS.plumMid, marginBottom: "1.5rem" }}>
@@ -173,7 +173,7 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
                   setForm({ ...EMPTY_FORM, propertyId: form.propertyId, date: new Date().toISOString().split("T")[0] });
                 }}
                 style={{
-                  fontFamily: FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase",
+                  fontFamily: FONTS.sans, fontSize: "0.8rem", fontWeight: 500,
                   padding: "0.5rem 1.25rem", border: `1px solid ${COLORS.rule}`,
                   background: "none", cursor: "pointer", color: COLORS.plumMid,
                   borderRadius: RADIUS.pill,
@@ -184,7 +184,7 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
               <button
                 onClick={onClose}
                 style={{
-                  fontFamily: FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase",
+                  fontFamily: FONTS.sans, fontSize: "0.8rem", fontWeight: 500,
                   padding: "0.5rem 1.25rem", background: COLORS.plum, color: COLORS.white,
                   border: "none", cursor: "pointer",
                   borderRadius: RADIUS.pill,
@@ -200,7 +200,7 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
 
             {/* No property guard */}
             {properties.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "1.5rem 0", color: COLORS.plumMid, fontFamily: FONTS.mono, fontSize: "0.7rem" }}>
+              <div style={{ textAlign: "center", padding: "1.5rem 0", color: COLORS.plumMid, fontFamily: FONTS.sans, fontSize: "0.85rem", fontWeight: 300 }}>
                 Add a property before logging jobs.
               </div>
             ) : (
@@ -226,7 +226,7 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
                   {isInsuranceRelevant(form.serviceType) && (
                     <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", marginTop: "0.4rem", padding: "0.35rem 0.6rem", background: COLORS.sageLight, border: `1px solid ${COLORS.sageMid}`, borderRadius: RADIUS.sm }}>
                       <ShieldCheck size={11} color={COLORS.sage} />
-                      <span style={{ fontFamily: FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.sage }}>
+                      <span style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", fontWeight: 500, color: COLORS.sage }}>
                         Insurance-relevant record
                       </span>
                     </div>
@@ -237,7 +237,7 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
                 {showPermit && (
                   <div style={{ display: "flex", alignItems: "flex-start", gap: "0.625rem", padding: "0.75rem 1rem", border: `1px solid ${COLORS.plumMid}`, background: COLORS.butter, borderRadius: RADIUS.sm }}>
                     <AlertTriangle size={13} color={COLORS.plumMid} style={{ flexShrink: 0, marginTop: "0.1rem" }} />
-                    <p style={{ fontFamily: FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: COLORS.plumMid, lineHeight: 1.5 }}>
+                    <p style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", fontWeight: 300, color: COLORS.plumMid, lineHeight: 1.5 }}>
                       {form.serviceType} work typically requires a permit. Log the permit number below to strengthen this record.
                     </p>
                   </div>
@@ -257,7 +257,7 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
                   <div style={{ width: "2.25rem", height: "1.25rem", background: form.isDiy ? COLORS.sage : COLORS.rule, borderRadius: 100, position: "relative", flexShrink: 0 }}>
                     <div style={{ position: "absolute", top: "0.125rem", left: form.isDiy ? "1.125rem" : "0.125rem", width: "1rem", height: "1rem", background: COLORS.white, borderRadius: 100, transition: "left 0.15s" }} />
                   </div>
-                  <p style={{ fontFamily: FONTS.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", color: form.isDiy ? COLORS.sage : COLORS.plum }}>
+                  <p style={{ fontFamily: FONTS.sans, fontSize: "0.85rem", fontWeight: 500, color: form.isDiy ? COLORS.sage : COLORS.plum }}>
                     {form.isDiy ? "DIY — I did this myself" : "I hired a contractor"}
                   </p>
                 </div>
@@ -318,7 +318,7 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
                 </div>
 
                 {/* Full-page escape hatch (for photo uploads) */}
-                <p style={{ fontFamily: FONTS.mono, fontSize: "0.55rem", letterSpacing: "0.06em", color: COLORS.plumMid, textAlign: "center" }}>
+                <p style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", fontWeight: 300, color: COLORS.plumMid, textAlign: "center" }}>
                   Need to attach photos?{" "}
                   <a href="/jobs/new" style={{ color: COLORS.sage, textDecoration: "underline" }}>
                     Open full form <ArrowRight size={10} style={{ display: "inline", verticalAlign: "middle" }} />

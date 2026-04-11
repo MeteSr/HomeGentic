@@ -104,7 +104,7 @@ export default function PricingPage() {
           <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "clamp(2rem, 5vw, 3rem)", lineHeight: 1, color: S.ink, marginBottom: "1rem" }}>
             Simple, transparent pricing
           </h1>
-          <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>
+          <p style={{ fontFamily: FONTS.sans, fontSize: "0.9rem", fontWeight: 300, color: S.inkLight }}>
             Start free. Upgrade when you're ready. Cancel anytime.
           </p>
         </div>
@@ -208,7 +208,7 @@ export default function PricingPage() {
                   )}
                 </div>
                 {plan.tier === "ContractorFree" && (
-                  <div style={{ fontFamily: FONTS.mono, fontSize: "0.6rem", color: COLORS.plumMid, marginBottom: "1.25rem", padding: "0.5rem 0.75rem", background: COLORS.sageLight, borderRadius: RADIUS.sm, lineHeight: 1.5 }}>
+                  <div style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", fontWeight: 300, color: COLORS.plumMid, marginBottom: "1.25rem", padding: "0.5rem 0.75rem", background: COLORS.sageLight, borderRadius: RADIUS.sm, lineHeight: 1.5 }}>
                     $15 flat fee per verified referral job
                   </div>
                 )}
@@ -257,7 +257,7 @@ export default function PricingPage() {
                 <tbody>
                   {HOMEOWNER_FEATURES_TABLE.map((row, i) => (
                     <tr key={row.feature} style={{ borderBottom: i < HOMEOWNER_FEATURES_TABLE.length - 1 ? `1px solid ${S.rule}` : "none" }}>
-                      <td style={{ padding: "0.75rem 1.25rem", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: S.ink, fontWeight: 500 }}>{row.feature}</td>
+                      <td style={{ padding: "0.75rem 1.25rem", fontFamily: FONTS.sans, fontSize: "0.85rem", fontWeight: 400, color: S.ink }}>{row.feature}</td>
                       {(["Free", "Pro", "Premium"] as const).map((tier) => {
                         const val = (row as any)[tier];
                         return (
@@ -265,7 +265,7 @@ export default function PricingPage() {
                             {typeof val === "boolean" ? (
                               val ? <CheckCircle size={14} color={S.sage} style={{ margin: "0 auto" }} /> : <X size={14} color={S.rule} style={{ margin: "0 auto" }} />
                             ) : (
-                              <span style={{ fontFamily: S.mono, fontSize: "0.65rem", fontWeight: 600, color: S.ink }}>{val}</span>
+                              <span style={{ fontFamily: FONTS.sans, fontSize: "0.85rem", fontWeight: 500, color: S.ink }}>{val}</span>
                             )}
                           </td>
                         );
@@ -291,7 +291,7 @@ export default function PricingPage() {
                 <tbody>
                   {CONTRACTOR_FEATURES_TABLE.map((row, i) => (
                     <tr key={row.feature} style={{ borderBottom: i < CONTRACTOR_FEATURES_TABLE.length - 1 ? `1px solid ${S.rule}` : "none" }}>
-                      <td style={{ padding: "0.75rem 1.25rem", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: S.ink, fontWeight: 500 }}>{row.feature}</td>
+                      <td style={{ padding: "0.75rem 1.25rem", fontFamily: FONTS.sans, fontSize: "0.85rem", fontWeight: 400, color: S.ink }}>{row.feature}</td>
                       {(["ContractorFree", "ContractorPro"] as const).map((tier) => {
                         const val = (row as any)[tier];
                         return (
@@ -299,7 +299,7 @@ export default function PricingPage() {
                             {typeof val === "boolean" ? (
                               val ? <CheckCircle size={14} color={S.sage} style={{ margin: "0 auto" }} /> : <X size={14} color={S.rule} style={{ margin: "0 auto" }} />
                             ) : (
-                              <span style={{ fontFamily: S.mono, fontSize: "0.65rem", fontWeight: 600, color: S.ink }}>{val}</span>
+                              <span style={{ fontFamily: FONTS.sans, fontSize: "0.85rem", fontWeight: 500, color: S.ink }}>{val}</span>
                             )}
                           </td>
                         );
