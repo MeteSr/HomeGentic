@@ -60,6 +60,12 @@ export const idlFactory = ({ IDL }: any) => {
     TierLimitReached: IDL.Text,
   });
 
+  const UsagePeriod = IDL.Record({
+    periodStart: IDL.Text,
+    usageAmount: IDL.Float64,
+    usageUnit:   IDL.Text,
+  });
+
   return IDL.Service({
     addBill: IDL.Func(
       [AddBillArgs],
@@ -74,6 +80,11 @@ export const idlFactory = ({ IDL }: any) => {
     deleteBill: IDL.Func(
       [IDL.Text],
       [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
+    getUsageTrend: IDL.Func(
+      [IDL.Text, BillType, IDL.Nat],
+      [IDL.Variant({ ok: IDL.Vec(UsagePeriod), err: Error })],
       []
     ),
     metrics: IDL.Func(

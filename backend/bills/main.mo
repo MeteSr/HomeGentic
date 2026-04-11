@@ -86,6 +86,12 @@ persistent actor Bills {
     #TierLimitReached : Text;
   };
 
+  public type UsagePeriod = {
+    periodStart : Text;
+    usageAmount : Float;
+    usageUnit   : Text;
+  };
+
   public type Metrics = {
     totalBills  : Nat;
     isPaused    : Bool;
@@ -300,6 +306,47 @@ persistent actor Bills {
       }
     );
     #ok(result)
+  };
+
+  /// Return usage-tracked periods for (propertyId, billType) sorted chronologically,
+  /// limited to the last `months` months. Only bills with a usageAmount are included.
+  public shared(msg) func getUsageTrend(
+    propertyId : Text,
+    billType   : BillType,
+    months     : Nat,
+  ) : async Result.Result<[UsagePeriod], Error> {
+    let cutoffNs : Int = Time.now() - (months * 30 * 24 * 3_600_000_000_000 : Nat);
+    var periods : [UsagePeriod] = [];
+
+    for ((_, b) in Map.entries(bills)) {
+      if (b.propertyId == propertyId
+          and Principal.equal(b.homeowner, msg.caller)
+          and billTypeEq(b.billType, billType)
+          and b.uploadedAt >= cutoffNs)
+      {
+        switch (b.usageAmount) {
+          case null {};
+          case (?amount) {
+            switch (b.usageUnit) {
+              case null {};
+              case (?unit) {
+                periods := Array.concat(periods, [{
+                  periodStart = b.periodStart;
+                  usageAmount = amount;
+                  usageUnit   = unit;
+                }]);
+              };
+            };
+          };
+        };
+      };
+    };
+
+    // Sort chronologically by periodStart (lexicographic on YYYY-MM-DD is correct)
+    let sorted = Array.sort<UsagePeriod>(periods, func(a, b) {
+      Text.compare(a.periodStart, b.periodStart)
+    });
+    #ok(sorted)
   };
 
   /// Delete a specific bill record. Caller must be the owner or an admin.

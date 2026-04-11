@@ -15,6 +15,7 @@ import { propertyService, Property } from "@/services/property";
 import { jobService, Job, INSURANCE_SERVICE_TYPES } from "@/services/job";
 import { sensorService, type SensorDevice, type SensorEvent } from "@/services/sensor";
 import { paymentService, type PlanTier } from "@/services/payment";
+import { billService, type BillRecord } from "@/services/billService";
 import { UpgradeGate } from "@/components/UpgradeGate";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 import {
@@ -69,6 +70,8 @@ export default function InsuranceDefensePage() {
   const [discountLoading,  setDiscountLoading]  = useState(false);
   const [discountError,    setDiscountError]    = useState<string | null>(null);
   const [discountExpanded, setDiscountExpanded] = useState(true);
+  // Story 5 — bill anomalies for print report
+  const [billAnomalies,    setBillAnomalies]    = useState<BillRecord[]>([]);
 
   useEffect(() => {
     paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch(() => {});
@@ -81,6 +84,13 @@ export default function InsuranceDefensePage() {
       // Load sensor devices for all properties
       Promise.all(props.map((p) => sensorService.getDevicesForProperty(String(p.id))))
         .then((perProp) => setSensorDevices(perProp.flat()))
+        .catch(() => {});
+      // Story 5 — load water bill anomalies for print report
+      Promise.all(props.map((p) => billService.getBillsForProperty(String(p.id)).catch(() => [] as BillRecord[])))
+        .then((perProp) => {
+          const anomalies = perProp.flat().filter((b) => b.anomalyFlag && b.billType === "Water");
+          setBillAnomalies(anomalies);
+        })
         .catch(() => {});
     }).finally(() => setLoading(false));
   }, []);
@@ -508,6 +518,31 @@ export default function InsuranceDefensePage() {
                       <p style={{ fontFamily: S.mono, fontSize: "0.5rem", color: d.isActive ? S.sage : S.inkLight }}>
                         {d.isActive ? "Active" : "Inactive"}
                       </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Story 5 — Recent Water Bill Anomalies */}
+            {billAnomalies.length > 0 && (
+              <div style={{ marginBottom: "2rem", border: `1px solid ${S.rule}` }}>
+                <div style={{ background: S.ink, color: S.paper, padding: "0.75rem 1.25rem" }}>
+                  <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase" }}>
+                    Recent Water Usage Anomalies — Potential Leak Documentation
+                  </p>
+                </div>
+                <div style={{ padding: "0.75rem 1.25rem", background: S.paper }}>
+                  <p style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", color: S.inkLight, marginBottom: "0.75rem", lineHeight: 1.6 }}>
+                    The following water bills were flagged as significantly above baseline usage. Unusual water consumption may indicate a slow leak. These records are provided to support any related plumbing claim or preventive documentation.
+                  </p>
+                  {billAnomalies.map((b) => (
+                    <div key={b.id} style={{ display: "flex", justifyContent: "space-between", padding: "0.625rem 0", borderTop: `1px solid ${S.rule}` }}>
+                      <div>
+                        <p style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.ink }}>{b.provider} · {b.periodStart} → {b.periodEnd}</p>
+                        <p style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", color: S.inkLight, marginTop: "0.2rem" }}>{b.anomalyReason ?? "Bill above 3-month average"}</p>
+                      </div>
+                      <p style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.875rem", color: S.ink }}>${(b.amountCents / 100).toFixed(2)}</p>
                     </div>
                   ))}
                 </div>

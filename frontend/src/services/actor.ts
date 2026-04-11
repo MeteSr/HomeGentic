@@ -11,6 +11,18 @@ export const II_URL = IS_LOCAL
 let _authClient: AuthClient | null = null;
 let _agent: HttpAgent | null = null;
 
+/**
+ * Integration-test escape hatch: inject a pre-built agent so tests can use a
+ * deterministic Ed25519 identity without going through AuthClient / II.
+ * Never call this in production code — the guard is belt-and-suspenders.
+ */
+export function setAgentForTesting(agent: HttpAgent): void {
+  if (typeof process !== "undefined" && process.env?.NODE_ENV === "production") {
+    throw new Error("setAgentForTesting must not be called in production");
+  }
+  _agent = agent;
+}
+
 export async function getAuthClient(): Promise<AuthClient> {
   if (!_authClient) {
     _authClient = await AuthClient.create();

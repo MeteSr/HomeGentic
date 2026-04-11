@@ -365,6 +365,179 @@ JSON shape:
   }
 });
 
+// ── POST /api/efficiency-alert ───────────────────────────────────────────────
+// Epic #49 Story 3 — System Efficiency Degradation Alerts
+// Request:  { usageTrend: Array<{ periodStart, usageAmount, usageUnit }> }
+// Response: { degradationDetected, estimatedAnnualWaste?, recommendation? }
+app.post("/api/efficiency-alert", async (req: Request, res: Response): Promise<void> => {
+  const { usageTrend } = req.body;
+
+  if (!Array.isArray(usageTrend) || usageTrend.length === 0) {
+    res.status(400).json({ error: "usageTrend must be a non-empty array" });
+    return;
+  }
+
+  if (usageTrend.length < 3) {
+    res.json({ degradationDetected: false });
+    return;
+  }
+
+  const half     = Math.floor(usageTrend.length / 2);
+  const early    = usageTrend.slice(0, half);
+  const late     = usageTrend.slice(usageTrend.length - half);
+  const earlyAvg = early.reduce((s: number, p: any) => s + Number(p.usageAmount), 0) / early.length;
+  const lateAvg  = late.reduce((s: number, p: any)  => s + Number(p.usageAmount), 0) / late.length;
+  const trendPct = earlyAvg > 0 ? ((lateAvg - earlyAvg) / earlyAvg) * 100 : 0;
+
+  if (trendPct <= 15) {
+    res.json({ degradationDetected: false });
+    return;
+  }
+
+  const unit               = usageTrend[0]?.usageUnit ?? "usage units";
+  const estimatedAnnualWaste = (lateAvg - earlyAvg) * 12;
+
+  const systemPrompt = `You are a home efficiency expert for HomeGentic.
+The homeowner's utility usage has risen ${trendPct.toFixed(1)}% over recent months (${earlyAvg.toFixed(0)} → ${lateAvg.toFixed(0)} ${unit}/month).
+Write a 2-sentence recommendation for the most likely cause and the single most impactful action.
+Respond ONLY with plain text — no markdown, no JSON.`;
+
+  try {
+    const recommendation = await provider.complete({
+      system:   systemPrompt,
+      messages: [{ role: "user", content: `Usage unit: ${unit}. Trend: ${trendPct.toFixed(1)}% increase.` }],
+      maxTokens: 150,
+    });
+
+    res.json({
+      degradationDetected:  true,
+      estimatedAnnualWaste,
+      recommendation:       recommendation.trim(),
+    });
+  } catch (err) {
+    // Fallback to rule-based recommendation if Claude is unavailable
+    res.json({
+      degradationDetected:  true,
+      estimatedAnnualWaste,
+      recommendation: `Your ${unit} has increased ${trendPct.toFixed(1)}% over this period. This may indicate system inefficiency — consider scheduling an HVAC inspection or checking for leaks.`,
+    });
+  }
+});
+
+// ── POST /api/rebate-finder ───────────────────────────────────────────────────
+// Epic #49 Story 4 — Rebate & Incentive Finder
+// Request:  { state, zipCode, utilityProvider, billType }
+// Response: { rebates: Array<{ name, description, estimatedAmount, provider, url? }> }
+app.post("/api/rebate-finder", async (req: Request, res: Response): Promise<void> => {
+  const { state, zipCode, utilityProvider, billType } = req.body;
+
+  if (!state || !zipCode || !utilityProvider || !billType) {
+    res.status(400).json({ error: "state, zipCode, utilityProvider, and billType are required" });
+    return;
+  }
+  if (billType !== "Electric") {
+    res.status(400).json({ error: "Rebate finder is only available for Electric bills." });
+    return;
+  }
+
+  const systemPrompt = `You are a utility rebate expert for HomeGentic.
+List available electric utility rebates and incentive programs for a homeowner in the given state/zip with the given utility provider.
+Include federal programs (IRA tax credits), state programs, and utility-specific rebates.
+Respond ONLY with valid JSON — no markdown, no prose.
+
+JSON shape:
+{
+  "rebates": [
+    {
+      "name": "<program name>",
+      "description": "<1–2 sentence description>",
+      "estimatedAmount": "<e.g. Up to $2,000 or $75 rebate>",
+      "provider": "<Federal|State|<utility name>>",
+      "url": "<program URL or omit>"
+    }
+  ]
+}
+
+Rules:
+- Include 3–6 programs most relevant to this homeowner
+- Prioritise programs with the highest dollar value
+- Only include programs that are currently active (as of your knowledge cutoff)`;
+
+  try {
+    const text = await provider.complete({
+      system:    systemPrompt,
+      messages:  [{ role: "user", content: `State: ${state} | Zip: ${zipCode} | Utility: ${utilityProvider} | Bill type: ${billType}` }],
+      maxTokens: 1024,
+    });
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      res.status(500).json({ error: PROVIDER_JSON_ERROR });
+      return;
+    }
+    res.json(JSON.parse(jsonMatch[0]));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    res.status(500).json({ error: msg });
+  }
+});
+
+// ── POST /api/telecom-negotiate ───────────────────────────────────────────────
+// Epic #49 Story 6 — Telecom Negotiation Assistant
+// Request:  { provider, amountCents, mbps, zipCode }
+// Response: { verdict, medianCents, savingsOpportunityCents, negotiationScript }
+app.post("/api/telecom-negotiate", async (req: Request, res: Response): Promise<void> => {
+  const { provider, amountCents, mbps, zipCode } = req.body;
+
+  if (!provider) {
+    res.status(400).json({ error: "provider is required" });
+    return;
+  }
+  if (!Number.isInteger(amountCents) || amountCents <= 0) {
+    res.status(400).json({ error: "amountCents must be a positive integer" });
+    return;
+  }
+
+  const systemPrompt = `You are a telecom bill negotiation expert for HomeGentic.
+Analyse the homeowner's internet/telecom bill against median broadband prices for their area.
+Respond ONLY with valid JSON — no markdown, no prose.
+
+JSON shape:
+{
+  "verdict": "<one of: overpaying|fair|good_deal>",
+  "medianCents": <integer — median monthly broadband cost in cents for the zip code>,
+  "savingsOpportunityCents": <integer — estimated monthly savings if they negotiate, 0 if fair/good_deal>,
+  "negotiationScript": "<A short script the homeowner can read to their provider's retention department>"
+}
+
+Rules:
+- medianCents should reflect realistic median broadband prices for the US zip code
+- negotiationScript should be 3–5 sentences, conversational, and specific to the provider
+- If verdict is "fair" or "good_deal", savingsOpportunityCents should be 0
+- The script should mention loyalty, competing offers, and a specific discount amount to request`;
+
+  try {
+    const text = await provider.complete({
+      system:    systemPrompt,
+      messages:  [{
+        role: "user",
+        content: `Provider: ${provider} | Monthly bill: $${(amountCents / 100).toFixed(2)} | Speed: ${mbps} Mbps | Zip: ${zipCode}`,
+      }],
+      maxTokens: 512,
+    });
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      res.status(500).json({ error: PROVIDER_JSON_ERROR });
+      return;
+    }
+    res.json(JSON.parse(jsonMatch[0]));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    res.status(500).json({ error: msg });
+  }
+});
+
 // ── POST /api/extract-document ───────────────────────────────────────────────
 // Issue #51 — General document OCR: appliance manuals, warranty cards, receipts,
 // inspection reports, permits.

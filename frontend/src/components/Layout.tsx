@@ -10,7 +10,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
-  Bell, Wrench, ShieldAlert, Clock, CheckCircle2, AlertTriangle, MessageSquare,
+  Bell, Wrench, ShieldAlert, ShieldCheck, Clock, CheckCircle2, AlertTriangle, MessageSquare,
   LayoutDashboard, TrendingUp, Users, Cpu, Home as HomeIcon, PlusSquare,
   Settings, Store, ChevronLeft, ChevronRight, LogOut, Menu, X,
   ArrowUpCircle, Paperclip, Zap,
@@ -28,16 +28,16 @@ import { COLORS, FONTS } from "@/theme";
 
 // ─── Activity event types ─────────────────────────────────────────────────────
 
-interface ActivityEvent {
+export interface ActivityEvent {
   id:        string;
-  type:      "pending_verification" | "warranty_expiring" | "job_pending_sig" | "recent_job" | "open_quote" | "bill_anomaly";
+  type:      "pending_verification" | "warranty_expiring" | "job_pending_sig" | "recent_job" | "open_quote" | "bill_anomaly" | "insurance_trigger";
   title:     string;
   detail:    string;
   href:      string;
   timestamp: number;
 }
 
-function deriveEvents(properties: any[], jobs: Job[], quotes: QuoteRequest[], bills: BillRecord[]): ActivityEvent[] {
+export function deriveEvents(properties: any[], jobs: Job[], quotes: QuoteRequest[], bills: BillRecord[]): ActivityEvent[] {
   const events: ActivityEvent[] = [];
   const now = Date.now();
 
@@ -84,6 +84,18 @@ function deriveEvents(properties: any[], jobs: Job[], quotes: QuoteRequest[], bi
         href:      `/properties/${b.propertyId}?tab=bills`,
         timestamp: b.uploadedAt,
       });
+      // Story 5 — Insurance Premium Triggers: unusual water usage may indicate
+      // a slow leak. Surface an insurance action item alongside the anomaly.
+      if (b.billType === "Water") {
+        events.push({
+          id:        `insurance-trigger-${b.id}`,
+          type:      "insurance_trigger",
+          title:     "Unusual water usage — document before filing a claim",
+          detail:    "Spike may indicate a slow leak. Log a plumbing job and generate your Insurance Defense report now.",
+          href:      "/insurance-defense",
+          timestamp: b.uploadedAt,
+        });
+      }
     }
   }
 
@@ -667,6 +679,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     recent_job:           <Wrench size={14} color={COLORS.plumMid} />,
                     open_quote:           <MessageSquare size={14} color={COLORS.sage} />,
                     bill_anomaly:         <Zap size={14} color="#C94C2E" />,
+                    insurance_trigger:    <ShieldCheck size={14} color={COLORS.sage} />,
                   };
                   const isUnread = event.timestamp > lastReadAt;
                   return (

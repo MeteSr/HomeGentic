@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Share2, Shield, Wrench, MessageSquare, Calendar, DollarSign, AlertCircle, Star, Upload, Zap, Trash2 } from "lucide-react";
+import { ArrowLeft, Share2, Shield, Wrench, MessageSquare, Calendar, DollarSign, AlertCircle, Star, Upload, Zap, Trash2, TrendingUp, ExternalLink, PhoneCall } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { Badge } from "@/components/Badge";
@@ -25,6 +25,7 @@ import { getWeeklyPulse } from "@/services/pulseService";
 import { roomService, Room as RoomRecord, type UpdateRoomArgs, type AddFixtureArgs, type Fixture } from "@/services/room";
 import { paymentService, type PlanTier } from "@/services/payment";
 import { billService, extractBill, TierLimitReachedError, type BillRecord, type BillExtraction, type BillType } from "@/services/billService";
+import { getUsageTrend, analyzeEfficiencyTrend, findRebates, negotiateTelecom, type RebateResult, type TelecomNegotiationResult } from "@/services/billsIntelligence";
 import { UpgradeGate } from "@/components/UpgradeGate";
 import { ScorePanel } from "@/components/ScorePanel";
 import { ScoreActivityFeed } from "@/components/ScoreActivityFeed";
@@ -2205,16 +2206,53 @@ const BILL_TYPE_LABELS: Record<BillType, string> = {
 };
 
 function BillsTab({ propertyId }: { propertyId: string }) {
-  const [bills, setBills]             = useState<BillRecord[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [uploading, setUploading]     = useState(false);
-  const [extraction, setExtraction]   = useState<BillExtraction | null>(null);
-  const [confirmArgs, setConfirmArgs] = useState<Partial<BillRecord> | null>(null);
-  const fileInputRef                  = React.useRef<HTMLInputElement>(null);
+  const [bills, setBills]                       = useState<BillRecord[]>([]);
+  const [loading, setLoading]                   = useState(true);
+  const [uploading, setUploading]               = useState(false);
+  const [extraction, setExtraction]             = useState<BillExtraction | null>(null);
+  const [confirmArgs, setConfirmArgs]           = useState<Partial<BillRecord> | null>(null);
+  const fileInputRef                            = React.useRef<HTMLInputElement>(null);
+
+  // Story 3 — efficiency alert state
+  const [efficiencyRec, setEfficiencyRec]       = useState<string | null>(null);
+  const [efficiencyWaste, setEfficiencyWaste]   = useState<number | null>(null);
+
+  // Story 4 — rebates state
+  const [rebates, setRebates]                   = useState<RebateResult[] | null>(null);
+  const [loadingRebates, setLoadingRebates]     = useState(false);
+
+  // Story 6 — telecom negotiation state
+  const [telecomResult, setTelecomResult]       = useState<TelecomNegotiationResult | null>(null);
+  const [telecomBillId, setTelecomBillId]       = useState<string | null>(null);
+  const [loadingTelecom, setLoadingTelecom]     = useState(false);
 
   useEffect(() => {
     billService.getBillsForProperty(propertyId)
-      .then(setBills)
+      .then(async (fetched) => {
+        setBills(fetched);
+
+        // Story 3 — run efficiency analysis for Electric bills when 3+ present
+        const elecTrend = await getUsageTrend(propertyId, "Electric", 12).catch(() => []);
+        const waterTrend = await getUsageTrend(propertyId, "Water", 12).catch(() => []);
+        const trend = elecTrend.length >= waterTrend.length ? elecTrend : waterTrend;
+        if (trend.length >= 3) {
+          const analysis = analyzeEfficiencyTrend(trend);
+          if (analysis.degradationDetected) {
+            setEfficiencyRec(analysis.recommendation ?? null);
+            setEfficiencyWaste(analysis.estimatedAnnualWaste ?? null);
+          }
+        }
+
+        // Story 4 — load rebates if Electric bills are present
+        const hasElectric = fetched.some((b) => b.billType === "Electric");
+        if (hasElectric) {
+          setLoadingRebates(true);
+          findRebates({ state: "FL", zipCode: "32801", utilityProvider: fetched.find((b) => b.billType === "Electric")?.provider ?? "Unknown", billType: "Electric" })
+            .then(setRebates)
+            .catch(() => {})
+            .finally(() => setLoadingRebates(false));
+        }
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [propertyId]);
@@ -2282,6 +2320,26 @@ function BillsTab({ propertyId }: { propertyId: string }) {
       toast.success("Bill removed.");
     } catch {
       toast.error("Failed to remove bill.");
+    }
+  }
+
+  // Story 6 — Telecom Negotiation
+  async function handleNegotiateTelecom(bill: BillRecord) {
+    if (!bill.amountCents) return;
+    setLoadingTelecom(true);
+    setTelecomBillId(bill.id);
+    try {
+      const result = await negotiateTelecom({
+        provider:    bill.provider,
+        amountCents: bill.amountCents,
+        mbps:        bill.usageAmount ?? 100,
+        zipCode:     "32801",
+      });
+      setTelecomResult(result);
+    } catch {
+      toast.error("Could not generate negotiation script. Try again later.");
+    } finally {
+      setLoadingTelecom(false);
     }
   }
 
@@ -2460,6 +2518,17 @@ function BillsTab({ propertyId }: { propertyId: string }) {
                       <Zap size={12} /> Anomaly
                     </span>
                   )}
+                  {(bill.billType === "Internet" || bill.billType === "Telecom") && (
+                    <button
+                      onClick={() => handleNegotiateTelecom(bill)}
+                      disabled={loadingTelecom && telecomBillId === bill.id}
+                      title="Negotiate your bill"
+                      style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", background: "none", border: `1px solid ${COLORS.sage}`, borderRadius: "4px", cursor: "pointer", color: COLORS.sage, padding: "0.2rem 0.5rem", fontFamily: FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.06em", marginRight: "0.5rem" }}
+                    >
+                      <PhoneCall size={10} />
+                      {loadingTelecom && telecomBillId === bill.id ? "…" : "Negotiate"}
+                    </button>
+                  )}
                   <button
                     onClick={() => handleDelete(bill.id)}
                     style={{ background: "none", border: "none", cursor: "pointer", color: inkLight, padding: "0.25rem" }}
@@ -2472,6 +2541,82 @@ function BillsTab({ propertyId }: { propertyId: string }) {
             ))}
           </tbody>
         </table>
+      )}
+
+      {/* Story 3 — Efficiency Degradation Alert */}
+      {efficiencyRec && (
+        <div style={{ marginTop: "1.5rem", padding: "1.25rem 1.5rem", background: COLORS.butter, border: `1px solid ${COLORS.rule}`, borderRadius: RADIUS.card, display: "flex", gap: "1rem", alignItems: "flex-start" }}>
+          <TrendingUp size={18} color={COLORS.plum} style={{ flexShrink: 0, marginTop: "0.15rem" }} />
+          <div>
+            <p style={{ fontFamily: FONTS.serif, fontWeight: 700, fontSize: "1rem", color: COLORS.plum, margin: "0 0 0.375rem" }}>
+              Usage trend detected
+            </p>
+            <p style={{ fontFamily: FONTS.sans, fontSize: "0.85rem", fontWeight: 300, color: COLORS.plumMid, margin: 0, lineHeight: 1.6 }}>
+              {efficiencyRec}
+              {efficiencyWaste != null && (
+                <> Estimated annual waste: <strong>{efficiencyWaste.toLocaleString(undefined, { maximumFractionDigits: 0 })} units</strong>.</>
+              )}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Story 4 — Available Rebates */}
+      {(loadingRebates || (rebates && rebates.length > 0)) && (
+        <div style={{ marginTop: "1.5rem" }}>
+          <p style={{ fontFamily: FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase" as const, color: COLORS.plumMid, marginBottom: "0.75rem" }}>
+            Available Rebates
+          </p>
+          {loadingRebates ? (
+            <p style={{ fontFamily: FONTS.sans, fontSize: "0.85rem", color: COLORS.plumMid }}>Loading rebate programs…</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+              {rebates!.map((r) => (
+                <div key={r.name} style={{ padding: "1rem 1.25rem", background: COLORS.sageLight, border: `1px solid ${COLORS.rule}`, borderRadius: RADIUS.sm, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem" }}>
+                  <div>
+                    <p style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.875rem", color: COLORS.plum, margin: "0 0 0.25rem" }}>{r.name}</p>
+                    <p style={{ fontFamily: FONTS.sans, fontWeight: 300, fontSize: "0.8rem", color: COLORS.plumMid, margin: 0, lineHeight: 1.55 }}>{r.description}</p>
+                    <p style={{ fontFamily: FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: COLORS.plumMid, margin: "0.375rem 0 0" }}>{r.provider}</p>
+                  </div>
+                  <div style={{ flexShrink: 0, textAlign: "right" }}>
+                    <p style={{ fontFamily: FONTS.serif, fontWeight: 700, fontSize: "1rem", color: COLORS.sage, margin: "0 0 0.25rem" }}>{r.estimatedAmount}</p>
+                    {r.url && (
+                      <a href={r.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", fontFamily: FONTS.mono, fontSize: "0.6rem", color: COLORS.sage, textDecoration: "none" }}>
+                        Apply <ExternalLink size={10} />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Story 6 — Telecom Negotiation Result */}
+      {telecomResult && (
+        <div style={{ marginTop: "1.5rem", padding: "1.25rem 1.5rem", background: COLORS.white, border: `1px solid ${COLORS.sage}`, borderRadius: RADIUS.card }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginBottom: "0.75rem" }}>
+            <PhoneCall size={16} color={COLORS.sage} />
+            <p style={{ fontFamily: FONTS.serif, fontWeight: 700, fontSize: "1rem", color: COLORS.plum, margin: 0 }}>
+              Negotiation Script
+            </p>
+            <span style={{ fontFamily: FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.06em", padding: "2px 8px", borderRadius: "100px", background: telecomResult.verdict === "overpaying" ? "#FEE2E2" : COLORS.sageLight, color: telecomResult.verdict === "overpaying" ? "#C94C2E" : COLORS.sage }}>
+              {telecomResult.verdict === "overpaying" ? "Overpaying" : telecomResult.verdict === "fair" ? "Fair rate" : "Good deal"}
+            </span>
+          </div>
+          {telecomResult.savingsOpportunityCents > 0 && (
+            <p style={{ fontFamily: FONTS.sans, fontSize: "0.85rem", color: COLORS.plumMid, margin: "0 0 0.75rem" }}>
+              You may be paying <strong>${(telecomResult.savingsOpportunityCents / 100).toFixed(0)}/mo</strong> above the median rate of <strong>${(telecomResult.medianCents / 100).toFixed(0)}/mo</strong> for your area.
+            </p>
+          )}
+          <div style={{ padding: "1rem", background: COLORS.sageLight, borderRadius: RADIUS.sm, fontFamily: FONTS.sans, fontSize: "0.875rem", color: COLORS.plum, lineHeight: 1.7, whiteSpace: "pre-wrap" as const }}>
+            {telecomResult.negotiationScript}
+          </div>
+          <button onClick={() => setTelecomResult(null)} style={{ marginTop: "0.75rem", background: "none", border: "none", cursor: "pointer", fontFamily: FONTS.mono, fontSize: "0.6rem", color: COLORS.plumMid, letterSpacing: "0.06em" }}>
+            Dismiss
+          </button>
+        </div>
       )}
     </div>
   );
