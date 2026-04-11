@@ -1,4 +1,6 @@
 import Array     "mo:core/Array";
+import Blob      "mo:core/Blob";
+import Int       "mo:core/Int";
 import Map       "mo:core/Map";
 import Nat       "mo:core/Nat";
 import Nat32     "mo:core/Nat32";
@@ -20,7 +22,48 @@ persistent actor Payment {
     createdAt: Int;
   };
 
-  public type Error = { #NotFound; #NotAuthorized; #PaymentFailed: Text; #RateLimited };
+  public type Error = { #NotFound; #NotAuthorized; #PaymentFailed: Text; #RateLimited; #InvalidInput: Text };
+
+  public type BillingPeriod = { #Monthly; #Yearly };
+
+  public type GiftMeta = {
+    recipientEmail : Text;
+    recipientName  : Text;
+    senderName     : Text;
+    giftMessage    : Text;
+    deliveryDate   : Text;
+  };
+
+  public type StripePriceIds = {
+    proMonthly           : Text;
+    proYearly            : Text;
+    premiumMonthly       : Text;
+    premiumYearly        : Text;
+    contractorProMonthly : Text;
+    contractorProYearly  : Text;
+  };
+
+  public type StripeConfig = {
+    secretKey  : Text;
+    priceIds   : StripePriceIds;
+    successUrl : Text;
+    cancelUrl  : Text;
+  };
+
+  public type CheckoutSession = { id: Text; url: Text };
+
+  public type PendingGift = {
+    giftToken      : Text;
+    tier           : Tier;
+    billing        : BillingPeriod;
+    recipientEmail : Text;
+    recipientName  : Text;
+    senderName     : Text;
+    giftMessage    : Text;
+    deliveryDate   : Text;
+    createdAt      : Int;
+    redeemedBy     : ?Principal;
+  };
 
   public type SubscriptionStats = {
     total: Nat;
@@ -127,6 +170,32 @@ persistent actor Payment {
     icrc2_transfer_from : shared (TransferFromArgs) -> async { #Ok: Nat; #Err: TransferFromError };
   } = actor "ryjl3-tyaaa-aaaaa-aaaba-cai";
 
+  // ─── IC Management Canister (HTTP outcalls for Stripe) ───────────────────────
+
+  type HttpHeader    = { name: Text; value: Text };
+  type HttpMethod    = { #get; #post; #head };
+  type HttpResponse  = { status: Nat; headers: [HttpHeader]; body: Blob };
+  type TransformArgs = { response: HttpResponse; context: Blob };
+
+  let ic : actor {
+    http_request : shared ({
+      url                : Text;
+      max_response_bytes : ?Nat64;
+      headers            : [HttpHeader];
+      body               : ?Blob;
+      method             : HttpMethod;
+      transform          : ?{
+        function : shared query (TransformArgs) -> async HttpResponse;
+        context  : Blob;
+      };
+    }) -> async HttpResponse;
+  } = actor "aaaaa-aa";
+
+  /// Strips non-deterministic headers from Stripe responses for subnet consensus.
+  public query func transformStripe(args: TransformArgs) : async HttpResponse {
+    { status = args.response.status; headers = []; body = args.response.body }
+  };
+
   // ─── Price helpers ───────────────────────────────────────────────────────────
 
   /// USD price for each tier (whole dollars).
@@ -153,6 +222,19 @@ persistent actor Payment {
 
   private var subscriptionEntries: [(Principal, Subscription)] = [];
   private var subscriptions = Map.empty<Principal, Subscription>();
+
+  // Admin
+  private var adminEntries     : [Principal] = [];
+  private var adminInitialized : Bool        = false;
+
+  private func isAdmin(caller: Principal) : Bool {
+    Option.isSome(Array.find<Principal>(adminEntries, func(a) { a == caller }))
+  };
+
+  // Stripe
+  private var stripeConfig        : ?StripeConfig                  = null;
+  private var pendingGiftEntries  : [(Text, PendingGift)]          = [];
+  private var pendingGifts        = Map.empty<Text, PendingGift>();  // key = giftToken
 
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
 
@@ -204,6 +286,331 @@ persistent actor Payment {
       Map.add(subscriptions, Principal.compare, k, v);
     };
     subscriptionEntries := [];
+    for ((k, v) in pendingGiftEntries.vals()) {
+      Map.add(pendingGifts, Text.compare, k, v);
+    };
+    pendingGiftEntries := [];
+  };
+
+  // ─── Admin ───────────────────────────────────────────────────────────────────
+
+  /// One-time admin bootstrap. Fails if already initialized.
+  public shared(msg) func initAdmins(newAdmins: [Principal]) : async Result.Result<(), Error> {
+    if (adminInitialized) return #err(#NotAuthorized);
+    adminEntries     := newAdmins;
+    adminInitialized := true;
+    #ok(())
+  };
+
+  public query func isAdminPrincipal(p: Principal) : async Bool {
+    isAdmin(p)
+  };
+
+  // ─── Stripe helpers ──────────────────────────────────────────────────────────
+
+  /// Extract a quoted string value for `key` from a flat JSON object.
+  /// Works for simple string fields; does not handle nested objects or escaped quotes.
+  private func jsonExtract(json: Text, key: Text) : ?Text {
+    let needle = "\"" # key # "\":\"";
+    let parts  = Text.split(json, #text needle);
+    ignore parts.next();
+    switch (parts.next()) {
+      case null    { null };
+      case (?rest) { Text.split(rest, #text "\"").next() };
+    }
+  };
+
+  /// Escape backslashes then double-quotes for embedding in a JSON string value.
+  private func jsonEsc(s: Text) : Text {
+    let s1 = Text.replace(s, #text "\\", "\\\\");
+    Text.replace(s1, #text "\"", "\\\"")
+  };
+
+  private func priceIdFor(cfg: StripeConfig, tier: Tier, billing: BillingPeriod) : ?Text {
+    switch (tier, billing) {
+      case (#Pro,           #Monthly) { ?cfg.priceIds.proMonthly };
+      case (#Pro,           #Yearly)  { ?cfg.priceIds.proYearly };
+      case (#Premium,       #Monthly) { ?cfg.priceIds.premiumMonthly };
+      case (#Premium,       #Yearly)  { ?cfg.priceIds.premiumYearly };
+      case (#ContractorPro, #Monthly) { ?cfg.priceIds.contractorProMonthly };
+      case (#ContractorPro, #Yearly)  { ?cfg.priceIds.contractorProYearly };
+      case _                          { null };
+    }
+  };
+
+  private func tierFromText(t: Text) : ?Tier {
+    switch t {
+      case "Pro"           { ?#Pro };
+      case "Premium"       { ?#Premium };
+      case "ContractorPro" { ?#ContractorPro };
+      case _               { null };
+    }
+  };
+
+  private func tierToText(t: Tier) : Text {
+    switch t {
+      case (#Free)           { "Free" };
+      case (#Pro)            { "Pro" };
+      case (#Premium)        { "Premium" };
+      case (#ContractorFree) { "ContractorFree" };
+      case (#ContractorPro)  { "ContractorPro" };
+    }
+  };
+
+  private func billingToText(b: BillingPeriod) : Text {
+    switch b { case (#Monthly) { "Monthly" }; case (#Yearly) { "Yearly" } }
+  };
+
+  private func billingFromText(b: Text) : BillingPeriod {
+    if (b == "Yearly") { #Yearly } else { #Monthly }
+  };
+
+  private func durationNsFor(billing: BillingPeriod) : Int {
+    switch billing {
+      case (#Monthly) {  30 * 24 * 60 * 60 * 1_000_000_000 };
+      case (#Yearly)  { 365 * 24 * 60 * 60 * 1_000_000_000 };
+    }
+  };
+
+  // ─── Stripe config (admin-only) ───────────────────────────────────────────────
+
+  public shared(msg) func configureStripe(config: StripeConfig) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    stripeConfig := ?config;
+    #ok(())
+  };
+
+  public query(msg) func isStripeConfigured() : async Bool {
+    if (not isAdmin(msg.caller)) return false;
+    Option.isSome(stripeConfig)
+  };
+
+  // ─── Stripe checkout ─────────────────────────────────────────────────────────
+
+  /// Create a Stripe Checkout Session for a subscription upgrade.
+  /// Pass `gift` when the payer (e.g. a realtor) is buying for someone else.
+  /// The session URL is returned — redirect the user there immediately.
+  public shared(msg) func createStripeCheckoutSession(
+    tier    : Tier,
+    billing : BillingPeriod,
+    gift    : ?GiftMeta,
+  ) : async Result.Result<CheckoutSession, Error> {
+    if (Principal.isAnonymous(msg.caller)) return #err(#NotAuthorized);
+
+    let cfg = switch (stripeConfig) {
+      case null  { return #err(#PaymentFailed("Stripe is not configured")) };
+      case (?c)  { c };
+    };
+
+    let priceId = switch (priceIdFor(cfg, tier, billing)) {
+      case null    { return #err(#InvalidInput("No Stripe price configured for " # tierToText(tier) # " " # billingToText(billing))) };
+      case (?pid)  { pid };
+    };
+
+    let callerText = Principal.toText(msg.caller);
+    let isGift     = Option.isSome(gift);
+
+    // metadata fields shared by all sessions
+    var meta =
+      "\"principal\":\"" # jsonEsc(callerText)          # "\"," #
+      "\"tier\":\""      # jsonEsc(tierToText(tier))    # "\"," #
+      "\"billing\":\""   # jsonEsc(billingToText(billing)) # "\"," #
+      "\"is_gift\":\""   # (if isGift "true" else "false") # "\"";
+
+    switch (gift) {
+      case (?g) {
+        meta #= "," #
+          "\"recipient_email\":\"" # jsonEsc(g.recipientEmail) # "\"," #
+          "\"recipient_name\":\""  # jsonEsc(g.recipientName)  # "\"," #
+          "\"sender_name\":\""     # jsonEsc(g.senderName)     # "\"," #
+          "\"delivery_date\":\""   # jsonEsc(g.deliveryDate)   # "\"," #
+          "\"gift_message\":\""    # jsonEsc(g.giftMessage)    # "\"";
+      };
+      case null {};
+    };
+
+    let successUrl = cfg.successUrl #
+      (if (Text.contains(cfg.successUrl, #char '?')) "&" else "?") #
+      "session_id={CHECKOUT_SESSION_ID}";
+
+    let body = "{" #
+      "\"mode\":\"subscription\"," #
+      "\"line_items\":[{\"price\":\"" # priceId # "\",\"quantity\":1}]," #
+      "\"success_url\":\"" # jsonEsc(successUrl) # "\"," #
+      "\"cancel_url\":\""  # jsonEsc(cfg.cancelUrl) # "\"," #
+      "\"metadata\":{" # meta # "}" #
+    "}";
+
+    try {
+      let response = await (with cycles = 3_000_000_000) ic.http_request({
+        url                = "https://api.stripe.com/v1/checkout/sessions";
+        max_response_bytes = ?Nat64.fromNat(8192);
+        headers            = [
+          { name = "Content-Type";  value = "application/json" },
+          { name = "Authorization"; value = "Bearer " # cfg.secretKey },
+        ];
+        body      = ?Text.encodeUtf8(body);
+        method    = #post;
+        transform = ?{ function = transformStripe; context = Blob.fromArray([]) };
+      });
+
+      switch (Text.decodeUtf8(response.body)) {
+        case null { #err(#PaymentFailed("Could not decode Stripe response")) };
+        case (?json) {
+          if (response.status == 200) {
+            let id  = switch (jsonExtract(json, "id"))  { case (?v) v; case null return #err(#PaymentFailed("No session ID in Stripe response")) };
+            let url = switch (jsonExtract(json, "url")) { case (?v) v; case null return #err(#PaymentFailed("No URL in Stripe response")) };
+            #ok({ id; url })
+          } else {
+            #err(#PaymentFailed("Stripe error " # Nat.toText(response.status) # ": " # json))
+          }
+        };
+      }
+    } catch (_e) {
+      #err(#PaymentFailed("Stripe checkout request failed"))
+    }
+  };
+
+  /// Verify a completed Stripe Checkout Session and activate the subscription.
+  /// For self-subscriptions: grants the sub to msg.caller.
+  /// For gift sessions: creates a PendingGift redeemable via redeemGift(giftToken).
+  /// Returns the new subscription for self-subscriptions, or #err(#NotFound) with
+  /// the gift token embedded in the message for gift sessions.
+  public shared(msg) func verifyStripeSession(sessionId: Text) : async Result.Result<Subscription, Error> {
+    if (Principal.isAnonymous(msg.caller)) return #err(#NotAuthorized);
+
+    let cfg = switch (stripeConfig) {
+      case null  { return #err(#PaymentFailed("Stripe is not configured")) };
+      case (?c)  { c };
+    };
+
+    try {
+      let response = await (with cycles = 3_000_000_000) ic.http_request({
+        url                = "https://api.stripe.com/v1/checkout/sessions/" # sessionId;
+        max_response_bytes = ?Nat64.fromNat(8192);
+        headers            = [{ name = "Authorization"; value = "Bearer " # cfg.secretKey }];
+        body               = null;
+        method             = #get;
+        transform          = ?{ function = transformStripe; context = Blob.fromArray([]) };
+      });
+
+      switch (Text.decodeUtf8(response.body)) {
+        case null { #err(#PaymentFailed("Could not decode Stripe response")) };
+        case (?json) {
+          if (response.status != 200) {
+            return #err(#PaymentFailed("Stripe error " # Nat.toText(response.status) # ": " # json));
+          };
+
+          let payStatus = switch (jsonExtract(json, "payment_status")) {
+            case (?s) s;
+            case null return #err(#PaymentFailed("Missing payment_status in session"));
+          };
+          let sessStatus = switch (jsonExtract(json, "status")) {
+            case (?s) s;
+            case null return #err(#PaymentFailed("Missing status in session"));
+          };
+
+          if (payStatus != "paid" or sessStatus != "complete") {
+            return #err(#PaymentFailed(
+              "Payment not complete — status: " # sessStatus # ", payment_status: " # payStatus
+            ));
+          };
+
+          let tierText_ = switch (jsonExtract(json, "tier")) {
+            case (?t) t;
+            case null return #err(#PaymentFailed("Missing tier in session metadata"));
+          };
+          let tier = switch (tierFromText(tierText_)) {
+            case (?t) t;
+            case null return #err(#PaymentFailed("Unknown tier: " # tierText_));
+          };
+          let billing  = billingFromText(Option.get(jsonExtract(json, "billing"), "Monthly"));
+          let isGift   = Option.get(jsonExtract(json, "is_gift"), "false") == "true";
+
+          let now = Time.now();
+
+          if (isGift) {
+            // Build a pending gift record; caller (payer) is NOT the beneficiary.
+            // giftToken = sessionId — stable, unique, known to the payer.
+            let gift : PendingGift = {
+              giftToken      = sessionId;
+              tier;
+              billing;
+              recipientEmail = Option.get(jsonExtract(json, "recipient_email"), "");
+              recipientName  = Option.get(jsonExtract(json, "recipient_name"),  "");
+              senderName     = Option.get(jsonExtract(json, "sender_name"),     "");
+              giftMessage    = Option.get(jsonExtract(json, "gift_message"),    "");
+              deliveryDate   = Option.get(jsonExtract(json, "delivery_date"),   "");
+              createdAt      = now;
+              redeemedBy     = null;
+            };
+            Map.add(pendingGifts, Text.compare, sessionId, gift);
+            // Return a synthetic Free subscription with the gift token in owner field
+            // so the frontend knows to show the gift-sent confirmation.
+            // Convention: caller's own sub is untouched; gift is pending redemption.
+            #err(#NotFound) // frontend detects this + sessionId to show gift-sent screen
+          } else {
+            // Self-subscription: verify caller matches session creator
+            let sessionPrincipal = Option.get(jsonExtract(json, "principal"), "");
+            if (sessionPrincipal != Principal.toText(msg.caller)) {
+              return #err(#NotAuthorized);
+            };
+            let sub : Subscription = {
+              owner     = msg.caller;
+              tier;
+              expiresAt = now + durationNsFor(billing);
+              createdAt = now;
+            };
+            Map.add(subscriptions, Principal.compare, msg.caller, sub);
+            #ok(sub)
+          }
+        };
+      }
+    } catch (_e) {
+      #err(#PaymentFailed("Stripe verification request failed"))
+    }
+  };
+
+  /// Redeem a pending gift. Any authenticated principal can call this once with
+  /// the gift token (= Stripe session ID) they received via email.
+  /// Grants the subscription to msg.caller and marks the gift as redeemed.
+  public shared(msg) func redeemGift(giftToken: Text) : async Result.Result<Subscription, Error> {
+    if (Principal.isAnonymous(msg.caller)) return #err(#NotAuthorized);
+    switch (Map.get(pendingGifts, Text.compare, giftToken)) {
+      case null { #err(#NotFound) };
+      case (?gift) {
+        if (Option.isSome(gift.redeemedBy)) return #err(#InvalidInput("Gift already redeemed"));
+        let now = Time.now();
+        let sub : Subscription = {
+          owner     = msg.caller;
+          tier      = gift.tier;
+          expiresAt = now + durationNsFor(gift.billing);
+          createdAt = now;
+        };
+        Map.add(subscriptions, Principal.compare, msg.caller, sub);
+        let updated : PendingGift = {
+          giftToken      = gift.giftToken;
+          tier           = gift.tier;
+          billing        = gift.billing;
+          recipientEmail = gift.recipientEmail;
+          recipientName  = gift.recipientName;
+          senderName     = gift.senderName;
+          giftMessage    = gift.giftMessage;
+          deliveryDate   = gift.deliveryDate;
+          createdAt      = gift.createdAt;
+          redeemedBy     = ?msg.caller;
+        };
+        Map.add(pendingGifts, Text.compare, giftToken, updated);
+        #ok(sub)
+      };
+    }
+  };
+
+  /// Admin: list all pending (unredeemed) gifts.
+  public query(msg) func listPendingGifts() : async Result.Result<[PendingGift], Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    let arr = Array.fromIter(Map.values(pendingGifts));
+    #ok(Array.filter<PendingGift>(arr, func(g) { Option.isNull(g.redeemedBy) }))
   };
 
   // ─── Payment quote ───────────────────────────────────────────────────────────

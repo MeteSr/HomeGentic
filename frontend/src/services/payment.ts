@@ -9,6 +9,7 @@ export const idlFactory = ({ IDL }: any) => {
   const Tier = IDL.Variant({
     Free: IDL.Null, Pro: IDL.Null, Premium: IDL.Null, ContractorFree: IDL.Null, ContractorPro: IDL.Null,
   });
+  const BillingPeriod = IDL.Variant({ Monthly: IDL.Null, Yearly: IDL.Null });
   const Subscription = IDL.Record({
     owner:     IDL.Principal,
     tier:      Tier,
@@ -19,6 +20,8 @@ export const idlFactory = ({ IDL }: any) => {
     NotFound:      IDL.Null,
     NotAuthorized: IDL.Null,
     PaymentFailed: IDL.Text,
+    RateLimited:   IDL.Null,
+    InvalidInput:  IDL.Text,
   });
   const PricingInfo = IDL.Record({
     tier:                  Tier,
@@ -37,6 +40,40 @@ export const idlFactory = ({ IDL }: any) => {
     contractorPro:   IDL.Nat,
     activePaid:      IDL.Nat,
     estimatedMrrUsd: IDL.Nat,
+  });
+  const GiftMeta = IDL.Record({
+    recipientEmail: IDL.Text,
+    recipientName:  IDL.Text,
+    senderName:     IDL.Text,
+    giftMessage:    IDL.Text,
+    deliveryDate:   IDL.Text,
+  });
+  const CheckoutSession = IDL.Record({ id: IDL.Text, url: IDL.Text });
+  const PendingGift = IDL.Record({
+    giftToken:      IDL.Text,
+    tier:           Tier,
+    billing:        BillingPeriod,
+    recipientEmail: IDL.Text,
+    recipientName:  IDL.Text,
+    senderName:     IDL.Text,
+    giftMessage:    IDL.Text,
+    deliveryDate:   IDL.Text,
+    createdAt:      IDL.Int,
+    redeemedBy:     IDL.Opt(IDL.Principal),
+  });
+  const StripePriceIds = IDL.Record({
+    proMonthly:           IDL.Text,
+    proYearly:            IDL.Text,
+    premiumMonthly:       IDL.Text,
+    premiumYearly:        IDL.Text,
+    contractorProMonthly: IDL.Text,
+    contractorProYearly:  IDL.Text,
+  });
+  const StripeConfig = IDL.Record({
+    secretKey:  IDL.Text,
+    priceIds:   StripePriceIds,
+    successUrl: IDL.Text,
+    cancelUrl:  IDL.Text,
   });
   return IDL.Service({
     subscribe: IDL.Func(
@@ -74,12 +111,57 @@ export const idlFactory = ({ IDL }: any) => {
       [SubscriptionStats],
       ["query"]
     ),
+    // ── Stripe ──
+    configureStripe: IDL.Func(
+      [StripeConfig],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
+    isStripeConfigured: IDL.Func(
+      [],
+      [IDL.Bool],
+      ["query"]
+    ),
+    createStripeCheckoutSession: IDL.Func(
+      [Tier, BillingPeriod, IDL.Opt(GiftMeta)],
+      [IDL.Variant({ ok: CheckoutSession, err: Error })],
+      []
+    ),
+    verifyStripeSession: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: Subscription, err: Error })],
+      []
+    ),
+    redeemGift: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: Subscription, err: Error })],
+      []
+    ),
+    listPendingGifts: IDL.Func(
+      [],
+      [IDL.Variant({ ok: IDL.Vec(PendingGift), err: Error })],
+      ["query"]
+    ),
+    initAdmins: IDL.Func(
+      [IDL.Vec(IDL.Principal)],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
   });
 };
 
 // ─── TypeScript types ─────────────────────────────────────────────────────────
 
-export type PlanTier = "Free" | "Pro" | "Premium" | "ContractorFree" | "ContractorPro";
+export type PlanTier     = "Free" | "Pro" | "Premium" | "ContractorFree" | "ContractorPro";
+export type BillingCycle = "Monthly" | "Yearly";
+
+export interface GiftMeta {
+  recipientEmail: string;
+  recipientName:  string;
+  senderName:     string;
+  giftMessage:    string;
+  deliveryDate:   string;
+}
 
 export interface Plan {
   tier:           PlanTier;
@@ -342,5 +424,76 @@ export const paymentService = {
 
   reset() {
     _actor = null;
+  },
+
+  // ── Stripe ────────────────────────────────────────────────────────────────────
+
+  /**
+   * Create a Stripe Checkout Session and redirect the browser to it.
+   * Returns the session ID (already in the success URL as ?session_id=...).
+   * Pass `gift` when a realtor is buying on behalf of a recipient.
+   */
+  async startStripeCheckout(
+    tier:    PlanTier,
+    billing: BillingCycle,
+    gift?:   GiftMeta,
+  ): Promise<void> {
+    if (!PAYMENT_CANISTER_ID) throw new Error("Payment canister not deployed");
+    const a = await getActor();
+
+    const giftArg = gift
+      ? [{ recipientEmail: gift.recipientEmail, recipientName: gift.recipientName,
+           senderName: gift.senderName, giftMessage: gift.giftMessage,
+           deliveryDate: gift.deliveryDate }]
+      : [];
+
+    const result = await a.createStripeCheckoutSession(
+      { [tier]: null },
+      { [billing]: null },
+      giftArg,
+    );
+
+    if ("err" in result) {
+      const key    = Object.keys(result.err)[0];
+      const detail = (result.err as any)[key];
+      throw new Error(typeof detail === "string" ? detail : key);
+    }
+
+    // Redirect to Stripe-hosted checkout page
+    window.location.href = result.ok.url;
+  },
+
+  /**
+   * Verify a completed Stripe session (called from /payment-success).
+   * Returns { type: "subscription", sub } for self-upgrades or
+   * { type: "gift", giftToken } for gift purchases.
+   */
+  async verifyStripeSession(
+    sessionId: string,
+  ): Promise<{ type: "subscription" } | { type: "gift"; giftToken: string }> {
+    if (!PAYMENT_CANISTER_ID) throw new Error("Payment canister not deployed");
+    const a = await getActor();
+    const result = await a.verifyStripeSession(sessionId);
+
+    if ("ok" in result) return { type: "subscription" };
+
+    // Backend returns #err(#NotFound) as the gift sentinel
+    const key = Object.keys(result.err)[0];
+    if (key === "NotFound") return { type: "gift", giftToken: sessionId };
+
+    const detail = (result.err as any)[key];
+    throw new Error(typeof detail === "string" ? detail : key);
+  },
+
+  /** Redeem a pending gift using the token emailed to the recipient. */
+  async redeemGift(giftToken: string): Promise<void> {
+    if (!PAYMENT_CANISTER_ID) throw new Error("Payment canister not deployed");
+    const a = await getActor();
+    const result = await a.redeemGift(giftToken);
+    if ("err" in result) {
+      const key    = Object.keys(result.err)[0];
+      const detail = (result.err as any)[key];
+      throw new Error(typeof detail === "string" ? detail : key);
+    }
   },
 };

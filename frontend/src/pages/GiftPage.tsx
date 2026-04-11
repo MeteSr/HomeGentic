@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { paymentService } from "@/services/payment";
 import { Helmet } from "react-helmet-async";
 import { CheckCircle } from "lucide-react";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
@@ -410,10 +411,12 @@ function StepMessage({ data, setData, onNext, onBack }: {
   );
 }
 
-function StepReview({ data, onSubmit, onBack }: {
-  data: GiftFormData;
-  onSubmit: () => void;
-  onBack: () => void;
+function StepReview({ data, onSubmit, onBack, loading, error }: {
+  data:      GiftFormData;
+  onSubmit:  () => void;
+  onBack:    () => void;
+  loading?:  boolean;
+  error?:    string | null;
 }) {
   const plan   = GIFT_PLANS[data.tier];
   const price  = data.billing === "monthly" ? plan.monthlyPrice : plan.annualPrice;
@@ -451,17 +454,13 @@ function StepReview({ data, onSubmit, onBack }: {
         )}
       </div>
 
-      {/* Early-access notice */}
-      <div style={{
-        padding: "14px 20px", borderRadius: RADIUS.sm,
-        background: COLORS.butter, borderLeft: `4px solid ${COLORS.sage}`,
-        fontFamily: FONTS.sans, fontSize: 13, color: COLORS.plum,
-        lineHeight: 1.7,
-      }}>
-        Early access — no payment is collected yet. We'll notify you at {data.senderEmail || "your email"} when billing goes live and your gift is confirmed.
-      </div>
+      {error && (
+        <div style={{ padding: "12px 16px", background: "#FEE2E2", border: "1px solid #FCA5A5", fontFamily: FONTS.sans, fontSize: 13, color: "#991B1B" }}>
+          {error}
+        </div>
+      )}
 
-      <NavButtons onBack={onBack} onNext={onSubmit} nextLabel="Send This Gift" />
+      <NavButtons onBack={onBack} onNext={onSubmit} nextLabel={loading ? "Redirecting to payment…" : "Pay & Send Gift"} disabled={loading} />
     </div>
   );
 }
@@ -507,29 +506,33 @@ function StepDone({ data }: { data: GiftFormData }) {
   );
 }
 
-function NavButtons({ onBack, onNext, nextLabel = "Continue" }: {
-  onBack: () => void; onNext: () => void; nextLabel?: string;
+function NavButtons({ onBack, onNext, nextLabel = "Continue", disabled = false }: {
+  onBack: () => void; onNext: () => void; nextLabel?: string; disabled?: boolean;
 }) {
   return (
     <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 8 }}>
       <button
         onClick={onBack}
+        disabled={disabled}
         style={{
           fontFamily: FONTS.sans, fontSize: 15, fontWeight: 600,
           padding: "12px 28px", borderRadius: RADIUS.pill,
           border: `1.5px solid ${COLORS.rule}`, background: "transparent",
-          color: COLORS.plumMid, cursor: "pointer",
+          color: COLORS.plumMid, cursor: disabled ? "not-allowed" : "pointer",
+          opacity: disabled ? 0.5 : 1,
         }}
       >
         ← Back
       </button>
       <button
         onClick={onNext}
+        disabled={disabled}
         style={{
           fontFamily: FONTS.sans, fontSize: 15, fontWeight: 700,
           padding: "12px 32px", borderRadius: RADIUS.pill,
           background: COLORS.plum, color: COLORS.white,
-          border: "none", cursor: "pointer",
+          border: "none", cursor: disabled ? "not-allowed" : "pointer",
+          opacity: disabled ? 0.7 : 1,
         }}
       >
         {nextLabel}
@@ -601,21 +604,39 @@ const DEFAULT_FORM: GiftFormData = {
 };
 
 export default function GiftPage() {
-  const [step, setStep] = useState<GiftStep>("select");
-  const [form, setForm] = useState<GiftFormData>(DEFAULT_FORM);
+  const [step, setStep]       = useState<GiftStep>("select");
+  const [form, setForm]       = useState<GiftFormData>(DEFAULT_FORM);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  function handleSubmit() {
+  async function handleSubmit() {
+    setSubmitting(true);
+    setSubmitError(null);
     try {
-      localStorage.setItem("homegentic_pending_gift", JSON.stringify({ ...form, submittedAt: new Date().toISOString() }));
-    } catch {}
-    setStep("done");
+      await paymentService.startStripeCheckout(
+        form.tier,
+        form.billing === "annual" ? "Yearly" : "Monthly",
+        {
+          recipientEmail: form.recipientEmail,
+          recipientName:  form.recipientName,
+          senderName:     form.senderName,
+          giftMessage:    form.giftMessage,
+          deliveryDate:   form.deliveryDate,
+        },
+      );
+      // startStripeCheckout redirects — code below only runs if canister isn't deployed
+      setStep("done");
+    } catch (e: any) {
+      setSubmitError(e?.message ?? "Something went wrong. Please try again.");
+      setSubmitting(false);
+    }
   }
 
   const stepMap: Record<GiftStep, React.ReactNode> = {
     select:    <StepSelect    data={form} setData={setForm} onNext={() => setStep("recipient")} />,
     recipient: <StepRecipient data={form} setData={setForm} onNext={() => setStep("message")}  onBack={() => setStep("select")} />,
     message:   <StepMessage   data={form} setData={setForm} onNext={() => setStep("review")}   onBack={() => setStep("recipient")} />,
-    review:    <StepReview    data={form} onSubmit={handleSubmit} onBack={() => setStep("message")} />,
+    review:    <StepReview    data={form} onSubmit={handleSubmit} onBack={() => setStep("message")} loading={submitting} error={submitError} />,
     done:      <StepDone      data={form} />,
   };
 

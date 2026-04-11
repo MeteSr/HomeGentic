@@ -191,8 +191,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const displayName = profile?.email ?? (principal ? principal.slice(0, 8) + "…" : "User");
-  const initials    = (profile?.email ?? "U")[0].toUpperCase();
+  const displayName = profile?.email || (principal ? principal.slice(0, 8) + "…" : "User");
+  const initials    = (profile?.email || "U")[0].toUpperCase();
 
   const isContractor = profile?.role === "Contractor";
   const isRealtor    = profile?.role === "Realtor";
