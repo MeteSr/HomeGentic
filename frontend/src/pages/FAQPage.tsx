@@ -10,6 +10,8 @@ const S = {
   rule:     COLORS.rule,
   sage:     COLORS.sage,
   sageLight: COLORS.sageLight,
+  blush:    COLORS.blush,
+  butter:   COLORS.butter,
   serif:    FONTS.serif,
   sans:     FONTS.sans,
   mono:     FONTS.mono,
@@ -53,6 +55,10 @@ const FAQS: FaqItem[] = [
   {
     q: "Can I get a job verified if my contractor isn't on HomeGentic?",
     a: "Yes. Log the job yourself and HomeGentic generates a single-use co-sign link. Send it to your contractor — they don't need an account. They open the link, review the job details, and sign off. Once both parties have signed, the record becomes fully dual-verified. The link expires after 48 hours, so it's worth sending right after the work is done. If the contractor doesn't sign in time, the record stays in your timeline as homeowner-verified — still useful, just not dual-signed.",
+  },
+  {
+    q: "What is the HomeGentic Score and how is it calculated?",
+    a: "The HomeGentic Score is a 0–100 grade that reflects the overall documented condition of your property. It's made up of three dimensions: Maintenance Coverage (40%) measures how consistently you've logged service across key systems like HVAC, roof, plumbing, and electrical; System Modernization (35%) weighs how current your major systems are relative to their expected lifespan; and Verification Depth (25%) reflects how many of your records are dual-signed by both you and a contractor rather than self-reported. Scores are graded A through F. Your score is private by default — it's only visible to you and appears in reports you choose to share. It never becomes public.",
   },
   {
     q: "What subscription tier do I need?",
@@ -160,15 +166,14 @@ export default function FAQPage() {
               color: S.ink, textDecoration: "none", letterSpacing: "-0.5px",
             }}
           >
-            Home<span style={{ color: S.sage }}>Gentic</span>
+            Home<span style={{ color: S.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
           </Link>
           <Link
             to="/login"
             style={{
-              fontFamily: S.mono, fontSize: 12, fontWeight: 700,
-              letterSpacing: "1px", textTransform: "uppercase",
-              color: S.ink, textDecoration: "none",
-              border: `1px solid ${S.ink}`, padding: "8px 20px",
+              fontFamily: S.sans, fontSize: 14, fontWeight: 600,
+              color: S.paper, background: S.ink, textDecoration: "none",
+              padding: "10px 22px", borderRadius: 100,
             }}
           >
             Sign In
@@ -215,8 +220,8 @@ export default function FAQPage() {
           {/* Still have questions */}
           <div style={{
             marginTop: 64, padding: "40px 48px",
-            background: "#F7F5F0", border: `1px solid ${S.rule}`,
-            textAlign: "center",
+            background: `linear-gradient(135deg, ${S.blush}, ${S.butter})`,
+            borderRadius: 24, textAlign: "center",
           }}>
             <p style={{
               fontFamily: S.serif, fontSize: 22, fontWeight: 700,
@@ -234,31 +239,61 @@ export default function FAQPage() {
               to="/support"
               style={{
                 display: "inline-block",
-                fontFamily: S.mono, fontSize: 12, fontWeight: 700,
-                letterSpacing: "1px", textTransform: "uppercase",
+                fontFamily: S.sans, fontSize: 14, fontWeight: 600,
                 color: S.paper, background: S.ink, textDecoration: "none",
-                padding: "14px 32px",
+                padding: "10px 28px", borderRadius: 100,
               }}
             >
-              Contact Support →
+              Contact Support
             </Link>
           </div>
         </div>
 
         {/* Footer */}
-        <div style={{
-          borderTop: `1px solid ${S.rule}`, padding: "28px 56px",
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          fontFamily: S.mono, fontSize: 11, color: S.inkLight,
-          flexWrap: "wrap", gap: 12,
-        }}>
-          <span>© 2026 HomeGentic Inc.</span>
-          <div style={{ display: "flex", gap: 24 }}>
-            <Link to="/privacy" style={{ color: S.inkLight, textDecoration: "none" }}>Privacy</Link>
-            <Link to="/terms"   style={{ color: S.inkLight, textDecoration: "none" }}>Terms</Link>
-            <Link to="/support" style={{ color: S.inkLight, textDecoration: "none" }}>Support</Link>
+        <footer style={{ background: "#1E1928", padding: "64px 56px 32px", fontFamily: S.sans }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 1fr 1fr", gap: 48, marginBottom: 52 }}>
+            <div>
+              <span style={{ fontFamily: S.serif, fontSize: 24, fontWeight: 900, color: "white", marginBottom: 14, display: "block" }}>
+                Home<span style={{ color: S.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
+              </span>
+              <p style={{ fontSize: 14, color: "rgba(253,252,250,0.45)", lineHeight: 1.65, maxWidth: 220, margin: "0 0 24px" }}>
+                The verified maintenance record that makes your home worth more and easier to sell.
+              </p>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase" as const, color: "rgba(253,252,250,0.35)", marginBottom: 20 }}>Product</div>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column" as const, gap: 12 }}>
+                {[["Pricing", "/pricing"], ["Gift a Sub", "/gift"], ["FAQ", "/faq"]].map(([label, href]) => (
+                  <li key={label}><Link to={href} style={{ fontSize: 14, color: "rgba(253,252,250,0.6)", textDecoration: "none" }}>{label}</Link></li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase" as const, color: "rgba(253,252,250,0.35)", marginBottom: 20 }}>Free Tools</div>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column" as const, gap: 12 }}>
+                {[["Report Lookup", "/check"], ["System Forecast", "/instant-forecast"], ["Price Lookup", "/prices"], ["Systems Estimator", "/home-systems"]].map(([label, href]) => (
+                  <li key={label}><Link to={href} style={{ fontSize: 14, color: "rgba(253,252,250,0.6)", textDecoration: "none" }}>{label}</Link></li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase" as const, color: "rgba(253,252,250,0.35)", marginBottom: 20 }}>Company</div>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column" as const, gap: 12 }}>
+                {[["Privacy Policy", "/privacy"], ["Terms of Service", "/terms"], ["Support", "/support"]].map(([label, href]) => (
+                  <li key={label}><Link to={href} style={{ fontSize: 14, color: "rgba(253,252,250,0.6)", textDecoration: "none" }}>{label}</Link></li>
+                ))}
+              </ul>
+            </div>
           </div>
-        </div>
+          <div style={{ borderTop: "1px solid rgba(253,252,250,0.08)", paddingTop: 24, display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 13, color: "rgba(253,252,250,0.35)" }}>
+            <span>© 2026 HomeGentic Inc.</span>
+            <div style={{ display: "flex", gap: 24 }}>
+              <Link to="/privacy" style={{ color: "rgba(253,252,250,0.35)", textDecoration: "none" }}>Privacy</Link>
+              <Link to="/terms"   style={{ color: "rgba(253,252,250,0.35)", textDecoration: "none" }}>Terms</Link>
+              <Link to="/support" style={{ color: "rgba(253,252,250,0.35)", textDecoration: "none" }}>Support</Link>
+            </div>
+          </div>
+        </footer>
 
       </div>
     </>

@@ -13,6 +13,7 @@ import PrivacyPolicyPage     from "@/pages/PrivacyPolicyPage";
 import TermsOfServicePage    from "@/pages/TermsOfServicePage";
 import SupportPage           from "@/pages/SupportPage";
 import FAQPage               from "@/pages/FAQPage";
+import GiftPage              from "@/pages/GiftPage";
 import ContractorVerifyPage  from "@/pages/ContractorVerifyPage";
 
 // All other pages lazy-loaded (split into separate chunks)
@@ -104,6 +105,7 @@ export default function App() {
           <Route path="/terms"       element={<TermsOfServicePage />} />
           <Route path="/support"     element={<SupportPage />} />
           <Route path="/faq"         element={<FAQPage />} />
+          <Route path="/gift"        element={<GiftPage />} />
           <Route path="/for-sale/:propertyId" element={<FsboListingPage />} />
 
           <Route path="/register"     element={<ProtectedRoute><RegisterPage /></ProtectedRoute>} />

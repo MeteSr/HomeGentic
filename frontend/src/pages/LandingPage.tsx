@@ -1457,6 +1457,7 @@ export default function LandingPage() {
                   icon: "🏡", role: "Real Estate Agent", title: "Win More Listings",
                   desc: "Submit proposals on active listing intents, showcase your track record, and earn verified reviews directly on HomeGentic.",
                   cta: "Join as an agent",
+                  giftCta: true,
                 },
                 {
                   icon: "🏆", role: "Ready to Sell", title: "Make Agents Compete for Your Listing",
@@ -1472,6 +1473,22 @@ export default function LandingPage() {
                   <div className="hfl-persona-cta">
                     {p.cta}
                   </div>
+                  {(p as any).giftCta && (
+                    <a
+                      href="/gift"
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        display: "inline-block", marginTop: 12,
+                        fontFamily: "var(--sans)", fontSize: 13, fontWeight: 600,
+                        color: "var(--sage)", textDecoration: "none",
+                        borderBottom: "1px solid transparent",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.borderBottomColor = "var(--sage)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.borderBottomColor = "transparent")}
+                    >
+                      🎁 Gift a subscription to a buyer
+                    </a>
+                  )}
                 </div>
               ))}
             </div>
@@ -1594,6 +1611,7 @@ export default function LandingPage() {
               <div className="hfl-footer-col-title">Company</div>
               <ul className="hfl-footer-col-links">
                 <li><Link to="/faq">FAQ</Link></li>
+                <li><Link to="/gift">Gift a Subscription</Link></li>
                 <li><Link to="/privacy">Privacy Policy</Link></li>
                 <li><Link to="/terms">Terms of Service</Link></li>
                 <li><Link to="/support">Support</Link></li>

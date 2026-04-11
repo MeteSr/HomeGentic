@@ -286,6 +286,33 @@ export default function PricingPage() {
           })}
         </div>
 
+        {/* Gift callout */}
+        {audience === "homeowner" && (
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            flexWrap: "wrap", gap: 24,
+            background: `linear-gradient(135deg, ${COLORS.blush}, ${COLORS.butter})`,
+            borderRadius: RADIUS.card, padding: "32px 40px", marginBottom: "4rem",
+          }}>
+            <div>
+              <div style={{ fontFamily: FONTS.mono, fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: 8 }}>For realtors & gift givers</div>
+              <h3 style={{ fontFamily: FONTS.serif, fontSize: 22, fontWeight: 900, color: COLORS.plum, margin: "0 0 6px" }}>Gifting for a client?</h3>
+              <p style={{ fontFamily: FONTS.sans, fontSize: 14, color: COLORS.plumMid, margin: 0, lineHeight: 1.6 }}>Give a buyer a verified home record at closing — one of the most useful closing gifts you can offer.</p>
+            </div>
+            <Link
+              to="/gift"
+              style={{
+                fontFamily: FONTS.sans, fontSize: 15, fontWeight: 700,
+                padding: "13px 28px", borderRadius: RADIUS.pill,
+                background: COLORS.plum, color: COLORS.white, textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Gift a Subscription
+            </Link>
+          </div>
+        )}
+
         {/* Feature comparison */}
         <div style={{ marginBottom: "4rem" }}>
           <div style={{ textAlign: "center", marginBottom: "2rem" }}>
