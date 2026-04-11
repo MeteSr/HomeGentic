@@ -265,7 +265,7 @@ export default function PricingPage() {
                             {typeof val === "boolean" ? (
                               val ? <CheckCircle size={14} color={S.sage} style={{ margin: "0 auto" }} /> : <X size={14} color={S.rule} style={{ margin: "0 auto" }} />
                             ) : (
-                              <span style={{ fontFamily: S.mono, fontSize: "0.65rem", fontWeight: 600, color: S.ink }}>{val}</span>
+                              <span style={{ fontFamily: FONTS.sans, fontSize: "0.85rem", fontWeight: 500, color: S.ink }}>{val}</span>
                             )}
                           </td>
                         );
@@ -299,7 +299,7 @@ export default function PricingPage() {
                             {typeof val === "boolean" ? (
                               val ? <CheckCircle size={14} color={S.sage} style={{ margin: "0 auto" }} /> : <X size={14} color={S.rule} style={{ margin: "0 auto" }} />
                             ) : (
-                              <span style={{ fontFamily: S.mono, fontSize: "0.65rem", fontWeight: 600, color: S.ink }}>{val}</span>
+                              <span style={{ fontFamily: FONTS.sans, fontSize: "0.85rem", fontWeight: 500, color: S.ink }}>{val}</span>
                             )}
                           </td>
                         );
