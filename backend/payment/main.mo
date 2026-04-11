@@ -1,6 +1,5 @@
 import Array     "mo:core/Array";
 import Map       "mo:core/Map";
-import Iter      "mo:core/Iter";
 import Nat       "mo:core/Nat";
 import Nat32     "mo:core/Nat32";
 import Nat64     "mo:core/Nat64";
@@ -261,12 +260,12 @@ persistent actor Payment {
       });
       let priceE8s = switch (rateResult) {
         case (#Err(_)) {
-          Map.delete(activeSubscribers, Text.compare, callerKey);
+          Map.remove(activeSubscribers, Text.compare, callerKey);
           return #err(#PaymentFailed("Could not fetch ICP/USD exchange rate"));
         };
         case (#Ok(r)) {
           if (r.rate == 0) {
-            Map.delete(activeSubscribers, Text.compare, callerKey);
+            Map.remove(activeSubscribers, Text.compare, callerKey);
             return #err(#PaymentFailed("Invalid exchange rate"));
           };
           computeE8s(usdPrice, r.rate, r.metadata.decimals)
@@ -298,7 +297,7 @@ persistent actor Payment {
             };
             case _ { "Payment transfer failed" };
           };
-          Map.delete(activeSubscribers, Text.compare, callerKey);
+          Map.remove(activeSubscribers, Text.compare, callerKey);
           return #err(#PaymentFailed(errMsg));
         };
         case (#Ok(_)) {};
@@ -318,7 +317,7 @@ persistent actor Payment {
       createdAt = now;
     };
     Map.add(subscriptions, Principal.compare, msg.caller, sub);
-    Map.delete(activeSubscribers, Text.compare, callerKey);
+    Map.remove(activeSubscribers, Text.compare, callerKey);
     #ok(sub)
   };
 
