@@ -891,12 +891,12 @@ app.post("/api/stripe/create-checkout", async (req: Request, res: Response) => {
   };
 
   const PRICE_MAP: Record<string, string | undefined> = {
-    ProMonthly:           process.env.STRIPE_PRICE_PRO_MONTHLY,
-    ProYearly:            process.env.STRIPE_PRICE_PRO_YEARLY,
-    PremiumMonthly:       process.env.STRIPE_PRICE_PREMIUM_MONTHLY,
-    PremiumYearly:        process.env.STRIPE_PRICE_PREMIUM_YEARLY,
-    ContractorProMonthly: process.env.STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY,
-    ContractorProYearly:  process.env.STRIPE_PRICE_CONTRACTOR_PRO_YEARLY,
+    ProMonthly:           process.env.STRIPE_PRICE_PRO_MONTHLY?.trim(),
+    ProYearly:            process.env.STRIPE_PRICE_PRO_YEARLY?.trim(),
+    PremiumMonthly:       process.env.STRIPE_PRICE_PREMIUM_MONTHLY?.trim(),
+    PremiumYearly:        process.env.STRIPE_PRICE_PREMIUM_YEARLY?.trim(),
+    ContractorProMonthly: process.env.STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY?.trim(),
+    ContractorProYearly:  process.env.STRIPE_PRICE_CONTRACTOR_PRO_YEARLY?.trim(),
   };
 
   const priceId = PRICE_MAP[`${tier}${billing}`];
@@ -940,12 +940,12 @@ app.post("/api/stripe/create-subscription-intent", async (req: Request, res: Res
   }
 
   const priceEnvMap: Record<string, string | undefined> = {
-    "Pro-Monthly":            process.env.STRIPE_PRICE_PRO_MONTHLY,
-    "Pro-Yearly":             process.env.STRIPE_PRICE_PRO_YEARLY,
-    "Premium-Monthly":        process.env.STRIPE_PRICE_PREMIUM_MONTHLY,
-    "Premium-Yearly":         process.env.STRIPE_PRICE_PREMIUM_YEARLY,
-    "ContractorPro-Monthly":  process.env.STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY,
-    "ContractorPro-Yearly":   process.env.STRIPE_PRICE_CONTRACTOR_PRO_YEARLY,
+    "Pro-Monthly":            process.env.STRIPE_PRICE_PRO_MONTHLY?.trim(),
+    "Pro-Yearly":             process.env.STRIPE_PRICE_PRO_YEARLY?.trim(),
+    "Premium-Monthly":        process.env.STRIPE_PRICE_PREMIUM_MONTHLY?.trim(),
+    "Premium-Yearly":         process.env.STRIPE_PRICE_PREMIUM_YEARLY?.trim(),
+    "ContractorPro-Monthly":  process.env.STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY?.trim(),
+    "ContractorPro-Yearly":   process.env.STRIPE_PRICE_CONTRACTOR_PRO_YEARLY?.trim(),
   };
   const priceId = priceEnvMap[`${tier}-${billing}`];
   if (!priceId) { res.status(400).json({ error: `No price configured for ${tier}/${billing}` }); return; }
