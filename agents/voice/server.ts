@@ -925,6 +925,35 @@ app.post("/api/stripe/create-checkout", async (req: Request, res: Response) => {
   }
 });
 
+// ── POST /api/stripe/verify-session (dev only) ────────────────────────────────
+app.post("/api/stripe/verify-session", async (req: Request, res: Response) => {
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeSecretKey) { res.status(500).json({ error: "STRIPE_SECRET_KEY not configured" }); return; }
+
+  const { sessionId } = req.body as { sessionId: string };
+  if (!sessionId) { res.status(400).json({ error: "sessionId required" }); return; }
+
+  try {
+    const Stripe = (await import("stripe")).default;
+    const stripe  = new Stripe(stripeSecretKey);
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    if (session.payment_status !== "paid" || session.status !== "complete") {
+      res.status(400).json({ error: `Payment not complete — status: ${session.status}, payment_status: ${session.payment_status}` });
+      return;
+    }
+
+    const isGift = session.metadata?.is_gift === "true";
+    if (isGift) {
+      res.json({ type: "gift", giftToken: sessionId });
+    } else {
+      res.json({ type: "subscription" });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : "Stripe error" });
+  }
+});
+
 // ── GET /health ───────────────────────────────────────────────────────────────
 app.get("/health", (_req, res) => {
   res.json({ ok: true, model: MODEL });

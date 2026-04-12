@@ -486,13 +486,22 @@ export const paymentService = {
   async verifyStripeSession(
     sessionId: string,
   ): Promise<{ type: "subscription" } | { type: "gift"; giftToken: string }> {
+    if (USE_EXPRESS_CHECKOUT) {
+      const resp = await fetch(`${VOICE_AGENT_URL}/api/stripe/verify-session`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error ?? "Verification failed");
+      return data as { type: "subscription" } | { type: "gift"; giftToken: string };
+    }
+
     if (!PAYMENT_CANISTER_ID) throw new Error("Payment canister not deployed");
     const a = await getActor();
     const result = await a.verifyStripeSession(sessionId);
 
     if ("ok" in result) return { type: "subscription" };
 
-    // Backend returns #err(#NotFound) as the gift sentinel
     const key = Object.keys(result.err)[0];
     if (key === "NotFound") return { type: "gift", giftToken: sessionId };
 
