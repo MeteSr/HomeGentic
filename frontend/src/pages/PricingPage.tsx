@@ -122,8 +122,6 @@ export default function PricingPage() {
     try { return localStorage.getItem(BILLING_KEY) === "annual"; } catch { return false; }
   });
   const [audience, setAudience] = useState<"homeowner" | "contractor">("homeowner");
-  const [checkoutLoading, setCheckoutLoading] = useState<PlanTier | null>(null);
-  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   useEffect(() => {
     try { localStorage.setItem(BILLING_KEY, annual ? "annual" : "monthly"); } catch {}
@@ -151,28 +149,16 @@ export default function PricingPage() {
       await handleLogin();
       return;
     }
-    setCheckoutLoading(tier);
-    setCheckoutError(null);
-    try {
-      await paymentService.startStripeCheckout(tier, billing);
-    } catch (err: any) {
-      setCheckoutError(err.message || "Checkout failed");
-      setCheckoutLoading(null);
-    }
+    navigate(`/checkout?tier=${tier}&billing=${billing}`);
   };
 
-  // Auto-trigger checkout after login/registration redirects back with ?checkout=Tier&billing=X
+  // After login redirect with ?checkout=Tier&billing=X, go straight to checkout page
   useEffect(() => {
     if (!isAuthenticated) return;
     const tier = searchParams.get("checkout") as PlanTier | null;
     const billing = searchParams.get("billing") as BillingCycle | null;
     if (!tier || !billing) return;
-    setCheckoutLoading(tier);
-    setCheckoutError(null);
-    paymentService.startStripeCheckout(tier, billing).catch((err: any) => {
-      setCheckoutError(err.message || "Checkout failed");
-      setCheckoutLoading(null);
-    });
+    navigate(`/checkout?tier=${tier}&billing=${billing}`);
   }, [isAuthenticated]);
 
   return (
@@ -317,8 +303,6 @@ export default function PricingPage() {
                 <Button
                   variant={isPopular ? "secondary" : "outline"}
                   style={{ width: "100%", backgroundColor: isPopular ? COLORS.sage : undefined, color: isPopular ? COLORS.white : undefined, borderColor: isPopular ? COLORS.sage : isFeatured ? COLORS.sage : undefined }}
-                  loading={checkoutLoading === plan.tier}
-                  disabled={checkoutLoading !== null}
                   onClick={() => handleUpgrade(plan.tier)}
                 >
                   {plan.price === 0 ? "Get Started Free" : `Upgrade to ${plan.tier === "ContractorPro" ? "Contractor Pro" : plan.tier}`}
@@ -327,12 +311,6 @@ export default function PricingPage() {
             );
           })}
         </div>
-
-        {checkoutError && (
-          <p style={{ textAlign: "center", color: COLORS.rust, fontFamily: FONTS.mono, fontSize: "0.75rem", marginTop: "1rem" }}>
-            {checkoutError}
-          </p>
-        )}
 
         {/* Gift callout */}
         {audience === "homeowner" && (

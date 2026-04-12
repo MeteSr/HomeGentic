@@ -925,6 +925,66 @@ app.post("/api/stripe/create-checkout", async (req: Request, res: Response) => {
   }
 });
 
+// ── POST /api/stripe/create-subscription-intent ───────────────────────────────
+// Creates a Stripe Customer (idempotent on principal) + incomplete Subscription.
+// Returns { clientSecret, subscriptionId } for the frontend PaymentElement flow.
+app.post("/api/stripe/create-subscription-intent", async (req: Request, res: Response) => {
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeSecretKey) { res.status(500).json({ error: "STRIPE_SECRET_KEY not configured" }); return; }
+
+  const { tier, billing, principal, email } = req.body as {
+    tier: string; billing: string; principal: string; email?: string;
+  };
+  if (!tier || !billing || !principal) {
+    res.status(400).json({ error: "tier, billing, and principal are required" }); return;
+  }
+
+  const priceEnvMap: Record<string, string | undefined> = {
+    "Pro-Monthly":            process.env.STRIPE_PRICE_PRO_MONTHLY,
+    "Pro-Yearly":             process.env.STRIPE_PRICE_PRO_YEARLY,
+    "Premium-Monthly":        process.env.STRIPE_PRICE_PREMIUM_MONTHLY,
+    "Premium-Yearly":         process.env.STRIPE_PRICE_PREMIUM_YEARLY,
+    "ContractorPro-Monthly":  process.env.STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY,
+    "ContractorPro-Yearly":   process.env.STRIPE_PRICE_CONTRACTOR_PRO_YEARLY,
+  };
+  const priceId = priceEnvMap[`${tier}-${billing}`];
+  if (!priceId) { res.status(400).json({ error: `No price configured for ${tier}/${billing}` }); return; }
+
+  try {
+    const Stripe = (await import("stripe")).default;
+    const stripe = new Stripe(stripeSecretKey);
+
+    // Find or create a Stripe Customer keyed by ICP principal
+    const existing = await stripe.customers.search({
+      query: `metadata['icp_principal']:'${principal}'`,
+      limit: 1,
+    });
+    const customer = existing.data[0] ?? await stripe.customers.create({
+      email: email || undefined,
+      metadata: { icp_principal: principal },
+    });
+
+    const subscription = await stripe.subscriptions.create({
+      customer: customer.id,
+      items: [{ price: priceId }],
+      payment_behavior: "default_incomplete",
+      payment_settings: { save_default_payment_method: "on_subscription" },
+      expand: ["latest_invoice.payment_intent"],
+      metadata: { icp_principal: principal, tier, billing },
+    });
+
+    const invoice = subscription.latest_invoice as any;
+    const clientSecret = invoice?.payment_intent?.client_secret;
+    if (!clientSecret) {
+      res.status(500).json({ error: "Could not get payment intent from subscription" }); return;
+    }
+
+    res.json({ clientSecret, subscriptionId: subscription.id });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : "Stripe error" });
+  }
+});
+
 // ── POST /api/stripe/verify-session (dev only) ────────────────────────────────
 // Verifies Stripe payment then activates the subscription tier in the ICP canister
 // by calling adminActivateStripeSubscription via dfx CLI (local dev only).
@@ -982,6 +1042,48 @@ app.post("/api/stripe/verify-session", async (req: Request, res: Response) => {
       try {
         await activateInCanister(principal, tier, months);
         console.log(`[stripe] activated ${tier}/${billing} for ${principal}`);
+      } catch (e) {
+        console.warn(`[stripe] canister activation skipped: ${(e as Error).message}`);
+      }
+    }
+
+    res.json({ type: "subscription", tier, billing });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : "Stripe error" });
+  }
+});
+
+// ── POST /api/stripe/verify-subscription ─────────────────────────────────────
+// Called by the success page after PaymentElement confirms. Looks up the
+// subscription by paymentIntentId, extracts tier/principal from metadata,
+// and activates in the ICP canister.
+app.post("/api/stripe/verify-subscription", async (req: Request, res: Response) => {
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeSecretKey) { res.status(500).json({ error: "STRIPE_SECRET_KEY not configured" }); return; }
+
+  const { subscriptionId } = req.body as { subscriptionId: string };
+  if (!subscriptionId) { res.status(400).json({ error: "subscriptionId required" }); return; }
+
+  try {
+    const Stripe = (await import("stripe")).default;
+    const stripe  = new Stripe(stripeSecretKey);
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+      expand: ["latest_invoice.payment_intent"],
+    });
+
+    if (subscription.status !== "active" && subscription.status !== "trialing") {
+      res.status(400).json({ error: `Subscription not active — status: ${subscription.status}` }); return;
+    }
+
+    const tier      = subscription.metadata?.tier    ?? "Pro";
+    const billing   = subscription.metadata?.billing ?? "Monthly";
+    const principal = subscription.metadata?.icp_principal ?? "";
+    const months    = billing === "Yearly" ? 12 : 1;
+
+    if (principal) {
+      try {
+        await activateInCanister(principal, tier, months);
+        console.log(`[stripe] subscription activated ${tier}/${billing} for ${principal}`);
       } catch (e) {
         console.warn(`[stripe] canister activation skipped: ${(e as Error).message}`);
       }

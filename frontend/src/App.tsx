@@ -17,6 +17,7 @@ import GiftPage              from "@/pages/GiftPage";
 import ContractorVerifyPage  from "@/pages/ContractorVerifyPage";
 import PaymentSuccessPage    from "@/pages/PaymentSuccessPage";
 import PaymentFailurePage    from "@/pages/PaymentFailurePage";
+import CheckoutPage          from "@/pages/CheckoutPage";
 
 // All other pages lazy-loaded (split into separate chunks)
 const RegisterPage               = React.lazy(() => import("@/pages/RegisterPage"));
@@ -110,6 +111,7 @@ export default function App() {
           <Route path="/gift"             element={<GiftPage />} />
           <Route path="/payment-success" element={<PaymentSuccessPage />} />
           <Route path="/payment-failure" element={<PaymentFailurePage />} />
+          <Route path="/checkout"        element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
           <Route path="/for-sale/:propertyId" element={<FsboListingPage />} />
 
           <Route path="/register"     element={<ProtectedRoute><RegisterPage /></ProtectedRoute>} />

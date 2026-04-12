@@ -7,15 +7,42 @@ import { paymentService } from "@/services/payment";
 
 type PageState = "verifying" | "subscription" | "gift" | "error";
 
+const VOICE_AGENT_URL = (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:3001";
+
 export default function PaymentSuccessPage() {
   const [params]    = useSearchParams();
-  const sessionId   = params.get("session_id") ?? "";
-  const [state, setState]       = useState<PageState>("verifying");
-  const [giftToken, setGiftToken] = useState<string>("");
-  const [errorMsg, setErrorMsg]   = useState<string>("");
-  const [tierName, setTierName]   = useState<string>("Pro");
+  // PaymentElement flow sends subscription_id + tier + billing
+  const subscriptionId = params.get("subscription_id") ?? "";
+  // Legacy Stripe-hosted checkout flow sends session_id
+  const sessionId      = params.get("session_id") ?? "";
+  // PaymentElement also passes tier/billing directly in the URL
+  const urlTier        = params.get("tier") ?? "";
+  const urlBilling     = params.get("billing") ?? "";
+
+  const [state, setState]         = useState<PageState>("verifying");
+  const [giftToken, setGiftToken]   = useState<string>("");
+  const [errorMsg, setErrorMsg]     = useState<string>("");
+  const [tierName, setTierName]     = useState<string>("Pro");
 
   useEffect(() => {
+    // New PaymentElement flow: verify subscription
+    if (subscriptionId) {
+      fetch(`${VOICE_AGENT_URL}/api/stripe/verify-subscription`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subscriptionId }),
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.error) throw new Error(data.error);
+          const t = (data.tier ?? urlTier).replace("Contractor", "Contractor ");
+          if (t) setTierName(t);
+          setState("subscription");
+        })
+        .catch((e) => { setErrorMsg(e?.message ?? "Verification failed."); setState("error"); });
+      return;
+    }
+
+    // Legacy Stripe-hosted checkout flow
     if (!sessionId) { setState("error"); setErrorMsg("No session ID found."); return; }
     paymentService.verifyStripeSession(sessionId).then((result) => {
       if (result.type === "gift") {
@@ -29,7 +56,7 @@ export default function PaymentSuccessPage() {
       setErrorMsg(e?.message ?? "Verification failed.");
       setState("error");
     });
-  }, [sessionId]);
+  }, [subscriptionId, sessionId]);
 
   const S = {
     page:   { minHeight: "100vh", background: COLORS.sageLight, display: "flex", flexDirection: "column" as const, alignItems: "center", justifyContent: "center", padding: "3rem 1.5rem", fontFamily: FONTS.sans },
