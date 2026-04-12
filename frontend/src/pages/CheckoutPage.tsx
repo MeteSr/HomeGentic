@@ -120,13 +120,12 @@ const PLAN_META: Record<string, { label: string; monthly: number; yearly: number
 // ── Payment form ──────────────────────────────────────────────────────────────
 
 interface PaymentFormProps {
-  subscriptionId: string;
   tier: string;
   billing: string;
   onError: (msg: string) => void;
 }
 
-function PaymentForm({ subscriptionId, tier, billing, onError }: PaymentFormProps) {
+function PaymentForm({ tier, billing, onError }: PaymentFormProps) {
   const stripe   = useStripe();
   const elements = useElements();
   const navigate = useNavigate();
@@ -140,7 +139,7 @@ function PaymentForm({ subscriptionId, tier, billing, onError }: PaymentFormProp
     const { error } = await stripe.confirmPayment({
       elements,
       confirmParams: {
-        return_url: `${window.location.origin}/payment-success?subscription_id=${subscriptionId}&tier=${tier}&billing=${billing}`,
+        return_url: `${window.location.origin}/payment-success`,
       },
     });
 
@@ -197,10 +196,10 @@ export default function CheckoutPage() {
   const billing = searchParams.get("billing") ?? "Monthly";
   const plan    = PLAN_META[tier];
 
-  const [clientSecret,    setClientSecret]    = useState<string | null>(null);
-  const [subscriptionId,  setSubscriptionId]  = useState<string>("");
-  const [loadError,       setLoadError]       = useState<string | null>(null);
-  const [payError,        setPayError]        = useState<string | null>(null);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [sessionId,    setSessionId]    = useState<string>("");
+  const [loadError,    setLoadError]    = useState<string | null>(null);
+  const [payError,     setPayError]     = useState<string | null>(null);
 
   const price = plan
     ? billing === "Yearly"
@@ -222,7 +221,7 @@ export default function CheckoutPage() {
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error ?? "Failed to initialise payment");
       setClientSecret(data.clientSecret);
-      setSubscriptionId(data.subscriptionId);
+      setSessionId(data.sessionId);
     } catch (e: any) {
       setLoadError(e.message ?? "Failed to load checkout");
     }
@@ -377,7 +376,6 @@ export default function CheckoutPage() {
                 options={{ clientSecret, appearance: stripeAppearance }}
               >
                 <PaymentForm
-                  subscriptionId={subscriptionId}
                   tier={tier}
                   billing={billing}
                   onError={setPayError}

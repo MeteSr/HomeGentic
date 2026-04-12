@@ -926,8 +926,9 @@ app.post("/api/stripe/create-checkout", async (req: Request, res: Response) => {
 });
 
 // ── POST /api/stripe/create-subscription-intent ───────────────────────────────
-// Creates a Stripe Customer (idempotent on principal) + incomplete Subscription.
-// Returns { clientSecret, subscriptionId } for the frontend PaymentElement flow.
+// Creates a Checkout Session (ui_mode:'elements', mode:'subscription') and
+// returns its clientSecret for use with PaymentElement.
+// Stripe handles subscription creation on payment confirmation.
 app.post("/api/stripe/create-subscription-intent", async (req: Request, res: Response) => {
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
   if (!stripeSecretKey) { res.status(500).json({ error: "STRIPE_SECRET_KEY not configured" }); return; }
@@ -954,43 +955,20 @@ app.post("/api/stripe/create-subscription-intent", async (req: Request, res: Res
     const Stripe = (await import("stripe")).default;
     const stripe = new Stripe(stripeSecretKey);
 
-    // Find or create a Stripe Customer keyed by ICP principal
-    const existing = await stripe.customers.search({
-      query: `metadata['icp_principal']:'${principal}'`,
-      limit: 1,
-    });
-    const customer = existing.data[0] ?? await stripe.customers.create({
-      email: email || undefined,
-      metadata: { icp_principal: principal },
-    });
-
-    const subscription = await stripe.subscriptions.create({
-      customer: customer.id,
-      items: [{ price: priceId }],
-      payment_behavior: "default_incomplete",
-      payment_settings: { save_default_payment_method: "on_subscription" },
-      expand: ["latest_invoice.payment_intent", "pending_setup_intent"],
-      metadata: { icp_principal: principal, tier, billing },
+    const session = await (stripe.checkout.sessions as any).create({
+      ui_mode:     "elements",
+      mode:        "subscription",
+      line_items:  [{ price: priceId, quantity: 1 }],
+      return_url:  `${process.env.FRONTEND_ORIGIN ?? "http://localhost:3000"}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      metadata:    { icp_principal: principal, tier, billing },
+      customer_email: email || undefined,
     });
 
-    const invoice = subscription.latest_invoice as any;
-    // Stripe SDK ≥22 may surface the secret on the subscription directly
-    const clientSecret =
-      invoice?.payment_intent?.client_secret ??
-      (subscription as any).pending_setup_intent?.client_secret ??
-      null;
-
-    if (!clientSecret) {
-      console.error("[stripe] subscription object:", JSON.stringify({
-        status: subscription.status,
-        invoice_status: invoice?.status,
-        payment_intent: invoice?.payment_intent ? "present" : "null",
-        pending_setup_intent: (subscription as any).pending_setup_intent ? "present" : "null",
-      }));
-      res.status(500).json({ error: "Could not get payment client secret from subscription" }); return;
+    if (!session.client_secret) {
+      res.status(500).json({ error: "Stripe did not return a client secret" }); return;
     }
 
-    res.json({ clientSecret, subscriptionId: subscription.id });
+    res.json({ clientSecret: session.client_secret, sessionId: session.id });
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : "Stripe error" });
   }
@@ -1040,7 +1018,8 @@ app.post("/api/stripe/verify-session", async (req: Request, res: Response) => {
     const isGift    = session.metadata?.is_gift === "true";
     const tier      = session.metadata?.tier    ?? "Pro";
     const billing   = session.metadata?.billing ?? "Monthly";
-    const principal = session.metadata?.principal ?? "";
+    // new sessions use icp_principal; legacy hosted-checkout sessions used principal
+    const principal = session.metadata?.icp_principal ?? session.metadata?.principal ?? "";
     const months    = billing === "Yearly" ? 12 : 1;
 
     if (isGift) {
