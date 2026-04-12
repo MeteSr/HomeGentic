@@ -969,14 +969,25 @@ app.post("/api/stripe/create-subscription-intent", async (req: Request, res: Res
       items: [{ price: priceId }],
       payment_behavior: "default_incomplete",
       payment_settings: { save_default_payment_method: "on_subscription" },
-      expand: ["latest_invoice.payment_intent"],
+      expand: ["latest_invoice.payment_intent", "pending_setup_intent"],
       metadata: { icp_principal: principal, tier, billing },
     });
 
     const invoice = subscription.latest_invoice as any;
-    const clientSecret = invoice?.payment_intent?.client_secret;
+    // Stripe SDK ≥22 may surface the secret on the subscription directly
+    const clientSecret =
+      invoice?.payment_intent?.client_secret ??
+      (subscription as any).pending_setup_intent?.client_secret ??
+      null;
+
     if (!clientSecret) {
-      res.status(500).json({ error: "Could not get payment intent from subscription" }); return;
+      console.error("[stripe] subscription object:", JSON.stringify({
+        status: subscription.status,
+        invoice_status: invoice?.status,
+        payment_intent: invoice?.payment_intent ? "present" : "null",
+        pending_setup_intent: (subscription as any).pending_setup_intent ? "present" : "null",
+      }));
+      res.status(500).json({ error: "Could not get payment client secret from subscription" }); return;
     }
 
     res.json({ clientSecret, subscriptionId: subscription.id });
