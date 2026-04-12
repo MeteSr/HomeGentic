@@ -9,6 +9,7 @@ and where in the codebase each integration lives.
 
 | Service | Purpose | Env Var(s) | Pricing | Required? |
 |---|---|---|---|---|
+| [Stripe](#0-stripe) | Subscription billing & payments | `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, 6× `STRIPE_PRICE_*` | Per-transaction | Yes — checkout disabled without it |
 | [Anthropic Claude](#1-anthropic-claude) | AI voice agent & document analysis | `ANTHROPIC_API_KEY` | Paid (token-based) | Voice agent only |
 | [Resend](#2-resend) | Transactional email | `RESEND_API_KEY` | Free 3k/mo | No |
 | [Google Maps / Places](#3-google-maps--places) | Address autocomplete | `VITE_GOOGLE_MAPS_API_KEY` | Paid (per-request) | No — falls back to plain input |
@@ -20,6 +21,125 @@ and where in the codebase each integration lives.
 | [Rentcast](#9-rentcast) | Property year built & sq ft lookup | `VITE_RENTCAST_API_KEY` | Free 50/mo | No — fields default to manual entry |
 | [Volusia County ArcGIS](#10-volusia-county-arcgis) | Building permits (Volusia County, FL) | None | Free (public) | No |
 | [OpenPermit](#11-openpermit) | Building permits (20+ US cities) | `OPEN_PERMIT_API_KEY` | Paid | No |
+
+---
+
+## 0. Stripe
+
+**Purpose:** Subscription billing for Pro, Premium, and ContractorPro tiers.
+Handles payment collection via Stripe Elements (`PaymentElement`) embedded
+directly in the app's checkout page — no redirect to Stripe-hosted pages.
+
+**Env vars:**
+
+| Variable | Used by | Description |
+|---|---|---|
+| `STRIPE_SECRET_KEY` | `agents/voice/server.ts` | Server-side only. Starts with `sk_test_` (sandbox) or `sk_live_`. |
+| `VITE_STRIPE_PUBLISHABLE_KEY` | `frontend/src/pages/CheckoutPage.tsx` | Client-side. Starts with `pk_test_` or `pk_live_`. |
+| `STRIPE_PRICE_PRO_MONTHLY` | server | `price_xxx` ID from Stripe dashboard |
+| `STRIPE_PRICE_PRO_YEARLY` | server | `price_xxx` ID |
+| `STRIPE_PRICE_PREMIUM_MONTHLY` | server | `price_xxx` ID |
+| `STRIPE_PRICE_PREMIUM_YEARLY` | server | `price_xxx` ID |
+| `STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY` | server | `price_xxx` ID |
+| `STRIPE_PRICE_CONTRACTOR_PRO_YEARLY` | server | `price_xxx` ID |
+
+**Pricing:** 2.9% + 30¢ per successful card charge (standard Stripe fees).
+No platform fee. See https://stripe.com/pricing
+
+---
+
+### Checkout flow
+
+```
+PricingPage → /checkout?tier=Pro&billing=Monthly
+  └─ POST /api/stripe/create-subscription-intent
+       1. stripe.customers.create({ email, metadata: { icp_principal, tier, billing } })
+       2. stripe.subscriptions.create({ payment_behavior: 'default_incomplete', ... })
+       3. stripe.invoicePayments.list({ invoice: latest_invoice_id })
+            → invoicePayment.payment.payment_intent  (PI id)
+       4. stripe.paymentIntents.retrieve(piId)
+            → client_secret  (pi_xxx_secret_xxx)
+       Returns: { clientSecret, subscriptionId }
+
+  └─ Frontend: Elements({ clientSecret }) + PaymentElement
+  └─ stripe.confirmPayment({ return_url: '/payment-success?subscription_id=...&tier=...&billing=...&payment_intent=...' })
+
+  └─ Stripe redirects to /payment-success (appends payment_intent + redirect_status)
+  └─ POST /api/stripe/verify-subscription
+       1. stripe.paymentIntents.retrieve(paymentIntentId) — must be 'succeeded'
+       2. stripe.subscriptions.retrieve(subscriptionId) — read metadata
+       3. dfx canister call payment adminActivateStripeSubscription (local dev)
+       Returns: { type: 'subscription', tier, billing }
+```
+
+**Key design decisions:**
+
+- **`Elements` requires a `pi_` secret.** Stripe's Checkout Session `cs_` secret
+  is for `EmbeddedCheckout`, not `PaymentElement`. The correct flow is
+  Customer → Subscription (`payment_behavior: 'default_incomplete'`) →
+  PaymentIntent via `invoicePayments`.
+
+- **Verify via PaymentIntent, not subscription status.** Stripe redirects to
+  `return_url` immediately after card confirmation, before the webhook transitions
+  the subscription from `incomplete` → `active`. `verify-subscription` checks
+  `paymentIntent.status === 'succeeded'` (available instantly) and accepts
+  `incomplete` subscriptions when payment is confirmed this way.
+
+- **Stripe SDK v22 breaking change.** `Invoice.payment_intent` was removed from
+  the TypeScript types and is no longer returned in the default Invoice response.
+  Use `stripe.invoicePayments.list({ invoice: id })` to get
+  `data[0].payment.payment_intent`, then retrieve the PaymentIntent separately.
+
+- **Windows `.env` CRLF.** dotenv on Windows can bleed values across lines if
+  the file has CRLF line endings. All price ID reads use `.trim()`.
+
+---
+
+### ICP canister activation
+
+After payment, the Express server calls the ICP `payment` canister to write the
+subscription tier server-side:
+
+```bash
+dfx canister call payment adminActivateStripeSubscription \
+  '(principal "<icp_principal>", variant { Pro }, 1)'
+```
+
+This calls `adminActivateStripeSubscription` in `backend/payment/main.mo`, which
+is guarded by `isAdmin(msg.caller)`. The Express process must be running under
+the same dfx identity that was added as an admin when the canister was deployed.
+
+**On mainnet**, replace the `dfx` CLI call with an ICP HTTP outcall or a
+server-to-canister call using the management canister — the `dfx` approach only
+works in local dev.
+
+---
+
+### Content Security Policy
+
+`frontend/index.html` CSP must include:
+
+```
+script-src  'self' 'wasm-unsafe-eval' https://js.stripe.com
+connect-src 'self' ... https://api.stripe.com ...
+frame-src   https://js.stripe.com https://*.stripe.com
+img-src     'self' data: blob: https://*.stripe.com
+```
+
+Stripe loads `https://js.stripe.com/dahlia/stripe.js` and iframes from
+`https://*.stripe.com` for PCI-compliant card collection.
+
+---
+
+### Integration tests
+
+```bash
+cd agents/voice && npm test -- stripe.elements.integration
+```
+
+Tests ELEM.1–ELEM.7 in `agents/voice/__tests__/stripe.elements.integration.test.ts`
+hit the real Stripe sandbox API and are skipped when `STRIPE_SECRET_KEY` is absent.
+They create real (incomplete) subscriptions — no charges are ever made.
 
 ---
 

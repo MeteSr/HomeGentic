@@ -130,6 +130,50 @@ dfx canister info <canister-name> --network ic
 
 **Never remove a controller before confirming the replacement has access.**
 
+## Stripe Setup
+
+### Local development
+
+1. Create a Stripe account and switch to **Test mode**.
+2. Create four products in the Stripe dashboard — Pro, Premium, ContractorPro —
+   each with a Monthly and Yearly recurring price.
+3. Copy the six `price_xxx` IDs and the test key pair into `.env`:
+
+```env
+STRIPE_SECRET_KEY=sk_test_...
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_PRICE_PRO_MONTHLY=price_...
+STRIPE_PRICE_PRO_YEARLY=price_...
+STRIPE_PRICE_PREMIUM_MONTHLY=price_...
+STRIPE_PRICE_PREMIUM_YEARLY=price_...
+STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY=price_...
+STRIPE_PRICE_CONTRACTOR_PRO_YEARLY=price_...
+```
+
+4. Start the voice agent: `cd agents/voice && npm run dev`
+5. Test with card `4242 4242 4242 4242`, any future expiry, any CVC.
+
+### Production
+
+1. Switch the Stripe dashboard to **Live mode** and copy live key/price IDs.
+2. Set `STRIPE_SECRET_KEY=sk_live_...` and `VITE_STRIPE_PUBLISHABLE_KEY=pk_live_...`
+   in your production environment.
+3. Configure a Stripe webhook pointing at `https://your-domain/api/stripe/webhook`
+   for the `payment_intent.succeeded` and `customer.subscription.updated` events
+   (not yet wired — currently the success page calls verify-subscription directly).
+4. Replace the `dfx canister call` in `activateInCanister()` (`agents/voice/server.ts`)
+   with a proper server-to-canister call using the management canister or an
+   ICP HTTP outcall — `dfx` CLI is local-only.
+
+### How payment verification works
+
+Stripe redirects to `/payment-success` immediately after card confirmation, before
+its own webhook transitions the subscription from `incomplete` → `active`.
+The verify endpoint therefore checks `paymentIntent.status === 'succeeded'`
+(available immediately) rather than `subscription.status === 'active'`.
+
+See [docs/EXTERNAL_APIS.md](EXTERNAL_APIS.md#0-stripe) for the full flow.
+
 ## Cleanup
 
 ```bash
