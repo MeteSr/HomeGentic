@@ -123,11 +123,10 @@ interface PaymentFormProps {
   tier: string;
   billing: string;
   subscriptionId: string;
-  email?: string;
   onError: (msg: string) => void;
 }
 
-function PaymentForm({ tier, billing, subscriptionId, email, onError }: PaymentFormProps) {
+function PaymentForm({ tier, billing, subscriptionId, onError }: PaymentFormProps) {
   const stripe   = useStripe();
   const elements = useElements();
   const navigate = useNavigate();
@@ -146,8 +145,6 @@ function PaymentForm({ tier, billing, subscriptionId, email, onError }: PaymentF
         elements,
         confirmParams: {
           return_url: `${window.location.origin}${successUrl}`,
-          // Required when billing email is hidden from PaymentElement
-          ...(email ? { payment_method_data: { billing_details: { email } } } : {}),
         },
         // Don't let Stripe do the redirect — we navigate within the SPA.
         // Stripe will only redirect for flows that genuinely require it (3DS etc.).
@@ -189,12 +186,7 @@ function PaymentForm({ tier, billing, subscriptionId, email, onError }: PaymentF
 
   return (
     <form onSubmit={handleSubmit}>
-      <PaymentElement options={{
-        layout: "tabs",
-        // Hide fields we already have from the user's HomeGentic profile
-        fields: { billingDetails: { email: email ? "never" : "auto", phone: "never" } },
-        defaultValues: email ? { billingDetails: { email } } : undefined,
-      }} />
+      <PaymentElement options={{ layout: "tabs" }} />
       <button type="submit" style={S.btn} disabled={submitting || !stripe}>
         {submitting ? "Processing…" : "Subscribe"}
       </button>
@@ -403,7 +395,6 @@ export default function CheckoutPage() {
                   tier={tier}
                   billing={billing}
                   subscriptionId={subscriptionId}
-                  email={profile?.email ?? undefined}
                   onError={setPayError}
                 />
               </Elements>
