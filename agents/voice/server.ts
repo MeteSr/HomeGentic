@@ -926,9 +926,9 @@ app.post("/api/stripe/create-checkout", async (req: Request, res: Response) => {
 });
 
 // ── POST /api/stripe/create-subscription-intent ───────────────────────────────
-// Creates a Checkout Session (ui_mode:'elements', mode:'subscription') and
-// returns its clientSecret for use with PaymentElement.
-// Stripe handles subscription creation on payment confirmation.
+// Creates an incomplete Subscription and returns its PaymentIntent client_secret
+// (pi_xxx) for use with PaymentElement. Stripe SDK v22 dropped the type for
+// Invoice.payment_intent so we use `as any` to expand it.
 app.post("/api/stripe/create-subscription-intent", async (req: Request, res: Response) => {
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
   if (!stripeSecretKey) { res.status(500).json({ error: "STRIPE_SECRET_KEY not configured" }); return; }
@@ -955,20 +955,48 @@ app.post("/api/stripe/create-subscription-intent", async (req: Request, res: Res
     const Stripe = (await import("stripe")).default;
     const stripe = new Stripe(stripeSecretKey);
 
-    const session = await (stripe.checkout.sessions as any).create({
-      ui_mode:     "elements",
-      mode:        "subscription",
-      line_items:  [{ price: priceId, quantity: 1 }],
-      return_url:  `${process.env.FRONTEND_ORIGIN ?? "http://localhost:3000"}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      metadata:    { icp_principal: principal, tier, billing },
-      customer_email: email || undefined,
+    // Create a customer so tier/billing/principal metadata travels with the subscription
+    const customer = await stripe.customers.create({
+      ...(email ? { email } : {}),
+      metadata: { icp_principal: principal, tier, billing },
     });
 
-    if (!session.client_secret) {
-      res.status(500).json({ error: "Stripe did not return a client secret" }); return;
+    // default_incomplete: subscription stays incomplete until PaymentElement confirms.
+    // Elements() only accepts pi_ (PaymentIntent) secrets — not cs_ Checkout Session secrets.
+    const subscription = await stripe.subscriptions.create({
+      customer:         customer.id,
+      items:            [{ price: priceId }],
+      payment_behavior: "default_incomplete",
+      payment_settings: { save_default_payment_method: "on_subscription" },
+      metadata:         { icp_principal: principal, tier, billing },
+    });
+
+    // latest_invoice may be a string ID or an object depending on SDK version.
+    const invoiceId = typeof subscription.latest_invoice === "string"
+      ? subscription.latest_invoice
+      : (subscription.latest_invoice as any)?.id;
+
+    if (!invoiceId) {
+      res.status(500).json({ error: "Subscription has no latest invoice" }); return;
     }
 
-    res.json({ clientSecret: session.client_secret, sessionId: session.id });
+    // Stripe API 2024+: payment_intent was removed from Invoice.
+    // Use invoicePayments to get the associated PaymentIntent ID, then retrieve it.
+    const invoicePayments = await (stripe as any).invoicePayments.list({ invoice: invoiceId });
+    const paymentIntentId = invoicePayments?.data?.[0]?.payment?.payment_intent as string | undefined;
+
+    if (!paymentIntentId) {
+      res.status(500).json({ error: "No payment intent found on invoice" }); return;
+    }
+
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    const clientSecret  = paymentIntent.client_secret ?? undefined;
+
+    if (!clientSecret) {
+      res.status(500).json({ error: "Could not get client secret from payment intent" }); return;
+    }
+
+    res.json({ clientSecret, subscriptionId: subscription.id });
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : "Stripe error" });
   }

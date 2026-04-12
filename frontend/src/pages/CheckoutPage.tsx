@@ -122,10 +122,11 @@ const PLAN_META: Record<string, { label: string; monthly: number; yearly: number
 interface PaymentFormProps {
   tier: string;
   billing: string;
+  subscriptionId: string;
   onError: (msg: string) => void;
 }
 
-function PaymentForm({ tier, billing, onError }: PaymentFormProps) {
+function PaymentForm({ tier, billing, subscriptionId, onError }: PaymentFormProps) {
   const stripe   = useStripe();
   const elements = useElements();
   const navigate = useNavigate();
@@ -136,11 +137,11 @@ function PaymentForm({ tier, billing, onError }: PaymentFormProps) {
     if (!stripe || !elements) return;
     setSubmitting(true);
 
+    const returnUrl = `${window.location.origin}/payment-success?subscription_id=${subscriptionId}&tier=${encodeURIComponent(tier)}&billing=${encodeURIComponent(billing)}`;
+
     const { error } = await stripe.confirmPayment({
       elements,
-      confirmParams: {
-        return_url: `${window.location.origin}/payment-success`,
-      },
+      confirmParams: { return_url: returnUrl },
     });
 
     if (error) {
@@ -196,8 +197,8 @@ export default function CheckoutPage() {
   const billing = searchParams.get("billing") ?? "Monthly";
   const plan    = PLAN_META[tier];
 
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [sessionId,    setSessionId]    = useState<string>("");
+  const [clientSecret,    setClientSecret]    = useState<string | null>(null);
+  const [subscriptionId,  setSubscriptionId]  = useState<string>("");
   const [loadError,    setLoadError]    = useState<string | null>(null);
   const [payError,     setPayError]     = useState<string | null>(null);
 
@@ -220,10 +221,8 @@ export default function CheckoutPage() {
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error ?? "Failed to initialise payment");
-      // Stripe client_secret may contain URL-encoded chars (e.g. %2F for /);
-      // Elements expects the decoded form.
-      setClientSecret(decodeURIComponent(data.clientSecret));
-      setSessionId(data.sessionId);
+      setClientSecret(data.clientSecret);
+      setSubscriptionId(data.subscriptionId);
     } catch (e: any) {
       setLoadError(e.message ?? "Failed to load checkout");
     }
@@ -380,6 +379,7 @@ export default function CheckoutPage() {
                 <PaymentForm
                   tier={tier}
                   billing={billing}
+                  subscriptionId={subscriptionId}
                   onError={setPayError}
                 />
               </Elements>
