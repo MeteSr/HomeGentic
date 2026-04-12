@@ -30,6 +30,8 @@ if (!process.env.ANTHROPIC_API_KEY) {
   console.warn("[voice-agent] ANTHROPIC_API_KEY not set — Claude API calls will fail");
 }
 
+console.log(`[voice-agent] STRIPE_SECRET_KEY ${process.env.STRIPE_SECRET_KEY ? "✓" : "✗ not set"}`)
+
 // §49 — fail-secure: require VOICE_AGENT_API_KEY in production.
 // All /api/ routes check the x-api-key header against this secret.
 // In dev, if unset, a warning is printed and requests are allowed through.
