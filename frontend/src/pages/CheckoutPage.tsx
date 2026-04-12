@@ -138,22 +138,35 @@ function PaymentForm({ tier, billing, subscriptionId, email, onError }: PaymentF
     if (!stripe || !elements) return;
     setSubmitting(true);
 
-    const returnUrl = `${window.location.origin}/payment-success?subscription_id=${subscriptionId}&tier=${encodeURIComponent(tier)}&billing=${encodeURIComponent(billing)}`;
+    // Fallback URL for 3DS redirects; we navigate manually for the normal path.
+    const successUrl = `/payment-success?subscription_id=${subscriptionId}&tier=${encodeURIComponent(tier)}&billing=${encodeURIComponent(billing)}`;
 
-    const { error } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: returnUrl,
-        // Required when billing email is hidden from PaymentElement
-        ...(email ? { payment_method_data: { billing_details: { email } } } : {}),
-      },
-    });
+    try {
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}${successUrl}`,
+          // Required when billing email is hidden from PaymentElement
+          ...(email ? { payment_method_data: { billing_details: { email } } } : {}),
+        },
+        // Don't let Stripe do the redirect — we navigate within the SPA.
+        // Stripe will only redirect for flows that genuinely require it (3DS etc.).
+        redirect: "if_required",
+      });
 
-    if (error) {
-      onError(error.message ?? "Payment failed");
+      if (error) {
+        onError(error.message ?? "Payment failed");
+        setSubmitting(false);
+        return;
+      }
+
+      // Payment confirmed — navigate to success page with PI id for server verification.
+      const piParam = paymentIntent?.id ? `&payment_intent=${paymentIntent.id}&redirect_status=succeeded` : "";
+      navigate(successUrl + piParam);
+    } catch (err: any) {
+      onError(err?.message ?? "Payment failed. Please try again.");
       setSubmitting(false);
     }
-    // On success Stripe redirects to return_url — no code needed here
   };
 
   const S = {
