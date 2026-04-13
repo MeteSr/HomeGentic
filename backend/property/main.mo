@@ -355,10 +355,10 @@ persistent actor Property {
 
   public query func getPropertyLimitForTier(tier: SubscriptionTier) : async Nat {
     switch tier {
-      case (#Free)          { 0  };  // 0 = no properties (unsubscribed)
+      case (#Free)          { 1  };
       case (#Pro)           { 5  };
       case (#Premium)       { 20 };
-      case (#ContractorPro) { 0  };  // 0 = unlimited (handled by caller)
+      case (#ContractorPro) { 0  };  // 0 = unlimited
     }
   };
 
@@ -424,20 +424,11 @@ persistent actor Property {
     } else {
       tierFor(caller)
     };
-    // Free tier cannot register properties — subscription required.
-    switch (callerTier) {
-      case (#Free) {
-        return #err(#InvalidInput(
-          "Property registration requires a paid subscription. Upgrade to Pro ($10/mo) for up to 5 properties."
-        ));
-      };
-      case _ {};
-    };
     let limit = switch (callerTier) {
-      case (#Free)          { 0  };  // unreachable — blocked above
+      case (#Free)          { 1  };
       case (#Pro)           { 5  };
       case (#Premium)       { 20 };
-      case (#ContractorPro) { 0  };  // 0 = unlimited
+      case (#ContractorPro) { 0  };
     };
     if (limit > 0 and countOwnerProperties(caller) >= limit) {
       let tierName = switch (callerTier) {
@@ -447,7 +438,8 @@ persistent actor Property {
         case (#ContractorPro) "ContractorPro";
       };
       let upgradeMsg = switch (callerTier) {
-        case (#Pro)  " Upgrade to Premium ($20/mo) for 20, or ContractorPro ($30/mo) for unlimited.";
+        case (#Free) " Upgrade to Pro ($9.99/mo) for 5, or Premium ($24.99/mo) for 25.";
+        case (#Pro)  " Upgrade to Premium ($24.99/mo) for 25, or ContractorPro ($49.99/mo) for unlimited.";
         case _       "";
       };
       return #err(#InvalidInput(

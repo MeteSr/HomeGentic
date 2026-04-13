@@ -1,7 +1,7 @@
 /**
  * TDD — 15.6.4: Upgrade gate on Agent Marketplace and FSBO flows
  *
- * Unsubscribed users (internal tier = "Free") who navigate to:
+ * Free users who navigate to:
  *   - /listing/new (create listing bid request)
  *   - /agents       (agent browse / find an agent)
  *   - FsboPanel     (FSBO mode panel)
@@ -161,7 +161,7 @@ function renderFsboPanel(tier = "Pro") {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-describe("ListingNewPage — unsubscribed tier gate (15.6.4)", () => {
+describe("ListingNewPage — free tier gate (15.6.4)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(paymentService.getMySubscription).mockImplementation(() =>
@@ -205,7 +205,7 @@ describe("ListingNewPage — unsubscribed tier gate (15.6.4)", () => {
   });
 });
 
-describe("AgentBrowsePage — unsubscribed tier gate (15.6.4)", () => {
+describe("AgentBrowsePage — free tier gate (15.6.4)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(paymentService.getMySubscription).mockImplementation(() =>
@@ -240,7 +240,7 @@ describe("AgentBrowsePage — unsubscribed tier gate (15.6.4)", () => {
   });
 });
 
-describe("FsboPanel — unsubscribed tier gate (15.6.4)", () => {
+describe("FsboPanel — free tier gate (15.6.4)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(paymentService.getMySubscription).mockImplementation(() =>

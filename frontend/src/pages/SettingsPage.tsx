@@ -327,7 +327,7 @@ function SubscriptionTab({ profile }: { profile: any }) {
 
       {/* Current plan */}
       {!isPaid ? (
-        /* No subscription — prominent upgrade callout */
+        /* Free tier — prominent upgrade callout */
         <div style={{ border: `1.5px solid ${COLORS.sageMid}`, background: COLORS.sageLight, padding: "1.5rem" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap", marginBottom: "1rem" }}>
             <div>
@@ -335,18 +335,19 @@ function SubscriptionTab({ profile }: { profile: any }) {
                 Current Plan
               </p>
               <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-                <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.5rem", color: S.ink }}>No subscription</span>
+                <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.5rem", color: S.ink }}>Free</span>
+                <Badge variant="default" size="sm">Active</Badge>
               </div>
             </div>
             <button
               onClick={() => navigate("/pricing")}
               style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.55rem 1.25rem", border: "none", background: COLORS.plum, color: COLORS.white, cursor: "pointer" }}
             >
-              {profile?.role === "Contractor" ? "Upgrade to ContractorPro →" : "Subscribe to Pro →"}
+              {profile?.role === "Contractor" ? "Upgrade to ContractorPro →" : "Upgrade to Pro →"}
             </button>
           </div>
           <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: S.inkLight, marginBottom: "0.75rem" }}>
-            No active subscription. Subscribe to unlock:
+            You're on the Free plan. Upgrade to unlock:
           </p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.375rem 1.5rem" }}>
             {(profile?.role === "Contractor"

@@ -248,8 +248,7 @@ persistent actor Job {
       };
     };
 
-    // ── Subscription check (15.1.1) ─────────────────────────────────────────
-    // Free tier cannot create jobs — a paid subscription is required.
+    // ── Free-tier job cap (15.1.1) ──────────────────────────────────────────
     if (payCanisterId != "") {
       let payActor = actor(payCanisterId) : actor {
         getTierForPrincipal : (Principal) -> async { #Free; #Pro; #Premium; #ContractorPro };
@@ -257,7 +256,12 @@ persistent actor Job {
       let tier = await payActor.getTierForPrincipal(msg.caller);
       switch (tier) {
         case (#Free) {
-          return #err(#TierLimitReached("Job creation requires a paid subscription. Upgrade to Pro ($10/mo) to continue."));
+          let callerJobCount = Iter.size(
+            Iter.filter(Map.values(jobs), func(j: Job) : Bool { j.homeowner == msg.caller })
+          );
+          if (callerJobCount >= 5) {
+            return #err(#TierLimitReached("Free plan is limited to 5 jobs. Upgrade to Pro to continue."));
+          };
         };
         case _ {};
       };

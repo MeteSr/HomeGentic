@@ -266,14 +266,13 @@ persistent actor Quote {
     n
   };
 
-  /// Max concurrent open requests for a tier.
-  /// 0 = blocked (no subscription), large sentinel = effectively unlimited.
+  /// Max concurrent open requests for a tier. 0 = unlimited.
   private func tierOpenLimit(tier: SubscriptionTier) : Nat {
     switch tier {
-      case (#Free)          { 0       };  // blocked — subscription required
-      case (#Pro)           { 10      };
-      case (#Premium)       { 10      };
-      case (#ContractorPro) { 999_999 };  // effectively unlimited
+      case (#Free)          { 3  };
+      case (#Pro)           { 10 };
+      case (#Premium)       { 10 };
+      case (#ContractorPro) { 0  };
     }
   };
 
@@ -339,15 +338,11 @@ persistent actor Quote {
       tierFor(msg.caller)
     };
     let limit = tierOpenLimit(callerTier);
-    // 0 = no subscription — block entirely.
-    if (limit == 0) {
-      return #err(#InvalidInput(
-        "Quote requests require a paid subscription. Upgrade to Pro ($10/mo) for 10 concurrent requests."
-      ));
-    };
-    // 999_999 sentinel = unlimited (ContractorPro) — skip count check.
-    if (limit < 999_999 and countOpenRequests(msg.caller) >= limit) {
+    if (limit > 0 and countOpenRequests(msg.caller) >= limit) {
       let upgradeHint = switch (callerTier) {
+        case (#Free) {
+          " Upgrade to Pro ($10/mo) for 10 concurrent requests, or Premium ($20/mo)."
+        };
         case (#Pro or #Premium) {
           " Upgrade to ContractorPro ($30/mo) for unlimited requests."
         };

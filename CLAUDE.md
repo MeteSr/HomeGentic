@@ -87,11 +87,10 @@ All 13 active canisters use `persistent actor` + stable variable preupgrade/post
 
 | Tier | Properties | Photos/Job | Open Quotes | Price |
 |---|---|---|---|---|
+| Free | 1 | 2 | 3 | $0 |
 | Pro | 5 | 10 | 10 | $10/mo |
-| Premium | 20 | 30 | unlimited | $20/mo |
+| Premium | 20 | 30 | 10 | $20/mo |
 | ContractorPro | unlimited | 50 | unlimited | $30/mo |
-
-Note: `#Free` is retained as an internal Motoko type representing unsubscribed users. It is not a publicly available plan — all limits are set to 0 (blocked).
 
 ### Frontend Service Layer
 

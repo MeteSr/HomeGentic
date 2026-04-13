@@ -24,7 +24,7 @@ export async function injectTestProperties(page: Page) {
         yearBuilt: 2001,
         squareFeet: 2400,
         verificationLevel: "Unverified",
-        tier: "Pro",
+        tier: "Free",
         createdAt: 0,
         updatedAt: 0,
         isActive: true,

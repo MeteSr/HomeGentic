@@ -11,7 +11,7 @@
  *     see each other's data even with the same propertyId)
  *   - Anomaly detection fires at the canister level (not just in the mock)
  *   - getUsageTrend() Motoko query runs and returns correctly sorted data
- *   - Tier enforcement blocks any Free-tier upload (subscription required)
+ *   - Tier enforcement blocks a Free-tier second upload in the same month
  *   - deleteBill() removes the record from canister state
  *
  * Test isolation: each test uses a unique propertyId derived from the test
@@ -273,17 +273,25 @@ describe.skipIf(!deployed)("getUsageTrend — Motoko query round-trip", () => {
 
 // ─── Tier enforcement ─────────────────────────────────────────────────────────
 
-describe.skipIf(!deployed)("tier enforcement — unsubscribed (Free) tier blocks bill uploads", () => {
-  it("addBill is rejected for a Free-tier caller — subscription required", async () => {
-    // The test identity is Free tier by default (no grantTier called).
-    // Any bill upload should be rejected immediately.
-    const pid = propId("tier-block-free");
+describe.skipIf(!deployed)("tier enforcement — Free tier monthly upload limit", () => {
+  it("second upload in the same month is rejected for a Free-tier caller", async () => {
+    // The test identity is Free tier by default (no grantTier called)
+    const pid = propId("tier-limit");
+
+    // First upload should succeed
+    await billService.addBill({
+      ...BASE_ARGS,
+      propertyId: pid,
+      billType:   "Electric",
+    });
+
+    // Second upload in the same month should be rejected
     await expect(
       billService.addBill({
         ...BASE_ARGS,
         propertyId: pid,
-        billType:   "Electric",
+        billType:   "Gas",
       })
-    ).rejects.toThrow(/subscription required|TierLimitReached/i);
+    ).rejects.toThrow(/Free plan|TierLimitReached|1 bill/i);
   });
 });

@@ -62,7 +62,7 @@ const FAQS: FaqItem[] = [
   },
   {
     q: "What subscription tier do I need?",
-    a: "Pro ($10/mo) supports 5 properties and 10 photos per job. Premium ($20/mo) scales to 20 properties with unlimited quote requests. Contractor Pro ($30/mo) is for professionals needing unlimited properties. See the full comparison on our Pricing page.",
+    a: "The Free tier covers one property with up to 2 photos per job and 3 open quote requests — enough to get started. Pro ($10/mo) supports 5 properties and 10 photos per job. Premium ($20/mo) scales to 20 properties. See the full comparison on our Pricing page.",
   },
 ];
 

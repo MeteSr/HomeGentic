@@ -17,9 +17,9 @@ test.describe("Subscription Upgrade — /settings (Subscription tab)", () => {
     await page.getByRole("button", { name: /subscription/i }).click();
   }
 
-  // ── Unsubscribed (no active plan) view ────────────────────────────────────
+  // ── Free tier view ─────────────────────────────────────────────────────────
 
-  test.describe("unsubscribed view", () => {
+  test.describe("Free tier", () => {
     test.beforeEach(async ({ page }) => {
       await injectTestAuth(page);
       await injectTestProperties(page);
@@ -27,8 +27,8 @@ test.describe("Subscription Upgrade — /settings (Subscription tab)", () => {
       await gotoSubscriptionTab(page);
     });
 
-    test("shows 'No subscription' for unsubscribed user", async ({ page }) => {
-      await expect(page.getByText(/no subscription/i).first()).toBeVisible();
+    test("shows current plan as Free", async ({ page }) => {
+      await expect(page.getByText(/free/i).first()).toBeVisible();
     });
 
     test("shows upgrade callout prompting to upgrade", async ({ page }) => {
@@ -70,9 +70,9 @@ test.describe("Subscription Upgrade — /settings (Subscription tab)", () => {
     });
   });
 
-  // ── Upgrade action (unsubscribed → Pro) ───────────────────────────────────
+  // ── Upgrade action (Free → Pro) ────────────────────────────────────────────
 
-  test.describe("subscribing from unsubscribed to Pro", () => {
+  test.describe("upgrading from Free to Pro", () => {
     test.beforeEach(async ({ page }) => {
       await injectTestAuth(page);
       await injectTestProperties(page);
@@ -162,7 +162,7 @@ test.describe("Subscription Upgrade — /settings (Subscription tab)", () => {
       await expect(page.getByText("ContractorPro")).toBeVisible();
     });
 
-    test("shows 'Upgrade to ContractorPro' CTA for unsubscribed contractor", async ({ page }) => {
+    test("shows 'Upgrade to ContractorPro' CTA for free contractor", async ({ page }) => {
       await expect(page.getByText(/upgrade to contractorpro/i)).toBeVisible();
     });
   });
@@ -170,7 +170,7 @@ test.describe("Subscription Upgrade — /settings (Subscription tab)", () => {
   // ── Tier gate pages ────────────────────────────────────────────────────────
 
   test.describe("tier-gated page upgrade CTAs", () => {
-    test("Warranty Wallet shows upgrade gate for unsubscribed tier", async ({ page }) => {
+    test("Warranty Wallet shows upgrade gate for Free tier", async ({ page }) => {
       await injectTestAuth(page);
       await injectTestProperties(page);
       await injectSubscription(page, "Free");
@@ -189,7 +189,7 @@ test.describe("Subscription Upgrade — /settings (Subscription tab)", () => {
       expect(href).toMatch(/\/pricing|\/settings/);
     });
 
-    test("Recurring Services shows upgrade gate for unsubscribed tier", async ({ page }) => {
+    test("Recurring Services shows upgrade gate for Free tier", async ({ page }) => {
       await injectTestAuth(page);
       await injectTestProperties(page);
       await injectSubscription(page, "Free");

@@ -153,8 +153,30 @@ persistent actor Bills {
     }
   };
 
-  /// ~30.44 days in nanoseconds — used for rolling average window.
-  private let ONE_MONTH_NS : Int = 2_629_800_000_000_000;
+  /// Monthly upload limit for a tier. 0 = unlimited.
+  private func monthlyUploadLimit(tier: SubscriptionTier) : Nat {
+    switch tier {
+      case (#Free)          { 1 };
+      case (#Pro)           { 0 };
+      case (#Premium)       { 0 };
+      case (#ContractorPro) { 0 };
+    }
+  };
+
+  /// Count bills uploaded by this principal in the same calendar month as `nowNs`.
+  /// Month boundary is approximate: 1 month ≈ 30.44 days in nanoseconds.
+  private let ONE_MONTH_NS : Int = 2_629_800_000_000_000; // ~30.44 days
+
+  private func countUploadsThisMonth(caller: Principal, nowNs: Int) : Nat {
+    var count : Nat = 0;
+    for ((_, b) in Map.entries(bills)) {
+      if (Principal.equal(b.homeowner, caller)
+          and nowNs - b.uploadedAt <= ONE_MONTH_NS) {
+        count += 1;
+      }
+    };
+    count
+  };
 
   /// Compute 3-month rolling average amountCents for a (propertyId, billType, homeowner).
   /// Uses uploadedAt timestamps — bills uploaded within the last 3 months relative to
@@ -228,16 +250,14 @@ persistent actor Bills {
       tierFor(msg.caller)
     };
 
-    let now = Time.now();
+    let limit = monthlyUploadLimit(callerTier);
+    let now   = Time.now();
 
-    // Free tier cannot upload bills — subscription required.
-    switch (callerTier) {
-      case (#Free) {
-        return #err(#TierLimitReached(
-          "Bill uploads require a paid subscription. Upgrade to Pro ($10/mo) for unlimited bill uploads."
-        ));
-      };
-      case _ {};
+    if (limit > 0 and countUploadsThisMonth(msg.caller, now) >= limit) {
+      return #err(#TierLimitReached(
+        "Free plan allows " # Nat.toText(limit) # " bill upload per month. " #
+        "Upgrade to Pro ($10/mo) for unlimited bill uploads."
+      ));
     };
 
     // ── Anomaly detection ─────────────────────────────────────────────────────

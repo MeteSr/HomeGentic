@@ -179,6 +179,21 @@ export interface Plan {
 
 export const PLANS: Plan[] = [
   {
+    tier: "Free",
+    price: 0,
+    period: "free",
+    features: [
+      "1 property",
+      "2 photos per job",
+      "3 quote requests/month",
+      "Basic blockchain record",
+      "Public HomeGentic report",
+    ],
+    propertyLimit: 1,
+    photosPerJob: 2,
+    quoteRequests: 3,
+  },
+  {
     tier: "Pro",
     price: 10,
     period: "month",

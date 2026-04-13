@@ -9,8 +9,9 @@
  *   - getAllPricing() returns the full Motoko pricing table exactly as the
  *     frontend PLANS array expects — a mismatch here means the UI silently
  *     shows wrong prices
- *   - getMySubscription() returns Free (unsubscribed state) for a new principal
- *   - Tier Variant for all paid plan tiers (Pro, Premium, ContractorFree, ContractorPro)
+ *   - getMySubscription() returns Free for an unsubscribed principal
+ *   - subscribe("Free") works without ICP ledger approval (paid tiers need II)
+ *   - Tier Variant for all five plan tiers (Free, Pro, Premium, ContractorFree, ContractorPro)
  *   - PricingInfo Nat fields (priceUSD, periodDays, propertyLimit, etc.) survive BigInt→number
  */
 
@@ -49,9 +50,29 @@ describe.skipIf(!deployed)("getMySubscription — Tier Variant and Int expiresAt
   });
 });
 
+// ─── subscribe(Free) ──────────────────────────────────────────────────────────
+
+describe.skipIf(!deployed)("subscribe — Free tier (no ICP ledger required)", () => {
+  it("subscribe('Free') resolves without error", async () => {
+    await expect(paymentService.subscribe("Free")).resolves.toBeUndefined();
+  });
+
+  it("getMySubscription returns Free after subscribe('Free')", async () => {
+    await paymentService.subscribe("Free");
+    const sub = await paymentService.getMySubscription();
+    expect(sub.tier).toBe("Free");
+  });
+});
+
 // ─── getPricing — individual tier lookup ─────────────────────────────────────
 
 describe.skipIf(!deployed)("getPricing — PricingInfo Nat field round-trips", () => {
+  it("getPricing('Free') returns priceUSD: 0", async () => {
+    const info = await paymentService.getPricing("Free");
+    expect(info).not.toBeNull();
+    expect(info!.priceUSD).toBe(0);
+  });
+
   it("getPricing('Pro') returns priceUSD: 10 (matching PLANS)", async () => {
     const info = await paymentService.getPricing("Pro");
     const plan = PLANS.find((p) => p.tier === "Pro")!;
@@ -68,6 +89,11 @@ describe.skipIf(!deployed)("getPricing — PricingInfo Nat field round-trips", (
     expect(info!.propertyLimit).toBe(5);
   });
 
+  it("getPricing('Free') propertyLimit is 1", async () => {
+    const info = await paymentService.getPricing("Free");
+    expect(info!.propertyLimit).toBe(1);
+  });
+
   it("getPricing('Premium') photosPerJob is 30", async () => {
     const info = await paymentService.getPricing("Premium");
     expect(info!.photosPerJob).toBe(30);
@@ -82,18 +108,13 @@ describe.skipIf(!deployed)("getPricing — PricingInfo Nat field round-trips", (
 // ─── getAllPricing — full table vs PLANS ──────────────────────────────────────
 
 describe.skipIf(!deployed)("getAllPricing — Motoko pricing table matches frontend PLANS", () => {
-  it("returns at least 4 entries (one per paid tier — Free excluded from public pricing)", async () => {
+  it("returns at least 5 entries (one per tier)", async () => {
     const all = await paymentService.getAllPricing();
-    expect(all.length).toBeGreaterThanOrEqual(4);
-  });
-
-  it("does not include Free homeowner tier in public pricing", async () => {
-    const all = await paymentService.getAllPricing();
-    expect(all.find((e) => e.tier === "Free")).toBeUndefined();
+    expect(all.length).toBeGreaterThanOrEqual(5);
   });
 
   it("every entry has a valid PlanTier string", async () => {
-    const validTiers = new Set(["Pro", "Premium", "ContractorFree", "ContractorPro"]);
+    const validTiers = new Set(["Free", "Pro", "Premium", "ContractorFree", "ContractorPro"]);
     const all = await paymentService.getAllPricing();
     for (const entry of all) {
       expect(validTiers.has(entry.tier)).toBe(true);
@@ -120,6 +141,16 @@ describe.skipIf(!deployed)("getAllPricing — Motoko pricing table matches front
     expect(canisterPro!.priceUSD).toBe(frontendPro.price);
     expect(canisterPro!.propertyLimit).toBe(frontendPro.propertyLimit);
     expect(canisterPro!.photosPerJob).toBe(frontendPro.photosPerJob);
+  });
+
+  it("canister Free tier matches frontend PLANS Free entry", async () => {
+    const all = await paymentService.getAllPricing();
+    const canisterFree = all.find((e) => e.tier === "Free");
+    const frontendFree = PLANS.find((p) => p.tier === "Free")!;
+    expect(canisterFree).toBeDefined();
+    expect(canisterFree!.priceUSD).toBe(frontendFree.price);
+    expect(canisterFree!.propertyLimit).toBe(frontendFree.propertyLimit);
+    expect(canisterFree!.photosPerJob).toBe(frontendFree.photosPerJob);
   });
 
   it("canister Premium tier has photosPerJob 30 matching frontend", async () => {

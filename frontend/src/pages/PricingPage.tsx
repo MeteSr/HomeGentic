@@ -129,8 +129,8 @@ export default function PricingPage() {
 
   // Plans to display based on toggle state and audience
   const homeownerPlans: Plan[] = annual
-    ? ANNUAL_PLANS
-    : PLANS.filter((p) => p.tier === "Pro" || p.tier === "Premium");
+    ? PLANS.filter((p) => p.tier === "Free").concat(ANNUAL_PLANS)
+    : PLANS.filter((p) => p.tier === "Free" || p.tier === "Pro" || p.tier === "Premium");
 
   const contractorPlans: Plan[] = PLANS.filter(
     (p) => p.tier === "ContractorFree" || p.tier === "ContractorPro"
@@ -139,7 +139,7 @@ export default function PricingPage() {
   const displayPlans = audience === "homeowner" ? homeownerPlans : contractorPlans;
 
   const handleUpgrade = async (tier: PlanTier) => {
-    if (tier === "ContractorFree") {
+    if (tier === "Free" || tier === "ContractorFree") {
       await handleLogin();
       return;
     }
@@ -183,7 +183,7 @@ export default function PricingPage() {
             Simple, transparent pricing
           </h1>
           <p style={{ fontFamily: FONTS.sans, fontSize: "0.9rem", fontWeight: 300, color: S.inkLight }}>
-            Choose your plan. Cancel anytime.
+            Start free. Upgrade when you're ready. Cancel anytime.
           </p>
         </div>
 
@@ -352,7 +352,7 @@ export default function PricingPage() {
                 <thead>
                   <tr style={{ background: COLORS.sageLight }}>
                     <th style={{ textAlign: "left", padding: "0.875rem 1.25rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, borderBottom: `1px solid ${S.rule}` }}>Feature</th>
-                    {(["Pro", "Premium"] as const).map((tier) => (
+                    {(["Free", "Pro", "Premium"] as const).map((tier) => (
                       <th key={tier} style={{ textAlign: "center", padding: "0.875rem 1rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: tier === "Pro" ? S.rust : S.inkLight, borderBottom: `1px solid ${S.rule}` }}>
                         {tier}
                       </th>
@@ -366,7 +366,7 @@ export default function PricingPage() {
                         {row.feature}
                         {FEATURE_TOOLTIPS[row.feature] && <FeatureTooltip text={FEATURE_TOOLTIPS[row.feature]} />}
                       </td>
-                      {(["Pro", "Premium"] as const).map((tier) => {
+                      {(["Free", "Pro", "Premium"] as const).map((tier) => {
                         const val = (row as any)[tier];
                         return (
                           <td key={tier} style={{ textAlign: "center", padding: "0.75rem 1rem" }}>
