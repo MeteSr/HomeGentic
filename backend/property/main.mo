@@ -44,7 +44,9 @@ persistent actor Property {
   // ─── Constants ────────────────────────────────────────────────────────────
 
   /// Nanoseconds in 7 days — the conflict resolution window.
-  private let SEVEN_DAYS_NS : Int = 7 * 24 * 3600 * 1_000_000_000;
+  private let SEVEN_DAYS_NS   : Int = 7  * 24 * 3600 * 1_000_000_000;
+  /// Nanoseconds in 90 days — the property transfer link expiry window.
+  private let NINETY_DAYS_NS  : Int = 90 * 24 * 3600 * 1_000_000_000;
 
   // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -69,9 +71,10 @@ persistent actor Property {
   };
 
   public type SubscriptionTier = {
-    #Free;          // 1 property
+    #Free;          // unsubscribed sentinel — 0 properties (blocked)
+    #Basic;         // 1 property
     #Pro;           // 5 properties
-    #Premium;       // 25 properties
+    #Premium;       // 20 properties
     #ContractorPro; // unlimited
   };
 
@@ -142,6 +145,49 @@ persistent actor Property {
     #AddressConflict : Int;
   };
 
+  // ─── Delegated Management Types ──────────────────────────────────────────
+
+  /// Access level granted to a delegated manager.
+  ///
+  ///  #Viewer  — read-only: can view all data but cannot make changes.
+  ///  #Manager — operational: can add/edit jobs, approve proposals,
+  ///             manage rooms/fixtures, upload photos, record bills.
+  ///             Cannot transfer the property or manage other managers.
+  public type ManagerRole = { #Viewer; #Manager };
+
+  /// A principal that has been granted delegated access to a property.
+  public type PropertyManager = {
+    principal   : Principal;
+    role        : ManagerRole;
+    /// Free-text display name set by the owner (e.g. "Sarah - daughter").
+    displayName : Text;
+    addedAt     : Time.Time;
+  };
+
+  /// Pending manager invite — claimed by the invitee via bearer token.
+  public type ManagerInvite = {
+    propertyId  : Nat;
+    token       : Text;
+    role        : ManagerRole;
+    displayName : Text;       // pre-filled name the owner sets
+    invitedBy   : Principal;
+    createdAt   : Time.Time;
+    expiresAt   : Time.Time;
+  };
+
+  /// A notification pushed to the property owner when a manager performs
+  /// a significant write action (job approval, large expense, etc.).
+  public type OwnerNotification = {
+    id              : Nat;
+    managerPrincipal : Principal;
+    managerName      : Text;
+    description      : Text;
+    timestamp        : Time.Time;
+    seen             : Bool;
+  };
+
+  // ─── Ownership History Types ──────────────────────────────────────────────
+
   /// Immutable record of a single ownership transfer event.
   public type TransferRecord = {
     propertyId : Nat;
@@ -153,12 +199,17 @@ persistent actor Property {
     txHash     : Text;
   };
 
-  /// Pending transfer awaiting recipient acceptance.
+  /// Pending transfer awaiting claim via bearer token.
+  ///
+  /// The seller calls initiateTransfer() and receives a URL-safe token.
+  /// Any principal that presents the token before expiresAt can claim
+  /// the property — no prior knowledge of the buyer's principal needed.
   public type PendingTransfer = {
     propertyId  : Nat;
     from        : Principal;
-    to          : Principal;
+    token       : Text;        // bearer token embedded in the claim URL
     initiatedAt : Time.Time;
+    expiresAt   : Time.Time;   // initiatedAt + NINETY_DAYS_NS
   };
 
   // ─── Room / Fixture types (merged from room canister) ────────────────────
@@ -253,9 +304,22 @@ persistent actor Property {
   /// Address key → first-registered property ID.
   private var addressIdx      = Map.empty<Text, Nat>();
   private var tierGrants      = Map.empty<Text, SubscriptionTier>();
-  private var transfers       = Map.empty<Nat, TransferRecord>();
+  private var transfers        = Map.empty<Nat, TransferRecord>();
   private var pendingTransfers = Map.empty<Nat, PendingTransfer>();
-  private var rooms           = Map.empty<Text, RoomRecord>();
+  /// token (Text) → propertyId (Nat) — secondary index for O(1) claim lookup.
+  private var tokenIndex       = Map.empty<Text, Nat>();
+  private var rooms            = Map.empty<Text, RoomRecord>();
+
+  // ─── Manager delegation state ────────────────────────────────────────────
+  /// propertyId → [PropertyManager]
+  private var managersMap      = Map.empty<Nat,  [PropertyManager]>();
+  /// token → ManagerInvite (pending invites)
+  private var managerInvites   = Map.empty<Text, ManagerInvite>();
+  /// token → propertyId (fast invite lookup)
+  private var managerTokenIdx  = Map.empty<Text, Nat>();
+  /// propertyId → [OwnerNotification]
+  private var ownerNotifs      = Map.empty<Nat,  [OwnerNotification]>();
+  private var notifCounter     : Nat = 0;
 
   // ─── Upgrade Hook ────────────────────────────────────────────────────────
 
@@ -275,6 +339,46 @@ persistent actor Property {
   };
 
   // ─── Private Helpers ──────────────────────────────────────────────────────
+
+  /// Returns true if `caller` is the property owner OR an authorised manager.
+  /// When `requireWrite` is true, a #Viewer manager is not sufficient.
+  private func checkAuthorized(propertyId: Nat, caller: Principal, requireWrite: Bool) : Bool {
+    switch (Map.get(properties, Nat.compare, propertyId)) {
+      case null false;
+      case (?prop) {
+        if (prop.owner == caller) return true;
+        let mgrs = switch (Map.get(managersMap, Nat.compare, propertyId)) {
+          case null    [];
+          case (?list) list;
+        };
+        for (m in mgrs.vals()) {
+          if (m.principal == caller) {
+            if (requireWrite) { return m.role == #Manager };
+            return true;
+          };
+        };
+        false
+      };
+    }
+  };
+
+  /// Append a notification to the owner's queue for the given property.
+  private func pushNotification(propertyId: Nat, managerP: Principal, managerN: Text, desc: Text) {
+    notifCounter += 1;
+    let notif : OwnerNotification = {
+      id               = notifCounter;
+      managerPrincipal = managerP;
+      managerName      = managerN;
+      description      = desc;
+      timestamp        = Time.now();
+      seen             = false;
+    };
+    let existing = switch (Map.get(ownerNotifs, Nat.compare, propertyId)) {
+      case null    [];
+      case (?list) list;
+    };
+    Map.add(ownerNotifs, Nat.compare, propertyId, Array.append(existing, [notif]));
+  };
 
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
 
@@ -355,10 +459,11 @@ persistent actor Property {
 
   public query func getPropertyLimitForTier(tier: SubscriptionTier) : async Nat {
     switch tier {
-      case (#Free)          { 1  };
+      case (#Free)          { 0  };  // blocked — unsubscribed
+      case (#Basic)         { 1  };
       case (#Pro)           { 5  };
       case (#Premium)       { 20 };
-      case (#ContractorPro) { 0  };  // 0 = unlimited
+      case (#ContractorPro) { 0  };  // 0 = unlimited (ContractorPro)
     }
   };
 
@@ -418,29 +523,32 @@ persistent actor Property {
     // otherwise falls back to the local admin-grant map.
     let callerTier : SubscriptionTier = if (payCanisterId != "") {
       let payActor = actor(payCanisterId) : actor {
-        getTierForPrincipal : (Principal) -> async { #Free; #Pro; #Premium; #ContractorPro };
+        getTierForPrincipal : (Principal) -> async { #Free; #Basic; #Pro; #Premium; #ContractorPro };
       };
       await payActor.getTierForPrincipal(caller)
     } else {
       tierFor(caller)
     };
     let limit = switch (callerTier) {
-      case (#Free)          { 1  };
+      case (#Free)          { 0  };  // blocked — unsubscribed
+      case (#Basic)         { 1  };
       case (#Pro)           { 5  };
       case (#Premium)       { 20 };
-      case (#ContractorPro) { 0  };
+      case (#ContractorPro) { 0  };  // 0 = unlimited (ContractorPro)
     };
-    if (limit > 0 and countOwnerProperties(caller) >= limit) {
+    if (callerTier == #Free or (limit > 0 and countOwnerProperties(caller) >= limit)) {
       let tierName = switch (callerTier) {
         case (#Free)          "Free";
+        case (#Basic)         "Basic";
         case (#Pro)           "Pro";
         case (#Premium)       "Premium";
         case (#ContractorPro) "ContractorPro";
       };
       let upgradeMsg = switch (callerTier) {
-        case (#Free) " Upgrade to Pro ($9.99/mo) for 5, or Premium ($24.99/mo) for 25.";
-        case (#Pro)  " Upgrade to Premium ($24.99/mo) for 25, or ContractorPro ($49.99/mo) for unlimited.";
-        case _       "";
+        case (#Free)  " Subscribe to Basic ($10/mo) for 1 property, or Pro ($20/mo) for 5.";
+        case (#Basic) " Upgrade to Pro ($20/mo) for 5, or Premium ($35/mo) for 20.";
+        case (#Pro)   " Upgrade to Premium ($35/mo) for 20, or ContractorPro ($30/mo) for unlimited.";
+        case _        "";
       };
       return #err(#InvalidInput(
         tierName # " plan limit of " # Nat.toText(limit) # " propert" #
@@ -652,13 +760,24 @@ persistent actor Property {
     Option.isSome(Array.find<Principal>(admins, func(a) { a == p }))
   };
 
-  // ─── Ownership Transfer ───────────────────────────────────────────────────
+  // ─── Ownership Transfer (Option B — bearer-token link) ───────────────────
+  //
+  //  Flow:
+  //   1. Seller calls initiateTransfer(propertyId).
+  //      Returns a PendingTransfer containing a unique token.
+  //      Seller embeds the token in a URL: /transfer/claim/<token>
+  //   2. Buyer opens the URL (no prior HomeGentic account required to preview).
+  //      Buyer calls claimTransfer(token) after signing in.
+  //      Ownership is transferred on-chain; transfer is recorded in history.
+  //   3. Seller (or admin) can call cancelTransfer(propertyId) at any time
+  //      before the token is claimed.
+  //
+  //  Tokens expire after NINETY_DAYS_NS from creation.
 
-  /// Step 1: current owner proposes a transfer to `to`.
-  /// Overwrites any existing pending transfer for this property.
+  /// Step 1: seller generates a bearer token for this property.
+  /// Overwrites any existing pending transfer (idempotent for re-sharing).
   public shared(msg) func initiateTransfer(
-    propertyId : Nat,
-    to         : Principal
+    propertyId : Nat
   ) : async Result.Result<PendingTransfer, Error> {
     switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
 
@@ -666,91 +785,120 @@ persistent actor Property {
       case null { #err(#NotFound) };
       case (?prop) {
         if (prop.owner != msg.caller) return #err(#NotAuthorized);
-        if (prop.owner == to)         return #err(#InvalidInput("Cannot transfer to yourself"));
+
+        let now = Time.now();
+        // Generate a unique URL-safe token from nanosecond timestamp + counter.
+        // Collision probability is negligible: counter is per-canister-unique and
+        // the timestamp has nanosecond resolution.
+        transferCounter += 1;
+        let token : Text = Int.toText(Int.abs(now)) # "-" # Nat.toText(transferCounter);
+
+        // Remove previous token from secondary index if one existed
+        switch (Map.get(pendingTransfers, Nat.compare, propertyId)) {
+          case (?old) { Map.remove(tokenIndex, Text.compare, old.token) };
+          case null   {};
+        };
 
         let pending : PendingTransfer = {
           propertyId;
           from        = msg.caller;
-          to;
-          initiatedAt = Time.now();
+          token;
+          initiatedAt = now;
+          expiresAt   = now + NINETY_DAYS_NS;
         };
         Map.add(pendingTransfers, Nat.compare, propertyId, pending);
+        Map.add(tokenIndex,       Text.compare, token,      propertyId);
         #ok(pending)
       };
     }
   };
 
-  /// Step 2: recipient accepts; executes the transfer and records it in the log.
-  /// `txHash` is optional metadata (off-chain deed or blockchain tx id).
-  public shared(msg) func acceptTransfer(
-    propertyId : Nat,
-    txHash     : Text
+  /// Step 2: any authenticated principal with the token claims the property.
+  /// The token acts as a bearer credential — possession equals authorization.
+  public shared(msg) func claimTransfer(
+    token : Text
   ) : async Result.Result<Property, Error> {
     switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
 
-    switch (Map.get(pendingTransfers, Nat.compare, propertyId)) {
+    switch (Map.get(tokenIndex, Text.compare, token)) {
       case null { #err(#NotFound) };
-      case (?pending) {
-        if (pending.to != msg.caller) return #err(#NotAuthorized);
-
-        switch (Map.get(properties, Nat.compare, propertyId)) {
+      case (?propertyId) {
+        switch (Map.get(pendingTransfers, Nat.compare, propertyId)) {
           case null { #err(#NotFound) };
-          case (?prop) {
-            let now = Time.now();
+          case (?pending) {
+            if (pending.token != token) return #err(#NotFound);
 
-            // Update property owner
-            let updated : Property = {
-              id                  = prop.id;
-              owner               = msg.caller;
-              address             = prop.address;
-              city                = prop.city;
-              state               = prop.state;
-              zipCode             = prop.zipCode;
-              propertyType        = prop.propertyType;
-              yearBuilt           = prop.yearBuilt;
-              squareFeet          = prop.squareFeet;
-              verificationLevel   = prop.verificationLevel;
-              verificationDate    = prop.verificationDate;
-              verificationMethod  = prop.verificationMethod;
-              verificationDocHash = prop.verificationDocHash;
-              tier                = prop.tier;
-              createdAt           = prop.createdAt;
-              updatedAt           = now;
-              isActive            = prop.isActive;
+            if (Time.now() > pending.expiresAt) {
+              // Expired — clean up and surface a clear error
+              Map.remove(pendingTransfers, Nat.compare, propertyId);
+              Map.remove(tokenIndex,       Text.compare, token);
+              return #err(#InvalidInput("Transfer link has expired. Ask the seller to generate a new one."));
             };
-            Map.add(properties, Nat.compare, propertyId, updated);
 
-            // Append immutable transfer record
-            transferCounter += 1;
-            let record : TransferRecord = {
-              propertyId;
-              from      = pending.from;
-              to        = msg.caller;
-              timestamp = now;
-              txHash;
+            if (pending.from == msg.caller) {
+              return #err(#InvalidInput("Cannot claim your own property transfer."));
             };
-            Map.add(transfers, Nat.compare, transferCounter, record);
 
-            // Clear the pending transfer
-            Map.remove(pendingTransfers, Nat.compare, propertyId);
+            switch (Map.get(properties, Nat.compare, propertyId)) {
+              case null { #err(#NotFound) };
+              case (?prop) {
+                let now = Time.now();
 
-            #ok(updated)
+                let updated : Property = {
+                  id                  = prop.id;
+                  owner               = msg.caller;
+                  address             = prop.address;
+                  city                = prop.city;
+                  state               = prop.state;
+                  zipCode             = prop.zipCode;
+                  propertyType        = prop.propertyType;
+                  yearBuilt           = prop.yearBuilt;
+                  squareFeet          = prop.squareFeet;
+                  verificationLevel   = prop.verificationLevel;
+                  verificationDate    = prop.verificationDate;
+                  verificationMethod  = prop.verificationMethod;
+                  verificationDocHash = prop.verificationDocHash;
+                  tier                = prop.tier;
+                  createdAt           = prop.createdAt;
+                  updatedAt           = now;
+                  isActive            = prop.isActive;
+                };
+                Map.add(properties, Nat.compare, propertyId, updated);
+
+                // Append immutable record to ownership history
+                let record : TransferRecord = {
+                  propertyId;
+                  from      = pending.from;
+                  to        = msg.caller;
+                  timestamp = now;
+                  txHash    = "";  // no off-chain hash for token-based transfers
+                };
+                Map.add(transfers, Nat.compare, transferCounter, record);
+
+                // Invalidate token
+                Map.remove(pendingTransfers, Nat.compare, propertyId);
+                Map.remove(tokenIndex,       Text.compare, token);
+
+                #ok(updated)
+              };
+            }
           };
         }
       };
     }
   };
 
-  /// Recipient (or original proposer) cancels a pending transfer.
+  /// Seller (or admin) cancels a pending transfer and invalidates the token.
   public shared(msg) func cancelTransfer(
     propertyId : Nat
   ) : async Result.Result<(), Error> {
     switch (Map.get(pendingTransfers, Nat.compare, propertyId)) {
       case null { #err(#NotFound) };
       case (?pending) {
-        if (pending.from != msg.caller and pending.to != msg.caller and not isAdmin(msg.caller))
+        if (pending.from != msg.caller and not isAdmin(msg.caller))
           return #err(#NotAuthorized);
-        Map.remove(pendingTransfers, Nat.compare, propertyId);
+        Map.remove(tokenIndex,       Text.compare, pending.token);
+        Map.remove(pendingTransfers, Nat.compare,  propertyId);
         #ok(())
       };
     }
@@ -759,6 +907,15 @@ persistent actor Property {
   /// Returns the pending transfer for a property, if any.
   public query func getPendingTransfer(propertyId: Nat) : async ?PendingTransfer {
     Map.get(pendingTransfers, Nat.compare, propertyId)
+  };
+
+  /// Looks up a pending transfer by its bearer token.
+  /// Used by the claim page to display property details before the buyer logs in.
+  public query func getPendingTransferByToken(token: Text) : async ?PendingTransfer {
+    switch (Map.get(tokenIndex, Text.compare, token)) {
+      case null          null;
+      case (?propertyId) Map.get(pendingTransfers, Nat.compare, propertyId);
+    }
   };
 
   /// Public, unauthenticated ownership history for a property.
@@ -775,6 +932,279 @@ persistent actor Property {
       else if (a.timestamp > b.timestamp) { #greater }
       else                                { #equal   }
     })
+  };
+
+  // ─── Delegated Management ─────────────────────────────────────────────────
+  //
+  //  Flow:
+  //   1. Owner calls inviteManager(propertyId, role, displayName).
+  //      Returns a ManagerInvite with a bearer token.
+  //      Owner shares the URL /manage/claim/<token> with the invitee.
+  //   2. Invitee opens the URL, logs in, calls claimManagerRole(token).
+  //      They are added to the property's managers list with the chosen role.
+  //   3. Owner can later updateManagerRole(), removeManager(), or the manager
+  //      can call resignAsManager().
+  //   4. When a Manager-role user performs a significant write action, the
+  //      frontend calls recordManagerActivity() to notify the owner.
+
+  /// Step 1: owner generates a bearer-token invite for a manager.
+  /// Overwrites any existing invite for the same property+role combination.
+  public shared(msg) func inviteManager(
+    propertyId  : Nat,
+    role        : ManagerRole,
+    displayName : Text
+  ) : async Result.Result<ManagerInvite, Error> {
+    switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
+    switch (Map.get(properties, Nat.compare, propertyId)) {
+      case null { #err(#NotFound) };
+      case (?prop) {
+        if (prop.owner != msg.caller) return #err(#NotAuthorized);
+        if (Text.size(displayName) == 0) return #err(#InvalidInput("Display name is required."));
+
+        let now = Time.now();
+        transferCounter += 1;
+        let token : Text = Int.toText(Int.abs(now)) # "-m-" # Nat.toText(transferCounter);
+
+        let invite : ManagerInvite = {
+          propertyId;
+          token;
+          role;
+          displayName;
+          invitedBy = msg.caller;
+          createdAt = now;
+          expiresAt = now + NINETY_DAYS_NS;
+        };
+        Map.add(managerInvites,  Text.compare, token,      invite);
+        Map.add(managerTokenIdx, Text.compare, token,      propertyId);
+        #ok(invite)
+      };
+    }
+  };
+
+  /// Step 2: invitee claims manager access using the bearer token.
+  public shared(msg) func claimManagerRole(
+    token : Text
+  ) : async Result.Result<{ propertyId: Nat; role: ManagerRole }, Error> {
+    switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
+
+    switch (Map.get(managerInvites, Text.compare, token)) {
+      case null { #err(#NotFound) };
+      case (?invite) {
+        if (Time.now() > invite.expiresAt) {
+          Map.remove(managerInvites,  Text.compare, token);
+          Map.remove(managerTokenIdx, Text.compare, token);
+          return #err(#InvalidInput("Invite link has expired."));
+        };
+        switch (Map.get(properties, Nat.compare, invite.propertyId)) {
+          case null { #err(#NotFound) };
+          case (?prop) {
+            if (prop.owner == msg.caller) {
+              return #err(#InvalidInput("You already own this property."));
+            };
+            // Prevent duplicates — remove existing entry for this principal if any
+            let existing = switch (Map.get(managersMap, Nat.compare, invite.propertyId)) {
+              case null    [];
+              case (?list) list;
+            };
+            let filtered = Array.filter<PropertyManager>(existing, func(m) {
+              m.principal != msg.caller
+            });
+            let newMgr : PropertyManager = {
+              principal   = msg.caller;
+              role        = invite.role;
+              displayName = invite.displayName;
+              addedAt     = Time.now();
+            };
+            Map.add(managersMap, Nat.compare, invite.propertyId,
+              Array.append(filtered, [newMgr]));
+            // Consume the token
+            Map.remove(managerInvites,  Text.compare, token);
+            Map.remove(managerTokenIdx, Text.compare, token);
+            #ok({ propertyId = invite.propertyId; role = invite.role })
+          };
+        }
+      };
+    }
+  };
+
+  /// Owner changes an existing manager's role (Viewer ↔ Manager).
+  public shared(msg) func updateManagerRole(
+    propertyId       : Nat,
+    managerPrincipal : Principal,
+    newRole          : ManagerRole
+  ) : async Result.Result<(), Error> {
+    switch (Map.get(properties, Nat.compare, propertyId)) {
+      case null { #err(#NotFound) };
+      case (?prop) {
+        if (prop.owner != msg.caller) return #err(#NotAuthorized);
+        let existing = switch (Map.get(managersMap, Nat.compare, propertyId)) {
+          case null    return #err(#NotFound);
+          case (?list) list;
+        };
+        // Check the manager exists before updating
+        let found = Array.find<PropertyManager>(existing, func(m) { m.principal == managerPrincipal });
+        switch found {
+          case null return #err(#NotFound);
+          case _ {};
+        };
+        let updated = Array.map<PropertyManager, PropertyManager>(existing, func(m) {
+          if (m.principal == managerPrincipal) { { m with role = newRole } } else m
+        });
+        Map.add(managersMap, Nat.compare, propertyId, updated);
+        #ok(())
+      };
+    }
+  };
+
+  /// Owner removes a manager from a property.
+  public shared(msg) func removeManager(
+    propertyId       : Nat,
+    managerPrincipal : Principal
+  ) : async Result.Result<(), Error> {
+    switch (Map.get(properties, Nat.compare, propertyId)) {
+      case null { #err(#NotFound) };
+      case (?prop) {
+        if (prop.owner != msg.caller) return #err(#NotAuthorized);
+        let existing = switch (Map.get(managersMap, Nat.compare, propertyId)) {
+          case null    return #err(#NotFound);
+          case (?list) list;
+        };
+        let filtered = Array.filter<PropertyManager>(existing, func(m) {
+          m.principal != managerPrincipal
+        });
+        Map.add(managersMap, Nat.compare, propertyId, filtered);
+        #ok(())
+      };
+    }
+  };
+
+  /// Manager voluntarily removes themselves.
+  public shared(msg) func resignAsManager(
+    propertyId : Nat
+  ) : async Result.Result<(), Error> {
+    let existing = switch (Map.get(managersMap, Nat.compare, propertyId)) {
+      case null    return #err(#NotFound);
+      case (?list) list;
+    };
+    let filtered = Array.filter<PropertyManager>(existing, func(m) {
+      m.principal != msg.caller
+    });
+    if (filtered.size() == existing.size()) return #err(#NotFound);
+    Map.add(managersMap, Nat.compare, propertyId, filtered);
+    #ok(())
+  };
+
+  /// Returns all properties where the caller has been granted manager access.
+  public query(msg) func getMyManagedProperties() : async [{ property: Property; role: ManagerRole }] {
+    var result : [{ property: Property; role: ManagerRole }] = [];
+    for ((propId, mgrs) in Map.entries(managersMap)) {
+      for (m in mgrs.vals()) {
+        if (m.principal == msg.caller) {
+          switch (Map.get(properties, Nat.compare, propId)) {
+            case null {};
+            case (?prop) {
+              result := Array.append(result, [{ property = prop; role = m.role }]);
+            };
+          };
+        };
+      };
+    };
+    result
+  };
+
+  /// Returns the managers for a property.
+  /// Only the owner may call this.
+  public query(msg) func getPropertyManagers(propertyId: Nat) : async Result.Result<[PropertyManager], Error> {
+    switch (Map.get(properties, Nat.compare, propertyId)) {
+      case null { #err(#NotFound) };
+      case (?prop) {
+        if (prop.owner != msg.caller) return #err(#NotAuthorized);
+        let mgrs = switch (Map.get(managersMap, Nat.compare, propertyId)) {
+          case null    [];
+          case (?list) list;
+        };
+        #ok(mgrs)
+      };
+    }
+  };
+
+  /// Look up a pending manager invite by token — used by the claim page
+  /// to display context before the invitee logs in (unauthenticated query).
+  public query func getManagerInviteByToken(token: Text) : async ?ManagerInvite {
+    Map.get(managerInvites, Text.compare, token)
+  };
+
+  /// Called by a Manager-role user (via the frontend) after completing a
+  /// significant write action to notify the property owner.
+  public shared(msg) func recordManagerActivity(
+    propertyId  : Nat,
+    description : Text
+  ) : async Result.Result<(), Error> {
+    if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    // Resolve manager's display name for the notification
+    let managerName : Text = switch (Map.get(managersMap, Nat.compare, propertyId)) {
+      case null "A manager";
+      case (?mgrs) {
+        var found = "A manager";
+        for (m in mgrs.vals()) {
+          if (m.principal == msg.caller) found := m.displayName;
+        };
+        found
+      };
+    };
+    pushNotification(propertyId, msg.caller, managerName, description);
+    #ok(())
+  };
+
+  /// Returns unseen (and recently seen) owner notifications for a property.
+  /// Newest first. Only the property owner may call this.
+  public query(msg) func getOwnerNotifications(
+    propertyId : Nat
+  ) : async Result.Result<[OwnerNotification], Error> {
+    switch (Map.get(properties, Nat.compare, propertyId)) {
+      case null { #err(#NotFound) };
+      case (?prop) {
+        if (prop.owner != msg.caller) return #err(#NotAuthorized);
+        let notifs = switch (Map.get(ownerNotifs, Nat.compare, propertyId)) {
+          case null    [];
+          case (?list) list;
+        };
+        // Return newest first
+        let sorted = Array.sort<OwnerNotification>(notifs, func(a, b) {
+          if      (a.timestamp > b.timestamp) #less
+          else if (a.timestamp < b.timestamp) #greater
+          else                                #equal
+        });
+        #ok(sorted)
+      };
+    }
+  };
+
+  /// Owner dismisses all notifications for a property (marks as seen + clears).
+  public shared(msg) func dismissNotifications(
+    propertyId : Nat
+  ) : async Result.Result<(), Error> {
+    switch (Map.get(properties, Nat.compare, propertyId)) {
+      case null { #err(#NotFound) };
+      case (?prop) {
+        if (prop.owner != msg.caller) return #err(#NotAuthorized);
+        Map.add(ownerNotifs, Nat.compare, propertyId, []);
+        #ok(())
+      };
+    }
+  };
+
+  /// Public query: returns true if `caller` is the owner OR an authorised manager.
+  /// `requireWrite` = true means #Viewer role is not sufficient.
+  /// Called cross-canister by job, photo, quote, etc. canisters for auth checks.
+  // TODO: update job/photo/quote/maintenance canisters to call this instead of
+  //       checking caller == owner directly.
+  public query func isAuthorized(
+    propertyId  : Nat,
+    caller      : Principal,
+    requireWrite : Bool
+  ) : async Bool {
+    checkAuthorized(propertyId, caller, requireWrite)
   };
 
   // ─── Admin Controls ───────────────────────────────────────────────────────

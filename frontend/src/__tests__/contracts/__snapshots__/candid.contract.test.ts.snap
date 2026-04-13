@@ -319,6 +319,15 @@ exports[`contractor IDL factory > full signature snapshot 1`] = `
 
 exports[`job IDL factory > full signature snapshot 1`] = `
 {
+  "approveJobProposal": {
+    "args": [
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; completedDate:int; status:variant {RejectedByHomeowner; PendingHomeownerApproval; InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; sourceQuoteId:opt text; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}; err:variant {InvalidInput:text; NotFound; AlreadyVerified; Unauthorized}}",
+    ],
+  },
   "createInviteToken": {
     "args": [
       "text",
@@ -345,7 +354,24 @@ exports[`job IDL factory > full signature snapshot 1`] = `
     ],
     "mode": [],
     "rets": [
-      "variant {ok:record {id:text; completedDate:int; status:variant {InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; sourceQuoteId:opt text; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}; err:variant {InvalidInput:text; NotFound; AlreadyVerified; Unauthorized}}",
+      "variant {ok:record {id:text; completedDate:int; status:variant {RejectedByHomeowner; PendingHomeownerApproval; InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; sourceQuoteId:opt text; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}; err:variant {InvalidInput:text; NotFound; AlreadyVerified; Unauthorized}}",
+    ],
+  },
+  "createJobProposal": {
+    "args": [
+      "text",
+      "text",
+      "variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}",
+      "text",
+      "opt text",
+      "nat",
+      "int",
+      "opt text",
+      "opt nat",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; completedDate:int; status:variant {RejectedByHomeowner; PendingHomeownerApproval; InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; sourceQuoteId:opt text; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}; err:variant {InvalidInput:text; NotFound; AlreadyVerified; Unauthorized}}",
     ],
   },
   "getCertificationData": {
@@ -367,7 +393,7 @@ exports[`job IDL factory > full signature snapshot 1`] = `
       "query",
     ],
     "rets": [
-      "variant {ok:record {id:text; completedDate:int; status:variant {InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; sourceQuoteId:opt text; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}; err:variant {InvalidInput:text; NotFound; AlreadyVerified; Unauthorized}}",
+      "variant {ok:record {id:text; completedDate:int; status:variant {RejectedByHomeowner; PendingHomeownerApproval; InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; sourceQuoteId:opt text; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}; err:variant {InvalidInput:text; NotFound; AlreadyVerified; Unauthorized}}",
     ],
   },
   "getJobByInviteToken": {
@@ -389,7 +415,7 @@ exports[`job IDL factory > full signature snapshot 1`] = `
       "query",
     ],
     "rets": [
-      "variant {ok:vec record {id:text; completedDate:int; status:variant {InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; sourceQuoteId:opt text; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}; err:variant {InvalidInput:text; NotFound; AlreadyVerified; Unauthorized}}",
+      "variant {ok:vec record {id:text; completedDate:int; status:variant {RejectedByHomeowner; PendingHomeownerApproval; InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; sourceQuoteId:opt text; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}; err:variant {InvalidInput:text; NotFound; AlreadyVerified; Unauthorized}}",
     ],
   },
   "getJobsPendingMySignature": {
@@ -398,7 +424,7 @@ exports[`job IDL factory > full signature snapshot 1`] = `
       "query",
     ],
     "rets": [
-      "vec record {id:text; completedDate:int; status:variant {InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; sourceQuoteId:opt text; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}",
+      "vec record {id:text; completedDate:int; status:variant {RejectedByHomeowner; PendingHomeownerApproval; InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; sourceQuoteId:opt text; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}",
     ],
   },
   "getMetrics": {
@@ -410,13 +436,22 @@ exports[`job IDL factory > full signature snapshot 1`] = `
       "record {completedJobs:nat; diyJobs:nat; isPaused:bool; verifiedJobs:nat; totalJobs:nat; pendingJobs:nat}",
     ],
   },
+  "getPendingProposals": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "vec record {id:text; completedDate:int; status:variant {RejectedByHomeowner; PendingHomeownerApproval; InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; sourceQuoteId:opt text; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}",
+    ],
+  },
   "getReferralJobs": {
     "args": [],
     "mode": [
       "query",
     ],
     "rets": [
-      "vec record {id:text; completedDate:int; status:variant {InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; sourceQuoteId:opt text; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}",
+      "vec record {id:text; completedDate:int; status:variant {RejectedByHomeowner; PendingHomeownerApproval; InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; sourceQuoteId:opt text; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}",
     ],
   },
   "linkContractor": {
@@ -426,7 +461,7 @@ exports[`job IDL factory > full signature snapshot 1`] = `
     ],
     "mode": [],
     "rets": [
-      "variant {ok:record {id:text; completedDate:int; status:variant {InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; sourceQuoteId:opt text; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}; err:variant {InvalidInput:text; NotFound; AlreadyVerified; Unauthorized}}",
+      "variant {ok:record {id:text; completedDate:int; status:variant {RejectedByHomeowner; PendingHomeownerApproval; InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; sourceQuoteId:opt text; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}; err:variant {InvalidInput:text; NotFound; AlreadyVerified; Unauthorized}}",
     ],
   },
   "redeemInviteToken": {
@@ -435,17 +470,35 @@ exports[`job IDL factory > full signature snapshot 1`] = `
     ],
     "mode": [],
     "rets": [
-      "variant {ok:record {id:text; completedDate:int; status:variant {InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; sourceQuoteId:opt text; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}; err:variant {InvalidInput:text; NotFound; AlreadyVerified; Unauthorized}}",
+      "variant {ok:record {id:text; completedDate:int; status:variant {RejectedByHomeowner; PendingHomeownerApproval; InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; sourceQuoteId:opt text; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}; err:variant {InvalidInput:text; NotFound; AlreadyVerified; Unauthorized}}",
+    ],
+  },
+  "rejectJobProposal": {
+    "args": [
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; NotFound; AlreadyVerified; Unauthorized}}",
+    ],
+  },
+  "setPropertyCanisterId": {
+    "args": [
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; NotFound; AlreadyVerified; Unauthorized}}",
     ],
   },
   "updateJobStatus": {
     "args": [
       "text",
-      "variant {InProgress; Verified; Completed; Pending}",
+      "variant {RejectedByHomeowner; PendingHomeownerApproval; InProgress; Verified; Completed; Pending}",
     ],
     "mode": [],
     "rets": [
-      "variant {ok:record {id:text; completedDate:int; status:variant {InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; sourceQuoteId:opt text; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}; err:variant {InvalidInput:text; NotFound; AlreadyVerified; Unauthorized}}",
+      "variant {ok:record {id:text; completedDate:int; status:variant {RejectedByHomeowner; PendingHomeownerApproval; InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; sourceQuoteId:opt text; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}; err:variant {InvalidInput:text; NotFound; AlreadyVerified; Unauthorized}}",
     ],
   },
   "verifyJob": {
@@ -454,7 +507,7 @@ exports[`job IDL factory > full signature snapshot 1`] = `
     ],
     "mode": [],
     "rets": [
-      "variant {ok:record {id:text; completedDate:int; status:variant {InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; sourceQuoteId:opt text; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}; err:variant {InvalidInput:text; NotFound; AlreadyVerified; Unauthorized}}",
+      "variant {ok:record {id:text; completedDate:int; status:variant {RejectedByHomeowner; PendingHomeownerApproval; InProgress; Verified; Completed; Pending}; title:text; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; verified:bool; contractorSigned:bool; permitNumber:opt text; createdAt:int; description:text; propertyId:text; homeownerSigned:bool; warrantyMonths:opt nat; sourceQuoteId:opt text; isDiy:bool; homeowner:principal; amount:nat; contractorName:opt text; contractor:opt principal}; err:variant {InvalidInput:text; NotFound; AlreadyVerified; Unauthorized}}",
     ],
   },
 }
@@ -605,13 +658,33 @@ exports[`maintenance IDL factory > full signature snapshot 1`] = `
 
 exports[`payment IDL factory > full signature snapshot 1`] = `
 {
+  "configureStripe": {
+    "args": [
+      "record {cancelUrl:text; secretKey:text; priceIds:record {premiumMonthly:text; contractorProYearly:text; contractorProMonthly:text; proMonthly:text; basicYearly:text; basicMonthly:text; proYearly:text; premiumYearly:text}; successUrl:text}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
+    ],
+  },
+  "createStripeCheckoutSession": {
+    "args": [
+      "variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}",
+      "variant {Monthly; Yearly}",
+      "opt record {giftMessage:text; deliveryDate:text; senderName:text; recipientName:text; recipientEmail:text}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; url:text}; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
+    ],
+  },
   "getAllPricing": {
     "args": [],
     "mode": [
       "query",
     ],
     "rets": [
-      "vec record {periodDays:nat; tier:variant {Pro; Premium; Free; ContractorPro; ContractorFree}; quoteRequestsPerMonth:nat; propertyLimit:nat; priceUSD:nat; photosPerJob:nat}",
+      "vec record {periodDays:nat; tier:variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}; quoteRequestsPerMonth:nat; propertyLimit:nat; priceUSD:nat; photosPerJob:nat}",
     ],
   },
   "getMySubscription": {
@@ -620,27 +693,27 @@ exports[`payment IDL factory > full signature snapshot 1`] = `
       "query",
     ],
     "rets": [
-      "variant {ok:record {expiresAt:int; owner:principal; createdAt:int; tier:variant {Pro; Premium; Free; ContractorPro; ContractorFree}}; err:variant {PaymentFailed:text; NotFound; NotAuthorized}}",
+      "variant {ok:record {expiresAt:int; owner:principal; createdAt:int; tier:variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}}; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
     ],
   },
   "getPriceQuote": {
     "args": [
-      "variant {Pro; Premium; Free; ContractorPro; ContractorFree}",
+      "variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}",
     ],
     "mode": [],
     "rets": [
-      "variant {ok:nat; err:variant {PaymentFailed:text; NotFound; NotAuthorized}}",
+      "variant {ok:nat; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
     ],
   },
   "getPricing": {
     "args": [
-      "variant {Pro; Premium; Free; ContractorPro; ContractorFree}",
+      "variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}",
     ],
     "mode": [
       "query",
     ],
     "rets": [
-      "record {periodDays:nat; tier:variant {Pro; Premium; Free; ContractorPro; ContractorFree}; quoteRequestsPerMonth:nat; propertyLimit:nat; priceUSD:nat; photosPerJob:nat}",
+      "record {periodDays:nat; tier:variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}; quoteRequestsPerMonth:nat; propertyLimit:nat; priceUSD:nat; photosPerJob:nat}",
     ],
   },
   "getSubscriptionStats": {
@@ -649,26 +722,71 @@ exports[`payment IDL factory > full signature snapshot 1`] = `
       "query",
     ],
     "rets": [
-      "record {pro:nat; total:nat; premium:nat; contractorPro:nat; free:nat; estimatedMrrUsd:nat; contractorFree:nat; activePaid:nat}",
+      "record {pro:nat; total:nat; premium:nat; contractorPro:nat; free:nat; estimatedMrrUsd:nat; basic:nat; contractorFree:nat; activePaid:nat}",
     ],
   },
   "grantSubscription": {
     "args": [
       "principal",
-      "variant {Pro; Premium; Free; ContractorPro; ContractorFree}",
+      "variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}",
     ],
     "mode": [],
     "rets": [
-      "variant {ok:record {expiresAt:int; owner:principal; createdAt:int; tier:variant {Pro; Premium; Free; ContractorPro; ContractorFree}}; err:variant {PaymentFailed:text; NotFound; NotAuthorized}}",
+      "variant {ok:record {expiresAt:int; owner:principal; createdAt:int; tier:variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}}; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
+    ],
+  },
+  "initAdmins": {
+    "args": [
+      "vec principal",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
+    ],
+  },
+  "isStripeConfigured": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "bool",
+    ],
+  },
+  "listPendingGifts": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:vec record {redeemedBy:opt principal; giftMessage:text; createdAt:int; tier:variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}; deliveryDate:text; billing:variant {Monthly; Yearly}; senderName:text; recipientName:text; giftToken:text; recipientEmail:text}; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
+    ],
+  },
+  "redeemGift": {
+    "args": [
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {expiresAt:int; owner:principal; createdAt:int; tier:variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}}; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
     ],
   },
   "subscribe": {
     "args": [
-      "variant {Pro; Premium; Free; ContractorPro; ContractorFree}",
+      "variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}",
     ],
     "mode": [],
     "rets": [
-      "variant {ok:record {expiresAt:int; owner:principal; createdAt:int; tier:variant {Pro; Premium; Free; ContractorPro; ContractorFree}}; err:variant {PaymentFailed:text; NotFound; NotAuthorized}}",
+      "variant {ok:record {expiresAt:int; owner:principal; createdAt:int; tier:variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}}; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
+    ],
+  },
+  "verifyStripeSession": {
+    "args": [
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {expiresAt:int; owner:principal; createdAt:int; tier:variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}}; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
     ],
   },
 }
@@ -712,6 +830,15 @@ exports[`photo IDL factory > full signature snapshot 1`] = `
       "vec record {id:text; verified:bool; owner:principal; data:vec nat8; hash:text; createdAt:int; size:nat; jobId:text; description:text; propertyId:text; phase:variant {Framing; HVAC; Foundation; Plumbing; Finishing; Insulation; Drywall; Warranty; PreConstruction; Electrical; PostConstruction}; approvals:vec principal}",
     ],
   },
+  "setPropertyCanisterId": {
+    "args": [
+      "principal",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; Duplicate:text; NotFound; Unauthorized; QuotaExceeded:text}}",
+    ],
+  },
   "uploadPhoto": {
     "args": [
       "text",
@@ -731,16 +858,6 @@ exports[`photo IDL factory > full signature snapshot 1`] = `
 
 exports[`property IDL factory > full signature snapshot 1`] = `
 {
-  "acceptTransfer": {
-    "args": [
-      "nat",
-      "text",
-    ],
-    "mode": [],
-    "rets": [
-      "variant {ok:record {id:nat; propertyType:variant {SingleFamily; Townhouse; MultiFamily; Condo}; owner:principal; city:text; createdAt:int; tier:variant {Pro; Premium; Free; ContractorPro}; squareFeet:nat; isActive:bool; zipCode:text; updatedAt:int; state:text; address:text; verificationLevel:variant {Premium; Basic; PendingReview; Unverified}; yearBuilt:nat}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
-    ],
-  },
   "cancelTransfer": {
     "args": [
       "nat",
@@ -750,6 +867,53 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
     ],
   },
+  "claimManagerRole": {
+    "args": [
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {role:variant {Viewer; Manager}; propertyId:nat}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
+    ],
+  },
+  "claimTransfer": {
+    "args": [
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:nat; propertyType:variant {SingleFamily; Townhouse; MultiFamily; Condo}; owner:principal; city:text; createdAt:int; tier:variant {Pro; Premium; Free; ContractorPro}; squareFeet:nat; isActive:bool; zipCode:text; updatedAt:int; state:text; address:text; verificationLevel:variant {Premium; Basic; PendingReview; Unverified}; yearBuilt:nat}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
+    ],
+  },
+  "dismissNotifications": {
+    "args": [
+      "nat",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
+    ],
+  },
+  "getManagerInviteByToken": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "opt record {token:text; expiresAt:int; displayName:text; createdAt:int; role:variant {Viewer; Manager}; invitedBy:principal; propertyId:nat}",
+    ],
+  },
+  "getMyManagedProperties": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "vec record {role:variant {Viewer; Manager}; property:record {id:nat; propertyType:variant {SingleFamily; Townhouse; MultiFamily; Condo}; owner:principal; city:text; createdAt:int; tier:variant {Pro; Premium; Free; ContractorPro}; squareFeet:nat; isActive:bool; zipCode:text; updatedAt:int; state:text; address:text; verificationLevel:variant {Premium; Basic; PendingReview; Unverified}; yearBuilt:nat}}",
+    ],
+  },
   "getMyProperties": {
     "args": [],
     "mode": [
@@ -757,6 +921,17 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "vec record {id:nat; propertyType:variant {SingleFamily; Townhouse; MultiFamily; Condo}; owner:principal; city:text; createdAt:int; tier:variant {Pro; Premium; Free; ContractorPro}; squareFeet:nat; isActive:bool; zipCode:text; updatedAt:int; state:text; address:text; verificationLevel:variant {Premium; Basic; PendingReview; Unverified}; yearBuilt:nat}",
+    ],
+  },
+  "getOwnerNotifications": {
+    "args": [
+      "nat",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:vec record {id:nat; seen:bool; description:text; timestamp:int; managerPrincipal:principal; managerName:text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
     ],
   },
   "getOwnershipHistory": {
@@ -778,7 +953,18 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "query",
     ],
     "rets": [
-      "opt record {to:principal; from:principal; propertyId:nat; initiatedAt:int}",
+      "opt record {token:text; expiresAt:int; from:principal; propertyId:nat; initiatedAt:int}",
+    ],
+  },
+  "getPendingTransferByToken": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "opt record {token:text; expiresAt:int; from:principal; propertyId:nat; initiatedAt:int}",
     ],
   },
   "getPendingVerifications": {
@@ -812,6 +998,28 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "nat",
     ],
   },
+  "getPropertyManagers": {
+    "args": [
+      "nat",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:vec record {principal:principal; displayName:text; role:variant {Viewer; Manager}; addedAt:int}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
+    ],
+  },
+  "getPropertyOwner": {
+    "args": [
+      "nat",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "opt principal",
+    ],
+  },
   "getVerificationLevel": {
     "args": [
       "nat",
@@ -826,11 +1034,21 @@ exports[`property IDL factory > full signature snapshot 1`] = `
   "initiateTransfer": {
     "args": [
       "nat",
-      "principal",
     ],
     "mode": [],
     "rets": [
-      "variant {ok:record {to:principal; from:principal; propertyId:nat; initiatedAt:int}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
+      "variant {ok:record {token:text; expiresAt:int; from:principal; propertyId:nat; initiatedAt:int}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
+    ],
+  },
+  "inviteManager": {
+    "args": [
+      "nat",
+      "variant {Viewer; Manager}",
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {token:text; expiresAt:int; displayName:text; createdAt:int; role:variant {Viewer; Manager}; invitedBy:principal; propertyId:nat}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
     ],
   },
   "isAdminPrincipal": {
@@ -844,6 +1062,29 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "bool",
     ],
   },
+  "isAuthorized": {
+    "args": [
+      "nat",
+      "principal",
+      "bool",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "bool",
+    ],
+  },
+  "recordManagerActivity": {
+    "args": [
+      "nat",
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
+    ],
+  },
   "registerProperty": {
     "args": [
       "record {propertyType:variant {SingleFamily; Townhouse; MultiFamily; Condo}; city:text; tier:variant {Pro; Premium; Free; ContractorPro}; squareFeet:nat; zipCode:text; state:text; address:text; yearBuilt:nat}",
@@ -851,6 +1092,25 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:record {id:nat; propertyType:variant {SingleFamily; Townhouse; MultiFamily; Condo}; owner:principal; city:text; createdAt:int; tier:variant {Pro; Premium; Free; ContractorPro}; squareFeet:nat; isActive:bool; zipCode:text; updatedAt:int; state:text; address:text; verificationLevel:variant {Premium; Basic; PendingReview; Unverified}; yearBuilt:nat}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
+    ],
+  },
+  "removeManager": {
+    "args": [
+      "nat",
+      "principal",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
+    ],
+  },
+  "resignAsManager": {
+    "args": [
+      "nat",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
     ],
   },
   "setTier": {
@@ -872,6 +1132,17 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:record {id:nat; propertyType:variant {SingleFamily; Townhouse; MultiFamily; Condo}; owner:principal; city:text; createdAt:int; tier:variant {Pro; Premium; Free; ContractorPro}; squareFeet:nat; isActive:bool; zipCode:text; updatedAt:int; state:text; address:text; verificationLevel:variant {Premium; Basic; PendingReview; Unverified}; yearBuilt:nat}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
+    ],
+  },
+  "updateManagerRole": {
+    "args": [
+      "nat",
+      "principal",
+      "variant {Viewer; Manager}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
     ],
   },
   "verifyProperty": {
@@ -958,6 +1229,15 @@ exports[`quote IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "variant {ok:vec record {id:text; status:variant {Rejected; Accepted; Expired; Pending}; requestId:text; createdAt:int; amount:nat; contractor:principal; validUntil:int; timeline:nat}; err:variant {InvalidInput:text; NotFound; Unauthorized}}",
+    ],
+  },
+  "setPropertyCanisterId": {
+    "args": [
+      "principal",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; NotFound; Unauthorized}}",
     ],
   },
   "submitQuote": {

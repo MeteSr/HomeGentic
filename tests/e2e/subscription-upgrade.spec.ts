@@ -17,18 +17,18 @@ test.describe("Subscription Upgrade — /settings (Subscription tab)", () => {
     await page.getByRole("button", { name: /subscription/i }).click();
   }
 
-  // ── Free tier view ─────────────────────────────────────────────────────────
+  // ── Basic tier view ─────────────────────────────────────────────────────────
 
-  test.describe("Free tier", () => {
+  test.describe("Basic tier", () => {
     test.beforeEach(async ({ page }) => {
       await injectTestAuth(page);
       await injectTestProperties(page);
-      await injectSubscription(page, "Free");
+      await injectSubscription(page, "Basic");
       await gotoSubscriptionTab(page);
     });
 
-    test("shows current plan as Free", async ({ page }) => {
-      await expect(page.getByText(/free/i).first()).toBeVisible();
+    test("shows current plan as Basic", async ({ page }) => {
+      await expect(page.getByText(/basic/i).first()).toBeVisible();
     });
 
     test("shows upgrade callout prompting to upgrade", async ({ page }) => {
@@ -51,7 +51,6 @@ test.describe("Subscription Upgrade — /settings (Subscription tab)", () => {
 
     test("shows Upgrade button next to Pro plan", async ({ page }) => {
       // Pro card has an "Upgrade" button
-      const proCard = page.getByText("Pro").first().locator("..").locator("..");
       await expect(
         page.getByRole("button", { name: /upgrade/i }).first()
       ).toBeVisible();
@@ -62,21 +61,21 @@ test.describe("Subscription Upgrade — /settings (Subscription tab)", () => {
     });
 
     test("shows monthly price for Pro plan", async ({ page }) => {
-      await expect(page.getByText(/\$10/)).toBeVisible();
+      await expect(page.getByText(/\$20/)).toBeVisible();
     });
 
     test("shows monthly price for Premium plan", async ({ page }) => {
-      await expect(page.getByText(/\$20/)).toBeVisible();
+      await expect(page.getByText(/\$35/)).toBeVisible();
     });
   });
 
-  // ── Upgrade action (Free → Pro) ────────────────────────────────────────────
+  // ── Upgrade action (Basic → Pro) ────────────────────────────────────────────
 
-  test.describe("upgrading from Free to Pro", () => {
+  test.describe("upgrading from Basic to Pro", () => {
     test.beforeEach(async ({ page }) => {
       await injectTestAuth(page);
       await injectTestProperties(page);
-      await injectSubscription(page, "Free");
+      await injectSubscription(page, "Basic");
       await gotoSubscriptionTab(page);
     });
 
@@ -170,31 +169,40 @@ test.describe("Subscription Upgrade — /settings (Subscription tab)", () => {
   // ── Tier gate pages ────────────────────────────────────────────────────────
 
   test.describe("tier-gated page upgrade CTAs", () => {
-    test("Warranty Wallet shows upgrade gate for Free tier", async ({ page }) => {
+    test("Warranty Wallet shows upgrade gate for unsubscribed (Free) users", async ({ page }) => {
       await injectTestAuth(page);
       await injectTestProperties(page);
       await injectSubscription(page, "Free");
       await page.goto("/warranty-wallet");
-      await expect(page.getByText(/pro|upgrade/i).first()).toBeVisible();
+      await expect(page.getByText(/subscribe|upgrade/i).first()).toBeVisible();
     });
 
-    test("tier gate on Warranty Wallet links to /pricing", async ({ page }) => {
+    test("tier gate on Warranty Wallet links to /pricing or /settings", async ({ page }) => {
       await injectTestAuth(page);
       await injectTestProperties(page);
       await injectSubscription(page, "Free");
       await page.goto("/warranty-wallet");
-      const upgradeLink = page.getByRole("link", { name: /upgrade|view plans/i }).first();
+      const upgradeLink = page.getByRole("link", { name: /subscribe|upgrade|view plans/i }).first();
       await expect(upgradeLink).toBeVisible();
       const href = await upgradeLink.getAttribute("href");
       expect(href).toMatch(/\/pricing|\/settings/);
     });
 
-    test("Recurring Services shows upgrade gate for Free tier", async ({ page }) => {
+    test("Warranty Wallet is accessible for Basic tier (no gate)", async ({ page }) => {
+      await injectTestAuth(page);
+      await injectTestProperties(page);
+      await injectSubscription(page, "Basic");
+      await page.goto("/warranty-wallet");
+      // Should load the page without a hard upgrade gate blocking content
+      await expect(page.getByText(/subscribe now|upgrade to access/i)).not.toBeVisible({ timeout: 3000 });
+    });
+
+    test("Recurring Services shows upgrade gate for unsubscribed (Free) users", async ({ page }) => {
       await injectTestAuth(page);
       await injectTestProperties(page);
       await injectSubscription(page, "Free");
       await page.goto("/recurring");
-      await expect(page.getByText(/pro|upgrade/i).first()).toBeVisible();
+      await expect(page.getByText(/subscribe|upgrade/i).first()).toBeVisible();
     });
   });
 });

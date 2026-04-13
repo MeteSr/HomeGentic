@@ -414,7 +414,7 @@ function SubscriptionTab({ profile }: { profile: any }) {
       {PLANS.filter((p) => {
         if (p.tier === "Free" || p.tier === tier) return false;
         if (profile?.role === "Contractor") return p.tier === "ContractorPro";
-        return p.tier !== "ContractorPro";
+        return p.tier !== "ContractorPro" && p.tier !== "ContractorFree";
       }).length > 0 && (
         <>
           <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>

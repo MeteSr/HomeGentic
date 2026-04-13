@@ -7,6 +7,15 @@ import { COLORS, FONTS, RADIUS } from "@/theme";
 /** Called by Layout's avatar menu to open the agent's file picker. */
 export const voiceAgentFileInputRef: { current: HTMLInputElement | null } = { current: null };
 
+function ProposalRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ display: "flex", gap: "0.5rem", alignItems: "baseline" }}>
+      <span style={{ fontFamily: FONTS.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.plumMid, flexShrink: 0, width: "4.5rem" }}>{label}</span>
+      <span style={{ fontFamily: FONTS.sans, fontSize: "0.72rem", color: COLORS.white, lineHeight: 1.3 }}>{value}</span>
+    </div>
+  );
+}
+
 const S = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
@@ -22,8 +31,10 @@ export function VoiceAgent() {
   const {
     state, transcript, response, error, isSupported,
     alerts, history, clearHistory, pendingImage,
+    pendingProposal,
     startListening, stopListening, reset,
     attachImage, clearImage, sendImageToAgent,
+    confirmProposal, dismissProposal,
   } = useVoiceAgent();
 
   const [showHistory, setShowHistory] = useState(false);
@@ -35,7 +46,7 @@ export function VoiceAgent() {
   const isProcessing = state === "processing";
   const isSpeaking   = state === "speaking";
   const isIdle       = state === "idle" || state === "error";
-  const hasBubble    = transcript || response || error;
+  const hasBubble    = transcript || response || error || pendingProposal;
 
   return (
     <div style={{
@@ -72,6 +83,65 @@ export function VoiceAgent() {
                 <span style={{ display: "inline-block", width: "2px", height: "0.875rem", marginLeft: "2px", backgroundColor: COLORS.sage, animation: "spin 1s step-end infinite", verticalAlign: "middle" }} />
               )}
             </p>
+          )}
+
+          {pendingProposal && (
+            <div style={{
+              marginTop: response ? "0.75rem" : 0,
+              background: "rgba(255,255,255,0.06)",
+              border: `1px solid rgba(212,207,200,0.2)`,
+              padding: "0.75rem",
+            }}>
+              <div style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.5rem" }}>
+                Proposal to send
+              </div>
+
+              {pendingProposal.duplicateInfo && (
+                <div style={{
+                  display: "flex", alignItems: "flex-start", gap: "0.375rem",
+                  background: "rgba(201,76,46,0.15)", border: "1px solid rgba(201,76,46,0.35)",
+                  padding: "0.375rem 0.5rem", marginBottom: "0.5rem",
+                }}>
+                  <AlertTriangle size={10} color="#C94C2E" style={{ flexShrink: 0, marginTop: "0.1rem" }} />
+                  <span style={{ fontFamily: S.mono, fontSize: "0.575rem", color: "#C94C2E", lineHeight: 1.4 }}>
+                    Possible duplicate — a similar job already exists (#{pendingProposal.duplicateInfo.jobId.slice(-6)}). The homeowner will decide.
+                  </span>
+                </div>
+              )}
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem", marginBottom: "0.625rem" }}>
+                <ProposalRow label="Service"  value={pendingProposal.serviceType} />
+                <ProposalRow label="Address"  value={pendingProposal.propertyAddress} />
+                <ProposalRow label="Amount"   value={`$${(pendingProposal.amountCents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
+                <ProposalRow label="Date"     value={pendingProposal.completedDate} />
+                {pendingProposal.contractorName && (
+                  <ProposalRow label="Contractor" value={pendingProposal.contractorName} />
+                )}
+              </div>
+
+              <div style={{ display: "flex", gap: "0.375rem" }}>
+                <button
+                  onClick={confirmProposal}
+                  style={{
+                    flex: 1, fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em",
+                    textTransform: "uppercase", padding: "0.375rem 0",
+                    background: COLORS.sage, border: "none", color: COLORS.white, cursor: "pointer",
+                  }}
+                >
+                  Confirm &amp; Send
+                </button>
+                <button
+                  onClick={dismissProposal}
+                  style={{
+                    flex: 1, fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em",
+                    textTransform: "uppercase", padding: "0.375rem 0",
+                    background: "none", border: `1px solid rgba(212,207,200,0.3)`, color: COLORS.plumMid, cursor: "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           )}
 
           {isProcessing && !response && (
@@ -164,6 +234,34 @@ export function VoiceAgent() {
           >
             <X size={10} />
           </button>
+        </div>
+      )}
+
+      {/* Proactive alerts — shown when idle and no bubble is open */}
+      {alerts.length > 0 && isIdle && !hasBubble && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem", width: "20rem" }}>
+          {alerts.map((alert, i) => (
+            <div
+              key={i}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                background: COLORS.plum, border: `1px solid ${COLORS.rule}`,
+                padding: "0.4rem 0.75rem", gap: "0.5rem",
+              }}
+            >
+              <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: COLORS.plumMid, lineHeight: 1.4, flex: 1 }}>
+                {alert.message}
+              </span>
+              {alert.href && alert.actionLabel && (
+                <button
+                  onClick={() => navigate(alert.href!)}
+                  style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.sage, background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0 }}
+                >
+                  {alert.actionLabel}
+                </button>
+              )}
+            </div>
+          ))}
         </div>
       )}
 

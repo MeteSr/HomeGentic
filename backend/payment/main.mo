@@ -12,7 +12,7 @@ import OutCall   "mo:caffeineai-http-outcalls/outcall";
 
 persistent actor Payment {
 
-  public type Tier = { #Free; #Pro; #Premium; #ContractorFree; #ContractorPro };
+  public type Tier = { #Free; #Basic; #Pro; #Premium; #ContractorFree; #ContractorPro };
 
   public type Subscription = {
     owner: Principal;
@@ -34,6 +34,8 @@ persistent actor Payment {
   };
 
   public type StripePriceIds = {
+    basicMonthly         : Text;
+    basicYearly          : Text;
     proMonthly           : Text;
     proYearly            : Text;
     premiumMonthly       : Text;
@@ -67,6 +69,7 @@ persistent actor Payment {
   public type SubscriptionStats = {
     total: Nat;
     free: Nat;
+    basic: Nat;
     pro: Nat;
     premium: Nat;
     contractorFree: Nat;
@@ -182,8 +185,9 @@ persistent actor Payment {
   private func priceUsd(tier: Tier) : Nat {
     switch tier {
       case (#Free)          { 0  };
-      case (#Pro)           { 10 };
-      case (#Premium)       { 20 };
+      case (#Basic)         { 10 };
+      case (#Pro)           { 20 };
+      case (#Premium)       { 35 };
       case (#ContractorFree){ 0  };
       case (#ContractorPro) { 30 };
     }
@@ -330,6 +334,8 @@ persistent actor Payment {
 
   private func priceIdFor(cfg: StripeConfig, tier: Tier, billing: BillingPeriod) : ?Text {
     switch (tier, billing) {
+      case (#Basic,         #Monthly) { ?cfg.priceIds.basicMonthly };
+      case (#Basic,         #Yearly)  { ?cfg.priceIds.basicYearly };
       case (#Pro,           #Monthly) { ?cfg.priceIds.proMonthly };
       case (#Pro,           #Yearly)  { ?cfg.priceIds.proYearly };
       case (#Premium,       #Monthly) { ?cfg.priceIds.premiumMonthly };
@@ -342,6 +348,7 @@ persistent actor Payment {
 
   private func tierFromText(t: Text) : ?Tier {
     switch t {
+      case "Basic"         { ?#Basic };
       case "Pro"           { ?#Pro };
       case "Premium"       { ?#Premium };
       case "ContractorPro" { ?#ContractorPro };
@@ -352,6 +359,7 @@ persistent actor Payment {
   private func tierToText(t: Tier) : Text {
     switch t {
       case (#Free)           { "Free" };
+      case (#Basic)          { "Basic" };
       case (#Pro)            { "Pro" };
       case (#Premium)        { "Premium" };
       case (#ContractorFree) { "ContractorFree" };
@@ -683,9 +691,8 @@ persistent actor Payment {
     };
 
     let durationNs : Int = switch (tier) {
-      case (#Free)           { 0 };
-      case (#ContractorFree) { 0 };
-      case (_)               { 30 * 24 * 60 * 60 * 1_000_000_000 };
+      case (#Free or #ContractorFree) { 0 };
+      case (_)                        { 30 * 24 * 60 * 60 * 1_000_000_000 };
     };
     let now = Time.now();
     let sub: Subscription = {
@@ -725,9 +732,8 @@ persistent actor Payment {
   public shared(msg) func grantSubscription(principal: Principal, tier: Tier) : async Result.Result<Subscription, Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     let durationNs : Int = switch (tier) {
-      case (#Free)           { 0 };
-      case (#ContractorFree) { 0 };
-      case (_)               { 30 * 24 * 60 * 60 * 1_000_000_000 };
+      case (#Free or #ContractorFree) { 0 };
+      case (_)                        { 30 * 24 * 60 * 60 * 1_000_000_000 };
     };
     let now = Time.now();
     let sub: Subscription = {
@@ -751,9 +757,10 @@ persistent actor Payment {
 
   public query func getPricing(tier: Tier) : async PricingInfo {
     switch (tier) {
-      case (#Free)           { { tier = #Free;           priceUSD = 0;  periodDays = 0;  propertyLimit = 1;  photosPerJob = 2;  quoteRequestsPerMonth = 3  } };
-      case (#Pro)            { { tier = #Pro;            priceUSD = 10; periodDays = 30; propertyLimit = 5;  photosPerJob = 10; quoteRequestsPerMonth = 10 } };
-      case (#Premium)        { { tier = #Premium;        priceUSD = 20; periodDays = 30; propertyLimit = 20; photosPerJob = 30; quoteRequestsPerMonth = 0  } };
+      case (#Free)           { { tier = #Free;           priceUSD = 0;  periodDays = 0;  propertyLimit = 0;  photosPerJob = 0;  quoteRequestsPerMonth = 0  } };
+      case (#Basic)          { { tier = #Basic;          priceUSD = 10; periodDays = 30; propertyLimit = 1;  photosPerJob = 5;  quoteRequestsPerMonth = 3  } };
+      case (#Pro)            { { tier = #Pro;            priceUSD = 20; periodDays = 30; propertyLimit = 5;  photosPerJob = 10; quoteRequestsPerMonth = 10 } };
+      case (#Premium)        { { tier = #Premium;        priceUSD = 35; periodDays = 30; propertyLimit = 20; photosPerJob = 30; quoteRequestsPerMonth = 0  } };
       case (#ContractorFree) { { tier = #ContractorFree; priceUSD = 0;  periodDays = 0;  propertyLimit = 0;  photosPerJob = 5;  quoteRequestsPerMonth = 0  } };
       case (#ContractorPro)  { { tier = #ContractorPro;  priceUSD = 30; periodDays = 30; propertyLimit = 0;  photosPerJob = 50; quoteRequestsPerMonth = 0  } };
     }
@@ -761,9 +768,9 @@ persistent actor Payment {
 
   public query func getAllPricing() : async [PricingInfo] {
     [
-      { tier = #Free;           priceUSD = 0;  periodDays = 0;  propertyLimit = 1;  photosPerJob = 2;  quoteRequestsPerMonth = 3  },
-      { tier = #Pro;            priceUSD = 10; periodDays = 30; propertyLimit = 5;  photosPerJob = 10; quoteRequestsPerMonth = 10 },
-      { tier = #Premium;        priceUSD = 20; periodDays = 30; propertyLimit = 20; photosPerJob = 30; quoteRequestsPerMonth = 0  },
+      { tier = #Basic;          priceUSD = 10; periodDays = 30; propertyLimit = 1;  photosPerJob = 5;  quoteRequestsPerMonth = 3  },
+      { tier = #Pro;            priceUSD = 20; periodDays = 30; propertyLimit = 5;  photosPerJob = 10; quoteRequestsPerMonth = 10 },
+      { tier = #Premium;        priceUSD = 35; periodDays = 30; propertyLimit = 20; photosPerJob = 30; quoteRequestsPerMonth = 0  },
       { tier = #ContractorFree; priceUSD = 0;  periodDays = 0;  propertyLimit = 0;  photosPerJob = 5;  quoteRequestsPerMonth = 0  },
       { tier = #ContractorPro;  priceUSD = 30; periodDays = 30; propertyLimit = 0;  photosPerJob = 50; quoteRequestsPerMonth = 0  },
     ]
@@ -774,6 +781,7 @@ persistent actor Payment {
   public query func getSubscriptionStats() : async SubscriptionStats {
     let now = Time.now();
     var free            = 0;
+    var basic           = 0;
     var pro             = 0;
     var premium         = 0;
     var contractorFree  = 0;
@@ -784,6 +792,7 @@ persistent actor Payment {
       let isActive = sub.expiresAt == 0 or sub.expiresAt > now;
       switch (sub.tier) {
         case (#Free)           { free           += 1 };
+        case (#Basic)          { basic          += 1; if (isActive) { activePaid += 1 } };
         case (#Pro)            { pro            += 1; if (isActive) { activePaid += 1 } };
         case (#Premium)        { premium        += 1; if (isActive) { activePaid += 1 } };
         case (#ContractorFree) { contractorFree += 1 };
@@ -794,12 +803,13 @@ persistent actor Payment {
     {
       total           = Map.size(subscriptions);
       free;
+      basic;
       pro;
       premium;
       contractorFree;
       contractorPro;
       activePaid;
-      estimatedMrrUsd = pro * 10 + premium * 20 + contractorPro * 30;
+      estimatedMrrUsd = basic * 10 + pro * 20 + premium * 35 + contractorPro * 30;
     }
   };
 

@@ -19,8 +19,8 @@ interface UpgradeGateProps {
   feature: string;
   /** One-line value prop explaining what the user unlocks */
   description: string;
-  /** Minimum tier required — defaults to "Pro" */
-  tier?: "Pro" | "Premium";
+  /** Minimum tier required — defaults to "Basic" */
+  tier?: "Basic" | "Pro" | "Premium";
   /** Optional: replace the default lock icon with an emoji or element */
   icon?: React.ReactNode;
   /** Override card width/layout when embedded in a specific context */
@@ -32,7 +32,7 @@ interface UpgradeGateProps {
 export function UpgradeGate({
   feature,
   description,
-  tier = "Pro",
+  tier = "Basic",
   icon,
   style,
   onUpgrade,

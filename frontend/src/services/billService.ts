@@ -240,7 +240,7 @@ export const billService = {
     if (!BILLS_CANISTER_ID && !process.env.VITEST) {
       if (countUploadsThisMonth() >= FREE_TIER_MONTHLY_LIMIT) {
         throw new TierLimitReachedError(
-          "Free plan allows 1 bill upload per month. Upgrade to Pro ($10/mo) for unlimited uploads."
+          "Bill uploads require an active subscription. Subscribe to Basic ($10/mo) to get started."
         );
       }
       return mockRecord(args);

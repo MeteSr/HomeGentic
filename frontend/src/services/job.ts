@@ -17,10 +17,12 @@ export const idlFactory = ({ IDL }: any) => {
     Landscaping: IDL.Null,
   });
   const JobStatus = IDL.Variant({
-    Pending:    IDL.Null,
-    InProgress: IDL.Null,
-    Completed:  IDL.Null,
-    Verified:   IDL.Null,
+    Pending:                   IDL.Null,
+    InProgress:                IDL.Null,
+    Completed:                 IDL.Null,
+    Verified:                  IDL.Null,
+    PendingHomeownerApproval:  IDL.Null,
+    RejectedByHomeowner:       IDL.Null,
   });
   const Job = IDL.Record({
     id:               IDL.Text,
@@ -148,12 +150,47 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: Job, err: Error })],
       []
     ),
+    createJobProposal: IDL.Func(
+      [
+        IDL.Text,          // propertyId
+        IDL.Text,          // title
+        ServiceType,       // serviceType
+        IDL.Text,          // description
+        IDL.Opt(IDL.Text), // contractorName
+        IDL.Nat,           // amount (cents)
+        IDL.Int,           // completedDate (nanoseconds)
+        IDL.Opt(IDL.Text), // permitNumber
+        IDL.Opt(IDL.Nat),  // warrantyMonths
+      ],
+      [IDL.Variant({ ok: Job, err: Error })],
+      []
+    ),
+    getPendingProposals: IDL.Func(
+      [],
+      [IDL.Vec(Job)],
+      ["query"]
+    ),
+    approveJobProposal: IDL.Func(
+      [IDL.Text],   // jobId
+      [IDL.Variant({ ok: Job, err: Error })],
+      []
+    ),
+    rejectJobProposal: IDL.Func(
+      [IDL.Text],   // jobId
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
+    setPropertyCanisterId: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
   });
 };
 
 // ─── TypeScript types ─────────────────────────────────────────────────────────
 
-export type JobStatus = "pending" | "in_progress" | "completed" | "verified";
+export type JobStatus = "pending" | "in_progress" | "completed" | "verified" | "pending_homeowner_approval" | "rejected_by_homeowner";
 
 export interface Job {
   id: string;
@@ -199,10 +236,12 @@ export type JobCreateInput = Omit<Job,
 // ─── Converters ───────────────────────────────────────────────────────────────
 
 const STATUS_MAP: Record<string, JobStatus> = {
-  Pending:    "pending",
-  InProgress: "in_progress",
-  Completed:  "completed",
-  Verified:   "verified",
+  Pending:                  "pending",
+  InProgress:               "in_progress",
+  Completed:                "completed",
+  Verified:                 "verified",
+  PendingHomeownerApproval: "pending_homeowner_approval",
+  RejectedByHomeowner:      "rejected_by_homeowner",
 };
 
 function fromJob(raw: any): Job {
@@ -331,10 +370,12 @@ function createJobService() {
       return mockJobs[idx];
     }
     const STATUS_CANISTER_MAP: Record<JobStatus, object> = {
-      pending:     { Pending: null },
-      in_progress: { InProgress: null },
-      completed:   { Completed: null },
-      verified:    { Verified: null },
+      pending:                    { Pending: null },
+      in_progress:                { InProgress: null },
+      completed:                  { Completed: null },
+      verified:                   { Verified: null },
+      pending_homeowner_approval: { PendingHomeownerApproval: null },
+      rejected_by_homeowner:      { RejectedByHomeowner: null },
     };
     const a = await getActor();
     const result = await a.updateJobStatus(jobId, STATUS_CANISTER_MAP[status]);
@@ -486,6 +527,110 @@ function createJobService() {
     const a = await getActor();
     const raw: any[] = await a.getReferralJobs();
     return raw.map(fromJob);
+  },
+
+  // ── Contractor-initiated job proposals ──────────────────────────────────────
+
+  async createJobProposal(input: {
+    propertyId:     string;
+    serviceType:    string;
+    description:    string;
+    contractorName: string;
+    amountCents:    number;
+    completedDate:  string;  // YYYY-MM-DD
+    permitNumber?:  string;
+    warrantyMonths?: number;
+  }): Promise<Job> {
+    if (!JOB_CANISTER_ID) {
+      const proposal: Job = {
+        id:               `PROPOSAL_${Date.now()}`,
+        propertyId:       input.propertyId,
+        homeowner:        "mock-homeowner",
+        contractor:       (typeof window !== "undefined" && (window as any).__e2e_principal) || "mock-contractor",
+        serviceType:      input.serviceType,
+        contractorName:   input.contractorName,
+        amount:           input.amountCents,
+        date:             input.completedDate,
+        description:      input.description,
+        isDiy:            false,
+        permitNumber:     input.permitNumber,
+        warrantyMonths:   input.warrantyMonths,
+        status:           "pending_homeowner_approval",
+        verified:         false,
+        homeownerSigned:  false,
+        contractorSigned: true,
+        photos:           [],
+        createdAt:        Date.now(),
+      };
+      mockJobs.push(proposal);
+      return proposal;
+    }
+    const a = await getActor();
+    const completedDateNs = BigInt(new Date(input.completedDate).getTime()) * 1_000_000n;
+    const result = await a.createJobProposal(
+      input.propertyId,
+      input.serviceType,                               // title = serviceType label
+      { [input.serviceType]: null },                   // ServiceType variant
+      input.description,
+      [input.contractorName],                          // ?Text
+      BigInt(input.amountCents),
+      completedDateNs,
+      input.permitNumber   ? [input.permitNumber]   : [],
+      input.warrantyMonths ? [BigInt(input.warrantyMonths)] : [],
+    );
+    return unwrapJob(result);
+  },
+
+  async getPendingProposals(): Promise<Job[]> {
+    if (!JOB_CANISTER_ID) {
+      const pending = typeof window !== "undefined" && (window as any).__e2e_pending_proposals;
+      if (pending) return pending as Job[];
+      return mockJobs.filter((j) => j.status === "pending_homeowner_approval");
+    }
+    const a = await getActor();
+    const raw: any[] = await a.getPendingProposals();
+    return raw.map(fromJob);
+  },
+
+  async approveJobProposal(jobId: string): Promise<Job> {
+    if (!JOB_CANISTER_ID) {
+      const idx = mockJobs.findIndex((j) => j.id === jobId);
+      if (idx !== -1) {
+        mockJobs[idx] = { ...mockJobs[idx], homeownerSigned: true, status: "pending" };
+        return mockJobs[idx];
+      }
+      // Also check __e2e_pending_proposals mock
+      const pending: Job[] = (typeof window !== "undefined" && (window as any).__e2e_pending_proposals) || [];
+      const pidx = pending.findIndex((j) => j.id === jobId);
+      if (pidx !== -1) {
+        const approved = { ...pending[pidx], homeownerSigned: true, status: "pending" as JobStatus };
+        pending.splice(pidx, 1);
+        mockJobs.push(approved);
+        return approved;
+      }
+      throw new Error("NotFound");
+    }
+    const a = await getActor();
+    const result = await a.approveJobProposal(jobId);
+    return unwrapJob(result);
+  },
+
+  async rejectJobProposal(jobId: string): Promise<void> {
+    if (!JOB_CANISTER_ID) {
+      const idx = mockJobs.findIndex((j) => j.id === jobId);
+      if (idx !== -1) { mockJobs.splice(idx, 1); return; }
+      const pending: Job[] = (typeof window !== "undefined" && (window as any).__e2e_pending_proposals) || [];
+      const pidx = pending.findIndex((j) => j.id === jobId);
+      if (pidx !== -1) { pending.splice(pidx, 1); return; }
+      throw new Error("NotFound");
+    }
+    const a = await getActor();
+    const result = await a.rejectJobProposal(jobId);
+    if ("err" in result) {
+      const key = Object.keys(result.err)[0];
+      const val = (result.err as any)[key];
+      throw new Error(typeof val === "string" ? val : key);
+    }
   },
 
   reset() {

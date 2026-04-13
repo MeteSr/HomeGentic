@@ -34,6 +34,7 @@ persistent actor Photo {
 
   public type SubscriptionTier = {
     #Free;
+    #Basic;
     #Pro;
     #Premium;
     #ContractorPro;
@@ -85,6 +86,10 @@ persistent actor Photo {
   /// When set, uploadPhoto() cross-calls getTierForPrincipal() instead of
   /// reading the local tierGrants map.
   private var payCanisterId: Text = "";
+  /// Property canister ID — set post-deploy via setPropertyCanisterId().
+  /// When set, uploadPhoto() uses the property owner's tier when the caller
+  /// is a delegated manager, so managers don't need their own subscription.
+  private var propCanisterId: Text = "";
   /// Migration buffers — cleared after first upgrade with this code.
   private var photoEntries:          [(Text, Photo)]              = [];
   private var hashIndexEntries:      [(Text, Text)]               = [];
@@ -160,7 +165,8 @@ persistent actor Photo {
 
   private func quotaFor(tier: SubscriptionTier) : PhotoQuota {
     switch (tier) {
-      case (#Free)          { { tier; maxPerJob = 2;   maxPerProperty = 10  } };
+      case (#Free)          { { tier; maxPerJob = 0;   maxPerProperty = 0   } };  // blocked
+      case (#Basic)         { { tier; maxPerJob = 5;   maxPerProperty = 25  } };
       case (#Pro)           { { tier; maxPerJob = 10;  maxPerProperty = 100 } };
       case (#Premium)       { { tier; maxPerJob = 30;  maxPerProperty = 0   } };
       case (#ContractorPro) { { tier; maxPerJob = 50;  maxPerProperty = 0   } };
@@ -251,25 +257,48 @@ persistent actor Photo {
 
     // Tier quota checks — when payment canister is wired, tier comes from
     // getTierForPrincipal(); otherwise falls back to the local admin-grant map.
+    // When the caller is a delegated manager, use the property owner's tier
+    // so managers don't need their own paid subscription.
+    let effectivePrincipal : Principal = if (propCanisterId != "") {
+      let propActor = actor(propCanisterId) : actor {
+        getPropertyOwner : (Nat) -> async ?Principal;
+      };
+      switch (Nat.fromText(propertyId)) {
+        case (?natId) {
+          switch (await propActor.getPropertyOwner(natId)) {
+            case (?owner) { if (owner != msg.caller) { owner } else { msg.caller } };
+            case null     { msg.caller };
+          }
+        };
+        case null { msg.caller };
+      }
+    } else { msg.caller };
     let callerTierRaw : SubscriptionTier = if (payCanisterId != "") {
       let payActor = actor(payCanisterId) : actor {
-        getTierForPrincipal : (Principal) -> async { #Free; #Pro; #Premium; #ContractorPro };
+        getTierForPrincipal : (Principal) -> async { #Free; #Basic; #Pro; #Premium; #ContractorPro };
       };
-      await payActor.getTierForPrincipal(msg.caller)
+      await payActor.getTierForPrincipal(effectivePrincipal)
     } else {
-      tierFor(msg.caller)
+      tierFor(effectivePrincipal)
     };
     let quota = quotaFor(callerTierRaw);
 
     let callerTier = quota.tier;
     let upgradeHint = switch (callerTier) {
       case (#Free) {
-        " Upgrade to Pro ($10/mo) for 10 photos/job, or Premium ($20/mo) for unlimited."
+        " Subscribe to Basic ($10/mo) to start uploading photos."
+      };
+      case (#Basic) {
+        " Upgrade to Pro ($20/mo) for 10 photos/job, or Premium ($35/mo) for unlimited."
       };
       case (#Pro) {
-        " Upgrade to Premium ($20/mo) for 30 photos/job, or ContractorPro ($30/mo) for 50."
+        " Upgrade to Premium ($35/mo) for 30 photos/job, or ContractorPro ($30/mo) for 50."
       };
       case _ { "" };
+    };
+
+    if (callerTier == #Free) {
+      return #err(#QuotaExceeded("Photo uploads require an active subscription. Subscribe to Basic ($10/mo) to get started."));
     };
 
     if (quota.maxPerJob > 0 and countByJob(jobId) >= quota.maxPerJob) {
@@ -438,6 +467,15 @@ persistent actor Photo {
   public shared(msg) func setPaymentCanisterId(id: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#Unauthorized);
     payCanisterId := Principal.toText(id);
+    #ok(())
+  };
+
+  /// Wire the photo canister to the property canister for manager tier bypass.
+  /// When set, uploadPhoto() uses the property owner's tier when the caller
+  /// is a delegated manager.  Must be called once after both canisters are deployed.
+  public shared(msg) func setPropertyCanisterId(id: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#Unauthorized);
+    propCanisterId := Principal.toText(id);
     #ok(())
   };
 

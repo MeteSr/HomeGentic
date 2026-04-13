@@ -62,7 +62,7 @@ const FAQS: FaqItem[] = [
   },
   {
     q: "What subscription tier do I need?",
-    a: "The Free tier covers one property with up to 2 photos per job and 3 open quote requests — enough to get started. Pro ($10/mo) supports 5 properties and 10 photos per job. Premium ($20/mo) scales to 20 properties. See the full comparison on our Pricing page.",
+    a: "Basic ($10/mo) covers one property with up to 5 photos per job and 3 open quote requests — enough to get started. Pro ($20/mo) supports 5 properties and 10 photos per job. Premium ($35/mo) scales to 20 properties. See the full comparison on our Pricing page.",
   },
 ];
 

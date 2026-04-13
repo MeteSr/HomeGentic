@@ -85,3 +85,96 @@ else
   echo "✅ Photo payment-wired tier enforcement tests complete!"
 
 fi
+
+# ─── Manager tier-bypass tests ────────────────────────────────────────────────
+# A delegated manager (Free-tier) must be able to upload photos for a property
+# they manage; the photo canister should use the property owner's tier.
+# Skip if property or payment canister not deployed.
+
+PROPERTY_ID=$(dfx canister id property 2>/dev/null || echo "")
+
+if [ -z "$PROPERTY_ID" ] || [ -z "$PAYMENT_ID" ]; then
+  echo ""
+  echo "── [MGR] SKIPPED — property or payment canister not deployed ────────────"
+else
+  echo ""
+  echo "── [MGR-0] Setup: wire property canister into photo ─────────────────────"
+  dfx canister call photo setPropertyCanisterId "(principal \"$PROPERTY_ID\")"
+  echo "  ↳ setPropertyCanisterId succeeded ✓"
+
+  # Create manager-test identity if needed (Free tier — no subscription)
+  if ! dfx identity list 2>/dev/null | grep -q "^manager-test$"; then
+    dfx identity new manager-test --disable-encryption 2>/dev/null || true
+  fi
+  MANAGER_PRINCIPAL=$(dfx identity get-principal --identity manager-test)
+  MY_PRINCIPAL=$(dfx identity get-principal)
+
+  # Ensure owner has Pro tier
+  dfx canister call payment grantSubscription "(principal \"$MY_PRINCIPAL\", variant { Pro })"
+
+  # Register a property as owner
+  echo ""
+  echo "── [MGR-1] Register property as owner ──────────────────────────────────"
+  MGR_PROP_OUT=$(dfx canister call property registerProperty '(record {
+    address      = "88 Photo Manager Ave";
+    city         = "Miami";
+    state        = "FL";
+    zipCode      = "33101";
+    propertyType = variant { Condo };
+    yearBuilt    = 2015;
+    squareFeet   = 900;
+    tier         = variant { Pro };
+  })')
+  echo "$MGR_PROP_OUT"
+  MGR_PROP_ID=$(echo "$MGR_PROP_OUT" | grep -oP 'id = \K[0-9]+' | head -1)
+  echo "  → Property ID: $MGR_PROP_ID"
+
+  # Invite and claim manager role
+  echo ""
+  echo "── [MGR-2] Owner invites manager; manager claims role ───────────────────"
+  INVITE_OUT=$(dfx canister call property inviteManager \
+    "($MGR_PROP_ID, variant { Manager }, \"Photo Manager\")")
+  INVITE_TOKEN=$(echo "$INVITE_OUT" | grep -oP 'token = "\K[^"]+' | head -1)
+  dfx canister call property claimManagerRole \
+    "(\"$INVITE_TOKEN\")" --identity manager-test
+  echo "  ↳ Manager role granted ✓"
+
+  # Manager (Free tier) uploads a photo for the owner's property → SHOULD SUCCEED
+  echo ""
+  echo "── [MGR-3] Manager (Free tier) uploads photo for owner's property → expect ok ─"
+  MGR_PHOTO_OUT=$(dfx canister call photo uploadPhoto "(
+    \"MGR_JOB_1\",
+    \"$MGR_PROP_ID\",
+    variant { During },
+    \"Photo uploaded by manager on behalf of owner.\",
+    \"ccc333ddd444ccc333ddd444ccc333ddd444ccc333ddd444ccc333ddd444ccc3\",
+    vec { 255 : nat8; 216 : nat8; 255 : nat8 }
+  )" --identity manager-test)
+  echo "$MGR_PHOTO_OUT"
+  if echo "$MGR_PHOTO_OUT" | grep -qi "ok"; then
+    echo "  ✓ Manager uploaded photo using owner's Pro subscription"
+  else
+    echo "  ↳ ❌ Manager should be able to upload photos using owner's tier — FAIL"
+  fi
+
+  # Manager uploads photo for a property they do NOT manage → SHOULD FAIL (Free tier)
+  echo ""
+  echo "── [MGR-4] Manager uploads photo for unrelated property → expect QuotaExceeded ─"
+  UNAUTH_PHOTO=$(dfx canister call photo uploadPhoto '(
+    "JOB_UNRELATED",
+    "PROP_UNRELATED",
+    variant { PreConstruction },
+    "Manager on unrelated property — should be Free-tier blocked.",
+    "ddd444eee555ddd444eee555ddd444eee555ddd444eee555ddd444eee555ddd4",
+    vec { 255 : nat8; 216 : nat8; 255 : nat8 }
+  )' --identity manager-test)
+  echo "$UNAUTH_PHOTO"
+  if echo "$UNAUTH_PHOTO" | grep -qiE "QuotaExceeded|err"; then
+    echo "  ✓ Free-tier manager blocked on unrelated property"
+  else
+    echo "  ↳ ❌ Should have returned QuotaExceeded for unrelated property"
+  fi
+
+  echo ""
+  echo "✅ Photo manager tier-bypass tests complete!"
+fi

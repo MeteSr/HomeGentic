@@ -11,11 +11,12 @@ const mockActor = {
   isAdminPrincipal:       vi.fn(),
   verifyProperty:         vi.fn(),
   setTier:                vi.fn(),
-  initiateTransfer:       vi.fn(),
-  acceptTransfer:         vi.fn(),
-  cancelTransfer:         vi.fn(),
-  getPendingTransfer:     vi.fn(),
-  getOwnershipHistory:    vi.fn(),
+  initiateTransfer:          vi.fn(),
+  claimTransfer:             vi.fn(),
+  cancelTransfer:            vi.fn(),
+  getPendingTransfer:        vi.fn(),
+  getPendingTransferByToken: vi.fn(),
+  getOwnershipHistory:       vi.fn(),
 };
 
 vi.mock("@/services/actor", () => ({
@@ -32,8 +33,9 @@ function makeRawPendingTransfer(overrides: Record<string, unknown> = {}) {
   return {
     propertyId:  BigInt(1),
     from:        { toText: () => "from-principal" },
-    to:          { toText: () => "to-principal" },
+    token:       "1735689600000000000-1",
     initiatedAt: BigInt(1_735_689_600_000_000_000), // ~2025-01-01 in ns
+    expiresAt:   BigInt(1_735_689_600_000_000_000 + 90 * 24 * 3600 * 1_000_000_000),
     ...overrides,
   };
 }
@@ -294,46 +296,40 @@ describe("propertyService", () => {
 
   // ── initiateTransfer ─────────────────────────────────────────────────────────
   describe("initiateTransfer", () => {
-    it("maps raw canister response to a PendingTransfer", async () => {
+    it("maps raw canister response to a PendingTransfer with token", async () => {
       mockActor.initiateTransfer.mockResolvedValue({ ok: makeRawPendingTransfer() });
-      const result = await propertyService.initiateTransfer(BigInt(1), "to-principal");
+      const result = await propertyService.initiateTransfer(BigInt(1));
       expect(result.from).toBe("from-principal");
-      expect(result.to).toBe("to-principal");
+      expect(result.token).toBe("1735689600000000000-1");
       // initiatedAt converted from ns → ms
       expect(result.initiatedAt).toBeCloseTo(1_735_689_600_000, -3);
     });
 
     it("throws with error key when canister returns err", async () => {
       mockActor.initiateTransfer.mockResolvedValue({ err: { NotFound: null } });
-      await expect(propertyService.initiateTransfer(BigInt(99), "p")).rejects.toThrow("NotFound");
+      await expect(propertyService.initiateTransfer(BigInt(99))).rejects.toThrow("NotFound");
     });
 
     it("throws with string payload for InvalidInput error", async () => {
-      mockActor.initiateTransfer.mockResolvedValue({ err: { InvalidInput: "Cannot transfer to yourself" } });
-      await expect(propertyService.initiateTransfer(BigInt(1), "self"))
-        .rejects.toThrow("Cannot transfer to yourself");
+      mockActor.initiateTransfer.mockResolvedValue({ err: { InvalidInput: "Cannot claim your own property transfer." } });
+      await expect(propertyService.initiateTransfer(BigInt(1)))
+        .rejects.toThrow("Cannot claim your own property transfer.");
     });
   });
 
-  // ── acceptTransfer ───────────────────────────────────────────────────────────
-  describe("acceptTransfer", () => {
+  // ── claimTransfer ────────────────────────────────────────────────────────────
+  describe("claimTransfer", () => {
     it("returns the updated property on success", async () => {
-      mockActor.acceptTransfer.mockResolvedValue({
+      mockActor.claimTransfer.mockResolvedValue({
         ok: makeRawProperty({ address: "456 Transfer Ave" }),
       });
-      const prop = await propertyService.acceptTransfer(BigInt(1), "tx-hash-abc");
+      const prop = await propertyService.claimTransfer("some-token");
       expect(prop.address).toBe("456 Transfer Ave");
     });
 
     it("throws on canister error", async () => {
-      mockActor.acceptTransfer.mockResolvedValue({ err: { NotFound: null } });
-      await expect(propertyService.acceptTransfer(BigInt(1), "hash")).rejects.toThrow("NotFound");
-    });
-
-    it("defaults txHash to empty string when not provided", async () => {
-      mockActor.acceptTransfer.mockResolvedValue({ ok: makeRawProperty() });
-      await propertyService.acceptTransfer(BigInt(1));
-      expect(mockActor.acceptTransfer).toHaveBeenCalledWith(BigInt(1), "");
+      mockActor.claimTransfer.mockResolvedValue({ err: { NotFound: null } });
+      await expect(propertyService.claimTransfer("bad-token")).rejects.toThrow("NotFound");
     });
   });
 
@@ -363,8 +359,26 @@ describe("propertyService", () => {
       const result = await propertyService.getPendingTransfer(BigInt(1));
       expect(result).not.toBeNull();
       expect(result!.from).toBe("from-principal");
-      expect(result!.to).toBe("to-principal");
+      expect(result!.token).toBe("1735689600000000000-1");
       expect(result!.initiatedAt).toBeCloseTo(1_735_689_600_000, -3);
+    });
+  });
+
+  // ── getPendingTransferByToken ─────────────────────────────────────────────────
+  describe("getPendingTransferByToken", () => {
+    it("returns null when canister returns empty array", async () => {
+      mockActor.getPendingTransferByToken.mockResolvedValue([]);
+      const result = await propertyService.getPendingTransferByToken("bad-token");
+      expect(result).toBeNull();
+    });
+
+    it("maps the raw pending transfer when the token exists", async () => {
+      mockActor.getPendingTransferByToken.mockResolvedValue([makeRawPendingTransfer()]);
+      const result = await propertyService.getPendingTransferByToken("1735689600000000000-1");
+      expect(result).not.toBeNull();
+      expect(result!.token).toBe("1735689600000000000-1");
+      expect(result!.from).toBe("from-principal");
+      expect(result!.expiresAt).toBeGreaterThan(result!.initiatedAt);
     });
   });
 

@@ -13,10 +13,6 @@ test.describe("PricingPage — /pricing", () => {
     await expect(page.getByText(/HomeGentic/)).toBeVisible();
   });
 
-  test("shows 'Get Started Free' nav button", async ({ page }) => {
-    await expect(page.getByRole("button", { name: /get started free/i })).toBeVisible();
-  });
-
   test("shows 'Pricing' eyebrow badge", async ({ page }) => {
     await expect(page.getByText("Pricing")).toBeVisible();
   });
@@ -25,14 +21,14 @@ test.describe("PricingPage — /pricing", () => {
     await expect(page.getByRole("heading", { name: /simple, transparent pricing/i })).toBeVisible();
   });
 
-  test("shows 'Start free. Upgrade when you're ready.' subtext", async ({ page }) => {
-    await expect(page.getByText(/Start free/)).toBeVisible();
+  test("shows 'Upgrade when you're ready.' subtext", async ({ page }) => {
+    await expect(page.getByText(/Upgrade when you're ready/)).toBeVisible();
   });
 
-  // ── Plan cards ────────────────────────────────────────────────────────────
+  // ── Plan cards (homeowner view) ───────────────────────────────────────────
 
-  test("shows Free plan card", async ({ page }) => {
-    await expect(page.getByText("Free")).toBeVisible();
+  test("shows Basic plan card", async ({ page }) => {
+    await expect(page.getByText("Basic")).toBeVisible();
   });
 
   test("shows Pro plan card", async ({ page }) => {
@@ -43,20 +39,21 @@ test.describe("PricingPage — /pricing", () => {
     await expect(page.getByText("Premium")).toBeVisible();
   });
 
-  test("shows ContractorPro plan card", async ({ page }) => {
-    await expect(page.getByText("ContractorPro")).toBeVisible();
+  test("shows $10 price for Basic tier", async ({ page }) => {
+    await expect(page.getByText(/\$10/)).toBeVisible();
   });
 
-  test("shows $0 price for Free tier", async ({ page }) => {
-    await expect(page.getByText("$0")).toBeVisible();
-  });
-
-  test("shows $9 price for Pro tier", async ({ page }) => {
-    await expect(page.getByText(/\$9/)).toBeVisible();
-  });
-
-  test("shows $20 price for Premium tier", async ({ page }) => {
+  test("shows $20 price for Pro tier", async ({ page }) => {
     await expect(page.getByText(/\$20/)).toBeVisible();
+  });
+
+  test("shows $35 price for Premium tier", async ({ page }) => {
+    await expect(page.getByText(/\$35/)).toBeVisible();
+  });
+
+  test("shows ContractorPro plan card in contractor view", async ({ page }) => {
+    await page.getByRole("button", { name: /contractor/i }).click();
+    await expect(page.getByText("ContractorPro")).toBeVisible();
   });
 
   // ── Feature comparison table ──────────────────────────────────────────────
@@ -97,10 +94,8 @@ test.describe("PricingPage — /pricing", () => {
 
   // ── CTA navigation ────────────────────────────────────────────────────────
 
-  test("'Get Started Free' CTA triggers login flow", async ({ page }) => {
-    // Clicking invokes login() — in dev mode this navigates to /dashboard
-    await page.getByRole("button", { name: /get started free/i }).click();
-    // Accepts /dashboard (dev login) or remains on /login
-    await expect(page).toHaveURL(/\/(dashboard|login)/);
+  test("'Get Basic' CTA navigates to checkout or login", async ({ page }) => {
+    await page.getByRole("button", { name: /Get Basic/i }).click();
+    await expect(page).toHaveURL(/\/(checkout|dashboard|login)/);
   });
 });

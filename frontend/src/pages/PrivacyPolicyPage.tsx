@@ -100,7 +100,7 @@ const SECTIONS: Section[] = [
     title: "Subscriptions and Billing",
     body: (
       <>
-        <p>HomeGentic offers four subscription tiers: Free, Pro ($10/month), Premium ($20/month), and ContractorPro ($30/month).</p>
+        <p>HomeGentic offers paid subscription tiers: Basic ($10/month), Pro ($20/month), Premium ($35/month), and ContractorPro ($30/month).</p>
         <p><strong>Cancellation.</strong> You may cancel your subscription at any time from your account Settings page. Cancellation takes effect at the end of your current billing period — you will retain full access to your paid tier's features until that date. If you cancel five days into a monthly billing cycle, you can continue using all paid features for the remaining days of that month.</p>
         <p><strong>No refunds.</strong> We do not offer partial-month or partial-year refunds on subscription fees. Because access continues through the end of the paid period, charges for the current period are non-refundable.</p>
         <p><strong>Blockchain records after cancellation.</strong> Your property records and maintenance history on ICP remain accessible and downloadable regardless of subscription status. Tier-gated features (additional properties, photos, quote slots) revert to Free limits, but all data you entered remains yours.</p>

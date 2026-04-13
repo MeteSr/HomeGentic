@@ -1527,21 +1527,46 @@ function SettingsTab({ property, currentPrincipal }: { property: Property; curre
   const S = { rule: COLORS.rule, inkLight: COLORS.plumMid, ink: COLORS.plum, rust: COLORS.sage, sage: COLORS.sage, paper: COLORS.white, serif: FONTS.serif, mono: FONTS.mono };
   const navigate = useNavigate();
 
-  const [transferPrincipal, setTransferPrincipal] = React.useState("");
-  const [transferStep, setTransferStep] = React.useState<"idle" | "confirm" | "loading" | "done">("idle");
-  const [transferError, setTransferError] = React.useState<string | null>(null);
+  const [transferStep, setTransferStep] = React.useState<"idle" | "loading" | "done">("idle");
+  const [transferToken, setTransferToken]   = React.useState<string | null>(null);
+  const [transferExpiry, setTransferExpiry] = React.useState<Date | null>(null);
+  const [transferError, setTransferError]   = React.useState<string | null>(null);
+  const [copied, setCopied]                 = React.useState(false);
+  const [cancelLoading, setCancelLoading]   = React.useState(false);
 
-  // Incoming pending transfer (this user is the recipient)
-  const [incomingTransfer, setIncomingTransfer] = React.useState<import("../services/property").PendingTransfer | null>(null);
-  const [incomingLoading, setIncomingLoading] = React.useState(false);
   const [historyRecords, setHistoryRecords] = React.useState<import("../services/property").TransferRecord[]>([]);
 
+  // Manager delegation state
+  const [managers, setManagers]               = React.useState<import("../services/property").PropertyManager[]>([]);
+  const [removingManager, setRemovingManager] = React.useState<string | null>(null);
+  const [inviteDisplayName, setInviteDisplayName] = React.useState("");
+  const [inviteRole, setInviteRole]           = React.useState<import("../services/property").ManagerRole>("Viewer");
+  const [inviteStep, setInviteStep]           = React.useState<"idle" | "loading" | "done">("idle");
+  const [inviteToken, setInviteToken]         = React.useState<string | null>(null);
+  const [inviteExpiry, setInviteExpiry]       = React.useState<Date | null>(null);
+  const [inviteError, setInviteError]         = React.useState<string | null>(null);
+  const [inviteCopied, setInviteCopied]       = React.useState(false);
+
+  // Reload any existing pending transfer for this property (e.g. after page refresh)
   React.useEffect(() => {
     propertyService.getPendingTransfer(BigInt(property.id)).then((pt) => {
-      if (pt && pt.to === currentPrincipal) setIncomingTransfer(pt);
+      if (pt && pt.from === currentPrincipal) {
+        setTransferToken(pt.token);
+        setTransferExpiry(new Date(pt.expiresAt));
+        setTransferStep("done");
+      }
     }).catch(() => {});
     propertyService.getOwnershipHistory(BigInt(property.id)).then(setHistoryRecords).catch(() => {});
+    propertyService.getPropertyManagers(BigInt(property.id)).then(setManagers).catch(() => {});
   }, [property.id, currentPrincipal]);
+
+  const inviteUrl = inviteToken
+    ? `${window.location.origin}/manage/claim/${inviteToken}`
+    : null;
+
+  const claimUrl = transferToken
+    ? `${window.location.origin}/transfer/claim/${transferToken}`
+    : null;
 
   const verificationNext =
     property.verificationLevel === "Unverified"
@@ -1662,130 +1687,111 @@ function SettingsTab({ property, currentPrincipal }: { property: Property; curre
         </div>
       </div>
 
-      {/* Incoming Transfer — shown when this user is the designated recipient */}
-      {incomingTransfer && (
-        <div style={{ border: `1px solid ${COLORS.sage}`, background: COLORS.sageLight }}>
-          {section("Incoming Transfer")}
-          <div style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.875rem" }}>
-            <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: COLORS.plum, lineHeight: 1.6 }}>
-              <strong>{incomingTransfer.from}</strong> has proposed to transfer this property to you. Accept to become the owner on-chain.
-            </p>
-            <div style={{ display: "flex", gap: "0.75rem" }}>
-              <button
-                disabled={incomingLoading}
-                onClick={async () => {
-                  setIncomingLoading(true);
-                  try {
-                    await propertyService.acceptTransfer(BigInt(property.id));
-                    toast.success("Transfer accepted — you are now the owner.");
-                    setIncomingTransfer(null);
-                    navigate("/dashboard");
-                  } catch (e: any) {
-                    toast.error(e.message ?? "Accept failed");
-                  } finally {
-                    setIncomingLoading(false);
-                  }
-                }}
-                style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", background: COLORS.sage, color: COLORS.white, border: "none", cursor: "pointer" }}
-              >
-                {incomingLoading ? "Accepting…" : "Accept Transfer"}
-              </button>
-              <button
-                disabled={incomingLoading}
-                onClick={async () => {
-                  setIncomingLoading(true);
-                  try {
-                    await propertyService.cancelTransfer(BigInt(property.id));
-                    setIncomingTransfer(null);
-                    toast.success("Transfer declined.");
-                  } catch (e: any) {
-                    toast.error(e.message ?? "Decline failed");
-                  } finally {
-                    setIncomingLoading(false);
-                  }
-                }}
-                style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", background: "none", border: `1px solid ${S.rule}`, color: S.inkLight, cursor: "pointer" }}
-              >
-                Decline
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Transfer Ownership */}
       <div style={{ border: `1px solid ${S.rust}` }}>
         {section("Transfer Ownership")}
-        <div style={{ padding: "1.25rem", background: "#fff" }}>
-          {transferStep === "done" ? (
-            <p style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.sage }}>Transfer proposed. The recipient must accept on-chain to complete the transfer.</p>
-          ) : (
+        <div style={{ padding: "1.25rem", background: "#fff", display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+
+          {transferStep === "idle" && (
             <>
-              <p style={{ fontSize: "0.8rem", color: S.inkLight, fontWeight: 300, lineHeight: 1.6, marginBottom: "1rem" }}>
-                Transferring ownership is <strong style={{ color: S.rust, fontWeight: 600 }}>irreversible</strong>. The new owner will gain full control of this property record, including its maintenance history and verification status.
+              <p style={{ fontSize: "0.8rem", color: S.inkLight, fontWeight: 300, lineHeight: 1.6 }}>
+                Generate a secure link and share it with the buyer. They'll use it to claim this property — all history, photos, and maintenance records transfer to them automatically.
               </p>
-              {transferStep === "idle" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                  <div>
-                    <label className="form-label">New Owner Principal ID</label>
-                    <input
-                      className="form-input"
-                      value={transferPrincipal}
-                      onChange={(e) => { setTransferPrincipal(e.target.value); setTransferError(null); }}
-                      placeholder="aaaaa-aa..."
-                      spellCheck={false}
-                    />
-                  </div>
-                  {transferError && (
-                    <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.rust }}>{transferError}</p>
-                  )}
-                  <button
-                    onClick={() => {
-                      if (!transferPrincipal.trim()) { setTransferError("Enter the new owner's principal ID."); return; }
-                      setTransferStep("confirm");
-                    }}
-                    style={{ alignSelf: "flex-start", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", background: S.rust, color: "#fff", border: "none", cursor: "pointer" }}
-                  >
-                    Transfer →
-                  </button>
-                </div>
+              <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, lineHeight: 1.5 }}>
+                The link expires in <strong>90 days</strong>. Ownership only transfers when the buyer claims it — generating the link doesn't move anything yet.
+              </p>
+              {transferError && (
+                <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.rust }}>{transferError}</p>
               )}
-              {transferStep === "confirm" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                  <div style={{ padding: "0.875rem", background: COLORS.blush, border: `1px solid ${S.rust}`, borderRadius: RADIUS.sm }}>
-                    <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.rust, marginBottom: "0.25rem" }}>Confirm transfer to:</p>
-                    <p style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.ink, wordBreak: "break-all" }}>{transferPrincipal}</p>
-                  </div>
-                  <div style={{ display: "flex", gap: "0.75rem" }}>
-                    <button
-                      onClick={async () => {
-                        setTransferStep("loading");
-                        try {
-                          await propertyService.initiateTransfer(BigInt(property.id), transferPrincipal.trim());
-                          setTransferStep("done");
-                        } catch (e: any) {
-                          setTransferError(e.message ?? "Transfer failed.");
-                          setTransferStep("idle");
-                        }
-                      }}
-                      style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", background: S.rust, color: "#fff", border: "none", cursor: "pointer" }}
-                    >
-                      Confirm Transfer
-                    </button>
-                    <button
-                      onClick={() => { setTransferStep("idle"); setTransferError(null); }}
-                      style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", background: "none", border: `1px solid ${S.rule}`, color: S.inkLight, cursor: "pointer" }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-              {transferStep === "loading" && (
-                <p style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.inkLight }}>Submitting transfer…</p>
-              )}
+              <button
+                onClick={async () => {
+                  setTransferStep("loading");
+                  setTransferError(null);
+                  try {
+                    const pt = await propertyService.initiateTransfer(BigInt(property.id));
+                    setTransferToken(pt.token);
+                    setTransferExpiry(new Date(pt.expiresAt));
+                    setTransferStep("done");
+                  } catch (e: any) {
+                    setTransferError(e.message ?? "Failed to generate transfer link.");
+                    setTransferStep("idle");
+                  }
+                }}
+                style={{ alignSelf: "flex-start", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", background: S.rust, color: "#fff", border: "none", cursor: "pointer" }}
+              >
+                Generate Transfer Link →
+              </button>
             </>
           )}
+
+          {transferStep === "loading" && (
+            <p style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.inkLight }}>Generating link…</p>
+          )}
+
+          {transferStep === "done" && claimUrl && (
+            <>
+              <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, lineHeight: 1.5 }}>
+                Share this link with the buyer. Ownership transfers the moment they log in and accept.
+              </p>
+
+              {/* Link copy box */}
+              <div style={{ display: "flex", gap: "0.5rem", alignItems: "stretch" }}>
+                <div style={{
+                  flex: 1, padding: "0.6rem 0.75rem",
+                  border: `1px solid ${S.rule}`, background: COLORS.sageLight,
+                  fontFamily: S.mono, fontSize: "0.6rem", color: S.ink,
+                  wordBreak: "break-all", lineHeight: 1.5,
+                }}>
+                  {claimUrl}
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(claimUrl).then(() => {
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    });
+                  }}
+                  style={{
+                    fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase",
+                    padding: "0 0.875rem", background: copied ? S.sage : S.ink,
+                    color: "#fff", border: "none", cursor: "pointer", flexShrink: 0, transition: "background 0.15s",
+                  }}
+                >
+                  {copied ? "Copied!" : "Copy"}
+                </button>
+              </div>
+
+              {/* Expiry */}
+              {transferExpiry && (
+                <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>
+                  Expires {transferExpiry.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}
+                </p>
+              )}
+
+              {/* Cancel */}
+              <button
+                disabled={cancelLoading}
+                onClick={async () => {
+                  setCancelLoading(true);
+                  try {
+                    await propertyService.cancelTransfer(BigInt(property.id));
+                    setTransferToken(null);
+                    setTransferExpiry(null);
+                    setTransferStep("idle");
+                    toast.success("Transfer link cancelled.");
+                  } catch (e: any) {
+                    toast.error(e.message ?? "Could not cancel transfer.");
+                  } finally {
+                    setCancelLoading(false);
+                  }
+                }}
+                style={{ alignSelf: "flex-start", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.375rem 0.75rem", background: "none", border: `1px solid ${S.rule}`, color: S.inkLight, cursor: "pointer" }}
+              >
+                {cancelLoading ? "Cancelling…" : "Cancel Transfer"}
+              </button>
+            </>
+          )}
+
         </div>
       </div>
 
@@ -1816,6 +1822,160 @@ function SettingsTab({ property, currentPrincipal }: { property: Property; curre
           </div>
         </div>
       )}
+
+      {/* Access & Managers */}
+      <div style={{ border: `1px solid ${S.rule}` }}>
+        {section("Access & Managers")}
+        <div style={{ padding: "1.25rem", background: "#fff", display: "flex", flexDirection: "column", gap: "1rem" }}>
+
+          <p style={{ fontSize: "0.8rem", color: S.inkLight, fontWeight: 300, lineHeight: 1.6, margin: 0 }}>
+            Grant a family member or property manager access to this property. <strong>Viewer</strong> can see all records. <strong>Manager</strong> can also add jobs, photos, and maintenance entries.
+          </p>
+
+          {/* Current managers list */}
+          {managers.length > 0 && (
+            <div style={{ border: `1px solid ${S.rule}` }}>
+              {managers.map((m, i) => (
+                <div
+                  key={m.principal}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.75rem 1rem", borderBottom: i < managers.length - 1 ? `1px solid ${S.rule}` : "none", gap: "0.75rem" }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontFamily: S.mono, fontSize: "0.7rem", fontWeight: 600, color: S.ink, margin: 0, marginBottom: "0.15rem" }}>{m.displayName}</p>
+                    <p style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight, margin: 0, wordBreak: "break-all" }}>{m.principal}</p>
+                  </div>
+                  <span style={{
+                    fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase",
+                    padding: "0.2rem 0.5rem", border: `1px solid ${m.role === "Manager" ? S.ink : S.rule}`,
+                    color: m.role === "Manager" ? S.ink : S.inkLight, flexShrink: 0,
+                  }}>
+                    {m.role}
+                  </span>
+                  <button
+                    disabled={removingManager === m.principal}
+                    onClick={async () => {
+                      setRemovingManager(m.principal);
+                      try {
+                        await propertyService.removeManager(BigInt(property.id), m.principal);
+                        setManagers((prev) => prev.filter((x) => x.principal !== m.principal));
+                      } catch (e: any) {
+                        toast.error(e.message ?? "Could not remove manager.");
+                      } finally {
+                        setRemovingManager(null);
+                      }
+                    }}
+                    style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.2rem 0.5rem", background: "none", border: `1px solid ${S.rule}`, color: S.inkLight, cursor: "pointer", flexShrink: 0 }}
+                  >
+                    {removingManager === m.principal ? "Removing…" : "Remove"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Invite form */}
+          {inviteStep === "idle" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <div style={{ display: "flex", gap: "0.75rem", alignItems: "flex-end" }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: "block", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.35rem" }}>
+                    Display Name
+                  </label>
+                  <input
+                    type="text"
+                    value={inviteDisplayName}
+                    onChange={(e) => setInviteDisplayName(e.target.value)}
+                    placeholder="e.g. Sarah (daughter)"
+                    style={{ width: "100%", fontFamily: S.mono, fontSize: "0.7rem", padding: "0.5rem 0.6rem", border: `1px solid ${S.rule}`, background: "#fff", color: S.ink, outline: "none", boxSizing: "border-box" }}
+                  />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+                  <label style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight }}>Role</label>
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    {(["Viewer", "Manager"] as const).map((r) => (
+                      <button
+                        key={r}
+                        onClick={() => setInviteRole(r)}
+                        style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.4rem 0.75rem", background: inviteRole === r ? S.ink : "none", color: inviteRole === r ? "#fff" : S.inkLight, border: `1px solid ${inviteRole === r ? S.ink : S.rule}`, cursor: "pointer" }}
+                      >
+                        {r}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {inviteError && (
+                <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.rust, margin: 0 }}>{inviteError}</p>
+              )}
+              <button
+                disabled={!inviteDisplayName.trim()}
+                onClick={async () => {
+                  setInviteStep("loading");
+                  setInviteError(null);
+                  try {
+                    const invite = await propertyService.inviteManager(BigInt(property.id), inviteRole, inviteDisplayName.trim());
+                    setInviteToken(invite.token);
+                    setInviteExpiry(new Date(invite.expiresAt));
+                    setInviteStep("done");
+                  } catch (e: any) {
+                    setInviteError(e.message ?? "Failed to generate invite link.");
+                    setInviteStep("idle");
+                  }
+                }}
+                style={{ alignSelf: "flex-start", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", background: inviteDisplayName.trim() ? S.ink : S.rule, color: "#fff", border: "none", cursor: inviteDisplayName.trim() ? "pointer" : "default" }}
+              >
+                Generate Invite Link →
+              </button>
+            </div>
+          )}
+
+          {inviteStep === "loading" && (
+            <p style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.inkLight, margin: 0 }}>Generating invite…</p>
+          )}
+
+          {inviteStep === "done" && inviteUrl && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, margin: 0, lineHeight: 1.5 }}>
+                Share this link with <strong>{inviteDisplayName}</strong>. They'll log in and accept the <strong>{inviteRole}</strong> role. The link expires in 90 days.
+              </p>
+              <div style={{ display: "flex", gap: "0.5rem", alignItems: "stretch" }}>
+                <div style={{ flex: 1, padding: "0.6rem 0.75rem", border: `1px solid ${S.rule}`, background: COLORS.sageLight, fontFamily: S.mono, fontSize: "0.6rem", color: S.ink, wordBreak: "break-all", lineHeight: 1.5 }}>
+                  {inviteUrl}
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(inviteUrl).then(() => {
+                      setInviteCopied(true);
+                      setTimeout(() => setInviteCopied(false), 2000);
+                    });
+                  }}
+                  style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0 0.875rem", background: inviteCopied ? S.sage : S.ink, color: "#fff", border: "none", cursor: "pointer", flexShrink: 0, transition: "background 0.15s" }}
+                >
+                  {inviteCopied ? "Copied!" : "Copy"}
+                </button>
+              </div>
+              {inviteExpiry && (
+                <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, margin: 0 }}>
+                  Expires {inviteExpiry.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}
+                </p>
+              )}
+              <button
+                onClick={() => {
+                  setInviteStep("idle");
+                  setInviteToken(null);
+                  setInviteExpiry(null);
+                  setInviteDisplayName("");
+                  setInviteRole("Viewer");
+                }}
+                style={{ alignSelf: "flex-start", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.375rem 0.75rem", background: "none", border: `1px solid ${S.rule}`, color: S.inkLight, cursor: "pointer" }}
+              >
+                Invite Another →
+              </button>
+            </div>
+          )}
+
+        </div>
+      </div>
 
     </div>
   );

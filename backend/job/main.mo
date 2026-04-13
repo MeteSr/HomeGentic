@@ -39,6 +39,8 @@ persistent actor Job {
     #InProgress;
     #Completed;
     #Verified;
+    #PendingHomeownerApproval;   // contractor proposed, awaiting homeowner sign-off
+    #RejectedByHomeowner;        // homeowner declined — kept briefly for audit, then pruned
   };
 
   public type Job = {
@@ -248,20 +250,31 @@ persistent actor Job {
       };
     };
 
-    // ── Free-tier job cap (15.1.1) ──────────────────────────────────────────
+    // ── Tier job cap ─────────────────────────────────────────────────────────
+    // When the caller is a delegated manager, use the property owner's tier
+    // so the manager doesn't need their own paid subscription.
     if (payCanisterId != "") {
       let payActor = actor(payCanisterId) : actor {
-        getTierForPrincipal : (Principal) -> async { #Free; #Pro; #Premium; #ContractorPro };
+        getTierForPrincipal : (Principal) -> async { #Free; #Basic; #Pro; #Premium; #ContractorPro };
       };
-      let tier = await payActor.getTierForPrincipal(msg.caller);
+      let effectivePrincipal : Principal = if (propCanisterId != "") {
+        let propActor = actor(propCanisterId) : actor {
+          getPropertyOwner : (Nat) -> async ?Principal;
+        };
+        switch (Nat.fromText(propertyId)) {
+          case (?natId) {
+            switch (await propActor.getPropertyOwner(natId)) {
+              case (?owner) { if (owner != msg.caller) { owner } else { msg.caller } };
+              case null     { msg.caller };
+            }
+          };
+          case null { msg.caller };
+        }
+      } else { msg.caller };
+      let tier = await payActor.getTierForPrincipal(effectivePrincipal);
       switch (tier) {
         case (#Free) {
-          let callerJobCount = Iter.size(
-            Iter.filter(Map.values(jobs), func(j: Job) : Bool { j.homeowner == msg.caller })
-          );
-          if (callerJobCount >= 5) {
-            return #err(#TierLimitReached("Free plan is limited to 5 jobs. Upgrade to Pro to continue."));
-          };
+          return #err(#TierLimitReached("Job creation requires an active subscription. Subscribe to Basic ($10/mo) to get started."));
         };
         case _ {};
       };
@@ -869,6 +882,165 @@ persistent actor Job {
     #ok(updated)
   };
 
+  // ─── Contractor-initiated Job Proposals ──────────────────────────────────────
+
+  /// Called by a contractor to propose a completed job for homeowner approval.
+  ///
+  /// The contractor provides the propertyId (resolved client-side via address
+  /// search).  This function cross-calls the property canister to confirm the
+  /// true homeowner so the job record is attributed correctly.
+  ///
+  /// Rules:
+  ///   - Caller must NOT be the property owner (no self-proposals).
+  ///   - Job is created with contractorSigned=true, homeownerSigned=false.
+  ///   - Status is set to #PendingHomeownerApproval.
+  ///   - contractorName is required (non-DIY by definition).
+  public shared(msg) func createJobProposal(
+    propertyId:     Text,
+    title:          Text,
+    serviceType:    ServiceType,
+    description:    Text,
+    contractorName: ?Text,
+    amount:         Nat,
+    completedDate:  Time.Time,
+    permitNumber:   ?Text,
+    warrantyMonths: ?Nat
+  ) : async Result.Result<Job, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+
+    if (Text.size(propertyId)  == 0) return #err(#InvalidInput("propertyId cannot be empty"));
+    if (Text.size(title)       == 0) return #err(#InvalidInput("title cannot be empty"));
+    if (Text.size(title)       > 200) return #err(#InvalidInput("title exceeds 200 characters"));
+    if (Text.size(description) == 0) return #err(#InvalidInput("description cannot be empty"));
+    if (Text.size(description) > 5000) return #err(#InvalidInput("description exceeds 5000 characters"));
+
+    switch (contractorName) {
+      case null    { return #err(#InvalidInput("contractorName is required for proposals")) };
+      case (?name) {
+        if (Text.size(name) == 0)  return #err(#InvalidInput("contractorName cannot be empty"));
+        if (Text.size(name) > 200) return #err(#InvalidInput("contractorName exceeds 200 characters"));
+      };
+    };
+
+    // Look up the property owner via cross-canister call (if property canister is wired).
+    // Falls back to anonymous when not wired — useful in tests without a full deploy.
+    let homeowner : Principal = if (Text.size(propCanisterId) > 0) {
+      switch (Nat.fromText(propertyId)) {
+        case null      { return #err(#InvalidInput("Invalid propertyId format")) };
+        case (?natId)  {
+          let propActor = actor(propCanisterId) : actor {
+            getPropertyOwner : (Nat) -> async ?Principal;
+          };
+          switch (await propActor.getPropertyOwner(natId)) {
+            case null        { return #err(#InvalidInput("Property not found")) };
+            case (?owner)    { owner };
+          };
+        };
+      };
+    } else {
+      // Property canister not wired — for testability only.
+      // In production propCanisterId must always be set before this is called.
+      Principal.fromText("2vxsx-fae")   // anonymous principal as sentinel
+    };
+
+    // Contractor may not propose on their own property
+    if (homeowner == msg.caller) {
+      return #err(#InvalidInput("You cannot propose a job on a property you own"))
+    };
+
+    let id  = nextJobId();
+    let now = Time.now();
+
+    let job : Job = {
+      id;
+      propertyId;
+      homeowner;
+      contractor       = ?msg.caller;
+      title;
+      serviceType;
+      description;
+      contractorName;
+      amount;
+      completedDate;
+      permitNumber;
+      warrantyMonths;
+      isDiy            = false;
+      status           = #PendingHomeownerApproval;
+      verified         = false;
+      homeownerSigned  = false;
+      contractorSigned = true;
+      createdAt        = now;
+      sourceQuoteId    = null;
+    };
+
+    Map.add(jobs, Text.compare, id, job);
+    #ok(job)
+  };
+
+  /// Return all proposals awaiting the caller's (homeowner's) approval.
+  /// Only the property owner sees their own pending proposals.
+  public query(msg) func getPendingProposals() : async [Job] {
+    Iter.toArray(Iter.filter(Map.values(jobs), func(j: Job) : Bool {
+      j.homeowner == msg.caller and j.status == #PendingHomeownerApproval
+    }))
+  };
+
+  /// Homeowner approves a pending contractor proposal.
+  /// Sets homeownerSigned = true and advances status to #Pending so the
+  /// normal job lifecycle (verification, photos, etc.) can proceed.
+  public shared(msg) func approveJobProposal(jobId: Text) : async Result.Result<Job, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+
+    let existing = switch (Map.get(jobs, Text.compare, jobId)) {
+      case null    { return #err(#NotFound) };
+      case (?j)    { j };
+    };
+
+    if (existing.homeowner != msg.caller) return #err(#Unauthorized);
+    if (existing.status != #PendingHomeownerApproval) return #err(#InvalidInput("Job is not pending approval"));
+
+    let updated : Job = {
+      id               = existing.id;
+      propertyId       = existing.propertyId;
+      homeowner        = existing.homeowner;
+      contractor       = existing.contractor;
+      title            = existing.title;
+      serviceType      = existing.serviceType;
+      description      = existing.description;
+      contractorName   = existing.contractorName;
+      amount           = existing.amount;
+      completedDate    = existing.completedDate;
+      permitNumber     = existing.permitNumber;
+      warrantyMonths   = existing.warrantyMonths;
+      isDiy            = existing.isDiy;
+      status           = #Pending;
+      verified         = false;
+      homeownerSigned  = true;
+      contractorSigned = true;
+      createdAt        = existing.createdAt;
+      sourceQuoteId    = existing.sourceQuoteId;
+    };
+    Map.add(jobs, Text.compare, jobId, updated);
+    #ok(updated)
+  };
+
+  /// Homeowner rejects a pending contractor proposal.
+  /// The proposal record is removed entirely — no need to retain rejected proposals.
+  public shared(msg) func rejectJobProposal(jobId: Text) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+
+    let existing = switch (Map.get(jobs, Text.compare, jobId)) {
+      case null    { return #err(#NotFound) };
+      case (?j)    { j };
+    };
+
+    if (existing.homeowner != msg.caller) return #err(#Unauthorized);
+    if (existing.status != #PendingHomeownerApproval) return #err(#InvalidInput("Job is not pending approval"));
+
+    ignore Map.remove(jobs, Text.compare, jobId);
+    #ok(())
+  };
+
   /// Returns all jobs that were sourced via a HomeGentic quote request.
   /// Used by the admin referral fee pipeline view.
   public query func getReferralJobs() : async [Job] {
@@ -893,10 +1065,11 @@ persistent actor Job {
     for (j in Map.values(jobs)) {
       if (j.isDiy) { diy += 1 };
       switch (j.status) {
-        case (#Pending)   { pending   += 1 };
-        case (#Completed) { completed += 1 };
-        case (#Verified)  { verified  += 1 };
-        case _            {};
+        case (#Pending)                   { pending   += 1 };
+        case (#Completed)                 { completed += 1 };
+        case (#Verified)                  { verified  += 1 };
+        case (#PendingHomeownerApproval)  { pending   += 1 };
+        case _                            {};
       };
     };
 

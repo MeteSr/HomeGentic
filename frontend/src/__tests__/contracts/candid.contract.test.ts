@@ -171,6 +171,7 @@ describe("job IDL factory", () => {
       "getReferralJobs",
       "linkContractor",
       "redeemInviteToken",
+      "setPropertyCanisterId",
       "updateJobStatus",
       "verifyJob",
     ]);
@@ -204,20 +205,34 @@ describe("property IDL factory", () => {
   it("exposes the expected methods", () => {
     const svc = extractService(propertyIdlFactory);
     expect(Object.keys(svc).sort()).toEqual([
-      "acceptTransfer",
       "cancelTransfer",
+      "claimManagerRole",
+      "claimTransfer",
+      "dismissNotifications",
+      "getManagerInviteByToken",
+      "getMyManagedProperties",
       "getMyProperties",
+      "getOwnerNotifications",
       "getOwnershipHistory",
       "getPendingTransfer",
+      "getPendingTransferByToken",
       "getPendingVerifications",
       "getProperty",
       "getPropertyLimitForTier",
+      "getPropertyManagers",
+      "getPropertyOwner",
       "getVerificationLevel",
       "initiateTransfer",
+      "inviteManager",
       "isAdminPrincipal",
+      "isAuthorized",
+      "recordManagerActivity",
       "registerProperty",
+      "removeManager",
+      "resignAsManager",
       "setTier",
       "submitVerification",
+      "updateManagerRole",
       "verifyProperty",
     ]);
   });
@@ -229,14 +244,21 @@ describe("property IDL factory", () => {
       .map(([name]) => name)
       .sort();
     expect(queries).toEqual([
+      "getManagerInviteByToken",
+      "getMyManagedProperties",
       "getMyProperties",
+      "getOwnerNotifications",
       "getOwnershipHistory",
       "getPendingTransfer",
+      "getPendingTransferByToken",
       "getPendingVerifications",
       "getProperty",
       "getPropertyLimitForTier",
+      "getPropertyManagers",
+      "getPropertyOwner",
       "getVerificationLevel",
       "isAdminPrincipal",
+      "isAuthorized",
     ]);
   });
 
@@ -316,6 +338,7 @@ describe("quote IDL factory", () => {
       "getOpenRequests",
       "getQuoteRequest",
       "getQuotesForRequest",
+      "setPropertyCanisterId",
       "submitQuote",
     ]);
   });
@@ -416,6 +439,7 @@ describe("photo IDL factory", () => {
       "getPhotosByJob",
       "getPhotosByProperty",
       "getPhotosByRoom",
+      "setPropertyCanisterId",
       "uploadPhoto",
     ]);
   });

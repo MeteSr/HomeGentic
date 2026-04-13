@@ -47,6 +47,11 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: IDL.Null, err: Error })],
       []
     ),
+    setPropertyCanisterId: IDL.Func(
+      [IDL.Principal],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
   });
 };
 

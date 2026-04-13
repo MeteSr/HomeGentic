@@ -134,3 +134,75 @@ describe("upload_photos tool (15.7.9)", () => {
     expect(getProperties("upload_photos").job_id.type).toBe("string");
   });
 });
+
+// ── Contractor job proposal tools ─────────────────────────────────────────────
+
+describe("propose_job tool — contractor-initiated job proposals", () => {
+  it("exists in HOMEGENTIC_TOOLS", () => {
+    expect(() => getTool("propose_job")).not.toThrow();
+  });
+
+  it("has a description mentioning homeowner approval or proposal", () => {
+    const desc = getTool("propose_job").description.toLowerCase();
+    expect(desc).toMatch(/homeowner|proposal|pending.*approval|approval/);
+  });
+
+  it("requires property_address, service_type, description, amount_cents, completed_date", () => {
+    const req = getRequired("propose_job");
+    expect(req).toContain("property_address");
+    expect(req).toContain("service_type");
+    expect(req).toContain("description");
+    expect(req).toContain("amount_cents");
+    expect(req).toContain("completed_date");
+  });
+
+  it("property_address is a string", () => {
+    expect(getProperties("propose_job").property_address.type).toBe("string");
+  });
+
+  it("service_type is an enum of known home service types", () => {
+    const prop = getProperties("propose_job").service_type;
+    expect(prop.type).toBe("string");
+    expect(prop.enum).toContain("HVAC");
+    expect(prop.enum).toContain("Roofing");
+    expect(prop.enum).toContain("Plumbing");
+  });
+
+  it("amount_cents is a number", () => {
+    expect(getProperties("propose_job").amount_cents.type).toBe("number");
+  });
+
+  it("completed_date is a string (YYYY-MM-DD)", () => {
+    const prop = getProperties("propose_job").completed_date;
+    expect(prop.type).toBe("string");
+    expect(prop.description).toMatch(/YYYY-MM-DD/);
+  });
+
+  it("contractor_name is optional (not in required)", () => {
+    const req = getRequired("propose_job");
+    expect(req).not.toContain("contractor_name");
+  });
+});
+
+describe("confirm_job_proposal tool — contractor confirms pending proposal", () => {
+  it("exists in HOMEGENTIC_TOOLS", () => {
+    expect(() => getTool("confirm_job_proposal")).not.toThrow();
+  });
+
+  it("has a description mentioning confirmation or submit", () => {
+    const desc = getTool("confirm_job_proposal").description.toLowerCase();
+    expect(desc).toMatch(/confirm|submit|send.*homeowner|notify/);
+  });
+
+  it("requires proposal_id", () => {
+    expect(getRequired("confirm_job_proposal")).toContain("proposal_id");
+  });
+
+  it("proposal_id is a string", () => {
+    expect(getProperties("confirm_job_proposal").proposal_id.type).toBe("string");
+  });
+
+  it("has no other required fields beyond proposal_id", () => {
+    expect(getRequired("confirm_job_proposal")).toHaveLength(1);
+  });
+});

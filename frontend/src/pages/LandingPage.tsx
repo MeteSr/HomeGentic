@@ -991,11 +991,12 @@ export default function LandingPage() {
             <li><a onClick={(e) => { e.preventDefault(); setMenuOpen(false); scrollTo("hfl-report"); }}>Report</a></li>
             <li><a onClick={(e) => { e.preventDefault(); setMenuOpen(false); scrollTo("hfl-sell"); }}>Sell Smarter</a></li>
             <li><a onClick={(e) => { e.preventDefault(); setMenuOpen(false); scrollTo("hfl-tools"); }}>Free Tools</a></li>
+            <li><a onClick={(e) => { e.preventDefault(); setMenuOpen(false); navigate("/demo"); }}>Demo</a></li>
             <li><a onClick={(e) => { e.preventDefault(); setMenuOpen(false); navigate("/pricing"); }}>Pricing</a></li>
           </ul>
           <div className="hfl-nav-actions">
             <button className="hfl-nav-signin" onClick={() => navigate("/login")}>Sign in</button>
-            <button className="hfl-nav-pill" onClick={() => navigate("/login")}>Start Free</button>
+            <button className="hfl-nav-pill" onClick={() => navigate("/login")}>Get Started</button>
             <button
               className={`hfl-hamburger${menuOpen ? " hfl-menu-open" : ""}`}
               aria-label={menuOpen ? "Close menu" : "Open menu"}
@@ -1017,7 +1018,7 @@ export default function LandingPage() {
               you're ready to command a premium.
             </p>
             <div className="hfl-actions">
-              <button className="hfl-btn-main" onClick={() => navigate("/login")}>Get Started Free</button>
+              <button className="hfl-btn-main" onClick={() => navigate("/login")}>Get Started</button>
               <button className="hfl-btn-soft" onClick={() => navigate("/login")}>See a HomeGentic Report</button>
             </div>
             <div className="hfl-hero-trust">
@@ -1446,7 +1447,7 @@ export default function LandingPage() {
                 {
                   icon: "🏠", role: "Homeowner", title: "Build My HomeGentic",
                   desc: "Log services, track maintenance, grow your property score, and be ready to sell on your terms.",
-                  cta: "Get started free",
+                  cta: "Get started",
                 },
                 {
                   icon: "👷", role: "Contractor", title: "Join the Network",
@@ -1594,6 +1595,7 @@ export default function LandingPage() {
                 <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-features"); }}>Service Network</a></li>
                 <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-report"); }}>HomeGentic Report</a></li>
                 <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-sell"); }}>Sell Smarter</a></li>
+                <li><a onClick={() => navigate("/demo")}>Interactive Demo</a></li>
                 <li><a onClick={() => navigate("/pricing")}>Pricing</a></li>
               </ul>
             </div>

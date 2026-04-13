@@ -15,6 +15,7 @@ import { propertyService } from "./property";
 import { buildMaintenanceForecast } from "./maintenanceForecast";
 import { reportService, jobToInput, propertyToInput } from "./report";
 import { getPriceBenchmark } from "./priceBenchmark";
+import { proposeJob } from "./contractorJobProposal";
 
 export type ToolName =
   | "classify_home_issue"
@@ -35,7 +36,9 @@ export type ToolName =
   | "update_job_status"
   | "schedule_maintenance_task"
   | "get_maintenance_forecast"
-  | "get_price_benchmark";
+  | "get_price_benchmark"
+  | "propose_job"
+  | "confirm_job_proposal";
 
 export interface ToolCallResult {
   success: boolean;
@@ -601,6 +604,86 @@ export async function executeTool(
         };
       }
 
+      // ── Contractor: propose a job on behalf of a homeowner ───────────────
+      case "propose_job": {
+        const contractorName = input.contractor_name ? String(input.contractor_name) : undefined;
+        const result = await proposeJob({
+          propertyAddress: String(input.property_address ?? ""),
+          serviceType:     String(input.service_type ?? ""),
+          description:     String(input.description ?? ""),
+          amountCents:     Number(input.amount_cents ?? 0),
+          completedDate:   String(input.completed_date ?? ""),
+          contractorName,
+          permitNumber:    input.permit_number   ? String(input.permit_number)   : undefined,
+          warrantyMonths:  input.warranty_months ? Number(input.warranty_months) : undefined,
+        });
+
+        if (result.success) {
+          return {
+            success: true,
+            data: {
+              proposalId:         result.proposalId,
+              propertyId:         result.propertyId,
+              homeownerPrincipal: result.homeownerPrincipal,
+              // Signal to the VoiceAgent that a confirmation card should be shown
+              __pendingProposal: {
+                proposalId:      result.proposalId,
+                propertyAddress: String(input.property_address ?? ""),
+                serviceType:     String(input.service_type ?? ""),
+                description:     String(input.description ?? ""),
+                amountCents:     Number(input.amount_cents ?? 0),
+                completedDate:   String(input.completed_date ?? ""),
+                contractorName,
+              },
+              summary: `Proposal staged. Please confirm the details below before sending to the homeowner.`,
+            },
+          };
+        } else if (result.duplicate) {
+          return {
+            success: true,
+            data: {
+              duplicateWarning:   result.duplicate.reason,
+              matchedJobId:       result.duplicate.jobId,
+              propertyId:         result.propertyId,
+              homeownerPrincipal: result.homeownerPrincipal,
+              // Still show confirmation card with duplicate warning — homeowner decides
+              __pendingProposal: {
+                proposalId:      undefined,
+                propertyAddress: String(input.property_address ?? ""),
+                serviceType:     String(input.service_type ?? ""),
+                description:     String(input.description ?? ""),
+                amountCents:     Number(input.amount_cents ?? 0),
+                completedDate:   String(input.completed_date ?? ""),
+                contractorName,
+              },
+              __duplicateInfo: result.duplicate,
+              summary: `Possible duplicate detected (matches ${result.duplicate.jobId}). Confirmation card shown — the homeowner will decide.`,
+            },
+          };
+        } else if (result.candidateProperties && result.candidateProperties.length > 1) {
+          const addresses = result.candidateProperties.map((p) => p.address).join("; ");
+          return {
+            success: false,
+            error:   `Multiple properties match that address. Ask the contractor which one: ${addresses}`,
+          };
+        } else {
+          return {
+            success: false,
+            error:   result.error ?? "Property not found. Verify the address.",
+          };
+        }
+      }
+
+      // ── Contractor: confirm a staged proposal (usually done via the UI card)
+      case "confirm_job_proposal": {
+        // The confirmation card handles this — if the AI calls it directly, just
+        // signal that the contractor should use the card.
+        return {
+          success: true,
+          data: { message: "Please use the confirmation card to send the proposal to the homeowner." },
+        };
+      }
+
       // ── Get price benchmark ───────────────────────────────────────────────
       case "get_price_benchmark": {
         const serviceType = String(input.service_type);
@@ -667,6 +750,8 @@ export function toolActionLabel(name: ToolName): string {
     schedule_maintenance_task: "scheduling maintenance task",
     get_maintenance_forecast:  "checking maintenance forecast",
     get_price_benchmark:       "looking up price benchmark",
+    propose_job:               "proposing job to homeowner",
+    confirm_job_proposal:      "confirming job proposal",
   };
   return labels[name] ?? name;
 }

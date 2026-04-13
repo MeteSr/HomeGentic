@@ -249,3 +249,93 @@ else
   echo "✅ Quote payment-wired tier enforcement tests complete!"
 
 fi
+
+# ─── Manager tier-bypass tests ────────────────────────────────────────────────
+# A delegated manager (Free-tier) must be able to create quote requests for a
+# property they manage; the quote canister uses the owner's tier instead.
+# Skip if property or payment canister not deployed.
+
+PROPERTY_ID=$(dfx canister id property 2>/dev/null || echo "")
+PAYMENT_ID=$(dfx canister id payment  2>/dev/null || echo "")
+
+if [ -z "$PROPERTY_ID" ] || [ -z "$PAYMENT_ID" ]; then
+  echo ""
+  echo "── [MGR] SKIPPED — property or payment canister not deployed ────────────"
+else
+  echo ""
+  echo "── [MGR-0] Setup: wire payment + property canisters into quote ──────────"
+  dfx canister call $CANISTER setPaymentCanisterId  "(principal \"$PAYMENT_ID\")"
+  dfx canister call $CANISTER setPropertyCanisterId "(principal \"$PROPERTY_ID\")"
+  echo "  ↳ Canisters wired ✓"
+
+  # Create manager-test identity if needed (Free tier — no subscription)
+  if ! dfx identity list 2>/dev/null | grep -q "^manager-test$"; then
+    dfx identity new manager-test --disable-encryption 2>/dev/null || true
+  fi
+  MY_PRINCIPAL=$(dfx identity get-principal)
+
+  # Ensure owner has Pro tier
+  dfx canister call payment grantSubscription "(principal \"$MY_PRINCIPAL\", variant { Pro })"
+
+  # Register a property as owner
+  echo ""
+  echo "── [MGR-1] Register property as owner ──────────────────────────────────"
+  MGR_PROP_OUT=$(dfx canister call property registerProperty '(record {
+    address      = "99 Quote Manager Blvd";
+    city         = "Orlando";
+    state        = "FL";
+    zipCode      = "32801";
+    propertyType = variant { Townhouse };
+    yearBuilt    = 2008;
+    squareFeet   = 1400;
+    tier         = variant { Pro };
+  })')
+  echo "$MGR_PROP_OUT"
+  MGR_PROP_ID=$(echo "$MGR_PROP_OUT" | grep -oP 'id = \K[0-9]+' | head -1)
+  echo "  → Property ID: $MGR_PROP_ID"
+
+  # Invite and claim manager role
+  echo ""
+  echo "── [MGR-2] Owner invites manager; manager claims role ───────────────────"
+  INVITE_OUT=$(dfx canister call property inviteManager \
+    "($MGR_PROP_ID, variant { Manager }, \"Quote Manager\")")
+  INVITE_TOKEN=$(echo "$INVITE_OUT" | grep -oP 'token = "\K[^"]+' | head -1)
+  dfx canister call property claimManagerRole \
+    "(\"$INVITE_TOKEN\")" --identity manager-test
+  echo "  ↳ Manager role granted ✓"
+
+  # Manager (Free tier) creates a quote request for the owner's property → SHOULD SUCCEED
+  echo ""
+  echo "── [MGR-3] Manager (Free tier) creates quote request for owner's property → expect ok ─"
+  MGR_QUOTE_OUT=$(dfx canister call $CANISTER createQuoteRequest "(
+    \"$MGR_PROP_ID\",
+    variant { Plumbing },
+    \"Quote request submitted by delegated manager.\",
+    variant { Medium }
+  )" --identity manager-test)
+  echo "$MGR_QUOTE_OUT"
+  if echo "$MGR_QUOTE_OUT" | grep -qi "ok"; then
+    echo "  ✓ Manager created quote request using owner's Pro subscription"
+  else
+    echo "  ↳ ❌ Manager should be able to create quote requests using owner's tier — FAIL"
+  fi
+
+  # Manager (Free tier) creates quote for property they do NOT manage → SHOULD FAIL
+  echo ""
+  echo "── [MGR-4] Manager creates quote for unrelated property → expect LimitReached ─"
+  UNAUTH_QUOTE=$(dfx canister call $CANISTER createQuoteRequest '(
+    "PROP_UNRELATED",
+    variant { Electrical },
+    "Quote request on unrelated property — should be blocked.",
+    variant { Low }
+  )' --identity manager-test)
+  echo "$UNAUTH_QUOTE"
+  if echo "$UNAUTH_QUOTE" | grep -qiE "LimitReached|err"; then
+    echo "  ✓ Free-tier manager blocked on unrelated property"
+  else
+    echo "  ↳ ❌ Should have returned LimitReached for unrelated property"
+  fi
+
+  echo ""
+  echo "✅ Quote manager tier-bypass tests complete!"
+fi

@@ -941,6 +941,8 @@ app.post("/api/stripe/create-subscription-intent", async (req: Request, res: Res
   }
 
   const priceEnvMap: Record<string, string | undefined> = {
+    "Basic-Monthly":          process.env.STRIPE_PRICE_BASIC_MONTHLY?.trim(),
+    "Basic-Yearly":           process.env.STRIPE_PRICE_BASIC_YEARLY?.trim(),
     "Pro-Monthly":            process.env.STRIPE_PRICE_PRO_MONTHLY?.trim(),
     "Pro-Yearly":             process.env.STRIPE_PRICE_PRO_YEARLY?.trim(),
     "Premium-Monthly":        process.env.STRIPE_PRICE_PREMIUM_MONTHLY?.trim(),

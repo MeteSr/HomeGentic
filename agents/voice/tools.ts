@@ -575,6 +575,88 @@ Use this when the user wants to attach a photo, receipt image, or documentation 
     },
   },
 
+  // ── Contractor job proposal tools ────────────────────────────────────────────
+
+  {
+    name: "propose_job",
+    description: `Propose a completed job on behalf of a homeowner — for contractors submitting work they just finished.
+
+Use this when the contractor describes work they completed at a client's property and wants to log it for the homeowner's approval.
+
+Before calling this tool, confirm:
+- The property address (so you can look up the property)
+- What work was done (service type + description)
+- The cost charged
+- The date completed
+
+The homeowner will receive a notification and must approve the proposal before it becomes a permanent record.
+If a similar job was done recently at the same property, the system will flag it as a possible duplicate — the homeowner still decides.
+
+After calling this tool, always show the contractor a confirmation card with the extracted details and ask them to confirm before the proposal is sent.
+Do NOT call this tool without explicit contractor confirmation.`,
+
+    parameters: {
+      type: "object" as const,
+      properties: {
+        property_address: {
+          type: "string",
+          description: "Full street address of the property where the work was done, e.g. '123 Main St, Austin TX 78701'",
+        },
+        service_type: {
+          type: "string",
+          enum: ["Roofing", "HVAC", "Plumbing", "Electrical", "Painting", "Flooring", "Windows", "Landscaping"],
+          description: "The category of service performed",
+        },
+        description: {
+          type: "string",
+          description: "Clear description of the work performed — 1–3 sentences",
+        },
+        amount_cents: {
+          type: "number",
+          description: "Total amount charged in cents. e.g. 45000 = $450",
+        },
+        completed_date: {
+          type: "string",
+          description: "Date the work was completed, YYYY-MM-DD",
+        },
+        contractor_name: {
+          type: "string",
+          description: "Contractor or company name. Defaults to the logged-in contractor's profile name if omitted.",
+        },
+        permit_number: {
+          type: "string",
+          description: "Building permit number if one was pulled. Omit if not applicable.",
+        },
+        warranty_months: {
+          type: "number",
+          description: "Warranty duration in months if provided. Omit if no warranty.",
+        },
+      },
+      required: ["property_address", "service_type", "description", "amount_cents", "completed_date"],
+    },
+  },
+
+  {
+    name: "confirm_job_proposal",
+    description: `Submit a staged job proposal to the homeowner for approval.
+
+Call this ONLY after the contractor has reviewed and confirmed the details shown in the confirmation card.
+The homeowner will be notified and can approve or reject the proposal.
+
+After calling this tool, say: "Done — your proposal has been sent to the homeowner. They'll review and approve it shortly."`,
+
+    parameters: {
+      type: "object" as const,
+      properties: {
+        proposal_id: {
+          type: "string",
+          description: "The proposal ID returned by propose_job",
+        },
+      },
+      required: ["proposal_id"],
+    },
+  },
+
   {
     name: "get_price_benchmark",
     description: `Look up the typical price range for a home service in a specific zip code.

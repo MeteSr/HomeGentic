@@ -17,7 +17,6 @@ import GiftPage              from "@/pages/GiftPage";
 import ContractorVerifyPage  from "@/pages/ContractorVerifyPage";
 import PaymentSuccessPage    from "@/pages/PaymentSuccessPage";
 import PaymentFailurePage    from "@/pages/PaymentFailurePage";
-import CheckoutPage          from "@/pages/CheckoutPage";
 
 // All other pages lazy-loaded (split into separate chunks)
 const RegisterPage               = React.lazy(() => import("@/pages/RegisterPage"));
@@ -60,6 +59,10 @@ const HomeSystemsEstimatorPage   = React.lazy(() => import("@/pages/HomeSystemsE
 const CheckAddressPage           = React.lazy(() => import("@/pages/CheckAddressPage"));
 const PriceLookupPage            = React.lazy(() => import("@/pages/PriceLookupPage"));
 const InstantForecastPage        = React.lazy(() => import("@/pages/InstantForecastPage"));
+const CheckoutPage               = React.lazy(() => import("@/pages/CheckoutPage"));
+const PropertyTransferClaimPage  = React.lazy(() => import("@/pages/PropertyTransferClaimPage"));
+const PropertyManagerClaimPage   = React.lazy(() => import("@/pages/PropertyManagerClaimPage"));
+const DemoPage                   = React.lazy(() => import("@/pages/DemoPage"));
 
 const PageLoader = () => (
   <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#F4F1EB" }}>
@@ -112,7 +115,9 @@ export default function App() {
           <Route path="/payment-success" element={<PaymentSuccessPage />} />
           <Route path="/payment-failure" element={<PaymentFailurePage />} />
           <Route path="/checkout"        element={<CheckoutPage />} />
-          <Route path="/for-sale/:propertyId" element={<FsboListingPage />} />
+          <Route path="/for-sale/:propertyId"    element={<FsboListingPage />} />
+          <Route path="/transfer/claim/:token" element={<PropertyTransferClaimPage />} />
+          <Route path="/manage/claim/:token"   element={<PropertyManagerClaimPage />} />
 
           <Route path="/register"     element={<ProtectedRoute><RegisterPage /></ProtectedRoute>} />
           <Route path="/dashboard"    element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
@@ -145,6 +150,10 @@ export default function App() {
           <Route path="/agent/profile" element={<ProtectedRoute><AgentProfileEditPage /></ProtectedRoute>} />
           <Route path="/agent/:id"    element={<ProtectedRoute><AgentPublicPage /></ProtectedRoute>} />
           <Route path="/agents"       element={<ProtectedRoute><AgentBrowsePage /></ProtectedRoute>} />
+
+          {/* Demo — public, no auth required */}
+          <Route path="/demo"          element={<DemoPage />} />
+          <Route path="/demo/:persona" element={<DemoPage />} />
 
           {/* Public — no auth required */}
           <Route path="/home-systems"          element={<HomeSystemsEstimatorPage />} />

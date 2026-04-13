@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Home, Plus, Wrench, MessageSquare, Sparkles, ArrowRight, X, ShieldCheck, Calendar } from "lucide-react";
+import { Home, Plus, Wrench, MessageSquare, Sparkles, ArrowRight, X, ShieldCheck, Calendar, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { Badge } from "@/components/Badge";
@@ -71,6 +71,9 @@ export default function DashboardPage() {
   const [userTier,         setUserTier]         = useState<PlanTier>("Free");
   const [systemAges,       setSystemAges]       = useState<SystemAges>({});
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [pendingProposals, setPendingProposals] = useState<Job[]>([]);
+  const [managedProperties, setManagedProperties] = useState<import("@/services/property").ManagedProperty[]>([]);
+  const [ownerNotifs, setOwnerNotifs] = useState<import("@/services/property").OwnerNotification[]>([]);
   const { isMobile } = useBreakpoint();
 
   useEffect(() => {
@@ -85,7 +88,10 @@ export default function DashboardPage() {
         loadAllJobs(list),
         loadQuoteRequests(),
         loadRecurringServices(),
+        loadPendingProposals(),
         paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch(() => {}),
+        propertyService.getMyManagedProperties().then(setManagedProperties).catch(() => {}),
+        loadOwnerNotifications(list),
       ]).finally(() => setLoading(false));
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -152,6 +158,48 @@ export default function DashboardPage() {
         quoteService.getBidCountMap(reqs.map((r) => r.id)).then(setBidCountMap).catch(() => {});
       }
     } catch { /* canister not deployed */ }
+  }
+
+  async function loadOwnerNotifications(propList: Property[]) {
+    if (propList.length === 0) return;
+    try {
+      const allNotifs = await Promise.all(
+        propList.map((p) => propertyService.getOwnerNotifications(BigInt(p.id)).catch(() => [] as import("@/services/property").OwnerNotification[]))
+      );
+      setOwnerNotifs(allNotifs.flat().sort((a, b) => b.timestamp - a.timestamp));
+    } catch { /* canister not deployed */ }
+  }
+
+  async function loadPendingProposals() {
+    try {
+      // E2E test injection point
+      if ((window as any).__e2e_pending_proposals) {
+        setPendingProposals((window as any).__e2e_pending_proposals as Job[]);
+        return;
+      }
+      const proposals = await jobService.getPendingProposals();
+      setPendingProposals(proposals);
+    } catch { /* canister not deployed */ }
+  }
+
+  async function handleApproveProposal(proposalId: string) {
+    try {
+      await jobService.approveJobProposal(proposalId);
+      setPendingProposals((prev) => prev.filter((p) => p.id !== proposalId));
+      toast.success("Proposal approved — job added to your history.");
+    } catch (err: any) {
+      toast.error("Failed to approve: " + err.message);
+    }
+  }
+
+  async function handleRejectProposal(proposalId: string) {
+    try {
+      await jobService.rejectJobProposal(proposalId);
+      setPendingProposals((prev) => prev.filter((p) => p.id !== proposalId));
+      toast.success("Proposal declined.");
+    } catch (err: any) {
+      toast.error("Failed to decline: " + err.message);
+    }
   }
 
   // Property-centric derived values
@@ -1230,6 +1278,175 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+
+        {/* Pending Contractor Proposals */}
+        {pendingProposals.length > 0 && (
+          <div style={{ marginBottom: "2.5rem" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginBottom: "1rem" }}>
+              <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
+                Pending Contractor Proposals
+              </div>
+              <div style={{ display: "inline-flex", alignItems: "center", padding: "0.1rem 0.5rem", background: COLORS.sage, color: "#fff", fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", borderRadius: 100 }}>
+                {pendingProposals.length} awaiting review
+              </div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              {pendingProposals.map((proposal) => (
+                <div
+                  key={proposal.id}
+                  data-testid="pending-proposal-card"
+                  style={{
+                    border: `1px solid ${S.rule}`,
+                    padding: "1rem 1.25rem",
+                    display: "flex", flexDirection: isMobile ? "column" : "row",
+                    alignItems: isMobile ? "flex-start" : "center",
+                    gap: "1rem",
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem", flexWrap: "wrap" }}>
+                      <span style={{ fontFamily: S.mono, fontSize: "0.7rem", letterSpacing: "0.06em", textTransform: "uppercase", color: S.ink, fontWeight: 600 }}>
+                        {proposal.serviceType}
+                      </span>
+                      {(proposal as any).potentialDuplicateOf && (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "#C94C2E", border: "1px solid rgba(201,76,46,0.4)", padding: "0.1rem 0.4rem" }}>
+                          <AlertTriangle size={9} /> Possible duplicate
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", color: S.ink, marginBottom: "0.25rem" }}>
+                      {proposal.description}
+                    </div>
+                    <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
+                      {proposal.contractorName && (
+                        <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>By {proposal.contractorName}</span>
+                      )}
+                      <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>{proposal.date}</span>
+                      <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>
+                        ${(proposal.amount / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
+                    <button
+                      onClick={() => handleApproveProposal(proposal.id)}
+                      data-testid="approve-proposal"
+                      style={{
+                        display: "flex", alignItems: "center", gap: "0.25rem",
+                        fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase",
+                        padding: "0.4rem 0.875rem", background: COLORS.sage, color: COLORS.white,
+                        border: "none", cursor: "pointer",
+                      }}
+                    >
+                      <CheckCircle size={11} /> Approve
+                    </button>
+                    <button
+                      onClick={() => handleRejectProposal(proposal.id)}
+                      data-testid="reject-proposal"
+                      style={{
+                        display: "flex", alignItems: "center", gap: "0.25rem",
+                        fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase",
+                        padding: "0.4rem 0.875rem", background: "none", color: S.inkLight,
+                        border: `1px solid ${S.rule}`, cursor: "pointer",
+                      }}
+                    >
+                      <XCircle size={11} /> Decline
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Properties I Manage (delegated access) */}
+        {managedProperties.length > 0 && (
+          <div style={{ marginBottom: "2.5rem" }}>
+            <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "1rem" }}>
+              Properties I Manage
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: "1rem" }}>
+              {managedProperties.map(({ property, role }) => (
+                <div
+                  key={String(property.id)}
+                  onClick={() => navigate(`/properties/${property.id}`)}
+                  style={{ border: `1px solid ${S.rule}`, padding: "1rem 1.25rem", cursor: "pointer", background: COLORS.white, display: "flex", flexDirection: "column", gap: "0.5rem" }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = COLORS.sageLight; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = COLORS.white; }}
+                >
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "0.5rem" }}>
+                    <p style={{ fontFamily: FONTS.sans, fontWeight: 500, fontSize: "0.875rem", color: S.ink, margin: 0 }}>{property.address}</p>
+                    <span style={{ fontFamily: S.mono, fontSize: "0.5rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.15rem 0.45rem", border: `1px solid ${role === "Manager" ? S.ink : S.rule}`, color: role === "Manager" ? S.ink : S.inkLight, flexShrink: 0 }}>
+                      {role}
+                    </span>
+                  </div>
+                  <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, margin: 0 }}>
+                    {property.city}, {property.state} {property.zipCode}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Owner Notifications (manager activity on my properties) */}
+        {ownerNotifs.length > 0 && (
+          <div style={{ marginBottom: "2.5rem" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+                <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
+                  Manager Activity
+                </div>
+                {ownerNotifs.some((n) => !n.seen) && (
+                  <div style={{ display: "inline-flex", padding: "0.1rem 0.5rem", background: COLORS.sage, color: "#fff", fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", borderRadius: 100 }}>
+                    {ownerNotifs.filter((n) => !n.seen).length} new
+                  </div>
+                )}
+              </div>
+              {ownerNotifs.some((n) => !n.seen) && (
+                <button
+                  onClick={async () => {
+                    // Dismiss on all owned properties that have unseen notifs
+                    const unseenPropertyIds = [...new Set(
+                      ownerNotifs
+                        .filter((n) => !n.seen)
+                        .map(() => properties.map((p) => BigInt(p.id)))
+                        .flat()
+                    )];
+                    await Promise.all(unseenPropertyIds.map((id) => propertyService.dismissNotifications(id).catch(() => {})));
+                    setOwnerNotifs((prev) => prev.map((n) => ({ ...n, seen: true })));
+                  }}
+                  style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.3rem 0.75rem", background: "none", border: `1px solid ${S.rule}`, color: S.inkLight, cursor: "pointer" }}
+                >
+                  Mark all seen
+                </button>
+              )}
+            </div>
+            <div style={{ border: `1px solid ${S.rule}` }}>
+              {ownerNotifs.slice(0, 10).map((n, i) => (
+                <div
+                  key={n.id}
+                  style={{
+                    padding: "0.875rem 1.25rem",
+                    borderBottom: i < Math.min(ownerNotifs.length, 10) - 1 ? `1px solid ${S.rule}` : "none",
+                    background: n.seen ? COLORS.white : COLORS.sageLight,
+                    display: "flex", flexDirection: "column", gap: "0.2rem",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.5rem" }}>
+                    <span style={{ fontFamily: S.mono, fontSize: "0.65rem", fontWeight: 600, color: S.ink }}>{n.managerName}</span>
+                    <span style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight, flexShrink: 0 }}>
+                      {new Date(n.timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                    </span>
+                  </div>
+                  <p style={{ fontFamily: FONTS.sans, fontSize: "0.78rem", color: S.inkLight, margin: 0, fontWeight: 300, lineHeight: 1.4 }}>
+                    {n.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Quote Requests */}
         {quoteRequests.length > 0 && (

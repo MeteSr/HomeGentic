@@ -236,6 +236,16 @@ if [ -n "$JOB_ID" ] && [ -n "$PROPERTY_ID" ]; then
   dfx canister call job setPropertyCanisterId "(\"$PROPERTY_ID\")" --network "$NETWORK"
 fi
 
+if [ -n "$PHOTO_ID" ] && [ -n "$PROPERTY_ID" ]; then
+  echo "  Wiring property -> photo (manager tier bypass)..."
+  dfx canister call photo setPropertyCanisterId "(principal \"$PROPERTY_ID\")" --network "$NETWORK"
+fi
+
+if [ -n "$QUOTE_ID" ] && [ -n "$PROPERTY_ID" ]; then
+  echo "  Wiring property -> quote (manager tier bypass)..."
+  dfx canister call quote setPropertyCanisterId "(principal \"$PROPERTY_ID\")" --network "$NETWORK"
+fi
+
 # ── Trusted canister wiring (derived from call topology) ──────────────────────
 # These mirror the actual inter-canister call graph so each canister auto-trusts
 # its known callers. Admins can add external canisters later via addTrustedCanister.
@@ -269,10 +279,18 @@ if [ -n "$JOB_ID" ] && [ -n "$CONTRACTOR_ID" ]; then
   dfx canister call contractor addTrustedCanister "(principal \"$JOB_ID\")" --network "$NETWORK"
 fi
 
-# property trusts job (job calls getPropertyOwner) and report (report calls getVerificationLevel)
+# property trusts job/photo/quote (all call getPropertyOwner) and report (report calls getVerificationLevel)
 if [ -n "$JOB_ID" ] && [ -n "$PROPERTY_ID" ]; then
   echo "  property: trusting job canister ($JOB_ID)..."
   dfx canister call property addTrustedCanister "(principal \"$JOB_ID\")" --network "$NETWORK"
+fi
+if [ -n "$PHOTO_ID" ] && [ -n "$PROPERTY_ID" ]; then
+  echo "  property: trusting photo canister ($PHOTO_ID)..."
+  dfx canister call property addTrustedCanister "(principal \"$PHOTO_ID\")" --network "$NETWORK"
+fi
+if [ -n "$QUOTE_ID" ] && [ -n "$PROPERTY_ID" ]; then
+  echo "  property: trusting quote canister ($QUOTE_ID)..."
+  dfx canister call property addTrustedCanister "(principal \"$QUOTE_ID\")" --network "$NETWORK"
 fi
 if [ -n "$REPORT_ID" ] && [ -n "$PROPERTY_ID" ]; then
   echo "  property: trusting report canister ($REPORT_ID)..."

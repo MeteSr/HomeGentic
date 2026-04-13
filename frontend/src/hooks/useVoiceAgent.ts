@@ -13,6 +13,7 @@ import { loadHistory } from "../services/scoreService";
 import { buildImageUserMessage, fileToBase64, type SupportedImageMimeType } from "../services/imageUtils";
 import { useAuthStore } from "../store/authStore";
 import { contractorService } from "../services/contractor";
+import { proposeJob } from "../services/contractorJobProposal";
 
 // ── Minimal message types (mirrors Anthropic SDK without importing it) ─────────
 
@@ -36,10 +37,21 @@ export type VoiceAgentState =
   | "error";
 
 export interface ProactiveAlert {
-  type:         "warranty" | "signature" | "quote" | "maintenance";
+  type:         "warranty" | "signature" | "quote" | "maintenance" | "proposal";
   message:      string;
   actionLabel?: string;
   href?:        string;
+}
+
+export interface PendingProposal {
+  proposalId?:     string;  // set after successful proposeJob; undefined = duplicate, needs re-submit
+  propertyAddress: string;
+  serviceType:     string;
+  description:     string;
+  amountCents:     number;
+  completedDate:   string;
+  contractorName?: string;
+  duplicateInfo?:  { jobId: string; reason: string };
 }
 
 export interface UseVoiceAgentReturn {
@@ -51,6 +63,7 @@ export interface UseVoiceAgentReturn {
   alerts:             ProactiveAlert[];
   history:            AgentAction[];
   pendingImage:       { base64: string; mimeType: string } | null;
+  pendingProposal:    PendingProposal | null;
   clearHistory:       () => void;
   startListening:     () => void;
   stopListening:      () => void;
@@ -58,6 +71,8 @@ export interface UseVoiceAgentReturn {
   attachImage:        (file: File) => Promise<void>;
   clearImage:         () => void;
   sendImageToAgent:   (userText: string) => void;
+  confirmProposal:    () => Promise<void>;
+  dismissProposal:    () => void;
 }
 
 // ── Config ─────────────────────────────────────────────────────────────────────
@@ -81,12 +96,13 @@ export function warrantyExpiryMs(startDateStr: string, warrantyMonths: number): 
 // ── Hook ───────────────────────────────────────────────────────────────────────
 
 export function useVoiceAgent(): UseVoiceAgentReturn {
-  const [state,      setState]      = useState<VoiceAgentState>("idle");
-  const [transcript, setTranscript] = useState("");
-  const [response,   setResponse]   = useState("");
-  const [error,      setError]      = useState<string | null>(null);
-  const [alerts,     setAlerts]     = useState<ProactiveAlert[]>([]);
-  const [pendingImage, setPendingImage] = useState<{ base64: string; mimeType: string } | null>(null);
+  const [state,           setState]          = useState<VoiceAgentState>("idle");
+  const [transcript,      setTranscript]     = useState("");
+  const [response,        setResponse]       = useState("");
+  const [error,           setError]          = useState<string | null>(null);
+  const [alerts,          setAlerts]         = useState<ProactiveAlert[]>([]);
+  const [pendingImage,    setPendingImage]   = useState<{ base64: string; mimeType: string } | null>(null);
+  const [pendingProposal, setPendingProposal] = useState<PendingProposal | null>(null);
 
   const recognitionRef     = useRef<any>(null);
   const finalTranscriptRef = useRef("");
@@ -104,15 +120,17 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
     const { profile: authProfile } = useAuthStore.getState();
     const role = authProfile?.role;
 
-    const [propertiesResult, jobsResult, quotesResult] = await Promise.allSettled([
+    const [propertiesResult, jobsResult, quotesResult, pendingProposalsResult] = await Promise.allSettled([
       propertyService.getMyProperties(),
       jobService.getAll(),
       quoteService.getRequests(),
+      role === "Homeowner" ? jobService.getPendingProposals() : Promise.resolve([]),
     ]);
 
-    const properties = propertiesResult.status === "fulfilled" ? propertiesResult.value : [];
-    const jobs       = jobsResult.status === "fulfilled"       ? jobsResult.value       : [];
-    const quotes     = quotesResult.status === "fulfilled"     ? quotesResult.value     : [];
+    const properties       = propertiesResult.status === "fulfilled"       ? propertiesResult.value       : [];
+    const jobs             = jobsResult.status === "fulfilled"             ? jobsResult.value             : [];
+    const quotes           = quotesResult.status === "fulfilled"           ? quotesResult.value           : [];
+    const pendingProposals = pendingProposalsResult.status === "fulfilled" ? pendingProposalsResult.value : [];
 
     const now = Date.now();
 
@@ -256,6 +274,7 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
       pendingSignatureJobIds,
       openQuoteCount,
       openQuoteRequests,
+      pendingProposalCount: pendingProposals.length,
       role: role ?? undefined,
       contractorProfile: await (async () => {
         if (role !== "Contractor") return undefined;
@@ -304,6 +323,16 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
           type:        "quote",
           message:     `${ctx.openQuoteCount} open quote request${ctx.openQuoteCount !== 1 ? "s" : ""}`,
           actionLabel: "View quotes",
+          href:        "/dashboard",
+        });
+      }
+
+      if (ctx.pendingProposalCount > 0) {
+        const n = ctx.pendingProposalCount;
+        newAlerts.push({
+          type:        "proposal",
+          message:     `${n} contractor proposal${n !== 1 ? "s" : ""} awaiting your approval`,
+          actionLabel: "Review now",
           href:        "/dashboard",
         });
       }
@@ -371,6 +400,13 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
             (data.toolCalls as { id: string; name: ToolName; input: Record<string, unknown> }[])
               .map(async (tc) => {
                 const result = await executeTool(tc.name, tc.input);
+
+                // If propose_job returned a staged proposal, surface it in the UI
+                if (tc.name === "propose_job" && result.success && result.data?.__pendingProposal) {
+                  const p = result.data.__pendingProposal as PendingProposal;
+                  const dupInfo = result.data.__duplicateInfo as { jobId: string; reason: string } | undefined;
+                  setPendingProposal({ ...p, duplicateInfo: dupInfo });
+                }
 
                 // Record to audit log (skip read-only classification step)
                 if (tc.name !== "classify_home_issue") {
@@ -496,6 +532,7 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
     setResponse("");
     setError(null);
     setPendingImage(null);
+    setPendingProposal(null);
     finalTranscriptRef.current = "";
     setState("idle");
   }, []);
@@ -520,10 +557,28 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
     runAgentLoop(userText, pendingImage);
   }, [pendingImage, runAgentLoop]);
 
+  // ── Proposal confirmation ──────────────────────────────────────────────────
+
+  const confirmProposal = useCallback(async () => {
+    if (!pendingProposal) return;
+    // The proposal was already created by the propose_job tool execution —
+    // it's sitting in PendingHomeownerApproval status. Just clear the card and
+    // confirm to the contractor that it's been sent.
+    setPendingProposal(null);
+    setResponse("Done — proposal sent to the homeowner. They'll review and approve it shortly.");
+  }, [pendingProposal]);
+
+  const dismissProposal = useCallback(() => {
+    setPendingProposal(null);
+    setResponse("No problem — proposal discarded.");
+  }, []);
+
   return {
     state, transcript, response, error, isSupported,
     alerts, history, clearHistory, pendingImage,
+    pendingProposal,
     startListening, stopListening, reset,
     attachImage, clearImage, sendImageToAgent,
+    confirmProposal, dismissProposal,
   };
 }

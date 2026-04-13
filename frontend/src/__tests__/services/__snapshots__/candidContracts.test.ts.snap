@@ -69,17 +69,22 @@ updateProfile(1) -> (1)"
 `;
 
 exports[`Candid contract snapshots — method arity > job 1`] = `
-"createInviteToken(2) -> (1)
+"approveJobProposal(1) -> (1)
+createInviteToken(2) -> (1)
 createJob(11) -> (1)
+createJobProposal(9) -> (1)
 getCertificationData(1) -> (1) [query]
 getJob(1) -> (1) [query]
 getJobByInviteToken(1) -> (1) [query]
 getJobsForProperty(1) -> (1) [query]
 getJobsPendingMySignature(0) -> (1) [query]
 getMetrics(0) -> (1) [query]
+getPendingProposals(0) -> (1) [query]
 getReferralJobs(0) -> (1) [query]
 linkContractor(2) -> (1)
 redeemInviteToken(1) -> (1)
+rejectJobProposal(1) -> (1)
+setPropertyCanisterId(1) -> (1)
 updateJobStatus(2) -> (1)
 verifyJob(1) -> (1)"
 `;
@@ -113,13 +118,20 @@ unregisterCanister(1) -> (1)"
 `;
 
 exports[`Candid contract snapshots — method arity > payment 1`] = `
-"getAllPricing(0) -> (1) [query]
+"configureStripe(1) -> (1)
+createStripeCheckoutSession(3) -> (1)
+getAllPricing(0) -> (1) [query]
 getMySubscription(0) -> (1) [query]
 getPriceQuote(1) -> (1)
 getPricing(1) -> (1) [query]
 getSubscriptionStats(0) -> (1) [query]
 grantSubscription(2) -> (1)
-subscribe(1) -> (1)"
+initAdmins(1) -> (1)
+isStripeConfigured(0) -> (1) [query]
+listPendingGifts(0) -> (1) [query]
+redeemGift(1) -> (1)
+subscribe(1) -> (1)
+verifyStripeSession(1) -> (1)"
 `;
 
 exports[`Candid contract snapshots — method arity > photo 1`] = `
@@ -127,24 +139,39 @@ exports[`Candid contract snapshots — method arity > photo 1`] = `
 getPhotosByJob(1) -> (1)
 getPhotosByProperty(1) -> (1)
 getPhotosByRoom(1) -> (1)
+setPropertyCanisterId(1) -> (1)
 uploadPhoto(6) -> (1)"
 `;
 
 exports[`Candid contract snapshots — method arity > property 1`] = `
-"acceptTransfer(2) -> (1)
-cancelTransfer(1) -> (1)
+"cancelTransfer(1) -> (1)
+claimManagerRole(1) -> (1)
+claimTransfer(1) -> (1)
+dismissNotifications(1) -> (1)
+getManagerInviteByToken(1) -> (1) [query]
+getMyManagedProperties(0) -> (1) [query]
 getMyProperties(0) -> (1) [query]
+getOwnerNotifications(1) -> (1) [query]
 getOwnershipHistory(1) -> (1) [query]
 getPendingTransfer(1) -> (1) [query]
+getPendingTransferByToken(1) -> (1) [query]
 getPendingVerifications(0) -> (1) [query]
 getProperty(1) -> (1) [query]
 getPropertyLimitForTier(1) -> (1) [query]
+getPropertyManagers(1) -> (1) [query]
+getPropertyOwner(1) -> (1) [query]
 getVerificationLevel(1) -> (1) [query]
-initiateTransfer(2) -> (1)
+initiateTransfer(1) -> (1)
+inviteManager(3) -> (1)
 isAdminPrincipal(1) -> (1) [query]
+isAuthorized(3) -> (1) [query]
+recordManagerActivity(2) -> (1)
 registerProperty(1) -> (1)
+removeManager(2) -> (1)
+resignAsManager(1) -> (1)
 setTier(2) -> (1)
 submitVerification(3) -> (1)
+updateManagerRole(3) -> (1)
 verifyProperty(3) -> (1)"
 `;
 
@@ -156,6 +183,7 @@ getMyQuoteRequests(0) -> (1) [query]
 getOpenRequests(0) -> (1) [query]
 getQuoteRequest(1) -> (1) [query]
 getQuotesForRequest(1) -> (1) [query]
+setPropertyCanisterId(1) -> (1)
 submitQuote(4) -> (1)"
 `;
 

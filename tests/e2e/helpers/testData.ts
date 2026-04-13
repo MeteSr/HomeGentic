@@ -1,6 +1,6 @@
 import { Page } from "@playwright/test";
 
-type PlanTier = "Free" | "Pro" | "Premium" | "ContractorPro";
+type PlanTier = "Free" | "Basic" | "Pro" | "Premium" | "ContractorPro";
 
 /**
  * Injects a single mock property into window.__e2e_properties before React

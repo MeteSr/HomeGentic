@@ -10,7 +10,8 @@ import SettingsStack    from "./SettingsStack";
 import PhotosScreen     from "../screens/PhotosScreen";
 import ReportScreen     from "../screens/ReportScreen";
 import LeadFeedScreen   from "../screens/LeadFeedScreen";
-import { useOfflineQueue } from "../hooks/useOfflineQueue";
+import { useOfflineQueue }       from "../hooks/useOfflineQueue";
+import { usePendingProposals }   from "../hooks/usePendingProposals";
 
 export type HomeownerTabParamList = {
   Chat:     undefined;
@@ -79,13 +80,14 @@ const SCREEN_OPTIONS = {
 
 function HomeownerTabs() {
   const { pendingCount, failedCount } = useOfflineQueue();
-  const queueBadge = pendingCount + failedCount;
+  const queueBadge        = pendingCount + failedCount;
+  const pendingProposals  = usePendingProposals();
   return (
     <HomeownerTab.Navigator screenOptions={SCREEN_OPTIONS}>
       <HomeownerTab.Screen
         name="Chat"
         component={ChatStack}
-        options={{ tabBarLabel: "CHAT", tabBarIcon: ({ focused }) => <TabIcon label="◎" focused={focused} /> }}
+        options={{ tabBarLabel: "CHAT", tabBarIcon: ({ focused }) => <TabIcon label="◎" focused={focused} badge={pendingProposals} /> }}
       />
       <HomeownerTab.Screen
         name="Photos"

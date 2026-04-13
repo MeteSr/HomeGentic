@@ -292,8 +292,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
             }}
           >
             {sidebarOpen
-              ? <>Home<span style={{ color: COLORS.sage }}>Gentic</span></>
-              : <>H<span style={{ color: COLORS.sage }}>G</span></>
+              ? <>Home<span style={{ color: COLORS.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span></>
+              : <>H<span style={{ color: COLORS.sage, fontStyle: "italic", fontWeight: 300 }}>G</span></>
             }
           </Link>
         </div>
@@ -543,7 +543,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               flex:           1,
             }}
           >
-            Home<span style={{ color: COLORS.sage }}>Gentic</span>
+            Home<span style={{ color: COLORS.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
           </Link>
 
           {/* Bell */}

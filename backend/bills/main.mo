@@ -47,6 +47,7 @@ persistent actor Bills {
 
   public type SubscriptionTier = {
     #Free;
+    #Basic;
     #Pro;
     #Premium;
     #ContractorPro;
@@ -153,13 +154,14 @@ persistent actor Bills {
     }
   };
 
-  /// Monthly upload limit for a tier. 0 = unlimited.
+  /// Monthly upload limit for a tier. 0 = unlimited. 999 = blocked sentinel.
   private func monthlyUploadLimit(tier: SubscriptionTier) : Nat {
     switch tier {
-      case (#Free)          { 1 };
-      case (#Pro)           { 0 };
-      case (#Premium)       { 0 };
-      case (#ContractorPro) { 0 };
+      case (#Free)          { 999 };  // blocked — unsubscribed (checked separately)
+      case (#Basic)         { 0   };  // unlimited
+      case (#Pro)           { 0   };
+      case (#Premium)       { 0   };
+      case (#ContractorPro) { 0   };
     }
   };
 
@@ -243,11 +245,17 @@ persistent actor Bills {
     // ── Tier enforcement ──────────────────────────────────────────────────────
     let callerTier : SubscriptionTier = if (payCanisterId != "") {
       let payActor = actor(payCanisterId) : actor {
-        getTierForPrincipal : (Principal) -> async { #Free; #Pro; #Premium; #ContractorPro };
+        getTierForPrincipal : (Principal) -> async { #Free; #Basic; #Pro; #Premium; #ContractorPro };
       };
       await payActor.getTierForPrincipal(msg.caller)
     } else {
       tierFor(msg.caller)
+    };
+
+    if (callerTier == #Free) {
+      return #err(#TierLimitReached(
+        "Bill uploads require an active subscription. Subscribe to Basic ($10/mo) to get started."
+      ));
     };
 
     let limit = monthlyUploadLimit(callerTier);
@@ -255,8 +263,7 @@ persistent actor Bills {
 
     if (limit > 0 and countUploadsThisMonth(msg.caller, now) >= limit) {
       return #err(#TierLimitReached(
-        "Free plan allows " # Nat.toText(limit) # " bill upload per month. " #
-        "Upgrade to Pro ($10/mo) for unlimited bill uploads."
+        "Monthly upload limit reached. Upgrade to Pro ($20/mo) for unlimited bill uploads."
       ));
     };
 

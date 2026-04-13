@@ -53,10 +53,11 @@ persistent actor Quote {
   };
 
   public type SubscriptionTier = {
-    #Free;          // 3 concurrent open requests
+    #Free;          // unsubscribed sentinel — blocked (0)
+    #Basic;         // 3 concurrent open requests
     #Pro;           // 10
     #Premium;       // 10
-    #ContractorPro; // unlimited (0)
+    #ContractorPro; // unlimited (999_999)
   };
 
   public type QuoteRequest = {
@@ -130,6 +131,10 @@ persistent actor Quote {
   /// When set, createQuoteRequest() cross-calls getTierForPrincipal() instead of
   /// reading the local tierGrants map.
   private var payCanisterId: Text = "";
+  /// Property canister ID — set post-deploy via setPropertyCanisterId().
+  /// When set, quote creation uses the property owner's tier when the caller
+  /// is a delegated manager, so managers don't need their own subscription.
+  private var propCanisterId: Text = "";
 
   /// Migration buffers — cleared after first upgrade with this code.
   private var requestEntries:               [(Text, QuoteRequest)]       = [];
@@ -266,13 +271,14 @@ persistent actor Quote {
     n
   };
 
-  /// Max concurrent open requests for a tier. 0 = unlimited.
+  /// Max concurrent open requests for a tier. 0 = blocked/unlimited sentinel — see callers.
   private func tierOpenLimit(tier: SubscriptionTier) : Nat {
     switch tier {
-      case (#Free)          { 3  };
-      case (#Pro)           { 10 };
-      case (#Premium)       { 10 };
-      case (#ContractorPro) { 0  };
+      case (#Free)          { 0       };  // blocked — unsubscribed
+      case (#Basic)         { 3       };
+      case (#Pro)           { 10      };
+      case (#Premium)       { 10      };
+      case (#ContractorPro) { 999_999 };  // effectively unlimited
     }
   };
 
@@ -329,19 +335,38 @@ persistent actor Quote {
 
     // When payment canister is wired, tier comes from getTierForPrincipal();
     // otherwise falls back to the local admin-grant map.
+    // When the caller is a delegated manager, use the property owner's tier
+    // so managers don't need their own paid subscription.
+    let effectivePrincipal : Principal = if (propCanisterId != "") {
+      let propActor = actor(propCanisterId) : actor {
+        getPropertyOwner : (Nat) -> async ?Principal;
+      };
+      switch (Nat.fromText(propertyId)) {
+        case (?natId) {
+          switch (await propActor.getPropertyOwner(natId)) {
+            case (?owner) { if (owner != msg.caller) { owner } else { msg.caller } };
+            case null     { msg.caller };
+          }
+        };
+        case null { msg.caller };
+      }
+    } else { msg.caller };
     let callerTier : SubscriptionTier = if (payCanisterId != "") {
       let payActor = actor(payCanisterId) : actor {
-        getTierForPrincipal : (Principal) -> async { #Free; #Pro; #Premium; #ContractorPro };
+        getTierForPrincipal : (Principal) -> async { #Free; #Basic; #Pro; #Premium; #ContractorPro };
       };
-      await payActor.getTierForPrincipal(msg.caller)
+      await payActor.getTierForPrincipal(effectivePrincipal)
     } else {
-      tierFor(msg.caller)
+      tierFor(effectivePrincipal)
+    };
+    if (callerTier == #Free) {
+      return #err(#InvalidInput("Quote requests require an active subscription. Subscribe to Basic ($10/mo) to get started."));
     };
     let limit = tierOpenLimit(callerTier);
-    if (limit > 0 and countOpenRequests(msg.caller) >= limit) {
+    if (countOpenRequests(msg.caller) >= limit) {
       let upgradeHint = switch (callerTier) {
-        case (#Free) {
-          " Upgrade to Pro ($10/mo) for 10 concurrent requests, or Premium ($20/mo)."
+        case (#Basic) {
+          " Upgrade to Pro ($20/mo) for 10 concurrent requests, or Premium ($35/mo)."
         };
         case (#Pro or #Premium) {
           " Upgrade to ContractorPro ($30/mo) for unlimited requests."
@@ -350,7 +375,7 @@ persistent actor Quote {
       };
       return #err(#InvalidInput(
         "Open request limit reached for your " # (switch callerTier {
-          case (#Free) "Free"; case (#Pro) "Pro";
+          case (#Free) "Free"; case (#Basic) "Basic"; case (#Pro) "Pro";
           case (#Premium) "Premium"; case (#ContractorPro) "ContractorPro";
         }) # " plan (" # Nat.toText(limit) # " max)." # upgradeHint
       ));
@@ -583,16 +608,31 @@ persistent actor Quote {
     if (Text.size(description) > 5000) return #err(#InvalidInput("description exceeds 5000 characters"));
     if (closeAtNs <= Time.now())        return #err(#InvalidInput("closeAt must be in the future"));
 
+    let effectivePrincipalSB : Principal = if (propCanisterId != "") {
+      let propActor = actor(propCanisterId) : actor {
+        getPropertyOwner : (Nat) -> async ?Principal;
+      };
+      switch (Nat.fromText(propertyId)) {
+        case (?natId) {
+          switch (await propActor.getPropertyOwner(natId)) {
+            case (?owner) { if (owner != msg.caller) { owner } else { msg.caller } };
+            case null     { msg.caller };
+          }
+        };
+        case null { msg.caller };
+      }
+    } else { msg.caller };
     let callerTier : SubscriptionTier = if (payCanisterId != "") {
       let payActor = actor(payCanisterId) : actor {
-        getTierForPrincipal : (Principal) -> async { #Free; #Pro; #Premium; #ContractorPro };
+        getTierForPrincipal : (Principal) -> async { #Free; #Basic; #Pro; #Premium; #ContractorPro };
       };
-      await payActor.getTierForPrincipal(msg.caller)
+      await payActor.getTierForPrincipal(effectivePrincipalSB)
     } else {
-      tierFor(msg.caller)
+      tierFor(effectivePrincipalSB)
     };
+    if (callerTier == #Free) return #err(#InvalidInput("Quote requests require an active subscription."));
     let limit = tierOpenLimit(callerTier);
-    if (limit > 0 and countOpenRequests(msg.caller) >= limit)
+    if (countOpenRequests(msg.caller) >= limit)
       return #err(#InvalidInput("Open request limit reached for your plan"));
 
     let id  = nextReqId();
@@ -788,6 +828,15 @@ persistent actor Quote {
   public shared(msg) func setPaymentCanisterId(id: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#Unauthorized);
     payCanisterId := Principal.toText(id);
+    #ok(())
+  };
+
+  /// Wire the quote canister to the property canister for manager tier bypass.
+  /// When set, quote creation uses the property owner's tier when the caller
+  /// is a delegated manager.  Must be called once after both canisters are deployed.
+  public shared(msg) func setPropertyCanisterId(id: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#Unauthorized);
+    propCanisterId := Principal.toText(id);
     #ok(())
   };
 

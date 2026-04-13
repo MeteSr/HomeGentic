@@ -20,20 +20,20 @@ const S = {
 };
 
 const HOMEOWNER_FEATURES_TABLE = [
-  { feature: "Properties",                   Free: "1",    Pro: "5",    Premium: "Unlimited" },
-  { feature: "Photos per job",               Free: "5",    Pro: "20",   Premium: "Unlimited" },
-  { feature: "Quote requests/mo",            Free: "3",    Pro: "10",   Premium: "Unlimited" },
-  { feature: "Public HomeGentic report",     Free: true,   Pro: true,   Premium: true        },
-  { feature: "Blockchain verified",          Free: true,   Pro: true,   Premium: true        },
-  { feature: "Score breakdown",             Free: false,  Pro: true,   Premium: true        },
-  { feature: "Warranty Wallet",             Free: false,  Pro: true,   Premium: true        },
-  { feature: "Recurring Services",          Free: false,  Pro: true,   Premium: true        },
-  { feature: "Market Intelligence",         Free: false,  Pro: true,   Premium: true        },
-  { feature: "Insurance Defense Mode",      Free: false,  Pro: true,   Premium: true        },
-  { feature: "5-Year Maintenance Calendar", Free: false,  Pro: true,   Premium: true        },
-  { feature: "Contractor search",           Free: false,  Pro: true,   Premium: true        },
-  { feature: "PDF export",                  Free: false,  Pro: true,   Premium: true        },
-  { feature: "Priority support",            Free: false,  Pro: false,  Premium: true        },
+  { feature: "Properties",                   Basic: "1",    Pro: "5",    Premium: "20"        },
+  { feature: "Photos per job",               Basic: "5",    Pro: "10",   Premium: "30"        },
+  { feature: "Quote requests/mo",            Basic: "3",    Pro: "10",   Premium: "Unlimited" },
+  { feature: "Public HomeGentic report",     Basic: true,   Pro: true,   Premium: true        },
+  { feature: "Blockchain verified",          Basic: true,   Pro: true,   Premium: true        },
+  { feature: "Score breakdown",             Basic: true,   Pro: true,   Premium: true        },
+  { feature: "Warranty Wallet",             Basic: true,   Pro: true,   Premium: true        },
+  { feature: "Recurring Services",          Basic: true,   Pro: true,   Premium: true        },
+  { feature: "Market Intelligence",         Basic: true,   Pro: true,   Premium: true        },
+  { feature: "Insurance Defense Mode",      Basic: true,   Pro: true,   Premium: true        },
+  { feature: "5-Year Maintenance Calendar", Basic: true,   Pro: true,   Premium: true        },
+  { feature: "Contractor search",           Basic: true,   Pro: true,   Premium: true        },
+  { feature: "PDF export",                  Basic: true,   Pro: true,   Premium: true        },
+  { feature: "Priority support",            Basic: false,  Pro: false,  Premium: true        },
 ];
 
 const CONTRACTOR_FEATURES_TABLE = [
@@ -129,8 +129,8 @@ export default function PricingPage() {
 
   // Plans to display based on toggle state and audience
   const homeownerPlans: Plan[] = annual
-    ? PLANS.filter((p) => p.tier === "Free").concat(ANNUAL_PLANS)
-    : PLANS.filter((p) => p.tier === "Free" || p.tier === "Pro" || p.tier === "Premium");
+    ? ANNUAL_PLANS
+    : PLANS.filter((p) => p.tier === "Basic" || p.tier === "Pro" || p.tier === "Premium");
 
   const contractorPlans: Plan[] = PLANS.filter(
     (p) => p.tier === "ContractorFree" || p.tier === "ContractorPro"
@@ -139,7 +139,7 @@ export default function PricingPage() {
   const displayPlans = audience === "homeowner" ? homeownerPlans : contractorPlans;
 
   const handleUpgrade = async (tier: PlanTier) => {
-    if (tier === "Free" || tier === "ContractorFree") {
+    if (tier === "ContractorFree") {
       await handleLogin();
       return;
     }
@@ -167,7 +167,7 @@ export default function PricingPage() {
       <header style={{ borderBottom: `1px solid ${S.rule}`, position: "sticky", top: 0, background: S.paper, zIndex: 50 }}>
         <div style={{ maxWidth: "80rem", margin: "0 auto", padding: "0 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", height: "3.5rem" }}>
           <Link to="/" style={{ textDecoration: "none", fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.1rem", letterSpacing: "-0.5px", color: COLORS.plum }}>
-            Home<span style={{ color: COLORS.sage }}>Gentic</span>
+            Home<span style={{ color: COLORS.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
           </Link>
         </div>
       </header>
@@ -183,7 +183,7 @@ export default function PricingPage() {
             Simple, transparent pricing
           </h1>
           <p style={{ fontFamily: FONTS.sans, fontSize: "0.9rem", fontWeight: 300, color: S.inkLight }}>
-            Start free. Upgrade when you're ready. Cancel anytime.
+Upgrade when you're ready. Cancel anytime.
           </p>
         </div>
 
@@ -264,11 +264,6 @@ export default function PricingPage() {
                     Most Popular
                   </div>
                 )}
-                {isFeatured && (
-                  <div style={{ display: "inline-flex", alignItems: "center", background: COLORS.butter, color: COLORS.plum, padding: "3px 12px", borderRadius: 100, fontSize: "0.7rem", fontWeight: 600, marginBottom: "0.75rem", border: `1px solid rgba(46,37,64,0.1)` }}>
-                    Start Free
-                  </div>
-                )}
                 <div style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.875rem", color: isPopular ? COLORS.sageLight : COLORS.plumMid, marginBottom: "0.5rem" }}>
                   {plan.tier === "ContractorFree" ? "Contractor Free" : plan.tier === "ContractorPro" ? "Contractor Pro" : plan.tier}
                 </div>
@@ -292,12 +287,15 @@ export default function PricingPage() {
                 )}
 
                 <ul style={{ listStyle: "none", padding: 0, margin: "0 0 1.5rem", display: "flex", flexDirection: "column", gap: "0.625rem" }}>
-                  {plan.features.map((f) => (
-                    <li key={f} style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", fontFamily: FONTS.sans, fontSize: "0.85rem", color: isPopular ? COLORS.sageLight : COLORS.plumMid, fontWeight: 300 }}>
-                      <CheckCircle size={14} color={COLORS.sage} style={{ flexShrink: 0, marginTop: "0.1rem" }} />
-                      {f}
-                    </li>
-                  ))}
+                  {plan.features.map((f) => {
+                    const isIncludes = f.startsWith("Everything in ");
+                    return (
+                      <li key={f} style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", fontFamily: FONTS.sans, fontSize: "0.85rem", color: isPopular ? COLORS.sageLight : COLORS.plumMid, fontWeight: isIncludes ? 600 : 300 }}>
+                        <CheckCircle size={14} color={COLORS.sage} style={{ flexShrink: 0, marginTop: "0.1rem" }} />
+                        {f}
+                      </li>
+                    );
+                  })}
                 </ul>
 
                 <Button
@@ -305,7 +303,7 @@ export default function PricingPage() {
                   style={{ width: "100%", backgroundColor: isPopular ? COLORS.sage : undefined, color: isPopular ? COLORS.white : undefined, borderColor: isPopular ? COLORS.sage : isFeatured ? COLORS.sage : undefined }}
                   onClick={() => handleUpgrade(plan.tier)}
                 >
-                  {plan.price === 0 ? "Get Started Free" : `Upgrade to ${plan.tier === "ContractorPro" ? "Contractor Pro" : plan.tier}`}
+                  {plan.tier === "ContractorFree" ? "Get Started Free" : `Get ${plan.tier === "ContractorPro" ? "Contractor Pro" : plan.tier}`}
                 </Button>
               </div>
             );
@@ -352,7 +350,7 @@ export default function PricingPage() {
                 <thead>
                   <tr style={{ background: COLORS.sageLight }}>
                     <th style={{ textAlign: "left", padding: "0.875rem 1.25rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, borderBottom: `1px solid ${S.rule}` }}>Feature</th>
-                    {(["Free", "Pro", "Premium"] as const).map((tier) => (
+                    {(["Basic", "Pro", "Premium"] as const).map((tier) => (
                       <th key={tier} style={{ textAlign: "center", padding: "0.875rem 1rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: tier === "Pro" ? S.rust : S.inkLight, borderBottom: `1px solid ${S.rule}` }}>
                         {tier}
                       </th>
@@ -366,7 +364,7 @@ export default function PricingPage() {
                         {row.feature}
                         {FEATURE_TOOLTIPS[row.feature] && <FeatureTooltip text={FEATURE_TOOLTIPS[row.feature]} />}
                       </td>
-                      {(["Free", "Pro", "Premium"] as const).map((tier) => {
+                      {(["Basic", "Pro", "Premium"] as const).map((tier) => {
                         const val = (row as any)[tier];
                         return (
                           <td key={tier} style={{ textAlign: "center", padding: "0.75rem 1rem" }}>
