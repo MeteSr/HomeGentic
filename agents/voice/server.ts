@@ -49,9 +49,14 @@ if (!allowedOrigin) {
   if (process.env.NODE_ENV === "production") {
     throw new Error("FRONTEND_ORIGIN env var must be set in production");
   }
-  console.warn("[voice-agent] FRONTEND_ORIGIN not set — defaulting to http://localhost:3000 (dev only)");
+  console.warn("[voice-agent] FRONTEND_ORIGIN not set — accepting any localhost origin (dev only)");
 }
-const origin = allowedOrigin ?? "http://localhost:3000";
+// In production: exact match against FRONTEND_ORIGIN.
+// In dev: accept any localhost port so Vite (:5173), CRA (:3000), etc. all work.
+const origin: string | RegExp =
+  process.env.NODE_ENV === "production"
+    ? (allowedOrigin as string)
+    : (allowedOrigin ?? /^http:\/\/localhost:/);
 
 app.use(cors({ origin }));
 // 50 kb default — sufficient for all text payloads; prevents DoS on every route.
@@ -1136,6 +1141,45 @@ app.post("/api/stripe/verify-subscription", async (req: Request, res: Response) 
     res.json({ type: "subscription", tier, billing });
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : "Stripe error" });
+  }
+});
+
+// ── POST /api/buyers-truth-kit ────────────────────────────────────────────────
+// Geocodes address, queries permit portals, calls Claude for structured analysis.
+// Public-facing free tool — no ICP principal required.
+// Body: BuyerTruthKitRequest  Response: BuyerTruthKitResponse
+import { lookupPermits, generateKit, geocodeAddress } from "./buyersTruthKit";
+import type { BuyerTruthKitRequest } from "./buyersTruthKit";
+
+app.post("/api/buyers-truth-kit", async (req: Request, res: Response): Promise<void> => {
+  const body = req.body as Partial<BuyerTruthKitRequest>;
+
+  if (!body.address?.trim()) { res.status(400).json({ error: "address is required" }); return; }
+  if (!body.yearBuilt || body.yearBuilt < 1800 || body.yearBuilt > new Date().getFullYear()) {
+    res.status(400).json({ error: "yearBuilt must be a valid year" }); return;
+  }
+  if (!body.claims) { res.status(400).json({ error: "claims are required" }); return; }
+
+  try {
+    const geo = await geocodeAddress(body.address);
+
+    const permits = await lookupPermits(body.address, geo);
+    const kit     = await generateKit(body as BuyerTruthKitRequest, permits, provider);
+
+    res.json({
+      property: {
+        address:   body.address,
+        yearBuilt: body.yearBuilt,
+        geocoded:  !!geo,
+        city:      geo?.city,
+        state:     geo?.state,
+        county:    geo?.county,
+      },
+      permits,
+      kit,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : "Analysis failed" });
   }
 });
 

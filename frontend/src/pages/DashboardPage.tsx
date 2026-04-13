@@ -579,7 +579,7 @@ export default function DashboardPage() {
               <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.rust, marginBottom: "0.25rem" }}>
                 One Year of HomeGentic
               </p>
-              <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: "0.875rem", color: S.paper, fontWeight: 300 }}>
+              <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: S.paper, fontWeight: 300 }}>
                 You've been building your verified home history for nearly a year.{" "}
                 <strong style={{ fontWeight: 600 }}>${(totalValue / 100).toLocaleString()} in documented improvements</strong> — that's real value for your next sale.
               </p>

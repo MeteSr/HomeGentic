@@ -87,7 +87,7 @@ export default function ContractorVerifyPage() {
       <div style={{ marginBottom: "2rem", textAlign: "center" }}>
         <Link to="/" style={{ textDecoration: "none" }}>
           <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.5rem", color: S.ink }}>
-            Home<span style={{ color: S.sage }}>Gentic</span>
+            Home<span style={{ color: S.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
           </span>
         </Link>
         <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.muted, marginTop: "0.25rem" }}>

@@ -63,6 +63,7 @@ const CheckoutPage               = React.lazy(() => import("@/pages/CheckoutPage
 const PropertyTransferClaimPage  = React.lazy(() => import("@/pages/PropertyTransferClaimPage"));
 const PropertyManagerClaimPage   = React.lazy(() => import("@/pages/PropertyManagerClaimPage"));
 const DemoPage                   = React.lazy(() => import("@/pages/DemoPage"));
+const BuyersTruthKitPage         = React.lazy(() => import("@/pages/BuyersTruthKitPage"));
 
 const PageLoader = () => (
   <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#F4F1EB" }}>
@@ -154,6 +155,9 @@ export default function App() {
           {/* Demo — public, no auth required */}
           <Route path="/demo"          element={<DemoPage />} />
           <Route path="/demo/:persona" element={<DemoPage />} />
+
+          {/* Buyer's Truth Kit — public free tool */}
+          <Route path="/truth-kit" element={<BuyersTruthKitPage />} />
 
           {/* Public — no auth required */}
           <Route path="/home-systems"          element={<HomeSystemsEstimatorPage />} />

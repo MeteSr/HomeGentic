@@ -609,7 +609,7 @@ const CSS = `
   }
   .hfl-tools h2 { font-size: clamp(28px, 4vw, 42px); color: var(--plum); }
   .hfl-tools-sub { font-size: 16px; color: var(--plum-mid); margin-top: 12px; line-height: 1.7; }
-  .hfl-tools-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; position: relative; z-index: 1; }
+  .hfl-tools-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; position: relative; z-index: 1; }
   .hfl-tool-card {
     background: white; border-radius: 20px; padding: 28px 24px;
     display: flex; flex-direction: column; gap: 12px;
@@ -1557,6 +1557,11 @@ export default function LandingPage() {
                 desc: "Get lifespan estimates and replacement cost ranges for every major system in your home based on install year.",
                 cta: "Estimate my systems", href: "/home-systems",
               },
+              {
+                icon: "🔎", label: "Buyer tool", title: "Buyer's Truth Kit",
+                desc: "Enter any address and what the seller is claiming. Get permit records, credibility flags, and the exact questions to ask before you close.",
+                cta: "Build my kit", href: "/truth-kit",
+              },
             ].map((tool) => (
               <a key={tool.href} href={tool.href} className="hfl-tool-card">
                 <div className="hfl-tool-icon">{tool.icon}</div>
@@ -1607,6 +1612,7 @@ export default function LandingPage() {
                 <li><a href="/prices">Price Lookup</a></li>
                 <li><a href="/home-systems">Systems Estimator</a></li>
                 <li><a href="/neighborhood/00000">Neighborhood Report</a></li>
+                <li><a href="/truth-kit">Buyer's Truth Kit</a></li>
               </ul>
             </div>
             <div>

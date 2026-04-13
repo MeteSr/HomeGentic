@@ -10,18 +10,19 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { builderService, type BuilderDevelopment } from "@/services/builderService";
+import { COLORS, FONTS } from "@/theme";
 
-// ─── Design tokens (matches app-wide blueprint aesthetic) ────────────────────
+// ─── Design tokens ────────────────────────────────────────────────────────────
 
 const S = {
-  ink:      "#0E0E0C",
-  paper:    "#F4F1EB",
-  rule:     "#C8C3B8",
-  rust:     "#C94C2E",
-  inkLight: "#7A7268",
-  serif:    "'Playfair Display', Georgia, serif",
-  mono:     "'IBM Plex Mono', monospace",
-  sans:     "'IBM Plex Sans', sans-serif",
+  ink:      COLORS.plum,
+  paper:    COLORS.white,
+  rule:     COLORS.rule,
+  rust:     COLORS.rust,
+  inkLight: COLORS.plumMid,
+  serif:    FONTS.serif,
+  mono:     FONTS.mono,
+  sans:     FONTS.sans,
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────

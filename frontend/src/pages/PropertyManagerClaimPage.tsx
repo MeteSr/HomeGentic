@@ -101,7 +101,7 @@ export default function PropertyManagerClaimPage() {
       }}>
         <Link to="/" style={{ textDecoration: "none", marginBottom: "2.5rem" }}>
           <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.35rem", color: S.ink, letterSpacing: "-0.01em" }}>
-            Home<span style={{ color: S.sage }}>Gentic</span>
+            Home<span style={{ color: S.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
           </span>
         </Link>
         <div style={{ width: "100%", maxWidth: "28rem", border: `1px solid ${S.rule}`, background: S.paper }}>

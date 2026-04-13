@@ -80,7 +80,7 @@ export function MilestoneStack({
             </p>
             <p
               style={{
-                fontFamily: "'IBM Plex Sans', sans-serif",
+                fontFamily: FONTS.sans,
                 fontSize: "0.875rem",
                 color: S.paper,
                 fontWeight: 300,

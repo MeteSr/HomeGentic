@@ -82,7 +82,7 @@ export default function RegisterPage() {
         {/* Logo */}
         <div style={{ marginBottom: "2rem", textAlign: "center" }}>
           <div style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.5rem", letterSpacing: "-0.5px", color: COLORS.plum }}>
-            Home<span style={{ color: COLORS.sage }}>Gentic</span>
+            Home<span style={{ color: COLORS.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
           </div>
         </div>
 

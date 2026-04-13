@@ -84,10 +84,11 @@ const QUICK_LINKS = [
 ];
 
 const RESPONSE_TIMES = [
-  { tier: "Free", channel: "Email", time: "3–5 business days", color: S.inkLight },
-  { tier: "Pro", channel: "Email", time: "1–2 business days", color: S.sage },
-  { tier: "Premium", channel: "Priority email", time: "Next business day", color: S.sage },
-  { tier: "ContractorPro", channel: "Priority email", time: "Next business day", color: S.sage },
+  { tier: "Free",          time: "3–5 business days", color: S.inkLight },
+  { tier: "Basic",         time: "2–3 business days", color: S.inkLight },
+  { tier: "Pro",           time: "1–2 business days", color: S.sage },
+  { tier: "Premium",       time: "Next business day", color: S.sage },
+  { tier: "ContractorPro", time: "Next business day", color: S.sage },
 ];
 
 function FaqRow({ item }: { item: FaqItem }) {
@@ -136,7 +137,7 @@ export default function SupportPage() {
         <header style={{ borderBottom: `1px solid ${S.rule}`, position: "sticky", top: 0, background: S.paper, zIndex: 50 }}>
           <div style={{ maxWidth: "80rem", margin: "0 auto", padding: "0 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", height: "3.5rem" }}>
             <Link to="/" style={{ textDecoration: "none", fontFamily: S.serif, fontWeight: 900, fontSize: "1.1rem", letterSpacing: "-0.5px", color: S.ink }}>
-              Home<span style={{ color: S.sage }}>Gentic</span>
+              Home<span style={{ color: S.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
             </Link>
             <nav style={{ display: "flex", gap: "1.5rem", alignItems: "center" }}>
               <Link to="/pricing" style={{ textDecoration: "none", fontFamily: S.mono, fontSize: "0.7rem", letterSpacing: "0.06em", color: S.inkLight }}>PRICING</Link>
@@ -199,7 +200,7 @@ export default function SupportPage() {
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ borderBottom: `1px solid ${S.rule}`, background: S.sageLight }}>
-                    {["Plan", "Channel", "Response time"].map(h => (
+                    {["Plan", "Response time"].map(h => (
                       <th key={h} style={{ padding: "0.75rem 1.25rem", textAlign: "left", fontFamily: S.mono, fontSize: "0.62rem", letterSpacing: "0.07em", color: S.inkLight, fontWeight: 700 }}>
                         {h.toUpperCase()}
                       </th>
@@ -210,7 +211,6 @@ export default function SupportPage() {
                   {RESPONSE_TIMES.map((row, i) => (
                     <tr key={row.tier} style={{ borderBottom: i < RESPONSE_TIMES.length - 1 ? `1px solid ${S.rule}` : "none" }}>
                       <td style={{ padding: "0.875rem 1.25rem", fontFamily: S.mono, fontSize: "0.75rem", fontWeight: 700, color: S.ink }}>{row.tier}</td>
-                      <td style={{ padding: "0.875rem 1.25rem", fontFamily: S.sans, fontSize: "0.875rem", color: S.inkLight, fontWeight: 300 }}>{row.channel}</td>
                       <td style={{ padding: "0.875rem 1.25rem", fontFamily: S.sans, fontSize: "0.875rem", color: row.color, fontWeight: 500 }}>{row.time}</td>
                     </tr>
                   ))}
@@ -254,7 +254,7 @@ export default function SupportPage() {
         <footer style={{ borderTop: `1px solid ${S.rule}`, padding: "2rem 1.5rem" }}>
           <div style={{ maxWidth: "56rem", margin: "0 auto", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
             <Link to="/" style={{ textDecoration: "none", fontFamily: S.serif, fontWeight: 900, fontSize: "1rem", color: S.ink }}>
-              Home<span style={{ color: S.sage }}>Gentic</span>
+              Home<span style={{ color: S.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
             </Link>
             <div style={{ display: "flex", gap: "1.5rem" }}>
               <Link to="/privacy" style={{ textDecoration: "none", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>PRIVACY</Link>

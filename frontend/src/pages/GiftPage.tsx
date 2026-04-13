@@ -7,7 +7,7 @@ import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type GiftTier    = "Pro" | "Premium";
+type GiftTier    = "Basic" | "Pro" | "Premium";
 type GiftBilling = "monthly" | "annual";
 type GiftStep    = "select" | "recipient" | "message" | "review" | "done";
 
@@ -25,26 +25,37 @@ interface GiftFormData {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const GIFT_PLANS: Record<GiftTier, { monthlyPrice: number; annualPrice: number; tagline: string; bullets: string[] }> = {
-  Pro: {
+  Basic: {
     monthlyPrice: 10,
     annualPrice:  100,
     tagline: "Perfect for first-time buyers",
     bullets: [
-      "Verified maintenance record from move-in",
-      "Score breakdown + Warranty Wallet",
-      "5-Year Maintenance Calendar",
-      "10 contractor quote requests/month",
+      "1 property, blockchain-backed record",
+      "Public HomeGentic report",
+      "Warranty Wallet + Recurring Services",
+      "3 contractor quote requests/month",
+    ],
+  },
+  Pro: {
+    monthlyPrice: 20,
+    annualPrice:  200,
+    tagline: "For active homeowners and growing portfolios",
+    bullets: [
+      "Everything in Basic",
+      "5 properties, 10 photos per job",
+      "10 quote requests/month",
+      "Verified badge + Priority support",
     ],
   },
   Premium: {
-    monthlyPrice: 20,
-    annualPrice:  200,
+    monthlyPrice: 35,
+    annualPrice:  350,
     tagline: "For multiple properties or serious sellers",
     bullets: [
       "Everything in Pro",
-      "Insurance Defense Mode",
-      "PDF export ready for future sale",
-      "Priority support",
+      "20 properties, 30 photos per job",
+      "Unlimited quote requests",
+      "Premium verified badge + Priority verification",
     ],
   },
 };
@@ -203,8 +214,8 @@ function StepSelect({ data, setData, onNext }: {
       </div>
 
       {/* Tier cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
-        {(["Pro", "Premium"] as GiftTier[]).map((tier) => {
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 24 }}>
+        {(["Basic", "Pro", "Premium"] as GiftTier[]).map((tier) => {
           const plan    = GIFT_PLANS[tier];
           const price   = data.billing === "monthly" ? plan.monthlyPrice : plan.annualPrice;
           const period  = data.billing === "monthly" ? "/mo" : "/yr";
@@ -231,7 +242,7 @@ function StepSelect({ data, setData, onNext }: {
                 background: isPlum ? COLORS.butter : COLORS.sageLight,
                 padding: "4px 12px", borderRadius: RADIUS.pill,
               }}>
-                {tier === "Pro" ? "Most Popular" : "Best Gift"}
+                {tier === "Basic" ? "Great Start" : tier === "Pro" ? "Most Popular" : "Best Gift"}
               </div>
 
               <div style={{ fontFamily: FONTS.serif, fontSize: 28, fontWeight: 900, color: isPlum ? COLORS.white : COLORS.plum, marginBottom: 4 }}>
@@ -593,7 +604,7 @@ function Footer() {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 const DEFAULT_FORM: GiftFormData = {
-  tier:           "Pro",
+  tier:           "Basic",
   billing:        "monthly",
   recipientName:  "",
   recipientEmail: "",
