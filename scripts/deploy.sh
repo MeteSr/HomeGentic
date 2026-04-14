@@ -90,6 +90,42 @@ if [ "$NETWORK" != "local" ]; then
   echo ""
 fi
 
+# ── Bootstrap management canister IDL ───────────────────────────────────────────
+# caffeineai-http-outcalls/outcall.mo uses `import IC "ic:aaaaa-aa"`.  moc
+# resolves that import by looking for aaaaa-aa.did in the --actor-idl directory
+# (.dfx/local/canisters/idl/).  dfx start --clean does NOT pre-populate that file,
+# so any canister importing the package fails to build until the file exists.
+# Write a minimal management-canister DID containing just the HTTP-outcall surface
+# that caffeineai-http-outcalls requires.
+
+mkdir -p .dfx/local/canisters/idl
+if [ ! -f ".dfx/local/canisters/idl/aaaaa-aa.did" ]; then
+  cat > .dfx/local/canisters/idl/aaaaa-aa.did << 'MGMT_DID'
+type http_header = record { name : text; value : text };
+type http_request_result = record {
+  status : nat;
+  headers : vec http_header;
+  body : blob;
+};
+type http_request_args = record {
+  url : text;
+  max_response_bytes : opt nat64;
+  headers : vec http_header;
+  body : opt blob;
+  method : variant { get; head; post };
+  transform : opt record {
+    function : func (record { response : http_request_result; context : blob }) -> (http_request_result) query;
+    context : blob;
+  };
+  is_replicated : opt bool;
+};
+service ic : {
+  http_request : (http_request_args) -> (http_request_result);
+};
+MGMT_DID
+  echo "  ✓ Management canister IDL written (.dfx/local/canisters/idl/aaaaa-aa.did)"
+fi
+
 # ── Sequential canister deployment ──────────────────────────────────────────────
 # Parallel deploys race on canister_ids.json (each process read→add→write);
 # the last writer wins and all other IDs are lost. Sequential is the safe default.
