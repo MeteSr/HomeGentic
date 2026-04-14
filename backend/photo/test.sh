@@ -145,7 +145,7 @@ else
   MGR_PHOTO_OUT=$(dfx canister call photo uploadPhoto "(
     \"MGR_JOB_1\",
     \"$MGR_PROP_ID\",
-    variant { During },
+    variant { Foundation },
     \"Photo uploaded by manager on behalf of owner.\",
     \"ccc333ddd444ccc333ddd444ccc333ddd444ccc333ddd444ccc333ddd444ccc3\",
     vec { 255 : nat8; 216 : nat8; 255 : nat8 }

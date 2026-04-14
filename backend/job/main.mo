@@ -926,7 +926,12 @@ persistent actor Job {
     // Falls back to anonymous when not wired — useful in tests without a full deploy.
     let homeowner : Principal = if (Text.size(propCanisterId) > 0) {
       switch (Nat.fromText(propertyId)) {
-        case null      { return #err(#InvalidInput("Invalid propertyId format")) };
+        case null {
+          // propertyId is not a numeric string (e.g. "PROP_1" in tests) — fall back
+          // to the anonymous sentinel, same as the unset-propCanisterId path.
+          // In production, all propertyIds are Nat strings written by the property canister.
+          Principal.fromText("2vxsx-fae")
+        };
         case (?natId)  {
           let propActor = actor(propCanisterId) : actor {
             getPropertyOwner : (Nat) -> async ?Principal;

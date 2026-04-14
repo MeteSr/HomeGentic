@@ -162,6 +162,8 @@ dfx canister call payment configureStripe '(record {
   successUrl = "http://localhost:5173/payment-success";
   cancelUrl  = "http://localhost:5173/payment-failure";
   priceIds   = record {
+    basicMonthly         = "price_basic_monthly_test";
+    basicYearly          = "price_basic_yearly_test";
     proMonthly           = "price_pro_monthly_test";
     proYearly            = "price_pro_yearly_test";
     premiumMonthly       = "price_premium_monthly_test";
@@ -189,6 +191,7 @@ RESULT=$(dfx canister call payment configureStripe '(record {
   successUrl = "http://localhost:5173/payment-success";
   cancelUrl  = "http://localhost:5173/payment-failure";
   priceIds   = record {
+    basicMonthly = "x"; basicYearly = "x";
     proMonthly = "x"; proYearly = "x"; premiumMonthly = "x";
     premiumYearly = "x"; contractorProMonthly = "x"; contractorProYearly = "x";
   }
