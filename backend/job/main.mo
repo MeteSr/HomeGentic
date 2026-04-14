@@ -132,8 +132,8 @@ persistent actor Job {
 
   // ─── Stable State ────────────────────────────────────────────────────────────
 
-  private var jobs        = Map.empty<Text, Job>();
-  private var inviteTokens = Map.empty<Text, InviteToken>();
+  private let jobs        = Map.empty<Text, Job>();
+  private let inviteTokens = Map.empty<Text, InviteToken>();
 
   // ─── Upgrade Hook ────────────────────────────────────────────────────────────
 
@@ -152,7 +152,7 @@ persistent actor Job {
 
   // ─── Rate Limit (cycle-drain protection, §enterprise/#46) ────────────────────
 
-  private transient var updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
+  private transient let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
 
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;

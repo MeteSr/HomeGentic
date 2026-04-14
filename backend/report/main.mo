@@ -265,9 +265,9 @@ persistent actor Report {
   // migration in postupgrade() runs once, then entries arrays are cleared.
   // On all subsequent upgrades these maps persist in stable memory as-is.
 
-  private var snapshots = Map.empty<Text, ReportSnapshot>();
-  private var links     = Map.empty<Text, ShareLink>();
-  private var certs     = Map.empty<Text, CertRecord>();
+  private let snapshots = Map.empty<Text, ReportSnapshot>();
+  private let links     = Map.empty<Text, ShareLink>();
+  private let certs     = Map.empty<Text, CertRecord>();
 
   // ─── Upgrade Hook ────────────────────────────────────────────────────────────
 
@@ -373,7 +373,7 @@ persistent actor Report {
 
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
 
-  private transient var updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
+  private transient let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
   private let ONE_MINUTE_NS       : Int = 60_000_000_000;

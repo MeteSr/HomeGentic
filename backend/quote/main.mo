@@ -149,14 +149,14 @@ persistent actor Quote {
 
   // ─── Stable State ────────────────────────────────────────────────────────────
 
-  private var requests               = Map.empty<Text, QuoteRequest>();
-  private var quotes                 = Map.empty<Text, Quote>();
-  private var contractorRateLimits   = Map.empty<Principal, (Nat, Int)>();
-  private var tierGrants             = Map.empty<Text, SubscriptionTier>();
-  private var sealedBids             = Map.empty<Text, SealedBid>();
-  private var sealedBidsByRequest    = Map.empty<Text, [Text]>();
-  private var sealedBidsByContractor = Map.empty<Text, Text>();
-  private var revealedBids           = Map.empty<Text, [RevealedBid]>();
+  private let requests               = Map.empty<Text, QuoteRequest>();
+  private let quotes                 = Map.empty<Text, Quote>();
+  private let contractorRateLimits   = Map.empty<Principal, (Nat, Int)>();
+  private let tierGrants             = Map.empty<Text, SubscriptionTier>();
+  private let sealedBids             = Map.empty<Text, SealedBid>();
+  private let sealedBidsByRequest    = Map.empty<Text, [Text]>();
+  private let sealedBidsByContractor = Map.empty<Text, Text>();
+  private let revealedBids           = Map.empty<Text, [RevealedBid]>();
 
   // ─── Upgrade Hook ────────────────────────────────────────────────────────────
 
@@ -186,7 +186,7 @@ persistent actor Quote {
 
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
 
-  private transient var updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
+  private transient let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
   private let ONE_MINUTE_NS       : Int = 60_000_000_000;

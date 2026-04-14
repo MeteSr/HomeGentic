@@ -93,7 +93,7 @@ persistent actor Auth {
 
   /// Map is stable directly (mo:core/Map uses a stable B-tree internally).
   /// No preupgrade serialisation required — eliminates the upgrade instruction-limit footgun.
-  private var users = Map.empty<Principal, UserProfile>();
+  private let users = Map.empty<Principal, UserProfile>();
 
   // ─── Upgrade Hook ────────────────────────────────────────────────────────────
 

@@ -98,11 +98,11 @@ persistent actor Photo {
 
   // ─── Stable State ────────────────────────────────────────────────────────────
 
-  private var photos      = Map.empty<Text, Photo>();
+  private let photos      = Map.empty<Text, Photo>();
   /// sha256 → photoId — O(1) duplicate detection.
-  private var hashIndex   = Map.empty<Text, Text>();
-  private var tierGrants  = Map.empty<Text, SubscriptionTier>();
-  private var photoRateLimits = Map.empty<Text, (Nat, Int)>();
+  private let hashIndex   = Map.empty<Text, Text>();
+  private let tierGrants  = Map.empty<Text, SubscriptionTier>();
+  private let photoRateLimits = Map.empty<Text, (Nat, Int)>();
 
   // ─── Upgrade Hook ────────────────────────────────────────────────────────────
 
@@ -121,7 +121,7 @@ persistent actor Photo {
 
   // ─── Update-call rate limit (cycle-drain protection) ────────────────────────
 
-  private transient var updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
+  private transient let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
   private let ONE_MINUTE_NS       : Int = 60_000_000_000;

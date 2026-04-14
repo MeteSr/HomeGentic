@@ -300,25 +300,25 @@ persistent actor Property {
 
   // ─── Stable State ────────────────────────────────────────────────────────
 
-  private var properties      = Map.empty<Nat, Property>();
+  private let properties      = Map.empty<Nat, Property>();
   /// Address key → first-registered property ID.
-  private var addressIdx      = Map.empty<Text, Nat>();
-  private var tierGrants      = Map.empty<Text, SubscriptionTier>();
-  private var transfers        = Map.empty<Nat, TransferRecord>();
-  private var pendingTransfers = Map.empty<Nat, PendingTransfer>();
+  private let addressIdx      = Map.empty<Text, Nat>();
+  private let tierGrants      = Map.empty<Text, SubscriptionTier>();
+  private let transfers        = Map.empty<Nat, TransferRecord>();
+  private let pendingTransfers = Map.empty<Nat, PendingTransfer>();
   /// token (Text) → propertyId (Nat) — secondary index for O(1) claim lookup.
-  private var tokenIndex       = Map.empty<Text, Nat>();
-  private var rooms            = Map.empty<Text, RoomRecord>();
+  private let tokenIndex       = Map.empty<Text, Nat>();
+  private let rooms            = Map.empty<Text, RoomRecord>();
 
   // ─── Manager delegation state ────────────────────────────────────────────
   /// propertyId → [PropertyManager]
-  private var managersMap      = Map.empty<Nat,  [PropertyManager]>();
+  private let managersMap      = Map.empty<Nat,  [PropertyManager]>();
   /// token → ManagerInvite (pending invites)
-  private var managerInvites   = Map.empty<Text, ManagerInvite>();
+  private let managerInvites   = Map.empty<Text, ManagerInvite>();
   /// token → propertyId (fast invite lookup)
-  private var managerTokenIdx  = Map.empty<Text, Nat>();
+  private let managerTokenIdx  = Map.empty<Text, Nat>();
   /// propertyId → [OwnerNotification]
-  private var ownerNotifs      = Map.empty<Nat,  [OwnerNotification]>();
+  private let ownerNotifs      = Map.empty<Nat,  [OwnerNotification]>();
   private var notifCounter     : Nat = 0;
 
   // ─── Upgrade Hook ────────────────────────────────────────────────────────
@@ -382,7 +382,7 @@ persistent actor Property {
 
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
 
-  private transient var updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
+  private transient let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
   private let ONE_MINUTE_NS       : Int = 60_000_000_000;

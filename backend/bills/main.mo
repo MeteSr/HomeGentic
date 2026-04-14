@@ -111,8 +111,8 @@ persistent actor Bills {
   /// Fallback tier grants for dev / pre-wiring environments.
   private var tierGrantEntries : [(Text, SubscriptionTier)] = [];
 
-  private var bills      = Map.empty<Text, BillRecord>();
-  private var tierGrants = Map.empty<Text, SubscriptionTier>();
+  private let bills      = Map.empty<Text, BillRecord>();
+  private let tierGrants = Map.empty<Text, SubscriptionTier>();
 
   // ─── Upgrade Hook ────────────────────────────────────────────────────────────
 
