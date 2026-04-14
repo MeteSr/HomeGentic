@@ -168,10 +168,10 @@ describe("RegisterPage — step 2: details & validation", () => {
     expect(screen.getByRole("heading", { name: /confirm/i })).toBeInTheDocument();
   });
 
-  it("Review button advances when both fields are empty (both are optional)", () => {
+  it("Review button is disabled when email is empty", () => {
     goToStep2();
-    fireEvent.click(screen.getByRole("button", { name: /review/i }));
-    expect(screen.getByRole("heading", { name: /confirm/i })).toBeInTheDocument();
+    // Email is required — button must be disabled with no input
+    expect(screen.getByRole("button", { name: /review/i })).toBeDisabled();
   });
 });
 
@@ -198,9 +198,9 @@ describe("RegisterPage — step 3: confirm & submit", () => {
     expect(screen.getByText("5125550100")).toBeInTheDocument();
   });
 
-  it("shows 'Not provided' for empty optional fields", () => {
-    goToStep3("", "");
-    expect(screen.getAllByText("Not provided").length).toBe(2);
+  it("shows 'Not provided' for empty optional phone field", () => {
+    goToStep3("test@example.com", "");
+    expect(screen.getAllByText("Not provided").length).toBe(1);
   });
 
   it("calls authService.register on Create Account", async () => {
@@ -226,6 +226,7 @@ describe("RegisterPage — step 3: confirm & submit", () => {
     renderPage();
     fireEvent.click(screen.getByText("Contractor"));
     fireEvent.click(screen.getByRole("button", { name: /continue/i }));
+    fireEvent.change(screen.getByPlaceholderText(/you@example\.com/i), { target: { value: "contractor@example.com" } });
     fireEvent.click(screen.getByRole("button", { name: /review/i }));
     fireEvent.click(screen.getByRole("checkbox"));
     fireEvent.click(screen.getByRole("button", { name: /create account/i }));

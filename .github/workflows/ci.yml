@@ -45,6 +45,23 @@ jobs:
         # Does not deploy Wasm — just allocates IDs.
         run: dfx canister create --all
 
+      - name: Seed management canister IDL
+        # caffeineai-http-outcalls imports ic:aaaaa-aa (the IC management canister).
+        # moc looks for aaaaa-aa.did in .dfx/local/canisters/idl/ but dfx canister create
+        # does not generate it — only dfx deploy does. Copy it from the dfx cache so moc
+        # can type-check the http-outcalls import without a full deploy.
+        run: |
+          mkdir -p .dfx/local/canisters/idl
+          CACHE=$(dfx cache show)
+          DID=$(find "$CACHE" -name "aaaaa-aa.did" 2>/dev/null | head -1)
+          if [ -n "$DID" ]; then
+            cp "$DID" .dfx/local/canisters/idl/aaaaa-aa.did
+            echo "Copied aaaaa-aa.did from $DID"
+          else
+            echo "aaaaa-aa.did not found in dfx cache; attempting dfx generate fallback"
+            dfx generate 2>/dev/null || true
+          fi
+
       - name: Compile all Motoko canisters
         # Build every canister whose type is not "assets" (i.e. all Motoko
         # canisters). The frontend asset canister is excluded — its TypeScript

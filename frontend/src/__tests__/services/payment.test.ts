@@ -2,6 +2,43 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { paymentService, PLANS, ANNUAL_PLANS } from "@/services/payment";
 import type { PlanTier } from "@/services/payment";
 
+// ─── Mocks ────────────────────────────────────────────────────────────────────
+// Prevent AuthClient / indexedDB access and real canister HTTP calls in unit tests.
+
+vi.mock("@/services/actor", () => ({
+  getAgent:     vi.fn().mockResolvedValue({}),
+  getPrincipal: vi.fn().mockResolvedValue("2vxsx-fae"),
+  resetAgent:   vi.fn(),
+}));
+
+vi.mock("@/services/icpLedger", () => ({
+  icpLedgerService: {
+    approve:    vi.fn().mockResolvedValue(undefined),
+    getBalance: vi.fn().mockResolvedValue(BigInt(500_000_000)),
+  },
+}));
+
+const mockSubscribeActor = vi.fn().mockResolvedValue({
+  ok: { tier: { Free: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0) },
+});
+const mockGetMySubscription = vi.fn().mockResolvedValue({
+  ok: { tier: { Free: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0) },
+});
+const mockGetPriceQuote = vi.fn().mockResolvedValue({ ok: BigInt(1_000_000) });
+
+vi.mock("@icp-sdk/core/agent", () => ({
+  Actor: {
+    createActor: vi.fn(() => ({
+      subscribe:         mockSubscribeActor,
+      getMySubscription: mockGetMySubscription,
+      getPriceQuote:     mockGetPriceQuote,
+      getPricing:        vi.fn().mockResolvedValue({ ok: null }),
+      getAllPricing:      vi.fn().mockResolvedValue({ ok: [] }),
+    })),
+  },
+  HttpAgent: { create: vi.fn().mockResolvedValue({}) },
+}));
+
 // ─── PLANS data integrity ─────────────────────────────────────────────────────
 
 describe("PLANS", () => {
@@ -197,12 +234,12 @@ describe("paymentService.subscribe (mock)", () => {
     await expect(paymentService.subscribe("Pro")).resolves.toBeUndefined();
   });
 
-  it("calls onStep callback for paid tiers in mock mode (no-op since canister absent)", async () => {
-    // PAYMENT_CANISTER_ID is empty in test env — subscribe returns early before onStep
+  it("calls onStep callback for paid tiers (quoting → approving → confirming)", async () => {
     const onStep = vi.fn();
     await paymentService.subscribe("Pro", onStep);
-    // No canister → early return, onStep never called
-    expect(onStep).not.toHaveBeenCalled();
+    expect(onStep).toHaveBeenCalledWith("quoting");
+    expect(onStep).toHaveBeenCalledWith("approving");
+    expect(onStep).toHaveBeenCalledWith("confirming");
   });
 });
 

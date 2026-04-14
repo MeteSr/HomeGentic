@@ -10,7 +10,7 @@ import * as paymentService from "@/services/payment";
 import PaymentSuccessPage from "@/pages/PaymentSuccessPage";
 import PaymentFailurePage from "@/pages/PaymentFailurePage";
 
-// ── mock paymentService ───────────────────────────────────────────────────────
+// ── mocks ─────────────────────────────────────────────────────────────────────
 vi.mock("@/services/payment", async (importOriginal) => {
   const actual = await importOriginal<typeof paymentService>();
   return {
@@ -21,6 +21,18 @@ vi.mock("@/services/payment", async (importOriginal) => {
     },
   };
 });
+
+vi.mock("@/store/authStore", () => ({
+  useAuthStore: () => ({ isAuthenticated: true }),
+}));
+
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({ login: vi.fn(), devLogin: vi.fn(), logout: vi.fn() }),
+}));
+
+vi.mock("@/services/actor", () => ({
+  getPrincipal: vi.fn().mockResolvedValue("test-principal"),
+}));
 
 const mockVerify = vi.mocked(paymentService.paymentService.verifyStripeSession);
 
@@ -64,7 +76,7 @@ describe("PaymentSuccessPage", () => {
     mockVerify.mockResolvedValue({ type: "subscription" });
     renderSuccess();
     await waitFor(() => {
-      expect(screen.getByText(/You're all set/i)).toBeTruthy();
+      expect(screen.getByText(/Welcome to/i)).toBeTruthy();
       expect(screen.getByText(/Go to Dashboard/i)).toBeTruthy();
     });
     expect(mockVerify).toHaveBeenCalledWith("cs_test_abc123");
