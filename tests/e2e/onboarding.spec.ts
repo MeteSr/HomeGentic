@@ -34,7 +34,7 @@ test.describe("OnboardingPage — /onboarding", () => {
     });
 
     test("shows onboarding heading", async ({ page }) => {
-      await expect(page.getByRole("heading", { name: /get started|setup|onboarding/i })).toBeVisible();
+      await expect(page.getByRole("heading", { name: /welcome/i })).toBeVisible();
     });
 
     test("shows 'Add your first property' step", async ({ page }) => {
@@ -76,8 +76,10 @@ test.describe("OnboardingPage — /onboarding", () => {
       await page.goto("/onboarding");
     });
 
-    test("shows 'View my property' CTA when property exists", async ({ page }) => {
-      await expect(page.getByRole("button", { name: /view my property/i })).toBeVisible();
+    test("shows first step as Done when property exists", async ({ page }) => {
+      // When a property is registered the 'Add your first property' step is marked Done
+      // — the CTA button is replaced by a Done badge + CheckCircle icon
+      await expect(page.getByText("Done").first()).toBeVisible();
     });
 
     test("Log a job step CTA navigates to /jobs/new", async ({ page }) => {

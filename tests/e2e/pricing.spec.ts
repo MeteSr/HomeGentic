@@ -10,11 +10,11 @@ test.describe("PricingPage — /pricing", () => {
   // ── Page structure ────────────────────────────────────────────────────────
 
   test("shows HomeGentic logo in nav", async ({ page }) => {
-    await expect(page.getByText(/HomeGentic/)).toBeVisible();
+    await expect(page.getByText(/HomeGentic/).first()).toBeVisible();
   });
 
   test("shows 'Pricing' eyebrow badge", async ({ page }) => {
-    await expect(page.getByText("Pricing")).toBeVisible();
+    await expect(page.getByText("Pricing").first()).toBeVisible();
   });
 
   test("shows 'Simple, transparent pricing' heading", async ({ page }) => {
@@ -28,15 +28,15 @@ test.describe("PricingPage — /pricing", () => {
   // ── Plan cards (homeowner view) ───────────────────────────────────────────
 
   test("shows Basic plan card", async ({ page }) => {
-    await expect(page.getByText("Basic")).toBeVisible();
+    await expect(page.getByText("Basic").first()).toBeVisible();
   });
 
   test("shows Pro plan card", async ({ page }) => {
-    await expect(page.getByText("Pro")).toBeVisible();
+    await expect(page.getByText("Pro").first()).toBeVisible();
   });
 
   test("shows Premium plan card", async ({ page }) => {
-    await expect(page.getByText("Premium")).toBeVisible();
+    await expect(page.getByText("Premium").first()).toBeVisible();
   });
 
   test("shows $10 price for Basic tier", async ({ page }) => {
@@ -59,23 +59,23 @@ test.describe("PricingPage — /pricing", () => {
   // ── Feature comparison table ──────────────────────────────────────────────
 
   test("shows feature comparison table with Properties row", async ({ page }) => {
-    await expect(page.getByText("Properties")).toBeVisible();
+    await expect(page.getByText("Properties").first()).toBeVisible();
   });
 
   test("shows Warranty Wallet feature row", async ({ page }) => {
-    await expect(page.getByText("Warranty Wallet")).toBeVisible();
+    await expect(page.getByText("Warranty Wallet").first()).toBeVisible();
   });
 
   test("shows Recurring Services feature row", async ({ page }) => {
-    await expect(page.getByText("Recurring Services")).toBeVisible();
+    await expect(page.getByText("Recurring Services").first()).toBeVisible();
   });
 
   test("shows Market Intelligence feature row", async ({ page }) => {
-    await expect(page.getByText("Market Intelligence")).toBeVisible();
+    await expect(page.getByText("Market Intelligence").first()).toBeVisible();
   });
 
   test("shows Insurance Defense Mode feature row", async ({ page }) => {
-    await expect(page.getByText("Insurance Defense Mode")).toBeVisible();
+    await expect(page.getByText("Insurance Defense Mode").first()).toBeVisible();
   });
 
   // ── FAQs ──────────────────────────────────────────────────────────────────

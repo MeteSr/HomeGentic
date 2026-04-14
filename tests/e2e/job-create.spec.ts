@@ -1,9 +1,11 @@
 import { test, expect } from "@playwright/test";
 import { injectTestAuth } from "./helpers/auth";
+import { injectTestProperties } from "./helpers/testData";
 
 test.describe("Job Create — /jobs/new", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
+    await injectTestProperties(page);
     await page.goto("/jobs/new");
     // Wait for the form to render (not redirected to /login)
     await expect(page.getByRole("heading", { name: "Log a Job" })).toBeVisible();

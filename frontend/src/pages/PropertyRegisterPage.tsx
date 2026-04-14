@@ -164,8 +164,9 @@ export default function PropertyRegisterPage() {
           <div style={{ border: `1px solid ${S.rule}`, background: COLORS.white, padding: "1.75rem" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               <div>
-                <label className="form-label">Street Address *</label>
+                <label className="form-label" htmlFor="prop-address">Street Address *</label>
                 <AddressAutocomplete
+                  id="prop-address"
                   className="form-input"
                   value={form.address}
                   onChange={(v) => update("address", v)}
@@ -182,12 +183,13 @@ export default function PropertyRegisterPage() {
               </div>
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "1rem" }}>
                 <div>
-                  <label className="form-label">City *</label>
-                  <input className="form-input" placeholder="Austin" value={form.city} onChange={(e) => update("city", e.target.value)} />
+                  <label className="form-label" htmlFor="prop-city">City *</label>
+                  <input id="prop-city" className="form-input" placeholder="Austin" value={form.city} onChange={(e) => update("city", e.target.value)} />
                 </div>
                 <div>
-                  <label className="form-label">State *</label>
+                  <label className="form-label" htmlFor="prop-state">State *</label>
                   <input
+                    id="prop-state"
                     className="form-input" placeholder="TX" maxLength={2}
                     value={form.state}
                     onChange={(e) => update("state", e.target.value.toUpperCase())}
@@ -199,8 +201,9 @@ export default function PropertyRegisterPage() {
                 </div>
               </div>
               <div>
-                <label className="form-label">ZIP Code *</label>
+                <label className="form-label" htmlFor="prop-zip">ZIP Code *</label>
                 <input
+                  id="prop-zip"
                   className="form-input" placeholder="78701"
                   value={form.zipCode}
                   onChange={(e) => update("zipCode", e.target.value)}
@@ -253,18 +256,18 @@ export default function PropertyRegisterPage() {
               </div>
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "1rem" }}>
                 <div>
-                  <label className="form-label">
+                  <label className="form-label" htmlFor="prop-year">
                     Year Built *
                     {lookingUp && <span style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight, marginLeft: "0.5rem" }}>fetching…</span>}
                   </label>
-                  <input className="form-input" type="number" placeholder="1985" min="1800" max={new Date().getFullYear()} value={form.yearBuilt} onChange={(e) => update("yearBuilt", e.target.value)} disabled={lookingUp} />
+                  <input id="prop-year" className="form-input" type="number" placeholder="1985" min="1800" max={new Date().getFullYear()} value={form.yearBuilt} onChange={(e) => update("yearBuilt", e.target.value)} disabled={lookingUp} />
                 </div>
                 <div>
-                  <label className="form-label">
+                  <label className="form-label" htmlFor="prop-sqft">
                     Square Feet *
                     {lookingUp && <span style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight, marginLeft: "0.5rem" }}>fetching…</span>}
                   </label>
-                  <input className="form-input" type="number" placeholder="2000" min="100" value={form.squareFeet} onChange={(e) => update("squareFeet", e.target.value)} disabled={lookingUp} />
+                  <input id="prop-sqft" className="form-input" type="number" placeholder="2000" min="100" value={form.squareFeet} onChange={(e) => update("squareFeet", e.target.value)} disabled={lookingUp} />
                 </div>
               </div>
             </div>

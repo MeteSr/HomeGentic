@@ -1,22 +1,24 @@
 import { test, expect } from "@playwright/test";
+import { injectTestAuth } from "./helpers/auth";
 
-// Register page is public — no auth injection needed
+// /register is a ProtectedRoute — auth injection required
 
 test.describe("RegisterPage — /register", () => {
   test.beforeEach(async ({ page }) => {
+    await injectTestAuth(page);
     await page.goto("/register");
   });
 
   // ── Page structure ────────────────────────────────────────────────────────
 
   test("shows HomeGentic logo", async ({ page }) => {
-    await expect(page.getByText(/HomeGentic/)).toBeVisible();
+    await expect(page.getByText(/HomeGentic/).first()).toBeVisible();
   });
 
   test("shows 3-step indicator: Role, Details, Confirm", async ({ page }) => {
-    await expect(page.getByText("Role")).toBeVisible();
-    await expect(page.getByText("Details")).toBeVisible();
-    await expect(page.getByText("Confirm")).toBeVisible();
+    await expect(page.getByText("Role", { exact: true })).toBeVisible();
+    await expect(page.getByText("Details", { exact: true })).toBeVisible();
+    await expect(page.getByText("Confirm", { exact: true })).toBeVisible();
   });
 
   // ── Step 1 — Role ─────────────────────────────────────────────────────────
@@ -80,6 +82,8 @@ test.describe("RegisterPage — /register", () => {
   test("step 2 Review button advances to step 3", async ({ page }) => {
     await page.getByText("Homeowner").click();
     await page.getByRole("button", { name: /continue/i }).click();
+    // Review button requires a valid email — it is disabled when email is empty
+    await page.getByPlaceholder(/you@example.com/i).fill("test@example.com");
     await page.getByRole("button", { name: /review/i }).click();
     await expect(page.getByText("Step 3 of 3")).toBeVisible();
   });
@@ -89,6 +93,7 @@ test.describe("RegisterPage — /register", () => {
   test("step 3 shows Confirm heading", async ({ page }) => {
     await page.getByText("Homeowner").click();
     await page.getByRole("button", { name: /continue/i }).click();
+    await page.getByPlaceholder(/you@example.com/i).fill("test@example.com");
     await page.getByRole("button", { name: /review/i }).click();
     await expect(page.getByRole("heading", { name: /confirm/i })).toBeVisible();
   });
@@ -96,15 +101,18 @@ test.describe("RegisterPage — /register", () => {
   test("step 3 shows role value in review table", async ({ page }) => {
     await page.getByText("Homeowner").click();
     await page.getByRole("button", { name: /continue/i }).click();
+    await page.getByPlaceholder(/you@example.com/i).fill("test@example.com");
     await page.getByRole("button", { name: /review/i }).click();
     // "Homeowner" appears in the review table as the role value
     const rows = page.getByText("Homeowner");
     await expect(rows.first()).toBeVisible();
   });
 
-  test("step 3 shows 'Not provided' when email/phone blank", async ({ page }) => {
+  test("step 3 shows 'Not provided' when phone blank", async ({ page }) => {
+    // Email is required to enable Review; phone is optional — shows 'Not provided'
     await page.getByText("Homeowner").click();
     await page.getByRole("button", { name: /continue/i }).click();
+    await page.getByPlaceholder(/you@example.com/i).fill("test@example.com");
     await page.getByRole("button", { name: /review/i }).click();
     const notProvided = page.getByText("Not provided");
     await expect(notProvided.first()).toBeVisible();
@@ -113,6 +121,7 @@ test.describe("RegisterPage — /register", () => {
   test("step 3 shows Create Account button", async ({ page }) => {
     await page.getByText("Homeowner").click();
     await page.getByRole("button", { name: /continue/i }).click();
+    await page.getByPlaceholder(/you@example.com/i).fill("test@example.com");
     await page.getByRole("button", { name: /review/i }).click();
     await expect(page.getByRole("button", { name: /create account/i })).toBeVisible();
   });

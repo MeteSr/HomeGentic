@@ -41,8 +41,8 @@ test.describe("SettingsPage — /settings", () => {
   // ── Account tab (default) ─────────────────────────────────────────────────
 
   test("Account tab is active by default", async ({ page }) => {
-    // Account content should be visible without clicking
-    await expect(page.getByText(/principal/i)).toBeVisible();
+    // Account content (AccountTab heading) should be visible without clicking
+    await expect(page.getByText("Account Details")).toBeVisible();
   });
 
   // ── Subscription tab ──────────────────────────────────────────────────────
@@ -57,13 +57,15 @@ test.describe("SettingsPage — /settings", () => {
 
   test("clicking Notifications tab shows notification content", async ({ page }) => {
     await page.getByRole("button", { name: /notifications/i }).click();
-    await expect(page.getByText(/notification/i)).toBeVisible();
+    // "Save Preferences" button is unique to the NotificationsTab content area
+    await expect(page.getByRole("button", { name: /save preferences/i })).toBeVisible();
   });
 
   // ── Privacy tab ───────────────────────────────────────────────────────────
 
   test("clicking Privacy tab shows privacy content", async ({ page }) => {
     await page.getByRole("button", { name: /privacy/i }).click();
-    await expect(page.getByText(/privacy/i)).toBeVisible();
+    // "Save Privacy Settings" button is unique to the PrivacyTab content area
+    await expect(page.getByRole("button", { name: /save privacy settings/i })).toBeVisible();
   });
 });

@@ -9,6 +9,7 @@ import { jobService } from "@/services/job";
 import { photoService, PhotoQuota } from "@/services/photo";
 import { paymentService, type PlanTier } from "@/services/payment";
 import { UpgradeGate } from "@/components/UpgradeGate";
+import { propertyService } from "@/services/property";
 import { usePropertyStore } from "@/store/propertyStore";
 import { JobValueDelta } from "@/components/JobValueDelta";
 import { computeScore } from "@/services/scoreService";
@@ -51,7 +52,7 @@ export default function JobCreatePage() {
   const location  = useLocation();
   const editJob   = (location.state as { editJob?: Job; prefill?: Record<string, string> } | null)?.editJob ?? null;
   const prefill   = (location.state as { editJob?: Job; prefill?: Record<string, string> } | null)?.prefill ?? null;
-  const { properties } = usePropertyStore();
+  const { properties, setProperties } = usePropertyStore();
   const [loading, setLoading] = useState(false);
   const [quota, setQuota] = useState<PhotoQuota>({ used: 0, limit: 10, tier: "Free" });
   const [userTier, setUserTier] = useState<PlanTier>("Free");
@@ -72,6 +73,13 @@ export default function JobCreatePage() {
     permitNumber:    editJob ? (editJob.permitNumber  ?? "")                                   : "",
     warrantyMonths:  editJob ? (editJob.warrantyMonths != null ? String(editJob.warrantyMonths) : "") : "",
   });
+
+  // Populate the property store if the user navigated here directly (bypassing Dashboard)
+  useEffect(() => {
+    if (properties.length === 0) {
+      propertyService.getMyProperties().then((list) => { if (list.length > 0) setProperties(list); }).catch(() => {});
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     photoService.getQuota().then(setQuota);
@@ -252,8 +260,8 @@ export default function JobCreatePage() {
           )}
 
           <div>
-            <label className="form-label">Service Type *</label>
-            <select className="form-input" value={form.serviceType} onChange={(e) => update("serviceType", e.target.value)}>
+            <label className="form-label" htmlFor="serviceType">Service Type *</label>
+            <select id="serviceType" className="form-input" value={form.serviceType} onChange={(e) => update("serviceType", e.target.value)}>
               {SERVICE_TYPES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
             {isInsuranceRelevant(form.serviceType) && (
@@ -320,17 +328,17 @@ export default function JobCreatePage() {
 
           {!form.isDiy && (
             <div>
-              <label className="form-label">Contractor / Company Name *</label>
-              <input className="form-input" placeholder="e.g. Cool Air Services LLC" value={form.contractorName} onChange={(e) => update("contractorName", e.target.value)} />
+              <label className="form-label" htmlFor="contractorName">Contractor / Company Name *</label>
+              <input id="contractorName" className="form-input" placeholder="e.g. Cool Air Services LLC" value={form.contractorName} onChange={(e) => update("contractorName", e.target.value)} />
             </div>
           )}
 
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "1rem" }}>
             <div>
-              <label className="form-label">{form.isDiy ? "Materials Cost *" : "Amount Paid *"}</label>
+              <label className="form-label" htmlFor="amount">{form.isDiy ? "Materials Cost *" : "Amount Paid *"}</label>
               <div style={{ position: "relative" }}>
                 <span style={{ position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)", color: S.inkLight, fontSize: "0.875rem", pointerEvents: "none" }}>$</span>
-                <input className="form-input" type="number" min="0" step="0.01" placeholder="0.00" value={form.amount} onChange={(e) => update("amount", e.target.value)} style={{ paddingLeft: "1.5rem" }} />
+                <input id="amount" className="form-input" type="number" min="0" step="0.01" placeholder="0.00" value={form.amount} onChange={(e) => update("amount", e.target.value)} style={{ paddingLeft: "1.5rem" }} />
               </div>
             </div>
             <div>
@@ -346,16 +354,16 @@ export default function JobCreatePage() {
 
           {showPermitField && (
             <div>
-              <label className="form-label">Permit Number <span style={{ color: S.inkLight, fontWeight: 300 }}>(optional)</span></label>
-              <input className="form-input" placeholder="e.g. HVAC-2024-0412" value={form.permitNumber} onChange={(e) => update("permitNumber", e.target.value)} />
+              <label className="form-label" htmlFor="permitNumber">Permit Number <span style={{ color: S.inkLight, fontWeight: 300 }}>(optional)</span></label>
+              <input id="permitNumber" className="form-input" placeholder="e.g. HVAC-2024-0412" value={form.permitNumber} onChange={(e) => update("permitNumber", e.target.value)} />
             </div>
           )}
 
           {!form.isDiy && (
             <div>
-              <label className="form-label">Warranty <span style={{ color: S.inkLight, fontWeight: 300 }}>(optional)</span></label>
+              <label className="form-label" htmlFor="warrantyMonths">Warranty <span style={{ color: S.inkLight, fontWeight: 300 }}>(optional)</span></label>
               <div style={{ position: "relative" }}>
-                <input className="form-input" type="number" min="0" placeholder="e.g. 12" value={form.warrantyMonths} onChange={(e) => update("warrantyMonths", e.target.value)} style={{ paddingRight: "4.5rem" }} />
+                <input id="warrantyMonths" className="form-input" type="number" min="0" placeholder="e.g. 12" value={form.warrantyMonths} onChange={(e) => update("warrantyMonths", e.target.value)} style={{ paddingRight: "4.5rem" }} />
                 <span style={{ position: "absolute", right: "0.75rem", top: "50%", transform: "translateY(-50%)", fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, pointerEvents: "none" }}>months</span>
               </div>
             </div>
