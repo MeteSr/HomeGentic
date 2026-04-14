@@ -112,10 +112,10 @@ persistent actor Sensor {
 
   // ─── Stable State ────────────────────────────────────────────────────────
 
-  private var devices      = Map.empty<Text, SensorDevice>();
-  private var events       = Map.empty<Text, SensorEvent>();
+  private let devices      = Map.empty<Text, SensorDevice>();
+  private let events       = Map.empty<Text, SensorEvent>();
   /// externalDeviceId → internal device id
-  private var externalIdIdx = Map.empty<Text, Text>();
+  private let externalIdIdx = Map.empty<Text, Text>();
 
   // ─── Upgrade Hook ────────────────────────────────────────────────────────
 
@@ -132,7 +132,7 @@ persistent actor Sensor {
 
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
 
-  private transient var updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
+  private transient let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
   private let ONE_MINUTE_NS       : Int = 60_000_000_000;

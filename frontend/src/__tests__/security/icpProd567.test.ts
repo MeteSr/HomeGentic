@@ -127,22 +127,30 @@ describe("PROD.7 — deploy.sh calls addAdmin for each non-payment canister", ()
     });
   }
 
-  it("deploy.sh does NOT call addAdmin for payment (payment has no admin list)", () => {
-    // payment's authorization is at the dfx controller level only
+  it("deploy.sh does NOT call addAdmin for payment (payment uses initAdmins instead)", () => {
+    // payment uses a one-time initAdmins bootstrap, not the addAdmin pattern
     const src = deploy();
-    // Should not appear as "payment addAdmin" — it would fail with an unknown method error
+    // Should not appear as "payment addAdmin" — the method doesn't exist on payment
     expect(src).not.toMatch(/canister call payment addAdmin/);
+  });
+
+  it("deploy.sh calls initAdmins for payment canister", () => {
+    // payment.initAdmins must be called so grantSubscription (and other admin-only
+    // methods) work during tests — job / quote / photo tests all call grantSubscription
+    expect(deploy()).toMatch(/canister call payment initAdmins/);
   });
 });
 
 // ── SEC.2 — updateCallLimits is transient (resets on upgrade, prevents unbounded growth) ──
 
 describe("SEC.2 — updateCallLimits declared as transient var in every canister", () => {
-  // In a `persistent actor`, all `var` declarations are implicitly stable.
+  // In a `persistent actor`, all `let`/`var` declarations are implicitly stable.
   // The rate-limit sliding-window map grows with every unique caller and is
   // never pruned — if left stable it accumulates across upgrades indefinitely.
-  // `transient var` resets the map to Map.empty() on every canister upgrade,
+  // `transient` resets the map to Map.empty() on every canister upgrade,
   // which is the correct behaviour for an in-memory rate-limit window.
+  // `transient let` is preferred over `transient var` for Map bindings because
+  // Map is mutated in-place (Motoko M0244: "var never reassigned, use let").
 
   const backendDirs = readdirSync(resolve(ROOT, "backend")).filter((d) => {
     try {
@@ -153,25 +161,29 @@ describe("SEC.2 — updateCallLimits declared as transient var in every canister
     }
   });
 
-  it("every canister that declares updateCallLimits uses 'transient var'", () => {
+  it("every canister that declares updateCallLimits uses 'transient let' or 'transient var'", () => {
     for (const dir of backendDirs) {
       const src = readFileSync(resolve(ROOT, "backend", dir, "main.mo"), "utf-8");
       if (!src.includes("updateCallLimits")) continue; // canister has no rate limiter — skip
       expect(
         src,
-        `backend/${dir}/main.mo: updateCallLimits must be 'transient var' to reset on upgrade`
-      ).toMatch(/transient\s+var\s+updateCallLimits/);
+        `backend/${dir}/main.mo: updateCallLimits must be 'transient let' (or 'transient var') to reset on upgrade`
+      ).toMatch(/transient\s+(?:let|var)\s+updateCallLimits/);
     }
   });
 
-  it("no canister uses bare 'var updateCallLimits' (would persist across upgrades)", () => {
+  it("no canister uses bare 'var updateCallLimits' or bare 'let updateCallLimits' (would persist across upgrades)", () => {
     for (const dir of backendDirs) {
       const src = readFileSync(resolve(ROOT, "backend", dir, "main.mo"), "utf-8");
-      // Must NOT match `var updateCallLimits` without `transient` in front
+      // Must NOT match `var/let updateCallLimits` without `transient` in front
       expect(
         src,
-        `backend/${dir}/main.mo: updateCallLimits must not be plain 'var' (use transient var)`
+        `backend/${dir}/main.mo: updateCallLimits must not be plain 'var' (use transient let)`
       ).not.toMatch(/(?<!transient\s)(?<!\w)var\s+updateCallLimits/);
+      expect(
+        src,
+        `backend/${dir}/main.mo: updateCallLimits must not be plain 'let' (use transient let)`
+      ).not.toMatch(/(?<!transient\s)(?<!\w)let\s+updateCallLimits/);
     }
   });
 });

@@ -37,6 +37,7 @@ persistent actor Photo {
     #Basic;
     #Pro;
     #Premium;
+    #ContractorFree;
     #ContractorPro;
   };
 
@@ -98,11 +99,11 @@ persistent actor Photo {
 
   // ─── Stable State ────────────────────────────────────────────────────────────
 
-  private var photos      = Map.empty<Text, Photo>();
+  private let photos      = Map.empty<Text, Photo>();
   /// sha256 → photoId — O(1) duplicate detection.
-  private var hashIndex   = Map.empty<Text, Text>();
-  private var tierGrants  = Map.empty<Text, SubscriptionTier>();
-  private var photoRateLimits = Map.empty<Text, (Nat, Int)>();
+  private let hashIndex   = Map.empty<Text, Text>();
+  private let tierGrants  = Map.empty<Text, SubscriptionTier>();
+  private let photoRateLimits = Map.empty<Text, (Nat, Int)>();
 
   // ─── Upgrade Hook ────────────────────────────────────────────────────────────
 
@@ -121,7 +122,7 @@ persistent actor Photo {
 
   // ─── Update-call rate limit (cycle-drain protection) ────────────────────────
 
-  private transient var updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
+  private transient let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
   private let ONE_MINUTE_NS       : Int = 60_000_000_000;
@@ -166,6 +167,7 @@ persistent actor Photo {
   private func quotaFor(tier: SubscriptionTier) : PhotoQuota {
     switch (tier) {
       case (#Free)          { { tier; maxPerJob = 0;   maxPerProperty = 0   } };  // blocked
+      case (#ContractorFree){ { tier; maxPerJob = 5;   maxPerProperty = 25  } };
       case (#Basic)         { { tier; maxPerJob = 5;   maxPerProperty = 25  } };
       case (#Pro)           { { tier; maxPerJob = 10;  maxPerProperty = 100 } };
       case (#Premium)       { { tier; maxPerJob = 30;  maxPerProperty = 0   } };
@@ -275,7 +277,7 @@ persistent actor Photo {
     } else { msg.caller };
     let callerTierRaw : SubscriptionTier = if (payCanisterId != "") {
       let payActor = actor(payCanisterId) : actor {
-        getTierForPrincipal : (Principal) -> async { #Free; #Basic; #Pro; #Premium; #ContractorPro };
+        getTierForPrincipal : (Principal) -> async { #Free; #Basic; #Pro; #Premium; #ContractorFree; #ContractorPro };
       };
       await payActor.getTierForPrincipal(effectivePrincipal)
     } else {

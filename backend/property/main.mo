@@ -71,11 +71,12 @@ persistent actor Property {
   };
 
   public type SubscriptionTier = {
-    #Free;          // unsubscribed sentinel — 0 properties (blocked)
-    #Basic;         // 1 property
-    #Pro;           // 5 properties
-    #Premium;       // 20 properties
-    #ContractorPro; // unlimited
+    #Free;             // unsubscribed sentinel — 0 properties (blocked)
+    #Basic;            // 1 property
+    #Pro;              // 5 properties
+    #Premium;          // 20 properties
+    #ContractorFree;   // 0 properties — contractors work on others' properties
+    #ContractorPro;    // unlimited
   };
 
   /// Full on-chain property record.
@@ -300,25 +301,25 @@ persistent actor Property {
 
   // ─── Stable State ────────────────────────────────────────────────────────
 
-  private var properties      = Map.empty<Nat, Property>();
+  private let properties      = Map.empty<Nat, Property>();
   /// Address key → first-registered property ID.
-  private var addressIdx      = Map.empty<Text, Nat>();
-  private var tierGrants      = Map.empty<Text, SubscriptionTier>();
-  private var transfers        = Map.empty<Nat, TransferRecord>();
-  private var pendingTransfers = Map.empty<Nat, PendingTransfer>();
+  private let addressIdx      = Map.empty<Text, Nat>();
+  private let tierGrants      = Map.empty<Text, SubscriptionTier>();
+  private let transfers        = Map.empty<Nat, TransferRecord>();
+  private let pendingTransfers = Map.empty<Nat, PendingTransfer>();
   /// token (Text) → propertyId (Nat) — secondary index for O(1) claim lookup.
-  private var tokenIndex       = Map.empty<Text, Nat>();
-  private var rooms            = Map.empty<Text, RoomRecord>();
+  private let tokenIndex       = Map.empty<Text, Nat>();
+  private let rooms            = Map.empty<Text, RoomRecord>();
 
   // ─── Manager delegation state ────────────────────────────────────────────
   /// propertyId → [PropertyManager]
-  private var managersMap      = Map.empty<Nat,  [PropertyManager]>();
+  private let managersMap      = Map.empty<Nat,  [PropertyManager]>();
   /// token → ManagerInvite (pending invites)
-  private var managerInvites   = Map.empty<Text, ManagerInvite>();
+  private let managerInvites   = Map.empty<Text, ManagerInvite>();
   /// token → propertyId (fast invite lookup)
-  private var managerTokenIdx  = Map.empty<Text, Nat>();
+  private let managerTokenIdx  = Map.empty<Text, Nat>();
   /// propertyId → [OwnerNotification]
-  private var ownerNotifs      = Map.empty<Nat,  [OwnerNotification]>();
+  private let ownerNotifs      = Map.empty<Nat,  [OwnerNotification]>();
   private var notifCounter     : Nat = 0;
 
   // ─── Upgrade Hook ────────────────────────────────────────────────────────
@@ -382,7 +383,7 @@ persistent actor Property {
 
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
 
-  private transient var updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
+  private transient let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
   private let ONE_MINUTE_NS       : Int = 60_000_000_000;
@@ -459,11 +460,12 @@ persistent actor Property {
 
   public query func getPropertyLimitForTier(tier: SubscriptionTier) : async Nat {
     switch tier {
-      case (#Free)          { 0  };  // blocked — unsubscribed
-      case (#Basic)         { 1  };
-      case (#Pro)           { 5  };
-      case (#Premium)       { 20 };
-      case (#ContractorPro) { 0  };  // 0 = unlimited (ContractorPro)
+      case (#Free)             { 0  };  // blocked — unsubscribed
+      case (#Basic)            { 1  };
+      case (#Pro)              { 5  };
+      case (#Premium)          { 20 };
+      case (#ContractorFree)   { 0  };  // contractors don't own properties
+      case (#ContractorPro)    { 0  };  // 0 = unlimited (ContractorPro)
     }
   };
 
@@ -523,26 +525,28 @@ persistent actor Property {
     // otherwise falls back to the local admin-grant map.
     let callerTier : SubscriptionTier = if (payCanisterId != "") {
       let payActor = actor(payCanisterId) : actor {
-        getTierForPrincipal : (Principal) -> async { #Free; #Basic; #Pro; #Premium; #ContractorPro };
+        getTierForPrincipal : (Principal) -> async { #Free; #Basic; #Pro; #Premium; #ContractorFree; #ContractorPro };
       };
       await payActor.getTierForPrincipal(caller)
     } else {
       tierFor(caller)
     };
     let limit = switch (callerTier) {
-      case (#Free)          { 0  };  // blocked — unsubscribed
-      case (#Basic)         { 1  };
-      case (#Pro)           { 5  };
-      case (#Premium)       { 20 };
-      case (#ContractorPro) { 0  };  // 0 = unlimited (ContractorPro)
+      case (#Free)             { 0  };  // blocked — unsubscribed
+      case (#Basic)            { 1  };
+      case (#Pro)              { 5  };
+      case (#Premium)          { 20 };
+      case (#ContractorFree)   { 0  };  // contractors don't own properties
+      case (#ContractorPro)    { 0  };  // 0 = unlimited (ContractorPro)
     };
-    if (callerTier == #Free or (limit > 0 and countOwnerProperties(caller) >= limit)) {
+    if (callerTier == #Free or callerTier == #ContractorFree or (limit > 0 and countOwnerProperties(caller) >= limit)) {
       let tierName = switch (callerTier) {
-        case (#Free)          "Free";
-        case (#Basic)         "Basic";
-        case (#Pro)           "Pro";
-        case (#Premium)       "Premium";
-        case (#ContractorPro) "ContractorPro";
+        case (#Free)             "Free";
+        case (#Basic)            "Basic";
+        case (#Pro)              "Pro";
+        case (#Premium)          "Premium";
+        case (#ContractorFree)   "ContractorFree";
+        case (#ContractorPro)    "ContractorPro";
       };
       let upgradeMsg = switch (callerTier) {
         case (#Free)  " Subscribe to Basic ($10/mo) for 1 property, or Pro ($20/mo) for 5.";

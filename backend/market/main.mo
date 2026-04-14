@@ -16,7 +16,6 @@ import Array    "mo:core/Array";
 import Blob     "mo:core/Blob";
 import Map      "mo:core/Map";
 import Int      "mo:core/Int";
-import Iter     "mo:core/Iter";
 import Nat      "mo:core/Nat";
 import Option   "mo:core/Option";
 import Order    "mo:core/Order";
@@ -188,7 +187,7 @@ persistent actor MarketIntelligence {
 
   // ─── Stable State ────────────────────────────────────────────────────────────
 
-  private var snapshots  = Map.empty<Text, MarketSnapshot>();
+  private let snapshots  = Map.empty<Text, MarketSnapshot>();
 
   // Neighbourhood score store (4.3.4).
   // All let/var declarations in a persistent actor are automatically stable —
@@ -259,7 +258,7 @@ persistent actor MarketIntelligence {
 
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
 
-  private transient var updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
+  private transient let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
   private let ONE_MINUTE_NS       : Int = 60_000_000_000;
@@ -376,7 +375,8 @@ persistent actor MarketIntelligence {
         case (?job)  { job.completedYear };
       };
 
-      let age = if (year > lastYear) year - lastYear else 0;
+      let ageInt : Int = (year : Int) - (lastYear : Int);
+      let age    : Nat = if (ageInt > 0) Int.abs(ageInt) else 0;
 
       // Score = remaining life fraction × 100, clamped to 0-100
       let fraction : Nat = if (age >= sys.lifespanYears) {
@@ -479,7 +479,8 @@ persistent actor MarketIntelligence {
   ) : async [ProjectRecommendation] {
 
     let year      = currentYear();
-    let propAge   = if (year > profile.yearBuilt) year - profile.yearBuilt else 0;
+    let propAgeInt : Int = (year : Int) - (profile.yearBuilt : Int);
+    let propAge    : Nat = if (propAgeInt > 0) Int.abs(propAgeInt) else 0;
     let stateMult = stateMultiplier(profile.state);
     let zipSnap   = Map.get(snapshots, Text.compare, profile.zipCode);
 

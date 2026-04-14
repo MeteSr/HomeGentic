@@ -5,7 +5,6 @@
  */
 
 import Map "mo:core/Map";
-import Iter "mo:core/Iter";
 import Nat "mo:core/Nat";
 import Principal "mo:core/Principal";
 import Result "mo:core/Result";
@@ -84,7 +83,7 @@ persistent actor Auth {
   private var adminInitialized: Bool = false;
 
   /// Per-principal update-call rate limiting (cycle-drain protection).
-  private transient var updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
+  private transient let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
 
   /// Migration buffer — populated by the last old-code preupgrade, cleared once.
   /// After the first upgrade with this code, this array is always [].
@@ -94,7 +93,7 @@ persistent actor Auth {
 
   /// Map is stable directly (mo:core/Map uses a stable B-tree internally).
   /// No preupgrade serialisation required — eliminates the upgrade instruction-limit footgun.
-  private var users = Map.empty<Principal, UserProfile>();
+  private let users = Map.empty<Principal, UserProfile>();
 
   // ─── Upgrade Hook ────────────────────────────────────────────────────────────
 

@@ -111,11 +111,11 @@ persistent actor Agent {
 
   // ─── Stable State ────────────────────────────────────────────────────────────
 
-  private var agents        = Map.empty<Principal, AgentProfile>();
-  private var reviews       = Map.empty<Text, AgentReview>();
+  private let agents        = Map.empty<Principal, AgentProfile>();
+  private let reviews       = Map.empty<Text, AgentReview>();
   /// compositeKey = "reviewerPrincipal|transactionId" → reviewId
-  private var reviewKeys    = Map.empty<Text, Text>();
-  private var reviewRateLimits = Map.empty<Text, (Nat, Int)>();
+  private let reviewKeys    = Map.empty<Text, Text>();
+  private let reviewRateLimits = Map.empty<Text, (Nat, Int)>();
 
   // ─── Upgrade Hook ────────────────────────────────────────────────────────────
 
@@ -134,7 +134,7 @@ persistent actor Agent {
 
   // ─── Update-call rate limit (cycle-drain protection) ────────────────────────
 
-  private transient var updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
+  private transient let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
   private let ONE_MINUTE_NS       : Int = 60_000_000_000;

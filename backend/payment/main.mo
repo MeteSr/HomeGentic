@@ -206,7 +206,7 @@ persistent actor Payment {
   // ─── State ───────────────────────────────────────────────────────────────────
 
   private var subscriptionEntries: [(Principal, Subscription)] = [];
-  private var subscriptions = Map.empty<Principal, Subscription>();
+  private let subscriptions = Map.empty<Principal, Subscription>();
 
   // Admin
   private var adminEntries     : [Principal] = [];
@@ -219,13 +219,13 @@ persistent actor Payment {
   // Stripe
   private var stripeConfig        : ?StripeConfig                  = null;
   private var pendingGiftEntries  : [(Text, PendingGift)]          = [];
-  private var pendingGifts        = Map.empty<Text, PendingGift>();  // key = giftToken
+  private let pendingGifts        = Map.empty<Text, PendingGift>();  // key = giftToken
 
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
 
-  private transient var updateCallLimits        : Map.Map<Text, (Nat, Int)> = Map.empty();
+  private transient let updateCallLimits        : Map.Map<Text, (Nat, Int)> = Map.empty();
   // CallerGuard: prevents concurrent subscribe() calls from the same principal
-  private transient var activeSubscribers       : Map.Map<Text, Bool>       = Map.empty();
+  private transient let activeSubscribers       : Map.Map<Text, Bool>       = Map.empty();
   private var maxUpdatesPerMin        : Nat = 30;
   private let ONE_MINUTE_NS           : Int = 60_000_000_000;
   private var trustedCanisterEntries  : [Principal] = [];
@@ -308,7 +308,7 @@ persistent actor Payment {
   };
 
   /// Escape backslashes then double-quotes for embedding in a JSON string value.
-  private func jsonEsc(s: Text) : Text {
+  private func _jsonEsc(s: Text) : Text {
     let s1 = Text.replace(s, #text "\\", "\\\\");
     Text.replace(s1, #text "\"", "\\\"")
   };

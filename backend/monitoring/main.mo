@@ -186,9 +186,9 @@ persistent actor Monitoring {
 
   // ─── Stable State ────────────────────────────────────────────────────────────
 
-  private var canisterMetrics = Map.empty<Principal, CanisterMetrics>();
-  private var alerts          = Map.empty<Text, Alert>();
-  private var cyclesPerCall   = Map.empty<Text, MethodCyclesSummary>();
+  private let canisterMetrics = Map.empty<Principal, CanisterMetrics>();
+  private let alerts          = Map.empty<Text, Alert>();
+  private let cyclesPerCall   = Map.empty<Text, MethodCyclesSummary>();
 
   // ─── Upgrade Hook ────────────────────────────────────────────────────────────
 
@@ -205,7 +205,7 @@ persistent actor Monitoring {
 
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
 
-  private transient var updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
+  private transient let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
   private let ONE_MINUTE_NS       : Int = 60_000_000_000;
@@ -228,7 +228,7 @@ persistent actor Monitoring {
     Option.isSome(Array.find<Principal>(adminListEntries, func(a) { a == p }))
   };
 
-  private func requireActive(caller: Principal) : Result.Result<(), Error> {
+  private func _requireActive(caller: Principal) : Result.Result<(), Error> {
     if (Principal.isAnonymous(caller)) return #err(#Unauthorized);
     if (isPaused) {
       switch (pauseExpiryNs) {
@@ -379,7 +379,7 @@ persistent actor Monitoring {
       case (?existing) {
         // Exponential moving average: new_avg = 0.8 × old_avg + 0.2 × sample
         let alpha = 20;   // 20% weight to new sample (integer arithmetic: ×100)
-        let newAvg = (existing.avgCycles * (100 - alpha) + cycles * alpha) / 100;
+        let newAvg = (existing.avgCycles * 80 + cycles * alpha) / 100;
         {
           method;
           avgCycles     = newAvg;
@@ -421,7 +421,7 @@ persistent actor Monitoring {
   public query func calculateProfitability(
     revenue: Float,
     users: Nat,
-    activeUsers: Nat
+    _activeUsers: Nat
   ) : async ProfitabilityMetrics {
     // Derive cost from stored metrics (same logic as calculateCostMetrics)
     var totalBurned : Nat = 0;

@@ -1,4 +1,4 @@
-.PHONY: help start stop deploy deploy-one test clean status upgrade frontend init-data dev dev-full
+.PHONY: help start stop deploy deploy-one test clean status upgrade frontend init-data dev dev-full check-motoko
 
 NETWORK ?= local
 
@@ -15,6 +15,7 @@ help:
 	@echo "  make dev                 Start replica, deploy canisters, and run frontend"
 	@echo "  make dev-full            Full local stack: replica + canisters + frontend + voice + dashboard"
 	@echo "  make clean               Clean local dfx state"
+	@echo "  make check-motoko        Compile-check all Motoko canisters (no replica needed)"
 
 dev:
 	dfx start --clean --background && bash scripts/deploy.sh && cd frontend && npm run dev
@@ -52,3 +53,7 @@ clean:
 
 init-data:
 	bash scripts/init-test-data.sh
+
+check-motoko:
+	@jq -r '.canisters | to_entries[] | select(.value.type != "assets") | .key' dfx.json | \
+	  while read -r c; do echo "=== $$c ==="; dfx build "$$c" --check || exit 1; done

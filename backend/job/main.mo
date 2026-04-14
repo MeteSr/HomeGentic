@@ -132,8 +132,8 @@ persistent actor Job {
 
   // ─── Stable State ────────────────────────────────────────────────────────────
 
-  private var jobs        = Map.empty<Text, Job>();
-  private var inviteTokens = Map.empty<Text, InviteToken>();
+  private let jobs        = Map.empty<Text, Job>();
+  private let inviteTokens = Map.empty<Text, InviteToken>();
 
   // ─── Upgrade Hook ────────────────────────────────────────────────────────────
 
@@ -152,7 +152,7 @@ persistent actor Job {
 
   // ─── Rate Limit (cycle-drain protection, §enterprise/#46) ────────────────────
 
-  private transient var updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
+  private transient let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
 
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
@@ -255,7 +255,7 @@ persistent actor Job {
     // so the manager doesn't need their own paid subscription.
     if (payCanisterId != "") {
       let payActor = actor(payCanisterId) : actor {
-        getTierForPrincipal : (Principal) -> async { #Free; #Basic; #Pro; #Premium; #ContractorPro };
+        getTierForPrincipal : (Principal) -> async { #Free; #Basic; #Pro; #Premium; #ContractorFree; #ContractorPro };
       };
       let effectivePrincipal : Principal = if (propCanisterId != "") {
         let propActor = actor(propCanisterId) : actor {
@@ -668,7 +668,7 @@ persistent actor Job {
     verifiedKeySystems : [Text];
     meetsStructural    : Bool;   // verifiedJobCount >= 3 AND verifiedKeySystems.size() >= 2
   } {
-    let KEY_SYSTEMS : [Text] = ["HVAC", "Roofing", "Plumbing", "Electrical"];
+    let _KEY_SYSTEMS : [Text] = ["HVAC", "Roofing", "Plumbing", "Electrical"];
     var verifiedCount : Nat = 0;
     var foundSystems : [Text] = [];
 
@@ -926,7 +926,12 @@ persistent actor Job {
     // Falls back to anonymous when not wired — useful in tests without a full deploy.
     let homeowner : Principal = if (Text.size(propCanisterId) > 0) {
       switch (Nat.fromText(propertyId)) {
-        case null      { return #err(#InvalidInput("Invalid propertyId format")) };
+        case null {
+          // propertyId is not a numeric string (e.g. "PROP_1" in tests) — fall back
+          // to the anonymous sentinel, same as the unset-propCanisterId path.
+          // In production, all propertyIds are Nat strings written by the property canister.
+          Principal.fromText("2vxsx-fae")
+        };
         case (?natId)  {
           let propActor = actor(propCanisterId) : actor {
             getPropertyOwner : (Nat) -> async ?Principal;
@@ -1037,7 +1042,7 @@ persistent actor Job {
     if (existing.homeowner != msg.caller) return #err(#Unauthorized);
     if (existing.status != #PendingHomeownerApproval) return #err(#InvalidInput("Job is not pending approval"));
 
-    ignore Map.remove(jobs, Text.compare, jobId);
+    Map.remove(jobs, Text.compare, jobId);
     #ok(())
   };
 

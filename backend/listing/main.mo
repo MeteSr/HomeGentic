@@ -83,8 +83,8 @@ persistent actor Listing {
 
   // ─── Stable State ────────────────────────────────────────────────────────────
 
-  private var requests  = Map.empty<Text, ListingBidRequest>();
-  private var proposals = Map.empty<Text, ListingProposal>();
+  private let requests  = Map.empty<Text, ListingBidRequest>();
+  private let proposals = Map.empty<Text, ListingProposal>();
 
   // ─── Upgrade Hook ────────────────────────────────────────────────────────────
 
@@ -99,7 +99,7 @@ persistent actor Listing {
 
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
 
-  private transient var updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
+  private transient let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
   private let ONE_MINUTE_NS       : Int = 60_000_000_000;

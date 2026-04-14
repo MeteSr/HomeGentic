@@ -90,6 +90,42 @@ if [ "$NETWORK" != "local" ]; then
   echo ""
 fi
 
+# ── Bootstrap management canister IDL ───────────────────────────────────────────
+# caffeineai-http-outcalls/outcall.mo uses `import IC "ic:aaaaa-aa"`.  moc
+# resolves that import by looking for aaaaa-aa.did in the --actor-idl directory
+# (.dfx/local/canisters/idl/).  dfx start --clean does NOT pre-populate that file,
+# so any canister importing the package fails to build until the file exists.
+# Write a minimal management-canister DID containing just the HTTP-outcall surface
+# that caffeineai-http-outcalls requires.
+
+mkdir -p .dfx/local/canisters/idl
+if [ ! -f ".dfx/local/canisters/idl/aaaaa-aa.did" ]; then
+  cat > .dfx/local/canisters/idl/aaaaa-aa.did << 'MGMT_DID'
+type http_header = record { name : text; value : text };
+type http_request_result = record {
+  status : nat;
+  headers : vec http_header;
+  body : blob;
+};
+type http_request_args = record {
+  url : text;
+  max_response_bytes : opt nat64;
+  headers : vec http_header;
+  body : opt blob;
+  method : variant { get; head; post };
+  transform : opt record {
+    function : func (record { response : http_request_result; context : blob }) -> (http_request_result) query;
+    context : blob;
+  };
+  is_replicated : opt bool;
+};
+service ic : {
+  http_request : (http_request_args) -> (http_request_result);
+};
+MGMT_DID
+  echo "  ✓ Management canister IDL written (.dfx/local/canisters/idl/aaaaa-aa.did)"
+fi
+
 # ── Sequential canister deployment ──────────────────────────────────────────────
 # Parallel deploys race on canister_ids.json (each process read→add→write);
 # the last writer wins and all other IDs are lost. Sequential is the safe default.
@@ -183,6 +219,41 @@ if [ "$NETWORK" != "local" ]; then
 else
   echo "  (skipped — local network uses fabricated cycles)"
 fi
+
+echo ""
+echo "============================================"
+echo "  Bootstrapping Canister Admins"
+echo "============================================"
+# Admin bootstrap must run BEFORE inter-canister wiring because every
+# setPaymentCanisterId / setPropertyCanisterId / addTrustedCanister call
+# requires an admin to be present — failing silently here leaves canisters
+# unwired and causes test failures downstream.
+
+DEPLOYER=$(dfx identity get-principal)
+echo "  Deployer principal: $DEPLOYER"
+
+# All canisters that expose addAdmin, excluding ai_proxy (handled separately).
+ADMIN_CANISTERS=(auth property job contractor quote photo report maintenance market sensor listing agent recurring bills monitoring)
+
+for canister in "${ADMIN_CANISTERS[@]}"; do
+  echo "  $canister: adding deployer as admin..."
+  dfx canister call "$canister" addAdmin "(principal \"$DEPLOYER\")" --network "$NETWORK" \
+    2>/dev/null || echo "  ⚠️  addAdmin failed for $canister (may already have an admin)"
+done
+
+# payment uses initAdmins (one-time bootstrap) instead of addAdmin.
+# Without this, grantSubscription returns NotAuthorized and all
+# job / quote / photo tests that call it via the payment canister fail.
+echo "  payment: initializing admin list..."
+dfx canister call payment initAdmins "(vec { principal \"$DEPLOYER\" })" --network "$NETWORK" \
+  2>/dev/null || echo "  ⚠️  payment initAdmins failed (may already be initialized)"
+
+# Grant the deployer a Pro subscription so backend tests (job, quote, photo)
+# can call createJob / createQuoteRequest / uploadPhoto without hitting the
+# Free-tier block. Tests that need to test tier limits downgrade explicitly.
+echo "  payment: granting deployer Pro subscription for test compatibility..."
+dfx canister call payment grantSubscription "(principal \"$DEPLOYER\", variant { Pro })" --network "$NETWORK" \
+  2>/dev/null || echo "  ⚠️  grantSubscription failed"
 
 echo ""
 echo "============================================"
@@ -302,34 +373,6 @@ if [ -n "$SENSOR_ID" ] && [ -n "$JOB_ID" ]; then
   echo "  job: trusting sensor canister ($SENSOR_ID)..."
   dfx canister call job addTrustedCanister "(principal \"$SENSOR_ID\")" --network "$NETWORK"
 fi
-
-# ── PROD.7: Bootstrap admin on every canister that has addAdmin ───────────────
-# All canisters (except payment, which has no admin list by design) have an
-# adminInitialized / adminListEntries.size() == 0 guard: the very first caller
-# of addAdmin becomes the sole admin.  Without this step there is a race window
-# between canister creation and the first legitimate admin call where any
-# principal could claim admin rights.
-#
-# payment is intentionally excluded: its comment reads "No admin list in payment
-# — protect at the deployment layer (controller only)."
-
-echo ""
-echo "============================================"
-echo "  Bootstrapping Canister Admins"
-echo "============================================"
-
-DEPLOYER=$(dfx identity get-principal)
-echo "  Deployer principal: $DEPLOYER"
-
-# All canisters that expose addAdmin, excluding payment (no admin) and
-# ai_proxy (handled below alongside its API-key wiring).
-ADMIN_CANISTERS=(auth property job contractor quote photo report maintenance market sensor listing agent recurring bills monitoring)
-
-for canister in "${ADMIN_CANISTERS[@]}"; do
-  echo "  $canister: adding deployer as admin..."
-  dfx canister call "$canister" addAdmin "(principal \"$DEPLOYER\")" --network "$NETWORK" \
-    2>/dev/null || echo "  ⚠️  addAdmin failed for $canister (may already have an admin)"
-done
 
 # ── AI Proxy canister — wire API keys from environment ────────────────────────
 

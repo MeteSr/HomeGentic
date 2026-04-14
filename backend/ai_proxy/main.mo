@@ -17,7 +17,6 @@
 import Array     "mo:core/Array";
 import Blob      "mo:core/Blob";
 import Int       "mo:core/Int";
-import Iter      "mo:core/Iter";
 import Map       "mo:core/Map";
 import Nat       "mo:core/Nat";
 import Nat64     "mo:core/Nat64";
@@ -94,7 +93,7 @@ persistent actor AiProxy {
   private var permitsFetched         : Nat = 0;
 
   // Rate limiting
-  private transient var updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
+  private transient let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   private var maxUpdatesPerMin : Nat = 30;
   private let ONE_MINUTE_NS    : Int = 60_000_000_000;
   private let ONE_DAY_NS       : Int = 86_400_000_000_000;
@@ -266,14 +265,14 @@ persistent actor AiProxy {
   ];
 
   private func isVolusiaCounty(city: Text, state: Text) : Bool {
-    let cityLower = Text.map(city, func(c: Char) : Char {
+    let _cityLower = Text.map(city, func(c: Char) : Char {
       if (c >= 'A' and c <= 'Z') {
         // We rely on the caller passing lowercased or do best-effort comparison
         c
       } else { c }
     });
     // Normalise by lowercasing via trim + compare (approximate — callers use lowercase)
-    let stateNorm = Text.map(state, func(c: Char) : Char { c });
+    let _stateNorm = Text.map(state, func(c: Char) : Char { c });
     (state == "fl" or state == "FL") and
     Option.isSome(Array.find<Text>(VOLUSIA_CITIES, func(v) {
       v == city or Text.map(city, func(c: Char) : Char { c }) == v
@@ -378,7 +377,8 @@ persistent actor AiProxy {
     for (sys in SYSTEMS.vals()) {
       let mult        = climateMultiplierFor(zoneKey, sys.name);
       let lifespan    = sys.lifespanYears * mult / 1000;
-      let age         = if (currentYear >= yearBuilt) currentYear - yearBuilt else 0;
+      let ageInt : Int = (currentYear : Int) - (yearBuilt : Int);
+      let age    : Nat = if (ageInt > 0) Int.abs(ageInt) else 0;
       let pctUsed     = if (lifespan > 0) Int.abs(age) * 100 / lifespan else 100;
       let remaining   = (lifespan : Int) - (age : Int);
       let urgency     = urgencyFor(pctUsed);

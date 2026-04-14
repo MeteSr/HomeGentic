@@ -53,11 +53,12 @@ persistent actor Quote {
   };
 
   public type SubscriptionTier = {
-    #Free;          // unsubscribed sentinel — blocked (0)
-    #Basic;         // 3 concurrent open requests
-    #Pro;           // 10
-    #Premium;       // 10
-    #ContractorPro; // unlimited (999_999)
+    #Free;             // unsubscribed sentinel — blocked (0)
+    #Basic;            // 3 concurrent open requests
+    #Pro;              // 10
+    #Premium;          // 10
+    #ContractorFree;   // unlimited (999_999) — contractors get unlimited quote requests
+    #ContractorPro;    // unlimited (999_999)
   };
 
   public type QuoteRequest = {
@@ -149,14 +150,14 @@ persistent actor Quote {
 
   // ─── Stable State ────────────────────────────────────────────────────────────
 
-  private var requests               = Map.empty<Text, QuoteRequest>();
-  private var quotes                 = Map.empty<Text, Quote>();
-  private var contractorRateLimits   = Map.empty<Principal, (Nat, Int)>();
-  private var tierGrants             = Map.empty<Text, SubscriptionTier>();
-  private var sealedBids             = Map.empty<Text, SealedBid>();
-  private var sealedBidsByRequest    = Map.empty<Text, [Text]>();
-  private var sealedBidsByContractor = Map.empty<Text, Text>();
-  private var revealedBids           = Map.empty<Text, [RevealedBid]>();
+  private let requests               = Map.empty<Text, QuoteRequest>();
+  private let quotes                 = Map.empty<Text, Quote>();
+  private let contractorRateLimits   = Map.empty<Principal, (Nat, Int)>();
+  private let tierGrants             = Map.empty<Text, SubscriptionTier>();
+  private let sealedBids             = Map.empty<Text, SealedBid>();
+  private let sealedBidsByRequest    = Map.empty<Text, [Text]>();
+  private let sealedBidsByContractor = Map.empty<Text, Text>();
+  private let revealedBids           = Map.empty<Text, [RevealedBid]>();
 
   // ─── Upgrade Hook ────────────────────────────────────────────────────────────
 
@@ -186,7 +187,7 @@ persistent actor Quote {
 
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
 
-  private transient var updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
+  private transient let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
   private let ONE_MINUTE_NS       : Int = 60_000_000_000;
@@ -251,7 +252,7 @@ persistent actor Quote {
   };
 
   /// Encode Nat to little-endian Nat8 bytes (mock client-side IBE encryption).
-  private func mockEncryptBytes(amount: Nat) : [Nat8] {
+  private func _mockEncryptBytes(amount: Nat) : [Nat8] {
     if (amount == 0) return [0];
     var n = amount;
     var bytes: [Nat8] = [];
@@ -274,11 +275,12 @@ persistent actor Quote {
   /// Max concurrent open requests for a tier. 0 = blocked/unlimited sentinel — see callers.
   private func tierOpenLimit(tier: SubscriptionTier) : Nat {
     switch tier {
-      case (#Free)          { 0       };  // blocked — unsubscribed
-      case (#Basic)         { 3       };
-      case (#Pro)           { 10      };
-      case (#Premium)       { 10      };
-      case (#ContractorPro) { 999_999 };  // effectively unlimited
+      case (#Free)             { 0       };  // blocked — unsubscribed
+      case (#Basic)            { 3       };
+      case (#Pro)              { 10      };
+      case (#Premium)          { 10      };
+      case (#ContractorFree)   { 999_999 };  // effectively unlimited for contractors
+      case (#ContractorPro)    { 999_999 };  // effectively unlimited
     }
   };
 
@@ -353,7 +355,7 @@ persistent actor Quote {
     } else { msg.caller };
     let callerTier : SubscriptionTier = if (payCanisterId != "") {
       let payActor = actor(payCanisterId) : actor {
-        getTierForPrincipal : (Principal) -> async { #Free; #Basic; #Pro; #Premium; #ContractorPro };
+        getTierForPrincipal : (Principal) -> async { #Free; #Basic; #Pro; #Premium; #ContractorFree; #ContractorPro };
       };
       await payActor.getTierForPrincipal(effectivePrincipal)
     } else {
@@ -624,7 +626,7 @@ persistent actor Quote {
     } else { msg.caller };
     let callerTier : SubscriptionTier = if (payCanisterId != "") {
       let payActor = actor(payCanisterId) : actor {
-        getTierForPrincipal : (Principal) -> async { #Free; #Basic; #Pro; #Premium; #ContractorPro };
+        getTierForPrincipal : (Principal) -> async { #Free; #Basic; #Pro; #Premium; #ContractorFree; #ContractorPro };
       };
       await payActor.getTierForPrincipal(effectivePrincipalSB)
     } else {
