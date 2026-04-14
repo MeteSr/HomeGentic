@@ -173,7 +173,7 @@ describe("ListingNewPage — free tier gate (15.6.4)", () => {
     mockTier = "Free";
     renderListing();
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /upgrade to pro/i })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: /upgrade to basic/i })).toBeInTheDocument()
     );
     expect(screen.queryByText(/list your home/i)).not.toBeInTheDocument();
   });
@@ -217,7 +217,7 @@ describe("AgentBrowsePage — free tier gate (15.6.4)", () => {
     mockTier = "Free";
     renderBrowse();
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /upgrade to pro/i })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: /upgrade to basic/i })).toBeInTheDocument()
     );
     expect(screen.queryByText(/find an agent/i)).not.toBeInTheDocument();
   });
@@ -252,7 +252,7 @@ describe("FsboPanel — free tier gate (15.6.4)", () => {
     mockTier = "Free";
     renderFsboPanel();
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /upgrade to pro/i })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: /upgrade to basic/i })).toBeInTheDocument()
     );
     expect(screen.queryByText(/sell this home yourself/i)).not.toBeInTheDocument();
   });

@@ -38,7 +38,7 @@ describe("GiftPage", () => {
 
   it("renders step 1 — tier selection", () => {
     renderPage();
-    expect(screen.getByText(/Gift a HomeGentic/i)).toBeTruthy();
+    expect(screen.getByText(/Give the gift of a/i)).toBeTruthy();
     expect(screen.getByText(/Pro/i)).toBeTruthy();
     expect(screen.getByText(/Premium/i)).toBeTruthy();
   });

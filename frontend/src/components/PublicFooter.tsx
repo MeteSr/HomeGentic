@@ -29,7 +29,7 @@ export function PublicFooter() {
           color:          COLORS.plum,
         }}
       >
-        Home<span style={{ color: COLORS.sage }}>Gentic</span>
+        Home<span style={{ color: COLORS.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
       </Link>
 
       <nav style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>

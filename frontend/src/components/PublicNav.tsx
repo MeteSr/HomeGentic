@@ -64,7 +64,7 @@ export function PublicNav() {
             flexShrink:     0,
           }}
         >
-          Home<span style={{ color: COLORS.sage }}>Gentic</span>
+          Home<span style={{ color: COLORS.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
         </Link>
 
         {/* Desktop nav links */}

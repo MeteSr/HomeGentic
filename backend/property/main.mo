@@ -377,7 +377,8 @@ persistent actor Property {
       case null    [];
       case (?list) list;
     };
-    Map.add(ownerNotifs, Nat.compare, propertyId, existing # [notif]);
+    let notifEntry : OwnerNotification = notif;
+    Map.add(ownerNotifs, Nat.compare, propertyId, existing # [notifEntry]);
   };
 
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
@@ -1103,7 +1104,8 @@ persistent actor Property {
           switch (Map.get(properties, Nat.compare, propId)) {
             case null {};
             case (?prop) {
-              result := result # [{ property = prop; role = m.role }];
+              let entry : { property: Property; role: ManagerRole } = { property = prop; role = m.role };
+              result := result # [entry];
             };
           };
         };

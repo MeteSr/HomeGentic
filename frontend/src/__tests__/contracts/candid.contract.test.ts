@@ -122,13 +122,20 @@ describe("payment IDL factory", () => {
   it("exposes the expected methods", () => {
     const svc = extractService(paymentIdlFactory);
     expect(Object.keys(svc).sort()).toEqual([
+      "configureStripe",
+      "createStripeCheckoutSession",
       "getAllPricing",
       "getMySubscription",
       "getPriceQuote",
       "getPricing",
       "getSubscriptionStats",
       "grantSubscription",
+      "initAdmins",
+      "isStripeConfigured",
+      "listPendingGifts",
+      "redeemGift",
       "subscribe",
+      "verifyStripeSession",
     ]);
   });
 
@@ -138,7 +145,7 @@ describe("payment IDL factory", () => {
       .filter(([, sig]) => sig.mode.includes("query"))
       .map(([name]) => name)
       .sort();
-    expect(queries).toEqual(["getAllPricing", "getMySubscription", "getPricing", "getSubscriptionStats"]);
+    expect(queries).toEqual(["getAllPricing", "getMySubscription", "getPricing", "getSubscriptionStats", "isStripeConfigured", "listPendingGifts"]);
   });
 
   it("getSubscriptionStats returns all tier breakdown fields", () => {
@@ -160,17 +167,21 @@ describe("job IDL factory", () => {
   it("exposes the expected methods", () => {
     const svc = extractService(jobIdlFactory);
     expect(Object.keys(svc).sort()).toEqual([
+      "approveJobProposal",
       "createInviteToken",
       "createJob",
+      "createJobProposal",
       "getCertificationData",
       "getJob",
       "getJobByInviteToken",
       "getJobsForProperty",
       "getJobsPendingMySignature",
       "getMetrics",
+      "getPendingProposals",
       "getReferralJobs",
       "linkContractor",
       "redeemInviteToken",
+      "rejectJobProposal",
       "setPropertyCanisterId",
       "updateJobStatus",
       "verifyJob",
@@ -190,6 +201,7 @@ describe("job IDL factory", () => {
       "getJobsForProperty",
       "getJobsPendingMySignature",
       "getMetrics",
+      "getPendingProposals",
       "getReferralJobs",
     ]);
   });
