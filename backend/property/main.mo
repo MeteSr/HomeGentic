@@ -377,7 +377,7 @@ persistent actor Property {
       case null    [];
       case (?list) list;
     };
-    Map.add(ownerNotifs, Nat.compare, propertyId, Array.append(existing, [notif]));
+    Map.add(ownerNotifs, Nat.compare, propertyId, existing # [notif]);
   };
 
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
@@ -1016,7 +1016,7 @@ persistent actor Property {
               addedAt     = Time.now();
             };
             Map.add(managersMap, Nat.compare, invite.propertyId,
-              Array.append(filtered, [newMgr]));
+              filtered # [newMgr]);
             // Consume the token
             Map.remove(managerInvites,  Text.compare, token);
             Map.remove(managerTokenIdx, Text.compare, token);
@@ -1103,7 +1103,7 @@ persistent actor Property {
           switch (Map.get(properties, Nat.compare, propId)) {
             case null {};
             case (?prop) {
-              result := Array.append(result, [{ property = prop; role = m.role }]);
+              result := result # [{ property = prop; role = m.role }];
             };
           };
         };

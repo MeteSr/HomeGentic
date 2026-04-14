@@ -327,7 +327,7 @@ export default function CheckoutPage() {
 
   if (!plan) {
     return (
-      <div style={{ minHeight: "100vh", background: COLORS.paper, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ minHeight: "100vh", background: COLORS.white, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <p style={{ fontFamily: FONTS.sans, color: COLORS.plumMid }}>
           Unknown plan. <Link to="/pricing">Back to pricing</Link>
         </p>
@@ -338,7 +338,7 @@ export default function CheckoutPage() {
   return (
     <>
       <Helmet><title>Subscribe to {plan.label} — HomeGentic</title></Helmet>
-      <div style={{ minHeight: "100vh", background: COLORS.paper, display: "flex", flexDirection: "column" }}>
+      <div style={{ minHeight: "100vh", background: COLORS.white, display: "flex", flexDirection: "column" }}>
 
         {/* Header */}
         <header style={{
