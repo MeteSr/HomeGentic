@@ -2,10 +2,17 @@
 set -euo pipefail
 echo "=== Payment Canister Tests ==="
 
+MY_PRINCIPAL=$(dfx identity get-principal)
+
+# Bootstrap admin idempotently — deploy.sh should have already called initAdmins,
+# but if this test runs standalone (no prior deploy.sh), we do it here.
+# The || true suppresses the NotAuthorized error when already initialized.
+echo "▶ Ensuring payment admin is initialized..."
+dfx canister call payment initAdmins "(vec { principal \"$MY_PRINCIPAL\" })" \
+  --network local 2>/dev/null || true
+
 echo "▶ Get current subscription (expect Free default)..."
 dfx canister call payment getMySubscription
-
-MY_PRINCIPAL=$(dfx identity get-principal)
 
 echo "▶ Grant Pro subscription (bypasses ICP payment — local dev only)..."
 dfx canister call payment grantSubscription "(principal \"$MY_PRINCIPAL\", variant { Pro })"
@@ -119,13 +126,15 @@ echo "=== Payment — Stripe Admin & Config Tests ==="
 MY_PRINCIPAL=$(dfx identity get-principal)
 
 echo ""
-echo "── [S1] initAdmins — bootstrap admin list ───────────────────────────────"
-dfx canister call payment initAdmins "(vec { principal \"$MY_PRINCIPAL\" })"
-echo "  ↳ initAdmins succeeded — ✓"
+echo "── [S1] isAdminPrincipal — deployer should be admin ─────────────────────"
+RESULT=$(dfx canister call payment isAdminPrincipal "(principal \"$MY_PRINCIPAL\")")
+echo "$RESULT" | grep -q "true" \
+  && echo "  ↳ isAdminPrincipal = true — ✓" \
+  || echo "  ↳ ❌ Expected deployer to be admin"
 
 echo ""
 echo "── [S2] initAdmins again → expect NotAuthorized (one-time only) ─────────"
-RESULT=$(dfx canister call payment initAdmins "(vec { principal \"$MY_PRINCIPAL\" })" 2>&1)
+RESULT=$(dfx canister call payment initAdmins "(vec { principal \"$MY_PRINCIPAL\" })" 2>&1) || true
 echo "$RESULT" | grep -q "NotAuthorized" \
   && echo "  ↳ Second initAdmins correctly rejected — ✓" \
   || echo "  ↳ ❌ Expected NotAuthorized on repeat call"

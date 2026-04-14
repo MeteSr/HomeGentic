@@ -222,6 +222,34 @@ fi
 
 echo ""
 echo "============================================"
+echo "  Bootstrapping Canister Admins"
+echo "============================================"
+# Admin bootstrap must run BEFORE inter-canister wiring because every
+# setPaymentCanisterId / setPropertyCanisterId / addTrustedCanister call
+# requires an admin to be present — failing silently here leaves canisters
+# unwired and causes test failures downstream.
+
+DEPLOYER=$(dfx identity get-principal)
+echo "  Deployer principal: $DEPLOYER"
+
+# All canisters that expose addAdmin, excluding ai_proxy (handled separately).
+ADMIN_CANISTERS=(auth property job contractor quote photo report maintenance market sensor listing agent recurring bills monitoring)
+
+for canister in "${ADMIN_CANISTERS[@]}"; do
+  echo "  $canister: adding deployer as admin..."
+  dfx canister call "$canister" addAdmin "(principal \"$DEPLOYER\")" --network "$NETWORK" \
+    2>/dev/null || echo "  ⚠️  addAdmin failed for $canister (may already have an admin)"
+done
+
+# payment uses initAdmins (one-time bootstrap) instead of addAdmin.
+# Without this, grantSubscription returns NotAuthorized and all
+# job / quote / photo tests that call it via the payment canister fail.
+echo "  payment: initializing admin list..."
+dfx canister call payment initAdmins "(vec { principal \"$DEPLOYER\" })" --network "$NETWORK" \
+  2>/dev/null || echo "  ⚠️  payment initAdmins failed (may already be initialized)"
+
+echo ""
+echo "============================================"
 echo "  Wiring Inter-Canister IDs"
 echo "============================================"
 
@@ -338,34 +366,6 @@ if [ -n "$SENSOR_ID" ] && [ -n "$JOB_ID" ]; then
   echo "  job: trusting sensor canister ($SENSOR_ID)..."
   dfx canister call job addTrustedCanister "(principal \"$SENSOR_ID\")" --network "$NETWORK"
 fi
-
-# ── PROD.7: Bootstrap admin on every canister that has addAdmin ───────────────
-# All canisters (except payment, which has no admin list by design) have an
-# adminInitialized / adminListEntries.size() == 0 guard: the very first caller
-# of addAdmin becomes the sole admin.  Without this step there is a race window
-# between canister creation and the first legitimate admin call where any
-# principal could claim admin rights.
-#
-# payment is intentionally excluded: its comment reads "No admin list in payment
-# — protect at the deployment layer (controller only)."
-
-echo ""
-echo "============================================"
-echo "  Bootstrapping Canister Admins"
-echo "============================================"
-
-DEPLOYER=$(dfx identity get-principal)
-echo "  Deployer principal: $DEPLOYER"
-
-# All canisters that expose addAdmin, excluding payment (no admin) and
-# ai_proxy (handled below alongside its API-key wiring).
-ADMIN_CANISTERS=(auth property job contractor quote photo report maintenance market sensor listing agent recurring bills monitoring)
-
-for canister in "${ADMIN_CANISTERS[@]}"; do
-  echo "  $canister: adding deployer as admin..."
-  dfx canister call "$canister" addAdmin "(principal \"$DEPLOYER\")" --network "$NETWORK" \
-    2>/dev/null || echo "  ⚠️  addAdmin failed for $canister (may already have an admin)"
-done
 
 # ── AI Proxy canister — wire API keys from environment ────────────────────────
 

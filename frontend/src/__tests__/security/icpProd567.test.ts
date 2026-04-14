@@ -127,11 +127,17 @@ describe("PROD.7 — deploy.sh calls addAdmin for each non-payment canister", ()
     });
   }
 
-  it("deploy.sh does NOT call addAdmin for payment (payment has no admin list)", () => {
-    // payment's authorization is at the dfx controller level only
+  it("deploy.sh does NOT call addAdmin for payment (payment uses initAdmins instead)", () => {
+    // payment uses a one-time initAdmins bootstrap, not the addAdmin pattern
     const src = deploy();
-    // Should not appear as "payment addAdmin" — it would fail with an unknown method error
+    // Should not appear as "payment addAdmin" — the method doesn't exist on payment
     expect(src).not.toMatch(/canister call payment addAdmin/);
+  });
+
+  it("deploy.sh calls initAdmins for payment canister", () => {
+    // payment.initAdmins must be called so grantSubscription (and other admin-only
+    // methods) work during tests — job / quote / photo tests all call grantSubscription
+    expect(deploy()).toMatch(/canister call payment initAdmins/);
   });
 });
 
