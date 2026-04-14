@@ -83,7 +83,7 @@ persistent actor Auth {
   private var adminInitialized: Bool = false;
 
   /// Per-principal update-call rate limiting (cycle-drain protection).
-  private transient var updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
+  private transient let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
 
   /// Migration buffer — populated by the last old-code preupgrade, cleared once.
   /// After the first upgrade with this code, this array is always [].
