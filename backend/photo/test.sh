@@ -109,8 +109,9 @@ else
   MANAGER_PRINCIPAL=$(dfx identity get-principal --identity manager-test)
   MY_PRINCIPAL=$(dfx identity get-principal)
 
-  # Ensure owner has Pro tier
-  dfx canister call payment grantSubscription "(principal \"$MY_PRINCIPAL\", variant { Pro })"
+  # Ensure owner has Premium tier — Pro (5 properties) may already be full
+  # after property, job, and quote tests each register properties.
+  dfx canister call payment grantSubscription "(principal \"$MY_PRINCIPAL\", variant { Premium })"
 
   # Register a property as owner
   echo ""
@@ -123,7 +124,7 @@ else
     propertyType = variant { Condo };
     yearBuilt    = 2015;
     squareFeet   = 900;
-    tier         = variant { Pro };
+    tier         = variant { Premium };
   })')
   echo "$MGR_PROP_OUT"
   MGR_PROP_ID=$(echo "$MGR_PROP_OUT" | grep -oP 'id = \K[0-9]+' | head -1)
