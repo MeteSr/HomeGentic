@@ -345,6 +345,9 @@ export const paymentService = {
   },
 
   async getMySubscription(): Promise<{ tier: PlanTier; expiresAt: number | null }> {
+    if (import.meta.env.DEV && (window as any).__e2e_subscription) {
+      return (window as any).__e2e_subscription;
+    }
     if (!PAYMENT_CANISTER_ID) return { tier: "Free", expiresAt: null };
     const a = await getActor();
     const result = await a.getMySubscription();
