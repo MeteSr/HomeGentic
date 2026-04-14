@@ -176,10 +176,14 @@ jobs:
       - name: Install mops
         run: npm install -g ic-mops
 
-      - name: Install Playwright browsers
-        run: cd frontend && npx playwright install --with-deps chromium
-
       - run: npm install
+
+      - name: Install Playwright browsers
+        # Must run AFTER npm install so the locally-pinned @playwright/test
+        # version (not the latest npx fallback) determines which Chromium
+        # revision is downloaded. Version mismatch causes "Executable doesn't
+        # exist" for every test.
+        run: cd frontend && npx @playwright/test install --with-deps chromium
 
       - name: Start replica and deploy
         run: |
