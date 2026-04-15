@@ -26,6 +26,9 @@ import { getRecentScoreEvents, categoryColor, categoryBg, type ScoreEvent } from
 import { getReEngagementPrompts, type ReEngagementPrompt } from "@/services/reEngagementService";
 import toast from "react-hot-toast";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { ScoreSparkline }    from "@/components/ScoreSparkline";
+import { ScoreHistoryChart } from "@/components/ScoreHistoryChart";
+import { PropertyCard }      from "@/components/PropertyCard";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { ResponsiveGrid } from "@/components/ResponsiveGrid";
 import { NeighborhoodBenchmark } from "@/components/NeighborhoodBenchmark";
@@ -1710,147 +1713,5 @@ export default function DashboardPage() {
       />
 
     </Layout>
-  );
-}
-
-function ScoreSparkline({ history, onExpand }: { history: ScoreSnapshot[]; onExpand?: () => void }) {
-  if (history.length < 2) return null;
-
-  const W = 80, H = 24, pad = 2;
-  const scores = history.map((s) => s.score);
-  const min = Math.max(0, Math.min(...scores) - 5);
-  const max = Math.min(100, Math.max(...scores) + 5);
-  const range = max - min || 1;
-
-  const pts = scores.map((s, i) => {
-    const x = pad + (i / (scores.length - 1)) * (W - pad * 2);
-    const y = H - pad - ((s - min) / range) * (H - pad * 2);
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(" ");
-
-  return (
-    <div onClick={onExpand} style={{ cursor: onExpand ? "pointer" : "default", marginTop: "0.5rem" }}>
-      <svg width={W} height={H} style={{ display: "block", opacity: 0.7 }}>
-        <polyline points={pts} fill="none" stroke={COLORS.sageMid} strokeWidth="1.5" strokeLinejoin="round" />
-        {scores.map((s, i) => {
-          const x = pad + (i / (scores.length - 1)) * (W - pad * 2);
-          const y = H - pad - ((s - min) / range) * (H - pad * 2);
-          return i === scores.length - 1
-            ? <circle key={i} cx={x} cy={y} r="2.5" fill={COLORS.sage} />
-            : null;
-        })}
-      </svg>
-      {onExpand && (
-        <div style={{ fontFamily: FONTS.mono, fontSize: "0.5rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.plumMid, marginTop: "0.25rem" }}>
-          View history ↗
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ScoreHistoryChart({ history }: { history: ScoreSnapshot[] }) {
-  const W = 560, H = 160, padL = 36, padR = 16, padT = 12, padB = 32;
-  const innerW = W - padL - padR;
-  const innerH = H - padT - padB;
-
-  const scores = history.map((s) => s.score);
-  const minS   = Math.max(0, Math.min(...scores) - 10);
-  const maxS   = Math.min(100, Math.max(...scores) + 10);
-  const range  = maxS - minS || 1;
-
-  const toX = (i: number) => padL + (i / Math.max(history.length - 1, 1)) * innerW;
-  const toY = (s: number) => padT + innerH - ((s - minS) / range) * innerH;
-
-  const pts    = history.map((s, i) => `${toX(i).toFixed(1)},${toY(s.score).toFixed(1)}`).join(" ");
-  const areaD  = `M ${toX(0)},${toY(history[0].score)} ` +
-    history.map((s, i) => `L ${toX(i).toFixed(1)},${toY(s.score).toFixed(1)}`).join(" ") +
-    ` L ${toX(history.length - 1)},${padT + innerH} L ${toX(0)},${padT + innerH} Z`;
-
-  // Y grid lines at 0, 25, 50, 75, 100
-  const yGridLines = [0, 25, 50, 75, 100].filter((v) => v >= minS - 5 && v <= maxS + 5);
-
-  // X labels — show every Nth point to avoid crowding
-  const step = Math.max(1, Math.floor(history.length / 5));
-
-  return (
-    <div style={{ padding: "1rem", overflowX: "auto" }}>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", maxWidth: W, height: H, display: "block" }}>
-        <defs>
-          <linearGradient id="scoreAreaGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%"   stopColor={COLORS.sage} stopOpacity="0.2" />
-            <stop offset="100%" stopColor={COLORS.sage} stopOpacity="0" />
-          </linearGradient>
-        </defs>
-
-        {/* Y grid */}
-        {yGridLines.map((v) => (
-          <g key={v}>
-            <line x1={padL} y1={toY(v)} x2={padL + innerW} y2={toY(v)} stroke={COLORS.rule} strokeWidth="0.5" strokeDasharray="3,3" />
-            <text x={padL - 4} y={toY(v)} textAnchor="end" dominantBaseline="middle" fill={COLORS.plumMid} fontSize="9" fontFamily={FONTS.mono}>{v}</text>
-          </g>
-        ))}
-
-        {/* Area fill */}
-        <path d={areaD} fill="url(#scoreAreaGrad)" />
-
-        {/* Line */}
-        <polyline points={pts} fill="none" stroke={COLORS.sage} strokeWidth="1.5" strokeLinejoin="round" />
-
-        {/* Data points */}
-        {history.map((s, i) => (
-          <circle key={i} cx={toX(i)} cy={toY(s.score)} r="2.5" fill={COLORS.sage} />
-        ))}
-
-        {/* X labels */}
-        {history.map((s, i) => {
-          if (i % step !== 0 && i !== history.length - 1) return null;
-          const d   = new Date(s.timestamp);
-          const lbl = `${d.getMonth() + 1}/${String(d.getDate()).padStart(2, "0")}`;
-          return (
-            <text key={i} x={toX(i)} y={padT + innerH + 14} textAnchor="middle" fill={COLORS.plumMid} fontSize="8" fontFamily={FONTS.mono}>
-              {lbl}
-            </text>
-          );
-        })}
-      </svg>
-    </div>
-  );
-}
-
-function PropertyCard({ property, onClick, badge }: { property: Property; onClick: () => void; badge: React.ReactNode }) {
-  const [hovered, setHovered] = React.useState(false);
-  return (
-    <div
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        background: COLORS.white,
-        cursor: "pointer",
-        padding: "1.5rem",
-        borderRadius: RADIUS.card,
-        border: `1.5px solid ${hovered ? COLORS.sageMid : COLORS.rule}`,
-        boxShadow: hovered ? SHADOWS.hover : SHADOWS.card,
-        transition: "border-color 0.2s, box-shadow 0.2s",
-      }}
-    >
-      {/* Property thumbnail */}
-      <div style={{ height: "6rem", background: COLORS.sageLight, borderRadius: RADIUS.sm, marginBottom: "1rem", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
-        <Home size={28} color={COLORS.sageMid} />
-      </div>
-
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "0.375rem" }}>
-        <h3 style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, color: COLORS.plum }}>{property.address}</h3>
-        {badge}
-      </div>
-      <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight, marginBottom: "0.75rem" }}>
-        {property.city}, {property.state} {property.zipCode}
-      </p>
-      <div style={{ display: "flex", justifyContent: "space-between", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.08em", color: S.inkLight }}>
-        <span style={{ textTransform: "uppercase" }}>{property.propertyType}</span>
-        <span style={{ color: S.rust }}>View Details →</span>
-      </div>
-    </div>
   );
 }

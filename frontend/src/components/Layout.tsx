@@ -8,12 +8,11 @@
  */
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
-  Bell, Wrench, ShieldAlert, ShieldCheck, Clock, CheckCircle2, AlertTriangle, MessageSquare,
+  Bell, LogOut,
   LayoutDashboard, TrendingUp, Users, Cpu, Home as HomeIcon, PlusSquare,
-  Settings, Store, ChevronLeft, ChevronRight, LogOut, Menu, X,
-  ArrowUpCircle, Paperclip, Zap,
+  Store, ChevronLeft, ChevronRight, Menu, X,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthStore } from "@/store/authStore";
@@ -22,85 +21,16 @@ import { jobService, type Job } from "@/services/job";
 import { quoteService, type QuoteRequest } from "@/services/quote";
 import { paymentService } from "@/services/payment";
 import { billService, type BillRecord } from "@/services/billService";
-import { VoiceAgent, voiceAgentFileInputRef } from "./VoiceAgent";
+import { VoiceAgent } from "./VoiceAgent";
 import UpgradeModal from "./UpgradeModal";
+import { ActivityFeedDrawer } from "./ActivityFeedDrawer";
+import { UserMenuPopover } from "./UserMenuPopover";
+import { deriveEvents } from "@/services/activityFeed";
 import { COLORS, FONTS } from "@/theme";
 
-// ─── Activity event types ─────────────────────────────────────────────────────
-
-export interface ActivityEvent {
-  id:        string;
-  type:      "pending_verification" | "warranty_expiring" | "job_pending_sig" | "recent_job" | "open_quote" | "bill_anomaly" | "insurance_trigger";
-  title:     string;
-  detail:    string;
-  href:      string;
-  timestamp: number;
-}
-
-export function deriveEvents(properties: any[], jobs: Job[], quotes: QuoteRequest[], bills: BillRecord[]): ActivityEvent[] {
-  const events: ActivityEvent[] = [];
-  const now = Date.now();
-
-  for (const p of properties) {
-    if (p.verificationLevel === "PendingReview") {
-      events.push({ id: `pv-${p.id}`, type: "pending_verification", title: "Verification pending", detail: `${p.address} — under review`, href: `/properties/${p.id}`, timestamp: Number(p.createdAt ?? now) / 1_000_000 });
-    }
-  }
-
-  for (const j of jobs) {
-    if (!j.verified && !j.homeownerSigned) {
-      events.push({ id: `sig-${j.id}`, type: "job_pending_sig", title: "Awaiting your signature", detail: `${j.serviceType} · ${j.date}`, href: `/properties/${j.propertyId}`, timestamp: j.createdAt ?? now });
-    }
-  }
-
-  for (const j of jobs) {
-    if (!j.warrantyMonths || j.warrantyMonths <= 0) continue;
-    const expiry   = new Date(j.date).getTime() + j.warrantyMonths * 30.44 * 86400000;
-    const daysLeft = Math.round((expiry - now) / 86400000);
-    if (daysLeft >= 0 && daysLeft <= 90) {
-      events.push({ id: `wty-${j.id}`, type: "warranty_expiring", title: `Warranty expires in ${daysLeft}d`, detail: `${j.serviceType} · ${j.isDiy ? "DIY" : j.contractorName ?? ""}`, href: `/properties/${j.propertyId}`, timestamp: expiry });
-    }
-  }
-
-  const recent = [...jobs].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0)).slice(0, 5);
-  for (const j of recent) {
-    if (!events.some((e) => e.id.startsWith(`sig-${j.id}`) || e.id.startsWith(`wty-${j.id}`))) {
-      events.push({ id: `job-${j.id}`, type: "recent_job", title: j.serviceType, detail: `${j.isDiy ? "DIY" : j.contractorName ?? ""} · $${(j.amount / 100).toLocaleString()} · ${j.date}`, href: `/properties/${j.propertyId}`, timestamp: j.createdAt ?? now });
-    }
-  }
-
-  const openQuotes = quotes.filter((q) => q.status === "open" || q.status === "quoted");
-  if (openQuotes.length > 0) {
-    events.push({ id: "open-quotes", type: "open_quote", title: `${openQuotes.length} open quote request${openQuotes.length !== 1 ? "s" : ""}`, detail: "Contractors may have responded", href: "/quotes", timestamp: now });
-  }
-
-  for (const b of bills) {
-    if (b.anomalyFlag) {
-      events.push({
-        id:        `bill-anomaly-${b.id}`,
-        type:      "bill_anomaly",
-        title:     `${b.billType} bill spike detected`,
-        detail:    b.anomalyReason ?? `${b.provider} bill is above your 3-month average`,
-        href:      `/properties/${b.propertyId}?tab=bills`,
-        timestamp: b.uploadedAt,
-      });
-      // Story 5 — Insurance Premium Triggers: unusual water usage may indicate
-      // a slow leak. Surface an insurance action item alongside the anomaly.
-      if (b.billType === "Water") {
-        events.push({
-          id:        `insurance-trigger-${b.id}`,
-          type:      "insurance_trigger",
-          title:     "Unusual water usage — document before filing a claim",
-          detail:    "Spike may indicate a slow leak. Log a plumbing job and generate your Insurance Defense report now.",
-          href:      "/insurance-defense",
-          timestamp: b.uploadedAt,
-        });
-      }
-    }
-  }
-
-  return events.sort((a, b) => b.timestamp - a.timestamp).slice(0, 20);
-}
+// Re-export for consumers that imported these from Layout
+export type { ActivityEvent } from "@/services/activityFeed";
+export { deriveEvents } from "@/services/activityFeed";
 
 // ─── Sidebar dimensions ───────────────────────────────────────────────────────
 
@@ -121,7 +51,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { logout }             = useAuth();
   const { principal, profile } = useAuthStore();
   const { properties }         = usePropertyStore();
-  const navigate               = useNavigate();
   const location               = useLocation();
 
   const [sidebarOpen,  setSidebarOpen]  = useState(() =>
@@ -215,7 +144,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     : [
         { to: "/dashboard",      label: "Dashboard",    Icon: LayoutDashboard },
         { to: "/market",         label: "Market",       Icon: TrendingUp },
-        { to: "/maintenance",    label: "Maintenance",  Icon: Wrench },
+        { to: "/maintenance",    label: "Maintenance",  Icon: Cpu },
         ...(userTier !== "Free" ? [{ to: "/contractors", label: "Contractors", Icon: Users }] : []),
         { to: "/sensors",        label: "Sensors",      Icon: Cpu },
         { to: "/listing/new",    label: "List Home",    Icon: HomeIcon },
@@ -391,92 +320,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
           {/* User menu anchor */}
           <div ref={userMenuRef} style={{ position: "relative" }}>
-
-            {/* Backdrop */}
             {userMenuOpen && (
-              <div
-                style={{ position: "fixed", inset: 0, zIndex: 9998 }}
-                onClick={() => setUserMenuOpen(false)}
+              <UserMenuPopover
+                displayName={displayName}
+                principal={principal}
+                onClose={() => setUserMenuOpen(false)}
+                onUpgrade={() => setUpgradeOpen(true)}
               />
-            )}
-
-            {/* Popover menu — fixed, overlays sidebar and main content */}
-            {userMenuOpen && (
-              <div style={{
-                position:      "fixed",
-                bottom:        "1rem",
-                left:          "1rem",
-                width:         "280px",
-                background:    COLORS.white,
-                border:        `1px solid ${COLORS.rule}`,
-                boxShadow:     "0 8px 32px rgba(14,14,12,0.18)",
-                zIndex:        9999,
-                paddingTop:    "0.375rem",
-                paddingBottom: "0.375rem",
-              }}>
-                {/* User header */}
-                <div style={{
-                  padding:      "0.875rem 1.125rem 0.75rem",
-                  borderBottom: `1px solid ${COLORS.rule}`,
-                }}>
-                  <p style={{ fontFamily: FONTS.sans, fontSize: "0.9375rem", fontWeight: 600, color: COLORS.plum, marginBottom: "0.2rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {displayName}
-                  </p>
-                  {principal && (
-                    <p style={{ fontFamily: FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: COLORS.plumMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {principal.slice(0, 24)}…
-                    </p>
-                  )}
-                </div>
-
-                {/* Settings */}
-                <button
-                  onClick={() => { setUserMenuOpen(false); navigate("/settings"); }}
-                  style={{ display: "flex", alignItems: "center", gap: "0.75rem", width: "100%", padding: "0.7rem 1.125rem", background: "none", border: "none", cursor: "pointer", fontFamily: FONTS.sans, fontSize: "0.9375rem", color: COLORS.plum, textAlign: "left" }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = COLORS.sageLight; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "none"; }}
-                >
-                  <Settings size={16} style={{ flexShrink: 0, color: COLORS.plumMid }} />
-                  Settings
-                </button>
-
-                {/* Attach receipt / photo to voice agent */}
-                <button
-                  onClick={() => { setUserMenuOpen(false); voiceAgentFileInputRef.current?.click(); }}
-                  style={{ display: "flex", alignItems: "center", gap: "0.75rem", width: "100%", padding: "0.7rem 1.125rem", background: "none", border: "none", cursor: "pointer", fontFamily: FONTS.sans, fontSize: "0.9375rem", color: COLORS.plum, textAlign: "left" }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = COLORS.sageLight; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "none"; }}
-                >
-                  <Paperclip size={16} style={{ flexShrink: 0, color: COLORS.plumMid }} />
-                  Attach receipt or photo
-                </button>
-
-                <div style={{ height: "1px", background: COLORS.rule, margin: "0.3rem 0" }} />
-
-                {/* Upgrade plan */}
-                <button
-                  onClick={() => { setUserMenuOpen(false); setUpgradeOpen(true); }}
-                  style={{ display: "flex", alignItems: "center", gap: "0.75rem", width: "100%", padding: "0.7rem 1.125rem", background: "none", border: "none", cursor: "pointer", fontFamily: FONTS.sans, fontSize: "0.9375rem", color: COLORS.plum, textAlign: "left" }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = COLORS.sageLight; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "none"; }}
-                >
-                  <ArrowUpCircle size={16} style={{ flexShrink: 0, color: COLORS.sage }} />
-                  Upgrade plan
-                </button>
-
-                <div style={{ height: "1px", background: COLORS.rule, margin: "0.3rem 0" }} />
-
-                {/* Sign out */}
-                <button
-                  onClick={() => { setUserMenuOpen(false); logout(); }}
-                  style={{ display: "flex", alignItems: "center", gap: "0.75rem", width: "100%", padding: "0.7rem 1.125rem", background: "none", border: "none", cursor: "pointer", fontFamily: FONTS.sans, fontSize: "0.9375rem", color: COLORS.plum, textAlign: "left" }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = COLORS.sageLight; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "none"; }}
-                >
-                  <LogOut size={16} style={{ flexShrink: 0, color: COLORS.plumMid }} />
-                  Sign out
-                </button>
-              </div>
             )}
 
             {/* Avatar button */}
@@ -622,111 +472,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Upgrade modal — triggered from user menu */}
       <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
 
-      {/* ── Activity feed drawer ─────────────────────────────────────────────── */}
+      {/* Activity feed drawer */}
       {feedOpen && (
-        <>
-          <div
-            onClick={() => setFeedOpen(false)}
-            style={{ position: "fixed", inset: 0, background: "rgba(46,37,64,0.3)", zIndex: 200 }}
-          />
-          <div style={{
-            position:       "fixed",
-            top:            0,
-            right:          0,
-            bottom:         0,
-            width:          "22rem",
-            maxWidth:       "100vw",
-            background:     COLORS.white,
-            borderLeft:     `1px solid ${COLORS.rule}`,
-            zIndex:         201,
-            display:        "flex",
-            flexDirection:  "column",
-            overflowY:      "auto",
-          }}>
-            {/* Header */}
-            <div style={{
-              display:        "flex",
-              alignItems:     "center",
-              justifyContent: "space-between",
-              padding:        "1rem 1.25rem",
-              borderBottom:   `1px solid ${COLORS.rule}`,
-              background:     COLORS.white,
-              flexShrink:     0,
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Bell size={14} color={COLORS.sage} />
-                <span style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, color: COLORS.plum }}>
-                  Activity
-                </span>
-              </div>
-              <button onClick={() => setFeedOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: COLORS.plumMid }}>
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Events */}
-            {!feedLoaded ? (
-              <div style={{ display: "flex", justifyContent: "center", padding: "3rem" }}>
-                <div className="spinner-lg" />
-              </div>
-            ) : events.length === 0 ? (
-              <div style={{ padding: "3rem 1.5rem", textAlign: "center" }}>
-                <CheckCircle2 size={32} color={COLORS.sageMid} style={{ margin: "0 auto 0.75rem" }} />
-                <p style={{ fontFamily: FONTS.mono, fontSize: "0.65rem", letterSpacing: "0.08em", color: COLORS.plumMid }}>
-                  Nothing to catch up on.
-                </p>
-              </div>
-            ) : (
-              <div style={{ flex: 1 }}>
-                {events.map((event) => {
-                  const icons: Record<ActivityEvent["type"], React.ReactNode> = {
-                    pending_verification: <ShieldAlert size={14} color={COLORS.plumMid} />,
-                    warranty_expiring:    <AlertTriangle size={14} color={COLORS.sage} />,
-                    job_pending_sig:      <Clock size={14} color={COLORS.sage} />,
-                    recent_job:           <Wrench size={14} color={COLORS.plumMid} />,
-                    open_quote:           <MessageSquare size={14} color={COLORS.sage} />,
-                    bill_anomaly:         <Zap size={14} color="#C94C2E" />,
-                    insurance_trigger:    <ShieldCheck size={14} color={COLORS.sage} />,
-                  };
-                  const isUnread = event.timestamp > lastReadAt;
-                  return (
-                    <div
-                      key={event.id}
-                      onClick={() => { setFeedOpen(false); navigate(event.href); }}
-                      style={{
-                        display:        "flex",
-                        alignItems:     "flex-start",
-                        gap:            "0.875rem",
-                        padding:        "0.875rem 1.25rem",
-                        borderBottom:   `1px solid ${COLORS.rule}`,
-                        background:     isUnread ? COLORS.sageLight : "transparent",
-                        cursor:         "pointer",
-                        transition:     "background 0.15s",
-                      }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = COLORS.sageLight; }}
-                      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = isUnread ? COLORS.sageLight : "transparent"; }}
-                    >
-                      <div style={{ flexShrink: 0, marginTop: "0.1rem" }}>{icons[event.type]}</div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", marginBottom: "0.125rem" }}>
-                          <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 500, color: COLORS.plum, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {event.title}
-                          </p>
-                          {isUnread && (
-                            <span style={{ width: "6px", height: "6px", background: COLORS.sage, borderRadius: "50%", flexShrink: 0 }} />
-                          )}
-                        </div>
-                        <p style={{ fontFamily: FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: COLORS.plumMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {event.detail}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </>
+        <ActivityFeedDrawer
+          events={events}
+          feedLoaded={feedLoaded}
+          lastReadAt={lastReadAt}
+          onClose={() => setFeedOpen(false)}
+        />
       )}
     </div>
   );
