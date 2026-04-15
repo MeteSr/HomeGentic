@@ -64,6 +64,10 @@
       "main": "backend/bills/main.mo",
       "type": "motoko"
     },
+    "internet_identity": {
+      "type": "pull",
+      "id": "rdmx6-jaaaa-aaaaa-aaadq-cai"
+    },
     "recurring": {
       "main": "backend/recurring/main.mo",
       "type": "motoko"

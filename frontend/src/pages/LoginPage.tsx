@@ -120,7 +120,7 @@ export default function LoginPage() {
             ))}
           </div>
 
-          <Button size="lg" loading={isLoading} onClick={login} style={{ width: "100%", marginBottom: "1rem" }}>
+          <Button size="lg" loading={isLoading} onClick={login} data-tid="login-button" style={{ width: "100%", marginBottom: "1rem" }}>
             Continue →
           </Button>
 

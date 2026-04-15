@@ -2,6 +2,60 @@ import { Page } from "@playwright/test";
 
 type PlanTier = "Free" | "Basic" | "Pro" | "Premium" | "ContractorPro";
 
+// ── Quote helpers ─────────────────────────────────────────────────────────────
+
+/**
+ * Replaces quoteService.getRequests() mock data with the supplied requests.
+ * Used to test tier-limit enforcement without hitting the canister.
+ */
+export async function injectQuoteRequests(
+  page: Page,
+  requests: Array<{
+    id: string; propertyId: string; homeowner: string;
+    serviceType: string; urgency: string; description: string;
+    status: "open" | "quoted" | "accepted" | "closed"; createdAt: number;
+  }>
+) {
+  await page.addInitScript((reqs) => {
+    (window as any).__e2e_quote_requests = reqs;
+  }, requests);
+}
+
+/**
+ * Injects mock bids (Quote objects) for one or more quote requests.
+ * quoteService.getQuotesForRequest() filters these by requestId.
+ */
+export async function injectQuotes(
+  page: Page,
+  quotes: Array<{
+    id: string; requestId: string; contractor: string;
+    amount: number; timeline: number; validUntil: number;
+    status: "pending" | "accepted" | "rejected" | "expired"; createdAt: number;
+  }>
+) {
+  await page.addInitScript((qs) => {
+    (window as any).__e2e_quotes = qs;
+  }, quotes);
+}
+
+/**
+ * Injects mock contractor profiles into window.__e2e_contractors.
+ * contractorService.search(), getTopRated(), and getMyProfile() all check this.
+ */
+export async function injectContractors(
+  page: Page,
+  contractors: Array<{
+    id: string; name: string; specialties: string[];
+    email: string; phone: string;
+    bio?: string | null; licenseNumber?: string | null; serviceArea?: string | null;
+    trustScore: number; jobsCompleted: number; isVerified: boolean; createdAt: number;
+  }>
+) {
+  await page.addInitScript((cs) => {
+    (window as any).__e2e_contractors = cs;
+  }, contractors);
+}
+
 /**
  * Injects a single mock property into window.__e2e_properties before React
  * boots so DashboardPage seeds the property store without hitting the canister.

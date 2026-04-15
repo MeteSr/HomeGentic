@@ -203,9 +203,9 @@ function createContractorService() {
   return {
   async search(specialty?: string): Promise<ContractorProfile[]> {
     if (!CONTRACTOR_CANISTER_ID) {
-      return specialty
-        ? mockContractors.filter((c) => c.specialties.includes(specialty))
-        : [...mockContractors];
+      const e2e = import.meta.env.DEV && typeof window !== "undefined" && (window as any).__e2e_contractors;
+      const source: ContractorProfile[] = e2e ? (e2e as ContractorProfile[]) : mockContractors;
+      return specialty ? source.filter((c) => c.specialties.includes(specialty)) : [...source];
     }
     const a = await getActor();
     const all = (await a.getAll() as any[]).map(fromProfile);
@@ -214,7 +214,9 @@ function createContractorService() {
 
   async getTopRated(): Promise<ContractorProfile[]> {
     if (!CONTRACTOR_CANISTER_ID) {
-      return [...mockContractors].sort((a, b) => b.trustScore - a.trustScore);
+      const e2e = import.meta.env.DEV && typeof window !== "undefined" && (window as any).__e2e_contractors;
+      const source: ContractorProfile[] = e2e ? (e2e as ContractorProfile[]) : mockContractors;
+      return [...source].sort((a, b) => b.trustScore - a.trustScore);
     }
     const a = await getActor();
     const all = (await a.getAll() as any[]).map(fromProfile);
@@ -222,7 +224,11 @@ function createContractorService() {
   },
 
   async getMyProfile(): Promise<ContractorProfile | null> {
-    if (!CONTRACTOR_CANISTER_ID) return mockContractors[0] ?? null;
+    if (!CONTRACTOR_CANISTER_ID) {
+      const e2e = import.meta.env.DEV && typeof window !== "undefined" && (window as any).__e2e_contractors;
+      if (e2e) return (e2e as ContractorProfile[])[0] ?? null;
+      return mockContractors[0] ?? null;
+    }
     const a = await getActor();
     const result = await a.getMyProfile();
     if ("err" in result) return null;
