@@ -23,15 +23,15 @@ export const CSS = `
   }
   .hfl-logo span { color: var(--sage); font-style: italic; font-weight: 300; }
   .hfl-nav-links {
-    display: flex; gap: 4px; list-style: none;
+    display: flex; gap: 24px; list-style: none;
     position: absolute; left: 50%; transform: translateX(-50%);
   }
   .hfl-nav-links a {
-    font-size: 14px; color: var(--plum-mid); text-decoration: none;
-    font-weight: 500; cursor: pointer; padding: 7px 13px; border-radius: 8px;
-    transition: background .15s, color .15s;
+    font-size: 15px; color: var(--plum-mid); text-decoration: none;
+    font-weight: 500; cursor: pointer; padding: 6px 2px; border-radius: 4px;
+    transition: color .15s;
   }
-  .hfl-nav-links a:hover { color: var(--plum); background: rgba(46,37,64,0.05); }
+  .hfl-nav-links a:hover { color: var(--plum); }
   .hfl-nav-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
   .hfl-nav-signin {
     font-size: 14px; font-weight: 600; color: var(--plum-mid);

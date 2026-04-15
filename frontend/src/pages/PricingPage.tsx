@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { CheckCircle, X, Info, Sparkles } from "lucide-react";
+import { CheckCircle, Sparkles } from "lucide-react";
 import { Button } from "@/components/Button";
-import { PLANS, ANNUAL_PLANS, paymentService } from "@/services/payment";
+import { PLANS, ANNUAL_PLANS } from "@/services/payment";
 import type { Plan, PlanTier, BillingCycle } from "@/services/payment";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthStore } from "@/store/authStore";
@@ -14,102 +14,11 @@ const UI = {
   rule:     COLORS.rule,
   rust:     COLORS.sage,
   inkLight: COLORS.plumMid,
-  sage:     COLORS.sage,
   serif:    FONTS.serif,
   mono:     FONTS.mono,
 };
 
-const HOMEOWNER_FEATURES_TABLE = [
-  { feature: "Properties",                   Basic: "1",    Pro: "5",    Premium: "20"        },
-  { feature: "Photos per job",               Basic: "5",    Pro: "10",   Premium: "30"        },
-  { feature: "Quote requests/mo",            Basic: "3",    Pro: "10",   Premium: "Unlimited" },
-  { feature: "Public HomeGentic report",     Basic: true,   Pro: true,   Premium: true        },
-  { feature: "Blockchain verified",          Basic: true,   Pro: true,   Premium: true        },
-  { feature: "Score breakdown",             Basic: true,   Pro: true,   Premium: true        },
-  { feature: "Warranty Wallet",             Basic: true,   Pro: true,   Premium: true        },
-  { feature: "Recurring Services",          Basic: true,   Pro: true,   Premium: true        },
-  { feature: "Market Intelligence",         Basic: true,   Pro: true,   Premium: true        },
-  { feature: "Insurance Defense Mode",      Basic: true,   Pro: true,   Premium: true        },
-  { feature: "5-Year Maintenance Calendar", Basic: true,   Pro: true,   Premium: true        },
-  { feature: "Contractor search",           Basic: true,   Pro: true,   Premium: true        },
-  { feature: "PDF export",                  Basic: true,   Pro: true,   Premium: true        },
-  { feature: "Priority support",            Basic: false,  Pro: false,  Premium: true        },
-];
-
-const CONTRACTOR_FEATURES_TABLE = [
-  { feature: "Profile listing",              ContractorFree: true,   ContractorPro: true  },
-  { feature: "Receive leads",                ContractorFree: true,   ContractorPro: true  },
-  { feature: "Job completion certificates",  ContractorFree: true,   ContractorPro: true  },
-  { feature: "Photos per job",               ContractorFree: "5",    ContractorPro: "50"  },
-  { feature: "Trust score & reviews",        ContractorFree: false,  ContractorPro: true  },
-  { feature: "Lead notifications",           ContractorFree: false,  ContractorPro: true  },
-  { feature: "Earnings dashboard",           ContractorFree: false,  ContractorPro: true  },
-  { feature: "Priority support",             ContractorFree: false,  ContractorPro: true  },
-  { feature: "Referral fee per verified job", ContractorFree: "$15",  ContractorPro: "None" },
-];
-
-const FEATURE_TOOLTIPS: Record<string, string> = {
-  "Properties": "How many properties you can register and track under your account.",
-  "Photos per job": "Max photos you can attach to a single maintenance job record.",
-  "Quote requests/mo": "How many contractor quote requests you can open each month.",
-  "Public HomeGentic report": "A shareable link buyers, agents, or insurers can view to see your verified maintenance history.",
-  "Blockchain verified": "Jobs are stored as immutable records on the Internet Computer Protocol — no one can edit or delete them after the fact.",
-  "Score breakdown": "See your HomeGentic Score broken down by category (Maintenance, Age, Documentation, etc.) with an A–F grade for each.",
-  "Warranty Wallet": "Store appliance warranties, receipts, and manuals attached to the specific job and fixture they belong to.",
-  "Recurring Services": "Log and track ongoing service contracts (HVAC, pest, landscaping) with visit history and automatic reminders.",
-  "Market Intelligence": "ROI-ranked renovation recommendations for your zip code, plus a competitive analysis of your home vs. similar properties.",
-  "Insurance Defense Mode": "Generates a print-ready report of all insurance-relevant jobs (roof, HVAC, electrical) to support premium negotiations or claim disputes.",
-  "5-Year Maintenance Calendar": "A personalized maintenance schedule for the next 5 years, based on your home's system ages, with projected costs.",
-  "Contractor search": "Browse verified contractors with trust scores based on completed, dual-signed jobs — not self-reported ratings.",
-  "PDF export": "Download a formatted PDF of your full home report to share offline or attach to a listing.",
-  "Priority support": "Dedicated support with faster response times for Premium subscribers.",
-  "Profile listing": "Your contractor profile is listed in the HomeGentic marketplace for homeowners to discover.",
-  "Receive leads": "Get quote requests from homeowners in your area who need your services.",
-  "Job completion certificates": "Earn a blockchain-backed certificate for every dual-signed completed job — proof of your work you can show future clients.",
-  "Trust score & reviews": "A trust score calculated from your verified job history, displayed on your public profile.",
-  "Lead notifications": "Real-time alerts when a new quote request matches your trade and service area.",
-  "Earnings dashboard": "Track your HomeGentic-sourced revenue, job count, and referral fee history.",
-  "Referral fee per verified job": "ContractorFree accounts pay $15 per job sourced via HomeGentic and verified with a dual-signature. ContractorPro pays no per-job fee.",
-};
-
-const FAQS = [
-  { q: "How does the contractor referral fee work?", a: "ContractorFree contractors pay a flat $15 fee per job that is both sourced via a HomeGentic quote request and verified (dual-signed). ContractorPro subscribers pay no referral fees — the monthly subscription covers it." },
-  { q: "How does blockchain verification work?", a: "Every maintenance job is stored as an immutable record on the Internet Computer Protocol. The data is cryptographically signed and cannot be altered — not even by us." },
-  { q: "What is ICP?", a: "The Internet Computer Protocol is a decentralized cloud platform developed by DFINITY. Unlike traditional cloud storage, data on ICP is governed by a decentralized protocol — no single company can take it down." },
-  { q: "Can I cancel anytime?", a: "Yes. Cancel your subscription at any time from your Settings page. Your data remains accessible and your blockchain records are permanent — even after cancellation." },
-  { q: "What's the difference between annual and monthly billing?", a: "Annual plans are billed once per year at 10× the monthly price — equivalent to 2 months free. Your subscription runs for 365 days from the date of payment." },
-];
-
 const BILLING_KEY = "homegentic_pricing_billing";
-
-function FeatureTooltip({ text }: { text: string }) {
-  const [visible, setVisible] = useState(false);
-  return (
-    <span
-      style={{ position: "relative", display: "inline-flex", alignItems: "center", marginLeft: "0.35rem", verticalAlign: "middle", cursor: "help" }}
-      onMouseEnter={() => setVisible(true)}
-      onMouseLeave={() => setVisible(false)}
-      onFocus={() => setVisible(true)}
-      onBlur={() => setVisible(false)}
-    >
-      <Info size={12} color={COLORS.plumMid} style={{ opacity: 0.5 }} />
-      {visible && (
-        <span style={{
-          position: "absolute", left: "1.25rem", top: "-0.25rem",
-          zIndex: 100, width: "220px",
-          background: COLORS.plum, color: COLORS.white,
-          fontFamily: FONTS.sans, fontSize: "0.75rem", fontWeight: 300,
-          lineHeight: 1.55, padding: "0.625rem 0.875rem",
-          borderRadius: "4px",
-          boxShadow: SHADOWS.hover,
-          pointerEvents: "none",
-        }}>
-          {text}
-        </span>
-      )}
-    </span>
-  );
-}
 
 export default function PricingPage() {
   const { login, devLogin } = useAuth();
@@ -166,8 +75,8 @@ export default function PricingPage() {
     <div style={{ minHeight: "100vh", background: UI.paper }}>
       {/* Nav */}
       <header style={{ borderBottom: `1px solid ${UI.rule}`, position: "sticky", top: 0, background: UI.paper, zIndex: 50 }}>
-        <div style={{ maxWidth: "80rem", margin: "0 auto", padding: "0 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", height: "3.5rem" }}>
-          <Link to="/" style={{ textDecoration: "none", fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.1rem", letterSpacing: "-0.5px", color: COLORS.plum }}>
+        <div style={{ maxWidth: "80rem", margin: "0 auto", padding: "0 56px", display: "flex", alignItems: "center", justifyContent: "space-between", height: "70px" }}>
+          <Link to="/" style={{ textDecoration: "none", fontFamily: FONTS.serif, fontWeight: 900, fontSize: "22px", letterSpacing: "-0.5px", color: COLORS.plum }}>
             Home<span style={{ color: COLORS.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
           </Link>
         </div>
@@ -357,105 +266,6 @@ Upgrade when you're ready. Cancel anytime.
           </div>
         )}
 
-        {/* Feature comparison */}
-        <div style={{ marginBottom: "4rem" }}>
-          <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-            <div style={{ display: "inline-flex", alignItems: "center", background: COLORS.butter, color: COLORS.plum, padding: "5px 16px", borderRadius: 100, fontSize: "0.75rem", fontWeight: 600, marginBottom: "1rem", border: `1px solid rgba(46,37,64,0.1)` }}>Compare</div>
-            <h2 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, color: UI.ink }}>Feature comparison</h2>
-          </div>
-
-          {audience === "homeowner" ? (
-            <div style={{ border: `1px solid ${UI.rule}`, borderRadius: RADIUS.card, overflow: "hidden" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr style={{ background: COLORS.sageLight }}>
-                    <th style={{ textAlign: "left", padding: "0.875rem 1.25rem", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, borderBottom: `1px solid ${UI.rule}` }}>Feature</th>
-                    {(["Basic", "Pro", "Premium"] as const).map((tier) => (
-                      <th key={tier} style={{ textAlign: "center", padding: "0.875rem 1rem", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: tier === "Pro" ? UI.rust : UI.inkLight, borderBottom: `1px solid ${UI.rule}` }}>
-                        {tier}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {HOMEOWNER_FEATURES_TABLE.map((row, i) => (
-                    <tr key={row.feature} style={{ borderBottom: i < HOMEOWNER_FEATURES_TABLE.length - 1 ? `1px solid ${UI.rule}` : "none" }}>
-                      <td style={{ padding: "0.75rem 1.25rem", fontFamily: FONTS.sans, fontSize: "0.85rem", fontWeight: 400, color: UI.ink }}>
-                        {row.feature}
-                        {FEATURE_TOOLTIPS[row.feature] && <FeatureTooltip text={FEATURE_TOOLTIPS[row.feature]} />}
-                      </td>
-                      {(["Basic", "Pro", "Premium"] as const).map((tier) => {
-                        const val = (row as any)[tier];
-                        return (
-                          <td key={tier} style={{ textAlign: "center", padding: "0.75rem 1rem" }}>
-                            {typeof val === "boolean" ? (
-                              val ? <CheckCircle size={14} color={UI.sage} style={{ margin: "0 auto" }} /> : <X size={14} color={UI.rule} style={{ margin: "0 auto" }} />
-                            ) : (
-                              <span style={{ fontFamily: FONTS.sans, fontSize: "0.85rem", fontWeight: 500, color: UI.ink }}>{val}</span>
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div style={{ border: `1px solid ${UI.rule}`, borderRadius: RADIUS.card, overflow: "hidden" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr style={{ background: COLORS.sageLight }}>
-                    <th style={{ textAlign: "left", padding: "0.875rem 1.25rem", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, borderBottom: `1px solid ${UI.rule}` }}>Feature</th>
-                    {(["ContractorFree", "ContractorPro"] as const).map((tier) => (
-                      <th key={tier} style={{ textAlign: "center", padding: "0.875rem 1rem", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, borderBottom: `1px solid ${UI.rule}` }}>
-                        {tier === "ContractorFree" ? "Free" : "Pro"}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {CONTRACTOR_FEATURES_TABLE.map((row, i) => (
-                    <tr key={row.feature} style={{ borderBottom: i < CONTRACTOR_FEATURES_TABLE.length - 1 ? `1px solid ${UI.rule}` : "none" }}>
-                      <td style={{ padding: "0.75rem 1.25rem", fontFamily: FONTS.sans, fontSize: "0.85rem", fontWeight: 400, color: UI.ink }}>
-                        {row.feature}
-                        {FEATURE_TOOLTIPS[row.feature] && <FeatureTooltip text={FEATURE_TOOLTIPS[row.feature]} />}
-                      </td>
-                      {(["ContractorFree", "ContractorPro"] as const).map((tier) => {
-                        const val = (row as any)[tier];
-                        return (
-                          <td key={tier} style={{ textAlign: "center", padding: "0.75rem 1rem" }}>
-                            {typeof val === "boolean" ? (
-                              val ? <CheckCircle size={14} color={UI.sage} style={{ margin: "0 auto" }} /> : <X size={14} color={UI.rule} style={{ margin: "0 auto" }} />
-                            ) : (
-                              <span style={{ fontFamily: FONTS.sans, fontSize: "0.85rem", fontWeight: 500, color: UI.ink }}>{val}</span>
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {/* FAQ */}
-        <div style={{ maxWidth: "48rem", margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-            <div style={{ display: "inline-flex", alignItems: "center", background: COLORS.butter, color: COLORS.plum, padding: "5px 16px", borderRadius: 100, fontSize: "0.75rem", fontWeight: 600, marginBottom: "1rem", border: `1px solid rgba(46,37,64,0.1)` }}>FAQ</div>
-            <h2 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, color: UI.ink }}>Frequently asked questions</h2>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-            {FAQS.map((faq) => (
-              <div key={faq.q} style={{ background: COLORS.white, padding: "1.25rem 1.5rem", borderRadius: RADIUS.sm, border: `1px solid ${COLORS.rule}` }}>
-                <p style={{ fontFamily: FONTS.serif, fontWeight: 700, color: UI.ink, marginBottom: "0.625rem" }}>{faq.q}</p>
-                <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: UI.inkLight, lineHeight: 1.7, fontWeight: 300 }}>{faq.a}</p>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -12,6 +12,7 @@ import { quoteService } from "./quote";
 import { contractorService } from "./contractor";
 import { maintenanceService } from "./maintenance";
 import { propertyService } from "./property";
+import { roomService } from "./room";
 import { buildMaintenanceForecast } from "./maintenanceForecast";
 import { reportService, jobToInput, propertyToInput } from "./report";
 import { getPriceBenchmark } from "./priceBenchmark";
@@ -38,7 +39,8 @@ export type ToolName =
   | "get_maintenance_forecast"
   | "get_price_benchmark"
   | "propose_job"
-  | "confirm_job_proposal";
+  | "confirm_job_proposal"
+  | "add_room";
 
 export interface ToolCallResult {
   success: boolean;
@@ -717,6 +719,26 @@ export async function executeTool(
         };
       }
 
+      // ── Add room ──────────────────────────────────────────────────────────────
+      case "add_room": {
+        const room = await roomService.createRoom({
+          propertyId: String(input.property_id),
+          name:       String(input.room_name),
+          floorType:  input.floor_type   ? String(input.floor_type)   : "",
+          paintColor: input.paint_color  ? String(input.paint_color)  : "",
+          paintBrand: input.paint_brand  ? String(input.paint_brand)  : "",
+          paintCode:  input.paint_code   ? String(input.paint_code)   : "",
+          notes:      input.notes        ? String(input.notes)        : "",
+        });
+        return {
+          success: true,
+          data: {
+            roomId:  room.id,
+            summary: `Room "${room.name}" added to the property${room.floorType ? ` — ${room.floorType} floors` : ""}.`,
+          },
+        };
+      }
+
       default:
         return { success: false, error: `Unknown tool: ${name}` };
     }
@@ -752,6 +774,7 @@ export function toolActionLabel(name: ToolName): string {
     get_price_benchmark:       "looking up price benchmark",
     propose_job:               "proposing job to homeowner",
     confirm_job_proposal:      "confirming job proposal",
+    add_room:                  "adding room",
   };
   return labels[name] ?? name;
 }

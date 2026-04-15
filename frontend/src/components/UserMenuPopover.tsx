@@ -3,16 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { Settings, ArrowUpCircle, Paperclip, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { voiceAgentFileInputRef } from "./VoiceAgent";
-import { COLORS, FONTS } from "@/theme";
+import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 
 interface UserMenuPopoverProps {
   displayName: string;
-  principal:   string | null;
   onClose:     () => void;
   onUpgrade:   () => void;
 }
 
-export function UserMenuPopover({ displayName, principal, onClose, onUpgrade }: UserMenuPopoverProps) {
+export function UserMenuPopover({ displayName, onClose, onUpgrade }: UserMenuPopoverProps) {
   const navigate   = useNavigate();
   const { logout } = useAuth();
 
@@ -50,10 +49,12 @@ export function UserMenuPopover({ displayName, principal, onClose, onUpgrade }: 
         width:         "280px",
         background:    COLORS.white,
         border:        `1px solid ${COLORS.rule}`,
-        boxShadow:     "0 8px 32px rgba(14,14,12,0.18)",
+        borderRadius:  RADIUS.card,
+        boxShadow:     SHADOWS.modal,
         zIndex:        9999,
         paddingTop:    "0.375rem",
         paddingBottom: "0.375rem",
+        overflow:      "hidden",
       }}>
         {/* User header */}
         <div style={{
@@ -63,11 +64,6 @@ export function UserMenuPopover({ displayName, principal, onClose, onUpgrade }: 
           <p style={{ fontFamily: FONTS.sans, fontSize: "0.9375rem", fontWeight: 600, color: COLORS.plum, marginBottom: "0.2rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {displayName}
           </p>
-          {principal && (
-            <p style={{ fontFamily: FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: COLORS.plumMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {principal.slice(0, 24)}…
-            </p>
-          )}
         </div>
 
         <button onClick={() => { onClose(); navigate("/settings"); }} style={menuItemStyle} onMouseEnter={hoverOn} onMouseLeave={hoverOff}>
