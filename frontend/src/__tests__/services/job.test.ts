@@ -361,6 +361,164 @@ describe("INSURANCE_SERVICE_TYPES", () => {
   });
 });
 
+// ─── createInviteToken ────────────────────────────────────────────────────────
+
+describe("jobService.createInviteToken", () => {
+  it("returns a MOCK_INV_ prefixed token in mock mode", async () => {
+    const token = await jobService.createInviteToken("job-abc", "123 Main St");
+    expect(token).toBe("MOCK_INV_job-abc");
+  });
+});
+
+// ─── getJobByInviteToken ──────────────────────────────────────────────────────
+
+describe("jobService.getJobByInviteToken", () => {
+  it("returns a preview with jobId, serviceType, and amount in mock mode", async () => {
+    const preview = await jobService.getJobByInviteToken("any-token");
+    expect(preview.jobId).toBe("MOCK_JOB");
+    expect(typeof preview.serviceType).toBe("string");
+    expect(preview.amount).toBeGreaterThan(0);
+    expect(preview.alreadySigned).toBe(false);
+    expect(preview.expiresAt).toBeGreaterThan(Date.now());
+  });
+});
+
+// ─── redeemInviteToken ────────────────────────────────────────────────────────
+
+describe("jobService.redeemInviteToken", () => {
+  it("returns a mock verified job in mock mode", async () => {
+    const job = await jobService.redeemInviteToken("any-token");
+    expect(job.id).toBe("MOCK_JOB");
+    expect(job.verified).toBe(true);
+    expect(job.homeownerSigned).toBe(true);
+    expect(job.contractorSigned).toBe(true);
+  });
+});
+
+// ─── getReferralJobs ──────────────────────────────────────────────────────────
+
+describe("jobService.getReferralJobs", () => {
+  it("returns empty array in mock mode (no canister ID)", async () => {
+    const result = await jobService.getReferralJobs();
+    expect(result).toEqual([]);
+  });
+});
+
+// ─── createJobProposal ────────────────────────────────────────────────────────
+
+describe("jobService.createJobProposal", () => {
+  beforeEach(() => jobService.reset());
+
+  it("creates a proposal with status pending_homeowner_approval", async () => {
+    const proposal = await jobService.createJobProposal({
+      propertyId:     "proposal-prop-1",
+      serviceType:    "Plumbing",
+      description:    "Fix kitchen leak",
+      contractorName: "Pipes Inc",
+      amountCents:    35_000,
+      completedDate:  "2024-09-01",
+    });
+    expect(proposal.status).toBe("pending_homeowner_approval");
+    expect(proposal.contractorSigned).toBe(true);
+    expect(proposal.homeownerSigned).toBe(false);
+    expect(proposal.isDiy).toBe(false);
+    expect(proposal.contractorName).toBe("Pipes Inc");
+    expect(proposal.amount).toBe(35_000);
+  });
+
+  it("stores optional permit and warranty on proposal", async () => {
+    const proposal = await jobService.createJobProposal({
+      propertyId:     "proposal-prop-2",
+      serviceType:    "Electrical",
+      description:    "Panel upgrade",
+      contractorName: "Sparks LLC",
+      amountCents:    75_000,
+      completedDate:  "2024-10-01",
+      permitNumber:   "ELEC-2024-77",
+      warrantyMonths: 24,
+    });
+    expect(proposal.permitNumber).toBe("ELEC-2024-77");
+    expect(proposal.warrantyMonths).toBe(24);
+  });
+});
+
+// ─── getPendingProposals ──────────────────────────────────────────────────────
+
+describe("jobService.getPendingProposals", () => {
+  beforeEach(() => jobService.reset());
+
+  it("returns empty array when no proposals exist", async () => {
+    const result = await jobService.getPendingProposals();
+    expect(result).toEqual([]);
+  });
+
+  it("returns only jobs with pending_homeowner_approval status", async () => {
+    await jobService.create({ propertyId: "pp-prop-1", serviceType: "HVAC", amount: 1_000, date: "2024-01-01", description: "d", isDiy: false });
+    await jobService.createJobProposal({ propertyId: "pp-prop-1", serviceType: "Roofing", description: "d", contractorName: "X", amountCents: 5_000, completedDate: "2024-01-02" });
+    const proposals = await jobService.getPendingProposals();
+    expect(proposals.every((j) => j.status === "pending_homeowner_approval")).toBe(true);
+    expect(proposals.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ─── approveJobProposal ───────────────────────────────────────────────────────
+
+describe("jobService.approveJobProposal", () => {
+  beforeEach(() => jobService.reset());
+
+  it("sets homeownerSigned=true and status='pending' on approval", async () => {
+    const proposal = await jobService.createJobProposal({
+      propertyId: "approve-prop-1", serviceType: "Plumbing", description: "d",
+      contractorName: "X", amountCents: 10_000, completedDate: "2024-01-01",
+    });
+    const approved = await jobService.approveJobProposal(proposal.id);
+    expect(approved.homeownerSigned).toBe(true);
+    expect(approved.status).toBe("pending");
+  });
+
+  it("throws NotFound for an unknown proposal id", async () => {
+    await expect(jobService.approveJobProposal("ghost-id")).rejects.toThrow("NotFound");
+  });
+});
+
+// ─── rejectJobProposal ────────────────────────────────────────────────────────
+
+describe("jobService.rejectJobProposal", () => {
+  beforeEach(() => jobService.reset());
+
+  it("removes the proposal from the store on rejection", async () => {
+    const proposal = await jobService.createJobProposal({
+      propertyId: "reject-prop-1", serviceType: "Roofing", description: "d",
+      contractorName: "Y", amountCents: 20_000, completedDate: "2024-01-01",
+    });
+    await expect(jobService.rejectJobProposal(proposal.id)).resolves.toBeUndefined();
+    const proposals = await jobService.getPendingProposals();
+    expect(proposals.find((j) => j.id === proposal.id)).toBeUndefined();
+  });
+
+  it("throws NotFound for an unknown proposal id", async () => {
+    await expect(jobService.rejectJobProposal("ghost-id")).rejects.toThrow("NotFound");
+  });
+});
+
+// ─── updateJobStatus — pending_homeowner_approval and rejected_by_homeowner ──
+
+describe("jobService.updateJobStatus — extended statuses", () => {
+  beforeEach(() => jobService.reset());
+
+  it("transitions to pending_homeowner_approval", async () => {
+    const j = await jobService.create({ propertyId: "ext-status-1", serviceType: "Plumbing", amount: 1_000, date: "2024-01-01", description: "d", isDiy: false });
+    const updated = await jobService.updateJobStatus(j.id, "pending_homeowner_approval");
+    expect(updated.status).toBe("pending_homeowner_approval");
+  });
+
+  it("transitions to rejected_by_homeowner", async () => {
+    const j = await jobService.create({ propertyId: "ext-status-2", serviceType: "Roofing", amount: 1_000, date: "2024-01-01", description: "d", isDiy: false });
+    const updated = await jobService.updateJobStatus(j.id, "rejected_by_homeowner");
+    expect(updated.status).toBe("rejected_by_homeowner");
+  });
+});
+
 // ─── jobToInput adapter ───────────────────────────────────────────────────────
 
 describe("jobToInput (report adapter)", () => {

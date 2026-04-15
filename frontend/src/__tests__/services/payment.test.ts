@@ -25,15 +25,27 @@ const mockGetMySubscription = vi.fn().mockResolvedValue({
   ok: { tier: { Free: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0) },
 });
 const mockGetPriceQuote = vi.fn().mockResolvedValue({ ok: BigInt(1_000_000) });
+const mockCreateStripeCheckoutSession = vi.fn().mockResolvedValue({
+  ok: { id: "cs_test_123", url: "https://checkout.stripe.com/pay/test" },
+});
+const mockVerifyStripeSession = vi.fn().mockResolvedValue({
+  ok: { tier: { Pro: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0) },
+});
+const mockRedeemGift = vi.fn().mockResolvedValue({
+  ok: { tier: { Pro: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0) },
+});
 
 vi.mock("@icp-sdk/core/agent", () => ({
   Actor: {
     createActor: vi.fn(() => ({
-      subscribe:         mockSubscribeActor,
-      getMySubscription: mockGetMySubscription,
-      getPriceQuote:     mockGetPriceQuote,
-      getPricing:        vi.fn().mockResolvedValue({ ok: null }),
-      getAllPricing:      vi.fn().mockResolvedValue({ ok: [] }),
+      subscribe:                   mockSubscribeActor,
+      getMySubscription:           mockGetMySubscription,
+      getPriceQuote:               mockGetPriceQuote,
+      getPricing:                  vi.fn().mockResolvedValue({ ok: null }),
+      getAllPricing:               vi.fn().mockResolvedValue({ ok: [] }),
+      createStripeCheckoutSession: mockCreateStripeCheckoutSession,
+      verifyStripeSession:         mockVerifyStripeSession,
+      redeemGift:                  mockRedeemGift,
     })),
   },
   HttpAgent: { create: vi.fn().mockResolvedValue({}) },
@@ -276,5 +288,263 @@ describe("paymentService.initiate (mock)", () => {
       const result = await paymentService.initiate(tier);
       expect(result.url).toBe("/dashboard");
     }
+  });
+});
+
+// ─── getMySubscription — canister path (all 6 tier variants) ─────────────────
+
+describe("paymentService.getMySubscription — tier parsing", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    paymentService.reset();
+  });
+
+  const tiers: PlanTier[] = ["Free", "Basic", "Pro", "Premium", "ContractorFree", "ContractorPro"];
+
+  it.each(tiers)("parses '%s' tier variant from canister response", async (tier) => {
+    mockGetMySubscription.mockResolvedValueOnce({
+      ok: { tier: { [tier]: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0) },
+    });
+    const sub = await paymentService.getMySubscription();
+    expect(sub.tier).toBe(tier);
+  });
+
+  it("returns expiresAt=null when expiresAt is 0", async () => {
+    mockGetMySubscription.mockResolvedValueOnce({
+      ok: { tier: { Pro: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0) },
+    });
+    const sub = await paymentService.getMySubscription();
+    expect(sub.expiresAt).toBeNull();
+  });
+
+  it("converts non-zero expiresAt from nanoseconds to milliseconds", async () => {
+    // 1_735_689_600_000 ms = 2025-01-01T00:00:00Z in ns: * 1_000_000
+    const expiresNs = BigInt(1_735_689_600_000) * BigInt(1_000_000);
+    mockGetMySubscription.mockResolvedValueOnce({
+      ok: { tier: { Premium: null }, expiresAt: expiresNs, owner: "x", createdAt: BigInt(0) },
+    });
+    const sub = await paymentService.getMySubscription();
+    expect(sub.expiresAt).toBeCloseTo(1_735_689_600_000, -3);
+  });
+
+  it("returns Free tier when canister returns an error", async () => {
+    mockGetMySubscription.mockResolvedValueOnce({ err: { NotFound: null } });
+    const sub = await paymentService.getMySubscription();
+    expect(sub.tier).toBe("Free");
+    expect(sub.expiresAt).toBeNull();
+  });
+});
+
+// ─── subscribe — error handling ───────────────────────────────────────────────
+
+describe("paymentService.subscribe — error handling", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    paymentService.reset();
+  });
+
+  it("throws with key when subscribe canister returns a non-text error", async () => {
+    mockGetPriceQuote.mockResolvedValueOnce({ ok: BigInt(1_000_000) });
+    mockSubscribeActor.mockResolvedValueOnce({ err: { RateLimited: null } });
+    await expect(paymentService.subscribe("Pro")).rejects.toThrow("RateLimited");
+  });
+
+  it("throws with text payload when subscribe returns PaymentFailed error", async () => {
+    mockGetPriceQuote.mockResolvedValueOnce({ ok: BigInt(1_000_000) });
+    mockSubscribeActor.mockResolvedValueOnce({ err: { PaymentFailed: "Insufficient ICP balance" } });
+    await expect(paymentService.subscribe("Pro")).rejects.toThrow("Insufficient ICP balance");
+  });
+
+  it("throws when getPriceQuote returns an error", async () => {
+    mockGetPriceQuote.mockResolvedValueOnce({ err: { NotAuthorized: null } });
+    await expect(paymentService.subscribe("Pro")).rejects.toThrow("NotAuthorized");
+  });
+});
+
+// ─── cancel / recordCancellation / getCancellationInfo ───────────────────────
+
+describe("paymentService.cancel", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    paymentService.reset();
+  });
+
+  it("resolves without error (delegates to subscribe Free)", async () => {
+    mockSubscribeActor.mockResolvedValueOnce({
+      ok: { tier: { Free: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0) },
+    });
+    await expect(paymentService.cancel()).resolves.toBeUndefined();
+  });
+});
+
+describe("paymentService.recordCancellation / getCancellationInfo", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("getCancellationInfo returns null when nothing is stored", () => {
+    expect(paymentService.getCancellationInfo()).toBeNull();
+  });
+
+  it("recordCancellation stores a timestamp and getCancellationInfo returns it", () => {
+    const before = Date.now();
+    paymentService.recordCancellation();
+    const info = paymentService.getCancellationInfo();
+    expect(info).not.toBeNull();
+    expect(info!.cancelledAt).toBeGreaterThanOrEqual(before);
+    expect(info!.cancelledAt).toBeLessThanOrEqual(Date.now());
+  });
+});
+
+// ─── pause / resume / getPauseState ──────────────────────────────────────────
+
+describe("paymentService pause/resume", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("getPauseState returns null when not paused", () => {
+    expect(paymentService.getPauseState()).toBeNull();
+  });
+
+  it("pause stores a future resumeAt timestamp", () => {
+    paymentService.pause(1);
+    const state = paymentService.getPauseState();
+    expect(state).not.toBeNull();
+    expect(state!.pausedUntil).toBeGreaterThan(Date.now());
+    expect(state!.daysLeft).toBe(30);
+  });
+
+  it("pause(2) gives roughly 60 daysLeft", () => {
+    paymentService.pause(2);
+    const state = paymentService.getPauseState();
+    expect(state!.daysLeft).toBe(60);
+  });
+
+  it("resume clears the pause and getPauseState returns null", () => {
+    paymentService.pause(1);
+    paymentService.resume();
+    expect(paymentService.getPauseState()).toBeNull();
+  });
+
+  it("getPauseState returns null and clears storage when pause has expired", () => {
+    // Simulate a past timestamp
+    localStorage.setItem("homegentic_sub_paused_until", String(Date.now() - 1000));
+    expect(paymentService.getPauseState()).toBeNull();
+    expect(localStorage.getItem("homegentic_sub_paused_until")).toBeNull();
+  });
+});
+
+// ─── startStripeCheckout — dev/Express path (USE_EXPRESS_CHECKOUT=true in test) ─
+
+describe("paymentService.startStripeCheckout — dev/Express path", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    paymentService.reset();
+    Object.defineProperty(window, "location", {
+      value: { href: "", origin: "http://localhost:3000" },
+      writable: true,
+      configurable: true,
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("redirects to Stripe URL returned by Express on success", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok:   true,
+      json: async () => ({ url: "https://checkout.stripe.com/pay/cs_express_123" }),
+    } as Response);
+    await paymentService.startStripeCheckout("Pro", "Monthly");
+    expect(window.location.href).toBe("https://checkout.stripe.com/pay/cs_express_123");
+  });
+
+  it("throws when Express returns an error response", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok:   false,
+      json: async () => ({ error: "Stripe not configured" }),
+    } as Response);
+    await expect(paymentService.startStripeCheckout("Pro", "Monthly")).rejects.toThrow("Stripe not configured");
+  });
+
+  it("passes gift metadata to Express endpoint when provided", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok:   true,
+      json: async () => ({ url: "https://checkout.stripe.com/pay/gift_123" }),
+    } as Response);
+    await paymentService.startStripeCheckout("Pro", "Monthly", {
+      recipientEmail: "alice@example.com", recipientName: "Alice",
+      senderName: "Bob", giftMessage: "Happy home!", deliveryDate: "2025-12-25",
+    });
+    const body = JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string);
+    expect(body.gift.recipientEmail).toBe("alice@example.com");
+  });
+});
+
+// ─── verifyStripeSession — dev/Express path ───────────────────────────────────
+
+describe("paymentService.verifyStripeSession — dev/Express path", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    paymentService.reset();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("returns { type: 'subscription' } on successful Express response", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok:   true,
+      json: async () => ({ type: "subscription", tier: "Pro" }),
+    } as Response);
+    const result = await paymentService.verifyStripeSession("cs_test_session");
+    expect(result.type).toBe("subscription");
+  });
+
+  it("returns { type: 'gift', giftToken } for gift purchases", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok:   true,
+      json: async () => ({ type: "gift", giftToken: "GIFT-TOKEN-ABC" }),
+    } as Response);
+    const result = await paymentService.verifyStripeSession("GIFT-TOKEN-ABC");
+    expect(result.type).toBe("gift");
+    expect((result as any).giftToken).toBe("GIFT-TOKEN-ABC");
+  });
+
+  it("throws when Express returns a non-ok response", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok:   false,
+      json: async () => ({ error: "Session not found" }),
+    } as Response);
+    await expect(paymentService.verifyStripeSession("cs_bad")).rejects.toThrow("Session not found");
+  });
+});
+
+// ─── redeemGift — canister path ───────────────────────────────────────────────
+
+describe("paymentService.redeemGift", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    paymentService.reset();
+  });
+
+  it("resolves without error on success", async () => {
+    mockRedeemGift.mockResolvedValueOnce({
+      ok: { tier: { Pro: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0) },
+    });
+    await expect(paymentService.redeemGift("GIFT-TOKEN-XYZ")).resolves.toBeUndefined();
+  });
+
+  it("throws with key on non-text error", async () => {
+    mockRedeemGift.mockResolvedValueOnce({ err: { NotFound: null } });
+    await expect(paymentService.redeemGift("bad-token")).rejects.toThrow("NotFound");
+  });
+
+  it("throws with text message on text-payload error", async () => {
+    mockRedeemGift.mockResolvedValueOnce({ err: { InvalidInput: "Token already redeemed" } });
+    await expect(paymentService.redeemGift("used-token")).rejects.toThrow("Token already redeemed");
   });
 });

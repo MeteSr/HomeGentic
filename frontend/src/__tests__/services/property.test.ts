@@ -3,20 +3,34 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // ─── Mock external ICP dependencies ──────────────────────────────────────────
 
 const mockActor = {
-  registerProperty:       vi.fn(),
-  getMyProperties:        vi.fn(),
-  getProperty:            vi.fn(),
-  submitVerification:     vi.fn(),
-  getPendingVerifications: vi.fn(),
-  isAdminPrincipal:       vi.fn(),
-  verifyProperty:         vi.fn(),
-  setTier:                vi.fn(),
+  registerProperty:          vi.fn(),
+  getMyProperties:           vi.fn(),
+  getProperty:               vi.fn(),
+  submitVerification:        vi.fn(),
+  getPendingVerifications:   vi.fn(),
+  isAdminPrincipal:          vi.fn(),
+  verifyProperty:            vi.fn(),
+  setTier:                   vi.fn(),
   initiateTransfer:          vi.fn(),
   claimTransfer:             vi.fn(),
   cancelTransfer:            vi.fn(),
   getPendingTransfer:        vi.fn(),
   getPendingTransferByToken: vi.fn(),
   getOwnershipHistory:       vi.fn(),
+  getPropertyOwner:          vi.fn(),
+  searchByAddress:           vi.fn(),
+  inviteManager:             vi.fn(),
+  claimManagerRole:          vi.fn(),
+  updateManagerRole:         vi.fn(),
+  removeManager:             vi.fn(),
+  resignAsManager:           vi.fn(),
+  getMyManagedProperties:    vi.fn(),
+  getPropertyManagers:       vi.fn(),
+  getManagerInviteByToken:   vi.fn(),
+  recordManagerActivity:     vi.fn(),
+  getOwnerNotifications:     vi.fn(),
+  dismissNotifications:      vi.fn(),
+  isAuthorized:              vi.fn(),
 };
 
 vi.mock("@/services/actor", () => ({
@@ -392,6 +406,276 @@ describe("propertyService", () => {
       const history = await propertyService.getOwnershipHistory(BigInt(1));
       expect(history).toEqual([]);
       expect(mockActor.getOwnershipHistory).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── getPropertyOwner ──────────────────────────────────────────────────────────
+  describe("getPropertyOwner", () => {
+    it("returns null when canister returns empty array (property not found)", async () => {
+      mockActor.getPropertyOwner.mockResolvedValue([]);
+      const result = await propertyService.getPropertyOwner(BigInt(1));
+      expect(result).toBeNull();
+    });
+
+    it("returns the principal text when an owner exists", async () => {
+      mockActor.getPropertyOwner.mockResolvedValue([{ toText: () => "owner-abc" }]);
+      const result = await propertyService.getPropertyOwner(BigInt(1));
+      expect(result).toBe("owner-abc");
+    });
+  });
+
+  // ── inviteManager ─────────────────────────────────────────────────────────────
+  describe("inviteManager", () => {
+    function makeRawInvite(overrides: Record<string, unknown> = {}) {
+      return {
+        propertyId:  BigInt(1),
+        token:       "invite-token-xyz",
+        role:        { Viewer: null },
+        displayName: "John Smith",
+        invitedBy:   { toText: () => "owner-principal" },
+        createdAt:   BigInt(1_735_689_600_000_000_000),
+        expiresAt:   BigInt(1_735_689_600_000_000_000 + 7 * 24 * 3600 * 1_000_000_000),
+        ...overrides,
+      };
+    }
+
+    it("returns a mapped ManagerInvite on success", async () => {
+      mockActor.inviteManager.mockResolvedValue({ ok: makeRawInvite() });
+      const invite = await propertyService.inviteManager(BigInt(1), "Viewer", "John Smith");
+      expect(invite.token).toBe("invite-token-xyz");
+      expect(invite.role).toBe("Viewer");
+      expect(invite.displayName).toBe("John Smith");
+      expect(invite.invitedBy).toBe("owner-principal");
+      expect(invite.expiresAt).toBeGreaterThan(invite.createdAt);
+    });
+
+    it("maps Manager role correctly", async () => {
+      mockActor.inviteManager.mockResolvedValue({ ok: makeRawInvite({ role: { Manager: null } }) });
+      const invite = await propertyService.inviteManager(BigInt(1), "Manager", "Jane Doe");
+      expect(invite.role).toBe("Manager");
+    });
+
+    it("throws with error key on canister error", async () => {
+      mockActor.inviteManager.mockResolvedValue({ err: { NotAuthorized: null } });
+      await expect(propertyService.inviteManager(BigInt(1), "Viewer", "x")).rejects.toThrow("NotAuthorized");
+    });
+
+    it("throws with text payload for InvalidInput", async () => {
+      mockActor.inviteManager.mockResolvedValue({ err: { InvalidInput: "Display name too long" } });
+      await expect(propertyService.inviteManager(BigInt(1), "Viewer", "x")).rejects.toThrow("Display name too long");
+    });
+  });
+
+  // ── claimManagerRole ──────────────────────────────────────────────────────────
+  describe("claimManagerRole", () => {
+    it("returns propertyId and role on success", async () => {
+      mockActor.claimManagerRole.mockResolvedValue({
+        ok: { propertyId: BigInt(42), role: { Manager: null } },
+      });
+      const result = await propertyService.claimManagerRole("invite-token-xyz");
+      expect(result.propertyId).toBe(BigInt(42));
+      expect(result.role).toBe("Manager");
+    });
+
+    it("throws on canister error", async () => {
+      mockActor.claimManagerRole.mockResolvedValue({ err: { NotFound: null } });
+      await expect(propertyService.claimManagerRole("bad-token")).rejects.toThrow("NotFound");
+    });
+  });
+
+  // ── updateManagerRole ─────────────────────────────────────────────────────────
+  describe("updateManagerRole", () => {
+    it("resolves without error on success", async () => {
+      mockActor.updateManagerRole.mockResolvedValue({ ok: null });
+      vi.doMock("@icp-sdk/core/principal", () => ({
+        Principal: { fromText: vi.fn().mockReturnValue("p") },
+      }));
+      await expect(propertyService.updateManagerRole(BigInt(1), "manager-p", "Manager")).resolves.toBeUndefined();
+    });
+
+    it("throws on canister error", async () => {
+      mockActor.updateManagerRole.mockResolvedValue({ err: { NotAuthorized: null } });
+      vi.doMock("@icp-sdk/core/principal", () => ({
+        Principal: { fromText: vi.fn().mockReturnValue("p") },
+      }));
+      await expect(propertyService.updateManagerRole(BigInt(1), "manager-p", "Viewer")).rejects.toThrow("NotAuthorized");
+    });
+  });
+
+  // ── removeManager ─────────────────────────────────────────────────────────────
+  describe("removeManager", () => {
+    it("resolves without error on success", async () => {
+      mockActor.removeManager.mockResolvedValue({ ok: null });
+      vi.doMock("@icp-sdk/core/principal", () => ({
+        Principal: { fromText: vi.fn().mockReturnValue("p") },
+      }));
+      await expect(propertyService.removeManager(BigInt(1), "manager-p")).resolves.toBeUndefined();
+    });
+
+    it("throws on canister error", async () => {
+      mockActor.removeManager.mockResolvedValue({ err: { NotFound: null } });
+      vi.doMock("@icp-sdk/core/principal", () => ({
+        Principal: { fromText: vi.fn().mockReturnValue("p") },
+      }));
+      await expect(propertyService.removeManager(BigInt(1), "manager-p")).rejects.toThrow("NotFound");
+    });
+  });
+
+  // ── resignAsManager ───────────────────────────────────────────────────────────
+  describe("resignAsManager", () => {
+    it("resolves without error on success", async () => {
+      mockActor.resignAsManager.mockResolvedValue({ ok: null });
+      await expect(propertyService.resignAsManager(BigInt(1))).resolves.toBeUndefined();
+    });
+
+    it("throws on canister error", async () => {
+      mockActor.resignAsManager.mockResolvedValue({ err: { NotAuthorized: null } });
+      await expect(propertyService.resignAsManager(BigInt(1))).rejects.toThrow("NotAuthorized");
+    });
+  });
+
+  // ── getMyManagedProperties ────────────────────────────────────────────────────
+  describe("getMyManagedProperties", () => {
+    it("returns empty array when canister returns none", async () => {
+      mockActor.getMyManagedProperties.mockResolvedValue([]);
+      const result = await propertyService.getMyManagedProperties();
+      expect(result).toEqual([]);
+    });
+
+    it("maps ManagedProperty entries correctly", async () => {
+      mockActor.getMyManagedProperties.mockResolvedValue([
+        {
+          property: makeRawProperty({ id: BigInt(5) }),
+          role: { Manager: null },
+        },
+      ]);
+      const [mp] = await propertyService.getMyManagedProperties();
+      expect(mp.role).toBe("Manager");
+      expect(mp.property.id).toBe(BigInt(5));
+    });
+  });
+
+  // ── getPropertyManagers ───────────────────────────────────────────────────────
+  describe("getPropertyManagers", () => {
+    it("returns mapped managers on success", async () => {
+      mockActor.getPropertyManagers.mockResolvedValue({
+        ok: [
+          {
+            principal:   { toText: () => "manager-principal" },
+            role:        { Viewer: null },
+            displayName: "Alice",
+            addedAt:     BigInt(1_735_689_600_000_000_000),
+          },
+        ],
+      });
+      const [mgr] = await propertyService.getPropertyManagers(BigInt(1));
+      expect(mgr.principal).toBe("manager-principal");
+      expect(mgr.role).toBe("Viewer");
+      expect(mgr.displayName).toBe("Alice");
+    });
+
+    it("returns empty array when no managers", async () => {
+      mockActor.getPropertyManagers.mockResolvedValue({ ok: [] });
+      const result = await propertyService.getPropertyManagers(BigInt(1));
+      expect(result).toEqual([]);
+    });
+
+    it("throws on canister error", async () => {
+      mockActor.getPropertyManagers.mockResolvedValue({ err: { NotFound: null } });
+      await expect(propertyService.getPropertyManagers(BigInt(1))).rejects.toThrow("NotFound");
+    });
+  });
+
+  // ── getManagerInviteByToken ───────────────────────────────────────────────────
+  describe("getManagerInviteByToken", () => {
+    it("returns null when canister returns empty array", async () => {
+      mockActor.getManagerInviteByToken.mockResolvedValue([]);
+      const result = await propertyService.getManagerInviteByToken("no-such-token");
+      expect(result).toBeNull();
+    });
+
+    it("maps invite when token exists", async () => {
+      mockActor.getManagerInviteByToken.mockResolvedValue([
+        {
+          propertyId:  BigInt(1),
+          token:       "abc-token",
+          role:        { Viewer: null },
+          displayName: "Bob",
+          invitedBy:   { toText: () => "owner-p" },
+          createdAt:   BigInt(1_735_689_600_000_000_000),
+          expiresAt:   BigInt(1_735_689_600_000_000_000 + 7 * 24 * 3600 * 1_000_000_000),
+        },
+      ]);
+      const invite = await propertyService.getManagerInviteByToken("abc-token");
+      expect(invite).not.toBeNull();
+      expect(invite!.token).toBe("abc-token");
+      expect(invite!.role).toBe("Viewer");
+    });
+  });
+
+  // ── recordManagerActivity ─────────────────────────────────────────────────────
+  describe("recordManagerActivity", () => {
+    it("resolves without error on success", async () => {
+      mockActor.recordManagerActivity.mockResolvedValue({ ok: null });
+      await expect(propertyService.recordManagerActivity(BigInt(1), "Updated photos")).resolves.toBeUndefined();
+    });
+
+    it("throws on canister error", async () => {
+      mockActor.recordManagerActivity.mockResolvedValue({ err: { NotAuthorized: null } });
+      await expect(propertyService.recordManagerActivity(BigInt(1), "x")).rejects.toThrow("NotAuthorized");
+    });
+  });
+
+  // ── getOwnerNotifications ─────────────────────────────────────────────────────
+  describe("getOwnerNotifications", () => {
+    it("returns mapped notifications on success", async () => {
+      mockActor.getOwnerNotifications.mockResolvedValue({
+        ok: [
+          {
+            id:               BigInt(1),
+            managerPrincipal: { toText: () => "mgr-p" },
+            managerName:      "Alice",
+            description:      "Updated photos",
+            timestamp:        BigInt(1_735_689_600_000_000_000),
+            seen:             false,
+          },
+        ],
+      });
+      const [notif] = await propertyService.getOwnerNotifications(BigInt(1));
+      expect(notif.id).toBe(1);
+      expect(notif.managerPrincipal).toBe("mgr-p");
+      expect(notif.managerName).toBe("Alice");
+      expect(notif.seen).toBe(false);
+    });
+
+    it("throws on canister error", async () => {
+      mockActor.getOwnerNotifications.mockResolvedValue({ err: { NotFound: null } });
+      await expect(propertyService.getOwnerNotifications(BigInt(1))).rejects.toThrow("NotFound");
+    });
+  });
+
+  // ── dismissNotifications ──────────────────────────────────────────────────────
+  describe("dismissNotifications", () => {
+    it("resolves without error on success", async () => {
+      mockActor.dismissNotifications.mockResolvedValue({ ok: null });
+      await expect(propertyService.dismissNotifications(BigInt(1))).resolves.toBeUndefined();
+    });
+
+    it("throws on canister error", async () => {
+      mockActor.dismissNotifications.mockResolvedValue({ err: { NotAuthorized: null } });
+      await expect(propertyService.dismissNotifications(BigInt(1))).rejects.toThrow("NotAuthorized");
+    });
+  });
+
+  // ── isAuthorized ──────────────────────────────────────────────────────────────
+  describe("isAuthorized", () => {
+    it("returns true when canister grants access", async () => {
+      mockActor.isAuthorized.mockResolvedValue(true);
+      vi.doMock("@icp-sdk/core/principal", () => ({
+        Principal: { fromText: vi.fn().mockReturnValue("p") },
+      }));
+      const result = await propertyService.isAuthorized(BigInt(1), "some-principal", false);
+      expect(typeof result).toBe("boolean");
     });
   });
 });
