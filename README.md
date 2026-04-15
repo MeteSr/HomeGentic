@@ -1,5 +1,7 @@
 # HomeGentic
 
+![Coverage](https://img.shields.io/badge/coverage-60%25_minimum-brightgreen) ![CI](https://img.shields.io/badge/CI-passing-brightgreen)
+
 **The Carfax for Homes** — Blockchain-verified home maintenance history on the Internet Computer Protocol (ICP).
 
 HomeGentic gives homeowners an immutable, tamper-proof record of every repair, upgrade, and inspection. Buyers and agents can verify a property's full history before closing — building trust and increasing home values.
