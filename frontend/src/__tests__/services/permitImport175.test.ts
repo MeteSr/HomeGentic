@@ -233,8 +233,8 @@ describe("importPermitsForProperty", () => {
     expect(result.imported).toBe(2);
   });
 
-  it("returns empty result when canister returns null", async () => {
-    vi.mocked(aiProxyService.importPermits).mockResolvedValueOnce(null);
+  it("returns empty result when canister returns empty string", async () => {
+    vi.mocked(aiProxyService.importPermits).mockResolvedValueOnce("");
 
     const result = await importPermitsForProperty("prop-1", "456 Oak Ave", "Austin", "TX", "78701");
     expect(result.imported).toBe(0);

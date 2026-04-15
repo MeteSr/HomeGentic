@@ -64,8 +64,8 @@ describe("getPriceBenchmark", () => {
     expect(aiProxyService.getPriceBenchmark).toHaveBeenCalledWith("Roofing", "32114");
   });
 
-  it("returns null when canister returns null", async () => {
-    vi.mocked(aiProxyService.getPriceBenchmark).mockResolvedValueOnce(null);
+  it("returns null when canister returns empty string", async () => {
+    vi.mocked(aiProxyService.getPriceBenchmark).mockResolvedValueOnce("");
     const result = await getPriceBenchmark("Roofing", "00000");
     expect(result).toBeNull();
   });

@@ -63,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const profile = await authService.getProfile();
           setLastLoginAt(profile.lastLoggedIn);   // capture previous session timestamp
           setProfile(profile);
-          authService.recordLogin().catch(() => {}); // fire-and-forget
+          authService.recordLogin().catch((err) => console.error("[AuthContext] recordLogin failed:", err)); // fire-and-forget
         } catch {
           // Not registered yet
         }
@@ -80,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const profile = await authService.getProfile();
       setLastLoginAt(profile.lastLoggedIn);
       setProfile(profile);
-      authService.recordLogin().catch(() => {});
+      authService.recordLogin().catch((err) => console.error("[AuthContext] recordLogin failed:", err));
       if (profile.role === "Contractor") {
         navigate("/contractor-dashboard");
       } else {
@@ -113,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const profile = await authService.getProfile();
       setLastLoginAt(profile.lastLoggedIn);
       setProfile(profile);
-      authService.recordLogin().catch(() => {});
+      authService.recordLogin().catch((err) => console.error("[AuthContext] recordLogin failed:", err));
       if (profile.role === "Contractor") {
         navigate("/contractor-dashboard");
       } else {

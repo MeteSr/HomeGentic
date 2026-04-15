@@ -96,28 +96,28 @@ async function getActor(): Promise<any | null> {
 
 export const aiProxyService = {
 
-  /** Returns price benchmark JSON or null on error/missing canister. */
-  async getPriceBenchmark(service: string, zip: string): Promise<string | null> {
+  /** Returns price benchmark JSON or empty string on error/missing canister. */
+  async getPriceBenchmark(service: string, zip: string): Promise<string> {
     const actor = await getActor();
-    if (!actor) return null;
+    if (!actor) return "";
     try {
       const result = await actor.getPriceBenchmark(service, zip);
       if ("ok" in result) return result.ok as string;
-      return null;
+      return "";
     } catch {
-      return null;
+      return "";
     }
   },
 
-  /** Returns forecast JSON or null on error. */
+  /** Returns forecast JSON or empty string on error. */
   async instantForecast(
     address: string,
     yearBuilt: number,
     state?: string,
     overridesJson = "{}",
-  ): Promise<string | null> {
+  ): Promise<string> {
     const actor = await getActor();
-    if (!actor) return null;
+    if (!actor) return "";
     try {
       const result = await actor.instantForecast(
         address,
@@ -126,27 +126,27 @@ export const aiProxyService = {
         overridesJson,
       );
       if ("ok" in result) return result.ok as string;
-      return null;
+      return "";
     } catch {
-      return null;
+      return "";
     }
   },
 
-  /** Returns { source, data } JSON or null. */
+  /** Returns { source, data } JSON or empty string on error/missing canister. */
   async importPermits(
     address: string,
     city:    string,
     state:   string,
     zip:     string,
-  ): Promise<string | null> {
+  ): Promise<string> {
     const actor = await getActor();
-    if (!actor) return null;
+    if (!actor) return "";
     try {
       const result = await actor.importPermits(address, city, state, zip);
       if ("ok" in result) return result.ok as string;
-      return null;
+      return "";
     } catch {
-      return null;
+      return "";
     }
   },
 

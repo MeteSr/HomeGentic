@@ -537,15 +537,17 @@ function createListingService() {
     }
     const actor = await getActor();
     const result = await actor.submitProposal(
-      requestId,
-      input.agentName, input.agentBrokerage,
-      BigInt(input.commissionBps),
-      input.cmaSummary, input.marketingPlan,
-      BigInt(input.estimatedDaysOnMarket),
-      BigInt(input.estimatedSalePrice),
-      input.includedServices,
-      BigInt(input.validUntil),
-      input.coverLetter
+      /* requestId            */ requestId,
+      /* agentName            */ input.agentName,
+      /* agentBrokerage       */ input.agentBrokerage,
+      /* commissionBps        */ BigInt(input.commissionBps),
+      /* cmaSummary           */ input.cmaSummary,
+      /* marketingPlan        */ input.marketingPlan,
+      /* estimatedDaysOnMarket*/ BigInt(input.estimatedDaysOnMarket),
+      /* estimatedSalePrice   */ BigInt(input.estimatedSalePrice),
+      /* includedServices     */ input.includedServices,
+      /* validUntil           */ BigInt(input.validUntil),
+      /* coverLetter          */ input.coverLetter,
     );
     if ("err" in result) throw new Error(JSON.stringify(result.err));
     return fromRawProposal(result.ok);
