@@ -7,7 +7,7 @@ import { photoService } from "@/services/photo";
 import toast from "react-hot-toast";
 import { COLORS, FONTS } from "@/theme";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -19,9 +19,9 @@ const S = {
 };
 
 const STATUS_STYLE: Record<string, { color: string; bg: string }> = {
-  Active:    { color: S.sage,         bg: COLORS.sageLight },
+  Active:    { color: UI.sage,         bg: COLORS.sageLight },
   Paused:    { color: COLORS.plumMid, bg: COLORS.butter    },
-  Cancelled: { color: S.inkLight,     bg: S.paper          },
+  Cancelled: { color: UI.inkLight,     bg: UI.paper          },
 };
 
 function fmtDate(iso: string): string {
@@ -129,27 +129,27 @@ export default function RecurringServiceDetailPage() {
 
         <button
           onClick={() => navigate(-1)}
-          style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: "1.5rem" }}
+          style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: "1.5rem" }}
         >
           <ArrowLeft size={14} /> Back
         </button>
 
         {!svc ? (
-          <div style={{ padding: "3rem", textAlign: "center", border: `1px solid ${S.rule}` }}>
-            <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight }}>Service not found.</p>
+          <div style={{ padding: "3rem", textAlign: "center", border: `1px solid ${UI.rule}` }}>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight }}>Service not found.</p>
           </div>
         ) : (
           <>
             {/* ── Header ─────────────────────────────────────────────────────── */}
-            <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.rust, marginBottom: "0.5rem" }}>
+            <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: UI.rust, marginBottom: "0.5rem" }}>
               Recurring Service
             </div>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
-              <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1 }}>
+              <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1 }}>
                 {SERVICE_TYPE_LABELS[svc.serviceType] ?? svc.serviceType}
               </h1>
               <span style={{
-                fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em",
+                fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em",
                 textTransform: "uppercase", padding: "0.25rem 0.6rem",
                 color: statusStyle.color, background: statusStyle.bg,
                 border: `1px solid ${statusStyle.color}44`,
@@ -160,57 +160,57 @@ export default function RecurringServiceDetailPage() {
             </div>
 
             {/* ── Service details ────────────────────────────────────────────── */}
-            <div style={{ border: `1px solid ${S.rule}`, background: COLORS.white, padding: "1.5rem", marginBottom: "1.25rem" }}>
+            <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "1.5rem", marginBottom: "1.25rem" }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem 2rem" }}>
                 <div>
-                  <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.25rem" }}>Provider</p>
-                  <p style={{ fontFamily: S.mono, fontSize: "0.75rem", color: S.ink }}>{svc.providerName}</p>
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.25rem" }}>Provider</p>
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: UI.ink }}>{svc.providerName}</p>
                 </div>
                 <div>
-                  <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.25rem" }}>Frequency</p>
-                  <p style={{ fontFamily: S.mono, fontSize: "0.75rem", color: S.ink }}>{FREQUENCY_LABELS[svc.frequency] ?? svc.frequency}</p>
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.25rem" }}>Frequency</p>
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: UI.ink }}>{FREQUENCY_LABELS[svc.frequency] ?? svc.frequency}</p>
                 </div>
                 {svc.providerLicense && (
                   <div>
-                    <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.25rem" }}>License #</p>
-                    <p style={{ fontFamily: S.mono, fontSize: "0.75rem", color: S.ink }}>{svc.providerLicense}</p>
+                    <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.25rem" }}>License #</p>
+                    <p style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: UI.ink }}>{svc.providerLicense}</p>
                   </div>
                 )}
                 {svc.providerPhone && (
                   <div>
-                    <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.25rem" }}>Phone</p>
-                    <p style={{ fontFamily: S.mono, fontSize: "0.75rem", color: S.ink }}>{svc.providerPhone}</p>
+                    <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.25rem" }}>Phone</p>
+                    <p style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: UI.ink }}>{svc.providerPhone}</p>
                   </div>
                 )}
                 <div>
-                  <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.25rem" }}>Started</p>
-                  <p style={{ fontFamily: S.mono, fontSize: "0.75rem", color: S.ink }}>{fmtDate(svc.startDate)}</p>
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.25rem" }}>Started</p>
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: UI.ink }}>{fmtDate(svc.startDate)}</p>
                 </div>
                 {svc.contractEndDate && (
                   <div>
-                    <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.25rem" }}>Contract ends</p>
-                    <p style={{ fontFamily: S.mono, fontSize: "0.75rem", color: S.ink }}>{fmtDate(svc.contractEndDate)}</p>
+                    <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.25rem" }}>Contract ends</p>
+                    <p style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: UI.ink }}>{fmtDate(svc.contractEndDate)}</p>
                   </div>
                 )}
               </div>
               {svc.notes && (
-                <p style={{ marginTop: "1rem", fontSize: "0.85rem", fontWeight: 300, color: S.inkLight, borderTop: `1px solid ${S.rule}`, paddingTop: "1rem" }}>
+                <p style={{ marginTop: "1rem", fontSize: "0.85rem", fontWeight: 300, color: UI.inkLight, borderTop: `1px solid ${UI.rule}`, paddingTop: "1rem" }}>
                   {svc.notes}
                 </p>
               )}
             </div>
 
             {/* ── Contract document ──────────────────────────────────────────── */}
-            <div style={{ border: `1px solid ${S.rule}`, background: COLORS.white, padding: "1.25rem", marginBottom: "1.25rem" }}>
-              <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.75rem" }}>
+            <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "1.25rem", marginBottom: "1.25rem" }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.75rem" }}>
                 Contract Document
               </p>
               {svc.contractDocPhotoId ? (
                 <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-                  <FileText size={16} color={S.sage} />
-                  <span style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.sage }}>Document on file</span>
+                  <FileText size={16} color={UI.sage} />
+                  <span style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: UI.sage }}>Document on file</span>
                   {!isCancelled && (
-                    <label style={{ marginLeft: "auto", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.3rem 0.75rem", border: `1px solid ${S.rule}`, cursor: "pointer", color: S.inkLight }}>
+                    <label style={{ marginLeft: "auto", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.3rem 0.75rem", border: `1px solid ${UI.rule}`, cursor: "pointer", color: UI.inkLight }}>
                       Replace
                       <input type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} onChange={handleDocUpload} />
                     </label>
@@ -218,14 +218,14 @@ export default function RecurringServiceDetailPage() {
                 </div>
               ) : (
                 <div style={{ display: "flex", alignItems: "center", gap: "0.875rem", flexWrap: "wrap" }}>
-                  <p style={{ fontSize: "0.8rem", fontWeight: 300, color: S.inkLight }}>
+                  <p style={{ fontSize: "0.8rem", fontWeight: 300, color: UI.inkLight }}>
                     No contract document attached.
                   </p>
                   {!isCancelled && (
                     <label style={{
-                      fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em",
+                      fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em",
                       textTransform: "uppercase", padding: "0.35rem 0.875rem",
-                      border: `1px solid ${S.rust}`, color: S.rust,
+                      border: `1px solid ${UI.rust}`, color: UI.rust,
                       cursor: docUploading ? "not-allowed" : "pointer",
                       opacity: docUploading ? 0.6 : 1,
                     }}>
@@ -244,7 +244,7 @@ export default function RecurringServiceDetailPage() {
                   <button
                     onClick={() => handleStatusChange("Paused")}
                     disabled={statusLoading}
-                    style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", border: `1px solid ${S.rule}`, background: "none", cursor: "pointer", color: S.inkLight }}
+                    style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", border: `1px solid ${UI.rule}`, background: "none", cursor: "pointer", color: UI.inkLight }}
                   >
                     Pause Service
                   </button>
@@ -253,7 +253,7 @@ export default function RecurringServiceDetailPage() {
                   <button
                     onClick={() => handleStatusChange("Active")}
                     disabled={statusLoading}
-                    style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", border: `1px solid ${S.sage}`, background: COLORS.sageLight, cursor: "pointer", color: S.sage }}
+                    style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", border: `1px solid ${UI.sage}`, background: COLORS.sageLight, cursor: "pointer", color: UI.sage }}
                   >
                     Resume Service
                   </button>
@@ -261,7 +261,7 @@ export default function RecurringServiceDetailPage() {
                 <button
                   onClick={() => { if (window.confirm("Cancel this service? This cannot be undone.")) handleStatusChange("Cancelled"); }}
                   disabled={statusLoading}
-                  style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", border: `1px solid ${S.rule}`, background: "none", cursor: "pointer", color: S.inkLight }}
+                  style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", border: `1px solid ${UI.rule}`, background: "none", cursor: "pointer", color: UI.inkLight }}
                 >
                   Cancel Service
                 </button>
@@ -269,15 +269,15 @@ export default function RecurringServiceDetailPage() {
             )}
 
             {/* ── Visit log ──────────────────────────────────────────────────── */}
-            <div style={{ border: `1px solid ${S.rule}`, background: COLORS.white, padding: "1.5rem" }}>
+            <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "1.5rem" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-                <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: S.inkLight }}>
+                <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.inkLight }}>
                   Visit Log · {visits.length} {visits.length === 1 ? "entry" : "entries"}
                 </p>
                 {!isCancelled && !showVisitForm && (
                   <button
                     onClick={() => setShowVisitForm(true)}
-                    style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.3rem 0.75rem", border: `1px solid ${S.rust}`, color: S.rust, background: "none", cursor: "pointer" }}
+                    style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.3rem 0.75rem", border: `1px solid ${UI.rust}`, color: UI.rust, background: "none", cursor: "pointer" }}
                   >
                     <Plus size={11} /> Log Visit
                   </button>
@@ -286,14 +286,14 @@ export default function RecurringServiceDetailPage() {
 
               {/* Add visit inline form */}
               {showVisitForm && (
-                <div style={{ border: `1px solid ${S.rule}`, padding: "1rem", marginBottom: "1rem", background: S.paper }}>
+                <div style={{ border: `1px solid ${UI.rule}`, padding: "1rem", marginBottom: "1rem", background: UI.paper }}>
                   <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "0.75rem", marginBottom: "0.75rem" }}>
                     <div>
                       <label className="form-label">Date *</label>
                       <input className="form-input" type="date" value={visitDate} onChange={(e) => setVisitDate(e.target.value)} />
                     </div>
                     <div>
-                      <label className="form-label">Note <span style={{ color: S.inkLight, fontWeight: 300 }}>(optional)</span></label>
+                      <label className="form-label">Note <span style={{ color: UI.inkLight, fontWeight: 300 }}>(optional)</span></label>
                       <input className="form-input" placeholder="e.g. Full interior + exterior treatment" value={visitNote} onChange={(e) => setVisitNote(e.target.value)} />
                     </div>
                   </div>
@@ -301,13 +301,13 @@ export default function RecurringServiceDetailPage() {
                     <button
                       onClick={handleAddVisit}
                       disabled={visitSubmitting}
-                      style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 1rem", border: `1px solid ${S.ink}`, background: S.ink, color: S.paper, cursor: "pointer" }}
+                      style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 1rem", border: `1px solid ${UI.ink}`, background: UI.ink, color: UI.paper, cursor: "pointer" }}
                     >
                       {visitSubmitting ? "Saving…" : "Save"}
                     </button>
                     <button
                       onClick={() => { setShowVisitForm(false); setVisitNote(""); }}
-                      style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 0.875rem", border: `1px solid ${S.rule}`, background: "none", cursor: "pointer", color: S.inkLight }}
+                      style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 0.875rem", border: `1px solid ${UI.rule}`, background: "none", cursor: "pointer", color: UI.inkLight }}
                     >
                       Cancel
                     </button>
@@ -317,19 +317,19 @@ export default function RecurringServiceDetailPage() {
 
               {/* Visit list */}
               {visits.length === 0 ? (
-                <p style={{ fontSize: "0.8rem", fontWeight: 300, color: S.inkLight, padding: "0.75rem 0" }}>
+                <p style={{ fontSize: "0.8rem", fontWeight: 300, color: UI.inkLight, padding: "0.75rem 0" }}>
                   No visits logged yet. Each visit takes 10 seconds — just pick the date.
                 </p>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column" }}>
                   {visits.map((v, i) => (
-                    <div key={v.id} style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.625rem 0", borderBottom: i < visits.length - 1 ? `1px solid ${S.rule}` : "none" }}>
-                      <CheckCircle size={12} color={S.sage} style={{ flexShrink: 0 }} />
-                      <span style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.ink, flexShrink: 0 }}>
+                    <div key={v.id} style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.625rem 0", borderBottom: i < visits.length - 1 ? `1px solid ${UI.rule}` : "none" }}>
+                      <CheckCircle size={12} color={UI.sage} style={{ flexShrink: 0 }} />
+                      <span style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: UI.ink, flexShrink: 0 }}>
                         {fmtDate(v.visitDate)}
                       </span>
                       {v.note && (
-                        <span style={{ fontSize: "0.8rem", fontWeight: 300, color: S.inkLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <span style={{ fontSize: "0.8rem", fontWeight: 300, color: UI.inkLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {v.note}
                         </span>
                       )}

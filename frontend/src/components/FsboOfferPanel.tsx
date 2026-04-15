@@ -21,7 +21,7 @@ import {
 import { fsboService } from "@/services/fsbo";
 import { COLORS, FONTS } from "@/theme";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   inkLight: COLORS.plumMid,
   rule:     COLORS.rule,
@@ -36,7 +36,7 @@ function fmt(cents: number): string {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  Active:    S.inkLight,
+  Active:    UI.inkLight,
   Countered: "#e37400",
   Accepted:  "#188038",
   Rejected:  "#c0392b",
@@ -93,20 +93,20 @@ function OfferRow({ offer, underContract, onUpdate, onContractUpdate }: OfferRow
   }
 
   return (
-    <div style={{ border: `1px solid ${S.rule}`, padding: "0.75rem 1rem", marginBottom: "0.75rem" }}>
+    <div style={{ border: `1px solid ${UI.rule}`, padding: "0.75rem 1rem", marginBottom: "0.75rem" }}>
       {/* Header row */}
       <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem", marginBottom: "0.5rem" }}>
         <div>
-          <span style={{ fontFamily: S.sans, fontWeight: 600, fontSize: "0.95rem", color: S.ink }}>
+          <span style={{ fontFamily: UI.sans, fontWeight: 600, fontSize: "0.95rem", color: UI.ink }}>
             {offer.buyerName}
           </span>
           {offer.hasEscalationClause && (
-            <span style={{ marginLeft: "0.5rem", fontFamily: S.mono, fontSize: "0.6rem", color: "#e37400", textTransform: "uppercase" }}>
+            <span style={{ marginLeft: "0.5rem", fontFamily: UI.mono, fontSize: "0.6rem", color: "#e37400", textTransform: "uppercase" }}>
               Escalation
             </span>
           )}
         </div>
-        <span style={{ fontFamily: S.mono, fontSize: "0.65rem", fontWeight: 700, color: STATUS_COLOR[offer.status], textTransform: "uppercase" }}>
+        <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", fontWeight: 700, color: STATUS_COLOR[offer.status], textTransform: "uppercase" }}>
           {offer.status}
         </span>
       </div>
@@ -114,20 +114,20 @@ function OfferRow({ offer, underContract, onUpdate, onContractUpdate }: OfferRow
       {/* Key figures */}
       <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap", marginBottom: "0.5rem" }}>
         <div>
-          <div style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, textTransform: "uppercase" }}>Offer</div>
-          <div style={{ fontFamily: S.sans, fontWeight: 700, fontSize: "1rem", color: S.ink }}>{fmt(offer.offerAmountCents)}</div>
+          <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, textTransform: "uppercase" }}>Offer</div>
+          <div style={{ fontFamily: UI.sans, fontWeight: 700, fontSize: "1rem", color: UI.ink }}>{fmt(offer.offerAmountCents)}</div>
         </div>
         <div>
-          <div style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, textTransform: "uppercase" }}>Est. Net</div>
-          <div style={{ fontFamily: S.sans, fontWeight: 600, fontSize: "0.95rem", color: "#188038" }}>{fmt(net)}</div>
+          <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, textTransform: "uppercase" }}>Est. Net</div>
+          <div style={{ fontFamily: UI.sans, fontWeight: 600, fontSize: "0.95rem", color: "#188038" }}>{fmt(net)}</div>
         </div>
         <div>
-          <div style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, textTransform: "uppercase" }}>Earnest</div>
-          <div style={{ fontFamily: S.sans, fontSize: "0.9rem", color: S.ink }}>{fmt(offer.earnestMoneyCents)}</div>
+          <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, textTransform: "uppercase" }}>Earnest</div>
+          <div style={{ fontFamily: UI.sans, fontSize: "0.9rem", color: UI.ink }}>{fmt(offer.earnestMoneyCents)}</div>
         </div>
         <div>
-          <div style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, textTransform: "uppercase" }}>Contingencies</div>
-          <div style={{ fontFamily: S.sans, fontSize: "0.9rem", color: risk > 1 ? "#c0392b" : S.ink }}>
+          <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, textTransform: "uppercase" }}>Contingencies</div>
+          <div style={{ fontFamily: UI.sans, fontSize: "0.9rem", color: risk > 1 ? "#c0392b" : UI.ink }}>
             {risk} contingenc{risk === 1 ? "y" : "ies"}
           </div>
         </div>
@@ -135,11 +135,11 @@ function OfferRow({ offer, underContract, onUpdate, onContractUpdate }: OfferRow
 
       {/* Counter thread */}
       {offer.counters.length > 0 && (
-        <div style={{ borderTop: `1px solid ${S.rule}`, paddingTop: "0.5rem", marginBottom: "0.5rem" }}>
+        <div style={{ borderTop: `1px solid ${UI.rule}`, paddingTop: "0.5rem", marginBottom: "0.5rem" }}>
           {offer.counters.map((c) => (
-            <div key={c.id} style={{ fontFamily: S.sans, fontSize: "0.8rem", color: S.ink, marginBottom: "0.25rem" }}>
+            <div key={c.id} style={{ fontFamily: UI.sans, fontSize: "0.8rem", color: UI.ink, marginBottom: "0.25rem" }}>
               <strong>{fmt(c.amountCents)}</strong>
-              {c.notes && <span style={{ color: S.inkLight }}> — {c.notes}</span>}
+              {c.notes && <span style={{ color: UI.inkLight }}> — {c.notes}</span>}
             </div>
           ))}
         </div>
@@ -151,21 +151,21 @@ function OfferRow({ offer, underContract, onUpdate, onContractUpdate }: OfferRow
           <button
             onClick={handleAccept}
             aria-label="Accept Offer"
-            style={{ padding: "0.3rem 0.75rem", background: "#188038", color: "#fff", border: "none", fontFamily: S.mono, fontSize: "0.7rem", cursor: "pointer" }}
+            style={{ padding: "0.3rem 0.75rem", background: "#188038", color: "#fff", border: "none", fontFamily: UI.mono, fontSize: "0.7rem", cursor: "pointer" }}
           >
             Accept Offer
           </button>
           <button
             onClick={handleReject}
             aria-label="Reject Offer"
-            style={{ padding: "0.3rem 0.75rem", background: "#c0392b", color: "#fff", border: "none", fontFamily: S.mono, fontSize: "0.7rem", cursor: "pointer" }}
+            style={{ padding: "0.3rem 0.75rem", background: "#c0392b", color: "#fff", border: "none", fontFamily: UI.mono, fontSize: "0.7rem", cursor: "pointer" }}
           >
             Reject
           </button>
           {!countering && (
             <button
               onClick={() => setCountering(true)}
-              style={{ padding: "0.3rem 0.75rem", background: "transparent", color: S.ink, border: `1px solid ${S.rule}`, fontFamily: S.mono, fontSize: "0.7rem", cursor: "pointer" }}
+              style={{ padding: "0.3rem 0.75rem", background: "transparent", color: UI.ink, border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.7rem", cursor: "pointer" }}
             >
               Counter
             </button>
@@ -179,7 +179,7 @@ function OfferRow({ offer, underContract, onUpdate, onContractUpdate }: OfferRow
             <div>
               <label
                 htmlFor={`ca-${offer.id}`}
-                style={{ display: "block", fontFamily: S.mono, fontSize: "0.6rem", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.2rem" }}
+                style={{ display: "block", fontFamily: UI.mono, fontSize: "0.6rem", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.2rem" }}
               >
                 Counter Amount ($)
               </label>
@@ -190,13 +190,13 @@ function OfferRow({ offer, underContract, onUpdate, onContractUpdate }: OfferRow
                 step="1000"
                 value={counterAmount}
                 onChange={(e) => setCounterAmount(e.target.value)}
-                style={{ padding: "0.35rem 0.5rem", border: `1px solid ${S.rule}`, fontFamily: S.mono, fontSize: "0.8rem", width: "10rem" }}
+                style={{ padding: "0.35rem 0.5rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.8rem", width: "10rem" }}
               />
             </div>
             <div style={{ flex: 1, minWidth: "12rem" }}>
               <label
                 htmlFor={`cn-${offer.id}`}
-                style={{ display: "block", fontFamily: S.mono, fontSize: "0.6rem", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.2rem" }}
+                style={{ display: "block", fontFamily: UI.mono, fontSize: "0.6rem", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.2rem" }}
               >
                 Counter Notes
               </label>
@@ -205,13 +205,13 @@ function OfferRow({ offer, underContract, onUpdate, onContractUpdate }: OfferRow
                 type="text"
                 value={counterNotes}
                 onChange={(e) => setCounterNotes(e.target.value)}
-                style={{ padding: "0.35rem 0.5rem", border: `1px solid ${S.rule}`, fontFamily: S.sans, fontSize: "0.8rem", width: "100%", boxSizing: "border-box" }}
+                style={{ padding: "0.35rem 0.5rem", border: `1px solid ${UI.rule}`, fontFamily: UI.sans, fontSize: "0.8rem", width: "100%", boxSizing: "border-box" }}
               />
             </div>
           </div>
           <button
             type="submit"
-            style={{ alignSelf: "flex-start", padding: "0.35rem 0.75rem", background: S.ink, color: "#fff", border: "none", fontFamily: S.mono, fontSize: "0.7rem", cursor: "pointer" }}
+            style={{ alignSelf: "flex-start", padding: "0.35rem 0.75rem", background: UI.ink, color: "#fff", border: "none", fontFamily: UI.mono, fontSize: "0.7rem", cursor: "pointer" }}
           >
             Send Counter
           </button>
@@ -283,20 +283,20 @@ export default function FsboOfferPanel({ propertyId, listPriceCents }: FsboOffer
 
   return (
     <div>
-      <h2 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.25rem", color: S.ink, margin: "0 0 0.75rem" }}>
+      <h2 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.25rem", color: UI.ink, margin: "0 0 0.75rem" }}>
         Offers
       </h2>
 
       {/* Under Contract banner */}
       {underContract && (
-        <div style={{ background: "#f0faf4", border: "1px solid #c3e6cb", padding: "0.75rem 1rem", marginBottom: "1rem", fontFamily: S.sans, fontWeight: 600, color: "#188038" }}>
+        <div style={{ background: "#f0faf4", border: "1px solid #c3e6cb", padding: "0.75rem 1rem", marginBottom: "1rem", fontFamily: UI.sans, fontWeight: 600, color: "#188038" }}>
           Under Contract — offer accepted. Your listing is no longer active.
         </div>
       )}
 
       {/* Offer list */}
       {offers.length === 0 ? (
-        <p style={{ fontFamily: S.sans, fontSize: "0.875rem", color: S.inkLight, marginBottom: "1rem" }}>
+        <p style={{ fontFamily: UI.sans, fontSize: "0.875rem", color: UI.inkLight, marginBottom: "1rem" }}>
           No offers logged yet.
         </p>
       ) : (
@@ -318,58 +318,58 @@ export default function FsboOfferPanel({ propertyId, listPriceCents }: FsboOffer
         <form
           aria-label="Log Offer"
           onSubmit={handleSubmit}
-          style={{ border: `1px solid ${S.rule}`, padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}
+          style={{ border: `1px solid ${UI.rule}`, padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}
         >
-          <h3 style={{ fontFamily: S.mono, fontSize: "0.75rem", color: S.ink, margin: 0, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+          <h3 style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: UI.ink, margin: 0, textTransform: "uppercase", letterSpacing: "0.06em" }}>
             Log an Offer
           </h3>
 
           {/* Buyer name */}
           <div>
-            <label htmlFor="fo-buyer" style={{ display: "block", fontFamily: S.mono, fontSize: "0.6rem", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.2rem" }}>
+            <label htmlFor="fo-buyer" style={{ display: "block", fontFamily: UI.mono, fontSize: "0.6rem", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.2rem" }}>
               Buyer Name
             </label>
             <input id="fo-buyer" type="text" value={buyerName} onChange={(e) => setBuyerName(e.target.value)} required
-              style={{ padding: "0.4rem 0.5rem", border: `1px solid ${S.rule}`, fontFamily: S.sans, fontSize: "0.875rem", width: "100%", boxSizing: "border-box" }} />
+              style={{ padding: "0.4rem 0.5rem", border: `1px solid ${UI.rule}`, fontFamily: UI.sans, fontSize: "0.875rem", width: "100%", boxSizing: "border-box" }} />
           </div>
 
           <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
             {/* Offer amount */}
             <div>
-              <label htmlFor="fo-amount" style={{ display: "block", fontFamily: S.mono, fontSize: "0.6rem", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.2rem" }}>
+              <label htmlFor="fo-amount" style={{ display: "block", fontFamily: UI.mono, fontSize: "0.6rem", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.2rem" }}>
                 Offer Amount ($)
               </label>
               <input id="fo-amount" type="number" min="1" step="1000" value={offerAmount} onChange={(e) => setOfferAmount(e.target.value)}
-                style={{ padding: "0.4rem 0.5rem", border: `1px solid ${S.rule}`, fontFamily: S.mono, fontSize: "0.875rem", width: "10rem" }} />
+                style={{ padding: "0.4rem 0.5rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.875rem", width: "10rem" }} />
             </div>
 
             {/* Earnest money */}
             <div>
-              <label htmlFor="fo-earnest" style={{ display: "block", fontFamily: S.mono, fontSize: "0.6rem", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.2rem" }}>
+              <label htmlFor="fo-earnest" style={{ display: "block", fontFamily: UI.mono, fontSize: "0.6rem", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.2rem" }}>
                 Earnest Money ($)
               </label>
               <input id="fo-earnest" type="number" min="0" step="500" value={earnestMoney} onChange={(e) => setEarnestMoney(e.target.value)}
-                style={{ padding: "0.4rem 0.5rem", border: `1px solid ${S.rule}`, fontFamily: S.mono, fontSize: "0.875rem", width: "10rem" }} />
+                style={{ padding: "0.4rem 0.5rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.875rem", width: "10rem" }} />
             </div>
 
             {/* Close date */}
             <div>
-              <label htmlFor="fo-close" style={{ display: "block", fontFamily: S.mono, fontSize: "0.6rem", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.2rem" }}>
+              <label htmlFor="fo-close" style={{ display: "block", fontFamily: UI.mono, fontSize: "0.6rem", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.2rem" }}>
                 Close Date
               </label>
               <input id="fo-close" type="date" value={closeDate} onChange={(e) => setCloseDate(e.target.value)}
-                style={{ padding: "0.4rem 0.5rem", border: `1px solid ${S.rule}`, fontFamily: S.mono, fontSize: "0.875rem" }} />
+                style={{ padding: "0.4rem 0.5rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.875rem" }} />
             </div>
           </div>
 
           {/* Contingencies */}
           <div>
-            <div style={{ fontFamily: S.mono, fontSize: "0.6rem", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.35rem" }}>
+            <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.35rem" }}>
               Contingencies
             </div>
             <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
               {CONTINGENCY_OPTIONS.map(({ value, label }) => (
-                <label key={value} style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontFamily: S.sans, fontSize: "0.8rem", cursor: "pointer" }}>
+                <label key={value} style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontFamily: UI.sans, fontSize: "0.8rem", cursor: "pointer" }}>
                   <input
                     type="checkbox"
                     checked={contingencies.includes(value)}
@@ -382,7 +382,7 @@ export default function FsboOfferPanel({ propertyId, listPriceCents }: FsboOffer
           </div>
 
           {/* Escalation clause */}
-          <label style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontFamily: S.sans, fontSize: "0.8rem", cursor: "pointer" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontFamily: UI.sans, fontSize: "0.8rem", cursor: "pointer" }}>
             <input type="checkbox" checked={escalation} onChange={(e) => setEscalation(e.target.checked)} />
             Escalation Clause
           </label>
@@ -390,7 +390,7 @@ export default function FsboOfferPanel({ propertyId, listPriceCents }: FsboOffer
           <button
             type="submit"
             disabled={submitting}
-            style={{ alignSelf: "flex-start", padding: "0.4rem 1rem", background: S.ink, color: "#fff", border: "none", fontFamily: S.mono, fontSize: "0.75rem", cursor: "pointer" }}
+            style={{ alignSelf: "flex-start", padding: "0.4rem 1rem", background: UI.ink, color: "#fff", border: "none", fontFamily: UI.mono, fontSize: "0.75rem", cursor: "pointer" }}
           >
             Log Offer
           </button>

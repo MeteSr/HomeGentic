@@ -4,7 +4,7 @@ import { Helmet } from "react-helmet-async";
 import { ChevronDown, ChevronUp, Mail, FileText, Settings, CreditCard, Smartphone, Shield } from "lucide-react";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 
-const S = {
+const UI = {
   paper:     COLORS.white,
   ink:       COLORS.plum,
   inkLight:  COLORS.plumMid,
@@ -70,7 +70,7 @@ const FAQS: FaqItem[] = [
     q: "How do I delete my account?",
     a: (
       <>
-        Email <a href="mailto:privacy@homegentic.app" style={{ color: S.sage }}>privacy@homegentic.app</a> with the subject "Account Deletion Request". We'll remove your profile and application-layer data within 30 days. Note that records already written to the ICP blockchain cannot be fully erased from the protocol's history — see our <Link to="/privacy#icp-blockchain" style={{ color: S.sage }}>Privacy Policy</Link> for details.
+        Email <a href="mailto:privacy@homegentic.app" style={{ color: UI.sage }}>privacy@homegentic.app</a> with the subject "Account Deletion Request". We'll remove your profile and application-layer data within 30 days. Note that records already written to the ICP blockchain cannot be fully erased from the protocol's history — see our <Link to="/privacy#icp-blockchain" style={{ color: UI.sage }}>Privacy Policy</Link> for details.
       </>
     ),
   },
@@ -84,17 +84,17 @@ const QUICK_LINKS = [
 ];
 
 const RESPONSE_TIMES = [
-  { tier: "Free",          time: "3–5 business days", color: S.inkLight },
-  { tier: "Basic",         time: "2–3 business days", color: S.inkLight },
-  { tier: "Pro",           time: "1–2 business days", color: S.sage },
-  { tier: "Premium",       time: "Next business day", color: S.sage },
-  { tier: "ContractorPro", time: "Next business day", color: S.sage },
+  { tier: "Free",          time: "3–5 business days", color: UI.inkLight },
+  { tier: "Basic",         time: "2–3 business days", color: UI.inkLight },
+  { tier: "Pro",           time: "1–2 business days", color: UI.sage },
+  { tier: "Premium",       time: "Next business day", color: UI.sage },
+  { tier: "ContractorPro", time: "Next business day", color: UI.sage },
 ];
 
 function FaqRow({ item }: { item: FaqItem }) {
   const [open, setOpen] = useState(false);
   return (
-    <div style={{ borderBottom: `1px solid ${S.rule}` }}>
+    <div style={{ borderBottom: `1px solid ${UI.rule}` }}>
       <button
         onClick={() => setOpen(o => !o)}
         style={{
@@ -103,16 +103,16 @@ function FaqRow({ item }: { item: FaqItem }) {
         }}
         aria-expanded={open}
       >
-        <span style={{ fontFamily: S.sans, fontWeight: 600, fontSize: "0.9375rem", color: S.ink, lineHeight: 1.5 }}>
+        <span style={{ fontFamily: UI.sans, fontWeight: 600, fontSize: "0.9375rem", color: UI.ink, lineHeight: 1.5 }}>
           {item.q}
         </span>
         {open
-          ? <ChevronUp size={16} color={S.inkLight} style={{ flexShrink: 0 }} />
-          : <ChevronDown size={16} color={S.inkLight} style={{ flexShrink: 0 }} />
+          ? <ChevronUp size={16} color={UI.inkLight} style={{ flexShrink: 0 }} />
+          : <ChevronDown size={16} color={UI.inkLight} style={{ flexShrink: 0 }} />
         }
       </button>
       {open && (
-        <div style={{ paddingBottom: "1.25rem", fontFamily: S.sans, fontSize: "0.9rem", lineHeight: 1.75, color: S.inkLight, fontWeight: 300 }}>
+        <div style={{ paddingBottom: "1.25rem", fontFamily: UI.sans, fontSize: "0.9rem", lineHeight: 1.75, color: UI.inkLight, fontWeight: 300 }}>
           {item.a}
         </div>
       )}
@@ -132,16 +132,16 @@ export default function SupportPage() {
         <meta property="og:url" content="https://homegentic.app/support" />
       </Helmet>
 
-      <div style={{ minHeight: "100vh", background: S.paper, fontFamily: S.sans }}>
+      <div style={{ minHeight: "100vh", background: UI.paper, fontFamily: UI.sans }}>
         {/* Nav */}
-        <header style={{ borderBottom: `1px solid ${S.rule}`, position: "sticky", top: 0, background: S.paper, zIndex: 50 }}>
+        <header style={{ borderBottom: `1px solid ${UI.rule}`, position: "sticky", top: 0, background: UI.paper, zIndex: 50 }}>
           <div style={{ maxWidth: "80rem", margin: "0 auto", padding: "0 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", height: "3.5rem" }}>
-            <Link to="/" style={{ textDecoration: "none", fontFamily: S.serif, fontWeight: 900, fontSize: "1.1rem", letterSpacing: "-0.5px", color: S.ink }}>
-              Home<span style={{ color: S.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
+            <Link to="/" style={{ textDecoration: "none", fontFamily: UI.serif, fontWeight: 900, fontSize: "1.1rem", letterSpacing: "-0.5px", color: UI.ink }}>
+              Home<span style={{ color: UI.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
             </Link>
             <nav style={{ display: "flex", gap: "1.5rem", alignItems: "center" }}>
-              <Link to="/pricing" style={{ textDecoration: "none", fontFamily: S.mono, fontSize: "0.7rem", letterSpacing: "0.06em", color: S.inkLight }}>PRICING</Link>
-              <Link to="/privacy" style={{ textDecoration: "none", fontFamily: S.mono, fontSize: "0.7rem", letterSpacing: "0.06em", color: S.inkLight }}>PRIVACY</Link>
+              <Link to="/pricing" style={{ textDecoration: "none", fontFamily: UI.mono, fontSize: "0.7rem", letterSpacing: "0.06em", color: UI.inkLight }}>PRICING</Link>
+              <Link to="/privacy" style={{ textDecoration: "none", fontFamily: UI.mono, fontSize: "0.7rem", letterSpacing: "0.06em", color: UI.inkLight }}>PRIVACY</Link>
             </nav>
           </div>
         </header>
@@ -150,13 +150,13 @@ export default function SupportPage() {
 
           {/* Header */}
           <div style={{ textAlign: "center", marginBottom: "3.5rem" }}>
-            <div style={{ display: "inline-flex", alignItems: "center", background: S.butter, color: S.ink, padding: "5px 16px", borderRadius: 100, fontSize: "0.7rem", fontWeight: 700, fontFamily: S.mono, letterSpacing: "0.06em", marginBottom: "1.25rem", border: `1px solid rgba(46,37,64,0.1)` }}>
+            <div style={{ display: "inline-flex", alignItems: "center", background: UI.butter, color: UI.ink, padding: "5px 16px", borderRadius: 100, fontSize: "0.7rem", fontWeight: 700, fontFamily: UI.mono, letterSpacing: "0.06em", marginBottom: "1.25rem", border: `1px solid rgba(46,37,64,0.1)` }}>
               SUPPORT
             </div>
-            <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "clamp(2rem, 4vw, 2.75rem)", lineHeight: 1.05, color: S.ink, marginBottom: "0.875rem" }}>
+            <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "clamp(2rem, 4vw, 2.75rem)", lineHeight: 1.05, color: UI.ink, marginBottom: "0.875rem" }}>
               How can we help?
             </h1>
-            <p style={{ fontFamily: S.sans, fontSize: "1rem", color: S.inkLight, lineHeight: 1.7, maxWidth: "36rem", margin: "0 auto", fontWeight: 300 }}>
+            <p style={{ fontFamily: UI.sans, fontSize: "1rem", color: UI.inkLight, lineHeight: 1.7, maxWidth: "36rem", margin: "0 auto", fontWeight: 300 }}>
               Browse common questions below. Can't find what you need? Email us and we'll get back to you based on your plan.
             </p>
           </div>
@@ -167,12 +167,12 @@ export default function SupportPage() {
               <Link
                 key={link.label}
                 to={link.href}
-                style={{ textDecoration: "none", display: "flex", alignItems: "flex-start", gap: "0.875rem", padding: "1.125rem 1.25rem", background: S.sageLight, borderRadius: RADIUS.sm, border: `1px solid ${S.sageMid}`, transition: "box-shadow 0.15s" }}
+                style={{ textDecoration: "none", display: "flex", alignItems: "flex-start", gap: "0.875rem", padding: "1.125rem 1.25rem", background: UI.sageLight, borderRadius: RADIUS.sm, border: `1px solid ${UI.sageMid}`, transition: "box-shadow 0.15s" }}
               >
-                <span style={{ color: S.sage, flexShrink: 0, marginTop: "2px" }}>{link.icon}</span>
+                <span style={{ color: UI.sage, flexShrink: 0, marginTop: "2px" }}>{link.icon}</span>
                 <div>
-                  <p style={{ fontFamily: S.sans, fontWeight: 600, fontSize: "0.875rem", color: S.ink, marginBottom: "0.2rem" }}>{link.label}</p>
-                  <p style={{ fontFamily: S.sans, fontSize: "0.8rem", color: S.inkLight, fontWeight: 300 }}>{link.description}</p>
+                  <p style={{ fontFamily: UI.sans, fontWeight: 600, fontSize: "0.875rem", color: UI.ink, marginBottom: "0.2rem" }}>{link.label}</p>
+                  <p style={{ fontFamily: UI.sans, fontSize: "0.8rem", color: UI.inkLight, fontWeight: 300 }}>{link.description}</p>
                 </div>
               </Link>
             ))}
@@ -180,10 +180,10 @@ export default function SupportPage() {
 
           {/* FAQ */}
           <section style={{ marginBottom: "3.5rem" }}>
-            <h2 style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.5rem", color: S.ink, marginBottom: "0.25rem" }}>
+            <h2 style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.5rem", color: UI.ink, marginBottom: "0.25rem" }}>
               Frequently asked questions
             </h2>
-            <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight, marginBottom: "1.75rem" }}>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight, marginBottom: "1.75rem" }}>
               {FAQS.length} QUESTIONS
             </p>
             <div>
@@ -193,15 +193,15 @@ export default function SupportPage() {
 
           {/* Response times */}
           <section style={{ marginBottom: "3.5rem" }}>
-            <h2 style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.5rem", color: S.ink, marginBottom: "1.25rem" }}>
+            <h2 style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.5rem", color: UI.ink, marginBottom: "1.25rem" }}>
               Support response times
             </h2>
-            <div style={{ border: `1px solid ${S.rule}`, borderRadius: RADIUS.sm, overflow: "hidden" }}>
+            <div style={{ border: `1px solid ${UI.rule}`, borderRadius: RADIUS.sm, overflow: "hidden" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
-                  <tr style={{ borderBottom: `1px solid ${S.rule}`, background: S.sageLight }}>
+                  <tr style={{ borderBottom: `1px solid ${UI.rule}`, background: UI.sageLight }}>
                     {["Plan", "Response time"].map(h => (
-                      <th key={h} style={{ padding: "0.75rem 1.25rem", textAlign: "left", fontFamily: S.mono, fontSize: "0.62rem", letterSpacing: "0.07em", color: S.inkLight, fontWeight: 700 }}>
+                      <th key={h} style={{ padding: "0.75rem 1.25rem", textAlign: "left", fontFamily: UI.mono, fontSize: "0.62rem", letterSpacing: "0.07em", color: UI.inkLight, fontWeight: 700 }}>
                         {h.toUpperCase()}
                       </th>
                     ))}
@@ -209,9 +209,9 @@ export default function SupportPage() {
                 </thead>
                 <tbody>
                   {RESPONSE_TIMES.map((row, i) => (
-                    <tr key={row.tier} style={{ borderBottom: i < RESPONSE_TIMES.length - 1 ? `1px solid ${S.rule}` : "none" }}>
-                      <td style={{ padding: "0.875rem 1.25rem", fontFamily: S.mono, fontSize: "0.75rem", fontWeight: 700, color: S.ink }}>{row.tier}</td>
-                      <td style={{ padding: "0.875rem 1.25rem", fontFamily: S.sans, fontSize: "0.875rem", color: row.color, fontWeight: 500 }}>{row.time}</td>
+                    <tr key={row.tier} style={{ borderBottom: i < RESPONSE_TIMES.length - 1 ? `1px solid ${UI.rule}` : "none" }}>
+                      <td style={{ padding: "0.875rem 1.25rem", fontFamily: UI.mono, fontSize: "0.75rem", fontWeight: 700, color: UI.ink }}>{row.tier}</td>
+                      <td style={{ padding: "0.875rem 1.25rem", fontFamily: UI.sans, fontSize: "0.875rem", color: row.color, fontWeight: 500 }}>{row.time}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -220,30 +220,30 @@ export default function SupportPage() {
           </section>
 
           {/* Contact CTA */}
-          <section style={{ background: S.ink, borderRadius: RADIUS.card, padding: "2.5rem", textAlign: "center" }}>
+          <section style={{ background: UI.ink, borderRadius: RADIUS.card, padding: "2.5rem", textAlign: "center" }}>
             <div style={{ display: "flex", justifyContent: "center", marginBottom: "1rem" }}>
               <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 48, height: 48, background: "rgba(122,175,118,0.15)", borderRadius: RADIUS.sm }}>
-                <Mail size={22} color={S.sage} />
+                <Mail size={22} color={UI.sage} />
               </span>
             </div>
-            <h2 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.5rem", color: COLORS.white, marginBottom: "0.625rem" }}>
+            <h2 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", color: COLORS.white, marginBottom: "0.625rem" }}>
               Still have a question?
             </h2>
-            <p style={{ fontFamily: S.sans, fontSize: "0.9rem", color: "rgba(253,252,250,0.6)", lineHeight: 1.7, marginBottom: "1.75rem", fontWeight: 300 }}>
+            <p style={{ fontFamily: UI.sans, fontSize: "0.9rem", color: "rgba(253,252,250,0.6)", lineHeight: 1.7, marginBottom: "1.75rem", fontWeight: 300 }}>
               Email us and we'll get back to you. Include your account email and a description of the issue.
             </p>
             <a
               href="mailto:support@homegentic.app"
               style={{
                 display: "inline-flex", alignItems: "center", gap: "8px",
-                background: S.sage, color: COLORS.white, padding: "12px 28px",
-                borderRadius: 100, fontFamily: S.sans, fontWeight: 700, fontSize: "0.9375rem",
+                background: UI.sage, color: COLORS.white, padding: "12px 28px",
+                borderRadius: 100, fontFamily: UI.sans, fontWeight: 700, fontSize: "0.9375rem",
                 textDecoration: "none", transition: "opacity 0.15s",
               }}
             >
               support@homegentic.app
             </a>
-            <p style={{ fontFamily: S.mono, fontSize: "0.62rem", letterSpacing: "0.06em", color: "rgba(253,252,250,0.35)", marginTop: "1rem" }}>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.62rem", letterSpacing: "0.06em", color: "rgba(253,252,250,0.35)", marginTop: "1rem" }}>
               FOR BILLING ERRORS OR SECURITY ISSUES, INCLUDE "BILLING" OR "SECURITY" IN THE SUBJECT LINE
             </p>
           </section>
@@ -251,16 +251,16 @@ export default function SupportPage() {
         </div>
 
         {/* Footer */}
-        <footer style={{ borderTop: `1px solid ${S.rule}`, padding: "2rem 1.5rem" }}>
+        <footer style={{ borderTop: `1px solid ${UI.rule}`, padding: "2rem 1.5rem" }}>
           <div style={{ maxWidth: "56rem", margin: "0 auto", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
-            <Link to="/" style={{ textDecoration: "none", fontFamily: S.serif, fontWeight: 900, fontSize: "1rem", color: S.ink }}>
-              Home<span style={{ color: S.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
+            <Link to="/" style={{ textDecoration: "none", fontFamily: UI.serif, fontWeight: 900, fontSize: "1rem", color: UI.ink }}>
+              Home<span style={{ color: UI.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
             </Link>
             <div style={{ display: "flex", gap: "1.5rem" }}>
-              <Link to="/privacy" style={{ textDecoration: "none", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>PRIVACY</Link>
-              <Link to="/pricing" style={{ textDecoration: "none", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>PRICING</Link>
+              <Link to="/privacy" style={{ textDecoration: "none", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight }}>PRIVACY</Link>
+              <Link to="/pricing" style={{ textDecoration: "none", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight }}>PRICING</Link>
             </div>
-            <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: S.inkLight }}>© 2026 HomeGentic Inc.</p>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: UI.inkLight }}>© 2026 HomeGentic Inc.</p>
           </div>
         </footer>
       </div>

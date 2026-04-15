@@ -35,7 +35,7 @@ import { NeighborhoodBenchmark } from "@/components/NeighborhoodBenchmark";
 import { ScoreActivityFeed } from "@/components/ScoreActivityFeed";
 import UpgradeModal from "@/components/UpgradeModal";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -439,14 +439,14 @@ export default function DashboardPage() {
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "2rem" }}>
           <div>
-            <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.rust, marginBottom: "0.5rem" }}>
+            <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: UI.rust, marginBottom: "0.5rem" }}>
               Overview
             </div>
-            <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "2rem", lineHeight: 1 }}>
+            <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "2rem", lineHeight: 1 }}>
               Dashboard
             </h1>
             {principal && (
-              <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight, marginTop: "0.375rem" }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight, marginTop: "0.375rem" }}>
                 {principal.slice(0, 16)}…
                 {profile?.email && ` · ${profile.email}`}
               </p>
@@ -463,11 +463,11 @@ export default function DashboardPage() {
             <button
               onClick={() => setSelectedPropertyId(null)}
               style={{
-                fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase",
+                fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase",
                 padding: "0.375rem 0.875rem",
                 background: isAllView ? COLORS.plum : "none",
-                color: isAllView ? COLORS.white : S.inkLight,
-                border: `1px solid ${isAllView ? COLORS.plum : S.rule}`,
+                color: isAllView ? COLORS.white : UI.inkLight,
+                border: `1px solid ${isAllView ? COLORS.plum : UI.rule}`,
                 cursor: "pointer", borderRadius: RADIUS.pill,
               }}
             >
@@ -480,11 +480,11 @@ export default function DashboardPage() {
                   key={String(p.id)}
                   onClick={() => setSelectedPropertyId(String(p.id))}
                   style={{
-                    fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em",
+                    fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em",
                     padding: "0.375rem 0.875rem",
                     background: isActive ? COLORS.plum : "none",
-                    color: isActive ? COLORS.white : S.inkLight,
-                    border: `1px solid ${isActive ? COLORS.plum : S.rule}`,
+                    color: isActive ? COLORS.white : UI.inkLight,
+                    border: `1px solid ${isActive ? COLORS.plum : UI.rule}`,
                     cursor: "pointer", borderRadius: RADIUS.pill,
                     maxWidth: "14rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                   }}
@@ -507,13 +507,13 @@ export default function DashboardPage() {
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
               <div style={{ width: "2.25rem", height: "2.25rem", background: COLORS.sageLight, border: `1px solid ${COLORS.rule}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: RADIUS.sm }}>
-                <Home size={14} color={S.sage} />
+                <Home size={14} color={UI.sage} />
               </div>
               <div>
-                <p style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "0.95rem", color: S.ink, lineHeight: 1.2 }}>
+                <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "0.95rem", color: UI.ink, lineHeight: 1.2 }}>
                   {activeProperty.address}
                 </p>
-                <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: S.inkLight, marginTop: "0.15rem" }}>
+                <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: UI.inkLight, marginTop: "0.15rem" }}>
                   {activeProperty.city}, {activeProperty.state} · {verificationBadge(activeProperty.verificationLevel)}
                 </p>
               </div>
@@ -521,9 +521,9 @@ export default function DashboardPage() {
             <button
               onClick={() => navigate(`/properties/${activeProperty.id}`)}
               style={{
-                fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase",
-                padding: "0.375rem 0.875rem", border: `1px solid ${S.rule}`,
-                color: S.inkLight, background: "none", cursor: "pointer", borderRadius: RADIUS.sm,
+                fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase",
+                padding: "0.375rem 0.875rem", border: `1px solid ${UI.rule}`,
+                color: UI.inkLight, background: "none", cursor: "pointer", borderRadius: RADIUS.sm,
               }}
             >
               View Property →
@@ -535,16 +535,16 @@ export default function DashboardPage() {
         {showBanner && (
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem",
-            border: `1px solid ${S.rust}`, padding: "1rem 1.25rem", marginBottom: "2rem",
+            border: `1px solid ${UI.rust}`, padding: "1rem 1.25rem", marginBottom: "2rem",
             background: COLORS.sageLight, flexWrap: "wrap", borderRadius: RADIUS.sm,
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-              <Sparkles size={16} color={S.rust} style={{ flexShrink: 0 }} />
+              <Sparkles size={16} color={UI.rust} style={{ flexShrink: 0 }} />
               <div>
-                <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "0.25rem" }}>
+                <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "0.25rem" }}>
                   Finish setting up
                 </p>
-                <p style={{ fontSize: "0.8rem", color: S.inkLight, fontWeight: 300 }}>
+                <p style={{ fontSize: "0.8rem", color: UI.inkLight, fontWeight: 300 }}>
                   {!hasProperty ? "Add your first property to start building your home's verified history."
                     : !hasVerified ? "Verify ownership so buyers can trust your history."
                     : "Log your first job to add value to your HomeGentic report."}
@@ -556,15 +556,15 @@ export default function DashboardPage() {
                 onClick={() => navigate("/onboarding")}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: "0.375rem",
-                  padding: "0.5rem 1rem", background: S.rust, color: "#fff",
-                  border: "none", fontFamily: S.mono, fontSize: "0.65rem",
+                  padding: "0.5rem 1rem", background: UI.rust, color: "#fff",
+                  border: "none", fontFamily: UI.mono, fontSize: "0.65rem",
                   letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer",
                   borderRadius: RADIUS.pill,
                 }}
               >
                 Continue setup <ArrowRight size={12} />
               </button>
-              <button aria-label="Dismiss banner" onClick={() => setBannerDismissed(true)} style={{ background: "none", border: "none", cursor: "pointer", color: S.inkLight }}>
+              <button aria-label="Dismiss banner" onClick={() => setBannerDismissed(true)} style={{ background: "none", border: "none", cursor: "pointer", color: UI.inkLight }}>
                 <X size={16} />
               </button>
             </div>
@@ -575,20 +575,20 @@ export default function DashboardPage() {
         {showMilestone && (
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem",
-            border: `1px solid ${S.rust}`, padding: "1rem 1.25rem", marginBottom: "2rem",
-            background: S.ink, flexWrap: "wrap", borderRadius: RADIUS.sm,
+            border: `1px solid ${UI.rust}`, padding: "1rem 1.25rem", marginBottom: "2rem",
+            background: UI.ink, flexWrap: "wrap", borderRadius: RADIUS.sm,
           }}>
             <div>
-              <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.rust, marginBottom: "0.25rem" }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: UI.rust, marginBottom: "0.25rem" }}>
                 One Year of HomeGentic
               </p>
-              <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: S.paper, fontWeight: 300 }}>
+              <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: UI.paper, fontWeight: 300 }}>
                 You've been building your verified home history for nearly a year.{" "}
                 <strong style={{ fontWeight: 600 }}>${(totalValue / 100).toLocaleString()} in documented improvements</strong> — that's real value for your next sale.
               </p>
               <button
                 onClick={() => navigate("/resale-ready")}
-                style={{ marginTop: "0.5rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 1rem", border: `1px solid ${S.rust}`, background: "none", color: S.rust, cursor: "pointer", borderRadius: RADIUS.sm }}
+                style={{ marginTop: "0.5rem", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 1rem", border: `1px solid ${UI.rust}`, background: "none", color: UI.rust, cursor: "pointer", borderRadius: RADIUS.sm }}
               >
                 View Resale Summary →
               </button>
@@ -606,25 +606,25 @@ export default function DashboardPage() {
         {!loading && verifiedCount >= 3 && !milestone3Dismissed && (
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem",
-            border: `1px solid ${S.sage}`, padding: "1rem 1.25rem", marginBottom: "2rem",
+            border: `1px solid ${UI.sage}`, padding: "1rem 1.25rem", marginBottom: "2rem",
             background: COLORS.sageLight, flexWrap: "wrap", borderRadius: RADIUS.sm,
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
-              <div style={{ width: "2rem", height: "2rem", border: `2px solid ${S.sage}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: S.sage, borderRadius: RADIUS.sm }}>
-                <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "0.875rem" }}>3</span>
+              <div style={{ width: "2rem", height: "2rem", border: `2px solid ${UI.sage}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: UI.sage, borderRadius: RADIUS.sm }}>
+                <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "0.875rem" }}>3</span>
               </div>
               <div>
-                <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: S.sage, marginBottom: "0.2rem" }}>
+                <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.sage, marginBottom: "0.2rem" }}>
                   Milestone — Your Home History Is Taking Shape
                 </p>
-                <p style={{ fontSize: "0.875rem", fontWeight: 300, color: S.ink }}>
+                <p style={{ fontSize: "0.875rem", fontWeight: 300, color: UI.ink }}>
                   <strong style={{ fontWeight: 600 }}>{verifiedCount} verified records</strong> on the blockchain. Buyers can now see a real maintenance history.
                 </p>
               </div>
             </div>
             <button
               onClick={() => { localStorage.setItem("homegentic_3job_milestone", "1"); setMilestone3Dismissed(true); }}
-              style={{ background: "none", border: "none", cursor: "pointer", color: S.sage, flexShrink: 0 }}
+              style={{ background: "none", border: "none", cursor: "pointer", color: UI.sage, flexShrink: 0 }}
             >
               <X size={15} />
             </button>
@@ -639,14 +639,14 @@ export default function DashboardPage() {
             background: COLORS.sageLight, flexWrap: "wrap", borderRadius: RADIUS.sm,
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.875rem", flex: 1 }}>
-              <div style={{ width: "2rem", height: "2rem", border: `2px solid ${S.sage}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: RADIUS.sm, fontSize: "1rem" }}>
+              <div style={{ width: "2rem", height: "2rem", border: `2px solid ${UI.sage}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: RADIUS.sm, fontSize: "1rem" }}>
                 🔓
               </div>
               <div>
-                <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: S.sage, marginBottom: "0.2rem" }}>
+                <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.sage, marginBottom: "0.2rem" }}>
                   Upgrade to Pro
                 </p>
-                <p style={{ fontSize: "0.875rem", fontWeight: 300, color: S.ink }}>
+                <p style={{ fontSize: "0.875rem", fontWeight: 300, color: UI.ink }}>
                   You've logged <strong style={{ fontWeight: 600 }}>{jobs.length} jobs</strong>. Unlock score breakdowns, warranty tracking, and full report sharing with Pro.
                 </p>
               </div>
@@ -654,13 +654,13 @@ export default function DashboardPage() {
             <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexShrink: 0 }}>
               <button
                 onClick={() => setShowUpgradeModal(true)}
-                style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.45rem 1rem", border: "none", background: S.sage, color: COLORS.white, cursor: "pointer", borderRadius: RADIUS.sm, fontWeight: 600 }}
+                style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.45rem 1rem", border: "none", background: UI.sage, color: COLORS.white, cursor: "pointer", borderRadius: RADIUS.sm, fontWeight: 600 }}
               >
                 See Plans →
               </button>
               <button
                 onClick={() => { localStorage.setItem("homegentic_upgrade_banner_dismissed", "1"); setUpgradeBannerDismissed(true); }}
-                style={{ background: "none", border: "none", cursor: "pointer", color: S.inkLight }}
+                style={{ background: "none", border: "none", cursor: "pointer", color: UI.inkLight }}
               >
                 <X size={15} />
               </button>
@@ -672,29 +672,29 @@ export default function DashboardPage() {
         {showPulse && pulseTip && (
           <div style={{
             display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem",
-            border: `1px solid ${S.rule}`, padding: "1rem 1.25rem", marginBottom: "2rem",
+            border: `1px solid ${UI.rule}`, padding: "1rem 1.25rem", marginBottom: "2rem",
             background: "#fff", flexWrap: "wrap", borderRadius: RADIUS.sm,
           }}>
             <div style={{ display: "flex", gap: "0.875rem", flex: 1 }}>
-              <div style={{ width: "2rem", height: "2rem", border: `1px solid ${S.rule}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: "0.125rem", borderRadius: RADIUS.sm }}>
-                <Sparkles size={13} color={S.rust} />
+              <div style={{ width: "2rem", height: "2rem", border: `1px solid ${UI.rule}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: "0.125rem", borderRadius: RADIUS.sm }}>
+                <Sparkles size={13} color={UI.rust} />
               </div>
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
-                  <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.rust }}>
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.rust }}>
                     Home Pulse
                   </p>
-                  <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight, border: `1px solid ${S.rule}`, padding: "0.05rem 0.375rem", borderRadius: 100 }}>
+                  <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight, border: `1px solid ${UI.rule}`, padding: "0.05rem 0.375rem", borderRadius: 100 }}>
                     {pulseTip.category}
                   </span>
                 </div>
                 <p style={{ fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.25rem" }}>{pulseTip.headline}</p>
-                <p style={{ fontSize: "0.8rem", color: S.inkLight, fontWeight: 300 }}>{pulseTip.detail}</p>
+                <p style={{ fontSize: "0.8rem", color: UI.inkLight, fontWeight: 300 }}>{pulseTip.detail}</p>
               </div>
             </div>
             <button
               onClick={() => { localStorage.setItem(pulseKey, "1"); setPulseDismissed(true); }}
-              style={{ background: "none", border: "none", cursor: "pointer", color: S.inkLight, flexShrink: 0 }}
+              style={{ background: "none", border: "none", cursor: "pointer", color: UI.inkLight, flexShrink: 0 }}
             >
               <X size={15} />
             </button>
@@ -705,18 +705,18 @@ export default function DashboardPage() {
         {!loading && scoreStagnant && (
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem",
-            border: `1px solid ${S.rule}`, padding: "1rem 1.25rem", marginBottom: "2rem",
+            border: `1px solid ${UI.rule}`, padding: "1rem 1.25rem", marginBottom: "2rem",
             background: "#fff", flexWrap: "wrap", borderRadius: RADIUS.sm,
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-              <div style={{ width: "2rem", height: "2rem", border: `1px solid ${S.rule}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: RADIUS.sm }}>
-                <Sparkles size={13} color={S.inkLight} />
+              <div style={{ width: "2rem", height: "2rem", border: `1px solid ${UI.rule}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: RADIUS.sm }}>
+                <Sparkles size={13} color={UI.inkLight} />
               </div>
               <div>
-                <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.2rem" }}>
+                <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.2rem" }}>
                   Score Hasn't Moved in 30 Days
                 </p>
-                <p style={{ fontSize: "0.8rem", fontWeight: 300, color: S.inkLight }}>
+                <p style={{ fontSize: "0.8rem", fontWeight: 300, color: UI.inkLight }}>
                   Log a recent job or verify a property to keep your HomeGentic Score growing.
                 </p>
               </div>
@@ -724,8 +724,8 @@ export default function DashboardPage() {
             <button
               onClick={() => { setLogJobPrefill(undefined); setShowLogJobModal(true); }}
               style={{
-                fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase",
-                padding: "0.5rem 1rem", background: S.ink, color: S.paper,
+                fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase",
+                padding: "0.5rem 1rem", background: UI.ink, color: UI.paper,
                 border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.375rem", flexShrink: 0,
                 borderRadius: RADIUS.pill,
               }}
@@ -743,10 +743,10 @@ export default function DashboardPage() {
             background: "#fffbeb", borderRadius: RADIUS.sm,
           }}>
             <div style={{ width: "1.75rem", height: "1.75rem", background: "#fef3c7", border: "1px solid #f59e0b60", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: RADIUS.sm }}>
-              <span style={{ fontFamily: S.mono, fontSize: "0.65rem", fontWeight: 700, color: "#b45309" }}>!</span>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", fontWeight: 700, color: "#b45309" }}>!</span>
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "#b45309", marginBottom: "0.375rem" }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "#b45309", marginBottom: "0.375rem" }}>
                 Score at Risk
               </p>
               {atRiskWarnings.map((w) => (
@@ -756,7 +756,7 @@ export default function DashboardPage() {
               ))}
               <button
                 onClick={() => { setLogJobPrefill(undefined); setShowLogJobModal(true); }}
-                style={{ marginTop: "0.5rem", fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.35rem 0.875rem", background: "#b45309", color: "#fff", border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.3rem", borderRadius: RADIUS.pill }}
+                style={{ marginTop: "0.5rem", fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.35rem 0.875rem", background: "#b45309", color: "#fff", border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.3rem", borderRadius: RADIUS.pill }}
               >
                 Log a Job <ArrowRight size={11} />
               </button>
@@ -772,10 +772,10 @@ export default function DashboardPage() {
             background: COLORS.sageLight, flexWrap: "wrap", borderRadius: RADIUS.sm,
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-              <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.sage }}>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.sage }}>
                 Score Up +{delta} pts
               </span>
-              <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: COLORS.sage, opacity: 0.75 }}>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: COLORS.sage, opacity: 0.75 }}>
                 {scoreValueChange != null
                   ? `— Your score went from ${prevScore} to ${homegenticScore}. A ${delta}-point increase ≈ $${scoreValueChange.toLocaleString()} in estimated home value.`
                   : `— Your HomeGentic Score is now ${homegenticScore}. Keep logging jobs to grow your record.`}
@@ -783,7 +783,7 @@ export default function DashboardPage() {
             </div>
             <button
               onClick={() => setScoreIncreaseDismissed(true)}
-              style={{ background: "none", border: "none", cursor: "pointer", color: S.sage, flexShrink: 0 }}
+              style={{ background: "none", border: "none", cursor: "pointer", color: UI.sage, flexShrink: 0 }}
             >
               <X size={14} />
             </button>
@@ -802,25 +802,25 @@ export default function DashboardPage() {
             { label: "HomeGentic Premium™", value: `$${Math.round((totalValue / 100) * 0.03).toLocaleString()}` },
           ].map((stat) => (
             <div key={stat.label} style={{ padding: "1.25rem 1.5rem", borderRadius: RADIUS.card, background: COLORS.white, border: `1px solid ${COLORS.rule}`, boxShadow: SHADOWS.card }}>
-              <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.625rem" }}>
+              <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.625rem" }}>
                 {stat.label}
               </div>
-              <div style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "2rem", lineHeight: 1, color: S.ink }}>
+              <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "2rem", lineHeight: 1, color: UI.ink }}>
                 {stat.value}
               </div>
             </div>
           ))}
           {/* HomeGentic Score — accent cell */}
           <div style={{ padding: "1.25rem 1.5rem", borderRadius: RADIUS.card, background: COLORS.plum, boxShadow: SHADOWS.hover }}>
-            <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.625rem" }}>
+            <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.625rem" }}>
               HomeGentic Score
             </div>
             <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem", marginBottom: "0.5rem" }}>
-              <span style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "2rem", lineHeight: 1, color: COLORS.white }}>{homegenticScore}</span>
-              <span style={{ fontFamily: S.mono, fontSize: "0.7rem", color: COLORS.plumMid }}>/100 · {scoreGrade}</span>
+              <span style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "2rem", lineHeight: 1, color: COLORS.white }}>{homegenticScore}</span>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: COLORS.plumMid }}>/100 · {scoreGrade}</span>
             </div>
             {delta !== 0 && (
-              <div style={{ fontFamily: S.mono, fontSize: "0.6rem", color: delta > 0 ? COLORS.sage : COLORS.blush, letterSpacing: "0.06em" }}>
+              <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: delta > 0 ? COLORS.sage : COLORS.blush, letterSpacing: "0.06em" }}>
                 {delta > 0 ? "+" : ""}{delta} pts this period
               </div>
             )}
@@ -830,25 +830,25 @@ export default function DashboardPage() {
 
         {/* Free-tier job cap progress bar (15.1.3) */}
         {!loading && userTier === "Free" && (
-          <div style={{ border: `1px solid ${S.rule}`, background: COLORS.white, padding: "0.875rem 1.25rem", marginBottom: "1.5rem", borderRadius: RADIUS.sm }}>
+          <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "0.875rem 1.25rem", marginBottom: "1.5rem", borderRadius: RADIUS.sm }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-              <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>
                 Free Plan · Jobs
               </span>
-              <span style={{ fontFamily: S.mono, fontSize: "0.65rem", fontWeight: 700, color: jobs.length >= 5 ? COLORS.sage : S.ink }}>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", fontWeight: 700, color: jobs.length >= 5 ? COLORS.sage : UI.ink }}>
                 {jobs.length}/5
               </span>
             </div>
-            <div style={{ height: "4px", background: S.rule, borderRadius: 100, overflow: "hidden", marginBottom: "0.5rem" }}>
+            <div style={{ height: "4px", background: UI.rule, borderRadius: 100, overflow: "hidden", marginBottom: "0.5rem" }}>
               <div style={{ height: "4px", width: `${Math.min(jobs.length / 5 * 100, 100)}%`, background: jobs.length >= 5 ? COLORS.sage : COLORS.plum, borderRadius: 100, transition: "width 0.5s ease" }} />
             </div>
             {jobs.length >= 5 ? (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
-                <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>Job limit reached — upgrade to keep logging</span>
-                <button onClick={() => setShowUpgradeModal(true)} style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.25rem 0.625rem", border: "none", background: COLORS.plum, color: COLORS.white, cursor: "pointer", borderRadius: RADIUS.sm, whiteSpace: "nowrap" }}>Upgrade →</button>
+                <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>Job limit reached — upgrade to keep logging</span>
+                <button onClick={() => setShowUpgradeModal(true)} style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.25rem 0.625rem", border: "none", background: COLORS.plum, color: COLORS.white, cursor: "pointer", borderRadius: RADIUS.sm, whiteSpace: "nowrap" }}>Upgrade →</button>
               </div>
             ) : (
-              <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>
                 {5 - jobs.length} job{5 - jobs.length !== 1 ? "s" : ""} remaining on Free plan
               </span>
             )}
@@ -857,10 +857,10 @@ export default function DashboardPage() {
 
         {/* Score history chart */}
         {showScoreChart && scoreHistory.length >= 2 && (
-          <div style={{ marginBottom: "2rem", border: `1px solid ${S.rule}`, background: "#fff", borderRadius: RADIUS.card, overflow: "hidden" }}>
-            <div style={{ padding: "0.75rem 1rem", borderBottom: `1px solid ${S.rule}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: COLORS.white }}>
-              <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>Score History</span>
-              <button onClick={() => setShowScoreChart(false)} style={{ background: "none", border: "none", cursor: "pointer", color: S.inkLight, fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase" }}>Close ✕</button>
+          <div style={{ marginBottom: "2rem", border: `1px solid ${UI.rule}`, background: "#fff", borderRadius: RADIUS.card, overflow: "hidden" }}>
+            <div style={{ padding: "0.75rem 1rem", borderBottom: `1px solid ${UI.rule}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: COLORS.white }}>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>Score History</span>
+              <button onClick={() => setShowScoreChart(false)} style={{ background: "none", border: "none", cursor: "pointer", color: UI.inkLight, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase" }}>Close ✕</button>
             </div>
             <ScoreHistoryChart history={scoreHistory} />
           </div>
@@ -873,10 +873,10 @@ export default function DashboardPage() {
               onClick={() => setShowScoreBreakdown((v) => !v)}
               style={{
                 display: "flex", alignItems: "center", gap: "0.5rem", width: "100%",
-                padding: "0.75rem 1rem", border: `1px solid ${S.rule}`,
+                padding: "0.75rem 1rem", border: `1px solid ${UI.rule}`,
                 background: showScoreBreakdown ? COLORS.sageLight : COLORS.white,
-                fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase",
-                color: S.inkLight, cursor: "pointer", textAlign: "left",
+                fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase",
+                color: UI.inkLight, cursor: "pointer", textAlign: "left",
                 borderRadius: showScoreBreakdown ? `${RADIUS.card}px ${RADIUS.card}px 0 0` : RADIUS.card,
               }}
             >
@@ -892,30 +892,30 @@ export default function DashboardPage() {
               />
             )}
             {showScoreBreakdown && userTier !== "Free" && (
-              <div style={{ border: `1px solid ${S.rule}`, borderTop: "none", background: COLORS.white, borderRadius: `0 0 ${RADIUS.card}px ${RADIUS.card}px`, overflow: "hidden" }}>
+              <div style={{ border: `1px solid ${UI.rule}`, borderTop: "none", background: COLORS.white, borderRadius: `0 0 ${RADIUS.card}px ${RADIUS.card}px`, overflow: "hidden" }}>
                 {scoreBreakdown.map((row) => (
-                  <div key={row.label} style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.875rem 1rem", borderBottom: `1px solid ${S.rule}` }}>
+                  <div key={row.label} style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.875rem 1rem", borderBottom: `1px solid ${UI.rule}` }}>
                     <div style={{ width: "10rem", flexShrink: 0 }}>
-                      <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight }}>
+                      <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight }}>
                         {row.label}
                       </p>
-                      <p style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight, fontWeight: 300, marginTop: "0.1rem" }}>
+                      <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: UI.inkLight, fontWeight: 300, marginTop: "0.1rem" }}>
                         {row.detail}
                       </p>
                     </div>
-                    <div style={{ flex: 1, height: "4px", background: S.rule, borderRadius: 100 }}>
-                      <div style={{ height: "4px", background: S.rust, width: `${(row.pts / row.max) * 100}%`, transition: "width 0.5s ease", borderRadius: 100 }} />
+                    <div style={{ flex: 1, height: "4px", background: UI.rule, borderRadius: 100 }}>
+                      <div style={{ height: "4px", background: UI.rust, width: `${(row.pts / row.max) * 100}%`, transition: "width 0.5s ease", borderRadius: 100 }} />
                     </div>
                     <div style={{ width: "4rem", textAlign: "right", flexShrink: 0 }}>
-                      <span style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1rem", color: S.ink }}>{row.pts}</span>
-                      <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>/{row.max}</span>
+                      <span style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1rem", color: UI.ink }}>{row.pts}</span>
+                      <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>/{row.max}</span>
                     </div>
                   </div>
                 ))}
                 <div style={{ padding: "0.875rem 1rem", display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "0.5rem", background: COLORS.white }}>
-                  <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight }}>Total</span>
-                  <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.25rem", color: S.ink }}>{homegenticScore}</span>
-                  <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>/100</span>
+                  <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight }}>Total</span>
+                  <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.25rem", color: UI.ink }}>{homegenticScore}</span>
+                  <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>/100</span>
                 </div>
               </div>
             )}
@@ -931,15 +931,15 @@ export default function DashboardPage() {
 
         {/* Score Goal Widget */}
         {!loading && hasProperty && (
-          <div style={{ marginBottom: "2.5rem", border: `1px solid ${S.rule}`, background: COLORS.white, borderRadius: RADIUS.card, overflow: "hidden" }}>
-            <div style={{ padding: "0.875rem 1.25rem", borderBottom: `1px solid ${S.rule}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: COLORS.white }}>
-              <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
+          <div style={{ marginBottom: "2.5rem", border: `1px solid ${UI.rule}`, background: COLORS.white, borderRadius: RADIUS.card, overflow: "hidden" }}>
+            <div style={{ padding: "0.875rem 1.25rem", borderBottom: `1px solid ${UI.rule}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: COLORS.white }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
                 Score Goal
               </p>
               {scoreGoal !== null && (
                 <button
                   onClick={() => setScoreGoal(null)}
-                  style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "2px" }}
+                  style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "2px" }}
                 >
                   Change goal
                 </button>
@@ -949,7 +949,7 @@ export default function DashboardPage() {
             {scoreGoal === null ? (
               /* Goal picker */
               <div style={{ padding: "1.25rem" }}>
-                <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, marginBottom: "0.875rem" }}>
+                <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, marginBottom: "0.875rem" }}>
                   Set a target score to track your progress:
                 </p>
                 <div style={{ display: "flex", gap: "0.5rem" }}>
@@ -964,14 +964,14 @@ export default function DashboardPage() {
                         opacity: homegenticScore >= g ? 0.6 : 1,
                       }}
                     >
-                      <div style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, color: homegenticScore >= g ? COLORS.sage : S.ink }}>
+                      <div style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, color: homegenticScore >= g ? COLORS.sage : UI.ink }}>
                         {g}
                       </div>
-                      <div style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight, marginTop: "0.25rem" }}>
+                      <div style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight, marginTop: "0.25rem" }}>
                         {g === 60 ? "Good" : g === 75 ? "Great" : g === 88 ? "Excellent" : "Perfect"}
                       </div>
                       {homegenticScore >= g && (
-                        <div style={{ fontFamily: S.mono, fontSize: "0.5rem", color: COLORS.sage, marginTop: "0.2rem" }}>✓ Achieved</div>
+                        <div style={{ fontFamily: UI.mono, fontSize: "0.5rem", color: COLORS.sage, marginTop: "0.2rem" }}>✓ Achieved</div>
                       )}
                     </button>
                   ))}
@@ -980,15 +980,15 @@ export default function DashboardPage() {
             ) : homegenticScore >= scoreGoal ? (
               /* Goal achieved celebration */
               <div style={{ padding: "1.5rem", textAlign: "center" }}>
-                <p style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.5rem", color: COLORS.sage, marginBottom: "0.375rem" }}>
+                <p style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", color: COLORS.sage, marginBottom: "0.375rem" }}>
                   Goal reached — {homegenticScore}/{scoreGoal} ✓
                 </p>
-                <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, marginBottom: "1rem" }}>
+                <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, marginBottom: "1rem" }}>
                   Your HomeGentic Score hit {scoreGoal}. Set a new goal to keep improving.
                 </p>
                 <button
                   onClick={() => setScoreGoal(null)}
-                  style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", border: `1px solid ${S.rule}`, background: "none", cursor: "pointer", color: S.inkLight, borderRadius: RADIUS.sm }}
+                  style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", border: `1px solid ${UI.rule}`, background: "none", cursor: "pointer", color: UI.inkLight, borderRadius: RADIUS.sm }}
                 >
                   Set next goal
                 </button>
@@ -997,14 +997,14 @@ export default function DashboardPage() {
               /* Progress toward goal */
               <div style={{ padding: "1.25rem" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-                  <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>
-                    Current: <strong style={{ color: S.ink }}>{homegenticScore}</strong>
+                  <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>
+                    Current: <strong style={{ color: UI.ink }}>{homegenticScore}</strong>
                   </span>
-                  <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>
-                    Goal: <strong style={{ color: S.rust }}>{scoreGoal}</strong>
+                  <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>
+                    Goal: <strong style={{ color: UI.rust }}>{scoreGoal}</strong>
                   </span>
                 </div>
-                <div style={{ height: "6px", background: S.rule, marginBottom: "0.75rem", borderRadius: 100 }}>
+                <div style={{ height: "6px", background: UI.rule, marginBottom: "0.75rem", borderRadius: 100 }}>
                   <div style={{
                     height: "100%",
                     width: `${(homegenticScore / scoreGoal) * 100}%`,
@@ -1015,15 +1015,15 @@ export default function DashboardPage() {
                 </div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   {scoreGoalGap && (
-                    <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, lineHeight: 1.5, flex: 1 }}>
+                    <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, lineHeight: 1.5, flex: 1 }}>
                       {scoreGoalGap}
                     </p>
                   )}
                   <button
                     onClick={() => { setLogJobPrefill(undefined); setShowLogJobModal(true); }}
                     style={{
-                      fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase",
-                      padding: "0.4rem 0.875rem", background: S.ink, color: S.paper, border: "none", cursor: "pointer",
+                      fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase",
+                      padding: "0.4rem 0.875rem", background: UI.ink, color: UI.paper, border: "none", cursor: "pointer",
                       display: "inline-flex", alignItems: "center", gap: "0.375rem", flexShrink: 0, marginLeft: "1rem",
                       borderRadius: RADIUS.pill,
                     }}
@@ -1040,43 +1040,43 @@ export default function DashboardPage() {
         {!loading && recommendations.length > 0 && (
           <div style={{ marginBottom: "2.5rem" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.875rem" }}>
-              <span style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
                 Recommended Projects
               </span>
               <button
                 onClick={() => navigate("/market")}
-                style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.rust, background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.rust, background: "none", border: "none", cursor: "pointer", padding: 0 }}
               >
                 See all →
               </button>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(15rem, 1fr))", gap: "1rem" }}>
               {recommendations.map((rec) => {
-                const priorityColor = rec.priority === "High" ? S.rust : rec.priority === "Medium" ? COLORS.plumMid : S.inkLight;
+                const priorityColor = rec.priority === "High" ? UI.rust : rec.priority === "Medium" ? COLORS.plumMid : UI.inkLight;
                 return (
                   <div key={rec.name} style={{ background: COLORS.white, padding: "1.25rem", borderRadius: RADIUS.card, border: `1px solid ${COLORS.rule}`, boxShadow: SHADOWS.card, display: "flex", flexDirection: "column", gap: "0.625rem" }}>
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "0.5rem" }}>
-                      <p style={{ fontSize: "0.875rem", fontWeight: 600, color: S.ink, lineHeight: 1.2 }}>{rec.name}</p>
-                      <span style={{ fontFamily: S.mono, fontSize: "0.5rem", letterSpacing: "0.1em", textTransform: "uppercase", color: priorityColor, border: `1px solid ${priorityColor}`, padding: "0.1rem 0.4rem", flexShrink: 0, opacity: 0.8, borderRadius: 100 }}>
+                      <p style={{ fontSize: "0.875rem", fontWeight: 600, color: UI.ink, lineHeight: 1.2 }}>{rec.name}</p>
+                      <span style={{ fontFamily: UI.mono, fontSize: "0.5rem", letterSpacing: "0.1em", textTransform: "uppercase", color: priorityColor, border: `1px solid ${priorityColor}`, padding: "0.1rem 0.4rem", flexShrink: 0, opacity: 0.8, borderRadius: 100 }}>
                         {rec.priority}
                       </span>
                     </div>
                     <div style={{ display: "flex", gap: "1.5rem" }}>
                       <div>
-                        <p style={{ fontFamily: S.mono, fontSize: "0.5rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.1rem" }}>Est. Cost</p>
-                        <p style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "0.95rem", color: S.ink }}>${(rec.estimatedCostCents / 100).toLocaleString()}</p>
+                        <p style={{ fontFamily: UI.mono, fontSize: "0.5rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.1rem" }}>Est. Cost</p>
+                        <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "0.95rem", color: UI.ink }}>${(rec.estimatedCostCents / 100).toLocaleString()}</p>
                       </div>
                       <div>
-                        <p style={{ fontFamily: S.mono, fontSize: "0.5rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.1rem" }}>ROI</p>
-                        <p style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "0.95rem", color: S.sage }}>{rec.estimatedRoiPercent}%</p>
+                        <p style={{ fontFamily: UI.mono, fontSize: "0.5rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.1rem" }}>ROI</p>
+                        <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "0.95rem", color: UI.sage }}>{rec.estimatedRoiPercent}%</p>
                       </div>
                     </div>
-                    <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, letterSpacing: "0.04em", lineHeight: 1.5, flex: 1 }}>
+                    <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, letterSpacing: "0.04em", lineHeight: 1.5, flex: 1 }}>
                       {rec.rationale}
                     </p>
                     <button
                       onClick={() => { setLogJobPrefill({ serviceType: rec.category }); setShowLogJobModal(true); }}
-                      style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.35rem 0.75rem", border: `1px solid ${S.rule}`, background: "none", color: S.inkLight, cursor: "pointer", alignSelf: "flex-start", borderRadius: RADIUS.sm }}
+                      style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.35rem 0.75rem", border: `1px solid ${UI.rule}`, background: "none", color: UI.inkLight, cursor: "pointer", alignSelf: "flex-start", borderRadius: RADIUS.sm }}
                     >
                       Log This Job →
                     </button>
@@ -1094,29 +1094,29 @@ export default function DashboardPage() {
           const market = activeProperty ? `${activeProperty.city}, ${activeProperty.state}` : "your market";
           return (
             <div style={{
-              border: `1px solid ${S.rust}30`, padding: "1.25rem 1.5rem", marginBottom: "2.5rem",
+              border: `1px solid ${UI.rust}30`, padding: "1.25rem 1.5rem", marginBottom: "2.5rem",
               background: COLORS.sageLight, borderRadius: RADIUS.card,
             }}>
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
                 <div>
-                  <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: S.rust, marginBottom: "0.375rem" }}>
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.rust, marginBottom: "0.375rem" }}>
                     Your Score in {market}
                   </p>
-                  <p style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "2rem", lineHeight: 1, color: S.ink }}>
+                  <p style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "2rem", lineHeight: 1, color: UI.ink }}>
                     ${est.low.toLocaleString()} – ${est.high.toLocaleString()}
                   </p>
-                  <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight, marginTop: "0.375rem" }}>
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight, marginTop: "0.375rem" }}>
                     estimated buyer premium above unverified comparable
                   </p>
                 </div>
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight, marginBottom: "0.625rem" }}>
-                    HomeGentic Score <strong style={{ color: S.ink }}>{homegenticScore}</strong> · Grade <strong style={{ color: S.ink }}>{scoreGrade}</strong>
+                  <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight, marginBottom: "0.625rem" }}>
+                    HomeGentic Score <strong style={{ color: UI.ink }}>{homegenticScore}</strong> · Grade <strong style={{ color: UI.ink }}>{scoreGrade}</strong>
                   </div>
                   <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end", flexWrap: "wrap" }}>
                     <button
                       onClick={() => navigate("/resale-ready")}
-                      style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.375rem 0.875rem", border: `1px solid ${S.rust}`, color: S.rust, background: "none", cursor: "pointer", borderRadius: RADIUS.sm }}
+                      style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.375rem 0.875rem", border: `1px solid ${UI.rust}`, color: UI.rust, background: "none", cursor: "pointer", borderRadius: RADIUS.sm }}
                     >
                       See Full Analysis →
                     </button>
@@ -1137,7 +1137,7 @@ export default function DashboardPage() {
                           navigator.clipboard.writeText(url);
                           toast.success("Lender certificate link copied!");
                         }}
-                        style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.375rem 0.875rem", border: `1px solid ${S.rule}`, color: S.inkLight, background: "none", cursor: "pointer", borderRadius: RADIUS.sm }}
+                        style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.375rem 0.875rem", border: `1px solid ${UI.rule}`, color: UI.inkLight, background: "none", cursor: "pointer", borderRadius: RADIUS.sm }}
                       >
                         Copy Cert Link
                       </button>
@@ -1145,7 +1145,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </div>
-              <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.04em", color: S.inkLight, marginTop: "0.875rem", borderTop: `1px solid ${S.rule}`, paddingTop: "0.625rem", lineHeight: 1.6 }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.04em", color: UI.inkLight, marginTop: "0.875rem", borderTop: `1px solid ${UI.rule}`, paddingTop: "0.625rem", lineHeight: 1.6 }}>
                 Based on verified maintenance records for score band {homegenticScore < 55 ? "40–54" : homegenticScore < 70 ? "55–69" : homegenticScore < 85 ? "70–84" : "85+"}.
                 Buyers and lenders pay more for homes with documented, verified maintenance history. Individual market conditions vary.
               </p>
@@ -1157,25 +1157,25 @@ export default function DashboardPage() {
         {!loading && expiringWarranties.length > 0 && (
           <div style={{ marginBottom: "2.5rem" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem" }}>
-              <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.rust }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.rust }}>
                 Warranties Expiring Soon
               </p>
-              <button onClick={() => navigate("/warranties")} style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "3px" }}>
+              <button onClick={() => navigate("/warranties")} style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "3px" }}>
                 View all →
               </button>
             </div>
-            <div style={{ border: `1px solid ${S.rule}`, borderRadius: RADIUS.card, overflow: "hidden" }}>
+            <div style={{ border: `1px solid ${UI.rule}`, borderRadius: RADIUS.card, overflow: "hidden" }}>
               {expiringWarranties.map((job, i) => {
                 const expiry   = new Date(job.date).getTime() + (job.warrantyMonths ?? 0) * 30.44 * 24 * 60 * 60 * 1000;
                 const daysLeft = Math.round((expiry - Date.now()) / (24 * 60 * 60 * 1000));
-                const color    = daysLeft <= 30 ? S.rust : COLORS.plumMid;
+                const color    = daysLeft <= 30 ? UI.rust : COLORS.plumMid;
                 return (
-                  <div key={job.id} style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.75rem 1rem", borderBottom: i < expiringWarranties.length - 1 ? `1px solid ${S.rule}` : "none", background: COLORS.white }}>
+                  <div key={job.id} style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.75rem 1rem", borderBottom: i < expiringWarranties.length - 1 ? `1px solid ${UI.rule}` : "none", background: COLORS.white }}>
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: "0.875rem", fontWeight: 500 }}>{job.serviceType}</p>
-                      <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight }}>{job.isDiy ? "DIY" : job.contractorName} · {job.date}</p>
+                      <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight }}>{job.isDiy ? "DIY" : job.contractorName} · {job.date}</p>
                     </div>
-                    <span style={{ fontFamily: S.mono, fontSize: "0.65rem", fontWeight: 700, color, border: `1px solid ${color}40`, padding: "0.2rem 0.6rem", flexShrink: 0, borderRadius: 100 }}>
+                    <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", fontWeight: 700, color, border: `1px solid ${color}40`, padding: "0.2rem 0.6rem", flexShrink: 0, borderRadius: 100 }}>
                       {daysLeft}d left
                     </span>
                   </div>
@@ -1191,15 +1191,15 @@ export default function DashboardPage() {
         {/* Multi-property overview */}
         {!loading && isAllView && propertyComparison && (
           <div style={{ marginBottom: "2.5rem" }}>
-            <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "1rem" }}>
+            <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "1rem" }}>
               Property Comparison
             </div>
-            <div style={{ border: `1px solid ${S.rule}`, borderRadius: RADIUS.card, overflow: "hidden" }}>
+            <div style={{ border: `1px solid ${UI.rule}`, borderRadius: RADIUS.card, overflow: "hidden" }}>
               <div style={{ overflowX: isMobile ? "auto" : "visible" }}>
               {/* Header */}
-              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", padding: "0.5rem 1rem", background: S.paper, borderBottom: `1px solid ${S.rule}`, minWidth: isMobile ? "600px" : undefined }}>
+              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", padding: "0.5rem 1rem", background: UI.paper, borderBottom: `1px solid ${UI.rule}`, minWidth: isMobile ? "600px" : undefined }}>
                 {["Address", "Score", "Value Added", "Verified Jobs", "Level"].map((h) => (
-                  <div key={h} style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>{h}</div>
+                  <div key={h} style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>{h}</div>
                 ))}
               </div>
               {propertyComparison.map((row, i) => {
@@ -1212,25 +1212,25 @@ export default function DashboardPage() {
                       display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr",
                       minWidth: isMobile ? "600px" : undefined,
                       padding: "0.875rem 1rem", alignItems: "center",
-                      borderBottom: i < propertyComparison.length - 1 ? `1px solid ${S.rule}` : "none",
+                      borderBottom: i < propertyComparison.length - 1 ? `1px solid ${UI.rule}` : "none",
                       background: isTop ? COLORS.sageLight : COLORS.white,
                       cursor: "pointer",
-                      borderLeft: isTop ? `3px solid ${S.sage}` : "3px solid transparent",
+                      borderLeft: isTop ? `3px solid ${UI.sage}` : "3px solid transparent",
                     }}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = COLORS.sageLight; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = isTop ? COLORS.sageLight : COLORS.white; }}
                   >
                     <div>
                       <p style={{ fontSize: "0.8rem", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.property.address}</p>
-                      <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>{row.property.city}, {row.property.state}</p>
+                      <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>{row.property.city}, {row.property.state}</p>
                     </div>
                     <div style={{ display: "flex", alignItems: "baseline", gap: "0.25rem" }}>
-                      <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.125rem", color: isTop ? S.sage : S.ink }}>{row.score}</span>
-                      <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>{row.grade}</span>
+                      <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.125rem", color: isTop ? UI.sage : UI.ink }}>{row.score}</span>
+                      <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>{row.grade}</span>
                     </div>
-                    <div style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.ink }}>${(row.value / 100).toLocaleString()}</div>
-                    <div style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.ink }}>{row.verified} / {row.jobCount}</div>
-                    <div style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>{row.property.verificationLevel}</div>
+                    <div style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: UI.ink }}>${(row.value / 100).toLocaleString()}</div>
+                    <div style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: UI.ink }}>{row.verified} / {row.jobCount}</div>
+                    <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>{row.property.verificationLevel}</div>
                   </div>
                 );
               })}
@@ -1241,7 +1241,7 @@ export default function DashboardPage() {
 
         {/* Quick Actions */}
         <div style={{ marginBottom: "2.5rem" }}>
-          <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "1rem" }}>
+          <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "1rem" }}>
             Quick Actions
           </div>
           <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
@@ -1255,17 +1255,17 @@ export default function DashboardPage() {
 
         {/* Properties */}
         <div style={{ marginBottom: "2.5rem" }}>
-          <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "1rem" }}>
+          <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "1rem" }}>
             My Properties
           </div>
 
           {loading ? (
             <div style={{ textAlign: "center", padding: "3rem 0" }}><div className="spinner-lg" /></div>
           ) : properties.length === 0 ? (
-            <div style={{ border: `1px dashed ${S.rule}`, padding: "3rem", textAlign: "center" }}>
-              <Home size={40} color={S.rule} style={{ margin: "0 auto 1rem" }} />
-              <p style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.125rem", marginBottom: "0.5rem" }}>No properties yet</p>
-              <p style={{ fontSize: "0.875rem", color: S.inkLight, fontWeight: 300, maxWidth: "24rem", margin: "0 auto 1.5rem" }}>
+            <div style={{ border: `1px dashed ${UI.rule}`, padding: "3rem", textAlign: "center" }}>
+              <Home size={40} color={UI.rule} style={{ margin: "0 auto 1rem" }} />
+              <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.125rem", marginBottom: "0.5rem" }}>No properties yet</p>
+              <p style={{ fontSize: "0.875rem", color: UI.inkLight, fontWeight: 300, maxWidth: "24rem", margin: "0 auto 1.5rem" }}>
                 Add your first property to start building a verified, on-chain maintenance history.
               </p>
               <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}>
@@ -1286,10 +1286,10 @@ export default function DashboardPage() {
         {pendingProposals.length > 0 && (
           <div style={{ marginBottom: "2.5rem" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginBottom: "1rem" }}>
-              <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
+              <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
                 Pending Contractor Proposals
               </div>
-              <div style={{ display: "inline-flex", alignItems: "center", padding: "0.1rem 0.5rem", background: COLORS.sage, color: "#fff", fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", borderRadius: 100 }}>
+              <div style={{ display: "inline-flex", alignItems: "center", padding: "0.1rem 0.5rem", background: COLORS.sage, color: "#fff", fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", borderRadius: 100 }}>
                 {pendingProposals.length} awaiting review
               </div>
             </div>
@@ -1299,7 +1299,7 @@ export default function DashboardPage() {
                   key={proposal.id}
                   data-testid="pending-proposal-card"
                   style={{
-                    border: `1px solid ${S.rule}`,
+                    border: `1px solid ${UI.rule}`,
                     padding: "1rem 1.25rem",
                     display: "flex", flexDirection: isMobile ? "column" : "row",
                     alignItems: isMobile ? "flex-start" : "center",
@@ -1308,24 +1308,24 @@ export default function DashboardPage() {
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem", flexWrap: "wrap" }}>
-                      <span style={{ fontFamily: S.mono, fontSize: "0.7rem", letterSpacing: "0.06em", textTransform: "uppercase", color: S.ink, fontWeight: 600 }}>
+                      <span style={{ fontFamily: UI.mono, fontSize: "0.7rem", letterSpacing: "0.06em", textTransform: "uppercase", color: UI.ink, fontWeight: 600 }}>
                         {proposal.serviceType}
                       </span>
                       {(proposal as any).potentialDuplicateOf && (
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "#C94C2E", border: "1px solid rgba(201,76,46,0.4)", padding: "0.1rem 0.4rem" }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "#C94C2E", border: "1px solid rgba(201,76,46,0.4)", padding: "0.1rem 0.4rem" }}>
                           <AlertTriangle size={9} /> Possible duplicate
                         </span>
                       )}
                     </div>
-                    <div style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", color: S.ink, marginBottom: "0.25rem" }}>
+                    <div style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", color: UI.ink, marginBottom: "0.25rem" }}>
                       {proposal.description}
                     </div>
                     <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
                       {proposal.contractorName && (
-                        <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>By {proposal.contractorName}</span>
+                        <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>By {proposal.contractorName}</span>
                       )}
-                      <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>{proposal.date}</span>
-                      <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>
+                      <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>{proposal.date}</span>
+                      <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>
                         ${(proposal.amount / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
@@ -1336,7 +1336,7 @@ export default function DashboardPage() {
                       data-testid="approve-proposal"
                       style={{
                         display: "flex", alignItems: "center", gap: "0.25rem",
-                        fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase",
+                        fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase",
                         padding: "0.4rem 0.875rem", background: COLORS.sage, color: COLORS.white,
                         border: "none", cursor: "pointer",
                       }}
@@ -1348,9 +1348,9 @@ export default function DashboardPage() {
                       data-testid="reject-proposal"
                       style={{
                         display: "flex", alignItems: "center", gap: "0.25rem",
-                        fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase",
-                        padding: "0.4rem 0.875rem", background: "none", color: S.inkLight,
-                        border: `1px solid ${S.rule}`, cursor: "pointer",
+                        fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase",
+                        padding: "0.4rem 0.875rem", background: "none", color: UI.inkLight,
+                        border: `1px solid ${UI.rule}`, cursor: "pointer",
                       }}
                     >
                       <XCircle size={11} /> Decline
@@ -1365,7 +1365,7 @@ export default function DashboardPage() {
         {/* Properties I Manage (delegated access) */}
         {managedProperties.length > 0 && (
           <div style={{ marginBottom: "2.5rem" }}>
-            <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "1rem" }}>
+            <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "1rem" }}>
               Properties I Manage
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: "1rem" }}>
@@ -1373,17 +1373,17 @@ export default function DashboardPage() {
                 <div
                   key={String(property.id)}
                   onClick={() => navigate(`/properties/${property.id}`)}
-                  style={{ border: `1px solid ${S.rule}`, padding: "1rem 1.25rem", cursor: "pointer", background: COLORS.white, display: "flex", flexDirection: "column", gap: "0.5rem" }}
+                  style={{ border: `1px solid ${UI.rule}`, padding: "1rem 1.25rem", cursor: "pointer", background: COLORS.white, display: "flex", flexDirection: "column", gap: "0.5rem" }}
                   onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = COLORS.sageLight; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = COLORS.white; }}
                 >
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "0.5rem" }}>
-                    <p style={{ fontFamily: FONTS.sans, fontWeight: 500, fontSize: "0.875rem", color: S.ink, margin: 0 }}>{property.address}</p>
-                    <span style={{ fontFamily: S.mono, fontSize: "0.5rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.15rem 0.45rem", border: `1px solid ${role === "Manager" ? S.ink : S.rule}`, color: role === "Manager" ? S.ink : S.inkLight, flexShrink: 0 }}>
+                    <p style={{ fontFamily: FONTS.sans, fontWeight: 500, fontSize: "0.875rem", color: UI.ink, margin: 0 }}>{property.address}</p>
+                    <span style={{ fontFamily: UI.mono, fontSize: "0.5rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.15rem 0.45rem", border: `1px solid ${role === "Manager" ? UI.ink : UI.rule}`, color: role === "Manager" ? UI.ink : UI.inkLight, flexShrink: 0 }}>
                       {role}
                     </span>
                   </div>
-                  <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, margin: 0 }}>
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, margin: 0 }}>
                     {property.city}, {property.state} {property.zipCode}
                   </p>
                 </div>
@@ -1397,11 +1397,11 @@ export default function DashboardPage() {
           <div style={{ marginBottom: "2.5rem" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-                <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
+                <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
                   Manager Activity
                 </div>
                 {ownerNotifs.some((n) => !n.seen) && (
-                  <div style={{ display: "inline-flex", padding: "0.1rem 0.5rem", background: COLORS.sage, color: "#fff", fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", borderRadius: 100 }}>
+                  <div style={{ display: "inline-flex", padding: "0.1rem 0.5rem", background: COLORS.sage, color: "#fff", fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", borderRadius: 100 }}>
                     {ownerNotifs.filter((n) => !n.seen).length} new
                   </div>
                 )}
@@ -1419,30 +1419,30 @@ export default function DashboardPage() {
                     await Promise.all(unseenPropertyIds.map((id) => propertyService.dismissNotifications(id).catch(() => {})));
                     setOwnerNotifs((prev) => prev.map((n) => ({ ...n, seen: true })));
                   }}
-                  style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.3rem 0.75rem", background: "none", border: `1px solid ${S.rule}`, color: S.inkLight, cursor: "pointer" }}
+                  style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.3rem 0.75rem", background: "none", border: `1px solid ${UI.rule}`, color: UI.inkLight, cursor: "pointer" }}
                 >
                   Mark all seen
                 </button>
               )}
             </div>
-            <div style={{ border: `1px solid ${S.rule}` }}>
+            <div style={{ border: `1px solid ${UI.rule}` }}>
               {ownerNotifs.slice(0, 10).map((n, i) => (
                 <div
                   key={n.id}
                   style={{
                     padding: "0.875rem 1.25rem",
-                    borderBottom: i < Math.min(ownerNotifs.length, 10) - 1 ? `1px solid ${S.rule}` : "none",
+                    borderBottom: i < Math.min(ownerNotifs.length, 10) - 1 ? `1px solid ${UI.rule}` : "none",
                     background: n.seen ? COLORS.white : COLORS.sageLight,
                     display: "flex", flexDirection: "column", gap: "0.2rem",
                   }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.5rem" }}>
-                    <span style={{ fontFamily: S.mono, fontSize: "0.65rem", fontWeight: 600, color: S.ink }}>{n.managerName}</span>
-                    <span style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight, flexShrink: 0 }}>
+                    <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", fontWeight: 600, color: UI.ink }}>{n.managerName}</span>
+                    <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: UI.inkLight, flexShrink: 0 }}>
                       {new Date(n.timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                     </span>
                   </div>
-                  <p style={{ fontFamily: FONTS.sans, fontSize: "0.78rem", color: S.inkLight, margin: 0, fontWeight: 300, lineHeight: 1.4 }}>
+                  <p style={{ fontFamily: FONTS.sans, fontSize: "0.78rem", color: UI.inkLight, margin: 0, fontWeight: 300, lineHeight: 1.4 }}>
                     {n.description}
                   </p>
                 </div>
@@ -1456,23 +1456,23 @@ export default function DashboardPage() {
           <div style={{ marginBottom: "2.5rem" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-                <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
+                <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
                   Quote Requests
                 </div>
                 {pendingQuoteCount(quoteRequests) > 0 && (
-                  <div style={{ display: "inline-flex", alignItems: "center", padding: "0.1rem 0.5rem", background: S.rust, color: "#fff", fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", borderRadius: 100 }}>
+                  <div style={{ display: "inline-flex", alignItems: "center", padding: "0.1rem 0.5rem", background: UI.rust, color: "#fff", fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", borderRadius: 100 }}>
                     {pendingQuoteCount(quoteRequests)} {pendingQuoteCount(quoteRequests) === 1 ? "bid" : "bids"} waiting
                   </div>
                 )}
               </div>
               <button
                 onClick={() => setShowQuoteModal(true)}
-                style={{ display: "flex", alignItems: "center", gap: "0.25rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.rust, background: "none", border: `1px solid ${S.rust}`, cursor: "pointer", padding: "0.3rem 0.75rem", borderRadius: RADIUS.sm }}
+                style={{ display: "flex", alignItems: "center", gap: "0.25rem", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.rust, background: "none", border: `1px solid ${UI.rust}`, cursor: "pointer", padding: "0.3rem 0.75rem", borderRadius: RADIUS.sm }}
               >
                 <Plus size={11} /> New Request
               </button>
             </div>
-            <div style={{ border: `1px solid ${S.rule}`, borderRadius: RADIUS.card, overflow: "hidden" }}>
+            <div style={{ border: `1px solid ${UI.rule}`, borderRadius: RADIUS.card, overflow: "hidden" }}>
               {quoteRequests.map((req, i) => {
                 const statusVariant =
                   req.status === "accepted" ? "success"
@@ -1492,26 +1492,26 @@ export default function DashboardPage() {
                     onClick={() => navigate(`/quotes/${req.id}`)}
                     style={{
                       display: "flex", alignItems: "center", gap: "1rem", padding: "0.875rem 1rem",
-                      borderBottom: i < quoteRequests.length - 1 ? `1px solid ${S.rule}` : "none",
+                      borderBottom: i < quoteRequests.length - 1 ? `1px solid ${UI.rule}` : "none",
                       background: rowBg, cursor: "pointer",
-                      borderLeft: hasBids ? `3px solid ${S.rust}` : stale ? `3px solid ${COLORS.plumMid}` : "3px solid transparent",
+                      borderLeft: hasBids ? `3px solid ${UI.rust}` : stale ? `3px solid ${COLORS.plumMid}` : "3px solid transparent",
                     }}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = COLORS.sageLight; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = rowBg; }}
                   >
-                    <div style={{ width: "2rem", height: "2rem", border: `1px solid ${S.rule}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: RADIUS.sm }}>
-                      <MessageSquare size={13} color={hasBids ? S.rust : S.inkLight} />
+                    <div style={{ width: "2rem", height: "2rem", border: `1px solid ${UI.rule}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: RADIUS.sm }}>
+                      <MessageSquare size={13} color={hasBids ? UI.rust : UI.inkLight} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontSize: "0.875rem", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {req.serviceType}
                         {stale && (
-                          <span style={{ marginLeft: "0.5rem", fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.plumMid }}>
+                          <span style={{ marginLeft: "0.5rem", fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.plumMid }}>
                             No bids yet
                           </span>
                         )}
                       </p>
-                      <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: S.inkLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: UI.inkLight, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {req.description}
                       </p>
                     </div>
@@ -1519,20 +1519,20 @@ export default function DashboardPage() {
                       {/* Bid count bubble */}
                       {bidCount > 0 && (
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: "2rem" }}>
-                          <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1rem", lineHeight: 1, color: S.rust }}>{bidCount}</span>
-                          <span style={{ fontFamily: S.mono, fontSize: "0.5rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight }}>{bidCount === 1 ? "bid" : "bids"}</span>
+                          <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1rem", lineHeight: 1, color: UI.rust }}>{bidCount}</span>
+                          <span style={{ fontFamily: UI.mono, fontSize: "0.5rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight }}>{bidCount === 1 ? "bid" : "bids"}</span>
                         </div>
                       )}
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.25rem" }}>
                         {isNew && (
-                          <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.rust, border: `1px solid ${S.rust}`, padding: "0.1rem 0.4rem", borderRadius: 100 }}>
+                          <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.rust, border: `1px solid ${UI.rust}`, padding: "0.1rem 0.4rem", borderRadius: 100 }}>
                             New
                           </span>
                         )}
                         <Badge variant={statusVariant} size="sm">{req.status}</Badge>
-                        <span style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight }}>{ageLabel}</span>
+                        <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: UI.inkLight }}>{ageLabel}</span>
                       </div>
-                      <ArrowRight size={13} color={S.inkLight} />
+                      <ArrowRight size={13} color={UI.inkLight} />
                     </div>
                   </div>
                 );
@@ -1545,23 +1545,23 @@ export default function DashboardPage() {
         {showNextService && nextServiceTip && recentVerified && (
           <div style={{
             display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem",
-            border: `1px solid ${S.rule}`, padding: "1rem 1.25rem", marginBottom: "2rem",
+            border: `1px solid ${UI.rule}`, padding: "1rem 1.25rem", marginBottom: "2rem",
             background: "#fff", flexWrap: "wrap", borderRadius: RADIUS.sm,
           }}>
             <div style={{ display: "flex", gap: "0.75rem", flex: 1 }}>
-              <div style={{ width: "2rem", height: "2rem", border: `1px solid ${S.rule}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: RADIUS.sm }}>
-                <Calendar size={13} color={S.sage} />
+              <div style={{ width: "2rem", height: "2rem", border: `1px solid ${UI.rule}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: RADIUS.sm }}>
+                <Calendar size={13} color={UI.sage} />
               </div>
               <div>
-                <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.sage, marginBottom: "0.2rem" }}>
+                <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.sage, marginBottom: "0.2rem" }}>
                   Next Step — {recentVerified.serviceType}
                 </p>
-                <p style={{ fontSize: "0.875rem", fontWeight: 400, color: S.ink, marginBottom: "0.5rem" }}>
+                <p style={{ fontSize: "0.875rem", fontWeight: 400, color: UI.ink, marginBottom: "0.5rem" }}>
                   {nextServiceTip}
                 </p>
                 <button
                   onClick={() => navigate(`/maintenance?system=${encodeURIComponent(recentVerified.serviceType)}`)}
-                  style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.35rem 0.875rem", border: `1px solid ${S.sage}`, background: "none", color: S.sage, cursor: "pointer", borderRadius: RADIUS.sm }}
+                  style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.35rem 0.875rem", border: `1px solid ${UI.sage}`, background: "none", color: UI.sage, cursor: "pointer", borderRadius: RADIUS.sm }}
                 >
                   Add to Maintenance Schedule →
                 </button>
@@ -1569,7 +1569,7 @@ export default function DashboardPage() {
             </div>
             <button
               onClick={() => { localStorage.setItem(nextServiceKey, "1"); setNextServiceDismissed(true); }}
-              style={{ background: "none", border: "none", cursor: "pointer", color: S.inkLight, flexShrink: 0 }}
+              style={{ background: "none", border: "none", cursor: "pointer", color: UI.inkLight, flexShrink: 0 }}
             >
               <X size={14} />
             </button>
@@ -1582,24 +1582,24 @@ export default function DashboardPage() {
             key={prompt.jobId}
             style={{
               display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem",
-              border: `1px solid ${S.rule}`, padding: "1rem 1.25rem", marginBottom: "1rem",
+              border: `1px solid ${UI.rule}`, padding: "1rem 1.25rem", marginBottom: "1rem",
               background: COLORS.white, flexWrap: "wrap", borderRadius: RADIUS.sm,
             }}
           >
             <div style={{ display: "flex", gap: "0.75rem", flex: 1 }}>
-              <div style={{ width: "2rem", height: "2rem", border: `1px solid ${S.rule}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: RADIUS.sm }}>
-                <ShieldCheck size={13} color={S.sage} />
+              <div style={{ width: "2rem", height: "2rem", border: `1px solid ${UI.rule}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: RADIUS.sm }}>
+                <ShieldCheck size={13} color={UI.sage} />
               </div>
               <div>
-                <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.sage, marginBottom: "0.2rem" }}>
+                <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.sage, marginBottom: "0.2rem" }}>
                   Book Again — {prompt.serviceType}
                 </p>
-                <p style={{ fontSize: "0.875rem", fontWeight: 400, color: S.ink, marginBottom: "0.5rem" }}>
+                <p style={{ fontSize: "0.875rem", fontWeight: 400, color: UI.ink, marginBottom: "0.5rem" }}>
                   {prompt.message}
                 </p>
                 <button
                   onClick={() => navigate(`/quotes/new?contractor=${encodeURIComponent(prompt.contractorName)}&service=${encodeURIComponent(prompt.serviceType)}`)}
-                  style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.35rem 0.875rem", border: `1px solid ${S.sage}`, background: "none", color: S.sage, cursor: "pointer", borderRadius: RADIUS.sm }}
+                  style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.35rem 0.875rem", border: `1px solid ${UI.sage}`, background: "none", color: UI.sage, cursor: "pointer", borderRadius: RADIUS.sm }}
                 >
                   Request Quote →
                 </button>
@@ -1610,7 +1610,7 @@ export default function DashboardPage() {
                 localStorage.setItem(`homegentic_reengage_${prompt.jobId}`, "1");
                 setDismissedReEngagements((prev) => new Set([...prev, prompt.jobId]));
               }}
-              style={{ background: "none", border: "none", cursor: "pointer", color: S.inkLight, flexShrink: 0 }}
+              style={{ background: "none", border: "none", cursor: "pointer", color: UI.inkLight, flexShrink: 0 }}
             >
               <X size={14} />
             </button>
@@ -1624,24 +1624,24 @@ export default function DashboardPage() {
         {hasProperty && (
           <div style={{ marginBottom: "2rem" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-              <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
+              <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
                 Recurring Services
               </div>
               <button
                 onClick={() => navigate("/recurring/new")}
-                style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.3rem 0.75rem", border: `1px solid ${S.rust}`, color: S.rust, background: "none", cursor: "pointer", borderRadius: RADIUS.sm }}
+                style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.3rem 0.75rem", border: `1px solid ${UI.rust}`, color: UI.rust, background: "none", cursor: "pointer", borderRadius: RADIUS.sm }}
               >
                 + Add
               </button>
             </div>
             {recurringServices.length === 0 ? (
-              <div style={{ border: `1px solid ${S.rule}`, background: "#fff", padding: "1.5rem", textAlign: "center", borderRadius: RADIUS.card }}>
-                <p style={{ fontSize: "0.85rem", fontWeight: 300, color: S.inkLight, marginBottom: "0.75rem" }}>
+              <div style={{ border: `1px solid ${UI.rule}`, background: "#fff", padding: "1.5rem", textAlign: "center", borderRadius: RADIUS.card }}>
+                <p style={{ fontSize: "0.85rem", fontWeight: 300, color: UI.inkLight, marginBottom: "0.75rem" }}>
                   Lawn care, pest control, pool service — log ongoing contracts once and let the visit log do the rest.
                 </p>
                 <button
                   onClick={() => navigate("/recurring/new")}
-                  style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 1rem", border: `1px solid ${S.ink}`, background: "none", cursor: "pointer", color: S.ink, borderRadius: RADIUS.sm }}
+                  style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 1rem", border: `1px solid ${UI.ink}`, background: "none", cursor: "pointer", color: UI.ink, borderRadius: RADIUS.sm }}
                 >
                   Add first service →
                 </button>
@@ -1663,23 +1663,23 @@ export default function DashboardPage() {
         {/* Recent Activity */}
         {jobs.length > 0 && (
           <div>
-            <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "1rem" }}>
+            <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "1rem" }}>
               Recent Activity
             </div>
-            <div style={{ border: `1px solid ${S.rule}`, borderRadius: RADIUS.card, overflow: "hidden" }}>
+            <div style={{ border: `1px solid ${UI.rule}`, borderRadius: RADIUS.card, overflow: "hidden" }}>
               {jobs.slice(0, 5).map((job, i) => (
-                <div key={job.id} className="rsp-activity-row" style={{ borderBottom: i < Math.min(jobs.length, 5) - 1 ? `1px solid ${S.rule}` : "none", background: "#fff" }}>
-                  <div style={{ width: "2rem", height: "2rem", border: `1px solid ${S.rule}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: RADIUS.sm }}>
-                    <Wrench size={13} color={S.inkLight} />
+                <div key={job.id} className="rsp-activity-row" style={{ borderBottom: i < Math.min(jobs.length, 5) - 1 ? `1px solid ${UI.rule}` : "none", background: "#fff" }}>
+                  <div style={{ width: "2rem", height: "2rem", border: `1px solid ${UI.rule}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: RADIUS.sm }}>
+                    <Wrench size={13} color={UI.inkLight} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: "0.875rem", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {job.serviceType} — {job.isDiy ? "DIY" : job.contractorName}
                     </p>
-                    <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>{job.date}</p>
+                    <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight }}>{job.date}</p>
                   </div>
                   <div className="rsp-activity-right">
-                    <p style={{ fontFamily: S.mono, fontSize: "0.75rem", fontWeight: 500 }}>${(job.amount / 100).toLocaleString()}</p>
+                    <p style={{ fontFamily: UI.mono, fontSize: "0.75rem", fontWeight: 500 }}>${(job.amount / 100).toLocaleString()}</p>
                     <Badge variant={job.status === "verified" ? "success" : job.status === "completed" ? "info" : "warning"} size="sm">
                       {job.status}
                     </Badge>

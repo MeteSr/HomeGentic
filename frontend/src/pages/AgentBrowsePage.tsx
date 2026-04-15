@@ -14,7 +14,7 @@ import { paymentService, type PlanTier } from "@/services/payment";
 import { UpgradeGate } from "@/components/UpgradeGate";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -31,26 +31,26 @@ function AgentCard({ agent }: { agent: AgentOnChainProfile }) {
       href={`/agent/${agent.id}`}
       style={{
         display: "block", textDecoration: "none", color: "inherit",
-        border: `1px solid ${S.rule}`, background: S.paper,
+        border: `1px solid ${UI.rule}`, background: UI.paper,
         borderRadius: RADIUS.card, boxShadow: SHADOWS.card,
       }}
     >
       {/* Header */}
-      <div style={{ background: S.ink, padding: "1rem 1.25rem", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+      <div style={{ background: UI.ink, padding: "1rem 1.25rem", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.2rem" }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.2rem" }}>
             {agent.statesLicensed.join(", ")}
           </p>
-          <h3 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1rem", lineHeight: 1.2, color: S.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <h3 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1rem", lineHeight: 1.2, color: UI.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {agent.name}
           </h3>
-          <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.04em", color: COLORS.plumMid, marginTop: "0.2rem" }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.04em", color: COLORS.plumMid, marginTop: "0.2rem" }}>
             {agent.brokerage}
           </p>
         </div>
-        <div style={{ width: "2.5rem", height: "2.5rem", border: `2px solid ${S.sage}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0, marginLeft: "0.75rem" }}>
-          <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "0.9rem", lineHeight: 1, color: S.paper }}>{agent.avgDaysOnMarket}</span>
-          <span style={{ fontFamily: S.mono, fontSize: "0.4rem", color: COLORS.plumMid }}>avg dom</span>
+        <div style={{ width: "2.5rem", height: "2.5rem", border: `2px solid ${UI.sage}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0, marginLeft: "0.75rem" }}>
+          <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "0.9rem", lineHeight: 1, color: UI.paper }}>{agent.avgDaysOnMarket}</span>
+          <span style={{ fontFamily: UI.mono, fontSize: "0.4rem", color: COLORS.plumMid }}>avg dom</span>
         </div>
       </div>
 
@@ -58,30 +58,30 @@ function AgentCard({ agent }: { agent: AgentOnChainProfile }) {
       <div style={{ padding: "0.875rem 1.25rem", display: "flex", flexDirection: "column", gap: "0.4rem" }}>
         <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
           <div>
-            <p style={{ fontFamily: S.mono, fontSize: "0.5rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.1rem" }}>Listings (12mo)</p>
-            <p style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1rem", lineHeight: 1, color: S.ink }}>{agent.listingsLast12Months}</p>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.5rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.1rem" }}>Listings (12mo)</p>
+            <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1rem", lineHeight: 1, color: UI.ink }}>{agent.listingsLast12Months}</p>
           </div>
           <div>
-            <p style={{ fontFamily: S.mono, fontSize: "0.5rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.1rem" }}>Typical Commission</p>
-            <p style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1rem", lineHeight: 1, color: S.ink }}>{(agent.typicalCommissionBps / 100).toFixed(2)}%</p>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.5rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.1rem" }}>Typical Commission</p>
+            <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1rem", lineHeight: 1, color: UI.ink }}>{(agent.typicalCommissionBps / 100).toFixed(2)}%</p>
           </div>
         </div>
 
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.25rem" }}>
           {agent.isVerified && (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.sage }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.sage }}>
               <ShieldCheck size={11} /> HomeGentic Verified
             </span>
           )}
           {agent.homeGenticTransactionCount > 0 && (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "#1a5c3a" }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "#1a5c3a" }}>
               <Star size={10} /> HomeGentic Verified Transaction
             </span>
           )}
         </div>
       </div>
 
-      <div style={{ padding: "0.5rem 1.25rem", borderTop: `1px solid ${S.rule}`, fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>
+      <div style={{ padding: "0.5rem 1.25rem", borderTop: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>
         View profile →
       </div>
     </a>
@@ -143,13 +143,13 @@ export default function AgentBrowsePage() {
 
         {/* Header */}
         <div style={{ marginBottom: "2rem" }}>
-          <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.sage, marginBottom: "0.5rem" }}>
+          <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: UI.sage, marginBottom: "0.5rem" }}>
             Directory
           </div>
-          <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "2rem", lineHeight: 1 }}>
+          <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "2rem", lineHeight: 1 }}>
             Find an Agent
           </h1>
-          <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight, marginTop: "0.375rem" }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight, marginTop: "0.375rem" }}>
             Realtors with HomeGentic-verified transaction records
           </p>
         </div>
@@ -158,17 +158,17 @@ export default function AgentBrowsePage() {
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center", marginBottom: "1.25rem" }}>
           {/* Search */}
           <div style={{ position: "relative", flex: "1 1 16rem", maxWidth: "24rem" }}>
-            <Search size={13} color={S.inkLight} style={{ position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+            <Search size={13} color={UI.inkLight} style={{ position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search by name, brokerage, or state…"
-              style={{ width: "100%", padding: "0.5rem 0.75rem 0.5rem 2.25rem", border: `1px solid ${S.rule}`, fontFamily: S.mono, fontSize: "0.65rem", background: S.paper, boxSizing: "border-box" }}
+              style={{ width: "100%", padding: "0.5rem 0.75rem 0.5rem 2.25rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.65rem", background: UI.paper, boxSizing: "border-box" }}
             />
           </div>
 
           {/* HomeGentic-only toggle */}
-          <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, cursor: "pointer", userSelect: "none" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, cursor: "pointer", userSelect: "none" }}>
             <input
               type="checkbox"
               checked={homeGenticOnly}
@@ -187,10 +187,10 @@ export default function AgentBrowsePage() {
               onClick={() => setState(s)}
               style={{
                 padding: "0.4rem 0.875rem",
-                fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase",
+                fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase",
                 border: "none", cursor: "pointer",
-                background: state === s ? S.ink : S.paper,
-                color:      state === s ? S.paper : S.inkLight,
+                background: state === s ? UI.ink : UI.paper,
+                color:      state === s ? UI.paper : UI.inkLight,
                 borderRadius: RADIUS.sm, boxShadow: SHADOWS.card,
               }}
             >
@@ -201,11 +201,11 @@ export default function AgentBrowsePage() {
 
         {/* Results */}
         {loading && (
-          <p style={{ fontFamily: S.mono, color: S.inkLight }}>Loading…</p>
+          <p style={{ fontFamily: UI.mono, color: UI.inkLight }}>Loading…</p>
         )}
 
         {!loading && filtered.length === 0 && (
-          <p style={{ fontFamily: S.mono, color: S.inkLight }}>No agents match your filters.</p>
+          <p style={{ fontFamily: UI.mono, color: UI.inkLight }}>No agents match your filters.</p>
         )}
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "1rem" }}>
@@ -215,7 +215,7 @@ export default function AgentBrowsePage() {
         </div>
 
         {!loading && (
-          <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, marginTop: "1rem" }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, marginTop: "1rem" }}>
             {filtered.length} agent{filtered.length !== 1 ? "s" : ""} found
           </p>
         )}

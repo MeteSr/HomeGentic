@@ -84,7 +84,7 @@ export default function PaymentSuccessPage() {
     });
   }, [subscriptionId, sessionId, isAuthenticated, verifySubscription]);
 
-  const S = {
+  const UI = {
     page:   { minHeight: "100vh", background: COLORS.sageLight, display: "flex", flexDirection: "column" as const, alignItems: "center", justifyContent: "center", padding: "3rem 1.5rem", fontFamily: FONTS.sans },
     card:   { background: COLORS.white, border: `1px solid ${COLORS.rule}`, maxWidth: 520, width: "100%", padding: "3rem 2.5rem", textAlign: "center" as const },
     icon:   { marginBottom: "1.5rem" },
@@ -97,8 +97,8 @@ export default function PaymentSuccessPage() {
 
   if (state === "verifying") {
     return (
-      <div style={S.page}>
-        <div style={S.card}>
+      <div style={UI.page}>
+        <div style={UI.card}>
           <p style={{ fontFamily: FONTS.sans, color: COLORS.plumMid }}>Confirming your payment…</p>
         </div>
       </div>
@@ -109,17 +109,17 @@ export default function PaymentSuccessPage() {
     return (
       <>
         <Helmet><title>One Last Step — HomeGentic</title></Helmet>
-        <div style={S.page}>
-          <div style={S.card}>
-            <div style={S.icon}><CheckCircle size={40} color={COLORS.sage} /></div>
-            <h1 style={S.h1}>Payment confirmed</h1>
-            <p style={S.body}>
+        <div style={UI.page}>
+          <div style={UI.card}>
+            <div style={UI.icon}><CheckCircle size={40} color={COLORS.sage} /></div>
+            <h1 style={UI.h1}>Payment confirmed</h1>
+            <p style={UI.body}>
               Your payment went through. Now set up your secure passkey to activate
               your subscription and access your dashboard.
             </p>
             <button
               onClick={import.meta.env.DEV ? devLogin : login}
-              style={{ ...S.cta, border: "none", cursor: "pointer", width: "100%" }}
+              style={{ ...UI.cta, border: "none", cursor: "pointer", width: "100%" }}
             >
               Set up my account →
             </button>
@@ -133,12 +133,12 @@ export default function PaymentSuccessPage() {
     return (
       <>
         <Helmet><title>Payment Error — HomeGentic</title></Helmet>
-        <div style={S.page}>
-          <div style={S.card}>
-            <h1 style={{ ...S.h1, color: "#C94C2E" }}>Something went wrong</h1>
-            <p style={S.body}>{errorMsg}</p>
-            <Link to="/pricing" style={S.cta}>Back to Pricing</Link>
-            <Link to="/support" style={S.link}>Contact support</Link>
+        <div style={UI.page}>
+          <div style={UI.card}>
+            <h1 style={{ ...UI.h1, color: "#C94C2E" }}>Something went wrong</h1>
+            <p style={UI.body}>{errorMsg}</p>
+            <Link to="/pricing" style={UI.cta}>Back to Pricing</Link>
+            <Link to="/support" style={UI.link}>Contact support</Link>
           </div>
         </div>
       </>
@@ -149,19 +149,19 @@ export default function PaymentSuccessPage() {
     return (
       <>
         <Helmet><title>Gift Sent — HomeGentic</title></Helmet>
-        <div style={S.page}>
-          <div style={S.card}>
-            <div style={S.icon}><Gift size={40} color={COLORS.sage} /></div>
-            <h1 style={S.h1}>Gift is on its way</h1>
-            <p style={S.body}>
+        <div style={UI.page}>
+          <div style={UI.card}>
+            <div style={UI.icon}><Gift size={40} color={COLORS.sage} /></div>
+            <h1 style={UI.h1}>Gift is on its way</h1>
+            <p style={UI.body}>
               Payment confirmed. Share the gift token below with your recipient — they can redeem it
               at any time after creating their HomeGentic account.
             </p>
-            <div style={S.token}>{giftToken}</div>
-            <p style={{ ...S.body, fontSize: "0.875rem" }}>
+            <div style={UI.token}>{giftToken}</div>
+            <p style={{ ...UI.body, fontSize: "0.875rem" }}>
               Save this token. We recommend emailing it directly to your recipient.
             </p>
-            <Link to="/dashboard" style={S.cta}>Go to Dashboard</Link>
+            <Link to="/dashboard" style={UI.cta}>Go to Dashboard</Link>
           </div>
         </div>
       </>
@@ -171,16 +171,16 @@ export default function PaymentSuccessPage() {
   return (
     <>
       <Helmet><title>Welcome to {tierName} — HomeGentic</title></Helmet>
-      <div style={S.page}>
-        <div style={S.card}>
-          <div style={S.icon}><CheckCircle size={40} color={COLORS.sage} /></div>
-          <h1 style={S.h1}>Welcome to {tierName}</h1>
-          <p style={S.body}>
+      <div style={UI.page}>
+        <div style={UI.card}>
+          <div style={UI.icon}><CheckCircle size={40} color={COLORS.sage} /></div>
+          <h1 style={UI.h1}>Welcome to {tierName}</h1>
+          <p style={UI.body}>
             Your subscription is active. Your verified home record is now building toward a higher
             HomeGentic Score and a stronger resale position.
           </p>
-          <Link to="/dashboard" style={S.cta}>Go to Dashboard</Link>
-          <p style={{ ...S.link, fontFamily: FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase" as const, color: COLORS.plumMid, marginTop: "1rem" }}>
+          <Link to="/dashboard" style={UI.cta}>Go to Dashboard</Link>
+          <p style={{ ...UI.link, fontFamily: FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase" as const, color: COLORS.plumMid, marginTop: "1rem" }}>
             Redirecting automatically…
           </p>
         </div>

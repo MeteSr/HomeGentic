@@ -12,7 +12,7 @@ import toast from "react-hot-toast";
 import { COLORS, FONTS } from "@/theme";
 import { isValidEmail, isValidPhone } from "@/utils/validators";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -102,7 +102,7 @@ export default function AgentProfileEditPage() {
   if (loading) {
     return (
       <Layout>
-        <p style={{ fontFamily: S.mono, color: S.inkLight }}>Loading…</p>
+        <p style={{ fontFamily: UI.mono, color: UI.inkLight }}>Loading…</p>
       </Layout>
     );
   }
@@ -110,7 +110,7 @@ export default function AgentProfileEditPage() {
   return (
     <Layout>
       <div style={{ maxWidth: 640, margin: "0 auto", padding: "2rem 1rem" }}>
-        <h1 style={{ fontFamily: S.serif, color: S.ink, marginBottom: "0.5rem" }}>
+        <h1 style={{ fontFamily: UI.serif, color: UI.ink, marginBottom: "0.5rem" }}>
           Agent Profile
         </h1>
 
@@ -118,12 +118,12 @@ export default function AgentProfileEditPage() {
           <div style={{ display: "inline-flex", alignItems: "center", gap: 6,
             background: "#e6f4ea", border: "1px solid #34a853", borderRadius: 2,
             padding: "4px 10px", marginBottom: "1.5rem" }}>
-            <span style={{ fontFamily: S.mono, fontSize: "0.75rem", color: "#188038" }}>
+            <span style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: "#188038" }}>
               HomeGentic Verified
             </span>
           </div>
         ) : existing && (
-          <p style={{ fontFamily: S.mono, fontSize: "0.75rem", color: S.inkLight,
+          <p style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: UI.inkLight,
             marginBottom: "1.5rem" }}>
             Pending verification — your profile is under review.
           </p>
@@ -133,7 +133,7 @@ export default function AgentProfileEditPage() {
           style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
 
           <label htmlFor="agentName"
-            style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.inkLight }}>
+            style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: UI.inkLight }}>
             NAME
             <input
               id="agentName"
@@ -141,11 +141,11 @@ export default function AgentProfileEditPage() {
               value={form.name}
               onChange={(e) => update("name", e.target.value)}
               style={{ display: "block", width: "100%", padding: "0.5rem",
-                border: `1px solid ${S.rule}`, fontFamily: S.mono, marginTop: 4 }}
+                border: `1px solid ${UI.rule}`, fontFamily: UI.mono, marginTop: 4 }}
             />
           </label>
 
-          <label style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.inkLight }}
+          <label style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: UI.inkLight }}
             htmlFor="brokerage">
             BROKERAGE
             <input
@@ -154,11 +154,11 @@ export default function AgentProfileEditPage() {
               value={form.brokerage}
               onChange={(e) => update("brokerage", e.target.value)}
               style={{ display: "block", width: "100%", padding: "0.5rem",
-                border: `1px solid ${S.rule}`, fontFamily: S.mono, marginTop: 4 }}
+                border: `1px solid ${UI.rule}`, fontFamily: UI.mono, marginTop: 4 }}
             />
           </label>
 
-          <label style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.inkLight }}
+          <label style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: UI.inkLight }}
             htmlFor="licenseNumber">
             LICENSE NUMBER
             <input
@@ -167,11 +167,11 @@ export default function AgentProfileEditPage() {
               value={form.licenseNumber}
               onChange={(e) => update("licenseNumber", e.target.value)}
               style={{ display: "block", width: "100%", padding: "0.5rem",
-                border: `1px solid ${S.rule}`, fontFamily: S.mono, marginTop: 4 }}
+                border: `1px solid ${UI.rule}`, fontFamily: UI.mono, marginTop: 4 }}
             />
           </label>
 
-          <label style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.inkLight }}>
+          <label style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: UI.inkLight }}>
             STATES (comma-separated)
             <input
               type="text"
@@ -179,11 +179,11 @@ export default function AgentProfileEditPage() {
               onChange={(e) => update("statesLicensed", e.target.value)}
               placeholder="TX, OK, CA"
               style={{ display: "block", width: "100%", padding: "0.5rem",
-                border: `1px solid ${S.rule}`, fontFamily: S.mono, marginTop: 4 }}
+                border: `1px solid ${UI.rule}`, fontFamily: UI.mono, marginTop: 4 }}
             />
           </label>
 
-          <label style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.inkLight }}
+          <label style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: UI.inkLight }}
             htmlFor="bio">
             BIO
             <textarea
@@ -192,35 +192,35 @@ export default function AgentProfileEditPage() {
               onChange={(e) => update("bio", e.target.value)}
               rows={4}
               style={{ display: "block", width: "100%", padding: "0.5rem",
-                border: `1px solid ${S.rule}`, fontFamily: S.mono, marginTop: 4,
+                border: `1px solid ${UI.rule}`, fontFamily: UI.mono, marginTop: 4,
                 resize: "vertical" }}
             />
           </label>
 
-          <div style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.inkLight }}>
+          <div style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: UI.inkLight }}>
             PHONE
             <input
               type="tel"
               value={form.phone}
               onChange={(e) => update("phone", e.target.value)}
               style={{ display: "block", width: "100%", padding: "0.5rem", marginTop: 4,
-                border: `1px solid ${form.phone && !isValidPhone(form.phone) ? COLORS.rust : S.rule}`,
-                fontFamily: S.mono }}
+                border: `1px solid ${form.phone && !isValidPhone(form.phone) ? COLORS.rust : UI.rule}`,
+                fontFamily: UI.mono }}
             />
             {form.phone && !isValidPhone(form.phone) && (
               <span style={{ color: COLORS.rust, fontSize: "0.65rem", marginTop: "0.2rem", display: "block" }}>Enter a valid phone number</span>
             )}
           </div>
 
-          <div style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.inkLight }}>
+          <div style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: UI.inkLight }}>
             EMAIL
             <input
               type="email"
               value={form.email}
               onChange={(e) => update("email", e.target.value)}
               style={{ display: "block", width: "100%", padding: "0.5rem", marginTop: 4,
-                border: `1px solid ${form.email && !isValidEmail(form.email) ? COLORS.rust : S.rule}`,
-                fontFamily: S.mono }}
+                border: `1px solid ${form.email && !isValidEmail(form.email) ? COLORS.rust : UI.rule}`,
+                fontFamily: UI.mono }}
             />
             {form.email && !isValidEmail(form.email) && (
               <span style={{ color: COLORS.rust, fontSize: "0.65rem", marginTop: "0.2rem", display: "block" }}>Enter a valid email address</span>

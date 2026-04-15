@@ -33,7 +33,7 @@ const SYSTEM_NAME_TO_URL_KEY: Record<string, string> = Object.fromEntries(
   Object.entries(SYSTEM_URL_KEYS).map(([k, v]) => [v, k])
 );
 
-const S = {
+const UI = {
   ink:       COLORS.plum,
   inkLight:  COLORS.plumMid,
   rule:      COLORS.rule,
@@ -81,20 +81,20 @@ function EntryForm() {
     <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "3rem 1.5rem" }}>
       <div style={{ width: "100%", maxWidth: "34rem" }}>
         {/* Eyebrow */}
-        <div style={{ display: "inline-flex", alignItems: "center", background: S.butter, color: S.ink, padding: "5px 16px", borderRadius: RADIUS.pill, fontSize: "0.75rem", fontWeight: 600, marginBottom: "1.25rem", border: `1px solid rgba(46,37,64,0.1)`, fontFamily: S.sans }}>
+        <div style={{ display: "inline-flex", alignItems: "center", background: UI.butter, color: UI.ink, padding: "5px 16px", borderRadius: RADIUS.pill, fontSize: "0.75rem", fontWeight: 600, marginBottom: "1.25rem", border: `1px solid rgba(46,37,64,0.1)`, fontFamily: UI.sans }}>
           Free · No Account Required
         </div>
 
-        <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "clamp(1.75rem, 4vw, 2.5rem)", lineHeight: 1.1, color: S.ink, marginBottom: "0.75rem" }}>
+        <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "clamp(1.75rem, 4vw, 2.5rem)", lineHeight: 1.1, color: UI.ink, marginBottom: "0.75rem" }}>
           Instant home maintenance forecast
         </h1>
-        <p style={{ fontFamily: S.sans, fontSize: "0.9375rem", color: S.inkLight, marginBottom: "2.5rem", lineHeight: 1.7, fontWeight: 300 }}>
+        <p style={{ fontFamily: UI.sans, fontSize: "0.9375rem", color: UI.inkLight, marginBottom: "2.5rem", lineHeight: 1.7, fontWeight: 300 }}>
           Enter an address and year built to see which systems are aging, what replacements are coming, and your estimated 10-year maintenance budget.
         </p>
 
-        <form onSubmit={handleSubmit} style={{ background: COLORS.white, border: `1px solid ${S.rule}`, borderRadius: RADIUS.card, padding: "2rem", boxShadow: SHADOWS.card, display: "flex", flexDirection: "column", gap: "1rem" }}>
+        <form onSubmit={handleSubmit} style={{ background: COLORS.white, border: `1px solid ${UI.rule}`, borderRadius: RADIUS.card, padding: "2rem", boxShadow: SHADOWS.card, display: "flex", flexDirection: "column", gap: "1rem" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
-            <label htmlFor="address" style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
+            <label htmlFor="address" style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
               Address
             </label>
             <input
@@ -105,13 +105,13 @@ function EntryForm() {
               onChange={(e) => setAddress(e.target.value)}
               onBlur={handleAddressBlur}
               placeholder="123 Main St, Daytona Beach, FL"
-              style={{ border: `1px solid ${S.rule}`, borderRadius: RADIUS.input, padding: "0.75rem 1rem", fontFamily: S.sans, fontSize: "0.9375rem", color: S.ink, background: COLORS.white, outline: "none" }}
+              style={{ border: `1px solid ${UI.rule}`, borderRadius: RADIUS.input, padding: "0.75rem 1rem", fontFamily: UI.sans, fontSize: "0.9375rem", color: UI.ink, background: COLORS.white, outline: "none" }}
             />
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
-            <label htmlFor="yearBuilt" style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
-              Year Built {looking && <span style={{ color: S.inkLight }}>(looking up…)</span>}
+            <label htmlFor="yearBuilt" style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
+              Year Built {looking && <span style={{ color: UI.inkLight }}>(looking up…)</span>}
             </label>
             <input
               id="yearBuilt"
@@ -122,13 +122,13 @@ function EntryForm() {
               placeholder="e.g. 1985"
               min="1800"
               max={String(CURRENT_YEAR)}
-              style={{ border: `1px solid ${S.rule}`, borderRadius: RADIUS.input, padding: "0.75rem 1rem", fontFamily: S.sans, fontSize: "0.9375rem", color: S.ink, background: COLORS.white, outline: "none" }}
+              style={{ border: `1px solid ${UI.rule}`, borderRadius: RADIUS.input, padding: "0.75rem 1rem", fontFamily: UI.sans, fontSize: "0.9375rem", color: UI.ink, background: COLORS.white, outline: "none" }}
             />
           </div>
 
           <button
             type="submit"
-            style={{ padding: "0.875rem", background: S.ink, color: COLORS.white, border: "none", borderRadius: RADIUS.pill, fontFamily: S.sans, fontSize: "0.9375rem", fontWeight: 600, cursor: "pointer" }}
+            style={{ padding: "0.875rem", background: UI.ink, color: COLORS.white, border: "none", borderRadius: RADIUS.pill, fontFamily: UI.sans, fontSize: "0.9375rem", fontWeight: 600, cursor: "pointer" }}
           >
             Get Forecast →
           </button>
@@ -178,43 +178,43 @@ function ForecastView({ input }: { input: ForecastInput }) {
     <div style={{ flex: 1, maxWidth: "56rem", margin: "0 auto", padding: "2.5rem 1.5rem", width: "100%" }}>
       {/* Header */}
       <div style={{ marginBottom: "2rem" }}>
-        <div style={{ display: "inline-flex", alignItems: "center", background: S.butter, color: S.ink, padding: "5px 16px", borderRadius: RADIUS.pill, fontSize: "0.75rem", fontWeight: 600, marginBottom: "1rem", border: `1px solid rgba(46,37,64,0.1)`, fontFamily: S.sans }}>
+        <div style={{ display: "inline-flex", alignItems: "center", background: UI.butter, color: UI.ink, padding: "5px 16px", borderRadius: RADIUS.pill, fontSize: "0.75rem", fontWeight: 600, marginBottom: "1rem", border: `1px solid rgba(46,37,64,0.1)`, fontFamily: UI.sans }}>
           Instant Forecast
         </div>
-        <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "clamp(1.25rem, 3vw, 1.75rem)", color: S.ink, lineHeight: 1.1, marginBottom: "0.375rem" }}>
+        <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "clamp(1.25rem, 3vw, 1.75rem)", color: UI.ink, lineHeight: 1.1, marginBottom: "0.375rem" }}>
           {input.address}
         </h1>
-        <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>
+        <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight }}>
           Built {input.yearBuilt} · {CURRENT_YEAR - input.yearBuilt} years old
         </div>
       </div>
 
       {/* 10-year budget */}
-      <div style={{ background: S.sageLight, border: `1px solid ${S.sageMid}`, borderRadius: RADIUS.card, padding: "1.25rem 1.75rem", marginBottom: "1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ fontFamily: S.mono, fontSize: "0.62rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
+      <div style={{ background: UI.sageLight, border: `1px solid ${UI.sageMid}`, borderRadius: RADIUS.card, padding: "1.25rem 1.75rem", marginBottom: "1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ fontFamily: UI.mono, fontSize: "0.62rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
           10-year budget
         </div>
-        <div style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.75rem", color: tenYearBudget > 0 ? S.rust : S.ink }}>
+        <div style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", color: tenYearBudget > 0 ? UI.rust : UI.ink }}>
           ${tenYearBudget.toLocaleString()}
         </div>
       </div>
 
       {/* Systems table */}
-      <div style={{ border: `1px solid ${S.rule}`, borderRadius: RADIUS.card, overflow: "hidden", boxShadow: SHADOWS.card }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: S.sans, fontSize: "0.875rem" }}>
+      <div style={{ border: `1px solid ${UI.rule}`, borderRadius: RADIUS.card, overflow: "hidden", boxShadow: SHADOWS.card }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: UI.sans, fontSize: "0.875rem" }}>
           <thead>
-            <tr style={{ background: S.sageLight, borderBottom: `1px solid ${S.sageMid}` }}>
-              <th style={{ textAlign: "left", padding: "0.75rem 1rem", fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, fontWeight: 400 }}>System</th>
-              <th style={{ textAlign: "left", padding: "0.75rem 1rem", fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, fontWeight: 400 }}>Last Replaced</th>
-              <th style={{ textAlign: "left", padding: "0.75rem 1rem", fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, fontWeight: 400 }}>Age</th>
-              <th style={{ textAlign: "left", padding: "0.75rem 1rem", fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, fontWeight: 400 }}>Status</th>
-              <th style={{ textAlign: "right", padding: "0.75rem 1rem", fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, fontWeight: 400 }}>Est. Cost</th>
+            <tr style={{ background: UI.sageLight, borderBottom: `1px solid ${UI.sageMid}` }}>
+              <th style={{ textAlign: "left", padding: "0.75rem 1rem", fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, fontWeight: 400 }}>System</th>
+              <th style={{ textAlign: "left", padding: "0.75rem 1rem", fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, fontWeight: 400 }}>Last Replaced</th>
+              <th style={{ textAlign: "left", padding: "0.75rem 1rem", fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, fontWeight: 400 }}>Age</th>
+              <th style={{ textAlign: "left", padding: "0.75rem 1rem", fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, fontWeight: 400 }}>Status</th>
+              <th style={{ textAlign: "right", padding: "0.75rem 1rem", fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, fontWeight: 400 }}>Est. Cost</th>
             </tr>
           </thead>
           <tbody>
             {estimates.map((est, i) => (
-              <tr key={est.systemName} style={{ borderBottom: i < estimates.length - 1 ? `1px solid ${S.rule}` : "none", background: i % 2 === 0 ? COLORS.white : COLORS.sageLight }}>
-                <td style={{ padding: "0.75rem 1rem", color: S.ink, fontWeight: 500, fontFamily: S.sans }}>
+              <tr key={est.systemName} style={{ borderBottom: i < estimates.length - 1 ? `1px solid ${UI.rule}` : "none", background: i % 2 === 0 ? COLORS.white : COLORS.sageLight }}>
+                <td style={{ padding: "0.75rem 1rem", color: UI.ink, fontWeight: 500, fontFamily: UI.sans }}>
                   {est.systemName}
                 </td>
                 <td style={{ padding: "0.75rem 1rem" }}>
@@ -225,18 +225,18 @@ function ForecastView({ input }: { input: ForecastInput }) {
                     onChange={(e) => handleOverrideChange(est.systemName, e.target.value)}
                     min={input.yearBuilt}
                     max={CURRENT_YEAR}
-                    style={{ width: "5.5rem", border: `1px solid ${S.rule}`, borderRadius: RADIUS.input, padding: "0.3rem 0.5rem", fontFamily: S.mono, fontSize: "0.75rem", color: S.ink, background: COLORS.white, outline: "none" }}
+                    style={{ width: "5.5rem", border: `1px solid ${UI.rule}`, borderRadius: RADIUS.input, padding: "0.3rem 0.5rem", fontFamily: UI.mono, fontSize: "0.75rem", color: UI.ink, background: COLORS.white, outline: "none" }}
                   />
                 </td>
-                <td style={{ padding: "0.75rem 1rem", color: S.inkLight, fontFamily: S.mono, fontSize: "0.75rem" }}>
+                <td style={{ padding: "0.75rem 1rem", color: UI.inkLight, fontFamily: UI.mono, fontSize: "0.75rem" }}>
                   {est.ageYears} yrs
                 </td>
                 <td style={{ padding: "0.75rem 1rem" }}>
-                  <span style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: URGENCY_COLOR[est.urgency] ?? S.inkLight, fontWeight: 700 }}>
+                  <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: URGENCY_COLOR[est.urgency] ?? UI.inkLight, fontWeight: 700 }}>
                     {est.urgency}
                   </span>
                 </td>
-                <td style={{ padding: "0.75rem 1rem", textAlign: "right", fontFamily: S.mono, fontSize: "0.75rem", color: S.inkLight }}>
+                <td style={{ padding: "0.75rem 1rem", textAlign: "right", fontFamily: UI.mono, fontSize: "0.75rem", color: UI.inkLight }}>
                   ${est.replacementCostLow.toLocaleString()}–${est.replacementCostHigh.toLocaleString()}
                 </td>
               </tr>
@@ -246,15 +246,15 @@ function ForecastView({ input }: { input: ForecastInput }) {
       </div>
 
       {/* Save CTA */}
-      <div style={{ marginTop: "2rem", background: S.ink, borderRadius: RADIUS.card, padding: "1.75rem 2rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1.5rem", flexWrap: "wrap" }}>
-        <p style={{ fontFamily: S.sans, fontSize: "0.9rem", color: "rgba(253,252,250,0.75)", margin: 0, lineHeight: 1.6, fontWeight: 300, flex: 1 }}>
+      <div style={{ marginTop: "2rem", background: UI.ink, borderRadius: RADIUS.card, padding: "1.75rem 2rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1.5rem", flexWrap: "wrap" }}>
+        <p style={{ fontFamily: UI.sans, fontSize: "0.9rem", color: "rgba(253,252,250,0.75)", margin: 0, lineHeight: 1.6, fontWeight: 300, flex: 1 }}>
           Create a free account to track maintenance, log jobs, and build buyer confidence.
         </p>
         <Link
           to={saveHref}
           style={{
             padding: "0.75rem 1.5rem", background: COLORS.sage, color: COLORS.white,
-            fontFamily: S.sans, fontSize: "0.875rem", fontWeight: 600,
+            fontFamily: UI.sans, fontSize: "0.875rem", fontWeight: 600,
             textDecoration: "none", borderRadius: RADIUS.pill, flexShrink: 0,
           }}
         >
@@ -283,7 +283,7 @@ export default function InstantForecastPage() {
         <meta property="og:image" content="https://homegentic.app/og-default.png" />
         <link rel="canonical" href="https://homegentic.app/instant-forecast" />
       </Helmet>
-    <div style={{ minHeight: "100vh", background: COLORS.white, color: S.ink, display: "flex", flexDirection: "column" }}>
+    <div style={{ minHeight: "100vh", background: COLORS.white, color: UI.ink, display: "flex", flexDirection: "column" }}>
       <PublicNav />
       {input ? <ForecastView input={input} /> : <EntryForm />}
       <PublicFooter />

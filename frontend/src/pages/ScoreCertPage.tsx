@@ -17,7 +17,7 @@ import { certService } from "@/services/cert";
 import { COLORS, FONTS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -29,12 +29,12 @@ const S = {
 };
 
 const GRADE_CONFIG: Record<string, { color: string; bg: string }> = {
-  "A+": { color: S.sage,        bg: COLORS.sageLight },
-  "A":  { color: S.sage,        bg: COLORS.sageLight },
+  "A+": { color: UI.sage,        bg: COLORS.sageLight },
+  "A":  { color: UI.sage,        bg: COLORS.sageLight },
   "B":  { color: COLORS.plum,   bg: COLORS.sky },
   "C":  { color: COLORS.plumMid, bg: COLORS.butter },
-  "D":  { color: S.rust,        bg: COLORS.blush },
-  "F":  { color: S.rust,        bg: COLORS.blush },
+  "D":  { color: UI.rust,        bg: COLORS.blush },
+  "F":  { color: UI.rust,        bg: COLORS.blush },
 };
 
 export default function ScoreCertPage() {
@@ -67,17 +67,17 @@ export default function ScoreCertPage() {
           <link rel="canonical" href="https://homegentic.app/cert" />
           <script type="application/ld+json">{JSON.stringify({ "@context": "https://schema.org", "@type": "CreativeWork", "name": "HomeGentic Score Certificate", "description": "Blockchain-verified home maintenance score certificate." })}</script>
         </Helmet>
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: S.paper, padding: outerPad }}>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: UI.paper, padding: outerPad }}>
         <div style={{ textAlign: "center", maxWidth: "28rem" }}>
-          <AlertTriangle size={40} color={S.rust} style={{ margin: "0 auto 1rem" }} />
-          <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.5rem", color: S.ink, marginBottom: "0.5rem" }}>
+          <AlertTriangle size={40} color={UI.rust} style={{ margin: "0 auto 1rem" }} />
+          <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", color: UI.ink, marginBottom: "0.5rem" }}>
             Invalid certificate
           </h1>
-          <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight }}>
             This certificate link is invalid or has been corrupted. Ask the homeowner to generate a new one.
           </p>
-          <p style={{ marginTop: "2rem", fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>
-            Powered by <strong style={{ color: S.ink }}>HomeGentic</strong>
+          <p style={{ marginTop: "2rem", fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>
+            Powered by <strong style={{ color: UI.ink }}>HomeGentic</strong>
           </p>
         </div>
       </div>
@@ -111,79 +111,79 @@ export default function ScoreCertPage() {
           "url": `https://homegentic.app/cert/${token}`,
         })}</script>
       </Helmet>
-    <div style={{ minHeight: "100vh", background: S.paper, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: outerPad }}>
-      <div style={{ width: "100%", maxWidth: "32rem", background: COLORS.white, border: `1px solid ${S.rule}` }}>
+    <div style={{ minHeight: "100vh", background: UI.paper, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: outerPad }}>
+      <div style={{ width: "100%", maxWidth: "32rem", background: COLORS.white, border: `1px solid ${UI.rule}` }}>
 
         {/* Header */}
-        <div style={{ background: S.ink, padding: innerPad }}>
+        <div style={{ background: UI.ink, padding: innerPad }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.5rem", opacity: 0.7 }}>
             <Shield size={14} color={COLORS.white} />
-            <span style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.2em", textTransform: "uppercase", color: COLORS.white }}>
+            <span style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.2em", textTransform: "uppercase", color: COLORS.white }}>
               HOMEGENTIC
             </span>
-            <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: COLORS.plumMid }}>Score Certificate</span>
+            <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: COLORS.plumMid }}>Score Certificate</span>
           </div>
-          <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1.2, color: COLORS.white, marginBottom: "0.375rem" }}>
+          <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1.2, color: COLORS.white, marginBottom: "0.375rem" }}>
             {payload.address}
           </h1>
-          <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: COLORS.plumMid }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: COLORS.plumMid }}>
             Issued {generatedDate}
           </p>
         </div>
 
         {/* Score block */}
-        <div style={{ padding: innerPad, borderBottom: `1px solid ${S.rule}` }}>
-          <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.75rem" }}>
+        <div style={{ padding: innerPad, borderBottom: `1px solid ${UI.rule}` }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.75rem" }}>
             HomeGentic Score
           </p>
           <div style={{ display: "flex", alignItems: "baseline", gap: "1rem", marginBottom: "1rem" }}>
-            <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "4rem", lineHeight: 1, color: S.ink }}>
+            <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "4rem", lineHeight: 1, color: UI.ink }}>
               {payload.score}
             </span>
             <div>
               <div style={{
                 display: "inline-flex", alignItems: "center",
                 padding: "0.375rem 0.875rem",
-                fontFamily: S.mono, fontWeight: 700, fontSize: "1rem", letterSpacing: "0.1em",
+                fontFamily: UI.mono, fontWeight: 700, fontSize: "1rem", letterSpacing: "0.1em",
                 color: gc.color, background: gc.bg, border: `1px solid ${gc.color}30`,
               }}>
                 {payload.grade}
               </div>
-              <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight, marginTop: "0.25rem" }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight, marginTop: "0.25rem" }}>
                 out of 100
               </p>
             </div>
           </div>
 
           {/* Score bar */}
-          <div style={{ height: "4px", background: S.rule, marginBottom: "1.5rem" }}>
+          <div style={{ height: "4px", background: UI.rule, marginBottom: "1.5rem" }}>
             <div style={{ height: "4px", width: `${payload.score}%`, background: gc.color, transition: "width 0.8s ease" }} />
           </div>
 
           {/* Certified badge */}
           {payload.certified ? (
-            <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", border: `1px solid ${COLORS.plumMid}`, padding: "0.625rem 1.25rem", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, background: COLORS.butter }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", border: `1px solid ${COLORS.plumMid}`, padding: "0.625rem 1.25rem", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, background: COLORS.butter }}>
               ★ HomeGentic Certified™ — Pre-Inspection Ready
             </div>
           ) : (
-            <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", border: `1px solid ${S.rule}`, padding: "0.625rem 1.25rem", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", border: `1px solid ${UI.rule}`, padding: "0.625rem 1.25rem", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight }}>
               <Shield size={12} /> Verified HomeGentic Property
             </div>
           )}
         </div>
 
         {/* On-chain verification status */}
-        <div style={{ padding: isMobile ? "0.875rem 1rem" : "0.875rem 2.5rem", borderBottom: `1px solid ${S.rule}`, background: onChain === true ? COLORS.sageLight : onChain === false ? COLORS.butter : COLORS.white }}>
+        <div style={{ padding: isMobile ? "0.875rem 1rem" : "0.875rem 2.5rem", borderBottom: `1px solid ${UI.rule}`, background: onChain === true ? COLORS.sageLight : onChain === false ? COLORS.butter : COLORS.white }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
             {onChain === null && (
-              <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: S.inkLight }}>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: UI.inkLight }}>
                 Checking on-chain record…
               </span>
             )}
             {onChain === true && (
               <>
                 <CheckCircle size={13} color={COLORS.sage} />
-                <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: COLORS.sage, fontWeight: 700 }}>
+                <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: COLORS.sage, fontWeight: 700 }}>
                   On-chain verified · {certId}
                 </span>
               </>
@@ -191,7 +191,7 @@ export default function ScoreCertPage() {
             {onChain === false && (
               <>
                 <AlertTriangle size={13} color={COLORS.plumMid} />
-                <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: COLORS.plumMid }}>
+                <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: COLORS.plumMid }}>
                   {certId ? `Cert ${certId} not found on-chain — may be from a local session` : "Client-generated certificate — not stored on-chain"}
                 </span>
               </>
@@ -213,20 +213,20 @@ export default function ScoreCertPage() {
           ];
 
           return (
-            <div style={{ padding: innerPad, borderBottom: `1px solid ${S.rule}`, background: COLORS.white }}>
-              <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.875rem" }}>
+            <div style={{ padding: innerPad, borderBottom: `1px solid ${UI.rule}`, background: COLORS.white }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.875rem" }}>
                 Score Breakdown
               </p>
               {isPro ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
                   {pillars.map(({ label, pts, max }) => (
                     <div key={label} style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                      <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, minWidth: "7rem" }}>{label}</span>
-                      <div style={{ flex: 1, height: "4px", background: S.rule }}>
-                        <div style={{ height: "4px", width: `${Math.round((pts / max) * 100)}%`, background: S.sage }} />
+                      <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, minWidth: "7rem" }}>{label}</span>
+                      <div style={{ flex: 1, height: "4px", background: UI.rule }}>
+                        <div style={{ height: "4px", width: `${Math.round((pts / max) * 100)}%`, background: UI.sage }} />
                       </div>
-                      <span style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.65rem", color: S.ink, minWidth: "2rem", textAlign: "right" }}>{pts}</span>
-                      <span style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight }}>/ {max}</span>
+                      <span style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.65rem", color: UI.ink, minWidth: "2rem", textAlign: "right" }}>{pts}</span>
+                      <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: UI.inkLight }}>/ {max}</span>
                     </div>
                   ))}
                 </div>
@@ -235,20 +235,20 @@ export default function ScoreCertPage() {
                   <div style={{ filter: "blur(4px)", pointerEvents: "none", userSelect: "none" }}>
                     {pillars.map(({ label, max }) => (
                       <div key={label} style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.625rem" }}>
-                        <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, minWidth: "7rem" }}>{label}</span>
-                        <div style={{ flex: 1, height: "4px", background: S.rule }}>
-                          <div style={{ height: "4px", width: "60%", background: S.sage }} />
+                        <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, minWidth: "7rem" }}>{label}</span>
+                        <div style={{ flex: 1, height: "4px", background: UI.rule }}>
+                          <div style={{ height: "4px", width: "60%", background: UI.sage }} />
                         </div>
-                        <span style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.65rem", color: S.ink, minWidth: "2rem", textAlign: "right" }}>—</span>
-                        <span style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight }}>/ {max}</span>
+                        <span style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.65rem", color: UI.ink, minWidth: "2rem", textAlign: "right" }}>—</span>
+                        <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: UI.inkLight }}>/ {max}</span>
                       </div>
                     ))}
                   </div>
                   <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.75)", textAlign: "center", padding: "0.5rem" }}>
-                    <p style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.6rem", letterSpacing: "0.08em", color: S.ink, marginBottom: "0.375rem" }}>
+                    <p style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.6rem", letterSpacing: "0.08em", color: UI.ink, marginBottom: "0.375rem" }}>
                       Upgrade to Pro to see breakdown
                     </p>
-                    <a href="/pricing" style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.35rem 0.75rem", border: `1px solid ${COLORS.plum}`, background: COLORS.plum, color: COLORS.white, textDecoration: "none" }}>
+                    <a href="/pricing" style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.35rem 0.75rem", border: `1px solid ${COLORS.plum}`, background: COLORS.plum, color: COLORS.white, textDecoration: "none" }}>
                       Upgrade to Pro →
                     </a>
                   </div>
@@ -259,8 +259,8 @@ export default function ScoreCertPage() {
         })()}
 
         {/* What this means */}
-        <div style={{ padding: innerPad, borderBottom: `1px solid ${S.rule}`, background: COLORS.white }}>
-          <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.875rem" }}>
+        <div style={{ padding: innerPad, borderBottom: `1px solid ${UI.rule}`, background: COLORS.white }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.875rem" }}>
             What this means
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
@@ -272,8 +272,8 @@ export default function ScoreCertPage() {
                 : `Score of ${payload.score} reflects documented maintenance. Higher scores indicate more comprehensive verified history.`,
             ].map((line, i) => (
               <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem" }}>
-                <Shield size={11} color={S.sage} style={{ flexShrink: 0, marginTop: "0.125rem" }} />
-                <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em", lineHeight: 1.6, color: S.inkLight }}>
+                <Shield size={11} color={UI.sage} style={{ flexShrink: 0, marginTop: "0.125rem" }} />
+                <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.04em", lineHeight: 1.6, color: UI.inkLight }}>
                   {line}
                 </p>
               </div>
@@ -283,17 +283,17 @@ export default function ScoreCertPage() {
 
         {/* Footer */}
         <div style={{ padding: isMobile ? "1rem" : "1rem 2.5rem", display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", gap: isMobile ? "0.25rem" : 0 }}>
-          <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.06em", color: S.inkLight }}>
+          <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.06em", color: UI.inkLight }}>
             homegentic.io · Blockchain-verified home history
           </span>
-          <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.06em", color: S.inkLight }}>
+          <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.06em", color: UI.inkLight }}>
             {payload.score}/100
           </span>
         </div>
 
       </div>
 
-      <p style={{ marginTop: "1.5rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: S.inkLight, textAlign: "center", maxWidth: "28rem" }}>
+      <p style={{ marginTop: "1.5rem", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: UI.inkLight, textAlign: "center", maxWidth: "28rem" }}>
         This certificate was generated by the homeowner and contains no personal data.
         Score is computed from verified job records stored on the ICP blockchain.
       </p>

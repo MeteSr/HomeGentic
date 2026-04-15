@@ -18,7 +18,7 @@ import { propertyService, type PendingTransfer, type Property } from "../service
 import { useAuthStore } from "@/store/authStore";
 import { COLORS, FONTS } from "@/theme";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -99,20 +99,20 @@ export default function PropertyTransferClaimPage() {
   function Shell({ children }: { children: React.ReactNode }) {
     return (
       <div style={{
-        minHeight: "100vh", background: S.paper,
+        minHeight: "100vh", background: UI.paper,
         display: "flex", flexDirection: "column", alignItems: "center",
         justifyContent: "flex-start", padding: "4rem 1.5rem",
       }}>
         {/* Wordmark */}
         <Link to="/" style={{ textDecoration: "none", marginBottom: "2.5rem" }}>
-          <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.35rem", color: S.ink, letterSpacing: "-0.01em" }}>
-            Home<span style={{ color: S.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
+          <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.35rem", color: UI.ink, letterSpacing: "-0.01em" }}>
+            Home<span style={{ color: UI.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
           </span>
         </Link>
 
         <div style={{
           width: "100%", maxWidth: "28rem",
-          border: `1px solid ${S.rule}`, background: S.paper,
+          border: `1px solid ${UI.rule}`, background: UI.paper,
         }}>
           {children}
         </div>
@@ -126,8 +126,8 @@ export default function PropertyTransferClaimPage() {
     return (
       <Shell>
         <div style={{ padding: "2.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
-          <Loader2 size={20} color={S.inkLight} style={{ animation: "spin 1s linear infinite" }} />
-          <span style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+          <Loader2 size={20} color={UI.inkLight} style={{ animation: "spin 1s linear infinite" }} />
+          <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, letterSpacing: "0.1em", textTransform: "uppercase" }}>
             Loading transfer…
           </span>
         </div>
@@ -140,22 +140,22 @@ export default function PropertyTransferClaimPage() {
   if (page.status === "not_found") {
     return (
       <Shell>
-        <div style={{ padding: "1.5rem 1.75rem", borderBottom: `1px solid ${S.rule}` }}>
-          <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.5rem" }}>Transfer not found</p>
-          <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.5rem", color: S.ink, lineHeight: 1.2 }}>
+        <div style={{ padding: "1.5rem 1.75rem", borderBottom: `1px solid ${UI.rule}` }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.5rem" }}>Transfer not found</p>
+          <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", color: UI.ink, lineHeight: 1.2 }}>
             This link is no longer valid
           </h1>
         </div>
         <div style={{ padding: "1.5rem 1.75rem", display: "flex", flexDirection: "column", gap: "0.875rem" }}>
-          <p style={{ fontFamily: S.sans, fontSize: "0.85rem", color: S.inkLight, lineHeight: 1.6, fontWeight: 300 }}>
+          <p style={{ fontFamily: UI.sans, fontSize: "0.85rem", color: UI.inkLight, lineHeight: 1.6, fontWeight: 300 }}>
             The transfer link could not be found. It may have already been used, cancelled by the seller, or the URL may be incomplete.
           </p>
-          <p style={{ fontFamily: S.sans, fontSize: "0.85rem", color: S.inkLight, lineHeight: 1.6, fontWeight: 300 }}>
+          <p style={{ fontFamily: UI.sans, fontSize: "0.85rem", color: UI.inkLight, lineHeight: 1.6, fontWeight: 300 }}>
             Ask the seller to generate a new transfer link from their property settings.
           </p>
           <Link
             to="/"
-            style={{ alignSelf: "flex-start", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", background: S.ink, color: S.paper, textDecoration: "none", marginTop: "0.5rem" }}
+            style={{ alignSelf: "flex-start", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", background: UI.ink, color: UI.paper, textDecoration: "none", marginTop: "0.5rem" }}
           >
             Go to HomeGentic →
           </Link>
@@ -169,14 +169,14 @@ export default function PropertyTransferClaimPage() {
   if (page.status === "expired") {
     return (
       <Shell>
-        <div style={{ padding: "1.5rem 1.75rem", borderBottom: `1px solid ${S.rule}` }}>
-          <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.5rem" }}>Transfer expired</p>
-          <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.5rem", color: S.ink, lineHeight: 1.2 }}>
+        <div style={{ padding: "1.5rem 1.75rem", borderBottom: `1px solid ${UI.rule}` }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.5rem" }}>Transfer expired</p>
+          <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", color: UI.ink, lineHeight: 1.2 }}>
             This link has expired
           </h1>
         </div>
         <div style={{ padding: "1.5rem 1.75rem" }}>
-          <p style={{ fontFamily: S.sans, fontSize: "0.85rem", color: S.inkLight, lineHeight: 1.6, fontWeight: 300 }}>
+          <p style={{ fontFamily: UI.sans, fontSize: "0.85rem", color: UI.inkLight, lineHeight: 1.6, fontWeight: 300 }}>
             Property transfer links are valid for 90 days. This one has passed its expiry date. Ask the seller to generate a new link from their property settings.
           </p>
         </div>
@@ -189,14 +189,14 @@ export default function PropertyTransferClaimPage() {
   if (page.status === "claimed") {
     return (
       <Shell>
-        <div style={{ padding: "1.5rem 1.75rem", borderBottom: `1px solid ${S.rule}`, background: COLORS.sageLight }}>
-          <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.sage, marginBottom: "0.5rem" }}>Transfer complete</p>
-          <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.5rem", color: S.ink, lineHeight: 1.2 }}>
+        <div style={{ padding: "1.5rem 1.75rem", borderBottom: `1px solid ${UI.rule}`, background: COLORS.sageLight }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.sage, marginBottom: "0.5rem" }}>Transfer complete</p>
+          <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", color: UI.ink, lineHeight: 1.2 }}>
             You're the new owner
           </h1>
         </div>
         <div style={{ padding: "1.5rem 1.75rem" }}>
-          <p style={{ fontFamily: S.sans, fontSize: "0.85rem", color: S.inkLight, lineHeight: 1.6, fontWeight: 300 }}>
+          <p style={{ fontFamily: UI.sans, fontSize: "0.85rem", color: UI.inkLight, lineHeight: 1.6, fontWeight: 300 }}>
             The full property history — maintenance records, photos, utility bills, and verification status — is now in your account. Redirecting you to the property…
           </p>
         </div>
@@ -210,8 +210,8 @@ export default function PropertyTransferClaimPage() {
     return (
       <Shell>
         <div style={{ padding: "2.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
-          <Loader2 size={20} color={S.inkLight} style={{ animation: "spin 1s linear infinite" }} />
-          <span style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+          <Loader2 size={20} color={UI.inkLight} style={{ animation: "spin 1s linear infinite" }} />
+          <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, letterSpacing: "0.1em", textTransform: "uppercase" }}>
             Transferring ownership on-chain…
           </span>
         </div>
@@ -230,20 +230,20 @@ export default function PropertyTransferClaimPage() {
   return (
     <Shell>
       {/* Header */}
-      <div style={{ padding: "1.5rem 1.75rem", borderBottom: `1px solid ${S.rule}` }}>
-        <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.5rem" }}>
+      <div style={{ padding: "1.5rem 1.75rem", borderBottom: `1px solid ${UI.rule}` }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.5rem" }}>
           Property ownership transfer
         </p>
-        <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.4rem", color: S.ink, lineHeight: 1.2, marginBottom: "0.5rem" }}>
+        <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.4rem", color: UI.ink, lineHeight: 1.2, marginBottom: "0.5rem" }}>
           Claim this property
         </h1>
-        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight }}>
           Expires {expiresDate}
         </p>
       </div>
 
       {/* Property details */}
-      <div style={{ borderBottom: `1px solid ${S.rule}` }}>
+      <div style={{ borderBottom: `1px solid ${UI.rule}` }}>
         {property ? (
           <>
             {[
@@ -258,24 +258,24 @@ export default function PropertyTransferClaimPage() {
                 style={{
                   display: "flex", justifyContent: "space-between", alignItems: "baseline",
                   padding: "0.6rem 1.75rem",
-                  borderBottom: i < arr.length - 1 ? `1px solid ${S.rule}` : "none",
+                  borderBottom: i < arr.length - 1 ? `1px solid ${UI.rule}` : "none",
                 }}
               >
-                <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>{row.label}</span>
-                <span style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.ink }}>{row.value}</span>
+                <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>{row.label}</span>
+                <span style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: UI.ink }}>{row.value}</span>
               </div>
             ))}
           </>
         ) : (
           <div style={{ padding: "0.875rem 1.75rem" }}>
-            <span style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.inkLight }}>{propertyLabel}</span>
+            <span style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: UI.inkLight }}>{propertyLabel}</span>
           </div>
         )}
       </div>
 
       {/* What transfers */}
-      <div style={{ padding: "1rem 1.75rem", borderBottom: `1px solid ${S.rule}`, background: COLORS.sageLight }}>
-        <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.sage, marginBottom: "0.5rem" }}>
+      <div style={{ padding: "1rem 1.75rem", borderBottom: `1px solid ${UI.rule}`, background: COLORS.sageLight }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.sage, marginBottom: "0.5rem" }}>
           What you'll receive
         </p>
         {[
@@ -285,7 +285,7 @@ export default function PropertyTransferClaimPage() {
           "Verification status (Basic / Premium)",
           "Room & fixture inventory",
         ].map((item) => (
-          <p key={item} style={{ fontFamily: S.sans, fontSize: "0.78rem", color: S.ink, lineHeight: 1.7, fontWeight: 300 }}>
+          <p key={item} style={{ fontFamily: UI.sans, fontSize: "0.78rem", color: UI.ink, lineHeight: 1.7, fontWeight: 300 }}>
             ✓ {item}
           </p>
         ))}
@@ -295,15 +295,15 @@ export default function PropertyTransferClaimPage() {
       <div style={{ padding: "1.5rem 1.75rem", display: "flex", flexDirection: "column", gap: "0.875rem" }}>
         {!isAuthenticated ? (
           <>
-            <p style={{ fontFamily: S.sans, fontSize: "0.82rem", color: S.inkLight, lineHeight: 1.6, fontWeight: 300 }}>
+            <p style={{ fontFamily: UI.sans, fontSize: "0.82rem", color: UI.inkLight, lineHeight: 1.6, fontWeight: 300 }}>
               Sign in or create a free account to claim this property. The link will still work after you log in.
             </p>
             <Link
               to={`/login?redirect=${encodeURIComponent(`/transfer/claim/${token}`)}`}
               style={{
                 display: "block", textAlign: "center",
-                fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase",
-                padding: "0.75rem 1rem", background: S.ink, color: S.paper, textDecoration: "none",
+                fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase",
+                padding: "0.75rem 1rem", background: UI.ink, color: UI.paper, textDecoration: "none",
               }}
             >
               Sign in to claim →
@@ -311,22 +311,22 @@ export default function PropertyTransferClaimPage() {
           </>
         ) : (
           <>
-            <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, lineHeight: 1.5, wordBreak: "break-all" }}>
-              Claiming as: <span style={{ color: S.ink }}>{principal}</span>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, lineHeight: 1.5, wordBreak: "break-all" }}>
+              Claiming as: <span style={{ color: UI.ink }}>{principal}</span>
             </p>
             {claimError && (
-              <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.rust }}>{claimError}</p>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.rust }}>{claimError}</p>
             )}
             <button
               onClick={handleClaim}
               style={{
-                fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase",
-                padding: "0.75rem 1rem", background: S.sage, color: S.paper, border: "none", cursor: "pointer",
+                fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase",
+                padding: "0.75rem 1rem", background: UI.sage, color: UI.paper, border: "none", cursor: "pointer",
               }}
             >
               Accept &amp; Become Owner →
             </button>
-            <p style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight, lineHeight: 1.5 }}>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: UI.inkLight, lineHeight: 1.5 }}>
               This action is recorded on-chain. The previous owner's access is immediately revoked.
             </p>
           </>

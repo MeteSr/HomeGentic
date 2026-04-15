@@ -11,7 +11,7 @@ import toast from "react-hot-toast";
 import { isValidPhone } from "@/utils/validators";
 import { COLORS, FONTS } from "@/theme";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -96,34 +96,34 @@ export default function RecurringServiceCreatePage() {
     return (
       <Layout>
         <div style={{ maxWidth: "38rem", margin: "0 auto", padding: "4rem 1.5rem", textAlign: "center" }}>
-          <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "4rem", height: "4rem", border: `2px solid ${S.sage}`, marginBottom: "1.25rem" }}>
-            <CheckCircle size={28} color={S.sage} />
+          <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "4rem", height: "4rem", border: `2px solid ${UI.sage}`, marginBottom: "1.25rem" }}>
+            <CheckCircle size={28} color={UI.sage} />
           </div>
-          <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.sage, marginBottom: "0.375rem" }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: UI.sage, marginBottom: "0.375rem" }}>
             Service Logged
           </p>
-          <h2 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, marginBottom: "0.5rem" }}>
+          <h2 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, marginBottom: "0.5rem" }}>
             {createdName} added
           </h2>
-          <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: S.inkLight, marginBottom: "2rem" }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: UI.inkLight, marginBottom: "2rem" }}>
             Open the service to attach a contract document and log visits.
           </p>
-          <div style={{ height: "2px", background: S.rule, marginBottom: "1.25rem", overflow: "hidden" }}>
-            <div style={{ height: "100%", background: S.sage, animation: "progress 3s linear forwards" }} />
+          <div style={{ height: "2px", background: UI.rule, marginBottom: "1.25rem", overflow: "hidden" }}>
+            <div style={{ height: "100%", background: UI.sage, animation: "progress 3s linear forwards" }} />
           </div>
-          <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", color: S.inkLight, marginBottom: "1rem" }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", color: UI.inkLight, marginBottom: "1rem" }}>
             Redirecting to dashboard in 3 seconds…
           </p>
           <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}>
             <button
               onClick={() => navigate("/dashboard")}
-              style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${S.ink}`, background: S.ink, color: S.paper, cursor: "pointer" }}
+              style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${UI.ink}`, background: UI.ink, color: UI.paper, cursor: "pointer" }}
             >
               Go to dashboard
             </button>
             <button
               onClick={() => { setSubmitted(false); setForm((f) => ({ ...f, providerName: "", notes: "" })); }}
-              style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${S.rule}`, background: "none", cursor: "pointer", color: S.inkLight }}
+              style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${UI.rule}`, background: "none", cursor: "pointer", color: UI.inkLight }}
             >
               Add another
             </button>
@@ -153,22 +153,22 @@ export default function RecurringServiceCreatePage() {
 
         <button
           onClick={() => navigate(-1)}
-          style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: "1.5rem" }}
+          style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: "1.5rem" }}
         >
           <ArrowLeft size={14} /> Back
         </button>
 
-        <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.rust, marginBottom: "0.5rem" }}>
+        <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: UI.rust, marginBottom: "0.5rem" }}>
           Recurring Services
         </div>
-        <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, marginBottom: "0.375rem" }}>
+        <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, marginBottom: "0.375rem" }}>
           Add a Service
         </h1>
-        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight, marginBottom: "1.5rem" }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight, marginBottom: "1.5rem" }}>
           Log an ongoing service contract. Attach the contract doc after saving.
         </p>
 
-        <div style={{ border: `1px solid ${S.rule}`, background: COLORS.white, padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+        <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
 
           {/* Property selector */}
           {properties.length > 0 && (
@@ -200,11 +200,11 @@ export default function RecurringServiceCreatePage() {
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
             <div>
-              <label className="form-label">License # <span style={{ color: S.inkLight, fontWeight: 300 }}>(optional)</span></label>
+              <label className="form-label">License # <span style={{ color: UI.inkLight, fontWeight: 300 }}>(optional)</span></label>
               <input className="form-input" placeholder="e.g. PCO-12345" value={form.providerLicense} onChange={(e) => update("providerLicense", e.target.value)} />
             </div>
             <div>
-              <label className="form-label">Phone <span style={{ color: S.inkLight, fontWeight: 300 }}>(optional)</span></label>
+              <label className="form-label">Phone <span style={{ color: UI.inkLight, fontWeight: 300 }}>(optional)</span></label>
               <input
                 className="form-input" type="tel" placeholder="e.g. (555) 000-0000"
                 value={form.providerPhone}
@@ -212,7 +212,7 @@ export default function RecurringServiceCreatePage() {
                 style={form.providerPhone && !isValidPhone(form.providerPhone) ? { borderColor: COLORS.rust } : undefined}
               />
               {form.providerPhone && !isValidPhone(form.providerPhone) && (
-                <p style={{ color: COLORS.rust, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: S.mono }}>Enter a valid phone number</p>
+                <p style={{ color: COLORS.rust, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: UI.mono }}>Enter a valid phone number</p>
               )}
             </div>
           </div>
@@ -233,14 +233,14 @@ export default function RecurringServiceCreatePage() {
               <input className="form-input" type="date" value={form.startDate} onChange={(e) => update("startDate", e.target.value)} />
             </div>
             <div>
-              <label className="form-label">Contract End <span style={{ color: S.inkLight, fontWeight: 300 }}>(optional)</span></label>
+              <label className="form-label">Contract End <span style={{ color: UI.inkLight, fontWeight: 300 }}>(optional)</span></label>
               <input className="form-input" type="date" value={form.contractEndDate} onChange={(e) => update("contractEndDate", e.target.value)} />
             </div>
           </div>
 
           {/* Notes */}
           <div>
-            <label className="form-label">Notes <span style={{ color: S.inkLight, fontWeight: 300 }}>(optional)</span></label>
+            <label className="form-label">Notes <span style={{ color: UI.inkLight, fontWeight: 300 }}>(optional)</span></label>
             <textarea className="form-input" rows={2} placeholder="e.g. Monthly treatment, includes interior" value={form.notes} onChange={(e) => update("notes", e.target.value)} style={{ resize: "vertical" }} />
           </div>
 
@@ -250,11 +250,11 @@ export default function RecurringServiceCreatePage() {
         </div>
 
         {/* Info callout */}
-        <div style={{ border: `1px solid ${S.rule}`, padding: "1rem 1.25rem", marginTop: "1rem", background: S.paper }}>
-          <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.375rem" }}>
+        <div style={{ border: `1px solid ${UI.rule}`, padding: "1rem 1.25rem", marginTop: "1rem", background: UI.paper }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.375rem" }}>
             About contract documents
           </p>
-          <p style={{ fontSize: "0.8rem", fontWeight: 300, color: S.ink, lineHeight: 1.6 }}>
+          <p style={{ fontSize: "0.8rem", fontWeight: 300, color: UI.ink, lineHeight: 1.6 }}>
             After saving, open the service to attach your contract document — one upload covers the whole relationship. Buyers see a clean summary, not a pile of receipts.
           </p>
         </div>

@@ -43,7 +43,7 @@ import { BillsTab }     from "./PropertyDetail/BillsTab";
 
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -252,8 +252,8 @@ export default function PropertyDetailPage() {
     return (
       <Layout>
         <div style={{ maxWidth: "48rem", margin: "2rem auto", padding: "0 1.5rem", textAlign: "center" }}>
-          <AlertCircle size={48} color={S.rule} style={{ margin: "0 auto 1rem" }} />
-          <h2 style={{ fontFamily: S.serif, fontWeight: 900, color: S.ink }}>Property not found</h2>
+          <AlertCircle size={48} color={UI.rule} style={{ margin: "0 auto 1rem" }} />
+          <h2 style={{ fontFamily: UI.serif, fontWeight: 900, color: UI.ink }}>Property not found</h2>
           <Button onClick={() => navigate("/dashboard")} style={{ marginTop: "1rem" }}>
             Back to Dashboard
           </Button>
@@ -278,8 +278,8 @@ export default function PropertyDetailPage() {
             onClick={() => navigate("/dashboard")}
             style={{
               display: "flex", alignItems: "center", gap: "0.375rem",
-              fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em",
-              textTransform: "uppercase", color: S.inkLight,
+              fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em",
+              textTransform: "uppercase", color: UI.inkLight,
               background: "none", border: "none", cursor: "pointer",
               padding: 0, marginBottom: "1.5rem",
             }}
@@ -294,10 +294,10 @@ export default function PropertyDetailPage() {
             <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: COLORS.butter, color: COLORS.plum, padding: "4px 14px", borderRadius: 100, fontSize: "0.7rem", fontWeight: 600, marginBottom: "0.625rem", border: `1px solid rgba(46,37,64,0.1)` }}>
               Property Record
             </div>
-            <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, marginBottom: "0.375rem" }}>
+            <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, marginBottom: "0.375rem" }}>
               {property.address}
             </h1>
-            <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight }}>
               {property.city}, {property.state} {property.zipCode} · {property.propertyType} · Built {String(property.yearBuilt)}
             </p>
           </div>
@@ -314,16 +314,16 @@ export default function PropertyDetailPage() {
         {/* Verification banners */}
         {property.verificationLevel === "Unverified" && (
           <div style={{
-            border: `1px solid ${S.rust}`, padding: "1rem 1.25rem",
+            border: `1px solid ${UI.rust}`, padding: "1rem 1.25rem",
             marginBottom: "1.5rem", background: COLORS.sageLight,
             display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap",
           }}>
-            <Shield size={16} color={S.rust} style={{ flexShrink: 0 }} />
+            <Shield size={16} color={UI.rust} style={{ flexShrink: 0 }} />
             <div style={{ flex: 1 }}>
-              <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "0.25rem" }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "0.25rem" }}>
                 Ownership not verified
               </p>
-              <p style={{ fontSize: "0.8rem", color: S.inkLight, fontWeight: 300 }}>
+              <p style={{ fontSize: "0.8rem", color: UI.inkLight, fontWeight: 300 }}>
                 Upload a utility bill, deed, or tax record to confirm ownership. Unverified properties cannot generate shareable HomeGentic reports.
               </p>
             </div>
@@ -335,16 +335,16 @@ export default function PropertyDetailPage() {
 
         {property.verificationLevel === "PendingReview" && (
           <div style={{
-            border: `1px solid ${S.rule}`, padding: "1rem 1.25rem",
+            border: `1px solid ${UI.rule}`, padding: "1rem 1.25rem",
             marginBottom: "1.5rem", background: COLORS.butter,
             display: "flex", alignItems: "center", gap: "1rem",
           }}>
             <Shield size={16} color={COLORS.plum} style={{ flexShrink: 0 }} />
             <div>
-              <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "0.25rem" }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "0.25rem" }}>
                 Under review
               </p>
-              <p style={{ fontSize: "0.8rem", color: S.inkLight, fontWeight: 300 }}>
+              <p style={{ fontSize: "0.8rem", color: UI.inkLight, fontWeight: 300 }}>
                 Your documents are awaiting review. Reports will be unlocked once approved (typically 1–2 business days).
               </p>
             </div>
@@ -359,24 +359,24 @@ export default function PropertyDetailPage() {
             { label: "Value Added",  value: `$${(totalValue / 100).toLocaleString()}` },
           ].map((s) => (
             <div key={s.label} style={{ padding: "1.25rem", borderRadius: RADIUS.card, border: `1px solid ${COLORS.rule}`, background: COLORS.white, boxShadow: SHADOWS.card }}>
-              <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.5rem" }}>
+              <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.5rem" }}>
                 {s.label}
               </div>
-              <div style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.75rem", lineHeight: 1, color: S.ink }}>
+              <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.75rem", lineHeight: 1, color: UI.ink }}>
                 {s.value}
               </div>
             </div>
           ))}
           {/* HomeGentic Score — accent cell */}
           <div style={{ padding: "1.25rem", borderRadius: RADIUS.card, border: `1px solid ${COLORS.plum}`, background: COLORS.plum, boxShadow: SHADOWS.card }}>
-            <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.6)", marginBottom: "0.5rem" }}>
+            <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.6)", marginBottom: "0.5rem" }}>
               HomeGentic Score
             </div>
             <div style={{ display: "flex", alignItems: "baseline", gap: "0.375rem" }}>
-              <div style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.75rem", lineHeight: 1, color: COLORS.white }}>
+              <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.75rem", lineHeight: 1, color: COLORS.white }}>
                 {homegenticScore}
               </div>
-              <div style={{ fontFamily: S.mono, fontSize: "0.7rem", color: "rgba(255,255,255,0.7)" }}>
+              <div style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: "rgba(255,255,255,0.7)" }}>
                 {scoreGrade}
               </div>
             </div>
@@ -418,21 +418,21 @@ export default function PropertyDetailPage() {
           return (
             <div style={{ border: `1px solid ${COLORS.rule}`, background: COLORS.white, marginBottom: "1.5rem" }}>
               <div style={{ padding: "0.75rem 1.25rem", borderBottom: `1px solid ${COLORS.rule}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
+                <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
                   How to improve your score
                 </span>
-                <span style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight }}>
+                <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: UI.inkLight }}>
                   {actions.length} action{actions.length !== 1 ? "s" : ""}
                 </span>
               </div>
               {userTier === "Free" ? (
                 <div style={{ padding: "1.25rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
-                  <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight }}>
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight }}>
                     {actions.length} action{actions.length !== 1 ? "s" : ""} available — upgrade to see them
                   </p>
                   <button
                     onClick={() => navigate("/pricing")}
-                    style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 0.875rem", border: "none", background: COLORS.plum, color: COLORS.white, cursor: "pointer", whiteSpace: "nowrap" }}
+                    style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 0.875rem", border: "none", background: COLORS.plum, color: COLORS.white, cursor: "pointer", whiteSpace: "nowrap" }}
                   >
                     Upgrade to Pro →
                   </button>
@@ -441,8 +441,8 @@ export default function PropertyDetailPage() {
                 <div>
                   {actions.map((action, i) => (
                     <div key={i} style={{ padding: "0.75rem 1.25rem", borderBottom: i < actions.length - 1 ? `1px solid ${COLORS.rule}` : "none", display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
-                      <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: COLORS.sage, marginTop: "0.1rem", flexShrink: 0 }}>→</span>
-                      <span style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.ink, lineHeight: 1.5 }}>{action}</span>
+                      <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: COLORS.sage, marginTop: "0.1rem", flexShrink: 0 }}>→</span>
+                      <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.ink, lineHeight: 1.5 }}>{action}</span>
                     </div>
                   ))}
                 </div>
@@ -528,10 +528,10 @@ export default function PropertyDetailPage() {
             justifyContent: "space-between", gap: "1rem", flexWrap: "wrap",
           }}>
             <div>
-              <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.25rem" }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.25rem" }}>
                 Own more than one property?
               </p>
-              <p style={{ fontSize: "0.875rem", fontWeight: 300, color: S.inkLight }}>
+              <p style={{ fontSize: "0.875rem", fontWeight: 300, color: UI.inkLight }}>
                 Track all your properties in one place — compare scores, share reports, and manage maintenance across your portfolio.
               </p>
             </div>

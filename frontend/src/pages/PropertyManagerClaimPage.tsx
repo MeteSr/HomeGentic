@@ -18,7 +18,7 @@ import { propertyService, type ManagerInvite, type Property } from "../services/
 import { useAuthStore } from "@/store/authStore";
 import { COLORS, FONTS } from "@/theme";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -95,16 +95,16 @@ export default function PropertyManagerClaimPage() {
   function Shell({ children }: { children: React.ReactNode }) {
     return (
       <div style={{
-        minHeight: "100vh", background: S.paper,
+        minHeight: "100vh", background: UI.paper,
         display: "flex", flexDirection: "column", alignItems: "center",
         justifyContent: "flex-start", padding: "4rem 1.5rem",
       }}>
         <Link to="/" style={{ textDecoration: "none", marginBottom: "2.5rem" }}>
-          <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.35rem", color: S.ink, letterSpacing: "-0.01em" }}>
-            Home<span style={{ color: S.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
+          <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.35rem", color: UI.ink, letterSpacing: "-0.01em" }}>
+            Home<span style={{ color: UI.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
           </span>
         </Link>
-        <div style={{ width: "100%", maxWidth: "28rem", border: `1px solid ${S.rule}`, background: S.paper }}>
+        <div style={{ width: "100%", maxWidth: "28rem", border: `1px solid ${UI.rule}`, background: UI.paper }}>
           {children}
         </div>
       </div>
@@ -117,8 +117,8 @@ export default function PropertyManagerClaimPage() {
     return (
       <Shell>
         <div style={{ padding: "2.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
-          <Loader2 size={20} color={S.inkLight} style={{ animation: "spin 1s linear infinite" }} />
-          <span style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+          <Loader2 size={20} color={UI.inkLight} style={{ animation: "spin 1s linear infinite" }} />
+          <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, letterSpacing: "0.1em", textTransform: "uppercase" }}>
             Loading invite…
           </span>
         </div>
@@ -131,22 +131,22 @@ export default function PropertyManagerClaimPage() {
   if (page.status === "not_found") {
     return (
       <Shell>
-        <div style={{ padding: "1.5rem 1.75rem", borderBottom: `1px solid ${S.rule}` }}>
-          <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.5rem" }}>Invite not found</p>
-          <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.5rem", color: S.ink, lineHeight: 1.2 }}>
+        <div style={{ padding: "1.5rem 1.75rem", borderBottom: `1px solid ${UI.rule}` }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.5rem" }}>Invite not found</p>
+          <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", color: UI.ink, lineHeight: 1.2 }}>
             This link is no longer valid
           </h1>
         </div>
         <div style={{ padding: "1.5rem 1.75rem", display: "flex", flexDirection: "column", gap: "0.875rem" }}>
-          <p style={{ fontFamily: S.sans, fontSize: "0.85rem", color: S.inkLight, lineHeight: 1.6, fontWeight: 300 }}>
+          <p style={{ fontFamily: UI.sans, fontSize: "0.85rem", color: UI.inkLight, lineHeight: 1.6, fontWeight: 300 }}>
             The manager invite link could not be found. It may have already been used, or the URL may be incomplete.
           </p>
-          <p style={{ fontFamily: S.sans, fontSize: "0.85rem", color: S.inkLight, lineHeight: 1.6, fontWeight: 300 }}>
+          <p style={{ fontFamily: UI.sans, fontSize: "0.85rem", color: UI.inkLight, lineHeight: 1.6, fontWeight: 300 }}>
             Ask the property owner to generate a new invite link from their property settings.
           </p>
           <Link
             to="/"
-            style={{ alignSelf: "flex-start", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", background: S.ink, color: S.paper, textDecoration: "none", marginTop: "0.5rem" }}
+            style={{ alignSelf: "flex-start", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", background: UI.ink, color: UI.paper, textDecoration: "none", marginTop: "0.5rem" }}
           >
             Go to HomeGentic →
           </Link>
@@ -160,14 +160,14 @@ export default function PropertyManagerClaimPage() {
   if (page.status === "expired") {
     return (
       <Shell>
-        <div style={{ padding: "1.5rem 1.75rem", borderBottom: `1px solid ${S.rule}` }}>
-          <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.5rem" }}>Invite expired</p>
-          <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.5rem", color: S.ink, lineHeight: 1.2 }}>
+        <div style={{ padding: "1.5rem 1.75rem", borderBottom: `1px solid ${UI.rule}` }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.5rem" }}>Invite expired</p>
+          <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", color: UI.ink, lineHeight: 1.2 }}>
             This link has expired
           </h1>
         </div>
         <div style={{ padding: "1.5rem 1.75rem" }}>
-          <p style={{ fontFamily: S.sans, fontSize: "0.85rem", color: S.inkLight, lineHeight: 1.6, fontWeight: 300 }}>
+          <p style={{ fontFamily: UI.sans, fontSize: "0.85rem", color: UI.inkLight, lineHeight: 1.6, fontWeight: 300 }}>
             Manager invite links are valid for 90 days. Ask the property owner to send a new invite link from their property settings.
           </p>
         </div>
@@ -180,14 +180,14 @@ export default function PropertyManagerClaimPage() {
   if (page.status === "claimed") {
     return (
       <Shell>
-        <div style={{ padding: "1.5rem 1.75rem", borderBottom: `1px solid ${S.rule}`, background: COLORS.sageLight }}>
-          <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.sage, marginBottom: "0.5rem" }}>Access granted</p>
-          <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.5rem", color: S.ink, lineHeight: 1.2 }}>
+        <div style={{ padding: "1.5rem 1.75rem", borderBottom: `1px solid ${UI.rule}`, background: COLORS.sageLight }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.sage, marginBottom: "0.5rem" }}>Access granted</p>
+          <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", color: UI.ink, lineHeight: 1.2 }}>
             You're now a {page.role}
           </h1>
         </div>
         <div style={{ padding: "1.5rem 1.75rem" }}>
-          <p style={{ fontFamily: S.sans, fontSize: "0.85rem", color: S.inkLight, lineHeight: 1.6, fontWeight: 300 }}>
+          <p style={{ fontFamily: UI.sans, fontSize: "0.85rem", color: UI.inkLight, lineHeight: 1.6, fontWeight: 300 }}>
             {page.role === "Manager"
               ? "You can now view records, add maintenance jobs, upload photos, and manage this property on behalf of the owner."
               : "You can now view all records and history for this property."}
@@ -204,8 +204,8 @@ export default function PropertyManagerClaimPage() {
     return (
       <Shell>
         <div style={{ padding: "2.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
-          <Loader2 size={20} color={S.inkLight} style={{ animation: "spin 1s linear infinite" }} />
-          <span style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+          <Loader2 size={20} color={UI.inkLight} style={{ animation: "spin 1s linear infinite" }} />
+          <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, letterSpacing: "0.1em", textTransform: "uppercase" }}>
             Accepting role…
           </span>
         </div>
@@ -221,20 +221,20 @@ export default function PropertyManagerClaimPage() {
   return (
     <Shell>
       {/* Header */}
-      <div style={{ padding: "1.5rem 1.75rem", borderBottom: `1px solid ${S.rule}` }}>
-        <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.5rem" }}>
+      <div style={{ padding: "1.5rem 1.75rem", borderBottom: `1px solid ${UI.rule}` }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.5rem" }}>
           Property access invitation
         </p>
-        <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.4rem", color: S.ink, lineHeight: 1.2, marginBottom: "0.5rem" }}>
+        <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.4rem", color: UI.ink, lineHeight: 1.2, marginBottom: "0.5rem" }}>
           You've been invited as a {invite.role}
         </h1>
-        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight }}>
           Expires {expiresDate}
         </p>
       </div>
 
       {/* Invite details */}
-      <div style={{ borderBottom: `1px solid ${S.rule}` }}>
+      <div style={{ borderBottom: `1px solid ${UI.rule}` }}>
         {[
           { label: "Invited As",  value: invite.displayName },
           { label: "Role",        value: invite.role },
@@ -250,25 +250,25 @@ export default function PropertyManagerClaimPage() {
             style={{
               display: "flex", justifyContent: "space-between", alignItems: "baseline",
               padding: "0.6rem 1.75rem",
-              borderBottom: i < arr.length - 1 ? `1px solid ${S.rule}` : "none",
+              borderBottom: i < arr.length - 1 ? `1px solid ${UI.rule}` : "none",
             }}
           >
-            <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>{row.label}</span>
-            <span style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.ink }}>{row.value}</span>
+            <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>{row.label}</span>
+            <span style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: UI.ink }}>{row.value}</span>
           </div>
         ))}
       </div>
 
       {/* What this role grants */}
-      <div style={{ padding: "1rem 1.75rem", borderBottom: `1px solid ${S.rule}`, background: COLORS.sageLight }}>
-        <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.sage, marginBottom: "0.5rem" }}>
+      <div style={{ padding: "1rem 1.75rem", borderBottom: `1px solid ${UI.rule}`, background: COLORS.sageLight }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.sage, marginBottom: "0.5rem" }}>
           What {invite.role === "Manager" ? "Managers" : "Viewers"} can do
         </p>
         {(invite.role === "Manager"
           ? ["View all maintenance & job history", "Add maintenance jobs and notes", "Upload photos", "View utility bill records", "View room & fixture inventory"]
           : ["View all maintenance & job history", "View uploaded photos", "View utility bill records", "View room & fixture inventory"]
         ).map((item) => (
-          <p key={item} style={{ fontFamily: S.sans, fontSize: "0.78rem", color: S.ink, lineHeight: 1.7, fontWeight: 300 }}>
+          <p key={item} style={{ fontFamily: UI.sans, fontSize: "0.78rem", color: UI.ink, lineHeight: 1.7, fontWeight: 300 }}>
             ✓ {item}
           </p>
         ))}
@@ -278,15 +278,15 @@ export default function PropertyManagerClaimPage() {
       <div style={{ padding: "1.5rem 1.75rem", display: "flex", flexDirection: "column", gap: "0.875rem" }}>
         {!isAuthenticated ? (
           <>
-            <p style={{ fontFamily: S.sans, fontSize: "0.82rem", color: S.inkLight, lineHeight: 1.6, fontWeight: 300 }}>
+            <p style={{ fontFamily: UI.sans, fontSize: "0.82rem", color: UI.inkLight, lineHeight: 1.6, fontWeight: 300 }}>
               Sign in or create a free account to accept this invitation. The link will still work after you log in.
             </p>
             <Link
               to={`/login?redirect=${encodeURIComponent(`/manage/claim/${token}`)}`}
               style={{
                 display: "block", textAlign: "center",
-                fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase",
-                padding: "0.75rem 1rem", background: S.ink, color: S.paper, textDecoration: "none",
+                fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase",
+                padding: "0.75rem 1rem", background: UI.ink, color: UI.paper, textDecoration: "none",
               }}
             >
               Sign in to accept →
@@ -294,22 +294,22 @@ export default function PropertyManagerClaimPage() {
           </>
         ) : (
           <>
-            <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, lineHeight: 1.5, wordBreak: "break-all" }}>
-              Accepting as: <span style={{ color: S.ink }}>{principal}</span>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, lineHeight: 1.5, wordBreak: "break-all" }}>
+              Accepting as: <span style={{ color: UI.ink }}>{principal}</span>
             </p>
             {claimError && (
-              <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight }}>{claimError}</p>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight }}>{claimError}</p>
             )}
             <button
               onClick={handleClaim}
               style={{
-                fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase",
-                padding: "0.75rem 1rem", background: S.sage, color: S.paper, border: "none", cursor: "pointer",
+                fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase",
+                padding: "0.75rem 1rem", background: UI.sage, color: UI.paper, border: "none", cursor: "pointer",
               }}
             >
               Accept {invite.role} Access →
             </button>
-            <p style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight, lineHeight: 1.5 }}>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: UI.inkLight, lineHeight: 1.5 }}>
               The property owner will be notified when you take significant actions.
             </p>
           </>

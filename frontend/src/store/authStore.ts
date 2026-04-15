@@ -20,7 +20,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   profile: null,
   isLoading: true,
   lastLoginAt: null,
-  setAuthenticated: (principal) => set({ isAuthenticated: true, principal }),
+  setAuthenticated: (principal) => {
+    if (!principal) throw new Error("setAuthenticated: principal must be a non-empty string");
+    set({ isAuthenticated: true, principal });
+  },
   setProfile: (profile) => set({ profile }),
   setLastLoginAt: (lastLoginAt) => set({ lastLoginAt }),
   clearAuth: () => set({ isAuthenticated: false, principal: null, profile: null, lastLoginAt: null }),

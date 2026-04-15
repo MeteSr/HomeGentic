@@ -16,7 +16,7 @@ function ProposalRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -71,7 +71,7 @@ export function VoiceAgent() {
           </button>
 
           {transcript && (
-            <p style={{ marginBottom: "0.5rem", fontFamily: S.mono, fontSize: "0.7rem", color: COLORS.plumMid, fontStyle: "italic", paddingRight: "1.25rem" }}>
+            <p style={{ marginBottom: "0.5rem", fontFamily: UI.mono, fontSize: "0.7rem", color: COLORS.plumMid, fontStyle: "italic", paddingRight: "1.25rem" }}>
               "{transcript}"
             </p>
           )}
@@ -92,7 +92,7 @@ export function VoiceAgent() {
               border: `1px solid rgba(212,207,200,0.2)`,
               padding: "0.75rem",
             }}>
-              <div style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.5rem" }}>
+              <div style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.5rem" }}>
                 Proposal to send
               </div>
 
@@ -103,7 +103,7 @@ export function VoiceAgent() {
                   padding: "0.375rem 0.5rem", marginBottom: "0.5rem",
                 }}>
                   <AlertTriangle size={10} color="#C94C2E" style={{ flexShrink: 0, marginTop: "0.1rem" }} />
-                  <span style={{ fontFamily: S.mono, fontSize: "0.575rem", color: "#C94C2E", lineHeight: 1.4 }}>
+                  <span style={{ fontFamily: UI.mono, fontSize: "0.575rem", color: "#C94C2E", lineHeight: 1.4 }}>
                     Possible duplicate — a similar job already exists (#{pendingProposal.duplicateInfo.jobId.slice(-6)}). The homeowner will decide.
                   </span>
                 </div>
@@ -123,7 +123,7 @@ export function VoiceAgent() {
                 <button
                   onClick={confirmProposal}
                   style={{
-                    flex: 1, fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em",
+                    flex: 1, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em",
                     textTransform: "uppercase", padding: "0.375rem 0",
                     background: COLORS.sage, border: "none", color: COLORS.white, cursor: "pointer",
                   }}
@@ -133,7 +133,7 @@ export function VoiceAgent() {
                 <button
                   onClick={dismissProposal}
                   style={{
-                    flex: 1, fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em",
+                    flex: 1, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em",
                     textTransform: "uppercase", padding: "0.375rem 0",
                     background: "none", border: `1px solid rgba(212,207,200,0.3)`, color: COLORS.plumMid, cursor: "pointer",
                   }}
@@ -147,12 +147,12 @@ export function VoiceAgent() {
           {isProcessing && !response && (
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <Loader2 size={13} color={COLORS.plumMid} style={{ animation: "spin 1s linear infinite" }} />
-              <span style={{ fontFamily: S.mono, fontSize: "0.7rem", color: COLORS.plumMid }}>Thinking…</span>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: COLORS.plumMid }}>Thinking…</span>
             </div>
           )}
 
           {error && (
-            <p style={{ fontFamily: S.mono, fontSize: "0.7rem", color: COLORS.sage }}>{error}</p>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: COLORS.sage }}>{error}</p>
           )}
         </div>
       )}
@@ -169,7 +169,7 @@ export function VoiceAgent() {
           >
             <div style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
               <History size={11} color={COLORS.plumMid} />
-              <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid }}>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid }}>
                 Agent History ({history.length})
               </span>
             </div>
@@ -177,7 +177,7 @@ export function VoiceAgent() {
               {showHistory && (
                 <button
                   onClick={(e) => { e.stopPropagation(); clearHistory(); setShowHistory(false); }}
-                  style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.sage, background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                  style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.sage, background: "none", border: "none", cursor: "pointer", padding: 0 }}
                 >
                   Clear
                 </button>
@@ -199,13 +199,13 @@ export function VoiceAgent() {
                     : <XCircle    size={11} color={COLORS.sage}  style={{ flexShrink: 0, marginTop: "0.1rem" }} />
                   }
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: action.success ? COLORS.sage : COLORS.plumMid, marginBottom: "0.1rem" }}>
+                    <div style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: action.success ? COLORS.sage : COLORS.plumMid, marginBottom: "0.1rem" }}>
                       {action.label}
                     </div>
-                    <div style={{ fontFamily: S.mono, fontSize: "0.6rem", color: COLORS.plumMid, lineHeight: 1.4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: COLORS.plumMid, lineHeight: 1.4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {action.summary}
                     </div>
-                    <div style={{ fontFamily: S.mono, fontSize: "0.5rem", color: COLORS.plumMid, marginTop: "0.1rem" }}>
+                    <div style={{ fontFamily: UI.mono, fontSize: "0.5rem", color: COLORS.plumMid, marginTop: "0.1rem" }}>
                       {new Date(action.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </div>
                   </div>
@@ -224,7 +224,7 @@ export function VoiceAgent() {
           padding: "0.35rem 0.75rem", borderRadius: RADIUS.sm,
         }}>
           <Paperclip size={10} color={COLORS.sage} />
-          <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: COLORS.plumMid }}>
+          <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: COLORS.plumMid }}>
             Image attached — tap mic to describe it
           </span>
           <button
@@ -249,13 +249,13 @@ export function VoiceAgent() {
                 padding: "0.4rem 0.75rem", gap: "0.5rem",
               }}
             >
-              <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: COLORS.plumMid, lineHeight: 1.4, flex: 1 }}>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: COLORS.plumMid, lineHeight: 1.4, flex: 1 }}>
                 {alert.message}
               </span>
               {alert.href && alert.actionLabel && (
                 <button
                   onClick={() => navigate(alert.href!)}
-                  style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.sage, background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0 }}
+                  style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.sage, background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0 }}
                 >
                   {alert.actionLabel}
                 </button>
@@ -289,8 +289,8 @@ export function VoiceAgent() {
         </button>
 
         <span style={{
-          fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em",
-          textTransform: "uppercase", color: S.inkLight, userSelect: "none",
+          fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em",
+          textTransform: "uppercase", color: UI.inkLight, userSelect: "none",
         }}>
           {isListening  && "Listening"}
           {isProcessing && "Thinking"}

@@ -28,7 +28,7 @@ import { UpgradeGate } from "@/components/UpgradeGate";
 import type { Property } from "@/services/property";
 import { COLORS, FONTS } from "@/theme";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -152,21 +152,21 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
   }
 
   return (
-    <div style={{ border: `1px solid ${S.rule}`, padding: "1.5rem" }}>
+    <div style={{ border: `1px solid ${UI.rule}`, padding: "1.5rem" }}>
       {/* Header */}
-      <h2 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.25rem", color: S.ink, margin: "0 0 0.5rem" }}>
+      <h2 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.25rem", color: UI.ink, margin: "0 0 0.5rem" }}>
         Sell This Home Yourself
       </h2>
-      <p style={{ fontFamily: S.sans, fontSize: "0.875rem", color: S.inkLight, margin: "0 0 1rem" }}>
+      <p style={{ fontFamily: UI.sans, fontSize: "0.875rem", color: UI.inkLight, margin: "0 0 1rem" }}>
         Use your HomeGentic record to sell without paying a listing agent.
       </p>
 
       {/* 10.1.4 — Readiness */}
       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
-        <span style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+        <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, textTransform: "uppercase", letterSpacing: "0.08em" }}>
           FSBO Readiness:
         </span>
-        <span style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.75rem", color: readinessColor }}>
+        <span style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.75rem", color: readinessColor }}>
           {readinessLabel}
         </span>
       </div>
@@ -174,7 +174,7 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
       {missing.length > 0 && (
         <ul style={{ margin: "0 0 1rem", padding: "0 0 0 1.25rem", listStyle: "none" }}>
           {missing.map((m, i) => (
-            <li key={i} style={{ display: "flex", alignItems: "flex-start", gap: "0.4rem", fontFamily: S.mono, fontSize: "0.65rem", color: readiness === "NotReady" ? "#c0392b" : S.inkLight, marginBottom: "0.25rem" }}>
+            <li key={i} style={{ display: "flex", alignItems: "flex-start", gap: "0.4rem", fontFamily: UI.mono, fontSize: "0.65rem", color: readiness === "NotReady" ? "#c0392b" : UI.inkLight, marginBottom: "0.25rem" }}>
               <AlertTriangle size={12} style={{ flexShrink: 0, marginTop: 1 }} />
               {m}
             </li>
@@ -207,13 +207,13 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
                 <span
                   key={String(s)}
                   style={{
-                    fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em",
+                    fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em",
                     textTransform: "uppercase",
-                    color: done ? S.sage : current ? S.ink : S.inkLight,
+                    color: done ? UI.sage : current ? UI.ink : UI.inkLight,
                     display: "flex", alignItems: "center", gap: "0.25rem",
                   }}
                 >
-                  {done && <CheckCircle2 size={11} color={S.sage} />}
+                  {done && <CheckCircle2 size={11} color={UI.sage} />}
                   {s === "done" ? "Done" : `Step ${s}`}
                 </span>
               );
@@ -223,12 +223,12 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
           {/* Step 1 — Set list price */}
           {currentStep === 1 && (
             <div>
-              <h3 style={{ fontFamily: S.mono, fontSize: "0.75rem", color: S.ink, margin: "0 0 0.75rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              <h3 style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: UI.ink, margin: "0 0 0.75rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>
                 {STEP_LABELS[1]}
               </h3>
               <form aria-label="FSBO Price Setup" onSubmit={handleSetPrice} style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                 <div>
-                  <label htmlFor="fsbo-list-price" style={{ display: "block", fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.25rem" }}>
+                  <label htmlFor="fsbo-list-price" style={{ display: "block", fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.25rem" }}>
                     List Price ($)
                   </label>
                   <input
@@ -239,20 +239,20 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
                     placeholder="e.g. 485000"
                     value={listPrice}
                     onChange={(e) => setListPrice(e.target.value)}
-                    style={{ width: "14rem", padding: "0.5rem", border: `1px solid ${S.rule}`, fontFamily: S.mono, fontSize: "0.875rem" }}
+                    style={{ width: "14rem", padding: "0.5rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.875rem" }}
                   />
                 </div>
 
                 {/* 10.1.3 — Real-time savings */}
                 {savingsCents > 0 && (
                   <div style={{ background: "#f0faf4", border: "1px solid #c3e6cb", padding: "0.75rem 1rem" }}>
-                    <div style={{ fontFamily: S.mono, fontSize: "0.65rem", color: "#188038", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.2rem" }}>
+                    <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: "#188038", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.2rem" }}>
                       Estimated Savings vs. 3% Agent Commission
                     </div>
-                    <div style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.25rem", color: "#188038" }}>
+                    <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.25rem", color: "#188038" }}>
                       ~{formatPrice(savingsCents)}
                     </div>
-                    <div style={{ fontFamily: S.mono, fontSize: "0.6rem", color: "#188038", marginTop: "0.2rem" }}>
+                    <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: "#188038", marginTop: "0.2rem" }}>
                       At {formatPrice(listPriceCents)}, you save ~{formatPrice(savingsCents)} vs. a 3% buyer's agent commission
                     </div>
                   </div>
@@ -266,10 +266,10 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
           {/* Step 2 — Review report */}
           {currentStep === 2 && (
             <div>
-              <h3 style={{ fontFamily: S.mono, fontSize: "0.75rem", color: S.ink, margin: "0 0 0.75rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              <h3 style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: UI.ink, margin: "0 0 0.75rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>
                 Step 2 — Review Your HomeGentic Report
               </h3>
-              <p style={{ fontFamily: S.sans, fontSize: "0.875rem", color: S.inkLight, margin: "0 0 1rem" }}>
+              <p style={{ fontFamily: UI.sans, fontSize: "0.875rem", color: UI.inkLight, margin: "0 0 1rem" }}>
                 Review your HomeGentic report before sharing it with buyers.
                 {!hasReport && " No public report yet — generate one from the Reports tab."}
               </p>
@@ -282,10 +282,10 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
           {/* Step 3 — Go live */}
           {currentStep === 3 && (
             <div>
-              <h3 style={{ fontFamily: S.mono, fontSize: "0.75rem", color: S.ink, margin: "0 0 0.75rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              <h3 style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: UI.ink, margin: "0 0 0.75rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>
                 Step 3 — Go Live
               </h3>
-              <p style={{ fontFamily: S.sans, fontSize: "0.875rem", color: S.inkLight, margin: "0 0 1rem" }}>
+              <p style={{ fontFamily: UI.sans, fontSize: "0.875rem", color: UI.inkLight, margin: "0 0 1rem" }}>
                 Your FSBO listing page will be visible at a shareable URL with your HomeGentic badge.
               </p>
               <Button onClick={handleAdvance}>
@@ -298,12 +298,12 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
           {currentStep === "done" && (
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
-                <Star size={20} color={S.sage} />
+                <Star size={20} color={UI.sage} />
                 <div>
-                  <div style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1rem", color: S.ink }}>
+                  <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1rem", color: UI.ink }}>
                     Your FSBO listing is live!
                   </div>
-                  <div style={{ fontFamily: S.sans, fontSize: "0.875rem", color: S.inkLight }}>
+                  <div style={{ fontFamily: UI.sans, fontSize: "0.875rem", color: UI.inkLight }}>
                     Share your HomeGentic listing link with potential buyers.
                   </div>
                 </div>
@@ -313,14 +313,14 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
               {property && !mlsResult && (
                 <div style={{ marginTop: "0.75rem" }}>
                   {mlsLoading ? (
-                    <p style={{ fontFamily: S.mono, fontSize: "0.75rem", color: S.inkLight }}>Submitting…</p>
+                    <p style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: UI.inkLight }}>Submitting…</p>
                   ) : (
                     <Button onClick={handleMlsSubmit} aria-label="Submit to MLS">
                       Submit to MLS
                     </Button>
                   )}
                   {mlsError && (
-                    <p style={{ fontFamily: S.sans, fontSize: "0.8rem", color: "#c0392b", marginTop: "0.5rem" }}>
+                    <p style={{ fontFamily: UI.sans, fontSize: "0.8rem", color: "#c0392b", marginTop: "0.5rem" }}>
                       {mlsError}
                     </p>
                   )}
@@ -333,7 +333,7 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
                     href={mlsResult.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ fontFamily: S.sans, fontWeight: 600, fontSize: "0.875rem", color: S.sage, textDecoration: "underline" }}
+                    style={{ fontFamily: UI.sans, fontWeight: 600, fontSize: "0.875rem", color: UI.sage, textDecoration: "underline" }}
                   >
                     View MLS Listing
                   </a>
@@ -341,14 +341,14 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
               )}
 
               {/* 10.7.1 — Agent handoff */}
-              <div style={{ marginTop: "1.25rem", borderTop: `1px solid ${S.rule}`, paddingTop: "1rem" }}>
+              <div style={{ marginTop: "1.25rem", borderTop: `1px solid ${UI.rule}`, paddingTop: "1rem" }}>
                 {agentRequested ? (
-                  <p style={{ fontFamily: S.mono, fontSize: "0.75rem", color: S.sage }}>
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: UI.sage }}>
                     ✓ Agent request sent — agents will now compete for your listing.
                   </p>
                 ) : (
                   <>
-                    <p style={{ fontFamily: S.sans, fontSize: "0.8rem", color: S.inkLight, marginBottom: "0.5rem" }}>
+                    <p style={{ fontFamily: UI.sans, fontSize: "0.8rem", color: UI.inkLight, marginBottom: "0.5rem" }}>
                       Changed your mind? Let agents compete for your listing.
                     </p>
                     <Button onClick={handleFindAgent}>

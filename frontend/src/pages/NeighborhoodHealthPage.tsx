@@ -16,7 +16,7 @@ import { MapPin, TrendingUp, TrendingDown, Minus, ArrowLeft } from "lucide-react
 import { neighborhoodService, type ZipCodeStats } from "@/services/neighborhood";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   inkLight: COLORS.plumMid,
   rule:     COLORS.rule,
@@ -58,11 +58,11 @@ export default function NeighborhoodHealthPage() {
     "Avg score stable this year";
 
   return (
-    <div style={{ minHeight: "100vh", background: COLORS.white, fontFamily: S.mono }}>
+    <div style={{ minHeight: "100vh", background: COLORS.white, fontFamily: UI.mono }}>
       {/* Top bar */}
       <div
         style={{
-          borderBottom: `1px solid ${S.rule}`,
+          borderBottom: `1px solid ${UI.rule}`,
           padding: "0.875rem 1.5rem",
           display: "flex",
           alignItems: "center",
@@ -72,15 +72,15 @@ export default function NeighborhoodHealthPage() {
       >
         <Link
           to="/"
-          style={{ display: "flex", alignItems: "center", gap: "0.375rem", color: S.inkLight, textDecoration: "none", fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase" }}
+          style={{ display: "flex", alignItems: "center", gap: "0.375rem", color: UI.inkLight, textDecoration: "none", fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase" }}
         >
           <ArrowLeft size={12} />
           HomeGentic
         </Link>
-        <span style={{ color: S.rule }}>·</span>
+        <span style={{ color: UI.rule }}>·</span>
         <div style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
           <MapPin size={12} color={COLORS.plumMid} />
-          <span style={{ fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>
+          <span style={{ fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>
             Neighborhood Health · {zipCode}
           </span>
         </div>
@@ -90,25 +90,25 @@ export default function NeighborhoodHealthPage() {
         {/* Page title */}
         <h1
           style={{
-            fontFamily: S.serif,
+            fontFamily: UI.serif,
             fontWeight: 900,
             fontSize: "2rem",
-            color: S.ink,
+            color: UI.ink,
             marginBottom: "0.375rem",
           }}
         >
           {zipCode}
         </h1>
-        <p style={{ fontSize: "0.65rem", color: S.inkLight, letterSpacing: "0.08em", marginBottom: "2.5rem" }}>
+        <p style={{ fontSize: "0.65rem", color: UI.inkLight, letterSpacing: "0.08em", marginBottom: "2.5rem" }}>
           NEIGHBORHOOD HEALTH INDEX — HOMEGENTIC
         </p>
 
         {loading && (
-          <p style={{ fontSize: "0.7rem", color: S.inkLight }}>Loading…</p>
+          <p style={{ fontSize: "0.7rem", color: UI.inkLight }}>Loading…</p>
         )}
 
         {!loading && !stats && (
-          <p style={{ fontSize: "0.7rem", color: S.inkLight }}>No data available for this zip code.</p>
+          <p style={{ fontSize: "0.7rem", color: UI.inkLight }}>No data available for this zip code.</p>
         )}
 
         {!loading && stats && (
@@ -119,8 +119,8 @@ export default function NeighborhoodHealthPage() {
                 display: "grid",
                 gridTemplateColumns: "1fr 1fr 1fr",
                 gap: "1px",
-                background: S.rule,
-                border: `1px solid ${S.rule}`,
+                background: UI.rule,
+                border: `1px solid ${UI.rule}`,
                 borderRadius: RADIUS.card,
                 overflow: "hidden",
                 marginBottom: "2rem",
@@ -136,13 +136,13 @@ export default function NeighborhoodHealthPage() {
                   key={item.label}
                   style={{ background: COLORS.white, padding: "1.25rem 1.5rem" }}
                 >
-                  <div style={{ fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.5rem" }}>
+                  <div style={{ fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.5rem" }}>
                     {item.label}
                   </div>
-                  <div style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "2rem", lineHeight: 1, color: S.ink, marginBottom: "0.25rem" }}>
+                  <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "2rem", lineHeight: 1, color: UI.ink, marginBottom: "0.25rem" }}>
                     {item.value}
                   </div>
-                  <div style={{ fontSize: "0.55rem", color: S.inkLight }}>
+                  <div style={{ fontSize: "0.55rem", color: UI.inkLight }}>
                     {item.sub}
                   </div>
                 </div>
@@ -156,7 +156,7 @@ export default function NeighborhoodHealthPage() {
                 alignItems: "center",
                 gap: "0.5rem",
                 padding: "0.875rem 1.25rem",
-                border: `1px solid ${S.rule}`,
+                border: `1px solid ${UI.rule}`,
                 borderRadius: RADIUS.card,
                 marginBottom: "2rem",
                 background: COLORS.white,
@@ -172,7 +172,7 @@ export default function NeighborhoodHealthPage() {
             {/* Score distribution */}
             <div
               style={{
-                border: `1px solid ${S.rule}`,
+                border: `1px solid ${UI.rule}`,
                 borderRadius: RADIUS.card,
                 overflow: "hidden",
                 marginBottom: "2rem",
@@ -182,11 +182,11 @@ export default function NeighborhoodHealthPage() {
               <div
                 style={{
                   padding: "0.875rem 1.25rem",
-                  borderBottom: `1px solid ${S.rule}`,
+                  borderBottom: `1px solid ${UI.rule}`,
                   background: COLORS.white,
                 }}
               >
-                <span style={{ fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: S.inkLight }}>
+                <span style={{ fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.inkLight }}>
                   Score Distribution
                 </span>
               </div>
@@ -203,9 +203,9 @@ export default function NeighborhoodHealthPage() {
                     >
                       <span
                         style={{
-                          fontFamily: S.mono,
+                          fontFamily: UI.mono,
                           fontSize: "0.55rem",
-                          color: S.inkLight,
+                          color: UI.inkLight,
                           width: "2.75rem",
                           flexShrink: 0,
                         }}
@@ -216,7 +216,7 @@ export default function NeighborhoodHealthPage() {
                         style={{
                           flex: 1,
                           height: 8,
-                          background: S.rule,
+                          background: UI.rule,
                           borderRadius: 4,
                           overflow: "hidden",
                         }}
@@ -233,9 +233,9 @@ export default function NeighborhoodHealthPage() {
                       </div>
                       <span
                         style={{
-                          fontFamily: S.mono,
+                          fontFamily: UI.mono,
                           fontSize: "0.55rem",
-                          color: S.inkLight,
+                          color: UI.inkLight,
                           width: "3rem",
                           textAlign: "right",
                           flexShrink: 0,
@@ -246,7 +246,7 @@ export default function NeighborhoodHealthPage() {
                     </div>
                   );
                 })}
-                <p style={{ fontSize: "0.55rem", color: S.inkLight, marginTop: "0.75rem" }}>
+                <p style={{ fontSize: "0.55rem", color: UI.inkLight, marginTop: "0.75rem" }}>
                   Darker bar = contains the median score
                 </p>
               </div>
@@ -255,7 +255,7 @@ export default function NeighborhoodHealthPage() {
             {/* Top maintenance categories */}
             <div
               style={{
-                border: `1px solid ${S.rule}`,
+                border: `1px solid ${UI.rule}`,
                 borderRadius: RADIUS.card,
                 overflow: "hidden",
                 marginBottom: "2rem",
@@ -265,11 +265,11 @@ export default function NeighborhoodHealthPage() {
               <div
                 style={{
                   padding: "0.875rem 1.25rem",
-                  borderBottom: `1px solid ${S.rule}`,
+                  borderBottom: `1px solid ${UI.rule}`,
                   background: COLORS.white,
                 }}
               >
-                <span style={{ fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: S.inkLight }}>
+                <span style={{ fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.inkLight }}>
                   Top Maintenance Categories
                 </span>
               </div>
@@ -282,13 +282,13 @@ export default function NeighborhoodHealthPage() {
                       alignItems: "center",
                       gap: "1rem",
                       padding: "0.875rem 1.25rem",
-                      borderBottom: i < stats.topMaintenanceSystems.length - 1 ? `1px solid ${S.rule}` : "none",
+                      borderBottom: i < stats.topMaintenanceSystems.length - 1 ? `1px solid ${UI.rule}` : "none",
                     }}
                   >
-                    <span style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight, width: "1.25rem", flexShrink: 0 }}>
+                    <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: UI.inkLight, width: "1.25rem", flexShrink: 0 }}>
                       {i + 1}.
                     </span>
-                    <span style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "0.875rem", color: S.ink }}>
+                    <span style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "0.875rem", color: UI.ink }}>
                       {sys}
                     </span>
                   </div>
@@ -297,7 +297,7 @@ export default function NeighborhoodHealthPage() {
             </div>
 
             {/* Footer note */}
-            <p style={{ fontSize: "0.55rem", color: S.inkLight, letterSpacing: "0.06em", lineHeight: 1.6 }}>
+            <p style={{ fontSize: "0.55rem", color: UI.inkLight, letterSpacing: "0.06em", lineHeight: 1.6 }}>
               Data reflects HomeGentic-tracked homes in {zipCode}.
               Scores are computed from verified maintenance records.
               Updated periodically as homeowners log new jobs.

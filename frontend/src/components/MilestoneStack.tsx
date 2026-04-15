@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { X } from "lucide-react";
 import { COLORS, FONTS, RADIUS } from "@/theme";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -57,10 +57,10 @@ export function MilestoneStack({
             alignItems: "center",
             justifyContent: "space-between",
             gap: "1rem",
-            border: `1px solid ${S.sage}`,
+            border: `1px solid ${UI.sage}`,
             padding: "1rem 1.25rem",
             marginBottom: "1.5rem",
-            background: S.ink,
+            background: UI.ink,
             flexWrap: "wrap",
             borderRadius: RADIUS.sm,
           }}
@@ -68,11 +68,11 @@ export function MilestoneStack({
           <div>
             <p
               style={{
-                fontFamily: S.mono,
+                fontFamily: UI.mono,
                 fontSize: "0.6rem",
                 letterSpacing: "0.18em",
                 textTransform: "uppercase",
-                color: S.sage,
+                color: UI.sage,
                 marginBottom: "0.25rem",
               }}
             >
@@ -82,7 +82,7 @@ export function MilestoneStack({
               style={{
                 fontFamily: FONTS.sans,
                 fontSize: "0.875rem",
-                color: S.paper,
+                color: UI.paper,
                 fontWeight: 300,
               }}
             >
@@ -92,14 +92,14 @@ export function MilestoneStack({
               onClick={() => onNavigate("/resale-ready")}
               style={{
                 marginTop: "0.5rem",
-                fontFamily: S.mono,
+                fontFamily: UI.mono,
                 fontSize: "0.6rem",
                 letterSpacing: "0.1em",
                 textTransform: "uppercase",
                 padding: "0.4rem 1rem",
-                border: `1px solid ${S.sage}`,
+                border: `1px solid ${UI.sage}`,
                 background: "none",
-                color: S.sage,
+                color: UI.sage,
                 cursor: "pointer",
                 borderRadius: RADIUS.sm,
               }}
@@ -134,7 +134,7 @@ export function MilestoneStack({
             alignItems: "center",
             justifyContent: "space-between",
             gap: "1rem",
-            border: `1px solid ${S.sage}`,
+            border: `1px solid ${UI.sage}`,
             padding: "1rem 1.25rem",
             marginBottom: "1.5rem",
             background: COLORS.sageLight,
@@ -147,33 +147,33 @@ export function MilestoneStack({
               style={{
                 width: "2rem",
                 height: "2rem",
-                border: `2px solid ${S.sage}`,
+                border: `2px solid ${UI.sage}`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 flexShrink: 0,
-                color: S.sage,
+                color: UI.sage,
                 borderRadius: RADIUS.sm,
               }}
             >
-              <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "0.875rem" }}>
+              <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "0.875rem" }}>
                 3
               </span>
             </div>
             <div>
               <p
                 style={{
-                  fontFamily: S.mono,
+                  fontFamily: UI.mono,
                   fontSize: "0.6rem",
                   letterSpacing: "0.14em",
                   textTransform: "uppercase",
-                  color: S.sage,
+                  color: UI.sage,
                   marginBottom: "0.2rem",
                 }}
               >
                 Milestone — Your Home History Is Taking Shape
               </p>
-              <p style={{ fontSize: "0.875rem", fontWeight: 300, color: S.ink }}>
+              <p style={{ fontSize: "0.875rem", fontWeight: 300, color: UI.ink }}>
                 <strong style={{ fontWeight: 600 }}>{verifiedJobCount} verified records</strong>{" "}
                 on the blockchain. Buyers can now see a real maintenance history.
               </p>
@@ -188,7 +188,7 @@ export function MilestoneStack({
               background: "none",
               border: "none",
               cursor: "pointer",
-              color: S.sage,
+              color: UI.sage,
               flexShrink: 0,
             }}
             aria-label="Dismiss 3-job milestone"
@@ -217,7 +217,7 @@ export function MilestoneStack({
           <div>
             <p
               style={{
-                fontFamily: S.mono,
+                fontFamily: UI.mono,
                 fontSize: "0.6rem",
                 letterSpacing: "0.14em",
                 textTransform: "uppercase",
@@ -227,7 +227,7 @@ export function MilestoneStack({
             >
               HomeGentic Certified
             </p>
-            <p style={{ fontSize: "0.875rem", fontWeight: 300, color: S.ink }}>
+            <p style={{ fontSize: "0.875rem", fontWeight: 300, color: UI.ink }}>
               Your home has achieved HomeGentic Certified status. Share your report to attract buyers.
             </p>
           </div>
@@ -240,7 +240,7 @@ export function MilestoneStack({
               background: "none",
               border: "none",
               cursor: "pointer",
-              color: S.sage,
+              color: UI.sage,
               flexShrink: 0,
             }}
             aria-label="Dismiss certified banner"

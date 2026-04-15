@@ -9,7 +9,7 @@ import React, { useState, useEffect } from "react";
 import { showingRequestService, generateIcal, type ShowingRequest } from "@/services/showingRequest";
 import { COLORS, FONTS } from "@/theme";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   inkLight: COLORS.plumMid,
   rule:     COLORS.rule,
@@ -47,14 +47,14 @@ export default function ShowingCalendar({ propertyId }: ShowingCalendarProps) {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "1rem", marginBottom: "0.75rem" }}>
-        <h2 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.15rem", color: S.ink, margin: 0 }}>
+        <h2 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.15rem", color: UI.ink, margin: 0 }}>
           Confirmed Showings
         </h2>
         {confirmed.length > 0 && (
           <button
             onClick={handleExportIcal}
             aria-label="Export iCal"
-            style={{ padding: "0.3rem 0.75rem", background: "transparent", color: S.ink, border: `1px solid ${S.rule}`, fontFamily: S.mono, fontSize: "0.7rem", cursor: "pointer" }}
+            style={{ padding: "0.3rem 0.75rem", background: "transparent", color: UI.ink, border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.7rem", cursor: "pointer" }}
           >
             Export iCal
           </button>
@@ -62,17 +62,17 @@ export default function ShowingCalendar({ propertyId }: ShowingCalendarProps) {
       </div>
 
       {confirmed.length === 0 ? (
-        <p style={{ fontFamily: S.sans, fontSize: "0.875rem", color: S.inkLight }}>
+        <p style={{ fontFamily: UI.sans, fontSize: "0.875rem", color: UI.inkLight }}>
           No confirmed showings yet.
         </p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
           {confirmed.map((r) => (
-            <div key={r.id} style={{ border: `1px solid ${S.rule}`, padding: "0.75rem 1rem" }}>
-              <div style={{ fontFamily: S.sans, fontWeight: 600, fontSize: "0.9rem", color: S.ink }}>
+            <div key={r.id} style={{ border: `1px solid ${UI.rule}`, padding: "0.75rem 1rem" }}>
+              <div style={{ fontFamily: UI.sans, fontWeight: 600, fontSize: "0.9rem", color: UI.ink }}>
                 {r.name}
               </div>
-              <div style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight }}>
+              <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight }}>
                 {r.preferredTime} · {r.contact}
               </div>
             </div>

@@ -4,7 +4,7 @@ import type { RecurringService, VisitLog } from "@/services/recurringService";
 import type { PlanTier } from "@/services/payment";
 import { RecurringServiceCard } from "@/components/RecurringServiceCard";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   rule:     COLORS.rule,
   inkLight: COLORS.plumMid,
@@ -37,11 +37,11 @@ export function RecurringServicesPanel({
       >
         <div
           style={{
-            fontFamily: S.mono,
+            fontFamily: UI.mono,
             fontSize: "0.65rem",
             letterSpacing: "0.12em",
             textTransform: "uppercase",
-            color: S.inkLight,
+            color: UI.inkLight,
           }}
         >
           Recurring Services
@@ -52,13 +52,13 @@ export function RecurringServicesPanel({
             display: "flex",
             alignItems: "center",
             gap: "0.3rem",
-            fontFamily: S.mono,
+            fontFamily: UI.mono,
             fontSize: "0.6rem",
             letterSpacing: "0.08em",
             textTransform: "uppercase",
             padding: "0.3rem 0.75rem",
-            border: `1px solid ${S.sage}`,
-            color: S.sage,
+            border: `1px solid ${UI.sage}`,
+            color: UI.sage,
             background: "none",
             cursor: "pointer",
             borderRadius: RADIUS.sm,
@@ -71,7 +71,7 @@ export function RecurringServicesPanel({
       {services.length === 0 ? (
         <div
           style={{
-            border: `1px solid ${S.rule}`,
+            border: `1px solid ${UI.rule}`,
             background: COLORS.white,
             padding: "1.5rem",
             textAlign: "center",
@@ -82,7 +82,7 @@ export function RecurringServicesPanel({
             style={{
               fontSize: "0.85rem",
               fontWeight: 300,
-              color: S.inkLight,
+              color: UI.inkLight,
               marginBottom: "0.75rem",
             }}
           >
@@ -92,15 +92,15 @@ export function RecurringServicesPanel({
           <button
             onClick={onAddService}
             style={{
-              fontFamily: S.mono,
+              fontFamily: UI.mono,
               fontSize: "0.6rem",
               letterSpacing: "0.1em",
               textTransform: "uppercase",
               padding: "0.4rem 1rem",
-              border: `1px solid ${S.ink}`,
+              border: `1px solid ${UI.ink}`,
               background: "none",
               cursor: "pointer",
-              color: S.ink,
+              color: UI.ink,
               borderRadius: RADIUS.sm,
             }}
           >

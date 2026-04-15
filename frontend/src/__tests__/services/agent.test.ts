@@ -212,8 +212,8 @@ describe("agentService.getReviews", () => {
 // ─── computeAverageRating (pure) ─────────────────────────────────────────────
 
 describe("computeAverageRating", () => {
-  it("returns null for empty reviews", () => {
-    expect(computeAverageRating([])).toBeNull();
+  it("returns 0 for empty reviews", () => {
+    expect(computeAverageRating([])).toBe(0);
   });
 
   it("returns the single rating when there is one review", () => {

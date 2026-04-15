@@ -19,7 +19,7 @@ import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 import { PublicNav } from "@/components/PublicNav";
 import { PublicFooter } from "@/components/PublicFooter";
 
-const S = {
+const UI = {
   ink:       COLORS.plum,
   inkLight:  COLORS.plumMid,
   rule:      COLORS.rule,
@@ -65,24 +65,24 @@ function EstimatorForm() {
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "3rem 1.5rem" }}>
         <div style={{ width: "100%", maxWidth: "34rem" }}>
           {/* Eyebrow */}
-          <div style={{ display: "inline-flex", alignItems: "center", background: S.butter, color: S.ink, padding: "5px 16px", borderRadius: RADIUS.pill, fontSize: "0.75rem", fontWeight: 600, marginBottom: "1.25rem", border: `1px solid rgba(46,37,64,0.1)`, fontFamily: S.sans }}>
+          <div style={{ display: "inline-flex", alignItems: "center", background: UI.butter, color: UI.ink, padding: "5px 16px", borderRadius: RADIUS.pill, fontSize: "0.75rem", fontWeight: 600, marginBottom: "1.25rem", border: `1px solid rgba(46,37,64,0.1)`, fontFamily: UI.sans }}>
             Free · No Account Required
           </div>
 
-          <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "clamp(1.75rem, 4vw, 2.5rem)", lineHeight: 1.1, color: S.ink, marginBottom: "0.75rem" }}>
+          <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "clamp(1.75rem, 4vw, 2.5rem)", lineHeight: 1.1, color: UI.ink, marginBottom: "0.75rem" }}>
             Home System Age Estimator
           </h1>
-          <p style={{ fontFamily: S.sans, fontSize: "0.9375rem", color: S.inkLight, marginBottom: "2.5rem", lineHeight: 1.7, fontWeight: 300 }}>
+          <p style={{ fontFamily: UI.sans, fontSize: "0.9375rem", color: UI.inkLight, marginBottom: "2.5rem", lineHeight: 1.7, fontWeight: 300 }}>
             Enter your home's year built to see estimated ages and urgency for all major systems — no account needed.
           </p>
 
           <div
             role="form"
             aria-label="Estimator inputs"
-            style={{ background: COLORS.white, border: `1px solid ${S.rule}`, borderRadius: RADIUS.card, padding: "2rem", boxShadow: SHADOWS.card, display: "flex", flexDirection: "column", gap: "1rem" }}
+            style={{ background: COLORS.white, border: `1px solid ${UI.rule}`, borderRadius: RADIUS.card, padding: "2rem", boxShadow: SHADOWS.card, display: "flex", flexDirection: "column", gap: "1rem" }}
           >
             <label style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
-              <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
                 Year Built *
               </span>
               <input
@@ -92,18 +92,18 @@ function EstimatorForm() {
                 value={year}
                 onChange={(e) => setYear(e.target.value)}
                 placeholder={String(CURRENT_YEAR - 20)}
-                style={{ padding: "0.75rem 1rem", border: `1px solid ${S.rule}`, borderRadius: RADIUS.input, fontFamily: S.mono, fontSize: "0.9375rem", outline: "none", boxSizing: "border-box", background: COLORS.white, color: S.ink }}
+                style={{ padding: "0.75rem 1rem", border: `1px solid ${UI.rule}`, borderRadius: RADIUS.input, fontFamily: UI.mono, fontSize: "0.9375rem", outline: "none", boxSizing: "border-box", background: COLORS.white, color: UI.ink }}
               />
             </label>
 
             <label style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
-              <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
                 Property Type
               </span>
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value)}
-                style={{ padding: "0.75rem 1rem", border: `1px solid ${S.rule}`, borderRadius: RADIUS.input, fontFamily: S.sans, fontSize: "0.9375rem", outline: "none", background: COLORS.white, color: S.ink, boxSizing: "border-box" }}
+                style={{ padding: "0.75rem 1rem", border: `1px solid ${UI.rule}`, borderRadius: RADIUS.input, fontFamily: UI.sans, fontSize: "0.9375rem", outline: "none", background: COLORS.white, color: UI.ink, boxSizing: "border-box" }}
               >
                 <option value="single-family">Single Family</option>
                 <option value="condo">Condo / Townhouse</option>
@@ -113,7 +113,7 @@ function EstimatorForm() {
             </label>
 
             <label style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
-              <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
                 State (optional — improves climate accuracy)
               </span>
               <input
@@ -122,7 +122,7 @@ function EstimatorForm() {
                 onChange={(e) => setState(e.target.value.toUpperCase().slice(0, 2))}
                 placeholder="e.g. TX"
                 maxLength={2}
-                style={{ padding: "0.75rem 1rem", border: `1px solid ${S.rule}`, borderRadius: RADIUS.input, fontFamily: S.mono, fontSize: "0.9375rem", outline: "none", boxSizing: "border-box", background: COLORS.white, color: S.ink }}
+                style={{ padding: "0.75rem 1rem", border: `1px solid ${UI.rule}`, borderRadius: RADIUS.input, fontFamily: UI.mono, fontSize: "0.9375rem", outline: "none", boxSizing: "border-box", background: COLORS.white, color: UI.ink }}
               />
             </label>
 
@@ -131,8 +131,8 @@ function EstimatorForm() {
               style={{
                 display: "block", textAlign: "center",
                 padding: "0.875rem 1.5rem",
-                background: year ? S.ink : S.rule, color: COLORS.white,
-                fontFamily: S.sans, fontSize: "0.9375rem", fontWeight: 600,
+                background: year ? UI.ink : UI.rule, color: COLORS.white,
+                fontFamily: UI.sans, fontSize: "0.9375rem", fontWeight: 600,
                 textDecoration: "none", borderRadius: RADIUS.pill,
                 pointerEvents: year ? "auto" : "none",
                 transition: "background 0.15s",
@@ -181,13 +181,13 @@ function EstimatorResults({ yearBuilt, propertyType, state }: { yearBuilt: numbe
 
       <div style={{ flex: 1, maxWidth: "56rem", margin: "0 auto", padding: "2.5rem 1.5rem", width: "100%" }}>
         {/* Header */}
-        <div style={{ display: "inline-flex", alignItems: "center", background: S.butter, color: S.ink, padding: "5px 16px", borderRadius: RADIUS.pill, fontSize: "0.75rem", fontWeight: 600, marginBottom: "1.25rem", border: `1px solid rgba(46,37,64,0.1)`, fontFamily: S.sans }}>
+        <div style={{ display: "inline-flex", alignItems: "center", background: UI.butter, color: UI.ink, padding: "5px 16px", borderRadius: RADIUS.pill, fontSize: "0.75rem", fontWeight: 600, marginBottom: "1.25rem", border: `1px solid rgba(46,37,64,0.1)`, fontFamily: UI.sans }}>
           Home System Estimator
         </div>
-        <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "clamp(1.6rem, 4vw, 2.25rem)", lineHeight: 1.05, color: S.ink, marginBottom: "0.5rem" }}>
+        <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "clamp(1.6rem, 4vw, 2.25rem)", lineHeight: 1.05, color: UI.ink, marginBottom: "0.5rem" }}>
           Systems for a {yearBuilt} Home{state ? ` in ${state}` : ""}
         </h1>
-        <p style={{ fontFamily: S.sans, fontSize: "0.9375rem", color: S.inkLight, marginBottom: "2rem", lineHeight: 1.7, fontWeight: 300 }}>
+        <p style={{ fontFamily: UI.sans, fontSize: "0.9375rem", color: UI.inkLight, marginBottom: "2rem", lineHeight: 1.7, fontWeight: 300 }}>
           Estimated ages based on typical lifespans{state ? " adjusted for your climate" : ""}.
           {" "}
           {criticalCount > 0
@@ -198,7 +198,7 @@ function EstimatorResults({ yearBuilt, propertyType, state }: { yearBuilt: numbe
         </p>
 
         {/* System table */}
-        <div style={{ border: `1px solid ${S.rule}`, borderRadius: RADIUS.card, overflow: "hidden", marginBottom: "2rem", boxShadow: SHADOWS.card }}>
+        <div style={{ border: `1px solid ${UI.rule}`, borderRadius: RADIUS.card, overflow: "hidden", marginBottom: "2rem", boxShadow: SHADOWS.card }}>
           {estimates.map((est, i) => (
             <div
               key={est.systemName}
@@ -208,16 +208,16 @@ function EstimatorResults({ yearBuilt, propertyType, state }: { yearBuilt: numbe
                 alignItems:          "center",
                 gap:                 "1rem",
                 padding:             "1rem 1.5rem",
-                borderBottom:        i < estimates.length - 1 ? `1px solid ${S.rule}` : "none",
+                borderBottom:        i < estimates.length - 1 ? `1px solid ${UI.rule}` : "none",
                 background:          URGENCY_BG[est.urgency],
               }}
             >
               {/* System name + age */}
               <div>
-                <div style={{ fontFamily: S.sans, fontWeight: 600, fontSize: "0.9375rem", color: S.ink, marginBottom: "0.25rem" }}>
+                <div style={{ fontFamily: UI.sans, fontWeight: 600, fontSize: "0.9375rem", color: UI.ink, marginBottom: "0.25rem" }}>
                   {est.systemName}
                 </div>
-                <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: S.inkLight }}>
+                <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: UI.inkLight }}>
                   Installed {est.installYear} · {est.ageYears} yr{est.ageYears !== 1 ? "s" : ""} old
                   {est.yearsRemaining > 0
                     ? ` · ${est.yearsRemaining} yr${est.yearsRemaining !== 1 ? "s" : ""} remaining`
@@ -228,7 +228,7 @@ function EstimatorResults({ yearBuilt, propertyType, state }: { yearBuilt: numbe
               {/* Replacement cost */}
               <div
                 aria-label={`replacement cost ${est.systemName}`}
-                style={{ fontFamily: S.mono, fontSize: "0.7rem", letterSpacing: "0.04em", color: S.inkLight, textAlign: "right", whiteSpace: "nowrap" }}
+                style={{ fontFamily: UI.mono, fontSize: "0.7rem", letterSpacing: "0.04em", color: UI.inkLight, textAlign: "right", whiteSpace: "nowrap" }}
               >
                 ${est.replacementCostLow.toLocaleString()}–${est.replacementCostHigh.toLocaleString()}
               </div>
@@ -238,7 +238,7 @@ function EstimatorResults({ yearBuilt, propertyType, state }: { yearBuilt: numbe
                 role="status"
                 aria-label={`urgency ${est.systemName}`}
                 style={{
-                  fontFamily:    S.mono,
+                  fontFamily:    UI.mono,
                   fontSize:      "0.6rem",
                   letterSpacing: "0.1em",
                   textTransform: "uppercase",
@@ -258,10 +258,10 @@ function EstimatorResults({ yearBuilt, propertyType, state }: { yearBuilt: numbe
         </div>
 
         {/* §17.7.2 — Shareable URL */}
-        <div style={{ border: `1px solid ${S.rule}`, borderRadius: RADIUS.card, padding: "1.5rem", marginBottom: "1.25rem" }}>
+        <div style={{ border: `1px solid ${UI.rule}`, borderRadius: RADIUS.card, padding: "1.5rem", marginBottom: "1.25rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
-            <Share2 size={14} color={S.inkLight} />
-            <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
+            <Share2 size={14} color={UI.inkLight} />
+            <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
               Share this estimate
             </span>
           </div>
@@ -271,7 +271,7 @@ function EstimatorResults({ yearBuilt, propertyType, state }: { yearBuilt: numbe
               aria-label="share url"
               readOnly
               value={shareUrl}
-              style={{ flex: 1, padding: "0.5rem 0.875rem", border: `1px solid ${S.rule}`, borderRadius: RADIUS.input, fontFamily: S.mono, fontSize: "0.7rem", color: S.inkLight, background: S.sageLight, outline: "none" }}
+              style={{ flex: 1, padding: "0.5rem 0.875rem", border: `1px solid ${UI.rule}`, borderRadius: RADIUS.input, fontFamily: UI.mono, fontSize: "0.7rem", color: UI.inkLight, background: UI.sageLight, outline: "none" }}
             />
             <button
               onClick={handleCopy}
@@ -279,9 +279,9 @@ function EstimatorResults({ yearBuilt, propertyType, state }: { yearBuilt: numbe
               style={{
                 display: "flex", alignItems: "center", gap: "0.375rem",
                 padding: "0.5rem 1rem",
-                background: copied ? COLORS.sage : S.ink, color: COLORS.white,
+                background: copied ? COLORS.sage : UI.ink, color: COLORS.white,
                 border: "none", borderRadius: RADIUS.pill,
-                cursor: "pointer", fontFamily: S.mono, fontSize: "0.65rem",
+                cursor: "pointer", fontFamily: UI.mono, fontSize: "0.65rem",
                 letterSpacing: "0.08em", textTransform: "uppercase",
                 transition: "background 0.15s",
               }}
@@ -293,12 +293,12 @@ function EstimatorResults({ yearBuilt, propertyType, state }: { yearBuilt: numbe
         </div>
 
         {/* §17.7.3 + §17.7.5 — Track this property CTA */}
-        <div style={{ background: S.ink, borderRadius: RADIUS.card, padding: "2rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+        <div style={{ background: UI.ink, borderRadius: RADIUS.card, padding: "2rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
           <div>
-            <div style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.25rem", color: COLORS.white, marginBottom: "0.375rem" }}>
+            <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.25rem", color: COLORS.white, marginBottom: "0.375rem" }}>
               Track this property for free
             </div>
-            <p style={{ fontFamily: S.sans, fontSize: "0.875rem", color: "rgba(253,252,250,0.7)", margin: 0, lineHeight: 1.7, fontWeight: 300 }}>
+            <p style={{ fontFamily: UI.sans, fontSize: "0.875rem", color: "rgba(253,252,250,0.7)", margin: 0, lineHeight: 1.7, fontWeight: 300 }}>
               Log real maintenance jobs, earn a HomeGentic Score, and get a verified report when you sell. Your {yearBuilt} home details are pre-filled.
             </p>
           </div>
@@ -309,7 +309,7 @@ function EstimatorResults({ yearBuilt, propertyType, state }: { yearBuilt: numbe
               display: "inline-flex", alignItems: "center", gap: "0.5rem",
               padding: "0.75rem 1.5rem",
               background: COLORS.sage, color: COLORS.white,
-              fontFamily: S.sans, fontSize: "0.875rem", fontWeight: 600,
+              fontFamily: UI.sans, fontSize: "0.875rem", fontWeight: 600,
               textDecoration: "none", borderRadius: RADIUS.pill,
               alignSelf: "flex-start",
             }}

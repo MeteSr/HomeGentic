@@ -2,7 +2,7 @@ import React from "react";
 import { ShieldCheck } from "lucide-react";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -48,7 +48,7 @@ export function ScorePanel({
         <span
           aria-label="HomeGentic Score"
           style={{
-            fontFamily: S.serif,
+            fontFamily: UI.serif,
             fontWeight: 900,
             fontSize: "3rem",
             lineHeight: 1,
@@ -59,7 +59,7 @@ export function ScorePanel({
         </span>
         <span
           style={{
-            fontFamily: S.mono,
+            fontFamily: UI.mono,
             fontSize: "0.75rem",
             color: "rgba(255,255,255,0.7)",
           }}
@@ -74,7 +74,7 @@ export function ScorePanel({
           aria-label="Score delta"
           style={{
             display: "inline-block",
-            fontFamily: S.mono,
+            fontFamily: UI.mono,
             fontSize: "0.65rem",
             fontWeight: 700,
             color: delta > 0 ? COLORS.sage : COLORS.blush,
@@ -97,7 +97,7 @@ export function ScorePanel({
             display: "inline-flex",
             alignItems: "center",
             gap: "0.375rem",
-            fontFamily: S.mono,
+            fontFamily: UI.mono,
             fontSize: "0.6rem",
             letterSpacing: "0.1em",
             textTransform: "uppercase",
@@ -128,7 +128,7 @@ export function ScorePanel({
         >
           <p
             style={{
-              fontFamily: S.mono,
+              fontFamily: UI.mono,
               fontSize: "0.55rem",
               letterSpacing: "0.14em",
               textTransform: "uppercase",
@@ -140,7 +140,7 @@ export function ScorePanel({
           </p>
           <p
             style={{
-              fontFamily: S.serif,
+              fontFamily: UI.serif,
               fontWeight: 900,
               fontSize: "1.5rem",
               lineHeight: 1,
@@ -157,7 +157,7 @@ export function ScorePanel({
         <button
           onClick={onResaleReady}
           style={{
-            fontFamily: S.mono,
+            fontFamily: UI.mono,
             fontSize: "0.6rem",
             letterSpacing: "0.1em",
             textTransform: "uppercase",
@@ -175,7 +175,7 @@ export function ScorePanel({
           <button
             onClick={onCopyCertLink}
             style={{
-              fontFamily: S.mono,
+              fontFamily: UI.mono,
               fontSize: "0.6rem",
               letterSpacing: "0.1em",
               textTransform: "uppercase",

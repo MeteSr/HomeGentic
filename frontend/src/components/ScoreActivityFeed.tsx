@@ -11,7 +11,7 @@ import {
   type DecayEvent,
 } from "@/services/scoreDecayService";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   rule:     COLORS.rule,
   inkLight: COLORS.plumMid,
@@ -30,11 +30,11 @@ export function ScoreActivityFeed({ scoreEvents, decayEvents }: ScoreActivityFee
     <div style={{ marginBottom: "2rem" }}>
       <div
         style={{
-          fontFamily: S.mono,
+          fontFamily: UI.mono,
           fontSize: "0.65rem",
           letterSpacing: "0.12em",
           textTransform: "uppercase",
-          color: S.inkLight,
+          color: UI.inkLight,
           marginBottom: "1rem",
         }}
       >
@@ -42,7 +42,7 @@ export function ScoreActivityFeed({ scoreEvents, decayEvents }: ScoreActivityFee
       </div>
       <div
         style={{
-          border: `1px solid ${S.rule}`,
+          border: `1px solid ${UI.rule}`,
           borderRadius: RADIUS.card,
           overflow: "hidden",
         }}
@@ -56,7 +56,7 @@ export function ScoreActivityFeed({ scoreEvents, decayEvents }: ScoreActivityFee
               alignItems: "center",
               gap: "0.875rem",
               padding: "0.75rem 1rem",
-              borderBottom: `1px solid ${S.rule}`,
+              borderBottom: `1px solid ${UI.rule}`,
               background: COLORS.white,
             }}
           >
@@ -75,7 +75,7 @@ export function ScoreActivityFeed({ scoreEvents, decayEvents }: ScoreActivityFee
             >
               <span
                 style={{
-                  fontFamily: S.mono,
+                  fontFamily: UI.mono,
                   fontSize: "0.6rem",
                   fontWeight: 700,
                   color: categoryColor(ev.category),
@@ -86,13 +86,13 @@ export function ScoreActivityFeed({ scoreEvents, decayEvents }: ScoreActivityFee
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ fontSize: "0.8rem", fontWeight: 500 }}>{ev.label}</p>
-              <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>
                 {ev.detail}
               </p>
             </div>
             <span
               style={{
-                fontFamily: S.mono,
+                fontFamily: UI.mono,
                 fontSize: "0.55rem",
                 letterSpacing: "0.08em",
                 textTransform: "uppercase",
@@ -117,7 +117,7 @@ export function ScoreActivityFeed({ scoreEvents, decayEvents }: ScoreActivityFee
               alignItems: "center",
               gap: "0.875rem",
               padding: "0.75rem 1rem",
-              borderBottom: i < decayEvents.length - 1 ? `1px solid ${S.rule}` : "none",
+              borderBottom: i < decayEvents.length - 1 ? `1px solid ${UI.rule}` : "none",
               background: decayCategoryBg(ev.category),
             }}
           >
@@ -136,7 +136,7 @@ export function ScoreActivityFeed({ scoreEvents, decayEvents }: ScoreActivityFee
             >
               <span
                 style={{
-                  fontFamily: S.mono,
+                  fontFamily: UI.mono,
                   fontSize: "0.6rem",
                   fontWeight: 700,
                   color: decayCategoryColor(ev.category),
@@ -155,13 +155,13 @@ export function ScoreActivityFeed({ scoreEvents, decayEvents }: ScoreActivityFee
               >
                 {ev.label}
               </p>
-              <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>
                 {ev.detail}
               </p>
               {ev.recoveryPrompt && (
                 <p
                   style={{
-                    fontFamily: S.mono,
+                    fontFamily: UI.mono,
                     fontSize: "0.58rem",
                     color: decayCategoryColor(ev.category),
                     marginTop: "0.2rem",
@@ -174,7 +174,7 @@ export function ScoreActivityFeed({ scoreEvents, decayEvents }: ScoreActivityFee
             </div>
             <span
               style={{
-                fontFamily: S.mono,
+                fontFamily: UI.mono,
                 fontSize: "0.55rem",
                 letterSpacing: "0.08em",
                 textTransform: "uppercase",

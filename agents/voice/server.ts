@@ -72,12 +72,15 @@ app.use((req, res, next) => {
 });
 
 // 14.3.2 — rate limiting: 30 req/min/IP on all /api/ routes
+// Disabled in test mode so integration tests can make many requests without
+// hitting the limiter.
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many requests — please wait before retrying." },
+  skip: () => process.env.NODE_ENV === "test",
 });
 app.use("/api/", apiLimiter);
 
@@ -1212,10 +1215,15 @@ app.get("/health", (_req, res) => {
   res.json({ ok: true, model: MODEL });
 });
 
-const httpServer = app.listen(port, () => {
-  console.log(`HomeGentic voice agent proxy → http://localhost:${port}`);
-  console.log(`Accepting requests from ${origin}`);
-});
+// Export app for testing; only bind the port when running as the main entry point.
+export { app };
+
+const httpServer = process.env.NODE_ENV !== "test"
+  ? app.listen(port, () => {
+      console.log(`HomeGentic voice agent proxy → http://localhost:${port}`);
+      console.log(`Accepting requests from ${origin}`);
+    })
+  : null;
 
 // ── Graceful shutdown ─────────────────────────────────────────────────────────
 // Stop accepting new connections, then let in-flight SSE streams drain before
@@ -1223,7 +1231,7 @@ const httpServer = app.listen(port, () => {
 // connections mid-stream, causing the frontend to show a hard error.
 function shutdown(signal: string): void {
   console.log(`[voice-agent] ${signal} received — shutting down gracefully`);
-  httpServer.close(() => {
+  httpServer?.close(() => {
     console.log("[voice-agent] all connections closed — exiting");
     process.exit(0);
   });

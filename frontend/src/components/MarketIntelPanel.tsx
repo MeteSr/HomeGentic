@@ -2,7 +2,7 @@ import React from "react";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 import type { ProjectRecommendation } from "@/services/market";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   rule:     COLORS.rule,
   inkLight: COLORS.plumMid,
@@ -25,9 +25,9 @@ export function MarketIntelPanel({
   if (recommendations.length === 0) return null;
 
   function priorityColor(p: string) {
-    if (p === "High")   return S.sage;
+    if (p === "High")   return UI.sage;
     if (p === "Medium") return COLORS.plumMid;
-    return S.inkLight;
+    return UI.inkLight;
   }
 
   return (
@@ -42,11 +42,11 @@ export function MarketIntelPanel({
       >
         <span
           style={{
-            fontFamily: S.mono,
+            fontFamily: UI.mono,
             fontSize: "0.65rem",
             letterSpacing: "0.12em",
             textTransform: "uppercase",
-            color: S.inkLight,
+            color: UI.inkLight,
           }}
         >
           Recommended Projects
@@ -54,11 +54,11 @@ export function MarketIntelPanel({
         <button
           onClick={onSeeAll}
           style={{
-            fontFamily: S.mono,
+            fontFamily: UI.mono,
             fontSize: "0.6rem",
             letterSpacing: "0.08em",
             textTransform: "uppercase",
-            color: S.sage,
+            color: UI.sage,
             background: "none",
             border: "none",
             cursor: "pointer",
@@ -102,7 +102,7 @@ export function MarketIntelPanel({
                 style={{
                   fontSize: "0.875rem",
                   fontWeight: 600,
-                  color: S.ink,
+                  color: UI.ink,
                   lineHeight: 1.2,
                 }}
               >
@@ -110,7 +110,7 @@ export function MarketIntelPanel({
               </p>
               <span
                 style={{
-                  fontFamily: S.mono,
+                  fontFamily: UI.mono,
                   fontSize: "0.5rem",
                   letterSpacing: "0.1em",
                   textTransform: "uppercase",
@@ -130,11 +130,11 @@ export function MarketIntelPanel({
               <div>
                 <p
                   style={{
-                    fontFamily: S.mono,
+                    fontFamily: UI.mono,
                     fontSize: "0.5rem",
                     letterSpacing: "0.1em",
                     textTransform: "uppercase",
-                    color: S.inkLight,
+                    color: UI.inkLight,
                     marginBottom: "0.1rem",
                   }}
                 >
@@ -142,10 +142,10 @@ export function MarketIntelPanel({
                 </p>
                 <p
                   style={{
-                    fontFamily: S.serif,
+                    fontFamily: UI.serif,
                     fontWeight: 700,
                     fontSize: "0.95rem",
-                    color: S.ink,
+                    color: UI.ink,
                   }}
                 >
                   ${(rec.estimatedCostCents / 100).toLocaleString()}
@@ -154,11 +154,11 @@ export function MarketIntelPanel({
               <div>
                 <p
                   style={{
-                    fontFamily: S.mono,
+                    fontFamily: UI.mono,
                     fontSize: "0.5rem",
                     letterSpacing: "0.1em",
                     textTransform: "uppercase",
-                    color: S.inkLight,
+                    color: UI.inkLight,
                     marginBottom: "0.1rem",
                   }}
                 >
@@ -166,10 +166,10 @@ export function MarketIntelPanel({
                 </p>
                 <p
                   style={{
-                    fontFamily: S.serif,
+                    fontFamily: UI.serif,
                     fontWeight: 700,
                     fontSize: "0.95rem",
-                    color: S.sage,
+                    color: UI.sage,
                   }}
                 >
                   {rec.estimatedRoiPercent}%
@@ -179,9 +179,9 @@ export function MarketIntelPanel({
 
             <p
               style={{
-                fontFamily: S.mono,
+                fontFamily: UI.mono,
                 fontSize: "0.6rem",
-                color: S.inkLight,
+                color: UI.inkLight,
                 letterSpacing: "0.04em",
                 lineHeight: 1.5,
                 flex: 1,
@@ -193,14 +193,14 @@ export function MarketIntelPanel({
             <button
               onClick={() => onLogJob({ serviceType: rec.category })}
               style={{
-                fontFamily: S.mono,
+                fontFamily: UI.mono,
                 fontSize: "0.55rem",
                 letterSpacing: "0.1em",
                 textTransform: "uppercase",
                 padding: "0.35rem 0.75rem",
-                border: `1px solid ${S.rule}`,
+                border: `1px solid ${UI.rule}`,
                 background: "none",
-                color: S.inkLight,
+                color: UI.inkLight,
                 cursor: "pointer",
                 alignSelf: "flex-start",
                 borderRadius: RADIUS.sm,

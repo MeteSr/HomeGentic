@@ -11,7 +11,7 @@ import { showingRequestService, type ShowingRequest } from "@/services/showingRe
 import { showingFeedbackService, type FeedbackRequest } from "@/services/showingFeedback";
 import { COLORS, FONTS } from "@/theme";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   inkLight: COLORS.plumMid,
   rule:     COLORS.rule,
@@ -65,25 +65,25 @@ function ShowingRow({ request, onUpdate }: RowProps) {
   }
 
   return (
-    <div style={{ border: `1px solid ${S.rule}`, padding: "0.75rem 1rem", marginBottom: "0.5rem" }}>
+    <div style={{ border: `1px solid ${UI.rule}`, padding: "0.75rem 1rem", marginBottom: "0.5rem" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "0.5rem" }}>
         <div>
-          <div style={{ fontFamily: S.sans, fontWeight: 600, fontSize: "0.9rem", color: S.ink }}>
+          <div style={{ fontFamily: UI.sans, fontWeight: 600, fontSize: "0.9rem", color: UI.ink }}>
             {request.name}
           </div>
-          <div style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight }}>
+          <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight }}>
             {request.contact}
           </div>
-          <div style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, marginTop: "0.15rem" }}>
+          <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, marginTop: "0.15rem" }}>
             {request.preferredTime}
           </div>
           {request.status === "AlternatePending" && request.alternateTime && (
-            <div style={{ fontFamily: S.mono, fontSize: "0.65rem", color: "#e37400", marginTop: "0.25rem" }}>
+            <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: "#e37400", marginTop: "0.25rem" }}>
               Alternate: {request.alternateTime}
             </div>
           )}
         </div>
-        <span style={{ fontFamily: S.mono, fontSize: "0.65rem", fontWeight: 700, color: badge.color, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+        <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", fontWeight: 700, color: badge.color, textTransform: "uppercase", letterSpacing: "0.06em" }}>
           {badge.label}
         </span>
       </div>
@@ -93,21 +93,21 @@ function ShowingRow({ request, onUpdate }: RowProps) {
           <button
             onClick={handleAccept}
             aria-label="Accept"
-            style={{ padding: "0.3rem 0.75rem", background: "#188038", color: "#fff", border: "none", fontFamily: S.mono, fontSize: "0.7rem", cursor: "pointer" }}
+            style={{ padding: "0.3rem 0.75rem", background: "#188038", color: "#fff", border: "none", fontFamily: UI.mono, fontSize: "0.7rem", cursor: "pointer" }}
           >
             Accept
           </button>
           <button
             onClick={handleDecline}
             aria-label="Decline"
-            style={{ padding: "0.3rem 0.75rem", background: "#c0392b", color: "#fff", border: "none", fontFamily: S.mono, fontSize: "0.7rem", cursor: "pointer" }}
+            style={{ padding: "0.3rem 0.75rem", background: "#c0392b", color: "#fff", border: "none", fontFamily: UI.mono, fontSize: "0.7rem", cursor: "pointer" }}
           >
             Decline
           </button>
           {!proposing && (
             <button
               onClick={() => setProposing(true)}
-              style={{ padding: "0.3rem 0.75rem", background: "transparent", color: S.ink, border: `1px solid ${S.rule}`, fontFamily: S.mono, fontSize: "0.7rem", cursor: "pointer" }}
+              style={{ padding: "0.3rem 0.75rem", background: "transparent", color: UI.ink, border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.7rem", cursor: "pointer" }}
             >
               Propose Alternate Time
             </button>
@@ -120,7 +120,7 @@ function ShowingRow({ request, onUpdate }: RowProps) {
           <div>
             <label
               htmlFor={`alt-${request.id}`}
-              style={{ display: "block", fontFamily: S.mono, fontSize: "0.6rem", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.2rem" }}
+              style={{ display: "block", fontFamily: UI.mono, fontSize: "0.6rem", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.2rem" }}
             >
               Alternate Time
             </label>
@@ -130,12 +130,12 @@ function ShowingRow({ request, onUpdate }: RowProps) {
               value={alternateTime}
               onChange={(e) => setAlternateTime(e.target.value)}
               placeholder="e.g. Sunday 2pm"
-              style={{ padding: "0.35rem 0.5rem", border: `1px solid ${S.rule}`, fontFamily: S.mono, fontSize: "0.8rem" }}
+              style={{ padding: "0.35rem 0.5rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.8rem" }}
             />
           </div>
           <button
             type="submit"
-            style={{ alignSelf: "flex-end", padding: "0.35rem 0.75rem", background: S.ink, color: "#fff", border: "none", fontFamily: S.mono, fontSize: "0.7rem", cursor: "pointer" }}
+            style={{ alignSelf: "flex-end", padding: "0.35rem 0.75rem", background: UI.ink, color: "#fff", border: "none", fontFamily: UI.mono, fontSize: "0.7rem", cursor: "pointer" }}
           >
             Send Alternate
           </button>
@@ -145,18 +145,18 @@ function ShowingRow({ request, onUpdate }: RowProps) {
       {request.status === "Accepted" && (
         <div style={{ marginTop: "0.5rem" }}>
           {feedback?.response ? (
-            <div style={{ fontFamily: S.sans, fontSize: "0.8rem", color: S.ink, background: "#f0faf4", border: "1px solid #c3e6cb", padding: "0.5rem 0.75rem" }}>
+            <div style={{ fontFamily: UI.sans, fontSize: "0.8rem", color: UI.ink, background: "#f0faf4", border: "1px solid #c3e6cb", padding: "0.5rem 0.75rem" }}>
               {feedback.response}
             </div>
           ) : fbSent || feedback ? (
-            <span style={{ fontFamily: S.mono, fontSize: "0.65rem", color: "#7A7268" }}>
+            <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: "#7A7268" }}>
               Feedback Requested
             </span>
           ) : (
             <button
               onClick={handleRequestFeedback}
               aria-label="Request Feedback"
-              style={{ padding: "0.3rem 0.75rem", background: "transparent", color: S.ink, border: `1px solid ${S.rule}`, fontFamily: S.mono, fontSize: "0.7rem", cursor: "pointer" }}
+              style={{ padding: "0.3rem 0.75rem", background: "transparent", color: UI.ink, border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.7rem", cursor: "pointer" }}
             >
               Request Feedback
             </button>
@@ -186,11 +186,11 @@ export default function ShowingInbox({ propertyId }: ShowingInboxProps) {
 
   return (
     <div>
-      <h2 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.15rem", color: S.ink, margin: "0 0 0.75rem" }}>
+      <h2 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.15rem", color: UI.ink, margin: "0 0 0.75rem" }}>
         Showing Requests
       </h2>
       {requests.length === 0 ? (
-        <p style={{ fontFamily: S.sans, fontSize: "0.875rem", color: S.inkLight }}>
+        <p style={{ fontFamily: UI.sans, fontSize: "0.875rem", color: UI.inkLight }}>
           No showing requests yet.
         </p>
       ) : (

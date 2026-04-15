@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAuthStore } from "@/store/authStore";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -163,9 +163,9 @@ export default function PricingPage() {
   }, [isAuthenticated]);
 
   return (
-    <div style={{ minHeight: "100vh", background: S.paper }}>
+    <div style={{ minHeight: "100vh", background: UI.paper }}>
       {/* Nav */}
-      <header style={{ borderBottom: `1px solid ${S.rule}`, position: "sticky", top: 0, background: S.paper, zIndex: 50 }}>
+      <header style={{ borderBottom: `1px solid ${UI.rule}`, position: "sticky", top: 0, background: UI.paper, zIndex: 50 }}>
         <div style={{ maxWidth: "80rem", margin: "0 auto", padding: "0 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", height: "3.5rem" }}>
           <Link to="/" style={{ textDecoration: "none", fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.1rem", letterSpacing: "-0.5px", color: COLORS.plum }}>
             Home<span style={{ color: COLORS.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
@@ -180,26 +180,26 @@ export default function PricingPage() {
           <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: COLORS.butter, color: COLORS.plum, padding: "5px 16px", borderRadius: 100, fontSize: "0.75rem", fontWeight: 600, marginBottom: "1rem", border: `1px solid rgba(46,37,64,0.1)` }}>
             Pricing
           </div>
-          <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "clamp(2rem, 5vw, 3rem)", lineHeight: 1, color: S.ink, marginBottom: "1rem" }}>
+          <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "clamp(2rem, 5vw, 3rem)", lineHeight: 1, color: UI.ink, marginBottom: "1rem" }}>
             Simple, transparent pricing
           </h1>
-          <p style={{ fontFamily: FONTS.sans, fontSize: "0.9rem", fontWeight: 300, color: S.inkLight }}>
+          <p style={{ fontFamily: FONTS.sans, fontSize: "0.9rem", fontWeight: 300, color: UI.inkLight }}>
 Upgrade when you're ready. Cancel anytime.
           </p>
         </div>
 
         {/* Audience toggle */}
         <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.5rem" }}>
-          <div style={{ display: "inline-flex", border: `1px solid ${S.rule}`, borderRadius: RADIUS.sm, overflow: "hidden" }}>
+          <div style={{ display: "inline-flex", border: `1px solid ${UI.rule}`, borderRadius: RADIUS.sm, overflow: "hidden" }}>
             {(["homeowner", "contractor"] as const).map((a) => (
               <button
                 key={a}
                 onClick={() => setAudience(a)}
                 style={{
                   padding: "0.5rem 1.5rem",
-                  fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase",
+                  fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase",
                   background: audience === a ? COLORS.plum : COLORS.white,
-                  color: audience === a ? COLORS.white : S.inkLight,
+                  color: audience === a ? COLORS.white : UI.inkLight,
                   border: "none", cursor: "pointer",
                   transition: "background 0.15s, color 0.15s",
                 }}
@@ -213,7 +213,7 @@ Upgrade when you're ready. Cancel anytime.
         {/* Monthly/Annual toggle — homeowner only */}
         {audience === "homeowner" && (
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "0.75rem", marginBottom: "2.5rem" }}>
-            <span style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: annual ? S.inkLight : S.ink, fontWeight: annual ? 400 : 700 }}>
+            <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: annual ? UI.inkLight : UI.ink, fontWeight: annual ? 400 : 700 }}>
               Monthly
             </span>
             <button
@@ -235,11 +235,11 @@ Upgrade when you're ready. Cancel anytime.
                 boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
               }} />
             </button>
-            <span style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: annual ? S.ink : S.inkLight, fontWeight: annual ? 700 : 400 }}>
+            <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: annual ? UI.ink : UI.inkLight, fontWeight: annual ? 700 : 400 }}>
               Annual
             </span>
             {annual && (
-              <span style={{ background: COLORS.sage, color: COLORS.white, padding: "2px 10px", borderRadius: 100, fontFamily: S.mono, fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.06em" }}>
+              <span style={{ background: COLORS.sage, color: COLORS.white, padding: "2px 10px", borderRadius: 100, fontFamily: UI.mono, fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.06em" }}>
                 Save 2 months
               </span>
             )}
@@ -361,17 +361,17 @@ Upgrade when you're ready. Cancel anytime.
         <div style={{ marginBottom: "4rem" }}>
           <div style={{ textAlign: "center", marginBottom: "2rem" }}>
             <div style={{ display: "inline-flex", alignItems: "center", background: COLORS.butter, color: COLORS.plum, padding: "5px 16px", borderRadius: 100, fontSize: "0.75rem", fontWeight: 600, marginBottom: "1rem", border: `1px solid rgba(46,37,64,0.1)` }}>Compare</div>
-            <h2 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, color: S.ink }}>Feature comparison</h2>
+            <h2 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, color: UI.ink }}>Feature comparison</h2>
           </div>
 
           {audience === "homeowner" ? (
-            <div style={{ border: `1px solid ${S.rule}`, borderRadius: RADIUS.card, overflow: "hidden" }}>
+            <div style={{ border: `1px solid ${UI.rule}`, borderRadius: RADIUS.card, overflow: "hidden" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ background: COLORS.sageLight }}>
-                    <th style={{ textAlign: "left", padding: "0.875rem 1.25rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, borderBottom: `1px solid ${S.rule}` }}>Feature</th>
+                    <th style={{ textAlign: "left", padding: "0.875rem 1.25rem", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, borderBottom: `1px solid ${UI.rule}` }}>Feature</th>
                     {(["Basic", "Pro", "Premium"] as const).map((tier) => (
-                      <th key={tier} style={{ textAlign: "center", padding: "0.875rem 1rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: tier === "Pro" ? S.rust : S.inkLight, borderBottom: `1px solid ${S.rule}` }}>
+                      <th key={tier} style={{ textAlign: "center", padding: "0.875rem 1rem", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: tier === "Pro" ? UI.rust : UI.inkLight, borderBottom: `1px solid ${UI.rule}` }}>
                         {tier}
                       </th>
                     ))}
@@ -379,8 +379,8 @@ Upgrade when you're ready. Cancel anytime.
                 </thead>
                 <tbody>
                   {HOMEOWNER_FEATURES_TABLE.map((row, i) => (
-                    <tr key={row.feature} style={{ borderBottom: i < HOMEOWNER_FEATURES_TABLE.length - 1 ? `1px solid ${S.rule}` : "none" }}>
-                      <td style={{ padding: "0.75rem 1.25rem", fontFamily: FONTS.sans, fontSize: "0.85rem", fontWeight: 400, color: S.ink }}>
+                    <tr key={row.feature} style={{ borderBottom: i < HOMEOWNER_FEATURES_TABLE.length - 1 ? `1px solid ${UI.rule}` : "none" }}>
+                      <td style={{ padding: "0.75rem 1.25rem", fontFamily: FONTS.sans, fontSize: "0.85rem", fontWeight: 400, color: UI.ink }}>
                         {row.feature}
                         {FEATURE_TOOLTIPS[row.feature] && <FeatureTooltip text={FEATURE_TOOLTIPS[row.feature]} />}
                       </td>
@@ -389,9 +389,9 @@ Upgrade when you're ready. Cancel anytime.
                         return (
                           <td key={tier} style={{ textAlign: "center", padding: "0.75rem 1rem" }}>
                             {typeof val === "boolean" ? (
-                              val ? <CheckCircle size={14} color={S.sage} style={{ margin: "0 auto" }} /> : <X size={14} color={S.rule} style={{ margin: "0 auto" }} />
+                              val ? <CheckCircle size={14} color={UI.sage} style={{ margin: "0 auto" }} /> : <X size={14} color={UI.rule} style={{ margin: "0 auto" }} />
                             ) : (
-                              <span style={{ fontFamily: FONTS.sans, fontSize: "0.85rem", fontWeight: 500, color: S.ink }}>{val}</span>
+                              <span style={{ fontFamily: FONTS.sans, fontSize: "0.85rem", fontWeight: 500, color: UI.ink }}>{val}</span>
                             )}
                           </td>
                         );
@@ -402,13 +402,13 @@ Upgrade when you're ready. Cancel anytime.
               </table>
             </div>
           ) : (
-            <div style={{ border: `1px solid ${S.rule}`, borderRadius: RADIUS.card, overflow: "hidden" }}>
+            <div style={{ border: `1px solid ${UI.rule}`, borderRadius: RADIUS.card, overflow: "hidden" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ background: COLORS.sageLight }}>
-                    <th style={{ textAlign: "left", padding: "0.875rem 1.25rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, borderBottom: `1px solid ${S.rule}` }}>Feature</th>
+                    <th style={{ textAlign: "left", padding: "0.875rem 1.25rem", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, borderBottom: `1px solid ${UI.rule}` }}>Feature</th>
                     {(["ContractorFree", "ContractorPro"] as const).map((tier) => (
-                      <th key={tier} style={{ textAlign: "center", padding: "0.875rem 1rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, borderBottom: `1px solid ${S.rule}` }}>
+                      <th key={tier} style={{ textAlign: "center", padding: "0.875rem 1rem", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, borderBottom: `1px solid ${UI.rule}` }}>
                         {tier === "ContractorFree" ? "Free" : "Pro"}
                       </th>
                     ))}
@@ -416,8 +416,8 @@ Upgrade when you're ready. Cancel anytime.
                 </thead>
                 <tbody>
                   {CONTRACTOR_FEATURES_TABLE.map((row, i) => (
-                    <tr key={row.feature} style={{ borderBottom: i < CONTRACTOR_FEATURES_TABLE.length - 1 ? `1px solid ${S.rule}` : "none" }}>
-                      <td style={{ padding: "0.75rem 1.25rem", fontFamily: FONTS.sans, fontSize: "0.85rem", fontWeight: 400, color: S.ink }}>
+                    <tr key={row.feature} style={{ borderBottom: i < CONTRACTOR_FEATURES_TABLE.length - 1 ? `1px solid ${UI.rule}` : "none" }}>
+                      <td style={{ padding: "0.75rem 1.25rem", fontFamily: FONTS.sans, fontSize: "0.85rem", fontWeight: 400, color: UI.ink }}>
                         {row.feature}
                         {FEATURE_TOOLTIPS[row.feature] && <FeatureTooltip text={FEATURE_TOOLTIPS[row.feature]} />}
                       </td>
@@ -426,9 +426,9 @@ Upgrade when you're ready. Cancel anytime.
                         return (
                           <td key={tier} style={{ textAlign: "center", padding: "0.75rem 1rem" }}>
                             {typeof val === "boolean" ? (
-                              val ? <CheckCircle size={14} color={S.sage} style={{ margin: "0 auto" }} /> : <X size={14} color={S.rule} style={{ margin: "0 auto" }} />
+                              val ? <CheckCircle size={14} color={UI.sage} style={{ margin: "0 auto" }} /> : <X size={14} color={UI.rule} style={{ margin: "0 auto" }} />
                             ) : (
-                              <span style={{ fontFamily: FONTS.sans, fontSize: "0.85rem", fontWeight: 500, color: S.ink }}>{val}</span>
+                              <span style={{ fontFamily: FONTS.sans, fontSize: "0.85rem", fontWeight: 500, color: UI.ink }}>{val}</span>
                             )}
                           </td>
                         );
@@ -445,13 +445,13 @@ Upgrade when you're ready. Cancel anytime.
         <div style={{ maxWidth: "48rem", margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: "2rem" }}>
             <div style={{ display: "inline-flex", alignItems: "center", background: COLORS.butter, color: COLORS.plum, padding: "5px 16px", borderRadius: 100, fontSize: "0.75rem", fontWeight: 600, marginBottom: "1rem", border: `1px solid rgba(46,37,64,0.1)` }}>FAQ</div>
-            <h2 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, color: S.ink }}>Frequently asked questions</h2>
+            <h2 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, color: UI.ink }}>Frequently asked questions</h2>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
             {FAQS.map((faq) => (
               <div key={faq.q} style={{ background: COLORS.white, padding: "1.25rem 1.5rem", borderRadius: RADIUS.sm, border: `1px solid ${COLORS.rule}` }}>
-                <p style={{ fontFamily: FONTS.serif, fontWeight: 700, color: S.ink, marginBottom: "0.625rem" }}>{faq.q}</p>
-                <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: S.inkLight, lineHeight: 1.7, fontWeight: 300 }}>{faq.a}</p>
+                <p style={{ fontFamily: FONTS.serif, fontWeight: 700, color: UI.ink, marginBottom: "0.625rem" }}>{faq.q}</p>
+                <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: UI.inkLight, lineHeight: 1.7, fontWeight: 300 }}>{faq.a}</p>
               </div>
             ))}
           </div>

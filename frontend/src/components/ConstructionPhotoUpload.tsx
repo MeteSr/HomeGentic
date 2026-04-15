@@ -2,7 +2,7 @@ import React, { useState, useRef } from "react";
 import { PhotoQuotaDisplay } from "./PhotoQuotaDisplay";
 import { COLORS, FONTS, RADIUS } from "@/theme";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -81,18 +81,18 @@ export function ConstructionPhotoUpload({
         onDrop={onDrop}
         onClick={() => inputRef.current?.click()}
         style={{
-          border: `2px dashed ${dragging ? S.rust : S.rule}`,
+          border: `2px dashed ${dragging ? UI.rust : UI.rule}`,
           padding: "2rem",
           textAlign: "center",
           cursor: "pointer",
-          background: dragging ? COLORS.blush : S.paper,
+          background: dragging ? COLORS.blush : UI.paper,
           transition: "border-color 0.15s, background 0.15s",
         }}
       >
-        <p style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.inkLight }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: UI.inkLight }}>
           Drag files here or click to browse
         </p>
-        <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, marginTop: "0.25rem", opacity: 0.7 }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, marginTop: "0.25rem", opacity: 0.7 }}>
           PNG, JPG, PDF, HEIC up to 10 MB each
         </p>
         <input
@@ -118,7 +118,7 @@ export function ConstructionPhotoUpload({
                 position: "absolute", bottom: 0, left: 0, right: 0,
                 background: "rgba(46,37,64,0.65)",
                 color: COLORS.white,
-                fontFamily: S.mono,
+                fontFamily: UI.mono,
                 fontSize: "0.55rem",
                 letterSpacing: "0.06em",
                 padding: "0.2rem 0.375rem",

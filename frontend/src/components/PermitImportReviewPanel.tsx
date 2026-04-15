@@ -10,7 +10,7 @@ import React, { useState } from "react";
 import { COLORS, FONTS } from "@/theme";
 import type { ImportedPermit } from "@/services/permitImport";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   inkLight: COLORS.plumMid,
   rule:     COLORS.rule,
@@ -39,16 +39,16 @@ export default function PermitImportReviewPanel({ permits, onConfirm, onDismissA
   const confirmed = permits.filter((_, i) => !dismissed.has(i));
 
   return (
-    <div style={{ border: `1px solid ${S.rule}`, background: COLORS.white }}>
+    <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white }}>
       {/* Header */}
-      <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${S.rule}`, background: COLORS.sageLight }}>
-        <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: S.sage, marginBottom: "0.25rem" }}>
+      <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${UI.rule}`, background: COLORS.sageLight }}>
+        <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.sage, marginBottom: "0.25rem" }}>
           Permit Records Found
         </div>
-        <h2 style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.1rem", color: S.ink, margin: 0 }}>
+        <h2 style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.1rem", color: UI.ink, margin: 0 }}>
           {permits.length} permit{permits.length !== 1 ? "s" : ""} found for this address
         </h2>
-        <p style={{ fontFamily: S.sans, fontSize: "0.8rem", color: S.inkLight, margin: "0.375rem 0 0" }}>
+        <p style={{ fontFamily: UI.sans, fontSize: "0.8rem", color: UI.inkLight, margin: "0.375rem 0 0" }}>
           Uncheck any permits you'd like to exclude, then click "Add to History."
         </p>
       </div>
@@ -69,7 +69,7 @@ export default function PermitImportReviewPanel({ permits, onConfirm, onDismissA
               gap:           "1rem",
               alignItems:    "start",
               padding:       "0.875rem 1.25rem",
-              borderBottom:  `1px solid ${S.rule}`,
+              borderBottom:  `1px solid ${UI.rule}`,
               opacity:       isDismissed ? 0.4 : 1,
             }}
           >
@@ -82,28 +82,28 @@ export default function PermitImportReviewPanel({ permits, onConfirm, onDismissA
             />
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginBottom: "0.25rem" }}>
-                <span style={{ fontWeight: 600, fontSize: "0.875rem", color: S.ink }}>{p.serviceType}</span>
-                <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight }}>
+                <span style={{ fontWeight: 600, fontSize: "0.875rem", color: UI.ink }}>{p.serviceType}</span>
+                <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight }}>
                   #{p.permit.permitNumber}
                 </span>
                 <span
                   style={{
-                    fontFamily:    S.mono,
+                    fontFamily:    UI.mono,
                     fontSize:      "0.55rem",
                     letterSpacing: "0.1em",
                     textTransform: "uppercase",
-                    color:         p.permit.status === "Finaled" ? S.sage : S.inkLight,
-                    border:        `1px solid ${p.permit.status === "Finaled" ? S.sage : S.rule}`,
+                    color:         p.permit.status === "Finaled" ? UI.sage : UI.inkLight,
+                    border:        `1px solid ${p.permit.status === "Finaled" ? UI.sage : UI.rule}`,
                     padding:       "0.15rem 0.4rem",
                   }}
                 >
                   {p.permit.status}
                 </span>
               </div>
-              <div style={{ fontFamily: S.sans, fontSize: "0.8rem", color: S.inkLight, marginBottom: "0.2rem" }}>
+              <div style={{ fontFamily: UI.sans, fontSize: "0.8rem", color: UI.inkLight, marginBottom: "0.2rem" }}>
                 {p.permit.description}
               </div>
-              <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: S.inkLight, display: "flex", gap: "1rem" }}>
+              <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: UI.inkLight, display: "flex", gap: "1rem" }}>
                 <span>{p.permit.issuedDate}</span>
                 {p.permit.contractorName && <span>{p.permit.contractorName}</span>}
                 {costStr && <span>{costStr}</span>}
@@ -121,11 +121,11 @@ export default function PermitImportReviewPanel({ permits, onConfirm, onDismissA
           style={{
             flex:          1,
             padding:       "0.625rem 1.25rem",
-            background:    confirmed.length === 0 ? S.rule : S.ink,
+            background:    confirmed.length === 0 ? UI.rule : UI.ink,
             color:         COLORS.white,
             border:        "none",
             cursor:        confirmed.length === 0 ? "not-allowed" : "pointer",
-            fontFamily:    S.mono,
+            fontFamily:    UI.mono,
             fontSize:      "0.7rem",
             letterSpacing: "0.1em",
             textTransform: "uppercase",
@@ -136,7 +136,7 @@ export default function PermitImportReviewPanel({ permits, onConfirm, onDismissA
         </button>
         <button
           onClick={onDismissAll}
-          style={{ padding: "0.625rem 1rem", background: "none", border: `1px solid ${S.rule}`, cursor: "pointer", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight }}
+          style={{ padding: "0.625rem 1rem", background: "none", border: `1px solid ${UI.rule}`, cursor: "pointer", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight }}
           aria-label="skip"
         >
           Skip

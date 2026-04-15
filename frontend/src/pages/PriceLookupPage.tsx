@@ -20,7 +20,7 @@ import { PublicFooter } from "@/components/PublicFooter";
 
 const SERVICE_TYPES = ["HVAC", "Roofing", "Plumbing", "Electrical", "Flooring", "Painting", "Landscaping", "Windows", "Foundation", "Other"];
 
-const S = {
+const UI = {
   ink:       COLORS.plum,
   inkLight:  COLORS.plumMid,
   rule:      COLORS.rule,
@@ -45,20 +45,20 @@ function SearchForm({ defaultService = "", defaultZip = "" }: { defaultService?:
     <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "3rem 1.5rem" }}>
       <div style={{ width: "100%", maxWidth: "34rem" }}>
         {/* Eyebrow */}
-        <div style={{ display: "inline-flex", alignItems: "center", background: S.butter, color: S.ink, padding: "5px 16px", borderRadius: RADIUS.pill, fontSize: "0.75rem", fontWeight: 600, marginBottom: "1.25rem", border: `1px solid rgba(46,37,64,0.1)`, fontFamily: S.sans }}>
+        <div style={{ display: "inline-flex", alignItems: "center", background: UI.butter, color: UI.ink, padding: "5px 16px", borderRadius: RADIUS.pill, fontSize: "0.75rem", fontWeight: 600, marginBottom: "1.25rem", border: `1px solid rgba(46,37,64,0.1)`, fontFamily: UI.sans }}>
           Price Intelligence
         </div>
 
-        <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "clamp(1.75rem, 4vw, 2.5rem)", lineHeight: 1.1, color: S.ink, marginBottom: "0.75rem" }}>
+        <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "clamp(1.75rem, 4vw, 2.5rem)", lineHeight: 1.1, color: UI.ink, marginBottom: "0.75rem" }}>
           Home repair cost lookup
         </h1>
-        <p style={{ fontFamily: S.sans, fontSize: "0.9375rem", color: S.inkLight, marginBottom: "2.5rem", lineHeight: 1.7, fontWeight: 300 }}>
+        <p style={{ fontFamily: UI.sans, fontSize: "0.9375rem", color: UI.inkLight, marginBottom: "2.5rem", lineHeight: 1.7, fontWeight: 300 }}>
           See real price benchmarks from closed bids in your zip code before you hire.
         </p>
 
-        <div style={{ background: COLORS.white, border: `1px solid ${S.rule}`, borderRadius: RADIUS.card, padding: "2rem", boxShadow: SHADOWS.card, display: "flex", flexDirection: "column", gap: "1rem" }}>
+        <div style={{ background: COLORS.white, border: `1px solid ${UI.rule}`, borderRadius: RADIUS.card, padding: "2rem", boxShadow: SHADOWS.card, display: "flex", flexDirection: "column", gap: "1rem" }}>
           <label style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
-            <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
+            <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
               Service Type
             </span>
             <select
@@ -66,9 +66,9 @@ function SearchForm({ defaultService = "", defaultZip = "" }: { defaultService?:
               value={service}
               onChange={(e) => setService(e.target.value)}
               style={{
-                padding: "0.75rem 1rem", border: `1px solid ${S.rule}`,
-                borderRadius: RADIUS.input, fontFamily: S.sans, fontSize: "0.9375rem",
-                outline: "none", background: COLORS.white, color: S.ink,
+                padding: "0.75rem 1rem", border: `1px solid ${UI.rule}`,
+                borderRadius: RADIUS.input, fontFamily: UI.sans, fontSize: "0.9375rem",
+                outline: "none", background: COLORS.white, color: UI.ink,
               }}
             >
               {SERVICE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -76,7 +76,7 @@ function SearchForm({ defaultService = "", defaultZip = "" }: { defaultService?:
           </label>
 
           <label style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
-            <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
+            <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
               Zip Code
             </span>
             <input
@@ -87,9 +87,9 @@ function SearchForm({ defaultService = "", defaultZip = "" }: { defaultService?:
               placeholder="32114"
               maxLength={10}
               style={{
-                padding: "0.75rem 1rem", border: `1px solid ${S.rule}`,
-                borderRadius: RADIUS.input, fontFamily: S.sans, fontSize: "0.9375rem",
-                outline: "none", background: COLORS.white, color: S.ink,
+                padding: "0.75rem 1rem", border: `1px solid ${UI.rule}`,
+                borderRadius: RADIUS.input, fontFamily: UI.sans, fontSize: "0.9375rem",
+                outline: "none", background: COLORS.white, color: UI.ink,
               }}
             />
           </label>
@@ -97,9 +97,9 @@ function SearchForm({ defaultService = "", defaultZip = "" }: { defaultService?:
           <Link
             to={href}
             style={{
-              padding: "0.875rem", background: zip.trim() ? S.ink : S.rule, color: COLORS.white,
+              padding: "0.875rem", background: zip.trim() ? UI.ink : UI.rule, color: COLORS.white,
               textDecoration: "none", borderRadius: RADIUS.pill,
-              fontFamily: S.sans, fontSize: "0.9375rem", fontWeight: 600,
+              fontFamily: UI.sans, fontSize: "0.9375rem", fontWeight: 600,
               textAlign: "center", pointerEvents: zip.trim() ? "auto" : "none",
               transition: "background 0.15s",
             }}
@@ -108,7 +108,7 @@ function SearchForm({ defaultService = "", defaultZip = "" }: { defaultService?:
           </Link>
         </div>
 
-        <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight, textAlign: "center", marginTop: "1.25rem" }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight, textAlign: "center", marginTop: "1.25rem" }}>
           FREE · NO ACCOUNT REQUIRED
         </p>
       </div>
@@ -135,46 +135,46 @@ function BenchmarkResult({ result, service, zip }: { result: PriceBenchmarkResul
   return (
     <div style={{ flex: 1, maxWidth: "40rem", margin: "0 auto", padding: "3rem 1.5rem", width: "100%" }}>
       {/* Eyebrow */}
-      <div style={{ display: "inline-flex", alignItems: "center", background: S.butter, color: S.ink, padding: "5px 16px", borderRadius: RADIUS.pill, fontSize: "0.75rem", fontWeight: 600, marginBottom: "1.25rem", border: `1px solid rgba(46,37,64,0.1)`, fontFamily: S.sans }}>
+      <div style={{ display: "inline-flex", alignItems: "center", background: UI.butter, color: UI.ink, padding: "5px 16px", borderRadius: RADIUS.pill, fontSize: "0.75rem", fontWeight: 600, marginBottom: "1.25rem", border: `1px solid rgba(46,37,64,0.1)`, fontFamily: UI.sans }}>
         Price Benchmark · {zip}
       </div>
 
-      <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "clamp(1.5rem, 4vw, 2rem)", lineHeight: 1.1, color: S.ink, marginBottom: "2rem" }}>
+      <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "clamp(1.5rem, 4vw, 2rem)", lineHeight: 1.1, color: UI.ink, marginBottom: "2rem" }}>
         {service} in {zip}
       </h1>
 
       {!sufficient ? (
-        <div style={{ padding: "1.75rem", border: `1px solid ${S.rule}`, borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
-          <p style={{ fontFamily: S.sans, fontSize: "0.9375rem", color: S.inkLight, lineHeight: 1.7, fontWeight: 300 }}>
+        <div style={{ padding: "1.75rem", border: `1px solid ${UI.rule}`, borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
+          <p style={{ fontFamily: UI.sans, fontSize: "0.9375rem", color: UI.inkLight, lineHeight: 1.7, fontWeight: 300 }}>
             Not enough data — fewer than 5 closed bids on file for this zip code and service type.
           </p>
         </div>
       ) : (
-        <div style={{ border: `1px solid ${S.rule}`, borderRadius: RADIUS.card, overflow: "hidden", boxShadow: SHADOWS.card }}>
+        <div style={{ border: `1px solid ${UI.rule}`, borderRadius: RADIUS.card, overflow: "hidden", boxShadow: SHADOWS.card }}>
           {/* Price range */}
-          <div style={{ padding: "2rem", background: S.sageLight, borderBottom: `1px solid ${S.sageMid}` }}>
-            <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.75rem" }}>
+          <div style={{ padding: "2rem", background: UI.sageLight, borderBottom: `1px solid ${UI.sageMid}` }}>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.75rem" }}>
               Typical Range
             </p>
             <div style={{ display: "flex", alignItems: "baseline", gap: "0.625rem" }}>
-              <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "2.25rem", color: S.ink }}>{fmt(result.low)}</span>
-              <span style={{ fontFamily: S.mono, fontSize: "1rem", color: S.inkLight }}>–</span>
-              <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "2.25rem", color: S.ink }}>{fmt(result.high)}</span>
+              <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "2.25rem", color: UI.ink }}>{fmt(result.low)}</span>
+              <span style={{ fontFamily: UI.mono, fontSize: "1rem", color: UI.inkLight }}>–</span>
+              <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "2.25rem", color: UI.ink }}>{fmt(result.high)}</span>
             </div>
           </div>
           {/* Median & meta */}
           <div style={{ padding: "1.25rem 2rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>MEDIAN</span>
-              <span style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.25rem", color: S.ink }}>{fmt(result.median)}</span>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight }}>MEDIAN</span>
+              <span style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.25rem", color: UI.ink }}>{fmt(result.median)}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight }}>SAMPLE SIZE</span>
-              <span style={{ fontFamily: S.mono, fontSize: "0.75rem", color: S.inkLight }}>{result.sampleSize} bids</span>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight }}>SAMPLE SIZE</span>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: UI.inkLight }}>{result.sampleSize} bids</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight }}>LAST UPDATED</span>
-              <span style={{ fontFamily: S.mono, fontSize: "0.75rem", color: S.inkLight }}>{result.lastUpdated}</span>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight }}>LAST UPDATED</span>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: UI.inkLight }}>{result.lastUpdated}</span>
             </div>
           </div>
         </div>
@@ -183,7 +183,7 @@ function BenchmarkResult({ result, service, zip }: { result: PriceBenchmarkResul
       <div style={{ marginTop: "2rem" }}>
         <Link
           to="/prices"
-          style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, textDecoration: "none" }}
+          style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, textDecoration: "none" }}
         >
           ← Search another
         </Link>
@@ -229,16 +229,16 @@ export default function PriceLookupPage() {
 
       {showNoData && (
         <div style={{ flex: 1, maxWidth: "40rem", margin: "0 auto", padding: "3rem 1.5rem", width: "100%" }}>
-          <div style={{ display: "inline-flex", alignItems: "center", background: S.butter, color: S.ink, padding: "5px 16px", borderRadius: RADIUS.pill, fontSize: "0.75rem", fontWeight: 600, marginBottom: "1.25rem", border: `1px solid rgba(46,37,64,0.1)`, fontFamily: S.sans }}>
+          <div style={{ display: "inline-flex", alignItems: "center", background: UI.butter, color: UI.ink, padding: "5px 16px", borderRadius: RADIUS.pill, fontSize: "0.75rem", fontWeight: 600, marginBottom: "1.25rem", border: `1px solid rgba(46,37,64,0.1)`, fontFamily: UI.sans }}>
             No Data
           </div>
-          <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "clamp(1.5rem, 4vw, 2rem)", color: S.ink, marginBottom: "1rem" }}>
+          <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "clamp(1.5rem, 4vw, 2rem)", color: UI.ink, marginBottom: "1rem" }}>
             {service} in {zip}
           </h1>
-          <p style={{ fontFamily: S.sans, fontSize: "0.9375rem", color: S.inkLight, lineHeight: 1.7, fontWeight: 300, marginBottom: "1.5rem" }}>
+          <p style={{ fontFamily: UI.sans, fontSize: "0.9375rem", color: UI.inkLight, lineHeight: 1.7, fontWeight: 300, marginBottom: "1.5rem" }}>
             No data available for this combination yet.
           </p>
-          <Link to="/prices" style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, textDecoration: "none" }}>
+          <Link to="/prices" style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, textDecoration: "none" }}>
             ← Search another
           </Link>
         </div>

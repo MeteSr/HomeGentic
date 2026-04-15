@@ -27,7 +27,7 @@ interface State {
   errorInfo: React.ErrorInfo | null;
 }
 
-const S = {
+const UI = {
   ink:    COLORS.plum,
   muted:  COLORS.plumMid,
   rule:   COLORS.rule,
@@ -78,13 +78,13 @@ export class ErrorBoundary extends React.Component<Props, State> {
           }}
         >
           <div style={{ maxWidth: 480, width: "100%", textAlign: "center" }}>
-            <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.rust, marginBottom: "1rem" }}>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.rust, marginBottom: "1rem" }}>
               Application Error
             </p>
-            <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "2rem", color: S.ink, marginBottom: "0.75rem" }}>
+            <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "2rem", color: UI.ink, marginBottom: "0.75rem" }}>
               Something went wrong
             </h1>
-            <p style={{ fontFamily: S.sans, fontSize: "0.9375rem", color: S.muted, marginBottom: "2rem", lineHeight: 1.6 }}>
+            <p style={{ fontFamily: UI.sans, fontSize: "0.9375rem", color: UI.muted, marginBottom: "2rem", lineHeight: 1.6 }}>
               {label}An unexpected error occurred. Your data is safe — reload to continue.
             </p>
             <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}>
@@ -92,9 +92,9 @@ export class ErrorBoundary extends React.Component<Props, State> {
                 onClick={() => window.location.reload()}
                 style={{
                   padding: "0.75rem 1.5rem",
-                  background: S.ink, color: COLORS.white,
+                  background: UI.ink, color: COLORS.white,
                   border: "none", borderRadius: RADIUS.pill,
-                  fontFamily: S.sans, fontSize: "0.875rem", fontWeight: 600,
+                  fontFamily: UI.sans, fontSize: "0.875rem", fontWeight: 600,
                   cursor: "pointer",
                 }}
               >
@@ -104,9 +104,9 @@ export class ErrorBoundary extends React.Component<Props, State> {
                 onClick={this.handleReset}
                 style={{
                   padding: "0.75rem 1.5rem",
-                  background: "none", color: S.muted,
-                  border: `1px solid ${S.rule}`, borderRadius: RADIUS.pill,
-                  fontFamily: S.sans, fontSize: "0.875rem",
+                  background: "none", color: UI.muted,
+                  border: `1px solid ${UI.rule}`, borderRadius: RADIUS.pill,
+                  fontFamily: UI.sans, fontSize: "0.875rem",
                   cursor: "pointer",
                 }}
               >
@@ -118,7 +118,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
                 marginTop: "2rem", padding: "1rem",
                 background: "#FFF5F3", border: `1px solid #F5C6BD`,
                 borderRadius: RADIUS.sm, textAlign: "left",
-                fontFamily: S.mono, fontSize: "0.7rem", color: S.rust,
+                fontFamily: UI.mono, fontSize: "0.7rem", color: UI.rust,
                 overflow: "auto", maxHeight: 200,
               }}>
                 {error.message}
@@ -133,22 +133,22 @@ export class ErrorBoundary extends React.Component<Props, State> {
     return (
       <div style={{
         margin: "2rem auto", maxWidth: 560, padding: "2rem",
-        border: `1px solid ${S.rule}`, borderRadius: RADIUS.card,
+        border: `1px solid ${UI.rule}`, borderRadius: RADIUS.card,
         background: COLORS.white,
       }}>
-        <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.rust, marginBottom: "0.5rem" }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.rust, marginBottom: "0.5rem" }}>
           {label}Error
         </p>
-        <p style={{ fontFamily: S.sans, fontSize: "0.9375rem", color: S.ink, marginBottom: "1.25rem", lineHeight: 1.6 }}>
+        <p style={{ fontFamily: UI.sans, fontSize: "0.9375rem", color: UI.ink, marginBottom: "1.25rem", lineHeight: 1.6 }}>
           This section encountered an unexpected error.
         </p>
         <button
           onClick={this.handleReset}
           style={{
             padding: "0.5rem 1.25rem",
-            background: S.ink, color: COLORS.white,
+            background: UI.ink, color: COLORS.white,
             border: "none", borderRadius: RADIUS.pill,
-            fontFamily: S.sans, fontSize: "0.875rem", fontWeight: 600,
+            fontFamily: UI.sans, fontSize: "0.875rem", fontWeight: 600,
             cursor: "pointer",
           }}
         >
@@ -159,7 +159,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
             marginTop: "1rem", padding: "0.75rem",
             background: "#FFF5F3", border: `1px solid #F5C6BD`,
             borderRadius: RADIUS.sm,
-            fontFamily: S.mono, fontSize: "0.65rem", color: S.rust,
+            fontFamily: UI.mono, fontSize: "0.65rem", color: UI.rust,
             overflow: "auto", maxHeight: 160,
           }}>
             {error.message}

@@ -4,7 +4,7 @@ import { COLORS, FONTS, RADIUS } from "@/theme";
 import type { AtRiskWarning } from "@/services/scoreDecayService";
 import type { PlanTier } from "@/services/payment";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -75,7 +75,7 @@ export function AlertStack({
           >
             <span
               style={{
-                fontFamily: S.mono,
+                fontFamily: UI.mono,
                 fontSize: "0.65rem",
                 fontWeight: 700,
                 color: "#b45309",
@@ -87,7 +87,7 @@ export function AlertStack({
           <div style={{ flex: 1, minWidth: 0 }}>
             <p
               style={{
-                fontFamily: S.mono,
+                fontFamily: UI.mono,
                 fontSize: "0.6rem",
                 letterSpacing: "0.12em",
                 textTransform: "uppercase",
@@ -116,7 +116,7 @@ export function AlertStack({
               onClick={onLogJob}
               style={{
                 marginTop: "0.5rem",
-                fontFamily: S.mono,
+                fontFamily: UI.mono,
                 fontSize: "0.55rem",
                 letterSpacing: "0.1em",
                 textTransform: "uppercase",
@@ -145,7 +145,7 @@ export function AlertStack({
             alignItems: "center",
             justifyContent: "space-between",
             gap: "1rem",
-            border: `1px solid ${S.rule}`,
+            border: `1px solid ${UI.rule}`,
             padding: "1rem 1.25rem",
             marginBottom: "1.5rem",
             background: "#fff",
@@ -158,7 +158,7 @@ export function AlertStack({
               style={{
                 width: "2rem",
                 height: "2rem",
-                border: `1px solid ${S.rule}`,
+                border: `1px solid ${UI.rule}`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -166,22 +166,22 @@ export function AlertStack({
                 borderRadius: RADIUS.sm,
               }}
             >
-              <Sparkles size={13} color={S.inkLight} />
+              <Sparkles size={13} color={UI.inkLight} />
             </div>
             <div>
               <p
                 style={{
-                  fontFamily: S.mono,
+                  fontFamily: UI.mono,
                   fontSize: "0.6rem",
                   letterSpacing: "0.12em",
                   textTransform: "uppercase",
-                  color: S.inkLight,
+                  color: UI.inkLight,
                   marginBottom: "0.2rem",
                 }}
               >
                 Score Hasn't Moved in 30 Days
               </p>
-              <p style={{ fontSize: "0.8rem", fontWeight: 300, color: S.inkLight }}>
+              <p style={{ fontSize: "0.8rem", fontWeight: 300, color: UI.inkLight }}>
                 Log a recent job or verify a property to keep your HomeGentic Score growing.
               </p>
             </div>
@@ -189,13 +189,13 @@ export function AlertStack({
           <button
             onClick={onLogJob}
             style={{
-              fontFamily: S.mono,
+              fontFamily: UI.mono,
               fontSize: "0.6rem",
               letterSpacing: "0.1em",
               textTransform: "uppercase",
               padding: "0.5rem 1rem",
-              background: S.ink,
-              color: S.paper,
+              background: UI.ink,
+              color: UI.paper,
               border: "none",
               cursor: "pointer",
               display: "inline-flex",
@@ -218,7 +218,7 @@ export function AlertStack({
             alignItems: "flex-start",
             justifyContent: "space-between",
             gap: "1rem",
-            border: `1px solid ${S.rule}`,
+            border: `1px solid ${UI.rule}`,
             padding: "1rem 1.25rem",
             marginBottom: "1.5rem",
             background: "#fff",
@@ -231,7 +231,7 @@ export function AlertStack({
               style={{
                 width: "2rem",
                 height: "2rem",
-                border: `1px solid ${S.rule}`,
+                border: `1px solid ${UI.rule}`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -240,7 +240,7 @@ export function AlertStack({
                 borderRadius: RADIUS.sm,
               }}
             >
-              <Sparkles size={13} color={S.sage} />
+              <Sparkles size={13} color={UI.sage} />
             </div>
             <div>
               <div
@@ -253,23 +253,23 @@ export function AlertStack({
               >
                 <p
                   style={{
-                    fontFamily: S.mono,
+                    fontFamily: UI.mono,
                     fontSize: "0.6rem",
                     letterSpacing: "0.12em",
                     textTransform: "uppercase",
-                    color: S.sage,
+                    color: UI.sage,
                   }}
                 >
                   Home Pulse
                 </p>
                 <span
                   style={{
-                    fontFamily: S.mono,
+                    fontFamily: UI.mono,
                     fontSize: "0.55rem",
                     letterSpacing: "0.08em",
                     textTransform: "uppercase",
-                    color: S.inkLight,
-                    border: `1px solid ${S.rule}`,
+                    color: UI.inkLight,
+                    border: `1px solid ${UI.rule}`,
                     padding: "0.05rem 0.375rem",
                     borderRadius: RADIUS.pill,
                   }}
@@ -280,7 +280,7 @@ export function AlertStack({
               <p style={{ fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.25rem" }}>
                 {pulseTip.headline}
               </p>
-              <p style={{ fontSize: "0.8rem", color: S.inkLight, fontWeight: 300 }}>
+              <p style={{ fontSize: "0.8rem", color: UI.inkLight, fontWeight: 300 }}>
                 {pulseTip.detail}
               </p>
             </div>
@@ -294,7 +294,7 @@ export function AlertStack({
               background: "none",
               border: "none",
               cursor: "pointer",
-              color: S.inkLight,
+              color: UI.inkLight,
               flexShrink: 0,
             }}
             aria-label="Dismiss pulse tip"
@@ -323,17 +323,17 @@ export function AlertStack({
           <div style={{ flex: 1 }}>
             <p
               style={{
-                fontFamily: S.mono,
+                fontFamily: UI.mono,
                 fontSize: "0.6rem",
                 letterSpacing: "0.14em",
                 textTransform: "uppercase",
-                color: S.sage,
+                color: UI.sage,
                 marginBottom: "0.2rem",
               }}
             >
               Upgrade to Pro
             </p>
-            <p style={{ fontSize: "0.875rem", fontWeight: 300, color: S.ink }}>
+            <p style={{ fontSize: "0.875rem", fontWeight: 300, color: UI.ink }}>
               Unlock score breakdowns, warranty tracking, and full report sharing.
             </p>
           </div>
@@ -341,13 +341,13 @@ export function AlertStack({
             <button
               onClick={() => onNavigate("/pricing")}
               style={{
-                fontFamily: S.mono,
+                fontFamily: UI.mono,
                 fontSize: "0.6rem",
                 letterSpacing: "0.1em",
                 textTransform: "uppercase",
                 padding: "0.45rem 1rem",
                 border: "none",
-                background: S.sage,
+                background: UI.sage,
                 color: COLORS.white,
                 cursor: "pointer",
                 borderRadius: RADIUS.sm,
@@ -365,7 +365,7 @@ export function AlertStack({
                 background: "none",
                 border: "none",
                 cursor: "pointer",
-                color: S.inkLight,
+                color: UI.inkLight,
               }}
               aria-label="Dismiss upgrade banner"
             >

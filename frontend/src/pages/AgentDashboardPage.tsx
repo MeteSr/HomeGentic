@@ -20,7 +20,7 @@ import { COLORS, FONTS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { ResponsiveGrid } from "@/components/ResponsiveGrid";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -102,32 +102,32 @@ export default function AgentDashboardPage() {
 
         <button
           onClick={() => navigate(-1)}
-          style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: "1.5rem" }}
+          style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: "1.5rem" }}
         >
           <ArrowLeft size={14} /> Back
         </button>
 
-        <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.rust, marginBottom: "0.5rem" }}>
+        <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: UI.rust, marginBottom: "0.5rem" }}>
           Realtor Tools
         </div>
-        <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, marginBottom: "0.375rem" }}>
+        <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, marginBottom: "0.375rem" }}>
           Agent Dashboard
         </h1>
-        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight, marginBottom: "2rem" }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight, marginBottom: "2rem" }}>
           All HomeGentic share links you've generated — track views and manage access.
         </p>
 
         {/* Summary stats */}
         {!loading && (
-          <ResponsiveGrid cols={{ mobile: 1, tablet: 3, desktop: 3 }} style={{ borderTop: `1px solid ${S.rule}`, borderLeft: `1px solid ${S.rule}`, marginBottom: "2rem" }} gap="0">
+          <ResponsiveGrid cols={{ mobile: 1, tablet: 3, desktop: 3 }} style={{ borderTop: `1px solid ${UI.rule}`, borderLeft: `1px solid ${UI.rule}`, marginBottom: "2rem" }} gap="0">
             {[
               { label: "Total Links",   value: String(rows.length) },
               { label: "Active Links",  value: String(activeCount) },
               { label: "Total Views",   value: String(totalViews) },
             ].map((s) => (
-              <div key={s.label} style={{ padding: "1.25rem 1.5rem", borderRight: `1px solid ${S.rule}`, borderBottom: `1px solid ${S.rule}`, background: COLORS.white }}>
-                <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.5rem" }}>{s.label}</div>
-                <div style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.75rem", lineHeight: 1 }}>{s.value}</div>
+              <div key={s.label} style={{ padding: "1.25rem 1.5rem", borderRight: `1px solid ${UI.rule}`, borderBottom: `1px solid ${UI.rule}`, background: COLORS.white }}>
+                <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.5rem" }}>{s.label}</div>
+                <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.75rem", lineHeight: 1 }}>{s.value}</div>
               </div>
             ))}
           </ResponsiveGrid>
@@ -137,25 +137,25 @@ export default function AgentDashboardPage() {
         {loading ? (
           <div style={{ textAlign: "center", padding: "4rem 0" }}><div className="spinner-lg" /></div>
         ) : rows.length === 0 ? (
-          <div style={{ border: `1px dashed ${S.rule}`, padding: "3rem", textAlign: "center" }}>
-            <p style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.125rem", marginBottom: "0.5rem" }}>No share links yet</p>
-            <p style={{ fontSize: "0.875rem", color: S.inkLight, fontWeight: 300, maxWidth: "24rem", margin: "0 auto 1.5rem" }}>
+          <div style={{ border: `1px dashed ${UI.rule}`, padding: "3rem", textAlign: "center" }}>
+            <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.125rem", marginBottom: "0.5rem" }}>No share links yet</p>
+            <p style={{ fontSize: "0.875rem", color: UI.inkLight, fontWeight: 300, maxWidth: "24rem", margin: "0 auto 1.5rem" }}>
               Generate a HomeGentic report from a property's detail page to create a shareable link.
             </p>
             <Button variant="outline" onClick={() => navigate("/dashboard")}>Go to Dashboard</Button>
           </div>
         ) : (
-          <div style={{ border: `1px solid ${S.rule}` }}>
+          <div style={{ border: `1px solid ${UI.rule}` }}>
             <div style={{ overflowX: isMobile ? "auto" : "visible" }}>
             {/* Header row */}
             <div style={{
               display: "grid", gridTemplateColumns: "2fr 1fr 1fr auto auto auto",
               minWidth: isMobile ? "560px" : undefined,
               gap: "0.75rem", padding: "0.75rem 1rem",
-              borderBottom: `1px solid ${S.rule}`, background: S.paper,
+              borderBottom: `1px solid ${UI.rule}`, background: UI.paper,
             }}>
               {["Property", "Created", "Expiry", "Views", "Status", ""].map((h) => (
-                <div key={h} style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
+                <div key={h} style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
                   {h}
                 </div>
               ))}
@@ -173,7 +173,7 @@ export default function AgentDashboardPage() {
                     display: "grid", gridTemplateColumns: "2fr 1fr 1fr auto auto auto",
                     minWidth: isMobile ? "560px" : undefined,
                     gap: "0.75rem", padding: "0.875rem 1rem", alignItems: "center",
-                    borderBottom: i < rows.length - 1 ? `1px solid ${S.rule}` : "none",
+                    borderBottom: i < rows.length - 1 ? `1px solid ${UI.rule}` : "none",
                     background: row.isActive ? COLORS.white : COLORS.white,
                     opacity: !row.isActive || isExpired ? 0.65 : 1,
                   }}
@@ -181,17 +181,17 @@ export default function AgentDashboardPage() {
                   {/* Property */}
                   <div>
                     <p style={{ fontSize: "0.8rem", fontWeight: 500, marginBottom: "0.125rem" }}>{row.propertyAddress}</p>
-                    <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.06em", color: S.inkLight }}>{row.token}</p>
+                    <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.06em", color: UI.inkLight }}>{row.token}</p>
                   </div>
 
                   {/* Created */}
-                  <div style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>{createdLabel}</div>
+                  <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>{createdLabel}</div>
 
                   {/* Expiry */}
-                  <div style={{ fontFamily: S.mono, fontSize: "0.6rem", color: isExpired ? S.rust : S.inkLight }}>{expiryLabel}</div>
+                  <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: isExpired ? UI.rust : UI.inkLight }}>{expiryLabel}</div>
 
                   {/* Views */}
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.25rem", fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.25rem", fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>
                     <Eye size={11} /> {row.viewCount}
                   </div>
 
@@ -209,7 +209,7 @@ export default function AgentDashboardPage() {
                       href={reportService.shareUrl(row.token)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ display: "flex", alignItems: "center", padding: "0.25rem", color: S.inkLight, border: `1px solid ${S.rule}`, background: "none" }}
+                      style={{ display: "flex", alignItems: "center", padding: "0.25rem", color: UI.inkLight, border: `1px solid ${UI.rule}`, background: "none" }}
                       title="Open report"
                     >
                       <ExternalLink size={12} />
@@ -219,7 +219,7 @@ export default function AgentDashboardPage() {
                         onClick={() => revoke(row.token)}
                         disabled={revoking === row.token}
                         title="Revoke link"
-                        style={{ display: "flex", alignItems: "center", padding: "0.25rem", color: S.rust, border: `1px solid ${S.rust}30`, background: "none", cursor: "pointer" }}
+                        style={{ display: "flex", alignItems: "center", padding: "0.25rem", color: UI.rust, border: `1px solid ${UI.rust}30`, background: "none", cursor: "pointer" }}
                       >
                         {revoking === row.token ? <div className="spinner-sm" /> : <X size={12} />}
                       </button>

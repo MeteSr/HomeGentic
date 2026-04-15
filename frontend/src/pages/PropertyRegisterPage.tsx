@@ -17,7 +17,7 @@ import { COLORS, FONTS } from "@/theme";
 import { isValidZip, isValidUsState } from "@/utils/validators";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -130,27 +130,27 @@ export default function PropertyRegisterPage() {
 
         <button
           onClick={() => navigate("/dashboard")}
-          style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: "1.5rem" }}
+          style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: "1.5rem" }}
         >
           <ArrowLeft size={14} /> Back
         </button>
 
-        <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.rust, marginBottom: "0.5rem" }}>
+        <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: UI.rust, marginBottom: "0.5rem" }}>
           New Property
         </div>
-        <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, marginBottom: "1.5rem" }}>
+        <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, marginBottom: "1.5rem" }}>
           Register a Property
         </h1>
 
         {/* Step indicator */}
         {step < 4 && (
-          <div style={{ display: "flex", borderTop: `1px solid ${S.rule}`, borderLeft: `1px solid ${S.rule}`, marginBottom: "1.5rem" }}>
+          <div style={{ display: "flex", borderTop: `1px solid ${UI.rule}`, borderLeft: `1px solid ${UI.rule}`, marginBottom: "1.5rem" }}>
             {[1, 2, 3].map((n) => (
               <div key={n} style={{
                 flex: 1, padding: "0.625rem", textAlign: "center",
-                borderRight: `1px solid ${S.rule}`, borderBottom: `1px solid ${S.rule}`,
-                fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase",
-                color: step === n ? S.rust : step > n ? S.inkLight : COLORS.rule,
+                borderRight: `1px solid ${UI.rule}`, borderBottom: `1px solid ${UI.rule}`,
+                fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase",
+                color: step === n ? UI.rust : step > n ? UI.inkLight : COLORS.rule,
                 background: step === n ? COLORS.blush : COLORS.white,
               }}>
                 {n === 1 ? "Address" : n === 2 ? "Details" : "Confirm"}
@@ -161,7 +161,7 @@ export default function PropertyRegisterPage() {
 
         {/* Step 1 */}
         {step === 1 && (
-          <div style={{ border: `1px solid ${S.rule}`, background: COLORS.white, padding: "1.75rem" }}>
+          <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "1.75rem" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               <div>
                 <label className="form-label" htmlFor="prop-address">Street Address *</label>
@@ -235,19 +235,19 @@ export default function PropertyRegisterPage() {
 
         {/* Step 2 */}
         {step === 2 && (
-          <div style={{ border: `1px solid ${S.rule}`, background: COLORS.white, padding: "1.75rem" }}>
+          <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "1.75rem" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               <div>
                 <label className="form-label">Property Type *</label>
-                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "1px", background: S.rule }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "1px", background: UI.rule }}>
                   {PROPERTY_TYPES.map((t) => (
                     <div key={t} onClick={() => update("propertyType", t)} style={{
                       padding: "0.75rem", cursor: "pointer",
                       background: form.propertyType === t ? COLORS.blush : COLORS.white,
-                      fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.08em",
+                      fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em",
                       textTransform: "uppercase", textAlign: "center",
-                      color: form.propertyType === t ? S.rust : S.inkLight,
-                      border: form.propertyType === t ? `1px solid ${S.rust}` : "none",
+                      color: form.propertyType === t ? UI.rust : UI.inkLight,
+                      border: form.propertyType === t ? `1px solid ${UI.rust}` : "none",
                     }}>
                       {t === "SingleFamily" ? "Single Family" : t}
                     </div>
@@ -258,14 +258,14 @@ export default function PropertyRegisterPage() {
                 <div>
                   <label className="form-label" htmlFor="prop-year">
                     Year Built *
-                    {lookingUp && <span style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight, marginLeft: "0.5rem" }}>fetching…</span>}
+                    {lookingUp && <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: UI.inkLight, marginLeft: "0.5rem" }}>fetching…</span>}
                   </label>
                   <input id="prop-year" className="form-input" type="number" placeholder="1985" min="1800" max={new Date().getFullYear()} value={form.yearBuilt} onChange={(e) => update("yearBuilt", e.target.value)} disabled={lookingUp} />
                 </div>
                 <div>
                   <label className="form-label" htmlFor="prop-sqft">
                     Square Feet *
-                    {lookingUp && <span style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight, marginLeft: "0.5rem" }}>fetching…</span>}
+                    {lookingUp && <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: UI.inkLight, marginLeft: "0.5rem" }}>fetching…</span>}
                   </label>
                   <input id="prop-sqft" className="form-input" type="number" placeholder="2000" min="100" value={form.squareFeet} onChange={(e) => update("squareFeet", e.target.value)} disabled={lookingUp} />
                 </div>
@@ -289,9 +289,9 @@ export default function PropertyRegisterPage() {
 
         {/* Step 3 */}
         {step === 3 && (
-          <div style={{ border: `1px solid ${S.rule}`, background: COLORS.white }}>
-            <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${S.rule}` }}>
-              <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>Review & Confirm</p>
+          <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white }}>
+            <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${UI.rule}` }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>Review & Confirm</p>
             </div>
             {[
               { label: "Address",    value: form.address },
@@ -305,9 +305,9 @@ export default function PropertyRegisterPage() {
               <div key={row.label} style={{
                 display: "flex", justifyContent: "space-between", alignItems: "center",
                 padding: "0.75rem 1.25rem",
-                borderBottom: i < arr.length - 1 ? `1px solid ${S.rule}` : "none",
+                borderBottom: i < arr.length - 1 ? `1px solid ${UI.rule}` : "none",
               }}>
-                <span style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>{row.label}</span>
+                <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>{row.label}</span>
                 <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>{row.value}</span>
               </div>
             ))}

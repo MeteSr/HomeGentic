@@ -9,7 +9,7 @@ import { useAuthStore } from "@/store/authStore";
 
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -116,7 +116,7 @@ export default function OnboardingPage() {
   const handleStep = (step: Step) => { if (!step.done) navigate(step.href); };
 
   return (
-    <div style={{ minHeight: "100vh", background: S.paper, display: "flex", flexDirection: "column", alignItems: "center", padding: "3rem 1.25rem 4rem" }}>
+    <div style={{ minHeight: "100vh", background: UI.paper, display: "flex", flexDirection: "column", alignItems: "center", padding: "3rem 1.25rem 4rem" }}>
 
       {/* Logo */}
       <div style={{ display: "flex", alignItems: "center", marginBottom: "3rem", cursor: "pointer" }} onClick={() => navigate("/")}>
@@ -131,10 +131,10 @@ export default function OnboardingPage() {
           <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: COLORS.butter, color: COLORS.plum, padding: "5px 16px", borderRadius: 100, fontSize: "0.75rem", fontWeight: 600, marginBottom: "1rem", border: `1px solid rgba(46,37,64,0.1)` }}>
             Welcome
           </div>
-          <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, color: S.ink, marginBottom: "0.5rem" }}>
+          <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, color: UI.ink, marginBottom: "0.5rem" }}>
             Welcome{profile?.email ? `, ${profile.email.split("@")[0]}` : ""}!
           </h1>
-          <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight, maxWidth: "26rem", margin: "0 auto" }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight, maxWidth: "26rem", margin: "0 auto" }}>
             You're in. Let's get your first property on-chain in the next few minutes.
           </p>
 
@@ -142,18 +142,18 @@ export default function OnboardingPage() {
           {(() => {
             const pct      = Math.round((doneCount / steps.length) * 100);
             const allDone  = doneCount === steps.length;
-            const barColor = allDone ? S.sage : S.rust;
+            const barColor = allDone ? UI.sage : UI.rust;
             return (
               <div style={{ marginTop: "1.5rem" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-                  <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight }}>
+                  <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight }}>
                     Setup progress
                   </span>
                   <div style={{ display: "flex", alignItems: "baseline", gap: "0.375rem" }}>
-                    <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.25rem", lineHeight: 1, color: allDone ? S.sage : S.rust }}>
+                    <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.25rem", lineHeight: 1, color: allDone ? UI.sage : UI.rust }}>
                       {pct}%
                     </span>
-                    <span style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight }}>
+                    <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: UI.inkLight }}>
                       {doneCount}/{steps.length} steps
                     </span>
                   </div>
@@ -162,7 +162,7 @@ export default function OnboardingPage() {
                   <div style={{ height: "6px", width: `${pct}%`, background: barColor, borderRadius: 100, transition: "width 0.5s ease" }} />
                 </div>
                 {allDone && (
-                  <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: S.sage, marginTop: "0.5rem", textAlign: "center" }}>
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: UI.sage, marginTop: "0.5rem", textAlign: "center" }}>
                     ✓ Setup complete — your HomeGentic profile is ready.
                   </p>
                 )}
@@ -185,8 +185,8 @@ export default function OnboardingPage() {
         )}
 
         {/* Footer */}
-        <div style={{ marginTop: "2rem", paddingTop: "1.5rem", borderTop: `1px solid ${S.rule}`, display: "flex", justifyContent: "center" }}>
-          <button onClick={() => navigate("/dashboard")} style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.08em", color: S.inkLight, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "3px" }}>
+        <div style={{ marginTop: "2rem", paddingTop: "1.5rem", borderTop: `1px solid ${UI.rule}`, display: "flex", justifyContent: "center" }}>
+          <button onClick={() => navigate("/dashboard")} style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", color: UI.inkLight, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "3px" }}>
             Skip for now — go to my dashboard
           </button>
         </div>

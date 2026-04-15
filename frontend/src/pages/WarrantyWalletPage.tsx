@@ -10,7 +10,7 @@ import { extractDocument, fileToBase64, type DocumentExtraction } from "@/servic
 import { UpgradeGate } from "@/components/UpgradeGate";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -33,13 +33,13 @@ interface WarrantyJob {
 
 function StatusBadge({ status }: { status: WarrantyStatus }) {
   const cfg = {
-    active:   { label: "Active",        color: S.sage,     bg: COLORS.sageLight, border: `${S.sage}40` },
+    active:   { label: "Active",        color: UI.sage,     bg: COLORS.sageLight, border: `${UI.sage}40` },
     expiring: { label: "Expiring Soon", color: amber,      bg: COLORS.butter,    border: `${amber}40`  },
-    expired:  { label: "Expired",       color: S.inkLight, bg: S.paper,          border: S.rule        },
+    expired:  { label: "Expired",       color: UI.inkLight, bg: UI.paper,          border: UI.rule        },
   }[status];
   return (
     <span style={{
-      fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em",
+      fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em",
       textTransform: "uppercase", color: cfg.color,
       background: cfg.bg, border: `1px solid ${cfg.border}`,
       padding: "0.15rem 0.5rem",
@@ -52,23 +52,23 @@ function StatusBadge({ status }: { status: WarrantyStatus }) {
 function WarrantyRow({ item, isLast }: { item: WarrantyJob; isLast: boolean }) {
   const navigate = useNavigate();
   const icon = item.status === "active"
-    ? <ShieldCheck size={16} color={S.sage} />
+    ? <ShieldCheck size={16} color={UI.sage} />
     : item.status === "expiring"
     ? <AlertTriangle size={16} color={amber} />
-    : <Clock size={16} color={S.inkLight} />;
+    : <Clock size={16} color={UI.inkLight} />;
 
   return (
     <div style={{
       display: "flex", alignItems: "flex-start", gap: "1rem",
       padding: "1rem 1.25rem",
-      borderBottom: isLast ? "none" : `1px solid ${S.rule}`,
+      borderBottom: isLast ? "none" : `1px solid ${UI.rule}`,
       background: COLORS.white,
     }}>
       <div style={{ marginTop: "0.1rem", flexShrink: 0 }}>{icon}</div>
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.25rem" }}>
-          <span style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "0.875rem", color: item.status === "expired" ? S.inkLight : S.ink }}>
+          <span style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "0.875rem", color: item.status === "expired" ? UI.inkLight : UI.ink }}>
             {item.job.serviceType}
           </span>
           <StatusBadge status={item.status} />
@@ -76,21 +76,21 @@ function WarrantyRow({ item, isLast }: { item: WarrantyJob; isLast: boolean }) {
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem 1.5rem" }}>
           {item.property && (
-            <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>
+            <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>
               {item.property.address}, {item.property.city}
             </span>
           )}
-          <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>
+          <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>
             {item.job.isDiy ? "DIY" : item.job.contractorName ?? "—"}
           </span>
-          <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>
+          <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>
             Job date: {item.job.date}
           </span>
         </div>
       </div>
 
       <div style={{ textAlign: "right", flexShrink: 0 }}>
-        <div style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1rem", color: item.status === "expiring" ? amber : item.status === "expired" ? S.inkLight : S.sage, lineHeight: 1, marginBottom: "0.2rem" }}>
+        <div style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1rem", color: item.status === "expiring" ? amber : item.status === "expired" ? UI.inkLight : UI.sage, lineHeight: 1, marginBottom: "0.2rem" }}>
           {item.status === "expired"
             ? `Exp. ${item.expiry.toLocaleDateString()}`
             : item.daysLeft === 0
@@ -98,13 +98,13 @@ function WarrantyRow({ item, isLast }: { item: WarrantyJob; isLast: boolean }) {
             : `${item.daysLeft} day${item.daysLeft !== 1 ? "s" : ""}`}
         </div>
         {item.status !== "expired" && (
-          <div style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight }}>
+          <div style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: UI.inkLight }}>
             until {item.expiry.toLocaleDateString()}
           </div>
         )}
         <button
           onClick={() => navigate(`/jobs/new`, { state: { editJob: item.job } })}
-          style={{ marginTop: "0.5rem", fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight, background: "none", border: `1px solid ${S.rule}`, padding: "0.2rem 0.5rem", cursor: "pointer" }}
+          style={{ marginTop: "0.5rem", fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight, background: "none", border: `1px solid ${UI.rule}`, padding: "0.2rem 0.5rem", cursor: "pointer" }}
         >
           View
         </button>
@@ -116,15 +116,15 @@ function WarrantyRow({ item, isLast }: { item: WarrantyJob; isLast: boolean }) {
 function Section({ title, items, emptyText }: { title: string; items: WarrantyJob[]; emptyText: string }) {
   return (
     <div style={{ marginBottom: "2rem" }}>
-      <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.75rem" }}>
-        {title} <span style={{ color: S.rust }}>({items.length})</span>
+      <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.75rem" }}>
+        {title} <span style={{ color: UI.rust }}>({items.length})</span>
       </div>
       {items.length === 0 ? (
-        <div style={{ padding: "1.25rem", border: `1px solid ${S.rule}`, background: COLORS.white, fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight }}>
+        <div style={{ padding: "1.25rem", border: `1px solid ${UI.rule}`, background: COLORS.white, fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight }}>
           {emptyText}
         </div>
       ) : (
-        <div style={{ border: `1px solid ${S.rule}` }}>
+        <div style={{ border: `1px solid ${UI.rule}` }}>
           {items.map((item, i) => (
             <WarrantyRow key={item.job.id} item={item} isLast={i === items.length - 1} />
           ))}
@@ -195,31 +195,31 @@ function ScanDocumentPanel() {
   const isLowConfidence = extraction?.confidence === "low";
 
   return (
-    <div style={{ border: `1px solid ${S.rule}`, padding: "1.25rem 1.5rem", marginBottom: "2rem" }}>
-      <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.75rem" }}>
+    <div style={{ border: `1px solid ${UI.rule}`, padding: "1.25rem 1.5rem", marginBottom: "2rem" }}>
+      <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.75rem" }}>
         Scan Document
       </div>
 
       {submitted && (
-        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.sage, marginBottom: "0.75rem" }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.sage, marginBottom: "0.75rem" }}>
           ✓ Document registered. Log a job with this appliance to save the warranty.
         </p>
       )}
 
       {error && (
-        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: "#C94C2E", marginBottom: "0.75rem" }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: "#C94C2E", marginBottom: "0.75rem" }}>
           {error}
         </p>
       )}
 
       {step === "idle" && !submitted && (
         <>
-          <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, marginBottom: "1rem" }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, marginBottom: "1rem" }}>
             Upload a photo of an appliance manual or warranty card. Brand, model, serial number, and warranty term will be extracted automatically.
           </p>
           <button
             onClick={() => fileRef.current?.click()}
-            style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${S.ink}`, background: "none", color: S.ink, cursor: "pointer" }}
+            style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${UI.ink}`, background: "none", color: UI.ink, cursor: "pointer" }}
           >
             <ScanLine size={13} /> Scan Document
           </button>
@@ -228,36 +228,36 @@ function ScanDocumentPanel() {
       )}
 
       {step === "extracting" && (
-        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight }}>Extracting document data…</p>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight }}>Extracting document data…</p>
       )}
 
       {step === "confirm" && extraction && (
         <form onSubmit={handleSubmit}>
           {isLowConfidence && (
-            <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: "#B45309", background: "#FEF3C7", padding: "0.5rem 0.75rem", marginBottom: "1rem", border: "1px solid #FCD34D" }}>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: "#B45309", background: "#FEF3C7", padding: "0.5rem 0.75rem", marginBottom: "1rem", border: "1px solid #FCD34D" }}>
               Low confidence — review carefully before saving. Fields may be inaccurate.
             </p>
           )}
-          <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, marginBottom: "1rem" }}>{extraction.description}</p>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, marginBottom: "1rem" }}>{extraction.description}</p>
 
           {(["brand", "modelNumber", "serialNumber", "serviceType", "purchaseDate", "warrantyMonths"] as const).map((field) => (
             <div key={field} style={{ marginBottom: "0.75rem" }}>
-              <label style={{ display: "block", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight, marginBottom: "0.25rem", textTransform: "uppercase" }}>
+              <label style={{ display: "block", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight, marginBottom: "0.25rem", textTransform: "uppercase" }}>
                 {field === "warrantyMonths" ? "Warranty (months)" : field === "modelNumber" ? "Model #" : field === "serialNumber" ? "Serial #" : field === "purchaseDate" ? "Purchase Date" : field === "serviceType" ? "Category" : "Brand"}
               </label>
               <input
                 value={form[field]}
                 onChange={(e) => handleChange(field, e.target.value)}
-                style={{ width: "100%", fontFamily: S.mono, fontSize: "0.8rem", padding: "0.4rem 0.5rem", border: `1px solid ${S.rule}`, background: COLORS.white, color: S.ink, outline: "none", boxSizing: "border-box" }}
+                style={{ width: "100%", fontFamily: UI.mono, fontSize: "0.8rem", padding: "0.4rem 0.5rem", border: `1px solid ${UI.rule}`, background: COLORS.white, color: UI.ink, outline: "none", boxSizing: "border-box" }}
               />
             </div>
           ))}
 
           <div style={{ display: "flex", gap: "0.75rem", marginTop: "1rem" }}>
-            <button type="submit" style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${S.rust}`, background: S.rust, color: S.paper, cursor: "pointer" }}>
+            <button type="submit" style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${UI.rust}`, background: UI.rust, color: UI.paper, cursor: "pointer" }}>
               Save to Wallet
             </button>
-            <button type="button" onClick={() => { setStep("idle"); setExtraction(null); }} style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, background: "none", border: "none", cursor: "pointer", padding: "0.5rem" }}>
+            <button type="button" onClick={() => { setStep("idle"); setExtraction(null); }} style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, background: "none", border: "none", cursor: "pointer", padding: "0.5rem" }}>
               Cancel
             </button>
           </div>
@@ -320,18 +320,18 @@ export default function WarrantyWalletPage() {
 
         <button
           onClick={() => navigate(-1)}
-          style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: "1.5rem" }}
+          style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: "1.5rem" }}
         >
           <ArrowLeft size={14} /> Back
         </button>
 
-        <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.rust, marginBottom: "0.5rem" }}>
+        <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: UI.rust, marginBottom: "0.5rem" }}>
           Warranty Wallet
         </div>
-        <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, marginBottom: "0.375rem" }}>
+        <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, marginBottom: "0.375rem" }}>
           Your Warranties
         </h1>
-        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight, marginBottom: "2rem" }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight, marginBottom: "2rem" }}>
           Warranties logged across all your maintenance jobs.
         </p>
 
@@ -342,14 +342,14 @@ export default function WarrantyWalletPage() {
             <div className="spinner-lg" />
           </div>
         ) : warrantyJobs.length === 0 ? (
-          <div style={{ padding: "2rem", border: `1px solid ${S.rule}`, background: COLORS.white, textAlign: "center" }}>
-            <p style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1rem", marginBottom: "0.5rem" }}>No warranties logged yet</p>
-            <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, marginBottom: "1.25rem" }}>
+          <div style={{ padding: "2rem", border: `1px solid ${UI.rule}`, background: COLORS.white, textAlign: "center" }}>
+            <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1rem", marginBottom: "0.5rem" }}>No warranties logged yet</p>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, marginBottom: "1.25rem" }}>
               When you log a job with a warranty duration, it will appear here.
             </p>
             <button
               onClick={() => navigate("/jobs/new")}
-              style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${S.rust}`, background: S.rust, color: S.paper, cursor: "pointer" }}
+              style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${UI.rust}`, background: UI.rust, color: UI.paper, cursor: "pointer" }}
             >
               Log a Job
             </button>

@@ -20,7 +20,7 @@ import { paymentService, type PlanTier } from "@/services/payment";
 import { UpgradeGate } from "@/components/UpgradeGate";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -32,10 +32,10 @@ const S = {
 };
 
 const URGENCY_RUST: Record<UrgencyLevel, string> = {
-  Critical: S.rust, Soon: COLORS.plumMid, Watch: COLORS.plumMid, Good: S.sage,
+  Critical: UI.rust, Soon: COLORS.plumMid, Watch: COLORS.plumMid, Good: UI.sage,
 };
 const URGENCY_BG: Record<UrgencyLevel, string> = {
-  Critical: COLORS.blush, Soon: COLORS.butter, Watch: S.paper, Good: COLORS.sageLight,
+  Critical: COLORS.blush, Soon: COLORS.butter, Watch: UI.paper, Good: COLORS.sageLight,
 };
 
 // ─── Urgency Badge ─────────────────────────────────────────────────────────────
@@ -51,7 +51,7 @@ function UrgencyBadge({ urgency }: { urgency: UrgencyLevel }) {
     <span style={{
       display: "inline-flex", alignItems: "center", gap: "0.25rem",
       padding: "0.15rem 0.5rem",
-      fontFamily: S.mono, fontSize: "0.6rem", fontWeight: 700,
+      fontFamily: UI.mono, fontSize: "0.6rem", fontWeight: 700,
       letterSpacing: "0.1em", textTransform: "uppercase",
       color: URGENCY_RUST[urgency],
       background: URGENCY_BG[urgency],
@@ -66,7 +66,7 @@ function UrgencyBadge({ urgency }: { urgency: UrgencyLevel }) {
 
 function LifeBar({ pct, urgency }: { pct: number; urgency: UrgencyLevel }) {
   return (
-    <div style={{ height: "3px", background: S.rule, flex: 1, overflow: "hidden" }}>
+    <div style={{ height: "3px", background: UI.rule, flex: 1, overflow: "hidden" }}>
       <div style={{ height: "3px", width: `${Math.min(pct, 100)}%`, background: URGENCY_RUST[urgency], transition: "width 0.6s ease" }} />
     </div>
   );
@@ -90,23 +90,23 @@ function SystemCard({ pred, onSchedule, marketRec, taskState, onTaskStateChange,
   const high = maintenanceService.formatCents(pred.estimatedCostHighCents);
 
   return (
-    <div style={{ border: `1px solid ${taskState === "done" ? S.sage : pred.urgency === "Critical" ? S.rust : S.rule}`, background: taskState === "done" ? COLORS.sageLight : COLORS.white, opacity: taskState === "done" ? 0.75 : 1 }}>
+    <div style={{ border: `1px solid ${taskState === "done" ? UI.sage : pred.urgency === "Critical" ? UI.rust : UI.rule}`, background: taskState === "done" ? COLORS.sageLight : COLORS.white, opacity: taskState === "done" ? 0.75 : 1 }}>
       <div style={{ padding: "1rem 1.25rem", display: "flex", alignItems: "center", gap: "0.75rem", cursor: "pointer" }} onClick={() => setExpanded((e) => !e)}>
         <div style={{ flex: 1 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.375rem" }}>
-            <span style={{ fontWeight: 700, fontSize: "0.9rem", color: S.ink }}>{pred.systemName}</span>
-            {taskState === "done"      ? <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.sage, border: `1px solid ${S.sage}40`, padding: "0.1rem 0.4rem" }}>✓ Done</span>
-            : taskState === "scheduled" ? <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.plumMid, border: `1px solid ${COLORS.plumMid}40`, padding: "0.1rem 0.4rem" }}>Scheduled</span>
+            <span style={{ fontWeight: 700, fontSize: "0.9rem", color: UI.ink }}>{pred.systemName}</span>
+            {taskState === "done"      ? <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.sage, border: `1px solid ${UI.sage}40`, padding: "0.1rem 0.4rem" }}>✓ Done</span>
+            : taskState === "scheduled" ? <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.plumMid, border: `1px solid ${COLORS.plumMid}40`, padding: "0.1rem 0.4rem" }}>Scheduled</span>
             : <UrgencyBadge urgency={pred.urgency} />}
             {pred.diyViable && (
-              <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight, border: `1px solid ${S.rule}`, padding: "0.1rem 0.4rem" }}>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight, border: `1px solid ${UI.rule}`, padding: "0.1rem 0.4rem" }}>
                 DIY OK
               </span>
             )}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
             <LifeBar pct={pred.percentLifeUsed} urgency={pred.urgency} />
-            <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight, whiteSpace: "nowrap" }}>
+            <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight, whiteSpace: "nowrap" }}>
               {pred.percentLifeUsed}% life used
             </span>
           </div>
@@ -114,61 +114,61 @@ function SystemCard({ pred, onSchedule, marketRec, taskState, onTaskStateChange,
         <div style={{ textAlign: "right", minWidth: "7rem" }}>
           {(pred.urgency === "Critical" || pred.urgency === "Soon") ? (
             <>
-              <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight }}>Replacement</div>
+              <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight }}>Replacement</div>
               {isFree ? (
-                <button onClick={(e) => { e.stopPropagation(); navigate("/pricing"); }} style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.75rem", color: COLORS.plumMid, background: "none", border: "none", cursor: "pointer", padding: 0, filter: "blur(4px)", userSelect: "none" }}>$X,XXX–$X,XXX</button>
+                <button onClick={(e) => { e.stopPropagation(); navigate("/pricing"); }} style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.75rem", color: COLORS.plumMid, background: "none", border: "none", cursor: "pointer", padding: 0, filter: "blur(4px)", userSelect: "none" }}>$X,XXX–$X,XXX</button>
               ) : (
-                <div style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.75rem", color: S.ink }}>{low}–{high}</div>
+                <div style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.75rem", color: UI.ink }}>{low}–{high}</div>
               )}
             </>
           ) : (
             <>
-              <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight }}>Service call</div>
+              <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight }}>Service call</div>
               {isFree ? (
-                <button onClick={(e) => { e.stopPropagation(); navigate("/pricing"); }} style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.75rem", color: COLORS.plumMid, background: "none", border: "none", cursor: "pointer", padding: 0, filter: "blur(4px)", userSelect: "none" }}>$XXX–$XXX</button>
+                <button onClick={(e) => { e.stopPropagation(); navigate("/pricing"); }} style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.75rem", color: COLORS.plumMid, background: "none", border: "none", cursor: "pointer", padding: 0, filter: "blur(4px)", userSelect: "none" }}>$XXX–$XXX</button>
               ) : (
-                <div style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.75rem", color: S.ink }}>
+                <div style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.75rem", color: UI.ink }}>
                   {maintenanceService.formatCents(pred.serviceCallLowCents)}–{maintenanceService.formatCents(pred.serviceCallHighCents)}
                 </div>
               )}
             </>
           )}
         </div>
-        <div style={{ color: S.inkLight }}>
+        <div style={{ color: UI.inkLight }}>
           {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </div>
       </div>
 
       {expanded && (
-        <div style={{ borderTop: `1px solid ${S.rule}`, padding: "0.875rem 1.25rem", background: S.paper }}>
-          <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: S.ink, marginBottom: "0.75rem", lineHeight: 1.6 }}>
+        <div style={{ borderTop: `1px solid ${UI.rule}`, padding: "0.875rem 1.25rem", background: UI.paper }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: UI.ink, marginBottom: "0.75rem", lineHeight: 1.6 }}>
             {pred.recommendation.replace(/^[⚠️📅👁✅]\s*/, "")}
           </p>
-          <div style={{ display: "flex", gap: "1.5rem", fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, marginBottom: "0.75rem" }}>
-            <span>Last serviced: <strong style={{ color: S.ink }}>{pred.lastServiceYear}</strong></span>
+          <div style={{ display: "flex", gap: "1.5rem", fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, marginBottom: "0.75rem" }}>
+            <span>Last serviced: <strong style={{ color: UI.ink }}>{pred.lastServiceYear}</strong></span>
             <span>
               {pred.yearsRemaining >= 0
-                ? <>Years remaining: <strong style={{ color: S.ink }}>{pred.yearsRemaining}</strong></>
-                : <><strong style={{ color: S.rust }}>{Math.abs(pred.yearsRemaining)} yrs overdue</strong></>}
+                ? <>Years remaining: <strong style={{ color: UI.ink }}>{pred.yearsRemaining}</strong></>
+                : <><strong style={{ color: UI.rust }}>{Math.abs(pred.yearsRemaining)} yrs overdue</strong></>}
             </span>
           </div>
 
           {/* Market ROI data */}
           {marketRec && (
-            <div style={{ border: `1px solid ${S.rule}`, padding: "0.75rem 1rem", marginBottom: "0.75rem", display: "flex", gap: "1.5rem", flexWrap: "wrap", background: COLORS.white }}>
+            <div style={{ border: `1px solid ${UI.rule}`, padding: "0.75rem 1rem", marginBottom: "0.75rem", display: "flex", gap: "1.5rem", flexWrap: "wrap", background: COLORS.white }}>
               <div>
-                <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.2rem" }}>Market ROI</p>
-                <p style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.75rem", color: S.sage }}>{marketRec.estimatedRoiPercent}%</p>
+                <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.2rem" }}>Market ROI</p>
+                <p style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.75rem", color: UI.sage }}>{marketRec.estimatedRoiPercent}%</p>
               </div>
               <div>
-                <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.2rem" }}>Est. Value Gain</p>
-                <p style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.75rem", color: S.ink }}>{marketService.formatCost(marketRec.estimatedGainCents)}</p>
+                <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.2rem" }}>Est. Value Gain</p>
+                <p style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.75rem", color: UI.ink }}>{marketService.formatCost(marketRec.estimatedGainCents)}</p>
               </div>
               <div>
-                <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.2rem" }}>Payback</p>
-                <p style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.75rem", color: S.ink }}>{marketRec.paybackMonths} mo</p>
+                <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.2rem" }}>Payback</p>
+                <p style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.75rem", color: UI.ink }}>{marketRec.paybackMonths} mo</p>
               </div>
-              <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.04em", color: S.inkLight, width: "100%", marginTop: "-0.25rem" }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.04em", color: UI.inkLight, width: "100%", marginTop: "-0.25rem" }}>
                 Source: 2024 Remodeling Magazine · {marketRec.requiresPermit ? "Permit required" : "No permit typically required"}
               </p>
             </div>
@@ -177,7 +177,7 @@ function SystemCard({ pred, onSchedule, marketRec, taskState, onTaskStateChange,
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
             <button
               onClick={(e) => { e.stopPropagation(); onSchedule(pred); }}
-              style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.4rem 0.875rem", border: `1px solid ${S.rule}`, background: COLORS.white, fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.ink, cursor: "pointer" }}
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.4rem 0.875rem", border: `1px solid ${UI.rule}`, background: COLORS.white, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.ink, cursor: "pointer" }}
             >
               <Calendar size={11} /> Add to schedule
             </button>
@@ -185,7 +185,7 @@ function SystemCard({ pred, onSchedule, marketRec, taskState, onTaskStateChange,
             {taskState !== "scheduled" && taskState !== "done" && (
               <button
                 onClick={(e) => { e.stopPropagation(); onTaskStateChange("scheduled"); }}
-                style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.4rem 0.875rem", border: `1px solid ${COLORS.plumMid}`, background: COLORS.butter, fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, cursor: "pointer" }}
+                style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.4rem 0.875rem", border: `1px solid ${COLORS.plumMid}`, background: COLORS.butter, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, cursor: "pointer" }}
               >
                 <Clock size={11} /> Mark Scheduled
               </button>
@@ -194,7 +194,7 @@ function SystemCard({ pred, onSchedule, marketRec, taskState, onTaskStateChange,
             {taskState !== "done" && (
               <button
                 onClick={(e) => { e.stopPropagation(); onTaskStateChange("done"); }}
-                style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.4rem 0.875rem", border: `1px solid ${S.sage}`, background: COLORS.sageLight, fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.sage, cursor: "pointer" }}
+                style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.4rem 0.875rem", border: `1px solid ${UI.sage}`, background: COLORS.sageLight, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.sage, cursor: "pointer" }}
               >
                 <CheckCircle2 size={11} /> Mark Done
               </button>
@@ -203,7 +203,7 @@ function SystemCard({ pred, onSchedule, marketRec, taskState, onTaskStateChange,
             {taskState !== "none" && (
               <button
                 onClick={(e) => { e.stopPropagation(); onTaskStateChange("none"); }}
-                style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.4rem 0.875rem", border: `1px solid ${S.rule}`, background: COLORS.white, fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight, cursor: "pointer" }}
+                style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.4rem 0.875rem", border: `1px solid ${UI.rule}`, background: COLORS.white, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight, cursor: "pointer" }}
               >
                 <X size={11} /> Undo
               </button>
@@ -236,10 +236,10 @@ function FiveYearCalendar({ entries, onComplete, onDelete, onAddYear }: {
 
   if (entries.length === 0) {
     return (
-      <div style={{ border: `1px dashed ${S.rule}`, padding: "2.5rem", textAlign: "center" }}>
-        <Calendar size={28} color={S.rule} style={{ margin: "0 auto 0.5rem" }} />
-        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>No scheduled maintenance yet.</p>
-        <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, marginTop: "0.25rem" }}>
+      <div style={{ border: `1px dashed ${UI.rule}`, padding: "2.5rem", textAlign: "center" }}>
+        <Calendar size={28} color={UI.rule} style={{ margin: "0 auto 0.5rem" }} />
+        <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight }}>No scheduled maintenance yet.</p>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, marginTop: "0.25rem" }}>
           Click "Add to schedule" on any system card to populate your 5-year calendar.
         </p>
       </div>
@@ -247,21 +247,21 @@ function FiveYearCalendar({ entries, onComplete, onDelete, onAddYear }: {
   }
 
   const renderEntry = (entry: ScheduleEntry) => (
-    <div key={entry.id} style={{ display: "flex", alignItems: "flex-start", gap: "0.625rem", padding: "0.625rem 0.875rem", background: entry.isCompleted ? S.paper : COLORS.white, opacity: entry.isCompleted ? 0.6 : 1 }}>
+    <div key={entry.id} style={{ display: "flex", alignItems: "flex-start", gap: "0.625rem", padding: "0.625rem 0.875rem", background: entry.isCompleted ? UI.paper : COLORS.white, opacity: entry.isCompleted ? 0.6 : 1 }}>
       <button
         onClick={() => !entry.isCompleted && onComplete(entry.id)}
-        style={{ width: "1rem", height: "1rem", border: `2px solid ${entry.isCompleted ? S.sage : S.rule}`, background: entry.isCompleted ? S.sage : COLORS.white, display: "flex", alignItems: "center", justifyContent: "center", cursor: entry.isCompleted ? "default" : "pointer", flexShrink: 0, marginTop: "0.1rem" }}
+        style={{ width: "1rem", height: "1rem", border: `2px solid ${entry.isCompleted ? UI.sage : UI.rule}`, background: entry.isCompleted ? UI.sage : COLORS.white, display: "flex", alignItems: "center", justifyContent: "center", cursor: entry.isCompleted ? "default" : "pointer", flexShrink: 0, marginTop: "0.1rem" }}
       >
         {entry.isCompleted && <CheckCircle2 size={8} color={COLORS.white} />}
       </button>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: "0.85rem", fontWeight: 600, color: S.ink }}>{entry.systemName}</div>
-        <div style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, letterSpacing: "0.04em" }}>
+        <div style={{ fontSize: "0.85rem", fontWeight: 600, color: UI.ink }}>{entry.systemName}</div>
+        <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, letterSpacing: "0.04em" }}>
           {entry.plannedMonth ? `${MONTH_NAMES[entry.plannedMonth - 1]} · ` : ""}{entry.taskDescription}
           {entry.estimatedCostCents ? ` · ~${maintenanceService.formatCents(entry.estimatedCostCents)}` : ""}
         </div>
       </div>
-      <button onClick={() => onDelete(entry.id)} style={{ color: S.inkLight, background: "none", border: "none", cursor: "pointer", padding: "0.125rem", flexShrink: 0 }}>
+      <button onClick={() => onDelete(entry.id)} style={{ color: UI.inkLight, background: "none", border: "none", cursor: "pointer", padding: "0.125rem", flexShrink: 0 }}>
         <X size={11} />
       </button>
     </div>
@@ -271,11 +271,11 @@ function FiveYearCalendar({ entries, onComplete, onDelete, onAddYear }: {
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       {/* Total pending budget banner */}
       {pending.length > 0 && (
-        <div style={{ border: `1px solid ${S.rule}`, padding: "0.875rem 1.25rem", display: "flex", justifyContent: "space-between", alignItems: "center", background: COLORS.white }}>
-          <span style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>
+        <div style={{ border: `1px solid ${UI.rule}`, padding: "0.875rem 1.25rem", display: "flex", justifyContent: "space-between", alignItems: "center", background: COLORS.white }}>
+          <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>
             {pending.length} tasks scheduled
           </span>
-          <span style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.75rem", color: S.ink }}>
+          <span style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.75rem", color: UI.ink }}>
             5-yr budget: {maintenanceService.formatCents(years.reduce((s, y) => s + yearBudget(y), 0))}
           </span>
         </div>
@@ -287,35 +287,35 @@ function FiveYearCalendar({ entries, onComplete, onDelete, onAddYear }: {
         const budget = yearBudget(year);
         const isCurrentYear = year === currentYear;
         return (
-          <div key={year} style={{ border: `1px solid ${isCurrentYear ? S.rust : S.rule}`, background: COLORS.white, overflow: "hidden" }}>
+          <div key={year} style={{ border: `1px solid ${isCurrentYear ? UI.rust : UI.rule}`, background: COLORS.white, overflow: "hidden" }}>
             <div style={{
-              padding: "0.625rem 1rem", borderBottom: `1px solid ${isCurrentYear ? S.rust : S.rule}`,
+              padding: "0.625rem 1rem", borderBottom: `1px solid ${isCurrentYear ? UI.rust : UI.rule}`,
               display: "flex", alignItems: "center", justifyContent: "space-between",
-              background: isCurrentYear ? COLORS.blush : S.paper,
+              background: isCurrentYear ? COLORS.blush : UI.paper,
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-                <span style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.7rem", letterSpacing: "0.1em", color: isCurrentYear ? S.rust : S.inkLight }}>
+                <span style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.7rem", letterSpacing: "0.1em", color: isCurrentYear ? UI.rust : UI.inkLight }}>
                   {year}
                 </span>
                 {isCurrentYear && (
-                  <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.rust, border: `1px solid ${S.rust}`, padding: "0.1rem 0.35rem" }}>
+                  <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.rust, border: `1px solid ${UI.rust}`, padding: "0.1rem 0.35rem" }}>
                     This year
                   </span>
                 )}
               </div>
-              <span style={{ fontFamily: S.mono, fontSize: "0.65rem", color: budget > 0 ? S.ink : S.inkLight, fontWeight: budget > 0 ? 700 : 400 }}>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: budget > 0 ? UI.ink : UI.inkLight, fontWeight: budget > 0 ? 700 : 400 }}>
                 {budget > 0 ? maintenanceService.formatCents(budget) : "No estimate"}
               </span>
             </div>
 
             {yearEntries.length === 0 ? (
               <div style={{ padding: "0.75rem 1rem" }}>
-                <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight }}>
+                <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight }}>
                   No tasks scheduled — add from System Health tab
                 </span>
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: S.rule }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: UI.rule }}>
                 {yearEntries.map(renderEntry)}
               </div>
             )}
@@ -345,12 +345,12 @@ function AddToScheduleModal({ pred, propertyId, onSave, onClose }: { pred: Syste
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "1rem" }} onClick={onClose}>
-      <div style={{ background: COLORS.white, padding: "1.5rem", maxWidth: "26rem", width: "100%", border: `1px solid ${S.rule}` }} onClick={(e) => e.stopPropagation()}>
+      <div style={{ background: COLORS.white, padding: "1.5rem", maxWidth: "26rem", width: "100%", border: `1px solid ${UI.rule}` }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.25rem" }}>
-          <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
             Schedule {pred.systemName} Work
           </p>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: S.inkLight }}><X size={16} /></button>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: UI.inkLight }}><X size={16} /></button>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
@@ -380,10 +380,10 @@ function AddToScheduleModal({ pred, propertyId, onSave, onClose }: { pred: Syste
         </div>
 
         <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.25rem" }}>
-          <button onClick={onClose} style={{ flex: 1, padding: "0.6rem", border: `1px solid ${S.rule}`, background: COLORS.white, fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer", color: S.inkLight }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "0.6rem", border: `1px solid ${UI.rule}`, background: COLORS.white, fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer", color: UI.inkLight }}>
             Cancel
           </button>
-          <button onClick={save} disabled={!year || !desc} style={{ flex: 2, padding: "0.6rem", border: `1px solid ${S.ink}`, background: S.ink, color: COLORS.white, fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer" }}>
+          <button onClick={save} disabled={!year || !desc} style={{ flex: 2, padding: "0.6rem", border: `1px solid ${UI.ink}`, background: UI.ink, color: COLORS.white, fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer" }}>
             Save to Schedule
           </button>
         </div>
@@ -432,23 +432,23 @@ function MaintenanceChatPanel({ yearBuilt, propertyAddress, report }: { yearBuil
           <div key={i} style={{
             maxWidth: "85%", alignSelf: m.role === "user" ? "flex-end" : "flex-start",
             padding: "0.625rem 0.875rem",
-            background: m.role === "user" ? S.ink : S.paper,
-            color: m.role === "user" ? COLORS.white : S.ink,
-            fontFamily: S.mono, fontSize: "0.7rem", letterSpacing: "0.03em", lineHeight: 1.6,
+            background: m.role === "user" ? UI.ink : UI.paper,
+            color: m.role === "user" ? COLORS.white : UI.ink,
+            fontFamily: UI.mono, fontSize: "0.7rem", letterSpacing: "0.03em", lineHeight: 1.6,
           }}>
             {m.text}
           </div>
         ))}
         <div ref={bottomRef} />
       </div>
-      <div style={{ borderTop: `1px solid ${S.rule}`, padding: "0.75rem 1rem", display: "flex", gap: "0.5rem" }}>
+      <div style={{ borderTop: `1px solid ${UI.rule}`, padding: "0.75rem 1rem", display: "flex", gap: "0.5rem" }}>
         <input
           value={input} onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
           placeholder="Ask about your home systems…" disabled={loading}
-          style={{ flex: 1, padding: "0.5rem 0.75rem", border: `1px solid ${S.rule}`, fontFamily: S.mono, fontSize: "0.7rem", outline: "none", background: COLORS.white }}
+          style={{ flex: 1, padding: "0.5rem 0.75rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.7rem", outline: "none", background: COLORS.white }}
         />
-        <button onClick={send} disabled={loading || !input.trim()} style={{ padding: "0.5rem 0.875rem", border: `1px solid ${S.ink}`, background: S.ink, color: COLORS.white, cursor: loading || !input.trim() ? "not-allowed" : "pointer", opacity: loading || !input.trim() ? 0.6 : 1 }}>
+        <button onClick={send} disabled={loading || !input.trim()} style={{ padding: "0.5rem 0.875rem", border: `1px solid ${UI.ink}`, background: UI.ink, color: COLORS.white, cursor: loading || !input.trim() ? "not-allowed" : "pointer", opacity: loading || !input.trim() ? 0.6 : 1 }}>
           <Send size={14} />
         </button>
       </div>
@@ -613,33 +613,33 @@ export default function PredictiveMaintenancePage() {
       <div style={{ maxWidth: "72rem", margin: "0 auto", padding: "2rem 1.5rem" }}>
 
         <div style={{ marginBottom: "2rem" }}>
-          <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.rust, marginBottom: "0.5rem" }}>
+          <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: UI.rust, marginBottom: "0.5rem" }}>
             Maintenance
           </div>
-          <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "2rem", lineHeight: 1, marginBottom: "0.375rem" }}>
+          <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "2rem", lineHeight: 1, marginBottom: "0.375rem" }}>
             Predictive Maintenance
           </h1>
-          <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight }}>
             System health predictions based on home age and service history.
           </p>
         </div>
 
         {properties.length === 0 ? (
-          <div style={{ border: `1px dashed ${S.rule}`, padding: "3rem", textAlign: "center" }}>
-            <Wrench size={32} color={S.rule} style={{ margin: "0 auto 0.75rem" }} />
-            <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>Add a property to see maintenance predictions.</p>
+          <div style={{ border: `1px dashed ${UI.rule}`, padding: "3rem", textAlign: "center" }}>
+            <Wrench size={32} color={UI.rule} style={{ margin: "0 auto 0.75rem" }} />
+            <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight }}>Add a property to see maintenance predictions.</p>
           </div>
         ) : (
           <>
             {/* Cross-property overdue overview */}
             {allPropertyReports.length >= 2 && (
-              <div style={{ border: `1px solid ${S.rule}`, marginBottom: "1.5rem", background: COLORS.white }}>
-                <div style={{ padding: "0.75rem 1.25rem", borderBottom: `1px solid ${S.rule}`, background: S.paper }}>
-                  <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: S.inkLight }}>
+              <div style={{ border: `1px solid ${UI.rule}`, marginBottom: "1.5rem", background: COLORS.white }}>
+                <div style={{ padding: "0.75rem 1.25rem", borderBottom: `1px solid ${UI.rule}`, background: UI.paper }}>
+                  <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.inkLight }}>
                     All Properties — Overdue Overview
                   </span>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: S.rule }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: UI.rule }}>
                   {allPropertyReports.map(({ property: p, critical, soon, overdueSystems }) => (
                     <button
                       key={String(p.id)}
@@ -647,30 +647,30 @@ export default function PredictiveMaintenancePage() {
                       style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.75rem 1.25rem", background: String(p.id) === selectedId ? COLORS.blush : COLORS.white, border: "none", cursor: "pointer", textAlign: "left", width: "100%" }}
                     >
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontWeight: 600, fontSize: "0.875rem", color: S.ink, marginBottom: "0.2rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        <p style={{ fontWeight: 600, fontSize: "0.875rem", color: UI.ink, marginBottom: "0.2rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                           {p.address}
                         </p>
                         {overdueSystems.length > 0 ? (
-                          <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, letterSpacing: "0.04em" }}>
+                          <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, letterSpacing: "0.04em" }}>
                             Overdue: {overdueSystems.map((s) => s.systemName).join(", ")}
                           </p>
                         ) : (
-                          <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.sage, letterSpacing: "0.04em" }}>No overdue systems</p>
+                          <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.sage, letterSpacing: "0.04em" }}>No overdue systems</p>
                         )}
                       </div>
                       <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
                         {critical > 0 && (
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", padding: "0.2rem 0.5rem", border: `1px solid ${S.rust}`, fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.rust }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", padding: "0.2rem 0.5rem", border: `1px solid ${UI.rust}`, fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.rust }}>
                             <AlertTriangle size={9} /> {critical}
                           </span>
                         )}
                         {soon > 0 && (
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", padding: "0.2rem 0.5rem", border: `1px solid ${COLORS.plumMid}`, fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.plumMid }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", padding: "0.2rem 0.5rem", border: `1px solid ${COLORS.plumMid}`, fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.plumMid }}>
                             <Clock size={9} /> {soon}
                           </span>
                         )}
                         {critical === 0 && soon === 0 && (
-                          <span style={{ padding: "0.2rem 0.5rem", border: `1px solid ${S.sage}`, fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.sage }}>
+                          <span style={{ padding: "0.2rem 0.5rem", border: `1px solid ${UI.sage}`, fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.sage }}>
                             Good
                           </span>
                         )}
@@ -685,7 +685,7 @@ export default function PredictiveMaintenancePage() {
               <select
                 value={selectedId}
                 onChange={(e) => setSelectedId(String(e.target.value))}
-                style={{ padding: "0.5rem 0.875rem", border: `1px solid ${S.rule}`, fontFamily: S.mono, fontSize: "0.65rem", background: COLORS.white, cursor: "pointer" }}
+                style={{ padding: "0.5rem 0.875rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.65rem", background: COLORS.white, cursor: "pointer" }}
               >
                 {properties.map((p) => (
                   <option key={String(p.id)} value={String(p.id)}>{p.address}, {p.city} ({String(p.yearBuilt)})</option>
@@ -693,7 +693,7 @@ export default function PredictiveMaintenancePage() {
               </select>
               <button
                 onClick={() => navigate(`/properties/${selectedId}/systems`)}
-                style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.5rem 0.875rem", border: `1px solid ${S.rule}`, background: COLORS.white, fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, cursor: "pointer" }}
+                style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.5rem 0.875rem", border: `1px solid ${UI.rule}`, background: COLORS.white, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, cursor: "pointer" }}
               >
                 <Settings2 size={12} />
                 {systemAgesService.hasAny(selectedId) ? "Edit system ages" : "Set system ages"}
@@ -702,17 +702,17 @@ export default function PredictiveMaintenancePage() {
               {report && (
                 <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                   {criticalCount > 0 && (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", padding: "0.25rem 0.625rem", border: `1px solid ${S.rust}`, fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.rust }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", padding: "0.25rem 0.625rem", border: `1px solid ${UI.rust}`, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.rust }}>
                       <AlertTriangle size={10} /> {criticalCount} Critical
                     </span>
                   )}
                   {soonCount > 0 && (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", padding: "0.25rem 0.625rem", border: `1px solid ${S.rule}`, fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", padding: "0.25rem 0.625rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight }}>
                       <Clock size={10} /> {soonCount} Soon
                     </span>
                   )}
                   {report.totalBudgetLowCents > 0 && (
-                    <span style={{ padding: "0.25rem 0.625rem", border: `1px solid ${S.rule}`, fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: S.inkLight }}>
+                    <span style={{ padding: "0.25rem 0.625rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: UI.inkLight }}>
                       Budget: {maintenanceService.formatCents(report.totalBudgetLowCents)}–{maintenanceService.formatCents(report.totalBudgetHighCents)}
                     </span>
                   )}
@@ -721,7 +721,7 @@ export default function PredictiveMaintenancePage() {
               {report && (
                 <button
                   onClick={() => window.print()}
-                  style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.5rem 0.875rem", border: `1px solid ${S.rule}`, background: COLORS.white, fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, cursor: "pointer" }}
+                  style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.5rem 0.875rem", border: `1px solid ${UI.rule}`, background: COLORS.white, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, cursor: "pointer" }}
                 >
                   <Download size={12} /> Export PDF
                 </button>
@@ -729,9 +729,9 @@ export default function PredictiveMaintenancePage() {
             </div>
 
             {/* Tabs */}
-            <div style={{ display: "flex", borderBottom: `1px solid ${S.rule}`, marginBottom: "1.25rem" }}>
+            <div style={{ display: "flex", borderBottom: `1px solid ${UI.rule}`, marginBottom: "1.25rem" }}>
               {TABS.map((tab) => (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ padding: "0.6rem 1.1rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", border: "none", borderBottom: activeTab === tab.id ? `2px solid ${S.rust}` : "2px solid transparent", color: activeTab === tab.id ? S.rust : S.inkLight, background: "transparent", cursor: "pointer", marginBottom: "-1px" }}>
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ padding: "0.6rem 1.1rem", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", border: "none", borderBottom: activeTab === tab.id ? `2px solid ${UI.rust}` : "2px solid transparent", color: activeTab === tab.id ? UI.rust : UI.inkLight, background: "transparent", cursor: "pointer", marginBottom: "-1px" }}>
                   {tab.label}
                 </button>
               ))}
@@ -748,7 +748,7 @@ export default function PredictiveMaintenancePage() {
                     <div style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", padding: "0.65rem 0.875rem", background: COLORS.sky, border: `1px solid ${COLORS.plum}40`, marginBottom: "0.75rem" }}>
                       <span style={{ fontSize: "0.85rem", lineHeight: 1 }}>🌡️</span>
                       <div>
-                        <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.plum, fontWeight: 700 }}>
+                        <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.plum, fontWeight: 700 }}>
                           {zone.name} Climate
                         </span>
                         <span style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: COLORS.plumDark, marginLeft: "0.5rem" }}>
@@ -757,7 +757,7 @@ export default function PredictiveMaintenancePage() {
                       </div>
                     </div>
                   )}
-                  <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: S.rule }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: UI.rule }}>
                     {active.map((pred) => (
                       <SystemCard
                         key={pred.systemName}
@@ -772,10 +772,10 @@ export default function PredictiveMaintenancePage() {
                   </div>
                   {done.length > 0 && (
                     <details style={{ marginTop: "1rem" }}>
-                      <summary style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, cursor: "pointer", padding: "0.5rem 0", userSelect: "none" }}>
+                      <summary style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, cursor: "pointer", padding: "0.5rem 0", userSelect: "none" }}>
                         Completed systems ({done.length})
                       </summary>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: S.rule, marginTop: "0.5rem" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: UI.rule, marginTop: "0.5rem" }}>
                         {done.map((pred) => (
                           <SystemCard
                             key={pred.systemName}
@@ -805,22 +805,22 @@ export default function PredictiveMaintenancePage() {
                   {/* Progress bar + budget */}
                   <div style={{ marginBottom: "1.25rem" }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.375rem" }}>
-                      <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>
+                      <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>
                         {currentYear} Annual Tasks
                       </span>
-                      <span style={{ fontFamily: S.mono, fontSize: "0.65rem", fontWeight: 700, color: pct === 100 ? S.sage : S.ink }}>
+                      <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", fontWeight: 700, color: pct === 100 ? UI.sage : UI.ink }}>
                         {done.length} / {report.annualTasks.length} done ({pct}%)
                       </span>
                     </div>
-                    <div style={{ height: "4px", background: S.rule }}>
-                      <div style={{ height: "100%", width: `${pct}%`, background: pct === 100 ? S.sage : S.rust, transition: "width 0.3s" }} />
+                    <div style={{ height: "4px", background: UI.rule }}>
+                      <div style={{ height: "100%", width: `${pct}%`, background: pct === 100 ? UI.sage : UI.rust, transition: "width 0.3s" }} />
                     </div>
                     {pending.length > 0 && (
                       <div style={{ marginTop: "0.625rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight }}>
+                        <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight }}>
                           {pending.length} task{pending.length !== 1 ? "s" : ""} remaining
                         </span>
-                        <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.ink }}>
+                        <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.ink }}>
                           Est. remaining cost: <strong>{maintenanceService.formatCents(pendingBudgetLow)}–{maintenanceService.formatCents(pendingBudgetHigh)}</strong>
                         </span>
                       </div>
@@ -828,7 +828,7 @@ export default function PredictiveMaintenancePage() {
                   </div>
 
                   {/* Pending tasks */}
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(16rem, 1fr))", gap: "1px", background: S.rule }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(16rem, 1fr))", gap: "1px", background: UI.rule }}>
                     {pending.map((task) => (
                       <div key={task.task} style={{ background: COLORS.white, padding: "1rem" }}>
                         <label style={{ display: "flex", alignItems: "flex-start", gap: "0.625rem", cursor: "pointer" }}>
@@ -836,20 +836,20 @@ export default function PredictiveMaintenancePage() {
                             type="checkbox"
                             checked={false}
                             onChange={() => toggleAnnualTask(task.task)}
-                            style={{ marginTop: "0.2rem", accentColor: S.rust, cursor: "pointer", flexShrink: 0 }}
+                            style={{ marginTop: "0.2rem", accentColor: UI.rust, cursor: "pointer", flexShrink: 0 }}
                           />
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: 600, fontSize: "0.875rem", color: S.ink, marginBottom: "0.375rem" }}>{task.task}</div>
+                            <div style={{ fontWeight: 600, fontSize: "0.875rem", color: UI.ink, marginBottom: "0.375rem" }}>{task.task}</div>
                             <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "0.5rem" }}>
-                              <span style={{ border: `1px solid ${S.rule}`, fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.rust, padding: "0.125rem 0.4rem" }}>
+                              <span style={{ border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.rust, padding: "0.125rem 0.4rem" }}>
                                 {task.frequency}
                               </span>
-                              {task.season && <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>{task.season}</span>}
+                              {task.season && <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>{task.season}</span>}
                             </div>
-                            <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: S.ink, fontWeight: 600 }}>
+                            <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: UI.ink, fontWeight: 600 }}>
                               {task.estimatedCost}
                               {task.diyViable && (
-                                <span style={{ marginLeft: "0.5rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: S.sage, border: `1px solid ${S.sage}40`, padding: "0.1rem 0.4rem", textTransform: "uppercase" }}>
+                                <span style={{ marginLeft: "0.5rem", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: UI.sage, border: `1px solid ${UI.sage}40`, padding: "0.1rem 0.4rem", textTransform: "uppercase" }}>
                                   DIY
                                 </span>
                               )}
@@ -863,10 +863,10 @@ export default function PredictiveMaintenancePage() {
                   {/* Done tasks */}
                   {done.length > 0 && (
                     <details style={{ marginTop: "1rem" }}>
-                      <summary style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.sage, cursor: "pointer", padding: "0.5rem 0", userSelect: "none" }}>
+                      <summary style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.sage, cursor: "pointer", padding: "0.5rem 0", userSelect: "none" }}>
                         ✓ Done this year ({done.length})
                       </summary>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(16rem, 1fr))", gap: "1px", background: S.rule, marginTop: "0.5rem" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(16rem, 1fr))", gap: "1px", background: UI.rule, marginTop: "0.5rem" }}>
                         {done.map((task) => (
                           <div key={task.task} style={{ background: COLORS.sageLight, padding: "1rem", opacity: 0.7 }}>
                             <label style={{ display: "flex", alignItems: "flex-start", gap: "0.625rem", cursor: "pointer" }}>
@@ -874,11 +874,11 @@ export default function PredictiveMaintenancePage() {
                                 type="checkbox"
                                 checked={true}
                                 onChange={() => toggleAnnualTask(task.task)}
-                                style={{ marginTop: "0.2rem", accentColor: S.sage, cursor: "pointer", flexShrink: 0 }}
+                                style={{ marginTop: "0.2rem", accentColor: UI.sage, cursor: "pointer", flexShrink: 0 }}
                               />
                               <div>
-                                <div style={{ fontWeight: 600, fontSize: "0.875rem", color: S.inkLight, textDecoration: "line-through", marginBottom: "0.2rem" }}>{task.task}</div>
-                                <span style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.sage }}>Completed {currentYear}</span>
+                                <div style={{ fontWeight: 600, fontSize: "0.875rem", color: UI.inkLight, textDecoration: "line-through", marginBottom: "0.2rem" }}>{task.task}</div>
+                                <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: UI.sage }}>Completed {currentYear}</span>
                               </div>
                             </label>
                           </div>
@@ -901,8 +901,8 @@ export default function PredictiveMaintenancePage() {
               ) : (
                 <div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-                    <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>5-Year Maintenance Calendar</p>
-                    <button onClick={() => setActiveTab("systems")} style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, border: `1px solid ${S.rule}`, background: COLORS.white, padding: "0.35rem 0.75rem", cursor: "pointer" }}>
+                    <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>5-Year Maintenance Calendar</p>
+                    <button onClick={() => setActiveTab("systems")} style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "0.35rem 0.75rem", cursor: "pointer" }}>
                       <PlusCircle size={11} /> Add from systems
                     </button>
                   </div>
@@ -912,13 +912,13 @@ export default function PredictiveMaintenancePage() {
             )}
 
             {activeTab === "advisor" && property && (
-              <div style={{ border: `1px solid ${S.rule}`, background: COLORS.white, overflow: "hidden", height: "30rem", display: "flex", flexDirection: "column" }}>
-                <div style={{ padding: "0.875rem 1.25rem", borderBottom: `1px solid ${S.rule}`, display: "flex", alignItems: "center", gap: "0.5rem", background: S.paper }}>
-                  <Bot size={14} color={S.rust} />
-                  <span style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.ink }}>
+              <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, overflow: "hidden", height: "30rem", display: "flex", flexDirection: "column" }}>
+                <div style={{ padding: "0.875rem 1.25rem", borderBottom: `1px solid ${UI.rule}`, display: "flex", alignItems: "center", gap: "0.5rem", background: UI.paper }}>
+                  <Bot size={14} color={UI.rust} />
+                  <span style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.ink }}>
                     AI Maintenance Advisor
                   </span>
-                  <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>· Powered by Claude</span>
+                  <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>· Powered by Claude</span>
                 </div>
                 <div style={{ flex: 1, minHeight: 0 }}>
                   <MaintenanceChatPanel yearBuilt={Number(property.yearBuilt)} propertyAddress={`${property.address}, ${property.city}`} report={report} />

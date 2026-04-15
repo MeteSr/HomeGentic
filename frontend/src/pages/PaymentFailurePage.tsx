@@ -5,7 +5,7 @@ import { XCircle } from "lucide-react";
 import { COLORS, FONTS } from "@/theme";
 
 export default function PaymentFailurePage() {
-  const S = {
+  const UI = {
     page: { minHeight: "100vh", background: COLORS.sageLight, display: "flex", flexDirection: "column" as const, alignItems: "center", justifyContent: "center", padding: "3rem 1.5rem", fontFamily: FONTS.sans },
     card: { background: COLORS.white, border: `1px solid ${COLORS.rule}`, maxWidth: 480, width: "100%", padding: "3rem 2.5rem", textAlign: "center" as const },
     h1:   { fontFamily: FONTS.serif, fontSize: "clamp(1.75rem, 4vw, 2.25rem)", fontWeight: 900, color: COLORS.plum, letterSpacing: "-0.5px", margin: "0 0 0.75rem" },
@@ -17,16 +17,16 @@ export default function PaymentFailurePage() {
   return (
     <>
       <Helmet><title>Payment Cancelled — HomeGentic</title></Helmet>
-      <div style={S.page}>
-        <div style={S.card}>
+      <div style={UI.page}>
+        <div style={UI.card}>
           <div style={{ marginBottom: "1.5rem" }}><XCircle size={40} color={COLORS.plumMid} /></div>
-          <h1 style={S.h1}>Payment cancelled</h1>
-          <p style={S.body}>
+          <h1 style={UI.h1}>Payment cancelled</h1>
+          <p style={UI.body}>
             No charge was made. You can upgrade whenever you're ready — your account and
             existing records are untouched.
           </p>
-          <Link to="/pricing" style={S.cta}>Back to Pricing</Link>
-          <Link to="/dashboard" style={S.link}>Return to Dashboard</Link>
+          <Link to="/pricing" style={UI.cta}>Back to Pricing</Link>
+          <Link to="/dashboard" style={UI.link}>Return to Dashboard</Link>
         </div>
       </div>
     </>

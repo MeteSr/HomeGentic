@@ -18,7 +18,7 @@ import { COLORS, FONTS } from "@/theme";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -35,17 +35,17 @@ const S = {
 
 function RecBadge({ rec }: { rec: string }) {
   const config = {
-    list_now: { label: "List Now",  bg: S.green, color: "#fff" },
-    wait:     { label: "Wait",      bg: S.rust,  color: "#fff" },
-    neutral:  { label: "Neutral",   bg: S.amber, color: "#fff" },
-  }[rec] ?? { label: rec, bg: S.inkLight, color: "#fff" };
+    list_now: { label: "List Now",  bg: UI.green, color: "#fff" },
+    wait:     { label: "Wait",      bg: UI.rust,  color: "#fff" },
+    neutral:  { label: "Neutral",   bg: UI.amber, color: "#fff" },
+  }[rec] ?? { label: rec, bg: UI.inkLight, color: "#fff" };
 
   return (
     <span style={{
       display:       "inline-block",
       background:    config.bg,
       color:         config.color,
-      fontFamily:    S.mono,
+      fontFamily:    UI.mono,
       fontSize:      "0.65rem",
       textTransform: "uppercase",
       letterSpacing: "0.08em",
@@ -58,16 +58,16 @@ function RecBadge({ rec }: { rec: string }) {
 
 function MarketBadge({ condition }: { condition: string }) {
   const colors: Record<string, string> = {
-    hot:      S.rust,
-    balanced: S.amber,
+    hot:      UI.rust,
+    balanced: UI.amber,
     cool:     "#4A6FA5",
   };
   return (
     <span style={{
       display:       "inline-block",
-      border:        `1px solid ${colors[condition] ?? S.inkLight}`,
-      color:         colors[condition] ?? S.inkLight,
-      fontFamily:    S.mono,
+      border:        `1px solid ${colors[condition] ?? UI.inkLight}`,
+      color:         colors[condition] ?? UI.inkLight,
+      fontFamily:    UI.mono,
       fontSize:      "0.6rem",
       textTransform: "uppercase",
       letterSpacing: "0.07em",
@@ -101,9 +101,9 @@ export function MarketTimingAlert({ score, zip }: Props) {
       <section
         role="region"
         aria-label="Market timing"
-        style={{ padding: "24px", border: `1px solid ${S.rule}`, background: S.paper }}
+        style={{ padding: "24px", border: `1px solid ${UI.rule}`, background: UI.paper }}
       >
-        <span style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.inkLight }}>
+        <span style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: UI.inkLight }}>
           Analysing market conditions…
         </span>
       </section>
@@ -121,20 +121,20 @@ export function MarketTimingAlert({ score, zip }: Props) {
       role="region"
       aria-label="Market timing"
       style={{
-        border:     `1px solid ${S.rule}`,
-        background: S.paper,
+        border:     `1px solid ${UI.rule}`,
+        background: UI.paper,
         padding:    "0",
       }}
     >
       {/* Header bar */}
       <div style={{
-        borderBottom: `2px solid ${S.ink}`,
+        borderBottom: `2px solid ${UI.ink}`,
         padding:      "16px 24px",
         display:      "flex",
         alignItems:   "center",
         gap:          "12px",
       }}>
-        <span style={{ fontFamily: S.mono, fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.1em", color: S.inkLight }}>
+        <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.1em", color: UI.inkLight }}>
           Market Timing
         </span>
         <RecBadge rec={analysis.recommendation} />
@@ -143,7 +143,7 @@ export function MarketTimingAlert({ score, zip }: Props) {
 
       <div style={{ padding: "20px 24px" }}>
         {/* Headline */}
-        <p style={{ fontFamily: S.serif, fontSize: "1.05rem", fontWeight: 700, color: S.ink, margin: "0 0 16px", lineHeight: 1.4 }}>
+        <p style={{ fontFamily: UI.serif, fontSize: "1.05rem", fontWeight: 700, color: UI.ink, margin: "0 0 16px", lineHeight: 1.4 }}>
           {analysis.headline}
         </p>
 
@@ -163,7 +163,7 @@ export function MarketTimingAlert({ score, zip }: Props) {
         {/* Reasoning */}
         <ul style={{ margin: 0, padding: "0 0 0 1.1rem", listStyle: "disc" }}>
           {analysis.reasoning.map((r, i) => (
-            <li key={i} style={{ fontFamily: S.sans, fontSize: "0.82rem", color: S.inkLight, marginBottom: "4px", lineHeight: 1.5 }}>
+            <li key={i} style={{ fontFamily: UI.sans, fontSize: "0.82rem", color: UI.inkLight, marginBottom: "4px", lineHeight: 1.5 }}>
               {r}
             </li>
           ))}
@@ -176,10 +176,10 @@ export function MarketTimingAlert({ score, zip }: Props) {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div style={{ fontFamily: S.mono, fontSize: "0.6rem", textTransform: "uppercase", letterSpacing: "0.07em", color: S.inkLight, marginBottom: "2px" }}>
+      <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", textTransform: "uppercase", letterSpacing: "0.07em", color: UI.inkLight, marginBottom: "2px" }}>
         {label}
       </div>
-      <div style={{ fontFamily: S.serif, fontSize: "1.1rem", fontWeight: 700, color: S.ink }}>
+      <div style={{ fontFamily: UI.serif, fontSize: "1.1rem", fontWeight: 700, color: UI.ink }}>
         {value}
       </div>
     </div>

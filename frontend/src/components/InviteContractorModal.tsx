@@ -26,7 +26,7 @@ interface Props {
   onClose:         () => void;
 }
 
-const S = {
+const UI = {
   ink:   COLORS.plum,
   muted: COLORS.plumMid,
   rule:  COLORS.rule,
@@ -112,17 +112,17 @@ export function InviteContractorModal({ job, propertyAddress, onClose }: Props) 
           style={{
             position: "absolute", top: "1rem", right: "1rem",
             background: "none", border: "none", cursor: "pointer",
-            color: S.muted, padding: "0.25rem",
+            color: UI.muted, padding: "0.25rem",
           }}
         >
           <X size={18} />
         </button>
 
         {/* Header */}
-        <h2 style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.25rem", color: S.ink, marginBottom: "0.25rem" }}>
+        <h2 style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.25rem", color: UI.ink, marginBottom: "0.25rem" }}>
           Invite{job.contractorName ? ` ${job.contractorName}` : " Contractor"}
         </h2>
-        <p style={{ fontFamily: S.sans, fontSize: "0.8rem", color: S.muted, marginBottom: "1.5rem" }}>
+        <p style={{ fontFamily: UI.sans, fontSize: "0.8rem", color: UI.muted, marginBottom: "1.5rem" }}>
           Share this link so they can confirm and sign the job record — no account needed.
         </p>
 
@@ -130,7 +130,7 @@ export function InviteContractorModal({ job, propertyAddress, onClose }: Props) 
         <div style={{
           background: COLORS.sageLight, borderRadius: RADIUS.sm,
           padding: "0.75rem 1rem", marginBottom: "1.5rem",
-          fontSize: "0.8rem", fontFamily: S.sans, color: S.ink,
+          fontSize: "0.8rem", fontFamily: UI.sans, color: UI.ink,
         }}>
           <strong>{job.serviceType}</strong> · ${(job.amount / 100).toLocaleString()} · {propertyAddress}
         </div>
@@ -138,18 +138,18 @@ export function InviteContractorModal({ job, propertyAddress, onClose }: Props) 
         {/* Loading / Error */}
         {!token && !error && (
           <div style={{ display: "flex", justifyContent: "center", padding: "2rem" }}>
-            <Loader2 size={24} color={S.sage} style={{ animation: "spin 1s linear infinite" }} />
+            <Loader2 size={24} color={UI.sage} style={{ animation: "spin 1s linear infinite" }} />
           </div>
         )}
         {error && (
-          <p style={{ fontFamily: S.sans, fontSize: "0.8rem", color: "#C94C2E", textAlign: "center" }}>{error}</p>
+          <p style={{ fontFamily: UI.sans, fontSize: "0.8rem", color: "#C94C2E", textAlign: "center" }}>{error}</p>
         )}
 
         {token && verifyUrl && (
           <>
             {/* QR code */}
             <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.25rem" }}>
-              <div style={{ padding: "1rem", border: `1px solid ${S.rule}`, borderRadius: RADIUS.sm, background: "#fff" }}>
+              <div style={{ padding: "1rem", border: `1px solid ${UI.rule}`, borderRadius: RADIUS.sm, background: "#fff" }}>
                 <QRCodeSVG
                   value={verifyUrl}
                   size={180}
@@ -169,8 +169,8 @@ export function InviteContractorModal({ job, propertyAddress, onClose }: Props) 
                 value={verifyUrl}
                 style={{
                   flex: 1, padding: "0.5rem 0.75rem",
-                  fontFamily: S.mono, fontSize: "0.7rem", color: S.muted,
-                  border: `1px solid ${S.rule}`, borderRadius: RADIUS.input,
+                  fontFamily: UI.mono, fontSize: "0.7rem", color: UI.muted,
+                  border: `1px solid ${UI.rule}`, borderRadius: RADIUS.input,
                   background: COLORS.sageLight, outline: "none",
                   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                 }}
@@ -183,7 +183,7 @@ export function InviteContractorModal({ job, propertyAddress, onClose }: Props) 
                   background: copied ? COLORS.sage : COLORS.plum,
                   color: "#fff", border: "none",
                   borderRadius: RADIUS.input, cursor: "pointer",
-                  fontFamily: S.mono, fontSize: "0.7rem",
+                  fontFamily: UI.mono, fontSize: "0.7rem",
                   transition: "background 0.2s",
                 }}
               >
@@ -193,8 +193,8 @@ export function InviteContractorModal({ job, propertyAddress, onClose }: Props) 
             </div>
 
             {/* Send via email */}
-            <div style={{ borderTop: `1px solid ${S.rule}`, paddingTop: "1rem" }}>
-              <p style={{ fontFamily: S.sans, fontSize: "0.75rem", color: S.muted, marginBottom: "0.5rem" }}>
+            <div style={{ borderTop: `1px solid ${UI.rule}`, paddingTop: "1rem" }}>
+              <p style={{ fontFamily: UI.sans, fontSize: "0.75rem", color: UI.muted, marginBottom: "0.5rem" }}>
                 Or send by email:
               </p>
               <div style={{ display: "flex", gap: "0.5rem" }}>
@@ -207,14 +207,14 @@ export function InviteContractorModal({ job, propertyAddress, onClose }: Props) 
                     onKeyDown={(e) => { if (e.key === "Enter") void handleEmail(); }}
                     style={{
                       padding: "0.5rem 0.75rem",
-                      fontFamily: S.sans, fontSize: "0.8rem",
-                      border: `1px solid ${email && !isValidEmail(email) ? COLORS.rust : S.rule}`,
+                      fontFamily: UI.sans, fontSize: "0.8rem",
+                      border: `1px solid ${email && !isValidEmail(email) ? COLORS.rust : UI.rule}`,
                       borderRadius: RADIUS.input,
                       background: COLORS.white, outline: "none",
                     }}
                   />
                   {email && !isValidEmail(email) && (
-                    <span style={{ color: COLORS.rust, fontSize: "0.65rem", marginTop: "0.2rem", fontFamily: S.mono }}>
+                    <span style={{ color: COLORS.rust, fontSize: "0.65rem", marginTop: "0.2rem", fontFamily: UI.mono }}>
                       Enter a valid email address
                     </span>
                   )}
@@ -229,7 +229,7 @@ export function InviteContractorModal({ job, propertyAddress, onClose }: Props) 
                     color: "#fff", border: "none",
                     borderRadius: RADIUS.input,
                     cursor: sending || sent || !isValidEmail(email) ? "not-allowed" : "pointer",
-                    fontFamily: S.mono, fontSize: "0.7rem",
+                    fontFamily: UI.mono, fontSize: "0.7rem",
                     opacity: !isValidEmail(email) ? 0.5 : 1,
                     transition: "background 0.2s",
                     alignSelf: "flex-start",
@@ -242,7 +242,7 @@ export function InviteContractorModal({ job, propertyAddress, onClose }: Props) 
             </div>
 
             {/* Expiry note */}
-            <p style={{ fontFamily: S.sans, fontSize: "0.7rem", color: S.muted, textAlign: "center", marginTop: "1rem" }}>
+            <p style={{ fontFamily: UI.sans, fontSize: "0.7rem", color: UI.muted, textAlign: "center", marginTop: "1rem" }}>
               Link expires in 48 hours · single use
             </p>
           </>

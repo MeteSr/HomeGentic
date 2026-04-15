@@ -17,7 +17,7 @@ import { CheckCircle, AlertTriangle, Loader2, ExternalLink } from "lucide-react"
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 import { jobService, type InvitePreview } from "@/services/job";
 
-const S = {
+const UI = {
   ink:   COLORS.plum,
   muted: COLORS.plumMid,
   rule:  COLORS.rule,
@@ -81,16 +81,16 @@ export default function ContractorVerifyPage() {
       alignItems: "center",
       justifyContent: "center",
       padding: "1.5rem",
-      fontFamily: S.sans,
+      fontFamily: UI.sans,
     }}>
       {/* Logo */}
       <div style={{ marginBottom: "2rem", textAlign: "center" }}>
         <Link to="/" style={{ textDecoration: "none" }}>
-          <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.5rem", color: S.ink }}>
-            Home<span style={{ color: S.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
+          <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", color: UI.ink }}>
+            Home<span style={{ color: UI.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
           </span>
         </Link>
-        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.muted, marginTop: "0.25rem" }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.muted, marginTop: "0.25rem" }}>
           Verified Home History · Internet Computer
         </p>
       </div>
@@ -100,31 +100,31 @@ export default function ContractorVerifyPage() {
         background: COLORS.white,
         borderRadius: RADIUS.card,
         boxShadow: SHADOWS.card,
-        border: `1px solid ${S.rule}`,
+        border: `1px solid ${UI.rule}`,
         padding: "2rem",
       }}>
 
         {/* ── Loading ─────────────────────────────────────────────────────────── */}
         {stage === "loading" && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem", padding: "2rem 0" }}>
-            <Loader2 size={28} color={S.sage} style={{ animation: "spin 1s linear infinite" }} />
-            <p style={{ color: S.muted, fontSize: "0.875rem" }}>Loading job details…</p>
+            <Loader2 size={28} color={UI.sage} style={{ animation: "spin 1s linear infinite" }} />
+            <p style={{ color: UI.muted, fontSize: "0.875rem" }}>Loading job details…</p>
           </div>
         )}
 
         {/* ── Preview ─────────────────────────────────────────────────────────── */}
         {(stage === "preview" || stage === "signing") && preview && (
           <>
-            <h1 style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.375rem", color: S.ink, marginBottom: "0.25rem" }}>
+            <h1 style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.375rem", color: UI.ink, marginBottom: "0.25rem" }}>
               Confirm your work
             </h1>
-            <p style={{ fontSize: "0.85rem", color: S.muted, marginBottom: "1.5rem" }}>
+            <p style={{ fontSize: "0.85rem", color: UI.muted, marginBottom: "1.5rem" }}>
               Review the job details below and tap <strong>Confirm & Sign</strong> to add your signature to the verified record.
             </p>
 
             {/* Job details */}
             <div style={{
-              border: `1px solid ${S.rule}`,
+              border: `1px solid ${UI.rule}`,
               borderRadius: RADIUS.sm,
               overflow: "hidden",
               marginBottom: "1.5rem",
@@ -141,16 +141,16 @@ export default function ContractorVerifyPage() {
                   display: "flex", gap: "1rem",
                   padding: "0.625rem 1rem",
                   background: i % 2 === 0 ? COLORS.sageLight : COLORS.white,
-                  borderBottom: i < 5 ? `1px solid ${S.rule}` : "none",
+                  borderBottom: i < 5 ? `1px solid ${UI.rule}` : "none",
                 }}>
                   <span style={{
-                    fontFamily: S.mono, fontSize: "0.62rem", letterSpacing: "0.08em",
-                    textTransform: "uppercase", color: S.muted,
+                    fontFamily: UI.mono, fontSize: "0.62rem", letterSpacing: "0.08em",
+                    textTransform: "uppercase", color: UI.muted,
                     width: "5.5rem", flexShrink: 0, paddingTop: "0.15rem",
                   }}>
                     {label}
                   </span>
-                  <span style={{ fontSize: "0.85rem", color: S.ink }}>{value}</span>
+                  <span style={{ fontSize: "0.85rem", color: UI.ink }}>{value}</span>
                 </div>
               ))}
             </div>
@@ -162,8 +162,8 @@ export default function ContractorVerifyPage() {
                 padding: "1rem", background: COLORS.sageLight,
                 borderRadius: RADIUS.sm, border: `1px solid ${COLORS.sageMid}`,
               }}>
-                <CheckCircle size={20} color={S.sage} />
-                <p style={{ fontSize: "0.875rem", color: S.ink }}>
+                <CheckCircle size={20} color={UI.sage} />
+                <p style={{ fontSize: "0.875rem", color: UI.ink }}>
                   You've already signed this job.
                 </p>
               </div>
@@ -175,11 +175,11 @@ export default function ContractorVerifyPage() {
                   style={{
                     width: "100%",
                     padding: "0.875rem",
-                    background: S.ink,
+                    background: UI.ink,
                     color: "#fff",
                     border: "none",
                     borderRadius: RADIUS.pill,
-                    fontFamily: S.mono,
+                    fontFamily: UI.mono,
                     fontSize: "0.8rem",
                     letterSpacing: "0.08em",
                     textTransform: "uppercase",
@@ -196,7 +196,7 @@ export default function ContractorVerifyPage() {
                     ? <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Signing…</>
                     : "Confirm & Sign →"}
                 </button>
-                <p style={{ textAlign: "center", fontSize: "0.7rem", color: S.muted, marginTop: "0.75rem" }}>
+                <p style={{ textAlign: "center", fontSize: "0.7rem", color: UI.muted, marginTop: "0.75rem" }}>
                   {timeLeft(preview.expiresAt)} · single use
                 </p>
               </>
@@ -214,12 +214,12 @@ export default function ContractorVerifyPage() {
               display: "flex", alignItems: "center", justifyContent: "center",
               margin: "0 auto 1.25rem",
             }}>
-              <CheckCircle size={32} color={S.sage} />
+              <CheckCircle size={32} color={UI.sage} />
             </div>
-            <h1 style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.375rem", color: S.ink, marginBottom: "0.5rem" }}>
+            <h1 style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.375rem", color: UI.ink, marginBottom: "0.5rem" }}>
               Signature recorded
             </h1>
-            <p style={{ fontSize: "0.875rem", color: S.muted, marginBottom: "1.75rem", lineHeight: 1.6 }}>
+            <p style={{ fontSize: "0.875rem", color: UI.muted, marginBottom: "1.75rem", lineHeight: 1.6 }}>
               Your signature has been added to the immutable job record on the
               Internet Computer blockchain. The homeowner can share a verified
               report with buyers, insurers, and inspectors.
@@ -227,16 +227,16 @@ export default function ContractorVerifyPage() {
 
             {/* Upsell — soft, no pressure */}
             <div style={{
-              border: `1px solid ${S.rule}`,
+              border: `1px solid ${UI.rule}`,
               borderRadius: RADIUS.sm,
               padding: "1.25rem",
               marginBottom: "1.25rem",
               textAlign: "left",
             }}>
-              <p style={{ fontFamily: S.mono, fontSize: "0.62rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.sage, marginBottom: "0.5rem" }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.62rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.sage, marginBottom: "0.5rem" }}>
                 Build your verified portfolio
               </p>
-              <p style={{ fontSize: "0.8rem", color: S.ink, marginBottom: "0.875rem", lineHeight: 1.6 }}>
+              <p style={{ fontSize: "0.8rem", color: UI.ink, marginBottom: "0.875rem", lineHeight: 1.6 }}>
                 Create a free HomeGentic account to collect all your verified jobs in one place — a portfolio you can show future clients.
               </p>
               <Link
@@ -244,17 +244,17 @@ export default function ContractorVerifyPage() {
                 style={{
                   display: "inline-flex", alignItems: "center", gap: "0.375rem",
                   padding: "0.625rem 1.25rem",
-                  background: S.ink, color: "#fff",
+                  background: UI.ink, color: "#fff",
                   borderRadius: RADIUS.pill,
                   textDecoration: "none",
-                  fontFamily: S.mono, fontSize: "0.72rem",
+                  fontFamily: UI.mono, fontSize: "0.72rem",
                   letterSpacing: "0.06em", textTransform: "uppercase",
                 }}
               >
                 Create free account <ExternalLink size={12} />
               </Link>
             </div>
-            <p style={{ fontSize: "0.75rem", color: S.muted }}>
+            <p style={{ fontSize: "0.75rem", color: UI.muted }}>
               No credit card required · free forever for service providers
             </p>
           </div>
@@ -272,13 +272,13 @@ export default function ContractorVerifyPage() {
             }}>
               <AlertTriangle size={32} color="#C94C2E" />
             </div>
-            <h1 style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.25rem", color: S.ink, marginBottom: "0.5rem" }}>
+            <h1 style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.25rem", color: UI.ink, marginBottom: "0.5rem" }}>
               Link unavailable
             </h1>
-            <p style={{ fontSize: "0.875rem", color: S.muted, marginBottom: "0.5rem" }}>
+            <p style={{ fontSize: "0.875rem", color: UI.muted, marginBottom: "0.5rem" }}>
               {error ?? "This invite link is invalid, expired, or has already been used."}
             </p>
-            <p style={{ fontSize: "0.8rem", color: S.muted }}>
+            <p style={{ fontSize: "0.8rem", color: UI.muted }}>
               Ask the homeowner to generate a new invite link.
             </p>
           </div>

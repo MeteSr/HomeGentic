@@ -4,7 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { RecurringService, VisitLog, SERVICE_TYPE_LABELS, FREQUENCY_LABELS } from "@/services/recurringService";
 import { COLORS, FONTS, RADIUS } from "@/theme";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -52,13 +52,13 @@ export function RecurringServiceCard({ service, visitLogs }: Props) {
     <div
       onClick={() => navigate(`/recurring/${service.id}`)}
       style={{
-        border: `1px solid ${S.rule}`, background: COLORS.white,
+        border: `1px solid ${UI.rule}`, background: COLORS.white,
         borderRadius: RADIUS.card, padding: "1rem 1.25rem", cursor: "pointer",
         display: "flex", alignItems: "center", gap: "1rem",
         transition: "border-color 0.15s",
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.borderColor = S.ink)}
-      onMouseLeave={(e) => (e.currentTarget.style.borderColor = S.rule)}
+      onMouseEnter={(e) => (e.currentTarget.style.borderColor = UI.ink)}
+      onMouseLeave={(e) => (e.currentTarget.style.borderColor = UI.rule)}
     >
       {/* Icon */}
       <div style={{ fontSize: "1.5rem", flexShrink: 0, lineHeight: 1 }}>{icon}</div>
@@ -66,31 +66,31 @@ export function RecurringServiceCard({ service, visitLogs }: Props) {
       {/* Main info */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem", flexWrap: "wrap" }}>
-          <span style={{ fontFamily: S.mono, fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.06em", color: S.ink }}>
+          <span style={{ fontFamily: UI.mono, fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.06em", color: UI.ink }}>
             {label}
           </span>
           <span style={{
-            fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em",
+            fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em",
             textTransform: "uppercase", padding: "0.125rem 0.4rem",
             color: statusStyle.color, background: statusStyle.bg,
           }}>
             {service.status}
           </span>
         </div>
-        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, marginBottom: "0.2rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, marginBottom: "0.2rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {service.providerName}
         </p>
         <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-          <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, letterSpacing: "0.04em" }}>
+          <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, letterSpacing: "0.04em" }}>
             {freq}
           </span>
-          <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, letterSpacing: "0.04em" }}>
+          <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, letterSpacing: "0.04em" }}>
             {lastVisit ? `Last: ${fmtDate(lastVisit.visitDate)}` : "No visits logged"}
           </span>
         </div>
       </div>
 
-      <ArrowRight size={14} color={S.inkLight} style={{ flexShrink: 0 }} />
+      <ArrowRight size={14} color={UI.inkLight} style={{ flexShrink: 0 }} />
     </div>
   );
 }

@@ -21,7 +21,7 @@ import toast from "react-hot-toast";
 import { COLORS, FONTS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -35,22 +35,22 @@ const S = {
 const fieldStyle: React.CSSProperties = {
   width: "100%",
   padding: "0.625rem 0.75rem",
-  fontFamily: S.sans,
+  fontFamily: UI.sans,
   fontSize: "0.9375rem",
-  color: S.ink,
-  border: `1px solid ${S.rule}`,
-  background: S.paper,
+  color: UI.ink,
+  border: `1px solid ${UI.rule}`,
+  background: UI.paper,
   outline: "none",
   boxSizing: "border-box",
 };
 
 const labelStyle: React.CSSProperties = {
   display: "block",
-  fontFamily: S.mono,
+  fontFamily: UI.mono,
   fontSize: "0.65rem",
   letterSpacing: "0.08em",
   textTransform: "uppercase",
-  color: S.inkLight,
+  color: UI.inkLight,
   marginBottom: "0.35rem",
 };
 
@@ -227,7 +227,7 @@ export default function AgentMarketplacePage() {
           style={{
             display: "flex", alignItems: "center", gap: "0.4rem",
             background: "none", border: "none", cursor: "pointer",
-            fontFamily: S.mono, fontSize: "0.72rem", color: S.inkLight,
+            fontFamily: UI.mono, fontSize: "0.72rem", color: UI.inkLight,
             letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "2rem",
           }}
         >
@@ -235,26 +235,26 @@ export default function AgentMarketplacePage() {
         </button>
 
         {/* Heading */}
-        <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.75rem", color: S.ink, margin: "0 0 0.4rem" }}>
+        <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", color: UI.ink, margin: "0 0 0.4rem" }}>
           Agent Marketplace
         </h1>
-        <p style={{ fontFamily: S.sans, fontSize: "0.9rem", color: S.inkLight, margin: "0 0 2rem" }}>
+        <p style={{ fontFamily: UI.sans, fontSize: "0.9rem", color: UI.inkLight, margin: "0 0 2rem" }}>
           Browse open listing bid requests and submit sealed proposals. Your commission and terms remain hidden until the deadline.
         </p>
 
         {/* 9.4.6 — Pending counter offers from homeowners */}
         {myCounters.filter((c) => c.status === "Pending").length > 0 && (
-          <div style={{ border: `1px solid ${S.rule}`, padding: "1.25rem 1.5rem", marginBottom: "2rem" }}>
-            <h2 style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.1rem", color: S.ink, margin: "0 0 1rem" }}>
+          <div style={{ border: `1px solid ${UI.rule}`, padding: "1.25rem 1.5rem", marginBottom: "2rem" }}>
+            <h2 style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.1rem", color: UI.ink, margin: "0 0 1rem" }}>
               Pending Counter Offers
             </h2>
             {myCounters.filter((c) => c.status === "Pending").map((counter) => (
-              <div key={counter.id} style={{ borderTop: `1px solid ${S.rule}`, paddingTop: "0.75rem", marginTop: "0.75rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.75rem" }}>
+              <div key={counter.id} style={{ borderTop: `1px solid ${UI.rule}`, paddingTop: "0.75rem", marginTop: "0.75rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.75rem" }}>
                 <div>
-                  <div style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "0.2rem" }}>
+                  <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "0.2rem" }}>
                     Request {counter.requestId}
                   </div>
-                  <div style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1rem", color: S.ink }}>
+                  <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1rem", color: UI.ink }}>
                     {`${formatCommission(counter.commissionBps)}${counter.notes ? ` · "${counter.notes}"` : ""}`}
                   </div>
                 </div>
@@ -265,8 +265,8 @@ export default function AgentMarketplacePage() {
                   <button
                     onClick={() => handleRespondToCounter(counter.id, "reject")}
                     style={{
-                      background: "none", border: `1px solid ${S.rule}`, cursor: "pointer",
-                      fontFamily: S.mono, fontSize: "0.72rem", color: S.inkLight,
+                      background: "none", border: `1px solid ${UI.rule}`, cursor: "pointer",
+                      fontFamily: UI.mono, fontSize: "0.72rem", color: UI.inkLight,
                       letterSpacing: "0.06em", textTransform: "uppercase", padding: "0.5rem 1rem",
                     }}
                   >
@@ -279,15 +279,15 @@ export default function AgentMarketplacePage() {
         )}
 
         {loading && (
-          <p style={{ fontFamily: S.mono, color: S.inkLight }}>Loading open listings…</p>
+          <p style={{ fontFamily: UI.mono, color: UI.inkLight }}>Loading open listings…</p>
         )}
 
         {!loading && requests.length === 0 && (
-          <div style={{ border: `1px solid ${S.rule}`, padding: "2rem", textAlign: "center" }}>
-            <p style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.1rem", color: S.ink, margin: "0 0 0.5rem" }}>
+          <div style={{ border: `1px solid ${UI.rule}`, padding: "2rem", textAlign: "center" }}>
+            <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.1rem", color: UI.ink, margin: "0 0 0.5rem" }}>
               No open listings at the moment
             </p>
-            <p style={{ fontFamily: S.sans, fontSize: "0.875rem", color: S.inkLight, margin: 0 }}>
+            <p style={{ fontFamily: UI.sans, fontSize: "0.875rem", color: UI.inkLight, margin: 0 }}>
               Check back soon — new bid requests are posted as homeowners prepare to list.
             </p>
           </div>
@@ -295,24 +295,24 @@ export default function AgentMarketplacePage() {
 
         {/* Open request cards */}
         {requests.map((req) => (
-          <div key={req.id} style={{ border: `1px solid ${S.rule}`, padding: "1.25rem 1.5rem", marginBottom: "1rem" }}>
+          <div key={req.id} style={{ border: `1px solid ${UI.rule}`, padding: "1.25rem 1.5rem", marginBottom: "1rem" }}>
             {/* Header row */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "0.75rem", marginBottom: "1rem" }}>
               <div>
-                <div style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "0.2rem" }}>
+                <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "0.2rem" }}>
                   Property ID: {req.propertyId}
                 </div>
                 {req.desiredSalePrice && (
-                  <div style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.25rem", color: S.ink }}>
+                  <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.25rem", color: UI.ink }}>
                     {formatPrice(req.desiredSalePrice)}
-                    <span style={{ fontFamily: S.mono, fontSize: "0.7rem", fontWeight: 400, color: S.inkLight, marginLeft: "0.5rem" }}>desired price</span>
+                    <span style={{ fontFamily: UI.mono, fontSize: "0.7rem", fontWeight: 400, color: UI.inkLight, marginLeft: "0.5rem" }}>desired price</span>
                   </div>
                 )}
               </div>
               {/* Deadline badge */}
               <div style={{
-                border: `1px solid ${S.rule}`, padding: "0.35rem 0.75rem",
-                fontFamily: S.mono, fontSize: "0.68rem", color: S.inkLight,
+                border: `1px solid ${UI.rule}`, padding: "0.35rem 0.75rem",
+                fontFamily: UI.mono, fontSize: "0.68rem", color: UI.inkLight,
                 letterSpacing: "0.05em", textTransform: "uppercase",
                 display: "flex", alignItems: "center", gap: "0.35rem",
               }}>
@@ -320,14 +320,14 @@ export default function AgentMarketplacePage() {
                 Deadline: {formatDate(req.bidDeadline)}
                 {/* 9.2.5 — deadline info visible inline */}
                 {req.bidDeadline > Date.now() && (
-                  <span style={{ color: S.sage }}> · closes {formatDate(req.bidDeadline)}</span>
+                  <span style={{ color: UI.sage }}> · closes {formatDate(req.bidDeadline)}</span>
                 )}
               </div>
             </div>
 
             {/* Notes */}
             {req.notes && (
-              <p style={{ fontFamily: S.sans, fontSize: "0.875rem", color: S.ink, margin: "0 0 1rem" }}>
+              <p style={{ fontFamily: UI.sans, fontSize: "0.875rem", color: UI.ink, margin: "0 0 1rem" }}>
                 {req.notes}
               </p>
             )}
@@ -342,8 +342,8 @@ export default function AgentMarketplacePage() {
 
             {/* Inline proposal form */}
             {activeReqId === req.id && (
-              <form onSubmit={handleSubmit} style={{ marginTop: "1rem", display: "flex", flexDirection: "column", gap: "1rem", borderTop: `1px solid ${S.rule}`, paddingTop: "1.25rem" }}>
-                <h3 style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1rem", color: S.ink, margin: 0 }}>
+              <form onSubmit={handleSubmit} style={{ marginTop: "1rem", display: "flex", flexDirection: "column", gap: "1rem", borderTop: `1px solid ${UI.rule}`, paddingTop: "1.25rem" }}>
+                <h3 style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1rem", color: UI.ink, margin: 0 }}>
                   Your Proposal
                 </h3>
 
@@ -384,7 +384,7 @@ export default function AgentMarketplacePage() {
                       style={fieldStyle}
                       required
                     />
-                    <p style={{ fontFamily: S.mono, fontSize: "0.62rem", color: S.sage, margin: "0.25rem 0 0", letterSpacing: "0.04em" }}>
+                    <p style={{ fontFamily: UI.mono, fontSize: "0.62rem", color: UI.sage, margin: "0.25rem 0 0", letterSpacing: "0.04em" }}>
                       {formatCommission(commBps)}
                       {commDollars !== null && ` = ${formatPrice(commDollars)}`}
                     </p>
@@ -437,8 +437,8 @@ export default function AgentMarketplacePage() {
                       onClick={addComp}
                       style={{
                         display: "flex", alignItems: "center", gap: "0.3rem",
-                        background: "none", border: `1px solid ${S.rule}`, cursor: "pointer",
-                        fontFamily: S.mono, fontSize: "0.65rem", color: S.ink,
+                        background: "none", border: `1px solid ${UI.rule}`, cursor: "pointer",
+                        fontFamily: UI.mono, fontSize: "0.65rem", color: UI.ink,
                         padding: "0.25rem 0.6rem", letterSpacing: "0.04em",
                       }}
                       aria-label="Add Comp"
@@ -447,7 +447,7 @@ export default function AgentMarketplacePage() {
                     </button>
                   </div>
                   {cmaComps.map((comp, idx) => (
-                    <div key={idx} style={{ border: `1px solid ${S.rule}`, padding: "0.75rem", marginBottom: "0.5rem" }}>
+                    <div key={idx} style={{ border: `1px solid ${UI.rule}`, padding: "0.75rem", marginBottom: "0.5rem" }}>
                       <div style={{ overflowX: isMobile ? "auto" : "visible" }}>
                       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr auto", gap: "0.5rem", alignItems: "end", minWidth: isMobile ? "560px" : undefined }}>
                         <input
@@ -494,7 +494,7 @@ export default function AgentMarketplacePage() {
                         <button
                           type="button"
                           onClick={() => removeComp(idx)}
-                          style={{ background: "none", border: "none", cursor: "pointer", color: S.inkLight, padding: "0.4rem" }}
+                          style={{ background: "none", border: "none", cursor: "pointer", color: UI.inkLight, padding: "0.4rem" }}
                           aria-label="Remove comp"
                         >
                           <Trash2 size={13} />
@@ -504,7 +504,7 @@ export default function AgentMarketplacePage() {
                     </div>
                   ))}
                   {cmaComps.length === 0 && (
-                    <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, margin: 0 }}>
+                    <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, margin: 0 }}>
                       No comps added — click "Add Comp" to include comparable sales.
                     </p>
                   )}
@@ -556,8 +556,8 @@ export default function AgentMarketplacePage() {
                     onClick={handleSaveDraft}
                     style={{
                       display: "flex", alignItems: "center", gap: "0.35rem",
-                      background: "none", border: `1px solid ${S.rule}`, cursor: "pointer",
-                      fontFamily: S.mono, fontSize: "0.72rem", color: S.ink,
+                      background: "none", border: `1px solid ${UI.rule}`, cursor: "pointer",
+                      fontFamily: UI.mono, fontSize: "0.72rem", color: UI.ink,
                       letterSpacing: "0.06em", textTransform: "uppercase", padding: "0.5rem 1rem",
                     }}
                     aria-label="Save Draft"
@@ -568,8 +568,8 @@ export default function AgentMarketplacePage() {
                     type="button"
                     onClick={closeForm}
                     style={{
-                      background: "none", border: `1px solid ${S.rule}`, cursor: "pointer",
-                      fontFamily: S.mono, fontSize: "0.72rem", color: S.inkLight,
+                      background: "none", border: `1px solid ${UI.rule}`, cursor: "pointer",
+                      fontFamily: UI.mono, fontSize: "0.72rem", color: UI.inkLight,
                       letterSpacing: "0.06em", textTransform: "uppercase", padding: "0.5rem 1rem",
                     }}
                   >

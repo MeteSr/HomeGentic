@@ -17,7 +17,7 @@ import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { isValidEmail, isValidPhone, isValidHttpsUrl } from "@/utils/validators";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -48,16 +48,16 @@ export default function SettingsPage() {
     <Layout>
       <div style={{ maxWidth: "56rem", margin: "0 auto", padding: "2rem 1.5rem" }}>
 
-        <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.rust, marginBottom: "0.5rem" }}>
+        <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: UI.rust, marginBottom: "0.5rem" }}>
           Account
         </div>
-        <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, marginBottom: "1.5rem" }}>
+        <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, marginBottom: "1.5rem" }}>
           Settings
         </h1>
 
         <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: "1.5rem" }}>
           {/* Sidebar */}
-          <div style={{ width: isMobile ? "100%" : "12rem", flexShrink: 0, border: `1px solid ${S.rule}` }}>
+          <div style={{ width: isMobile ? "100%" : "12rem", flexShrink: 0, border: `1px solid ${UI.rule}` }}>
             {TABS.map((t, i) => (
               <button
                 key={t.key}
@@ -65,10 +65,10 @@ export default function SettingsPage() {
                 style={{
                   display: "flex", alignItems: "center", gap: "0.625rem",
                   width: "100%", padding: "0.75rem 1rem",
-                  fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase",
-                  color: tab === t.key ? S.rust : S.inkLight,
+                  fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase",
+                  color: tab === t.key ? UI.rust : UI.inkLight,
                   background: tab === t.key ? COLORS.blush : COLORS.white,
-                  border: "none", borderBottom: i < TABS.length - 1 ? `1px solid ${S.rule}` : "none",
+                  border: "none", borderBottom: i < TABS.length - 1 ? `1px solid ${UI.rule}` : "none",
                   cursor: "pointer", textAlign: "left",
                 }}
               >
@@ -113,9 +113,9 @@ function AccountTab({ profile, setProfile }: { profile: any; setProfile: any }) 
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-      <div style={{ border: `1px solid ${S.rule}` }}>
-        <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${S.rule}` }}>
-          <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>Account Details</p>
+      <div style={{ border: `1px solid ${UI.rule}` }}>
+        <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${UI.rule}` }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>Account Details</p>
         </div>
         <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
           <div>
@@ -175,12 +175,12 @@ function AgentBrandingSection() {
   };
 
   return (
-    <div style={{ border: `1px solid ${S.rule}` }}>
-      <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${S.rule}`, background: COLORS.white }}>
-        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.25rem" }}>
+    <div style={{ border: `1px solid ${UI.rule}` }}>
+      <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${UI.rule}`, background: COLORS.white }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.25rem" }}>
           Agent Co-Branding
         </p>
-        <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: S.inkLight, fontWeight: 300 }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: UI.inkLight, fontWeight: 300 }}>
           Your branding appears on HomeGentic reports you share with buyers. ICP verification remains intact.
         </p>
       </div>
@@ -204,7 +204,7 @@ function AgentBrandingSection() {
           )}
         </div>
         <div>
-          <label className="form-label">Logo URL <span style={{ fontFamily: S.mono, fontSize: "0.55rem", color: S.inkLight, textTransform: "none", letterSpacing: 0 }}>(optional — https://)</span></label>
+          <label className="form-label">Logo URL <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: UI.inkLight, textTransform: "none", letterSpacing: 0 }}>(optional — https://)</span></label>
           <input className="form-input" type="url" placeholder="https://yourbrokerage.com/logo.png" value={logoUrl}
             onChange={(e) => setLogoUrl(e.target.value)}
             style={logoUrl && !isValidHttpsUrl(logoUrl) ? { borderColor: COLORS.rust } : undefined}
@@ -215,14 +215,14 @@ function AgentBrandingSection() {
         </div>
         {/* Preview */}
         {(name || brokerage) && (
-          <div style={{ border: `1px solid ${S.rule}`, padding: "0.875rem 1.25rem", background: COLORS.white, display: "flex", alignItems: "center", gap: "0.875rem" }}>
+          <div style={{ border: `1px solid ${UI.rule}`, padding: "0.875rem 1.25rem", background: COLORS.white, display: "flex", alignItems: "center", gap: "0.875rem" }}>
             {logoUrl && isValidHttpsUrl(logoUrl) && (
               <img src={logoUrl} alt="logo" style={{ height: "2rem", objectFit: "contain", flexShrink: 0 }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
             )}
             <div>
-              {name && <p style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "0.875rem", color: S.ink }}>{name}</p>}
-              {brokerage && <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: S.inkLight }}>{brokerage}</p>}
-              {phone && <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight }}>{phone}</p>}
+              {name && <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "0.875rem", color: UI.ink }}>{name}</p>}
+              {brokerage && <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: UI.inkLight }}>{brokerage}</p>}
+              {phone && <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight }}>{phone}</p>}
             </div>
           </div>
         )}
@@ -240,12 +240,12 @@ function AgentBrandingSection() {
 function AgentDashboardLink() {
   const navigate = useNavigate();
   return (
-    <div style={{ border: `1px solid ${S.rule}`, marginTop: "1.5rem" }}>
-      <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${S.rule}`, background: COLORS.white }}>
-        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.25rem" }}>
+    <div style={{ border: `1px solid ${UI.rule}`, marginTop: "1.5rem" }}>
+      <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${UI.rule}`, background: COLORS.white }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.25rem" }}>
           Agent Dashboard
         </p>
-        <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: S.inkLight, fontWeight: 300 }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: UI.inkLight, fontWeight: 300 }}>
           Track all share links across your client properties — view counts, expiry, and revocation.
         </p>
       </div>
@@ -318,22 +318,22 @@ function SubscriptionTab({ profile }: { profile: any }) {
         <div style={{ border: `1.5px solid ${COLORS.sageMid}`, background: COLORS.sageLight, padding: "1.5rem" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap", marginBottom: "1rem" }}>
             <div>
-              <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.18em", textTransform: "uppercase", color: COLORS.sage, marginBottom: "0.3rem" }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.18em", textTransform: "uppercase", color: COLORS.sage, marginBottom: "0.3rem" }}>
                 Current Plan
               </p>
               <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-                <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.5rem", color: S.ink }}>Free</span>
+                <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", color: UI.ink }}>Free</span>
                 <Badge variant="default" size="sm">Active</Badge>
               </div>
             </div>
             <button
               onClick={() => setShowUpgradeModal(true)}
-              style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.55rem 1.25rem", border: "none", background: COLORS.plum, color: COLORS.white, cursor: "pointer" }}
+              style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.55rem 1.25rem", border: "none", background: COLORS.plum, color: COLORS.white, cursor: "pointer" }}
             >
               {profile?.role === "Contractor" ? "Upgrade to ContractorPro →" : "Upgrade to Pro →"}
             </button>
           </div>
-          <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: S.inkLight, marginBottom: "0.75rem" }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: UI.inkLight, marginBottom: "0.75rem" }}>
             You're on the Free plan. Upgrade to unlock:
           </p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.375rem 1.5rem" }}>
@@ -341,7 +341,7 @@ function SubscriptionTab({ profile }: { profile: any }) {
               ? ["Contractor profile listing", "Lead notifications", "Job completion certificates", "Trust score display", "Customer reviews", "Earnings dashboard"]
               : ["Score Breakdown", "Warranty Wallet", "Recurring Services", "Market Intelligence", "Insurance Defense Mode", "5-Year Maintenance Calendar"]
             ).map((f) => (
-              <span key={f} style={{ fontFamily: S.mono, fontSize: "0.6rem", color: COLORS.plumMid, display: "flex", alignItems: "center", gap: "0.35rem" }}>
+              <span key={f} style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: COLORS.plumMid, display: "flex", alignItems: "center", gap: "0.35rem" }}>
                 <Lock size={10} /> {f}
               </span>
             ))}
@@ -349,14 +349,14 @@ function SubscriptionTab({ profile }: { profile: any }) {
         </div>
       ) : (
         /* Paid tier — standard compact plan card */
-        <div style={{ border: `1px solid ${S.rule}`, background: COLORS.white }}>
-          <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${S.rule}` }}>
-            <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>Current Plan</p>
+        <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white }}>
+          <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${UI.rule}` }}>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>Current Plan</p>
           </div>
           <div style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
               <Badge variant="info" size="lg">{tier}</Badge>
-              <span style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: expiresAt && expiresAt < Date.now() ? COLORS.rust : S.inkLight }}>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: expiresAt && expiresAt < Date.now() ? COLORS.rust : UI.inkLight }}>
                 {expiresAt && expiresAt < Date.now()
                   ? "Expired"
                   : expiresAt
@@ -374,7 +374,7 @@ function SubscriptionTab({ profile }: { profile: any }) {
                   color:       COLORS.white,
                   border:      "none",
                   padding:     "0.45rem 1rem",
-                  fontFamily:  S.mono,
+                  fontFamily:  UI.mono,
                   fontWeight:  700,
                   fontSize:    "0.65rem",
                   letterSpacing: "0.1em",
@@ -387,7 +387,7 @@ function SubscriptionTab({ profile }: { profile: any }) {
             )}
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem" }}>
               {currentPlan.features.map((f) => (
-                <span key={f} style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.06em", color: S.inkLight, border: `1px solid ${S.rule}`, padding: "0.15rem 0.5rem", background: S.paper }}>
+                <span key={f} style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.06em", color: UI.inkLight, border: `1px solid ${UI.rule}`, padding: "0.15rem 0.5rem", background: UI.paper }}>
                   {f}
                 </span>
               ))}
@@ -403,7 +403,7 @@ function SubscriptionTab({ profile }: { profile: any }) {
         return p.tier !== "ContractorPro" && p.tier !== "ContractorFree";
       }).length > 0 && (
         <>
-          <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
             {isPaid ? "Switch Plan" : "Upgrade Plan"}
           </p>
           {PLANS.filter((p) => {
@@ -411,17 +411,17 @@ function SubscriptionTab({ profile }: { profile: any }) {
             if (profile?.role === "Contractor") return p.tier === "ContractorPro";
             return p.tier !== "ContractorPro";
           }).map((plan) => (
-            <div key={plan.tier} style={{ border: `1px solid ${plan.tier === "Pro" ? S.rust : S.rule}`, background: COLORS.white, padding: "1.25rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
+            <div key={plan.tier} style={{ border: `1px solid ${plan.tier === "Pro" ? UI.rust : UI.rule}`, background: COLORS.white, padding: "1.25rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
               <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
-                  <span style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>{plan.tier}</span>
+                  <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>{plan.tier}</span>
                   {plan.tier === "Pro" && <Badge variant="info" size="sm">Most Popular</Badge>}
                 </div>
-                <p style={{ fontSize: "0.8rem", color: S.inkLight, fontWeight: 300 }}>{plan.features[0]}, {plan.features[1]}</p>
+                <p style={{ fontSize: "0.8rem", color: UI.inkLight, fontWeight: 300 }}>{plan.features[0]}, {plan.features[1]}</p>
               </div>
               <div style={{ textAlign: "right", flexShrink: 0 }}>
-                <p style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.25rem", lineHeight: 1, marginBottom: "0.5rem" }}>
-                  ${plan.price}<span style={{ fontFamily: S.mono, fontSize: "0.65rem", fontWeight: 400, color: S.inkLight }}>/{plan.period}</span>
+                <p style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.25rem", lineHeight: 1, marginBottom: "0.5rem" }}>
+                  ${plan.price}<span style={{ fontFamily: UI.mono, fontSize: "0.65rem", fontWeight: 400, color: UI.inkLight }}>/{plan.period}</span>
                 </p>
                 <Button
                   size="sm"
@@ -440,16 +440,16 @@ function SubscriptionTab({ profile }: { profile: any }) {
       {isPaid && pauseState && (
         <div style={{ border: `1px solid ${COLORS.plumMid}`, background: COLORS.butter, padding: "1rem 1.25rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
           <div>
-            <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.2rem" }}>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.2rem" }}>
               Subscription Paused
             </p>
-            <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: COLORS.plumMid }}>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: COLORS.plumMid }}>
               {pauseState.daysLeft} day{pauseState.daysLeft !== 1 ? "s" : ""} remaining — resumes {new Date(pauseState.pausedUntil).toLocaleDateString()}
             </p>
           </div>
           <button
             onClick={handleResume}
-            style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 1rem", border: `1px solid ${COLORS.plumMid}`, background: COLORS.white, color: COLORS.plumMid, cursor: "pointer", whiteSpace: "nowrap" }}
+            style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 1rem", border: `1px solid ${COLORS.plumMid}`, background: COLORS.white, color: COLORS.plumMid, cursor: "pointer", whiteSpace: "nowrap" }}
           >
             Resume now
           </button>
@@ -458,14 +458,14 @@ function SubscriptionTab({ profile }: { profile: any }) {
 
       {/* Cancellation */}
       {isPaid && cancelStep !== "done" && (
-        <div style={{ border: `1px solid ${S.rule}`, background: COLORS.white }}>
-          <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${S.rule}` }}>
-            <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>Cancel Subscription</p>
+        <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white }}>
+          <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${UI.rule}` }}>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>Cancel Subscription</p>
           </div>
 
           {cancelStep === "idle" && (
             <div style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: S.inkLight, lineHeight: 1.6 }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: UI.inkLight, lineHeight: 1.6 }}>
                 Not ready to cancel? You can pause your subscription for up to 3 months — your records and score stay active, billing stops.
               </p>
               {!pauseState && (
@@ -474,20 +474,20 @@ function SubscriptionTab({ profile }: { profile: any }) {
                     <button
                       key={m}
                       onClick={() => handlePause(m)}
-                      style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 0.875rem", border: `1px solid ${COLORS.plumMid}`, background: COLORS.butter, color: COLORS.plumMid, cursor: "pointer" }}
+                      style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 0.875rem", border: `1px solid ${COLORS.plumMid}`, background: COLORS.butter, color: COLORS.plumMid, cursor: "pointer" }}
                     >
                       Pause {m} month{m > 1 ? "s" : ""}
                     </button>
                   ))}
                 </div>
               )}
-              <div style={{ borderTop: `1px solid ${S.rule}`, paddingTop: "0.875rem" }}>
-                <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: S.inkLight, lineHeight: 1.6, marginBottom: "0.75rem" }}>
+              <div style={{ borderTop: `1px solid ${UI.rule}`, paddingTop: "0.875rem" }}>
+                <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: UI.inkLight, lineHeight: 1.6, marginBottom: "0.75rem" }}>
                   Cancelling will immediately downgrade your account to Free. Your records and property history will be preserved.
                 </p>
                 <button
                   onClick={() => setCancelStep("confirm")}
-                  style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${S.rust}`, background: "none", color: S.rust, cursor: "pointer" }}
+                  style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${UI.rust}`, background: "none", color: UI.rust, cursor: "pointer" }}
                 >
                   Cancel Plan
                 </button>
@@ -497,45 +497,45 @@ function SubscriptionTab({ profile }: { profile: any }) {
 
           {cancelStep === "confirm" && (
             <div style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <div style={{ padding: "1rem", background: COLORS.blush, border: `1px solid ${S.rust}40` }}>
-                <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.rust, marginBottom: "0.5rem" }}>
+              <div style={{ padding: "1rem", background: COLORS.blush, border: `1px solid ${UI.rust}40` }}>
+                <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.rust, marginBottom: "0.5rem" }}>
                   You will lose access to:
                 </p>
                 <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
                   {currentPlan.features.filter((f) => !PLANS[0].features.includes(f)).map((f) => (
-                    <li key={f} style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: S.inkLight }}>
+                    <li key={f} style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: UI.inkLight }}>
                       — {f}
                     </li>
                   ))}
                 </ul>
               </div>
               <div style={{ padding: "0.875rem 1rem", background: COLORS.sageLight, border: `1px solid ${COLORS.sageMid}` }}>
-                <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: COLORS.sage, lineHeight: 1.6 }}>
+                <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: COLORS.sage, lineHeight: 1.6 }}>
                   <strong>Your ICP records are permanent.</strong> All your maintenance history, verified jobs, and blockchain records remain on the Internet Computer after cancellation.
                   You can still view them — you just won't earn new score points or get priority support.
                 </p>
               </div>
-              <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: S.inkLight }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: UI.inkLight }}>
                 Or pause instead — keeps your account active without billing.
               </p>
               <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
                 <button
                   onClick={handleCancel}
-                  style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${S.rust}`, background: S.rust, color: COLORS.white, cursor: "pointer" }}
+                  style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${UI.rust}`, background: UI.rust, color: COLORS.white, cursor: "pointer" }}
                 >
                   Confirm Cancellation
                 </button>
                 {!pauseState && (
                   <button
                     onClick={() => { handlePause(1); setCancelStep("idle"); }}
-                    style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${COLORS.plumMid}`, background: COLORS.butter, color: COLORS.plumMid, cursor: "pointer" }}
+                    style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${COLORS.plumMid}`, background: COLORS.butter, color: COLORS.plumMid, cursor: "pointer" }}
                   >
                     Pause 1 month instead
                   </button>
                 )}
                 <button
                   onClick={() => setCancelStep("idle")}
-                  style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${S.rule}`, background: "none", color: S.inkLight, cursor: "pointer" }}
+                  style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${UI.rule}`, background: "none", color: UI.inkLight, cursor: "pointer" }}
                 >
                   Keep Plan
                 </button>
@@ -546,7 +546,7 @@ function SubscriptionTab({ profile }: { profile: any }) {
           {cancelStep === "loading" && (
             <div style={{ padding: "1.5rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
               <div className="spinner-lg" style={{ width: "1rem", height: "1rem" }} />
-              <span style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight }}>Processing cancellation…</span>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight }}>Processing cancellation…</span>
             </div>
           )}
         </div>
@@ -554,24 +554,24 @@ function SubscriptionTab({ profile }: { profile: any }) {
 
       {/* Post-cancellation confirmation */}
       {cancelStep === "done" && (
-        <div style={{ border: `1px solid ${S.rule}`, background: COLORS.white, padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+        <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
             <CheckCircle size={16} color={COLORS.sage} style={{ flexShrink: 0 }} />
             <div>
-              <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.sage, marginBottom: "0.2rem" }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.sage, marginBottom: "0.2rem" }}>
                 Subscription cancelled
               </p>
-              <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>
                 Your account has been downgraded to Free. All your records are intact.
               </p>
             </div>
           </div>
           {/* 8.3.2 — Read-only mode notice */}
           <div style={{ border: `1px solid ${COLORS.sageMid}`, background: COLORS.sageLight, padding: "0.875rem 1rem" }}>
-            <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.sage, marginBottom: "0.3rem" }}>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.sage, marginBottom: "0.3rem" }}>
               Read-only mode
             </p>
-            <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, lineHeight: 1.5 }}>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, lineHeight: 1.5 }}>
               Your records are read-only. Your HomeGentic score won't update, and existing reports are static.
               Reactivate Pro to resume tracking and generate new reports.
             </p>
@@ -589,16 +589,16 @@ function SubscriptionTab({ profile }: { profile: any }) {
 
 function ToggleRow({ label, desc, value, onChange }: { label: string; desc?: string; value: boolean; onChange: (v: boolean) => void }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.875rem 1.25rem", borderBottom: `1px solid ${S.rule}` }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.875rem 1.25rem", borderBottom: `1px solid ${UI.rule}` }}>
       <div>
         <p style={{ fontSize: "0.875rem", fontWeight: 500 }}>{label}</p>
-        {desc && <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight, marginTop: "0.125rem" }}>{desc}</p>}
+        {desc && <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight, marginTop: "0.125rem" }}>{desc}</p>}
       </div>
       <div
         onClick={() => onChange(!value)}
         style={{
           width: "2.5rem", height: "1.25rem",
-          background: value ? S.rust : S.rule,
+          background: value ? UI.rust : UI.rule,
           cursor: "pointer", position: "relative", flexShrink: 0,
         }}
       >
@@ -627,9 +627,9 @@ function ContractorNotificationsTab() {
   }
 
   return (
-    <div style={{ border: `1px solid ${S.rule}` }}>
-      <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${S.rule}` }}>
-        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>Notifications</p>
+    <div style={{ border: `1px solid ${UI.rule}` }}>
+      <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${UI.rule}` }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>Notifications</p>
       </div>
       <ToggleRow label="New Lead in My Trades"   desc="Alert when a homeowner posts a request matching your trades" value={newLead}     onChange={setNewLead} />
       <ToggleRow label="Bid Accepted"            desc="When a homeowner accepts one of your quotes"                 value={bidAccepted} onChange={setBidAccepted} />
@@ -664,9 +664,9 @@ function NotificationsTab() {
   }
 
   return (
-    <div style={{ border: `1px solid ${S.rule}` }}>
-      <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${S.rule}` }}>
-        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>Notifications</p>
+    <div style={{ border: `1px solid ${UI.rule}` }}>
+      <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${UI.rule}` }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>Notifications</p>
       </div>
       <ToggleRow label="Weekly Home Pulse"     desc="In-app maintenance tips on your dashboard" value={pulseEnabled}  onChange={setPulseEnabled} />
       <ToggleRow label="Score Change Alerts"   desc="Banner when your HomeGentic Score increases"  value={scoreAlerts}   onChange={setScoreAlerts} />
@@ -711,9 +711,9 @@ function ContractorPrivacyTab() {
   };
 
   return (
-    <div style={{ border: `1px solid ${S.rule}` }}>
-      <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${S.rule}` }}>
-        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>Privacy</p>
+    <div style={{ border: `1px solid ${UI.rule}` }}>
+      <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${UI.rule}` }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>Privacy</p>
       </div>
       <ToggleRow label="Public Profile"        desc="Appear in homeowner contractor searches and the contractor directory" value={profileVisible} onChange={setProfileVisible} />
       <ToggleRow label="Show Trust Score"      desc="Display your trust score on your public profile"                     value={showTrustScore} onChange={setShowTrustScore} />
@@ -724,11 +724,11 @@ function ContractorPrivacyTab() {
       </div>
 
       {/* Data Export */}
-      <div style={{ borderTop: `1px solid ${S.rule}`, padding: "1.25rem" }}>
-        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.5rem" }}>
+      <div style={{ borderTop: `1px solid ${UI.rule}`, padding: "1.25rem" }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.5rem" }}>
           Export Your Data
         </p>
-        <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: S.inkLight, lineHeight: 1.6, marginBottom: "1rem" }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: UI.inkLight, lineHeight: 1.6, marginBottom: "1rem" }}>
           Download your contractor record as JSON. Your bids, job credentials, and reviews are
           also permanently stored on the Internet Computer blockchain — you own them regardless
           of your subscription status.
@@ -799,9 +799,9 @@ function PrivacyTab() {
   };
 
   return (
-    <div style={{ border: `1px solid ${S.rule}` }}>
-      <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${S.rule}` }}>
-        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight }}>Privacy</p>
+    <div style={{ border: `1px solid ${UI.rule}` }}>
+      <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${UI.rule}` }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>Privacy</p>
       </div>
       <ToggleRow label="Public HomeGentic Report"   desc="Allow anyone with the link to view your property history" value={publicReport}    onChange={setPublicReport} />
       <ToggleRow label="Contractor Visibility"   desc="Allow contractors to find and view your properties"       value={contractorView}  onChange={setContractorView} />
@@ -811,11 +811,11 @@ function PrivacyTab() {
       </div>
 
       {/* Data Export */}
-      <div style={{ borderTop: `1px solid ${S.rule}`, padding: "1.25rem" }}>
-        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.5rem" }}>
+      <div style={{ borderTop: `1px solid ${UI.rule}`, padding: "1.25rem" }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.5rem" }}>
           Export Your Data
         </p>
-        <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: S.inkLight, lineHeight: 1.6, marginBottom: "1rem" }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: UI.inkLight, lineHeight: 1.6, marginBottom: "1rem" }}>
           Download all your property and job records as JSON. Your data is yours — no lock-in,
           no expiration. Records are also permanently stored on the Internet Computer blockchain.
         </p>
@@ -827,7 +827,7 @@ function PrivacyTab() {
         >
           Download My Data (JSON)
         </Button>
-        <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.04em", color: S.inkLight, marginTop: "0.5rem", lineHeight: 1.5 }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.04em", color: UI.inkLight, marginTop: "0.5rem", lineHeight: 1.5 }}>
           Includes {properties.length} propert{properties.length !== 1 ? "ies" : "y"} and {jobs.length} job record{jobs.length !== 1 ? "s" : ""}.
         </p>
       </div>

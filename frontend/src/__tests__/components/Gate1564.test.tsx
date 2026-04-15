@@ -90,7 +90,7 @@ vi.mock("@/services/agent", () => ({
       },
     ]),
   },
-  computeAverageRating: vi.fn().mockReturnValue(null),
+  computeAverageRating: vi.fn().mockReturnValue(0),
 }));
 
 vi.mock("@/services/fsbo", async (importOriginal) => {

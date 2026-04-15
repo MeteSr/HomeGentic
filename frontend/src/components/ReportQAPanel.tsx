@@ -9,7 +9,7 @@ import React, { useState, useEffect } from "react";
 import { reportQAService, type ReportQA } from "@/services/reportQA";
 import { COLORS, FONTS } from "@/theme";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   inkLight: COLORS.plumMid,
   rule:     COLORS.rule,
@@ -47,18 +47,18 @@ export default function ReportQAPanel({ propertyId, sellerView }: ReportQAPanelP
 
   return (
     <div>
-      <h2 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.15rem", color: S.ink, margin: "0 0 0.75rem" }}>
+      <h2 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.15rem", color: UI.ink, margin: "0 0 0.75rem" }}>
         Questions &amp; Answers
       </h2>
 
       {items.length > 0 && (
         <div style={{ marginBottom: "1rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
           {items.map((qa) => (
-            <div key={qa.id} style={{ border: `1px solid ${S.rule}`, padding: "0.75rem 1rem" }}>
-              <div style={{ fontFamily: S.sans, fontWeight: 600, fontSize: "0.875rem", color: S.ink, marginBottom: "0.25rem" }}>
+            <div key={qa.id} style={{ border: `1px solid ${UI.rule}`, padding: "0.75rem 1rem" }}>
+              <div style={{ fontFamily: UI.sans, fontWeight: 600, fontSize: "0.875rem", color: UI.ink, marginBottom: "0.25rem" }}>
                 {qa.question}
               </div>
-              <div style={{ fontFamily: S.sans, fontSize: "0.8rem", color: qa.answer ? S.ink : S.inkLight }}>
+              <div style={{ fontFamily: UI.sans, fontSize: "0.8rem", color: qa.answer ? UI.ink : UI.inkLight }}>
                 {qa.answer ?? "No answer yet"}
               </div>
             </div>
@@ -71,7 +71,7 @@ export default function ReportQAPanel({ propertyId, sellerView }: ReportQAPanelP
           <div>
             <label
               htmlFor="qa-question"
-              style={{ display: "block", fontFamily: S.mono, fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.06em", color: S.inkLight, marginBottom: "0.25rem" }}
+              style={{ display: "block", fontFamily: UI.mono, fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.06em", color: UI.inkLight, marginBottom: "0.25rem" }}
             >
               Your Question
             </label>
@@ -81,14 +81,14 @@ export default function ReportQAPanel({ propertyId, sellerView }: ReportQAPanelP
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               placeholder="Ask about maintenance, systems, or history…"
-              style={{ width: "100%", padding: "0.5rem", border: `1px solid ${S.rule}`, fontFamily: S.sans, fontSize: "0.875rem", boxSizing: "border-box" }}
+              style={{ width: "100%", padding: "0.5rem", border: `1px solid ${UI.rule}`, fontFamily: UI.sans, fontSize: "0.875rem", boxSizing: "border-box" }}
             />
           </div>
           <button
             type="submit"
             disabled={loading}
             aria-label="Ask question"
-            style={{ alignSelf: "flex-start", padding: "0.4rem 1rem", background: S.ink, color: "#fff", border: "none", fontFamily: S.mono, fontSize: "0.75rem", cursor: "pointer" }}
+            style={{ alignSelf: "flex-start", padding: "0.4rem 1rem", background: UI.ink, color: "#fff", border: "none", fontFamily: UI.mono, fontSize: "0.75rem", cursor: "pointer" }}
           >
             Ask
           </button>

@@ -14,7 +14,7 @@ import { COLORS, FONTS } from "@/theme";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -88,11 +88,11 @@ export function BuilderDashboard() {
   }
 
   return (
-    <div style={{ fontFamily: S.sans, color: S.ink, padding: "2rem", maxWidth: 900 }}>
-      <h1 style={{ fontFamily: S.serif, fontSize: "1.8rem", fontWeight: 700, marginBottom: "0.25rem" }}>
+    <div style={{ fontFamily: UI.sans, color: UI.ink, padding: "2rem", maxWidth: 900 }}>
+      <h1 style={{ fontFamily: UI.serif, fontSize: "1.8rem", fontWeight: 700, marginBottom: "0.25rem" }}>
         Builder Dashboard
       </h1>
-      <p style={{ color: S.inkLight, fontFamily: S.mono, fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "2rem" }}>
+      <p style={{ color: UI.inkLight, fontFamily: UI.mono, fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "2rem" }}>
         Development portfolio &amp; unit management
       </p>
 
@@ -121,27 +121,27 @@ export function BuilderDashboard() {
         />
         <button
           onClick={() => jobFileRef.current?.click()}
-          style={{ ...btnStyle, background: "transparent", color: S.ink, border: `1px solid ${S.rule}` }}
+          style={{ ...btnStyle, background: "transparent", color: UI.ink, border: `1px solid ${UI.rule}` }}
         >
           Import Jobs
         </button>
       </div>
 
       {importMsg && (
-        <p style={{ fontFamily: S.mono, fontSize: "0.75rem", color: S.inkLight, marginBottom: "1.25rem" }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: UI.inkLight, marginBottom: "1.25rem" }}>
           {importMsg}
         </p>
       )}
 
       {/* ── Development table ── */}
       {loading ? (
-        <p style={{ color: S.inkLight }}>Loading developments…</p>
+        <p style={{ color: UI.inkLight }}>Loading developments…</p>
       ) : developments.length === 0 ? (
-        <p style={{ color: S.inkLight }}>No properties imported yet. Use "Import Properties" to get started.</p>
+        <p style={{ color: UI.inkLight }}>No properties imported yet. Use "Import Properties" to get started.</p>
       ) : (
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
-            <tr style={{ borderBottom: `2px solid ${S.rule}` }}>
+            <tr style={{ borderBottom: `2px solid ${UI.rule}` }}>
               {["Address", "Type", "Year Built", "Sq Ft", "Jobs", "Status", "Action"].map((h) => (
                 <th key={h} style={thStyle}>{h}</th>
               ))}
@@ -149,10 +149,10 @@ export function BuilderDashboard() {
           </thead>
           <tbody>
             {developments.map((dev) => (
-              <tr key={dev.propertyId} style={{ borderBottom: `1px solid ${S.rule}` }}>
+              <tr key={dev.propertyId} style={{ borderBottom: `1px solid ${UI.rule}` }}>
                 <td style={tdStyle}>
                   <div style={{ fontWeight: 500 }}>{dev.address}</div>
-                  <div style={{ color: S.inkLight, fontSize: "0.75rem" }}>
+                  <div style={{ color: UI.inkLight, fontSize: "0.75rem" }}>
                     {dev.city}, {dev.state} {dev.zipCode}
                   </div>
                 </td>
@@ -162,11 +162,11 @@ export function BuilderDashboard() {
                 <td style={tdStyle}>{dev.jobCount} {dev.jobCount === 1 ? "job" : "jobs"}</td>
                 <td style={tdStyle}>
                   {dev.pendingTransfer ? (
-                    <span style={{ fontFamily: S.mono, fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.06em", color: S.rust, border: `1px solid ${S.rust}`, padding: "2px 6px" }}>
+                    <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.06em", color: UI.rust, border: `1px solid ${UI.rust}`, padding: "2px 6px" }}>
                       Transfer Pending — {dev.pendingTransfer.buyerPrincipal.slice(0, 12)}…
                     </span>
                   ) : (
-                    <span style={{ fontFamily: S.mono, fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.06em", color: S.inkLight }}>
+                    <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.06em", color: UI.inkLight }}>
                       Available
                     </span>
                   )}

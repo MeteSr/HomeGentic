@@ -19,7 +19,7 @@ import {
 import { getTemplates, legalDocService, type LegalDoc } from "@/services/legalDocService";
 import { COLORS, FONTS } from "@/theme";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   inkLight: COLORS.plumMid,
   rule:     COLORS.rule,
@@ -59,16 +59,16 @@ export default function DisclosurePanel({ property, jobs, score = 0 }: Disclosur
     <div>
       {/* ── Header ── */}
       <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1.25rem", flexWrap: "wrap" }}>
-        <h2 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.25rem", color: S.ink, margin: 0 }}>
+        <h2 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.25rem", color: UI.ink, margin: 0 }}>
           Disclosure
         </h2>
         {waiverReady && (
           <span
             aria-label="Inspection Waiver Ready"
             style={{
-              fontFamily: S.mono, fontSize: "0.6rem", fontWeight: 700,
+              fontFamily: UI.mono, fontSize: "0.6rem", fontWeight: 700,
               textTransform: "uppercase", letterSpacing: "0.1em",
-              background: COLORS.sageLight, color: S.sage,
+              background: COLORS.sageLight, color: UI.sage,
               border: `1px solid ${COLORS.sageMid}`, padding: "0.2rem 0.55rem",
             }}
           >
@@ -80,23 +80,23 @@ export default function DisclosurePanel({ property, jobs, score = 0 }: Disclosur
       {/* ── 10.6.2 Completeness score ── */}
       <div style={{ marginBottom: "1.5rem" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.4rem" }}>
-          <span style={{ fontFamily: S.mono, fontSize: "0.6rem", textTransform: "uppercase", color: S.inkLight }}>
+          <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", textTransform: "uppercase", color: UI.inkLight }}>
             Disclosure Completeness
           </span>
           <span
             aria-label="Completeness score"
-            style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.9rem", color: S.ink }}
+            style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.9rem", color: UI.ink }}
           >
             {completeness}
           </span>
-          <span style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight }}>/100</span>
+          <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight }}>/100</span>
         </div>
         <div style={{ height: 6, background: COLORS.rule, position: "relative" }}>
           <div
             style={{
               position: "absolute", top: 0, left: 0,
               height: "100%", width: `${completeness}%`,
-              background: completeness >= 80 ? S.sage : completeness >= 50 ? "#e8a500" : "#c0392b",
+              background: completeness >= 80 ? UI.sage : completeness >= 50 ? "#e8a500" : "#c0392b",
               transition: "width 0.4s",
             }}
           />
@@ -106,17 +106,17 @@ export default function DisclosurePanel({ property, jobs, score = 0 }: Disclosur
       {/* ── 10.6.1 Material improvements ── */}
       {disclosure.materialImprovements.length > 0 && (
         <div style={{ marginBottom: "1.5rem" }}>
-          <div style={{ fontFamily: S.mono, fontSize: "0.65rem", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.5rem" }}>
+          <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.5rem" }}>
             Material Improvements
           </div>
           {disclosure.materialImprovements.map((imp, i) => (
-            <div key={i} style={{ display: "flex", gap: "0.75rem", borderTop: `1px solid ${S.rule}`, padding: "0.4rem 0", flexWrap: "wrap" }}>
-              <span style={{ fontFamily: S.sans, fontSize: "0.85rem", color: S.ink, flex: 1 }}>
+            <div key={i} style={{ display: "flex", gap: "0.75rem", borderTop: `1px solid ${UI.rule}`, padding: "0.4rem 0", flexWrap: "wrap" }}>
+              <span style={{ fontFamily: UI.sans, fontSize: "0.85rem", color: UI.ink, flex: 1 }}>
                 {imp.serviceType}
               </span>
-              <span style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.inkLight }}>{imp.year}</span>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: UI.inkLight }}>{imp.year}</span>
               {imp.verifiedByContractor && (
-                <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.sage }}>Contractor Verified</span>
+                <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.sage }}>Contractor Verified</span>
               )}
             </div>
           ))}
@@ -126,13 +126,13 @@ export default function DisclosurePanel({ property, jobs, score = 0 }: Disclosur
       {/* ── 10.6.1 Permits ── */}
       {disclosure.permits.length > 0 && (
         <div style={{ marginBottom: "1.5rem" }}>
-          <div style={{ fontFamily: S.mono, fontSize: "0.65rem", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.5rem" }}>
+          <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.5rem" }}>
             Permit History
           </div>
           {disclosure.permits.map((p, i) => (
-            <div key={i} style={{ display: "flex", gap: "0.75rem", borderTop: `1px solid ${S.rule}`, padding: "0.4rem 0" }}>
-              <span style={{ fontFamily: S.sans, fontSize: "0.85rem", color: S.ink, flex: 1 }}>{p.title}</span>
-              <span style={{ fontFamily: S.mono, fontSize: "0.7rem", color: S.inkLight }}>{p.permitNumber}</span>
+            <div key={i} style={{ display: "flex", gap: "0.75rem", borderTop: `1px solid ${UI.rule}`, padding: "0.4rem 0" }}>
+              <span style={{ fontFamily: UI.sans, fontSize: "0.85rem", color: UI.ink, flex: 1 }}>{p.title}</span>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: UI.inkLight }}>{p.permitNumber}</span>
             </div>
           ))}
         </div>
@@ -140,22 +140,22 @@ export default function DisclosurePanel({ property, jobs, score = 0 }: Disclosur
 
       {/* ── 10.6.3 Legal document library ── */}
       <div style={{ marginBottom: "1.5rem" }}>
-        <div style={{ fontFamily: S.mono, fontSize: "0.65rem", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.5rem" }}>
+        <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.5rem" }}>
           Legal Documents
         </div>
         {templates.map((t) => (
           <div
             key={t.id}
-            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: `1px solid ${S.rule}`, padding: "0.5rem 0", gap: "1rem", flexWrap: "wrap" }}
+            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: `1px solid ${UI.rule}`, padding: "0.5rem 0", gap: "1rem", flexWrap: "wrap" }}
           >
             <div>
-              <div style={{ fontFamily: S.sans, fontSize: "0.875rem", fontWeight: 600, color: S.ink }}>{t.title}</div>
-              <div style={{ fontFamily: S.sans, fontSize: "0.75rem", color: S.inkLight }}>{t.description}</div>
+              <div style={{ fontFamily: UI.sans, fontSize: "0.875rem", fontWeight: 600, color: UI.ink }}>{t.title}</div>
+              <div style={{ fontFamily: UI.sans, fontSize: "0.75rem", color: UI.inkLight }}>{t.description}</div>
             </div>
             <a
               href="#"
               aria-label={`Download ${t.title}`}
-              style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.ink, textDecoration: "underline" }}
+              style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.ink, textDecoration: "underline" }}
             >
               Download
             </a>
@@ -165,20 +165,20 @@ export default function DisclosurePanel({ property, jobs, score = 0 }: Disclosur
 
       {/* ── 10.6.4 Uploaded documents ── */}
       <div>
-        <div style={{ fontFamily: S.mono, fontSize: "0.65rem", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.5rem" }}>
+        <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.5rem" }}>
           Uploaded Documents
         </div>
 
         {uploads.length === 0 ? (
-          <p style={{ fontFamily: S.sans, fontSize: "0.8rem", color: S.inkLight, marginBottom: "0.75rem" }}>
+          <p style={{ fontFamily: UI.sans, fontSize: "0.8rem", color: UI.inkLight, marginBottom: "0.75rem" }}>
             No documents uploaded yet.
           </p>
         ) : (
           <div style={{ marginBottom: "0.75rem" }}>
             {uploads.map((doc) => (
-              <div key={doc.id} style={{ display: "flex", gap: "0.75rem", borderTop: `1px solid ${S.rule}`, padding: "0.4rem 0" }}>
-                <span style={{ fontFamily: S.sans, fontSize: "0.85rem", color: S.ink, flex: 1 }}>{doc.filename}</span>
-                <span style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight }}>{doc.docType}</span>
+              <div key={doc.id} style={{ display: "flex", gap: "0.75rem", borderTop: `1px solid ${UI.rule}`, padding: "0.4rem 0" }}>
+                <span style={{ fontFamily: UI.sans, fontSize: "0.85rem", color: UI.ink, flex: 1 }}>{doc.filename}</span>
+                <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight }}>{doc.docType}</span>
               </div>
             ))}
           </div>
@@ -189,7 +189,7 @@ export default function DisclosurePanel({ property, jobs, score = 0 }: Disclosur
             value={uploadDocType}
             onChange={(e) => setUploadDocType(e.target.value)}
             aria-label="Document type"
-            style={{ padding: "0.35rem 0.5rem", border: `1px solid ${S.rule}`, fontFamily: S.mono, fontSize: "0.7rem" }}
+            style={{ padding: "0.35rem 0.5rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.7rem" }}
           >
             <option value="SellerDisclosure">Seller Disclosure</option>
             <option value="PurchaseAgreement">Purchase Agreement</option>
@@ -202,7 +202,7 @@ export default function DisclosurePanel({ property, jobs, score = 0 }: Disclosur
             accept=".pdf,.doc,.docx"
             onChange={handleFileChange}
             aria-label="Upload document"
-            style={{ fontFamily: S.mono, fontSize: "0.7rem" }}
+            style={{ fontFamily: UI.mono, fontSize: "0.7rem" }}
           />
         </div>
       </div>

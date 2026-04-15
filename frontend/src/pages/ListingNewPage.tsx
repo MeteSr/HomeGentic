@@ -17,7 +17,7 @@ import { UpgradeGate } from "@/components/UpgradeGate";
 import toast from "react-hot-toast";
 import { COLORS, FONTS } from "@/theme";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -31,22 +31,22 @@ const S = {
 const fieldStyle: React.CSSProperties = {
   width: "100%",
   padding: "0.625rem 0.75rem",
-  fontFamily: S.sans,
+  fontFamily: UI.sans,
   fontSize: "0.9375rem",
-  color: S.ink,
-  border: `1px solid ${S.rule}`,
-  background: S.paper,
+  color: UI.ink,
+  border: `1px solid ${UI.rule}`,
+  background: UI.paper,
   outline: "none",
   boxSizing: "border-box",
 };
 
 const labelStyle: React.CSSProperties = {
   display: "block",
-  fontFamily: S.mono,
+  fontFamily: UI.mono,
   fontSize: "0.65rem",
   letterSpacing: "0.08em",
   textTransform: "uppercase",
-  color: S.inkLight,
+  color: UI.inkLight,
   marginBottom: "0.35rem",
 };
 
@@ -132,7 +132,7 @@ export default function ListingNewPage() {
           style={{
             display: "flex", alignItems: "center", gap: "0.4rem",
             background: "none", border: "none", cursor: "pointer",
-            fontFamily: S.mono, fontSize: "0.72rem", color: S.inkLight,
+            fontFamily: UI.mono, fontSize: "0.72rem", color: UI.inkLight,
             letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "2rem",
           }}
         >
@@ -140,10 +140,10 @@ export default function ListingNewPage() {
         </button>
 
         {/* Heading */}
-        <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.75rem", color: S.ink, margin: "0 0 0.4rem" }}>
+        <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", color: UI.ink, margin: "0 0 0.4rem" }}>
           List Your Home
         </h1>
-        <p style={{ fontFamily: S.sans, fontSize: "0.9rem", color: S.inkLight, margin: "0 0 2rem" }}>
+        <p style={{ fontFamily: UI.sans, fontSize: "0.9rem", color: UI.inkLight, margin: "0 0 2rem" }}>
           Invite licensed agents to compete for your listing with sealed proposals. You choose after the deadline.
         </p>
 
@@ -185,7 +185,7 @@ export default function ListingNewPage() {
             <div style={{ position: "relative" }}>
               <span style={{
                 position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)",
-                fontFamily: S.mono, fontSize: "0.875rem", color: S.inkLight,
+                fontFamily: UI.mono, fontSize: "0.875rem", color: UI.inkLight,
               }}>$</span>
               <input
                 id="listing-price"
@@ -198,7 +198,7 @@ export default function ListingNewPage() {
                 style={{ ...fieldStyle, paddingLeft: "1.75rem" }}
               />
             </div>
-            <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, margin: "0.3rem 0 0", letterSpacing: "0.04em" }}>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, margin: "0.3rem 0 0", letterSpacing: "0.04em" }}>
               Visible to agents — helps them benchmark their CMA
             </p>
           </div>
@@ -214,7 +214,7 @@ export default function ListingNewPage() {
               style={fieldStyle}
               required
             />
-            <p style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, margin: "0.3rem 0 0", letterSpacing: "0.04em" }}>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, margin: "0.3rem 0 0", letterSpacing: "0.04em" }}>
               Proposals are sealed until this date — agents cannot see each other's bids
             </p>
           </div>
@@ -238,7 +238,7 @@ export default function ListingNewPage() {
             <span style={labelStyle}>Proposal Visibility</span>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.35rem" }}>
               <label style={{ display: "flex", alignItems: "center", gap: "0.5rem",
-                fontFamily: S.sans, fontSize: "0.9rem", color: S.ink, cursor: "pointer" }}>
+                fontFamily: UI.sans, fontSize: "0.9rem", color: UI.ink, cursor: "pointer" }}>
                 <input
                   type="radio"
                   name="visibility"
@@ -250,7 +250,7 @@ export default function ListingNewPage() {
                 Open to all agents
               </label>
               <label style={{ display: "flex", alignItems: "center", gap: "0.5rem",
-                fontFamily: S.sans, fontSize: "0.9rem", color: S.ink, cursor: "pointer" }}>
+                fontFamily: UI.sans, fontSize: "0.9rem", color: UI.ink, cursor: "pointer" }}>
                 <input
                   type="radio"
                   name="visibility"

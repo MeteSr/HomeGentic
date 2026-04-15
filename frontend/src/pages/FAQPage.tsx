@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { COLORS, FONTS } from "@/theme";
 
-const S = {
+const UI = {
   paper:    COLORS.white,
   ink:      COLORS.plum,
   inkLight: COLORS.plumMid,
@@ -71,7 +71,7 @@ function FaqRow({ item }: { item: FaqItem }) {
   return (
     <div
       style={{
-        borderTop: `1px solid ${S.rule}`,
+        borderTop: `1px solid ${UI.rule}`,
         cursor: "pointer",
       }}
       onClick={() => setOpen((o) => !o)}
@@ -87,10 +87,10 @@ function FaqRow({ item }: { item: FaqItem }) {
       >
         <p
           style={{
-            fontFamily: S.sans,
+            fontFamily: UI.sans,
             fontWeight: 700,
             fontSize: "1rem",
-            color: S.ink,
+            color: UI.ink,
             margin: 0,
             lineHeight: 1.4,
           }}
@@ -105,7 +105,7 @@ function FaqRow({ item }: { item: FaqItem }) {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            color: S.sage,
+            color: UI.sage,
             fontSize: 20,
             fontWeight: 300,
             transition: "transform .2s",
@@ -118,10 +118,10 @@ function FaqRow({ item }: { item: FaqItem }) {
       {open && (
         <p
           style={{
-            fontFamily: S.sans,
+            fontFamily: UI.sans,
             fontWeight: 400,
             fontSize: "0.9rem",
-            color: S.inkLight,
+            color: UI.inkLight,
             margin: "0 0 20px",
             lineHeight: 1.7,
             maxWidth: 680,
@@ -151,28 +151,28 @@ export default function FAQPage() {
         })}</script>
       </Helmet>
 
-      <div style={{ background: S.paper, minHeight: "100vh", fontFamily: S.sans }}>
+      <div style={{ background: UI.paper, minHeight: "100vh", fontFamily: UI.sans }}>
 
         {/* Nav */}
         <nav style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "0 56px", height: 64, borderBottom: `1px solid ${S.rule}`,
-          background: S.paper, position: "sticky", top: 0, zIndex: 100,
+          padding: "0 56px", height: 64, borderBottom: `1px solid ${UI.rule}`,
+          background: UI.paper, position: "sticky", top: 0, zIndex: 100,
         }}>
           <Link
             to="/"
             style={{
-              fontFamily: S.serif, fontSize: 20, fontWeight: 900,
-              color: S.ink, textDecoration: "none", letterSpacing: "-0.5px",
+              fontFamily: UI.serif, fontSize: 20, fontWeight: 900,
+              color: UI.ink, textDecoration: "none", letterSpacing: "-0.5px",
             }}
           >
-            Home<span style={{ color: S.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
+            Home<span style={{ color: UI.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
           </Link>
           <Link
             to="/login"
             style={{
-              fontFamily: S.sans, fontSize: 14, fontWeight: 600,
-              color: S.paper, background: S.ink, textDecoration: "none",
+              fontFamily: UI.sans, fontSize: 14, fontWeight: 600,
+              color: UI.paper, background: UI.ink, textDecoration: "none",
               padding: "10px 22px", borderRadius: 100,
             }}
           >
@@ -187,22 +187,22 @@ export default function FAQPage() {
         }}>
           <div style={{
             display: "inline-block",
-            fontFamily: S.mono, fontSize: 11, fontWeight: 700,
+            fontFamily: UI.mono, fontSize: 11, fontWeight: 700,
             letterSpacing: "2px", textTransform: "uppercase",
-            color: S.sage, marginBottom: 20,
+            color: UI.sage, marginBottom: 20,
           }}>
             ✦ FAQ
           </div>
           <h1 style={{
-            fontFamily: S.serif, fontSize: "clamp(36px, 5vw, 56px)",
-            fontWeight: 900, color: S.ink, letterSpacing: "-1.5px",
+            fontFamily: UI.serif, fontSize: "clamp(36px, 5vw, 56px)",
+            fontWeight: 900, color: UI.ink, letterSpacing: "-1.5px",
             lineHeight: 1.05, margin: "0 0 20px",
           }}>
             Frequently Asked<br />
-            <em style={{ fontStyle: "italic", fontWeight: 300, color: S.sage }}>Questions</em>
+            <em style={{ fontStyle: "italic", fontWeight: 300, color: UI.sage }}>Questions</em>
           </h1>
           <p style={{
-            fontFamily: S.sans, fontSize: 17, color: S.inkLight,
+            fontFamily: UI.sans, fontSize: 17, color: UI.inkLight,
             lineHeight: 1.7, maxWidth: 560, margin: "0 auto 64px",
           }}>
             Everything you need to know about HomeGentic's verified home records,
@@ -215,22 +215,22 @@ export default function FAQPage() {
           {FAQS.map((item) => (
             <FaqRow key={item.q} item={item} />
           ))}
-          <div style={{ borderTop: `1px solid ${S.rule}` }} />
+          <div style={{ borderTop: `1px solid ${UI.rule}` }} />
 
           {/* Still have questions */}
           <div style={{
             marginTop: 64, padding: "40px 48px",
-            background: `linear-gradient(135deg, ${S.blush}, ${S.butter})`,
+            background: `linear-gradient(135deg, ${UI.blush}, ${UI.butter})`,
             borderRadius: 24, textAlign: "center",
           }}>
             <p style={{
-              fontFamily: S.serif, fontSize: 22, fontWeight: 700,
-              color: S.ink, margin: "0 0 10px",
+              fontFamily: UI.serif, fontSize: 22, fontWeight: 700,
+              color: UI.ink, margin: "0 0 10px",
             }}>
               Still have questions?
             </p>
             <p style={{
-              fontFamily: S.sans, fontSize: 15, color: S.inkLight,
+              fontFamily: UI.sans, fontSize: 15, color: UI.inkLight,
               margin: "0 0 24px", lineHeight: 1.6,
             }}>
               Our support team is happy to help.
@@ -239,8 +239,8 @@ export default function FAQPage() {
               to="/support"
               style={{
                 display: "inline-block",
-                fontFamily: S.sans, fontSize: 14, fontWeight: 600,
-                color: S.paper, background: S.ink, textDecoration: "none",
+                fontFamily: UI.sans, fontSize: 14, fontWeight: 600,
+                color: UI.paper, background: UI.ink, textDecoration: "none",
                 padding: "10px 28px", borderRadius: 100,
               }}
             >
@@ -250,11 +250,11 @@ export default function FAQPage() {
         </div>
 
         {/* Footer */}
-        <footer style={{ background: "#1E1928", padding: "64px 56px 32px", fontFamily: S.sans }}>
+        <footer style={{ background: "#1E1928", padding: "64px 56px 32px", fontFamily: UI.sans }}>
           <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 1fr 1fr", gap: 48, marginBottom: 52 }}>
             <div>
-              <span style={{ fontFamily: S.serif, fontSize: 24, fontWeight: 900, color: "white", marginBottom: 14, display: "block" }}>
-                Home<span style={{ color: S.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
+              <span style={{ fontFamily: UI.serif, fontSize: 24, fontWeight: 900, color: "white", marginBottom: 14, display: "block" }}>
+                Home<span style={{ color: UI.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
               </span>
               <p style={{ fontSize: 14, color: "rgba(253,252,250,0.45)", lineHeight: 1.65, maxWidth: 220, margin: "0 0 24px" }}>
                 The verified maintenance record that makes your home worth more and easier to sell.

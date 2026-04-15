@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { COLORS, FONTS, RADIUS } from "@/theme";
 
-const S = {
+const UI = {
   paper:    COLORS.white,
   ink:      COLORS.plum,
   inkLight: COLORS.plumMid,
@@ -83,7 +83,7 @@ const SECTIONS: Section[] = [
         </ul>
         <p><strong>Auto-renewal.</strong> Paid subscriptions renew automatically at the end of each billing period (monthly or annual, depending on plan) unless cancelled before the renewal date.</p>
         <p><strong>Cancellation.</strong> You may cancel at any time from your Settings page. Cancellation takes effect at the end of the current paid period. Access to paid features continues through that date.</p>
-        <p><strong>Refund policy.</strong> All subscription fees are non-refundable. Because access continues through the end of the paid period, we do not issue partial-period refunds. If you believe you were charged in error, contact us at <a href="mailto:billing@homegentic.app" style={{ color: S.sage }}>billing@homegentic.app</a> within 30 days.</p>
+        <p><strong>Refund policy.</strong> All subscription fees are non-refundable. Because access continues through the end of the paid period, we do not issue partial-period refunds. If you believe you were charged in error, contact us at <a href="mailto:billing@homegentic.app" style={{ color: UI.sage }}>billing@homegentic.app</a> within 30 days.</p>
         <p><strong>Price changes.</strong> We may change subscription prices on 30 days' notice. Continued use after a price change constitutes acceptance of the new price.</p>
       </>
     ),
@@ -95,7 +95,7 @@ const SECTIONS: Section[] = [
       <>
         <p>You retain ownership of property records, photos, job logs, and other content you upload to HomeGentic ("Your Content"). By uploading content, you grant HomeGentic a limited, non-exclusive license to store, display, and process Your Content solely to provide the service to you.</p>
         <p>You represent that you have the right to upload Your Content and that it does not violate any law or third-party rights. You are solely responsible for the accuracy of property records and maintenance histories you create.</p>
-        <p>Because Your Content is stored on the Internet Computer Protocol blockchain, it is replicated across decentralized nodes and cannot be fully erased from the protocol's history. See our <Link to="/privacy" style={{ color: S.sage }}>Privacy Policy</Link> for details.</p>
+        <p>Because Your Content is stored on the Internet Computer Protocol blockchain, it is replicated across decentralized nodes and cannot be fully erased from the protocol's history. See our <Link to="/privacy" style={{ color: UI.sage }}>Privacy Policy</Link> for details.</p>
       </>
     ),
   },
@@ -122,9 +122,9 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <p>If you believe content on HomeGentic infringes your copyright, you may submit a takedown notice to our designated DMCA agent:</p>
-        <p style={{ fontFamily: S.mono, fontSize: "0.8rem", lineHeight: 1.8 }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.8rem", lineHeight: 1.8 }}>
           HomeGentic, Inc. — DMCA Agent<br />
-          <a href="mailto:dmca@homegentic.app" style={{ color: S.sage }}>dmca@homegentic.app</a>
+          <a href="mailto:dmca@homegentic.app" style={{ color: UI.sage }}>dmca@homegentic.app</a>
         </p>
         <p>Your notice must include: (1) identification of the copyrighted work; (2) identification of the allegedly infringing material and its location; (3) your contact information; (4) a statement of good faith belief; (5) a statement of accuracy under penalty of perjury; and (6) your signature.</p>
       </>
@@ -160,7 +160,7 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <p>These Terms are governed by and construed in accordance with the laws of the State of Florida, without regard to its conflict of law principles. You consent to the exclusive jurisdiction of the state and federal courts located in Florida for any dispute arising under these Terms.</p>
-        <p>Before filing any legal action, you agree to first contact us at <a href="mailto:legal@homegentic.app" style={{ color: S.sage }}>legal@homegentic.app</a> and attempt to resolve the dispute informally for at least 30 days.</p>
+        <p>Before filing any legal action, you agree to first contact us at <a href="mailto:legal@homegentic.app" style={{ color: UI.sage }}>legal@homegentic.app</a> and attempt to resolve the dispute informally for at least 30 days.</p>
       </>
     ),
   },
@@ -182,7 +182,7 @@ const SECTIONS: Section[] = [
     id: "contact",
     title: "Contact Us",
     body: (
-      <p>HomeGentic, Inc. · <a href="mailto:legal@homegentic.app" style={{ color: S.sage }}>legal@homegentic.app</a> · For support inquiries, visit our <Link to="/support" style={{ color: S.sage }}>Support page</Link>. For privacy questions, see our <Link to="/privacy" style={{ color: S.sage }}>Privacy Policy</Link>.</p>
+      <p>HomeGentic, Inc. · <a href="mailto:legal@homegentic.app" style={{ color: UI.sage }}>legal@homegentic.app</a> · For support inquiries, visit our <Link to="/support" style={{ color: UI.sage }}>Support page</Link>. For privacy questions, see our <Link to="/privacy" style={{ color: UI.sage }}>Privacy Policy</Link>.</p>
     ),
   },
 ];
@@ -199,16 +199,16 @@ export default function TermsOfServicePage() {
         <meta property="og:url" content="https://homegentic.app/terms" />
       </Helmet>
 
-      <div style={{ minHeight: "100vh", background: S.paper, fontFamily: S.sans }}>
+      <div style={{ minHeight: "100vh", background: UI.paper, fontFamily: UI.sans }}>
         {/* Nav */}
-        <header style={{ borderBottom: `1px solid ${S.rule}`, position: "sticky", top: 0, background: S.paper, zIndex: 50 }}>
+        <header style={{ borderBottom: `1px solid ${UI.rule}`, position: "sticky", top: 0, background: UI.paper, zIndex: 50 }}>
           <div style={{ maxWidth: "80rem", margin: "0 auto", padding: "0 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", height: "3.5rem" }}>
-            <Link to="/" style={{ textDecoration: "none", fontFamily: S.serif, fontWeight: 900, fontSize: "1.1rem", letterSpacing: "-0.5px", color: S.ink }}>
-              Home<span style={{ color: S.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
+            <Link to="/" style={{ textDecoration: "none", fontFamily: UI.serif, fontWeight: 900, fontSize: "1.1rem", letterSpacing: "-0.5px", color: UI.ink }}>
+              Home<span style={{ color: UI.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
             </Link>
             <nav style={{ display: "flex", gap: "1.5rem", alignItems: "center" }}>
-              <Link to="/pricing" style={{ textDecoration: "none", fontFamily: S.mono, fontSize: "0.7rem", letterSpacing: "0.06em", color: S.inkLight }}>PRICING</Link>
-              <Link to="/support" style={{ textDecoration: "none", fontFamily: S.mono, fontSize: "0.7rem", letterSpacing: "0.06em", color: S.inkLight }}>SUPPORT</Link>
+              <Link to="/pricing" style={{ textDecoration: "none", fontFamily: UI.mono, fontSize: "0.7rem", letterSpacing: "0.06em", color: UI.inkLight }}>PRICING</Link>
+              <Link to="/support" style={{ textDecoration: "none", fontFamily: UI.mono, fontSize: "0.7rem", letterSpacing: "0.06em", color: UI.inkLight }}>SUPPORT</Link>
             </nav>
           </div>
         </header>
@@ -216,25 +216,25 @@ export default function TermsOfServicePage() {
         <div style={{ maxWidth: "52rem", margin: "0 auto", padding: "4rem 1.5rem 6rem" }}>
 
           {/* Header */}
-          <div style={{ marginBottom: "3rem", paddingBottom: "2rem", borderBottom: `1px solid ${S.rule}` }}>
-            <div style={{ display: "inline-flex", alignItems: "center", background: S.butter, color: S.ink, padding: "5px 16px", borderRadius: 100, fontSize: "0.7rem", fontWeight: 700, fontFamily: S.mono, letterSpacing: "0.06em", marginBottom: "1.25rem", border: `1px solid rgba(46,37,64,0.1)` }}>
+          <div style={{ marginBottom: "3rem", paddingBottom: "2rem", borderBottom: `1px solid ${UI.rule}` }}>
+            <div style={{ display: "inline-flex", alignItems: "center", background: UI.butter, color: UI.ink, padding: "5px 16px", borderRadius: 100, fontSize: "0.7rem", fontWeight: 700, fontFamily: UI.mono, letterSpacing: "0.06em", marginBottom: "1.25rem", border: `1px solid rgba(46,37,64,0.1)` }}>
               LEGAL
             </div>
-            <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "clamp(2rem, 4vw, 2.75rem)", lineHeight: 1.05, color: S.ink, marginBottom: "0.75rem" }}>
+            <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "clamp(2rem, 4vw, 2.75rem)", lineHeight: 1.05, color: UI.ink, marginBottom: "0.75rem" }}>
               Terms of Service
             </h1>
-            <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight }}>
               Effective date: {EFFECTIVE_DATE}
             </p>
           </div>
 
           {/* Table of contents */}
-          <nav aria-label="Table of contents" style={{ background: S.sageLight, padding: "1.25rem 1.5rem", borderRadius: RADIUS.sm, marginBottom: "3rem", border: `1px solid ${COLORS.sageMid}` }}>
-            <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.08em", color: S.inkLight, marginBottom: "0.75rem", fontWeight: 700 }}>CONTENTS</p>
+          <nav aria-label="Table of contents" style={{ background: UI.sageLight, padding: "1.25rem 1.5rem", borderRadius: RADIUS.sm, marginBottom: "3rem", border: `1px solid ${COLORS.sageMid}` }}>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", color: UI.inkLight, marginBottom: "0.75rem", fontWeight: 700 }}>CONTENTS</p>
             <ol style={{ margin: 0, padding: "0 0 0 1.25rem", display: "flex", flexDirection: "column", gap: "0.35rem" }}>
               {SECTIONS.map((s, i) => (
                 <li key={s.id}>
-                  <a href={`#${s.id}`} style={{ fontFamily: S.sans, fontSize: "0.875rem", color: S.ink, textDecoration: "none", fontWeight: 500 }}>
+                  <a href={`#${s.id}`} style={{ fontFamily: UI.sans, fontSize: "0.875rem", color: UI.ink, textDecoration: "none", fontWeight: 500 }}>
                     {i + 1}. {s.title}
                   </a>
                 </li>
@@ -246,15 +246,15 @@ export default function TermsOfServicePage() {
           <div style={{ display: "flex", flexDirection: "column", gap: "2.5rem" }}>
             {SECTIONS.map((section, i) => (
               <section key={section.id} id={section.id}>
-                <h2 style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.25rem", color: S.ink, marginBottom: "1rem", display: "flex", alignItems: "baseline", gap: "0.5rem" }}>
-                  <span style={{ fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, letterSpacing: "0.06em" }}>{String(i + 1).padStart(2, "0")}</span>
+                <h2 style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.25rem", color: UI.ink, marginBottom: "1rem", display: "flex", alignItems: "baseline", gap: "0.5rem" }}>
+                  <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, letterSpacing: "0.06em" }}>{String(i + 1).padStart(2, "0")}</span>
                   {section.title}
                 </h2>
-                <div style={{ fontFamily: S.sans, fontSize: "0.9375rem", lineHeight: 1.75, color: S.inkLight, fontWeight: 300, display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+                <div style={{ fontFamily: UI.sans, fontSize: "0.9375rem", lineHeight: 1.75, color: UI.inkLight, fontWeight: 300, display: "flex", flexDirection: "column", gap: "0.875rem" }}>
                   {section.body}
                 </div>
                 {i < SECTIONS.length - 1 && (
-                  <div style={{ marginTop: "2.5rem", borderBottom: `1px solid ${S.rule}` }} />
+                  <div style={{ marginTop: "2.5rem", borderBottom: `1px solid ${UI.rule}` }} />
                 )}
               </section>
             ))}
@@ -262,17 +262,17 @@ export default function TermsOfServicePage() {
         </div>
 
         {/* Footer */}
-        <footer style={{ borderTop: `1px solid ${S.rule}`, padding: "2rem 1.5rem", textAlign: "center" }}>
+        <footer style={{ borderTop: `1px solid ${UI.rule}`, padding: "2rem 1.5rem", textAlign: "center" }}>
           <div style={{ maxWidth: "52rem", margin: "0 auto", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
-            <Link to="/" style={{ textDecoration: "none", fontFamily: S.serif, fontWeight: 900, fontSize: "1rem", color: S.ink }}>
-              Home<span style={{ color: S.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
+            <Link to="/" style={{ textDecoration: "none", fontFamily: UI.serif, fontWeight: 900, fontSize: "1rem", color: UI.ink }}>
+              Home<span style={{ color: UI.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
             </Link>
             <div style={{ display: "flex", gap: "1.5rem" }}>
-              <Link to="/privacy" style={{ textDecoration: "none", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>PRIVACY</Link>
-              <Link to="/support" style={{ textDecoration: "none", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>SUPPORT</Link>
-              <Link to="/pricing" style={{ textDecoration: "none", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>PRICING</Link>
+              <Link to="/privacy" style={{ textDecoration: "none", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight }}>PRIVACY</Link>
+              <Link to="/support" style={{ textDecoration: "none", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight }}>SUPPORT</Link>
+              <Link to="/pricing" style={{ textDecoration: "none", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight }}>PRICING</Link>
             </div>
-            <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: S.inkLight }}>© 2026 HomeGentic Inc.</p>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: UI.inkLight }}>© 2026 HomeGentic Inc.</p>
           </div>
         </footer>
       </div>

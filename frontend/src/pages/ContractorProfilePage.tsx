@@ -8,7 +8,7 @@ import toast from "react-hot-toast";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 import { isValidEmail, isValidPhone } from "@/utils/validators";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -154,18 +154,18 @@ export default function ContractorProfilePage() {
 
         <button
           onClick={() => navigate("/contractor-dashboard")}
-          style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: "1.5rem" }}
+          style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: "1.5rem" }}
         >
           <ArrowLeft size={14} /> Back
         </button>
 
-        <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.rust, marginBottom: "0.5rem" }}>
+        <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: UI.rust, marginBottom: "0.5rem" }}>
           Contractor
         </div>
-        <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, marginBottom: "0.375rem" }}>
+        <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, marginBottom: "0.375rem" }}>
           {isEditing ? "Edit Profile" : "Set Up Your Profile"}
         </h1>
-        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight, marginBottom: "1.75rem" }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight, marginBottom: "1.75rem" }}>
           {isEditing
             ? "Keep your profile current so homeowners can trust who they're hiring."
             : "Complete your profile to start receiving quote leads from homeowners."}
@@ -184,18 +184,18 @@ export default function ContractorProfilePage() {
           ];
           const doneCount = checks.filter((c) => c.done).length;
           const pct       = Math.round((doneCount / checks.length) * 100);
-          const barColor  = pct === 100 ? S.sage : pct >= 67 ? COLORS.plumMid : S.rust;
+          const barColor  = pct === 100 ? UI.sage : pct >= 67 ? COLORS.plumMid : UI.rust;
           return (
-            <div style={{ marginBottom: "1.5rem", border: `1px solid ${S.rule}`, background: COLORS.white, padding: "1rem 1.25rem", borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
+            <div style={{ marginBottom: "1.5rem", border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "1rem 1.25rem", borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-                <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>
+                <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>
                   Profile Completeness
                 </span>
-                <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.1rem", lineHeight: 1, color: barColor }}>
+                <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.1rem", lineHeight: 1, color: barColor }}>
                   {pct}%
                 </span>
               </div>
-              <div style={{ height: "4px", background: S.rule, marginBottom: "0.75rem" }}>
+              <div style={{ height: "4px", background: UI.rule, marginBottom: "0.75rem" }}>
                 <div style={{ height: "4px", width: `${pct}%`, background: barColor, transition: "width 0.4s ease" }} />
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem" }}>
@@ -203,10 +203,10 @@ export default function ContractorProfilePage() {
                   <span
                     key={c.label}
                     style={{
-                      fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase",
+                      fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase",
                       padding: "0.15rem 0.5rem",
-                      border: `1px solid ${c.done ? S.sage : S.rule}`,
-                      color: c.done ? S.sage : S.inkLight,
+                      border: `1px solid ${c.done ? UI.sage : UI.rule}`,
+                      color: c.done ? UI.sage : UI.inkLight,
                       background: c.done ? COLORS.sageLight : "transparent",
                     }}
                   >
@@ -215,7 +215,7 @@ export default function ContractorProfilePage() {
                 ))}
               </div>
               {pct < 100 && (
-                <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.04em", color: S.inkLight, marginTop: "0.625rem", lineHeight: 1.5 }}>
+                <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.04em", color: UI.inkLight, marginTop: "0.625rem", lineHeight: 1.5 }}>
                   Complete profiles receive 20% more bid views. Add a bio, license number, and service area to stand out.
                 </p>
               )}
@@ -225,19 +225,19 @@ export default function ContractorProfilePage() {
 
         {/* Verification badge for existing verified contractors */}
         {existing?.isVerified && (
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.75rem 1rem", border: `1px solid ${S.sage}`, background: COLORS.sageLight, marginBottom: "1.25rem" }}>
-            <ShieldCheck size={14} color={S.sage} />
-            <span style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.sage }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.75rem 1rem", border: `1px solid ${UI.sage}`, background: COLORS.sageLight, marginBottom: "1.25rem" }}>
+            <ShieldCheck size={14} color={UI.sage} />
+            <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.sage }}>
               Verified contractor
             </span>
           </div>
         )}
 
-        <div style={{ border: `1px solid ${S.rule}`, background: COLORS.white, padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1.25rem", borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
+        <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1.25rem", borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
 
           {/* Section: Identity */}
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "1rem", paddingBottom: "0.5rem", borderBottom: `1px solid ${S.rule}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "1rem", paddingBottom: "0.5rem", borderBottom: `1px solid ${UI.rule}` }}>
               <User size={11} /> Basic Info
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -263,10 +263,10 @@ export default function ContractorProfilePage() {
                         onClick={() => setForm((f) => ({ ...f, specialties: toggleTrade(f.specialties, trade) }))}
                         style={{
                           padding: "0.3rem 0.625rem",
-                          border: `1.5px solid ${active ? S.sage : S.rule}`,
+                          border: `1.5px solid ${active ? UI.sage : UI.rule}`,
                           background: active ? COLORS.sageLight : COLORS.white,
-                          color: active ? S.sage : S.inkLight,
-                          fontFamily: S.mono,
+                          color: active ? UI.sage : UI.inkLight,
+                          fontFamily: UI.mono,
                           fontSize: "0.6rem",
                           letterSpacing: "0.06em",
                           cursor: "pointer",
@@ -279,7 +279,7 @@ export default function ContractorProfilePage() {
                   })}
                 </div>
                 {form.specialties.length === 0 && (
-                  <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.rust, marginTop: "0.375rem" }}>
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.rust, marginTop: "0.375rem" }}>
                     Select at least one trade to receive matching leads.
                   </p>
                 )}
@@ -320,7 +320,7 @@ export default function ContractorProfilePage() {
 
           {/* Section: Credentials */}
           <div>
-            <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "1rem", paddingBottom: "0.5rem", borderBottom: `1px solid ${S.rule}` }}>
+            <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "1rem", paddingBottom: "0.5rem", borderBottom: `1px solid ${UI.rule}` }}>
               Credentials
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -349,7 +349,7 @@ export default function ContractorProfilePage() {
 
           {/* Section: Bio */}
           <div>
-            <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "1rem", paddingBottom: "0.5rem", borderBottom: `1px solid ${S.rule}` }}>
+            <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "1rem", paddingBottom: "0.5rem", borderBottom: `1px solid ${UI.rule}` }}>
               About
             </div>
             <div>
@@ -362,7 +362,7 @@ export default function ContractorProfilePage() {
                 onChange={(e) => update("bio", e.target.value)}
                 style={{ resize: "vertical" }}
               />
-              <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, marginTop: "0.375rem" }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, marginTop: "0.375rem" }}>
                 {form.bio.length}/500 characters
               </p>
             </div>
@@ -381,14 +381,14 @@ export default function ContractorProfilePage() {
 
         {/* Trust score preview for existing profiles */}
         {existing && (
-          <div style={{ marginTop: "1.25rem", border: `1px solid ${S.rule}`, background: COLORS.white, padding: "1.25rem", display: "flex", gap: "1.25rem", alignItems: "center", borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
-            <div style={{ width: "3.5rem", height: "3.5rem", border: `2px solid ${S.rust}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.2rem", lineHeight: 1 }}>{existing.trustScore}</span>
-              <span style={{ fontFamily: S.mono, fontSize: "0.5rem", color: S.inkLight }}>/100</span>
+          <div style={{ marginTop: "1.25rem", border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "1.25rem", display: "flex", gap: "1.25rem", alignItems: "center", borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
+            <div style={{ width: "3.5rem", height: "3.5rem", border: `2px solid ${UI.rust}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.2rem", lineHeight: 1 }}>{existing.trustScore}</span>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.5rem", color: UI.inkLight }}>/100</span>
             </div>
             <div>
-              <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.25rem" }}>Trust Score</p>
-              <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, lineHeight: 1.5 }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.25rem" }}>Trust Score</p>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, lineHeight: 1.5 }}>
                 {existing.jobsCompleted} job{existing.jobsCompleted !== 1 ? "s" : ""} completed.
                 Score improves as you complete verified HomeGentic jobs.
               </p>

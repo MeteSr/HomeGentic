@@ -17,7 +17,7 @@ import toast from "react-hot-toast";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -146,16 +146,16 @@ export default function JobCreatePage() {
     return (
       <Layout>
         <div style={{ maxWidth: "38rem", margin: "0 auto", padding: "4rem 1.5rem", textAlign: "center" }}>
-          <div className="job-success-icon" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "4rem", height: "4rem", border: `2px solid ${S.sage}`, marginBottom: "1.25rem" }}>
-            <CheckCircle size={28} color={S.sage} />
+          <div className="job-success-icon" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "4rem", height: "4rem", border: `2px solid ${UI.sage}`, marginBottom: "1.25rem" }}>
+            <CheckCircle size={28} color={UI.sage} />
           </div>
-          <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.sage, marginBottom: "0.375rem" }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: UI.sage, marginBottom: "0.375rem" }}>
             Record Locked On-Chain
           </p>
-          <h2 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, marginBottom: "0.5rem" }}>
+          <h2 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, marginBottom: "0.5rem" }}>
             {loggedServiceType} logged
           </h2>
-          <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: S.inkLight, marginBottom: "2rem" }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: UI.inkLight, marginBottom: "2rem" }}>
             Your maintenance record has been added to your HomeGentic report.
           </p>
 
@@ -163,38 +163,38 @@ export default function JobCreatePage() {
           <JobValueDelta serviceType={loggedServiceType} currentScore={scoreAtSubmit} />
 
           {/* Next-service suggestion */}
-          <div style={{ border: `1px solid ${S.rule}`, padding: "1.25rem", background: COLORS.white, textAlign: "left", marginBottom: "1.5rem", borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
-            <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.5rem" }}>
+          <div style={{ border: `1px solid ${UI.rule}`, padding: "1.25rem", background: COLORS.white, textAlign: "left", marginBottom: "1.5rem", borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.5rem" }}>
               Next Step
             </p>
-            <p style={{ fontSize: "0.875rem", fontWeight: 300, color: S.ink, lineHeight: 1.6, marginBottom: "0.875rem" }}>
+            <p style={{ fontSize: "0.875rem", fontWeight: 300, color: UI.ink, lineHeight: 1.6, marginBottom: "0.875rem" }}>
               {nextServiceTip}
             </p>
             <button
               onClick={() => navigate("/maintenance")}
-              style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 0.875rem", border: `1px solid ${S.rule}`, background: "none", cursor: "pointer", color: S.inkLight }}
+              style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 0.875rem", border: `1px solid ${UI.rule}`, background: "none", cursor: "pointer", color: UI.inkLight }}
             >
               Add to maintenance schedule →
             </button>
           </div>
 
           {/* Progress bar countdown */}
-          <div style={{ height: "2px", background: S.rule, marginBottom: "1.25rem", overflow: "hidden" }}>
-            <div className="job-success-progress" style={{ height: "100%", background: S.sage }} />
+          <div style={{ height: "2px", background: UI.rule, marginBottom: "1.25rem", overflow: "hidden" }}>
+            <div className="job-success-progress" style={{ height: "100%", background: UI.sage }} />
           </div>
-          <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", color: S.inkLight, marginBottom: "1rem" }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", color: UI.inkLight, marginBottom: "1rem" }}>
             Redirecting to dashboard in 3 seconds…
           </p>
           <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}>
             <button
               onClick={() => navigate("/dashboard")}
-              style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${S.ink}`, background: S.ink, color: S.paper, cursor: "pointer" }}
+              style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${UI.ink}`, background: UI.ink, color: UI.paper, cursor: "pointer" }}
             >
               Go to dashboard
             </button>
             <button
               onClick={() => { setSubmitted(false); setForm((f) => ({ ...f, serviceType: SERVICE_TYPES[0], contractorName: "", amount: "", description: "", permitNumber: "", warrantyMonths: "" })); }}
-              style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${S.rule}`, background: "none", cursor: "pointer", color: S.inkLight }}
+              style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1.25rem", border: `1px solid ${UI.rule}`, background: "none", cursor: "pointer", color: UI.inkLight }}
             >
               Log another job
             </button>
@@ -211,7 +211,7 @@ export default function JobCreatePage() {
         <div style={{ maxWidth: "38rem", margin: "0 auto", padding: "2rem 1.5rem" }}>
           <button
             onClick={() => navigate(-1)}
-            style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: "1.5rem" }}
+            style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: "1.5rem" }}
           >
             <ArrowLeft size={14} /> Back
           </button>
@@ -231,22 +231,22 @@ export default function JobCreatePage() {
 
         <button
           onClick={() => navigate(-1)}
-          style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: "1.5rem" }}
+          style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: "1.5rem" }}
         >
           <ArrowLeft size={14} /> Back
         </button>
 
-        <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.rust, marginBottom: "0.5rem" }}>
+        <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: UI.rust, marginBottom: "0.5rem" }}>
           Maintenance Record
         </div>
-        <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, marginBottom: "0.375rem" }}>
+        <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, marginBottom: "0.375rem" }}>
           {editJob ? "Edit Job" : "Log a Job"}
         </h1>
-        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight, marginBottom: "1.5rem" }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight, marginBottom: "1.5rem" }}>
           {editJob ? `Editing record for ${editJob.serviceType} · ${editJob.date}` : "Record a completed maintenance job on the blockchain."}
         </p>
 
-        <div style={{ border: `1px solid ${S.rule}`, background: COLORS.white, padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1.25rem", borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
+        <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1.25rem", borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
 
           {!editJob && properties.length > 0 && (
             <div>
@@ -267,7 +267,7 @@ export default function JobCreatePage() {
             {isInsuranceRelevant(form.serviceType) && (
               <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", marginTop: "0.4rem", padding: "0.35rem 0.6rem", background: COLORS.sageLight, border: `1px solid ${COLORS.sageMid}` }}>
                 <ShieldCheck size={11} color={COLORS.sage} />
-                <span style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.sage }}>
+                <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.sage }}>
                   Insurance-relevant — this record may support a premium dispute or claim
                 </span>
               </div>
@@ -283,7 +283,7 @@ export default function JobCreatePage() {
             }}>
               <AlertTriangle size={14} color={COLORS.plumMid} style={{ flexShrink: 0, marginTop: "0.1rem" }} />
               <div>
-                <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.2rem" }}>
+                <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.2rem" }}>
                   Permit may be required
                 </p>
                 <p style={{ fontSize: "0.75rem", color: COLORS.plumMid, fontWeight: 300 }}>
@@ -300,13 +300,13 @@ export default function JobCreatePage() {
             style={{
               display: "flex", alignItems: "center", gap: "0.875rem",
               padding: "0.875rem 1rem", cursor: "pointer",
-              border: `1px solid ${form.isDiy ? S.rust : S.rule}`,
+              border: `1px solid ${form.isDiy ? UI.rust : UI.rule}`,
               background: form.isDiy ? COLORS.blush : COLORS.white,
             }}
           >
             <div style={{
               width: "2.25rem", height: "1.25rem",
-              background: form.isDiy ? S.rust : S.rule,
+              background: form.isDiy ? UI.rust : UI.rule,
               position: "relative", flexShrink: 0,
             }}>
               <div style={{
@@ -317,10 +317,10 @@ export default function JobCreatePage() {
               }} />
             </div>
             <div>
-              <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: form.isDiy ? S.rust : S.ink, marginBottom: "0.2rem" }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: form.isDiy ? UI.rust : UI.ink, marginBottom: "0.2rem" }}>
                 I did this myself (DIY)
               </p>
-              <p style={{ fontSize: "0.75rem", color: S.inkLight, fontWeight: 300 }}>
+              <p style={{ fontSize: "0.75rem", color: UI.inkLight, fontWeight: 300 }}>
                 {form.isDiy ? "Your signature verifies this record." : "Toggle on if you performed the work yourself."}
               </p>
             </div>
@@ -337,7 +337,7 @@ export default function JobCreatePage() {
             <div>
               <label className="form-label" htmlFor="amount">{form.isDiy ? "Materials Cost *" : "Amount Paid *"}</label>
               <div style={{ position: "relative" }}>
-                <span style={{ position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)", color: S.inkLight, fontSize: "0.875rem", pointerEvents: "none" }}>$</span>
+                <span style={{ position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)", color: UI.inkLight, fontSize: "0.875rem", pointerEvents: "none" }}>$</span>
                 <input id="amount" className="form-input" type="number" min="0" step="0.01" placeholder="0.00" value={form.amount} onChange={(e) => update("amount", e.target.value)} style={{ paddingLeft: "1.5rem" }} />
               </div>
             </div>
@@ -354,17 +354,17 @@ export default function JobCreatePage() {
 
           {showPermitField && (
             <div>
-              <label className="form-label" htmlFor="permitNumber">Permit Number <span style={{ color: S.inkLight, fontWeight: 300 }}>(optional)</span></label>
+              <label className="form-label" htmlFor="permitNumber">Permit Number <span style={{ color: UI.inkLight, fontWeight: 300 }}>(optional)</span></label>
               <input id="permitNumber" className="form-input" placeholder="e.g. HVAC-2024-0412" value={form.permitNumber} onChange={(e) => update("permitNumber", e.target.value)} />
             </div>
           )}
 
           {!form.isDiy && (
             <div>
-              <label className="form-label" htmlFor="warrantyMonths">Warranty <span style={{ color: S.inkLight, fontWeight: 300 }}>(optional)</span></label>
+              <label className="form-label" htmlFor="warrantyMonths">Warranty <span style={{ color: UI.inkLight, fontWeight: 300 }}>(optional)</span></label>
               <div style={{ position: "relative" }}>
                 <input id="warrantyMonths" className="form-input" type="number" min="0" placeholder="e.g. 12" value={form.warrantyMonths} onChange={(e) => update("warrantyMonths", e.target.value)} style={{ paddingRight: "4.5rem" }} />
-                <span style={{ position: "absolute", right: "0.75rem", top: "50%", transform: "translateY(-50%)", fontFamily: S.mono, fontSize: "0.65rem", color: S.inkLight, pointerEvents: "none" }}>months</span>
+                <span style={{ position: "absolute", right: "0.75rem", top: "50%", transform: "translateY(-50%)", fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, pointerEvents: "none" }}>months</span>
               </div>
             </div>
           )}
@@ -372,7 +372,7 @@ export default function JobCreatePage() {
           {!editJob && (
             <div>
               <label className="form-label" style={{ marginBottom: "0.5rem", display: "block" }}>
-                Photos & Receipts <span style={{ color: S.inkLight, fontWeight: 300 }}>(optional)</span>
+                Photos & Receipts <span style={{ color: UI.inkLight, fontWeight: 300 }}>(optional)</span>
               </label>
               <ConstructionPhotoUpload
                 onUpload={(file, phase) => setUploadedFiles((u) => [...u, { file, phase }])}

@@ -55,7 +55,7 @@ vi.mock("@/services/agent", () => ({
     getPublicProfile: vi.fn().mockResolvedValue(mockAgentA),
     getReviews:       vi.fn().mockResolvedValue([]),
   },
-  computeAverageRating: () => null,
+  computeAverageRating: () => 0,
 }));
 
 vi.mock("@/services/listing", () => ({

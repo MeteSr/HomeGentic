@@ -128,9 +128,9 @@ export interface AddReviewInput {
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
-/** Returns the average rating or null if no reviews. */
-export function computeAverageRating(reviews: AgentReview[]): number | null {
-  if (reviews.length === 0) return null;
+/** Returns the average rating, or 0 if there are no reviews. */
+export function computeAverageRating(reviews: AgentReview[]): number {
+  if (reviews.length === 0) return 0;
   const sum = reviews.reduce((acc, r) => acc + r.rating, 0);
   return sum / reviews.length;
 }

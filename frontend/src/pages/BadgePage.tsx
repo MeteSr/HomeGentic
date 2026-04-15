@@ -16,7 +16,7 @@ import { reportService, ReportSnapshot, ShareLink } from "@/services/report";
 import { getScoreGrade } from "@/services/scoreService";
 import { COLORS, FONTS } from "@/theme";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -38,14 +38,14 @@ function ScorePill({ score, grade }: { score: number; grade: string }) {
       background: COLORS.plum,
       border: `1px solid ${color}40`,
     }}>
-      <span style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, color: COLORS.white }}>
+      <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, color: COLORS.white }}>
         {score}
       </span>
       <div>
-        <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: color, lineHeight: 1 }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: color, lineHeight: 1 }}>
           {grade}
         </p>
-        <p style={{ fontFamily: S.mono, fontSize: "0.45rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", lineHeight: 1.4 }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.45rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", lineHeight: 1.4 }}>
           HomeGentic Score
         </p>
       </div>
@@ -65,7 +65,7 @@ function VerifiedBadge({ level }: { level: string }) {
       border: `1px solid ${cfg.color}50`, padding: "0.2rem 0.5rem",
     }}>
       <Shield size={9} color={cfg.color} />
-      <span style={{ fontFamily: S.mono, fontSize: "0.5rem", letterSpacing: "0.1em", textTransform: "uppercase", color: cfg.color }}>
+      <span style={{ fontFamily: UI.mono, fontSize: "0.5rem", letterSpacing: "0.1em", textTransform: "uppercase", color: cfg.color }}>
         {cfg.label}
       </span>
     </div>
@@ -85,16 +85,16 @@ function BadgeCard({ snapshot, score }: { snapshot: ReportSnapshot; score: numbe
       {/* Brand */}
       <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", marginBottom: "0.875rem", opacity: 0.55 }}>
         <Shield size={11} color={COLORS.white} />
-        <span style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.55rem", letterSpacing: "0.2em", textTransform: "uppercase", color: COLORS.white }}>
+        <span style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.55rem", letterSpacing: "0.2em", textTransform: "uppercase", color: COLORS.white }}>
           HOMEGENTIC
         </span>
       </div>
 
       {/* Address */}
-      <p style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "0.9rem", color: COLORS.white, marginBottom: "0.125rem", lineHeight: 1.2 }}>
+      <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "0.9rem", color: COLORS.white, marginBottom: "0.125rem", lineHeight: 1.2 }}>
         {snapshot.address}
       </p>
-      <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: COLORS.plumMid, marginBottom: "1rem", letterSpacing: "0.04em" }}>
+      <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: COLORS.plumMid, marginBottom: "1rem", letterSpacing: "0.04em" }}>
         {snapshot.city}, {snapshot.state}
       </p>
 
@@ -103,18 +103,18 @@ function BadgeCard({ snapshot, score }: { snapshot: ReportSnapshot; score: numbe
         <ScorePill score={score} grade={grade} />
         <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
           <div>
-            <p style={{ fontFamily: S.mono, fontSize: "0.45rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: "0.1rem" }}>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.45rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: "0.1rem" }}>
               Verified Jobs
             </p>
-            <p style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1rem", lineHeight: 1, color: COLORS.white }}>
+            <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1rem", lineHeight: 1, color: COLORS.white }}>
               {snapshot.verifiedJobCount}
             </p>
           </div>
           <div>
-            <p style={{ fontFamily: S.mono, fontSize: "0.45rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: "0.1rem" }}>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.45rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: "0.1rem" }}>
               Total Records
             </p>
-            <p style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1rem", lineHeight: 1, color: COLORS.white }}>
+            <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1rem", lineHeight: 1, color: COLORS.white }}>
               {snapshot.jobs.length}
             </p>
           </div>
@@ -126,10 +126,10 @@ function BadgeCard({ snapshot, score }: { snapshot: ReportSnapshot; score: numbe
 
       {/* Footer */}
       <div style={{ marginTop: "0.875rem", paddingTop: "0.625rem", borderTop: "1px solid rgba(255,255,255,0.08)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontFamily: S.mono, fontSize: "0.45rem", letterSpacing: "0.06em", color: "rgba(255,255,255,0.3)" }}>
+        <span style={{ fontFamily: UI.mono, fontSize: "0.45rem", letterSpacing: "0.06em", color: "rgba(255,255,255,0.3)" }}>
           homegentic.io
         </span>
-        <span style={{ fontFamily: S.mono, fontSize: "0.45rem", letterSpacing: "0.06em", color: "rgba(255,255,255,0.3)" }}>
+        <span style={{ fontFamily: UI.mono, fontSize: "0.45rem", letterSpacing: "0.06em", color: "rgba(255,255,255,0.3)" }}>
           ICP Blockchain
         </span>
       </div>
@@ -157,7 +157,7 @@ export default function BadgePage() {
 
   if (state === "loading") {
     return (
-      <div style={{ minHeight: isEmbed ? "auto" : "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: isEmbed ? COLORS.plum : S.paper }}>
+      <div style={{ minHeight: isEmbed ? "auto" : "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: isEmbed ? COLORS.plum : UI.paper }}>
         <div className="spinner-lg" />
       </div>
     );
@@ -165,13 +165,13 @@ export default function BadgePage() {
 
   if (state === "error" || !snapshot) {
     return (
-      <div style={{ minHeight: isEmbed ? "auto" : "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: S.paper, padding: "2rem" }}>
+      <div style={{ minHeight: isEmbed ? "auto" : "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: UI.paper, padding: "2rem" }}>
         <div style={{ textAlign: "center", maxWidth: "24rem" }}>
-          <AlertTriangle size={32} color={S.rust} style={{ margin: "0 auto 0.75rem" }} />
-          <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.25rem", color: S.ink, marginBottom: "0.375rem" }}>
+          <AlertTriangle size={32} color={UI.rust} style={{ margin: "0 auto 0.75rem" }} />
+          <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.25rem", color: UI.ink, marginBottom: "0.375rem" }}>
             Badge unavailable
           </h1>
-          <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: S.inkLight }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: UI.inkLight }}>
             {error || "This badge link is invalid or has expired."}
           </p>
         </div>
@@ -213,36 +213,36 @@ export default function BadgePage() {
 
   // Full badge page with embed instructions
   return (
-    <div style={{ minHeight: "100vh", background: S.paper, padding: "3rem 1.5rem", fontFamily: S.mono }}>
+    <div style={{ minHeight: "100vh", background: UI.paper, padding: "3rem 1.5rem", fontFamily: UI.mono }}>
       <div style={{ maxWidth: "40rem", margin: "0 auto" }}>
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginBottom: "2.5rem" }}>
-          <Shield size={16} color={S.sage} />
-          <span style={{ fontFamily: S.mono, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.2em", textTransform: "uppercase", color: S.ink }}>
+          <Shield size={16} color={UI.sage} />
+          <span style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.2em", textTransform: "uppercase", color: UI.ink }}>
             HOMEGENTIC
           </span>
-          <span style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight }}>· Property Badge</span>
+          <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>· Property Badge</span>
         </div>
 
         {/* Badge preview */}
         <div style={{ marginBottom: "2rem" }}>
-          <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.875rem" }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.875rem" }}>
             Preview
           </p>
           <BadgeCard snapshot={snapshot} score={score} />
         </div>
 
         {/* View full report link */}
-        <div style={{ marginBottom: "2rem", borderTop: `1px solid ${S.rule}`, paddingTop: "1.5rem" }}>
+        <div style={{ marginBottom: "2rem", borderTop: `1px solid ${UI.rule}`, paddingTop: "1.5rem" }}>
           <a
             href={reportUrl}
             target="_blank"
             rel="noopener noreferrer"
             style={{
               display: "inline-flex", alignItems: "center", gap: "0.5rem",
-              fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase",
-              color: S.ink, border: `1px solid ${S.rule}`, padding: "0.625rem 1.25rem",
+              fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase",
+              color: UI.ink, border: `1px solid ${UI.rule}`, padding: "0.625rem 1.25rem",
               textDecoration: "none",
             }}
           >
@@ -251,18 +251,18 @@ export default function BadgePage() {
         </div>
 
         {/* Embed section */}
-        <div style={{ borderTop: `1px solid ${S.rule}`, paddingTop: "1.5rem" }}>
-          <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.875rem" }}>
+        <div style={{ borderTop: `1px solid ${UI.rule}`, paddingTop: "1.5rem" }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.875rem" }}>
             Embed on your listing
           </p>
-          <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: S.inkLight, marginBottom: "1rem", lineHeight: 1.65 }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: UI.inkLight, marginBottom: "1rem", lineHeight: 1.65 }}>
             Copy the code below and paste it into your listing page or agent website.
             The badge updates automatically when you generate a new report.
           </p>
 
-          <div style={{ border: `1px solid ${S.rule}`, background: COLORS.white, overflow: "hidden" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem 0.875rem", borderBottom: `1px solid ${S.rule}` }}>
-              <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight }}>
+          <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, overflow: "hidden" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem 0.875rem", borderBottom: `1px solid ${UI.rule}` }}>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>
                 HTML embed code
               </span>
               <button
@@ -270,9 +270,9 @@ export default function BadgePage() {
                 style={{
                   display: "inline-flex", alignItems: "center", gap: "0.3rem",
                   padding: "0.25rem 0.6rem",
-                  fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase",
-                  border: `1px solid ${copied ? COLORS.sage : S.rule}`,
-                  color: copied ? COLORS.sage : S.inkLight,
+                  fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase",
+                  border: `1px solid ${copied ? COLORS.sage : UI.rule}`,
+                  color: copied ? COLORS.sage : UI.inkLight,
                   background: "none", cursor: "pointer",
                 }}
               >
@@ -282,7 +282,7 @@ export default function BadgePage() {
             </div>
             <pre style={{
               padding: "0.875rem",
-              fontFamily: S.mono, fontSize: "0.6rem", color: S.ink,
+              fontFamily: UI.mono, fontSize: "0.6rem", color: UI.ink,
               whiteSpace: "pre-wrap", wordBreak: "break-all",
               margin: 0, lineHeight: 1.65,
             }}>
@@ -290,7 +290,7 @@ export default function BadgePage() {
             </pre>
           </div>
 
-          <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.04em", color: S.inkLight, marginTop: "0.625rem", lineHeight: 1.6 }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.04em", color: UI.inkLight, marginTop: "0.625rem", lineHeight: 1.6 }}>
             Badge link expires: {link ? reportService.expiryLabel(link) : "—"}
           </p>
         </div>

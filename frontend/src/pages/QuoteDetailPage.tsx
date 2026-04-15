@@ -10,7 +10,7 @@ import { NegotiationPanel } from "@/components/NegotiationPanel";
 import toast from "react-hot-toast";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -106,25 +106,25 @@ export default function QuoteDetailPage() {
 
         <button
           onClick={() => navigate(-1)}
-          style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: "1.5rem" }}
+          style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: "1.5rem" }}
         >
           <ArrowLeft size={14} /> Back
         </button>
 
-        <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.rust, marginBottom: "0.5rem" }}>
+        <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: UI.rust, marginBottom: "0.5rem" }}>
           Quotes
         </div>
-        <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, marginBottom: "1.5rem" }}>
+        <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, marginBottom: "1.5rem" }}>
           Quote Responses
         </h1>
 
         {/* Request summary */}
         {request && (
-          <div style={{ border: `1px solid ${S.rule}`, background: COLORS.white, padding: "1.25rem", marginBottom: "1.5rem", borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
+          <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "1.25rem", marginBottom: "1.5rem", borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem" }}>
               <div>
                 <p style={{ fontWeight: 500, marginBottom: "0.25rem" }}>{request.serviceType}</p>
-                <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight, fontWeight: 300 }}>{request.description}</p>
+                <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight, fontWeight: 300 }}>{request.description}</p>
               </div>
               <Badge variant={
                 request.urgency === "low" ? "success"
@@ -146,16 +146,16 @@ export default function QuoteDetailPage() {
 
         {/* Post-accept success banner */}
         {acceptedQuote && (
-          <div style={{ border: `1px solid ${S.sage}`, background: COLORS.sageLight, padding: "1.25rem 1.5rem", marginBottom: "1.5rem" }}>
+          <div style={{ border: `1px solid ${UI.sage}`, background: COLORS.sageLight, padding: "1.25rem 1.5rem", marginBottom: "1.5rem" }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
-                  <CheckCircle size={14} color={S.sage} />
-                  <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.sage, fontWeight: 600 }}>
+                  <CheckCircle size={14} color={UI.sage} />
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.sage, fontWeight: 600 }}>
                     Quote Accepted
                   </p>
                 </div>
-                <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, lineHeight: 1.5 }}>
+                <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, lineHeight: 1.5 }}>
                   {contractorNames[acceptedQuote.contractor] ?? "Contractor"} · ${acceptedQuote.amount.toLocaleString()} · {acceptedQuote.timeline}d timeline
                 </p>
               </div>
@@ -176,25 +176,25 @@ export default function QuoteDetailPage() {
 
         {/* Quotes */}
         {quotes.length === 0 ? (
-          <div style={{ border: `1px dashed ${S.rule}`, padding: "3rem", textAlign: "center" }}>
-            <Clock size={36} color={S.rule} style={{ margin: "0 auto 1rem" }} />
-            <p style={{ fontFamily: S.serif, fontWeight: 700, marginBottom: "0.375rem" }}>Waiting for quotes</p>
-            <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>
+          <div style={{ border: `1px dashed ${UI.rule}`, padding: "3rem", textAlign: "center" }}>
+            <Clock size={36} color={UI.rule} style={{ margin: "0 auto 1rem" }} />
+            <p style={{ fontFamily: UI.serif, fontWeight: 700, marginBottom: "0.375rem" }}>Waiting for quotes</p>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight }}>
               Typically receive 2–5 quotes within 24 hours.
             </p>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
             {/* Bid comparison summary */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", borderTop: `1px solid ${S.rule}`, borderLeft: `1px solid ${S.rule}` }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", borderTop: `1px solid ${UI.rule}`, borderLeft: `1px solid ${UI.rule}` }}>
               {[
                 { label: "Bids Received",  value: String(quotes.length) },
                 { label: "Bid Range",      value: lowestAmount === highestAmount ? `$${lowestAmount.toLocaleString()}` : `$${lowestAmount.toLocaleString()} – $${highestAmount.toLocaleString()}` },
                 { label: "Spread",         value: lowestAmount === highestAmount ? "—" : `$${(highestAmount - lowestAmount).toLocaleString()}` },
               ].map((s) => (
-                <div key={s.label} style={{ padding: "0.875rem 1rem", borderRight: `1px solid ${S.rule}`, borderBottom: `1px solid ${S.rule}`, background: COLORS.white }}>
-                  <div style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.375rem" }}>{s.label}</div>
-                  <div style={{ fontFamily: S.serif, fontWeight: 700, fontSize: "1.125rem", lineHeight: 1 }}>{s.value}</div>
+                <div key={s.label} style={{ padding: "0.875rem 1rem", borderRight: `1px solid ${UI.rule}`, borderBottom: `1px solid ${UI.rule}`, background: COLORS.white }}>
+                  <div style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.375rem" }}>{s.label}</div>
+                  <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.125rem", lineHeight: 1 }}>{s.value}</div>
                 </div>
               ))}
             </div>
@@ -207,8 +207,8 @@ export default function QuoteDetailPage() {
                 const trustScore  = contractorScores[quote.contractor] ?? 0;
                 const isVerified  = contractorVerified[quote.contractor] ?? false;
                 const label       = isBestValue ? "Best Value" : isLowest ? "Lowest Quote" : null;
-                const labelColor  = isBestValue ? COLORS.plum : S.sage;
-                const borderColor = isBestValue ? COLORS.plum : isLowest ? S.sage : S.rule;
+                const labelColor  = isBestValue ? COLORS.plum : UI.sage;
+                const borderColor = isBestValue ? COLORS.plum : isLowest ? UI.sage : UI.rule;
 
                 return (
                   <div key={quote.id} style={{ border: `1px solid ${borderColor}`, background: COLORS.white, padding: "1.25rem", position: "relative", borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
@@ -216,7 +216,7 @@ export default function QuoteDetailPage() {
                       <div style={{
                         position: "absolute", top: "-1px", left: "1rem",
                         background: labelColor, color: COLORS.white,
-                        fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase",
+                        fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase",
                         padding: "0.2rem 0.625rem",
                       }}>
                         {label}
@@ -229,33 +229,33 @@ export default function QuoteDetailPage() {
                             {contractorNames[quote.contractor] ?? `${quote.contractor.slice(0, 10)}…`}
                           </p>
                           {isVerified && (
-                            <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.sage, border: `1px solid ${S.sage}40`, padding: "0.1rem 0.375rem" }}>
+                            <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.sage, border: `1px solid ${UI.sage}40`, padding: "0.1rem 0.375rem" }}>
                               ✓ Verified
                             </span>
                           )}
                         </div>
-                        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight }}>
+                        <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight }}>
                           <Clock size={11} style={{ display: "inline", marginRight: "0.25rem" }} />
                           {quote.timeline} day{quote.timeline !== 1 ? "s" : ""} to complete
                         </p>
                         {trustScore > 0 && (
-                          <p style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: S.inkLight, marginTop: "0.25rem" }}>
-                            Trust Score: <strong style={{ color: S.ink }}>{trustScore}/100</strong>
+                          <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight, marginTop: "0.25rem" }}>
+                            Trust Score: <strong style={{ color: UI.ink }}>{trustScore}/100</strong>
                           </p>
                         )}
                       </div>
                       <div style={{ textAlign: "right" }}>
-                        <p style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, color: isBestValue ? COLORS.plum : isLowest ? S.sage : S.ink }}>
+                        <p style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, color: isBestValue ? COLORS.plum : isLowest ? UI.sage : UI.ink }}>
                           ${quote.amount.toLocaleString()}
                         </p>
                       </div>
                     </div>
                     {quote.status === "accepted" ? (
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", padding: "0.625rem", border: `1px solid ${S.sage}`, color: S.sage, fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", padding: "0.625rem", border: `1px solid ${UI.sage}`, color: UI.sage, fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>
                         <CheckCircle size={13} /> Accepted
                       </div>
                     ) : quote.status === "rejected" ? (
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "0.625rem", color: S.inkLight, fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.5 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "0.625rem", color: UI.inkLight, fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.5 }}>
                         Not selected
                       </div>
                     ) : (
@@ -284,27 +284,27 @@ export default function QuoteDetailPage() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ background: COLORS.white, border: `1px solid ${S.rule}`, maxWidth: "28rem", width: "100%", padding: "0", borderRadius: RADIUS.card, boxShadow: SHADOWS.modal }}
+            style={{ background: COLORS.white, border: `1px solid ${UI.rule}`, maxWidth: "28rem", width: "100%", padding: "0", borderRadius: RADIUS.card, boxShadow: SHADOWS.modal }}
           >
-            <div style={{ padding: "1.25rem 1.5rem", borderBottom: `1px solid ${S.rule}`, background: S.paper }}>
-              <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: S.ink, fontWeight: 600 }}>
+            <div style={{ padding: "1.25rem 1.5rem", borderBottom: `1px solid ${UI.rule}`, background: UI.paper }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.ink, fontWeight: 600 }}>
                 Confirm acceptance
               </p>
             </div>
             <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderTop: `1px solid ${S.rule}`, borderLeft: `1px solid ${S.rule}` }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderTop: `1px solid ${UI.rule}`, borderLeft: `1px solid ${UI.rule}` }}>
                 {[
                   { label: "Contractor",  value: contractorNames[pendingAccept.contractor] ?? "—" },
                   { label: "Amount",      value: `$${pendingAccept.amount.toLocaleString()}` },
                   { label: "Timeline",    value: `${pendingAccept.timeline}d` },
                 ].map((r) => (
-                  <div key={r.label} style={{ padding: "0.75rem", borderRight: `1px solid ${S.rule}`, borderBottom: `1px solid ${S.rule}` }}>
-                    <p style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, marginBottom: "0.25rem" }}>{r.label}</p>
+                  <div key={r.label} style={{ padding: "0.75rem", borderRight: `1px solid ${UI.rule}`, borderBottom: `1px solid ${UI.rule}` }}>
+                    <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.25rem" }}>{r.label}</p>
                     <p style={{ fontSize: "0.875rem", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.value}</p>
                   </div>
                 ))}
               </div>
-              <p style={{ fontFamily: S.mono, fontSize: "0.6rem", color: S.inkLight, lineHeight: 1.5 }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, lineHeight: 1.5 }}>
                 Accepting this quote closes the request and notifies the contractor. Other bids will be marked as not selected.
               </p>
               <div style={{ display: "flex", gap: "0.75rem" }}>
@@ -318,7 +318,7 @@ export default function QuoteDetailPage() {
                 </Button>
                 <button
                   onClick={() => setPendingAccept(null)}
-                  style={{ padding: "0.5rem 1.25rem", border: `1px solid ${S.rule}`, background: "none", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight, cursor: "pointer" }}
+                  style={{ padding: "0.5rem 1.25rem", border: `1px solid ${UI.rule}`, background: "none", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight, cursor: "pointer" }}
                 >
                   Cancel
                 </button>

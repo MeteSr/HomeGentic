@@ -3,7 +3,7 @@ import { ShieldCheck, X } from "lucide-react";
 import { COLORS, FONTS, RADIUS } from "@/theme";
 import type { ReEngagementPrompt } from "@/services/reEngagementService";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   rule:     COLORS.rule,
   inkLight: COLORS.plumMid,
@@ -50,7 +50,7 @@ export function ReEngagementStack({
             alignItems: "flex-start",
             justifyContent: "space-between",
             gap: "1rem",
-            border: `1px solid ${S.rule}`,
+            border: `1px solid ${UI.rule}`,
             padding: "1rem 1.25rem",
             marginBottom: "1rem",
             background: COLORS.white,
@@ -63,7 +63,7 @@ export function ReEngagementStack({
               style={{
                 width: "2rem",
                 height: "2rem",
-                border: `1px solid ${S.rule}`,
+                border: `1px solid ${UI.rule}`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -71,16 +71,16 @@ export function ReEngagementStack({
                 borderRadius: RADIUS.sm,
               }}
             >
-              <ShieldCheck size={13} color={S.sage} />
+              <ShieldCheck size={13} color={UI.sage} />
             </div>
             <div>
               <p
                 style={{
-                  fontFamily: S.mono,
+                  fontFamily: UI.mono,
                   fontSize: "0.6rem",
                   letterSpacing: "0.12em",
                   textTransform: "uppercase",
-                  color: S.sage,
+                  color: UI.sage,
                   marginBottom: "0.2rem",
                 }}
               >
@@ -90,7 +90,7 @@ export function ReEngagementStack({
                 style={{
                   fontSize: "0.875rem",
                   fontWeight: 400,
-                  color: S.ink,
+                  color: UI.ink,
                   marginBottom: "0.5rem",
                 }}
               >
@@ -105,14 +105,14 @@ export function ReEngagementStack({
                     })
                   }
                   style={{
-                    fontFamily: S.mono,
+                    fontFamily: UI.mono,
                     fontSize: "0.55rem",
                     letterSpacing: "0.1em",
                     textTransform: "uppercase",
                     padding: "0.35rem 0.875rem",
-                    border: `1px solid ${S.sage}`,
+                    border: `1px solid ${UI.sage}`,
                     background: "none",
-                    color: S.sage,
+                    color: UI.sage,
                     cursor: "pointer",
                     borderRadius: RADIUS.sm,
                   }}
@@ -127,14 +127,14 @@ export function ReEngagementStack({
                     })
                   }
                   style={{
-                    fontFamily: S.mono,
+                    fontFamily: UI.mono,
                     fontSize: "0.55rem",
                     letterSpacing: "0.1em",
                     textTransform: "uppercase",
                     padding: "0.35rem 0.875rem",
-                    border: `1px solid ${S.rule}`,
+                    border: `1px solid ${UI.rule}`,
                     background: "none",
-                    color: S.inkLight,
+                    color: UI.inkLight,
                     cursor: "pointer",
                     borderRadius: RADIUS.sm,
                   }}
@@ -150,7 +150,7 @@ export function ReEngagementStack({
               background: "none",
               border: "none",
               cursor: "pointer",
-              color: S.inkLight,
+              color: UI.inkLight,
               flexShrink: 0,
             }}
             aria-label={`Dismiss ${prompt.serviceType} re-engagement`}

@@ -8,7 +8,7 @@ import { systemAgesService, TRACKED_SYSTEMS, SystemName, SystemAges } from "@/se
 import toast from "react-hot-toast";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 
-const S = {
+const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
@@ -92,24 +92,24 @@ export default function SystemAgesPage() {
 
         <button
           onClick={() => navigate(-1)}
-          style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: S.inkLight, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: "1.5rem" }}
+          style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: "1.5rem" }}
         >
           <ArrowLeft size={14} /> Back
         </button>
 
-        <div style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: S.rust, marginBottom: "0.5rem" }}>
+        <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: UI.rust, marginBottom: "0.5rem" }}>
           {property ? `${property.address}` : "Property"}
         </div>
-        <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, marginBottom: "0.375rem" }}>
+        <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, marginBottom: "0.375rem" }}>
           System Ages
         </h1>
-        <p style={{ fontFamily: S.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: S.inkLight, marginBottom: "1.75rem", lineHeight: 1.7 }}>
+        <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight, marginBottom: "1.75rem", lineHeight: 1.7 }}>
           When were each of your home's systems last installed or fully replaced?
           Accurate ages give you better maintenance predictions.
           Defaults to the house's build year ({yearBuilt}) when left unchanged.
         </p>
 
-        <div style={{ border: `1px solid ${S.rule}`, background: COLORS.white }}>
+        <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white }}>
           {TRACKED_SYSTEMS.map((sys, i) => {
             const isTouched = touched.has(sys);
             const isCustom = isTouched && ages[sys] !== String(yearBuilt);
@@ -122,15 +122,15 @@ export default function SystemAgesPage() {
                   alignItems: "center",
                   gap: "1rem",
                   padding: "1rem 1.25rem",
-                  borderBottom: i < TRACKED_SYSTEMS.length - 1 ? `1px solid ${S.rule}` : "none",
+                  borderBottom: i < TRACKED_SYSTEMS.length - 1 ? `1px solid ${UI.rule}` : "none",
                   background: isCustom ? COLORS.white : COLORS.white,
                 }}
               >
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: "0.875rem", color: S.ink, marginBottom: "0.2rem" }}>
+                  <div style={{ fontWeight: 600, fontSize: "0.875rem", color: UI.ink, marginBottom: "0.2rem" }}>
                     {sys}
                   </div>
-                  <div style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: S.inkLight }}>
+                  <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: UI.inkLight }}>
                     {SYSTEM_DESCRIPTIONS[sys]}
                   </div>
                 </div>
@@ -139,7 +139,7 @@ export default function SystemAgesPage() {
                   {isCustom && (
                     <button
                       onClick={() => handleReset(sys)}
-                      style={{ fontFamily: S.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: S.inkLight, background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline", textUnderlineOffset: "3px" }}
+                      style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight, background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline", textUnderlineOffset: "3px" }}
                       title="Reset to house age"
                     >
                       Reset
@@ -155,16 +155,16 @@ export default function SystemAgesPage() {
                       style={{
                         width: "5.5rem",
                         padding: "0.375rem 0.625rem",
-                        border: `1px solid ${isCustom ? S.rust : S.rule}`,
-                        fontFamily: S.mono,
+                        border: `1px solid ${isCustom ? UI.rust : UI.rule}`,
+                        fontFamily: UI.mono,
                         fontSize: "0.8rem",
                         textAlign: "center",
                         outline: "none",
                         background: isCustom ? COLORS.sageLight : COLORS.white,
-                        color: isCustom ? S.rust : S.ink,
+                        color: isCustom ? UI.rust : UI.ink,
                       }}
                     />
-                    <span style={{ fontFamily: S.mono, fontSize: "0.55rem", letterSpacing: "0.08em", color: S.inkLight }}>
+                    <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", color: UI.inkLight }}>
                       {isCustom ? `${CURRENT_YEAR - parseInt(ages[sys] || "0", 10)} yrs old` : "house age"}
                     </span>
                   </div>

@@ -179,7 +179,7 @@ vi.mock("@/services/agent", () => ({
     getPublicProfile: vi.fn().mockResolvedValue(mockProfile),
     getReviews:       vi.fn().mockResolvedValue([]),
   },
-  computeAverageRating: () => null,
+  computeAverageRating: () => 0,
 }));
 
 import ListingDetailPage  from "@/pages/ListingDetailPage";
