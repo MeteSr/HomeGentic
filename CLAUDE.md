@@ -32,6 +32,26 @@ npm run test:e2e:ui
 make test                  # alias for bash scripts/test-backend.sh
 ```
 
+### E2E test maintenance (IMPORTANT)
+
+**Always update `tests/e2e/` when changing UI-visible behaviour.** Common triggers:
+
+| Change type | What to check in tests/e2e/ |
+|---|---|
+| New page or route | Add a new `*.spec.ts` mirroring the pattern of existing specs |
+| Rename/move a UI label, heading, or button text | `grep -r "old text" tests/e2e/` and update all matching assertions |
+| Add/remove a form field | Update the spec for that page — add/remove `getByLabel`, `fill`, and validation assertions |
+| Change validation logic (required fields, enable/disable rules) | Update step-flow tests that submit or advance through the affected form |
+| Change auth/routing (new ProtectedRoute, redirect logic) | Ensure relevant specs call `injectTestAuth` in `beforeEach` |
+| Add a modal that replaces a navigation | Change `toHaveURL` assertions to check the modal heading instead |
+
+**E2E mock injection pattern** — tests use `window.__e2e_*` globals (set via `addInitScript`) so no canister is needed:
+- `window.__e2e_principal` / `__e2e_profile` — auth state (see `helpers/auth.ts`)
+- `window.__e2e_properties` / `__e2e_jobs` — property and job data (see `helpers/testData.ts`)
+- `window.__e2e_subscription` — payment tier
+
+Run `CI=true npx playwright test` after any frontend change that touches pages, forms, routes, or auth to catch regressions before pushing.
+
 ### Canister operations
 ```bash
 make status       # Show canister IDs and health

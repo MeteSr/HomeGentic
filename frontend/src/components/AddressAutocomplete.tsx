@@ -27,6 +27,7 @@ interface Props {
   placeholder?:   string;
   className?:     string;
   style?:         React.CSSProperties;
+  id?:            string;
 }
 
 // ─── Script loader (called once per page) ────────────────────────────────────
@@ -81,6 +82,7 @@ export function AddressAutocomplete({
   placeholder = "123 Main Street",
   className,
   style,
+  id,
 }: Props) {
   const inputRef      = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<any>(null);
@@ -126,6 +128,7 @@ export function AddressAutocomplete({
   return (
     <input
       ref={inputRef}
+      id={id}
       type="text"
       value={value}
       onChange={(e) => onChange(e.target.value)}

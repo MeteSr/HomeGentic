@@ -10,11 +10,11 @@ test.describe("LoginPage — /login", () => {
   // ── Page structure ────────────────────────────────────────────────────────
 
   test("shows HomeGentic logo", async ({ page }) => {
-    await expect(page.getByText(/HomeGentic/)).toBeVisible();
+    await expect(page.getByText(/HomeGentic/).first()).toBeVisible();
   });
 
   test("shows 'Sign In' eyebrow label", async ({ page }) => {
-    await expect(page.getByText("Sign In")).toBeVisible();
+    await expect(page.getByText("Sign In").first()).toBeVisible();
   });
 
   test("shows 'Welcome back.' heading", async ({ page }) => {
@@ -22,8 +22,8 @@ test.describe("LoginPage — /login", () => {
   });
 
   test("shows friendly sign-in description mentioning Google and Apple", async ({ page }) => {
-    await expect(page.getByText(/Google/)).toBeVisible();
-    await expect(page.getByText(/Apple/)).toBeVisible();
+    await expect(page.getByText(/Google/).first()).toBeVisible();
+    await expect(page.getByText(/Apple/).first()).toBeVisible();
   });
 
   test("shows biometric option hint", async ({ page }) => {

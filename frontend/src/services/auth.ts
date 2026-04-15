@@ -144,7 +144,21 @@ export const authService = {
 
   async getProfile(): Promise<UserProfile> {
     if (!getCanisterId()) {
-      if (!_mockProfile) throw new Error("NotFound");
+      if (!_mockProfile) {
+        // No canister deployed and no profile registered yet (e.g. devLogin without a
+        // running replica). Seed a default homeowner so devLogin can navigate to /dashboard
+        // instead of falling through to /register.
+        _mockProfile = {
+          principal:    "local-dev",
+          role:         "Homeowner",
+          email:        "dev@homegentic.io",
+          phone:        "0000000000",
+          createdAt:    BigInt(0),
+          updatedAt:    BigInt(0),
+          isActive:     true,
+          lastLoggedIn: null,
+        };
+      }
       return { ..._mockProfile };
     }
     const a = await getActor();

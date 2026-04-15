@@ -561,7 +561,7 @@ export default function DashboardPage() {
               >
                 Continue setup <ArrowRight size={12} />
               </button>
-              <button onClick={() => setBannerDismissed(true)} style={{ background: "none", border: "none", cursor: "pointer", color: S.inkLight }}>
+              <button aria-label="Dismiss banner" onClick={() => setBannerDismissed(true)} style={{ background: "none", border: "none", cursor: "pointer", color: S.inkLight }}>
                 <X size={16} />
               </button>
             </div>

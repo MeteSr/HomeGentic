@@ -15,9 +15,9 @@ test.describe("PropertyRegisterPage — /properties/new", () => {
   });
 
   test("shows 3-step indicator with Address, Details, Confirm", async ({ page }) => {
-    await expect(page.getByText("Address")).toBeVisible();
-    await expect(page.getByText("Details")).toBeVisible();
-    await expect(page.getByText("Confirm")).toBeVisible();
+    await expect(page.getByText("Address", { exact: true })).toBeVisible();
+    await expect(page.getByText("Details", { exact: true })).toBeVisible();
+    await expect(page.getByText("Confirm", { exact: true })).toBeVisible();
   });
 
   test("Back button navigates to /dashboard", async ({ page }) => {
@@ -70,16 +70,15 @@ test.describe("PropertyRegisterPage — /properties/new", () => {
     await expect(page.getByText("MultiFamily")).toBeVisible();
   });
 
-  test("step 2 shows plan options", async ({ page }) => {
+  test("step 2 shows year built and square feet fields", async ({ page }) => {
     await page.getByLabel(/street address/i).fill("456 Oak Ave");
     await page.getByLabel(/city/i).fill("Austin");
     await page.getByLabel(/state/i).fill("TX");
     await page.getByLabel(/zip code/i).fill("78702");
     await page.getByRole("button", { name: /next/i }).click();
 
-    await expect(page.getByText("Free")).toBeVisible();
-    await expect(page.getByText("Pro")).toBeVisible();
-    await expect(page.getByText("Premium")).toBeVisible();
+    await expect(page.getByLabel(/year built/i)).toBeVisible();
+    await expect(page.getByLabel(/square feet/i)).toBeVisible();
   });
 
   test("Review button disabled until year built and sqft filled", async ({ page }) => {
@@ -97,7 +96,8 @@ test.describe("PropertyRegisterPage — /properties/new", () => {
     await page.getByLabel(/state/i).fill("TX");
     await page.getByLabel(/zip code/i).fill("78702");
     await page.getByRole("button", { name: /next/i }).click();
-    await page.getByRole("button", { name: /back/i }).click();
+    // Two Back buttons exist on step 2: top-level (→ /dashboard) and step nav (→ step 1)
+    await page.getByRole("button", { name: /back/i }).last().click();
     await expect(page.getByLabel(/street address/i)).toBeVisible();
   });
 

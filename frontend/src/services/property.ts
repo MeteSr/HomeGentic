@@ -363,6 +363,9 @@ export const propertyService = {
   },
 
   async getMyProperties(): Promise<Property[]> {
+    if (typeof window !== "undefined" && (window as any).__e2e_properties) {
+      return (window as any).__e2e_properties as Property[];
+    }
     if (!PROPERTY_CANISTER_ID && !process.env.VITEST) return _mockProperties.map((p) => ({ ...p }));
     const a = await getActor();
     const props = await a.getMyProperties();

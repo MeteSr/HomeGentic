@@ -61,11 +61,11 @@ export async function loginWithLocalIdentity(): Promise<string> {
   const seed = new Uint8Array(32);
   seed[0] = 42;
   const identity = Ed25519KeyIdentity.generate(seed);
-  _agent = await HttpAgent.create({
-    identity,
-    host: "http://localhost:4943",
-    shouldFetchRootKey: true,
-  });
+  _agent = await HttpAgent.create({ identity, host: "http://localhost:4943" });
+  // Fetch the local replica's root key so canister calls can be verified.
+  // When no replica is running (e.g. mock-mode E2E without deploy), this fails
+  // silently — all service calls will fall back to their mock implementations.
+  await _agent.fetchRootKey().catch(() => {});
   return identity.getPrincipal().toText();
 }
 
