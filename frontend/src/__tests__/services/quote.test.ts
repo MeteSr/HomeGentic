@@ -400,7 +400,7 @@ describe("quoteService mock — tier quota enforcement (12.2.3)", () => {
     await svc.createRequest({ propertyId: "p", serviceType: "Roofing", urgency: "low", description: "d" }, "Free");
     await expect(
       svc.createRequest({ propertyId: "p", serviceType: "Plumbing", urgency: "low", description: "d" }, "Free")
-    ).rejects.toThrow("QuotaExceeded");
+    ).rejects.toThrow(/quota|limit reached/i);
   });
 
   it("Pro tier: 10th open request succeeds", async () => {
@@ -420,7 +420,7 @@ describe("quoteService mock — tier quota enforcement (12.2.3)", () => {
     }
     await expect(
       svc.createRequest({ propertyId: "p", serviceType: "Plumbing", urgency: "low", description: "d10" }, "Pro")
-    ).rejects.toThrow("QuotaExceeded");
+    ).rejects.toThrow(/quota|limit reached/i);
   });
 
   it("no tier argument → no quota check (backwards compat)", async () => {

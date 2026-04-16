@@ -192,21 +192,19 @@ export default function FsboListingManagerPage() {
 
   const listingState = statusForRecord(record);
 
-  // Refresh counts whenever we transition to live
-  useEffect(() => {
+  // Single source of truth: one callback that atomically refreshes all
+  // derived state from the services so callers can't forget a slice.
+  const refreshAll = useCallback(() => {
+    const rec = fsboService.getRecord(propertyId);
+    setRecord(rec);
+    setPriceHistory(fsboService.getPriceHistory(propertyId));
     setShowingCount(showingRequestService.getByProperty(propertyId).length);
     setOfferCount(fsboOfferService.getByProperty(propertyId).length);
-  }, [propertyId, listingState]);
-
-  // Initialise price input from record
-  useEffect(() => {
-    if (record) setPriceInput(String(Math.round(record.listPriceCents / 100)));
-  }, [record?.listPriceCents]);
-
-  const refreshRecord = useCallback(() => {
-    setRecord(fsboService.getRecord(propertyId));
-    setPriceHistory(fsboService.getPriceHistory(propertyId));
+    if (rec) setPriceInput(String(Math.round(rec.listPriceCents / 100)));
   }, [propertyId]);
+
+  // Populate on mount and whenever propertyId changes
+  useEffect(() => { refreshAll(); }, [refreshAll]);
 
   function handleSavePrice() {
     const dollars = parseFloat(priceInput);
@@ -214,13 +212,13 @@ export default function FsboListingManagerPage() {
     const cents = Math.round(dollars * 100);
     fsboService.updatePrice(propertyId, cents);
     fsboService.logPriceChange(propertyId, cents);
-    refreshRecord();
+    refreshAll();
   }
 
   function handleTakeDownConfirm() {
     fsboService.deactivate(propertyId);
     setShowTakeDown(false);
-    refreshRecord();
+    refreshAll();
   }
 
   const pageTitle = record?.step === "done"

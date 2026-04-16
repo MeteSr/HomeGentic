@@ -242,7 +242,7 @@ function createQuoteService() {
         const quota = this.getQuotaForTier(tier);
         if (quota > 0) {
           const openCount = mockRequests.filter((r) => r.status === "open").length;
-          if (openCount >= quota) throw new Error("QuotaExceeded");
+          if (openCount >= quota) throw new Error(`Open quote limit reached for ${tier} tier (${openCount}/${quota}). Close an existing request or upgrade your plan.`);
         }
       }
       const r: QuoteRequest = {

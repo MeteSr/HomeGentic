@@ -168,7 +168,7 @@ export const authService = {
 
   async updateProfile(args: { email: string; phone: string }): Promise<UserProfile> {
     if (!getCanisterId()) {
-      if (!_mockProfile) throw new Error("NotFound");
+      if (!_mockProfile) throw new Error("User profile not found — call createProfile() before updateProfile()");
       _mockProfile = { ..._mockProfile, email: args.email, phone: args.phone, updatedAt: BigInt(Date.now()) };
       return { ..._mockProfile };
     }

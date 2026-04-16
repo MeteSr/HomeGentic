@@ -477,7 +477,7 @@ describe("jobService.approveJobProposal", () => {
   });
 
   it("throws NotFound for an unknown proposal id", async () => {
-    await expect(jobService.approveJobProposal("ghost-id")).rejects.toThrow("NotFound");
+    await expect(jobService.approveJobProposal("ghost-id")).rejects.toThrow(/not found/i);
   });
 });
 
@@ -497,7 +497,7 @@ describe("jobService.rejectJobProposal", () => {
   });
 
   it("throws NotFound for an unknown proposal id", async () => {
-    await expect(jobService.rejectJobProposal("ghost-id")).rejects.toThrow("NotFound");
+    await expect(jobService.rejectJobProposal("ghost-id")).rejects.toThrow(/not found/i);
   });
 });
 

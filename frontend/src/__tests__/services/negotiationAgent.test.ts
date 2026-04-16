@@ -67,7 +67,7 @@ describe("negotiationAgentService — opt-in consent (5.2.2)", () => {
 
   it("analyzeQuote throws ConsentRequired if not opted in", async () => {
     await expect(svc.analyzeQuote(MOCK_QUOTE, MOCK_REQUEST, "94103"))
-      .rejects.toThrow("ConsentRequired");
+      .rejects.toThrow(/consent/i);
   });
 });
 

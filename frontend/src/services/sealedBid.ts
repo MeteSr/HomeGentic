@@ -111,7 +111,7 @@ function createSealedBidService() {
     ): SealedBid {
       const req = requests.get(requestId);
       if (req && now >= req.closeAt) {
-        throw new Error("BidWindowClosed");
+        throw new Error(`Bid window closed for request ${requestId} — deadline was ${new Date(req.closeAt).toISOString()}`);
       }
       const ciphertext = mockIbeEncrypt(amountCents, requestId);
       const id         = `SB_${++counter}`;
@@ -149,7 +149,7 @@ function createSealedBidService() {
     ): RevealedBid[] {
       const req = requests.get(requestId);
       if (req && now < req.closeAt) {
-        throw new Error("BidWindowOpen");
+        throw new Error(`Bid window still open for request ${requestId} — closes at ${new Date(req.closeAt).toISOString()}. Call revealBids() only after the deadline.`);
       }
       const cached = revealedByRequest.get(requestId);
       if (cached) return cached;

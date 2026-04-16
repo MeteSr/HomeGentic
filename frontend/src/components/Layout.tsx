@@ -83,7 +83,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
   }, [userMenuOpen]);
 
   useEffect(() => {
-    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch(() => {});
+    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch((err: unknown) => {
+      console.error("[Layout] subscription fetch failed — tier will default to Free:", err);
+    });
   }, [principal]);
 
   useEffect(() => {

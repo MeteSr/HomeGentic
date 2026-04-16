@@ -354,7 +354,7 @@ function createJobService() {
   async updateJob(jobId: string, updates: Partial<Pick<Job, "serviceType" | "contractorName" | "amount" | "date" | "description" | "permitNumber" | "warrantyMonths" | "isDiy">>): Promise<Job> {
     if (!JOB_CANISTER_ID) {
       const idx = mockJobs.findIndex((j) => j.id === jobId);
-      if (idx === -1) throw new Error("Job not found");
+      if (idx === -1) throw new Error(`Job not found in mock store (id: ${jobId})`);
       mockJobs[idx] = { ...mockJobs[idx], ...updates };
       return mockJobs[idx];
     }
@@ -365,7 +365,7 @@ function createJobService() {
   async updateJobStatus(jobId: string, status: JobStatus): Promise<Job> {
     if (!JOB_CANISTER_ID) {
       const idx = mockJobs.findIndex((j) => j.id === jobId);
-      if (idx === -1) throw new Error("Job not found");
+      if (idx === -1) throw new Error(`Job not found in mock store (id: ${jobId})`);
       mockJobs[idx] = { ...mockJobs[idx], status };
       return mockJobs[idx];
     }
@@ -385,7 +385,7 @@ function createJobService() {
   async verifyJob(jobId: string): Promise<Job> {
     if (!JOB_CANISTER_ID) {
       const idx = mockJobs.findIndex((j) => j.id === jobId);
-      if (idx === -1) throw new Error("Job not found");
+      if (idx === -1) throw new Error(`Job not found in mock store (id: ${jobId})`);
       const job = mockJobs[idx];
       const newHomeownerSigned  = true;
       const newContractorSigned = job.contractorSigned || job.isDiy;
@@ -407,7 +407,7 @@ function createJobService() {
   async linkContractor(jobId: string, contractorPrincipal: string): Promise<Job> {
     if (!JOB_CANISTER_ID) {
       const idx = mockJobs.findIndex((j) => j.id === jobId);
-      if (idx === -1) throw new Error("Job not found");
+      if (idx === -1) throw new Error(`Job not found in mock store (id: ${jobId})`);
       mockJobs[idx] = { ...mockJobs[idx], contractor: contractorPrincipal };
       return mockJobs[idx];
     }
@@ -608,7 +608,7 @@ function createJobService() {
         mockJobs.push(approved);
         return approved;
       }
-      throw new Error("NotFound");
+      throw new Error(`Job proposal not found in mock store or e2e pending list (id: ${jobId})`);
     }
     const a = await getActor();
     const result = await a.approveJobProposal(jobId);
@@ -622,7 +622,7 @@ function createJobService() {
       const pending: Job[] = (import.meta.env.DEV && typeof window !== "undefined" && (window as any).__e2e_pending_proposals) || [];
       const pidx = pending.findIndex((j) => j.id === jobId);
       if (pidx !== -1) { pending.splice(pidx, 1); return; }
-      throw new Error("NotFound");
+      throw new Error(`Job proposal not found in mock store or e2e pending list (id: ${jobId})`);
     }
     const a = await getActor();
     const result = await a.rejectJobProposal(jobId);

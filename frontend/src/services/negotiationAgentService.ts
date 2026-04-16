@@ -123,7 +123,7 @@ export function createNegotiationAgentService() {
     zip:     string,
   ): Promise<NegotiationAnalysis> {
     if (!hasConsent(quote.requestId)) {
-      throw new Error("ConsentRequired");
+      throw new Error(`Negotiation analysis requires user consent for quote request ${quote.requestId} — call grantConsent() first`);
     }
 
     const benchmark = pricingHistoryService.getBenchmark(request.serviceType, zip);
@@ -143,7 +143,7 @@ export function createNegotiationAgentService() {
           benchmark: { p25: benchmark.p25, median: benchmark.median, p75: benchmark.p75 },
         }),
       });
-      if (!resp.ok) throw new Error("upstream error");
+      if (!resp.ok) throw new Error(`Negotiation agent upstream error: HTTP ${resp.status} from ${VOICE_AGENT_URL}/api/negotiate`);
       const data = await resp.json() as NegotiationAnalysis;
       return { ...data, benchmarkUsed: benchmark };
     } catch {

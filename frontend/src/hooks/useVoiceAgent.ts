@@ -349,7 +349,9 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
       }
 
       setAlerts(newAlerts);
-    }).catch(() => {});
+    }).catch((err: unknown) => {
+      console.error("[useVoiceAgent] proactive alert build failed — alerts will be empty:", err);
+    });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Agentic loop ─────────────────────────────────────────────────────────────

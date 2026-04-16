@@ -129,7 +129,7 @@ describe("2.4.2: sealed-bid reveal — lowest wins, in-canister comparison", () 
     // now < closeAt → window still open → should throw
     expect(() =>
       sealedBidService.revealBids("REQ_SEALED_1", "homeowner-principal", FUTURE - 10)
-    ).toThrow("BidWindowOpen");
+    ).toThrow(/bid window.*open|still open/i);
   });
 
   it("all submitted bids appear in reveal results", () => {
@@ -209,7 +209,7 @@ describe("2.4.3: bid window timer", () => {
     makeRequest(PAST);
     expect(() =>
       sealedBidService.submitSealedBid("REQ_SEALED_1", 200_000, 3, "contractor-A", Date.now())
-    ).toThrow("BidWindowClosed");
+    ).toThrow(/bid window.*closed|closed/i);
   });
 
   it("submitSealedBid succeeds while window is still open", () => {
@@ -226,7 +226,7 @@ describe("2.4.3: bid window timer", () => {
     // Before close: throws
     expect(() =>
       sealedBidService.revealBids("REQ_SEALED_1", "homeowner-principal", FUTURE - 100)
-    ).toThrow("BidWindowOpen");
+    ).toThrow(/bid window.*open|still open/i);
 
     // After close: succeeds
     const revealed = sealedBidService.revealBids("REQ_SEALED_1", "homeowner-principal", FUTURE + 1);
