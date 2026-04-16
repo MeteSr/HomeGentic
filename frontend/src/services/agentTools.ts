@@ -14,7 +14,12 @@ import { maintenanceService } from "./maintenance";
 import { propertyService } from "./property";
 import { roomService } from "./room";
 import { recurringService } from "./recurringService";
-import { paymentService, PLANS } from "./payment";
+import { paymentService, type PlanTier } from "./payment";
+
+// Inline tier→property limit to avoid PLANS import breaking payment mocks in tests
+const TIER_PROPERTY_LIMIT: Partial<Record<PlanTier, number>> = {
+  Free: 1, Basic: 1, Pro: 5, Premium: 20,
+};
 import { buildMaintenanceForecast } from "./maintenanceForecast";
 import { reportService, jobToInput, propertyToInput } from "./report";
 import { getPriceBenchmark } from "./priceBenchmark";
@@ -771,8 +776,7 @@ export async function executeTool(
           paymentService.getMySubscription(),
           propertyService.getMyProperties(),
         ]);
-        const plan  = PLANS.find((p) => p.tier === sub.tier);
-        const limit = plan?.propertyLimit ?? 0;
+        const limit = TIER_PROPERTY_LIMIT[sub.tier] ?? 0;
 
         if (existingProps.length >= limit) {
           return {
