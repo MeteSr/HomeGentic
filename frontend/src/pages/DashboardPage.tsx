@@ -6,24 +6,19 @@ import { Button } from "@/components/Button";
 import { Badge } from "@/components/Badge";
 import { LogJobModal } from "@/components/LogJobModal";
 import { RequestQuoteModal } from "@/components/RequestQuoteModal";
-import { propertyService, Property } from "@/services/property";
-import { jobService, Job } from "@/services/job";
-import { quoteService, QuoteRequest } from "@/services/quote";
-import { recurringService, RecurringService, VisitLog } from "@/services/recurringService";
 import { RecurringServiceCard } from "@/components/RecurringServiceCard";
 import { useAuthStore } from "@/store/authStore";
-import { usePropertyStore } from "@/store/propertyStore";
 import { isNewSince, hasQuoteActivity, pendingQuoteCount } from "@/services/notifications";
-import { computeScore, computeScoreWithDecay, computeBreakdown, getScoreGrade, loadHistory, recordSnapshot, scoreDelta, scoreValueDelta, premiumEstimate, isCertified, type ScoreSnapshot } from "@/services/scoreService";
-import { getAllDecayEvents, getAtRiskWarnings, getTotalDecay, decayCategoryColor, decayCategoryBg, type DecayEvent, type AtRiskWarning } from "@/services/scoreDecayService";
-import { systemAgesService, type SystemAges } from "@/services/systemAges";
+import { computeScore, computeScoreWithDecay, computeBreakdown, getScoreGrade, scoreDelta, scoreValueDelta, premiumEstimate, isCertified } from "@/services/scoreService";
+import { getAllDecayEvents, getAtRiskWarnings, getTotalDecay, type DecayEvent, type AtRiskWarning } from "@/services/scoreDecayService";
 import { certService } from "@/services/cert";
-import { paymentService, type PlanTier } from "@/services/payment";
 import { UpgradeGate } from "@/components/UpgradeGate";
 import { getWeeklyPulse } from "@/services/pulseService";
 import { marketService, jobToSummary, type PropertyProfile, type ProjectRecommendation } from "@/services/market";
-import { getRecentScoreEvents, categoryColor, categoryBg, type ScoreEvent } from "@/services/scoreEventService";
+import { getRecentScoreEvents, type ScoreEvent } from "@/services/scoreEventService";
 import { getReEngagementPrompts, type ReEngagementPrompt } from "@/services/reEngagementService";
+import { jobService } from "@/services/job";
+import { propertyService } from "@/services/property";
 import toast from "react-hot-toast";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 import { ScoreSparkline }    from "@/components/ScoreSparkline";
@@ -34,6 +29,13 @@ import { ResponsiveGrid } from "@/components/ResponsiveGrid";
 import { NeighborhoodBenchmark } from "@/components/NeighborhoodBenchmark";
 import { ScoreActivityFeed } from "@/components/ScoreActivityFeed";
 import UpgradeModal from "@/components/UpgradeModal";
+import { usePropertySummary } from "@/hooks/usePropertySummary";
+import { useJobSummary } from "@/hooks/useJobSummary";
+import { useQuoteSummary } from "@/hooks/useQuoteSummary";
+import { useMaintenanceSchedule } from "@/hooks/useMaintenanceSchedule";
+import { useSubscription } from "@/hooks/useSubscription";
+import { useScoreTracking } from "@/hooks/useScoreTracking";
+import { useDashboardDismissals } from "@/hooks/useDashboardDismissals";
 
 const UI = {
   ink:      COLORS.plum,
@@ -46,180 +48,67 @@ const UI = {
   mono:     FONTS.mono,
 };
 
+// ─── Modal state ──────────────────────────────────────────────────────────────
+interface ModalState {
+  showLogJobModal: boolean;
+  logJobPrefill: { serviceType?: string; contractorName?: string } | undefined;
+  showQuoteModal: boolean;
+  showUpgradeModal: boolean;
+  showScoreBreakdown: boolean;
+  showScoreChart: boolean;
+}
+
+const MODAL_INITIAL: ModalState = {
+  showLogJobModal: false,
+  logJobPrefill: undefined,
+  showQuoteModal: false,
+  showUpgradeModal: false,
+  showScoreBreakdown: false,
+  showScoreChart: false,
+};
+
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { principal, profile, lastLoginAt } = useAuthStore();
-  const { properties, setProperties } = usePropertyStore();
-  const [allJobs, setAllJobs] = useState<Job[]>([]);
-  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
-  const propertyInitialized = useRef(false);
-  const [quoteRequests, setQuoteRequests] = useState<QuoteRequest[]>([]);
-  const [bidCountMap,   setBidCountMap]   = useState<Record<string, number>>({});
-  const [loading, setLoading] = useState(true);
-  const [recurringServices, setRecurringServices] = useState<RecurringService[]>([]);
-  const [visitLogMap, setVisitLogMap] = useState<Record<string, VisitLog[]>>({});
-  const [bannerDismissed,     setBannerDismissed]     = useState(false);
-  const [showScoreBreakdown,  setShowScoreBreakdown]  = useState(false);
-  const [showScoreChart,      setShowScoreChart]      = useState(false);
-  const [scoreGoal, setScoreGoalState] = useState<number | null>(null);
-  const [milestoneDismissed,    setMilestoneDismissed]    = useState(() => !!localStorage.getItem("homegentic_milestone_dismissed"));
-  const [milestone3Dismissed,   setMilestone3Dismissed]   = useState(() => !!localStorage.getItem("homegentic_3job_milestone"));
-  const [upgradeBannerDismissed, setUpgradeBannerDismissed] = useState(() => !!localStorage.getItem("homegentic_upgrade_banner_dismissed"));
-  const [pulseDismissed,        setPulseDismissed]        = useState(() => !!localStorage.getItem(`homegentic_pulse_${new Date().toISOString().slice(0, 7)}`));
-  const [scoreIncreaseDismissed, setScoreIncreaseDismissed] = useState(() => false);
-  const [scoreHistory, setScoreHistory] = useState<ScoreSnapshot[]>([]);
-  const [showLogJobModal,  setShowLogJobModal]  = useState(false);
-  const [logJobPrefill,    setLogJobPrefill]    = useState<{ serviceType?: string; contractorName?: string } | undefined>(undefined);
-  const [showQuoteModal,   setShowQuoteModal]   = useState(false);
-  const [userTier,         setUserTier]         = useState<PlanTier>("Free");
-  const [systemAges,       setSystemAges]       = useState<SystemAges>({});
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [pendingProposals, setPendingProposals] = useState<Job[]>([]);
-  const [managedProperties, setManagedProperties] = useState<import("@/services/property").ManagedProperty[]>([]);
-  const [ownerNotifs, setOwnerNotifs] = useState<import("@/services/property").OwnerNotification[]>([]);
+  const { profile, lastLoginAt } = useAuthStore();
   const { isMobile } = useBreakpoint();
 
-  useEffect(() => {
-    loadProperties().then((props) => {
-      const list = props ?? [];
-      // Single-property users belong on their property page
-      if (list.length === 1) {
-        navigate(`/properties/${list[0].id}`, { replace: true });
-        return;
-      }
-      Promise.all([
-        loadAllJobs(list),
-        loadQuoteRequests(),
-        loadRecurringServices(),
-        loadPendingProposals(),
-        paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch(() => {}),
-        propertyService.getMyManagedProperties().then(setManagedProperties).catch(() => {}),
-        loadOwnerNotifications(list),
-      ]).finally(() => setLoading(false));
-    });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // ─── Domain hooks ────────────────────────────────────────────────────────────
+  const {
+    properties, managedProperties, ownerNotifs, loading: propLoading,
+    dismissAllNotifications,
+  } = usePropertySummary();
 
-  async function loadProperties(): Promise<Property[]> {
-    if (import.meta.env.DEV && (window as any).__e2e_properties) {
-      const list = (window as any).__e2e_properties as Property[];
-      setProperties(list);
-      return list;
-    }
-    try {
-      const list = await propertyService.getMyProperties();
-      setProperties(list);
-      return list;
-    } catch (err: any) {
-      toast.error("Failed to load properties: " + err.message);
-      return [];
-    }
-  }
+  // Property selector — UI state (1 of 3 useState in this file)
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
+  const propertyInitialized = useRef(false);
 
-  async function loadAllJobs(propList: typeof properties) {
-    try {
-      if (propList.length === 0) { setAllJobs([]); return; }
-      const perProp = await Promise.all(
-        propList.map((p) => jobService.getByProperty(String(p.id)).catch(() => [] as Job[]))
-      );
-      const merged = perProp.flat();
-      // Fall back to getAll() in mock/dev when per-property returns nothing
-      setAllJobs(merged.length > 0 ? merged : await jobService.getAll().catch(() => []));
-    } catch { /* canister not deployed */ }
-  }
-
-  async function loadRecurringServices() {
-    try {
-      const props = (import.meta.env.DEV && typeof window !== "undefined" && (window as any).__e2e_properties)
-        || [];
-      // Load after properties are set — use store or fallback to empty
-      const { usePropertyStore: store } = await import("@/store/propertyStore");
-      const propList = store.getState().properties;
-      if (propList.length === 0 && props.length === 0) return;
-      const list = propList.length > 0 ? propList : props;
-      const allServices: RecurringService[] = [];
-      for (const p of list) {
-        const svcs = await recurringService.getByProperty(String(p.id));
-        allServices.push(...svcs);
-      }
-      setRecurringServices(allServices);
-      // Load visit logs for each service
-      const logEntries = await Promise.all(
-        allServices.map(async (s) => {
-          const logs = await recurringService.getVisitLogs(s.id).catch(() => [] as VisitLog[]);
-          return [s.id, logs] as [string, VisitLog[]];
-        })
-      );
-      setVisitLogMap(Object.fromEntries(logEntries));
-    } catch { /* canister not deployed */ }
-  }
-
-  async function loadQuoteRequests() {
-    try {
-      const reqs = await quoteService.getRequests();
-      setQuoteRequests(reqs);
-      if (reqs.length > 0) {
-        quoteService.getBidCountMap(reqs.map((r) => r.id)).then(setBidCountMap).catch(() => {});
-      }
-    } catch { /* canister not deployed */ }
-  }
-
-  async function loadOwnerNotifications(propList: Property[]) {
-    if (propList.length === 0) return;
-    try {
-      const allNotifs = await Promise.all(
-        propList.map((p) => propertyService.getOwnerNotifications(BigInt(p.id)).catch(() => [] as import("@/services/property").OwnerNotification[]))
-      );
-      setOwnerNotifs(allNotifs.flat().sort((a, b) => b.timestamp - a.timestamp));
-    } catch { /* canister not deployed */ }
-  }
-
-  async function loadPendingProposals() {
-    try {
-      // E2E test injection point
-      if (import.meta.env.DEV && (window as any).__e2e_pending_proposals) {
-        setPendingProposals((window as any).__e2e_pending_proposals as Job[]);
-        return;
-      }
-      const proposals = await jobService.getPendingProposals();
-      setPendingProposals(proposals);
-    } catch { /* canister not deployed */ }
-  }
-
-  async function handleApproveProposal(proposalId: string) {
-    try {
-      await jobService.approveJobProposal(proposalId);
-      setPendingProposals((prev) => prev.filter((p) => p.id !== proposalId));
-      toast.success("Proposal approved — job added to your history.");
-    } catch (err: any) {
-      toast.error("Failed to approve: " + err.message);
-    }
-  }
-
-  async function handleRejectProposal(proposalId: string) {
-    try {
-      await jobService.rejectJobProposal(proposalId);
-      setPendingProposals((prev) => prev.filter((p) => p.id !== proposalId));
-      toast.success("Proposal declined.");
-    } catch (err: any) {
-      toast.error("Failed to decline: " + err.message);
-    }
-  }
-
-  // Property-centric derived values
+  // Derived property values used by other hooks
   const activePropertyId = selectedPropertyId ?? (properties.length === 1 ? String(properties[0].id) : null);
   const activeProperty   = activePropertyId
     ? properties.find((p) => String(p.id) === activePropertyId) ?? null
     : null;
   const isAllView = activePropertyId === null && properties.length > 1;
 
-  // jobs = all jobs filtered to the selected property (or all when in "all view")
+  const jobSummary   = useJobSummary(properties, propLoading);
+  const quoteSummary = useQuoteSummary();
+  const { recurringServices, visitLogMap, systemAges } = useMaintenanceSchedule(properties, propLoading, activePropertyId);
+  const { userTier } = useSubscription();
+
+  const loading = propLoading || jobSummary.loading;
+
+  const { allJobs, pendingProposals } = jobSummary;
+  const { quoteRequests, bidCountMap } = quoteSummary;
+
+  // jobs filtered to active property (or all when in "all view")
   const jobs = activePropertyId
     ? allJobs.filter((j) => j.propertyId === activePropertyId)
     : allJobs;
 
+  // ─── Score tracking ──────────────────────────────────────────────────────────
   const totalValue    = jobService.getTotalValue(jobs);
   const verifiedCount = jobService.getVerifiedCount(jobs);
-  const decayEvents: DecayEvent[]   = React.useMemo(
+
+  const decayEvents: DecayEvent[] = React.useMemo(
     () => !loading ? getAllDecayEvents(jobs, systemAges, Date.now()) : [],
     [jobs, systemAges, loading]
   );
@@ -227,23 +116,68 @@ export default function DashboardPage() {
     () => !loading ? getAtRiskWarnings(jobs, systemAges, Date.now()) : [],
     [jobs, systemAges, loading]
   );
-  const totalDecay    = getTotalDecay(decayEvents);
-  const homegenticScore  = activeProperty ? computeScoreWithDecay(jobs, [activeProperty], totalDecay) : 0;
-  const scoreGrade    = getScoreGrade(homegenticScore);
-  const delta         = scoreDelta(scoreHistory);
-  const prevScore     = homegenticScore - delta;
+  const totalDecay      = getTotalDecay(decayEvents);
+  const homegenticScore = activeProperty ? computeScoreWithDecay(jobs, [activeProperty], totalDecay) : 0;
+  const scoreGrade      = getScoreGrade(homegenticScore);
+  const certified       = isCertified(homegenticScore, jobs);
+
+  const { scoreHistory, scoreGoal, setScoreGoal } = useScoreTracking(activePropertyId, homegenticScore, loading);
+
+  const delta            = scoreDelta(scoreHistory);
+  const prevScore        = homegenticScore - delta;
   const scoreValueChange = scoreValueDelta(prevScore, homegenticScore);
 
-  const hasProperty  = properties.length > 0;
-  const hasVerified  = properties.some((p) => p.verificationLevel !== "Unverified" && p.verificationLevel !== "PendingReview");
-  const hasJob       = jobs.length > 0;
-  const showBanner   = !loading && !(hasProperty && hasVerified && hasJob) && !bannerDismissed;
-  const certified    = isCertified(homegenticScore, jobs);
+  // ─── Dismissals ──────────────────────────────────────────────────────────────
+  const d = useDashboardDismissals();
+
+  // ─── Modal state (2 of 3 useState in this file) ───────────────────────────────
+  const [modals, setModals] = useState<ModalState>(MODAL_INITIAL);
+  const openLogJob = (prefill?: ModalState["logJobPrefill"]) =>
+    setModals((m) => ({ ...m, showLogJobModal: true, logJobPrefill: prefill }));
+  const closeLogJob  = () => setModals((m) => ({ ...m, showLogJobModal: false }));
+  const openQuote    = () => setModals((m) => ({ ...m, showQuoteModal: true }));
+  const closeQuote   = () => setModals((m) => ({ ...m, showQuoteModal: false }));
+  const openUpgrade  = () => setModals((m) => ({ ...m, showUpgradeModal: true }));
+  const closeUpgrade = () => setModals((m) => ({ ...m, showUpgradeModal: false }));
+  const toggleScoreBreakdown = () => setModals((m) => ({ ...m, showScoreBreakdown: !m.showScoreBreakdown }));
+  const toggleScoreChart     = () => setModals((m) => ({ ...m, showScoreChart: !m.showScoreChart }));
+
+  // ─── Next-service dismissal (3 of 3 useState — dynamic localStorage key) ─────
+  const recentVerified = jobs
+    .filter((j) => j.status === "verified")
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] ?? null;
+  const nextServiceKey = `homegentic_next_service_${recentVerified?.id ?? ""}`;
+  const [nextServiceDismissed, setNextServiceDismissed] = useState(
+    () => !!localStorage.getItem(nextServiceKey)
+  );
+
+  // ─── Effects ─────────────────────────────────────────────────────────────────
+
+  // Redirect when user has exactly one property (nothing to select on dashboard)
+  useEffect(() => {
+    if (!propLoading && properties.length === 1) {
+      navigate(`/properties/${properties[0].id}`, { replace: true });
+    }
+  }, [propLoading, properties.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Initialise property selector to first property after load
+  useEffect(() => {
+    if (!propLoading && properties.length > 0 && !propertyInitialized.current) {
+      propertyInitialized.current = true;
+      setSelectedPropertyId(String(properties[0].id));
+    }
+  }, [propLoading, properties]);
+
+  // ─── Derived UI values ───────────────────────────────────────────────────────
+
+  const hasProperty = properties.length > 0;
+  const hasVerified = properties.some((p) => p.verificationLevel !== "Unverified" && p.verificationLevel !== "PendingReview");
+  const hasJob      = jobs.length > 0;
+  const showBanner  = !loading && !(hasProperty && hasVerified && hasJob) && !d.bannerDismissed;
 
   const scoreAlertsEnabled = localStorage.getItem("homegentic_score_alerts") !== "false";
-  const showScoreIncrease  = !loading && hasJob && delta > 0 && scoreAlertsEnabled && !scoreIncreaseDismissed;
+  const showScoreIncrease  = !loading && hasJob && delta > 0 && scoreAlertsEnabled && !d.scoreIncreaseDismissed;
 
-  // Next-service prompt (8.6.2) — most recently verified job's follow-up tip
   const NEXT_SERVICE_TIPS: Record<string, string> = {
     HVAC:       "Schedule HVAC filter replacement in 3 months to maintain efficiency.",
     Roofing:    "Book an annual roof inspection to catch early wear.",
@@ -252,36 +186,23 @@ export default function DashboardPage() {
     Flooring:   "Consider re-sealing or refinishing flooring in 2 years.",
     Painting:   "Plan a touch-up inspection in 12 months.",
   };
-  const recentVerified = jobs
-    .filter((j) => j.status === "verified")
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] ?? null;
-  const nextServiceTip = recentVerified ? NEXT_SERVICE_TIPS[recentVerified.serviceType] ?? null : null;
-  const nextServiceKey = `homegentic_next_service_${recentVerified?.id ?? ""}`;
-  const [nextServiceDismissed, setNextServiceDismissed] = React.useState(
-    () => !!localStorage.getItem(nextServiceKey)
-  );
+  const nextServiceTip  = recentVerified ? NEXT_SERVICE_TIPS[recentVerified.serviceType] ?? null : null;
   const showNextService = !loading && !!nextServiceTip && !nextServiceDismissed;
 
-  // Contractor re-engagement prompts (8.6.4)
   const reEngagementPrompts: ReEngagementPrompt[] = React.useMemo(
     () => (!loading ? getReEngagementPrompts(jobs) : []),
     [jobs, loading]
   );
-  const [dismissedReEngagements, setDismissedReEngagements] = React.useState<Set<string>>(
-    () => new Set(Object.keys(localStorage).filter((k) => k.startsWith("homegentic_reengage_")).map((k) => k.replace("homegentic_reengage_", "")))
-  );
-  const visibleReEngagements = reEngagementPrompts.filter((p) => !dismissedReEngagements.has(p.jobId));
+  const visibleReEngagements = reEngagementPrompts.filter((p) => !d.dismissedReEngagements.has(p.jobId));
 
-  // Score events (8.2.1–8.2.2)
   const scoreEvents: ScoreEvent[] = React.useMemo(
     () => (!loading ? getRecentScoreEvents(jobs, activeProperty ? [activeProperty] : []) : []),
     [jobs, activeProperty, loading]
   );
 
-  // Score breakdown — per-component contribution for the explanatory panel
   const scoreBreakdown = React.useMemo(() => {
-    const verifiedJobs     = jobs.filter((j) => j.verified);
-    const verifiedJobPts   = Math.min(verifiedJobs.length * 4, 40);
+    const verifiedJobs      = jobs.filter((j) => j.verified);
+    const verifiedJobPts    = Math.min(verifiedJobs.length * 4, 40);
     const totalValueDollars = jobs.reduce((s, j) => s + j.amount, 0) / 100;
     const valuePts          = Math.min(Math.floor(totalValueDollars / 2500), 20);
     let verPts = 0;
@@ -300,7 +221,6 @@ export default function DashboardPage() {
     ];
   }, [jobs, activeProperty]);
 
-  // Warranty expiry alerts — jobs with warranty expiring within 90 days
   const expiringWarranties = React.useMemo(() => {
     const now = Date.now();
     const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
@@ -317,21 +237,16 @@ export default function DashboardPage() {
       });
   }, [jobs]);
 
-  // Annual 12-month milestone
-  const accountAgeMs = profile?.createdAt
-    ? Date.now() - Number(profile.createdAt) / 1_000_000
-    : 0;
+  const accountAgeMs  = profile?.createdAt ? Date.now() - Number(profile.createdAt) / 1_000_000 : 0;
   const milestoneKey  = "homegentic_milestone_dismissed";
-  const showMilestone = !loading && hasJob && !milestoneDismissed
+  const showMilestone = !loading && hasJob && !d.milestoneDismissed
     && accountAgeMs >= 11 * 30 * 24 * 60 * 60 * 1000;
 
-  // Home Pulse — rule-based weekly maintenance focus tip
   const pulseKey     = `homegentic_pulse_${new Date().toISOString().slice(0, 7)}`;
   const pulseEnabled = localStorage.getItem("homegentic_pulse_enabled") !== "false";
   const pulseTip     = React.useMemo(() => getWeeklyPulse(properties, jobs), [properties, jobs]);
-  const showPulse    = !loading && hasProperty && !!pulseTip && !pulseDismissed && pulseEnabled;
+  const showPulse    = !loading && hasProperty && !!pulseTip && !d.pulseDismissed && pulseEnabled;
 
-  // Multi-property score comparison — computed when user has 2+ properties
   const propertyComparison = React.useMemo(() => {
     if (properties.length < 2) return null;
     return properties.map((p) => {
@@ -344,7 +259,6 @@ export default function DashboardPage() {
     }).sort((a, b) => b.score - a.score);
   }, [properties, allJobs]);
 
-  // Score stagnation — true when score hasn't increased in 4+ weeks
   const scoreStagnant = React.useMemo(() => {
     if (!hasProperty || scoreHistory.length < 2) return false;
     const FOUR_WEEKS_MS = 28 * 24 * 60 * 60 * 1000;
@@ -355,7 +269,6 @@ export default function DashboardPage() {
     return current.score <= old.score;
   }, [scoreHistory, hasProperty]);
 
-  // Smart project recommendations — top 3 ROI-ranked for active property
   const recommendations = React.useMemo((): ProjectRecommendation[] => {
     if (!activeProperty) return [];
     const p = activeProperty;
@@ -370,60 +283,19 @@ export default function DashboardPage() {
     return marketService.recommendValueAddingProjects(profile, pJobs, 0).slice(0, 3);
   }, [activeProperty, jobs]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Score goal helpers
-  const scoreGoalKey = activePropertyId ? `homegentic_score_goal_${activePropertyId}` : "homegentic_score_goal";
-  const setScoreGoal = (goal: number | null) => {
-    setScoreGoalState(goal);
-    if (goal === null) localStorage.removeItem(scoreGoalKey);
-    else localStorage.setItem(scoreGoalKey, String(goal));
-  };
-
   const scoreGoalGap = React.useMemo((): string | null => {
     if (!scoreGoal || homegenticScore >= scoreGoal) return null;
-    const gap = scoreGoal - homegenticScore;
-    // Determine easiest action to close gap
-    const verifiedJobs  = jobs.filter((j) => j.verified).length;
-    const needVerified  = Math.ceil(gap / 4); // 4 pts per verified job
-    const needValueK    = Math.ceil((gap / 20) * 50000 / 1000); // pts from value
-    const uniqueTypes   = new Set(jobs.map((j) => j.serviceType)).size;
+    const gap          = scoreGoal - homegenticScore;
+    const needVerified = Math.ceil(gap / 4);
+    const uniqueTypes  = new Set(jobs.map((j) => j.serviceType)).size;
+    const verifiedJobs = jobs.filter((j) => j.verified).length;
     if (gap <= 4)  return `Verify 1 more job to reach ${scoreGoal}`;
     if (gap <= 8)  return `Verify ${needVerified} more job${needVerified !== 1 ? "s" : ""} to reach ${scoreGoal}`;
     if (verifiedJobs === 0) return `Start verifying jobs — each adds up to 4 pts toward ${scoreGoal}`;
     if (uniqueTypes < 5)   return `Log a new service type to add diversity points toward ${scoreGoal}`;
+    const needValueK = Math.ceil((gap / 20) * 50000 / 1000);
     return `Log $${needValueK}K in documented work to reach ${scoreGoal}`;
   }, [scoreGoal, homegenticScore, jobs]);
-
-  // Record score snapshot once data is loaded
-  useEffect(() => {
-    if (!loading && activePropertyId && (jobs.length > 0 || properties.length > 0)) {
-      const history = recordSnapshot(homegenticScore, activePropertyId);
-      setScoreHistory(history);
-    }
-  }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Initialize property selection after data loads (first property by default)
-  useEffect(() => {
-    if (!loading && properties.length > 0 && !propertyInitialized.current) {
-      propertyInitialized.current = true;
-      setSelectedPropertyId(String(properties[0].id));
-    }
-  }, [loading, properties]);
-
-  // Reload score history and system ages whenever the active property changes
-  useEffect(() => {
-    if (selectedPropertyId) {
-      setScoreHistory(loadHistory(selectedPropertyId));
-      setSystemAges(systemAgesService.get(selectedPropertyId));
-    }
-  }, [selectedPropertyId]);
-
-  // Load per-property score goal when active property changes
-  useEffect(() => {
-    if (activePropertyId) {
-      const v = localStorage.getItem(`homegentic_score_goal_${activePropertyId}`);
-      setScoreGoalState(v ? parseInt(v, 10) : null);
-    }
-  }, [activePropertyId]);
 
   const verificationBadge = (level: string) => {
     if (level === "Premium")       return <Badge variant="success">Premium Verified</Badge>;
@@ -563,7 +435,7 @@ export default function DashboardPage() {
               >
                 Continue setup <ArrowRight size={12} />
               </button>
-              <button aria-label="Dismiss banner" onClick={() => setBannerDismissed(true)} style={{ background: "none", border: "none", cursor: "pointer", color: UI.inkLight }}>
+              <button aria-label="Dismiss banner" onClick={d.dismissBanner} style={{ background: "none", border: "none", cursor: "pointer", color: UI.inkLight }}>
                 <X size={16} />
               </button>
             </div>
@@ -593,7 +465,7 @@ export default function DashboardPage() {
               </button>
             </div>
             <button
-              onClick={() => { localStorage.setItem(milestoneKey, "1"); setMilestoneDismissed(true); }}
+              onClick={d.dismissMilestone}
               style={{ background: "none", border: "none", cursor: "pointer", color: COLORS.plumMid, flexShrink: 0 }}
             >
               <X size={15} />
@@ -602,7 +474,7 @@ export default function DashboardPage() {
         )}
 
         {/* 3-verified-jobs milestone */}
-        {!loading && verifiedCount >= 3 && !milestone3Dismissed && (
+        {!loading && verifiedCount >= 3 && !d.milestone3Dismissed && (
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem",
             border: `1px solid ${UI.sage}`, padding: "1rem 1.25rem", marginBottom: "2rem",
@@ -621,17 +493,14 @@ export default function DashboardPage() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => { localStorage.setItem("homegentic_3job_milestone", "1"); setMilestone3Dismissed(true); }}
-              style={{ background: "none", border: "none", cursor: "pointer", color: UI.sage, flexShrink: 0 }}
-            >
+            <button onClick={d.dismissMilestone3} style={{ background: "none", border: "none", cursor: "pointer", color: UI.sage, flexShrink: 0 }}>
               <X size={15} />
             </button>
           </div>
         )}
 
         {/* Free-tier upgrade nudge — shown after 3rd job logged (15.7.2) */}
-        {!loading && userTier === "Free" && jobs.length >= 3 && !upgradeBannerDismissed && (
+        {!loading && userTier === "Free" && jobs.length >= 3 && !d.upgradeBannerDismissed && (
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem",
             border: `1.5px solid ${COLORS.sageMid}`, padding: "1rem 1.25rem", marginBottom: "2rem",
@@ -652,15 +521,12 @@ export default function DashboardPage() {
             </div>
             <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexShrink: 0 }}>
               <button
-                onClick={() => setShowUpgradeModal(true)}
+                onClick={openUpgrade}
                 style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.45rem 1rem", border: "none", background: UI.sage, color: COLORS.white, cursor: "pointer", borderRadius: RADIUS.sm, fontWeight: 600 }}
               >
                 See Plans →
               </button>
-              <button
-                onClick={() => { localStorage.setItem("homegentic_upgrade_banner_dismissed", "1"); setUpgradeBannerDismissed(true); }}
-                style={{ background: "none", border: "none", cursor: "pointer", color: UI.inkLight }}
-              >
+              <button onClick={d.dismissUpgradeBanner} style={{ background: "none", border: "none", cursor: "pointer", color: UI.inkLight }}>
                 <X size={15} />
               </button>
             </div>
@@ -691,10 +557,7 @@ export default function DashboardPage() {
                 <p style={{ fontSize: "0.8rem", color: UI.inkLight, fontWeight: 300 }}>{pulseTip.detail}</p>
               </div>
             </div>
-            <button
-              onClick={() => { localStorage.setItem(pulseKey, "1"); setPulseDismissed(true); }}
-              style={{ background: "none", border: "none", cursor: "pointer", color: UI.inkLight, flexShrink: 0 }}
-            >
+            <button onClick={d.dismissPulse} style={{ background: "none", border: "none", cursor: "pointer", color: UI.inkLight, flexShrink: 0 }}>
               <X size={15} />
             </button>
           </div>
@@ -721,7 +584,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <button
-              onClick={() => { setLogJobPrefill(undefined); setShowLogJobModal(true); }}
+              onClick={() => openLogJob(undefined)}
               style={{
                 fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase",
                 padding: "0.5rem 1rem", background: UI.ink, color: UI.paper,
@@ -754,7 +617,7 @@ export default function DashboardPage() {
                 </p>
               ))}
               <button
-                onClick={() => { setLogJobPrefill(undefined); setShowLogJobModal(true); }}
+                onClick={() => openLogJob(undefined)}
                 style={{ marginTop: "0.5rem", fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.35rem 0.875rem", background: "#b45309", color: "#fff", border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.3rem", borderRadius: RADIUS.pill }}
               >
                 Log a Job <ArrowRight size={11} />
@@ -780,10 +643,7 @@ export default function DashboardPage() {
                   : `— Your HomeGentic Score is now ${homegenticScore}. Keep logging jobs to grow your record.`}
               </span>
             </div>
-            <button
-              onClick={() => setScoreIncreaseDismissed(true)}
-              style={{ background: "none", border: "none", cursor: "pointer", color: UI.sage, flexShrink: 0 }}
-            >
+            <button onClick={d.dismissScoreIncrease} style={{ background: "none", border: "none", cursor: "pointer", color: UI.sage, flexShrink: 0 }}>
               <X size={14} />
             </button>
           </div>
@@ -823,7 +683,7 @@ export default function DashboardPage() {
                 {delta > 0 ? "+" : ""}{delta} pts this period
               </div>
             )}
-            <ScoreSparkline history={scoreHistory} onExpand={() => setShowScoreChart((v) => !v)} />
+            <ScoreSparkline history={scoreHistory} onExpand={toggleScoreChart} />
           </div>
         </ResponsiveGrid>
 
@@ -844,7 +704,7 @@ export default function DashboardPage() {
             {jobs.length >= 5 ? (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
                 <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>Job limit reached — upgrade to keep logging</span>
-                <button onClick={() => setShowUpgradeModal(true)} style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.25rem 0.625rem", border: "none", background: COLORS.plum, color: COLORS.white, cursor: "pointer", borderRadius: RADIUS.sm, whiteSpace: "nowrap" }}>Upgrade →</button>
+                <button onClick={openUpgrade} style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.25rem 0.625rem", border: "none", background: COLORS.plum, color: COLORS.white, cursor: "pointer", borderRadius: RADIUS.sm, whiteSpace: "nowrap" }}>Upgrade →</button>
               </div>
             ) : (
               <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>
@@ -855,11 +715,11 @@ export default function DashboardPage() {
         )}
 
         {/* Score history chart */}
-        {showScoreChart && scoreHistory.length >= 2 && (
+        {modals.showScoreChart && scoreHistory.length >= 2 && (
           <div style={{ marginBottom: "2rem", border: `1px solid ${UI.rule}`, background: "#fff", borderRadius: RADIUS.card, overflow: "hidden" }}>
             <div style={{ padding: "0.75rem 1rem", borderBottom: `1px solid ${UI.rule}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: COLORS.white }}>
               <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>Score History</span>
-              <button onClick={() => setShowScoreChart(false)} style={{ background: "none", border: "none", cursor: "pointer", color: UI.inkLight, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase" }}>Close ✕</button>
+              <button onClick={toggleScoreChart} style={{ background: "none", border: "none", cursor: "pointer", color: UI.inkLight, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase" }}>Close ✕</button>
             </div>
             <ScoreHistoryChart history={scoreHistory} />
           </div>
@@ -869,38 +729,34 @@ export default function DashboardPage() {
         {!loading && (jobs.length > 0 || properties.length > 0) && (
           <div style={{ marginBottom: "2rem" }}>
             <button
-              onClick={() => setShowScoreBreakdown((v) => !v)}
+              onClick={toggleScoreBreakdown}
               style={{
                 display: "flex", alignItems: "center", gap: "0.5rem", width: "100%",
                 padding: "0.75rem 1rem", border: `1px solid ${UI.rule}`,
-                background: showScoreBreakdown ? COLORS.sageLight : COLORS.white,
+                background: modals.showScoreBreakdown ? COLORS.sageLight : COLORS.white,
                 fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase",
                 color: UI.inkLight, cursor: "pointer", textAlign: "left",
-                borderRadius: showScoreBreakdown ? `${RADIUS.card}px ${RADIUS.card}px 0 0` : RADIUS.card,
+                borderRadius: modals.showScoreBreakdown ? `${RADIUS.card}px ${RADIUS.card}px 0 0` : RADIUS.card,
               }}
             >
               <span style={{ flex: 1 }}>How is my HomeGentic Score calculated?</span>
-              <span style={{ fontSize: "0.75rem" }}>{showScoreBreakdown ? "▲" : "▼"}</span>
+              <span style={{ fontSize: "0.75rem" }}>{modals.showScoreBreakdown ? "▲" : "▼"}</span>
             </button>
-            {showScoreBreakdown && userTier === "Free" && (
+            {modals.showScoreBreakdown && userTier === "Free" && (
               <UpgradeGate
                 feature="Score Breakdown"
                 description="See exactly which factors are dragging your score down — and what to fix first."
                 style={{ borderRadius: `0 0 ${RADIUS.card}px ${RADIUS.card}px`, borderTop: "none" }}
-                onUpgrade={() => setShowUpgradeModal(true)}
+                onUpgrade={openUpgrade}
               />
             )}
-            {showScoreBreakdown && userTier !== "Free" && (
+            {modals.showScoreBreakdown && userTier !== "Free" && (
               <div style={{ border: `1px solid ${UI.rule}`, borderTop: "none", background: COLORS.white, borderRadius: `0 0 ${RADIUS.card}px ${RADIUS.card}px`, overflow: "hidden" }}>
                 {scoreBreakdown.map((row) => (
                   <div key={row.label} style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.875rem 1rem", borderBottom: `1px solid ${UI.rule}` }}>
                     <div style={{ width: "10rem", flexShrink: 0 }}>
-                      <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight }}>
-                        {row.label}
-                      </p>
-                      <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: UI.inkLight, fontWeight: 300, marginTop: "0.1rem" }}>
-                        {row.detail}
-                      </p>
+                      <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight }}>{row.label}</p>
+                      <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: UI.inkLight, fontWeight: 300, marginTop: "0.1rem" }}>{row.detail}</p>
                     </div>
                     <div style={{ flex: 1, height: "4px", background: UI.rule, borderRadius: 100 }}>
                       <div style={{ height: "4px", background: UI.rust, width: `${(row.pts / row.max) * 100}%`, transition: "width 0.5s ease", borderRadius: 100 }} />
@@ -946,7 +802,6 @@ export default function DashboardPage() {
             </div>
 
             {scoreGoal === null ? (
-              /* Goal picker */
               <div style={{ padding: "1.25rem" }}>
                 <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, marginBottom: "0.875rem" }}>
                   Set a target score to track your progress:
@@ -963,9 +818,7 @@ export default function DashboardPage() {
                         opacity: homegenticScore >= g ? 0.6 : 1,
                       }}
                     >
-                      <div style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, color: homegenticScore >= g ? COLORS.sage : UI.ink }}>
-                        {g}
-                      </div>
+                      <div style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, color: homegenticScore >= g ? COLORS.sage : UI.ink }}>{g}</div>
                       <div style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight, marginTop: "0.25rem" }}>
                         {g === 60 ? "Good" : g === 75 ? "Great" : g === 88 ? "Excellent" : "Perfect"}
                       </div>
@@ -977,7 +830,6 @@ export default function DashboardPage() {
                 </div>
               </div>
             ) : homegenticScore >= scoreGoal ? (
-              /* Goal achieved celebration */
               <div style={{ padding: "1.5rem", textAlign: "center" }}>
                 <p style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", color: COLORS.sage, marginBottom: "0.375rem" }}>
                   Goal reached — {homegenticScore}/{scoreGoal} ✓
@@ -993,7 +845,6 @@ export default function DashboardPage() {
                 </button>
               </div>
             ) : (
-              /* Progress toward goal */
               <div style={{ padding: "1.25rem" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
                   <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>
@@ -1005,11 +856,9 @@ export default function DashboardPage() {
                 </div>
                 <div style={{ height: "6px", background: UI.rule, marginBottom: "0.75rem", borderRadius: 100 }}>
                   <div style={{
-                    height: "100%",
-                    width: `${(homegenticScore / scoreGoal) * 100}%`,
+                    height: "100%", width: `${(homegenticScore / scoreGoal) * 100}%`,
                     background: `linear-gradient(to right, ${COLORS.sage}, ${COLORS.sageMid})`,
-                    transition: "width 0.5s ease",
-                    borderRadius: 100,
+                    transition: "width 0.5s ease", borderRadius: 100,
                   }} />
                 </div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -1019,7 +868,7 @@ export default function DashboardPage() {
                     </p>
                   )}
                   <button
-                    onClick={() => { setLogJobPrefill(undefined); setShowLogJobModal(true); }}
+                    onClick={() => openLogJob(undefined)}
                     style={{
                       fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase",
                       padding: "0.4rem 0.875rem", background: UI.ink, color: UI.paper, border: "none", cursor: "pointer",
@@ -1074,7 +923,7 @@ export default function DashboardPage() {
                       {rec.rationale}
                     </p>
                     <button
-                      onClick={() => { setLogJobPrefill({ serviceType: rec.category }); setShowLogJobModal(true); }}
+                      onClick={() => openLogJob({ serviceType: rec.category })}
                       style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.35rem 0.75rem", border: `1px solid ${UI.rule}`, background: "none", color: UI.inkLight, cursor: "pointer", alignSelf: "flex-start", borderRadius: RADIUS.sm }}
                     >
                       Log This Job →
@@ -1195,7 +1044,6 @@ export default function DashboardPage() {
             </div>
             <div style={{ border: `1px solid ${UI.rule}`, borderRadius: RADIUS.card, overflow: "hidden" }}>
               <div style={{ overflowX: isMobile ? "auto" : "visible" }}>
-              {/* Header */}
               <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", padding: "0.5rem 1rem", background: UI.paper, borderBottom: `1px solid ${UI.rule}`, minWidth: isMobile ? "600px" : undefined }}>
                 {["Address", "Score", "Value Added", "Verified Jobs", "Level"].map((h) => (
                   <div key={h} style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>{h}</div>
@@ -1233,7 +1081,7 @@ export default function DashboardPage() {
                   </div>
                 );
               })}
-              </div> {/* /scroll wrapper */}
+              </div>
             </div>
           </div>
         )}
@@ -1245,8 +1093,8 @@ export default function DashboardPage() {
           </div>
           <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
             <Button variant="outline" icon={<Plus size={14} />}          onClick={() => navigate("/properties/new")}>Add Property</Button>
-            <Button variant="outline" icon={<Wrench size={14} />}        onClick={() => { setLogJobPrefill(undefined); setShowLogJobModal(true); }}>Log a Job</Button>
-            <Button variant="outline" icon={<MessageSquare size={14} />} onClick={() => setShowQuoteModal(true)}>Request Quote</Button>
+            <Button variant="outline" icon={<Wrench size={14} />}        onClick={() => openLogJob(undefined)}>Log a Job</Button>
+            <Button variant="outline" icon={<MessageSquare size={14} />} onClick={openQuote}>Request Quote</Button>
             <Button variant="outline" icon={<Home size={14} />}          onClick={() => navigate("/contractors")}>Find Contractors</Button>
             <Button variant="outline" icon={<ShieldCheck size={14} />}   onClick={() => navigate("/insurance-defense")}>Insurance Defense</Button>
           </div>
@@ -1331,7 +1179,7 @@ export default function DashboardPage() {
                   </div>
                   <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
                     <button
-                      onClick={() => handleApproveProposal(proposal.id)}
+                      onClick={() => jobSummary.approveProposal(proposal.id)}
                       data-testid="approve-proposal"
                       style={{
                         display: "flex", alignItems: "center", gap: "0.25rem",
@@ -1343,7 +1191,7 @@ export default function DashboardPage() {
                       <CheckCircle size={11} /> Approve
                     </button>
                     <button
-                      onClick={() => handleRejectProposal(proposal.id)}
+                      onClick={() => jobSummary.rejectProposal(proposal.id)}
                       data-testid="reject-proposal"
                       style={{
                         display: "flex", alignItems: "center", gap: "0.25rem",
@@ -1407,17 +1255,7 @@ export default function DashboardPage() {
               </div>
               {ownerNotifs.some((n) => !n.seen) && (
                 <button
-                  onClick={async () => {
-                    // Dismiss on all owned properties that have unseen notifs
-                    const unseenPropertyIds = [...new Set(
-                      ownerNotifs
-                        .filter((n) => !n.seen)
-                        .map(() => properties.map((p) => BigInt(p.id)))
-                        .flat()
-                    )];
-                    await Promise.all(unseenPropertyIds.map((id) => propertyService.dismissNotifications(id).catch(() => {})));
-                    setOwnerNotifs((prev) => prev.map((n) => ({ ...n, seen: true })));
-                  }}
+                  onClick={dismissAllNotifications}
                   style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.3rem 0.75rem", background: "none", border: `1px solid ${UI.rule}`, color: UI.inkLight, cursor: "pointer" }}
                 >
                   Mark all seen
@@ -1465,7 +1303,7 @@ export default function DashboardPage() {
                 )}
               </div>
               <button
-                onClick={() => setShowQuoteModal(true)}
+                onClick={openQuote}
                 style={{ display: "flex", alignItems: "center", gap: "0.25rem", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.rust, background: "none", border: `1px solid ${UI.rust}`, cursor: "pointer", padding: "0.3rem 0.75rem", borderRadius: RADIUS.sm }}
               >
                 <Plus size={11} /> New Request
@@ -1478,13 +1316,13 @@ export default function DashboardPage() {
                   : req.status === "quoted"  ? "info"
                   : req.status === "closed"  ? "default"
                   : "warning";
-                const isNew      = isNewSince(req.createdAt, lastLoginAt);
-                const hasBids    = hasQuoteActivity(req.status);
-                const bidCount   = bidCountMap[req.id] ?? 0;
-                const daysAgo    = Math.floor((Date.now() - req.createdAt) / 86400000);
-                const ageLabel   = daysAgo === 0 ? "Today" : daysAgo === 1 ? "1d ago" : `${daysAgo}d ago`;
-                const stale      = req.status === "open" && daysAgo >= 5;
-                const rowBg      = hasBids ? COLORS.sageLight : COLORS.white;
+                const isNew    = isNewSince(req.createdAt, lastLoginAt);
+                const hasBids  = hasQuoteActivity(req.status);
+                const bidCount = bidCountMap[req.id] ?? 0;
+                const daysAgo  = Math.floor((Date.now() - req.createdAt) / 86400000);
+                const ageLabel = daysAgo === 0 ? "Today" : daysAgo === 1 ? "1d ago" : `${daysAgo}d ago`;
+                const stale    = req.status === "open" && daysAgo >= 5;
+                const rowBg    = hasBids ? COLORS.sageLight : COLORS.white;
                 return (
                   <div
                     key={req.id}
@@ -1515,7 +1353,6 @@ export default function DashboardPage() {
                       </p>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", flexShrink: 0 }}>
-                      {/* Bid count bubble */}
                       {bidCount > 0 && (
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: "2rem" }}>
                           <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1rem", lineHeight: 1, color: UI.rust }}>{bidCount}</span>
@@ -1605,10 +1442,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <button
-              onClick={() => {
-                localStorage.setItem(`homegentic_reengage_${prompt.jobId}`, "1");
-                setDismissedReEngagements((prev) => new Set([...prev, prompt.jobId]));
-              }}
+              onClick={() => d.dismissReEngagement(prompt.jobId)}
               style={{ background: "none", border: "none", cursor: "pointer", color: UI.inkLight, flexShrink: 0 }}
             >
               <X size={14} />
@@ -1692,23 +1526,23 @@ export default function DashboardPage() {
       </div>
 
       <LogJobModal
-        isOpen={showLogJobModal}
-        onClose={() => setShowLogJobModal(false)}
-        onSuccess={() => { loadAllJobs(properties); loadQuoteRequests(); }}
+        isOpen={modals.showLogJobModal}
+        onClose={closeLogJob}
+        onSuccess={() => { jobSummary.reload(); quoteSummary.reload(); }}
         properties={properties}
-        prefill={logJobPrefill}
+        prefill={modals.logJobPrefill}
       />
 
       <RequestQuoteModal
-        isOpen={showQuoteModal}
-        onClose={() => setShowQuoteModal(false)}
-        onSuccess={(quoteId) => { setShowQuoteModal(false); navigate(`/quotes/${quoteId}`); }}
+        isOpen={modals.showQuoteModal}
+        onClose={closeQuote}
+        onSuccess={(quoteId) => { closeQuote(); navigate(`/quotes/${quoteId}`); }}
         properties={properties}
       />
 
       <UpgradeModal
-        open={showUpgradeModal}
-        onClose={() => setShowUpgradeModal(false)}
+        open={modals.showUpgradeModal}
+        onClose={closeUpgrade}
       />
 
     </Layout>
