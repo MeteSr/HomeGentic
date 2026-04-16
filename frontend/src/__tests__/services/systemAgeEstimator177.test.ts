@@ -92,9 +92,9 @@ describe("buildEstimatorUrl", () => {
 // ── estimateSystems ──────────────────────────────────────────────────────────
 
 describe("estimateSystems", () => {
-  it("returns a prediction for all 9 tracked systems", () => {
+  it("returns a prediction for all 8 tracked systems (Solar Panels excluded by default)", () => {
     const estimates = estimateSystems(2000);
-    expect(estimates).toHaveLength(9);
+    expect(estimates).toHaveLength(8);
     const names = estimates.map((e) => e.systemName);
     expect(names).toContain("HVAC");
     expect(names).toContain("Roofing");

@@ -127,17 +127,17 @@ describe("SettingsPage — sidebar", () => {
     expect(container.firstChild).not.toBeNull();
   });
 
-  it("does NOT use fixed 12rem sidebar on mobile", async () => {
+  it("does NOT use fixed 11rem sidebar on mobile", async () => {
     const { container } = await renderPage(SettingsPage, "/settings", 390);
     const allDivs = Array.from(container.querySelectorAll("[style]")) as HTMLElement[];
-    const fixedSidebar = allDivs.find((el) => el.style.width === "12rem");
+    const fixedSidebar = allDivs.find((el) => el.style.width === "11rem");
     expect(fixedSidebar).toBeUndefined();
   });
 
-  it("uses fixed 12rem sidebar on desktop", async () => {
+  it("uses fixed 11rem sidebar on desktop", async () => {
     const { container } = await renderPage(SettingsPage, "/settings", 1280);
     const allDivs = Array.from(container.querySelectorAll("[style]")) as HTMLElement[];
-    const fixedSidebar = allDivs.find((el) => el.style.width === "12rem");
+    const fixedSidebar = allDivs.find((el) => el.style.width === "11rem");
     expect(fixedSidebar).toBeDefined();
   });
 });

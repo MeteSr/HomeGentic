@@ -39,7 +39,7 @@ describe("HomeSystemsEstimatorPage — system table", () => {
     expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
   });
 
-  it("shows all 9 system names", () => {
+  it("shows all 8 system names (Solar Panels excluded by default)", () => {
     renderPage();
     expect(screen.getByText("HVAC")).toBeInTheDocument();
     expect(screen.getByText("Roofing")).toBeInTheDocument();
@@ -49,13 +49,13 @@ describe("HomeSystemsEstimatorPage — system table", () => {
     expect(screen.getByText("Windows")).toBeInTheDocument();
     expect(screen.getByText("Flooring")).toBeInTheDocument();
     expect(screen.getByText("Insulation")).toBeInTheDocument();
-    expect(screen.getByText("Solar Panels")).toBeInTheDocument();
+    expect(screen.queryByText("Solar Panels")).not.toBeInTheDocument();
   });
 
   it("shows urgency indicators for each system", () => {
     renderPage();
     const indicators = screen.getAllByRole("status");
-    expect(indicators.length).toBe(9);
+    expect(indicators.length).toBe(8);
   });
 
   it("renders the year built from URL params (1998)", () => {
