@@ -43,13 +43,13 @@ async function renderDashboard(width: number) {
 
 describe("DashboardPage — renders on both viewports", () => {
   it("renders on desktop without crashing", async () => {
-    await renderDashboard(1280);
-    expect(document.body).toBeTruthy();
+    const { container } = await renderDashboard(1280);
+    expect(container.firstChild).not.toBeNull();
   });
 
   it("renders on mobile without crashing", async () => {
-    await renderDashboard(390);
-    expect(document.body).toBeTruthy();
+    const { container } = await renderDashboard(390);
+    expect(container.firstChild).not.toBeNull();
   });
 });
 
@@ -59,8 +59,8 @@ describe("DashboardPage — renders on both viewports", () => {
 describe("DashboardPage — KPI stats grid", () => {
   it("does NOT use a 5-column fixed grid on mobile", async () => {
     const { container } = await renderDashboard(390);
-    // No element should have gridTemplateColumns of "repeat(5,1fr)" or "repeat(5, 1fr)"
     const allDivs = Array.from(container.querySelectorAll("[style]")) as HTMLElement[];
+    expect(allDivs.length).toBeGreaterThan(0);
     const fiveCol = allDivs.find((el) =>
       el.style.gridTemplateColumns?.replace(/\s/g, "") === "repeat(5,1fr)"
     );
@@ -70,8 +70,7 @@ describe("DashboardPage — KPI stats grid", () => {
   it("uses at most 2 columns on mobile for the KPI stat row", async () => {
     const { container } = await renderDashboard(390);
     const allDivs = Array.from(container.querySelectorAll("[style]")) as HTMLElement[];
-    // Any grid with gridTemplateColumns containing "1fr 1fr" is fine (2-col)
-    // But none should have 5 "1fr" repetitions
+    expect(allDivs.length).toBeGreaterThan(0);
     const fiveCol = allDivs.find((el) => {
       const cols = el.style.gridTemplateColumns ?? "";
       return cols.replace(/\s/g, "").match(/repeat\([5-9]|(?:1fr\s*){5}/);
@@ -82,6 +81,7 @@ describe("DashboardPage — KPI stats grid", () => {
   it("uses full 5-column grid on desktop", async () => {
     const { container } = await renderDashboard(1280);
     const allDivs = Array.from(container.querySelectorAll("[style]")) as HTMLElement[];
+    expect(allDivs.length).toBeGreaterThan(0);
     const fiveCol = allDivs.find((el) =>
       el.style.gridTemplateColumns?.replace(/\s/g, "").includes("repeat(5,1fr)")
     );
@@ -96,13 +96,14 @@ describe("DashboardPage — property comparison table scroll", () => {
   it("does NOT use a fixed 5-column table header on mobile (must be in scroll container)", async () => {
     const { container } = await renderDashboard(390);
     const allDivs = Array.from(container.querySelectorAll("[style]")) as HTMLElement[];
-    // On mobile, a grid with "2fr 1fr 1fr 1fr 1fr" should only exist inside an overflow-x:auto wrapper
+    expect(allDivs.length).toBeGreaterThan(0);
+    // On mobile, any grid with a "2fr" column must be inside an overflow-x:auto wrapper
     const bareTable = allDivs.find((el) => {
       const cols = el.style.gridTemplateColumns?.replace(/\s/g, "");
       if (!cols?.includes("2fr")) return false;
-      // Check parent for overflow-x scroll
       const parent = el.parentElement as HTMLElement | null;
-      return parent && parent.style.overflowX !== "auto";
+      // parent must exist and have overflow-x:auto
+      return !parent || parent.style.overflowX !== "auto";
     });
     expect(bareTable).toBeUndefined();
   });

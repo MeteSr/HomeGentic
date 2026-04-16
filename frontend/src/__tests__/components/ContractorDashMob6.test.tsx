@@ -43,13 +43,13 @@ async function renderDash(width: number) {
 
 describe("ContractorDashboardPage — renders on both viewports", () => {
   it("renders on desktop without crashing", async () => {
-    await renderDash(1280);
-    expect(document.body).toBeTruthy();
+    const { container } = await renderDash(1280);
+    expect(container.firstChild).not.toBeNull();
   });
 
   it("renders on mobile without crashing", async () => {
-    await renderDash(390);
-    expect(document.body).toBeTruthy();
+    const { container } = await renderDash(390);
+    expect(container.firstChild).not.toBeNull();
   });
 });
 
@@ -59,6 +59,7 @@ describe("ContractorDashboardPage — KPI stats row", () => {
   it("does NOT use repeat(7,1fr) on mobile", async () => {
     const { container } = await renderDash(390);
     const allDivs = Array.from(container.querySelectorAll("[style]")) as HTMLElement[];
+    expect(allDivs.length).toBeGreaterThan(0);
     const sevenCol = allDivs.find((el) =>
       el.style.gridTemplateColumns?.replace(/\s/g, "") === "repeat(7,1fr)"
     );
@@ -81,6 +82,7 @@ describe("ContractorDashboardPage — two-panel layout", () => {
   it("does NOT use fixed 320px sidebar column on mobile", async () => {
     const { container } = await renderDash(390);
     const allDivs = Array.from(container.querySelectorAll("[style]")) as HTMLElement[];
+    expect(allDivs.length).toBeGreaterThan(0);
     const fixedPanel = allDivs.find((el) =>
       el.style.gridTemplateColumns?.includes("320px")
     );

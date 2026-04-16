@@ -98,14 +98,15 @@ describe("ContractorPublicPage — renders on mobile", () => {
   beforeEach(() => mockMatchMedia(390));
 
   it("renders loading or not-found state without crashing", async () => {
+    let container!: HTMLElement;
     await act(async () => {
-      render(
+      ({ container } = render(
         <MemoryRouter initialEntries={["/contractor/test-id"]}>
           <Routes><Route path="/contractor/:id" element={<ContractorPublicPage />} /></Routes>
         </MemoryRouter>
-      );
+      ));
     });
-    expect(document.body).toBeTruthy();
+    expect(container.firstChild).not.toBeNull();
   });
 
   it("outer wrapper has padding on mobile", async () => {
@@ -118,9 +119,8 @@ describe("ContractorPublicPage — renders on mobile", () => {
       ));
     });
     const contentDiv = container.querySelector("[style*='max-width']") as HTMLElement | null;
-    if (contentDiv) {
-      expect(contentDiv.style.padding).toBeTruthy();
-    }
+    expect(contentDiv).not.toBeNull();
+    expect(contentDiv!.style.padding).toBeTruthy();
   });
 });
 
@@ -137,9 +137,8 @@ describe("ContractorPublicPage — renders on desktop", () => {
       ));
     });
     const contentDiv = container.querySelector("[style*='max-width']") as HTMLElement | null;
-    if (contentDiv) {
-      expect(contentDiv.style.padding).toBeTruthy();
-    }
+    expect(contentDiv).not.toBeNull();
+    expect(contentDiv!.style.padding).toBeTruthy();
   });
 });
 
@@ -149,14 +148,15 @@ describe("AgentPublicPage — renders on mobile", () => {
   beforeEach(() => mockMatchMedia(390));
 
   it("renders loading state without crashing on phone", async () => {
+    let container!: HTMLElement;
     await act(async () => {
-      render(
+      ({ container } = render(
         <MemoryRouter initialEntries={["/agent/test-id"]}>
           <Routes><Route path="/agent/:id" element={<AgentPublicPage />} /></Routes>
         </MemoryRouter>
-      );
+      ));
     });
-    expect(document.body).toBeTruthy();
+    expect(container.firstChild).not.toBeNull();
   });
 });
 
@@ -166,14 +166,15 @@ describe("ListingDetailPage — form grids on mobile", () => {
   beforeEach(() => mockMatchMedia(390));
 
   it("renders loading or empty state without crashing on phone", async () => {
+    let container!: HTMLElement;
     await act(async () => {
-      render(
+      ({ container } = render(
         <MemoryRouter initialEntries={["/listings/test-id"]}>
           <Routes><Route path="/listings/:id" element={<ListingDetailPage />} /></Routes>
         </MemoryRouter>
-      );
+      ));
     });
-    expect(document.body).toBeTruthy();
+    expect(container.firstChild).not.toBeNull();
   });
 });
 
@@ -181,13 +182,14 @@ describe("ListingDetailPage — form grids on desktop", () => {
   beforeEach(() => mockMatchMedia(1280));
 
   it("renders without crashing on desktop", async () => {
+    let container!: HTMLElement;
     await act(async () => {
-      render(
+      ({ container } = render(
         <MemoryRouter initialEntries={["/listings/test-id"]}>
           <Routes><Route path="/listings/:id" element={<ListingDetailPage />} /></Routes>
         </MemoryRouter>
-      );
+      ));
     });
-    expect(document.body).toBeTruthy();
+    expect(container.firstChild).not.toBeNull();
   });
 });

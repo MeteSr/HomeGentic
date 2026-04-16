@@ -174,7 +174,9 @@ async function compressImage(file: File): Promise<File> {
 }
 
 async function computeHash(buffer: ArrayBuffer): Promise<string> {
-  const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+  // Wrap in Uint8Array so SubtleCrypto's instanceof check passes even when
+  // jsdom's FileReader returns a Node Buffer subclass instead of a true ArrayBuffer.
+  const hashBuffer = await crypto.subtle.digest("SHA-256", new Uint8Array(buffer));
   const hashArray  = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }

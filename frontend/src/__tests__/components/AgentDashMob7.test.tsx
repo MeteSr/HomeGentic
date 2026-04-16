@@ -58,13 +58,13 @@ async function renderMarketplace(width: number) {
 
 describe("AgentDashboardPage — renders on both viewports", () => {
   it("renders on desktop", async () => {
-    await renderAgentDash(1280);
-    expect(document.body).toBeTruthy();
+    const { container } = await renderAgentDash(1280);
+    expect(container.firstChild).not.toBeNull();
   });
 
   it("renders on mobile", async () => {
-    await renderAgentDash(390);
-    expect(document.body).toBeTruthy();
+    const { container } = await renderAgentDash(390);
+    expect(container.firstChild).not.toBeNull();
   });
 });
 
@@ -74,6 +74,7 @@ describe("AgentDashboardPage — KPI row", () => {
   it("does NOT use repeat(3,1fr) as fixed grid on mobile", async () => {
     const { container } = await renderAgentDash(390);
     const allDivs = Array.from(container.querySelectorAll("[style]")) as HTMLElement[];
+    expect(allDivs.length).toBeGreaterThan(0);
     const threeCol = allDivs.find((el) =>
       el.style.gridTemplateColumns?.replace(/\s/g, "") === "repeat(3,1fr)"
     );
@@ -81,9 +82,8 @@ describe("AgentDashboardPage — KPI row", () => {
   });
 
   it("renders without crashing on desktop (loading state)", async () => {
-    // Stats grid is gated behind !loading; just verify the page mounts
-    await renderAgentDash(1280);
-    expect(document.body).toBeTruthy();
+    const { container } = await renderAgentDash(1280);
+    expect(container.firstChild).not.toBeNull();
   });
 });
 
@@ -93,12 +93,13 @@ describe("AgentDashboardPage — listings table", () => {
   it("listings table header has scroll container on mobile", async () => {
     const { container } = await renderAgentDash(390);
     const allDivs = Array.from(container.querySelectorAll("[style]")) as HTMLElement[];
-    // Any 6-column grid must be inside an overflow-x:auto parent
+    expect(allDivs.length).toBeGreaterThan(0);
+    // Any multi-column grid must be inside an overflow-x:auto parent on mobile
     const bareTable = allDivs.find((el) => {
       const cols = el.style.gridTemplateColumns ?? "";
       if (!cols.includes("2fr") || !cols.includes("auto")) return false;
       const parent = el.parentElement as HTMLElement | null;
-      return parent && parent.style.overflowX !== "auto";
+      return !parent || parent.style.overflowX !== "auto";
     });
     expect(bareTable).toBeUndefined();
   });
@@ -108,13 +109,13 @@ describe("AgentDashboardPage — listings table", () => {
 
 describe("AgentMarketplacePage — renders on both viewports", () => {
   it("renders on desktop", async () => {
-    await renderMarketplace(1280);
-    expect(document.body).toBeTruthy();
+    const { container } = await renderMarketplace(1280);
+    expect(container.firstChild).not.toBeNull();
   });
 
   it("renders on mobile", async () => {
-    await renderMarketplace(390);
-    expect(document.body).toBeTruthy();
+    const { container } = await renderMarketplace(390);
+    expect(container.firstChild).not.toBeNull();
   });
 });
 
@@ -122,6 +123,7 @@ describe("AgentMarketplacePage — bid table scroll", () => {
   it("7-column bid table has scroll container on mobile", async () => {
     const { container } = await renderMarketplace(390);
     const allDivs = Array.from(container.querySelectorAll("[style]")) as HTMLElement[];
+    expect(allDivs.length).toBeGreaterThan(0);
     // A grid with "2fr 1fr 1fr 1fr 1fr 1fr auto" must not appear bare
     const bareTable = allDivs.find((el) => {
       const cols = el.style.gridTemplateColumns?.replace(/\s/g, "") ?? "";
@@ -129,7 +131,7 @@ describe("AgentMarketplacePage — bid table scroll", () => {
       const frCount = (cols.match(/1fr/g) ?? []).length;
       if (frCount < 4) return false;
       const parent = el.parentElement as HTMLElement | null;
-      return parent && parent.style.overflowX !== "auto";
+      return !parent || parent.style.overflowX !== "auto";
     });
     expect(bareTable).toBeUndefined();
   });

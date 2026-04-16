@@ -55,13 +55,13 @@ async function renderForm(width: number) {
 
 describe("FsboListingPage — renders on both viewports", () => {
   it("renders loading state on desktop without crashing", async () => {
-    await renderFsbo(1280);
-    expect(document.body).toBeTruthy();
+    const { container } = await renderFsbo(1280);
+    expect(container.firstChild).not.toBeNull();
   });
 
   it("renders loading state on mobile without crashing", async () => {
-    await renderFsbo(390);
-    expect(document.body).toBeTruthy();
+    const { container } = await renderFsbo(390);
+    expect(container.firstChild).not.toBeNull();
   });
 });
 
@@ -88,17 +88,15 @@ describe("FsboListingPage — outer padding", () => {
   it("uses 2rem top padding on desktop", async () => {
     const { container } = await renderFsbo(1280);
     const outer = container.querySelector("[style*='max-width']") as HTMLElement | null;
-    if (outer) {
-      expect(outer.style.padding).toMatch(/2rem/);
-    }
+    expect(outer).not.toBeNull();
+    expect(outer!.style.padding).toMatch(/2rem/);
   });
 
   it("uses reduced top padding on mobile", async () => {
     const { container } = await renderFsbo(390);
     const outer = container.querySelector("[style*='max-width']") as HTMLElement | null;
-    if (outer) {
-      expect(outer.style.padding).not.toMatch(/^2rem/);
-    }
+    expect(outer).not.toBeNull();
+    expect(outer!.style.padding).not.toMatch(/^2rem/);
   });
 });
 
@@ -106,8 +104,8 @@ describe("FsboListingPage — outer padding", () => {
 
 describe("FsboListingPage — photo hero", () => {
   it("hero container exists", async () => {
-    await renderFsbo(390);
-    expect(document.body).toBeTruthy();
+    const { container } = await renderFsbo(390);
+    expect(container.firstChild).not.toBeNull();
   });
 });
 

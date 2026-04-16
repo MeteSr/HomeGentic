@@ -206,6 +206,13 @@ export default function FsboListingPage() {
     }).catch(() => setLoading(false));
   }, [propertyId]);
 
+  const outerStyle: React.CSSProperties = {
+    maxWidth: "860px",
+    margin:   "0 auto",
+    padding:  isMobile ? "1rem" : "2rem 1rem",
+    fontFamily: UI.sans,
+  };
+
   // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -220,8 +227,10 @@ export default function FsboListingPage() {
           <link rel="canonical" href="https://homegentic.app/for-sale" />
           <script type="application/ld+json">{JSON.stringify({ "@context": "https://schema.org", "@type": "RealEstateListing", "name": "For Sale by Owner | HomeGentic", "description": "Verified FSBO listing on HomeGentic." })}</script>
         </Helmet>
-        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: UI.mono, color: UI.inkLight }}>
-          Loading…
+        <div style={outerStyle}>
+          <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: UI.mono, color: UI.inkLight }}>
+            Loading…
+          </div>
         </div>
       </>
     );
@@ -241,9 +250,11 @@ export default function FsboListingPage() {
           <link rel="canonical" href="https://homegentic.app/for-sale" />
           <script type="application/ld+json">{JSON.stringify({ "@context": "https://schema.org", "@type": "RealEstateListing", "name": "For Sale by Owner | HomeGentic", "description": "Verified FSBO listing on HomeGentic." })}</script>
         </Helmet>
-        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "0.5rem" }}>
-          <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.5rem", color: UI.ink }}>Not Listed For Sale</p>
-          <p style={{ fontFamily: UI.sans, fontSize: "0.875rem", color: UI.inkLight }}>This property is not currently available via FSBO.</p>
+        <div style={outerStyle}>
+          <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "0.5rem" }}>
+            <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.5rem", color: UI.ink }}>Not Listed For Sale</p>
+            <p style={{ fontFamily: UI.sans, fontSize: "0.875rem", color: UI.inkLight }}>This property is not currently available via FSBO.</p>
+          </div>
         </div>
       </>
     );
@@ -273,7 +284,7 @@ export default function FsboListingPage() {
           "image": "https://homegentic.app/og-default.png",
         })}</script>
       </Helmet>
-    <div style={{ maxWidth: "860px", margin: "0 auto", padding: isMobile ? "1rem" : "2rem 1rem", fontFamily: UI.sans }}>
+    <div style={outerStyle}>
 
       {/* ── Photo ─────────────────────────────────────────────────────────── */}
       <div style={{ marginBottom: "1.5rem", background: COLORS.rule, minHeight: "260px", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>

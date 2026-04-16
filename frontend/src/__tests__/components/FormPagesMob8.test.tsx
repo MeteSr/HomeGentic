@@ -62,13 +62,13 @@ function hasBare2ColGrid(container: HTMLElement): boolean {
 
 describe("JobCreatePage — mobile layout", () => {
   it("renders without crashing on mobile", async () => {
-    await renderPage(JobCreatePage, "/jobs/new", 390);
-    expect(document.body).toBeTruthy();
+    const { container } = await renderPage(JobCreatePage, "/jobs/new", 390);
+    expect(container.firstChild).not.toBeNull();
   });
 
   it("renders without crashing on desktop", async () => {
-    await renderPage(JobCreatePage, "/jobs/new", 1280);
-    expect(document.body).toBeTruthy();
+    const { container } = await renderPage(JobCreatePage, "/jobs/new", 1280);
+    expect(container.firstChild).not.toBeNull();
   });
 
   it("does NOT use bare 1fr 1fr grid on mobile", async () => {
@@ -81,8 +81,8 @@ describe("JobCreatePage — mobile layout", () => {
 
 describe("QuoteRequestPage — mobile layout", () => {
   it("renders without crashing on mobile", async () => {
-    await renderPage(QuoteRequestPage, "/quotes/new", 390);
-    expect(document.body).toBeTruthy();
+    const { container } = await renderPage(QuoteRequestPage, "/quotes/new", 390);
+    expect(container.firstChild).not.toBeNull();
   });
 
   it("does NOT use bare 1fr 1fr grid on mobile", async () => {
@@ -95,8 +95,8 @@ describe("QuoteRequestPage — mobile layout", () => {
 
 describe("PropertyRegisterPage — mobile layout", () => {
   it("renders without crashing on mobile", async () => {
-    await renderPage(PropertyRegisterPage, "/properties/new", 390);
-    expect(document.body).toBeTruthy();
+    const { container } = await renderPage(PropertyRegisterPage, "/properties/new", 390);
+    expect(container.firstChild).not.toBeNull();
   });
 
   it("does NOT use bare 1fr 1fr grid on mobile", async () => {
@@ -109,8 +109,8 @@ describe("PropertyRegisterPage — mobile layout", () => {
 
 describe("ContractorProfilePage — mobile layout", () => {
   it("renders without crashing on mobile", async () => {
-    await renderPage(ContractorProfilePage, "/contractor-profile", 390);
-    expect(document.body).toBeTruthy();
+    const { container } = await renderPage(ContractorProfilePage, "/contractor-profile", 390);
+    expect(container.firstChild).not.toBeNull();
   });
 
   it("does NOT use bare 1fr 1fr grid on mobile", async () => {
@@ -123,8 +123,8 @@ describe("ContractorProfilePage — mobile layout", () => {
 
 describe("SettingsPage — sidebar", () => {
   it("renders without crashing on mobile", async () => {
-    await renderPage(SettingsPage, "/settings", 390);
-    expect(document.body).toBeTruthy();
+    const { container } = await renderPage(SettingsPage, "/settings", 390);
+    expect(container.firstChild).not.toBeNull();
   });
 
   it("does NOT use fixed 12rem sidebar on mobile", async () => {
