@@ -11,6 +11,12 @@ src/frontend/dist/
 dist/
 frontend/dist/
 frontend/coverage/
+frontend/dist-test-sitemap/
+
+# Test artefacts
+test-results/
+frontend/test-results/
+playwright-report/
 
 # Environment
 .env
@@ -25,3 +31,6 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Claude Code local settings
+.claude/
