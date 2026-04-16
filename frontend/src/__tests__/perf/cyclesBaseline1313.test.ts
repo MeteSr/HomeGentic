@@ -241,8 +241,9 @@ describe("13.1.4: monitoring canister cyclesPerCall infrastructure", () => {
     expect(canister).toMatch(/func recordCallCycles/);
   });
 
-  it("cyclesPerCallEntries stable var exists for persistence", () => {
-    expect(canister).toMatch(/cyclesPerCallEntries/);
+  it("cyclesPerCall Map exists for persistence", () => {
+    // persistent actor persists the Map natively — no serialisation buffer needed
+    expect(canister).toMatch(/cyclesPerCall\s*=\s*Map\.empty/);
   });
 
   it("cyclesPerCall is populated in getMetrics() return value", () => {
