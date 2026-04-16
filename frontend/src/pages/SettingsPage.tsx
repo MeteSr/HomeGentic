@@ -23,7 +23,6 @@ const UI = {
   rule:     COLORS.rule,
   rust:     COLORS.sage,
   inkLight: COLORS.plumMid,
-  sage:     COLORS.sage,
   serif:    FONTS.serif,
   mono:     FONTS.mono,
 };

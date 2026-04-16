@@ -11,7 +11,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Bell, LogOut,
-  LayoutDashboard, TrendingUp, Users, Cpu, Home as HomeIcon, PlusSquare,
+  LayoutDashboard, TrendingUp, Users, Cpu, Radio, Home as HomeIcon, PlusSquare,
   Store, ChevronLeft, ChevronRight, Menu, X,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -146,7 +146,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         { to: "/market",         label: "Market",       Icon: TrendingUp },
         { to: "/maintenance",    label: "Maintenance",  Icon: Cpu },
         ...(userTier !== "Free" ? [{ to: "/contractors", label: "Contractors", Icon: Users }] : []),
-        { to: "/sensors",        label: "Sensors",      Icon: Cpu },
+        { to: "/sensors",        label: "Sensors",      Icon: Radio },
         { to: "/listing/new",    label: "List Home",    Icon: HomeIcon },
         { to: "/properties/new", label: "Add Property", Icon: PlusSquare },
       ];
@@ -323,7 +323,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
             {userMenuOpen && (
               <UserMenuPopover
                 displayName={displayName}
-                principal={principal}
                 onClose={() => setUserMenuOpen(false)}
                 onUpgrade={() => setUpgradeOpen(true)}
               />
@@ -447,11 +446,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
               );
             })}
             <div className="rsp-mobile-divider" />
-            {principal && (
-              <span style={{ fontFamily: FONTS.mono, fontSize: "0.65rem", color: COLORS.plumMid, padding: "0.5rem 0" }}>
-                {principal.slice(0, 16)}…
-              </span>
-            )}
             <button
               className="rsp-mobile-link"
               onClick={() => { logout(); setMobileOpen(false); }}

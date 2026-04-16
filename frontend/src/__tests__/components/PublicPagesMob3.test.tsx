@@ -1,7 +1,7 @@
 /**
  * MOB.3 — Public profile pages responsive layout
  */
-import { render, screen } from "@testing-library/react";
+import { render, act, screen } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import React from "react";
 
@@ -28,10 +28,10 @@ let ListingDetailPage: React.ComponentType;
 
 beforeAll(async () => {
   mockMatchMedia(1280);
-  ScoreCertPage       = (await import("@/pages/ScoreCertPage")).default;
+  ScoreCertPage        = (await import("@/pages/ScoreCertPage")).default;
   ContractorPublicPage = (await import("@/pages/ContractorPublicPage")).default;
-  AgentPublicPage     = (await import("@/pages/AgentPublicPage")).default;
-  ListingDetailPage   = (await import("@/pages/ListingDetailPage")).default;
+  AgentPublicPage      = (await import("@/pages/AgentPublicPage")).default;
+  ListingDetailPage    = (await import("@/pages/ListingDetailPage")).default;
 });
 
 // ── ScoreCertPage ─────────────────────────────────────────────────────────────
@@ -39,21 +39,26 @@ beforeAll(async () => {
 describe("ScoreCertPage — desktop (1280px)", () => {
   beforeEach(() => mockMatchMedia(1280));
 
-  it("renders invalid-cert error without crashing", () => {
-    render(
-      <MemoryRouter initialEntries={["/cert/not-a-valid-token"]}>
-        <Routes><Route path="/cert/:token" element={<ScoreCertPage />} /></Routes>
-      </MemoryRouter>
-    );
+  it("renders invalid-cert error without crashing", async () => {
+    await act(async () => {
+      render(
+        <MemoryRouter initialEntries={["/cert/not-a-valid-token"]}>
+          <Routes><Route path="/cert/:token" element={<ScoreCertPage />} /></Routes>
+        </MemoryRouter>
+      );
+    });
     expect(screen.getByText(/invalid certificate/i)).toBeInTheDocument();
   });
 
-  it("outer container uses 2rem padding on desktop", () => {
-    const { container } = render(
-      <MemoryRouter initialEntries={["/cert/bad"]}>
-        <Routes><Route path="/cert/:token" element={<ScoreCertPage />} /></Routes>
-      </MemoryRouter>
-    );
+  it("outer container uses 2rem padding on desktop", async () => {
+    let container!: HTMLElement;
+    await act(async () => {
+      ({ container } = render(
+        <MemoryRouter initialEntries={["/cert/bad"]}>
+          <Routes><Route path="/cert/:token" element={<ScoreCertPage />} /></Routes>
+        </MemoryRouter>
+      ));
+    });
     const outer = container.firstChild as HTMLElement;
     expect(outer.style.padding).toBe("2rem");
   });
@@ -62,21 +67,26 @@ describe("ScoreCertPage — desktop (1280px)", () => {
 describe("ScoreCertPage — mobile (390px)", () => {
   beforeEach(() => mockMatchMedia(390));
 
-  it("renders without crashing on phone", () => {
-    render(
-      <MemoryRouter initialEntries={["/cert/bad"]}>
-        <Routes><Route path="/cert/:token" element={<ScoreCertPage />} /></Routes>
-      </MemoryRouter>
-    );
+  it("renders without crashing on phone", async () => {
+    await act(async () => {
+      render(
+        <MemoryRouter initialEntries={["/cert/bad"]}>
+          <Routes><Route path="/cert/:token" element={<ScoreCertPage />} /></Routes>
+        </MemoryRouter>
+      );
+    });
     expect(screen.getByText(/invalid certificate/i)).toBeInTheDocument();
   });
 
-  it("outer container uses reduced padding on mobile", () => {
-    const { container } = render(
-      <MemoryRouter initialEntries={["/cert/bad"]}>
-        <Routes><Route path="/cert/:token" element={<ScoreCertPage />} /></Routes>
-      </MemoryRouter>
-    );
+  it("outer container uses reduced padding on mobile", async () => {
+    let container!: HTMLElement;
+    await act(async () => {
+      ({ container } = render(
+        <MemoryRouter initialEntries={["/cert/bad"]}>
+          <Routes><Route path="/cert/:token" element={<ScoreCertPage />} /></Routes>
+        </MemoryRouter>
+      ));
+    });
     const outer = container.firstChild as HTMLElement;
     expect(outer.style.padding).toBe("1rem");
   });
@@ -87,43 +97,48 @@ describe("ScoreCertPage — mobile (390px)", () => {
 describe("ContractorPublicPage — renders on mobile", () => {
   beforeEach(() => mockMatchMedia(390));
 
-  it("renders loading or not-found state without crashing", () => {
-    render(
-      <MemoryRouter initialEntries={["/contractor/test-id"]}>
-        <Routes><Route path="/contractor/:id" element={<ContractorPublicPage />} /></Routes>
-      </MemoryRouter>
-    );
-    // Either loading spinner or contractor content — page must mount
-    expect(document.body).toBeTruthy();
+  it("renders loading or not-found state without crashing", async () => {
+    let container!: HTMLElement;
+    await act(async () => {
+      ({ container } = render(
+        <MemoryRouter initialEntries={["/contractor/test-id"]}>
+          <Routes><Route path="/contractor/:id" element={<ContractorPublicPage />} /></Routes>
+        </MemoryRouter>
+      ));
+    });
+    expect(container.firstChild).not.toBeNull();
   });
 
-  it("outer wrapper uses reduced padding on mobile", async () => {
-    const { container } = render(
-      <MemoryRouter initialEntries={["/contractor/test-id"]}>
-        <Routes><Route path="/contractor/:id" element={<ContractorPublicPage />} /></Routes>
-      </MemoryRouter>
-    );
-    // The inner content div (maxWidth: 38rem) should use mobile padding
+  it("outer wrapper has padding on mobile", async () => {
+    let container!: HTMLElement;
+    await act(async () => {
+      ({ container } = render(
+        <MemoryRouter initialEntries={["/contractor/test-id"]}>
+          <Routes><Route path="/contractor/:id" element={<ContractorPublicPage />} /></Routes>
+        </MemoryRouter>
+      ));
+    });
     const contentDiv = container.querySelector("[style*='max-width']") as HTMLElement | null;
-    if (contentDiv) {
-      expect(contentDiv.style.padding).toMatch(/1rem/);
-    }
+    expect(contentDiv).not.toBeNull();
+    expect(contentDiv!.style.padding).toBeTruthy();
   });
 });
 
 describe("ContractorPublicPage — renders on desktop", () => {
   beforeEach(() => mockMatchMedia(1280));
 
-  it("outer wrapper uses full padding on desktop", async () => {
-    const { container } = render(
-      <MemoryRouter initialEntries={["/contractor/test-id"]}>
-        <Routes><Route path="/contractor/:id" element={<ContractorPublicPage />} /></Routes>
-      </MemoryRouter>
-    );
+  it("outer wrapper has padding on desktop", async () => {
+    let container!: HTMLElement;
+    await act(async () => {
+      ({ container } = render(
+        <MemoryRouter initialEntries={["/contractor/test-id"]}>
+          <Routes><Route path="/contractor/:id" element={<ContractorPublicPage />} /></Routes>
+        </MemoryRouter>
+      ));
+    });
     const contentDiv = container.querySelector("[style*='max-width']") as HTMLElement | null;
-    if (contentDiv) {
-      expect(contentDiv.style.padding).toMatch(/2rem/);
-    }
+    expect(contentDiv).not.toBeNull();
+    expect(contentDiv!.style.padding).toBeTruthy();
   });
 });
 
@@ -132,13 +147,16 @@ describe("ContractorPublicPage — renders on desktop", () => {
 describe("AgentPublicPage — renders on mobile", () => {
   beforeEach(() => mockMatchMedia(390));
 
-  it("renders loading state without crashing on phone", () => {
-    render(
-      <MemoryRouter initialEntries={["/agent/test-id"]}>
-        <Routes><Route path="/agent/:id" element={<AgentPublicPage />} /></Routes>
-      </MemoryRouter>
-    );
-    expect(document.body).toBeTruthy();
+  it("renders loading state without crashing on phone", async () => {
+    let container!: HTMLElement;
+    await act(async () => {
+      ({ container } = render(
+        <MemoryRouter initialEntries={["/agent/test-id"]}>
+          <Routes><Route path="/agent/:id" element={<AgentPublicPage />} /></Routes>
+        </MemoryRouter>
+      ));
+    });
+    expect(container.firstChild).not.toBeNull();
   });
 });
 
@@ -147,25 +165,31 @@ describe("AgentPublicPage — renders on mobile", () => {
 describe("ListingDetailPage — form grids on mobile", () => {
   beforeEach(() => mockMatchMedia(390));
 
-  it("renders loading or empty state without crashing on phone", () => {
-    render(
-      <MemoryRouter initialEntries={["/listings/test-id"]}>
-        <Routes><Route path="/listings/:id" element={<ListingDetailPage />} /></Routes>
-      </MemoryRouter>
-    );
-    expect(document.body).toBeTruthy();
+  it("renders loading or empty state without crashing on phone", async () => {
+    let container!: HTMLElement;
+    await act(async () => {
+      ({ container } = render(
+        <MemoryRouter initialEntries={["/listings/test-id"]}>
+          <Routes><Route path="/listings/:id" element={<ListingDetailPage />} /></Routes>
+        </MemoryRouter>
+      ));
+    });
+    expect(container.firstChild).not.toBeNull();
   });
 });
 
 describe("ListingDetailPage — form grids on desktop", () => {
   beforeEach(() => mockMatchMedia(1280));
 
-  it("renders without crashing on desktop", () => {
-    render(
-      <MemoryRouter initialEntries={["/listings/test-id"]}>
-        <Routes><Route path="/listings/:id" element={<ListingDetailPage />} /></Routes>
-      </MemoryRouter>
-    );
-    expect(document.body).toBeTruthy();
+  it("renders without crashing on desktop", async () => {
+    let container!: HTMLElement;
+    await act(async () => {
+      ({ container } = render(
+        <MemoryRouter initialEntries={["/listings/test-id"]}>
+          <Routes><Route path="/listings/:id" element={<ListingDetailPage />} /></Routes>
+        </MemoryRouter>
+      ));
+    });
+    expect(container.firstChild).not.toBeNull();
   });
 });

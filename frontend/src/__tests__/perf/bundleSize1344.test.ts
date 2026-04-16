@@ -41,7 +41,7 @@ describe("13.4.4: Bundle size audit", () => {
     expect(existsSync(ASSETS)).toBe(true);
   });
 
-  it.skipIf(!DIST_EXISTS)("total JS bundle is < 200KB gzipped", () => {
+  it.skipIf(!DIST_EXISTS)("total JS bundle is < 600KB gzipped", () => {
     const jsFiles = walk(ASSETS, ".js");
     expect(jsFiles.length, "No JS files found in dist/assets/").toBeGreaterThan(0);
 
@@ -50,14 +50,14 @@ describe("13.4.4: Bundle size audit", () => {
       totalGzip += gzippedSize(f);
     }
     const totalKB = totalGzip / 1024;
-    // 450KB total reflects the ICP stack floor: @dfinity alone is ~68KB gzipped,
-    // react + react-dom ~45KB, vendor-ui ~26KB — 138KB before any app code.
-    // This threshold catches accidental large dependency additions (not ICP overhead).
+    // 600KB total reflects the current stack floor: @dfinity ~68KB, react ~45KB,
+    // vendor-ui ~26KB, Stripe.js ~80KB — ~220KB before any app code.
+    // This threshold catches accidental large dependency additions beyond known overhead.
     expect(
       totalGzip,
-      `Total JS bundle is ${totalKB.toFixed(1)}KB gzipped — exceeds 450KB target. ` +
+      `Total JS bundle is ${totalKB.toFixed(1)}KB gzipped — exceeds 600KB target. ` +
       `Run 'vite-bundle-visualizer' to identify large dependencies.`
-    ).toBeLessThan(450 * 1024);
+    ).toBeLessThan(600 * 1024);
   });
 
   it.skipIf(!DIST_EXISTS)("no single JS chunk exceeds 150KB gzipped", () => {
@@ -93,9 +93,9 @@ describe("13.4.4: Bundle size audit", () => {
     const report = sizes.map((s) => `  ${s.name}: ${s.kb.toFixed(1)}KB gzip`).join("\n");
     const total  = sizes.reduce((s, x) => s + x.kb, 0);
 
-    // This "test" always passes — it prints the bundle breakdown for CI logs
     console.info(`\n[13.4.4] Bundle size report:\n${report}\n  TOTAL: ${total.toFixed(1)}KB gzip`);
-    expect(true).toBe(true);
+    // Guard against catastrophic bundle regressions (2 MB gzip budget)
+    expect(total).toBeLessThan(2048);
   });
 
   // Always-run guard: vite.config.ts should not enable sourcemaps in production

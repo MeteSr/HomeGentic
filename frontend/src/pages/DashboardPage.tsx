@@ -445,10 +445,9 @@ export default function DashboardPage() {
             <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "2rem", lineHeight: 1 }}>
               Dashboard
             </h1>
-            {principal && (
+            {profile?.email && (
               <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight, marginTop: "0.375rem" }}>
-                {principal.slice(0, 16)}…
-                {profile?.email && ` · ${profile.email}`}
+                {profile.email}
               </p>
             )}
           </div>

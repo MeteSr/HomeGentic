@@ -109,10 +109,7 @@ export default function LandingPage() {
           <a href="/" className="hfl-logo">Home<span>Gentic</span></a>
           <ul className={`hfl-nav-links${menuOpen ? " hfl-menu-open" : ""}`}>
             <li><a onClick={(e) => { e.preventDefault(); setMenuOpen(false); scrollTo("hfl-features"); }}>For Homeowners</a></li>
-            <li><a onClick={(e) => { e.preventDefault(); setMenuOpen(false); scrollTo("hfl-features"); }}>Service Network</a></li>
-            <li><a onClick={(e) => { e.preventDefault(); setMenuOpen(false); scrollTo("hfl-report"); }}>Report</a></li>
             <li><a onClick={(e) => { e.preventDefault(); setMenuOpen(false); scrollTo("hfl-sell"); }}>Sell Smarter</a></li>
-            <li><a onClick={(e) => { e.preventDefault(); setMenuOpen(false); scrollTo("hfl-tools"); }}>Free Tools</a></li>
             <li><a onClick={(e) => { e.preventDefault(); setMenuOpen(false); navigate("/demo"); }}>Demo</a></li>
             <li><a onClick={(e) => { e.preventDefault(); setMenuOpen(false); navigate("/pricing"); }}>Pricing</a></li>
           </ul>

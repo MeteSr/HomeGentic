@@ -8,9 +8,9 @@
  * CB.5  /contractors — clicking a card navigates to /contractor/:id
  * CB.6  /contractors — empty state shown when injection is empty
  * CB.7  /contractors — specialty filter chip narrows results
- * CD.1  /contractor/dashboard — "Contractor Dashboard" heading
- * CD.2  /contractor/dashboard (no profile) — "Profile incomplete" banner shown
- * CD.3  /contractor/dashboard (with profile) — profile name shown in header
+ * CD.1  /contractor-dashboard — "Contractor Dashboard" heading
+ * CD.2  /contractor-dashboard (no profile) — "Profile incomplete" banner shown
+ * CD.3  /contractor-dashboard (with profile) — profile name shown in header
  *
  * All tests use window.__e2e_* injection — no canister required.
  */
@@ -115,23 +115,23 @@ test.describe("CB — /contractors browse page", () => {
   });
 });
 
-// ── CD — /contractor/dashboard ────────────────────────────────────────────────
+// ── CD — /contractor-dashboard ────────────────────────────────────────────────
 
-test.describe("CD — /contractor/dashboard", () => {
+test.describe("CD — /contractor-dashboard", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
   });
 
   // CD.1
   test("shows 'Contractor Dashboard' heading", async ({ page }) => {
-    await page.goto("/contractor/dashboard");
+    await page.goto("/contractor-dashboard");
     await expect(page.getByRole("heading", { name: /contractor dashboard/i })).toBeVisible();
   });
 
   // CD.2 — no profile injected → setup banner
   test("shows 'Profile incomplete' banner when no profile is set", async ({ page }) => {
     // No __e2e_contractors injection → getMyProfile() returns null → banner shown
-    await page.goto("/contractor/dashboard");
+    await page.goto("/contractor-dashboard");
     await expect(page.getByText(/profile incomplete/i)).toBeVisible();
     await expect(page.getByRole("button", { name: /set up now/i })).toBeVisible();
   });
@@ -139,7 +139,7 @@ test.describe("CD — /contractor/dashboard", () => {
   // CD.3 — profile injected → name shown
   test("shows contractor name in header when profile is injected", async ({ page }) => {
     await injectContractors(page, [CONTRACTORS[0]]);
-    await page.goto("/contractor/dashboard");
+    await page.goto("/contractor-dashboard");
     await expect(page.getByText("Cool Air Services")).toBeVisible();
   });
 });

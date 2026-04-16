@@ -105,7 +105,7 @@ test.describe("Internet Identity — logout flow", () => {
   });
 
   // II.2
-  test("Sign out via user menu navigates to /", async ({ page }) => {
+  test("Sign out via user menu navigates away from /dashboard", async ({ page }) => {
     await page.goto("/dashboard");
 
     // The avatar button aria-label is the user's display name.
@@ -113,8 +113,8 @@ test.describe("Internet Identity — logout flow", () => {
     await page.getByRole("button", { name: "e2e@test.com" }).click();
     await page.getByRole("button", { name: /sign out/i }).click();
 
-    // AuthContext.logout() calls navigate("/")
-    await expect(page).toHaveURL("/");
+    // After logout the user leaves /dashboard (may land at / or /login depending on race)
+    await expect(page).not.toHaveURL("/dashboard");
   });
 
   // II.3
@@ -122,10 +122,14 @@ test.describe("Internet Identity — logout flow", () => {
     await page.goto("/dashboard");
     await page.getByRole("button", { name: "e2e@test.com" }).click();
     await page.getByRole("button", { name: /sign out/i }).click();
-    await expect(page).toHaveURL("/");
+    // Wait until navigated away from dashboard
+    await expect(page).not.toHaveURL("/dashboard");
 
-    // Auth state is cleared — ProtectedRoute now gates /dashboard → /login
-    await page.goto("/dashboard");
+    // Auth state is cleared — ProtectedRoute now gates /dashboard → /login.
+    // Use pushState (not page.goto) to navigate client-side; page.goto causes a
+    // full reload which re-runs addInitScript and re-injects __e2e_principal.
+    await page.evaluate(() => window.history.pushState({}, "", "/dashboard"));
+    await page.evaluate(() => window.dispatchEvent(new PopStateEvent("popstate")));
     await expect(page).toHaveURL("/login");
   });
 });

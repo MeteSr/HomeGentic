@@ -92,23 +92,28 @@ describe("ResponsiveGrid — tablet breakpoint (768px)", () => {
 // ── Dashboard pages at tablet width ──────────────────────────────────────────
 
 describe("DashboardPage — renders at tablet width (768px)", () => {
-  it("renders without crashing at 768px", () => {
+  it("renders without crashing at 768px", async () => {
     mockMatchMedia(768);
-    render(
-      <MemoryRouter initialEntries={["/dashboard"]}>
-        <Routes><Route path="/dashboard" element={<DashboardPage />} /></Routes>
-      </MemoryRouter>
-    );
+    await act(async () => {
+      render(
+        <MemoryRouter initialEntries={["/dashboard"]}>
+          <Routes><Route path="/dashboard" element={<DashboardPage />} /></Routes>
+        </MemoryRouter>
+      );
+    });
     expect(document.body).toBeTruthy();
   });
 
-  it("does not use 5-col grid at tablet (3-col via ResponsiveGrid)", () => {
+  it("does not use 5-col grid at tablet (3-col via ResponsiveGrid)", async () => {
     mockMatchMedia(768);
-    const { container } = render(
-      <MemoryRouter initialEntries={["/dashboard"]}>
-        <Routes><Route path="/dashboard" element={<DashboardPage />} /></Routes>
-      </MemoryRouter>
-    );
+    let container!: HTMLElement;
+    await act(async () => {
+      ({ container } = render(
+        <MemoryRouter initialEntries={["/dashboard"]}>
+          <Routes><Route path="/dashboard" element={<DashboardPage />} /></Routes>
+        </MemoryRouter>
+      ));
+    });
     const allDivs = Array.from(container.querySelectorAll("[style]")) as HTMLElement[];
     const fiveCol = allDivs.find((el) =>
       el.style.gridTemplateColumns?.replace(/\s/g, "") === "repeat(5,1fr)"
@@ -118,23 +123,28 @@ describe("DashboardPage — renders at tablet width (768px)", () => {
 });
 
 describe("ContractorDashboardPage — renders at tablet width (768px)", () => {
-  it("renders without crashing at 768px", () => {
+  it("renders without crashing at 768px", async () => {
     mockMatchMedia(768);
-    render(
-      <MemoryRouter initialEntries={["/contractor-dashboard"]}>
-        <Routes><Route path="/contractor-dashboard" element={<ContractorDashboardPage />} /></Routes>
-      </MemoryRouter>
-    );
+    await act(async () => {
+      render(
+        <MemoryRouter initialEntries={["/contractor-dashboard"]}>
+          <Routes><Route path="/contractor-dashboard" element={<ContractorDashboardPage />} /></Routes>
+        </MemoryRouter>
+      );
+    });
     expect(document.body).toBeTruthy();
   });
 
-  it("does not use 7-col grid at tablet (4-col via ResponsiveGrid)", () => {
+  it("does not use 7-col grid at tablet (4-col via ResponsiveGrid)", async () => {
     mockMatchMedia(768);
-    const { container } = render(
-      <MemoryRouter initialEntries={["/contractor-dashboard"]}>
-        <Routes><Route path="/contractor-dashboard" element={<ContractorDashboardPage />} /></Routes>
-      </MemoryRouter>
-    );
+    let container!: HTMLElement;
+    await act(async () => {
+      ({ container } = render(
+        <MemoryRouter initialEntries={["/contractor-dashboard"]}>
+          <Routes><Route path="/contractor-dashboard" element={<ContractorDashboardPage />} /></Routes>
+        </MemoryRouter>
+      ));
+    });
     const allDivs = Array.from(container.querySelectorAll("[style]")) as HTMLElement[];
     const sevenCol = allDivs.find((el) =>
       el.style.gridTemplateColumns?.replace(/\s/g, "") === "repeat(7,1fr)"

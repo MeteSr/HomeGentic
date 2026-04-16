@@ -8,9 +8,7 @@ const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
-  rust:     COLORS.sage,
   inkLight: COLORS.plumMid,
-  sage:     COLORS.sage,
   mono:     FONTS.mono,
 };
 

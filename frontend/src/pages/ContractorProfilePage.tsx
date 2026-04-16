@@ -7,6 +7,7 @@ import { contractorService, ContractorProfile } from "@/services/contractor";
 import toast from "react-hot-toast";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 import { isValidEmail, isValidPhone } from "@/utils/validators";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
 
 const UI = {
   ink:      COLORS.plum,
@@ -80,6 +81,7 @@ function toggleTrade(specialties: string[], trade: string): string[] {
 
 export default function ContractorProfilePage() {
   const navigate = useNavigate();
+  const { isMobile } = useBreakpoint();
   const [existing, setExisting] = useState<ContractorProfile | null>(null);
   const [form,     setForm]     = useState<FormState>(EMPTY);
   const [loading,  setLoading]  = useState(true);
@@ -285,7 +287,7 @@ export default function ContractorProfilePage() {
                 )}
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "1rem" }}>
                 <div>
                   <label className="form-label">Email *</label>
                   <input
@@ -324,7 +326,7 @@ export default function ContractorProfilePage() {
               Credentials
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "1rem" }}>
                 <div>
                   <label className="form-label">License Number</label>
                   <input

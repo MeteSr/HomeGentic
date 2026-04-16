@@ -142,8 +142,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     await iiLogout();
+    navigate("/");   // navigate before clearing so ProtectedRoute doesn't race-redirect to /login
     clearAuth();
-    navigate("/");
   };
 
   return (

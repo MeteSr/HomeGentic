@@ -1,7 +1,7 @@
 /**
  * MOB.4 — FsboListingPage mobile audit
  */
-import { render, screen } from "@testing-library/react";
+import { render, act, screen } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import React from "react";
 
@@ -29,45 +29,53 @@ beforeAll(async () => {
   ShowingRequestForm = mod.ShowingRequestForm;
 });
 
-function renderFsbo(width: number) {
+async function renderFsbo(width: number) {
   mockMatchMedia(width);
-  return render(
-    <MemoryRouter initialEntries={["/for-sale/1"]}>
-      <Routes><Route path="/for-sale/:propertyId" element={<FsboListingPage />} /></Routes>
-    </MemoryRouter>
-  );
+  let result!: ReturnType<typeof render>;
+  await act(async () => {
+    result = render(
+      <MemoryRouter initialEntries={["/for-sale/1"]}>
+        <Routes><Route path="/for-sale/:propertyId" element={<FsboListingPage />} /></Routes>
+      </MemoryRouter>
+    );
+  });
+  return result;
 }
 
-function renderForm(width: number) {
+async function renderForm(width: number) {
   mockMatchMedia(width);
-  return render(<ShowingRequestForm propertyId="1" />);
+  let result!: ReturnType<typeof render>;
+  await act(async () => {
+    result = render(<ShowingRequestForm propertyId="1" />);
+  });
+  return result;
 }
 
 // ── Loading state renders ─────────────────────────────────────────────────────
 
 describe("FsboListingPage — renders on both viewports", () => {
-  it("renders loading state on desktop without crashing", () => {
-    renderFsbo(1280);
-    expect(document.body).toBeTruthy();
+  it("renders loading state on desktop without crashing", async () => {
+    const { container } = await renderFsbo(1280);
+    expect(container.firstChild).not.toBeNull();
   });
 
-  it("renders loading state on mobile without crashing", () => {
-    renderFsbo(390);
-    expect(document.body).toBeTruthy();
+  it("renders loading state on mobile without crashing", async () => {
+    const { container } = await renderFsbo(390);
+    expect(container.firstChild).not.toBeNull();
   });
 });
 
 // ── Showing request form submit button ────────────────────────────────────────
 
 describe("ShowingRequestForm — submit button", () => {
-  it("submit button is full-width on mobile", () => {
-    const { container } = renderForm(390);
+  it("submit button is full-width on mobile", async () => {
+    const { container } = await renderForm(390);
     const btn = container.querySelector("button[type='submit']") as HTMLElement;
     expect(btn.style.alignSelf === "stretch" || btn.style.width === "100%").toBe(true);
   });
 
-  it("submit button is not full-width on desktop", () => {
-    const { container } = renderForm(1280);
+  it("submit button is not full-width on desktop", async () => {
+    const { container } = await renderForm(1280);
     const btn = container.querySelector("button[type='submit']") as HTMLElement;
     expect(btn.style.alignSelf).not.toBe("stretch");
     expect(btn.style.width).not.toBe("100%");
@@ -77,49 +85,47 @@ describe("ShowingRequestForm — submit button", () => {
 // ── Outer container padding ───────────────────────────────────────────────────
 
 describe("FsboListingPage — outer padding", () => {
-  it("uses 2rem top padding on desktop", () => {
-    const { container } = renderFsbo(1280);
+  it("uses 2rem top padding on desktop", async () => {
+    const { container } = await renderFsbo(1280);
     const outer = container.querySelector("[style*='max-width']") as HTMLElement | null;
-    if (outer) {
-      expect(outer.style.padding).toMatch(/2rem/);
-    }
+    expect(outer).not.toBeNull();
+    expect(outer!.style.padding).toMatch(/2rem/);
   });
 
-  it("uses reduced top padding on mobile", () => {
-    const { container } = renderFsbo(390);
+  it("uses reduced top padding on mobile", async () => {
+    const { container } = await renderFsbo(390);
     const outer = container.querySelector("[style*='max-width']") as HTMLElement | null;
-    if (outer) {
-      expect(outer.style.padding).not.toMatch(/^2rem/);
-    }
+    expect(outer).not.toBeNull();
+    expect(outer!.style.padding).not.toMatch(/^2rem/);
   });
 });
 
 // ── Photo hero ────────────────────────────────────────────────────────────────
 
 describe("FsboListingPage — photo hero", () => {
-  it("hero container exists", () => {
-    renderFsbo(390);
-    expect(document.body).toBeTruthy();
+  it("hero container exists", async () => {
+    const { container } = await renderFsbo(390);
+    expect(container.firstChild).not.toBeNull();
   });
 });
 
 // ── Showing request form inputs ───────────────────────────────────────────────
 
 describe("ShowingRequestForm — input width", () => {
-  it("name input is full-width", () => {
-    const { container } = renderForm(390);
+  it("name input is full-width", async () => {
+    const { container } = await renderForm(390);
     const input = container.querySelector("#sr-name") as HTMLInputElement;
     expect(input.style.width).toBe("100%");
   });
 
-  it("contact input is full-width", () => {
-    const { container } = renderForm(390);
+  it("contact input is full-width", async () => {
+    const { container } = await renderForm(390);
     const input = container.querySelector("#sr-contact") as HTMLInputElement;
     expect(input.style.width).toBe("100%");
   });
 
-  it("time input is full-width", () => {
-    const { container } = renderForm(390);
+  it("time input is full-width", async () => {
+    const { container } = await renderForm(390);
     const input = container.querySelector("#sr-time") as HTMLInputElement;
     expect(input.style.width).toBe("100%");
   });
@@ -128,23 +134,23 @@ describe("ShowingRequestForm — input width", () => {
 // ── Form renders correct labels ───────────────────────────────────────────────
 
 describe("ShowingRequestForm — labels", () => {
-  it("shows Your Name label", () => {
-    renderForm(390);
+  it("shows Your Name label", async () => {
+    await renderForm(390);
     expect(screen.getByText(/your name/i)).toBeInTheDocument();
   });
 
-  it("shows Email or Phone label", () => {
-    renderForm(390);
+  it("shows Email or Phone label", async () => {
+    await renderForm(390);
     expect(screen.getByText(/email or phone/i)).toBeInTheDocument();
   });
 
-  it("shows Preferred Showing Time label", () => {
-    renderForm(390);
+  it("shows Preferred Showing Time label", async () => {
+    await renderForm(390);
     expect(screen.getByText(/preferred showing time/i)).toBeInTheDocument();
   });
 
-  it("shows submit button text", () => {
-    renderForm(390);
+  it("shows submit button text", async () => {
+    await renderForm(390);
     expect(screen.getByRole("button", { name: /request a showing/i })).toBeInTheDocument();
   });
 });

@@ -81,6 +81,7 @@ const CSS = `
     font-weight: 900; line-height: 1.05; letter-spacing: -2px; margin-bottom: 18px;
   }
   .dm h1 em { font-style: italic; color: var(--sage); font-weight: 300; }
+  .dm h1 span { color: var(--sage); font-style: italic; font-weight: 300; }
   .dm-hero-sub {
     font-size: 18px; line-height: 1.7; color: var(--plum-mid); margin-bottom: 48px;
   }
@@ -1074,6 +1075,36 @@ function AIHomeownerCard() {
   );
 }
 
+function AIAddRoomCard() {
+  return (
+    <AIChatCard>
+      <div>
+        <div className="dm-bubble-label dm-bubble-label-user">You</div>
+        <div className="dm-bubble dm-bubble-user" style={{ marginLeft: "auto" }}>
+          "Add a master bathroom to my property — tile floors, Alabaster white paint by Sherwin-Williams."
+        </div>
+      </div>
+      <div>
+        <div className="dm-bubble-label dm-bubble-label-ai">HomeGentic AI</div>
+        <div className="dm-bubble dm-bubble-ai">
+          Done — <strong>Master Bathroom</strong> has been added to <strong>412 Maple Drive</strong>. I've recorded <strong>tile floors</strong> and <strong>Alabaster White (SW 7008)</strong> by Sherwin-Williams. You can add fixtures like your vanity, toilet, or shower from the property page.
+        </div>
+      </div>
+      <div className="dm-ai-actions">
+        <div className="dm-ai-action dm-ai-action-default">
+          <span className="dm-ai-action-icon">🚿</span> Add fixtures to Master Bathroom
+        </div>
+        <div className="dm-ai-action dm-ai-action-primary">
+          <span className="dm-ai-action-icon">🏠</span> Add another room
+        </div>
+        <div className="dm-ai-action dm-ai-action-cta">
+          View Property Rooms <ArrowRight size={13} style={{ marginLeft: 6 }} />
+        </div>
+      </div>
+    </AIChatCard>
+  );
+}
+
 function AIContractorCard() {
   return (
     <AIChatCard>
@@ -1181,6 +1212,12 @@ const HOMEOWNER_SLIDES: Slide[] = [
     title: "Describe Any Issue — AI Handles the Rest",
     subtitle: "AI-Powered Home Assistant",
     mockup: <AIHomeownerCard />,
+  },
+  {
+    icon: <Home size={26} />,
+    title: "Add Rooms by Just Asking",
+    subtitle: "AI Room & Fixture Tracking",
+    mockup: <AIAddRoomCard />,
   },
   {
     icon: <TrendingUp size={26} />,
@@ -1441,9 +1478,7 @@ export default function DemoPage() {
       {/* Nav */}
       <nav className="dm-nav">
         <Link to="/" className="dm-logo">Home<span>Gentic</span></Link>
-        <Link to="/" className="dm-nav-back">
-          <ChevronLeft size={16} /> Back to Home
-        </Link>
+
         <Link to="/login" className="dm-nav-cta">
           Get Started <ArrowRight size={15} />
         </Link>
@@ -1451,11 +1486,7 @@ export default function DemoPage() {
 
       {/* Hero */}
       <section className="dm-hero">
-        <div className="dm-eyebrow">
-          <div className="dm-eyebrow-dot" />
-          Interactive Demo
-        </div>
-        <h1>See HomeGentic<br /><em>in action.</em></h1>
+<h1>See Home<span>Gentic</span><br /><em>in action.</em></h1>
       </section>
 
       {/* Persona Tabs */}

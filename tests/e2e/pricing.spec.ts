@@ -53,7 +53,7 @@ test.describe("PricingPage — /pricing", () => {
 
   test("shows ContractorPro plan card in contractor view", async ({ page }) => {
     await page.getByRole("button", { name: /contractor/i }).click();
-    await expect(page.getByText("ContractorPro")).toBeVisible();
+    await expect(page.getByText("Contractor Pro", { exact: true })).toBeVisible();
   });
 
   // ── Feature comparison table ──────────────────────────────────────────────
@@ -78,18 +78,18 @@ test.describe("PricingPage — /pricing", () => {
     await expect(page.getByText("Insurance Defense Mode").first()).toBeVisible();
   });
 
-  // ── FAQs ──────────────────────────────────────────────────────────────────
+  // ── Page copy ─────────────────────────────────────────────────────────────
 
-  test("shows FAQ section", async ({ page }) => {
-    await expect(page.getByText(/How does blockchain verification work/i)).toBeVisible();
+  test("shows pricing tagline", async ({ page }) => {
+    await expect(page.getByText(/Simple, transparent pricing/i)).toBeVisible();
   });
 
-  test("shows ICP FAQ question", async ({ page }) => {
-    await expect(page.getByText(/What is ICP/i)).toBeVisible();
+  test("shows gift callout for realtors", async ({ page }) => {
+    await expect(page.getByText(/Gifting for a client/i)).toBeVisible();
   });
 
-  test("shows cancel anytime FAQ", async ({ page }) => {
-    await expect(page.getByText(/Can I cancel anytime/i)).toBeVisible();
+  test("shows cancel anytime copy", async ({ page }) => {
+    await expect(page.getByText(/Cancel anytime/i)).toBeVisible();
   });
 
   // ── CTA navigation ────────────────────────────────────────────────────────

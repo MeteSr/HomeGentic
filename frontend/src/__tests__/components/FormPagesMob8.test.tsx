@@ -3,7 +3,7 @@
  * JobCreatePage, QuoteRequestPage, PropertyRegisterPage,
  * ContractorProfilePage, SettingsPage
  */
-import { render } from "@testing-library/react";
+import { render, act } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import React from "react";
 
@@ -36,13 +36,17 @@ beforeAll(async () => {
   SettingsPage          = (await import("@/pages/SettingsPage")).default;
 });
 
-function renderPage(Page: React.ComponentType, path: string, width: number) {
+async function renderPage(Page: React.ComponentType, path: string, width: number) {
   mockMatchMedia(width);
-  return render(
-    <MemoryRouter initialEntries={[path]}>
-      <Routes><Route path={path} element={<Page />} /></Routes>
-    </MemoryRouter>
-  );
+  let result!: ReturnType<typeof render>;
+  await act(async () => {
+    result = render(
+      <MemoryRouter initialEntries={[path]}>
+        <Routes><Route path={path} element={<Page />} /></Routes>
+      </MemoryRouter>
+    );
+  });
+  return result;
 }
 
 // ── Helper: check no bare 1fr 1fr two-column grid exists ─────────────────────
@@ -57,18 +61,18 @@ function hasBare2ColGrid(container: HTMLElement): boolean {
 // ── JobCreatePage ─────────────────────────────────────────────────────────────
 
 describe("JobCreatePage — mobile layout", () => {
-  it("renders without crashing on mobile", () => {
-    renderPage(JobCreatePage, "/jobs/new", 390);
-    expect(document.body).toBeTruthy();
+  it("renders without crashing on mobile", async () => {
+    const { container } = await renderPage(JobCreatePage, "/jobs/new", 390);
+    expect(container.firstChild).not.toBeNull();
   });
 
-  it("renders without crashing on desktop", () => {
-    renderPage(JobCreatePage, "/jobs/new", 1280);
-    expect(document.body).toBeTruthy();
+  it("renders without crashing on desktop", async () => {
+    const { container } = await renderPage(JobCreatePage, "/jobs/new", 1280);
+    expect(container.firstChild).not.toBeNull();
   });
 
-  it("does NOT use bare 1fr 1fr grid on mobile", () => {
-    const { container } = renderPage(JobCreatePage, "/jobs/new", 390);
+  it("does NOT use bare 1fr 1fr grid on mobile", async () => {
+    const { container } = await renderPage(JobCreatePage, "/jobs/new", 390);
     expect(hasBare2ColGrid(container)).toBe(false);
   });
 });
@@ -76,13 +80,13 @@ describe("JobCreatePage — mobile layout", () => {
 // ── QuoteRequestPage ──────────────────────────────────────────────────────────
 
 describe("QuoteRequestPage — mobile layout", () => {
-  it("renders without crashing on mobile", () => {
-    renderPage(QuoteRequestPage, "/quotes/new", 390);
-    expect(document.body).toBeTruthy();
+  it("renders without crashing on mobile", async () => {
+    const { container } = await renderPage(QuoteRequestPage, "/quotes/new", 390);
+    expect(container.firstChild).not.toBeNull();
   });
 
-  it("does NOT use bare 1fr 1fr grid on mobile", () => {
-    const { container } = renderPage(QuoteRequestPage, "/quotes/new", 390);
+  it("does NOT use bare 1fr 1fr grid on mobile", async () => {
+    const { container } = await renderPage(QuoteRequestPage, "/quotes/new", 390);
     expect(hasBare2ColGrid(container)).toBe(false);
   });
 });
@@ -90,13 +94,13 @@ describe("QuoteRequestPage — mobile layout", () => {
 // ── PropertyRegisterPage ──────────────────────────────────────────────────────
 
 describe("PropertyRegisterPage — mobile layout", () => {
-  it("renders without crashing on mobile", () => {
-    renderPage(PropertyRegisterPage, "/properties/new", 390);
-    expect(document.body).toBeTruthy();
+  it("renders without crashing on mobile", async () => {
+    const { container } = await renderPage(PropertyRegisterPage, "/properties/new", 390);
+    expect(container.firstChild).not.toBeNull();
   });
 
-  it("does NOT use bare 1fr 1fr grid on mobile", () => {
-    const { container } = renderPage(PropertyRegisterPage, "/properties/new", 390);
+  it("does NOT use bare 1fr 1fr grid on mobile", async () => {
+    const { container } = await renderPage(PropertyRegisterPage, "/properties/new", 390);
     expect(hasBare2ColGrid(container)).toBe(false);
   });
 });
@@ -104,13 +108,13 @@ describe("PropertyRegisterPage — mobile layout", () => {
 // ── ContractorProfilePage ─────────────────────────────────────────────────────
 
 describe("ContractorProfilePage — mobile layout", () => {
-  it("renders without crashing on mobile", () => {
-    renderPage(ContractorProfilePage, "/contractor-profile", 390);
-    expect(document.body).toBeTruthy();
+  it("renders without crashing on mobile", async () => {
+    const { container } = await renderPage(ContractorProfilePage, "/contractor-profile", 390);
+    expect(container.firstChild).not.toBeNull();
   });
 
-  it("does NOT use bare 1fr 1fr grid on mobile", () => {
-    const { container } = renderPage(ContractorProfilePage, "/contractor-profile", 390);
+  it("does NOT use bare 1fr 1fr grid on mobile", async () => {
+    const { container } = await renderPage(ContractorProfilePage, "/contractor-profile", 390);
     expect(hasBare2ColGrid(container)).toBe(false);
   });
 });
@@ -118,20 +122,20 @@ describe("ContractorProfilePage — mobile layout", () => {
 // ── SettingsPage ──────────────────────────────────────────────────────────────
 
 describe("SettingsPage — sidebar", () => {
-  it("renders without crashing on mobile", () => {
-    renderPage(SettingsPage, "/settings", 390);
-    expect(document.body).toBeTruthy();
+  it("renders without crashing on mobile", async () => {
+    const { container } = await renderPage(SettingsPage, "/settings", 390);
+    expect(container.firstChild).not.toBeNull();
   });
 
-  it("does NOT use fixed 12rem sidebar on mobile", () => {
-    const { container } = renderPage(SettingsPage, "/settings", 390);
+  it("does NOT use fixed 12rem sidebar on mobile", async () => {
+    const { container } = await renderPage(SettingsPage, "/settings", 390);
     const allDivs = Array.from(container.querySelectorAll("[style]")) as HTMLElement[];
     const fixedSidebar = allDivs.find((el) => el.style.width === "12rem");
     expect(fixedSidebar).toBeUndefined();
   });
 
-  it("uses fixed 12rem sidebar on desktop", () => {
-    const { container } = renderPage(SettingsPage, "/settings", 1280);
+  it("uses fixed 12rem sidebar on desktop", async () => {
+    const { container } = await renderPage(SettingsPage, "/settings", 1280);
     const allDivs = Array.from(container.querySelectorAll("[style]")) as HTMLElement[];
     const fixedSidebar = allDivs.find((el) => el.style.width === "12rem");
     expect(fixedSidebar).toBeDefined();

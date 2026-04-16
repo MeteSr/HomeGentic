@@ -59,7 +59,7 @@ jobs:
         # build is already verified in the test-frontend job.
         # jq is pre-installed on all GitHub-hosted runners.
         run: |
-          jq -r '.canisters | to_entries[] | select(.value.type != "assets") | .key' dfx.json | \
+          jq -r '.canisters | to_entries[] | select(.value.type != "assets" and .value.type != "pull") | .key' dfx.json | \
           while read -r canister; do dfx build "$canister" || exit 1; done
 
   test-backend:

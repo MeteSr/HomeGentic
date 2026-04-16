@@ -76,9 +76,9 @@ test.describe("DashboardPage — /dashboard", () => {
     await expect(page.getByText("Overview")).toBeVisible();
   });
 
-  test("shows the principal truncated in the subheading", async ({ page }) => {
-    // "test-e2e-principal".slice(0,16) = "test-e2e-princip"
-    await expect(page.getByText(/test-e2e-princip/)).toBeVisible();
+  test("shows the user email in the dashboard subheading", async ({ page }) => {
+    // injectTestAuth sets email = "e2e@test.com", shown below the Dashboard heading
+    await expect(page.getByRole("main").getByText("e2e@test.com")).toBeVisible();
   });
 
   // ── Stats panel ─────────────────────────────────────────────────────────────

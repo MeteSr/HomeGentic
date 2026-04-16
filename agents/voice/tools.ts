@@ -658,6 +658,51 @@ After calling this tool, say: "Done — your proposal has been sent to the homeo
   },
 
   {
+    name: "add_room",
+    description: `Add a room to a property so it can be tracked with fixtures, flooring, and paint details.
+
+Use this when the user says "add a room", "add a bathroom", "log my kitchen", etc.
+
+Only room name and property ID are required — all other fields are optional. Ask for flooring type and paint details only if the user volunteers them; don't interrogate.
+
+After adding: "Done — I've added [room name] to your property. You can add fixtures and more details from the property page."`,
+    parameters: {
+      type: "object" as const,
+      properties: {
+        property_id: {
+          type: "string",
+          description: "The ID of the property to add the room to",
+        },
+        room_name: {
+          type: "string",
+          description: "Name of the room, e.g. 'Master Bathroom', 'Kitchen', 'Living Room'",
+        },
+        floor_type: {
+          type: "string",
+          description: "Flooring material, e.g. 'Hardwood', 'Tile', 'Carpet'. Omit if unknown.",
+        },
+        paint_color: {
+          type: "string",
+          description: "Paint color name, e.g. 'Agreeable Gray'. Omit if unknown.",
+        },
+        paint_brand: {
+          type: "string",
+          description: "Paint brand, e.g. 'Sherwin-Williams'. Omit if unknown.",
+        },
+        paint_code: {
+          type: "string",
+          description: "Paint color code, e.g. 'SW 7029'. Omit if unknown.",
+        },
+        notes: {
+          type: "string",
+          description: "Any additional notes about the room. Omit if none.",
+        },
+      },
+      required: ["property_id", "room_name"],
+    },
+  },
+
+  {
     name: "get_price_benchmark",
     description: `Look up the typical price range for a home service in a specific zip code.
 
