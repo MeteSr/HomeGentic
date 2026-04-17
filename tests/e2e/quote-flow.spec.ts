@@ -63,7 +63,7 @@ test.describe("QF — /quotes/new form", () => {
   test("shows 'Request a Quote' heading and property selector", async ({ page }) => {
     await page.goto("/quotes/new");
     await expect(page.getByRole("heading", { name: /request a quote/i })).toBeVisible();
-    await expect(page.getByLabel(/property/i)).toBeVisible();
+    await expect(page.locator("select#property")).toBeVisible();
   });
 
   // QF.1 — service-type selector present
@@ -214,6 +214,7 @@ test.describe("QF — open-quote tier limit", () => {
 
   // QF.6 — Free tier: 3 open requests → button disabled
   test("Free tier: submit button disabled and shows 'Quote limit reached' at 3 open requests", async ({ page }) => {
+    await injectSubscription(page, "Free");
     const threeOpen = Array.from({ length: 3 }, (_, i) => ({
       id:          `E2E_FREE_${i}`,
       propertyId:  "1",
@@ -233,6 +234,7 @@ test.describe("QF — open-quote tier limit", () => {
 
   // QF.6 — Free tier: 2 open requests → button still enabled
   test("Free tier: submit button enabled with 2 open requests (below limit of 3)", async ({ page }) => {
+    await injectSubscription(page, "Free");
     const twoOpen = Array.from({ length: 2 }, (_, i) => ({
       id:          `E2E_FREE_${i}`,
       propertyId:  "1",

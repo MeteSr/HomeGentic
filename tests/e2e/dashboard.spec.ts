@@ -6,6 +6,8 @@ import { injectTestAuth } from "./helpers/auth";
 async function setup(page: Parameters<typeof injectTestAuth>[0]) {
   await injectTestAuth(page);
   await page.addInitScript(() => {
+    // Pro tier so 2 properties don't hit the property limit (Pro allows 5)
+    (window as any).__e2e_subscription = { tier: "Pro", expiresAt: null };
     (window as any).__e2e_properties = [
       {
         id: 1, owner: "test-e2e-principal",

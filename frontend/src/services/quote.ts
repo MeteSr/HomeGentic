@@ -270,7 +270,7 @@ function createQuoteService() {
   async getRequests(): Promise<QuoteRequest[]> {
     if (!QUOTE_CANISTER_ID) {
       // E2E override: replace seed data with injected fixture requests
-      const e2e = import.meta.env.DEV && typeof window !== "undefined" && (window as any).__e2e_quote_requests;
+      const e2e = typeof window !== "undefined" && (window as any).__e2e_quote_requests;
       return e2e ? (e2e as QuoteRequest[]) : [...mockRequests];
     }
     const a = await getActor();

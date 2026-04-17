@@ -65,7 +65,11 @@ export async function loginWithLocalIdentity(): Promise<string> {
   // Fetch the local replica's root key so canister calls can be verified.
   // When no replica is running (e.g. mock-mode E2E without deploy), this fails
   // gracefully — all service calls will fall back to their mock implementations.
-  await _agent.fetchRootKey().catch((err: unknown) => {
+  // 2-second timeout prevents hanging when port 4943 is firewalled (common in CI).
+  await Promise.race([
+    _agent.fetchRootKey(),
+    new Promise<void>((_, reject) => setTimeout(() => reject(new Error("fetchRootKey timeout")), 2000)),
+  ]).catch((err: unknown) => {
     console.warn("[actor] fetchRootKey failed — running in mock mode (no replica):", err);
   });
   return identity.getPrincipal().toText();
