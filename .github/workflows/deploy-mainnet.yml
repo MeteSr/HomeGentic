@@ -19,11 +19,11 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: package-lock.json
       - name: Install mops
         run: npm install -g ic-mops
-      - name: Install frontend deps
-        run: npm ci --prefix frontend
+      - name: Install Node dependencies
+        run: npm ci
       - name: Deploy to mainnet
         # Network is a positional arg ($1); --network ic would set NETWORK="--network"
         # and silently deploy to local. Must be: bash scripts/deploy.sh ic
