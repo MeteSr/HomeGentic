@@ -272,27 +272,61 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div style={{ flex: 1, paddingTop: "0.375rem", overflowY: "auto", overflowX: "hidden" }}>
           {/* Add property button — sits just below the toggle, mirrors Claude's sidebar */}
           {isHomeowner && (
-            <button
-              title="Add property"
-              onClick={() => {
-                if (atPropertyLimit && userTier !== "Premium") {
-                  setUpgradeOpen(true);
-                } else {
-                  navigate("/properties/new");
-                }
-              }}
-              style={{
-                ...itemBase(),
-                width:   "100%",
-                border:  "none",
-                cursor:  "pointer",
-              }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = COLORS.plum; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = COLORS.plumMid; }}
-            >
-              <Plus size={17} style={{ flexShrink: 0 }} />
-              {sidebarOpen && <span style={labelStyle}>Add property</span>}
-            </button>
+            <div style={{ position: "relative" }}>
+              <button
+                onClick={() => {
+                  if (atPropertyLimit && userTier !== "Premium") {
+                    setUpgradeOpen(true);
+                  } else {
+                    navigate("/properties/new");
+                  }
+                }}
+                style={{
+                  ...itemBase(),
+                  width:   "100%",
+                  border:  "none",
+                  cursor:  "pointer",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.color = COLORS.plum;
+                  (e.currentTarget.parentElement!.querySelector(".add-prop-tip") as HTMLElement | null)
+                    ?.style.setProperty("opacity", "1");
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.color = COLORS.plumMid;
+                  (e.currentTarget.parentElement!.querySelector(".add-prop-tip") as HTMLElement | null)
+                    ?.style.setProperty("opacity", "0");
+                }}
+              >
+                <Plus size={17} style={{ flexShrink: 0 }} />
+                {sidebarOpen && <span style={labelStyle}>Add property</span>}
+              </button>
+              {!sidebarOpen && (
+                <div
+                  className="add-prop-tip"
+                  style={{
+                    position:      "absolute",
+                    left:          "calc(100% + 10px)",
+                    top:           "50%",
+                    transform:     "translateY(-50%)",
+                    background:    "#000",
+                    color:         "#fff",
+                    padding:       "4px 10px",
+                    borderRadius:  "6px",
+                    fontSize:      "0.75rem",
+                    fontFamily:    FONTS.sans,
+                    fontWeight:    500,
+                    whiteSpace:    "nowrap",
+                    pointerEvents: "none",
+                    opacity:       0,
+                    transition:    "opacity 0.12s",
+                    zIndex:        200,
+                  }}
+                >
+                  Add property
+                </div>
+              )}
+            </div>
           )}
           {navLinks.map((link) => {
             const active = isActive(link);
