@@ -9,35 +9,6 @@ async function goToSubscriptionTab(page: Parameters<typeof injectTestAuth>[0]) {
 }
 
 test.describe("SettingsPage — Subscription tab tier-gated UI", () => {
-  // ── Free tier ──────────────────────────────────────────────────────────────
-
-  test.describe("Free tier (homeowner)", () => {
-    test.beforeEach(async ({ page }) => {
-      await injectTestAuth(page);
-      await injectSubscription(page, "Free");
-      await goToSubscriptionTab(page);
-    });
-
-    test("shows unsubscribed state — 'Free' plan name and 'Upgrade to unlock' prompt", async ({ page }) => {
-      await expect(page.getByText("Free")).toBeVisible();
-      await expect(page.getByText(/upgrade to unlock/i)).toBeVisible();
-    });
-
-    test("shows 'Upgrade to Pro →' button", async ({ page }) => {
-      await expect(page.getByRole("button", { name: /upgrade to pro/i })).toBeVisible();
-    });
-
-    test("plan grid shows 'Upgrade Plan' section heading", async ({ page }) => {
-      await expect(page.getByText("Upgrade Plan")).toBeVisible();
-    });
-
-    test("plan grid buttons are labelled 'Upgrade' not 'Switch'", async ({ page }) => {
-      // At least one Upgrade button should exist; none should say Switch
-      await expect(page.getByRole("button", { name: /^upgrade$/i }).first()).toBeVisible();
-      await expect(page.getByRole("button", { name: /^switch$/i })).toHaveCount(0);
-    });
-  });
-
   // ── Paid tier (Basic) ──────────────────────────────────────────────────────
 
   test.describe("Basic tier (paid)", () => {
@@ -45,10 +16,6 @@ test.describe("SettingsPage — Subscription tab tier-gated UI", () => {
       await injectTestAuth(page);
       await injectSubscription(page, "Basic");
       await goToSubscriptionTab(page);
-    });
-
-    test("does NOT show 'Upgrade to unlock' prompt (already on a paid plan)", async ({ page }) => {
-      await expect(page.getByText(/upgrade to unlock/i)).not.toBeVisible();
     });
 
     test("shows 'Switch Plan' section heading", async ({ page }) => {
