@@ -43,8 +43,14 @@ function makeJob(serviceType: string, dateStr: string, overrides: Partial<Job> =
 // ─── Output shape ─────────────────────────────────────────────────────────────
 
 describe("predictMaintenance — output shape", () => {
-  it("returns exactly 9 system predictions", () => {
-    expect(predictMaintenance(2000, []).systemPredictions).toHaveLength(9);
+  it("returns exactly 8 system predictions by default (Solar Panels excluded unless opted in)", () => {
+    expect(predictMaintenance(2000, []).systemPredictions).toHaveLength(8);
+  });
+
+  it("returns 9 system predictions when a solar panel age is supplied", () => {
+    expect(
+      predictMaintenance(2000, [], { "Solar Panels": 2020 }).systemPredictions
+    ).toHaveLength(9);
   });
 
   it("returns all expected system names", () => {
