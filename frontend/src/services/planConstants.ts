@@ -81,7 +81,7 @@ export const PLANS: Plan[] = [
   },
   {
     tier: "Premium",
-    price: 35,
+    price: 40,
     period: "month",
     features: [
       "Everything in Pro",

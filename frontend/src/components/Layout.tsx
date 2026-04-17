@@ -8,9 +8,9 @@
  */
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  Bell, LogOut,
+  Bell, LogOut, Plus,
   LayoutDashboard, TrendingUp, Users, Cpu, Radio, Home as HomeIcon, PlusSquare,
   Store, PanelLeft, Menu, X,
 } from "lucide-react";
@@ -21,6 +21,7 @@ import { jobService, type Job } from "@/services/job";
 import { quoteService, type QuoteRequest } from "@/services/quote";
 import { paymentService, type PlanTier } from "@/services/payment";
 import { billService, type BillRecord } from "@/services/billService";
+import { fsboService } from "@/services/fsbo";
 
 // Inline tier→property limit so Layout never imports PLANS from payment,
 // keeping the payment mock surface small in tests.
@@ -58,6 +59,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { principal, profile } = useAuthStore();
   const { properties }         = usePropertyStore();
   const location               = useLocation();
+  const navigate               = useNavigate();
 
   const [sidebarOpen,  setSidebarOpen]  = useState(() =>
     localStorage.getItem("hf_sidebar") !== "closed"
@@ -73,7 +75,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
   const [userMenuOpen,  setUserMenuOpen]  = useState(false);
   const [upgradeOpen,   setUpgradeOpen]   = useState(false);
-  const [userTier,      setUserTier]      = useState<PlanTier>("Free");
+  const [userTier,        setUserTier]        = useState<PlanTier>("Free");
+  const [hasActiveListing, setHasActiveListing] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Close user menu on outside click
@@ -142,6 +145,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
     isHomeowner && properties.length === 1 ? String(properties[0].id) : null;
   const singlePropertyPath = singlePropertyId ? `/properties/${singlePropertyId}` : null;
 
+  // Re-check FSBO state on every navigation so "My Listing" appears as soon as a listing is created.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (singlePropertyId) {
+      setHasActiveListing(!!fsboService.getRecord(singlePropertyId)?.isFsbo);
+    } else {
+      setHasActiveListing(false);
+    }
+  }, [singlePropertyId, location.pathname]);
+
   const navLinks: NavLink[] = isContractor
     ? [
         { to: "/contractor-dashboard", label: "Dashboard", Icon: LayoutDashboard },
@@ -157,10 +170,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
         { to: "/maintenance",    label: "Maintenance",  Icon: Cpu },
         ...(userTier !== "Free" ? [{ to: "/contractors", label: "Contractors", Icon: Users }] : []),
         { to: "/sensors",        label: "Sensors",      Icon: Radio },
-        ...(singlePropertyId
+        ...(singlePropertyId && hasActiveListing
           ? [{ to: `/my-listing/${singlePropertyId}`, label: "My Listing", Icon: HomeIcon }]
-          : [{ to: "/listing/new", label: "List Home", Icon: HomeIcon }]),
-        ...(!atPropertyLimit ? [{ to: "/properties/new", label: "Add Property", Icon: PlusSquare }] : []),
+          : []),
       ];
 
   const isActive = (link: NavLink) => {
@@ -210,7 +222,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         style={{ width: sidebarW }}
         aria-label="Main navigation"
       >
-        {/* Header: branding + toggle */}
+        {/* Header: branding + add-property + toggle */}
         <div style={{
           height:        "3.5rem",
           display:       "flex",
@@ -258,6 +270,26 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         {/* Nav links */}
         <div style={{ flex: 1, paddingTop: "0.375rem", overflowY: "auto", overflowX: "hidden" }}>
+          {/* Add property button — sits just below the toggle, mirrors Claude's sidebar */}
+          {isHomeowner && (
+            <button
+              aria-label="Add property"
+              title={!sidebarOpen ? "Add property" : undefined}
+              onClick={() => {
+                if (atPropertyLimit && userTier !== "Premium") {
+                  setUpgradeOpen(true);
+                } else {
+                  navigate("/properties/new");
+                }
+              }}
+              style={{ ...itemBase(), width: "100%", border: "none", cursor: "pointer" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = COLORS.plum; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = COLORS.plumMid; }}
+            >
+              <Plus size={17} style={{ flexShrink: 0 }} />
+              {sidebarOpen && <span style={labelStyle}>Add property</span>}
+            </button>
+          )}
           {navLinks.map((link) => {
             const active = isActive(link);
             return (

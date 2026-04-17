@@ -11,6 +11,7 @@ const FLOOR_TYPES = [
 
 const EMPTY_FORM: Omit<CreateRoomArgs, "propertyId"> = {
   name:       "",
+  floorName:  "",
   floorType:  "",
   paintColor: "",
   paintBrand: "",
@@ -145,6 +146,17 @@ export function AddRoomModal({ isOpen, onClose, onSuccess, propertyId }: AddRoom
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
               autoFocus
+            />
+          </div>
+
+          {/* Floor brand */}
+          <div>
+            <label style={labelStyle}>Floor Brand</label>
+            <input
+              style={inputStyle}
+              placeholder="e.g. Shaw, Pergo, Armstrong"
+              value={form.floorName}
+              onChange={(e) => set("floorName", e.target.value)}
             />
           </div>
 

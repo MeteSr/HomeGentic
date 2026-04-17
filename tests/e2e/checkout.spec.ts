@@ -114,7 +114,7 @@ test.describe("CheckoutPage — /checkout", () => {
     });
 
     test("shows 'Secured by Stripe' trust signal on card tab", async ({ page }) => {
-      await expect(page.getByText(/Secured by Stripe/i)).toBeVisible();
+      await expect(page.getByText(/Secured by Stripe/i).first()).toBeVisible();
     });
   });
 

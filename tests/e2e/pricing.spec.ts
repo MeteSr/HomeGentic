@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
+import { injectTestAuth } from "./helpers/auth";
 
-// Pricing page is public — no auth injection needed
+// Pricing page is public — no auth injection needed for most tests
 
 test.describe("PricingPage — /pricing", () => {
   test.beforeEach(async ({ page }) => {
@@ -47,8 +48,8 @@ test.describe("PricingPage — /pricing", () => {
     await expect(page.getByText(/\$20/)).toBeVisible();
   });
 
-  test("shows $35 price for Premium tier", async ({ page }) => {
-    await expect(page.getByText(/\$35/)).toBeVisible();
+  test("shows $40 price for Premium tier", async ({ page }) => {
+    await expect(page.getByText(/\$40/)).toBeVisible();
   });
 
   test("shows ContractorPro plan card in contractor view", async ({ page }) => {
@@ -94,8 +95,12 @@ test.describe("PricingPage — /pricing", () => {
 
   // ── CTA navigation ────────────────────────────────────────────────────────
 
-  test("'Get Basic' CTA navigates to checkout or login", async ({ page }) => {
-    await page.getByRole("button", { name: /Get Basic/i }).click();
+  test("'Start with Basic' CTA navigates to checkout or login", async ({ page }) => {
+    // Inject auth so the click navigates directly to /checkout instead of
+    // stamping the intent into the URL and waiting for Internet Identity.
+    await injectTestAuth(page);
+    await page.goto("/pricing");
+    await page.getByRole("button", { name: /Start with Basic/i }).click();
     await expect(page).toHaveURL(/\/(checkout|dashboard|login)/);
   });
 });

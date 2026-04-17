@@ -152,7 +152,7 @@ export function RoomsTab({
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }} onClick={(e) => e.stopPropagation()}>
                   <button
-                    onClick={() => { setEditingRoom(room.id); setEditForm({ name: room.name, floorType: room.floorType, paintColor: room.paintColor, paintBrand: room.paintBrand, paintCode: room.paintCode, notes: room.notes }); setExpandedRoom(room.id); }}
+                    onClick={() => { setEditingRoom(room.id); setEditForm({ name: room.name, floorName: room.floorName, floorType: room.floorType, paintColor: room.paintColor, paintBrand: room.paintBrand, paintCode: room.paintCode, notes: room.notes }); setExpandedRoom(room.id); }}
                     style={{ fontFamily: FONTS.sans, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.plumMid, background: "none", border: "none", cursor: "pointer", padding: "0.25rem 0.5rem" }}
                   >Edit</button>
                   <button

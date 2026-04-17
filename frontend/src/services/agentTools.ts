@@ -733,6 +733,7 @@ export async function executeTool(
         const room = await roomService.createRoom({
           propertyId: String(input.property_id),
           name:       String(input.room_name),
+          floorName:  input.floor_name   ? String(input.floor_name)   : "",
           floorType:  input.floor_type   ? String(input.floor_type)   : "",
           paintColor: input.paint_color  ? String(input.paint_color)  : "",
           paintBrand: input.paint_brand  ? String(input.paint_brand)  : "",

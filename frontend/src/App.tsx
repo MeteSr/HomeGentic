@@ -47,7 +47,8 @@ const InsuranceDefensePage       = React.lazy(() => import("@/pages/InsuranceDef
 const ResaleReadyPage            = React.lazy(() => import("@/pages/ResaleReadyPage"));
 const RecurringServiceCreatePage = React.lazy(() => import("@/pages/RecurringServiceCreatePage"));
 const RecurringServiceDetailPage = React.lazy(() => import("@/pages/RecurringServiceDetailPage"));
-const NeighborhoodHealthPage     = React.lazy(() => import("@/pages/NeighborhoodHealthPage"));
+// NeighborhoodHealthPage intentionally not routed — page kept for future re-enable
+// const NeighborhoodHealthPage  = React.lazy(() => import("@/pages/NeighborhoodHealthPage"));
 const ListingNewPage             = React.lazy(() => import("@/pages/ListingNewPage"));
 const ListingDetailPage          = React.lazy(() => import("@/pages/ListingDetailPage"));
 const AgentMarketplacePage       = React.lazy(() => import("@/pages/AgentMarketplacePage"));
@@ -172,7 +173,7 @@ export default function App() {
           <Route path="/report/:token"         element={<ReportPage />} />
           <Route path="/badge/:token"          element={<BadgePage />} />
           <Route path="/cert/:token"           element={<ScoreCertPage />} />
-          <Route path="/neighborhood/:zipCode" element={<NeighborhoodHealthPage />} />
+          {/* /neighborhood/:zipCode removed — NeighborhoodHealthPage kept in codebase for future re-enable */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </RouteErrorBoundary>

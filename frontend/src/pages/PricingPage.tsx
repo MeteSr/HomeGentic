@@ -228,10 +228,19 @@ Upgrade when you're ready. Cancel anytime.
 
                 <Button
                   variant={isPopular ? "secondary" : "outline"}
-                  style={{ width: "100%", backgroundColor: isPopular ? COLORS.sage : undefined, color: isPopular ? COLORS.white : undefined, borderColor: isPopular ? COLORS.sage : isFeatured ? COLORS.sage : undefined }}
+                  style={{
+                    width: "100%",
+                    ...(isPopular && { backgroundColor: COLORS.sage, color: COLORS.white, borderColor: COLORS.sage }),
+                    ...(plan.tier === "Basic"   && { backgroundColor: COLORS.plum, color: COLORS.white, borderColor: COLORS.plum }),
+                    ...(plan.tier === "Premium" && { backgroundColor: COLORS.plumDark, color: COLORS.white, borderColor: COLORS.sage, borderWidth: "2px" }),
+                    ...(isFeatured && { borderColor: COLORS.sage }),
+                  }}
                   onClick={() => handleUpgrade(plan.tier)}
                 >
-                  {plan.tier === "ContractorFree" ? "Get Started Free" : `Get ${plan.tier === "ContractorPro" ? "Contractor Pro" : plan.tier}`}
+                  {plan.tier === "ContractorFree" ? "Get Started Free"
+                    : plan.tier === "Basic"   ? "Start with Basic"
+                    : plan.tier === "Premium" ? "Unlock Premium"
+                    : `Get ${plan.tier === "ContractorPro" ? "Contractor Pro" : plan.tier}`}
                 </Button>
               </div>
             );

@@ -121,33 +121,6 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
         </div>
       </div>
 
-      {/* Plan & Limits */}
-      <div style={{ border: `1px solid ${TC.rule}` }}>
-        {section("Plan & Limits")}
-        <div style={{ padding: "1.25rem", background: "#fff", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontFamily: TC.serif, fontWeight: 900, fontSize: "1.1rem", color: TC.ink, marginBottom: "0.25rem" }}>
-              {property.tier ?? "Free"}
-            </p>
-            <p style={{ fontSize: "0.8rem", color: TC.inkLight, fontWeight: 300, lineHeight: 1.5 }}>
-              {property.tier === "Pro"
-                ? "5 properties · 10 photos per job · 10 open quotes"
-                : property.tier === "Premium"
-                ? "20 properties · 30 photos per job · full history exports"
-                : "1 property · 2 photos per job · 3 open quotes"}
-            </p>
-          </div>
-          {(!property.tier || property.tier === "Free") && (
-            <button
-              onClick={() => navigate("/pricing")}
-              style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", background: TC.ink, color: TC.paper, border: "none", cursor: "pointer", flexShrink: 0 }}
-            >
-              Upgrade Plan →
-            </button>
-          )}
-        </div>
-      </div>
-
       {/* On-Chain Identity */}
       <div style={{ border: `1px solid ${TC.rule}` }}>
         {section("On-Chain Identity")}

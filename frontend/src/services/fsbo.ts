@@ -21,6 +21,7 @@ export interface FsboRecord {
   activatedAt:    number;
   step:           FsboStep;
   hasReport:      boolean;
+  description?:   string;
 }
 
 export interface FsboReadinessResult {
@@ -389,7 +390,7 @@ function createFsboService() {
       return _records.get(propertyId) ?? null;
     },
 
-    setFsboMode(propertyId: string, listPriceCents: number): FsboRecord {
+    setFsboMode(propertyId: string, listPriceCents: number, description?: string): FsboRecord {
       const existing = _records.get(propertyId);
       const record: FsboRecord = {
         propertyId,
@@ -398,6 +399,7 @@ function createFsboService() {
         activatedAt:    existing?.activatedAt ?? Date.now(),
         step:           existing?.step ?? 1,
         hasReport:      existing?.hasReport ?? false,
+        description:    description ?? existing?.description,
       };
       _records.set(propertyId, record);
       return { ...record };

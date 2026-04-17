@@ -6,6 +6,8 @@ import { injectTestAuth } from "./helpers/auth";
 async function setup(page: Parameters<typeof injectTestAuth>[0]) {
   await injectTestAuth(page);
   await page.addInitScript(() => {
+    // Pro tier so 2 properties don't hit the property limit (Pro allows 5)
+    (window as any).__e2e_subscription = { tier: "Pro", expiresAt: null };
     (window as any).__e2e_properties = [
       {
         id: 1, owner: "test-e2e-principal",
@@ -155,7 +157,7 @@ test.describe("DashboardPage — /dashboard", () => {
   // ── Navigation ──────────────────────────────────────────────────────────────
 
   test("Add Property button navigates to /properties/new", async ({ page }) => {
-    // Header-level Add Property button
+    // Sidebar "+" button (aria-label="Add property")
     await page.getByRole("button", { name: /add property/i }).first().click();
     await expect(page).toHaveURL("/properties/new");
   });

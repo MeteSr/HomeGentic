@@ -326,6 +326,18 @@ export default function FsboListingPage() {
         ))}
       </div>
 
+      {/* ── Seller description ──────────────────────────────────────────────── */}
+      {fsbo.description && (
+        <div style={{ marginBottom: "1.5rem" }}>
+          <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.08em", color: UI.inkLight, marginBottom: "0.5rem" }}>
+            About This Home
+          </div>
+          <p style={{ fontFamily: UI.sans, fontSize: "0.95rem", color: UI.ink, lineHeight: 1.65, margin: 0 }}>
+            {fsbo.description}
+          </p>
+        </div>
+      )}
+
       {/* ── HomeGentic score badge ─────────────────────────────────────────────── */}
       <section
         aria-label="HomeGentic Score"

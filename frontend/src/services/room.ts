@@ -20,6 +20,7 @@ export interface Room {
   propertyId:  string;
   owner:       string;
   name:        string;
+  floorName:   string;   // floor/level label e.g. "First Floor", "Basement", "1", "B2"
   floorType:   string;
   paintColor:  string;
   paintBrand:  string;
@@ -33,6 +34,7 @@ export interface Room {
 export interface CreateRoomArgs {
   propertyId: string;
   name:       string;
+  floorName:  string;
   floorType:  string;
   paintColor: string;
   paintBrand: string;
@@ -42,6 +44,7 @@ export interface CreateRoomArgs {
 
 export interface UpdateRoomArgs {
   name:       string;
+  floorName:  string;
   floorType:  string;
   paintColor: string;
   paintBrand: string;
@@ -76,6 +79,7 @@ const idlFactory = ({ IDL }: any) => {
     propertyId:  IDL.Text,
     owner:       IDL.Principal,
     name:        IDL.Text,
+    floorName:   IDL.Text,
     floorType:   IDL.Text,
     paintColor:  IDL.Text,
     paintBrand:  IDL.Text,
@@ -89,6 +93,7 @@ const idlFactory = ({ IDL }: any) => {
   const CreateRoomArgs = IDL.Record({
     propertyId: IDL.Text,
     name:       IDL.Text,
+    floorName:  IDL.Text,
     floorType:  IDL.Text,
     paintColor: IDL.Text,
     paintBrand: IDL.Text,
@@ -98,6 +103,7 @@ const idlFactory = ({ IDL }: any) => {
 
   const UpdateRoomArgs = IDL.Record({
     name:       IDL.Text,
+    floorName:  IDL.Text,
     floorType:  IDL.Text,
     paintColor: IDL.Text,
     paintBrand: IDL.Text,
@@ -153,6 +159,7 @@ const MOCK_ROOMS: Room[] = [
     propertyId:  "1",
     owner:       "mock-principal",
     name:        "Kitchen",
+    floorName:   "First Floor",
     floorType:   "Tile",
     paintColor:  "Agreeable Gray",
     paintBrand:  "Sherwin-Williams",
@@ -177,6 +184,7 @@ const MOCK_ROOMS: Room[] = [
     propertyId:  "1",
     owner:       "mock-principal",
     name:        "Master Bedroom",
+    floorName:   "Second Floor",
     floorType:   "Hardwood",
     paintColor:  "Alabaster",
     paintBrand:  "Sherwin-Williams",
@@ -196,6 +204,7 @@ function mapRoom(r: any): Room {
     propertyId:  r.propertyId,
     owner:       r.owner.toString(),
     name:        r.name,
+    floorName:   r.floorName ?? "",
     floorType:   r.floorType,
     paintColor:  r.paintColor,
     paintBrand:  r.paintBrand,
