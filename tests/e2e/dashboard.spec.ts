@@ -155,7 +155,7 @@ test.describe("DashboardPage — /dashboard", () => {
   // ── Navigation ──────────────────────────────────────────────────────────────
 
   test("Add Property button navigates to /properties/new", async ({ page }) => {
-    // Header-level Add Property button
+    // Sidebar "+" button (aria-label="Add property")
     await page.getByRole("button", { name: /add property/i }).first().click();
     await expect(page).toHaveURL("/properties/new");
   });

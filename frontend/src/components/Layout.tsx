@@ -273,6 +273,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {/* Add property button — sits just below the toggle, mirrors Claude's sidebar */}
           {isHomeowner && (
             <button
+              aria-label="Add property"
               title={!sidebarOpen ? "Add property" : undefined}
               onClick={() => {
                 if (atPropertyLimit && userTier !== "Premium") {

@@ -47,8 +47,8 @@ test.describe("PricingPage — /pricing", () => {
     await expect(page.getByText(/\$20/)).toBeVisible();
   });
 
-  test("shows $35 price for Premium tier", async ({ page }) => {
-    await expect(page.getByText(/\$35/)).toBeVisible();
+  test("shows $40 price for Premium tier", async ({ page }) => {
+    await expect(page.getByText(/\$40/)).toBeVisible();
   });
 
   test("shows ContractorPro plan card in contractor view", async ({ page }) => {
@@ -94,8 +94,8 @@ test.describe("PricingPage — /pricing", () => {
 
   // ── CTA navigation ────────────────────────────────────────────────────────
 
-  test("'Get Basic' CTA navigates to checkout or login", async ({ page }) => {
-    await page.getByRole("button", { name: /Get Basic/i }).click();
+  test("'Start with Basic' CTA navigates to checkout or login", async ({ page }) => {
+    await page.getByRole("button", { name: /Start with Basic/i }).click();
     await expect(page).toHaveURL(/\/(checkout|dashboard|login)/);
   });
 });
