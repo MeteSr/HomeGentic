@@ -230,6 +230,7 @@ persistent actor Property {
     propertyId:  Text;
     owner:       Principal;
     name:        Text;
+    floorName:   Text;   // floor/level label e.g. "First Floor", "Basement", "2", "L3"
     floorType:   Text;
     paintColor:  Text;
     paintBrand:  Text;
@@ -243,6 +244,7 @@ persistent actor Property {
   public type CreateRoomArgs = {
     propertyId: Text;
     name:       Text;
+    floorName:  Text;
     floorType:  Text;
     paintColor: Text;
     paintBrand: Text;
@@ -252,6 +254,7 @@ persistent actor Property {
 
   public type UpdateRoomArgs = {
     name:       Text;
+    floorName:  Text;
     floorType:  Text;
     paintColor: Text;
     paintBrand: Text;
@@ -1375,6 +1378,7 @@ persistent actor Property {
     };
     if (Text.size(args.name)       == 0)   return #err(#InvalidInput("name cannot be empty"));
     if (Text.size(args.name)       > 100)  return #err(#InvalidInput("name exceeds 100 characters"));
+    if (Text.size(args.floorName)  > 100)  return #err(#InvalidInput("floorName exceeds 100 characters"));
     if (Text.size(args.floorType)  > 100)  return #err(#InvalidInput("floorType exceeds 100 characters"));
     if (Text.size(args.paintColor) > 100)  return #err(#InvalidInput("paintColor exceeds 100 characters"));
     if (Text.size(args.paintBrand) > 100)  return #err(#InvalidInput("paintBrand exceeds 100 characters"));
@@ -1387,6 +1391,7 @@ persistent actor Property {
       propertyId = args.propertyId;
       owner      = msg.caller;
       name       = args.name;
+      floorName  = args.floorName;
       floorType  = args.floorType;
       paintColor = args.paintColor;
       paintBrand = args.paintBrand;
@@ -1425,6 +1430,7 @@ persistent actor Property {
         if (existing.owner != msg.caller) return #err(#NotAuthorized);
         if (Text.size(args.name)       == 0)   return #err(#InvalidInput("name cannot be empty"));
         if (Text.size(args.name)       > 100)  return #err(#InvalidInput("name exceeds 100 characters"));
+        if (Text.size(args.floorName)  > 100)  return #err(#InvalidInput("floorName exceeds 100 characters"));
         if (Text.size(args.floorType)  > 100)  return #err(#InvalidInput("floorType exceeds 100 characters"));
         if (Text.size(args.paintColor) > 100)  return #err(#InvalidInput("paintColor exceeds 100 characters"));
         if (Text.size(args.paintBrand) > 100)  return #err(#InvalidInput("paintBrand exceeds 100 characters"));
@@ -1436,6 +1442,7 @@ persistent actor Property {
           propertyId = existing.propertyId;
           owner      = existing.owner;
           name       = args.name;
+          floorName  = args.floorName;
           floorType  = args.floorType;
           paintColor = args.paintColor;
           paintBrand = args.paintBrand;

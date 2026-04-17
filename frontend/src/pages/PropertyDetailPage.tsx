@@ -11,6 +11,8 @@ import { InviteContractorModal }    from "@/components/InviteContractorModal";
 import PropertyVerifyModal              from "@/components/PropertyVerifyModal";
 import SystemAgesModal                  from "@/components/SystemAgesModal";
 import RecurringServiceCreateModal      from "@/components/RecurringServiceCreateModal";
+import InitListingModal                 from "@/components/InitListingModal";
+import { fsboService } from "@/services/fsbo";
 import { type Job, jobService } from "@/services/job";
 import { computeScoreWithDecay, computeBreakdown, getScoreGrade, premiumEstimate, isCertified, scoreDelta } from "@/services/scoreService";
 import { ScoreValueBanner } from "@/components/ScoreValueBanner";
@@ -67,6 +69,7 @@ interface ModalState {
   verify:        boolean;
   systemAges:    boolean;
   addService:    boolean;
+  listing:       boolean;
   inviteJob:     Job | null;
   logJobPrefill: { serviceType?: string; contractorName?: string } | undefined;
 }
@@ -78,6 +81,7 @@ const MODALS_CLOSED: ModalState = {
   verify:        false,
   systemAges:    false,
   addService:    false,
+  listing:       false,
   inviteJob:     null,
   logJobPrefill: undefined,
 };
@@ -98,6 +102,12 @@ export default function PropertyDetailPage() {
   const loading = propLoading || jobsLoading;
   const { scoreHistory } = usePropertyScore(id, property, jobs, loading);
   const userTier = useUserTier();
+
+  // ── Check whether the user already has an active FSBO listing ────────────
+  const [fsboRecord, setFsboRecord] = useState(() => id ? fsboService.getRecord(id) : null);
+  useEffect(() => {
+    if (id) setFsboRecord(fsboService.getRecord(id));
+  }, [id]);
 
   // ── UI state (3 useState calls) ───────────────────────────────────────────
   const initialTab = (searchParams.get("tab") as Tab | null) ?? "timeline";
@@ -241,12 +251,35 @@ export default function PropertyDetailPage() {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
             <Badge variant={verificationColor as any}>{property.verificationLevel}</Badge>
-            <Button variant="outline" icon={<Wrench size={14} />} onClick={() => setModals((m) => ({ ...m, logJob: true }))}>Log Job</Button>
-            <Button variant="outline" icon={<MessageSquare size={14} />} onClick={() => setModals((m) => ({ ...m, quote: true }))}>Request Quote</Button>
+            <Button
+              variant="primary"
+              icon={<Wrench size={14} />}
+              onClick={() => setModals((m) => ({ ...m, logJob: true }))}
+            >
+              Log Job
+            </Button>
+            <Button
+              variant="secondary"
+              icon={<MessageSquare size={14} />}
+              onClick={() => setModals((m) => ({ ...m, quote: true }))}
+            >
+              Request Quote
+            </Button>
             {property.verificationLevel !== "Unverified" && (
-              <Button icon={<Share2 size={14} />} onClick={() => setModals((m) => ({ ...m, report: true }))}>
-                Share HomeGentic Report
-              </Button>
+              <>
+                <Button variant="outline" icon={<Share2 size={14} />} onClick={() => setModals((m) => ({ ...m, report: true }))}>
+                  Share Report
+                </Button>
+                {!fsboRecord?.isFsbo && (
+                  <Button
+                    variant="outline"
+                    style={{ borderColor: COLORS.sage, color: COLORS.sage }}
+                    onClick={() => setModals((m) => ({ ...m, listing: true }))}
+                  >
+                    List Your Home
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -557,6 +590,16 @@ export default function PropertyDetailPage() {
         onClose={() => setModals((m) => ({ ...m, addService: false }))}
         defaultPropertyId={id}
       />
+
+      {modals.listing && property && (
+        <InitListingModal
+          open
+          onClose={() => setModals((m) => ({ ...m, listing: false }))}
+          property={property}
+          jobs={jobs}
+          score={homegenticScore}
+        />
+      )}
     </Layout>
   );
 }

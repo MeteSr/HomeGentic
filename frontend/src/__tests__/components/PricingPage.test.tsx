@@ -95,7 +95,7 @@ describe("PricingPage — plan display", () => {
     renderPricing();
     expect(screen.getAllByText(/\$10/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/\$20/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/\$35/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/\$40/).length).toBeGreaterThan(0);
   });
 
   it("annual toggle switches to yearly prices (10× monthly)", () => {
@@ -103,7 +103,7 @@ describe("PricingPage — plan display", () => {
     fireEvent.click(screen.getByRole("button", { name: /annual/i }));
     expect(screen.getAllByText(/\$100/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/\$200/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/\$350/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/\$400/).length).toBeGreaterThan(0);
   });
 });
 
@@ -118,7 +118,7 @@ describe("PricingPage — authenticated upgrade", () => {
 
   it("navigates to /checkout with Monthly billing", async () => {
     renderPricing(true);
-    fireEvent.click(screen.getByRole("button", { name: /get basic/i }));
+    fireEvent.click(screen.getByRole("button", { name: /start with basic/i }));
     await waitFor(() =>
       expect(mockNavigate).toHaveBeenCalledWith("/checkout?tier=Basic&billing=Monthly")
     );
@@ -127,7 +127,7 @@ describe("PricingPage — authenticated upgrade", () => {
   it("navigates with Yearly billing when annual toggle is active", async () => {
     renderPricing(true);
     fireEvent.click(screen.getByRole("button", { name: /annual/i }));
-    fireEvent.click(screen.getByRole("button", { name: /get basic/i }));
+    fireEvent.click(screen.getByRole("button", { name: /start with basic/i }));
     await waitFor(() =>
       expect(mockNavigate).toHaveBeenCalledWith("/checkout?tier=Basic&billing=Yearly")
     );
@@ -156,14 +156,14 @@ describe("PricingPage — unauthenticated upgrade", () => {
 
   it("calls handleLogin when an unauthenticated user clicks a plan", async () => {
     renderPricing(false);
-    fireEvent.click(screen.getByRole("button", { name: /get basic/i }));
+    fireEvent.click(screen.getByRole("button", { name: /start with basic/i }));
     await waitFor(() => expect(mockDevLogin).toHaveBeenCalledTimes(1));
   });
 
   it("does not navigate to /checkout directly (waits for login)", async () => {
     mockDevLogin.mockImplementation(() => new Promise(() => {})); // never resolves
     renderPricing(false);
-    fireEvent.click(screen.getByRole("button", { name: /get basic/i }));
+    fireEvent.click(screen.getByRole("button", { name: /start with basic/i }));
     await new Promise((r) => setTimeout(r, 50));
     expect(mockNavigate).not.toHaveBeenCalledWith(
       expect.stringContaining("/checkout")

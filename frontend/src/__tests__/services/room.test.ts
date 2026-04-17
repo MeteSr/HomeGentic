@@ -10,6 +10,7 @@ function makeCreateArgs(overrides: Partial<CreateRoomArgs> = {}): CreateRoomArgs
   return {
     propertyId: "42",
     name:       "Living Room",
+    floorName:  "",
     floorType:  "Hardwood",
     paintColor: "Agreeable Gray",
     paintBrand: "Sherwin-Williams",
@@ -107,6 +108,7 @@ describe("roomService (mock path)", () => {
       const created = await roomService.createRoom(makeCreateArgs());
       const updated = await roomService.updateRoom(created.id, {
         name:       "Dining Room",
+        floorName:  "",
         floorType:  "Tile",
         paintColor: "White Dove",
         paintBrand: "Benjamin Moore",
@@ -124,7 +126,7 @@ describe("roomService (mock path)", () => {
     it("preserves id and propertyId after update", async () => {
       const created = await roomService.createRoom(makeCreateArgs({ propertyId: "5" }));
       const updated = await roomService.updateRoom(created.id, {
-        name: "Updated Room", floorType: "", paintColor: "", paintBrand: "", paintCode: "", notes: "",
+        name: "Updated Room", floorName: "", floorType: "", paintColor: "", paintBrand: "", paintCode: "", notes: "",
       });
       expect(updated.id).toBe(created.id);
       expect(updated.propertyId).toBe("5");
@@ -136,7 +138,7 @@ describe("roomService (mock path)", () => {
         brand: "Bosch", model: "500", serialNumber: "SN1", installedDate: "", warrantyExpiry: "", notes: "",
       });
       const updated = await roomService.updateRoom(created.id, {
-        name: "Updated", floorType: "", paintColor: "", paintBrand: "", paintCode: "", notes: "",
+        name: "Updated", floorName: "", floorType: "", paintColor: "", paintBrand: "", paintCode: "", notes: "",
       });
       expect(updated.fixtures).toHaveLength(1);
     });
@@ -144,7 +146,7 @@ describe("roomService (mock path)", () => {
     it("update is reflected in subsequent getRoomsByProperty", async () => {
       const created = await roomService.createRoom(makeCreateArgs({ propertyId: "7" }));
       await roomService.updateRoom(created.id, {
-        name: "Renovated Kitchen", floorType: "Marble",
+        name: "Renovated Kitchen", floorName: "", floorType: "Marble",
         paintColor: "", paintBrand: "", paintCode: "", notes: "",
       });
       const rooms = await roomService.getRoomsByProperty("7");

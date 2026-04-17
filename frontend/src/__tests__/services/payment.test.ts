@@ -90,9 +90,9 @@ describe("PLANS", () => {
     expect(pro.quoteRequests).toBe(10);
   });
 
-  it("Premium tier is $35/month with 20 property limit", () => {
+  it("Premium tier is $40/month with 20 property limit", () => {
     const premium = PLANS.find((p) => p.tier === "Premium")!;
-    expect(premium.price).toBe(35);
+    expect(premium.price).toBe(40);
     expect(premium.period).toBe("month");
     expect(premium.propertyLimit).toBe(20);
     expect(premium.photosPerJob).toBe(30);

@@ -118,8 +118,8 @@ describe("UpgradeModal", () => {
   it("shows Premium plan card with price", () => {
     renderModal();
     expect(screen.getByRole("button", { name: /select premium/i })).toBeInTheDocument();
-    // Premium is $35/month
-    expect(screen.getAllByText(/\$35/).length).toBeGreaterThan(0);
+    // Premium is $40/month
+    expect(screen.getAllByText(/\$40/).length).toBeGreaterThan(0);
   });
 
   it("shows at least one feature for each plan", () => {

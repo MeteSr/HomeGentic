@@ -21,6 +21,7 @@ import { jobService, type Job } from "@/services/job";
 import { quoteService, type QuoteRequest } from "@/services/quote";
 import { paymentService, type PlanTier } from "@/services/payment";
 import { billService, type BillRecord } from "@/services/billService";
+import { fsboService } from "@/services/fsbo";
 
 // Inline tier→property limit so Layout never imports PLANS from payment,
 // keeping the payment mock surface small in tests.
@@ -73,7 +74,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
   const [userMenuOpen,  setUserMenuOpen]  = useState(false);
   const [upgradeOpen,   setUpgradeOpen]   = useState(false);
-  const [userTier,      setUserTier]      = useState<PlanTier>("Free");
+  const [userTier,        setUserTier]        = useState<PlanTier>("Free");
+  const [hasActiveListing, setHasActiveListing] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Close user menu on outside click
@@ -142,6 +144,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
     isHomeowner && properties.length === 1 ? String(properties[0].id) : null;
   const singlePropertyPath = singlePropertyId ? `/properties/${singlePropertyId}` : null;
 
+  // Re-check FSBO state on every navigation so "My Listing" appears as soon as a listing is created.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (singlePropertyId) {
+      setHasActiveListing(!!fsboService.getRecord(singlePropertyId)?.isFsbo);
+    } else {
+      setHasActiveListing(false);
+    }
+  }, [singlePropertyId, location.pathname]);
+
   const navLinks: NavLink[] = isContractor
     ? [
         { to: "/contractor-dashboard", label: "Dashboard", Icon: LayoutDashboard },
@@ -157,9 +169,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
         { to: "/maintenance",    label: "Maintenance",  Icon: Cpu },
         ...(userTier !== "Free" ? [{ to: "/contractors", label: "Contractors", Icon: Users }] : []),
         { to: "/sensors",        label: "Sensors",      Icon: Radio },
-        ...(singlePropertyId
+        ...(singlePropertyId && hasActiveListing
           ? [{ to: `/my-listing/${singlePropertyId}`, label: "My Listing", Icon: HomeIcon }]
-          : [{ to: "/listing/new", label: "List Home", Icon: HomeIcon }]),
+          : []),
         ...(!atPropertyLimit ? [{ to: "/properties/new", label: "Add Property", Icon: PlusSquare }] : []),
       ];
 

@@ -730,7 +730,6 @@ export default function LandingPage() {
                 <li><a href="/instant-forecast">System Forecast</a></li>
                 <li><a href="/prices">Price Lookup</a></li>
                 <li><a href="/home-systems">Systems Estimator</a></li>
-                <li><a href="/neighborhood/00000">Neighborhood Report</a></li>
                 <li><a href="/truth-kit">Buyer's Truth Kit</a></li>
               </ul>
             </div>
