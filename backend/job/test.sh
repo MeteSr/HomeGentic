@@ -443,22 +443,40 @@ echo "$TRUSTED_AFTER" | grep -q "$SENSOR_TEST_PRINCIPAL" \
 
 HOMEOWNER_PRINCIPAL=$(dfx identity get-principal)
 
+# Register a fresh property so createJobProposal can resolve the owner via the property canister.
+# The deployer (homeowner) owns this property; contractor-test will submit proposals against it.
+echo ""
+echo "── [38-setup] Register property for proposal tests ─────────────────────"
+dfx canister call payment grantSubscription "(principal \"$HOMEOWNER_PRINCIPAL\", variant { Premium })" > /dev/null 2>&1 || true
+PROPOSAL_PROP_OUT=$(dfx canister call property registerProperty '(record {
+  address      = "77 Proposal Test Lane";
+  city         = "Houston";
+  state        = "TX";
+  zipCode      = "77001";
+  propertyType = variant { SingleFamily };
+  yearBuilt    = 2000;
+  squareFeet   = 1800;
+  tier         = variant { Premium };
+})')
+PROPOSAL_PROP_ID=$(echo "$PROPOSAL_PROP_OUT" | grep -oP 'id = "\K[^"]+' | head -1 || true)
+echo "  → Proposal property ID: $PROPOSAL_PROP_ID"
+
 echo ""
 echo "── [38] createJobProposal — contractor submits a proposal for homeowner approval ──"
 # Called by contractor identity; propertyId must belong to homeowner (looked up by property canister)
-PROPOSAL_OUT=$(dfx canister call $CANISTER createJobProposal '(
-  "PROP_1",
-  "HVAC Tune-Up",
+PROPOSAL_OUT=$(dfx canister call $CANISTER createJobProposal "(
+  \"$PROPOSAL_PROP_ID\",
+  \"HVAC Tune-Up\",
   variant { HVAC },
-  "Full HVAC tune-up and filter replacement at the property.",
-  opt "Cool Air Services",
+  \"Full HVAC tune-up and filter replacement at the property.\",
+  opt \"Cool Air Services\",
   45000,
   1718409600000000000,
   null,
   null
-)' --identity contractor-test)
+)" --identity contractor-test)
 echo "$PROPOSAL_OUT"
-PROPOSAL_ID=$(echo "$PROPOSAL_OUT" | grep -oP '"JOB_[0-9]+"' | head -1 | tr -d '"')
+PROPOSAL_ID=$(echo "$PROPOSAL_OUT" | grep -oP '"JOB_[0-9]+"' | head -1 | tr -d '"' || true)
 if echo "$PROPOSAL_OUT" | grep -q "PendingHomeownerApproval"; then
   echo "  ✓ Proposal created with PendingHomeownerApproval status"
 else
@@ -522,19 +540,19 @@ fi
 
 echo ""
 echo "── [43] createJobProposal for second proposal — to be rejected ──────────"
-REJECT_PROPOSAL_OUT=$(dfx canister call $CANISTER createJobProposal '(
-  "PROP_1",
-  "Roof Inspection",
+REJECT_PROPOSAL_OUT=$(dfx canister call $CANISTER createJobProposal "(
+  \"$PROPOSAL_PROP_ID\",
+  \"Roof Inspection\",
   variant { Roofing },
-  "Annual roof inspection.",
-  opt "Top Roof Co",
+  \"Annual roof inspection.\",
+  opt \"Top Roof Co\",
   25000,
   1718409600000000000,
   null,
   null
-)' --identity contractor-test)
+)" --identity contractor-test)
 echo "$REJECT_PROPOSAL_OUT"
-REJECT_PROPOSAL_ID=$(echo "$REJECT_PROPOSAL_OUT" | grep -oP '"JOB_[0-9]+"' | head -1 | tr -d '"')
+REJECT_PROPOSAL_ID=$(echo "$REJECT_PROPOSAL_OUT" | grep -oP '"JOB_[0-9]+"' | head -1 | tr -d '"' || true)
 echo "  → Reject-target proposal ID: $REJECT_PROPOSAL_ID"
 
 echo ""
@@ -572,17 +590,17 @@ dfx canister call $CANISTER rejectJobProposal "(\"$REJECT_PROPOSAL_ID\")" --iden
 echo ""
 echo "── [48] createJobProposal — homeowner cannot propose their own job ──────"
 # Caller must NOT be the property owner — proposals come from contractors
-dfx canister call $CANISTER createJobProposal '(
-  "PROP_1",
-  "Self-Proposal Test",
+dfx canister call $CANISTER createJobProposal "(
+  \"$PROPOSAL_PROP_ID\",
+  \"Self-Proposal Test\",
   variant { Painting },
-  "Homeowner trying to create a proposal for their own property.",
-  opt "Homeowner Inc",
+  \"Homeowner trying to create a proposal for their own property.\",
+  opt \"Homeowner Inc\",
   10000,
   1718409600000000000,
   null,
   null
-)' && echo "  ↳ ❌ Homeowner should not be able to propose on own property" \
+)" && echo "  ↳ ❌ Homeowner should not be able to propose on own property" \
   || echo "  ✓ Homeowner correctly blocked from self-proposing"
 
 echo ""
@@ -620,9 +638,11 @@ else
   MANAGER_PRINCIPAL=$(dfx identity get-principal --identity manager-test)
   echo "  Manager principal (Free tier): $MANAGER_PRINCIPAL"
 
-  # Ensure owner (default identity) has a Pro subscription
+  # Ensure owner (default identity) has a Premium subscription so that the
+  # MGR property registration succeeds even when parallel canister tests have
+  # already consumed the Pro limit (5 properties) for the deployer.
   MY_PRINCIPAL=$(dfx identity get-principal)
-  dfx canister call payment grantSubscription "(principal \"$MY_PRINCIPAL\", variant { Pro })"
+  dfx canister call payment grantSubscription "(principal \"$MY_PRINCIPAL\", variant { Premium })"
 
   # Register a fresh property as the owner
   echo ""
@@ -638,16 +658,16 @@ else
     tier         = variant { Pro };
   })')
   echo "$MGR_PROP_OUT"
-  MGR_PROP_ID=$(echo "$MGR_PROP_OUT" | grep -oP 'id = \K[0-9]+' | head -1)
+  MGR_PROP_ID=$(echo "$MGR_PROP_OUT" | grep -oP 'id = "\K[^"]+' | head -1 || true)
   echo "  → Property ID: $MGR_PROP_ID"
 
   # Invite manager via bearer token
   echo ""
   echo "── [MGR-2] Owner invites manager (Manager role) ─────────────────────────"
   INVITE_OUT=$(dfx canister call property inviteManager \
-    "($MGR_PROP_ID, variant { Manager }, \"Test Manager\")")
+    "(\"$MGR_PROP_ID\", variant { Manager }, \"Test Manager\")")
   echo "$INVITE_OUT"
-  INVITE_TOKEN=$(echo "$INVITE_OUT" | grep -oP 'token = "\K[^"]+' | head -1)
+  INVITE_TOKEN=$(echo "$INVITE_OUT" | grep -oP 'token = "\K[^"]+' | head -1 || true)
   echo "  → Token: $INVITE_TOKEN"
 
   # Manager claims the role

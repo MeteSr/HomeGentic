@@ -243,16 +243,11 @@ persistent actor Job {
       };
       let effectivePrincipal : Principal = if (propCanisterId != "") {
         let propActor = actor(propCanisterId) : actor {
-          getPropertyOwner : (Nat) -> async ?Principal;
+          getPropertyOwner : (Text) -> async ?Principal;
         };
-        switch (Nat.fromText(propertyId)) {
-          case (?natId) {
-            switch (await propActor.getPropertyOwner(natId)) {
-              case (?owner) { if (owner != msg.caller) { owner } else { msg.caller } };
-              case null     { msg.caller };
-            }
-          };
-          case null { msg.caller };
+        switch (await propActor.getPropertyOwner(propertyId)) {
+          case (?owner) { if (owner != msg.caller) { owner } else { msg.caller } };
+          case null     { msg.caller };
         }
       } else { msg.caller };
       let tier = await payActor.getTierForPrincipal(effectivePrincipal);
@@ -512,19 +507,14 @@ persistent actor Job {
     // 14.2.1 — verify that the sensor device's stored homeowner actually owns
     // the property before creating a job on their behalf.
     if (Text.size(propCanisterId) > 0) {
-      switch (Nat.fromText(propertyId)) {
-        case null { return #err("Invalid propertyId format") };
-        case (?natId) {
-          let propActor = actor(propCanisterId) : actor {
-            getPropertyOwner : (Nat) -> async ?Principal;
-          };
-          switch (await propActor.getPropertyOwner(natId)) {
-            case null        { return #err("Property not found") };
-            case (?owner) {
-              if (owner != homeowner)
-                return #err("Sensor homeowner does not match property owner");
-            };
-          };
+      let propActor = actor(propCanisterId) : actor {
+        getPropertyOwner : (Text) -> async ?Principal;
+      };
+      switch (await propActor.getPropertyOwner(propertyId)) {
+        case null     { return #err("Property not found") };
+        case (?owner) {
+          if (owner != homeowner)
+            return #err("Sensor homeowner does not match property owner");
         };
       };
     };
@@ -909,22 +899,12 @@ persistent actor Job {
     // Look up the property owner via cross-canister call (if property canister is wired).
     // Falls back to anonymous when not wired — useful in tests without a full deploy.
     let homeowner : Principal = if (Text.size(propCanisterId) > 0) {
-      switch (Nat.fromText(propertyId)) {
-        case null {
-          // propertyId is not a numeric string (e.g. "PROP_1" in tests) — fall back
-          // to the anonymous sentinel, same as the unset-propCanisterId path.
-          // In production, all propertyIds are Nat strings written by the property canister.
-          Principal.fromText("2vxsx-fae")
-        };
-        case (?natId)  {
-          let propActor = actor(propCanisterId) : actor {
-            getPropertyOwner : (Nat) -> async ?Principal;
-          };
-          switch (await propActor.getPropertyOwner(natId)) {
-            case null        { return #err(#InvalidInput("Property not found")) };
-            case (?owner)    { owner };
-          };
-        };
+      let propActor = actor(propCanisterId) : actor {
+        getPropertyOwner : (Text) -> async ?Principal;
+      };
+      switch (await propActor.getPropertyOwner(propertyId)) {
+        case null     { return #err(#InvalidInput("Property not found")) };
+        case (?owner) { owner };
       };
     } else {
       // Property canister not wired — for testability only.
