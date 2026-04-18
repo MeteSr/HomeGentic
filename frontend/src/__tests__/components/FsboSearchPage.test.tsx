@@ -16,12 +16,32 @@
  *  - SEO: page title includes "FSBO Homes for Sale"
  *  - SEO: JSON-LD ItemList script tag present
  *  - Mobile layout: cards stack single column
- *  - listPublicFsbos() service method returns array with required fields
  */
 
 import { render, act, screen, fireEvent, within } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import React from "react";
+import { vi } from "vitest";
+import type { FsboPublicListing } from "@/services/fsbo";
+
+// ── Test listings fixture (injected via vi.mock — no static data in service) ──
+
+const NOW = Date.now();
+const daysAgo = (n: number) => NOW - n * 86_400_000;
+
+const TEST_LISTINGS: FsboPublicListing[] = [
+  { propertyId: "1", listPriceCents: 42500000, activatedAt: daysAgo(12), address: "2847 Rosewood Trail", city: "Austin",   state: "TX", zipCode: "78704", propertyType: "SingleFamily", yearBuilt: 2008, squareFeet: 2140, bedrooms: 3, bathrooms: 2, verificationLevel: "Premium",    score: 91,        verifiedJobCount: 14, description: "South Austin gem.", photoUrl: "https://example.com/1.jpg", hasPublicReport: true,  systemHighlights: ["Roof: 2 yrs"] },
+  { propertyId: "2", listPriceCents: 31800000, activatedAt: daysAgo(5),  address: "1124 Maple Grove Ln",  city: "Nashville", state: "TN", zipCode: "37206", propertyType: "SingleFamily", yearBuilt: 1998, squareFeet: 1860, bedrooms: 3, bathrooms: 2, verificationLevel: "Basic",     score: 78,        verifiedJobCount: 8,  description: "East Nashville bungalow.", photoUrl: "https://example.com/2.jpg", hasPublicReport: false, systemHighlights: ["Windows: 4 yrs"] },
+  { propertyId: "3", listPriceCents: 58900000, activatedAt: daysAgo(21), address: "405 Lakeview Commons", city: "Denver",    state: "CO", zipCode: "80203", propertyType: "Condo",        yearBuilt: 2015, squareFeet: 1320, bedrooms: 2, bathrooms: 2, verificationLevel: "Premium",    score: 88,        verifiedJobCount: 11, description: "Downtown Denver condo.",   photoUrl: "https://example.com/3.jpg", hasPublicReport: true,  systemHighlights: ["HVAC: 1 yr"] },
+  { propertyId: "4", listPriceCents: 27400000, activatedAt: daysAgo(33), address: "8912 Pinewood Circle", city: "Phoenix",   state: "AZ", zipCode: "85016", propertyType: "SingleFamily", yearBuilt: 1992, squareFeet: 1680, bedrooms: 3, bathrooms: 2, verificationLevel: "Basic",     score: undefined, verifiedJobCount: 5,  description: "Arcadia-area home.",       photoUrl: "https://example.com/4.jpg", hasPublicReport: false, systemHighlights: ["AC: 5 yrs"] },
+  { propertyId: "5", listPriceCents: 49500000, activatedAt: daysAgo(7),  address: "331 Fernwood Ave NE",  city: "Portland",  state: "OR", zipCode: "97212", propertyType: "SingleFamily", yearBuilt: 1924, squareFeet: 1940, bedrooms: 4, bathrooms: 2, verificationLevel: "Premium",    score: 85,        verifiedJobCount: 19, description: "Portland craftsman.",      photoUrl: "https://example.com/5.jpg", hasPublicReport: true,  systemHighlights: ["Electrical: 4 yrs"] },
+  { propertyId: "6", listPriceCents: 29200000, activatedAt: daysAgo(15), address: "220 Westmont Place",   city: "Austin",    state: "TX", zipCode: "78731", propertyType: "Condo",        yearBuilt: 2017, squareFeet: 1105, bedrooms: 2, bathrooms: 2, verificationLevel: "Unverified", score: undefined, verifiedJobCount: 2,  description: "Austin high-rise condo.",  photoUrl: undefined,                    hasPublicReport: false, systemHighlights: [] },
+];
+
+vi.mock("@/services/fsbo", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/services/fsbo")>();
+  return { ...actual, listPublicFsbos: () => TEST_LISTINGS };
+});
 
 // ── matchMedia mock ───────────────────────────────────────────────────────────
 let currentWidth = 1280;
@@ -46,12 +66,10 @@ function mockMatchMedia(width: number) {
 
 // ── lazy imports ──────────────────────────────────────────────────────────────
 let FsboSearchPage: React.ComponentType;
-let listPublicFsbos: () => import("@/services/fsbo").FsboPublicListing[];
 
 beforeAll(async () => {
   mockMatchMedia(1280);
   FsboSearchPage = (await import("@/pages/FsboSearchPage")).default;
-  listPublicFsbos = (await import("@/services/fsbo")).listPublicFsbos;
 });
 
 // ── render helpers ────────────────────────────────────────────────────────────
@@ -70,17 +88,15 @@ async function renderSearch(url = "/homes", width = 1280) {
   return result;
 }
 
-// ── listPublicFsbos service ───────────────────────────────────────────────────
+// ── TEST_LISTINGS fixture shape ───────────────────────────────────────────────
 
-describe("listPublicFsbos()", () => {
-  it("returns a non-empty array", () => {
-    const listings = listPublicFsbos();
-    expect(listings.length).toBeGreaterThan(0);
+describe("TEST_LISTINGS fixture", () => {
+  it("is non-empty", () => {
+    expect(TEST_LISTINGS.length).toBeGreaterThan(0);
   });
 
   it("every listing has required fields", () => {
-    const listings = listPublicFsbos();
-    for (const l of listings) {
+    for (const l of TEST_LISTINGS) {
       expect(l.propertyId).toBeTruthy();
       expect(l.listPriceCents).toBeGreaterThan(0);
       expect(l.address).toBeTruthy();
@@ -93,21 +109,15 @@ describe("listPublicFsbos()", () => {
   });
 
   it("at least one listing has a score (opted-in)", () => {
-    const listings = listPublicFsbos();
-    const withScore = listings.filter((l) => l.score !== undefined);
-    expect(withScore.length).toBeGreaterThan(0);
+    expect(TEST_LISTINGS.some((l) => l.score !== undefined)).toBe(true);
   });
 
   it("at least one listing has no score (opted-out)", () => {
-    const listings = listPublicFsbos();
-    const withoutScore = listings.filter((l) => l.score === undefined);
-    expect(withoutScore.length).toBeGreaterThan(0);
+    expect(TEST_LISTINGS.some((l) => l.score === undefined)).toBe(true);
   });
 
   it("at least one listing has a photo URL", () => {
-    const listings = listPublicFsbos();
-    const withPhoto = listings.filter((l) => !!l.photoUrl);
-    expect(withPhoto.length).toBeGreaterThan(0);
+    expect(TEST_LISTINGS.some((l) => !!l.photoUrl)).toBe(true);
   });
 });
 
@@ -208,7 +218,7 @@ describe("FsboSearchPage — HomeGentic Score display", () => {
   it("opted-out listings have no score badge", async () => {
     const { container } = await renderSearch();
     const cards = Array.from(container.querySelectorAll("[data-testid='fsbo-listing-card']")) as HTMLElement[];
-    const listings = listPublicFsbos();
+    const listings = TEST_LISTINGS;
     const optedOutCount = listings.filter((l) => l.score === undefined).length;
 
     // Count cards without a score badge
@@ -224,7 +234,7 @@ describe("FsboSearchPage — HomeGentic Score display", () => {
 describe("FsboSearchPage — verification badges", () => {
   it("verified listings (Basic or Premium) show a badge", async () => {
     await renderSearch();
-    const listings = listPublicFsbos();
+    const listings = TEST_LISTINGS;
     const verifiedCount = listings.filter(
       (l) => l.verificationLevel === "Basic" || l.verificationLevel === "Premium"
     ).length;
@@ -243,7 +253,7 @@ describe("FsboSearchPage — city text filter", () => {
 
     const input = screen.getByPlaceholderText(/city, state, or zip/i);
     // Pick a city that exists in mock data but not all listings
-    const listings = listPublicFsbos();
+    const listings = TEST_LISTINGS;
     const firstCity = listings[0].city;
     const cityCount = listings.filter(
       (l) => l.city.toLowerCase().includes(firstCity.toLowerCase())
@@ -261,7 +271,7 @@ describe("FsboSearchPage — city text filter", () => {
     const totalCount = container.querySelectorAll("[data-testid='fsbo-listing-card']").length;
 
     const input = screen.getByPlaceholderText(/city, state, or zip/i);
-    const firstCity = listPublicFsbos()[0].city;
+    const firstCity = TEST_LISTINGS[0].city;
 
     await act(async () => { fireEvent.change(input, { target: { value: firstCity } }); });
     await act(async () => { fireEvent.change(input, { target: { value: "" } }); });
@@ -276,7 +286,7 @@ describe("FsboSearchPage — city text filter", () => {
 describe("FsboSearchPage — property type filter", () => {
   it("selecting SingleFamily chip shows only SingleFamily listings", async () => {
     const { container } = await renderSearch();
-    const listings = listPublicFsbos();
+    const listings = TEST_LISTINGS;
     const sfCount = listings.filter((l) => l.propertyType === "SingleFamily").length;
 
     const chip = screen.getByTestId("filter-type-SingleFamily");
@@ -304,7 +314,7 @@ describe("FsboSearchPage — property type filter", () => {
 describe("FsboSearchPage — price range filter", () => {
   it("max price filter hides listings above the threshold", async () => {
     const { container } = await renderSearch();
-    const listings = listPublicFsbos();
+    const listings = TEST_LISTINGS;
     const threshold = 500_000;
     const expectedCount = listings.filter((l) => l.listPriceCents <= threshold * 100).length;
 
@@ -319,7 +329,7 @@ describe("FsboSearchPage — price range filter", () => {
 
   it("min price filter hides listings below the threshold", async () => {
     const { container } = await renderSearch();
-    const listings = listPublicFsbos();
+    const listings = TEST_LISTINGS;
     const threshold = 400_000;
     const expectedCount = listings.filter((l) => l.listPriceCents >= threshold * 100).length;
 
@@ -403,7 +413,7 @@ describe("FsboSearchPage — score filter", () => {
     const toggle = screen.getByTestId("filter-has-score");
     await act(async () => { fireEvent.click(toggle); });
 
-    const listings = listPublicFsbos();
+    const listings = TEST_LISTINGS;
     const scoredCount = listings.filter((l) => l.score !== undefined).length;
     const cards = container.querySelectorAll("[data-testid='fsbo-listing-card']");
     expect(cards.length).toBe(scoredCount);

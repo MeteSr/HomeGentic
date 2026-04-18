@@ -131,39 +131,6 @@ export function canisterLabel(canisterId: string): string {
   return KNOWN[canisterId] ?? canisterId.slice(0, 12) + "…";
 }
 
-// ─── Mock data (used when no canister ID is set) ──────────────────────────────
-
-const MOCK_CANISTER_NAMES = [
-  "auth", "property", "job", "contractor", "quote",
-  "payment", "photo", "report", "market",
-  "maintenance", "sensor", "monitoring", "listing",
-  "agent", "recurring", "bills",
-];
-
-function mockMetrics(): CanisterMetrics[] {
-  return MOCK_CANISTER_NAMES.map((name, i) => ({
-    canisterId:        `mock-${name}-canister-id`,
-    cyclesBalance:     20_000_000_000_000 - i * 500_000_000_000,  // ~20T declining
-    cyclesBurned:      10_000_000 + i * 2_000_000,               // ~10-34M/day
-    memoryBytes:       (1 + i * 0.3) * 1024 * 1024,
-    memoryCapacity:    32 * 1024 * 1024,
-    requestCount:      1000 + i * 100,
-    errorCount:        i % 5 === 0 ? 5 : 0,
-    avgResponseTimeMs: 50 + i * 10,
-    updatedAt:         Date.now() * 1_000_000,
-  }));
-}
-
-function mockCycleLevels(): CycleLevelResult[] {
-  return MOCK_CANISTER_NAMES.map((name, i) => {
-    const cycles = 20_000_000_000_000 - i * 500_000_000_000;
-    const status = cycles < 1_000_000_000_000 ? "critical"
-                 : cycles < 2_000_000_000_000 ? "warning"
-                 : "ok";
-    return { id: `mock-${name}-canister-id`, name, cycles, status, fromCache: true };
-  });
-}
-
 // ─── Service ──────────────────────────────────────────────────────────────────
 
 function createMonitoringService() {
@@ -179,7 +146,7 @@ function createMonitoringService() {
 
   return {
     async getAllCanisterMetrics(): Promise<CanisterMetrics[]> {
-      if (import.meta.env.DEV && !MONITORING_CANISTER_ID) return mockMetrics();
+      if (import.meta.env.DEV && !MONITORING_CANISTER_ID) return [];
       const a = await getActor();
       const raw = await a.getAllCanisterMetrics() as any[];
       return raw.map((r: any) => ({
@@ -196,7 +163,7 @@ function createMonitoringService() {
     },
 
     async checkCycleLevels(): Promise<CycleLevelResult[]> {
-      if (import.meta.env.DEV && !MONITORING_CANISTER_ID) return mockCycleLevels();
+      if (import.meta.env.DEV && !MONITORING_CANISTER_ID) return [];
       const a = await getActor();
       const raw = await a.checkCycleLevels() as any[];
       return raw.map((r: any) => ({
@@ -209,9 +176,7 @@ function createMonitoringService() {
     },
 
     async getTrackedCanisters(): Promise<TrackedCanister[]> {
-      if (import.meta.env.DEV && !MONITORING_CANISTER_ID) return MOCK_CANISTER_NAMES.map((name) => ({
-        id: `mock-${name}-canister-id`, name,
-      }));
+      if (import.meta.env.DEV && !MONITORING_CANISTER_ID) return [];
       const a = await getActor();
       const raw = await a.getTrackedCanisters() as any[];
       return raw.map((r: any) => ({ id: r.id.toText(), name: r.name }));
