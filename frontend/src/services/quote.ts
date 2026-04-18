@@ -120,57 +120,6 @@ export interface Quote {
   createdAt:  number;  // ms
 }
 
-// ─── Mock seed data (static fixtures for UI display) ─────────────────────────
-
-const SEED_MY_REQUESTS: QuoteRequest[] = [
-  { id: "MY_REQ_1", propertyId: "prop_1", homeowner: "local", serviceType: "HVAC",     urgency: "high",   description: "AC unit not cooling. 12-year-old unit — needs diagnosis.", status: "quoted",   createdAt: Date.now() - 86400000 * 3 },
-  { id: "MY_REQ_2", propertyId: "prop_1", homeowner: "local", serviceType: "Roofing",  urgency: "medium", description: "Several shingles missing after last storm. Small attic leak.", status: "open",     createdAt: Date.now() - 86400000 * 8 },
-  { id: "MY_REQ_3", propertyId: "prop_1", homeowner: "local", serviceType: "Plumbing", urgency: "low",    description: "Slow drain in master bathroom. Snaking hasn't resolved it.", status: "accepted", createdAt: Date.now() - 86400000 * 14 },
-];
-
-const SEED_MY_BIDS: Quote[] = [
-  { id: "QUOTE_101", requestId: "REQ_101", contractor: "local", amount: 185000, timeline: 3,  validUntil: Date.now() - 86400000 * 30, status: "accepted",  createdAt: Date.now() - 86400000 * 90 },
-  { id: "QUOTE_102", requestId: "REQ_102", contractor: "local", amount: 320000, timeline: 5,  validUntil: Date.now() - 86400000 * 20, status: "rejected",  createdAt: Date.now() - 86400000 * 75 },
-  { id: "QUOTE_103", requestId: "REQ_103", contractor: "local", amount: 95000,  timeline: 2,  validUntil: Date.now() - 86400000 * 10, status: "accepted",  createdAt: Date.now() - 86400000 * 60 },
-  { id: "QUOTE_104", requestId: "REQ_104", contractor: "local", amount: 440000, timeline: 7,  validUntil: Date.now() - 86400000 * 5,  status: "rejected",  createdAt: Date.now() - 86400000 * 45 },
-  { id: "QUOTE_105", requestId: "REQ_105", contractor: "local", amount: 210000, timeline: 4,  validUntil: Date.now() - 86400000 * 2,  status: "accepted",  createdAt: Date.now() - 86400000 * 30 },
-  { id: "QUOTE_106", requestId: "REQ_106", contractor: "local", amount: 75000,  timeline: 1,  validUntil: Date.now() + 86400000 * 10, status: "pending",   createdAt: Date.now() - 86400000 * 5  },
-  { id: "QUOTE_107", requestId: "REQ_107", contractor: "local", amount: 560000, timeline: 10, validUntil: Date.now() + 86400000 * 20, status: "pending",   createdAt: Date.now() - 86400000 * 2  },
-];
-
-const SEED_OPEN_REQUESTS: QuoteRequest[] = [
-  {
-    id: "REQ_1", propertyId: "prop_1", homeowner: "owner-principal-1",
-    serviceType: "HVAC", urgency: "high",
-    description: "AC unit stopped cooling last week. Unit is 12 years old. Needs diagnosis and likely refrigerant recharge or compressor inspection.",
-    status: "open", createdAt: Date.now() - 1000 * 60 * 60 * 3,
-  },
-  {
-    id: "REQ_2", propertyId: "prop_2", homeowner: "owner-principal-2",
-    serviceType: "Roofing", urgency: "medium",
-    description: "Several shingles missing after last storm. Small leak visible in attic near chimney flashing. Need repair estimate before next rain.",
-    status: "open", createdAt: Date.now() - 1000 * 60 * 60 * 18,
-  },
-  {
-    id: "REQ_3", propertyId: "prop_3", homeowner: "owner-principal-3",
-    serviceType: "Plumbing", urgency: "emergency",
-    description: "Pipe burst under kitchen sink — water shut off at main. Need emergency repair ASAP. 1960s copper piping throughout.",
-    status: "quoted", createdAt: Date.now() - 1000 * 60 * 30,
-  },
-  {
-    id: "REQ_4", propertyId: "prop_4", homeowner: "owner-principal-4",
-    serviceType: "Electrical", urgency: "medium",
-    description: "Breaker keeps tripping on kitchen circuit. GFCIs installed but issue persists. 200A panel, house built 1998.",
-    status: "open", createdAt: Date.now() - 1000 * 60 * 60 * 48,
-  },
-  {
-    id: "REQ_5", propertyId: "prop_5", homeowner: "owner-principal-5",
-    serviceType: "Flooring", urgency: "low",
-    description: "Refinish 900 sq ft of original hardwood oak floors. Some boards need replacement. Looking for quotes before scheduling.",
-    status: "open", createdAt: Date.now() - 1000 * 60 * 60 * 72,
-  },
-];
-
 // ─── Converters ───────────────────────────────────────────────────────────────
 
 const URGENCY_MAP: Record<string, Urgency> = {
@@ -224,9 +173,10 @@ function unwrapRequest(result: any): QuoteRequest {
 
 function createQuoteService() {
   let _actor: any = null;
-  const mockRequests: QuoteRequest[] = [...SEED_MY_REQUESTS];
-  const mockMyBids: Quote[]          = [...SEED_MY_BIDS];
-  const mockOpenRequests: QuoteRequest[] = [...SEED_OPEN_REQUESTS];
+  // E2E-only mock state — only populated via window.__e2e_* injection from Playwright
+  const mockRequests: QuoteRequest[] = [];
+  const mockMyBids: Quote[]          = [];
+  const mockOpenRequests: QuoteRequest[] = [];
   const mockQuotesByRequest = new Map<string, Quote[]>();
 
   async function getActor() {
@@ -274,7 +224,7 @@ function createQuoteService() {
 
   async getRequests(): Promise<QuoteRequest[]> {
     if (import.meta.env.DEV && !QUOTE_CANISTER_ID) {
-      // E2E override: replace seed data with injected fixture requests
+      // E2E: use Playwright-injected fixture requests when available
       const e2e = typeof window !== "undefined" && (window as any).__e2e_quote_requests;
       return e2e ? (e2e as QuoteRequest[]) : [...mockRequests];
     }
@@ -435,11 +385,8 @@ function createQuoteService() {
   reset() {
     _actor = null;
     mockRequests.length = 0;
-    mockRequests.push(...SEED_MY_REQUESTS);
     mockMyBids.length = 0;
-    mockMyBids.push(...SEED_MY_BIDS);
     mockOpenRequests.length = 0;
-    mockOpenRequests.push(...SEED_OPEN_REQUESTS);
     mockQuotesByRequest.clear();
   },
   };

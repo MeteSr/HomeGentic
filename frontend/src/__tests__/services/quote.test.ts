@@ -31,16 +31,19 @@ describe("quoteService.getQuotaForTier", () => {
   });
 });
 
-// ─── getOpenRequests (fixed mock data) ───────────────────────────────────────
+// ─── getOpenRequests (mock — starts empty, populated by createRequest) ───────
 
 describe("quoteService.getOpenRequests (mock)", () => {
-  it("returns a non-empty list", async () => {
+  it("starts empty when no canister is deployed and no E2E data injected", async () => {
     const reqs = await quoteService.getOpenRequests();
-    expect(reqs.length).toBeGreaterThan(0);
+    expect(Array.isArray(reqs)).toBe(true);
   });
 
-  it("every request has required fields", async () => {
-    const reqs = await quoteService.getOpenRequests();
+  it("every request in the list has required fields", async () => {
+    // Use the stateful mock — create a request so we have something to validate
+    const svc = (await import("@/services/quote")).quoteService;
+    await svc.createRequest({ propertyId: "p", serviceType: "Electrical", urgency: "medium", description: "test" });
+    const reqs = await svc.getRequests(); // getOpenRequests uses a separate in-memory list
     for (const r of reqs) {
       expect(typeof r.id).toBe("string");
       expect(typeof r.propertyId).toBe("string");
@@ -58,11 +61,6 @@ describe("quoteService.getOpenRequests (mock)", () => {
     const b = await quoteService.getOpenRequests();
     expect(a).not.toBe(b);
     expect(a).toEqual(b);
-  });
-
-  it("contains at least one 'open' request", async () => {
-    const reqs = await quoteService.getOpenRequests();
-    expect(reqs.some((r) => r.status === "open")).toBe(true);
   });
 });
 
@@ -138,26 +136,24 @@ describe("quoteService mock — getRequests", () => {
     svc = m.quoteService;
   });
 
-  it("starts with the 3 pre-seeded demo requests", async () => {
+  it("starts empty when no seed data is present", async () => {
     const reqs = await svc.getRequests();
-    expect(reqs).toHaveLength(3);
-    expect(reqs.map((r) => r.id)).toContain("MY_REQ_1");
+    expect(reqs).toHaveLength(0);
   });
 
-  it("returns all pre-seeded + created requests", async () => {
+  it("returns created requests", async () => {
     await svc.createRequest({ propertyId: "p1", serviceType: "HVAC",    urgency: "high",   description: "d1" });
     await svc.createRequest({ propertyId: "p1", serviceType: "Roofing", urgency: "medium", description: "d2" });
     const reqs = await svc.getRequests();
-    expect(reqs).toHaveLength(5); // 3 pre-seeded + 2 created
+    expect(reqs).toHaveLength(2);
   });
 
   it("returns a copy — mutating result does not affect service state", async () => {
-    const before = (await svc.getRequests()).length; // 3 pre-seeded
     await svc.createRequest({ propertyId: "p1", serviceType: "HVAC", urgency: "high", description: "d1" });
     const first = await svc.getRequests();
     first.pop();
     const second = await svc.getRequests();
-    expect(second).toHaveLength(before + 1); // pop on copy doesn't affect internal state
+    expect(second).toHaveLength(1); // pop on copy doesn't affect internal state
   });
 });
 
@@ -354,14 +350,12 @@ describe("quoteService.sortByUrgency (12.2.3)", () => {
     expect(input.map((r) => r.urgency)).toEqual(original);
   });
 
-  it("emergency open request from seed data appears before lower-urgency ones when sorted", async () => {
-    const open = await quoteService.getOpenRequests();
-    const sorted = quoteService.sortByUrgency(open);
+  it("emergency request appears before high-urgency ones when sorted", () => {
+    const requests = [makeReq("high"), makeReq("emergency"), makeReq("medium")];
+    const sorted = quoteService.sortByUrgency(requests);
     const emergIdx = sorted.findIndex((r) => r.urgency === "emergency");
     const highIdx  = sorted.findIndex((r) => r.urgency === "high");
-    if (emergIdx !== -1 && highIdx !== -1) {
-      expect(emergIdx).toBeLessThan(highIdx);
-    }
+    expect(emergIdx).toBeLessThan(highIdx);
   });
 
   it("two requests with same urgency preserve relative order (stable sort)", () => {
@@ -382,49 +376,45 @@ describe("quoteService mock — tier quota enforcement (12.2.3)", () => {
     vi.resetModules();
     const m = await import("@/services/quote");
     svc = m.quoteService;
-    // Pre-seeded state: MY_REQ_1 (quoted), MY_REQ_2 (open), MY_REQ_3 (accepted)
-    // → 1 open request at start
+    // No pre-seeded state — mock starts empty after SEED data removal
   });
 
-  it("Free tier: 3rd open request succeeds", async () => {
-    // 1 pre-seeded open + 1 more = 2 open; add 1 more → 3 → should succeed
-    await svc.createRequest({ propertyId: "p", serviceType: "HVAC",    urgency: "low", description: "d" }, "Free");
+  it("Free tier: 3rd open request succeeds (limit = 3)", async () => {
+    await svc.createRequest({ propertyId: "p", serviceType: "HVAC",    urgency: "low", description: "d1" }, "Free");
+    await svc.createRequest({ propertyId: "p", serviceType: "Roofing", urgency: "low", description: "d2" }, "Free");
     await expect(
-      svc.createRequest({ propertyId: "p", serviceType: "Roofing", urgency: "low", description: "d" }, "Free")
+      svc.createRequest({ propertyId: "p", serviceType: "Plumbing", urgency: "low", description: "d3" }, "Free")
     ).resolves.toBeDefined();
   });
 
   it("Free tier: 4th open request throws QuotaExceeded", async () => {
-    // 1 pre-seeded open + 2 created = 3 open; next should be blocked
-    await svc.createRequest({ propertyId: "p", serviceType: "HVAC",    urgency: "low", description: "d" }, "Free");
-    await svc.createRequest({ propertyId: "p", serviceType: "Roofing", urgency: "low", description: "d" }, "Free");
+    for (let i = 0; i < 3; i++) {
+      await svc.createRequest({ propertyId: "p", serviceType: "HVAC", urgency: "low", description: `d${i}` }, "Free");
+    }
     await expect(
-      svc.createRequest({ propertyId: "p", serviceType: "Plumbing", urgency: "low", description: "d" }, "Free")
+      svc.createRequest({ propertyId: "p", serviceType: "Plumbing", urgency: "low", description: "d4" }, "Free")
     ).rejects.toThrow(/quota|limit reached/i);
   });
 
-  it("Pro tier: 10th open request succeeds", async () => {
-    // 1 pre-seeded + 8 created = 9; one more → 10, should succeed
-    for (let i = 0; i < 8; i++) {
-      await svc.createRequest({ propertyId: "p", serviceType: "HVAC", urgency: "low", description: `d${i}` }, "Pro");
-    }
-    await expect(
-      svc.createRequest({ propertyId: "p", serviceType: "Roofing", urgency: "low", description: "d9" }, "Pro")
-    ).resolves.toBeDefined();
-  });
-
-  it("Pro tier: 11th open request throws QuotaExceeded", async () => {
-    // 1 pre-seeded + 9 created = 10; next should be blocked
+  it("Pro tier: 10th open request succeeds (limit = 10)", async () => {
     for (let i = 0; i < 9; i++) {
       await svc.createRequest({ propertyId: "p", serviceType: "HVAC", urgency: "low", description: `d${i}` }, "Pro");
     }
     await expect(
-      svc.createRequest({ propertyId: "p", serviceType: "Plumbing", urgency: "low", description: "d10" }, "Pro")
+      svc.createRequest({ propertyId: "p", serviceType: "Roofing", urgency: "low", description: "d10" }, "Pro")
+    ).resolves.toBeDefined();
+  });
+
+  it("Pro tier: 11th open request throws QuotaExceeded", async () => {
+    for (let i = 0; i < 10; i++) {
+      await svc.createRequest({ propertyId: "p", serviceType: "HVAC", urgency: "low", description: `d${i}` }, "Pro");
+    }
+    await expect(
+      svc.createRequest({ propertyId: "p", serviceType: "Plumbing", urgency: "low", description: "d11" }, "Pro")
     ).rejects.toThrow(/quota|limit reached/i);
   });
 
   it("no tier argument → no quota check (backwards compat)", async () => {
-    // Create well past the Free quota of 3
     for (let i = 0; i < 5; i++) {
       await svc.createRequest({ propertyId: "p", serviceType: "HVAC", urgency: "low", description: `d${i}` });
     }
@@ -433,12 +423,19 @@ describe("quoteService mock — tier quota enforcement (12.2.3)", () => {
     ).resolves.toBeDefined();
   });
 
-  it("closed/accepted/quoted requests do not count toward the open quota", async () => {
-    // Pre-seed has 1 quoted + 1 accepted — they must NOT count toward the Free quota of 3
-    // 1 open pre-seeded; add 2 → 3 open; should still succeed (not blocked by 2 non-open seed items)
-    await svc.createRequest({ propertyId: "p", serviceType: "HVAC",    urgency: "low", description: "d1" }, "Free");
+  it("cancelled requests do not count toward the open quota", async () => {
+    // Create 2 requests, cancel them (mock cancel() updates status to "cancelled"),
+    // then verify a fresh Free quota of 3 is available.
+    const r1 = await svc.createRequest({ propertyId: "p", serviceType: "HVAC",    urgency: "low", description: "will cancel" });
+    const r2 = await svc.createRequest({ propertyId: "p", serviceType: "Roofing", urgency: "low", description: "will cancel" });
+    await svc.cancel(r1.id);
+    await svc.cancel(r2.id);
+    // 0 open — can now create 3 under Free quota
+    for (let i = 0; i < 3; i++) {
+      await svc.createRequest({ propertyId: "p", serviceType: "Plumbing",   urgency: "low", description: `open${i}` }, "Free");
+    }
     await expect(
-      svc.createRequest({ propertyId: "p", serviceType: "Roofing", urgency: "low", description: "d2" }, "Free")
-    ).resolves.toBeDefined();
+      svc.createRequest({ propertyId: "p", serviceType: "Electrical", urgency: "low", description: "4th" }, "Free")
+    ).rejects.toThrow(/quota|limit reached/i);
   });
 });
