@@ -425,7 +425,7 @@ function createListingService() {
 
   // ── createBidRequest ────────────────────────────────────────────────────────
   async createBidRequest(input: CreateBidRequestInput): Promise<ListingBidRequest> {
-    if (!LISTING_CANISTER_ID) {
+    if (import.meta.env.DEV && !LISTING_CANISTER_ID) {
       const req: ListingBidRequest = {
         id:               `BID_${++_reqSeq}`,
         propertyId:       input.propertyId,
@@ -457,7 +457,7 @@ function createListingService() {
 
   // ── getMyBidRequests ────────────────────────────────────────────────────────
   async getMyBidRequests(): Promise<ListingBidRequest[]> {
-    if (!LISTING_CANISTER_ID) {
+    if (import.meta.env.DEV && !LISTING_CANISTER_ID) {
       return [...requests];
     }
     const actor = await getActor();
@@ -467,7 +467,7 @@ function createListingService() {
 
   // ── getBidRequest ───────────────────────────────────────────────────────────
   async getBidRequest(id: string): Promise<ListingBidRequest | null> {
-    if (!LISTING_CANISTER_ID) {
+    if (import.meta.env.DEV && !LISTING_CANISTER_ID) {
       return requests.find(r => r.id === id) ?? null;
     }
     const actor = await getActor();
@@ -478,7 +478,7 @@ function createListingService() {
 
   // ── cancelBidRequest ────────────────────────────────────────────────────────
   async cancelBidRequest(id: string): Promise<void> {
-    if (!LISTING_CANISTER_ID) {
+    if (import.meta.env.DEV && !LISTING_CANISTER_ID) {
       const req = requests.find(r => r.id === id);
       if (!req) throw new Error(`BidRequest ${id} not found`);
       if (req.status !== "Open") throw new Error(`BidRequest ${id} is not Open (status: ${req.status})`);
@@ -493,7 +493,7 @@ function createListingService() {
   // ── getOpenBidRequests (agent view) ─────────────────────────────────────────
   // 9.2.4: inviteOnly requests are hidden from the general marketplace.
   async getOpenBidRequests(callerAgentId = "local"): Promise<ListingBidRequest[]> {
-    if (!LISTING_CANISTER_ID) {
+    if (import.meta.env.DEV && !LISTING_CANISTER_ID) {
       return requests.filter(
         r => r.status === "Open"
           && !isDeadlinePassed(r.bidDeadline)
@@ -507,7 +507,7 @@ function createListingService() {
 
   // ── submitProposal ──────────────────────────────────────────────────────────
   async submitProposal(requestId: string, input: SubmitProposalInput): Promise<ListingProposal> {
-    if (!LISTING_CANISTER_ID) {
+    if (import.meta.env.DEV && !LISTING_CANISTER_ID) {
       const req = requests.find(r => r.id === requestId);
       if (!req) throw new Error(`BidRequest ${requestId} not found`);
       if (req.status !== "Open") throw new Error(`BidRequest ${requestId} is not accepting proposals (status: ${req.status})`);
@@ -556,7 +556,7 @@ function createListingService() {
   // ── getProposalsForRequest ───────────────────────────────────────────────────
   // Sealed-bid: proposals are hidden until the request's bidDeadline has passed.
   async getProposalsForRequest(requestId: string): Promise<ListingProposal[]> {
-    if (!LISTING_CANISTER_ID) {
+    if (import.meta.env.DEV && !LISTING_CANISTER_ID) {
       const req = requests.find(r => r.id === requestId);
       if (!req) return [];
       if (!isDeadlinePassed(req.bidDeadline)) return []; // still sealed
@@ -569,7 +569,7 @@ function createListingService() {
 
   // ── getMyProposals (agent view) ──────────────────────────────────────────────
   async getMyProposals(): Promise<ListingProposal[]> {
-    if (!LISTING_CANISTER_ID) {
+    if (import.meta.env.DEV && !LISTING_CANISTER_ID) {
       return [...proposals];
     }
     const actor = await getActor();
@@ -579,7 +579,7 @@ function createListingService() {
 
   // ── acceptProposal ───────────────────────────────────────────────────────────
   async acceptProposal(proposalId: string): Promise<void> {
-    if (!LISTING_CANISTER_ID) {
+    if (import.meta.env.DEV && !LISTING_CANISTER_ID) {
       const proposal = proposals.find(p => p.id === proposalId);
       if (!proposal) throw new Error(`Proposal ${proposalId} not found`);
 
@@ -604,7 +604,7 @@ function createListingService() {
 
   // ── uploadContract (9.4.5) ───────────────────────────────────────────────────
   async uploadContract(requestId: string, fileName: string): Promise<void> {
-    if (!LISTING_CANISTER_ID) {
+    if (import.meta.env.DEV && !LISTING_CANISTER_ID) {
       const req = requests.find((r) => r.id === requestId);
       if (!req) throw new Error(`BidRequest ${requestId} not found`);
       req.contractFile = { name: fileName, uploadedAt: Date.now() };
@@ -616,7 +616,7 @@ function createListingService() {
 
   // ── counterProposal (9.4.6) ──────────────────────────────────────────────────
   async counterProposal(proposalId: string, input: CounterProposalInput): Promise<CounterProposal> {
-    if (!LISTING_CANISTER_ID) {
+    if (import.meta.env.DEV && !LISTING_CANISTER_ID) {
       const proposal = proposals.find((p) => p.id === proposalId);
       if (!proposal) throw new Error(`Proposal ${proposalId} not found`);
       const counter: CounterProposal = {
@@ -637,7 +637,7 @@ function createListingService() {
 
   // ── respondToCounter (9.4.6) — agent accepts/rejects ────────────────────────
   async respondToCounter(counterId: string, response: "accept" | "reject"): Promise<void> {
-    if (!LISTING_CANISTER_ID) {
+    if (import.meta.env.DEV && !LISTING_CANISTER_ID) {
       const counter = counters.find((c) => c.id === counterId);
       if (!counter) throw new Error(`Counter ${counterId} not found`);
       counter.status = response === "accept" ? "Accepted" : "Rejected";
@@ -648,7 +648,7 @@ function createListingService() {
 
   // ── getCountersForProposal (9.4.6) ───────────────────────────────────────────
   async getCountersForProposal(proposalId: string): Promise<CounterProposal[]> {
-    if (!LISTING_CANISTER_ID) {
+    if (import.meta.env.DEV && !LISTING_CANISTER_ID) {
       return counters.filter((c) => c.proposalId === proposalId);
     }
     throw new Error("getCountersForProposal requires deployed canister");
@@ -656,7 +656,7 @@ function createListingService() {
 
   // ── getMyCounters (9.4.6) — agent views counters on their proposals ──────────
   async getMyCounters(): Promise<CounterProposal[]> {
-    if (!LISTING_CANISTER_ID) {
+    if (import.meta.env.DEV && !LISTING_CANISTER_ID) {
       const myProposalIds = new Set(proposals.map((p) => p.id));
       return counters.filter((c) => myProposalIds.has(c.proposalId));
     }
@@ -669,7 +669,7 @@ function createListingService() {
     key: MilestoneKey,
     completedBy: "homeowner" | "agent",
   ): Promise<ListingBidRequest> {
-    if (!LISTING_CANISTER_ID) {
+    if (import.meta.env.DEV && !LISTING_CANISTER_ID) {
       const req = requests.find((r) => r.id === requestId);
       if (!req) throw new Error(`BidRequest ${requestId} not found`);
       if (!req.milestones) req.milestones = initMilestones();
@@ -682,7 +682,7 @@ function createListingService() {
 
   // ── logOffer (9.5.2) ─────────────────────────────────────────────────────────
   async logOffer(requestId: string, input: LogOfferInput): Promise<OfferEntry> {
-    if (!LISTING_CANISTER_ID) {
+    if (import.meta.env.DEV && !LISTING_CANISTER_ID) {
       const req = requests.find((r) => r.id === requestId);
       if (!req) throw new Error(`BidRequest ${requestId} not found`);
       const { deltaFromListingPriceCents, deltaFromHomeGenticEstimateCents } = computeOfferDeltas(
@@ -709,7 +709,7 @@ function createListingService() {
 
   // ── logClose (9.5.3) ─────────────────────────────────────────────────────────
   async logClose(requestId: string, input: LogCloseInput): Promise<TransactionClose> {
-    if (!LISTING_CANISTER_ID) {
+    if (import.meta.env.DEV && !LISTING_CANISTER_ID) {
       const req = requests.find((r) => r.id === requestId);
       if (!req) throw new Error(`BidRequest ${requestId} not found`);
       const close: TransactionClose = {
@@ -732,7 +732,7 @@ function createListingService() {
 
   // ── logAgentPerformance (9.5.4) ───────────────────────────────────────────────
   async logAgentPerformance(requestId: string, input: LogAgentPerformanceInput): Promise<AgentPerformanceRecord> {
-    if (!LISTING_CANISTER_ID) {
+    if (import.meta.env.DEV && !LISTING_CANISTER_ID) {
       const req = requests.find((r) => r.id === requestId);
       if (!req) throw new Error(`BidRequest ${requestId} not found`);
       if (!req.closedData) throw new Error("Cannot log performance before close is recorded");
@@ -767,7 +767,7 @@ function createListingService() {
 
   // ── getAgentPerformanceRecords (9.5.4) — for AgentPublicPage ─────────────────
   async getAgentPerformanceRecords(agentId: string): Promise<AgentPerformanceRecord[]> {
-    if (!LISTING_CANISTER_ID) {
+    if (import.meta.env.DEV && !LISTING_CANISTER_ID) {
       return perfRecords.filter((r) => r.agentId === agentId);
     }
     throw new Error("getAgentPerformanceRecords requires deployed canister");
@@ -775,7 +775,7 @@ function createListingService() {
 
   // ── createDirectInvite (9.6.2) — homeowner invites specific agent ─────────────
   async createDirectInvite(agentId: string, propertyId: string): Promise<ListingBidRequest> {
-    if (!LISTING_CANISTER_ID) {
+    if (import.meta.env.DEV && !LISTING_CANISTER_ID) {
       const id = `BID_DIRECT_${++_reqSeq}`;
       const req: ListingBidRequest = {
         id,

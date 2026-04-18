@@ -202,7 +202,7 @@ function createContractorService() {
 
   return {
   async search(specialty?: string): Promise<ContractorProfile[]> {
-    if (!CONTRACTOR_CANISTER_ID) {
+    if (import.meta.env.DEV && !CONTRACTOR_CANISTER_ID) {
       const e2e = import.meta.env.DEV && typeof window !== "undefined" && (window as any).__e2e_contractors;
       const source: ContractorProfile[] = e2e ? (e2e as ContractorProfile[]) : mockContractors;
       return specialty ? source.filter((c) => c.specialties.includes(specialty)) : [...source];
@@ -213,7 +213,7 @@ function createContractorService() {
   },
 
   async getTopRated(): Promise<ContractorProfile[]> {
-    if (!CONTRACTOR_CANISTER_ID) {
+    if (import.meta.env.DEV && !CONTRACTOR_CANISTER_ID) {
       const e2e = import.meta.env.DEV && typeof window !== "undefined" && (window as any).__e2e_contractors;
       const source: ContractorProfile[] = e2e ? (e2e as ContractorProfile[]) : mockContractors;
       return [...source].sort((a, b) => b.trustScore - a.trustScore);
@@ -224,7 +224,7 @@ function createContractorService() {
   },
 
   async getMyProfile(): Promise<ContractorProfile | null> {
-    if (!CONTRACTOR_CANISTER_ID) {
+    if (import.meta.env.DEV && !CONTRACTOR_CANISTER_ID) {
       const e2e = import.meta.env.DEV && typeof window !== "undefined" && (window as any).__e2e_contractors;
       if (e2e) return (e2e as ContractorProfile[])[0] ?? null;
       return mockContractors[0] ?? null;
@@ -236,7 +236,7 @@ function createContractorService() {
   },
 
   async getContractor(principalText: string): Promise<ContractorProfile | null> {
-    if (!CONTRACTOR_CANISTER_ID) {
+    if (import.meta.env.DEV && !CONTRACTOR_CANISTER_ID) {
       const fromMock = mockContractors.find((c) => c.id === principalText);
       if (fromMock) return fromMock;
       // Playwright e2e injection
@@ -291,7 +291,7 @@ function createContractorService() {
   },
 
   async submitReview(contractorPrincipalText: string, rating: number, comment: string, jobId: string): Promise<void> {
-    if (!CONTRACTOR_CANISTER_ID) {
+    if (import.meta.env.DEV && !CONTRACTOR_CANISTER_ID) {
       // Mock: no-op in dev
       return;
     }
@@ -306,7 +306,7 @@ function createContractorService() {
   },
 
   async getCredentials(contractorPrincipalText: string): Promise<JobCredential[]> {
-    if (!CONTRACTOR_CANISTER_ID) {
+    if (import.meta.env.DEV && !CONTRACTOR_CANISTER_ID) {
       // Mock: return empty portfolio in dev
       return [];
     }
@@ -324,7 +324,7 @@ function createContractorService() {
   },
 
   async getBySpecialty(specialty: string): Promise<ContractorProfile[]> {
-    if (!CONTRACTOR_CANISTER_ID) {
+    if (import.meta.env.DEV && !CONTRACTOR_CANISTER_ID) {
       return mockContractors.filter((c) => c.specialties.includes(specialty));
     }
     const a = await getActor();

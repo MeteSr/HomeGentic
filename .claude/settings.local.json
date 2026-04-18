@@ -161,7 +161,10 @@
       "Bash(powershell.exe:*)",
       "Read(//c/ProgramData/**)",
       "Read(//c/Users/FreshMete/AppData/Roaming/**)",
-      "Read(//c/ProgramData/chocolatey/bin//**)"
+      "Read(//c/ProgramData/chocolatey/bin//**)",
+      "Bash(perl -pi -e 's/if \\\\\\(!\\([A-Z_]+CANISTER_ID\\) && !process\\\\.env\\\\.VITEST\\\\\\)/if \\(import.meta.env.DEV \\\\&\\\\& !$1\\)/g' frontend/src/services/*.ts)",
+      "Bash(perl -pi -e 's/if \\\\\\(!\\([A-Z_]+CANISTER_ID\\)\\\\\\)/if \\(import.meta.env.DEV \\\\&\\\\& !$1\\)/g' frontend/src/services/*.ts)",
+      "Bash(perl -pi -e 's/import\\\\.meta\\\\.env\\\\.DEV && !/import.meta.env.MODE === '\"'\"'development'\"'\"' && !/g' c:/Users/demet/homegentic/frontend/src/services/*.ts)"
     ]
   }
 }

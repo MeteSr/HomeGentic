@@ -71,7 +71,8 @@ interface ModalState {
   addService:    boolean;
   listing:       boolean;
   inviteJob:     Job | null;
-  logJobPrefill: { serviceType?: string; contractorName?: string } | undefined;
+  logJobPrefill:   { serviceType?: string; contractorName?: string } | undefined;
+  quotePrefill:    { serviceType?: string; description?: string }    | undefined;
 }
 
 const MODALS_CLOSED: ModalState = {
@@ -84,6 +85,7 @@ const MODALS_CLOSED: ModalState = {
   listing:       false,
   inviteJob:     null,
   logJobPrefill: undefined,
+  quotePrefill:  undefined,
 };
 
 export default function PropertyDetailPage() {
@@ -239,18 +241,23 @@ export default function PropertyDetailPage() {
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
           <div>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: COLORS.butter, color: COLORS.plum, padding: "4px 14px", borderRadius: 100, fontSize: "0.7rem", fontWeight: 600, marginBottom: "0.625rem", border: `1px solid rgba(46,37,64,0.1)` }}>
-              Property Record
+            <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", flexWrap: "wrap", marginBottom: "0.375rem" }}>
+              <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, margin: 0 }}>
+                {property.address}
+              </h1>
+              {property.verificationLevel === "Unverified" ? (
+                <span style={{ display: "inline-flex", alignItems: "center", fontFamily: UI.mono, fontWeight: 600, fontSize: "0.6rem", letterSpacing: "0.06em", textTransform: "uppercase", padding: "0.2rem 0.625rem", borderRadius: 100, backgroundColor: COLORS.rust, color: "#fff", border: `1px solid ${COLORS.rust}`, flexShrink: 0 }}>
+                  Unverified
+                </span>
+              ) : (
+                <Badge variant={verificationColor as any}>{property.verificationLevel}</Badge>
+              )}
             </div>
-            <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, marginBottom: "0.375rem" }}>
-              {property.address}
-            </h1>
             <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight }}>
               {property.city}, {property.state} {property.zipCode} · {property.propertyType} · Built {String(property.yearBuilt)}
             </p>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
-            <Badge variant={verificationColor as any}>{property.verificationLevel}</Badge>
             <Button
               variant="primary"
               icon={<Wrench size={14} />}
@@ -467,7 +474,7 @@ export default function PropertyDetailPage() {
             />
             <MarketIntelPanel
               recommendations={recommendations}
-              onLogJob={(prefill) => setModals((m) => ({ ...m, logJob: true, logJobPrefill: prefill }))}
+              onRequestQuote={(prefill) => setModals((m) => ({ ...m, quote: true, quotePrefill: prefill }))}
               onSeeAll={() => navigate("/market")}
             />
             <RecurringServicesPanel
@@ -537,9 +544,10 @@ export default function PropertyDetailPage() {
 
       <RequestQuoteModal
         isOpen={modals.quote}
-        onClose={() => setModals((m) => ({ ...m, quote: false }))}
-        onSuccess={(quoteId) => { setModals((m) => ({ ...m, quote: false })); navigate(`/quotes/${quoteId}`); }}
+        onClose={() => setModals((m) => ({ ...m, quote: false, quotePrefill: undefined }))}
+        onSuccess={(quoteId) => { setModals((m) => ({ ...m, quote: false, quotePrefill: undefined })); navigate(`/quotes/${quoteId}`); }}
         properties={storeProperties.length > 0 ? storeProperties : (property ? [property] : [])}
+        prefill={modals.quotePrefill}
       />
 
       {modals.inviteJob && property && (

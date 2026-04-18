@@ -301,7 +301,7 @@ function createJobService() {
 
   return {
   async getByProperty(propertyId: string): Promise<Job[]> {
-    if (!JOB_CANISTER_ID) {
+    if (import.meta.env.DEV && !JOB_CANISTER_ID) {
       return mockJobs.filter((j) => j.propertyId === propertyId);
     }
     const a = await getActor();
@@ -311,13 +311,13 @@ function createJobService() {
   },
 
   async getAll(): Promise<Job[]> {
-    if (!JOB_CANISTER_ID) return [...mockJobs];
+    if (import.meta.env.DEV && !JOB_CANISTER_ID) return [...mockJobs];
     // No canister equivalent for getAll — callers should use getByProperty
     return [];
   },
 
   async create(job: Omit<Job, "id" | "createdAt" | "status" | "photos" | "verified" | "homeownerSigned" | "contractorSigned" | "homeowner" | "contractor">): Promise<Job> {
-    if (!JOB_CANISTER_ID) {
+    if (import.meta.env.DEV && !JOB_CANISTER_ID) {
       const newJob: Job = {
         ...job,
         id: String(Date.now()),
@@ -352,7 +352,7 @@ function createJobService() {
   },
 
   async updateJob(jobId: string, updates: Partial<Pick<Job, "serviceType" | "contractorName" | "amount" | "date" | "description" | "permitNumber" | "warrantyMonths" | "isDiy">>): Promise<Job> {
-    if (!JOB_CANISTER_ID) {
+    if (import.meta.env.DEV && !JOB_CANISTER_ID) {
       const idx = mockJobs.findIndex((j) => j.id === jobId);
       if (idx === -1) throw new Error(`Job not found in mock store (id: ${jobId})`);
       mockJobs[idx] = { ...mockJobs[idx], ...updates };
@@ -363,7 +363,7 @@ function createJobService() {
   },
 
   async updateJobStatus(jobId: string, status: JobStatus): Promise<Job> {
-    if (!JOB_CANISTER_ID) {
+    if (import.meta.env.DEV && !JOB_CANISTER_ID) {
       const idx = mockJobs.findIndex((j) => j.id === jobId);
       if (idx === -1) throw new Error(`Job not found in mock store (id: ${jobId})`);
       mockJobs[idx] = { ...mockJobs[idx], status };
@@ -383,7 +383,7 @@ function createJobService() {
   },
 
   async verifyJob(jobId: string): Promise<Job> {
-    if (!JOB_CANISTER_ID) {
+    if (import.meta.env.DEV && !JOB_CANISTER_ID) {
       const idx = mockJobs.findIndex((j) => j.id === jobId);
       if (idx === -1) throw new Error(`Job not found in mock store (id: ${jobId})`);
       const job = mockJobs[idx];
@@ -405,7 +405,7 @@ function createJobService() {
   },
 
   async linkContractor(jobId: string, contractorPrincipal: string): Promise<Job> {
-    if (!JOB_CANISTER_ID) {
+    if (import.meta.env.DEV && !JOB_CANISTER_ID) {
       const idx = mockJobs.findIndex((j) => j.id === jobId);
       if (idx === -1) throw new Error(`Job not found in mock store (id: ${jobId})`);
       mockJobs[idx] = { ...mockJobs[idx], contractor: contractorPrincipal };
@@ -418,14 +418,14 @@ function createJobService() {
   },
 
   async getJobsPendingMySignature(): Promise<Job[]> {
-    if (!JOB_CANISTER_ID) return [];
+    if (import.meta.env.DEV && !JOB_CANISTER_ID) return [];
     const a = await getActor();
     const result = await a.getJobsPendingMySignature();
     return (result as any[]).map(fromJob);
   },
 
   async getCertificationData(propertyId: string): Promise<{ verifiedJobCount: number; verifiedKeySystems: string[]; meetsStructural: boolean }> {
-    if (!JOB_CANISTER_ID) {
+    if (import.meta.env.DEV && !JOB_CANISTER_ID) {
       const KEY_SYSTEMS = ["HVAC", "Roofing", "Plumbing", "Electrical"];
       const propertyJobs = mockJobs.filter((j) => j.propertyId === propertyId && j.verified);
       const systems = [...new Set(propertyJobs.map((j) => j.serviceType).filter((s) => KEY_SYSTEMS.includes(s)))];
@@ -457,7 +457,7 @@ function createJobService() {
   },
 
   async createInviteToken(jobId: string, propertyAddress: string): Promise<string> {
-    if (!JOB_CANISTER_ID) return `MOCK_INV_${jobId}`;
+    if (import.meta.env.DEV && !JOB_CANISTER_ID) return `MOCK_INV_${jobId}`;
     const a = await getActor();
     const result = await a.createInviteToken(jobId, propertyAddress);
     if ("ok" in result) return result.ok as string;
@@ -467,7 +467,7 @@ function createJobService() {
   },
 
   async getJobByInviteToken(token: string): Promise<InvitePreview> {
-    if (!JOB_CANISTER_ID) {
+    if (import.meta.env.DEV && !JOB_CANISTER_ID) {
       // Mock preview for development
       return {
         jobId:           "MOCK_JOB",
@@ -505,7 +505,7 @@ function createJobService() {
   },
 
   async redeemInviteToken(token: string): Promise<Job> {
-    if (!JOB_CANISTER_ID) {
+    if (import.meta.env.DEV && !JOB_CANISTER_ID) {
       return {
         id: "MOCK_JOB", propertyId: "1", homeowner: "mock",
         serviceType: "HVAC", amount: 25000,
@@ -523,7 +523,7 @@ function createJobService() {
 
   /** Admin: return all jobs sourced via a HomeGentic quote request (referral fee pipeline). */
   async getReferralJobs(): Promise<Job[]> {
-    if (!JOB_CANISTER_ID) return [];
+    if (import.meta.env.DEV && !JOB_CANISTER_ID) return [];
     const a = await getActor();
     const raw: any[] = await a.getReferralJobs();
     return raw.map(fromJob);
@@ -541,7 +541,7 @@ function createJobService() {
     permitNumber?:  string;
     warrantyMonths?: number;
   }): Promise<Job> {
-    if (!JOB_CANISTER_ID) {
+    if (import.meta.env.DEV && !JOB_CANISTER_ID) {
       const proposal: Job = {
         id:               `PROPOSAL_${Date.now()}`,
         propertyId:       input.propertyId,
@@ -582,7 +582,7 @@ function createJobService() {
   },
 
   async getPendingProposals(): Promise<Job[]> {
-    if (!JOB_CANISTER_ID) {
+    if (import.meta.env.DEV && !JOB_CANISTER_ID) {
       const pending = import.meta.env.DEV && typeof window !== "undefined" && (window as any).__e2e_pending_proposals;
       if (pending) return pending as Job[];
       return mockJobs.filter((j) => j.status === "pending_homeowner_approval");
@@ -593,7 +593,7 @@ function createJobService() {
   },
 
   async approveJobProposal(jobId: string): Promise<Job> {
-    if (!JOB_CANISTER_ID) {
+    if (import.meta.env.DEV && !JOB_CANISTER_ID) {
       const idx = mockJobs.findIndex((j) => j.id === jobId);
       if (idx !== -1) {
         mockJobs[idx] = { ...mockJobs[idx], homeownerSigned: true, status: "pending" };
@@ -616,7 +616,7 @@ function createJobService() {
   },
 
   async rejectJobProposal(jobId: string): Promise<void> {
-    if (!JOB_CANISTER_ID) {
+    if (import.meta.env.DEV && !JOB_CANISTER_ID) {
       const idx = mockJobs.findIndex((j) => j.id === jobId);
       if (idx !== -1) { mockJobs.splice(idx, 1); return; }
       const pending: Job[] = (import.meta.env.DEV && typeof window !== "undefined" && (window as any).__e2e_pending_proposals) || [];

@@ -260,7 +260,10 @@ export default function PropertyRegisterPage() {
                     Year Built *
                     {lookingUp && <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: UI.inkLight, marginLeft: "0.5rem" }}>fetching…</span>}
                   </label>
-                  <input id="prop-year" className="form-input" type="number" placeholder="1985" min="1800" max={new Date().getFullYear()} value={form.yearBuilt} onChange={(e) => update("yearBuilt", e.target.value)} disabled={lookingUp} />
+                  <input id="prop-year" className="form-input" type="number" placeholder="1985" min="1900" max={new Date().getFullYear()} value={form.yearBuilt} onChange={(e) => update("yearBuilt", e.target.value)} disabled={lookingUp} />
+                  {form.yearBuilt && (Number(form.yearBuilt) < 1900 || Number(form.yearBuilt) > new Date().getFullYear()) && (
+                    <p style={{ color: COLORS.rust, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: FONTS.sans }}>Year must be between 1900 and {new Date().getFullYear()}</p>
+                  )}
                 </div>
                 <div>
                   <label className="form-label" htmlFor="prop-sqft">
@@ -273,7 +276,7 @@ export default function PropertyRegisterPage() {
             </div>
             <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.5rem" }}>
               <Button variant="outline" onClick={() => setStep(1)} icon={<ArrowLeft size={14} />}>Back</Button>
-              <Button style={{ flex: 1 }} disabled={!form.yearBuilt || !form.squareFeet} onClick={() => setStep(3)} iconRight={<ArrowRight size={14} />}>Review</Button>
+              <Button style={{ flex: 1 }} disabled={!form.yearBuilt || !form.squareFeet || Number(form.yearBuilt) < 1900 || Number(form.yearBuilt) > new Date().getFullYear()} onClick={() => setStep(3)} iconRight={<ArrowRight size={14} />}>Review</Button>
             </div>
           </div>
         )}

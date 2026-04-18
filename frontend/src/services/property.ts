@@ -240,7 +240,7 @@ export interface RegisterPropertyArgs {
 
 let _actor: any = null;
 let _mockProperties: Property[] = [];
-let _mockNextId = BigInt(1);
+let _mockNextId = () => BigInt(Date.now());
 
 async function getActor() {
   if (!_actor) {
@@ -328,9 +328,9 @@ function unwrap(result: any): Property {
 
 export const propertyService = {
   async registerProperty(args: RegisterPropertyArgs): Promise<Property> {
-    if (!PROPERTY_CANISTER_ID && !process.env.VITEST) {
+    if (import.meta.env.DEV && !PROPERTY_CANISTER_ID && !process.env.VITEST) {
       const mock: Property = {
-        id:                _mockNextId++,
+        id:                _mockNextId(),
         owner:             "local-dev",
         address:           args.address,
         city:              args.city,
@@ -366,7 +366,7 @@ export const propertyService = {
     if (typeof window !== "undefined" && (window as any).__e2e_properties) {
       return (window as any).__e2e_properties as Property[];
     }
-    if (!PROPERTY_CANISTER_ID && !process.env.VITEST) return _mockProperties.map((p) => ({ ...p }));
+    if (import.meta.env.DEV && !PROPERTY_CANISTER_ID && !process.env.VITEST) return _mockProperties.map((p) => ({ ...p }));
     const a = await getActor();
     const props = await a.getMyProperties();
     return (props as any[]).map(fromProperty);
@@ -472,7 +472,7 @@ export const propertyService = {
   },
 
   async getOwnershipHistory(propertyId: bigint): Promise<TransferRecord[]> {
-    if (!PROPERTY_CANISTER_ID) return [];
+    if (import.meta.env.DEV && !PROPERTY_CANISTER_ID) return [];
     const a = await getActor();
     const records: any[] = await a.getOwnershipHistory(propertyId);
     return records.map((r) => ({
@@ -493,7 +493,7 @@ export const propertyService = {
    * Returns multiple results when the address is ambiguous (e.g. multiple units).
    */
   async searchByAddress(address: string): Promise<Array<{ id: string; owner: string; address: string }>> {
-    if (!PROPERTY_CANISTER_ID) {
+    if (import.meta.env.DEV && !PROPERTY_CANISTER_ID) {
       // In dev/test: fuzzy match against mock properties
       const term = address.toLowerCase();
       return _mockProperties
@@ -577,7 +577,7 @@ export const propertyService = {
 
   /** Returns all properties where the caller has a manager role. */
   async getMyManagedProperties(): Promise<ManagedProperty[]> {
-    if (!PROPERTY_CANISTER_ID) return [];
+    if (import.meta.env.DEV && !PROPERTY_CANISTER_ID) return [];
     const a = await getActor();
     const results: any[] = await a.getMyManagedProperties();
     return results.map((r) => ({
@@ -617,7 +617,7 @@ export const propertyService = {
 
   /** Owner fetches notifications about manager actions on their property. */
   async getOwnerNotifications(propertyId: bigint): Promise<OwnerNotification[]> {
-    if (!PROPERTY_CANISTER_ID) return [];
+    if (import.meta.env.DEV && !PROPERTY_CANISTER_ID) return [];
     const a = await getActor();
     const result = await a.getOwnerNotifications(propertyId);
     if ("ok" in result) return (result.ok as any[]).map(fromOwnerNotification);
@@ -648,6 +648,6 @@ export const propertyService = {
   reset() {
     _actor = null;
     _mockProperties = [];
-    _mockNextId = BigInt(1);
+    _mockNextId = () => BigInt(Date.now());
   },
 };

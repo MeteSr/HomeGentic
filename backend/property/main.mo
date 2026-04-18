@@ -278,7 +278,6 @@ persistent actor Property {
 
   // ─── Stable State ─────────────────────────────────────────────────────────
 
-  private var nextId     : Nat       = 1;
   private var isPaused          : Bool        = false;
   private var pauseExpiryNs     : ?Int        = null;
   private var admins                   : [Principal] = [];
@@ -289,6 +288,7 @@ persistent actor Property {
   /// reading the local tierGrants map.
   private var payCanisterId            : Text        = "";
 
+  private var nextId             : Nat                            = 1;
   private var transferCounter        : Nat                            = 0;
 
   // Room state
@@ -469,6 +469,9 @@ persistent actor Property {
     if (Text.size(args.city)    > 100) return #err(#InvalidInput("city exceeds 100 characters"));
     if (Text.size(args.state)   > 50)  return #err(#InvalidInput("state exceeds 50 characters"));
     if (Text.size(args.zipCode) > 20)  return #err(#InvalidInput("zipCode exceeds 20 characters"));
+    let currentYear = Int.abs(Time.now()) / 1_000_000_000 / 31_536_000 + 1970;
+    if (args.yearBuilt < 1900 or args.yearBuilt > currentYear)
+      return #err(#InvalidInput("Year built must be between 1900 and " # Nat.toText(currentYear)));
 
     let caller = msg.caller;
     let key    = addressKey(args.address, args.city, args.state, args.zipCode);
@@ -539,9 +542,9 @@ persistent actor Property {
       ));
     };
 
+    let now = Time.now();
     let id  = nextId;
     nextId += 1;
-    let now = Time.now();
 
     let prop : Property = {
       id;
@@ -1320,9 +1323,9 @@ persistent actor Property {
       if (duplicate) {
         failed := Array.concat(failed, [{ index = i; reason = "DuplicateAddress" }]);
       } else {
+        let now = Time.now();
         let newId = nextId;
         nextId += 1;
-        let now = Time.now();
         let prop : Property = {
           id                  = newId;
           owner               = msg.caller;

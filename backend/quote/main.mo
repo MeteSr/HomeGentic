@@ -123,8 +123,6 @@ persistent actor Quote {
 
   // ─── Stable State ────────────────────────────────────────────────────────────
 
-  private var reqCounter: Nat = 0;
-  private var quoteCounter: Nat = 0;
   private var isPaused: Bool = false;
   private var pauseExpiryNs: ?Int = null;
   private var adminListEntries: [Principal] = [];
@@ -137,6 +135,8 @@ persistent actor Quote {
   /// is a delegated manager, so managers don't need their own subscription.
   private var propCanisterId: Text = "";
 
+  private var reqCounter: Nat = 0;
+  private var quoteCounter: Nat = 0;
   private var sealedBidCounter: Nat = 0;
 
   // ─── Stable State ────────────────────────────────────────────────────────────
