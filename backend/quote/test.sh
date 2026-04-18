@@ -332,14 +332,14 @@ else
     tier         = variant { Pro };
   })')
   echo "$MGR_PROP_OUT"
-  MGR_PROP_ID=$(echo "$MGR_PROP_OUT" | grep -oP 'id = \K[0-9]+' | head -1)
+  MGR_PROP_ID=$(echo "$MGR_PROP_OUT" | grep -oP 'id = "\K[^"]+' | head -1 || true)
   echo "  → Property ID: $MGR_PROP_ID"
 
   # Invite and claim manager role
   echo ""
   echo "── [MGR-2] Owner invites manager; manager claims role ───────────────────"
   INVITE_OUT=$(dfx canister call property inviteManager \
-    "($MGR_PROP_ID, variant { Manager }, \"Quote Manager\")")
+    "(\"$MGR_PROP_ID\", variant { Manager }, \"Quote Manager\")")
   INVITE_TOKEN=$(echo "$INVITE_OUT" | grep -oP 'token = "\K[^"]+' | head -1)
   dfx canister call property claimManagerRole \
     "(\"$INVITE_TOKEN\")" --identity manager-test
