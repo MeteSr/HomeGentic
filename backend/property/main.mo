@@ -288,6 +288,7 @@ persistent actor Property {
   /// reading the local tierGrants map.
   private var payCanisterId            : Text        = "";
 
+  private var nextId             : Nat                            = 1;
   private var transferCounter        : Nat                            = 0;
 
   // Room state
@@ -542,7 +543,8 @@ persistent actor Property {
     };
 
     let now = Time.now();
-    let id  = Int.abs(now) / 1_000_000;
+    let id  = nextId;
+    nextId += 1;
 
     let prop : Property = {
       id;
@@ -1322,7 +1324,8 @@ persistent actor Property {
         failed := Array.concat(failed, [{ index = i; reason = "DuplicateAddress" }]);
       } else {
         let now = Time.now();
-        let newId = Int.abs(now) / 1_000_000 + i;
+        let newId = nextId;
+        nextId += 1;
         let prop : Property = {
           id                  = newId;
           owner               = msg.caller;

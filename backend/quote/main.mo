@@ -135,6 +135,9 @@ persistent actor Quote {
   /// is a delegated manager, so managers don't need their own subscription.
   private var propCanisterId: Text = "";
 
+  private var reqCounter: Nat = 0;
+  private var quoteCounter: Nat = 0;
+  private var sealedBidCounter: Nat = 0;
 
   // ─── Stable State ────────────────────────────────────────────────────────────
 
@@ -192,15 +195,18 @@ persistent actor Quote {
   };
 
   private func nextReqId() : Text {
-    "REQ_" # Int.toText(Int.abs(Time.now()) / 1_000_000)
+    reqCounter += 1;
+    "REQ_" # Nat.toText(reqCounter)
   };
 
   private func nextQuoteId() : Text {
-    "QUOTE_" # Int.toText(Int.abs(Time.now()) / 1_000_000)
+    quoteCounter += 1;
+    "QUOTE_" # Nat.toText(quoteCounter)
   };
 
   private func nextSealedBidId() : Text {
-    "SB_" # Int.toText(Int.abs(Time.now()) / 1_000_000)
+    sealedBidCounter += 1;
+    "SB_" # Nat.toText(sealedBidCounter)
   };
 
   /// Decode little-endian Nat8 bytes back to Nat (mock vetKeys IBE decryption).
