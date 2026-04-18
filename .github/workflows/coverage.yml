@@ -57,6 +57,8 @@ jobs:
 
       - name: Install DFX
         uses: dfinity/setup-dfx@main
+        with:
+          dfx_version: "0.31.0"
 
       - name: Cache mops packages
         uses: actions/cache@v5
