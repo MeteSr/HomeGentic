@@ -45,8 +45,9 @@ export default function SystemAgesModal({ open, onClose, propertyId, yearBuilt, 
     [propertyId, open]   // re-read when modal opens
   );
 
-  const [ages, setAges] = useState<Record<SystemName, string>>(() => buildAges(stored, yearBuilt));
+  const [ages, setAges]       = useState<Record<SystemName, string>>(() => buildAges(stored, yearBuilt));
   const [touched, setTouched] = useState<Set<SystemName>>(() => buildTouched(stored));
+  const [hasSolar, setHasSolar] = useState<boolean>(() => !!stored["Solar Panels"]);
 
   // Re-sync when propertyId / open changes
   React.useEffect(() => {
@@ -54,6 +55,7 @@ export default function SystemAgesModal({ open, onClose, propertyId, yearBuilt, 
       const s = propertyId ? systemAgesService.get(propertyId) : {};
       setAges(buildAges(s, yearBuilt));
       setTouched(buildTouched(s));
+      setHasSolar(!!s["Solar Panels"]);
     }
   }, [propertyId, yearBuilt, open]);
 
@@ -73,11 +75,16 @@ export default function SystemAgesModal({ open, onClose, propertyId, yearBuilt, 
     if (!propertyId) return;
     const result: SystemAges = {};
     for (const sys of TRACKED_SYSTEMS) {
+      if (sys === "Solar Panels") {
+        if (hasSolar) {
+          const yr = parseInt(ages[sys], 10);
+          if (!isNaN(yr) && yr >= 1900 && yr <= CURRENT_YEAR) result[sys] = yr;
+        }
+        continue;
+      }
       if (touched.has(sys)) {
         const yr = parseInt(ages[sys], 10);
-        if (!isNaN(yr) && yr >= 1900 && yr <= CURRENT_YEAR) {
-          result[sys] = yr;
-        }
+        if (!isNaN(yr) && yr >= 1900 && yr <= CURRENT_YEAR) result[sys] = yr;
       }
     }
     systemAgesService.set(propertyId, result);
@@ -136,16 +143,94 @@ export default function SystemAgesModal({ open, onClose, propertyId, yearBuilt, 
           {TRACKED_SYSTEMS.map((sys, i) => {
             const isTouched = touched.has(sys);
             const isCustom  = isTouched && ages[sys] !== String(yearBuilt);
+
+            /* ── Solar Panels — optional toggle row ── */
+            if (sys === "Solar Panels") {
+              return (
+                <div key={sys} style={{ padding: "0.875rem 1.25rem" }}>
+                  {/* Toggle header */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center", gap: "1rem" }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: "0.875rem", color: UI.ink, marginBottom: "0.2rem" }}>
+                        Solar Panels
+                        <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight, marginLeft: "0.5rem" }}>optional</span>
+                      </div>
+                      <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: UI.inkLight }}>
+                        {SYSTEM_DESCRIPTIONS["Solar Panels"]}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>
+                        {hasSolar ? "Installed" : "Not installed"}
+                      </span>
+                      {/* Toggle switch */}
+                      <button
+                        onClick={() => setHasSolar((v) => !v)}
+                        aria-label="Toggle solar panels"
+                        style={{
+                          width: "2.25rem", height: "1.25rem", borderRadius: 100, flexShrink: 0,
+                          background: hasSolar ? COLORS.sage : COLORS.rule,
+                          border: "none", cursor: "pointer", position: "relative", padding: 0,
+                          transition: "background 0.15s",
+                        }}
+                      >
+                        <div style={{
+                          position: "absolute", top: "2px",
+                          left: hasSolar ? "calc(100% - 17px)" : "2px",
+                          width: "13px", height: "13px", borderRadius: "50%",
+                          background: COLORS.white,
+                          transition: "left 0.15s",
+                        }} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Year input — visible only when toggled on */}
+                  {hasSolar && (
+                    <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "0.625rem", marginTop: "0.75rem" }}>
+                      {isCustom && (
+                        <button
+                          onClick={() => handleReset("Solar Panels")}
+                          style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight, background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline", textUnderlineOffset: "3px" }}
+                          title="Reset to house age"
+                        >
+                          Reset
+                        </button>
+                      )}
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.2rem" }}>
+                        <input
+                          type="number"
+                          min={1900}
+                          max={CURRENT_YEAR}
+                          value={ages["Solar Panels"]}
+                          onChange={(e) => handleChange("Solar Panels", e.target.value)}
+                          style={{
+                            width: "5.5rem", padding: "0.375rem 0.625rem",
+                            border: `1px solid ${isCustom ? UI.sage : UI.rule}`,
+                            fontFamily: UI.mono, fontSize: "0.8rem", textAlign: "center",
+                            outline: "none",
+                            background: isCustom ? COLORS.sageLight : COLORS.white,
+                            color: isCustom ? UI.sage : UI.ink,
+                          }}
+                        />
+                        <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", color: UI.inkLight }}>
+                          {isCustom ? `${CURRENT_YEAR - parseInt(ages["Solar Panels"] || "0", 10)} yrs old` : "house age"}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            /* ── Standard system row ── */
             return (
               <div
                 key={sys}
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr auto",
-                  alignItems: "center",
-                  gap: "1rem",
-                  padding: "0.875rem 1.25rem",
-                  borderBottom: i < TRACKED_SYSTEMS.length - 1 ? `1px solid ${UI.rule}` : "none",
+                  display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center",
+                  gap: "1rem", padding: "0.875rem 1.25rem",
+                  borderBottom: `1px solid ${UI.rule}`,
                 }}
               >
                 <div>
@@ -175,12 +260,9 @@ export default function SystemAgesModal({ open, onClose, propertyId, yearBuilt, 
                       value={ages[sys]}
                       onChange={(e) => handleChange(sys, e.target.value)}
                       style={{
-                        width: "5.5rem",
-                        padding: "0.375rem 0.625rem",
+                        width: "5.5rem", padding: "0.375rem 0.625rem",
                         border: `1px solid ${isCustom ? UI.sage : UI.rule}`,
-                        fontFamily: UI.mono,
-                        fontSize: "0.8rem",
-                        textAlign: "center",
+                        fontFamily: UI.mono, fontSize: "0.8rem", textAlign: "center",
                         outline: "none",
                         background: isCustom ? COLORS.sageLight : COLORS.white,
                         color: isCustom ? UI.sage : UI.ink,

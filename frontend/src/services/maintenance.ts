@@ -447,7 +447,7 @@ function createMaintenanceService() {
     plannedMonth?:      number,
     estimatedCostCents?: number
   ): Promise<ScheduleEntry> {
-    if (!MAINTENANCE_CANISTER_ID) {
+    if (import.meta.env.DEV && !MAINTENANCE_CANISTER_ID) {
       scheduleCounter += 1;
       const entry: ScheduleEntry = {
         id: `SCH_${scheduleCounter}`,
@@ -473,7 +473,7 @@ function createMaintenanceService() {
   },
 
   async getScheduleByProperty(propertyId: string): Promise<ScheduleEntry[]> {
-    if (!MAINTENANCE_CANISTER_ID) {
+    if (import.meta.env.DEV && !MAINTENANCE_CANISTER_ID) {
       return Array.from(scheduleStore.values()).filter((e) => e.propertyId === propertyId);
     }
     const a = await getActor();
@@ -481,7 +481,7 @@ function createMaintenanceService() {
   },
 
   async markCompleted(entryId: string): Promise<ScheduleEntry | null> {
-    if (!MAINTENANCE_CANISTER_ID) {
+    if (import.meta.env.DEV && !MAINTENANCE_CANISTER_ID) {
       const entry = scheduleStore.get(entryId);
       if (!entry) return null;
       const updated = { ...entry, isCompleted: true };

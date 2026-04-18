@@ -61,7 +61,7 @@ function createCertService() {
      * Returns { certId, token } — token is safe to embed in a URL.
      */
     async issueCert(propertyId: string, payload: CertPayload): Promise<IssuedCert> {
-      if (!REPORT_CANISTER_ID) {
+      if (import.meta.env.DEV && !REPORT_CANISTER_ID) {
         counter++;
         const certId = `CERT-${counter}`;
         store.set(certId, payload);
@@ -79,7 +79,7 @@ function createCertService() {
     async verifyCert(certId: string): Promise<CertPayload | null> {
       if (!certId) return null;
 
-      if (!REPORT_CANISTER_ID) {
+      if (import.meta.env.DEV && !REPORT_CANISTER_ID) {
         return store.get(certId) ?? null;
       }
       const a      = await getActor();

@@ -1,5 +1,4 @@
 import React, { useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
 import { Loader2, Mic, MicOff, Volume2, X, History, ChevronDown, ChevronUp, AlertTriangle, CheckCircle, XCircle, Paperclip } from "lucide-react";
 import { useVoiceAgent } from "../hooks/useVoiceAgent";
 import { COLORS, FONTS, RADIUS } from "@/theme";
@@ -25,10 +24,9 @@ const UI = {
 };
 
 export function VoiceAgent() {
-  const navigate = useNavigate();
   const {
     state, transcript, response, error, isSupported,
-    alerts, history, clearHistory, pendingImage,
+    history, clearHistory, pendingImage,
     pendingProposal,
     startListening, stopListening, reset,
     attachImage, clearImage, sendImageToAgent,
@@ -232,34 +230,6 @@ export function VoiceAgent() {
           >
             <X size={10} />
           </button>
-        </div>
-      )}
-
-      {/* Proactive alerts — shown when idle and no bubble is open */}
-      {alerts.length > 0 && isIdle && !hasBubble && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem", width: "20rem" }}>
-          {alerts.map((alert, i) => (
-            <div
-              key={i}
-              style={{
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                background: COLORS.plum, border: `1px solid ${COLORS.rule}`,
-                padding: "0.4rem 0.75rem", gap: "0.5rem",
-              }}
-            >
-              <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: COLORS.plumMid, lineHeight: 1.4, flex: 1 }}>
-                {alert.message}
-              </span>
-              {alert.href && alert.actionLabel && (
-                <button
-                  onClick={() => navigate(alert.href!)}
-                  style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.sage, background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0 }}
-                >
-                  {alert.actionLabel}
-                </button>
-              )}
-            </div>
-          ))}
         </div>
       )}
 

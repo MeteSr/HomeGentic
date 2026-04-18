@@ -8,7 +8,8 @@ import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 
 const SERVICE_TYPES = [
   "HVAC", "Roofing", "Plumbing", "Electrical", "Flooring", "Painting",
-  "Landscaping", "Windows", "Foundation", "Other",
+  "Landscaping", "Windows", "Kitchen", "Bathroom", "Insulation", "Solar",
+  "Foundation", "Other",
 ];
 
 const URGENCY_OPTIONS: { value: Urgency; label: string; desc: string }[] = [
@@ -30,7 +31,7 @@ interface RequestQuoteModalProps {
   onClose:     () => void;
   onSuccess:   (quoteId: string) => void;
   properties:  Property[];
-  prefill?:    { serviceType?: string };
+  prefill?:    { serviceType?: string; description?: string };
 }
 
 export function RequestQuoteModal({ isOpen, onClose, onSuccess, properties, prefill }: RequestQuoteModalProps) {
@@ -44,6 +45,7 @@ export function RequestQuoteModal({ isOpen, onClose, onSuccess, properties, pref
       ...EMPTY_FORM,
       propertyId:  properties.length > 0 ? String(properties[0].id) : "",
       serviceType: prefill?.serviceType ?? SERVICE_TYPES[0],
+      description: prefill?.description ?? "",
     });
   }, [isOpen, prefill, properties]);
 

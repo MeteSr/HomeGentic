@@ -237,7 +237,7 @@ function toRecord(raw: any): BillRecord {
 export const billService = {
   /** Store a confirmed bill record in the canister. */
   async addBill(args: AddBillArgs): Promise<BillRecord> {
-    if (!BILLS_CANISTER_ID && !process.env.VITEST) {
+    if (import.meta.env.DEV && !BILLS_CANISTER_ID) {
       if (countUploadsThisMonth() >= FREE_TIER_MONTHLY_LIMIT) {
         throw new TierLimitReachedError(
           "Bill uploads require an active subscription. Subscribe to Basic ($10/mo) to get started."
@@ -261,7 +261,7 @@ export const billService = {
 
   /** Fetch all bill records for a property. */
   async getBillsForProperty(propertyId: string): Promise<BillRecord[]> {
-    if (!BILLS_CANISTER_ID && !process.env.VITEST) {
+    if (import.meta.env.DEV && !BILLS_CANISTER_ID) {
       return _mockBills.filter((b) => b.propertyId === propertyId);
     }
     const actor = await getBillsActor();
@@ -272,7 +272,7 @@ export const billService = {
 
   /** Delete a bill record. */
   async deleteBill(id: string): Promise<void> {
-    if (!BILLS_CANISTER_ID && !process.env.VITEST) {
+    if (import.meta.env.DEV && !BILLS_CANISTER_ID) {
       _mockBills = _mockBills.filter((b) => b.id !== id);
       return;
     }

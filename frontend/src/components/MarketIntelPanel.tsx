@@ -12,14 +12,14 @@ const UI = {
 };
 
 export interface MarketIntelPanelProps {
-  recommendations: ProjectRecommendation[];
-  onLogJob:        (prefill: { serviceType?: string }) => void;
-  onSeeAll:        () => void;
+  recommendations:  ProjectRecommendation[];
+  onRequestQuote:   (prefill: { serviceType?: string; description?: string }) => void;
+  onSeeAll:         () => void;
 }
 
 export function MarketIntelPanel({
   recommendations,
-  onLogJob,
+  onRequestQuote,
   onSeeAll,
 }: MarketIntelPanelProps) {
   if (recommendations.length === 0) return null;
@@ -191,22 +191,25 @@ export function MarketIntelPanel({
             </p>
 
             <button
-              onClick={() => onLogJob({ serviceType: rec.category })}
+              onClick={() => onRequestQuote({
+                serviceType: rec.category,
+                description: rec.name,
+              })}
               style={{
                 fontFamily: UI.mono,
                 fontSize: "0.55rem",
                 letterSpacing: "0.1em",
                 textTransform: "uppercase",
                 padding: "0.35rem 0.75rem",
-                border: `1px solid ${UI.rule}`,
+                border: `1px solid ${UI.sage}`,
                 background: "none",
-                color: UI.inkLight,
+                color: UI.sage,
                 cursor: "pointer",
                 alignSelf: "flex-start",
                 borderRadius: RADIUS.sm,
               }}
             >
-              Log This Job →
+              Request Quote →
             </button>
           </div>
         ))}

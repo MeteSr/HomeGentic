@@ -102,7 +102,7 @@ export async function submitScore(
   yearBuilt: number,
   zipCode:   string,
 ): Promise<StoredScore> {
-  if (!MARKET_CANISTER_ID) {
+  if (import.meta.env.DEV && !MARKET_CANISTER_ID) {
     return { score: 0, zipCode, updatedAt: BigInt(0) };
   }
   const actor = await getNeighbourhoodActor();
@@ -117,7 +117,7 @@ export async function submitScore(
 
 /** Public zip-level aggregate — no individual data. */
 export async function getZipStats(zipCode: string): Promise<ZipStats | null> {
-  if (!MARKET_CANISTER_ID) return null;
+  if (import.meta.env.DEV && !MARKET_CANISTER_ID) return null;
   const actor = await getNeighbourhoodActor();
   const result = await actor.getZipStats(zipCode);
   if ("err" in result) return null;
@@ -132,7 +132,7 @@ export async function getZipStats(zipCode: string): Promise<ZipStats | null> {
 
 /** Returns the canister's vetKeys public key for the neighbourhood score context. */
 export async function getNeighborhoodPublicKey(): Promise<Uint8Array> {
-  if (!MARKET_CANISTER_ID) return new Uint8Array();
+  if (import.meta.env.DEV && !MARKET_CANISTER_ID) return new Uint8Array();
   const actor = await getNeighbourhoodActor();
   const bytes = await actor.getNeighborhoodPublicKey();
   return new Uint8Array(bytes);
@@ -142,7 +142,7 @@ export async function getNeighborhoodPublicKey(): Promise<Uint8Array> {
 export async function getMyScoreEncrypted(
   transportPublicKey: Uint8Array,
 ): Promise<ScoreEnvelope> {
-  if (!MARKET_CANISTER_ID) {
+  if (import.meta.env.DEV && !MARKET_CANISTER_ID) {
     return { encryptedKey: new Uint8Array(), score: 0, zipCode: "", updatedAt: BigInt(0) };
   }
   const actor = await getNeighbourhoodActor();

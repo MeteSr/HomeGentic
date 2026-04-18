@@ -374,7 +374,7 @@ function createReportService() {
     expiryDays:        number | null,
     visibility:        VisibilityLevel
   ): Promise<ShareLink> {
-    if (!REPORT_CANISTER_ID) {
+    if (import.meta.env.DEV && !REPORT_CANISTER_ID) {
       mockCounter++;
       const now        = Date.now();
       const snapshotId = `SNAP_${mockCounter}_${now}`;
@@ -453,7 +453,7 @@ function createReportService() {
   },
 
   async getReport(token: string): Promise<{ link: ShareLink; snapshot: ReportSnapshot }> {
-    if (!REPORT_CANISTER_ID) {
+    if (import.meta.env.DEV && !REPORT_CANISTER_ID) {
       const link = mockLinks.get(token);
       if (!link)         throw new Error("Report not found");
       if (!link.isActive) throw new Error("This report link has been revoked");
@@ -480,7 +480,7 @@ function createReportService() {
   },
 
   async listShareLinks(propertyId: string): Promise<ShareLink[]> {
-    if (!REPORT_CANISTER_ID) {
+    if (import.meta.env.DEV && !REPORT_CANISTER_ID) {
       return Array.from(mockLinks.values()).filter((l) => l.propertyId === propertyId);
     }
     const a = await getActor();
@@ -488,7 +488,7 @@ function createReportService() {
   },
 
   async revokeShareLink(token: string): Promise<void> {
-    if (!REPORT_CANISTER_ID) {
+    if (import.meta.env.DEV && !REPORT_CANISTER_ID) {
       const link = mockLinks.get(token);
       if (!link) throw new Error("Link not found");
       mockLinks.set(token, { ...link, isActive: false });

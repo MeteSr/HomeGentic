@@ -237,7 +237,7 @@ function createQuoteService() {
     req: Omit<QuoteRequest, "id" | "createdAt" | "status" | "homeowner">,
     tier?: string
   ): Promise<QuoteRequest> {
-    if (!QUOTE_CANISTER_ID) {
+    if (import.meta.env.DEV && !QUOTE_CANISTER_ID) {
       if (tier) {
         const quota = this.getQuotaForTier(tier);
         if (quota > 0) {
@@ -268,7 +268,7 @@ function createQuoteService() {
   },
 
   async getRequests(): Promise<QuoteRequest[]> {
-    if (!QUOTE_CANISTER_ID) {
+    if (import.meta.env.DEV && !QUOTE_CANISTER_ID) {
       // E2E override: replace seed data with injected fixture requests
       const e2e = typeof window !== "undefined" && (window as any).__e2e_quote_requests;
       return e2e ? (e2e as QuoteRequest[]) : [...mockRequests];
@@ -278,7 +278,7 @@ function createQuoteService() {
   },
 
   async getOpenRequests(): Promise<QuoteRequest[]> {
-    if (!QUOTE_CANISTER_ID) return [...mockOpenRequests];
+    if (import.meta.env.DEV && !QUOTE_CANISTER_ID) return [...mockOpenRequests];
     const a = await getActor();
     return (await a.getOpenRequests() as any[]).map(fromRequest);
   },
@@ -289,7 +289,7 @@ function createQuoteService() {
     timelineDays: number,
     validUntilMs: number
   ): Promise<Quote> {
-    if (!QUOTE_CANISTER_ID) {
+    if (import.meta.env.DEV && !QUOTE_CANISTER_ID) {
       const q: Quote = {
         id: `QUOTE_${Date.now()}`, requestId,
         contractor: "local",
@@ -315,7 +315,7 @@ function createQuoteService() {
   },
 
   async getRequest(id: string): Promise<QuoteRequest | undefined> {
-    if (!QUOTE_CANISTER_ID) {
+    if (import.meta.env.DEV && !QUOTE_CANISTER_ID) {
       const fromSeed = mockRequests.find((r) => r.id === id);
       if (fromSeed) return fromSeed;
       // Playwright e2e injection
@@ -329,7 +329,7 @@ function createQuoteService() {
   },
 
   async getBidCountMap(requestIds: string[]): Promise<Record<string, number>> {
-    if (!QUOTE_CANISTER_ID) {
+    if (import.meta.env.DEV && !QUOTE_CANISTER_ID) {
       const map: Record<string, number> = {};
       for (const id of requestIds) {
         const stored = mockQuotesByRequest.get(id);
@@ -353,13 +353,13 @@ function createQuoteService() {
   },
 
   async getMyBids(): Promise<Quote[]> {
-    if (!QUOTE_CANISTER_ID) return [...mockMyBids];
+    if (import.meta.env.DEV && !QUOTE_CANISTER_ID) return [...mockMyBids];
     // No dedicated canister endpoint yet — return empty; canister can add getMyQuotes later
     return [];
   },
 
   async getQuotesForRequest(requestId: string): Promise<Quote[]> {
-    if (!QUOTE_CANISTER_ID) {
+    if (import.meta.env.DEV && !QUOTE_CANISTER_ID) {
       const fromMap = mockQuotesByRequest.get(requestId) ?? [];
       // Playwright e2e injection
       const e2eQuotes = import.meta.env.DEV && typeof window !== "undefined" && (window as any).__e2e_quotes;
@@ -375,7 +375,7 @@ function createQuoteService() {
   },
 
   async accept(quoteId: string): Promise<void> {
-    if (!QUOTE_CANISTER_ID) return;
+    if (import.meta.env.DEV && !QUOTE_CANISTER_ID) return;
     const a = await getActor();
     const result = await a.acceptQuote(quoteId);
     if ("err" in result) {
@@ -385,7 +385,7 @@ function createQuoteService() {
   },
 
   async close(requestId: string): Promise<void> {
-    if (!QUOTE_CANISTER_ID) return;
+    if (import.meta.env.DEV && !QUOTE_CANISTER_ID) return;
     const a = await getActor();
     const result = await a.closeQuoteRequest(requestId);
     if ("err" in result) {

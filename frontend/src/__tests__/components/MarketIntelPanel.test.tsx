@@ -18,7 +18,7 @@ const rec: ProjectRecommendation = {
 
 const defaultProps = {
   recommendations: [] as ProjectRecommendation[],
-  onLogJob:        vi.fn(),
+  onRequestQuote:  vi.fn(),
   onSeeAll:        vi.fn(),
 };
 
@@ -53,11 +53,13 @@ describe("MarketIntelPanel", () => {
     expect(screen.getByText("High-ROI upgrade in your market.")).toBeInTheDocument();
   });
 
-  it("calls onLogJob with service category when Log This Job is clicked", () => {
-    const onLogJob = vi.fn();
-    render(<MarketIntelPanel {...defaultProps} recommendations={[rec]} onLogJob={onLogJob} />);
-    fireEvent.click(screen.getByText("Log This Job →"));
-    expect(onLogJob).toHaveBeenCalledWith({ serviceType: "Kitchen" });
+  it("calls onRequestQuote with serviceType and description when Request Quote is clicked", () => {
+    const onRequestQuote = vi.fn();
+    render(<MarketIntelPanel {...defaultProps} recommendations={[rec]} onRequestQuote={onRequestQuote} />);
+    fireEvent.click(screen.getByText("Request Quote →"));
+    expect(onRequestQuote).toHaveBeenCalledWith(
+      expect.objectContaining({ serviceType: "Kitchen", description: expect.stringContaining("Kitchen Remodel") })
+    );
   });
 
   it("calls onSeeAll when See all button is clicked", () => {

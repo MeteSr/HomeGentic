@@ -196,7 +196,7 @@ function createAgentService() {
     },
 
     async createProfile(input: CreateAgentProfileInput): Promise<AgentOnChainProfile> {
-      if (!AGENT_CANISTER_ID) {
+      if (import.meta.env.DEV && !AGENT_CANISTER_ID) {
         if (_profiles.find((p) => p.id === _myId)) throw new Error("Profile already exists");
         const profile: AgentOnChainProfile = {
           id:                      _myId,
@@ -228,7 +228,7 @@ function createAgentService() {
     },
 
     async getMyProfile(): Promise<AgentOnChainProfile | null> {
-      if (!AGENT_CANISTER_ID) {
+      if (import.meta.env.DEV && !AGENT_CANISTER_ID) {
         return _profiles.find((p) => p.id === _myId) ?? null;
       }
       const actor = await getActor();
@@ -238,7 +238,7 @@ function createAgentService() {
     },
 
     async getPublicProfile(id: string): Promise<AgentOnChainProfile | null> {
-      if (!AGENT_CANISTER_ID) {
+      if (import.meta.env.DEV && !AGENT_CANISTER_ID) {
         return _profiles.find((p) => p.id === id) ?? null;
       }
       const { Principal } = await import("@icp-sdk/core/principal");
@@ -249,14 +249,14 @@ function createAgentService() {
     },
 
     async getAllProfiles(): Promise<AgentOnChainProfile[]> {
-      if (!AGENT_CANISTER_ID) return [..._profiles];
+      if (import.meta.env.DEV && !AGENT_CANISTER_ID) return [..._profiles];
       const actor = await getActor();
       const raw = await actor.getAllProfiles();
       return raw.map(fromRawProfile);
     },
 
     async updateProfile(input: CreateAgentProfileInput): Promise<AgentOnChainProfile> {
-      if (!AGENT_CANISTER_ID) {
+      if (import.meta.env.DEV && !AGENT_CANISTER_ID) {
         const idx = _profiles.findIndex((p) => p.id === _myId);
         if (idx === -1) throw new Error("Profile not found");
         const updated: AgentOnChainProfile = {
@@ -283,7 +283,7 @@ function createAgentService() {
     },
 
     async addReview(input: AddReviewInput): Promise<AgentReview> {
-      if (!AGENT_CANISTER_ID) {
+      if (import.meta.env.DEV && !AGENT_CANISTER_ID) {
         if (!_profiles.find((p) => p.id === input.agentId)) throw new Error(`Agent ${input.agentId} not found`);
         if (input.rating < 1 || input.rating > 5) throw new Error("rating must be 1–5");
         const compositeKey = `local|${input.transactionId}`;
@@ -314,7 +314,7 @@ function createAgentService() {
     },
 
     async getReviews(agentId: string): Promise<AgentReview[]> {
-      if (!AGENT_CANISTER_ID) {
+      if (import.meta.env.DEV && !AGENT_CANISTER_ID) {
         return _reviews.filter((r) => r.agentId === agentId);
       }
       const { Principal } = await import("@icp-sdk/core/principal");

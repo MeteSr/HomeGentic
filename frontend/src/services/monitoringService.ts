@@ -179,7 +179,7 @@ function createMonitoringService() {
 
   return {
     async getAllCanisterMetrics(): Promise<CanisterMetrics[]> {
-      if (!MONITORING_CANISTER_ID) return mockMetrics();
+      if (import.meta.env.DEV && !MONITORING_CANISTER_ID) return mockMetrics();
       const a = await getActor();
       const raw = await a.getAllCanisterMetrics() as any[];
       return raw.map((r: any) => ({
@@ -196,7 +196,7 @@ function createMonitoringService() {
     },
 
     async checkCycleLevels(): Promise<CycleLevelResult[]> {
-      if (!MONITORING_CANISTER_ID) return mockCycleLevels();
+      if (import.meta.env.DEV && !MONITORING_CANISTER_ID) return mockCycleLevels();
       const a = await getActor();
       const raw = await a.checkCycleLevels() as any[];
       return raw.map((r: any) => ({
@@ -209,7 +209,7 @@ function createMonitoringService() {
     },
 
     async getTrackedCanisters(): Promise<TrackedCanister[]> {
-      if (!MONITORING_CANISTER_ID) return MOCK_CANISTER_NAMES.map((name) => ({
+      if (import.meta.env.DEV && !MONITORING_CANISTER_ID) return MOCK_CANISTER_NAMES.map((name) => ({
         id: `mock-${name}-canister-id`, name,
       }));
       const a = await getActor();
@@ -218,7 +218,7 @@ function createMonitoringService() {
     },
 
     async getMetrics(): Promise<MonitoringMetrics> {
-      if (!MONITORING_CANISTER_ID) {
+      if (import.meta.env.DEV && !MONITORING_CANISTER_ID) {
         return {
           totalCanisters: 13,
           activeAlerts:   0,

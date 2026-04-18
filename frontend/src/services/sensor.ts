@@ -157,7 +157,7 @@ function createSensorService() {
     source:           DeviceSource,
     name:             string
   ): Promise<SensorDevice> {
-    if (!SENSOR_CANISTER_ID) {
+    if (import.meta.env.DEV && !SENSOR_CANISTER_ID) {
       deviceCounter += 1;
       const device: SensorDevice = {
         id:               `DEV_${deviceCounter}`,
@@ -181,7 +181,7 @@ function createSensorService() {
   },
 
   async deactivateDevice(deviceId: string): Promise<void> {
-    if (!SENSOR_CANISTER_ID) {
+    if (import.meta.env.DEV && !SENSOR_CANISTER_ID) {
       const idx = devices.findIndex((d) => d.id === deviceId);
       if (idx !== -1) devices[idx] = { ...devices[idx], isActive: false };
       return;
@@ -192,7 +192,7 @@ function createSensorService() {
   },
 
   async getDevicesForProperty(propertyId: string): Promise<SensorDevice[]> {
-    if (!SENSOR_CANISTER_ID) {
+    if (import.meta.env.DEV && !SENSOR_CANISTER_ID) {
       return devices.filter((d) => d.propertyId === propertyId && d.isActive);
     }
     const a = await getActor();
@@ -200,7 +200,7 @@ function createSensorService() {
   },
 
   async getEventsForProperty(propertyId: string, limit = 50): Promise<SensorEvent[]> {
-    if (!SENSOR_CANISTER_ID) {
+    if (import.meta.env.DEV && !SENSOR_CANISTER_ID) {
       return mockEvents.filter((e) => e.propertyId === propertyId).slice(0, limit);
     }
     const a = await getActor();
@@ -208,7 +208,7 @@ function createSensorService() {
   },
 
   async getPendingAlerts(propertyId: string): Promise<SensorEvent[]> {
-    if (!SENSOR_CANISTER_ID) {
+    if (import.meta.env.DEV && !SENSOR_CANISTER_ID) {
       return mockEvents.filter((e) => e.propertyId === propertyId && e.severity === "Critical");
     }
     const a = await getActor();
@@ -247,7 +247,7 @@ function createSensorService() {
     unit:       string,
     rawPayload = ""
   ): Promise<SensorEvent> {
-    if (!SENSOR_CANISTER_ID) {
+    if (import.meta.env.DEV && !SENSOR_CANISTER_ID) {
       const severity = this.classifySeverity(eventType, value);
       const event: SensorEvent = {
         id:         `EVT_${++eventCounter}`,

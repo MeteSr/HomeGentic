@@ -85,7 +85,7 @@ let _actor: any | null = null;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getActor(): Promise<any | null> {
-  if (!AI_PROXY_CANISTER_ID) return null;
+  if (import.meta.env.DEV && !AI_PROXY_CANISTER_ID) return null;
   if (_actor) return _actor;
   const ag = await getAgent();
   _actor = Actor.createActor(idlFactory, { agent: ag, canisterId: AI_PROXY_CANISTER_ID });

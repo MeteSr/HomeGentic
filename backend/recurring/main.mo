@@ -12,6 +12,7 @@
 
 import Array     "mo:core/Array";
 import Map       "mo:core/Map";
+import Int       "mo:core/Int";
 import Iter      "mo:core/Iter";
 import Nat        "mo:core/Nat";
 import Option    "mo:core/Option";
@@ -91,8 +92,6 @@ persistent actor Recurring {
 
   // ─── Stable State ────────────────────────────────────────────────────────────
 
-  private var recurringCounter  : Nat         = 0;
-  private var visitCounter      : Nat         = 0;
   private var isPaused          : Bool        = false;
   private var pauseExpiryNs     : ?Int        = null;
   private var adminListEntries  : [Principal] = [];
@@ -144,13 +143,11 @@ persistent actor Recurring {
   };
 
   private func nextRecurringId() : Text {
-    recurringCounter += 1;
-    "REC_" # Nat.toText(recurringCounter)
+    "REC_" # Int.toText(Int.abs(Time.now()) / 1_000_000)
   };
 
   private func nextVisitId() : Text {
-    visitCounter += 1;
-    "VISIT_" # Nat.toText(visitCounter)
+    "VISIT_" # Int.toText(Int.abs(Time.now()) / 1_000_000)
   };
 
   // ─── Core: Recurring Services ────────────────────────────────────────────────
