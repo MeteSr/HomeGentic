@@ -31,7 +31,7 @@ vi.mock("@/services/payment", async (importOriginal) => {
       getMySubscription: vi.fn().mockImplementation(() =>
         Promise.resolve({ tier: mockTier, expiresAt: null })
       ),
-      cancel: vi.fn().mockResolvedValue(undefined),
+      cancel: vi.fn().mockResolvedValue({ expiresAt: null }),
       subscribe: vi.fn().mockResolvedValue(undefined),
       initiate: vi.fn().mockResolvedValue({ url: "/dashboard" }),
       getPauseState: vi.fn().mockReturnValue(null),
@@ -148,35 +148,38 @@ describe("SettingsPage — post-cancel read-only notice (8.3.2)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockTier = "Pro";
-    vi.mocked(paymentService.getMySubscription).mockResolvedValue({ tier: "Pro" as any, expiresAt: null });
-    vi.mocked(paymentService.cancel).mockResolvedValue(undefined);
+    vi.mocked(paymentService.getMySubscription).mockResolvedValue({ tier: "Pro" as any, expiresAt: null, cancelledAt: null });
+    vi.mocked(paymentService.cancel).mockResolvedValue({ expiresAt: null });
     vi.mocked(paymentService.getCancellationInfo).mockReturnValue(null);
   });
 
-  it("shows read-only mode notice after cancellation is complete", async () => {
+  it("shows 'Subscription cancelled' heading after cancellation is complete", async () => {
     await renderSettings();
     await navigateToSubscriptionTab();
     await triggerCancel();
     await waitFor(() =>
-      expect(screen.getAllByText(/read.?only/i).length).toBeGreaterThan(0)
+      expect(screen.getByText(/subscription cancelled/i)).toBeInTheDocument()
     );
   });
 
-  it("post-cancel notice mentions that score won't update", async () => {
+  it("post-cancel message confirms ICP records are intact", async () => {
     await renderSettings();
     await navigateToSubscriptionTab();
     await triggerCancel();
     await waitFor(() =>
-      expect(screen.getByText(/score.*won't.*update|score.*no longer.*update/i)).toBeInTheDocument()
+      expect(screen.getByText(/records.*intact|cancellation.*recorded/i)).toBeInTheDocument()
     );
   });
 
-  it("post-cancel notice mentions reports are static", async () => {
+  it("post-cancel message shows access end date when expiresAt is provided", async () => {
+    const futureDate = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    vi.mocked(paymentService.getMySubscription).mockResolvedValue({ tier: "Pro" as any, expiresAt: futureDate, cancelledAt: null });
+    vi.mocked(paymentService.cancel).mockResolvedValue({ expiresAt: futureDate });
     await renderSettings();
     await navigateToSubscriptionTab();
     await triggerCancel();
     await waitFor(() =>
-      expect(screen.getByText(/reports.*static|existing.*reports/i)).toBeInTheDocument()
+      expect(screen.getByText(/full access until/i)).toBeInTheDocument()
     );
   });
 
@@ -273,8 +276,8 @@ describe("SettingsPage — triggers win-back schedule on cancel (8.3.5)", () => 
   beforeEach(async () => {
     vi.clearAllMocks();
     mockTier = "Pro";
-    vi.mocked(paymentService.getMySubscription).mockResolvedValue({ tier: "Pro" as any, expiresAt: null });
-    vi.mocked(paymentService.cancel).mockResolvedValue(undefined);
+    vi.mocked(paymentService.getMySubscription).mockResolvedValue({ tier: "Pro" as any, expiresAt: null, cancelledAt: null });
+    vi.mocked(paymentService.cancel).mockResolvedValue({ expiresAt: null });
     vi.mocked(paymentService.getCancellationInfo).mockReturnValue(null);
     const mod = await vi.importActual<typeof import("@/services/winBackService")>("@/services/winBackService");
     winBackService = mod.winBackService;

@@ -118,7 +118,8 @@ unregisterCanister(1) -> (1)"
 `;
 
 exports[`Candid contract snapshots — method arity > payment 1`] = `
-"configureStripe(1) -> (1)
+"cancelSubscription(0) -> (1)
+configureStripe(1) -> (1)
 createStripeCheckoutSession(3) -> (1)
 getAllPricing(0) -> (1) [query]
 getMySubscription(0) -> (1) [query]

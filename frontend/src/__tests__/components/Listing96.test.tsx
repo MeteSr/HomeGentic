@@ -194,9 +194,10 @@ describe("AgentPublicPage — direct invite (9.6.2)", () => {
     renderProfile();
     await waitFor(() => screen.getByRole("button", { name: /request proposal/i }));
     fireEvent.click(screen.getByRole("button", { name: /request proposal/i }));
-    await waitFor(() => {
-      expect(screen.getByLabelText(/select property/i)).toBeInTheDocument();
-    });
+    // Poll until the select appears (mirrors the pattern in the "submitting" test below),
+    // then assert synchronously to avoid timer-reset hangs from continuous re-renders.
+    await waitFor(() => screen.getByLabelText(/select property/i));
+    expect(screen.getByLabelText(/select property/i)).toBeInTheDocument();
   });
 
   it("submitting the invite form calls createDirectInvite with agentId and propertyId", async () => {

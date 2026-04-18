@@ -185,14 +185,6 @@ export default function FAQPage() {
           maxWidth: 860, margin: "0 auto", padding: "72px 56px 0",
           textAlign: "center",
         }}>
-          <div style={{
-            display: "inline-block",
-            fontFamily: UI.mono, fontSize: 11, fontWeight: 700,
-            letterSpacing: "2px", textTransform: "uppercase",
-            color: UI.sage, marginBottom: 20,
-          }}>
-            ✦ FAQ
-          </div>
           <h1 style={{
             fontFamily: UI.serif, fontSize: "clamp(36px, 5vw, 56px)",
             fontWeight: 900, color: UI.ink, letterSpacing: "-1.5px",

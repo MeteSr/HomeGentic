@@ -196,9 +196,6 @@ export default function PrivacyPolicyPage() {
 
           {/* Header */}
           <div style={{ marginBottom: "3rem", paddingBottom: "2rem", borderBottom: `1px solid ${UI.rule}` }}>
-            <div style={{ display: "inline-flex", alignItems: "center", background: UI.butter, color: UI.ink, padding: "5px 16px", borderRadius: 100, fontSize: "0.7rem", fontWeight: 700, fontFamily: UI.mono, letterSpacing: "0.06em", marginBottom: "1.25rem", border: `1px solid rgba(46,37,64,0.1)` }}>
-              LEGAL
-            </div>
             <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "clamp(2rem, 4vw, 2.75rem)", lineHeight: 1.05, color: UI.ink, marginBottom: "0.75rem" }}>
               Privacy Policy
             </h1>

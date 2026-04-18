@@ -19,10 +19,13 @@ vi.mock("@/services/icpLedger", () => ({
 }));
 
 const mockSubscribeActor = vi.fn().mockResolvedValue({
-  ok: { tier: { Free: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0) },
+  ok: { tier: { Free: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0), cancelledAt: [] },
 });
 const mockGetMySubscription = vi.fn().mockResolvedValue({
-  ok: { tier: { Free: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0) },
+  ok: { tier: { Free: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0), cancelledAt: [] },
+});
+const mockCancelSubscription = vi.fn().mockResolvedValue({
+  ok: { tier: { Pro: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0), cancelledAt: [BigInt(1_000_000_000)] },
 });
 const mockGetPriceQuote = vi.fn().mockResolvedValue({ ok: BigInt(1_000_000) });
 const mockCreateStripeCheckoutSession = vi.fn().mockResolvedValue({
@@ -40,6 +43,7 @@ vi.mock("@icp-sdk/core/agent", () => ({
     createActor: vi.fn(() => ({
       subscribe:                   mockSubscribeActor,
       getMySubscription:           mockGetMySubscription,
+      cancelSubscription:          mockCancelSubscription,
       getPriceQuote:               mockGetPriceQuote,
       getPricing:                  vi.fn().mockResolvedValue({ ok: null }),
       getAllPricing:               vi.fn().mockResolvedValue({ ok: [] }),
@@ -303,7 +307,7 @@ describe("paymentService.getMySubscription — tier parsing", () => {
 
   it.each(tiers)("parses '%s' tier variant from canister response", async (tier) => {
     mockGetMySubscription.mockResolvedValueOnce({
-      ok: { tier: { [tier]: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0) },
+      ok: { tier: { [tier]: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0), cancelledAt: [] },
     });
     const sub = await paymentService.getMySubscription();
     expect(sub.tier).toBe(tier);
@@ -311,20 +315,36 @@ describe("paymentService.getMySubscription — tier parsing", () => {
 
   it("returns expiresAt=null when expiresAt is 0", async () => {
     mockGetMySubscription.mockResolvedValueOnce({
-      ok: { tier: { Pro: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0) },
+      ok: { tier: { Pro: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0), cancelledAt: [] },
     });
     const sub = await paymentService.getMySubscription();
     expect(sub.expiresAt).toBeNull();
   });
 
   it("converts non-zero expiresAt from nanoseconds to milliseconds", async () => {
-    // 1_735_689_600_000 ms = 2025-01-01T00:00:00Z in ns: * 1_000_000
     const expiresNs = BigInt(1_735_689_600_000) * BigInt(1_000_000);
     mockGetMySubscription.mockResolvedValueOnce({
-      ok: { tier: { Premium: null }, expiresAt: expiresNs, owner: "x", createdAt: BigInt(0) },
+      ok: { tier: { Premium: null }, expiresAt: expiresNs, owner: "x", createdAt: BigInt(0), cancelledAt: [] },
     });
     const sub = await paymentService.getMySubscription();
     expect(sub.expiresAt).toBeCloseTo(1_735_689_600_000, -3);
+  });
+
+  it("returns cancelledAt: null when cancelledAt is empty array", async () => {
+    mockGetMySubscription.mockResolvedValueOnce({
+      ok: { tier: { Pro: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0), cancelledAt: [] },
+    });
+    const sub = await paymentService.getMySubscription();
+    expect(sub.cancelledAt).toBeNull();
+  });
+
+  it("parses cancelledAt from nanoseconds to milliseconds when present", async () => {
+    const cancelledNs = BigInt(1_735_689_600_000) * BigInt(1_000_000);
+    mockGetMySubscription.mockResolvedValueOnce({
+      ok: { tier: { Pro: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0), cancelledAt: [cancelledNs] },
+    });
+    const sub = await paymentService.getMySubscription();
+    expect(sub.cancelledAt).toBeCloseTo(1_735_689_600_000, -3);
   });
 
   it("returns Free tier when canister returns an error", async () => {
@@ -332,6 +352,7 @@ describe("paymentService.getMySubscription — tier parsing", () => {
     const sub = await paymentService.getMySubscription();
     expect(sub.tier).toBe("Free");
     expect(sub.expiresAt).toBeNull();
+    expect(sub.cancelledAt).toBeNull();
   });
 });
 
@@ -369,11 +390,31 @@ describe("paymentService.cancel", () => {
     paymentService.reset();
   });
 
-  it("resolves without error (delegates to subscribe Free)", async () => {
-    mockSubscribeActor.mockResolvedValueOnce({
-      ok: { tier: { Free: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0) },
+  it("returns { expiresAt: null } when expiresAt is 0", async () => {
+    mockCancelSubscription.mockResolvedValueOnce({
+      ok: { tier: { Pro: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0), cancelledAt: [BigInt(1_000_000_000)] },
     });
-    await expect(paymentService.cancel()).resolves.toBeUndefined();
+    const result = await paymentService.cancel();
+    expect(result.expiresAt).toBeNull();
+  });
+
+  it("converts non-zero expiresAt from nanoseconds to milliseconds", async () => {
+    const expiresNs = BigInt(1_735_689_600_000) * BigInt(1_000_000);
+    mockCancelSubscription.mockResolvedValueOnce({
+      ok: { tier: { Pro: null }, expiresAt: expiresNs, owner: "x", createdAt: BigInt(0), cancelledAt: [BigInt(1_000_000_000)] },
+    });
+    const result = await paymentService.cancel();
+    expect(result.expiresAt).toBeCloseTo(1_735_689_600_000, -3);
+  });
+
+  it("throws with key when canister returns a non-text error", async () => {
+    mockCancelSubscription.mockResolvedValueOnce({ err: { NotAuthorized: null } });
+    await expect(paymentService.cancel()).rejects.toThrow("NotAuthorized");
+  });
+
+  it("throws with text message when canister returns InvalidInput", async () => {
+    mockCancelSubscription.mockResolvedValueOnce({ err: { InvalidInput: "Subscription already cancelled" } });
+    await expect(paymentService.cancel()).rejects.toThrow("Subscription already cancelled");
   });
 });
 

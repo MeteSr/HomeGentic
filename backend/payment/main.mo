@@ -16,10 +16,11 @@ persistent actor Payment {
   public type Tier = { #Free; #Basic; #Pro; #Premium; #ContractorFree; #ContractorPro };
 
   public type Subscription = {
-    owner: Principal;
-    tier: Tier;
-    expiresAt: Int;
-    createdAt: Int;
+    owner:       Principal;
+    tier:        Tier;
+    expiresAt:   Int;
+    createdAt:   Int;
+    cancelledAt: ?Int;   // set when user requests cancellation; access remains until expiresAt
   };
 
   public type Error = { #NotFound; #NotAuthorized; #PaymentFailed: Text; #RateLimited; #InvalidInput: Text };
@@ -527,10 +528,11 @@ persistent actor Payment {
           return #err(#NotAuthorized);
         };
         let sub : Subscription = {
-          owner     = msg.caller;
+          owner       = msg.caller;
           tier;
-          expiresAt = now + durationNsFor(billing);
-          createdAt = now;
+          expiresAt   = now + durationNsFor(billing);
+          createdAt   = now;
+          cancelledAt = null;
         };
         Map.add(subscriptions, Principal.compare, msg.caller, sub);
         #ok(sub)
@@ -551,10 +553,11 @@ persistent actor Payment {
         if (Option.isSome(gift.redeemedBy)) return #err(#InvalidInput("Gift already redeemed"));
         let now = Time.now();
         let sub : Subscription = {
-          owner     = msg.caller;
-          tier      = gift.tier;
-          expiresAt = now + durationNsFor(gift.billing);
-          createdAt = now;
+          owner       = msg.caller;
+          tier        = gift.tier;
+          expiresAt   = now + durationNsFor(gift.billing);
+          createdAt   = now;
+          cancelledAt = null;
         };
         Map.add(subscriptions, Principal.compare, msg.caller, sub);
         let updated : PendingGift = {
@@ -686,10 +689,11 @@ persistent actor Payment {
     };
     let now = Time.now();
     let sub: Subscription = {
-      owner     = msg.caller;
+      owner       = msg.caller;
       tier;
-      expiresAt = if (durationNs == 0) 0 else now + durationNs;
-      createdAt = now;
+      expiresAt   = if (durationNs == 0) 0 else now + durationNs;
+      createdAt   = now;
+      cancelledAt = null;
     };
     Map.add(subscriptions, Principal.compare, msg.caller, sub);
     Map.remove(activeSubscribers, Text.compare, callerKey);
@@ -708,10 +712,11 @@ persistent actor Payment {
     let now = Time.now();
     let durationNs : Int = Int.fromNat(months) * 30 * 24 * 60 * 60 * 1_000_000_000;
     let sub : Subscription = {
-      owner     = userPrincipal;
+      owner       = userPrincipal;
       tier;
-      expiresAt = now + durationNs;
-      createdAt = now;
+      expiresAt   = now + durationNs;
+      createdAt   = now;
+      cancelledAt = null;
     };
     Map.add(subscriptions, Principal.compare, userPrincipal, sub);
     #ok(sub)
@@ -727,10 +732,11 @@ persistent actor Payment {
     };
     let now = Time.now();
     let sub: Subscription = {
-      owner     = principal;
+      owner       = principal;
       tier;
-      expiresAt = if (durationNs == 0) 0 else now + durationNs;
-      createdAt = now;
+      expiresAt   = if (durationNs == 0) 0 else now + durationNs;
+      createdAt   = now;
+      cancelledAt = null;
     };
     Map.add(subscriptions, Principal.compare, principal, sub);
     #ok(sub)
@@ -738,8 +744,35 @@ persistent actor Payment {
 
   public query(msg) func getMySubscription() : async Result.Result<Subscription, Error> {
     switch (Map.get(subscriptions, Principal.compare, msg.caller)) {
-      case null { #ok({ owner = msg.caller; tier = #Free; expiresAt = 0; createdAt = Time.now() }) };
+      case null { #ok({ owner = msg.caller; tier = #Free; expiresAt = 0; createdAt = Time.now(); cancelledAt = null }) };
       case (?s) { #ok(s) };
+    }
+  };
+
+  /// Mark the caller's subscription as cancelled-at-end-of-period.
+  /// Access is retained until expiresAt; the tier is not changed immediately.
+  public shared(msg) func cancelSubscription() : async Result.Result<Subscription, Error> {
+    if (Principal.isAnonymous(msg.caller)) return #err(#NotAuthorized);
+    switch (Map.get(subscriptions, Principal.compare, msg.caller)) {
+      case null { #err(#NotFound) };
+      case (?sub) {
+        let now = Time.now();
+        if (sub.expiresAt > 0 and sub.expiresAt <= now) {
+          return #err(#InvalidInput("Subscription has already expired"));
+        };
+        if (Option.isSome(sub.cancelledAt)) {
+          return #err(#InvalidInput("Subscription is already cancelled"));
+        };
+        let updated : Subscription = {
+          owner       = sub.owner;
+          tier        = sub.tier;
+          expiresAt   = sub.expiresAt;
+          createdAt   = sub.createdAt;
+          cancelledAt = ?now;
+        };
+        Map.add(subscriptions, Principal.compare, msg.caller, updated);
+        #ok(updated)
+      };
     }
   };
 

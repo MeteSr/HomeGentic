@@ -79,10 +79,12 @@ describe("CheckAddressPage — report found", () => {
 
   it("shows a link to view the full report", async () => {
     renderPage("?address=123+Main+St+Daytona+Beach+FL");
-    await waitFor(() => {
-      const link = screen.getByRole("link", { name: /view report/i });
-      expect(link.getAttribute("href")).toContain("tok-abc123");
-    });
+    // Wait for the report-found section to stabilize, then assert the link synchronously.
+    // Keeping the assertion outside waitFor avoids timer-reset issues from continuous
+    // DOM mutations (scroll listeners, etc.) that prevent waitFor from settling.
+    await waitFor(() => screen.getByText(/HomeGentic Verified/i));
+    const link = screen.getByRole("link", { name: /view report/i });
+    expect(link.getAttribute("href")).toContain("tok-abc123");
   });
 
   it("shows the verification level", async () => {

@@ -15,10 +15,11 @@ export const idlFactory = ({ IDL }: any) => {
   });
   const BillingPeriod = IDL.Variant({ Monthly: IDL.Null, Yearly: IDL.Null });
   const Subscription = IDL.Record({
-    owner:     IDL.Principal,
-    tier:      Tier,
-    expiresAt: IDL.Int,
-    createdAt: IDL.Int,
+    owner:       IDL.Principal,
+    tier:        Tier,
+    expiresAt:   IDL.Int,
+    createdAt:   IDL.Int,
+    cancelledAt: IDL.Opt(IDL.Int),
   });
   const Error = IDL.Variant({
     NotFound:      IDL.Null,
@@ -102,6 +103,11 @@ export const idlFactory = ({ IDL }: any) => {
       [],
       [IDL.Variant({ ok: Subscription, err: Error })],
       ["query"]
+    ),
+    cancelSubscription: IDL.Func(
+      [],
+      [IDL.Variant({ ok: Subscription, err: Error })],
+      []
     ),
     getPricing: IDL.Func(
       [Tier],
@@ -228,20 +234,22 @@ export const paymentService = {
     }
   },
 
-  async getMySubscription(): Promise<{ tier: PlanTier; expiresAt: number | null }> {
+  async getMySubscription(): Promise<{ tier: PlanTier; expiresAt: number | null; cancelledAt: number | null }> {
     if (import.meta.env.DEV && (window as any).__e2e_subscription) {
-      return (window as any).__e2e_subscription;
+      return { cancelledAt: null, ...(window as any).__e2e_subscription };
     }
-    if (import.meta.env.DEV && !PAYMENT_CANISTER_ID) return { tier: "Free", expiresAt: null };
+    if (import.meta.env.DEV && !PAYMENT_CANISTER_ID) return { tier: "Free", expiresAt: null, cancelledAt: null };
     const a = await getActor();
     const result = await a.getMySubscription();
-    if ("err" in result) return { tier: "Free", expiresAt: null };
+    if ("err" in result) return { tier: "Free", expiresAt: null, cancelledAt: null };
     const sub = result.ok;
-    const tierKey   = Object.keys(sub.tier)[0] as PlanTier;
-    const expiresNs = Number(sub.expiresAt);
+    const tierKey       = Object.keys(sub.tier)[0] as PlanTier;
+    const expiresNs     = Number(sub.expiresAt);
+    const cancelledNs   = sub.cancelledAt?.[0] != null ? Number(sub.cancelledAt[0]) : null;
     return {
-      tier:      tierKey,
-      expiresAt: expiresNs === 0 ? null : expiresNs / 1_000_000,
+      tier:        tierKey,
+      expiresAt:   expiresNs === 0 ? null : expiresNs / 1_000_000,
+      cancelledAt: cancelledNs != null ? cancelledNs / 1_000_000 : null,
     };
   },
 
@@ -263,8 +271,17 @@ export const paymentService = {
     return this.subscribe(tier, onStep);
   },
 
-  async cancel(): Promise<void> {
-    return this.subscribe("Free");
+  async cancel(): Promise<{ expiresAt: number | null }> {
+    if (import.meta.env.DEV && !PAYMENT_CANISTER_ID) return { expiresAt: null };
+    const a = await getActor();
+    const result = await a.cancelSubscription();
+    if ("err" in result) {
+      const key    = Object.keys(result.err)[0];
+      const detail = (result.err as any)[key];
+      throw new Error(typeof detail === "string" ? detail : key);
+    }
+    const expiresNs = Number(result.ok.expiresAt);
+    return { expiresAt: expiresNs === 0 ? null : expiresNs / 1_000_000 };
   },
 
   /** Record cancellation timestamp in localStorage (8.3.2). */
