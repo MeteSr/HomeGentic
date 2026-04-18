@@ -30,10 +30,9 @@ describe("roomService (mock path)", () => {
   // ── getRoomsByProperty ───────────────────────────────────────────────────────
 
   describe("getRoomsByProperty", () => {
-    it("returns rooms for a matching propertyId", async () => {
+    it("starts empty — no rooms before any are created", async () => {
       const rooms = await roomService.getRoomsByProperty("1");
-      expect(rooms.length).toBeGreaterThan(0);
-      rooms.forEach((r) => expect(r.propertyId).toBe("1"));
+      expect(rooms).toEqual([]);
     });
 
     it("returns an empty array for an unknown propertyId", async () => {
@@ -41,11 +40,12 @@ describe("roomService (mock path)", () => {
       expect(rooms).toEqual([]);
     });
 
-    it("returns all seed rooms for propertyId '1'", async () => {
+    it("returns only rooms matching the given propertyId", async () => {
+      await roomService.createRoom(makeCreateArgs({ propertyId: "1", name: "Kitchen" }));
+      await roomService.createRoom(makeCreateArgs({ propertyId: "2", name: "Other" }));
       const rooms = await roomService.getRoomsByProperty("1");
-      const names = rooms.map((r) => r.name);
-      expect(names).toContain("Kitchen");
-      expect(names).toContain("Master Bedroom");
+      expect(rooms).toHaveLength(1);
+      rooms.forEach((r) => expect(r.propertyId).toBe("1"));
     });
   });
 
@@ -307,23 +307,30 @@ describe("roomService (mock path)", () => {
   // ── reset isolation ──────────────────────────────────────────────────────────
 
   describe("reset", () => {
-    it("restores seed rooms after mutations", async () => {
-      // Delete all seed rooms
-      const rooms = await roomService.getRoomsByProperty("1");
-      for (const r of rooms) await roomService.deleteRoom(r.id);
-      expect(await roomService.getRoomsByProperty("1")).toHaveLength(0);
+    it("clears all rooms added during a test", async () => {
+      await roomService.createRoom(makeCreateArgs({ propertyId: "1", name: "Kitchen" }));
+      expect(await roomService.getRoomsByProperty("1")).toHaveLength(1);
 
       roomService.reset();
 
-      const restored = await roomService.getRoomsByProperty("1");
-      expect(restored.length).toBeGreaterThan(0);
+      expect(await roomService.getRoomsByProperty("1")).toHaveLength(0);
     });
 
-    it("seed rooms include a fixture in the Kitchen", async () => {
-      const rooms = await roomService.getRoomsByProperty("1");
-      const kitchen = rooms.find((r) => r.name === "Kitchen");
-      expect(kitchen).toBeDefined();
-      expect(kitchen!.fixtures.length).toBeGreaterThan(0);
+    it("resets fixture counter so new rooms start from FIX_1", async () => {
+      const room = await roomService.createRoom(makeCreateArgs());
+      const withFixture = await roomService.addFixture(room.id, {
+        brand: "A", model: "", serialNumber: "", installedDate: "", warrantyExpiry: "", notes: "",
+      });
+      const firstId = withFixture.fixtures[0].id;
+
+      roomService.reset();
+
+      const fresh = await roomService.createRoom(makeCreateArgs());
+      const withFixture2 = await roomService.addFixture(fresh.id, {
+        brand: "B", model: "", serialNumber: "", installedDate: "", warrantyExpiry: "", notes: "",
+      });
+      // Counter resets to 0, so next ID is FIX_1 — same as first run
+      expect(withFixture2.fixtures[0].id).toBe(firstId);
     });
   });
 });

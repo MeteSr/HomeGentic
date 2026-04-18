@@ -151,50 +151,7 @@ const idlFactory = ({ IDL }: any) => {
   });
 };
 
-// ─── Mock data (used when canister is not deployed) ───────────────────────────
-
-const MOCK_ROOMS: Room[] = [
-  {
-    id:          "ROOM_1",
-    propertyId:  "1",
-    owner:       "mock-principal",
-    name:        "Kitchen",
-    floorName:   "First Floor",
-    floorType:   "Tile",
-    paintColor:  "Agreeable Gray",
-    paintBrand:  "Sherwin-Williams",
-    paintCode:   "SW 7029",
-    notes:       "Remodeled 2022. Grout resealed annually.",
-    fixtures: [
-      {
-        id:             "FIX_1",
-        brand:          "KitchenAid",
-        model:          "KFIS29PBMS",
-        serialNumber:   "SN-KA-2022-001",
-        installedDate:  "2022-03-15",
-        warrantyExpiry: "2027-03-15",
-        notes:          "French door refrigerator",
-      },
-    ],
-    createdAt: BigInt(Date.now()) * BigInt(1_000_000),
-    updatedAt: BigInt(Date.now()) * BigInt(1_000_000),
-  },
-  {
-    id:          "ROOM_2",
-    propertyId:  "1",
-    owner:       "mock-principal",
-    name:        "Master Bedroom",
-    floorName:   "Second Floor",
-    floorType:   "Hardwood",
-    paintColor:  "Alabaster",
-    paintBrand:  "Sherwin-Williams",
-    paintCode:   "SW 7008",
-    notes:       "",
-    fixtures:    [],
-    createdAt: BigInt(Date.now()) * BigInt(1_000_000),
-    updatedAt: BigInt(Date.now()) * BigInt(1_000_000),
-  },
-];
+// ─── Mock state (populated at runtime via createRoom; seed.sh populates on real deployments) ──
 
 // ─── Actor helpers ────────────────────────────────────────────────────────────
 
@@ -239,8 +196,8 @@ function unwrap<T>(result: any): T {
 // ─── Service factory ──────────────────────────────────────────────────────────
 
 function createRoomService() {
-  let mockRooms = MOCK_ROOMS.map((r) => ({ ...r, fixtures: [...r.fixtures] }));
-  let mockFixtureCounter = 100; // start above seed fixture IDs
+  let mockRooms: Room[] = [];
+  let mockFixtureCounter = 0;
 
   return {
   async getRoomsByProperty(propertyId: string): Promise<Room[]> {
@@ -320,8 +277,8 @@ function createRoomService() {
 
   /** Reset in-memory mock state — for use in tests only. */
   reset() {
-    mockRooms = MOCK_ROOMS.map((r) => ({ ...r, fixtures: [...r.fixtures] }));
-    mockFixtureCounter = 100;
+    mockRooms = [];
+    mockFixtureCounter = 0;
   },
 
   async removeFixture(roomId: string, fixtureId: string): Promise<Room> {
