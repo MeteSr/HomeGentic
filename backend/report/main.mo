@@ -389,21 +389,16 @@ persistent actor Report {
     // verification level — callers cannot spoof this by passing a fake level
     // in the PropertyInput.
     if (Text.size(propCanisterId) > 0) {
-      switch (Nat.fromText(propertyId)) {
-        case (?pid) {
-          let propActor = actor(propCanisterId) : actor {
-            getVerificationLevel : (Nat) -> async ?Text;
-          };
-          switch (await propActor.getVerificationLevel(pid)) {
-            case (?level) {
-              if (level == "Unverified" or level == "PendingReview") {
-                return #err(#UnverifiedProperty);
-              };
-            };
-            case null {};   // not found — proceed
+      let propActor = actor(propCanisterId) : actor {
+        getVerificationLevel : (Text) -> async ?Text;
+      };
+      switch (await propActor.getVerificationLevel(propertyId)) {
+        case (?level) {
+          if (level == "Unverified" or level == "PendingReview") {
+            return #err(#UnverifiedProperty);
           };
         };
-        case null {};   // propertyId is not a Nat — skip the check
+        case null {};   // not found — proceed
       };
     };
 

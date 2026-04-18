@@ -311,16 +311,11 @@ persistent actor Quote {
     // so managers don't need their own paid subscription.
     let effectivePrincipal : Principal = if (propCanisterId != "") {
       let propActor = actor(propCanisterId) : actor {
-        getPropertyOwner : (Nat) -> async ?Principal;
+        getPropertyOwner : (Text) -> async ?Principal;
       };
-      switch (Nat.fromText(propertyId)) {
-        case (?natId) {
-          switch (await propActor.getPropertyOwner(natId)) {
-            case (?owner) { if (owner != msg.caller) { owner } else { msg.caller } };
-            case null     { msg.caller };
-          }
-        };
-        case null { msg.caller };
+      switch (await propActor.getPropertyOwner(propertyId)) {
+        case (?owner) { if (owner != msg.caller) { owner } else { msg.caller } };
+        case null     { msg.caller };
       }
     } else { msg.caller };
     let callerTier : SubscriptionTier = if (payCanisterId != "") {
@@ -582,16 +577,11 @@ persistent actor Quote {
 
     let effectivePrincipalSB : Principal = if (propCanisterId != "") {
       let propActor = actor(propCanisterId) : actor {
-        getPropertyOwner : (Nat) -> async ?Principal;
+        getPropertyOwner : (Text) -> async ?Principal;
       };
-      switch (Nat.fromText(propertyId)) {
-        case (?natId) {
-          switch (await propActor.getPropertyOwner(natId)) {
-            case (?owner) { if (owner != msg.caller) { owner } else { msg.caller } };
-            case null     { msg.caller };
-          }
-        };
-        case null { msg.caller };
+      switch (await propActor.getPropertyOwner(propertyId)) {
+        case (?owner) { if (owner != msg.caller) { owner } else { msg.caller } };
+        case null     { msg.caller };
       }
     } else { msg.caller };
     let callerTier : SubscriptionTier = if (payCanisterId != "") {
