@@ -81,9 +81,11 @@ fi
 CALLER_TEST_PRINCIPAL=$(dfx identity get-principal --identity canister-caller-test)
 
 echo ""
-echo "── [T1] addTrustedCanister — admin (controller) can add ─────────────────"
-dfx canister call payment addTrustedCanister "(principal \"$CALLER_TEST_PRINCIPAL\")"
-echo "  ↳ addTrustedCanister succeeded — ✓"
+echo "── [T1] addTrustedCanister — admin can add ──────────────────────────────"
+RESULT=$(dfx canister call payment addTrustedCanister "(principal \"$CALLER_TEST_PRINCIPAL\")")
+echo "$RESULT" | grep -q "ok" \
+  && echo "  ↳ addTrustedCanister succeeded — ✓" \
+  || (echo "  ↳ ❌ addTrustedCanister failed: $RESULT"; exit 1)
 
 echo ""
 echo "── [T2] getTrustedCanisters — returns the added principal ───────────────"
@@ -93,14 +95,31 @@ echo "$TRUSTED" | grep -q "$CALLER_TEST_PRINCIPAL" \
   || (echo "  ↳ ❌ caller-test principal NOT found"; exit 1)
 
 echo ""
-echo "── [T3] addTrustedCanister — non-controller is rejected ─────────────────"
+echo "── [T3] addTrustedCanister — non-admin is rejected ──────────────────────"
 if ! dfx identity list 2>/dev/null | grep -q "^contractor-test$"; then
   dfx identity new contractor-test --disable-encryption 2>/dev/null || true
 fi
-dfx canister call payment addTrustedCanister "(principal \"$MY_PRINCIPAL\")" \
-    --identity contractor-test \
-  && echo "  ↳ ❌ Expected rejection for non-controller" \
-  || echo "  ↳ Non-controller correctly rejected — ✓"
+RESULT=$(dfx canister call payment addTrustedCanister "(principal \"$MY_PRINCIPAL\")" \
+    --identity contractor-test 2>&1)
+echo "$RESULT" | grep -q "NotAuthorized" \
+  && echo "  ↳ Non-admin correctly rejected from addTrustedCanister — ✓" \
+  || echo "  ↳ ❌ Expected NotAuthorized for non-admin: $RESULT"
+
+echo ""
+echo "── [T3b] removeTrustedCanister — non-admin is rejected ──────────────────"
+RESULT=$(dfx canister call payment removeTrustedCanister "(principal \"$CALLER_TEST_PRINCIPAL\")" \
+    --identity contractor-test 2>&1)
+echo "$RESULT" | grep -q "NotAuthorized" \
+  && echo "  ↳ Non-admin correctly rejected from removeTrustedCanister — ✓" \
+  || echo "  ↳ ❌ Expected NotAuthorized for non-admin: $RESULT"
+
+echo ""
+echo "── [T3c] setUpdateRateLimit — non-admin is rejected ─────────────────────"
+RESULT=$(dfx canister call payment setUpdateRateLimit "(0 : nat)" \
+    --identity contractor-test 2>&1)
+echo "$RESULT" | grep -q "NotAuthorized" \
+  && echo "  ↳ Non-admin correctly rejected from setUpdateRateLimit — ✓" \
+  || echo "  ↳ ❌ Expected NotAuthorized for non-admin: $RESULT"
 
 echo ""
 echo "── [T4] Trusted principal bypasses rate limit ───────────────────────────"
@@ -112,12 +131,15 @@ echo "  ↳ 3 calls passed for trusted principal despite rate limit of 2 — ✓
 dfx canister call payment setUpdateRateLimit "(30 : nat)"
 
 echo ""
-echo "── [T5] removeTrustedCanister — principal removed from list ─────────────"
-dfx canister call payment removeTrustedCanister "(principal \"$CALLER_TEST_PRINCIPAL\")"
+echo "── [T5] removeTrustedCanister — admin can remove ────────────────────────"
+RESULT=$(dfx canister call payment removeTrustedCanister "(principal \"$CALLER_TEST_PRINCIPAL\")")
+echo "$RESULT" | grep -q "ok" \
+  && echo "  ↳ removeTrustedCanister succeeded — ✓" \
+  || (echo "  ↳ ❌ removeTrustedCanister failed: $RESULT"; exit 1)
 TRUSTED_AFTER=$(dfx canister call payment getTrustedCanisters)
 echo "$TRUSTED_AFTER" | grep -q "$CALLER_TEST_PRINCIPAL" \
   && echo "  ↳ ❌ Principal still in list after removal" \
-  || echo "  ↳ Principal correctly removed — ✓"
+  || echo "  ↳ Principal correctly removed from list — ✓"
 
 echo ""
 echo "✅ Payment trusted canister tests complete!"
