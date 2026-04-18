@@ -45,10 +45,6 @@ test.describe("OnboardingPage — /onboarding", () => {
       await expect(page.getByText(/verify ownership/i)).toBeVisible();
     });
 
-    test("shows 'Log your first maintenance job' step", async ({ page }) => {
-      await expect(page.getByText(/log your first maintenance job/i)).toBeVisible();
-    });
-
     test("shows 'Set your system ages' step", async ({ page }) => {
       await expect(page.getByText(/set your system ages/i)).toBeVisible();
     });
@@ -61,9 +57,9 @@ test.describe("OnboardingPage — /onboarding", () => {
       await expect(page.getByRole("button", { name: /add property/i })).toBeVisible();
     });
 
-    test("Add property CTA navigates to /properties/new", async ({ page }) => {
+    test("Add property CTA opens registration modal", async ({ page }) => {
       await page.getByRole("button", { name: /add property/i }).first().click();
-      await expect(page).toHaveURL("/properties/new");
+      await expect(page.getByRole("heading", { name: /add your property/i })).toBeVisible();
     });
   });
 
@@ -82,9 +78,8 @@ test.describe("OnboardingPage — /onboarding", () => {
       await expect(page.getByText("Done").first()).toBeVisible();
     });
 
-    test("Log a job step CTA navigates to /jobs/new", async ({ page }) => {
-      await page.getByRole("button", { name: /log a job/i }).click();
-      await expect(page).toHaveURL("/jobs/new");
+    test("shows Import historical documents step", async ({ page }) => {
+      await expect(page.getByText(/import historical documents/i)).toBeVisible();
     });
   });
 });
