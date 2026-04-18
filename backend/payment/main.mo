@@ -247,18 +247,24 @@ persistent actor Payment {
     }
   };
 
-  public shared func setUpdateRateLimit(n: Nat) : async () {
+  public shared(msg) func setUpdateRateLimit(n: Nat) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     maxUpdatesPerMin := n;
+    #ok(())
   };
 
-  public shared func addTrustedCanister(p: Principal) : async () {
+  public shared(msg) func addTrustedCanister(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     if (not isTrustedCanister(p)) {
       trustedCanisterEntries := Array.concat(trustedCanisterEntries, [p]);
     };
+    #ok(())
   };
 
-  public shared func removeTrustedCanister(p: Principal) : async () {
+  public shared(msg) func removeTrustedCanister(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     trustedCanisterEntries := Array.filter<Principal>(trustedCanisterEntries, func(t) { t != p });
+    #ok(())
   };
 
   public query func getTrustedCanisters() : async [Principal] {
