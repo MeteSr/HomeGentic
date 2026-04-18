@@ -11,31 +11,39 @@ echo "▶ Ensuring payment admin is initialized..."
 dfx canister call payment initAdmins "(vec { principal \"$MY_PRINCIPAL\" })" \
   --network local 2>/dev/null || true
 
-echo "▶ Get current subscription (expect Free default)..."
-dfx canister call payment getMySubscription
+# Use a dedicated identity for subscription tier tests so that the deployer's
+# tier (Pro, from deploy.sh bootstrap) is not mutated while other test suites
+# run in parallel and depend on it staying Pro.
+if ! dfx identity list 2>/dev/null | grep -q "^payment-tier-test$"; then
+  dfx identity new payment-tier-test --disable-encryption 2>/dev/null || true
+fi
+TIER_PRINCIPAL=$(dfx identity get-principal --identity payment-tier-test)
 
-echo "▶ Grant Pro subscription (bypasses ICP payment — local dev only)..."
-dfx canister call payment grantSubscription "(principal \"$MY_PRINCIPAL\", variant { Pro })"
+echo "▶ Get current subscription for tier-test user (expect Free default)..."
+dfx canister call payment getMySubscription --identity payment-tier-test
+
+echo "▶ Grant Pro subscription to tier-test user..."
+dfx canister call payment grantSubscription "(principal \"$TIER_PRINCIPAL\", variant { Pro })"
 
 echo "▶ Get updated subscription (expect Pro)..."
-dfx canister call payment getMySubscription
+dfx canister call payment getMySubscription --identity payment-tier-test
 
 echo "▶ getTierForPrincipal — expect Pro..."
-dfx canister call payment getTierForPrincipal "(principal \"$MY_PRINCIPAL\")"
+dfx canister call payment getTierForPrincipal "(principal \"$TIER_PRINCIPAL\")"
 
 echo "▶ Grant Premium subscription..."
-dfx canister call payment grantSubscription "(principal \"$MY_PRINCIPAL\", variant { Premium })"
+dfx canister call payment grantSubscription "(principal \"$TIER_PRINCIPAL\", variant { Premium })"
 
 echo "▶ Get updated subscription (expect Premium)..."
-dfx canister call payment getMySubscription
+dfx canister call payment getMySubscription --identity payment-tier-test
 
 echo "▶ Downgrade to Free via grantSubscription..."
-dfx canister call payment grantSubscription "(principal \"$MY_PRINCIPAL\", variant { Free })"
-dfx canister call payment getMySubscription
+dfx canister call payment grantSubscription "(principal \"$TIER_PRINCIPAL\", variant { Free })"
+dfx canister call payment getMySubscription --identity payment-tier-test
 
 echo "▶ Grant ContractorFree subscription..."
-dfx canister call payment grantSubscription "(principal \"$MY_PRINCIPAL\", variant { ContractorFree })"
-SUB=$(dfx canister call payment getMySubscription)
+dfx canister call payment grantSubscription "(principal \"$TIER_PRINCIPAL\", variant { ContractorFree })"
+SUB=$(dfx canister call payment getMySubscription --identity payment-tier-test)
 echo "$SUB" | grep -q "ContractorFree" \
   && echo "  ↳ ContractorFree tier confirmed — ✓" \
   || (echo "  ↳ ❌ Expected ContractorFree tier"; exit 1)
