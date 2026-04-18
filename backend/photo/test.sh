@@ -143,7 +143,7 @@ else
   echo "── [MGR-2] Owner invites manager; manager claims role ───────────────────"
   INVITE_OUT=$(dfx canister call property inviteManager \
     "(\"$MGR_PROP_ID\", variant { Manager }, \"Photo Manager\")")
-  INVITE_TOKEN=$(echo "$INVITE_OUT" | grep -oP 'token = "\K[^"]+' | head -1)
+  INVITE_TOKEN=$(echo "$INVITE_OUT" | grep -oP 'token = "\K[^"]+' | head -1 || true)
   dfx canister call property claimManagerRole \
     "(\"$INVITE_TOKEN\")" --identity manager-test
   echo "  ↳ Manager role granted ✓"

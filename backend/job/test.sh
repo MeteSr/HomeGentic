@@ -638,9 +638,11 @@ else
   MANAGER_PRINCIPAL=$(dfx identity get-principal --identity manager-test)
   echo "  Manager principal (Free tier): $MANAGER_PRINCIPAL"
 
-  # Ensure owner (default identity) has a Pro subscription
+  # Ensure owner (default identity) has a Premium subscription so that the
+  # MGR property registration succeeds even when parallel canister tests have
+  # already consumed the Pro limit (5 properties) for the deployer.
   MY_PRINCIPAL=$(dfx identity get-principal)
-  dfx canister call payment grantSubscription "(principal \"$MY_PRINCIPAL\", variant { Pro })"
+  dfx canister call payment grantSubscription "(principal \"$MY_PRINCIPAL\", variant { Premium })"
 
   # Register a fresh property as the owner
   echo ""
@@ -665,7 +667,7 @@ else
   INVITE_OUT=$(dfx canister call property inviteManager \
     "(\"$MGR_PROP_ID\", variant { Manager }, \"Test Manager\")")
   echo "$INVITE_OUT"
-  INVITE_TOKEN=$(echo "$INVITE_OUT" | grep -oP 'token = "\K[^"]+' | head -1)
+  INVITE_TOKEN=$(echo "$INVITE_OUT" | grep -oP 'token = "\K[^"]+' | head -1 || true)
   echo "  → Token: $INVITE_TOKEN"
 
   # Manager claims the role
