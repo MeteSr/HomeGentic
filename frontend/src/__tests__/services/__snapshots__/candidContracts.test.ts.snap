@@ -178,6 +178,7 @@ verifyProperty(3) -> (1)"
 
 exports[`Candid contract snapshots — method arity > quote 1`] = `
 "acceptQuote(1) -> (1)
+cancelQuoteRequest(1) -> (1)
 closeQuoteRequest(1) -> (1)
 createQuoteRequest(4) -> (1)
 getMyQuoteRequests(0) -> (1) [query]

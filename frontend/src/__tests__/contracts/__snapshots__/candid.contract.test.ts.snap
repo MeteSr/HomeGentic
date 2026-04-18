@@ -1177,13 +1177,22 @@ exports[`quote IDL factory > full signature snapshot 1`] = `
       "variant {ok:record {id:text; status:variant {Rejected; Accepted; Expired; Pending}; requestId:text; createdAt:int; amount:nat; contractor:principal; validUntil:int; timeline:nat}; err:variant {InvalidInput:text; NotFound; Unauthorized}}",
     ],
   },
+  "cancelQuoteRequest": {
+    "args": [
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:vec principal; err:variant {InvalidInput:text; NotFound; Unauthorized}}",
+    ],
+  },
   "closeQuoteRequest": {
     "args": [
       "text",
     ],
     "mode": [],
     "rets": [
-      "variant {ok:record {id:text; status:variant {Quoted; Open; Closed; Accepted}; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; urgency:variant {Low; High; Medium; Emergency}; createdAt:int; description:text; propertyId:text; closeAt:opt int; homeowner:principal}; err:variant {InvalidInput:text; NotFound; Unauthorized}}",
+      "variant {ok:record {id:text; status:variant {Quoted; Open; Closed; Accepted; Cancelled}; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; urgency:variant {Low; High; Medium; Emergency}; createdAt:int; description:text; propertyId:text; closeAt:opt int; homeowner:principal}; err:variant {InvalidInput:text; NotFound; Unauthorized}}",
     ],
   },
   "createQuoteRequest": {
@@ -1195,7 +1204,7 @@ exports[`quote IDL factory > full signature snapshot 1`] = `
     ],
     "mode": [],
     "rets": [
-      "variant {ok:record {id:text; status:variant {Quoted; Open; Closed; Accepted}; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; urgency:variant {Low; High; Medium; Emergency}; createdAt:int; description:text; propertyId:text; closeAt:opt int; homeowner:principal}; err:variant {InvalidInput:text; NotFound; Unauthorized}}",
+      "variant {ok:record {id:text; status:variant {Quoted; Open; Closed; Accepted; Cancelled}; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; urgency:variant {Low; High; Medium; Emergency}; createdAt:int; description:text; propertyId:text; closeAt:opt int; homeowner:principal}; err:variant {InvalidInput:text; NotFound; Unauthorized}}",
     ],
   },
   "getMyQuoteRequests": {
@@ -1204,7 +1213,7 @@ exports[`quote IDL factory > full signature snapshot 1`] = `
       "query",
     ],
     "rets": [
-      "vec record {id:text; status:variant {Quoted; Open; Closed; Accepted}; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; urgency:variant {Low; High; Medium; Emergency}; createdAt:int; description:text; propertyId:text; closeAt:opt int; homeowner:principal}",
+      "vec record {id:text; status:variant {Quoted; Open; Closed; Accepted; Cancelled}; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; urgency:variant {Low; High; Medium; Emergency}; createdAt:int; description:text; propertyId:text; closeAt:opt int; homeowner:principal}",
     ],
   },
   "getOpenRequests": {
@@ -1213,7 +1222,7 @@ exports[`quote IDL factory > full signature snapshot 1`] = `
       "query",
     ],
     "rets": [
-      "vec record {id:text; status:variant {Quoted; Open; Closed; Accepted}; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; urgency:variant {Low; High; Medium; Emergency}; createdAt:int; description:text; propertyId:text; closeAt:opt int; homeowner:principal}",
+      "vec record {id:text; status:variant {Quoted; Open; Closed; Accepted; Cancelled}; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; urgency:variant {Low; High; Medium; Emergency}; createdAt:int; description:text; propertyId:text; closeAt:opt int; homeowner:principal}",
     ],
   },
   "getQuoteRequest": {
@@ -1224,7 +1233,7 @@ exports[`quote IDL factory > full signature snapshot 1`] = `
       "query",
     ],
     "rets": [
-      "variant {ok:record {id:text; status:variant {Quoted; Open; Closed; Accepted}; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; urgency:variant {Low; High; Medium; Emergency}; createdAt:int; description:text; propertyId:text; closeAt:opt int; homeowner:principal}; err:variant {InvalidInput:text; NotFound; Unauthorized}}",
+      "variant {ok:record {id:text; status:variant {Quoted; Open; Closed; Accepted; Cancelled}; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; urgency:variant {Low; High; Medium; Emergency}; createdAt:int; description:text; propertyId:text; closeAt:opt int; homeowner:principal}; err:variant {InvalidInput:text; NotFound; Unauthorized}}",
     ],
   },
   "getQuotesForRequest": {

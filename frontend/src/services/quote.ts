@@ -14,7 +14,7 @@ export const idlFactory = ({ IDL }: any) => {
     Low: IDL.Null, Medium: IDL.Null, High: IDL.Null, Emergency: IDL.Null,
   });
   const RequestStatus = IDL.Variant({
-    Open: IDL.Null, Quoted: IDL.Null, Accepted: IDL.Null, Closed: IDL.Null,
+    Open: IDL.Null, Quoted: IDL.Null, Accepted: IDL.Null, Closed: IDL.Null, Cancelled: IDL.Null,
   });
   const QuoteStatus = IDL.Variant({
     Pending: IDL.Null, Accepted: IDL.Null, Rejected: IDL.Null, Expired: IDL.Null,
@@ -78,6 +78,11 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: QuoteRequest, err: Error })],
       []
     ),
+    cancelQuoteRequest: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: IDL.Vec(IDL.Principal), err: Error })],
+      []
+    ),
     setPropertyCanisterId: IDL.Func(
       [IDL.Principal],
       [IDL.Variant({ ok: IDL.Null, err: Error })],
@@ -89,7 +94,7 @@ export const idlFactory = ({ IDL }: any) => {
 // ─── TypeScript types ─────────────────────────────────────────────────────────
 
 export type Urgency = "low" | "medium" | "high" | "emergency";
-export type QuoteRequestStatus = "open" | "quoted" | "accepted" | "closed";
+export type QuoteRequestStatus = "open" | "quoted" | "accepted" | "closed" | "cancelled";
 export type QuoteStatus = "pending" | "accepted" | "rejected" | "expired";
 
 export interface QuoteRequest {
@@ -172,7 +177,7 @@ const URGENCY_MAP: Record<string, Urgency> = {
   Low: "low", Medium: "medium", High: "high", Emergency: "emergency",
 };
 const REQUEST_STATUS_MAP: Record<string, QuoteRequestStatus> = {
-  Open: "open", Quoted: "quoted", Accepted: "accepted", Closed: "closed",
+  Open: "open", Quoted: "quoted", Accepted: "accepted", Closed: "closed", Cancelled: "cancelled",
 };
 const QUOTE_STATUS_MAP: Record<string, QuoteStatus> = {
   Pending: "pending", Accepted: "accepted", Rejected: "rejected", Expired: "expired",
@@ -391,6 +396,21 @@ function createQuoteService() {
     if ("err" in result) {
       const key = Object.keys(result.err)[0];
       throw new Error(key);
+    }
+  },
+
+  async cancel(requestId: string): Promise<void> {
+    if (import.meta.env.DEV && !QUOTE_CANISTER_ID) {
+      const req = mockRequests.find((r) => r.id === requestId);
+      if (req) req.status = "cancelled";
+      return;
+    }
+    const a = await getActor();
+    const result = await a.cancelQuoteRequest(requestId);
+    if ("err" in result) {
+      const key = Object.keys(result.err)[0];
+      const val = result.err[key];
+      throw new Error(typeof val === "string" ? val : key);
     }
   },
 

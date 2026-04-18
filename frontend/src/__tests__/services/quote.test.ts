@@ -48,7 +48,7 @@ describe("quoteService.getOpenRequests (mock)", () => {
       expect(typeof r.serviceType).toBe("string");
       expect(typeof r.description).toBe("string");
       expect(typeof r.createdAt).toBe("number");
-      expect(["open", "quoted", "accepted", "closed"]).toContain(r.status);
+      expect(["open", "quoted", "accepted", "closed", "cancelled"]).toContain(r.status);
       expect(["low", "medium", "high", "emergency"]).toContain(r.urgency);
     }
   });

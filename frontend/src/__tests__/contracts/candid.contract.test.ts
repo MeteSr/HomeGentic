@@ -345,6 +345,7 @@ describe("quote IDL factory", () => {
     const svc = extractService(quoteIdlFactory);
     expect(Object.keys(svc).sort()).toEqual([
       "acceptQuote",
+      "cancelQuoteRequest",
       "closeQuoteRequest",
       "createQuoteRequest",
       "getMyQuoteRequests",

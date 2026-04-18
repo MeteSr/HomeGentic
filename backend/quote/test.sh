@@ -120,6 +120,70 @@ echo ""
 echo "── [14] getQuoteRequest — status should be Closed ───────────────────────"
 dfx canister call $CANISTER getQuoteRequest "(\"$REQ2_ID\")"
 
+# ─── Cancel flow (issue #113) ────────────────────────────────────────────────
+echo ""
+echo "── [14b] Create request + bid for cancel flow test ──────────────────────"
+CANCEL_REQ_OUT=$(dfx canister call $CANISTER createQuoteRequest '(
+  "PROP_1",
+  variant { Electrical },
+  "Electrical panel upgrade — cancel flow test.",
+  variant { Low }
+)')
+echo "$CANCEL_REQ_OUT"
+CANCEL_REQ_ID=$(echo "$CANCEL_REQ_OUT" | grep -oP '"REQ_[^"]+"' | head -1 | tr -d '"' || true)
+echo "  → Cancel-test Request ID: $CANCEL_REQ_ID"
+
+# Contractor submits a bid so we can verify bidders are returned
+dfx canister call $CANISTER submitQuote "(
+  \"$CANCEL_REQ_ID\",
+  50000,
+  3,
+  $VALID_UNTIL
+)" --identity quote-contractor-test > /dev/null
+
+echo ""
+echo "── [14c] cancelQuoteRequest → expect Cancelled status, returns bidders ──"
+CANCEL_OUT=$(dfx canister call $CANISTER cancelQuoteRequest "(\"$CANCEL_REQ_ID\")")
+echo "$CANCEL_OUT"
+if echo "$CANCEL_OUT" | grep -qi "ok"; then
+  echo "  ↳ cancelQuoteRequest returned ok — ✓"
+else
+  echo "  ↳ ❌ Expected ok from cancelQuoteRequest"
+fi
+
+echo ""
+echo "── [14d] getQuoteRequest — status should be Cancelled ───────────────────"
+CANCELLED_REQ=$(dfx canister call $CANISTER getQuoteRequest "(\"$CANCEL_REQ_ID\")")
+echo "$CANCELLED_REQ"
+if echo "$CANCELLED_REQ" | grep -qi "Cancelled"; then
+  echo "  ↳ Status = Cancelled — ✓"
+else
+  echo "  ↳ ❌ Expected Cancelled status"
+fi
+
+echo ""
+echo "── [14e] submitQuote on cancelled request → expect rejection ────────────"
+dfx canister call $CANISTER submitQuote "(
+  \"$CANCEL_REQ_ID\",
+  60000,
+  2,
+  $VALID_UNTIL
+)" --identity quote-contractor-test \
+  && echo "  ↳ ❌ Expected rejection for bid on cancelled request" \
+  || echo "  ↳ Bid on cancelled request correctly rejected — ✓"
+
+echo ""
+echo "── [14f] cancelQuoteRequest again → expect already-cancelled error ──────"
+dfx canister call $CANISTER cancelQuoteRequest "(\"$CANCEL_REQ_ID\")" \
+  && echo "  ↳ ❌ Expected error for double-cancel" \
+  || echo "  ↳ Double-cancel correctly rejected — ✓"
+
+echo ""
+echo "── [14g] cancelQuoteRequest on accepted request → expect error ──────────"
+dfx canister call $CANISTER cancelQuoteRequest "(\"$REQ_ID\")" \
+  && echo "  ↳ ❌ Expected error for cancelling accepted request" \
+  || echo "  ↳ Cancel on accepted request correctly rejected — ✓"
+
 # ─── Tier open-request limit — Free tier is fully blocked; Basic limit = 3 ───
 echo ""
 echo "── [15] Free tier: createQuoteRequest → expect full rejection ───────────"

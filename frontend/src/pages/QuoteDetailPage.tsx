@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, CheckCircle, Clock } from "lucide-react";
+import { ArrowLeft, CheckCircle, Clock, XCircle } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { Badge } from "@/components/Badge";
 import { quoteService, QuoteRequest, Quote } from "@/services/quote";
 import { contractorService } from "@/services/contractor";
 import { NegotiationPanel } from "@/components/NegotiationPanel";
+import { useAuthStore } from "@/store/authStore";
 import toast from "react-hot-toast";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 
@@ -33,6 +34,9 @@ export default function QuoteDetailPage() {
   const [accepting,          setAccepting]          = useState<string | null>(null);
   const [pendingAccept,      setPendingAccept]      = useState<Quote | null>(null);
   const [acceptedQuote,      setAcceptedQuote]      = useState<Quote | null>(null);
+  const [showCancelModal,    setShowCancelModal]    = useState(false);
+  const [cancelling,         setCancelling]         = useState(false);
+  const { principal } = useAuthStore();
 
   useEffect(() => {
     if (!id) return;
@@ -90,6 +94,24 @@ export default function QuoteDetailPage() {
     }
   };
 
+  const handleCancel = async () => {
+    if (!request) return;
+    setCancelling(true);
+    try {
+      await quoteService.cancel(request.id);
+      setRequest((r) => r ? { ...r, status: "cancelled" } : r);
+      setShowCancelModal(false);
+      toast.success("Request cancelled — contractors who bid have been notified.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to cancel request");
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const isOwner = request?.homeowner === (principal ?? "local");
+  const canCancel = isOwner && (request?.status === "open" || request?.status === "quoted");
+
   if (loading) {
     return (
       <Layout>
@@ -120,17 +142,34 @@ export default function QuoteDetailPage() {
 
         {/* Request summary */}
         {request && (
-          <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "1.25rem", marginBottom: "1.5rem", borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
+          <div style={{ border: `1px solid ${request.status === "cancelled" ? "#C94C2E" : UI.rule}`, background: COLORS.white, padding: "1.25rem", marginBottom: "1.5rem", borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem" }}>
-              <div>
-                <p style={{ fontWeight: 500, marginBottom: "0.25rem" }}>{request.serviceType}</p>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginBottom: "0.25rem", flexWrap: "wrap" }}>
+                  <p style={{ fontWeight: 500 }}>{request.serviceType}</p>
+                  {request.status === "cancelled" && (
+                    <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "#C94C2E", border: "1px solid #C94C2E40", padding: "0.1rem 0.375rem" }}>
+                      Cancelled
+                    </span>
+                  )}
+                </div>
                 <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight, fontWeight: 300 }}>{request.description}</p>
               </div>
-              <Badge variant={
-                request.urgency === "low" ? "success"
-                : request.urgency === "medium" ? "warning"
-                : "error"
-              }>{request.urgency}</Badge>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.5rem" }}>
+                <Badge variant={
+                  request.urgency === "low" ? "success"
+                  : request.urgency === "medium" ? "warning"
+                  : "error"
+                }>{request.urgency}</Badge>
+                {canCancel && (
+                  <button
+                    onClick={() => setShowCancelModal(true)}
+                    style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "#C94C2E", background: "none", border: "1px solid #C94C2E40", padding: "0.2rem 0.625rem", cursor: "pointer" }}
+                  >
+                    Cancel Request
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -258,6 +297,10 @@ export default function QuoteDetailPage() {
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "0.625rem", color: UI.inkLight, fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.5 }}>
                         Not selected
                       </div>
+                    ) : request?.status === "cancelled" ? (
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", padding: "0.625rem", color: "#C94C2E", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.6 }}>
+                        <XCircle size={13} /> Request cancelled
+                      </div>
                     ) : (
                       <Button
                         loading={accepting === quote.id}
@@ -276,7 +319,47 @@ export default function QuoteDetailPage() {
         )}
       </div>
 
-      {/* Confirmation modal */}
+      {/* Cancel confirmation modal */}
+      {showCancelModal && (
+        <div
+          onClick={() => setShowCancelModal(false)}
+          style={{ position: "fixed", inset: 0, background: `rgba(46,37,64,0.6)`, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: "1.5rem" }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: COLORS.white, border: `1px solid #C94C2E40`, maxWidth: "28rem", width: "100%", padding: "0", borderRadius: RADIUS.card, boxShadow: SHADOWS.modal }}
+          >
+            <div style={{ padding: "1.25rem 1.5rem", borderBottom: `1px solid ${UI.rule}`, background: UI.paper }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "#C94C2E", fontWeight: 600 }}>
+                Cancel quote request
+              </p>
+            </div>
+            <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, lineHeight: 1.6 }}>
+                This will cancel the request and notify any contractors who have already submitted bids. This action cannot be undone.
+              </p>
+              <div style={{ display: "flex", gap: "0.75rem" }}>
+                <Button
+                  loading={cancelling}
+                  onClick={handleCancel}
+                  icon={<XCircle size={13} />}
+                  style={{ flex: 1, background: "#C94C2E", borderColor: "#C94C2E" }}
+                >
+                  Confirm Cancel
+                </Button>
+                <button
+                  onClick={() => setShowCancelModal(false)}
+                  style={{ padding: "0.5rem 1.25rem", border: `1px solid ${UI.rule}`, background: "none", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight, cursor: "pointer" }}
+                >
+                  Keep Request
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Accept quote confirmation modal */}
       {pendingAccept && (
         <div
           onClick={() => setPendingAccept(null)}

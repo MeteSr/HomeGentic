@@ -14,7 +14,7 @@
  *   - Free-tier open-request limit (max 3 concurrent open requests)
  */
 
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import { quoteService } from "@/services/quote";
 import type { QuoteRequest, Quote } from "@/services/quote";
 import { TEST_PRINCIPAL } from "./setup";
@@ -220,5 +220,39 @@ describe.skipIf(!deployed)("close — RequestStatus Open → Closed", () => {
   it("close() resolves without error and marks request as closed", async () => {
     const req = await quoteService.createRequest({ ...BASE_REQUEST, propertyId: pid("close") });
     await expect(quoteService.close(req.id)).resolves.toBeUndefined();
+  });
+});
+
+// ─── cancel — RequestStatus Variant transition ────────────────────────────────
+
+describe.skipIf(!deployed)("cancel — RequestStatus Open → Cancelled", () => {
+  it("cancel() resolves without error", async () => {
+    const req = await quoteService.createRequest({ ...BASE_REQUEST, propertyId: pid("cancel") });
+    await expect(quoteService.cancel(req.id)).resolves.toBeUndefined();
+  });
+
+  it("cancel() twice rejects with an error", async () => {
+    const req = await quoteService.createRequest({ ...BASE_REQUEST, propertyId: pid("cancel-double") });
+    await quoteService.cancel(req.id);
+    await expect(quoteService.cancel(req.id)).rejects.toThrow();
+  });
+});
+
+// ─── cancel — mock fallback ───────────────────────────────────────────────────
+
+describe("cancel — mock fallback (no canister)", () => {
+  let svc: typeof quoteService;
+
+  beforeEach(async () => {
+    vi.resetModules();
+    const m = await import("@/services/quote");
+    svc = m.quoteService;
+  });
+
+  it("cancel() marks mock request as cancelled", async () => {
+    const req = await svc.createRequest({ ...BASE_REQUEST, propertyId: pid("cancel-mock") });
+    await svc.cancel(req.id);
+    const fetched = await svc.getRequest(req.id);
+    expect(fetched?.status).toBe("cancelled");
   });
 });

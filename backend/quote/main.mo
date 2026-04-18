@@ -40,9 +40,10 @@ persistent actor Quote {
 
   public type RequestStatus = {
     #Open;
-    #Quoted;   // at least one quote submitted
-    #Accepted; // homeowner accepted a quote
-    #Closed;   // manually closed by homeowner
+    #Quoted;     // at least one quote submitted
+    #Accepted;   // homeowner accepted a quote
+    #Closed;     // manually closed by homeowner
+    #Cancelled;  // cancelled by homeowner before acceptance; bidders notified
   };
 
   public type QuoteStatus = {
@@ -404,7 +405,10 @@ persistent actor Quote {
       case null { return #err(#NotFound) };
       case (?req) {
         if (req.status != #Open and req.status != #Quoted)
-          return #err(#InvalidInput("Request is not open for quotes"));
+          return #err(#InvalidInput(
+            if (req.status == #Cancelled) "This request has been cancelled"
+            else "Request is not open for quotes"
+          ));
         if (amount == 0)    return #err(#InvalidInput("Amount must be greater than 0"));
         if (timeline == 0)  return #err(#InvalidInput("Timeline must be greater than 0"));
         if (validUntil <= Time.now()) return #err(#InvalidInput("validUntil must be in the future"));
@@ -475,6 +479,8 @@ persistent actor Quote {
             if (req.homeowner != msg.caller) return #err(#Unauthorized);
             if (req.status == #Accepted or req.status == #Closed)
               return #err(#InvalidInput("Request is already closed"));
+            if (req.status == #Cancelled)
+              return #err(#InvalidInput("Cannot accept a quote on a cancelled request"));
             if (q.status != #Pending) return #err(#InvalidInput("Quote is no longer pending"));
 
             // Accept this quote
@@ -539,6 +545,8 @@ persistent actor Quote {
         if (req.homeowner != msg.caller) return #err(#Unauthorized);
         if (req.status == #Accepted or req.status == #Closed)
           return #err(#InvalidInput("Request is already closed"));
+        if (req.status == #Cancelled)
+          return #err(#InvalidInput("Request is already cancelled"));
 
         let updated: QuoteRequest = {
           id          = req.id;
@@ -553,6 +561,49 @@ persistent actor Quote {
         };
         Map.add(requests, Text.compare, requestId, updated);
         #ok(updated)
+      };
+    }
+  };
+
+  /// Cancel an open or quoted request. Only the homeowner may call this.
+  /// Only allowed while status is #Open or #Quoted.
+  /// Returns the list of contractor principals who submitted bids so the caller
+  /// can dispatch notifications outside the canister.
+  public shared(msg) func cancelQuoteRequest(requestId: Text) : async Result.Result<[Principal], Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+
+    switch (Map.get(requests, Text.compare, requestId)) {
+      case null { #err(#NotFound) };
+      case (?req) {
+        if (req.homeowner != msg.caller) return #err(#Unauthorized);
+        switch (req.status) {
+          case (#Open or #Quoted) {};
+          case (#Accepted)  { return #err(#InvalidInput("Cannot cancel an accepted request")) };
+          case (#Closed)    { return #err(#InvalidInput("Cannot cancel a closed request")) };
+          case (#Cancelled) { return #err(#InvalidInput("Request is already cancelled")) };
+        };
+
+        let updated: QuoteRequest = {
+          id          = req.id;
+          propertyId  = req.propertyId;
+          homeowner   = req.homeowner;
+          serviceType = req.serviceType;
+          description = req.description;
+          urgency     = req.urgency;
+          status      = #Cancelled;
+          createdAt   = req.createdAt;
+          closeAt     = req.closeAt;
+        };
+        Map.add(requests, Text.compare, requestId, updated);
+
+        // Collect principals of contractors who bid on this request
+        var bidders: [Principal] = [];
+        for (q in Map.values(quotes)) {
+          if (q.requestId == requestId) {
+            bidders := Array.concat(bidders, [q.contractor]);
+          };
+        };
+        #ok(bidders)
       };
     }
   };
@@ -841,7 +892,7 @@ persistent actor Quote {
       switch (r.status) {
         case (#Open or #Quoted) { open     += 1 };
         case (#Accepted)        { accepted += 1 };
-        case _                  {};
+        case (#Cancelled or #Closed) {};
       };
     };
     {
