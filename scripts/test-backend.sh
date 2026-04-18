@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 # HomeGentic — Backend Test Coordinator (12.6.3)
 #
-# Runs each canister's test.sh in sequence, tracks pass/fail per canister,
-# prints a coverage summary table, and exits non-zero if any canister failed.
+# Runs each canister's test.sh in parallel, collects output to per-canister log
+# files, prints them sequentially once all suites finish, and exits non-zero if
+# any canister failed.
+#
+# Parallelism is safe because every canister test script operates on its own
+# canister and registers its own test identities — there is no shared mutable
+# state between suites.
 #
 # Usage:
 #   bash scripts/test-backend.sh            # Run all canisters
@@ -47,46 +52,72 @@ fi
 declare -a PASSED=()
 declare -a FAILED=()
 declare -a SKIPPED=()
+declare -a ACTIVE=()   # canisters actually launched
+declare -a PIDS=()     # matching background PIDs
+
+LOG_DIR=$(mktemp -d /tmp/test-backend-XXXXXX)
 
 echo "============================================"
 echo "  HomeGentic — Backend Test Suite"
 echo "============================================"
-echo "  Running ${#CANISTERS[@]} canister(s)"
+echo "  Launching ${#CANISTERS[@]} canister suite(s) in parallel"
 echo ""
 
-# ── Run each canister test ────────────────────────────────────────────────────
+# ── Launch all suites in parallel ────────────────────────────────────────────
 for CANISTER in "${CANISTERS[@]}"; do
   TEST_SCRIPT="$REPO_ROOT/backend/$CANISTER/test.sh"
 
   if [ ! -f "$TEST_SCRIPT" ]; then
-    echo "── [$CANISTER] SKIPPED — no test.sh found ───────────────────────────────"
+    echo "  ⬜ $CANISTER — no test.sh, skipping"
     SKIPPED+=("$CANISTER")
     continue
   fi
 
-  # Check canister is deployed
   CANISTER_ID=$(dfx canister id "$CANISTER" 2>/dev/null || echo "")
   if [ -z "$CANISTER_ID" ]; then
-    echo "── [$CANISTER] SKIPPED — canister not deployed ──────────────────────────"
+    echo "  ⬜ $CANISTER — not deployed, skipping"
     SKIPPED+=("$CANISTER")
     continue
   fi
 
-  echo "── [$CANISTER] Running tests ────────────────────────────────────────────"
-  START_S=$SECONDS
+  # Record wall-clock start time and launch
+  date +%s > "$LOG_DIR/$CANISTER.start"
+  bash "$TEST_SCRIPT" > "$LOG_DIR/$CANISTER.log" 2>&1 &
+  PIDS+=($!)
+  ACTIVE+=("$CANISTER")
+  echo "  ▶ $CANISTER launched (pid $!)"
+done
 
-  # Run in subshell to isolate set -e failures; capture exit code
-  if bash "$TEST_SCRIPT" 2>&1; then
-    ELAPSED=$(( SECONDS - START_S ))
+echo ""
+echo "  Waiting for ${#ACTIVE[@]} suite(s)..."
+echo ""
+
+# ── Collect results in launch order ──────────────────────────────────────────
+for i in "${!ACTIVE[@]}"; do
+  CANISTER="${ACTIVE[$i]}"
+  PID="${PIDS[$i]}"
+  START_S=$(cat "$LOG_DIR/$CANISTER.start")
+
+  echo "── [$CANISTER] ──────────────────────────────────────────────────────────"
+
+  # wait returns the exit code of the background process
+  if wait "$PID"; then
+    END_S=$(date +%s)
+    ELAPSED=$(( END_S - START_S ))
+    cat "$LOG_DIR/$CANISTER.log"
     echo "   ✅  $CANISTER passed (${ELAPSED}s)"
     PASSED+=("$CANISTER")
   else
-    ELAPSED=$(( SECONDS - START_S ))
+    END_S=$(date +%s)
+    ELAPSED=$(( END_S - START_S ))
+    cat "$LOG_DIR/$CANISTER.log"
     echo "   ❌  $CANISTER FAILED (${ELAPSED}s)"
     FAILED+=("$CANISTER")
   fi
   echo ""
 done
+
+rm -rf "$LOG_DIR"
 
 # ── Summary table ─────────────────────────────────────────────────────────────
 TOTAL=$(( ${#PASSED[@]} + ${#FAILED[@]} + ${#SKIPPED[@]} ))

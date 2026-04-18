@@ -126,17 +126,36 @@ MGMT_DID
   echo "  ✓ Management canister IDL written (.dfx/local/canisters/idl/aaaaa-aa.did)"
 fi
 
-# ── Sequential canister deployment ──────────────────────────────────────────────
-# Parallel deploys race on canister_ids.json (each process read→add→write);
-# the last writer wins and all other IDs are lost. Sequential is the safe default.
+# ── Parallel canister deployment ────────────────────────────────────────────────
+# Strategy: two phases to eliminate the canister_ids.json write race.
+#   Phase 1 — dfx canister create --all (single process, writes all IDs atomically)
+#   Phase 2 — parallel dfx build + dfx canister install per canister
+#             (install never touches canister_ids.json; each build writes to its
+#              own isolated .dfx/local/canisters/<name>/ directory)
 
 CANISTERS=(auth property job contractor quote payment photo report maintenance market sensor monitoring listing agent recurring bills ai_proxy)
 LOG_DIR=$(mktemp -d /tmp/dfx-deploy-XXXXXX)
 
-echo "▶ Deploying ${#CANISTERS[@]} canisters..."
-FAILED=()
+# Phase 1: create all canister IDs in one atomic operation
+echo "▶ Creating canister IDs (phase 1/2)..."
+dfx canister create --all --network "$NETWORK" 2>/dev/null || true
+
+# Phase 2: build + install every canister in parallel
+echo "▶ Building and installing ${#CANISTERS[@]} canisters in parallel (phase 2/2)..."
+PIDS=()
 for canister in "${CANISTERS[@]}"; do
-  if dfx deploy "$canister" --network "$NETWORK" >"$LOG_DIR/$canister.log" 2>&1; then
+  (
+    dfx build "$canister" --network "$NETWORK" 2>&1 && \
+    dfx canister install "$canister" --mode install --network "$NETWORK" 2>&1
+  ) >"$LOG_DIR/$canister.log" 2>&1 &
+  PIDS+=($!)
+done
+
+# Collect results
+FAILED=()
+for i in "${!CANISTERS[@]}"; do
+  canister="${CANISTERS[$i]}"
+  if wait "${PIDS[$i]}"; then
     echo "  ✓ $canister"
   else
     echo "  ✗ $canister (failed)"
@@ -235,11 +254,14 @@ echo "  Deployer principal: $DEPLOYER"
 # All canisters that expose addAdmin, excluding ai_proxy (handled separately).
 ADMIN_CANISTERS=(auth property job contractor quote photo report maintenance market sensor listing agent recurring bills monitoring)
 
+# Fire all addAdmin calls in parallel — each targets a different canister so
+# there is no shared state and no ordering requirement between them.
 for canister in "${ADMIN_CANISTERS[@]}"; do
   echo "  $canister: adding deployer as admin..."
   dfx canister call "$canister" addAdmin "(principal \"$DEPLOYER\")" --network "$NETWORK" \
-    2>/dev/null || echo "  ⚠️  addAdmin failed for $canister (may already have an admin)"
+    2>/dev/null &
 done
+wait   # wait for all addAdmin calls before proceeding to payment (which depends on none of them)
 
 # payment uses initAdmins (one-time bootstrap) instead of addAdmin.
 # Without this, grantSubscription returns NotAuthorized and all
@@ -270,52 +292,48 @@ SENSOR_ID=$(dfx canister id sensor --network "$NETWORK" 2>/dev/null || echo "")
 REPORT_ID=$(dfx canister id report --network "$NETWORK" 2>/dev/null || echo "")
 
 # ── Canister ID wiring (target canister ID strings for cross-calls) ────────────
-
-if [ -n "$JOB_ID" ] && [ -n "$PAYMENT_ID" ]; then
-  echo "  Wiring payment -> job (tier cap enforcement)..."
-  dfx canister call job setPaymentCanisterId "(\"$PAYMENT_ID\")" --network "$NETWORK"
-fi
-
-if [ -n "$PROPERTY_ID" ] && [ -n "$PAYMENT_ID" ]; then
-  echo "  Wiring payment -> property (live tier enforcement)..."
-  dfx canister call property setPaymentCanisterId "(principal \"$PAYMENT_ID\")" --network "$NETWORK"
-fi
-
-if [ -n "$PHOTO_ID" ] && [ -n "$PAYMENT_ID" ]; then
-  echo "  Wiring payment -> photo (live tier enforcement)..."
-  dfx canister call photo setPaymentCanisterId "(principal \"$PAYMENT_ID\")" --network "$NETWORK"
-fi
-
-if [ -n "$QUOTE_ID" ] && [ -n "$PAYMENT_ID" ]; then
-  echo "  Wiring payment -> quote (live tier enforcement)..."
-  dfx canister call quote setPaymentCanisterId "(principal \"$PAYMENT_ID\")" --network "$NETWORK"
-fi
+# Each call writes to a different canister's stable variable — fire in parallel.
 
 BILLS_ID=$(dfx canister id bills --network "$NETWORK" 2>/dev/null || echo "")
-if [ -n "$BILLS_ID" ] && [ -n "$PAYMENT_ID" ]; then
-  echo "  Wiring payment -> bills (Free tier monthly upload limit)..."
-  dfx canister call bills setPaymentCanisterId "(\"$PAYMENT_ID\")" --network "$NETWORK"
-fi
 
-if [ -n "$JOB_ID" ] && [ -n "$CONTRACTOR_ID" ]; then
+if [ -n "$JOB_ID" ]      && [ -n "$PAYMENT_ID" ];    then
+  echo "  Wiring payment -> job..."
+  dfx canister call job      setPaymentCanisterId    "(\"$PAYMENT_ID\")"          --network "$NETWORK" &
+fi
+if [ -n "$PROPERTY_ID" ] && [ -n "$PAYMENT_ID" ];    then
+  echo "  Wiring payment -> property..."
+  dfx canister call property setPaymentCanisterId    "(principal \"$PAYMENT_ID\")" --network "$NETWORK" &
+fi
+if [ -n "$PHOTO_ID" ]    && [ -n "$PAYMENT_ID" ];    then
+  echo "  Wiring payment -> photo..."
+  dfx canister call photo    setPaymentCanisterId    "(principal \"$PAYMENT_ID\")" --network "$NETWORK" &
+fi
+if [ -n "$QUOTE_ID" ]    && [ -n "$PAYMENT_ID" ];    then
+  echo "  Wiring payment -> quote..."
+  dfx canister call quote    setPaymentCanisterId    "(principal \"$PAYMENT_ID\")" --network "$NETWORK" &
+fi
+if [ -n "$BILLS_ID" ]    && [ -n "$PAYMENT_ID" ];    then
+  echo "  Wiring payment -> bills..."
+  dfx canister call bills    setPaymentCanisterId    "(\"$PAYMENT_ID\")"          --network "$NETWORK" &
+fi
+if [ -n "$JOB_ID" ]      && [ -n "$CONTRACTOR_ID" ]; then
   echo "  Wiring contractor -> job..."
-  dfx canister call job setContractorCanisterId "(\"$CONTRACTOR_ID\")" --network "$NETWORK"
+  dfx canister call job      setContractorCanisterId "(\"$CONTRACTOR_ID\")"       --network "$NETWORK" &
 fi
-
-if [ -n "$JOB_ID" ] && [ -n "$PROPERTY_ID" ]; then
+if [ -n "$JOB_ID" ]      && [ -n "$PROPERTY_ID" ];   then
   echo "  Wiring property -> job..."
-  dfx canister call job setPropertyCanisterId "(\"$PROPERTY_ID\")" --network "$NETWORK"
+  dfx canister call job      setPropertyCanisterId   "(\"$PROPERTY_ID\")"         --network "$NETWORK" &
+fi
+if [ -n "$PHOTO_ID" ]    && [ -n "$PROPERTY_ID" ];   then
+  echo "  Wiring property -> photo..."
+  dfx canister call photo    setPropertyCanisterId   "(principal \"$PROPERTY_ID\")" --network "$NETWORK" &
+fi
+if [ -n "$QUOTE_ID" ]    && [ -n "$PROPERTY_ID" ];   then
+  echo "  Wiring property -> quote..."
+  dfx canister call quote    setPropertyCanisterId   "(principal \"$PROPERTY_ID\")" --network "$NETWORK" &
 fi
 
-if [ -n "$PHOTO_ID" ] && [ -n "$PROPERTY_ID" ]; then
-  echo "  Wiring property -> photo (manager tier bypass)..."
-  dfx canister call photo setPropertyCanisterId "(principal \"$PROPERTY_ID\")" --network "$NETWORK"
-fi
-
-if [ -n "$QUOTE_ID" ] && [ -n "$PROPERTY_ID" ]; then
-  echo "  Wiring property -> quote (manager tier bypass)..."
-  dfx canister call quote setPropertyCanisterId "(principal \"$PROPERTY_ID\")" --network "$NETWORK"
-fi
+wait   # wait for all wiring calls before reading IDs in the trusted-canister section
 
 # ── Trusted canister wiring (derived from call topology) ──────────────────────
 # These mirror the actual inter-canister call graph so each canister auto-trusts
@@ -326,53 +344,58 @@ echo "============================================"
 echo "  Wiring Trusted Canister Lists"
 echo "============================================"
 
+# All addTrustedCanister calls target different canisters or append to independent
+# lists — fire them in parallel then wait before moving on.
+
 # payment trusts job/property/photo/quote (all call getTierForPrincipal)
-if [ -n "$JOB_ID" ] && [ -n "$PAYMENT_ID" ]; then
-  echo "  payment: trusting job canister ($JOB_ID)..."
-  dfx canister call payment addTrustedCanister "(principal \"$JOB_ID\")" --network "$NETWORK"
+if [ -n "$JOB_ID" ]      && [ -n "$PAYMENT_ID" ]; then
+  echo "  payment: trusting job ($JOB_ID)..."
+  dfx canister call payment addTrustedCanister "(principal \"$JOB_ID\")"      --network "$NETWORK" 2>/dev/null &
 fi
 if [ -n "$PROPERTY_ID" ] && [ -n "$PAYMENT_ID" ]; then
-  echo "  payment: trusting property canister ($PROPERTY_ID)..."
-  dfx canister call payment addTrustedCanister "(principal \"$PROPERTY_ID\")" --network "$NETWORK"
+  echo "  payment: trusting property ($PROPERTY_ID)..."
+  dfx canister call payment addTrustedCanister "(principal \"$PROPERTY_ID\")" --network "$NETWORK" 2>/dev/null &
 fi
-if [ -n "$PHOTO_ID" ] && [ -n "$PAYMENT_ID" ]; then
-  echo "  payment: trusting photo canister ($PHOTO_ID)..."
-  dfx canister call payment addTrustedCanister "(principal \"$PHOTO_ID\")" --network "$NETWORK"
+if [ -n "$PHOTO_ID" ]    && [ -n "$PAYMENT_ID" ]; then
+  echo "  payment: trusting photo ($PHOTO_ID)..."
+  dfx canister call payment addTrustedCanister "(principal \"$PHOTO_ID\")"    --network "$NETWORK" 2>/dev/null &
 fi
-if [ -n "$QUOTE_ID" ] && [ -n "$PAYMENT_ID" ]; then
-  echo "  payment: trusting quote canister ($QUOTE_ID)..."
-  dfx canister call payment addTrustedCanister "(principal \"$QUOTE_ID\")" --network "$NETWORK"
+if [ -n "$QUOTE_ID" ]    && [ -n "$PAYMENT_ID" ]; then
+  echo "  payment: trusting quote ($QUOTE_ID)..."
+  dfx canister call payment addTrustedCanister "(principal \"$QUOTE_ID\")"    --network "$NETWORK" 2>/dev/null &
 fi
 
 # contractor trusts job (job calls recordJobVerified)
 if [ -n "$JOB_ID" ] && [ -n "$CONTRACTOR_ID" ]; then
-  echo "  contractor: trusting job canister ($JOB_ID)..."
-  dfx canister call contractor addTrustedCanister "(principal \"$JOB_ID\")" --network "$NETWORK"
+  echo "  contractor: trusting job ($JOB_ID)..."
+  dfx canister call contractor addTrustedCanister "(principal \"$JOB_ID\")"   --network "$NETWORK" 2>/dev/null &
 fi
 
-# property trusts job/photo/quote (all call getPropertyOwner) and report (report calls getVerificationLevel)
-if [ -n "$JOB_ID" ] && [ -n "$PROPERTY_ID" ]; then
-  echo "  property: trusting job canister ($JOB_ID)..."
-  dfx canister call property addTrustedCanister "(principal \"$JOB_ID\")" --network "$NETWORK"
+# property trusts job/photo/quote/report
+if [ -n "$JOB_ID" ]    && [ -n "$PROPERTY_ID" ]; then
+  echo "  property: trusting job ($JOB_ID)..."
+  dfx canister call property addTrustedCanister "(principal \"$JOB_ID\")"     --network "$NETWORK" 2>/dev/null &
 fi
-if [ -n "$PHOTO_ID" ] && [ -n "$PROPERTY_ID" ]; then
-  echo "  property: trusting photo canister ($PHOTO_ID)..."
-  dfx canister call property addTrustedCanister "(principal \"$PHOTO_ID\")" --network "$NETWORK"
+if [ -n "$PHOTO_ID" ]  && [ -n "$PROPERTY_ID" ]; then
+  echo "  property: trusting photo ($PHOTO_ID)..."
+  dfx canister call property addTrustedCanister "(principal \"$PHOTO_ID\")"   --network "$NETWORK" 2>/dev/null &
 fi
-if [ -n "$QUOTE_ID" ] && [ -n "$PROPERTY_ID" ]; then
-  echo "  property: trusting quote canister ($QUOTE_ID)..."
-  dfx canister call property addTrustedCanister "(principal \"$QUOTE_ID\")" --network "$NETWORK"
+if [ -n "$QUOTE_ID" ]  && [ -n "$PROPERTY_ID" ]; then
+  echo "  property: trusting quote ($QUOTE_ID)..."
+  dfx canister call property addTrustedCanister "(principal \"$QUOTE_ID\")"   --network "$NETWORK" 2>/dev/null &
 fi
 if [ -n "$REPORT_ID" ] && [ -n "$PROPERTY_ID" ]; then
-  echo "  property: trusting report canister ($REPORT_ID)..."
-  dfx canister call property addTrustedCanister "(principal \"$REPORT_ID\")" --network "$NETWORK"
+  echo "  property: trusting report ($REPORT_ID)..."
+  dfx canister call property addTrustedCanister "(principal \"$REPORT_ID\")"  --network "$NETWORK" 2>/dev/null &
 fi
 
 # job trusts sensor (sensor calls createSensorJob)
 if [ -n "$SENSOR_ID" ] && [ -n "$JOB_ID" ]; then
-  echo "  job: trusting sensor canister ($SENSOR_ID)..."
-  dfx canister call job addTrustedCanister "(principal \"$SENSOR_ID\")" --network "$NETWORK"
+  echo "  job: trusting sensor ($SENSOR_ID)..."
+  dfx canister call job addTrustedCanister "(principal \"$SENSOR_ID\")"       --network "$NETWORK" 2>/dev/null &
 fi
+
+wait   # wait for all trust wiring before moving on
 
 # ── AI Proxy canister — wire API keys from environment ────────────────────────
 
