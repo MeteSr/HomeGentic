@@ -38,7 +38,7 @@ vi.mock("@/services/auth", () => ({
 }));
 
 vi.mock("@/store/authStore", () => ({
-  useAuthStore: () => ({ setProfile: vi.fn() }),
+  useAuthStore: () => ({ setProfile: vi.fn(), tier: null, setTier: vi.fn() }),
 }));
 
 vi.mock("react-hot-toast", () => ({

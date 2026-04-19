@@ -42,7 +42,7 @@ let mockProperties: { id: string; address: string }[] = [];
 let mockProfile: { role: string; email?: string } = { role: "Homeowner", email: "test@example.com" };
 
 vi.mock("@/store/authStore", () => ({
-  useAuthStore: () => ({ principal: "test-principal", profile: mockProfile }),
+  useAuthStore: () => ({ principal: "test-principal", profile: mockProfile, tier: null, setTier: vi.fn(), setProfile: vi.fn() }),
 }));
 
 vi.mock("@/store/propertyStore", () => ({

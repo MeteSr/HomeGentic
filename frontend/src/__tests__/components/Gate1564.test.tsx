@@ -34,6 +34,9 @@ vi.mock("@/store/authStore", () => ({
     principal: "test-principal",
     profile: { role: "Homeowner" },
     isAuthenticated: true,
+    tier: null,
+    setTier: vi.fn(),
+    setProfile: vi.fn(),
   }),
 }));
 

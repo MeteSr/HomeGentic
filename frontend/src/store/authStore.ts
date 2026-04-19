@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { UserProfile } from "@/services/auth";
+import type { PlanTier } from "@/services/planConstants";
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -7,9 +8,11 @@ interface AuthState {
   profile: UserProfile | null;
   isLoading: boolean;
   lastLoginAt: number | null;   // ms timestamp of the *previous* session
+  tier: PlanTier | null;        // null = not yet fetched
   setAuthenticated: (principal: string) => void;
   setProfile: (profile: UserProfile) => void;
   setLastLoginAt: (v: number | null) => void;
+  setTier: (tier: PlanTier) => void;
   clearAuth: () => void;
   setLoading: (v: boolean) => void;
 }
@@ -20,12 +23,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   profile: null,
   isLoading: true,
   lastLoginAt: null,
+  tier: null,
   setAuthenticated: (principal) => {
     if (!principal) throw new Error("setAuthenticated: principal must be a non-empty string");
     set({ isAuthenticated: true, principal });
   },
   setProfile: (profile) => set({ profile }),
   setLastLoginAt: (lastLoginAt) => set({ lastLoginAt }),
-  clearAuth: () => set({ isAuthenticated: false, principal: null, profile: null, lastLoginAt: null }),
+  setTier: (tier) => set({ tier }),
+  clearAuth: () => set({ isAuthenticated: false, principal: null, profile: null, lastLoginAt: null, tier: null }),
   setLoading: (isLoading) => set({ isLoading }),
 }));

@@ -43,7 +43,7 @@ vi.mock("@/services/payment", async (importOriginal) => {
 });
 
 vi.mock("@/store/authStore", () => ({
-  useAuthStore: () => ({ principal: "test", profile: { role: "Homeowner" }, isAuthenticated: true }),
+  useAuthStore: () => ({ principal: "test", profile: { role: "Homeowner" }, isAuthenticated: true, tier: null, setTier: vi.fn(), setProfile: vi.fn() }),
 }));
 
 vi.mock("@/store/propertyStore", () => ({

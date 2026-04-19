@@ -9,6 +9,7 @@ import {
   loginWithLocalIdentity,
 } from "@/services/actor";
 import { authService } from "@/services/auth";
+import { paymentService } from "@/services/payment";
 import { propertyService } from "@/services/property";
 
 interface AuthContextValue {
@@ -33,7 +34,7 @@ async function homeownerDestination(): Promise<string> {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
-  const { setAuthenticated, setProfile, setLastLoginAt, clearAuth, setLoading } = useAuthStore();
+  const { setAuthenticated, setProfile, setLastLoginAt, setTier, clearAuth, setLoading } = useAuthStore();
 
   useEffect(() => {
     // E2E test bypass: Playwright sets window.__e2e_principal before React boots.
@@ -65,6 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setLastLoginAt(profile.lastLoggedIn);   // capture previous session timestamp
           setProfile(profile);
           authService.recordLogin().catch((err) => console.error("[AuthContext] recordLogin failed:", err)); // fire-and-forget
+          paymentService.getMySubscription().then((sub) => setTier(sub.tier)).catch(() => {}); // fire-and-forget
         } catch {
           // Not registered yet
         }
@@ -82,6 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLastLoginAt(profile.lastLoggedIn);
       setProfile(profile);
       authService.recordLogin().catch((err) => console.error("[AuthContext] recordLogin failed:", err));
+      paymentService.getMySubscription().then((sub) => setTier(sub.tier)).catch(() => {}); // fire-and-forget
       if (profile.role === "Contractor") {
         navigate("/contractor-dashboard");
       } else {
@@ -115,6 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLastLoginAt(profile.lastLoggedIn);
       setProfile(profile);
       authService.recordLogin().catch((err) => console.error("[AuthContext] recordLogin failed:", err));
+      paymentService.getMySubscription().then((sub) => setTier(sub.tier)).catch(() => {}); // fire-and-forget
       if (profile.role === "Contractor") {
         navigate("/contractor-dashboard");
       } else {
@@ -141,9 +145,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    await iiLogout();
-    navigate("/");   // navigate before clearing so ProtectedRoute doesn't race-redirect to /login
-    clearAuth();
+    try {
+      await iiLogout();
+    } catch {
+      // II logout may fail when the user authenticated via devLogin (bypasses
+      // AuthClient) or when the identity provider is unreachable. Clear local
+      // state regardless so the button always works.
+    } finally {
+      navigate("/");   // navigate before clearing so ProtectedRoute doesn't race-redirect to /login
+      clearAuth();
+    }
   };
 
   return (

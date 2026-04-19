@@ -277,10 +277,11 @@ function AgentDashboardLink() {
 
 function SubscriptionTab({ profile }: { profile: any }) {
   const navigate = useNavigate();
-  const [tier,             setTier]             = useState<PlanTier>(profile?.role === "Contractor" ? "ContractorPro" : "Free");
+  const { tier: cachedTier, setTier: setStoreTier } = useAuthStore();
+  const [tier,             setTier]             = useState<PlanTier>(cachedTier ?? (profile?.role === "Contractor" ? "ContractorPro" : "Free"));
   const [expiresAt,        setExpiresAt]        = useState<number | null>(null);
   const [cancelledAt,      setCancelledAt]      = useState<number | null>(null);
-  const [subLoaded,        setSubLoaded]        = useState(false);
+  const [subLoaded,        setSubLoaded]        = useState(cachedTier !== null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [cancelStep,       setCancelStep]       = useState<"idle" | "confirm" | "loading" | "done">("idle");
   const [pauseState,       setPauseState]       = useState(paymentService.getPauseState());
@@ -288,6 +289,7 @@ function SubscriptionTab({ profile }: { profile: any }) {
   useEffect(() => {
     paymentService.getMySubscription().then((sub) => {
       setTier(sub.tier);
+      setStoreTier(sub.tier);
       setExpiresAt(sub.expiresAt);
       if (sub.cancelledAt) {
         setCancelledAt(sub.cancelledAt);
