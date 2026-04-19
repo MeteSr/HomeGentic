@@ -88,6 +88,7 @@ vi.mock("@/services/fsbo", async (importOriginal) => {
 vi.mock("@/store/authStore", () => ({
   useAuthStore: () => ({
     principal: "local", profile: { role: "Homeowner", tier: "Pro" }, isAuthenticated: true,
+    tier: null, setTier: vi.fn(), setProfile: vi.fn(),
   }),
 }));
 

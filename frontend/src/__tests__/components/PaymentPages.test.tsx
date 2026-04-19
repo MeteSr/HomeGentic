@@ -23,7 +23,7 @@ vi.mock("@/services/payment", async (importOriginal) => {
 });
 
 vi.mock("@/store/authStore", () => ({
-  useAuthStore: () => ({ isAuthenticated: true }),
+  useAuthStore: () => ({ isAuthenticated: true, tier: null, setTier: vi.fn(), setProfile: vi.fn() }),
 }));
 
 vi.mock("@/contexts/AuthContext", () => ({

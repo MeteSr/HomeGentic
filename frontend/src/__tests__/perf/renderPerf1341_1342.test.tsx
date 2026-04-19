@@ -165,6 +165,9 @@ vi.mock("@/store/authStore", () => ({
     principal:   "test-principal",
     profile:     null,
     lastLoginAt: 0,
+    tier:        null,
+    setTier:     vi.fn(),
+    setProfile:  vi.fn(),
   })),
 }));
 

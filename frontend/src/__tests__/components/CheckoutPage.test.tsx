@@ -80,6 +80,9 @@ function renderCheckout(
       isAuthenticated: authenticated,
       principal: authenticated ? "test-principal" : null,
       profile: authenticated ? { email: "test@example.com" } : null,
+      tier: null,
+      setTier: vi.fn(),
+      setProfile: vi.fn(),
     };
     return sel ? sel(state) : state;
   });
