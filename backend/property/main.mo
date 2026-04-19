@@ -1203,9 +1203,7 @@ persistent actor Property {
 
   /// Public query: returns true if `caller` is the owner OR an authorised manager.
   /// `requireWrite` = true means #Viewer role is not sufficient.
-  /// Called cross-canister by job, photo, quote, etc. canisters for auth checks.
-  // TODO: update job/photo/quote/maintenance canisters to call this instead of
-  //       checking caller == owner directly.
+  /// Called cross-canister by job, photo, quote, and maintenance canisters for auth checks.
   public query func isAuthorized(
     propertyId  : Text,
     caller      : Principal,

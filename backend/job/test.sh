@@ -27,6 +27,38 @@ fi
 CONTRACTOR_PRINCIPAL=$(dfx identity get-principal --identity contractor-test)
 echo "Contractor test principal: $CONTRACTOR_PRINCIPAL"
 
+# ── Register a test property so cross-canister auth checks have a real target ─
+# When the job canister has propCanisterId wired (e.g. after deploy.sh), calls
+# like verifyJob/linkContractor/createInviteToken delegate to
+# property.isAuthorized(propertyId, ...).  The property must exist and be owned
+# by the caller, otherwise the check returns false → Unauthorized.
+PROPERTY_CANISTER_ID=$(dfx canister id property 2>/dev/null || echo "")
+if [ -n "$PROPERTY_CANISTER_ID" ]; then
+  MY_PRINCIPAL=$(dfx identity get-principal)
+  dfx canister call payment grantSubscription \
+    "(principal \"$MY_PRINCIPAL\", variant { Premium })" > /dev/null 2>&1 || true
+  SETUP_PROP_OUT=$(dfx canister call property registerProperty '(record {
+    address      = "1 Job Test Drive";
+    city         = "Austin";
+    state        = "TX";
+    zipCode      = "78701";
+    propertyType = variant { SingleFamily };
+    yearBuilt    = 2000;
+    squareFeet   = 2000;
+    tier         = variant { Premium };
+  })')
+  TEST_PROP_ID=$(echo "$SETUP_PROP_OUT" | grep -oP 'id = "\K[^"]+' | head -1 || echo "")
+  if [ -z "$TEST_PROP_ID" ]; then
+    echo "  ↳ ❌ Could not register test property — auth-dependent tests may fail"
+    TEST_PROP_ID="PROP_1"
+  else
+    echo "  → Test property registered: $TEST_PROP_ID"
+  fi
+else
+  # Property canister not deployed — job canister falls back to caller == owner
+  TEST_PROP_ID="PROP_1"
+fi
+
 # ─── Metrics (initial state) ──────────────────────────────────────────────────
 echo ""
 echo "── [1] Get metrics (initial state) ─────────────────────────────────────"
@@ -35,19 +67,19 @@ dfx canister call $CANISTER getMetrics
 # ─── Create a contractor job ──────────────────────────────────────────────────
 echo ""
 echo "── [2] Create contractor job (HVAC) ────────────────────────────────────"
-JOB_OUT=$(dfx canister call $CANISTER createJob '(
-  "PROP_1",
-  "HVAC Replacement",
+JOB_OUT=$(dfx canister call $CANISTER createJob "(
+  \"$TEST_PROP_ID\",
+  \"HVAC Replacement\",
   variant { HVAC },
-  "Full HVAC system replacement — 3-ton Carrier unit.",
-  opt "Cool Air Services",
+  \"Full HVAC system replacement — 3-ton Carrier unit.\",
+  opt \"Cool Air Services\",
   240000,
   1718409600000000000,
-  opt "HVAC-2024-0412",
+  opt \"HVAC-2024-0412\",
   opt 120,
   false,
   null
-)')
+)")
 echo "$JOB_OUT"
 JOB_ID=$(echo "$JOB_OUT" | grep -oP '"JOB_[0-9]+"' | head -1 | tr -d '"')
 echo "  → Job ID: $JOB_ID"
@@ -55,11 +87,11 @@ echo "  → Job ID: $JOB_ID"
 # ─── Create a DIY job ─────────────────────────────────────────────────────────
 echo ""
 echo "── [3] Create DIY job (Painting) ───────────────────────────────────────"
-DIY_OUT=$(dfx canister call $CANISTER createJob '(
-  "PROP_1",
-  "Interior Painting",
+DIY_OUT=$(dfx canister call $CANISTER createJob "(
+  \"$TEST_PROP_ID\",
+  \"Interior Painting\",
   variant { Painting },
-  "Living room and hallway — Benjamin Moore Chantilly Lace.",
+  \"Living room and hallway — Benjamin Moore Chantilly Lace.\",
   null,
   0,
   1722816000000000000,
@@ -67,7 +99,7 @@ DIY_OUT=$(dfx canister call $CANISTER createJob '(
   null,
   true,
   null
-)')
+)")
 echo "$DIY_OUT"
 DIY_ID=$(echo "$DIY_OUT" | grep -oP '"JOB_[0-9]+"' | head -1 | tr -d '"')
 echo "  → DIY Job ID: $DIY_ID"
@@ -75,32 +107,32 @@ echo "  → DIY Job ID: $DIY_ID"
 # ─── Create additional jobs for multi-job listing test (12.4.3) ───────────────
 echo ""
 echo "── [4] Create additional jobs for listing test (12.4.3) ─────────────────"
-dfx canister call $CANISTER createJob '(
-  "PROP_1",
-  "Roof Inspection",
+dfx canister call $CANISTER createJob "(
+  \"$TEST_PROP_ID\",
+  \"Roof Inspection\",
   variant { Roofing },
-  "Annual roof inspection after storm season.",
-  opt "Top Roof Co",
+  \"Annual roof inspection after storm season.\",
+  opt \"Top Roof Co\",
   85000,
   1714521600000000000,
   null,
   opt 24,
   false,
   null
-)' > /dev/null
-dfx canister call $CANISTER createJob '(
-  "PROP_1",
-  "Plumbing Repair",
+)" > /dev/null
+dfx canister call $CANISTER createJob "(
+  \"$TEST_PROP_ID\",
+  \"Plumbing Repair\",
   variant { Plumbing },
-  "Fixed leaking pipe under kitchen sink.",
-  opt "Flow Masters",
+  \"Fixed leaking pipe under kitchen sink.\",
+  opt \"Flow Masters\",
   45000,
   1716249600000000000,
   null,
   null,
   false,
   null
-)' > /dev/null
+)" > /dev/null
 echo "  → 2 additional jobs created"
 
 # ─── Get job by ID ────────────────────────────────────────────────────────────
@@ -111,7 +143,7 @@ dfx canister call $CANISTER getJob "(\"$JOB_ID\")"
 # ─── Get all jobs for property — should list all 4 (12.4.3) ──────────────────
 echo ""
 echo "── [6] getJobsForProperty — expect 4 jobs (12.4.3) ─────────────────────"
-PROP_JOBS=$(dfx canister call $CANISTER getJobsForProperty '("PROP_1")')
+PROP_JOBS=$(dfx canister call $CANISTER getJobsForProperty "(\"$TEST_PROP_ID\")")
 echo "$PROP_JOBS"
 JOB_COUNT=$(echo "$PROP_JOBS" | grep -c 'JOB_' || true)
 echo "  → Found $JOB_COUNT job entries"
@@ -205,19 +237,19 @@ dfx canister call $CANISTER createJob "(
 # $JOB_ID is already fully signed by step [13] — createInviteToken rejects signed jobs.
 echo ""
 echo "── [18-setup] Create fresh unsigned contractor job for invite token flow ──"
-INVITE_JOB_OUT=$(dfx canister call $CANISTER createJob '(
-  "PROP_1",
-  "Electrical panel upgrade",
+INVITE_JOB_OUT=$(dfx canister call $CANISTER createJob "(
+  \"$TEST_PROP_ID\",
+  \"Electrical panel upgrade\",
   variant { Electrical },
-  "Replace 100A panel with 200A service.",
-  opt "Invite Flow Electric",
+  \"Replace 100A panel with 200A service.\",
+  opt \"Invite Flow Electric\",
   75000,
   1700000000000000000,
   null,
   null,
   false,
   null
-)')
+)")
 echo "$INVITE_JOB_OUT"
 INVITE_JOB_ID=$(echo "$INVITE_JOB_OUT" | grep -oP '"JOB_[0-9]+"' | head -1 | tr -d '"')
 echo "  → Fresh job ID: $INVITE_JOB_ID"
@@ -708,19 +740,19 @@ else
   # Manager (Free tier) tries to create a job for a property they do NOT manage → SHOULD FAIL
   echo ""
   echo "── [MGR-5] Manager creates job for unrelated property → expect TierLimitReached ─"
-  UNAUTH_OUT=$(dfx canister call $CANISTER createJob '(
-    "PROP_1",
-    "Unauthorized job",
+  UNAUTH_OUT=$(dfx canister call $CANISTER createJob "(
+    \"$TEST_PROP_ID\",
+    \"Unauthorized job\",
     variant { Plumbing },
-    "Manager should be blocked on a property they do not manage.",
-    opt "Random Co",
+    \"Manager should be blocked on a property they do not manage.\",
+    opt \"Random Co\",
     10000,
     1718409600000000000,
     null,
     null,
     false,
     null
-  )' --identity manager-test)
+  )" --identity manager-test)
   echo "$UNAUTH_OUT"
   if echo "$UNAUTH_OUT" | grep -qiE "TierLimitReached|err"; then
     echo "  ✓ Free-tier manager blocked on unrelated property (tier check applies)"

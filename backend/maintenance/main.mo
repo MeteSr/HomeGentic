@@ -127,6 +127,8 @@ persistent actor Maintenance {
   private var isPaused: Bool = false;
   private var pauseExpiryNs: ?Int = null;
   private var adminListEntries: [Principal] = [];
+  /// Property canister ID — set post-deploy via setPropertyCanisterId().
+  private var propCanisterId: Text = "";
   // ─── Stable State ────────────────────────────────────────────────────────────
 
   private let schedule = Map.empty<Text, ScheduleEntry>();
@@ -170,6 +172,19 @@ persistent actor Maintenance {
       return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(maxUpdatesPerMin) # " update calls per minute per principal."))
     };
     #ok(())
+  };
+
+  /// Delegate property-ownership check to the property canister.
+  /// Falls back to direct principal comparison when propCanisterId is unset (local dev).
+  private func checkPropertyAuth(propertyId: Text, owner: Principal, caller: Principal, requireWrite: Bool) : async Bool {
+    if (Text.size(propCanisterId) > 0) {
+      let propActor = actor(propCanisterId) : actor {
+        isAuthorized : (Text, Principal, Bool) -> async Bool;
+      };
+      await propActor.isAuthorized(propertyId, caller, requireWrite)
+    } else {
+      caller == owner
+    }
   };
 
   private func currentYear() : Nat {
@@ -323,8 +338,10 @@ persistent actor Maintenance {
     switch (Map.get(schedule, Text.compare, entryId)) {
       case null { #err(#NotFound) };
       case (?entry) {
-        if (entry.createdBy != msg.caller and not isAdmin(msg.caller))
-          return #err(#Unauthorized);
+        if (not isAdmin(msg.caller)) {
+          let authOk = await checkPropertyAuth(entry.propertyId, entry.createdBy, msg.caller, true);
+          if (not authOk) return #err(#Unauthorized);
+        };
         let updated : ScheduleEntry = {
           id                 = entry.id;
           propertyId         = entry.propertyId;
@@ -344,6 +361,14 @@ persistent actor Maintenance {
   };
 
   // ─── Admin Functions ──────────────────────────────────────────────────────────
+
+  /// Wire the property canister for centralized ownership checks.
+  /// Must be called once after deploy by an admin.
+  public shared(msg) func setPropertyCanisterId(id: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#Unauthorized);
+    propCanisterId := Principal.toText(id);
+    #ok(())
+  };
 
   /// Set the update-call rate limit (admin only). Pass 0 to disable enforcement.
   public shared(msg) func setUpdateRateLimit(n: Nat) : async Result.Result<(), Error> {

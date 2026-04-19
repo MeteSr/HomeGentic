@@ -153,6 +153,19 @@ persistent actor Photo {
     #ok(())
   };
 
+  /// Delegate property-ownership check to the property canister.
+  /// Falls back to direct principal comparison when propCanisterId is unset (local dev).
+  private func checkPropertyAuth(propertyId: Text, owner: Principal, caller: Principal, requireWrite: Bool) : async Bool {
+    if (Text.size(propCanisterId) > 0) {
+      let propActor = actor(propCanisterId) : actor {
+        isAuthorized : (Text, Principal, Bool) -> async Bool;
+      };
+      await propActor.isAuthorized(propertyId, caller, requireWrite)
+    } else {
+      caller == owner
+    }
+  };
+
   private func nextPhotoId() : Text {
     photoCounter += 1;
     "PHOTO_" # Nat.toText(photoCounter)
@@ -331,8 +344,10 @@ persistent actor Photo {
     switch (Map.get(photos, Text.compare, photoId)) {
       case null  { #err(#NotFound) };
       case (?p)  {
-        if (p.owner != msg.caller and not isAdmin(msg.caller))
-          return #err(#Unauthorized);
+        if (not isAdmin(msg.caller)) {
+          let authOk = await checkPropertyAuth(p.propertyId, p.owner, msg.caller, false);
+          if (not authOk) return #err(#Unauthorized);
+        };
         #ok(p)
       };
     }
@@ -344,8 +359,10 @@ persistent actor Photo {
     switch (Map.get(photos, Text.compare, photoId)) {
       case null  { #err(#NotFound) };
       case (?p)  {
-        if (p.owner != msg.caller and not isAdmin(msg.caller))
-          return #err(#Unauthorized);
+        if (not isAdmin(msg.caller)) {
+          let authOk = await checkPropertyAuth(p.propertyId, p.owner, msg.caller, false);
+          if (not authOk) return #err(#Unauthorized);
+        };
         #ok(p.data)
       };
     }
@@ -398,8 +415,10 @@ persistent actor Photo {
     switch (Map.get(photos, Text.compare, photoId)) {
       case null { #err(#NotFound) };
       case (?existing) {
-        if (existing.owner != msg.caller and not isAdmin(msg.caller))
-          return #err(#Unauthorized);
+        if (not isAdmin(msg.caller)) {
+          let authOk = await checkPropertyAuth(existing.propertyId, existing.owner, msg.caller, true);
+          if (not authOk) return #err(#Unauthorized);
+        };
 
         let alreadyApproved = Option.isSome(
           Array.find<Principal>(existing.approvals, func(a) { a == msg.caller })
@@ -433,8 +452,10 @@ persistent actor Photo {
     switch (Map.get(photos, Text.compare, photoId)) {
       case null { #err(#NotFound) };
       case (?existing) {
-        if (existing.owner != msg.caller and not isAdmin(msg.caller))
-          return #err(#Unauthorized);
+        if (not isAdmin(msg.caller)) {
+          let authOk = await checkPropertyAuth(existing.propertyId, existing.owner, msg.caller, true);
+          if (not authOk) return #err(#Unauthorized);
+        };
         Map.remove(photos, Text.compare, photoId);
         Map.remove(hashIndex, Text.compare, existing.hash);
         #ok(())

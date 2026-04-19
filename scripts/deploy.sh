@@ -332,6 +332,11 @@ if [ -n "$QUOTE_ID" ]    && [ -n "$PROPERTY_ID" ];   then
   echo "  Wiring property -> quote..."
   dfx canister call quote    setPropertyCanisterId   "(principal \"$PROPERTY_ID\")" --network "$NETWORK" &
 fi
+MAINTENANCE_ID=$(dfx canister id maintenance --network "$NETWORK" 2>/dev/null || echo "")
+if [ -n "$MAINTENANCE_ID" ] && [ -n "$PROPERTY_ID" ]; then
+  echo "  Wiring property -> maintenance..."
+  dfx canister call maintenance setPropertyCanisterId "(principal \"$PROPERTY_ID\")" --network "$NETWORK" &
+fi
 
 wait   # wait for all wiring calls before reading IDs in the trusted-canister section
 

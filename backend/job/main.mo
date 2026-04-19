@@ -191,6 +191,19 @@ persistent actor Job {
     #ok(())
   };
 
+  /// Delegate property-ownership check to the property canister.
+  /// Falls back to direct principal comparison when propCanisterId is unset (local dev).
+  private func checkPropertyAuth(propertyId: Text, owner: Principal, caller: Principal, requireWrite: Bool) : async Bool {
+    if (Text.size(propCanisterId) > 0) {
+      let propActor = actor(propCanisterId) : actor {
+        isAuthorized : (Text, Principal, Bool) -> async Bool;
+      };
+      await propActor.isAuthorized(propertyId, caller, requireWrite)
+    } else {
+      caller == owner
+    }
+  };
+
   private func nextJobId() : Text {
     jobCounter += 1;
     "JOB_" # Nat.toText(jobCounter)
@@ -331,8 +344,10 @@ persistent actor Job {
       case null { #err(#NotFound) };
       case (?existing) {
         if (existing.verified) return #err(#AlreadyVerified);
-        if (existing.homeowner != msg.caller and not isAdmin(msg.caller))
-          return #err(#Unauthorized);
+        if (not isAdmin(msg.caller)) {
+          let ok = await checkPropertyAuth(existing.propertyId, existing.homeowner, msg.caller, true);
+          if (not ok) return #err(#Unauthorized);
+        };
 
         let updated: Job = {
           id               = existing.id;
@@ -370,7 +385,8 @@ persistent actor Job {
       case null { #err(#NotFound) };
       case (?existing) {
         if (existing.verified) return #err(#AlreadyVerified);
-        if (existing.homeowner != msg.caller) return #err(#Unauthorized);
+        let authOk = await checkPropertyAuth(existing.propertyId, existing.homeowner, msg.caller, true);
+        if (not authOk) return #err(#Unauthorized);
         if (existing.isDiy) return #err(#InvalidInput("Cannot link contractor to a DIY job"));
 
         let updated: Job = {
@@ -414,10 +430,12 @@ persistent actor Job {
         if (existing.verified) return #err(#AlreadyVerified);
 
         let caller       = msg.caller;
-        let isHomeowner  = caller == existing.homeowner;
         let isContractor = switch (existing.contractor) {
           case null    { false };
           case (?con)  { caller == con };
+        };
+        let isHomeowner = if (isContractor) false else {
+          await checkPropertyAuth(existing.propertyId, existing.homeowner, caller, true)
         };
 
         if (not isHomeowner and not isContractor) return #err(#Unauthorized);
@@ -755,7 +773,8 @@ persistent actor Job {
       case (?j)    { j };
     };
 
-    if (job.homeowner != msg.caller) return #err(#Unauthorized);
+    let invOk = await checkPropertyAuth(job.propertyId, job.homeowner, msg.caller, true);
+    if (not invOk) return #err(#Unauthorized);
     if (job.isDiy)                   return #err(#InvalidInput("DIY jobs do not require contractor signature"));
     if (job.contractorSigned)        return #err(#InvalidInput("Contractor has already signed this job"));
 
@@ -965,7 +984,8 @@ persistent actor Job {
       case (?j)    { j };
     };
 
-    if (existing.homeowner != msg.caller) return #err(#Unauthorized);
+    let approveOk = await checkPropertyAuth(existing.propertyId, existing.homeowner, msg.caller, true);
+    if (not approveOk) return #err(#Unauthorized);
     if (existing.status != #PendingHomeownerApproval) return #err(#InvalidInput("Job is not pending approval"));
 
     let updated : Job = {
@@ -1003,7 +1023,8 @@ persistent actor Job {
       case (?j)    { j };
     };
 
-    if (existing.homeowner != msg.caller) return #err(#Unauthorized);
+    let rejectOk = await checkPropertyAuth(existing.propertyId, existing.homeowner, msg.caller, true);
+    if (not rejectOk) return #err(#Unauthorized);
     if (existing.status != #PendingHomeownerApproval) return #err(#InvalidInput("Job is not pending approval"));
 
     Map.remove(jobs, Text.compare, jobId);
