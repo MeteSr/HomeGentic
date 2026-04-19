@@ -195,6 +195,19 @@ persistent actor Quote {
     #ok(())
   };
 
+  /// Delegate property-ownership check to the property canister.
+  /// Falls back to direct principal comparison when propCanisterId is unset (local dev).
+  private func checkPropertyAuth(propertyId: Text, owner: Principal, caller: Principal, requireWrite: Bool) : async Bool {
+    if (Text.size(propCanisterId) > 0) {
+      let propActor = actor(propCanisterId) : actor {
+        isAuthorized : (Text, Principal, Bool) -> async Bool;
+      };
+      await propActor.isAuthorized(propertyId, caller, requireWrite)
+    } else {
+      caller == owner
+    }
+  };
+
   private func nextReqId() : Text {
     reqCounter += 1;
     "REQ_" # Nat.toText(reqCounter)
@@ -476,7 +489,8 @@ persistent actor Quote {
         switch (Map.get(requests, Text.compare, q.requestId)) {
           case null { return #err(#NotFound) };
           case (?req) {
-            if (req.homeowner != msg.caller) return #err(#Unauthorized);
+            let acceptOk = await checkPropertyAuth(req.propertyId, req.homeowner, msg.caller, true);
+            if (not acceptOk) return #err(#Unauthorized);
             if (req.status == #Accepted or req.status == #Closed)
               return #err(#InvalidInput("Request is already closed"));
             if (req.status == #Cancelled)
@@ -542,7 +556,8 @@ persistent actor Quote {
     switch (Map.get(requests, Text.compare, requestId)) {
       case null { #err(#NotFound) };
       case (?req) {
-        if (req.homeowner != msg.caller) return #err(#Unauthorized);
+        let closeOk = await checkPropertyAuth(req.propertyId, req.homeowner, msg.caller, true);
+        if (not closeOk) return #err(#Unauthorized);
         if (req.status == #Accepted or req.status == #Closed)
           return #err(#InvalidInput("Request is already closed"));
         if (req.status == #Cancelled)
@@ -575,7 +590,8 @@ persistent actor Quote {
     switch (Map.get(requests, Text.compare, requestId)) {
       case null { #err(#NotFound) };
       case (?req) {
-        if (req.homeowner != msg.caller) return #err(#Unauthorized);
+        let cancelOk = await checkPropertyAuth(req.propertyId, req.homeowner, msg.caller, true);
+        if (not cancelOk) return #err(#Unauthorized);
         switch (req.status) {
           case (#Open or #Quoted) {};
           case (#Accepted)  { return #err(#InvalidInput("Cannot cancel an accepted request")) };
@@ -750,7 +766,8 @@ persistent actor Quote {
     switch (Map.get(requests, Text.compare, requestId)) {
       case null { return #err(#NotFound) };
       case (?req) {
-        if (req.homeowner != msg.caller) return #err(#Unauthorized);
+        let revealOk = await checkPropertyAuth(req.propertyId, req.homeowner, msg.caller, true);
+        if (not revealOk) return #err(#Unauthorized);
 
         // Enforce: window must be closed before reveal
         switch (req.closeAt) {
