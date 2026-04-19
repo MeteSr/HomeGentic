@@ -81,6 +81,12 @@ persistent actor Listing {
 
   private let requests  = Map.empty<Text, ListingBidRequest>();
   private let proposals = Map.empty<Text, ListingProposal>();
+  /// propertyId → ordered list of photo IDs (first = cover image)
+  private let listingPhotos      = Map.empty<Text, [Text]>();
+  /// propertyId → the principal who first added a photo (owner lock)
+  private let listingPhotoOwners = Map.empty<Text, Principal>();
+
+  private let MAX_LISTING_PHOTOS : Nat = 15;
 
   // ─── Private Helpers ─────────────────────────────────────────────────────────
 
@@ -365,6 +371,96 @@ persistent actor Listing {
         }
       };
     }
+  };
+
+  // ─── Listing Photos ──────────────────────────────────────────────────────────
+
+  /// Associate a photo (already uploaded to the photo canister) with this
+  /// FSBO listing. The first caller becomes the listing photo owner; all
+  /// subsequent calls must come from the same principal.
+  /// Enforces a cap of 15 photos per listing.
+  public shared(msg) func addListingPhoto(propertyId: Text, photoId: Text) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (Text.size(propertyId) == 0) return #err(#InvalidInput("propertyId cannot be empty"));
+    if (Text.size(photoId) == 0)    return #err(#InvalidInput("photoId cannot be empty"));
+
+    // First caller claims ownership; subsequent callers must match.
+    switch (Map.get(listingPhotoOwners, Text.compare, propertyId)) {
+      case null    { Map.add(listingPhotoOwners, Text.compare, propertyId, msg.caller) };
+      case (?owner) {
+        if (owner != msg.caller and not isAdmin(msg.caller))
+          return #err(#Unauthorized);
+      };
+    };
+
+    let existing : [Text] = switch (Map.get(listingPhotos, Text.compare, propertyId)) {
+      case null   { [] };
+      case (?ids) { ids };
+    };
+
+    if (existing.size() >= MAX_LISTING_PHOTOS)
+      return #err(#InvalidInput(
+        "Listing photo limit (" # Nat.toText(MAX_LISTING_PHOTOS) # ") reached"
+      ));
+
+    if (Option.isSome(Array.find<Text>(existing, func(id) { id == photoId })))
+      return #err(#InvalidInput("Photo already added to this listing"));
+
+    Map.add(listingPhotos, Text.compare, propertyId, Array.concat(existing, [photoId]));
+    #ok(())
+  };
+
+  /// Returns the ordered photo IDs for a listing (first = cover image).
+  /// Publicly readable — no authentication required.
+  public query func getListingPhotos(propertyId: Text) : async [Text] {
+    switch (Map.get(listingPhotos, Text.compare, propertyId)) {
+      case null   { [] };
+      case (?ids) { ids };
+    }
+  };
+
+  /// Remove a photo from this listing's ordered list. Owner or admin only.
+  public shared(msg) func removeListingPhoto(propertyId: Text, photoId: Text) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    switch (Map.get(listingPhotoOwners, Text.compare, propertyId)) {
+      case null     { return #err(#NotFound) };
+      case (?owner) {
+        if (owner != msg.caller and not isAdmin(msg.caller))
+          return #err(#Unauthorized);
+      };
+    };
+    let existing : [Text] = switch (Map.get(listingPhotos, Text.compare, propertyId)) {
+      case null   { return #err(#NotFound) };
+      case (?ids) { ids };
+    };
+    Map.add(listingPhotos, Text.compare, propertyId,
+      Array.filter<Text>(existing, func(id) { id != photoId }));
+    #ok(())
+  };
+
+  /// Replace the photo ordering for a listing. The supplied list must contain
+  /// exactly the same IDs that are already stored — only the order may change.
+  public shared(msg) func reorderListingPhotos(propertyId: Text, photoIds: [Text]) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    switch (Map.get(listingPhotoOwners, Text.compare, propertyId)) {
+      case null     { return #err(#NotFound) };
+      case (?owner) {
+        if (owner != msg.caller and not isAdmin(msg.caller))
+          return #err(#Unauthorized);
+      };
+    };
+    let existing : [Text] = switch (Map.get(listingPhotos, Text.compare, propertyId)) {
+      case null   { return #err(#NotFound) };
+      case (?ids) { ids };
+    };
+    if (photoIds.size() != existing.size())
+      return #err(#InvalidInput("Reorder list must contain the same number of photos"));
+    for (id in photoIds.vals()) {
+      if (not Option.isSome(Array.find<Text>(existing, func(e) { e == id })))
+        return #err(#InvalidInput("Unknown photo ID in reorder list: " # id));
+    };
+    Map.add(listingPhotos, Text.compare, propertyId, photoIds);
+    #ok(())
   };
 
   // ─── Admin Controls ───────────────────────────────────────────────────────────

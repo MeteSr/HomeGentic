@@ -373,6 +373,11 @@ export const propertyService = {
   },
 
   async getProperty(id: bigint): Promise<Property> {
+    if (typeof window !== "undefined" && (window as any).__e2e_properties) {
+      const props = (window as any).__e2e_properties as any[];
+      const found = props.find((p: any) => String(p.id) === String(id));
+      if (found) return found as Property;
+    }
     const a = await getActor();
     const result = await a.getProperty(id);
     return unwrap(result);

@@ -34,6 +34,7 @@ import ShowingInbox                           from "@/components/ShowingInbox";
 import ShowingCalendar                        from "@/components/ShowingCalendar";
 import FsboOfferPanel                         from "@/components/FsboOfferPanel";
 import FsboPanel                              from "@/components/FsboPanel";
+import ListingPhotoManager                    from "@/components/ListingPhotoManager";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
@@ -526,6 +527,11 @@ export default function FsboListingManagerPage() {
               ))}
             </div>
           )}
+        </Section>
+
+        {/* ── Listing photos ────────────────────────────────────────────────── */}
+        <Section testId="listing-photos-section" title="Listing Photos">
+          <ListingPhotoManager propertyId={propertyId} isOwner={true} />
         </Section>
 
         {/* ── Score opt-in ──────────────────────────────────────────────────── */}

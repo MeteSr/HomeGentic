@@ -11,6 +11,7 @@ export const idlFactory = ({ IDL }: any) => {
     Electrical: IDL.Null, Plumbing: IDL.Null, HVAC: IDL.Null,
     Insulation: IDL.Null, Drywall: IDL.Null, Finishing: IDL.Null,
     PostConstruction: IDL.Null, Warranty: IDL.Null,
+    Listing: IDL.Null,  // FSBO listing photos
   });
   const Photo = IDL.Record({
     id:          IDL.Text,
@@ -39,9 +40,10 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: Photo, err: Error })],
       []
     ),
-    getPhotosByJob:      IDL.Func([IDL.Text], [IDL.Vec(Photo)], []),
-    getPhotosByProperty: IDL.Func([IDL.Text], [IDL.Vec(Photo)], []),
-    getPhotosByRoom:     IDL.Func([IDL.Text], [IDL.Vec(Photo)], []),
+    getPhotosByJob:          IDL.Func([IDL.Text], [IDL.Vec(Photo)], []),
+    getPhotosByProperty:     IDL.Func([IDL.Text], [IDL.Vec(Photo)], []),
+    getPhotosByRoom:         IDL.Func([IDL.Text], [IDL.Vec(Photo)], []),
+    getPublicListingPhotos:  IDL.Func([IDL.Text], [IDL.Vec(Photo)], ["query"]),
     deletePhoto: IDL.Func(
       [IDL.Text],
       [IDL.Variant({ ok: IDL.Null, err: Error })],
@@ -268,6 +270,36 @@ function createPhotoService() {
     description: string
   ): Promise<Photo> {
     return this.upload(file, `ROOM_${roomId}`, propertyId, phase, description);
+  },
+
+  /**
+   * Upload a photo for an FSBO listing.
+   * Uses synthetic jobId "LISTING_<propertyId>" and phase "Listing" so the
+   * photo canister stores it separately from job/room photos.
+   * After uploading, call listingService.addListingPhoto() to persist the order.
+   */
+  async uploadListingPhoto(
+    file:        File,
+    propertyId:  string,
+    description: string
+  ): Promise<Photo> {
+    return this.upload(file, `LISTING_${propertyId}`, propertyId, "Listing", description);
+  },
+
+  /**
+   * Fetch all photos for a FSBO listing. Uses the public (no-auth) canister
+   * query so prospective buyers can view listing photos without signing in.
+   */
+  async getListingPhotos(propertyId: string): Promise<Photo[]> {
+    if (!PHOTO_CANISTER_ID) {
+      // E2E injection takes priority, then fall through to in-memory store
+      if (typeof window !== "undefined" && (window as any).__e2e_listing_photos) {
+        return ((window as any).__e2e_listing_photos[propertyId] ?? []) as Photo[];
+      }
+      return store.filter((p) => p.jobId === `LISTING_${propertyId}`);
+    }
+    const a = await getActor();
+    return (await a.getPublicListingPhotos(propertyId) as any[]).map(fromPhoto);
   },
 
   async deletePhoto(photoId: string): Promise<void> {

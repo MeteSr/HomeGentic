@@ -30,6 +30,7 @@ persistent actor Photo {
     #Finishing;
     #PostConstruction;
     #Warranty;
+    #Listing;  // FSBO listing photos — uploaded with synthetic jobId "LISTING_<propertyId>"
   };
 
   public type SubscriptionTier = {
@@ -366,6 +367,16 @@ persistent actor Photo {
         #ok(p.data)
       };
     }
+  };
+
+  /// All photos for a FSBO listing — publicly readable without authentication.
+  /// Photos are stored with synthetic jobId "LISTING_<propertyId>" and phase #Listing.
+  /// No ownership check so prospective buyers can view listing photos anonymously.
+  public query func getPublicListingPhotos(propertyId: Text) : async [Photo] {
+    let syntheticJobId = "LISTING_" # propertyId;
+    Iter.toArray(Iter.filter(Map.values(photos), func(p: Photo) : Bool {
+      p.jobId == syntheticJobId
+    }))
   };
 
   /// All photos linked to a room (stored with synthetic jobId "ROOM_<roomId>").

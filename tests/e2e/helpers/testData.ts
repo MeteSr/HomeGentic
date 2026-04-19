@@ -244,6 +244,63 @@ export async function injectScoreEvents(page: Page) {
 }
 
 /**
+ * Injects mock FSBO listing photos into window.__e2e_listing_photos.
+ * photoService.getListingPhotos() checks this before making canister calls,
+ * and listingService.getListingPhotos() checks window.__e2e_listing_photo_order.
+ *
+ * Pass a propertyId matching the listing under test.  Three photos are injected
+ * by default (cover + 2 gallery shots).
+ */
+export async function injectFsboPhotos(page: Page, propertyId: string = "1") {
+  await page.addInitScript(
+    ({ pid }: { pid: string }) => {
+      const FAKE_URL = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
+      const photos = [
+        {
+          id:          "LP_1",
+          jobId:       `LISTING_${pid}`,
+          propertyId:  pid,
+          phase:       "Listing",
+          description: "Front exterior",
+          hash:        "aaa",
+          url:         FAKE_URL,
+          size:        128,
+          verified:    false,
+          createdAt:   Date.now() - 86_400_000,
+        },
+        {
+          id:          "LP_2",
+          jobId:       `LISTING_${pid}`,
+          propertyId:  pid,
+          phase:       "Listing",
+          description: "Living room",
+          hash:        "bbb",
+          url:         FAKE_URL,
+          size:        128,
+          verified:    false,
+          createdAt:   Date.now() - 86_300_000,
+        },
+        {
+          id:          "LP_3",
+          jobId:       `LISTING_${pid}`,
+          propertyId:  pid,
+          phase:       "Listing",
+          description: "Backyard",
+          hash:        "ccc",
+          url:         FAKE_URL,
+          size:        128,
+          verified:    false,
+          createdAt:   Date.now() - 86_200_000,
+        },
+      ];
+      (window as any).__e2e_listing_photos = { [pid]: photos };
+      (window as any).__e2e_listing_photo_order = { [pid]: ["LP_1", "LP_2", "LP_3"] };
+    },
+    { pid: propertyId }
+  );
+}
+
+/**
  * Injects mock warranty jobs (jobs with warrantyMonths > 0) alongside
  * the standard property fixture. Covers all three warranty states:
  * active, expiring-soon, and expired.

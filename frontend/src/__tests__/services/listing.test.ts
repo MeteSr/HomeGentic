@@ -653,3 +653,71 @@ describe("listingService.acceptProposal", () => {
     expect(open.some(r => r.id === req.id)).toBe(false);
   });
 });
+
+// ─── Listing photos (issue #114) ──────────────────────────────────────────────
+
+describe("listing photo management", () => {
+  beforeEach(() => { listingService.reset(); });
+
+  it("addListingPhoto appends a photo ID to the listing", async () => {
+    await listingService.addListingPhoto("prop-1", "PHOTO_1");
+    const ids = await listingService.getListingPhotos("prop-1");
+    expect(ids).toContain("PHOTO_1");
+  });
+
+  it("addListingPhoto preserves insertion order", async () => {
+    await listingService.addListingPhoto("prop-ord", "A");
+    await listingService.addListingPhoto("prop-ord", "B");
+    await listingService.addListingPhoto("prop-ord", "C");
+    const ids = await listingService.getListingPhotos("prop-ord");
+    expect(ids).toEqual(["A", "B", "C"]);
+  });
+
+  it("getListingPhotos returns [] for an unknown property", async () => {
+    const ids = await listingService.getListingPhotos("nonexistent");
+    expect(ids).toEqual([]);
+  });
+
+  it("addListingPhoto enforces the 15-photo cap", async () => {
+    for (let i = 0; i < 15; i++) {
+      await listingService.addListingPhoto("prop-cap", `PHOTO_${i}`);
+    }
+    await expect(
+      listingService.addListingPhoto("prop-cap", "PHOTO_15")
+    ).rejects.toThrow("Listing photo limit (15) reached");
+  });
+
+  it("addListingPhoto rejects duplicate photo IDs", async () => {
+    await listingService.addListingPhoto("prop-dup", "PHOTO_1");
+    await expect(
+      listingService.addListingPhoto("prop-dup", "PHOTO_1")
+    ).rejects.toThrow("already added");
+  });
+
+  it("removeListingPhoto removes a photo ID leaving the rest intact", async () => {
+    await listingService.addListingPhoto("prop-rm", "A");
+    await listingService.addListingPhoto("prop-rm", "B");
+    await listingService.addListingPhoto("prop-rm", "C");
+    await listingService.removeListingPhoto("prop-rm", "B");
+    const ids = await listingService.getListingPhotos("prop-rm");
+    expect(ids).not.toContain("B");
+    expect(ids).toContain("A");
+    expect(ids).toContain("C");
+  });
+
+  it("reorderListingPhotos changes the sequence", async () => {
+    await listingService.addListingPhoto("prop-reorder", "A");
+    await listingService.addListingPhoto("prop-reorder", "B");
+    await listingService.addListingPhoto("prop-reorder", "C");
+    await listingService.reorderListingPhotos("prop-reorder", ["C", "A", "B"]);
+    const ids = await listingService.getListingPhotos("prop-reorder");
+    expect(ids).toEqual(["C", "A", "B"]);
+  });
+
+  it("reset() clears all photo associations", async () => {
+    await listingService.addListingPhoto("prop-rst", "X");
+    listingService.reset();
+    const ids = await listingService.getListingPhotos("prop-rst");
+    expect(ids).toEqual([]);
+  });
+});
