@@ -12,9 +12,10 @@ import { Helmet } from "react-helmet-async";
 import { ShieldCheck } from "lucide-react";
 import { propertyService, type Property } from "@/services/property";
 import { jobService, type Job } from "@/services/job";
-import { photoService, type Photo } from "@/services/photo";
+import { photoService } from "@/services/photo";
 import { fsboService, type FsboRecord } from "@/services/fsbo";
 import { reportService, type ShareLink } from "@/services/report";
+import ListingPhotoManager from "@/components/ListingPhotoManager";
 import { computeScore } from "@/services/scoreService";
 import { showingRequestService } from "@/services/showingRequest";
 import { notificationService } from "@/services/notifications";
@@ -167,7 +168,6 @@ export default function FsboListingPage() {
   const [loading,    setLoading]    = useState(true);
   const [property,   setProperty]   = useState<Property | null>(null);
   const [jobs,       setJobs]       = useState<Job[]>([]);
-  const [photos,     setPhotos]     = useState<Photo[]>([]);
   const [fsbo,       setFsbo]       = useState<FsboRecord | null | undefined>(undefined);
   const [reportLink, setReportLink] = useState<ShareLink | null>(null);
 
@@ -187,17 +187,15 @@ export default function FsboListingPage() {
     const fetches: Promise<any>[] = [
       propertyService.getProperty(BigInt(propertyId)),
       jobService.getByProperty(propertyId),
-      photoService.getByProperty(propertyId),
     ];
 
     if (record?.hasReport) {
       fetches.push(reportService.listShareLinks(propertyId));
     }
 
-    Promise.all(fetches).then(([prop, propJobs, propPhotos, shareLinks]) => {
+    Promise.all(fetches).then(([prop, propJobs, shareLinks]) => {
       setProperty(prop);
       setJobs(propJobs);
-      setPhotos(propPhotos);
       if (shareLinks) {
         const active = (shareLinks as ShareLink[]).find((l) => l.isActive) ?? null;
         setReportLink(active);
@@ -262,7 +260,6 @@ export default function FsboListingPage() {
 
   const verifiedJobs = jobs.filter((j) => j.verified);
   const score        = computeScore(jobs, [property]);
-  const firstPhoto   = photos[0] ?? null;
 
   return (
     <>
@@ -286,17 +283,12 @@ export default function FsboListingPage() {
       </Helmet>
     <div style={outerStyle}>
 
-      {/* ── Photo ─────────────────────────────────────────────────────────── */}
-      <div style={{ marginBottom: "1.5rem", background: COLORS.rule, minHeight: "260px", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-        {firstPhoto ? (
-          <img
-            src={firstPhoto.url}
-            alt="Property photo"
-            style={{ width: "100%", maxHeight: "380px", objectFit: "cover", display: "block" }}
-          />
-        ) : (
-          <p style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: UI.inkLight }}>No photos available</p>
-        )}
+      {/* ── Photo gallery ─────────────────────────────────────────────────── */}
+      <div
+        data-testid="listing-gallery-section"
+        style={{ marginBottom: "1.5rem" }}
+      >
+        <ListingPhotoManager propertyId={propertyId!} isOwner={false} />
       </div>
 
       {/* ── Price + address ────────────────────────────────────────────────── */}

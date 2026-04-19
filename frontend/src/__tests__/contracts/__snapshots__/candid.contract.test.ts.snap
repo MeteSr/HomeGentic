@@ -524,6 +524,16 @@ exports[`listing IDL factory > full signature snapshot 1`] = `
       "variant {ok; err:variant {InvalidInput:text; DeadlinePassed; NotFound; AlreadyCancelled; Unauthorized}}",
     ],
   },
+  "addListingPhoto": {
+    "args": [
+      "text",
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; DeadlinePassed; NotFound; AlreadyCancelled; Unauthorized}}",
+    ],
+  },
   "cancelBidRequest": {
     "args": [
       "text",
@@ -555,6 +565,17 @@ exports[`listing IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "variant {ok:record {id:text; status:variant {Open; Awarded; Cancelled}; targetListDate:int; desiredSalePrice:opt nat; createdAt:int; propertyId:text; notes:text; homeowner:principal; bidDeadline:int}; err:variant {InvalidInput:text; DeadlinePassed; NotFound; AlreadyCancelled; Unauthorized}}",
+    ],
+  },
+  "getListingPhotos": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "vec text",
     ],
   },
   "getMyBidRequests": {
@@ -593,6 +614,26 @@ exports[`listing IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "vec record {id:text; status:variant {Withdrawn; Rejected; Accepted; Pending}; marketingPlan:text; requestId:text; cmaSummary:text; createdAt:int; commissionBps:nat; agentName:text; coverLetter:text; agentId:principal; agentBrokerage:text; estimatedDaysOnMarket:nat; includedServices:vec text; estimatedSalePrice:nat; validUntil:int}",
+    ],
+  },
+  "removeListingPhoto": {
+    "args": [
+      "text",
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; DeadlinePassed; NotFound; AlreadyCancelled; Unauthorized}}",
+    ],
+  },
+  "reorderListingPhotos": {
+    "args": [
+      "text",
+      "vec text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; DeadlinePassed; NotFound; AlreadyCancelled; Unauthorized}}",
     ],
   },
   "submitProposal": {
@@ -816,7 +857,7 @@ exports[`photo IDL factory > full signature snapshot 1`] = `
     ],
     "mode": [],
     "rets": [
-      "vec record {id:text; verified:bool; owner:principal; data:vec nat8; hash:text; createdAt:int; size:nat; jobId:text; description:text; propertyId:text; phase:variant {Framing; HVAC; Foundation; Plumbing; Finishing; Insulation; Drywall; Warranty; PreConstruction; Electrical; PostConstruction}; approvals:vec principal}",
+      "vec record {id:text; verified:bool; owner:principal; data:vec nat8; hash:text; createdAt:int; size:nat; jobId:text; description:text; propertyId:text; phase:variant {Framing; HVAC; Foundation; Plumbing; Finishing; Insulation; Drywall; Warranty; PreConstruction; Electrical; Listing; PostConstruction}; approvals:vec principal}",
     ],
   },
   "getPhotosByProperty": {
@@ -825,7 +866,7 @@ exports[`photo IDL factory > full signature snapshot 1`] = `
     ],
     "mode": [],
     "rets": [
-      "vec record {id:text; verified:bool; owner:principal; data:vec nat8; hash:text; createdAt:int; size:nat; jobId:text; description:text; propertyId:text; phase:variant {Framing; HVAC; Foundation; Plumbing; Finishing; Insulation; Drywall; Warranty; PreConstruction; Electrical; PostConstruction}; approvals:vec principal}",
+      "vec record {id:text; verified:bool; owner:principal; data:vec nat8; hash:text; createdAt:int; size:nat; jobId:text; description:text; propertyId:text; phase:variant {Framing; HVAC; Foundation; Plumbing; Finishing; Insulation; Drywall; Warranty; PreConstruction; Electrical; Listing; PostConstruction}; approvals:vec principal}",
     ],
   },
   "getPhotosByRoom": {
@@ -834,7 +875,18 @@ exports[`photo IDL factory > full signature snapshot 1`] = `
     ],
     "mode": [],
     "rets": [
-      "vec record {id:text; verified:bool; owner:principal; data:vec nat8; hash:text; createdAt:int; size:nat; jobId:text; description:text; propertyId:text; phase:variant {Framing; HVAC; Foundation; Plumbing; Finishing; Insulation; Drywall; Warranty; PreConstruction; Electrical; PostConstruction}; approvals:vec principal}",
+      "vec record {id:text; verified:bool; owner:principal; data:vec nat8; hash:text; createdAt:int; size:nat; jobId:text; description:text; propertyId:text; phase:variant {Framing; HVAC; Foundation; Plumbing; Finishing; Insulation; Drywall; Warranty; PreConstruction; Electrical; Listing; PostConstruction}; approvals:vec principal}",
+    ],
+  },
+  "getPublicListingPhotos": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "vec record {id:text; verified:bool; owner:principal; data:vec nat8; hash:text; createdAt:int; size:nat; jobId:text; description:text; propertyId:text; phase:variant {Framing; HVAC; Foundation; Plumbing; Finishing; Insulation; Drywall; Warranty; PreConstruction; Electrical; Listing; PostConstruction}; approvals:vec principal}",
     ],
   },
   "setPropertyCanisterId": {
@@ -850,14 +902,14 @@ exports[`photo IDL factory > full signature snapshot 1`] = `
     "args": [
       "text",
       "text",
-      "variant {Framing; HVAC; Foundation; Plumbing; Finishing; Insulation; Drywall; Warranty; PreConstruction; Electrical; PostConstruction}",
+      "variant {Framing; HVAC; Foundation; Plumbing; Finishing; Insulation; Drywall; Warranty; PreConstruction; Electrical; Listing; PostConstruction}",
       "text",
       "text",
       "vec nat8",
     ],
     "mode": [],
     "rets": [
-      "variant {ok:record {id:text; verified:bool; owner:principal; data:vec nat8; hash:text; createdAt:int; size:nat; jobId:text; description:text; propertyId:text; phase:variant {Framing; HVAC; Foundation; Plumbing; Finishing; Insulation; Drywall; Warranty; PreConstruction; Electrical; PostConstruction}; approvals:vec principal}; err:variant {InvalidInput:text; Duplicate:text; NotFound; Unauthorized; QuotaExceeded:text}}",
+      "variant {ok:record {id:text; verified:bool; owner:principal; data:vec nat8; hash:text; createdAt:int; size:nat; jobId:text; description:text; propertyId:text; phase:variant {Framing; HVAC; Foundation; Plumbing; Finishing; Insulation; Drywall; Warranty; PreConstruction; Electrical; Listing; PostConstruction}; approvals:vec principal}; err:variant {InvalidInput:text; Duplicate:text; NotFound; Unauthorized; QuotaExceeded:text}}",
     ],
   },
 }

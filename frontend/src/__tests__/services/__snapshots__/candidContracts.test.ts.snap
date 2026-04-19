@@ -91,13 +91,17 @@ verifyJob(1) -> (1)"
 
 exports[`Candid contract snapshots — method arity > listing 1`] = `
 "acceptProposal(1) -> (1)
+addListingPhoto(2) -> (1)
 cancelBidRequest(1) -> (1)
 createBidRequest(5) -> (1)
 getBidRequest(1) -> (1) [query]
+getListingPhotos(1) -> (1) [query]
 getMyBidRequests(0) -> (1) [query]
 getMyProposals(0) -> (1) [query]
 getOpenBidRequests(0) -> (1) [query]
 getProposalsForRequest(1) -> (1) [query]
+removeListingPhoto(2) -> (1)
+reorderListingPhotos(2) -> (1)
 submitProposal(11) -> (1)"
 `;
 
@@ -140,6 +144,7 @@ exports[`Candid contract snapshots — method arity > photo 1`] = `
 getPhotosByJob(1) -> (1)
 getPhotosByProperty(1) -> (1)
 getPhotosByRoom(1) -> (1)
+getPublicListingPhotos(1) -> (1) [query]
 setPropertyCanisterId(1) -> (1)
 uploadPhoto(6) -> (1)"
 `;

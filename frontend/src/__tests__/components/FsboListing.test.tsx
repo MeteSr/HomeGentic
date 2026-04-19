@@ -95,9 +95,21 @@ vi.mock("@/services/job", () => ({
 
 vi.mock("@/services/photo", () => ({
   photoService: {
-    getByProperty: vi.fn().mockResolvedValue(mockPhotos),
+    getByProperty:     vi.fn().mockResolvedValue(mockPhotos),
+    getListingPhotos:  vi.fn().mockResolvedValue(mockPhotos),
   },
 }));
+
+vi.mock("@/services/listing", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/services/listing")>();
+  return {
+    ...actual,
+    listingService: {
+      ...actual.listingService,
+      getListingPhotos: vi.fn().mockResolvedValue(["ph1"]),
+    },
+  };
+});
 
 const mockActiveShareLink = {
   token:      "tok-abc123",
@@ -240,20 +252,23 @@ describe("FsboListingPage (10.3.1)", () => {
 
   // ── Photo gallery ───────────────────────────────────────────────────────────
 
-  it("renders a photo when photos are available", async () => {
+  it("renders a photo gallery when listing photos are available", async () => {
     renderPage();
     await waitFor(() => {
-      const img = screen.getByRole("img", { name: /property photo/i });
-      expect(img).toBeInTheDocument();
+      // ListingPhotoManager renders a grid when photos are present
+      expect(screen.getByTestId("listing-photo-grid")).toBeInTheDocument();
+      // The first photo's src matches the injected mock URL
+      const img = screen.getByRole("img", { name: /roof replacement/i });
       expect(img).toHaveAttribute("src", "https://example.com/photo1.jpg");
     });
   });
 
   it("shows a placeholder when no photos exist", async () => {
-    vi.mocked(photoService.getByProperty).mockResolvedValue([]);
+    vi.mocked(photoService.getListingPhotos).mockResolvedValue([]);
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText(/no photos/i)).toBeInTheDocument();
+      expect(screen.getByTestId("listing-photo-empty")).toBeInTheDocument();
+      expect(screen.getByText(/no photos available/i)).toBeInTheDocument();
     });
   });
 

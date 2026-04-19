@@ -78,6 +78,22 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: IDL.Null, err: Error })],
       []
     ),
+    addListingPhoto: IDL.Func(
+      [IDL.Text, IDL.Text],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
+    getListingPhotos: IDL.Func([IDL.Text], [IDL.Vec(IDL.Text)], ["query"]),
+    removeListingPhoto: IDL.Func(
+      [IDL.Text, IDL.Text],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
+    reorderListingPhotos: IDL.Func(
+      [IDL.Text, IDL.Vec(IDL.Text)],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
   });
 };
 
@@ -392,6 +408,8 @@ function fromRawProposal(raw: any): ListingProposal {
 
 // ─── Service factory ──────────────────────────────────────────────────────────
 
+const MAX_LISTING_PHOTOS = 15;
+
 function createListingService() {
   let _actor: any = null;
   let requests:     ListingBidRequest[]      = [];
@@ -402,6 +420,9 @@ function createListingService() {
   let _propSeq    = 0;
   let _counterSeq = 0;
   let _offerSeq   = 0;
+  // propertyId → ordered photo IDs (mock path only)
+  const listingPhotoMap:    Map<string, string[]> = new Map();
+  const listingPhotoOwners: Map<string, string>   = new Map();
 
   async function getActor() {
     if (_actor) return _actor;
@@ -421,6 +442,8 @@ function createListingService() {
     _propSeq    = 0;
     _counterSeq = 0;
     _offerSeq   = 0;
+    listingPhotoMap.clear();
+    listingPhotoOwners.clear();
   },
 
   // ── createBidRequest ────────────────────────────────────────────────────────
@@ -771,6 +794,66 @@ function createListingService() {
       return perfRecords.filter((r) => r.agentId === agentId);
     }
     throw new Error("getAgentPerformanceRecords requires deployed canister");
+  },
+
+  // ── Listing photos (11.4) ────────────────────────────────────────────────────
+
+  /**
+   * Associate a photo (already uploaded to the photo canister) with a FSBO
+   * listing, appending it to the ordered list.  Enforces the 15-photo cap.
+   */
+  async addListingPhoto(propertyId: string, photoId: string): Promise<void> {
+    if (!LISTING_CANISTER_ID) {
+      if (!listingPhotoOwners.has(propertyId)) listingPhotoOwners.set(propertyId, "local");
+      const existing = listingPhotoMap.get(propertyId) ?? [];
+      if (existing.length >= MAX_LISTING_PHOTOS)
+        throw new Error(`Listing photo limit (${MAX_LISTING_PHOTOS}) reached`);
+      if (existing.includes(photoId))
+        throw new Error("Photo already added to this listing");
+      listingPhotoMap.set(propertyId, [...existing, photoId]);
+      return;
+    }
+    const actor = await getActor();
+    const result = await actor.addListingPhoto(propertyId, photoId);
+    if ("err" in result) throw new Error(JSON.stringify(result.err));
+  },
+
+  /** Returns the ordered photo IDs for a listing (first = cover image). */
+  async getListingPhotos(propertyId: string): Promise<string[]> {
+    if (!LISTING_CANISTER_ID) {
+      if (typeof window !== "undefined" && (window as any).__e2e_listing_photo_order) {
+        return ((window as any).__e2e_listing_photo_order[propertyId] ?? []) as string[];
+      }
+      return listingPhotoMap.get(propertyId) ?? [];
+    }
+    const actor = await getActor();
+    return await actor.getListingPhotos(propertyId) as string[];
+  },
+
+  /** Remove a photo from the listing's ordered photo list. */
+  async removeListingPhoto(propertyId: string, photoId: string): Promise<void> {
+    if (!LISTING_CANISTER_ID) {
+      const existing = listingPhotoMap.get(propertyId) ?? [];
+      listingPhotoMap.set(propertyId, existing.filter((id) => id !== photoId));
+      return;
+    }
+    const actor = await getActor();
+    const result = await actor.removeListingPhoto(propertyId, photoId);
+    if ("err" in result) throw new Error(JSON.stringify(result.err));
+  },
+
+  /**
+   * Replace the photo ordering.  All supplied IDs must already be in the list;
+   * only their sequence is allowed to change.
+   */
+  async reorderListingPhotos(propertyId: string, photoIds: string[]): Promise<void> {
+    if (!LISTING_CANISTER_ID) {
+      listingPhotoMap.set(propertyId, [...photoIds]);
+      return;
+    }
+    const actor = await getActor();
+    const result = await actor.reorderListingPhotos(propertyId, photoIds);
+    if ("err" in result) throw new Error(JSON.stringify(result.err));
   },
 
   // ── createDirectInvite (9.6.2) — homeowner invites specific agent ─────────────

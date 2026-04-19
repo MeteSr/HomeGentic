@@ -127,6 +127,11 @@ function createFsboService() {
     },
 
     getRecord(propertyId: string): FsboRecord | null {
+      // E2E injection: window.__e2e_fsbo[propertyId] takes priority
+      if (typeof window !== "undefined" && (window as any).__e2e_fsbo) {
+        const injected = (window as any).__e2e_fsbo[propertyId];
+        if (injected) return injected as FsboRecord;
+      }
       return _records.get(propertyId) ?? null;
     },
 

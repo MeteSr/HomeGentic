@@ -253,4 +253,59 @@ describe("photoService", () => {
       expect(quota.limit).toBeGreaterThan(0);
     });
   });
+
+  // ── uploadListingPhoto (issue #114) ──────────────────────────────────────────
+  describe("uploadListingPhoto", () => {
+    it("stores photo with synthetic LISTING_<propertyId> jobId", async () => {
+      const photo = await photoService.uploadListingPhoto(
+        makeFile("front image", "front.jpg"),
+        "prop-1",
+        "Front of house"
+      );
+      expect(photo.jobId).toBe("LISTING_prop-1");
+    });
+
+    it("preserves the supplied propertyId", async () => {
+      const photo = await photoService.uploadListingPhoto(makeFile(), "prop-99", "Back yard");
+      expect(photo.propertyId).toBe("prop-99");
+    });
+
+    it("sets phase to Listing", async () => {
+      const photo = await photoService.uploadListingPhoto(makeFile(), "prop-1", "Kitchen");
+      expect(photo.phase).toBe("Listing");
+    });
+
+    it("preserves the description", async () => {
+      const photo = await photoService.uploadListingPhoto(makeFile(), "prop-1", "Master bedroom");
+      expect(photo.description).toBe("Master bedroom");
+    });
+  });
+
+  // ── getListingPhotos (issue #114) ─────────────────────────────────────────────
+  describe("getListingPhotos", () => {
+    it("returns an empty array when no listing photos uploaded", async () => {
+      expect(await photoService.getListingPhotos("any-prop")).toEqual([]);
+    });
+
+    it("returns only photos with the LISTING_<propertyId> synthetic jobId", async () => {
+      await photoService.uploadListingPhoto(makeFile("a"), "prop-listing", "Photo 1");
+      await photoService.uploadListingPhoto(makeFile("b"), "prop-listing", "Photo 2");
+      // upload a non-listing photo for the same property — must not appear
+      await photoService.upload(makeFile("job img"), "JOB_1", "prop-listing", "Finishing", "Job photo");
+      const listingPhotos = await photoService.getListingPhotos("prop-listing");
+      expect(listingPhotos).toHaveLength(2);
+      expect(listingPhotos.every((p) => p.jobId === "LISTING_prop-listing")).toBe(true);
+    });
+
+    it("does not return listing photos for a different property", async () => {
+      await photoService.uploadListingPhoto(makeFile(), "prop-A", "Photo");
+      expect(await photoService.getListingPhotos("prop-B")).toHaveLength(0);
+    });
+
+    it("reset() clears listing photos from the store", async () => {
+      await photoService.uploadListingPhoto(makeFile(), "prop-rst", "Photo");
+      photoService.reset();
+      expect(await photoService.getListingPhotos("prop-rst")).toHaveLength(0);
+    });
+  });
 });
