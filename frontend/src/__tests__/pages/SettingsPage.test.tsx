@@ -50,6 +50,9 @@ vi.mock("@/store/authStore", () => ({
     principal:       "test-principal",
     profile:         { name: "Test User", role: "Homeowner", email: "test@example.com" },
     isLoading:       false,
+    tier:            null,
+    setTier:         vi.fn(),
+    setProfile:      vi.fn(),
   })),
 }));
 
