@@ -39,7 +39,7 @@ const BadgePage                  = React.lazy(() => import("@/pages/BadgePage"))
 const ScoreCertPage              = React.lazy(() => import("@/pages/ScoreCertPage"));
 const PredictiveMaintenancePage  = React.lazy(() => import("@/pages/PredictiveMaintenancePage"));
 const AdminDashboardPage         = React.lazy(() => import("@/pages/AdminDashboardPage"));
-const OnboardingPage             = React.lazy(() => import("@/pages/OnboardingPage"));
+const OnboardingWizard           = React.lazy(() => import("@/pages/OnboardingWizard"));
 const AgentDashboardPage         = React.lazy(() => import("@/pages/AgentDashboardPage"));
 const SensorPage                 = React.lazy(() => import("@/pages/SensorPage"));
 const WarrantyWalletPage         = React.lazy(() => import("@/pages/WarrantyWalletPage"));
@@ -142,7 +142,7 @@ export default function App() {
           <Route path="/market"       element={<ProtectedRoute><MarketIntelligencePage /></ProtectedRoute>} />
           <Route path="/maintenance"  element={<ProtectedRoute><PredictiveMaintenancePage /></ProtectedRoute>} />
           <Route path="/admin"        element={<ProtectedRoute><AdminDashboardPage /></ProtectedRoute>} />
-          <Route path="/onboarding"   element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
+          <Route path="/onboarding"   element={<ProtectedRoute><OnboardingWizard /></ProtectedRoute>} />
           <Route path="/agent-dashboard" element={<ProtectedRoute><AgentDashboardPage /></ProtectedRoute>} />
           <Route path="/sensors"      element={<ProtectedRoute><SensorPage /></ProtectedRoute>} />
           <Route path="/warranties"   element={<ProtectedRoute><WarrantyWalletPage /></ProtectedRoute>} />
