@@ -174,9 +174,7 @@ export default function DashboardPage() {
   // ─── Derived UI values ───────────────────────────────────────────────────────
 
   const hasProperty = properties.length > 0;
-  const hasVerified = properties.some((p) => p.verificationLevel !== "Unverified" && p.verificationLevel !== "PendingReview");
   const hasJob      = jobs.length > 0;
-  const showBanner  = !loading && !(hasProperty && hasVerified && hasJob) && !d.bannerDismissed;
 
   const scoreAlertsEnabled = localStorage.getItem("homegentic_score_alerts") !== "false";
   const showScoreIncrease  = !loading && hasJob && delta > 0 && scoreAlertsEnabled && !d.scoreIncreaseDismissed;
@@ -331,119 +329,7 @@ export default function DashboardPage() {
           </Button>
         </div>
 
-        {/* Property selector — shown when user has 2+ properties */}
-        {!loading && properties.length > 1 && (
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "2rem", flexWrap: "wrap" }}>
-            <button
-              onClick={() => setSelectedPropertyId(null)}
-              style={{
-                fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase",
-                padding: "0.375rem 0.875rem",
-                background: isAllView ? COLORS.plum : "none",
-                color: isAllView ? COLORS.white : UI.inkLight,
-                border: `1px solid ${isAllView ? COLORS.plum : UI.rule}`,
-                cursor: "pointer", borderRadius: RADIUS.pill,
-              }}
-            >
-              All Properties
-            </button>
-            {properties.map((p) => {
-              const isActive = String(p.id) === activePropertyId;
-              return (
-                <button
-                  key={String(p.id)}
-                  onClick={() => setSelectedPropertyId(String(p.id))}
-                  style={{
-                    fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em",
-                    padding: "0.375rem 0.875rem",
-                    background: isActive ? COLORS.plum : "none",
-                    color: isActive ? COLORS.white : UI.inkLight,
-                    border: `1px solid ${isActive ? COLORS.plum : UI.rule}`,
-                    cursor: "pointer", borderRadius: RADIUS.pill,
-                    maxWidth: "14rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                  }}
-                  title={`${p.address}, ${p.city}`}
-                >
-                  {p.address}
-                </button>
-              );
-            })}
-          </div>
-        )}
 
-        {/* Active property context header — shown when a specific property is selected */}
-        {!loading && activeProperty && (
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            padding: "0.875rem 1.25rem", marginBottom: "1.5rem",
-            background: COLORS.white, border: `1px solid ${COLORS.rule}`,
-            borderRadius: RADIUS.card, gap: "1rem", flexWrap: "wrap",
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
-              <div style={{ width: "2.25rem", height: "2.25rem", background: COLORS.sageLight, border: `1px solid ${COLORS.rule}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: RADIUS.sm }}>
-                <Home size={14} color={UI.sage} />
-              </div>
-              <div>
-                <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "0.95rem", color: UI.ink, lineHeight: 1.2 }}>
-                  {activeProperty.address}
-                </p>
-                <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: UI.inkLight, marginTop: "0.15rem" }}>
-                  {activeProperty.city}, {activeProperty.state} · {verificationBadge(activeProperty.verificationLevel)}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => navigate(`/properties/${activeProperty.id}`)}
-              style={{
-                fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase",
-                padding: "0.375rem 0.875rem", border: `1px solid ${UI.rule}`,
-                color: UI.inkLight, background: "none", cursor: "pointer", borderRadius: RADIUS.sm,
-              }}
-            >
-              View Property →
-            </button>
-          </div>
-        )}
-
-        {/* Onboarding banner */}
-        {showBanner && (
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem",
-            border: `1px solid ${UI.rust}`, padding: "1rem 1.25rem", marginBottom: "2rem",
-            background: COLORS.sageLight, flexWrap: "wrap", borderRadius: RADIUS.sm,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-              <Sparkles size={16} color={UI.rust} style={{ flexShrink: 0 }} />
-              <div>
-                <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "0.25rem" }}>
-                  Finish setting up
-                </p>
-                <p style={{ fontSize: "0.8rem", color: UI.inkLight, fontWeight: 300 }}>
-                  {!hasProperty ? "Add your first property to start building your home's verified history."
-                    : !hasVerified ? "Verify ownership so buyers can trust your history."
-                    : "Log your first job to add value to your HomeGentic report."}
-                </p>
-              </div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-              <button
-                onClick={() => navigate("/onboarding")}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: "0.375rem",
-                  padding: "0.5rem 1rem", background: UI.rust, color: "#fff",
-                  border: "none", fontFamily: UI.mono, fontSize: "0.65rem",
-                  letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer",
-                  borderRadius: RADIUS.pill,
-                }}
-              >
-                Continue setup <ArrowRight size={12} />
-              </button>
-              <button aria-label="Dismiss banner" onClick={d.dismissBanner} style={{ background: "none", border: "none", cursor: "pointer", color: UI.inkLight }}>
-                <X size={16} />
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Annual milestone banner */}
         {showMilestone && (
@@ -658,7 +544,6 @@ export default function DashboardPage() {
         {/* Stats */}
         <ResponsiveGrid cols={{ mobile: 2, tablet: 3, desktop: 5 }} gap="1rem" style={{ marginBottom: "2.5rem" }}>
           {[
-            { label: "Verification", value: activeProperty?.verificationLevel === "PendingReview" ? "Pending" : (activeProperty?.verificationLevel ?? "—") },
             { label: "Verified Jobs",    value: String(verifiedCount) },
             { label: "Total Value",      value: `$${(totalValue / 100).toLocaleString()}` },
             { label: "HomeGentic Premium™", value: `$${Math.round((totalValue / 100) * 0.03).toLocaleString()}` },
@@ -690,32 +575,6 @@ export default function DashboardPage() {
           </div>
         </ResponsiveGrid>
 
-        {/* Free-tier job cap progress bar (15.1.3) */}
-        {!loading && userTier === "Free" && (
-          <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "0.875rem 1.25rem", marginBottom: "1.5rem", borderRadius: RADIUS.sm }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-              <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>
-                Free Plan · Jobs
-              </span>
-              <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", fontWeight: 700, color: jobs.length >= 5 ? COLORS.sage : UI.ink }}>
-                {jobs.length}/5
-              </span>
-            </div>
-            <div style={{ height: "4px", background: UI.rule, borderRadius: 100, overflow: "hidden", marginBottom: "0.5rem" }}>
-              <div style={{ height: "4px", width: `${Math.min(jobs.length / 5 * 100, 100)}%`, background: jobs.length >= 5 ? COLORS.sage : COLORS.plum, borderRadius: 100, transition: "width 0.5s ease" }} />
-            </div>
-            {jobs.length >= 5 ? (
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
-                <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>Job limit reached — upgrade to keep logging</span>
-                <button onClick={openUpgrade} style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.25rem 0.625rem", border: "none", background: COLORS.plum, color: COLORS.white, cursor: "pointer", borderRadius: RADIUS.sm, whiteSpace: "nowrap" }}>Upgrade →</button>
-              </div>
-            ) : (
-              <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>
-                {5 - jobs.length} job{5 - jobs.length !== 1 ? "s" : ""} remaining on Free plan
-              </span>
-            )}
-          </div>
-        )}
 
         {/* Score history chart */}
         {modals.showScoreChart && scoreHistory.length >= 2 && (
