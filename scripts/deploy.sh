@@ -477,6 +477,7 @@ echo "============================================"
 # gen-ic-assets.mjs which substitutes VITE_VOICE_AGENT_URL into the CSP header
 # written to dist/.ic-assets.json5 — that file must exist before the next step.
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+export DFX_NETWORK="$NETWORK"
 echo "▶ npm run build (frontend)..."
 if (cd "$REPO_ROOT/frontend" && npm run build); then
   echo "  ✓ Frontend built (dist/ + .ic-assets.json5 ready)"
