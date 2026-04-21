@@ -162,6 +162,14 @@ persistent actor Quote {
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
   private let ONE_MINUTE_NS       : Int = 60_000_000_000;
+  // ── Ingress inspection ────────────────────────────────────────────────────
+  /// Reject anonymous callers and zero-byte payloads before execution.
+  /// Empty payload cannot be valid Candid for any method that takes a struct
+  /// argument — these are probe / garbage calls that waste cycles.
+  system func inspect({ caller : Principal; arg : Blob }) : Bool {
+    not Principal.isAnonymous(caller) and arg.size() > 0
+  };
+
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
     if (isAdmin(caller)) return true;

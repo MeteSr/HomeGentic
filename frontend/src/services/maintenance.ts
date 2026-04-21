@@ -447,16 +447,6 @@ function createMaintenanceService() {
     plannedMonth?:      number,
     estimatedCostCents?: number
   ): Promise<ScheduleEntry> {
-    if (!MAINTENANCE_CANISTER_ID) {
-      scheduleCounter += 1;
-      const entry: ScheduleEntry = {
-        id: `SCH_${scheduleCounter}`,
-        propertyId, systemName, taskDescription, plannedYear,
-        plannedMonth, estimatedCostCents, isCompleted: false, createdAt: Date.now(),
-      };
-      scheduleStore.set(entry.id, entry);
-      return entry;
-    }
     const a = await getActor();
     const result = await a.createScheduleEntry(
       propertyId,
@@ -473,21 +463,11 @@ function createMaintenanceService() {
   },
 
   async getScheduleByProperty(propertyId: string): Promise<ScheduleEntry[]> {
-    if (!MAINTENANCE_CANISTER_ID) {
-      return Array.from(scheduleStore.values()).filter((e) => e.propertyId === propertyId);
-    }
     const a = await getActor();
     return (await a.getScheduleByProperty(propertyId) as any[]).map(fromEntry);
   },
 
   async markCompleted(entryId: string): Promise<ScheduleEntry | null> {
-    if (!MAINTENANCE_CANISTER_ID) {
-      const entry = scheduleStore.get(entryId);
-      if (!entry) return null;
-      const updated = { ...entry, isCompleted: true };
-      scheduleStore.set(entryId, updated);
-      return updated;
-    }
     const a = await getActor();
     const result = await a.markCompleted(entryId);
     if ("ok" in result) return fromEntry(result.ok);

@@ -89,7 +89,6 @@ export interface RegisterArgs {
 }
 
 let _actor: any = null;
-let _mockProfile: UserProfile | null = null;
 
 async function getActor() {
   if (!_actor) {
@@ -124,20 +123,6 @@ function unwrap(result: any): UserProfile {
 
 export const authService = {
   async register(args: RegisterArgs): Promise<UserProfile> {
-    if (!getCanisterId()) {
-      _mockProfile = {
-        principal:          "local-dev",
-        role:               args.role,
-        email:              args.email,
-        phone:              args.phone,
-        createdAt:          BigInt(Date.now()),
-        updatedAt:          BigInt(Date.now()),
-        isActive:           true,
-        lastLoggedIn:       null,
-        onboardingComplete: false,
-      };
-      return { ..._mockProfile };
-    }
     const a = await getActor();
     const result = await a.register({
       role: { [args.role]: null },
@@ -148,64 +133,33 @@ export const authService = {
   },
 
   async getProfile(): Promise<UserProfile> {
-    if (!getCanisterId()) {
-      if (!_mockProfile) {
-        // No canister deployed and no profile registered yet (e.g. devLogin without a
-        // running replica). Seed a default homeowner so devLogin can navigate to /dashboard
-        // instead of falling through to /register.
-        _mockProfile = {
-          principal:          "local-dev",
-          role:               "Homeowner",
-          email:              "dev@homegentic.io",
-          phone:              "0000000000",
-          createdAt:          BigInt(0),
-          updatedAt:          BigInt(0),
-          isActive:           true,
-          lastLoggedIn:       null,
-          onboardingComplete: false,
-        };
-      }
-      return { ..._mockProfile };
-    }
     const a = await getActor();
     const result = await a.getProfile();
     return unwrap(result);
   },
 
   async updateProfile(args: { email: string; phone: string }): Promise<UserProfile> {
-    if (!getCanisterId()) {
-      if (!_mockProfile) throw new Error("User profile not found — call createProfile() before updateProfile()");
-      _mockProfile = { ..._mockProfile, email: args.email, phone: args.phone, updatedAt: BigInt(Date.now()) };
-      return { ..._mockProfile };
-    }
     const a = await getActor();
     const result = await a.updateProfile(args);
     return unwrap(result);
   },
 
   async recordLogin(): Promise<void> {
-    if (!getCanisterId()) return;
     const a = await getActor();
     await a.recordLogin();
   },
 
   async completeOnboarding(): Promise<void> {
-    if (!getCanisterId()) {
-      if (_mockProfile) _mockProfile = { ..._mockProfile, onboardingComplete: true };
-      return;
-    }
     const a = await getActor();
     await a.completeOnboarding();
   },
 
   async hasRole(role: UserRole): Promise<boolean> {
-    if (!getCanisterId()) return _mockProfile?.role === role;
     const a = await getActor();
     return a.hasRole({ [role]: null });
   },
 
   reset() {
     _actor = null;
-    _mockProfile = null;
   },
 };

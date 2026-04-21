@@ -20,9 +20,74 @@
  *   - Concurrent generateReport() calls don't corrupt the store
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+// ─── Stateful mock actor for report canister ──────────────────────────────────
+
+let _repSeq = 0;
+const _reports = new Map<string, { rawLink: any; rawSnapshot: any }>();
+
+function resetReportMock() {
+  _repSeq = 0;
+  _reports.clear();
+}
+
+const mockReportActor = {
+  generateReport: vi.fn(async (
+    propertyId: string, rawProp: any, rawJobs: any[], rawRecurring: any[],
+    expiryDaysOpt: bigint[], visVariant: any,
+  ) => {
+    _repSeq++;
+    const snapshotId = `SNAP-${_repSeq}`;
+    const token = `token-${_repSeq}`;
+    const rawLink = {
+      token, snapshotId, propertyId,
+      createdBy: { toText: () => "local" },
+      expiresAt: expiryDaysOpt.length > 0 ? [BigInt(expiryDaysOpt[0]) * 86_400_000n] : [],
+      visibility: visVariant,
+      viewCount: 0n,
+      isActive: true,
+      createdAt: BigInt(Date.now()) * 1_000_000n,
+    };
+    const rawSnapshot = {
+      snapshotId, propertyId,
+      generatedBy: { toText: () => "local" },
+      address: rawProp.address, city: rawProp.city,
+      state: rawProp.state, zipCode: rawProp.zipCode,
+      propertyType: rawProp.propertyType,
+      yearBuilt: rawProp.yearBuilt, squareFeet: rawProp.squareFeet,
+      verificationLevel: rawProp.verificationLevel,
+      jobs: rawJobs,
+      recurringServices: rawRecurring,
+      rooms: [],
+      totalAmountCents:  rawJobs.reduce((s: bigint, j: any) => s + BigInt(j.amountCents), 0n),
+      verifiedJobCount:  BigInt(rawJobs.filter((j: any) => j.isVerified).length),
+      diyJobCount:       BigInt(rawJobs.filter((j: any) => j.isDiy).length),
+      permitCount:       BigInt(rawJobs.filter((j: any) => (j.permitNumber?.length ?? 0) > 0).length),
+      generatedAt:       BigInt(Date.now()) * 1_000_000n,
+      planTier:          "Free",
+    };
+    _reports.set(token, { rawLink, rawSnapshot });
+    return { ok: rawLink };
+  }),
+
+  getReport: vi.fn(async (token: string) => {
+    const entry = _reports.get(token);
+    if (!entry) return { err: { NotFound: null } };
+    entry.rawLink.viewCount += 1n;
+    return { ok: [entry.rawLink, entry.rawSnapshot] };
+  }),
+};
+
+vi.mock("@/services/actor", () => ({ getAgent: vi.fn().mockResolvedValue({}) }));
+vi.mock("@icp-sdk/core/agent", () => ({
+  Actor: { createActor: vi.fn(() => mockReportActor) },
+}));
+
 import { reportService, jobToInput, propertyToInput } from "../../services/report";
 import type { JobInput, PropertyInput } from "../../services/report";
+
+beforeEach(() => { resetReportMock(); reportService.reset(); });
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 

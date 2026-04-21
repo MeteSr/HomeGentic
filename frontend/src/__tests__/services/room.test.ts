@@ -1,10 +1,102 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+
+// ─── Stateful mock actor ──────────────────────────────────────────────────────
+// Provides an in-memory canister substitute so tests run without a real replica.
+
+let _rooms:      any[] = [];
+let _roomSeq     = 0;
+let _fixtureSeq  = 0;
+
+function resetMock() {
+  _rooms     = [];
+  _roomSeq   = 0;
+  _fixtureSeq = 0;
+}
+
+function rawRoom(args: any, id: string): any {
+  return {
+    id,
+    propertyId: args.propertyId,
+    owner:      { toString: () => "mock-principal" },
+    name:       args.name,
+    floorName:  args.floorName ?? "",
+    floorType:  args.floorType,
+    paintColor: args.paintColor,
+    paintBrand: args.paintBrand,
+    paintCode:  args.paintCode,
+    notes:      args.notes,
+    fixtures:   [] as any[],
+    createdAt:  BigInt(0),
+    updatedAt:  BigInt(0),
+  };
+}
+
+const mockRoomActor = {
+  createRoom: vi.fn(async (args: any) => {
+    const room = rawRoom(args, `ROOM_${++_roomSeq}`);
+    _rooms.push(room);
+    return { ok: { ...room, fixtures: [...room.fixtures] } };
+  }),
+  getRoomsByProperty: vi.fn(async (propertyId: string) =>
+    _rooms
+      .filter((r) => r.propertyId === propertyId)
+      .map((r) => ({ ...r, fixtures: r.fixtures.map((f: any) => ({ ...f })) }))
+  ),
+  getRoom: vi.fn(async (id: string) => {
+    const room = _rooms.find((r) => r.id === id);
+    return room ? { ok: { ...room, fixtures: [...room.fixtures] } } : { err: { NotFound: null } };
+  }),
+  updateRoom: vi.fn(async (id: string, args: any) => {
+    const room = _rooms.find((r) => r.id === id);
+    if (!room) return { err: { NotFound: null } };
+    Object.assign(room, args);
+    return { ok: { ...room, fixtures: room.fixtures.map((f: any) => ({ ...f })) } };
+  }),
+  deleteRoom: vi.fn(async (id: string) => {
+    const idx = _rooms.findIndex((r) => r.id === id);
+    if (idx === -1) return { err: { NotFound: null } };
+    _rooms.splice(idx, 1);
+    return { ok: null };
+  }),
+  addFixture: vi.fn(async (roomId: string, args: any) => {
+    const room = _rooms.find((r) => r.id === roomId);
+    if (!room) return { err: { NotFound: null } };
+    const fixture = { id: `FIX_${++_fixtureSeq}`, ...args };
+    room.fixtures.push(fixture);
+    return { ok: { ...room, fixtures: room.fixtures.map((f: any) => ({ ...f })) } };
+  }),
+  updateFixture: vi.fn(async (roomId: string, fixtureId: string, args: any) => {
+    const room = _rooms.find((r) => r.id === roomId);
+    if (!room) return { err: { NotFound: null } };
+    const fixture = room.fixtures.find((f: any) => f.id === fixtureId);
+    if (!fixture) return { err: { NotFound: null } };
+    Object.assign(fixture, args);
+    return { ok: { ...room, fixtures: room.fixtures.map((f: any) => ({ ...f })) } };
+  }),
+  removeFixture: vi.fn(async (roomId: string, fixtureId: string) => {
+    const room = _rooms.find((r) => r.id === roomId);
+    if (!room) return { err: { NotFound: null } };
+    room.fixtures = room.fixtures.filter((f: any) => f.id !== fixtureId);
+    return { ok: { ...room, fixtures: room.fixtures.map((f: any) => ({ ...f })) } };
+  }),
+  getRoomMetrics: vi.fn(async () => ({
+    totalRooms:    BigInt(_rooms.length),
+    totalFixtures: BigInt(_rooms.reduce((s: number, r: any) => s + r.fixtures.length, 0)),
+  })),
+};
+
+vi.mock("@/services/actor", () => ({ getAgent: vi.fn().mockResolvedValue({}) }));
+vi.mock("@icp-sdk/core/agent", () => ({
+  Actor: { createActor: vi.fn(() => mockRoomActor) },
+}));
+
 import { roomService, type Room, type CreateRoomArgs } from "@/services/room";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// Wrap reset() so it also clears the mock actor store — mirrors canister state reset.
+const _originalReset = roomService.reset.bind(roomService);
+(roomService as any).reset = () => { _originalReset(); resetMock(); };
 
-// CANISTER_ID_ROOM is "" in the test environment, so the service always falls
-// through to the in-memory mock. Tests cover that entire code path.
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function makeCreateArgs(overrides: Partial<CreateRoomArgs> = {}): CreateRoomArgs {
   return {
@@ -264,9 +356,9 @@ describe("roomService (mock path)", () => {
       const after2 = await roomService.addFixture(room.id, {
         brand: "B", model: "", serialNumber: "", installedDate: "", warrantyExpiry: "", notes: "",
       });
-      const firstId = after1.fixtures[0].id;
+      const firstId  = after1.fixtures[0].id;
       const secondId = after2.fixtures[1].id;
-      const updated = await roomService.updateFixture(room.id, firstId, {
+      const updated  = await roomService.updateFixture(room.id, firstId, {
         brand: "Updated A", model: "", serialNumber: "", installedDate: "", warrantyExpiry: "", notes: "",
       });
       const second = updated.fixtures.find((f) => f.id === secondId);

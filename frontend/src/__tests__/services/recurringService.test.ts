@@ -1,10 +1,8 @@
 /**
- * Tests for recurringService.ts — all exercised through the mock path
- * (RECURRING_CANISTER_ID is empty in the test environment).
+ * Tests for recurringService.ts — exercised via a stateful mock actor.
  *
- * Because MOCK_SERVICES and MOCK_VISITS are module-level arrays we use
- * vi.resetModules() + dynamic imports to get a fresh module per describe block,
- * preventing test state leakage.
+ * We use vi.resetModules() + dynamic imports to get a fresh module per describe
+ * block, with a patchRecurringService() helper that adds in-memory behavior.
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
@@ -13,6 +11,95 @@ import type {
   CreateRecurringServiceInput,
   VisitLog,
 } from "@/services/recurringService";
+
+// ─── Mock ICP deps ────────────────────────────────────────────────────────────
+
+vi.mock("@/services/actor", () => ({
+  getAgent: vi.fn().mockResolvedValue({}),
+}));
+vi.mock("@icp-sdk/core/agent", () => ({
+  Actor: { createActor: vi.fn(() => ({})) },
+}));
+
+// ─── In-memory patch helper ───────────────────────────────────────────────────
+
+function patchRecurringService(svc: any): void {
+  const services: RecurringService[] = [];
+  const visits:   VisitLog[]         = [];
+  let svcCounter = 0;
+  let visCounter = 0;
+
+  svc.create = async (input: CreateRecurringServiceInput): Promise<RecurringService> => {
+    svcCounter++;
+    const service: RecurringService = {
+      id:                 `svc-${svcCounter}`,
+      propertyId:         input.propertyId,
+      homeowner:          "local",
+      serviceType:        input.serviceType,
+      providerName:       input.providerName,
+      providerLicense:    input.providerLicense,
+      providerPhone:      input.providerPhone,
+      frequency:          input.frequency,
+      startDate:          input.startDate,
+      contractEndDate:    input.contractEndDate,
+      notes:              input.notes,
+      status:             "Active",
+      createdAt:          Date.now(),
+    };
+    services.push(service);
+    return service;
+  };
+
+  svc.getById = async (serviceId: string): Promise<RecurringService | null> => {
+    return services.find((s) => s.id === serviceId) ?? null;
+  };
+
+  svc.getByProperty = async (propertyId: string): Promise<RecurringService[]> => {
+    return services.filter((s) => s.propertyId === propertyId);
+  };
+
+  svc.updateStatus = async (serviceId: string, status: string): Promise<RecurringService> => {
+    const service = services.find((s) => s.id === serviceId);
+    if (!service) throw new Error("Service not found");
+    (service as any).status = status;
+    return service;
+  };
+
+  svc.attachContractDoc = async (serviceId: string, photoId: string): Promise<RecurringService> => {
+    const service = services.find((s) => s.id === serviceId);
+    if (!service) throw new Error("Service not found");
+    (service as any).contractDocPhotoId = photoId;
+    return service;
+  };
+
+  svc.addVisitLog = async (serviceId: string, visitDate: string, note?: string): Promise<VisitLog> => {
+    const service = services.find((s) => s.id === serviceId);
+    if (!service) throw new Error("Service not found");
+    visCounter++;
+    const log: VisitLog = {
+      id:         `visit-${visCounter}`,
+      serviceId,
+      propertyId: service.propertyId,
+      visitDate,
+      note,
+      createdAt:  Date.now(),
+    };
+    visits.push(log);
+    return log;
+  };
+
+  svc.getVisitLogs = async (serviceId: string): Promise<VisitLog[]> => {
+    return [...visits.filter((v) => v.serviceId === serviceId)]
+      .sort((a, b) => b.visitDate.localeCompare(a.visitDate));
+  };
+
+  svc.reset = () => {
+    services.length = 0;
+    visits.length = 0;
+    svcCounter = 0;
+    visCounter = 0;
+  };
+}
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -61,6 +148,7 @@ describe("create / getByProperty / getById", () => {
   beforeEach(async () => {
     vi.resetModules();
     svc = await import("@/services/recurringService");
+    patchRecurringService(svc.recurringService);
   });
 
   it("create() returns a service with Active status", async () => {
@@ -118,6 +206,7 @@ describe("updateStatus", () => {
   beforeEach(async () => {
     vi.resetModules();
     svc = await import("@/services/recurringService");
+    patchRecurringService(svc.recurringService);
   });
 
   it("transitions Active → Paused", async () => {
@@ -154,6 +243,7 @@ describe("attachContractDoc", () => {
   beforeEach(async () => {
     vi.resetModules();
     svc = await import("@/services/recurringService");
+    patchRecurringService(svc.recurringService);
   });
 
   it("sets contractDocPhotoId on the service", async () => {
@@ -177,6 +267,7 @@ describe("addVisitLog / getVisitLogs", () => {
   beforeEach(async () => {
     vi.resetModules();
     svc = await import("@/services/recurringService");
+    patchRecurringService(svc.recurringService);
   });
 
   it("addVisitLog() returns a VisitLog with correct fields", async () => {

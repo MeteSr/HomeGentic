@@ -173,11 +173,6 @@ function fromRawReview(raw: any): AgentReview {
 
 function createAgentService() {
   let _actor: any = null;
-  // Mock state for local dev / tests
-  let _profiles: AgentOnChainProfile[] = [];
-  let _reviews:  AgentReview[]          = [];
-  let _reviewKeys = new Set<string>();
-  let _myId = "local";
 
   async function getActor() {
     if (_actor) return _actor;
@@ -189,35 +184,10 @@ function createAgentService() {
   return {
     /** Test-only reset hook. */
     __reset() {
-      _actor    = null;
-      _profiles = [];
-      _reviews  = [];
-      _reviewKeys.clear();
+      _actor = null;
     },
 
     async createProfile(input: CreateAgentProfileInput): Promise<AgentOnChainProfile> {
-      if (!AGENT_CANISTER_ID) {
-        if (_profiles.find((p) => p.id === _myId)) throw new Error("Profile already exists");
-        const profile: AgentOnChainProfile = {
-          id:                      _myId,
-          name:                    input.name,
-          brokerage:               input.brokerage,
-          licenseNumber:           input.licenseNumber,
-          statesLicensed:          [...input.statesLicensed],
-          bio:                     input.bio,
-          phone:                   input.phone,
-          email:                   input.email,
-          avgDaysOnMarket:         0,
-          listingsLast12Months:    0,
-          isVerified:              false,
-          homeGenticTransactionCount: 0,
-          typicalCommissionBps:    250,
-          createdAt:               Date.now(),
-          updatedAt:               Date.now(),
-        };
-        _profiles.push(profile);
-        return { ...profile };
-      }
       const actor = await getActor();
       const result = await actor.register({
         name: input.name, brokerage: input.brokerage, licenseNumber: input.licenseNumber,
@@ -228,9 +198,6 @@ function createAgentService() {
     },
 
     async getMyProfile(): Promise<AgentOnChainProfile | null> {
-      if (!AGENT_CANISTER_ID) {
-        return _profiles.find((p) => p.id === _myId) ?? null;
-      }
       const actor = await getActor();
       const result = await actor.getMyProfile();
       if (result.length === 0) return null;
@@ -238,9 +205,6 @@ function createAgentService() {
     },
 
     async getPublicProfile(id: string): Promise<AgentOnChainProfile | null> {
-      if (!AGENT_CANISTER_ID) {
-        return _profiles.find((p) => p.id === id) ?? null;
-      }
       const { Principal } = await import("@icp-sdk/core/principal");
       const actor = await getActor();
       const result = await actor.getProfile(Principal.fromText(id));
@@ -249,30 +213,12 @@ function createAgentService() {
     },
 
     async getAllProfiles(): Promise<AgentOnChainProfile[]> {
-      if (!AGENT_CANISTER_ID) return [..._profiles];
       const actor = await getActor();
       const raw = await actor.getAllProfiles();
       return raw.map(fromRawProfile);
     },
 
     async updateProfile(input: CreateAgentProfileInput): Promise<AgentOnChainProfile> {
-      if (!AGENT_CANISTER_ID) {
-        const idx = _profiles.findIndex((p) => p.id === _myId);
-        if (idx === -1) throw new Error("Profile not found");
-        const updated: AgentOnChainProfile = {
-          ..._profiles[idx],
-          name:                 input.name,
-          brokerage:            input.brokerage,
-          licenseNumber:        input.licenseNumber,
-          statesLicensed:       [...input.statesLicensed],
-          bio:                  input.bio,
-          phone:                input.phone,
-          email:                input.email,
-          updatedAt:            Date.now(),
-        };
-        _profiles[idx] = updated;
-        return { ...updated };
-      }
       const actor = await getActor();
       const result = await actor.updateProfile({
         name: input.name, brokerage: input.brokerage, licenseNumber: input.licenseNumber,
@@ -283,24 +229,6 @@ function createAgentService() {
     },
 
     async addReview(input: AddReviewInput): Promise<AgentReview> {
-      if (!AGENT_CANISTER_ID) {
-        if (!_profiles.find((p) => p.id === input.agentId)) throw new Error(`Agent ${input.agentId} not found`);
-        if (input.rating < 1 || input.rating > 5) throw new Error("rating must be 1–5");
-        const compositeKey = `local|${input.transactionId}`;
-        if (_reviewKeys.has(compositeKey)) throw new Error("Duplicate review for this transaction");
-        _reviewKeys.add(compositeKey);
-        const review: AgentReview = {
-          id:                `AGREV_${Date.now()}`,
-          agentId:           input.agentId,
-          reviewerPrincipal: "local",
-          rating:            input.rating,
-          comment:           input.comment,
-          transactionId:     input.transactionId,
-          createdAt:         Date.now(),
-        };
-        _reviews.push(review);
-        return { ...review };
-      }
       const { Principal } = await import("@icp-sdk/core/principal");
       const actor = await getActor();
       const result = await actor.addReview({
@@ -314,9 +242,6 @@ function createAgentService() {
     },
 
     async getReviews(agentId: string): Promise<AgentReview[]> {
-      if (!AGENT_CANISTER_ID) {
-        return _reviews.filter((r) => r.agentId === agentId);
-      }
       const { Principal } = await import("@icp-sdk/core/principal");
       const actor = await getActor();
       const raw = await actor.getReviews(Principal.fromText(agentId));

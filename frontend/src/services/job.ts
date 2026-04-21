@@ -283,12 +283,6 @@ function unwrapJob(result: any): Job {
 // ─── Service factory ──────────────────────────────────────────────────────────
 
 function createJobService() {
-  // Seed from Playwright test globals if present (window.__e2e_jobs set by addInitScript)
-  const mockJobs: Job[] =
-    typeof window !== "undefined" && (window as any).__e2e_jobs
-      ? [...(window as any).__e2e_jobs]
-      : [];
-
   let _actor: any = null;
 
   async function getActor() {
@@ -301,8 +295,9 @@ function createJobService() {
 
   return {
   async getByProperty(propertyId: string): Promise<Job[]> {
-    if (!JOB_CANISTER_ID) {
-      return mockJobs.filter((j) => j.propertyId === propertyId);
+    if (typeof window !== "undefined" && (window as any).__e2e_jobs) {
+      return ((window as any).__e2e_jobs as any[])
+        .filter((j: any) => String(j.propertyId) === String(propertyId));
     }
     const a = await getActor();
     const result = await a.getJobsForProperty(propertyId);
@@ -311,28 +306,14 @@ function createJobService() {
   },
 
   async getAll(): Promise<Job[]> {
-    if (!JOB_CANISTER_ID) return [...mockJobs];
+    if (typeof window !== "undefined" && (window as any).__e2e_jobs) {
+      return (window as any).__e2e_jobs as Job[];
+    }
     // No canister equivalent for getAll — callers should use getByProperty
     return [];
   },
 
   async create(job: Omit<Job, "id" | "createdAt" | "status" | "photos" | "verified" | "homeownerSigned" | "contractorSigned" | "homeowner" | "contractor">): Promise<Job> {
-    if (!JOB_CANISTER_ID) {
-      const newJob: Job = {
-        ...job,
-        id: String(Date.now()),
-        homeowner: (typeof window !== "undefined" && (window as any).__e2e_principal) || "mock-principal",
-        contractor: undefined,
-        status: "pending",
-        verified: false,
-        homeownerSigned: false,
-        contractorSigned: job.isDiy,
-        photos: [],
-        createdAt: Date.now(),
-      };
-      mockJobs.push(newJob);
-      return newJob;
-    }
     const a = await getActor();
     const completedDateNs = BigInt(new Date(job.date).getTime()) * 1_000_000n;
     const result = await a.createJob(
@@ -352,23 +333,11 @@ function createJobService() {
   },
 
   async updateJob(jobId: string, updates: Partial<Pick<Job, "serviceType" | "contractorName" | "amount" | "date" | "description" | "permitNumber" | "warrantyMonths" | "isDiy">>): Promise<Job> {
-    if (!JOB_CANISTER_ID) {
-      const idx = mockJobs.findIndex((j) => j.id === jobId);
-      if (idx === -1) throw new Error(`Job not found in mock store (id: ${jobId})`);
-      mockJobs[idx] = { ...mockJobs[idx], ...updates };
-      return mockJobs[idx];
-    }
     // Canister updateJob not yet implemented — throw to signal unsupported
     throw new Error("Job editing is not yet available on-chain. Please contact support.");
   },
 
   async updateJobStatus(jobId: string, status: JobStatus): Promise<Job> {
-    if (!JOB_CANISTER_ID) {
-      const idx = mockJobs.findIndex((j) => j.id === jobId);
-      if (idx === -1) throw new Error(`Job not found in mock store (id: ${jobId})`);
-      mockJobs[idx] = { ...mockJobs[idx], status };
-      return mockJobs[idx];
-    }
     const STATUS_CANISTER_MAP: Record<JobStatus, object> = {
       pending:                    { Pending: null },
       in_progress:                { InProgress: null },
@@ -383,34 +352,12 @@ function createJobService() {
   },
 
   async verifyJob(jobId: string): Promise<Job> {
-    if (!JOB_CANISTER_ID) {
-      const idx = mockJobs.findIndex((j) => j.id === jobId);
-      if (idx === -1) throw new Error(`Job not found in mock store (id: ${jobId})`);
-      const job = mockJobs[idx];
-      const newHomeownerSigned  = true;
-      const newContractorSigned = job.contractorSigned || job.isDiy;
-      const fullyVerified       = newHomeownerSigned && newContractorSigned;
-      mockJobs[idx] = {
-        ...job,
-        homeownerSigned:  newHomeownerSigned,
-        contractorSigned: newContractorSigned,
-        verified:         fullyVerified,
-        status:           fullyVerified ? "verified" : job.status,
-      };
-      return mockJobs[idx];
-    }
     const a = await getActor();
     const result = await a.verifyJob(jobId);
     return unwrapJob(result);
   },
 
   async linkContractor(jobId: string, contractorPrincipal: string): Promise<Job> {
-    if (!JOB_CANISTER_ID) {
-      const idx = mockJobs.findIndex((j) => j.id === jobId);
-      if (idx === -1) throw new Error(`Job not found in mock store (id: ${jobId})`);
-      mockJobs[idx] = { ...mockJobs[idx], contractor: contractorPrincipal };
-      return mockJobs[idx];
-    }
     const a = await getActor();
     const { Principal: P } = await import("@icp-sdk/core/principal");
     const result = await a.linkContractor(jobId, P.fromText(contractorPrincipal));
@@ -418,23 +365,12 @@ function createJobService() {
   },
 
   async getJobsPendingMySignature(): Promise<Job[]> {
-    if (!JOB_CANISTER_ID) return [];
     const a = await getActor();
     const result = await a.getJobsPendingMySignature();
     return (result as any[]).map(fromJob);
   },
 
   async getCertificationData(propertyId: string): Promise<{ verifiedJobCount: number; verifiedKeySystems: string[]; meetsStructural: boolean }> {
-    if (!JOB_CANISTER_ID) {
-      const KEY_SYSTEMS = ["HVAC", "Roofing", "Plumbing", "Electrical"];
-      const propertyJobs = mockJobs.filter((j) => j.propertyId === propertyId && j.verified);
-      const systems = [...new Set(propertyJobs.map((j) => j.serviceType).filter((s) => KEY_SYSTEMS.includes(s)))];
-      return {
-        verifiedJobCount:   propertyJobs.length,
-        verifiedKeySystems: systems,
-        meetsStructural:    propertyJobs.length >= 3 && systems.length >= 2,
-      };
-    }
     const a = await getActor();
     const raw = await a.getCertificationData(propertyId);
     return {
@@ -457,7 +393,6 @@ function createJobService() {
   },
 
   async createInviteToken(jobId: string, propertyAddress: string): Promise<string> {
-    if (!JOB_CANISTER_ID) return `MOCK_INV_${jobId}`;
     const a = await getActor();
     const result = await a.createInviteToken(jobId, propertyAddress);
     if ("ok" in result) return result.ok as string;
@@ -467,21 +402,6 @@ function createJobService() {
   },
 
   async getJobByInviteToken(token: string): Promise<InvitePreview> {
-    if (!JOB_CANISTER_ID) {
-      // Mock preview for development
-      return {
-        jobId:           "MOCK_JOB",
-        title:           "HVAC Service",
-        serviceType:     "HVAC",
-        description:     "Annual HVAC tune-up and filter replacement",
-        amount:          25000,
-        completedDate:   Date.now(),
-        propertyAddress: "123 Main St, Austin TX 78701",
-        contractorName:  "Cool Air Services",
-        expiresAt:       Date.now() + 48 * 60 * 60 * 1000,
-        alreadySigned:   false,
-      };
-    }
     const a = await getActor();
     const result = await a.getJobByInviteToken(token);
     if ("ok" in result) {
@@ -505,17 +425,6 @@ function createJobService() {
   },
 
   async redeemInviteToken(token: string): Promise<Job> {
-    if (!JOB_CANISTER_ID) {
-      return {
-        id: "MOCK_JOB", propertyId: "1", homeowner: "mock",
-        serviceType: "HVAC", amount: 25000,
-        date: new Date().toISOString().split("T")[0],
-        description: "Mock job", isDiy: false,
-        status: "verified", verified: true,
-        homeownerSigned: true, contractorSigned: true,
-        photos: [], createdAt: Date.now(),
-      };
-    }
     const a = await getActor();
     const result = await a.redeemInviteToken(token);
     return unwrapJob(result);
@@ -523,7 +432,6 @@ function createJobService() {
 
   /** Admin: return all jobs sourced via a HomeGentic quote request (referral fee pipeline). */
   async getReferralJobs(): Promise<Job[]> {
-    if (!JOB_CANISTER_ID) return [];
     const a = await getActor();
     const raw: any[] = await a.getReferralJobs();
     return raw.map(fromJob);
@@ -541,30 +449,6 @@ function createJobService() {
     permitNumber?:  string;
     warrantyMonths?: number;
   }): Promise<Job> {
-    if (!JOB_CANISTER_ID) {
-      const proposal: Job = {
-        id:               `PROPOSAL_${Date.now()}`,
-        propertyId:       input.propertyId,
-        homeowner:        "mock-homeowner",
-        contractor:       (typeof window !== "undefined" && (window as any).__e2e_principal) || "mock-contractor",
-        serviceType:      input.serviceType,
-        contractorName:   input.contractorName,
-        amount:           input.amountCents,
-        date:             input.completedDate,
-        description:      input.description,
-        isDiy:            false,
-        permitNumber:     input.permitNumber,
-        warrantyMonths:   input.warrantyMonths,
-        status:           "pending_homeowner_approval",
-        verified:         false,
-        homeownerSigned:  false,
-        contractorSigned: true,
-        photos:           [],
-        createdAt:        Date.now(),
-      };
-      mockJobs.push(proposal);
-      return proposal;
-    }
     const a = await getActor();
     const completedDateNs = BigInt(new Date(input.completedDate).getTime()) * 1_000_000n;
     const result = await a.createJobProposal(
@@ -582,48 +466,18 @@ function createJobService() {
   },
 
   async getPendingProposals(): Promise<Job[]> {
-    if (!JOB_CANISTER_ID) {
-      const pending = typeof window !== "undefined" && (window as any).__e2e_pending_proposals;
-      if (pending) return pending as Job[];
-      return mockJobs.filter((j) => j.status === "pending_homeowner_approval");
-    }
     const a = await getActor();
     const raw: any[] = await a.getPendingProposals();
     return raw.map(fromJob);
   },
 
   async approveJobProposal(jobId: string): Promise<Job> {
-    if (!JOB_CANISTER_ID) {
-      const idx = mockJobs.findIndex((j) => j.id === jobId);
-      if (idx !== -1) {
-        mockJobs[idx] = { ...mockJobs[idx], homeownerSigned: true, status: "pending" };
-        return mockJobs[idx];
-      }
-      // Also check __e2e_pending_proposals mock
-      const pending: Job[] = (typeof window !== "undefined" && (window as any).__e2e_pending_proposals) || [];
-      const pidx = pending.findIndex((j) => j.id === jobId);
-      if (pidx !== -1) {
-        const approved = { ...pending[pidx], homeownerSigned: true, status: "pending" as JobStatus };
-        pending.splice(pidx, 1);
-        mockJobs.push(approved);
-        return approved;
-      }
-      throw new Error(`Job proposal not found in mock store or e2e pending list (id: ${jobId})`);
-    }
     const a = await getActor();
     const result = await a.approveJobProposal(jobId);
     return unwrapJob(result);
   },
 
   async rejectJobProposal(jobId: string): Promise<void> {
-    if (!JOB_CANISTER_ID) {
-      const idx = mockJobs.findIndex((j) => j.id === jobId);
-      if (idx !== -1) { mockJobs.splice(idx, 1); return; }
-      const pending: Job[] = (typeof window !== "undefined" && (window as any).__e2e_pending_proposals) || [];
-      const pidx = pending.findIndex((j) => j.id === jobId);
-      if (pidx !== -1) { pending.splice(pidx, 1); return; }
-      throw new Error(`Job proposal not found in mock store or e2e pending list (id: ${jobId})`);
-    }
     const a = await getActor();
     const result = await a.rejectJobProposal(jobId);
     if ("err" in result) {
@@ -635,7 +489,6 @@ function createJobService() {
 
   reset() {
     _actor = null;
-    mockJobs.length = 0;
   },
   };
 }

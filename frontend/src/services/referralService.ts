@@ -28,7 +28,6 @@ export const referralService = {
 
   /** Fetch pending referral fees (admin). Returns empty array when canister absent. */
   async getPendingFees(): Promise<ReferralFeeRecord[]> {
-    if (!JOB_CANISTER_ID) return [];
     // TODO(#82): call job canister getReferralFees() once implemented on-chain
     return [];
   },

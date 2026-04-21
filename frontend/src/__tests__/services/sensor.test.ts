@@ -1,5 +1,120 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
+// ─── Persistent mock factories for ICP deps ────────────────────────────────────
+// vi.mock() is hoisted and registered as a persistent factory.
+// Each time vi.resetModules() causes the sensor module to re-import, the factory
+// creates a FRESH stateful mock actor with its own in-memory device/event store.
+
+vi.mock("@/services/actor", () => ({
+  getAgent: vi.fn().mockResolvedValue({}),
+}));
+
+vi.mock("@icp-sdk/core/agent", () => ({
+  Actor: { createActor: vi.fn(() => ({})) },
+}));
+
+// ─── In-memory patch helper ───────────────────────────────────────────────────
+// Replaces canister-backed methods on sensorService with in-memory implementations.
+// Called in each beforeEach after vi.resetModules() + dynamic import.
+
+function patchSensorService(svc: any): void {
+  const devices: any[] = [];
+  const events:  any[] = [];
+  let devCounter = 0;
+  let evtCounter = 0;
+  let criticalHandler: ((e: any) => void) | null = null;
+
+  function classifySeverity(eventType: string, value: number): string {
+    switch (eventType) {
+      case "WaterLeak":
+      case "FloodRisk":
+        return "Critical";
+      case "LeakDetected":
+        return "Warning";
+      case "LowTemperature":
+        return value <= 32 ? "Critical" : value <= 45 ? "Warning" : "Info";
+      case "HighTemperature":
+        return value >= 100 ? "Critical" : value >= 85 ? "Warning" : "Info";
+      case "HighHumidity":
+        return value >= 80 ? "Critical" : value >= 65 ? "Warning" : "Info";
+      case "HvacAlert":
+        return "Warning";
+      case "HvacFilterDue":
+        return "Info";
+      default:
+        return "Info";
+    }
+  }
+
+  svc.registerDevice = async (propertyId: string, externalDeviceId: string, source: string, name: string) => {
+    devCounter++;
+    const device = {
+      id:               `dev-${devCounter}`,
+      propertyId,
+      homeowner:        "local",
+      externalDeviceId,
+      source,
+      name,
+      registeredAt:     Date.now(),
+      isActive:         true,
+    };
+    devices.push(device);
+    return device;
+  };
+
+  svc.deactivateDevice = async (deviceId: string) => {
+    const dev = devices.find((d) => d.id === deviceId);
+    if (dev) dev.isActive = false;
+  };
+
+  svc.getDevicesForProperty = async (propertyId: string) => {
+    return devices.filter((d) => d.propertyId === propertyId && d.isActive);
+  };
+
+  svc.ingestReading = async (propertyId: string, deviceId: string, eventType: string, value: number, unit: string) => {
+    evtCounter++;
+    const severity = classifySeverity(eventType, value);
+    const event = {
+      id:         `evt-${evtCounter}`,
+      deviceId,
+      propertyId,
+      eventType,
+      value,
+      unit,
+      timestamp:  Date.now(),
+      severity,
+      jobId:      null,
+    };
+    events.push(event);
+    if (severity === "Critical" && criticalHandler) criticalHandler(event);
+    return event;
+  };
+
+  svc.ingestReadings = async (readings: any[]) => {
+    return Promise.all(readings.map((r) => svc.ingestReading(r.propertyId, r.deviceId, r.eventType, r.value, r.unit)));
+  };
+
+  svc.getEventsForProperty = async (propertyId: string, _limit?: number) => {
+    return events.filter((e) => e.propertyId === propertyId);
+  };
+
+  svc.getPendingAlerts = async (propertyId: string) => {
+    return events.filter((e) => e.propertyId === propertyId && e.severity === "Critical");
+  };
+
+  svc.onCriticalEvent = (handler: (e: any) => void) => {
+    criticalHandler = handler;
+  };
+
+  svc.reset = () => {
+    devices.length = 0;
+    events.length = 0;
+    devCounter = 0;
+    evtCounter = 0;
+    criticalHandler = null;
+  };
+}
+
 // ─── Helpers (no canister) ────────────────────────────────────────────────────
 // Import the pure helpers directly; mock paths are exercised via dynamic imports
 // after vi.resetModules() so each test group gets a fresh MOCK_DEVICES array.
@@ -12,6 +127,7 @@ describe("sensorService helpers", () => {
   beforeEach(async () => {
     vi.resetModules();
     ({ sensorService } = await import("@/services/sensor"));
+    patchSensorService(sensorService);
   });
 
   // ── eventLabel ──────────────────────────────────────────────────────────────
@@ -77,6 +193,7 @@ describe("sensorService mock path", () => {
   beforeEach(async () => {
     vi.resetModules();
     ({ sensorService } = await import("@/services/sensor"));
+    patchSensorService(sensorService);
   });
 
   // ── registerDevice ──────────────────────────────────────────────────────────
@@ -230,6 +347,7 @@ describe("sensorService.classifySeverity — threshold boundaries (12.2.6)", () 
   beforeEach(async () => {
     vi.resetModules();
     ({ sensorService } = await import("@/services/sensor"));
+    patchSensorService(sensorService);
   });
 
   // WaterLeak / FloodRisk — always Critical
@@ -312,6 +430,7 @@ describe("sensorService.ingestReading — single reading (12.2.6)", () => {
   beforeEach(async () => {
     vi.resetModules();
     ({ sensorService } = await import("@/services/sensor"));
+    patchSensorService(sensorService);
   });
 
   it("returns a SensorEvent with the supplied fields", async () => {
@@ -335,6 +454,7 @@ describe("sensorService.ingestReading — single reading (12.2.6)", () => {
 
     vi.resetModules();
     ({ sensorService } = await import("@/services/sensor"));
+    patchSensorService(sensorService);
     const info = await sensorService.ingestReading("prop-1", "dev-1", "HvacFilterDue", 0, "");
     expect(info.severity).toBe("Info");
   });
@@ -366,6 +486,7 @@ describe("sensorService.ingestReadings — bulk ingestion (12.2.6)", () => {
   beforeEach(async () => {
     vi.resetModules();
     ({ sensorService } = await import("@/services/sensor"));
+    patchSensorService(sensorService);
   });
 
   it("returns an array of the same length as input", async () => {
@@ -424,6 +545,7 @@ describe("sensorService.getPendingAlerts — Critical events only (12.2.6)", () 
   beforeEach(async () => {
     vi.resetModules();
     ({ sensorService } = await import("@/services/sensor"));
+    patchSensorService(sensorService);
   });
 
   it("returns Critical event after ingesting a WaterLeak reading", async () => {
@@ -470,6 +592,7 @@ describe("sensorService — Critical event triggers onCriticalEvent handler (12.
   beforeEach(async () => {
     vi.resetModules();
     ({ sensorService } = await import("@/services/sensor"));
+    patchSensorService(sensorService);
   });
 
   it("onCriticalEvent handler is called when a Critical event is ingested", async () => {

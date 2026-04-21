@@ -206,7 +206,6 @@ export const paymentService = {
     tier: PlanTier,
     onStep?: (step: "quoting" | "approving" | "confirming") => void,
   ): Promise<void> {
-    if (!PAYMENT_CANISTER_ID) return;
     const a = await getActor();
 
     if (tier !== "Free") {
@@ -239,7 +238,6 @@ export const paymentService = {
     if ((window as any).__e2e_subscription) {
       return { cancelledAt: null, ...(window as any).__e2e_subscription };
     }
-    if (!PAYMENT_CANISTER_ID) return { tier: "Free", expiresAt: null, cancelledAt: null };
     const a = await getActor();
     const result = await a.getMySubscription();
     if ("err" in result) return { tier: "Free", expiresAt: null, cancelledAt: null };
@@ -268,12 +266,10 @@ export const paymentService = {
     tier: "Pro" | "Premium",
     onStep?: (step: "quoting" | "approving" | "confirming") => void,
   ): Promise<void> {
-    if (!PAYMENT_CANISTER_ID) return;
     return this.subscribe(tier, onStep);
   },
 
   async cancel(): Promise<{ expiresAt: number | null }> {
-    if (!PAYMENT_CANISTER_ID) return { expiresAt: null };
     const a = await getActor();
     const result = await a.cancelSubscription();
     if ("err" in result) {
@@ -328,7 +324,6 @@ export const paymentService = {
   },
 
   async getPricing(tier: PlanTier): Promise<{ priceUSD: number; periodDays: number; propertyLimit: number; photosPerJob: number; quoteRequestsPerMonth: number } | null> {
-    if (!PAYMENT_CANISTER_ID) return null;
     const a = await getActor();
     const result = await a.getPricing({ [tier]: null });
     return {
@@ -341,7 +336,6 @@ export const paymentService = {
   },
 
   async getAllPricing(): Promise<Array<{ tier: PlanTier; priceUSD: number; periodDays: number; propertyLimit: number; photosPerJob: number; quoteRequestsPerMonth: number }>> {
-    if (!PAYMENT_CANISTER_ID) return [];
     const a = await getActor();
     const results = await a.getAllPricing();
     return (results as any[]).map((r) => ({
@@ -388,7 +382,6 @@ export const paymentService = {
     }
 
     // Prod: canister makes the Stripe HTTP outcall directly.
-    if (!PAYMENT_CANISTER_ID) throw new Error("Payment canister not deployed");
     const a = await getActor();
     const giftArg = gift
       ? [{ recipientEmail: gift.recipientEmail, recipientName: gift.recipientName,
@@ -424,7 +417,6 @@ export const paymentService = {
       return data as { type: "subscription"; tier?: string; billing?: string } | { type: "gift"; giftToken: string };
     }
 
-    if (!PAYMENT_CANISTER_ID) throw new Error("Payment canister not deployed");
     const a = await getActor();
     const result = await a.verifyStripeSession(sessionId);
 
@@ -439,7 +431,6 @@ export const paymentService = {
 
   /** Redeem a pending gift using the token emailed to the recipient. */
   async redeemGift(giftToken: string): Promise<void> {
-    if (!PAYMENT_CANISTER_ID) throw new Error("Payment canister not deployed");
     const a = await getActor();
     const result = await a.redeemGift(giftToken);
     if ("err" in result) {

@@ -94,7 +94,7 @@ function fromPhoto(raw: any): Photo {
     url,
     size:        Number(raw.size),
     verified:    raw.verified,
-    createdAt:   Number(raw.createdAt) / 1_000_000,
+    createdAt:   Number(BigInt(raw.createdAt) / 1_000_000n),
   };
 }
 
@@ -210,23 +210,6 @@ function createPhotoService() {
     const bytes      = new Uint8Array(buffer);
     const hash       = await computeHash(buffer);
 
-    if (!PHOTO_CANISTER_ID) {
-      const photo: Photo = {
-        id:          String(Date.now()),
-        jobId,
-        propertyId,
-        phase,
-        description,
-        hash,
-        url:         URL.createObjectURL(compressed),
-        size:        compressed.size,
-        verified:    false,
-        createdAt:   Date.now(),
-      };
-      store.push(photo);
-      return photo;
-    }
-
     const a    = await getActor();
     const data = Array.from(bytes);
     const result = await a.uploadPhoto(
@@ -244,19 +227,16 @@ function createPhotoService() {
   },
 
   async getByJob(jobId: string): Promise<Photo[]> {
-    if (!PHOTO_CANISTER_ID) return store.filter((p) => p.jobId === jobId);
     const a = await getActor();
     return (await a.getPhotosByJob(jobId) as any[]).map(fromPhoto);
   },
 
   async getByProperty(propertyId: string): Promise<Photo[]> {
-    if (!PHOTO_CANISTER_ID) return store.filter((p) => p.propertyId === propertyId);
     const a = await getActor();
     return (await a.getPhotosByProperty(propertyId) as any[]).map(fromPhoto);
   },
 
   async getByRoom(roomId: string): Promise<Photo[]> {
-    if (!PHOTO_CANISTER_ID) return store.filter((p) => p.jobId === `ROOM_${roomId}`);
     const a = await getActor();
     return (await a.getPhotosByRoom(roomId) as any[]).map(fromPhoto);
   },
@@ -291,19 +271,15 @@ function createPhotoService() {
    * query so prospective buyers can view listing photos without signing in.
    */
   async getListingPhotos(propertyId: string): Promise<Photo[]> {
-    if (!PHOTO_CANISTER_ID) {
-      // E2E injection takes priority, then fall through to in-memory store
-      if (typeof window !== "undefined" && (window as any).__e2e_listing_photos) {
-        return ((window as any).__e2e_listing_photos[propertyId] ?? []) as Photo[];
-      }
-      return store.filter((p) => p.jobId === `LISTING_${propertyId}`);
+    if (typeof window !== "undefined" && (window as any).__e2e_listing_photos) {
+      const photosMap = (window as any).__e2e_listing_photos as Record<string, Photo[]>;
+      return photosMap[propertyId] ?? [];
     }
     const a = await getActor();
     return (await a.getPublicListingPhotos(propertyId) as any[]).map(fromPhoto);
   },
 
   async deletePhoto(photoId: string): Promise<void> {
-    if (!PHOTO_CANISTER_ID) return;
     const a = await getActor();
     const result = await a.deletePhoto(photoId);
     if ("err" in result) {

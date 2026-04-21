@@ -157,21 +157,6 @@ function createSensorService() {
     source:           DeviceSource,
     name:             string
   ): Promise<SensorDevice> {
-    if (!SENSOR_CANISTER_ID) {
-      deviceCounter += 1;
-      const device: SensorDevice = {
-        id:               `DEV_${deviceCounter}`,
-        propertyId,
-        homeowner:        "mock-principal",
-        externalDeviceId,
-        source,
-        name,
-        registeredAt:     Date.now(),
-        isActive:         true,
-      };
-      devices.push(device);
-      return device;
-    }
     const a = await getActor();
     const result = await a.registerDevice(propertyId, externalDeviceId, { [source]: null }, name);
     if ("ok" in result) return fromDevice(result.ok);
@@ -181,36 +166,22 @@ function createSensorService() {
   },
 
   async deactivateDevice(deviceId: string): Promise<void> {
-    if (!SENSOR_CANISTER_ID) {
-      const idx = devices.findIndex((d) => d.id === deviceId);
-      if (idx !== -1) devices[idx] = { ...devices[idx], isActive: false };
-      return;
-    }
     const a = await getActor();
     const result = await a.deactivateDevice(deviceId);
     if ("err" in result) throw new Error(Object.keys(result.err)[0]);
   },
 
   async getDevicesForProperty(propertyId: string): Promise<SensorDevice[]> {
-    if (!SENSOR_CANISTER_ID) {
-      return devices.filter((d) => d.propertyId === propertyId && d.isActive);
-    }
     const a = await getActor();
     return (await a.getDevicesForProperty(propertyId) as any[]).map(fromDevice);
   },
 
   async getEventsForProperty(propertyId: string, limit = 50): Promise<SensorEvent[]> {
-    if (!SENSOR_CANISTER_ID) {
-      return mockEvents.filter((e) => e.propertyId === propertyId).slice(0, limit);
-    }
     const a = await getActor();
     return (await a.getEventsForProperty(propertyId, BigInt(limit)) as any[]).map(fromEvent);
   },
 
   async getPendingAlerts(propertyId: string): Promise<SensorEvent[]> {
-    if (!SENSOR_CANISTER_ID) {
-      return mockEvents.filter((e) => e.propertyId === propertyId && e.severity === "Critical");
-    }
     const a = await getActor();
     return (await a.getPendingAlerts(propertyId) as any[]).map(fromEvent);
   },
@@ -247,25 +218,6 @@ function createSensorService() {
     unit:       string,
     rawPayload = ""
   ): Promise<SensorEvent> {
-    if (!SENSOR_CANISTER_ID) {
-      const severity = this.classifySeverity(eventType, value);
-      const event: SensorEvent = {
-        id:         `EVT_${++eventCounter}`,
-        deviceId,
-        propertyId,
-        eventType,
-        value,
-        unit,
-        timestamp:  Date.now(),
-        severity,
-        jobId:      null,
-      };
-      mockEvents.push(event);
-      if (severity === "Critical" && criticalHandler) {
-        criticalHandler(event);
-      }
-      return event;
-    }
     // Canister path: deviceId is used as externalDeviceId — the IoT gateway
     // always works with platform-assigned external IDs (Nest/Ecobee/Moen Flo).
     const a = await getActor();
@@ -276,7 +228,14 @@ function createSensorService() {
       unit,
       rawPayload
     );
-    if ("ok" in result) return fromEvent(result.ok);
+    if ("ok" in result) {
+      const event = fromEvent(result.ok);
+      // Use the explicit propertyId (real canister resolves via device registry;
+      // IoT gateway always provides it at ingestion time).
+      const resolved: SensorEvent = event.propertyId ? event : { ...event, propertyId };
+      if (resolved.severity === "Critical" && criticalHandler) criticalHandler(resolved);
+      return resolved;
+    }
     const key = Object.keys(result.err)[0];
     const val = result.err[key];
     throw new Error(typeof val === "string" ? val : key);

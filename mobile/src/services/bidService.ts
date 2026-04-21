@@ -16,14 +16,6 @@ export interface Bid {
   submittedAt:  number;  // ms
 }
 
-export async function submitBid(input: SubmitBidInput, _agent?: HttpAgent): Promise<Bid> {
-  // TODO: replace with real canister call — quote.submitQuote(requestId, amount, timeline, notes)
-  return {
-    id:           `bid_${Date.now()}`,
-    requestId:    input.requestId,
-    amountCents:  input.amountCents,
-    timelineDays: input.timelineDays,
-    notes:        input.notes,
-    submittedAt:  Date.now(),
-  };
+export async function submitBid(_input: SubmitBidInput, _agent?: HttpAgent): Promise<Bid> {
+  throw new Error("Not implemented: submitBid — wire to quote canister submitQuote");
 }

@@ -23,19 +23,77 @@ File.prototype.arrayBuffer = function (): Promise<ArrayBuffer> {
   });
 };
 
-// ─── Mock external ICP dependencies ──────────────────────────────────────────
+// ─── Stateful mock actor for photo canister ───────────────────────────────────
+
+let _mockPhotos: any[] = [];
+let _photoCounter = 0;
+
+function makeRawPhoto(overrides: any = {}): any {
+  _photoCounter++;
+  return {
+    id:          `photo-${_photoCounter}`,
+    jobId:       "job-1",
+    propertyId:  "prop-1",
+    owner:       { toText: () => "local" },
+    phase:       { Framing: null },
+    description: "",
+    hash:        "0".repeat(64),
+    data:        [],
+    size:        BigInt(0),
+    verified:    false,
+    approvals:   [],
+    createdAt:   BigInt(Date.now()) * 1_000_000n,
+    ...overrides,
+  };
+}
+
+const mockPhotoActor = {
+  uploadPhoto: vi.fn(async (jobId: string, propertyId: string, phase: any, description: string, hash: string, data: number[]) => {
+    const raw = makeRawPhoto({ jobId, propertyId, phase, description, hash, data, size: BigInt(data.length) });
+    _mockPhotos.push(raw);
+    return { ok: raw };
+  }),
+  getPhotosByJob: vi.fn(async (jobId: string) => {
+    return _mockPhotos.filter((p) => p.jobId === jobId);
+  }),
+  getPhotosByProperty: vi.fn(async (propertyId: string) => {
+    return _mockPhotos.filter((p) => p.propertyId === propertyId);
+  }),
+  getPhotosByRoom: vi.fn(async (roomId: string) => {
+    return _mockPhotos.filter((p) => p.jobId === `ROOM_${roomId}`);
+  }),
+  getPublicListingPhotos: vi.fn(async (propertyId: string) => {
+    return _mockPhotos.filter((p) => p.jobId === `LISTING_${propertyId}`);
+  }),
+  deletePhoto: vi.fn(async (_photoId: string) => {
+    return { ok: null };
+  }),
+};
 
 vi.mock("@/services/actor", () => ({
   getAgent: vi.fn().mockResolvedValue({}),
 }));
 
 vi.mock("@icp-sdk/core/agent", () => ({
-  Actor: { createActor: vi.fn(() => ({})) },
+  Actor: { createActor: vi.fn(() => mockPhotoActor) },
 }));
 
 // ─── Import after mocks ───────────────────────────────────────────────────────
 
 import { photoService } from "@/services/photo";
+
+// Patch reset() so it also clears the mock actor state.
+const _originalReset = photoService.reset.bind(photoService);
+photoService.reset = function() {
+  _originalReset();
+  _mockPhotos = [];
+  _photoCounter = 0;
+  // Re-wire mock implementations (cleared by clearAllMocks in beforeEach)
+  mockPhotoActor.getPhotosByJob.mockImplementation(async (jobId: string) => _mockPhotos.filter((p) => p.jobId === jobId));
+  mockPhotoActor.getPhotosByProperty.mockImplementation(async (propertyId: string) => _mockPhotos.filter((p) => p.propertyId === propertyId));
+  mockPhotoActor.getPhotosByRoom.mockImplementation(async (roomId: string) => _mockPhotos.filter((p) => p.jobId === `ROOM_${roomId}`));
+  mockPhotoActor.getPublicListingPhotos.mockImplementation(async (propertyId: string) => _mockPhotos.filter((p) => p.jobId === `LISTING_${propertyId}`));
+};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -48,7 +106,20 @@ function makeFile(content = "hello world", name = "receipt.jpg", type = "image/j
 describe("photoService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    _mockPhotos = [];
+    _photoCounter = 0;
     photoService.reset();
+    // Re-wire the mock functions after clearAllMocks
+    mockPhotoActor.uploadPhoto.mockImplementation(async (jobId: string, propertyId: string, phase: any, description: string, hash: string, data: number[]) => {
+      const raw = makeRawPhoto({ jobId, propertyId, phase, description, hash, data, size: BigInt(data.length) });
+      _mockPhotos.push(raw);
+      return { ok: raw };
+    });
+    mockPhotoActor.getPhotosByJob.mockImplementation(async (jobId: string) => _mockPhotos.filter((p) => p.jobId === jobId));
+    mockPhotoActor.getPhotosByProperty.mockImplementation(async (propertyId: string) => _mockPhotos.filter((p) => p.propertyId === propertyId));
+    mockPhotoActor.getPhotosByRoom.mockImplementation(async (roomId: string) => _mockPhotos.filter((p) => p.jobId === `ROOM_${roomId}`));
+    mockPhotoActor.getPublicListingPhotos.mockImplementation(async (propertyId: string) => _mockPhotos.filter((p) => p.jobId === `LISTING_${propertyId}`));
+    mockPhotoActor.deletePhoto.mockImplementation(async () => ({ ok: null }));
   });
 
   // ── upload (mock path — no PHOTO_CANISTER_ID) ────────────────────────────────
@@ -107,7 +178,7 @@ describe("photoService", () => {
 
     it("calls URL.createObjectURL to generate a blob URL", async () => {
       const photo = await photoService.upload(makeFile(), "j1", "p1", "Insulation", "desc");
-      expect(mockCreateObjectURL).toHaveBeenCalledWith(expect.any(File));
+      expect(mockCreateObjectURL).toHaveBeenCalledWith(expect.any(Blob));
       expect(photo.url).toBe(FAKE_BLOB_URL);
     });
 

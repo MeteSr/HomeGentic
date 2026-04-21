@@ -34,8 +34,6 @@ export function signConfirmationText(job: SignableJob): string {
   );
 }
 
-export async function signJob(jobId: string, _agent?: HttpAgent): Promise<void> {
-  // TODO: replace with real canister call — job.verifyJob(jobId)
-  // The canister records which party signed; when both have signed, status → Verified.
-  console.log(`[signJob] signed job=${jobId}`);
+export async function signJob(_jobId: string, _agent?: HttpAgent): Promise<void> {
+  throw new Error("Not implemented: signJob — wire to job canister verifyJob");
 }

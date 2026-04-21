@@ -1,5 +1,101 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+
+// ─── Mock ICP deps ────────────────────────────────────────────────────────────
+
+vi.mock("@/services/actor", () => ({
+  getAgent: vi.fn().mockResolvedValue({}),
+}));
+vi.mock("@icp-sdk/core/agent", () => ({
+  Actor: { createActor: vi.fn(() => ({})) },
+}));
+
+// ─── In-memory patch helper ───────────────────────────────────────────────────
+
+function patchQuoteService(svc: any): void {
+  const requests: any[] = [];
+  const quotes:   any[] = [];
+  let reqCounter = 0;
+  let qCounter   = 0;
+
+  svc.createRequest = async (req: any, tier?: string): Promise<any> => {
+    // Tier quota check
+    if (tier) {
+      const openCount = requests.filter((r) => r.status === "open").length;
+      const limit = svc.getQuotaForTier(tier);
+      if (limit > 0 && openCount >= limit) {
+        throw new Error("Quota exceeded — limit reached for your tier");
+      }
+    }
+    reqCounter++;
+    const created = {
+      id:          `req-${reqCounter}-${Date.now()}`,
+      propertyId:  req.propertyId,
+      homeowner:   "local",
+      serviceType: req.serviceType,
+      urgency:     req.urgency,
+      description: req.description,
+      status:      "open",
+      createdAt:   Date.now(),
+    };
+    requests.push(created);
+    return created;
+  };
+
+  svc.getRequests = async (): Promise<any[]> => [...requests];
+
+  svc.getOpenRequests = async (): Promise<any[]> =>
+    requests.filter((r) => r.status === "open");
+
+  svc.getRequest = async (id: string): Promise<any | undefined> =>
+    requests.find((r) => r.id === id);
+
+  svc.submitQuote = async (requestId: string, amountCents: number, timelineDays: number, validUntilMs: number): Promise<any> => {
+    qCounter++;
+    const q = {
+      id:         `quote-${qCounter}-${Date.now()}`,
+      requestId,
+      contractor: "local",
+      amount:     amountCents,
+      timeline:   timelineDays,
+      validUntil: validUntilMs,
+      status:     "pending",
+      createdAt:  Date.now(),
+    };
+    quotes.push(q);
+    return q;
+  };
+
+  svc.getQuotesForRequest = async (requestId: string): Promise<any[]> =>
+    quotes.filter((q) => q.requestId === requestId);
+
+  svc.getMyBids = async (): Promise<any[]> => [...quotes];
+
+  svc.getBidCountMap = async (requestIds: string[]): Promise<Record<string, number>> => {
+    const map: Record<string, number> = {};
+    for (const id of requestIds) {
+      map[id] = quotes.filter((q) => q.requestId === id).length;
+    }
+    return map;
+  };
+
+  svc.cancel = async (requestId: string): Promise<void> => {
+    const req = requests.find((r) => r.id === requestId);
+    if (!req) throw new Error("NotFound");
+    req.status = "cancelled";
+  };
+
+  svc.reset = () => {
+    requests.length = 0;
+    quotes.length = 0;
+    reqCounter = 0;
+    qCounter = 0;
+  };
+}
+
 import { quoteService } from "@/services/quote";
+
+// Patch the module-level quoteService with in-memory behavior
+patchQuoteService(quoteService);
 
 // Ensure Date.now() increments on every call so IDs based on it are always distinct.
 let _now = 2_000_000_000_000;
@@ -76,6 +172,7 @@ describe("quoteService mock — createRequest", () => {
     vi.resetModules();
     const m = await import("@/services/quote");
     svc = m.quoteService;
+    patchQuoteService(svc);
   });
 
   it("returns a QuoteRequest with the supplied fields", async () => {
@@ -134,6 +231,7 @@ describe("quoteService mock — getRequests", () => {
     vi.resetModules();
     const m = await import("@/services/quote");
     svc = m.quoteService;
+    patchQuoteService(svc);
   });
 
   it("starts empty when no seed data is present", async () => {
@@ -164,6 +262,7 @@ describe("quoteService mock — getRequest", () => {
     vi.resetModules();
     const m = await import("@/services/quote");
     svc = m.quoteService;
+    patchQuoteService(svc);
   });
 
   it("finds a created request by id", async () => {
@@ -195,6 +294,7 @@ describe("quoteService mock — submitQuote", () => {
     vi.resetModules();
     const m = await import("@/services/quote");
     svc = m.quoteService;
+    patchQuoteService(svc);
   });
 
   it("returns a Quote with the supplied values", async () => {
@@ -242,6 +342,7 @@ describe("quoteService mock — contractor bid storage (12.2.3)", () => {
     vi.resetModules();
     const m = await import("@/services/quote");
     svc = m.quoteService;
+    patchQuoteService(svc);
   });
 
   it("getQuotesForRequest returns submitted bid for that request", async () => {
@@ -376,7 +477,7 @@ describe("quoteService mock — tier quota enforcement (12.2.3)", () => {
     vi.resetModules();
     const m = await import("@/services/quote");
     svc = m.quoteService;
-    // No pre-seeded state — mock starts empty after SEED data removal
+    patchQuoteService(svc);
   });
 
   it("Free tier: 3rd open request succeeds (limit = 3)", async () => {

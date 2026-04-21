@@ -1,8 +1,120 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+
+// ─── Stateful mock actor for the report canister ──────────────────────────────
+
+let _mockCounter = 0;
+const _mockSnapshots = new Map<string, any>(); // snapshotId → raw snapshot
+const _mockLinks = new Map<string, any>();      // token → raw link
+
+function makePrincipal() { return { toText: () => "local" }; }
+
+const mockReportActor = {
+  generateReport: vi.fn(async (
+    propertyId: string,
+    property: any,
+    jobs: any[],
+    recurringServices: any[],
+    expiryDays: any[],
+    visibility: any,
+    rooms: any[],
+    ...rest: any[]
+  ) => {
+    _mockCounter++;
+    const snapshotId = `SNAP_${_mockCounter}`;
+    const token      = `RPT_${_mockCounter}_${Date.now()}`;
+
+    const expiresNs = expiryDays[0] != null
+      ? [BigInt(Date.now() + Number(expiryDays[0]) * 86_400_000) * 1_000_000n]
+      : [];
+
+    const totalAmountCents = jobs.reduce((s: number, j: any) => s + Number(j.amountCents), 0);
+    const verifiedJobCount = jobs.filter((j: any) => j.isVerified).length;
+    const diyJobCount      = jobs.filter((j: any) => j.isDiy).length;
+    const permitCount      = jobs.filter((j: any) => j.permitNumber?.length > 0).length;
+
+    const rawSnapshot = {
+      snapshotId,
+      propertyId,
+      generatedBy:      makePrincipal(),
+      address:          property.address,
+      city:             property.city,
+      state:            property.state,
+      zipCode:          property.zipCode,
+      propertyType:     property.propertyType,
+      yearBuilt:        property.yearBuilt,
+      squareFeet:       property.squareFeet,
+      verificationLevel: property.verificationLevel,
+      jobs,
+      recurringServices,
+      rooms:            rooms.length > 0 ? rooms : [],
+      totalAmountCents: BigInt(totalAmountCents),
+      verifiedJobCount: BigInt(verifiedJobCount),
+      diyJobCount:      BigInt(diyJobCount),
+      permitCount:      BigInt(permitCount),
+      generatedAt:      BigInt(Date.now()) * 1_000_000n,
+      planTier:         "Free",
+    };
+
+    const rawLink = {
+      token,
+      snapshotId,
+      propertyId,
+      createdBy:  makePrincipal(),
+      expiresAt:  expiresNs,
+      visibility,
+      viewCount:  BigInt(0),
+      isActive:   true,
+      createdAt:  BigInt(Date.now()) * 1_000_000n,
+    };
+
+    _mockSnapshots.set(token, rawSnapshot);
+    _mockLinks.set(token, rawLink);
+    return { ok: rawLink };
+  }),
+
+  getReport: vi.fn(async (token: string) => {
+    const link = _mockLinks.get(token);
+    if (!link) return { err: { NotFound: null } };
+    if (!link.isActive) return { err: { Revoked: null } };
+    // Check expiry
+    const expiresNs = link.expiresAt[0];
+    if (expiresNs != null && Number(expiresNs) / 1_000_000 < Date.now()) {
+      return { err: { Expired: null } };
+    }
+    link.viewCount = link.viewCount + 1n;
+    const snapshot = _mockSnapshots.get(token);
+    return { ok: [link, snapshot] };
+  }),
+
+  listShareLinks: vi.fn(async (propertyId: string) => {
+    return [..._mockLinks.values()].filter((l) => l.propertyId === propertyId);
+  }),
+
+  revokeShareLink: vi.fn(async (token: string) => {
+    const link = _mockLinks.get(token);
+    if (!link) return { err: { NotFound: null } };
+    link.isActive = false;
+    return { ok: null };
+  }),
+};
+
+vi.mock("@/services/actor", () => ({
+  getAgent: vi.fn().mockResolvedValue({}),
+}));
+vi.mock("@icp-sdk/core/agent", () => ({
+  Actor: { createActor: vi.fn(() => mockReportActor) },
+}));
+
 import { reportService } from "@/services/report";
 import type { PropertyInput, JobInput } from "@/services/report";
 
-beforeEach(() => { reportService.reset(); });
+beforeEach(() => {
+  _mockCounter = 0;
+  _mockSnapshots.clear();
+  _mockLinks.clear();
+  // Re-wire mocks (vi.clearAllMocks not called here, but ensure fresh state)
+  reportService.reset();
+});
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 

@@ -19,12 +19,138 @@
  * ─────────────────────────────────────────────────────────────────────────
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+
+// ─── Stateful combined mock actor ─────────────────────────────────────────────
+// All four services (report, job, quote, sensor) share this actor since
+// Actor.createActor() is mocked to always return it.
+
+let _repSeq = 0;
+let _jobSeq = 0;
+let _evtSeq = 0;
+const _reports  = new Map<string, { rawLink: any; rawSnapshot: any }>();
+const _jobsMap  = new Map<string, any>();
+
+function mockSeverity(eventType: string): string {
+  if (eventType === "WaterLeak" || eventType === "FloodRisk") return "Critical";
+  if (eventType === "LeakDetected" || eventType === "HvacAlert") return "Warning";
+  return "Info";
+}
+
+function resetAllMocks() {
+  _repSeq = 0; _jobSeq = 0; _evtSeq = 0;
+  _reports.clear(); _jobsMap.clear();
+}
+
+const mockActor = {
+  // ── reportService ─────────────────────────────────────────────────────────
+  generateReport: vi.fn(async (
+    propertyId: string, rawProp: any, rawJobs: any[], rawRecurring: any[],
+    expiryDaysOpt: bigint[], visVariant: any,
+  ) => {
+    _repSeq++;
+    const snapshotId = `SNAP-${_repSeq}`;
+    const token = `token-${_repSeq}`;
+    const rawLink = {
+      token, snapshotId, propertyId,
+      createdBy: { toText: () => "local" },
+      expiresAt: expiryDaysOpt.length > 0 ? [BigInt(expiryDaysOpt[0]) * 86_400_000n] : [],
+      visibility: visVariant, viewCount: 0n, isActive: true,
+      createdAt: BigInt(Date.now()) * 1_000_000n,
+    };
+    const rawSnapshot = {
+      snapshotId, propertyId,
+      generatedBy: { toText: () => "local" },
+      address: rawProp.address, city: rawProp.city,
+      state: rawProp.state, zipCode: rawProp.zipCode,
+      propertyType: rawProp.propertyType,
+      yearBuilt: rawProp.yearBuilt, squareFeet: rawProp.squareFeet,
+      verificationLevel: rawProp.verificationLevel,
+      jobs: rawJobs, recurringServices: rawRecurring, rooms: [],
+      totalAmountCents:  rawJobs.reduce((s: bigint, j: any) => s + BigInt(j.amountCents), 0n),
+      verifiedJobCount:  BigInt(rawJobs.filter((j: any) => j.isVerified).length),
+      diyJobCount:       BigInt(rawJobs.filter((j: any) => j.isDiy).length),
+      permitCount:       BigInt(rawJobs.filter((j: any) => (j.permitNumber?.length ?? 0) > 0).length),
+      generatedAt:       BigInt(Date.now()) * 1_000_000n, planTier: "Free",
+    };
+    _reports.set(token, { rawLink, rawSnapshot });
+    return { ok: rawLink };
+  }),
+
+  getReport: vi.fn(async (token: string) => {
+    const entry = _reports.get(token);
+    if (!entry) return { err: { NotFound: null } };
+    entry.rawLink.viewCount += 1n;
+    return { ok: [entry.rawLink, entry.rawSnapshot] };
+  }),
+
+  // ── jobService ────────────────────────────────────────────────────────────
+  createJob: vi.fn(async (
+    propertyId: string, _title: string, serviceType: any, description: string,
+    contractorName: string[], amount: bigint, completedDate: bigint,
+    permitNumber: string[], warrantyMonths: bigint[], isDiy: boolean, sourceQuoteId: string[],
+  ) => {
+    _jobSeq++;
+    const id = `JOB-${_jobSeq}`;
+    const raw = {
+      id, propertyId,
+      homeowner: { toText: () => "local" },
+      contractor: [], serviceType, contractorName, amount, completedDate,
+      description, isDiy, permitNumber, warrantyMonths,
+      status: { Pending: null }, verified: false,
+      homeownerSigned: false, contractorSigned: false,
+      createdAt: BigInt(Date.now()) * 1_000_000n, sourceQuoteId,
+    };
+    _jobsMap.set(id, raw);
+    return { ok: raw };
+  }),
+
+  updateJobStatus: vi.fn(async (jobId: string, statusVariant: any) => {
+    const job = _jobsMap.get(jobId);
+    if (!job) return { err: { NotFound: null } };
+    job.status = statusVariant;
+    return { ok: job };
+  }),
+
+  getJobsForProperty: vi.fn(async (propertyId: string) => {
+    return { ok: [..._jobsMap.values()].filter((j) => j.propertyId === propertyId) };
+  }),
+
+  // ── quoteService ──────────────────────────────────────────────────────────
+  getOpenRequests: vi.fn(async () => []),
+
+  // ── sensorService ─────────────────────────────────────────────────────────
+  recordEvent: vi.fn(async (deviceId: string, eventType: any, value: number, unit: string) => {
+    _evtSeq++;
+    const key = Object.keys(eventType)[0];
+    const severity = mockSeverity(key);
+    return { ok: {
+      id: `EVT-${_evtSeq}`, deviceId, propertyId: "",
+      eventType, value, unit,
+      timestamp: BigInt(Date.now()) * 1_000_000n,
+      severity: { [severity]: null }, jobId: [],
+    }};
+  }),
+};
+
+vi.mock("@/services/actor", () => ({ getAgent: vi.fn().mockResolvedValue({}) }));
+vi.mock("@icp-sdk/core/agent", () => ({
+  Actor: { createActor: vi.fn(() => mockActor) },
+}));
+
 import { reportService }  from "../../services/report";
 import { jobService }     from "../../services/job";
 import { quoteService }   from "../../services/quote";
 import { sensorService }  from "../../services/sensor";
 import type { JobInput, PropertyInput } from "../../services/report";
+
+// Reset all mock state before every test
+beforeEach(() => {
+  resetAllMocks();
+  reportService.reset();
+  jobService.reset();
+  sensorService.reset();
+});
 
 // ─── Shared fixtures ──────────────────────────────────────────────────────────
 

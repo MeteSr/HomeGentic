@@ -57,40 +57,14 @@ export function formatEarnings(cents: number): string {
   });
 }
 
-// ── Mock data ────────────────────���─────────────────────────────────────���──────
-
-const MOCK_LEADS: Lead[] = [
-  { id: "q1", serviceType: "HVAC",     description: "AC unit not cooling — 2,400 sq ft home", urgency: "High",   propertyZip: "78701" },
-  { id: "q2", serviceType: "Plumbing", description: "Kitchen faucet leaking under sink",        urgency: "Low",    propertyZip: "78702" },
-  { id: "q3", serviceType: "HVAC",     description: "Furnace annual inspection",                urgency: "Medium", propertyZip: "78701" },
-];
-
-const MOCK_PENDING: PendingSignatureJob[] = [
-  {
-    id:              "job_5",
-    propertyAddress: "456 Elm St, Austin TX",
-    serviceType:     "HVAC",
-    completedDate:   "2026-03-28",
-    amountCents:     185000,
-    awaitingRole:    "homeowner",
-  },
-];
-
-const MOCK_EARNINGS: EarningsSummary = {
-  verifiedJobCount: 14,
-  totalEarnedCents: 2340000,
-  pendingJobCount:  2,
-};
-
 export async function getLeads(_agent?: HttpAgent): Promise<Lead[]> {
-  // TODO: replace with real canister call
-  return MOCK_LEADS;
+  throw new Error("Not implemented: getLeads — wire to quote canister getOpenRequests");
 }
 
 export async function getPendingSignatureJobs(_agent?: HttpAgent): Promise<PendingSignatureJob[]> {
-  return MOCK_PENDING;
+  throw new Error("Not implemented: getPendingSignatureJobs — wire to job canister getPendingProposals");
 }
 
 export async function getEarningsSummary(_agent?: HttpAgent): Promise<EarningsSummary> {
-  return MOCK_EARNINGS;
+  throw new Error("Not implemented: getEarningsSummary — wire to job canister getEarningsSummary");
 }

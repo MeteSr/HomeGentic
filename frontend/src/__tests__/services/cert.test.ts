@@ -1,11 +1,30 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// ─── Mock ICP deps (certService falls back to mock path with no canister ID) ──
+// ─── Stateful mock actor for cert canister ────────────────────────────────────
+// issueCert stores payload and returns a CERT-N id.
+// verifyCert looks up the stored payload.
+
+let _certCounter = 0;
+const _certStore = new Map<string, string>(); // certId → JSON payload
+
+const mockCertActor = {
+  issueCert: vi.fn(async (_propertyId: string, payloadJson: string) => {
+    _certCounter++;
+    const certId = `CERT-${_certCounter}`;
+    _certStore.set(certId, payloadJson);
+    return certId;
+  }),
+  verifyCert: vi.fn(async (certId: string) => {
+    const payload = _certStore.get(certId);
+    return payload ? [payload] : [];
+  }),
+};
+
 vi.mock("@/services/actor", () => ({
   getAgent: vi.fn().mockResolvedValue({}),
 }));
 vi.mock("@icp-sdk/core/agent", () => ({
-  Actor: { createActor: vi.fn(() => ({})) },
+  Actor: { createActor: vi.fn(() => mockCertActor) },
 }));
 
 import { certService, type IssuedCert } from "@/services/cert";
@@ -33,6 +52,8 @@ function decodeToken(token: string): any {
 
 describe("certService", () => {
   beforeEach(() => {
+    _certCounter = 0;
+    _certStore.clear();
     certService.reset();
   });
 
@@ -127,6 +148,9 @@ describe("certService", () => {
     it("returns null after reset() clears the store", async () => {
       const { certId } = await certService.issueCert("prop-1", makePayload());
       certService.reset();
+      // Also reset the mock actor store (equivalent to the canister losing state)
+      _certStore.clear();
+      _certCounter = 0;
       expect(await certService.verifyCert(certId)).toBeNull();
     });
 

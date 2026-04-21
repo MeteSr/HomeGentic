@@ -112,6 +112,14 @@ persistent actor Bills {
   private let bills      = Map.empty<Text, BillRecord>();
   private let tierGrants = Map.empty<Text, SubscriptionTier>();
 
+
+  // ── Ingress inspection ────────────────────────────────────────────────────
+  /// Reject anonymous callers and zero-byte payloads before execution.
+  /// Empty payload cannot be valid Candid for any method that takes a struct
+  /// argument — these are probe / garbage calls that waste cycles.
+  system func inspect({ caller : Principal; arg : Blob }) : Bool {
+    not Principal.isAnonymous(caller) and arg.size() > 0
+  };
   // ─── Private Helpers ─────────────────────────────────────────────────────────
 
   private func isAdmin(caller: Principal) : Bool {

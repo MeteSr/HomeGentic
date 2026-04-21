@@ -190,7 +190,6 @@ function unwrap(result: any): ContractorProfile {
 
 function createContractorService() {
   let _actor: any = null;
-  const mockContractors: ContractorProfile[] = [];
 
   async function getActor() {
     if (!_actor) {
@@ -202,10 +201,9 @@ function createContractorService() {
 
   return {
   async search(specialty?: string): Promise<ContractorProfile[]> {
-    if (!CONTRACTOR_CANISTER_ID) {
-      const e2e = typeof window !== "undefined" && (window as any).__e2e_contractors;
-      const source: ContractorProfile[] = e2e ? (e2e as ContractorProfile[]) : mockContractors;
-      return specialty ? source.filter((c) => c.specialties.includes(specialty)) : [...source];
+    if (typeof window !== "undefined" && (window as any).__e2e_contractors) {
+      const all = (window as any).__e2e_contractors as ContractorProfile[];
+      return specialty ? all.filter((c) => c.specialties.includes(specialty)) : all;
     }
     const a = await getActor();
     const all = (await a.getAll() as any[]).map(fromProfile);
@@ -213,21 +211,15 @@ function createContractorService() {
   },
 
   async getTopRated(): Promise<ContractorProfile[]> {
-    if (!CONTRACTOR_CANISTER_ID) {
-      const e2e = typeof window !== "undefined" && (window as any).__e2e_contractors;
-      const source: ContractorProfile[] = e2e ? (e2e as ContractorProfile[]) : mockContractors;
-      return [...source].sort((a, b) => b.trustScore - a.trustScore);
-    }
     const a = await getActor();
     const all = (await a.getAll() as any[]).map(fromProfile);
     return all.sort((a, b) => b.trustScore - a.trustScore);
   },
 
   async getMyProfile(): Promise<ContractorProfile | null> {
-    if (!CONTRACTOR_CANISTER_ID) {
-      const e2e = typeof window !== "undefined" && (window as any).__e2e_contractors;
-      if (e2e) return (e2e as ContractorProfile[])[0] ?? null;
-      return mockContractors[0] ?? null;
+    if (typeof window !== "undefined" && (window as any).__e2e_contractors) {
+      const all = (window as any).__e2e_contractors as ContractorProfile[];
+      return all.length > 0 ? all[0] : null;
     }
     const a = await getActor();
     const result = await a.getMyProfile();
@@ -236,30 +228,6 @@ function createContractorService() {
   },
 
   async getContractor(principalText: string): Promise<ContractorProfile | null> {
-    if (!CONTRACTOR_CANISTER_ID) {
-      const fromMock = mockContractors.find((c) => c.id === principalText);
-      if (fromMock) return fromMock;
-      // Playwright e2e injection
-      const e2eContractors = typeof window !== "undefined" && (window as any).__e2e_contractors;
-      if (e2eContractors) {
-        const raw = (e2eContractors as any[]).find((c) => c.principal === principalText);
-        if (raw) return {
-          id:            raw.principal,
-          name:          raw.name,
-          specialties:   Array.isArray(raw.specialties) ? raw.specialties : (raw.specialty ? [raw.specialty] : []),
-          email:         raw.email ?? "",
-          phone:         raw.phone ?? "",
-          bio:           raw.bio ?? null,
-          licenseNumber: raw.licenseNumber ?? null,
-          serviceArea:   raw.serviceArea ?? null,
-          trustScore:    raw.trustScore ?? 0,
-          jobsCompleted: raw.jobsCompleted ?? 0,
-          isVerified:    raw.isVerified ?? false,
-          createdAt:     raw.createdAt ?? 0,
-        };
-      }
-      return null;
-    }
     const a = await getActor();
     const { Principal: P } = await import("@icp-sdk/core/principal");
     const result = await a.getContractor(P.fromText(principalText));
@@ -291,10 +259,6 @@ function createContractorService() {
   },
 
   async submitReview(contractorPrincipalText: string, rating: number, comment: string, jobId: string): Promise<void> {
-    if (!CONTRACTOR_CANISTER_ID) {
-      // Mock: no-op in dev
-      return;
-    }
     const a = await getActor();
     const { Principal: P } = await import("@icp-sdk/core/principal");
     const result = await a.submitReview(P.fromText(contractorPrincipalText), BigInt(rating), comment, jobId);
@@ -306,10 +270,6 @@ function createContractorService() {
   },
 
   async getCredentials(contractorPrincipalText: string): Promise<JobCredential[]> {
-    if (!CONTRACTOR_CANISTER_ID) {
-      // Mock: return empty portfolio in dev
-      return [];
-    }
     const a = await getActor();
     const { Principal: P } = await import("@icp-sdk/core/principal");
     const raw = await a.getCredentials(P.fromText(contractorPrincipalText)) as any[];
@@ -324,9 +284,6 @@ function createContractorService() {
   },
 
   async getBySpecialty(specialty: string): Promise<ContractorProfile[]> {
-    if (!CONTRACTOR_CANISTER_ID) {
-      return mockContractors.filter((c) => c.specialties.includes(specialty));
-    }
     const a = await getActor();
     const result = await a.getBySpecialty({ [specialty]: null }) as any[];
     return result.map(fromProfile);
@@ -334,7 +291,6 @@ function createContractorService() {
 
   reset() {
     _actor = null;
-    mockContractors.length = 0;
   },
   };
 }

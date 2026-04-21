@@ -201,76 +201,32 @@ function createRoomService() {
 
   return {
   async getRoomsByProperty(propertyId: string): Promise<Room[]> {
-    if (!ROOM_CANISTER_ID) {
-      return mockRooms.filter((r) => r.propertyId === propertyId);
-    }
     const actor = await getActor();
     const result = await (actor as any).getRoomsByProperty(propertyId);
     return (result as any[]).map(mapRoom);
   },
 
   async createRoom(args: CreateRoomArgs): Promise<Room> {
-    if (!ROOM_CANISTER_ID) {
-      const room: Room = {
-        ...args,
-        id:        `ROOM_${mockRooms.length + 1}`,
-        owner:     "mock-principal",
-        fixtures:  [],
-        createdAt: BigInt(Date.now()) * BigInt(1_000_000),
-        updatedAt: BigInt(Date.now()) * BigInt(1_000_000),
-      };
-      mockRooms.push(room);
-      return room;
-    }
     const actor = await getActor();
     return mapRoom(unwrap(await (actor as any).createRoom(args)));
   },
 
   async updateRoom(id: string, args: UpdateRoomArgs): Promise<Room> {
-    if (!ROOM_CANISTER_ID) {
-      mockRooms = mockRooms.map((r) =>
-        r.id !== id ? r : { ...r, ...args, updatedAt: BigInt(Date.now()) * BigInt(1_000_000) }
-      );
-      return mockRooms.find((r) => r.id === id)!;
-    }
     const actor = await getActor();
     return mapRoom(unwrap(await (actor as any).updateRoom(id, args)));
   },
 
   async deleteRoom(id: string): Promise<void> {
-    if (!ROOM_CANISTER_ID) {
-      mockRooms = mockRooms.filter((r) => r.id !== id);
-      return;
-    }
     const actor = await getActor();
     unwrap(await (actor as any).deleteRoom(id));
   },
 
   async addFixture(roomId: string, args: AddFixtureArgs): Promise<Room> {
-    if (!ROOM_CANISTER_ID) {
-      const fixture: Fixture = {
-        id: `FIX_${++mockFixtureCounter}`,
-        ...args,
-      };
-      mockRooms = mockRooms.map((r) =>
-        r.id !== roomId ? r : { ...r, fixtures: [...r.fixtures, fixture] }
-      );
-      return mockRooms.find((r) => r.id === roomId)!;
-    }
     const actor = await getActor();
     return mapRoom(unwrap(await (actor as any).addFixture(roomId, args)));
   },
 
   async updateFixture(roomId: string, fixtureId: string, args: AddFixtureArgs): Promise<Room> {
-    if (!ROOM_CANISTER_ID) {
-      mockRooms = mockRooms.map((r) =>
-        r.id !== roomId ? r : {
-          ...r,
-          fixtures: r.fixtures.map((f) => f.id !== fixtureId ? f : { ...f, ...args }),
-        }
-      );
-      return mockRooms.find((r) => r.id === roomId)!;
-    }
     const actor = await getActor();
     return mapRoom(unwrap(await (actor as any).updateFixture(roomId, fixtureId, args)));
   },
@@ -282,12 +238,6 @@ function createRoomService() {
   },
 
   async removeFixture(roomId: string, fixtureId: string): Promise<Room> {
-    if (!ROOM_CANISTER_ID) {
-      mockRooms = mockRooms.map((r) =>
-        r.id !== roomId ? r : { ...r, fixtures: r.fixtures.filter((f) => f.id !== fixtureId) }
-      );
-      return mockRooms.find((r) => r.id === roomId)!;
-    }
     const actor = await getActor();
     return mapRoom(unwrap(await (actor as any).removeFixture(roomId, fixtureId)));
   },

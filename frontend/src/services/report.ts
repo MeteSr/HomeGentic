@@ -374,40 +374,6 @@ function createReportService() {
     expiryDays:        number | null,
     visibility:        VisibilityLevel
   ): Promise<ShareLink> {
-    if (!REPORT_CANISTER_ID) {
-      mockCounter++;
-      const now        = Date.now();
-      const snapshotId = `SNAP_${mockCounter}_${now}`;
-      const token      = `RPT_${mockCounter}_${now}`;
-      const snapshot: ReportSnapshot = {
-        snapshotId, propertyId, generatedBy: "local",
-        address:           property.address,
-        city:              property.city,
-        state:             property.state,
-        zipCode:           property.zipCode,
-        propertyType:      property.propertyType,
-        yearBuilt:         property.yearBuilt,
-        squareFeet:        property.squareFeet,
-        verificationLevel: property.verificationLevel,
-        jobs,
-        recurringServices,
-        rooms,
-        totalAmountCents:  jobs.reduce((s, j) => s + j.amountCents, 0),
-        verifiedJobCount:  jobs.filter((j) => j.isVerified).length,
-        diyJobCount:       jobs.filter((j) => j.isDiy).length,
-        permitCount:       jobs.filter((j) => j.permitNumber).length,
-        generatedAt:       now,
-        planTier:          "Free",
-      };
-      mockSnapshots.set(snapshotId, snapshot);
-      const link: ShareLink = {
-        token, snapshotId, propertyId, createdBy: "local",
-        expiresAt:  expiryDays ? now + expiryDays * 86_400_000 : null,
-        visibility, viewCount: 0, isActive: true, createdAt: now,
-      };
-      mockLinks.set(token, link);
-      return link;
-    }
 
     const a = await getActor();
     const result = await a.generateReport(
@@ -453,16 +419,6 @@ function createReportService() {
   },
 
   async getReport(token: string): Promise<{ link: ShareLink; snapshot: ReportSnapshot }> {
-    if (!REPORT_CANISTER_ID) {
-      const link = mockLinks.get(token);
-      if (!link)         throw new Error("Report not found");
-      if (!link.isActive) throw new Error("This report link has been revoked");
-      if (link.expiresAt && Date.now() > link.expiresAt) throw new Error("This report link has expired");
-      const snapshot = mockSnapshots.get(link.snapshotId);
-      if (!snapshot) throw new Error("Snapshot not found");
-      mockLinks.set(token, { ...link, viewCount: link.viewCount + 1 });
-      return { link, snapshot };
-    }
 
     const a = await getActor();
     const result = await a.getReport(token);
@@ -480,20 +436,11 @@ function createReportService() {
   },
 
   async listShareLinks(propertyId: string): Promise<ShareLink[]> {
-    if (!REPORT_CANISTER_ID) {
-      return Array.from(mockLinks.values()).filter((l) => l.propertyId === propertyId);
-    }
     const a = await getActor();
     return (await a.listShareLinks(propertyId) as any[]).map(fromShareLink);
   },
 
   async revokeShareLink(token: string): Promise<void> {
-    if (!REPORT_CANISTER_ID) {
-      const link = mockLinks.get(token);
-      if (!link) throw new Error("Link not found");
-      mockLinks.set(token, { ...link, isActive: false });
-      return;
-    }
     const a = await getActor();
     const result = await a.revokeShareLink(token);
     if ("err" in result) {

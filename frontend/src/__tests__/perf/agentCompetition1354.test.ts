@@ -18,6 +18,96 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+
+// ─── Stateful mock actor for listing canister ─────────────────────────────────
+
+let _reqSeq  = 0;
+let _propSeq = 0;
+const _bidRequests = new Map<string, any>();
+const _proposals   = new Map<string, any>();
+
+function resetListingMock() {
+  _reqSeq = 0; _propSeq = 0;
+  _bidRequests.clear(); _proposals.clear();
+}
+
+const mockListingActor = {
+  createBidRequest: vi.fn(async (
+    propertyId: string, targetListDate: bigint, desiredSalePrice: bigint[],
+    notes: string, bidDeadline: bigint,
+  ) => {
+    _reqSeq++;
+    const id = `BID_${_reqSeq}`;
+    const raw = {
+      id, propertyId,
+      homeowner: { toText: () => "local" },
+      targetListDate, desiredSalePrice, notes, bidDeadline,
+      status: { Open: null }, createdAt: BigInt(Date.now()),
+    };
+    _bidRequests.set(id, raw);
+    return { ok: raw };
+  }),
+
+  getBidRequest: vi.fn(async (id: string) => {
+    const req = _bidRequests.get(id);
+    return req ? { ok: req } : { err: { NotFound: null } };
+  }),
+
+  submitProposal: vi.fn(async (
+    requestId: string, agentName: string, agentBrokerage: string,
+    commissionBps: bigint, cmaSummary: string, marketingPlan: string,
+    estimatedDaysOnMarket: bigint, estimatedSalePrice: bigint,
+    includedServices: string[], validUntil: bigint, coverLetter: string,
+  ) => {
+    const req = _bidRequests.get(requestId);
+    if (!req) return { err: { NotFound: null } };
+    if (Object.keys(req.status)[0] !== "Open")
+      return { err: { InvalidInput: "Request not open" } };
+    // Deadline check: reject if bidDeadline has already passed
+    if (Number(req.bidDeadline) < Date.now())
+      return { err: { InvalidInput: "Deadline passed" } };
+    _propSeq++;
+    const id = `PROP_${_propSeq}`;
+    const raw = {
+      id, requestId,
+      agentId: { toText: () => "local" },
+      agentName, agentBrokerage, commissionBps, cmaSummary, marketingPlan,
+      estimatedDaysOnMarket, estimatedSalePrice, includedServices, validUntil, coverLetter,
+      status: { Pending: null }, createdAt: BigInt(Date.now()),
+    };
+    _proposals.set(id, raw);
+    return { ok: raw };
+  }),
+
+  getProposalsForRequest: vi.fn(async (requestId: string) => {
+    const req = _bidRequests.get(requestId);
+    if (!req) return [];
+    if (Number(req.bidDeadline) > Date.now()) return [];
+    return [..._proposals.values()].filter((p) => p.requestId === requestId);
+  }),
+
+  // Stubs for completeness
+  getMyBidRequests:    vi.fn(async () => [..._bidRequests.values()]),
+  cancelBidRequest:    vi.fn(async () => ({ ok: null })),
+  getOpenBidRequests:  vi.fn(async () =>
+    [..._bidRequests.values()].filter(
+      (r) => Object.keys(r.status)[0] === "Open" && Number(r.bidDeadline) > Date.now(),
+    )),
+  getMyProposals:      vi.fn(async () => [..._proposals.values()]),
+  acceptProposal:      vi.fn(async () => ({ ok: null })),
+  addListingPhoto:     vi.fn(async () => ({ ok: null })),
+  getListingPhotos:    vi.fn(async () => []),
+  removeListingPhoto:  vi.fn(async () => ({ ok: null })),
+  reorderListingPhotos: vi.fn(async () => ({ ok: null })),
+  getAgentPerformanceRecords: vi.fn(async () => []),
+  createDirectInvite:  vi.fn(async () => ({ ok: null })),
+};
+
+vi.mock("@/services/actor", () => ({ getAgent: vi.fn().mockResolvedValue({}) }));
+vi.mock("@icp-sdk/core/agent", () => ({
+  Actor: { createActor: vi.fn(() => mockListingActor) },
+}));
+
 import { listingService, type SubmitProposalInput } from "@/services/listing";
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -55,7 +145,7 @@ const AGENTS = Array.from({ length: 10 }, (_, i) => i);
 // ─── Suite ────────────────────────────────────────────────────────────────────
 
 describe("13.5.4: agent competition — 10 concurrent proposals on one request", () => {
-  beforeEach(() => listingService.reset());
+  beforeEach(() => { resetListingMock(); listingService.reset(); });
   afterEach(() => vi.useRealTimers());
 
   // ── A. No proposals lost ──────────────────────────────────────────────────

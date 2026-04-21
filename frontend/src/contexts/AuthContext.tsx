@@ -142,7 +142,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch {
-      navigate("/register");
+      // No profile yet (new user) — send to onboarding to create one
+      navigate("/onboarding");
     }
   };
 

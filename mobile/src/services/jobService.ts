@@ -89,61 +89,20 @@ function fromRaw(raw: any): Job {
   };
 }
 
-// ── Mock data ─────────────────────────────────────────────────────────────────
-
-const MOCK_JOBS: Job[] = [
-  {
-    id:            "job_1",
-    propertyId:    "prop_1",
-    serviceType:   "HVAC",
-    description:   "Annual HVAC service and filter replacement",
-    amountCents:   18000,
-    completedDate: "2025-10-15",
-    status:        "verified",
-    isDiy:         false,
-    contractorName: "Cool Air Services",
-  },
-  {
-    id:            "job_2",
-    propertyId:    "prop_1",
-    serviceType:   "Plumbing",
-    description:   "Fixed leaking kitchen faucet",
-    amountCents:   32000,
-    completedDate: "2025-08-03",
-    status:        "verified",
-    isDiy:         true,
-  },
-];
-
-export async function getJobs(propertyId: string, _agent?: HttpAgent): Promise<Job[]> {
-  // TODO: replace with real canister call
-  return MOCK_JOBS.filter((j) => j.propertyId === propertyId);
+export async function getJobs(_propertyId: string, _agent?: HttpAgent): Promise<Job[]> {
+  throw new Error("Not implemented: getJobs — wire to job canister getJobsForProperty");
 }
 
-export async function createJob(input: CreateJobInput, _agent?: HttpAgent): Promise<Job> {
-  // TODO: replace with real canister call
-  const newJob: Job = {
-    id:             `job_${Date.now()}`,
-    propertyId:     input.propertyId,
-    serviceType:    input.serviceType,
-    description:    input.description,
-    amountCents:    input.amountCents,
-    completedDate:  input.completedDate,
-    status:         input.isDiy ? "verified" : "awaiting_contractor",
-    isDiy:          input.isDiy,
-    contractorName: input.contractorName ?? undefined,
-  };
-  MOCK_JOBS.push(newJob);
-  return newJob;
+export async function createJob(_input: CreateJobInput, _agent?: HttpAgent): Promise<Job> {
+  throw new Error("Not implemented: createJob — wire to job canister createJob");
 }
 
 /**
- * Returns jobs submitted by contractors that are awaiting the homeowner's
- * approval. Falls back to mock data when no canister ID is configured.
+ * Returns jobs submitted by contractors that are awaiting the homeowner's approval.
  */
 export async function getPendingProposals(agent?: HttpAgent): Promise<Job[]> {
   if (!JOB_CANISTER_ID || !agent) {
-    return MOCK_JOBS.filter((j) => j.status === "pending_homeowner_approval");
+    throw new Error("Not implemented: getPendingProposals — JOB_CANISTER_ID not configured");
   }
   const a = getActor(agent);
   const raw: any[] = await (a as any).getPendingProposals();
@@ -151,11 +110,9 @@ export async function getPendingProposals(agent?: HttpAgent): Promise<Job[]> {
 }
 
 export async function uploadJobPhoto(
-  jobId: string,
-  base64: string,
+  _jobId: string,
+  _base64: string,
   _agent?: HttpAgent,
 ): Promise<void> {
-  // TODO: replace with real photo canister call
-  // Canister: photo.addPhoto(jobId, { data: base64, mimeType: "image/jpeg" })
-  console.log(`[uploadJobPhoto] job=${jobId} size=${base64.length} chars`);
+  throw new Error("Not implemented: uploadJobPhoto — wire to photo canister addPhoto");
 }

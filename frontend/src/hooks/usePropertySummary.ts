@@ -23,10 +23,12 @@ export function usePropertySummary(): PropertySummary {
     async function load() {
       let propList: Property[] = [];
 
-      // E2E mock injection
+      // E2E mock injection — skip canister calls and resolve immediately
       if (import.meta.env.DEV && (window as any).__e2e_properties) {
         propList = (window as any).__e2e_properties as Property[];
         setProperties(propList);
+        if (!cancelled) setLoading(false);
+        return;
       } else {
         try {
           propList = await propertyService.getMyProperties();

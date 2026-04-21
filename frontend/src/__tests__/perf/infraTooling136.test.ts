@@ -158,8 +158,8 @@ describe("13.6.3: AdminDashboardPage cycles tab", () => {
     expect(svc).toContain("cyclesToUsd");
   });
 
-  it("monitoringService has mock fallback when canister ID not set", () => {
-    expect(svc).toMatch(/MONITORING_CANISTER_ID.*==.*""|!MONITORING_CANISTER_ID/);
+  it("monitoringService reads VITE_MONITORING_CANISTER_ID from env", () => {
+    expect(svc).toContain("VITE_MONITORING_CANISTER_ID");
   });
 
   it("AdminDashboardPage imports monitoringService", () => {

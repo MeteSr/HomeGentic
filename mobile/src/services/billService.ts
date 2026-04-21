@@ -3,8 +3,7 @@
  *
  * Calls the voice agent's /api/extract-bill endpoint to OCR a bill
  * image captured by the camera or selected from the photo library.
- * Then saves the confirmed bill record to the bills canister via
- * the billService REST-style shim (same mock pattern as other services).
+ * Then saves the confirmed bill record to the bills canister.
  */
 
 const VOICE_AGENT_URL =
@@ -59,49 +58,6 @@ export class TierLimitReachedError extends Error {
   }
 }
 
-// ─── In-memory mock (dev without canister) ───────────────────────────────────
-
-const FREE_TIER_MONTHLY_LIMIT = 1;
-let _mockBills: BillRecord[] = [];
-let _mockNextId = 1;
-
-function countUploadsThisMonth(): number {
-  const oneMonthAgo = Date.now() - 30.44 * 24 * 60 * 60 * 1000;
-  return _mockBills.filter((b) => b.uploadedAt >= oneMonthAgo).length;
-}
-
-function mockAdd(args: AddBillArgs): BillRecord {
-  const existing = _mockBills.filter(
-    (b) => b.propertyId === args.propertyId && b.billType === args.billType
-  );
-  const recent = existing.slice(-3);
-  let anomalyFlag = false;
-  let anomalyReason: string | undefined;
-  if (recent.length >= 2) {
-    const avg = recent.reduce((s, b) => s + b.amountCents, 0) / recent.length;
-    if (args.amountCents > avg * 1.2) {
-      anomalyFlag   = true;
-      anomalyReason = `Bill is above your 3-month average for ${args.provider}`;
-    }
-  }
-  const record: BillRecord = {
-    id:           `BILL_${_mockNextId++}`,
-    propertyId:   args.propertyId,
-    billType:     args.billType,
-    provider:     args.provider,
-    periodStart:  args.periodStart,
-    periodEnd:    args.periodEnd,
-    amountCents:  args.amountCents,
-    usageAmount:  args.usageAmount,
-    usageUnit:    args.usageUnit,
-    uploadedAt:   Date.now(),
-    anomalyFlag,
-    anomalyReason,
-  };
-  _mockBills.push(record);
-  return record;
-}
-
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
@@ -125,19 +81,12 @@ export async function extractBill(
   return res.json();
 }
 
-/** Save a confirmed bill record. Falls back to in-memory mock locally. */
-export async function addBill(args: AddBillArgs): Promise<BillRecord> {
-  // In production this would call the bills canister directly via @dfinity/agent.
-  // For mobile we proxy through the same mock path used by other services.
-  if (countUploadsThisMonth() >= FREE_TIER_MONTHLY_LIMIT) {
-    throw new TierLimitReachedError(
-      "Free plan allows 1 bill upload per month. Upgrade to Pro ($10/mo) for unlimited uploads."
-    );
-  }
-  return mockAdd(args);
+/** Save a confirmed bill record to the bills canister. */
+export async function addBill(_args: AddBillArgs): Promise<BillRecord> {
+  throw new Error("Not implemented: addBill — wire to bills canister addBill");
 }
 
-/** Fetch all bills for a property (mock only in mobile for now). */
-export async function getBillsForProperty(propertyId: string): Promise<BillRecord[]> {
-  return _mockBills.filter((b) => b.propertyId === propertyId);
+/** Fetch all bills for a property from the bills canister. */
+export async function getBillsForProperty(_propertyId: string): Promise<BillRecord[]> {
+  throw new Error("Not implemented: getBillsForProperty — wire to bills canister getBillsForProperty");
 }

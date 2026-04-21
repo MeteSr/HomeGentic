@@ -397,15 +397,11 @@ describe("propertyService", () => {
   });
 
   // ── getOwnershipHistory ──────────────────────────────────────────────────────
-  // NOTE: getOwnershipHistory has an early-return guard when PROPERTY_CANISTER_ID
-  // is empty (the case in unit tests), so only the fallback behaviour is testable here.
-  // Mapping logic is exercised in integration / E2E tests against a live canister.
   describe("getOwnershipHistory", () => {
-    it("returns empty array when no canister ID is configured", async () => {
-      // PROPERTY_CANISTER_ID is '' in test env — function returns [] without calling actor
+    it("returns empty array when actor returns no records", async () => {
+      mockActor.getOwnershipHistory.mockResolvedValue([]);
       const history = await propertyService.getOwnershipHistory(BigInt(1));
       expect(history).toEqual([]);
-      expect(mockActor.getOwnershipHistory).not.toHaveBeenCalled();
     });
   });
 
@@ -535,13 +531,11 @@ describe("propertyService", () => {
   });
 
   // ── getMyManagedProperties ────────────────────────────────────────────────────
-  // NOTE: has a !PROPERTY_CANISTER_ID early-return guard (same as getOwnershipHistory).
-  // Mapping logic is exercised in integration / E2E tests against a live canister.
   describe("getMyManagedProperties", () => {
-    it("returns empty array when no canister ID is configured", async () => {
+    it("returns empty array when actor returns no results", async () => {
+      mockActor.getMyManagedProperties.mockResolvedValue([]);
       const result = await propertyService.getMyManagedProperties();
       expect(result).toEqual([]);
-      expect(mockActor.getMyManagedProperties).not.toHaveBeenCalled();
     });
   });
 
@@ -617,13 +611,11 @@ describe("propertyService", () => {
   });
 
   // ── getOwnerNotifications ─────────────────────────────────────────────────────
-  // NOTE: has a !PROPERTY_CANISTER_ID early-return guard (same as getOwnershipHistory).
-  // Mapping logic is exercised in integration / E2E tests against a live canister.
   describe("getOwnerNotifications", () => {
-    it("returns empty array when no canister ID is configured", async () => {
+    it("returns empty array when actor returns no notifications", async () => {
+      mockActor.getOwnerNotifications.mockResolvedValue({ ok: [] });
       const result = await propertyService.getOwnerNotifications(BigInt(1));
       expect(result).toEqual([]);
-      expect(mockActor.getOwnerNotifications).not.toHaveBeenCalled();
     });
   });
 

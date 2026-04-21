@@ -44,6 +44,26 @@ const { mockProfile, mockReview } = vi.hoisted(() => {
   return { mockProfile, mockReview };
 });
 
+vi.mock("@/services/actor", () => ({
+  getAgent: vi.fn().mockResolvedValue({}),
+}));
+vi.mock("@icp-sdk/core/agent", () => ({
+  Actor: { createActor: vi.fn(() => ({})) },
+}));
+
+vi.mock("@/services/payment", () => ({
+  paymentService: {
+    getMySubscription: vi.fn().mockResolvedValue({ tier: "Pro" }),
+  },
+}));
+
+vi.mock("@/services/listing", () => ({
+  listingService: {
+    getAgentPerformanceRecords: vi.fn().mockResolvedValue([]),
+    createDirectInvite:         vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
 vi.mock("@/services/agent", () => ({
   agentService: {
     getMyProfile:     vi.fn().mockResolvedValue(mockProfile),
@@ -56,16 +76,17 @@ vi.mock("@/services/agent", () => ({
   computeAverageRating: vi.fn().mockReturnValue(5),
 }));
 
-vi.mock("@/store/authStore", () => ({
-  useAuthStore: () => ({
+vi.mock("@/store/authStore", () => {
+  const state = {
     principal: "agent-principal-1",
     profile: { role: "Realtor", tier: "Pro" },
     isAuthenticated: true,
     tier: null,
     setTier: vi.fn(),
     setProfile: vi.fn(),
-  }),
-}));
+  };
+  return { useAuthStore: Object.assign(() => state, { getState: () => state }) };
+});
 
 import AgentProfileEditPage from "@/pages/AgentProfileEditPage";
 import AgentPublicPage      from "@/pages/AgentPublicPage";

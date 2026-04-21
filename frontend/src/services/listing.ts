@@ -448,24 +448,6 @@ function createListingService() {
 
   // ── createBidRequest ────────────────────────────────────────────────────────
   async createBidRequest(input: CreateBidRequestInput): Promise<ListingBidRequest> {
-    if (!LISTING_CANISTER_ID) {
-      const req: ListingBidRequest = {
-        id:               `BID_${++_reqSeq}`,
-        propertyId:       input.propertyId,
-        homeowner:        "local",
-        targetListDate:   input.targetListDate,
-        desiredSalePrice: input.desiredSalePrice,
-        notes:            input.notes,
-        bidDeadline:      input.bidDeadline,
-        status:           "Open",
-        createdAt:        Date.now(),
-        propertySnapshot: input.propertySnapshot,
-        visibility:       input.visibility       ?? "open",
-        invitedAgentIds:  input.invitedAgentIds  ?? [],
-      };
-      requests.push(req);
-      return { ...req };
-    }
     const actor = await getActor();
     const result = await actor.createBidRequest(
       input.propertyId,
@@ -480,9 +462,6 @@ function createListingService() {
 
   // ── getMyBidRequests ────────────────────────────────────────────────────────
   async getMyBidRequests(): Promise<ListingBidRequest[]> {
-    if (!LISTING_CANISTER_ID) {
-      return [...requests];
-    }
     const actor = await getActor();
     const raw = await actor.getMyBidRequests();
     return raw.map(fromRawRequest);
@@ -490,9 +469,6 @@ function createListingService() {
 
   // ── getBidRequest ───────────────────────────────────────────────────────────
   async getBidRequest(id: string): Promise<ListingBidRequest | null> {
-    if (!LISTING_CANISTER_ID) {
-      return requests.find(r => r.id === id) ?? null;
-    }
     const actor = await getActor();
     const result = await actor.getBidRequest(id);
     if ("err" in result) return null;
@@ -501,13 +477,6 @@ function createListingService() {
 
   // ── cancelBidRequest ────────────────────────────────────────────────────────
   async cancelBidRequest(id: string): Promise<void> {
-    if (!LISTING_CANISTER_ID) {
-      const req = requests.find(r => r.id === id);
-      if (!req) throw new Error(`BidRequest ${id} not found`);
-      if (req.status !== "Open") throw new Error(`BidRequest ${id} is not Open (status: ${req.status})`);
-      req.status = "Cancelled";
-      return;
-    }
     const actor = await getActor();
     const result = await actor.cancelBidRequest(id);
     if ("err" in result) throw new Error(JSON.stringify(result.err));
@@ -516,13 +485,6 @@ function createListingService() {
   // ── getOpenBidRequests (agent view) ─────────────────────────────────────────
   // 9.2.4: inviteOnly requests are hidden from the general marketplace.
   async getOpenBidRequests(callerAgentId = "local"): Promise<ListingBidRequest[]> {
-    if (!LISTING_CANISTER_ID) {
-      return requests.filter(
-        r => r.status === "Open"
-          && !isDeadlinePassed(r.bidDeadline)
-          && (r.visibility === "open" || r.invitedAgentIds.includes(callerAgentId))
-      );
-    }
     const actor = await getActor();
     const raw = await actor.getOpenBidRequests();
     return raw.map(fromRawRequest);
@@ -530,34 +492,6 @@ function createListingService() {
 
   // ── submitProposal ──────────────────────────────────────────────────────────
   async submitProposal(requestId: string, input: SubmitProposalInput): Promise<ListingProposal> {
-    if (!LISTING_CANISTER_ID) {
-      const req = requests.find(r => r.id === requestId);
-      if (!req) throw new Error(`BidRequest ${requestId} not found`);
-      if (req.status !== "Open") throw new Error(`BidRequest ${requestId} is not accepting proposals (status: ${req.status})`);
-      // 9.2.5: deadline enforcement
-      if (isDeadlinePassed(req.bidDeadline)) throw new Error("Bid deadline has passed — no new proposals accepted");
-
-      const proposal: ListingProposal = {
-        id:                    `PROP_${++_propSeq}`,
-        requestId,
-        agentId:               "local",
-        agentName:             input.agentName,
-        agentBrokerage:        input.agentBrokerage,
-        commissionBps:         input.commissionBps,
-        cmaSummary:            input.cmaSummary,
-        marketingPlan:         input.marketingPlan,
-        estimatedDaysOnMarket: input.estimatedDaysOnMarket,
-        estimatedSalePrice:    input.estimatedSalePrice,
-        includedServices:      [...input.includedServices],
-        validUntil:            input.validUntil,
-        coverLetter:           input.coverLetter,
-        status:                "Pending",
-        createdAt:             Date.now(),
-        cmaComps:              input.cmaComps ? [...input.cmaComps] : [],
-      };
-      proposals.push(proposal);
-      return { ...proposal };
-    }
     const actor = await getActor();
     const result = await actor.submitProposal(
       /* requestId            */ requestId,
@@ -579,12 +513,6 @@ function createListingService() {
   // ── getProposalsForRequest ───────────────────────────────────────────────────
   // Sealed-bid: proposals are hidden until the request's bidDeadline has passed.
   async getProposalsForRequest(requestId: string): Promise<ListingProposal[]> {
-    if (!LISTING_CANISTER_ID) {
-      const req = requests.find(r => r.id === requestId);
-      if (!req) return [];
-      if (!isDeadlinePassed(req.bidDeadline)) return []; // still sealed
-      return proposals.filter(p => p.requestId === requestId);
-    }
     const actor = await getActor();
     const raw = await actor.getProposalsForRequest(requestId);
     return raw.map(fromRawProposal);
@@ -592,9 +520,6 @@ function createListingService() {
 
   // ── getMyProposals (agent view) ──────────────────────────────────────────────
   async getMyProposals(): Promise<ListingProposal[]> {
-    if (!LISTING_CANISTER_ID) {
-      return [...proposals];
-    }
     const actor = await getActor();
     const raw = await actor.getMyProposals();
     return raw.map(fromRawProposal);
@@ -602,24 +527,6 @@ function createListingService() {
 
   // ── acceptProposal ───────────────────────────────────────────────────────────
   async acceptProposal(proposalId: string): Promise<void> {
-    if (!LISTING_CANISTER_ID) {
-      const proposal = proposals.find(p => p.id === proposalId);
-      if (!proposal) throw new Error(`Proposal ${proposalId} not found`);
-
-      // Mark the winner as Accepted
-      proposal.status = "Accepted";
-
-      // Mark all other proposals on the same request as Rejected
-      proposals
-        .filter(p => p.requestId === proposal.requestId && p.id !== proposalId)
-        .forEach(p => { p.status = "Rejected"; });
-
-      // Mark the parent request as Awarded
-      const req = requests.find(r => r.id === proposal.requestId);
-      if (req) req.status = "Awarded";
-
-      return;
-    }
     const actor = await getActor();
     const result = await actor.acceptProposal(proposalId);
     if ("err" in result) throw new Error(JSON.stringify(result.err));
@@ -627,62 +534,27 @@ function createListingService() {
 
   // ── uploadContract (9.4.5) ───────────────────────────────────────────────────
   async uploadContract(requestId: string, fileName: string): Promise<void> {
-    if (!LISTING_CANISTER_ID) {
-      const req = requests.find((r) => r.id === requestId);
-      if (!req) throw new Error(`BidRequest ${requestId} not found`);
-      req.contractFile = { name: fileName, uploadedAt: Date.now() };
-      return;
-    }
     // On-chain: would upload to photo canister and store hash here
     throw new Error("uploadContract requires deployed canister");
   },
 
   // ── counterProposal (9.4.6) ──────────────────────────────────────────────────
   async counterProposal(proposalId: string, input: CounterProposalInput): Promise<CounterProposal> {
-    if (!LISTING_CANISTER_ID) {
-      const proposal = proposals.find((p) => p.id === proposalId);
-      if (!proposal) throw new Error(`Proposal ${proposalId} not found`);
-      const counter: CounterProposal = {
-        id:            `COUNTER_${++_counterSeq}`,
-        proposalId,
-        requestId:     proposal.requestId,
-        fromRole:      "homeowner",
-        commissionBps: input.commissionBps,
-        notes:         input.notes,
-        status:        "Pending",
-        createdAt:     Date.now(),
-      };
-      counters.push(counter);
-      return { ...counter };
-    }
     throw new Error("counterProposal requires deployed canister");
   },
 
   // ── respondToCounter (9.4.6) — agent accepts/rejects ────────────────────────
   async respondToCounter(counterId: string, response: "accept" | "reject"): Promise<void> {
-    if (!LISTING_CANISTER_ID) {
-      const counter = counters.find((c) => c.id === counterId);
-      if (!counter) throw new Error(`Counter ${counterId} not found`);
-      counter.status = response === "accept" ? "Accepted" : "Rejected";
-      return;
-    }
     throw new Error("respondToCounter requires deployed canister");
   },
 
   // ── getCountersForProposal (9.4.6) ───────────────────────────────────────────
   async getCountersForProposal(proposalId: string): Promise<CounterProposal[]> {
-    if (!LISTING_CANISTER_ID) {
-      return counters.filter((c) => c.proposalId === proposalId);
-    }
     throw new Error("getCountersForProposal requires deployed canister");
   },
 
   // ── getMyCounters (9.4.6) — agent views counters on their proposals ──────────
   async getMyCounters(): Promise<CounterProposal[]> {
-    if (!LISTING_CANISTER_ID) {
-      const myProposalIds = new Set(proposals.map((p) => p.id));
-      return counters.filter((c) => myProposalIds.has(c.proposalId));
-    }
     throw new Error("getMyCounters requires deployed canister");
   },
 
@@ -692,107 +564,26 @@ function createListingService() {
     key: MilestoneKey,
     completedBy: "homeowner" | "agent",
   ): Promise<ListingBidRequest> {
-    if (!LISTING_CANISTER_ID) {
-      const req = requests.find((r) => r.id === requestId);
-      if (!req) throw new Error(`BidRequest ${requestId} not found`);
-      if (!req.milestones) req.milestones = initMilestones();
-      const m = req.milestones.find((ms) => ms.key === key);
-      if (m) { m.completedAt = Date.now(); m.completedBy = completedBy; }
-      return { ...req, milestones: [...(req.milestones ?? [])] };
-    }
     throw new Error("updateMilestone requires deployed canister");
   },
 
   // ── logOffer (9.5.2) ─────────────────────────────────────────────────────────
   async logOffer(requestId: string, input: LogOfferInput): Promise<OfferEntry> {
-    if (!LISTING_CANISTER_ID) {
-      const req = requests.find((r) => r.id === requestId);
-      if (!req) throw new Error(`BidRequest ${requestId} not found`);
-      const { deltaFromListingPriceCents, deltaFromHomeGenticEstimateCents } = computeOfferDeltas(
-        input.offerAmountCents,
-        req.desiredSalePrice,
-        null,
-      );
-      const entry: OfferEntry = {
-        id:                            `OFFER_${++_offerSeq}`,
-        requestId,
-        offerAmountCents:              input.offerAmountCents,
-        contingencies:                 [...input.contingencies],
-        closeDate:                     input.closeDate,
-        loggedAt:                      Date.now(),
-        deltaFromListingPriceCents,
-        deltaFromHomeGenticEstimateCents,
-      };
-      if (!req.offers) req.offers = [];
-      req.offers.push(entry);
-      return { ...entry };
-    }
     throw new Error("logOffer requires deployed canister");
   },
 
   // ── logClose (9.5.3) ─────────────────────────────────────────────────────────
   async logClose(requestId: string, input: LogCloseInput): Promise<TransactionClose> {
-    if (!LISTING_CANISTER_ID) {
-      const req = requests.find((r) => r.id === requestId);
-      if (!req) throw new Error(`BidRequest ${requestId} not found`);
-      const close: TransactionClose = {
-        requestId,
-        finalSalePriceCents: input.finalSalePriceCents,
-        actualCloseDateMs:   input.actualCloseDateMs,
-        homeGenticBaselineCents: 0,  // set from propertySnapshot.score in real impl
-        actualPremiumCents:  0,
-        recordedAt:          Date.now(),
-      };
-      req.closedData = close;
-      // Auto-complete the "closed" milestone
-      if (!req.milestones) req.milestones = initMilestones();
-      const m = req.milestones.find((ms) => ms.key === "closed");
-      if (m && !m.completedAt) { m.completedAt = input.actualCloseDateMs; m.completedBy = "homeowner"; }
-      return { ...close };
-    }
     throw new Error("logClose requires deployed canister");
   },
 
   // ── logAgentPerformance (9.5.4) ───────────────────────────────────────────────
   async logAgentPerformance(requestId: string, input: LogAgentPerformanceInput): Promise<AgentPerformanceRecord> {
-    if (!LISTING_CANISTER_ID) {
-      const req = requests.find((r) => r.id === requestId);
-      if (!req) throw new Error(`BidRequest ${requestId} not found`);
-      if (!req.closedData) throw new Error("Cannot log performance before close is recorded");
-      const accepted = proposals.find((p) => p.requestId === requestId && p.status === "Accepted");
-      if (!accepted) throw new Error("No accepted proposal found for this request");
-      const listedMs = req.milestones?.find((m) => m.key === "listed_on_mls")?.completedAt ?? req.createdAt;
-      const closedMs = req.milestones?.find((m) => m.key === "closed")?.completedAt ?? req.closedData.actualCloseDateMs;
-      const actualDOM = Math.max(1, Math.round((closedMs - listedMs) / 86_400_000));
-      const scores = computeAgentPerformanceScore(
-        accepted.estimatedDaysOnMarket, actualDOM,
-        accepted.estimatedSalePrice, req.closedData.finalSalePriceCents,
-        accepted.commissionBps, input.chargedCommBps,
-      );
-      const record: AgentPerformanceRecord = {
-        requestId,
-        agentId:          accepted.agentId,
-        estimatedDOM:     accepted.estimatedDaysOnMarket,
-        actualDOM,
-        estimatedSalePrice: accepted.estimatedSalePrice,
-        actualSalePrice:  req.closedData.finalSalePriceCents,
-        promisedCommBps:  accepted.commissionBps,
-        chargedCommBps:   input.chargedCommBps,
-        ...scores,
-        recordedAt: Date.now(),
-      };
-      req.agentPerformance = record;
-      perfRecords.push(record);
-      return { ...record };
-    }
     throw new Error("logAgentPerformance requires deployed canister");
   },
 
   // ── getAgentPerformanceRecords (9.5.4) — for AgentPublicPage ─────────────────
   async getAgentPerformanceRecords(agentId: string): Promise<AgentPerformanceRecord[]> {
-    if (!LISTING_CANISTER_ID) {
-      return perfRecords.filter((r) => r.agentId === agentId);
-    }
     throw new Error("getAgentPerformanceRecords requires deployed canister");
   },
 
@@ -803,16 +594,6 @@ function createListingService() {
    * listing, appending it to the ordered list.  Enforces the 15-photo cap.
    */
   async addListingPhoto(propertyId: string, photoId: string): Promise<void> {
-    if (!LISTING_CANISTER_ID) {
-      if (!listingPhotoOwners.has(propertyId)) listingPhotoOwners.set(propertyId, "local");
-      const existing = listingPhotoMap.get(propertyId) ?? [];
-      if (existing.length >= MAX_LISTING_PHOTOS)
-        throw new Error(`Listing photo limit (${MAX_LISTING_PHOTOS}) reached`);
-      if (existing.includes(photoId))
-        throw new Error("Photo already added to this listing");
-      listingPhotoMap.set(propertyId, [...existing, photoId]);
-      return;
-    }
     const actor = await getActor();
     const result = await actor.addListingPhoto(propertyId, photoId);
     if ("err" in result) throw new Error(JSON.stringify(result.err));
@@ -820,11 +601,9 @@ function createListingService() {
 
   /** Returns the ordered photo IDs for a listing (first = cover image). */
   async getListingPhotos(propertyId: string): Promise<string[]> {
-    if (!LISTING_CANISTER_ID) {
-      if (typeof window !== "undefined" && (window as any).__e2e_listing_photo_order) {
-        return ((window as any).__e2e_listing_photo_order[propertyId] ?? []) as string[];
-      }
-      return listingPhotoMap.get(propertyId) ?? [];
+    if (typeof window !== "undefined" && (window as any).__e2e_listing_photo_order) {
+      const orderMap = (window as any).__e2e_listing_photo_order as Record<string, string[]>;
+      return orderMap[propertyId] ?? [];
     }
     const actor = await getActor();
     return await actor.getListingPhotos(propertyId) as string[];
@@ -832,11 +611,6 @@ function createListingService() {
 
   /** Remove a photo from the listing's ordered photo list. */
   async removeListingPhoto(propertyId: string, photoId: string): Promise<void> {
-    if (!LISTING_CANISTER_ID) {
-      const existing = listingPhotoMap.get(propertyId) ?? [];
-      listingPhotoMap.set(propertyId, existing.filter((id) => id !== photoId));
-      return;
-    }
     const actor = await getActor();
     const result = await actor.removeListingPhoto(propertyId, photoId);
     if ("err" in result) throw new Error(JSON.stringify(result.err));
@@ -847,10 +621,6 @@ function createListingService() {
    * only their sequence is allowed to change.
    */
   async reorderListingPhotos(propertyId: string, photoIds: string[]): Promise<void> {
-    if (!LISTING_CANISTER_ID) {
-      listingPhotoMap.set(propertyId, [...photoIds]);
-      return;
-    }
     const actor = await getActor();
     const result = await actor.reorderListingPhotos(propertyId, photoIds);
     if ("err" in result) throw new Error(JSON.stringify(result.err));
@@ -858,25 +628,6 @@ function createListingService() {
 
   // ── createDirectInvite (9.6.2) — homeowner invites specific agent ─────────────
   async createDirectInvite(agentId: string, propertyId: string): Promise<ListingBidRequest> {
-    if (!LISTING_CANISTER_ID) {
-      const id = `BID_DIRECT_${++_reqSeq}`;
-      const req: ListingBidRequest = {
-        id,
-        propertyId,
-        homeowner:        "local",
-        targetListDate:   Date.now() + 30 * 86_400_000,
-        desiredSalePrice: null,
-        notes:            "",
-        bidDeadline:      Date.now() + 7 * 86_400_000,
-        status:           "Open",
-        createdAt:        Date.now(),
-        visibility:       "inviteOnly",
-        invitedAgentIds:  [agentId],
-        propertySnapshot: undefined,
-      };
-      requests.push(req);
-      return { ...req };
-    }
     throw new Error("createDirectInvite requires deployed canister");
   },
   };

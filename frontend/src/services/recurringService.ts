@@ -267,9 +267,6 @@ function createRecurringService() {
 
   return {
   async getById(serviceId: string): Promise<RecurringService | null> {
-    if (!RECURRING_CANISTER_ID) {
-      return mockServices.find((s) => s.id === serviceId) ?? null;
-    }
     const a = await getActor();
     const result = await a.getRecurringService(serviceId);
     if ("ok" in result) return fromService(result.ok);
@@ -277,25 +274,11 @@ function createRecurringService() {
   },
 
   async getByProperty(propertyId: string): Promise<RecurringService[]> {
-    if (!RECURRING_CANISTER_ID) {
-      return mockServices.filter((s) => s.propertyId === propertyId);
-    }
     const a = await getActor();
     return (await a.getByProperty(propertyId) as any[]).map(fromService);
   },
 
   async create(input: CreateRecurringServiceInput): Promise<RecurringService> {
-    if (!RECURRING_CANISTER_ID) {
-      const svc: RecurringService = {
-        ...input,
-        id:        `REC_${Date.now()}`,
-        homeowner: (typeof window !== "undefined" && (window as any).__e2e_principal) || "mock-principal",
-        status:    "Active",
-        createdAt: Date.now(),
-      };
-      mockServices.push(svc);
-      return svc;
-    }
     const a = await getActor();
     const result = await a.createRecurringService(
       input.propertyId,
@@ -312,55 +295,24 @@ function createRecurringService() {
   },
 
   async updateStatus(serviceId: string, status: ServiceStatus): Promise<RecurringService> {
-    if (!RECURRING_CANISTER_ID) {
-      const idx = mockServices.findIndex((s) => s.id === serviceId);
-      if (idx === -1) throw new Error("Service not found");
-      mockServices[idx] = { ...mockServices[idx], status };
-      return mockServices[idx];
-    }
     const a = await getActor();
     const result = await a.updateStatus(serviceId, { [status]: null });
     return unwrapService(result);
   },
 
   async attachContractDoc(serviceId: string, photoId: string): Promise<RecurringService> {
-    if (!RECURRING_CANISTER_ID) {
-      const idx = mockServices.findIndex((s) => s.id === serviceId);
-      if (idx === -1) throw new Error("Service not found");
-      mockServices[idx] = { ...mockServices[idx], contractDocPhotoId: photoId };
-      return mockServices[idx];
-    }
     const a = await getActor();
     const result = await a.attachContractDoc(serviceId, photoId);
     return unwrapService(result);
   },
 
   async addVisitLog(serviceId: string, visitDate: string, note?: string): Promise<VisitLog> {
-    if (!RECURRING_CANISTER_ID) {
-      const svc = mockServices.find((s) => s.id === serviceId);
-      if (!svc) throw new Error("Service not found");
-      const entry: VisitLog = {
-        id:         `VISIT_${Date.now()}`,
-        serviceId,
-        propertyId: svc.propertyId,
-        visitDate,
-        note,
-        createdAt:  Date.now(),
-      };
-      mockVisits.push(entry);
-      return entry;
-    }
     const a = await getActor();
     const result = await a.addVisitLog(serviceId, visitDate, note ? [note] : []);
     return unwrapVisit(result);
   },
 
   async getVisitLogs(serviceId: string): Promise<VisitLog[]> {
-    if (!RECURRING_CANISTER_ID) {
-      return mockVisits
-        .filter((v) => v.serviceId === serviceId)
-        .sort((a, b) => b.visitDate.localeCompare(a.visitDate));
-    }
     const a = await getActor();
     return (await a.getVisitLogs(serviceId) as any[]).map(fromVisitLog);
   },

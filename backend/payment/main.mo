@@ -211,6 +211,14 @@ persistent actor Payment {
   // Admin
   private var adminEntries     : [Principal] = [];
   private var adminInitialized : Bool        = false;
+  // ── Ingress inspection ────────────────────────────────────────────────────
+  /// Reject anonymous callers and zero-byte payloads before execution.
+  /// Empty payload cannot be valid Candid for any method that takes a struct
+  /// argument — these are probe / garbage calls that waste cycles.
+  system func inspect({ caller : Principal; arg : Blob }) : Bool {
+    not Principal.isAnonymous(caller) and arg.size() > 0
+  };
+
 
   private func isAdmin(caller: Principal) : Bool {
     Option.isSome(Array.find<Principal>(adminEntries, func(a) { a == caller }))

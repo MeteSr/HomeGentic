@@ -99,6 +99,14 @@ persistent actor AiProxy {
   private let ONE_DAY_NS       : Int = 86_400_000_000_000;
   private let ONE_MONTH_NS     : Int = 2_592_000_000_000_000; // 30 days
 
+
+  // ── Ingress inspection ────────────────────────────────────────────────────
+  /// Reject anonymous callers and zero-byte payloads before execution.
+  /// Empty payload cannot be valid Candid for any method that takes a struct
+  /// argument — these are probe / garbage calls that waste cycles.
+  system func inspect({ caller : Principal; arg : Blob }) : Bool {
+    not Principal.isAnonymous(caller) and arg.size() > 0
+  };
   // ── Rate limiting helpers ──────────────────────────────────────────────────
 
   private func isAdmin(p: Principal) : Bool {

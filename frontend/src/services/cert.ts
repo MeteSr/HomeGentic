@@ -61,12 +61,6 @@ function createCertService() {
      * Returns { certId, token } — token is safe to embed in a URL.
      */
     async issueCert(propertyId: string, payload: CertPayload): Promise<IssuedCert> {
-      if (!REPORT_CANISTER_ID) {
-        counter++;
-        const certId = `CERT-${counter}`;
-        store.set(certId, payload);
-        return { certId, token: buildToken(payload, certId) };
-      }
       const a      = await getActor();
       const certId = await (a as any).issueCert(propertyId, JSON.stringify(payload)) as string;
       return { certId, token: buildToken(payload, certId) };
@@ -79,9 +73,6 @@ function createCertService() {
     async verifyCert(certId: string): Promise<CertPayload | null> {
       if (!certId) return null;
 
-      if (!REPORT_CANISTER_ID) {
-        return store.get(certId) ?? null;
-      }
       const a      = await getActor();
       const result = await (a as any).verifyCert(certId) as [string] | [];
       if (result.length === 0) return null;

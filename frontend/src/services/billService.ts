@@ -2,7 +2,6 @@
  * HomeGentic Bill Service (Epic #49)
  *
  * Handles bill record storage against the `bills` ICP canister.
- * Falls back to in-memory mock when the canister is not deployed (local dev).
  *
  * Also provides `extractBill()` — calls the voice agent's /api/extract-bill
  * endpoint to OCR a utility bill image/PDF via Claude Vision.
@@ -150,51 +149,6 @@ export class TierLimitReachedError extends Error {
   }
 }
 
-// ─── In-memory mock (local dev without deployed canister) ─────────────────────
-
-const FREE_TIER_MONTHLY_LIMIT = 1;
-let _mockBills: BillRecord[] = [];
-let _mockNextId = 1;
-
-function countUploadsThisMonth(): number {
-  const oneMonthAgo = Date.now() - 30.44 * 24 * 60 * 60 * 1000;
-  return _mockBills.filter((b) => b.uploadedAt >= oneMonthAgo).length;
-}
-
-function mockRecord(args: AddBillArgs): BillRecord {
-  const existing = _mockBills.filter(
-    (b) => b.propertyId === args.propertyId && b.billType === args.billType
-  );
-  const recentThree = existing.slice(-3);
-  let anomalyFlag = false;
-  let anomalyReason: string | undefined;
-  if (recentThree.length >= 2) {
-    const avg = recentThree.reduce((s, b) => s + b.amountCents, 0) / recentThree.length;
-    if (args.amountCents > avg * 1.2) {
-      const pct = (((args.amountCents / avg) - 1) * 100).toFixed(0);
-      anomalyFlag = true;
-      anomalyReason = `Bill is ${pct}% above your 3-month average for ${args.provider}`;
-    }
-  }
-  const record: BillRecord = {
-    id:           `BILL_${_mockNextId++}`,
-    propertyId:   args.propertyId,
-    homeowner:    "mock-principal",
-    billType:     args.billType,
-    provider:     args.provider,
-    periodStart:  args.periodStart,
-    periodEnd:    args.periodEnd,
-    amountCents:  args.amountCents,
-    usageAmount:  args.usageAmount,
-    usageUnit:    args.usageUnit,
-    uploadedAt:   Date.now(),
-    anomalyFlag,
-    anomalyReason,
-  };
-  _mockBills.push(record);
-  return record;
-}
-
 // ─── Actor helper ─────────────────────────────────────────────────────────────
 
 let _actor: any = null;
@@ -237,14 +191,6 @@ function toRecord(raw: any): BillRecord {
 export const billService = {
   /** Store a confirmed bill record in the canister. */
   async addBill(args: AddBillArgs): Promise<BillRecord> {
-    if (!BILLS_CANISTER_ID) {
-      if (countUploadsThisMonth() >= FREE_TIER_MONTHLY_LIMIT) {
-        throw new TierLimitReachedError(
-          "Bill uploads require an active subscription. Subscribe to Basic ($10/mo) to get started."
-        );
-      }
-      return mockRecord(args);
-    }
     const actor = await getBillsActor();
     const raw = await actor.addBill({
       propertyId:  args.propertyId,
@@ -261,9 +207,6 @@ export const billService = {
 
   /** Fetch all bill records for a property. */
   async getBillsForProperty(propertyId: string): Promise<BillRecord[]> {
-    if (!BILLS_CANISTER_ID) {
-      return _mockBills.filter((b) => b.propertyId === propertyId);
-    }
     const actor = await getBillsActor();
     const raw = await actor.getBillsForProperty(propertyId);
     const records: any[] = fromVariant(raw);
@@ -272,19 +215,12 @@ export const billService = {
 
   /** Delete a bill record. */
   async deleteBill(id: string): Promise<void> {
-    if (!BILLS_CANISTER_ID) {
-      _mockBills = _mockBills.filter((b) => b.id !== id);
-      return;
-    }
     const actor = await getBillsActor();
     const raw = await actor.deleteBill(id);
     fromVariant(raw);
   },
 
-  /** Reset mock state (used in tests). */
   reset() {
-    _mockBills    = [];
-    _mockNextId   = 1;
   },
 };
 

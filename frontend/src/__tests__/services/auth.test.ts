@@ -188,10 +188,9 @@ describe("hasRole", () => {
 // ─── recordLogin ──────────────────────────────────────────────────────────────
 
 describe("recordLogin", () => {
-  it("does not call the actor when AUTH_CANISTER_ID is empty", async () => {
-    delete (process.env as any).AUTH_CANISTER_ID;
-    authService.reset(); // reset cached actor so getCanisterId() is re-evaluated
+  it("calls the actor when recordLogin() is invoked", async () => {
+    mockActor.recordLogin.mockResolvedValue(undefined);
     await authService.recordLogin();
-    expect(mockActor.recordLogin).not.toHaveBeenCalled();
+    expect(mockActor.recordLogin).toHaveBeenCalledTimes(1);
   });
 });
