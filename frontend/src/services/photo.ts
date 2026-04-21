@@ -271,6 +271,10 @@ function createPhotoService() {
    * query so prospective buyers can view listing photos without signing in.
    */
   async getListingPhotos(propertyId: string): Promise<Photo[]> {
+    if (typeof window !== "undefined" && (window as any).__e2e_listing_photos) {
+      const photosMap = (window as any).__e2e_listing_photos as Record<string, Photo[]>;
+      return photosMap[propertyId] ?? [];
+    }
     const a = await getActor();
     return (await a.getPublicListingPhotos(propertyId) as any[]).map(fromPhoto);
   },

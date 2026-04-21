@@ -283,6 +283,10 @@ function createQuoteService() {
       const quotes = (window as any).__e2e_quotes as Quote[];
       return quotes.filter((q) => q.requestId === requestId);
     }
+    // E2E mode without pre-injected quotes: return empty (no bids on a just-created request)
+    if (typeof window !== "undefined" && (window as any).__e2e_properties) {
+      return [];
+    }
     const a = await getActor();
     const result = await a.getQuotesForRequest(requestId);
     if ("err" in result) return [];
