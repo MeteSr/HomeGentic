@@ -94,7 +94,7 @@ function fromPhoto(raw: any): Photo {
     url,
     size:        Number(raw.size),
     verified:    raw.verified,
-    createdAt:   Number(raw.createdAt) / 1_000_000,
+    createdAt:   Number(BigInt(raw.createdAt) / 1_000_000n),
   };
 }
 
