@@ -22,7 +22,7 @@ export type ChatStackParamList = {
   QuoteRequest:   { propertyId: string; propertyAddress: string };
   MyQuotes:       { propertyId: string; propertyAddress: string };
   SignJob:        { job: SignableJob; currentRole: SignRole };
-  PhotoUpload:    { jobId: string; jobServiceType: string };
+  PhotoUpload:    { jobId: string; propertyId: string; jobServiceType: string };
   BillUpload:     { propertyId: string; propertyAddress: string };
   ScanDocument:   { propertyId: string; propertyAddress: string };
 };

@@ -8,6 +8,7 @@ import { buildIIAuthUrl, parseAuthCallback, isDelegationExpired, REDIRECT_URI } 
 import { saveAuth, loadAuth, clearAuth, StoredAuth } from "./authStorage";
 import { authenticateWithBiometrics } from "./biometricService";
 import { getProfile, UserProfile } from "../services/authService";
+import { setIcpAgent } from "../services/icpAgent";
 
 export type AuthState =
   | { status: "idle" }
@@ -75,6 +76,7 @@ export function useAuth() {
       const sessionIdentity = getOrCreateSessionIdentity();
       const identity = buildIdentityFromStored(sessionIdentity, stored);
       const agent = buildAgent(identity);
+      setIcpAgent(agent);
       const principal = identity.getPrincipal().toText();
       const profile = await getProfile(agent).catch(() => null);
       setAuthState({ status: "authenticated", principal, profile, identity, agent });
@@ -128,6 +130,7 @@ export function useAuth() {
       await saveAuth(stored);
       const identity = buildIdentityFromStored(sessionIdentity, stored);
       const agent = buildAgent(identity);
+      setIcpAgent(agent);
       const principal = identity.getPrincipal().toText();
       const profile = await getProfile(agent).catch(() => null);
       setAuthState({ status: "authenticated", principal, profile, identity, agent });

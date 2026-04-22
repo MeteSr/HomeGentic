@@ -47,12 +47,13 @@ export function formatFileSize(bytes: number): string {
 
 /** Compresses, validates, and uploads a photo to the job record */
 export async function uploadPhoto(
-  jobId:  string,
-  asset:  ImageAsset,
-  agent?: HttpAgent,
+  jobId:      string,
+  propertyId: string,
+  asset:      ImageAsset,
+  agent?:     HttpAgent,
 ): Promise<void> {
   const error = validateImageAsset(asset);
   if (error) throw new Error(error);
   const payload = buildPhotoPayload(jobId, asset);
-  await uploadJobPhoto(jobId, payload.base64, agent);
+  await uploadJobPhoto(jobId, propertyId, payload.base64, agent);
 }

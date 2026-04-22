@@ -29,7 +29,7 @@ import { colors, fonts, spacing, borderWidth } from "../theme";
 type Props = NativeStackScreenProps<ChatStackParamList, "PhotoUpload">;
 
 export default function PhotoUploadScreen({ route, navigation }: Props) {
-  const { jobId, jobServiceType } = route.params;
+  const { jobId, propertyId, jobServiceType } = route.params;
 
   const [asset,     setAsset]     = useState<ImageAsset | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -110,7 +110,7 @@ export default function PhotoUploadScreen({ route, navigation }: Props) {
     if (!asset) return;
     setUploading(true);
     try {
-      await uploadPhoto(jobId, asset);
+      await uploadPhoto(jobId, propertyId, asset);
       Alert.alert("Photo uploaded", "The photo has been attached to this job.", [
         { text: "OK", onPress: () => navigation.goBack() },
       ]);

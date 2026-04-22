@@ -23,7 +23,8 @@ export type EventFetcher = () => Promise<NotificationEvent[]>;
 const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS) || 30_000;
 
 // ── Canister stubs ────────────────────────────────────────────────────────────
-// TODO: replace with real `@dfinity/agent` calls to the quote/job canisters.
+// Canister calls are wired here once the notification agent gains its own
+// authenticated HttpAgent. Each stub documents the canister method it will call.
 
 // 15.5.4 — contractor: new quote request matching their specialties
 export const fetchNewLeadInTradesEvents: EventFetcher = async () => {

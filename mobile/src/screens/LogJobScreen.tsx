@@ -83,7 +83,7 @@ export default function LogJobScreen({ route, navigation }: Props) {
       const job     = await createJob(payload);
 
       if (photoB64) {
-        await uploadJobPhoto(job.id, photoB64);
+        await uploadJobPhoto(job.id, job.propertyId, photoB64);
       }
 
       navigation.goBack();

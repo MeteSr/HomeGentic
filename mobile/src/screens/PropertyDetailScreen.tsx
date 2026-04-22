@@ -108,6 +108,7 @@ export default function PropertyDetailScreen({ route }: Props) {
                 job={item}
                 onCameraPress={() => navigation.navigate("PhotoUpload", {
                   jobId:          item.id,
+                  propertyId:     property.id,
                   jobServiceType: item.serviceType,
                 })}
               />)}
