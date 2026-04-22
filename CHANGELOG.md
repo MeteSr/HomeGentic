@@ -6,6 +6,9 @@ All notable changes to HomeGentic are documented here.
 
 ## [Unreleased]
 
+### Features
+- **IoT device sources expanded to 12 (#161)**: Added Ring Alarm, Honeywell Home, Rheem EcoNet, Sense Energy Monitor, Emporia Vue, Rachio Smart Sprinkler, Samsung SmartThings, and Home Assistant alongside existing Nest, Ecobee, Moen Flo, and Manual. IDL `DeviceSource` variant and TypeScript union type updated to match; E2E spec added for all 12 sources.
+
 ### Security
 - Shortened Internet Identity delegation from 7 days to 8 hours to limit stolen-delegation exposure
 - Added `Idempotency-Key` header to Resend email POST requests — prevents duplicate emails when the IC retries HTTP outcalls across subnet nodes

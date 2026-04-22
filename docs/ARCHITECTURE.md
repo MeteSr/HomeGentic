@@ -37,7 +37,7 @@ No traditional database. No centralized server. No single point of failure.
 │   ICP Local/Main   │   │           Voice Agent Proxy (Node/Express)   │
 │     Replica        │   │                  :3001                       │
 │                    │   │                                              │
-│  16 Motoko         │   │  POST /api/agent   ── agentic tool-use loop  │
+│  17 Motoko         │   │  POST /api/agent   ── agentic tool-use loop  │
 │  canisters         │   │  POST /api/chat    ── SSE streaming chat     │
 │  (see below)       │   │  GET  /api/check   ── buyer report lookup    │
 │                    │   │  GET  /api/price-benchmark                   │
@@ -52,7 +52,7 @@ No traditional database. No centralized server. No single point of failure.
 
 ## Canister Map
 
-All 16 canisters use `persistent actor` (Motoko mo:core) — all variables
+All 17 canisters use `persistent actor` (Motoko mo:core) — all variables
 are implicitly stable, so no `preupgrade`/`postupgrade` hooks are needed.
 `transient var` is used for in-memory structures that should reset on upgrade
 (e.g. rate-limit sliding-window maps). Each canister exports `metrics()`,
@@ -97,8 +97,10 @@ are implicitly stable, so no `preupgrade`/`postupgrade` hooks are needed.
 │ maintenance      │ Predictive scheduling engine                            │
 │                  │ System lifespan estimates, seasonal task generation     │
 ├──────────────────┼─────────────────────────────────────────────────────────┤
-│ sensor           │ IoT device registry (Nest, Ecobee, Moen Flo, manual)   │
-│                  │ Auto-creates pending jobs for Critical sensor events    │
+│ sensor           │ IoT device registry (12 device types: Nest, Ecobee,     │
+│                  │ Moen Flo, Ring Alarm, Honeywell Home, Rheem EcoNet,     │
+│                  │ Sense, Emporia Vue, Rachio, SmartThings, Home Assistant,│
+│                  │ Manual). Auto-creates pending jobs for Critical events.  │
 ├──────────────────┼─────────────────────────────────────────────────────────┤
 │ monitoring       │ Cycles usage, cost metrics                              │
 │                  │ Profitability signals: ARPU / LTV / CAC; alerting      │
@@ -114,6 +116,10 @@ are implicitly stable, so no `preupgrade`/`postupgrade` hooks are needed.
 │                  │ Internet, Telecom). 3-month rolling anomaly detection    │
 │                  │ flags bills > 20% above baseline. Anomaly events surface│
 │                  │ in the Activity feed bell drawer.                        │
+├──────────────────┼─────────────────────────────────────────────────────────┤
+│ ai_proxy         │ IC HTTP outcalls: permit imports (ArcGIS / OpenPermit)  │
+│                  │ and transactional email via Resend. Requires             │
+│                  │ `RESEND_API_KEY` in `.env`.                              │
 └──────────────────┴─────────────────────────────────────────────────────────┘
 ```
 
@@ -125,14 +131,14 @@ Enforced server-side inside `payment`, `quote`, `photo`, and `property`.
 The frontend reflects tier state but never gates logic unilaterally.
 
 ```
-┌──────────────────┬────────────┬───────────┬───────────┬────────────────┐
-│                  │   Free     │    Pro    │  Premium  │ ContractorPro  │
-├──────────────────┼────────────┼───────────┼───────────┼────────────────┤
-│ Price            │ $0         │ $10 / mo  │ $20 / mo  │ $30 / mo       │
-│ Properties       │ 1          │ 5         │ 20        │ unlimited      │
-│ Photos / job     │ 2          │ 10        │ 30        │ 50             │
-│ Open quote reqs  │ 3          │ 10        │ 10        │ unlimited      │
-└──────────────────┴────────────┴───────────┴───────────┴────────────────┘
+┌──────────────────┬──────────┬──────────┬──────────┬──────────┬───────────────┬───────────────┐
+│                  │  Free    │  Basic   │   Pro    │ Premium  │ContractorFree │ ContractorPro │
+├──────────────────┼──────────┼──────────┼──────────┼──────────┼───────────────┼───────────────┤
+│ Price            │ $0       │ $10 / mo │ $20 / mo │ $40 / mo │ $0            │ $30 / mo      │
+│ Properties       │ 1        │ 1        │ 5        │ 20       │ 0             │ unlimited     │
+│ Photos / job     │ 2        │ 5        │ 10       │ 30       │ 5             │ 50            │
+│ Open quote reqs  │ 3        │ 3        │ 10       │ unlimited│ unlimited     │ unlimited     │
+└──────────────────┴──────────┴──────────┴──────────┴──────────┴───────────────┴───────────────┘
 ```
 
 All limits are enforced server-side in the `payment`, `quote`, `photo`, and `property` canisters.
@@ -289,10 +295,11 @@ Google Fonts loaded once in `frontend/index.html`.
 
 ```
 backend/
-  auth/           bills/          contractor/   job/
-  listing/        maintenance/    market/       monitoring/
-  payment/        photo/          property/     quote/
-  recurring/      report/         sensor/       agent/
+  agent/          ai_proxy/       auth/         bills/
+  contractor/     job/            listing/      maintenance/
+  market/         monitoring/     payment/      photo/
+  property/       quote/          recurring/    report/
+  sensor/
   — each has main.mo + test.sh
 
 frontend/

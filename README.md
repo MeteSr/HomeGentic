@@ -13,7 +13,7 @@ HomeGentic gives homeowners an immutable, tamper-proof record of every repair, u
 | Layer | Technology |
 |---|---|
 | Blockchain | Internet Computer Protocol (ICP) |
-| Backend | Motoko canisters (16 total) |
+| Backend | Motoko canisters (17 total) |
 | Auth | ICP Internet Identity |
 | Frontend | React + TypeScript + Vite |
 | AI Agent | Node.js + Claude API (Anthropic) — voice assistant proxy |
@@ -36,12 +36,13 @@ HomeGentic gives homeowners an immutable, tamper-proof record of every repair, u
 | `report` | Immutable report snapshots, share links with visibility levels and revocation |
 | `market` | ROI-ranked project recommendations and competitive analysis (2024 Remodeling Magazine data) |
 | `maintenance` | Predictive scheduling engine, system lifespan estimates, seasonal task generation |
-| `sensor` | IoT device registry (Nest, Ecobee, Moen Flo); auto-creates pending jobs on Critical events |
+| `sensor` | IoT device registry (12 device types: Nest, Ecobee, Moen Flo, Ring Alarm, Honeywell Home, Rheem EcoNet, Sense, Emporia Vue, Rachio, SmartThings, Home Assistant, Manual); auto-creates pending jobs on Critical events |
 | `monitoring` | Cycles usage, cost metrics, profitability analysis (ARPU/LTV/CAC), alerting |
 | `listing` | FSBO listing lifecycle, sealed-bid offers, agent matching |
 | `agent` | Realtor profiles, reviews, HomeGentic transaction count |
 | `recurring` | Recurring service contracts (HVAC, pest, landscaping) and visit logs |
 | `bills` | Utility bill storage per property; 3-month rolling anomaly detection (>20% spike flagged); feeds the Activity feed bell drawer |
+| `ai_proxy` | IC HTTP outcalls: permit imports (ArcGIS / OpenPermit) and transactional email (Resend) |
 
 ---
 
@@ -79,7 +80,7 @@ cp .env.example .env
 
 ```bash
 make dev
-# Starts local ICP replica, deploys all 16 canisters, and runs the frontend dev server
+# Starts local ICP replica, deploys all 17 canisters, and runs the frontend dev server
 ```
 
 Or step by step:
@@ -87,7 +88,7 @@ Or step by step:
 ```bash
 make start       # dfx start --background
 make deploy      # bash scripts/deploy.sh — deploys canisters, writes canister IDs to .env
-make frontend    # cd frontend && npm run dev  →  http://localhost:3000
+make frontend    # cd frontend && npm run dev  →  http://localhost:5173
 ```
 
 ### 4. Start the voice agent proxy
@@ -147,13 +148,13 @@ User speaks
 
 ```
 homegentic/
-├── dfx.json                      # ICP canister configuration (16 backend + frontend + Internet Identity)
+├── dfx.json                      # ICP canister configuration (17 backend + frontend + Internet Identity)
 ├── mops.toml                     # Motoko package manager config (core = "2.3.1")
 ├── package.json                  # Root scripts (test, deploy, upgrade, etc.)
 ├── Makefile                      # make dev / deploy / test / upgrade / clean
 ├── .env.example                  # Environment variable template
 │
-├── backend/                      # Motoko canisters (16)
+├── backend/                      # Motoko canisters (17)
 │   ├── auth/main.mo
 │   ├── property/main.mo
 │   ├── job/main.mo
@@ -230,8 +231,10 @@ homegentic/
 | Tier | Properties | Photos/Job | Open Quote Requests | Price |
 |---|---|---|---|---|
 | Free | 1 | 2 | 3 | $0 |
-| Pro | 5 | 10 | 10 | $10/mo |
-| Premium | 20 | 30 | 10 | $20/mo |
+| Basic | 1 | 5 | 3 | $10/mo |
+| Pro | 5 | 10 | 10 | $20/mo |
+| Premium | 20 | 30 | Unlimited | $40/mo |
+| ContractorFree | 0 | 5 | Unlimited | $0 |
 | ContractorPro | Unlimited | 50 | Unlimited | $30/mo |
 
 Limits are enforced server-side in the `property`, `photo`, and `quote` canisters.
