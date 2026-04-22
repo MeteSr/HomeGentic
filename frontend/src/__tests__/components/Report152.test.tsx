@@ -138,6 +138,7 @@ vi.mock("@/services/notifications", () => ({
 let mockTier: "Free" | "Pro" | "Premium" | "ContractorPro" = "Free";
 vi.mock("@/services/payment", () => ({
   paymentService: {
+    getMyAgentCredits: vi.fn(() => Promise.resolve(0)),
     getMySubscription: vi.fn().mockImplementation(() =>
       Promise.resolve({ tier: mockTier, expiresAt: null, cancelledAt: null })
     ),

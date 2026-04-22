@@ -704,6 +704,16 @@ exports[`maintenance IDL factory > full signature snapshot 1`] = `
 
 exports[`payment IDL factory > full signature snapshot 1`] = `
 {
+  "adminGrantAgentCredits": {
+    "args": [
+      "principal",
+      "nat",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:nat; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
+    ],
+  },
   "cancelSubscription": {
     "args": [],
     "mode": [],
@@ -738,6 +748,15 @@ exports[`payment IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "vec record {periodDays:nat; tier:variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}; quoteRequestsPerMonth:nat; propertyLimit:nat; priceUSD:nat; photosPerJob:nat}",
+    ],
+  },
+  "getMyAgentCredits": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "nat",
     ],
   },
   "getMySubscription": {

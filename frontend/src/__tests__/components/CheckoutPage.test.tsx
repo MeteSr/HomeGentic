@@ -43,6 +43,7 @@ vi.mock("@/services/payment", async (importOriginal) => {
       ...actual.paymentService,
       subscribe:        vi.fn().mockResolvedValue(undefined),
       subscribeAnnual:  vi.fn().mockResolvedValue(undefined),
+      getMyAgentCredits: vi.fn(() => Promise.resolve(0)),
       getMySubscription: vi.fn().mockResolvedValue({ tier: "Free", expiresAt: null }),
     },
   };

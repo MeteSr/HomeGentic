@@ -123,10 +123,12 @@ describe("payment IDL factory", () => {
   it("exposes the expected methods", () => {
     const svc = extractService(paymentIdlFactory);
     expect(Object.keys(svc).sort()).toEqual([
+      "adminGrantAgentCredits",
       "cancelSubscription",
       "configureStripe",
       "createStripeCheckoutSession",
       "getAllPricing",
+      "getMyAgentCredits",
       "getMySubscription",
       "getPriceQuote",
       "getPricing",
@@ -148,7 +150,7 @@ describe("payment IDL factory", () => {
       .filter(([, sig]) => sig.mode.includes("query"))
       .map(([name]) => name)
       .sort();
-    expect(queries).toEqual(["getAllPricing", "getMySubscription", "getPricing", "getSubscriptionStats", "isStripeConfigured", "listPendingGifts"]);
+    expect(queries).toEqual(["getAllPricing", "getMyAgentCredits", "getMySubscription", "getPricing", "getSubscriptionStats", "isStripeConfigured", "listPendingGifts"]);
   });
 
   it("getSubscriptionStats returns all tier breakdown fields", () => {

@@ -28,6 +28,7 @@ vi.mock("@/services/payment", async (importOriginal) => {
     ...actual,
     paymentService: {
       ...actual.paymentService,
+      getMyAgentCredits: vi.fn(() => Promise.resolve(0)),
       getMySubscription: vi.fn().mockImplementation(() =>
         Promise.resolve({ tier: mockTier, expiresAt: null })
       ),

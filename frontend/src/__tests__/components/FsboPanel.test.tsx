@@ -45,6 +45,7 @@ const { mockRecord, mockProperty } = vi.hoisted(() => ({
 
 vi.mock("@/services/payment", () => ({
   paymentService: {
+    getMyAgentCredits: vi.fn(() => Promise.resolve(0)),
     getMySubscription: vi.fn().mockResolvedValue({ tier: "Pro" }),
   },
 }));
