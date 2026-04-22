@@ -71,7 +71,7 @@ dfx generate                    # Regenerate Candid bindings after .mo changes
 ### Monorepo Layout
 
 ```
-backend/          13 Motoko canisters (each has main.mo)
+backend/          17 Motoko canisters (each has main.mo)
 frontend/         React + TypeScript SPA (Vite)
 agents/voice/     Node.js/Express proxy for Claude voice agent
 agents/iot-gateway/  IoT event ingestion (future)
@@ -83,7 +83,7 @@ docs/             ARCHITECTURE.md, API.md, DEPLOYMENT.md, SECURITY.md, AI_RATE_L
 
 ### ICP Canister Map
 
-All 13 active canisters use `persistent actor` + stable variable preupgrade/postupgrade for state across upgrades. HashMap for in-memory lookups, stable arrays for persistence. Each exports a `metrics()` query and `pause()`/`unpause()` admin capability.
+All 17 active canisters use `persistent actor` (Motoko mo:core) — all variables are implicitly stable, so no `preupgrade`/`postupgrade` hooks are needed. `transient var` is used for in-memory structures that should reset on upgrade (e.g. rate-limit sliding-window maps). Each exports a `metrics()` query and `pause()`/`unpause()` admin capability.
 
 | Canister | Responsibility |
 |---|---|
@@ -97,17 +97,18 @@ All 13 active canisters use `persistent actor` + stable variable preupgrade/post
 | **report** | Immutable report snapshots, share links with visibility levels & revocation |
 | **market** | ROI-ranked project recommendations (2024 Remodeling Magazine data) |
 | **maintenance** | Predictive scheduling, system lifespan estimates, seasonal task generation |
-| **sensor** | IoT device registry, auto-creates pending jobs for Critical events |
+| **sensor** | IoT device registry (12 device types: Nest, Ecobee, Moen Flo, Ring Alarm, Honeywell Home, Rheem EcoNet, Sense, Emporia Vue, Rachio, SmartThings, Home Assistant, Manual); auto-creates pending jobs for Critical events |
 | **monitoring** | Cycles usage, cost metrics, profitability (ARPU/LTV/CAC), alerting |
 | **listing** | FSBO listing lifecycle, sealed-bid offers, agent matching |
 | **agent** | Realtor profiles, reviews, HomeGentic transaction count |
 | **recurring** | Recurring service contracts (HVAC, pest, landscaping) and visit logs |
+| **bills** | Utility bill storage per property; 3-month rolling anomaly detection (>20% spike flagged); feeds Activity feed bell drawer |
+| **ai_proxy** | IC HTTP outcalls: permit imports (ArcGIS / OpenPermit) and transactional email (Resend) |
 
 ### Tier System (enforced server-side in multiple canisters)
 
 | Tier | Properties | Photos/Job | Open Quotes | Price |
 |---|---|---|---|---|
-| Free | 1 | 2 | 3 | $0 |
 | Basic | 1 | 5 | 3 | $10/mo |
 | Pro | 5 | 10 | 10 | $20/mo |
 | Premium | 20 | 30 | unlimited | $40/mo |

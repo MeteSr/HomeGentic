@@ -22,7 +22,7 @@ Limits reset at midnight UTC.
 | **Free** | 0 | 3 | Chat only — no agentic access |
 | **Basic** ($10/mo) | 5 | Unlimited | |
 | **Pro** ($20/mo) | 10 | Unlimited | |
-| **Premium** ($35/mo) | 20 | Unlimited | |
+| **Premium** ($40/mo) | 20 | Unlimited | |
 | **ContractorFree** | 0 | 3 | Same as Free |
 | **ContractorPro** ($30/mo) | 10 | Unlimited | Same as Pro |
 
@@ -36,7 +36,7 @@ Model: `claude-sonnet-4-6` at $3.00/1M input tokens, $15.00/1M output tokens.
 |---|---|---|---|---|---|---|
 | Basic $10 | $4.50 | $1.05 | $0.59 | $0.10 | $6.24 | **37.6%** |
 | Pro $20 | $9.00 | $1.05 | $0.88 | $0.20 | $11.13 | **44.4%** |
-| Premium $35 | $18.00 | $1.05 | $1.32 | $0.30 | $20.67 | **40.9%** |
+| Premium $40 | $18.00 | $1.05 | $1.47 | $0.30 | $20.82 | **47.9%** |
 
 Chat cost estimated at 5 calls/day average across all tiers.
 
@@ -46,7 +46,7 @@ Chat cost estimated at 5 calls/day average across all tiers.
 |---|---|---|---|---|---|---|
 | Basic $10 | $1.32 | $0.63 | $0.59 | $0.10 | $2.64 | **73.6%** |
 | Pro $20 | $2.97 | $0.63 | $0.88 | $0.20 | $4.68 | **76.6%** |
-| Premium $35 | $5.94 | $0.63 | $1.32 | $0.30 | $8.19 | **76.6%** |
+| Premium $40 | $5.94 | $0.63 | $1.47 | $0.30 | $8.34 | **79.2%** |
 
 ### Risk flag
 

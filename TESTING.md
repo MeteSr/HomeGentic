@@ -34,7 +34,7 @@ npm run test:unit:coverage
 
 ### Candid contract tests
 
-`frontend/src/__tests__/contracts/candid.contract.test.ts` — verifies that frontend IDL factories stay in sync with Motoko canister types. Covers all 16 canisters: auth, payment, job, property, listing, quote, contractor, photo, report, sensor, maintenance, agent, and bills.
+`frontend/src/__tests__/contracts/candid.contract.test.ts` — verifies that frontend IDL factories stay in sync with Motoko canister types. Covers 13 canisters: auth, payment, job, property, listing, quote, contractor, photo, report, sensor, maintenance, agent, and bills.
 
 **If you change a canister type:**
 1. Update the Motoko source in `backend/<canister>/main.mo`.
