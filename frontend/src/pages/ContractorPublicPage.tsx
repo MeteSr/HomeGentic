@@ -65,9 +65,9 @@ export default function ContractorPublicPage() {
     contractorService.getContractor(id)
       .then((c) => {
         setContractor(c);
-        if (c) contractorService.getCredentials(c.id).then(setCredentials).catch(() => {});
+        if (c) contractorService.getCredentials(c.id).then(setCredentials).catch((e) => console.error("[ContractorPublicPage] credentials load failed:", e));
       })
-      .catch(() => {})
+      .catch((e) => console.error("[ContractorPublicPage] contractor load failed:", e))
       .finally(() => setLoading(false));
   }, [id]);
 

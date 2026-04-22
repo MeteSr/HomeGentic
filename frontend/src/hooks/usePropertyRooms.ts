@@ -11,7 +11,7 @@ export function usePropertyRooms(propertyId: string | undefined): PropertyRooms 
 
   useEffect(() => {
     if (!propertyId) return;
-    roomService.getRoomsByProperty(propertyId).then(setRooms).catch(() => {});
+    roomService.getRoomsByProperty(propertyId).then(setRooms).catch((e) => console.error("[usePropertyRooms] load failed:", e));
   }, [propertyId]);
 
   return { rooms, setRooms };

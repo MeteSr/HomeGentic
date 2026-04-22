@@ -18,14 +18,14 @@ export function usePropertyJobs(propertyId: string | undefined): PropertyJobs {
     let cancelled = false;
     jobService.getByProperty(propertyId)
       .then((list) => { if (!cancelled) setJobs(list); })
-      .catch(() => {})
+      .catch((e) => console.error("[usePropertyJobs] initial load failed:", e))
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [propertyId]);
 
   async function reload() {
     if (!propertyId) return;
-    jobService.getByProperty(propertyId).then(setJobs).catch(() => {});
+    jobService.getByProperty(propertyId).then(setJobs).catch((e) => console.error("[usePropertyJobs] reload failed:", e));
   }
 
   async function verifyJob(jobId: string) {

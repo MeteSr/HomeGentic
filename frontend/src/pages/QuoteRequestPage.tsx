@@ -69,7 +69,7 @@ export default function QuoteRequestPage() {
             setForm((f) => f.propertyId ? f : { ...f, propertyId: String(list[0].id) });
           }
         })
-        .catch(() => {});
+        .catch((e) => console.error("[QuoteRequestPage] subscription load failed:", e));
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -88,7 +88,7 @@ export default function QuoteRequestPage() {
   // Load jobs for the selected property to inform price range
   useEffect(() => {
     if (!form.propertyId) return;
-    jobService.getByProperty(form.propertyId).then(setPropertyJobs).catch(() => {});
+    jobService.getByProperty(form.propertyId).then(setPropertyJobs).catch((e) => console.error("[QuoteRequestPage] jobs load failed:", e));
   }, [form.propertyId]);
 
   // Recompute price range whenever service type, subcategory, or loaded jobs change

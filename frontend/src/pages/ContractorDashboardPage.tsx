@@ -267,10 +267,10 @@ export default function ContractorDashboardPage() {
 
   useEffect(() => {
     Promise.all([
-      contractorService.getMyProfile().then(setProfile).catch(() => {}),
-      quoteService.getOpenRequests().then(setOpenRequests).catch(() => {}),
-      jobService.getJobsPendingMySignature().then(setPendingJobs).catch(() => {}),
-      quoteService.getMyBids().then(setMyBids).catch(() => {}),
+      contractorService.getMyProfile().then(setProfile).catch((e) => console.error("[ContractorDashboard] profile load failed:", e)),
+      quoteService.getOpenRequests().then(setOpenRequests).catch((e) => console.error("[ContractorDashboard] open requests load failed:", e)),
+      jobService.getJobsPendingMySignature().then(setPendingJobs).catch((e) => console.error("[ContractorDashboard] pending jobs load failed:", e)),
+      quoteService.getMyBids().then(setMyBids).catch((e) => console.error("[ContractorDashboard] my bids load failed:", e)),
     ]).finally(() => setLoading(false));
   }, []);
 

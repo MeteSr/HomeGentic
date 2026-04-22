@@ -65,7 +65,7 @@ export default function RecurringServiceCreateModal({
 
   useEffect(() => {
     if (!open) return;
-    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch(() => {});
+    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch((e) => console.error("[RecurringServiceCreateModal] subscription load failed:", e));
   }, [open]);
 
   // Sync default property when store or prop changes

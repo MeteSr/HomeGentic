@@ -11,7 +11,7 @@ export function useSubscription(): Subscription {
   useEffect(() => {
     paymentService.getMySubscription()
       .then((s) => setUserTier(s.tier))
-      .catch(() => {});
+      .catch((e) => console.error("[useSubscription] failed to load subscription:", e));
   }, []);
 
   return { userTier };

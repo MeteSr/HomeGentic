@@ -59,7 +59,7 @@ export default function AgentProfileEditPage() {
           });
         }
       })
-      .catch(() => {})
+      .catch((e) => console.error("[AgentProfileEditPage] profile load failed:", e))
       .finally(() => setLoading(false));
   }, []);
 

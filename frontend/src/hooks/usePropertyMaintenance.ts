@@ -25,7 +25,7 @@ export function usePropertyMaintenance(propertyId: string | undefined): Property
         })
       );
       setVisitLogMap(Object.fromEntries(logEntries));
-    }).catch(() => {});
+    }).catch((e) => console.error("[usePropertyMaintenance] load failed:", e));
   }, [propertyId]);
 
   return { recurringServices, visitLogMap, systemAges };

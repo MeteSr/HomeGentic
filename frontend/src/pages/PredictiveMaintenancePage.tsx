@@ -506,7 +506,7 @@ export default function PredictiveMaintenancePage() {
 
   const [userTier, setUserTier] = useState<PlanTier>("Free");
   useEffect(() => {
-    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch(() => {});
+    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch((e) => console.error("[PredictiveMaintenancePage] subscription load failed:", e));
   }, []);
 
   const property = properties.find((p) => String(p.id) === selectedId);

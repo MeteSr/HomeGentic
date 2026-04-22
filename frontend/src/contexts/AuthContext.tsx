@@ -68,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setLastLoginAt(profile.lastLoggedIn);   // capture previous session timestamp
           setProfile(profile);
           authService.recordLogin().catch((err) => console.error("[AuthContext] recordLogin failed:", err)); // fire-and-forget
-          paymentService.getMySubscription().then((sub) => setTier(sub.tier)).catch(() => {}); // fire-and-forget
+          paymentService.getMySubscription().then((sub) => setTier(sub.tier)).catch((e) => console.error("[AuthContext] subscription fetch failed:", e)); // fire-and-forget; tier defaults to Free
         } catch {
           // Not registered yet
         }
@@ -86,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLastLoginAt(profile.lastLoggedIn);
       setProfile(profile);
       authService.recordLogin().catch((err) => console.error("[AuthContext] recordLogin failed:", err));
-      paymentService.getMySubscription().then((sub) => setTier(sub.tier)).catch(() => {}); // fire-and-forget
+      paymentService.getMySubscription().then((sub) => setTier(sub.tier)).catch((e) => console.error("[AuthContext] subscription fetch failed:", e)); // fire-and-forget; tier defaults to Free
       if (profile.role === "Contractor") {
         navigate("/contractor-dashboard");
       } else {
@@ -120,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLastLoginAt(profile.lastLoggedIn);
       setProfile(profile);
       authService.recordLogin().catch((err) => console.error("[AuthContext] recordLogin failed:", err));
-      paymentService.getMySubscription().then((sub) => setTier(sub.tier)).catch(() => {}); // fire-and-forget
+      paymentService.getMySubscription().then((sub) => setTier(sub.tier)).catch((e) => console.error("[AuthContext] subscription fetch failed:", e)); // fire-and-forget; tier defaults to Free
       if (profile.role === "Contractor") {
         navigate("/contractor-dashboard");
       } else {

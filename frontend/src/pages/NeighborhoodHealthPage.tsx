@@ -34,7 +34,7 @@ export default function NeighborhoodHealthPage() {
     neighborhoodService
       .getZipStats(zipCode)
       .then(setStats)
-      .catch(() => {})
+      .catch((e) => console.error("[NeighborhoodHealthPage] zip stats load failed:", e))
       .finally(() => setLoading(false));
   }, [zipCode]);
 

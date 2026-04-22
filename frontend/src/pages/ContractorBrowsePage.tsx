@@ -99,7 +99,7 @@ export default function ContractorBrowsePage() {
   const [sortBy,      setSortBy]      = useState<SortBy>("trust");
 
   useEffect(() => {
-    contractorService.search().then(setContractors).catch(() => {}).finally(() => setLoading(false));
+    contractorService.search().then(setContractors).catch((e) => console.error("[ContractorBrowsePage] load failed:", e)).finally(() => setLoading(false));
   }, []);
 
   const filtered = useMemo(() => {

@@ -77,14 +77,14 @@ export default function JobCreatePage() {
   // Populate the property store if the user navigated here directly (bypassing Dashboard)
   useEffect(() => {
     if (properties.length === 0) {
-      propertyService.getMyProperties().then((list) => { if (list.length > 0) setProperties(list); }).catch(() => {});
+      propertyService.getMyProperties().then((list) => { if (list.length > 0) setProperties(list); }).catch((e) => console.error("[JobCreate] property load failed:", e));
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     photoService.getQuota().then(setQuota);
-    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch(() => {});
-    jobService.getAll().then((js) => setJobCount(js.length)).catch(() => {});
+    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch((e) => console.error("[JobCreate] subscription load failed:", e));
+    jobService.getAll().then((js) => setJobCount(js.length)).catch((e) => console.error("[JobCreate] job count load failed:", e));
     if (!editJob && properties.length > 0) setForm((f) => ({ ...f, propertyId: String(properties[0].id) }));
   }, [properties]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -126,7 +126,7 @@ export default function JobCreatePage() {
         });
         setLoggedServiceType(form.serviceType);
         // Snapshot score for job-value delta display
-        jobService.getAll().then((js) => setScoreAtSubmit(computeScore(js, []))).catch(() => {});
+        jobService.getAll().then((js) => setScoreAtSubmit(computeScore(js, []))).catch(() => {}); // score delta is display-only; failure does not affect job creation
         setSubmitted(true);
         return; // don't navigate — show success state
       }

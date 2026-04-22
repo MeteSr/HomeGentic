@@ -183,7 +183,7 @@ export default function OnboardingWizard() {
         addProperty(property);
         setProperties([property]);
         setRegisteredId(String(property.id));
-        photoService.getQuota().then(setQuota).catch(() => {});
+        photoService.getQuota().then(setQuota).catch(() => {}); // quota is display-only enrichment; failure is non-critical
         toast.success("Property registered!");
       } catch (err: any) {
         toast.error(err.message || "Registration failed");
@@ -215,8 +215,8 @@ export default function OnboardingWizard() {
   };
 
   const handleBack   = () => setStep((s) => s - 1);
-  const handleFinish = () => { authService.completeOnboarding().catch(() => {}); navigate("/dashboard"); };
-  const handleSkip   = () => { authService.completeOnboarding().catch(() => {}); navigate("/dashboard"); };
+  const handleFinish = () => { authService.completeOnboarding().catch((e) => console.error("[Onboarding] completeOnboarding failed:", e)); navigate("/dashboard"); };
+  const handleSkip   = () => { authService.completeOnboarding().catch((e) => console.error("[Onboarding] completeOnboarding failed:", e)); navigate("/dashboard"); };
 
   const handleDocUpload = async (file: File, docType: string) => {
     if (!registeredId) return;

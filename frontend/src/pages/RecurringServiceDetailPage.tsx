@@ -53,7 +53,7 @@ export default function RecurringServiceDetailPage() {
     if (!id) return;
     Promise.all([
       recurringService.getById(id).then((s) => setSvc(s)),
-      recurringService.getVisitLogs(id).then((v) => setVisits(v)).catch(() => {}),
+      recurringService.getVisitLogs(id).then((v) => setVisits(v)).catch((e) => console.error("[RecurringServiceDetailPage] visit logs load failed:", e)),
     ]).finally(() => setLoading(false));
   }, [id]);
 

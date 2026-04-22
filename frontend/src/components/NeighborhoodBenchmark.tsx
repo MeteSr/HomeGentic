@@ -26,7 +26,7 @@ export function NeighborhoodBenchmark({ zipCode, score }: Props) {
 
   useEffect(() => {
     if (!zipCode) return;
-    neighborhoodService.getZipStats(zipCode).then(setStats).catch(() => {});
+    neighborhoodService.getZipStats(zipCode).then(setStats).catch(() => {}); // optional stats widget; no data → widget renders empty, which is acceptable
   }, [zipCode]);
 
   if (!stats || !zipCode) return null;

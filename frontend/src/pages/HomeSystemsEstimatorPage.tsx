@@ -166,7 +166,7 @@ function EstimatorResults({ yearBuilt, propertyType, state }: { yearBuilt: numbe
       shareInput.current.select();
       document.execCommand("copy");
     } else {
-      navigator.clipboard?.writeText(shareUrl).catch(() => {});
+      navigator.clipboard?.writeText(shareUrl).catch(() => {}) // Clipboard API rejection is benign — the fallback execCommand already ran;
     }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);

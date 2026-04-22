@@ -76,7 +76,7 @@ export default function MarketIntelligencePage() {
     if (properties.length > 0 && !selectedId) {
       setSelectedId(String(properties[0].id));
     }
-    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch(() => {});
+    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch((e) => console.error("[MarketIntelligencePage] subscription load failed:", e));
   }, [properties]);
 
   const runAnalysis = async () => {

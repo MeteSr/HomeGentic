@@ -126,7 +126,7 @@ export default function AgentMarketplacePage() {
       .finally(() => setLoading(false));
     listingService.getMyCounters()
       .then(setMyCounters)
-      .catch(() => {});
+      .catch((e) => console.error("[AgentMarketplacePage] counters load failed:", e));
   }, []);
 
   function set(field: keyof ProposalForm, value: string) {

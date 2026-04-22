@@ -4,8 +4,9 @@ import { Wifi, WifiOff, AlertTriangle, Plus, Trash2, Wrench } from "lucide-react
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { Badge } from "@/components/Badge";
+import { RegisterDeviceModal } from "@/components/RegisterDeviceModal";
 import { usePropertyStore } from "@/store/propertyStore";
-import { sensorService, SensorDevice, SensorEvent, DeviceSource } from "@/services/sensor";
+import { sensorService, SensorDevice, SensorEvent } from "@/services/sensor";
 import toast from "react-hot-toast";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 
@@ -25,7 +26,7 @@ const UI = {
   mono:     FONTS.sans,
 };
 
-const SOURCES: { value: DeviceSource; label: string }[] = [
+const SOURCES: { value: string; label: string }[] = [
   { value: "Nest",    label: "Google Nest"  },
   { value: "Ecobee",  label: "Ecobee"       },
   { value: "MoenFlo", label: "Moen Flo"     },
@@ -36,14 +37,10 @@ export default function SensorPage() {
   const navigate = useNavigate();
   const { properties } = usePropertyStore();
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>("");
-  const [devices, setDevices]   = useState<SensorDevice[]>([]);
-  const [alerts, setAlerts]     = useState<SensorEvent[]>([]);
-  const [loading, setLoading]   = useState(false);
-  const [showForm, setShowForm] = useState(false);
-
-  // Form state
-  const [form, setForm] = useState({ name: "", source: "Nest" as DeviceSource, externalDeviceId: "" });
-  const [saving, setSaving] = useState(false);
+  const [devices,       setDevices]       = useState<SensorDevice[]>([]);
+  const [alerts,        setAlerts]        = useState<SensorEvent[]>([]);
+  const [loading,       setLoading]       = useState(false);
+  const [modalOpen,     setModalOpen]     = useState(false);
 
   // Pick the first property by default
   useEffect(() => {
@@ -61,30 +58,8 @@ export default function SensorPage() {
     ]).then(([devs, alts]) => {
       setDevices(devs);
       setAlerts(alts);
-    }).catch(() => {}).finally(() => setLoading(false));
+    }).catch((e) => console.error("[SensorPage] load failed:", e)).finally(() => setLoading(false));
   }, [selectedPropertyId]);
-
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.name.trim() || !form.externalDeviceId.trim() || !selectedPropertyId) return;
-    setSaving(true);
-    try {
-      const device = await sensorService.registerDevice(
-        selectedPropertyId,
-        form.externalDeviceId.trim(),
-        form.source,
-        form.name.trim()
-      );
-      setDevices((prev) => [...prev, device]);
-      setForm({ name: "", source: "Nest", externalDeviceId: "" });
-      setShowForm(false);
-      toast.success("Device registered");
-    } catch (err: any) {
-      toast.error(err.message ?? "Registration failed");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleDeactivate = async (deviceId: string) => {
     try {
@@ -109,7 +84,7 @@ export default function SensorPage() {
             <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1 }}>
               Smart Home Sensors
             </h1>
-            <Button icon={<Plus size={14} />} onClick={() => setShowForm((v) => !v)}>
+            <Button icon={<Plus size={14} />} onClick={() => setModalOpen(true)}>
               Register Device
             </Button>
           </div>
@@ -147,65 +122,6 @@ export default function SensorPage() {
               </div>
             ))}
           </div>
-        )}
-
-        {/* Register form */}
-        {showForm && (
-          <form
-            onSubmit={handleRegister}
-            style={{ border: `1px solid ${UI.rust}`, padding: "1.25rem", marginBottom: "2rem", background: COLORS.blush }}
-          >
-            <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: "1rem" }}>
-              New Device
-            </p>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: "0.75rem", alignItems: "end" }}>
-              <div>
-                <label style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: "0.35rem", color: UI.inkLight }}>
-                  Device Name
-                </label>
-                <input
-                  required
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  placeholder="e.g. Living Room Thermostat"
-                  style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.75rem", boxSizing: "border-box" }}
-                />
-              </div>
-              <div>
-                <label style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: "0.35rem", color: UI.inkLight }}>
-                  Platform
-                </label>
-                <select
-                  value={form.source}
-                  onChange={(e) => setForm((f) => ({ ...f, source: e.target.value as DeviceSource }))}
-                  style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.75rem", background: COLORS.white, boxSizing: "border-box" }}
-                >
-                  {SOURCES.map((s) => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: "0.35rem", color: UI.inkLight }}>
-                  Device ID (from platform)
-                </label>
-                <input
-                  required
-                  value={form.externalDeviceId}
-                  onChange={(e) => setForm((f) => ({ ...f, externalDeviceId: e.target.value }))}
-                  placeholder="e.g. nest-device-abc123"
-                  style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.75rem", boxSizing: "border-box" }}
-                />
-              </div>
-              <Button type="submit" disabled={saving}>
-                {saving ? "Saving…" : "Add"}
-              </Button>
-            </div>
-            <p style={{ marginTop: "0.75rem", fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>
-              The device ID is assigned by your IoT platform (Nest, Ecobee, or Moen Flo).
-              Critical events will automatically open a pending job on your property.
-            </p>
-          </form>
         )}
 
         {/* Alerts */}
@@ -268,7 +184,7 @@ export default function SensorPage() {
               <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight, marginBottom: "1.25rem" }}>
                 Connect a Nest, Ecobee, or Moen Flo device to automatically log critical home events.
               </p>
-              <Button icon={<Plus size={14} />} onClick={() => setShowForm(true)}>
+              <Button icon={<Plus size={14} />} onClick={() => setModalOpen(true)}>
                 Register Your First Device
               </Button>
             </div>
@@ -319,6 +235,13 @@ export default function SensorPage() {
         </div>
 
       </div>
+
+      <RegisterDeviceModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSuccess={(device) => setDevices((prev) => [...prev, device])}
+        propertyId={selectedPropertyId}
+      />
     </Layout>
   );
 }

@@ -276,7 +276,7 @@ export default function WarrantyWalletPage() {
   const [userTier, setUserTier] = useState<PlanTier>("Free");
 
   useEffect(() => {
-    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch(() => {});
+    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch((e) => console.error("[WarrantyWalletPage] subscription load failed:", e));
     Promise.all([
       jobService.getAll(),
       propertyService.getMyProperties(),
@@ -293,7 +293,7 @@ export default function WarrantyWalletPage() {
         }))
         .sort((a, b) => a.expiry.getTime() - b.expiry.getTime());
       setWarrantyJobs(withWarranty);
-    }).catch(() => {}).finally(() => setLoaded(true));
+    }).catch((e) => console.error("[WarrantyWalletPage] load failed:", e)).finally(() => setLoaded(true));
   }, []);
 
   const expiring = warrantyJobs.filter((w) => w.status === "expiring");

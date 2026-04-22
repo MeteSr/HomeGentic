@@ -97,8 +97,8 @@ export default function AgentBrowsePage() {
   const [userTier,   setUserTier]   = useState<PlanTier>("Free");
 
   useEffect(() => {
-    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch(() => {});
-    agentService.getAllProfiles().then(setAgents).catch(() => {}).finally(() => setLoading(false));
+    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch((e) => console.error("[AgentBrowsePage] subscription load failed:", e));
+    agentService.getAllProfiles().then(setAgents).catch((e) => console.error("[AgentBrowsePage] agents load failed:", e)).finally(() => setLoading(false));
   }, []);
 
   // Build state list from loaded agents

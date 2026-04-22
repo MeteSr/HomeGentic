@@ -39,7 +39,7 @@ export default function RecurringServiceCreatePage() {
   const [userTier, setUserTier] = useState<PlanTier>("Free");
 
   useEffect(() => {
-    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch(() => {});
+    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch((e) => console.error("[RecurringServiceCreatePage] subscription load failed:", e));
   }, []);
   const [form, setForm] = useState({
     propertyId:      "",

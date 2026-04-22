@@ -81,7 +81,7 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
   const [userTier,       setUserTier]       = useState<PlanTier>("Free");
 
   useEffect(() => {
-    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch(() => {});
+    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch((e) => console.error("[FsboPanel] subscription load failed:", e));
   }, []);
 
   const { readiness, missing } = computeFsboReadiness(score, verifiedJobCount, hasReport);

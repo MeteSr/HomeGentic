@@ -19,7 +19,7 @@ export function usePropertyPhotos(propertyId: string | undefined): PropertyPhoto
         for (const p of photos) (map[p.jobId] ??= []).push(p);
         setPhotosByJob(map);
       })
-      .catch(() => {});
+      .catch((e) => console.error("[usePropertyPhotos] load failed:", e));
   }, [propertyId]);
 
   async function uploadPhoto(jobId: string, file: File, propId: string) {

@@ -66,7 +66,7 @@ export default function ListingNewPage() {
   });
 
   useEffect(() => {
-    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch(() => {});
+    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch((e) => console.error("[ListingNewPage] subscription load failed:", e));
   }, []);
 
   useEffect(() => {

@@ -72,11 +72,11 @@ export function BillsTab({ propertyId }: { propertyId: string }) {
           setLoadingRebates(true);
           findRebates({ state: "FL", zipCode: "32801", utilityProvider: fetched.find((b) => b.billType === "Electric")?.provider ?? "Unknown", billType: "Electric" })
             .then(setRebates)
-            .catch(() => {})
+            .catch((e) => console.error("[BillsTab] rebates load failed:", e))
             .finally(() => setLoadingRebates(false));
         }
       })
-      .catch(() => {})
+      .catch((e) => console.error("[BillsTab] bills load failed:", e))
       .finally(() => setLoading(false));
   }, [propertyId]);
 

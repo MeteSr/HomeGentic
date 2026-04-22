@@ -73,7 +73,7 @@ export default function InsuranceDefensePage() {
   const [billAnomalies,    setBillAnomalies]    = useState<BillRecord[]>([]);
 
   useEffect(() => {
-    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch(() => {});
+    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch((e) => console.error("[InsuranceDefensePage] subscription load failed:", e));
     Promise.all([
       propertyService.getMyProperties(),
       jobService.getAll(),
@@ -83,14 +83,14 @@ export default function InsuranceDefensePage() {
       // Load sensor devices for all properties
       Promise.all(props.map((p) => sensorService.getDevicesForProperty(String(p.id))))
         .then((perProp) => setSensorDevices(perProp.flat()))
-        .catch(() => {});
+        .catch((e) => console.error("[InsuranceDefensePage] secondary data load failed:", e));
       // Story 5 — load water bill anomalies for print report
       Promise.all(props.map((p) => billService.getBillsForProperty(String(p.id)).catch(() => [] as BillRecord[])))
         .then((perProp) => {
           const anomalies = perProp.flat().filter((b) => b.anomalyFlag && b.billType === "Water");
           setBillAnomalies(anomalies);
         })
-        .catch(() => {});
+        .catch((e) => console.error("[InsuranceDefensePage] bill anomalies load failed:", e));
     }).finally(() => setLoading(false));
   }, []);
 

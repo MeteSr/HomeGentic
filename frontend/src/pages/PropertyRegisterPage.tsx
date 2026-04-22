@@ -118,7 +118,7 @@ export default function PropertyRegisterPage() {
 
   const handlePermitConfirm = async (confirmed: ImportedPermit[]) => {
     if (registeredPropertyId && confirmed.length > 0) {
-      await createJobsFromPermits(registeredPropertyId, confirmed).catch(() => {});
+      await createJobsFromPermits(registeredPropertyId, confirmed).catch(() => {}) // permit import is post-registration enrichment; failure does not block navigation;
       toast.success(`${confirmed.length} permit record${confirmed.length !== 1 ? "s" : ""} added to your history.`);
     }
     navigate("/dashboard");

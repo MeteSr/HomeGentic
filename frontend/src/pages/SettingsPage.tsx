@@ -295,7 +295,7 @@ function SubscriptionTab({ profile }: { profile: any }) {
         setCancelledAt(sub.cancelledAt);
         setCancelStep("done");
       }
-    }).catch(() => {}).finally(() => setSubLoaded(true));
+    }).catch((e) => console.error("[SettingsPage] subscription load failed:", e)).finally(() => setSubLoaded(true));
   }, []);
 
   const handlePause = (months: 1 | 2 | 3) => {

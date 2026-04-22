@@ -43,9 +43,9 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
         setTransferExpiry(new Date(pt.expiresAt));
         setTransferStep("done");
       }
-    }).catch(() => {});
-    propertyService.getOwnershipHistory(BigInt(property.id)).then(setHistoryRecords).catch(() => {});
-    propertyService.getPropertyManagers(BigInt(property.id)).then(setManagers).catch(() => {});
+    }).catch((e) => console.error("[SettingsTab] pending transfer load failed:", e));
+    propertyService.getOwnershipHistory(BigInt(property.id)).then(setHistoryRecords).catch((e) => console.error("[SettingsTab] ownership history load failed:", e));
+    propertyService.getPropertyManagers(BigInt(property.id)).then(setManagers).catch((e) => console.error("[SettingsTab] managers load failed:", e));
   }, [property.id, currentPrincipal]);
 
   const inviteUrl = inviteToken

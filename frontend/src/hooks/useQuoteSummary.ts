@@ -16,7 +16,7 @@ export function useQuoteSummary(): QuoteSummary {
       const reqs = await quoteService.getRequests();
       setQuoteRequests(reqs);
       if (reqs.length > 0) {
-        quoteService.getBidCountMap(reqs.map((r) => r.id)).then(setBidCountMap).catch(() => {});
+        quoteService.getBidCountMap(reqs.map((r) => r.id)).then(setBidCountMap).catch((e) => console.error("[useQuoteSummary] bid count load failed:", e));
       }
     } catch { /* canister not deployed */ }
   }, []);

@@ -69,7 +69,7 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
       setUserTier(s.tier);
       // Free tier: cap expiry at 7 days (15.2.1)
       if (s.tier === "Free") setExpiryDays(7);
-    }).catch(() => {});
+    }).catch((e) => console.error("[GenerateReportModal] subscription load failed:", e));
     reportService.listShareLinks(propertyId)
       .then(setLinks)
       .finally(() => setLoadingLinks(false));

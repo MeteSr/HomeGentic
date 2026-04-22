@@ -92,7 +92,7 @@ export default function ContractorProfilePage() {
       .then((p) => {
         if (p) { setExisting(p); setForm(fromProfile(p)); }
       })
-      .catch(() => {})
+      .catch((e) => console.error("[ContractorProfilePage] profile load failed:", e))
       .finally(() => setLoading(false));
   }, []);
 

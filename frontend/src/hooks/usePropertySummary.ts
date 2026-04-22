@@ -43,7 +43,7 @@ export function usePropertySummary(): PropertySummary {
       await Promise.all([
         propertyService.getMyManagedProperties()
           .then((list) => { if (!cancelled) setManagedProperties(list); })
-          .catch(() => {}),
+          .catch((e) => console.error("[usePropertySummary] managed properties load failed:", e)),
         loadOwnerNotifications(propList),
       ]);
 
@@ -77,7 +77,7 @@ export function usePropertySummary(): PropertySummary {
         .flat()
     )];
     await Promise.all(
-      unseenPropertyIds.map((id) => propertyService.dismissNotifications(id).catch(() => {}))
+      unseenPropertyIds.map((id) => propertyService.dismissNotifications(id).catch(() => {})) // fire-and-forget: UI optimistically marks as seen above
     );
     setOwnerNotifs((prev) => prev.map((n) => ({ ...n, seen: true })));
   }
