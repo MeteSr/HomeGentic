@@ -29,7 +29,7 @@ export default function PricingPage() {
   const [annual, setAnnual] = useState<boolean>(() => {
     try { return localStorage.getItem(BILLING_KEY) === "annual"; } catch { return false; }
   });
-  const [audience, setAudience] = useState<"homeowner" | "contractor">("homeowner");
+  const [audience, setAudience] = useState<"homeowner" | "contractor" | "realtor">("homeowner");
 
   useEffect(() => {
     try { localStorage.setItem(BILLING_KEY, annual ? "annual" : "monthly"); } catch {}
@@ -44,10 +44,14 @@ export default function PricingPage() {
     (p) => p.tier === "ContractorFree" || p.tier === "ContractorPro"
   );
 
-  const displayPlans = audience === "homeowner" ? homeownerPlans : contractorPlans;
+  const realtorPlans: Plan[] = PLANS.filter(
+    (p) => p.tier === "RealtorFree" || p.tier === "RealtorPro"
+  );
+
+  const displayPlans = audience === "homeowner" ? homeownerPlans : audience === "contractor" ? contractorPlans : realtorPlans;
 
   const handleUpgrade = async (tier: PlanTier) => {
-    if (tier === "ContractorFree") {
+    if (tier === "ContractorFree" || tier === "RealtorFree") {
       await handleLogin();
       return;
     }
@@ -99,7 +103,7 @@ Upgrade when you're ready. Cancel anytime.
         {/* Audience toggle */}
         <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.5rem" }}>
           <div style={{ display: "inline-flex", border: `1px solid ${UI.rule}`, borderRadius: RADIUS.sm, overflow: "hidden" }}>
-            {(["homeowner", "contractor"] as const).map((a) => (
+            {(["homeowner", "contractor", "realtor"] as const).map((a) => (
               <button
                 key={a}
                 onClick={() => setAudience(a)}
@@ -112,13 +116,13 @@ Upgrade when you're ready. Cancel anytime.
                   transition: "background 0.15s, color 0.15s",
                 }}
               >
-                {a === "homeowner" ? "Homeowner" : "Contractor"}
+                {a === "homeowner" ? "Homeowner" : a === "contractor" ? "Contractor" : "Realtor"}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Monthly/Annual toggle — homeowner only */}
+        {/* Monthly/Annual toggle — homeowner only (realtor/contractor plans don't have annual billing) */}
         {audience === "homeowner" && (
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "0.75rem", marginBottom: "2.5rem" }}>
             <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: annual ? UI.inkLight : UI.ink, fontWeight: annual ? 400 : 700 }}>
@@ -158,7 +162,7 @@ Upgrade when you're ready. Cancel anytime.
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1.25rem", marginBottom: "4rem" }}>
           {displayPlans.map((plan) => {
             const isPopular = plan.tier === "Pro";
-            const isFeatured = plan.tier === "ContractorFree";
+            const isFeatured = plan.tier === "ContractorFree" || plan.tier === "RealtorFree";
             return (
               <div key={plan.tier} style={{
                 padding: "2rem",
@@ -174,9 +178,13 @@ Upgrade when you're ready. Cancel anytime.
                   </div>
                 )}
                 <div style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.875rem", color: isPopular ? COLORS.sageLight : COLORS.plumMid, marginBottom: "0.5rem" }}>
-                  {plan.tier === "ContractorFree" ? "Contractor Free" : plan.tier === "ContractorPro" ? "Contractor Pro" : plan.tier}
+                  {plan.tier === "ContractorFree" ? "Contractor Free"
+                    : plan.tier === "ContractorPro" ? "Contractor Pro"
+                    : plan.tier === "RealtorFree" ? "Realtor Free"
+                    : plan.tier === "RealtorPro" ? "Realtor Pro"
+                    : plan.tier}
                 </div>
-                <div style={{ marginBottom: plan.tier === "ContractorFree" ? "0.5rem" : "1.5rem" }}>
+                <div style={{ marginBottom: (plan.tier === "ContractorFree" || plan.tier === "RealtorFree") ? "0.5rem" : "1.5rem" }}>
                   <span style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "2.5rem", lineHeight: 1, color: isPopular ? COLORS.white : COLORS.plum }}>
                     {plan.price === 0 ? "Free" : `$${plan.price}`}
                   </span>
@@ -189,15 +197,15 @@ Upgrade when you're ready. Cancel anytime.
                     </div>
                   )}
                 </div>
-                {plan.tier === "ContractorFree" && (
+                {(plan.tier === "ContractorFree" || plan.tier === "RealtorFree") && (
                   <div style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", fontWeight: 300, color: COLORS.plumMid, marginBottom: "1.25rem", padding: "0.5rem 0.75rem", background: COLORS.sageLight, borderRadius: RADIUS.sm, lineHeight: 1.5 }}>
                     $15 flat fee per verified referral job
                   </div>
                 )}
 
-                {/* AI agent call badge — shown for paid homeowner tiers */}
-                {(plan.tier === "Basic" || plan.tier === "Pro" || plan.tier === "Premium") && (() => {
-                  const agentCalls = plan.tier === "Basic" ? 5 : plan.tier === "Pro" ? 10 : 20;
+                {/* AI agent call badge — shown for paid tiers with agent access */}
+                {(plan.tier === "Basic" || plan.tier === "Pro" || plan.tier === "Premium" || plan.tier === "RealtorPro") && (() => {
+                  const agentCalls = plan.tier === "Basic" ? 5 : plan.tier === "Pro" ? 10 : plan.tier === "RealtorPro" ? 10 : 20;
                   return (
                     <div style={{
                       display: "flex", alignItems: "center", gap: "0.5rem",
@@ -237,10 +245,12 @@ Upgrade when you're ready. Cancel anytime.
                   }}
                   onClick={() => handleUpgrade(plan.tier)}
                 >
-                  {plan.tier === "ContractorFree" ? "Get Started Free"
-                    : plan.tier === "Basic"   ? "Start with Basic"
-                    : plan.tier === "Premium" ? "Unlock Premium"
-                    : `Get ${plan.tier === "ContractorPro" ? "Contractor Pro" : plan.tier}`}
+                  {(plan.tier === "ContractorFree" || plan.tier === "RealtorFree") ? "Get Started Free"
+                    : plan.tier === "Basic"      ? "Start with Basic"
+                    : plan.tier === "Premium"    ? "Unlock Premium"
+                    : plan.tier === "ContractorPro" ? "Get Contractor Pro"
+                    : plan.tier === "RealtorPro" ? "Get Realtor Pro"
+                    : `Get ${plan.tier}`}
                 </Button>
               </div>
             );

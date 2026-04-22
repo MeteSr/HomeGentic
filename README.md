@@ -235,6 +235,8 @@ homegentic/
 | Premium | 20 | 30 | Unlimited | $40/mo |
 | ContractorFree | 0 | 5 | Unlimited | $0 |
 | ContractorPro | Unlimited | 50 | Unlimited | $30/mo |
+| RealtorFree | 0 | 5 | Unlimited | $0 |
+| RealtorPro | 0 | 50 | Unlimited | $30/mo |
 
 Limits are enforced server-side in the `property`, `photo`, and `quote` canisters.
 

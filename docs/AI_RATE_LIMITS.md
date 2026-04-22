@@ -25,6 +25,8 @@ Limits reset at midnight UTC.
 | **Premium** ($40/mo) | 20 | Unlimited | |
 | **ContractorFree** | 0 | 3 | Same as Free |
 | **ContractorPro** ($30/mo) | 10 | Unlimited | Same as Pro |
+| **RealtorFree** | 0 | 3 | Same as Free |
+| **RealtorPro** ($30/mo) | 10 | Unlimited | Same as ContractorPro |
 
 ## Financial basis
 

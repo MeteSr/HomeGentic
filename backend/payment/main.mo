@@ -13,7 +13,7 @@ import OutCall   "mo:caffeineai-http-outcalls/outcall";
 
 persistent actor Payment {
 
-  public type Tier = { #Free; #Basic; #Pro; #Premium; #ContractorFree; #ContractorPro };
+  public type Tier = { #Free; #Basic; #Pro; #Premium; #ContractorFree; #ContractorPro; #RealtorFree; #RealtorPro };
 
   public type Subscription = {
     owner:       Principal;
@@ -44,6 +44,8 @@ persistent actor Payment {
     premiumYearly        : Text;
     contractorProMonthly : Text;
     contractorProYearly  : Text;
+    realtorProMonthly    : Text;
+    realtorProYearly     : Text;
   };
 
   public type StripeConfig = {
@@ -81,6 +83,8 @@ persistent actor Payment {
     premium: Nat;
     contractorFree: Nat;
     contractorPro: Nat;
+    realtorFree: Nat;
+    realtorPro: Nat;
     activePaid: Nat;
     estimatedMrrUsd: Nat;
   };
@@ -194,9 +198,11 @@ persistent actor Payment {
       case (#Free)          { 0  };
       case (#Basic)         { 10 };
       case (#Pro)           { 20 };
-      case (#Premium)       { 35 };
+      case (#Premium)       { 40 };
       case (#ContractorFree){ 0  };
       case (#ContractorPro) { 30 };
+      case (#RealtorFree)   { 0  };
+      case (#RealtorPro)    { 30 };
     }
   };
 
@@ -421,6 +427,8 @@ persistent actor Payment {
       case (#Premium,       #Yearly)  { ?cfg.priceIds.premiumYearly };
       case (#ContractorPro, #Monthly) { ?cfg.priceIds.contractorProMonthly };
       case (#ContractorPro, #Yearly)  { ?cfg.priceIds.contractorProYearly };
+      case (#RealtorPro,    #Monthly) { ?cfg.priceIds.realtorProMonthly };
+      case (#RealtorPro,    #Yearly)  { ?cfg.priceIds.realtorProYearly };
       case _                          { null };
     }
   };
@@ -431,6 +439,8 @@ persistent actor Payment {
       case "Pro"           { ?#Pro };
       case "Premium"       { ?#Premium };
       case "ContractorPro" { ?#ContractorPro };
+      case "RealtorFree"   { ?#RealtorFree };
+      case "RealtorPro"    { ?#RealtorPro };
       case _               { null };
     }
   };
@@ -443,6 +453,8 @@ persistent actor Payment {
       case (#Premium)        { "Premium" };
       case (#ContractorFree) { "ContractorFree" };
       case (#ContractorPro)  { "ContractorPro" };
+      case (#RealtorFree)    { "RealtorFree" };
+      case (#RealtorPro)     { "RealtorPro" };
     }
   };
 
@@ -774,8 +786,8 @@ persistent actor Payment {
     };
 
     let durationNs : Int = switch (tier) {
-      case (#Free or #ContractorFree) { 0 };
-      case (_)                        { 30 * 24 * 60 * 60 * 1_000_000_000 };
+      case (#Free or #ContractorFree or #RealtorFree) { 0 };
+      case (_)                                        { 30 * 24 * 60 * 60 * 1_000_000_000 };
     };
     let now = Time.now();
     let sub: Subscription = {
@@ -819,8 +831,8 @@ persistent actor Payment {
   public shared(msg) func grantSubscription(principal: Principal, tier: Tier) : async Result.Result<Subscription, Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     let durationNs : Int = switch (tier) {
-      case (#Free or #ContractorFree) { 0 };
-      case (_)                        { 30 * 24 * 60 * 60 * 1_000_000_000 };
+      case (#Free or #ContractorFree or #RealtorFree) { 0 };
+      case (_)                                        { 30 * 24 * 60 * 60 * 1_000_000_000 };
     };
     let now = Time.now();
     let sub: Subscription = {
@@ -877,9 +889,11 @@ persistent actor Payment {
       case (#Free)           { { tier = #Free;           priceUSD = 0;  periodDays = 0;  propertyLimit = 0;  photosPerJob = 0;  quoteRequestsPerMonth = 0  } };
       case (#Basic)          { { tier = #Basic;          priceUSD = 10; periodDays = 30; propertyLimit = 1;  photosPerJob = 5;  quoteRequestsPerMonth = 3  } };
       case (#Pro)            { { tier = #Pro;            priceUSD = 20; periodDays = 30; propertyLimit = 5;  photosPerJob = 10; quoteRequestsPerMonth = 10 } };
-      case (#Premium)        { { tier = #Premium;        priceUSD = 35; periodDays = 30; propertyLimit = 20; photosPerJob = 30; quoteRequestsPerMonth = 0  } };
+      case (#Premium)        { { tier = #Premium;        priceUSD = 40; periodDays = 30; propertyLimit = 20; photosPerJob = 30; quoteRequestsPerMonth = 0  } };
       case (#ContractorFree) { { tier = #ContractorFree; priceUSD = 0;  periodDays = 0;  propertyLimit = 0;  photosPerJob = 5;  quoteRequestsPerMonth = 0  } };
       case (#ContractorPro)  { { tier = #ContractorPro;  priceUSD = 30; periodDays = 30; propertyLimit = 0;  photosPerJob = 50; quoteRequestsPerMonth = 0  } };
+      case (#RealtorFree)    { { tier = #RealtorFree;    priceUSD = 0;  periodDays = 0;  propertyLimit = 0;  photosPerJob = 5;  quoteRequestsPerMonth = 0  } };
+      case (#RealtorPro)     { { tier = #RealtorPro;     priceUSD = 30; periodDays = 30; propertyLimit = 0;  photosPerJob = 50; quoteRequestsPerMonth = 0  } };
     }
   };
 
@@ -887,9 +901,11 @@ persistent actor Payment {
     [
       { tier = #Basic;          priceUSD = 10; periodDays = 30; propertyLimit = 1;  photosPerJob = 5;  quoteRequestsPerMonth = 3  },
       { tier = #Pro;            priceUSD = 20; periodDays = 30; propertyLimit = 5;  photosPerJob = 10; quoteRequestsPerMonth = 10 },
-      { tier = #Premium;        priceUSD = 35; periodDays = 30; propertyLimit = 20; photosPerJob = 30; quoteRequestsPerMonth = 0  },
+      { tier = #Premium;        priceUSD = 40; periodDays = 30; propertyLimit = 20; photosPerJob = 30; quoteRequestsPerMonth = 0  },
       { tier = #ContractorFree; priceUSD = 0;  periodDays = 0;  propertyLimit = 0;  photosPerJob = 5;  quoteRequestsPerMonth = 0  },
       { tier = #ContractorPro;  priceUSD = 30; periodDays = 30; propertyLimit = 0;  photosPerJob = 50; quoteRequestsPerMonth = 0  },
+      { tier = #RealtorFree;    priceUSD = 0;  periodDays = 0;  propertyLimit = 0;  photosPerJob = 5;  quoteRequestsPerMonth = 0  },
+      { tier = #RealtorPro;     priceUSD = 30; periodDays = 30; propertyLimit = 0;  photosPerJob = 50; quoteRequestsPerMonth = 0  },
     ]
   };
 
@@ -903,6 +919,8 @@ persistent actor Payment {
     var premium         = 0;
     var contractorFree  = 0;
     var contractorPro   = 0;
+    var realtorFree     = 0;
+    var realtorPro      = 0;
     var activePaid      = 0;
 
     for (sub in Map.values(subscriptions)) {
@@ -914,6 +932,8 @@ persistent actor Payment {
         case (#Premium)        { premium        += 1; if (isActive) { activePaid += 1 } };
         case (#ContractorFree) { contractorFree += 1 };
         case (#ContractorPro)  { contractorPro  += 1; if (isActive) { activePaid += 1 } };
+        case (#RealtorFree)    { realtorFree    += 1 };
+        case (#RealtorPro)     { realtorPro     += 1; if (isActive) { activePaid += 1 } };
       };
     };
 
@@ -925,8 +945,10 @@ persistent actor Payment {
       premium;
       contractorFree;
       contractorPro;
+      realtorFree;
+      realtorPro;
       activePaid;
-      estimatedMrrUsd = basic * 10 + pro * 20 + premium * 35 + contractorPro * 30;
+      estimatedMrrUsd = basic * 10 + pro * 20 + premium * 40 + contractorPro * 30 + realtorPro * 30;
     }
   };
 

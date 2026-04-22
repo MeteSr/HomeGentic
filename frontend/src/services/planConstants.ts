@@ -6,7 +6,7 @@
  * mock surface).
  */
 
-export type PlanTier     = "Free" | "Basic" | "Pro" | "Premium" | "ContractorFree" | "ContractorPro";
+export type PlanTier     = "Free" | "Basic" | "Pro" | "Premium" | "ContractorFree" | "ContractorPro" | "RealtorFree" | "RealtorPro";
 export type BillingCycle = "Monthly" | "Yearly";
 
 export interface GiftMeta {
@@ -124,6 +124,40 @@ export const PLANS: Plan[] = [
       "Trust score display",
       "Customer reviews",
       "Earnings dashboard",
+    ],
+    propertyLimit: 0,
+    photosPerJob: 50,
+    quoteRequests: Infinity,
+  },
+  {
+    tier: "RealtorFree",
+    price: 0,
+    period: "free",
+    features: [
+      "Realtor profile listing",
+      "Up to 3 active listings",
+      "5 photos per listing",
+      "Receive bid requests from HomeGentic homeowners",
+      "$15 referral fee per closed transaction",
+      "Basic performance score",
+    ],
+    propertyLimit: 0,
+    photosPerJob: 5,
+    quoteRequests: Infinity,
+  },
+  {
+    tier: "RealtorPro",
+    price: 30,
+    period: "month",
+    features: [
+      "Everything in Realtor Free",
+      "Unlimited active listings",
+      "50 photos per listing",
+      "10 AI agent calls/day",
+      "Priority placement in agent search",
+      "Verified Realtor badge",
+      "Performance analytics dashboard",
+      "Customer reviews",
     ],
     propertyLimit: 0,
     photosPerJob: 50,

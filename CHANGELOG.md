@@ -7,6 +7,7 @@ All notable changes to HomeGentic are documented here.
 ## [Unreleased]
 
 ### Features
+- **Realtor subscription tiers (#164)**: Added `RealtorFree` (free, pay-per-bid) and `RealtorPro` ($30/mo) tiers to the payment canister, IDL, `planConstants`, and pricing page. Realtor tab added to the pricing page audience toggle.
 - **IoT device sources expanded to 12 (#161)**: Added Ring Alarm, Honeywell Home, Rheem EcoNet, Sense Energy Monitor, Emporia Vue, Rachio Smart Sprinkler, Samsung SmartThings, and Home Assistant alongside existing Nest, Ecobee, Moen Flo, and Manual. IDL `DeviceSource` variant and TypeScript union type updated to match; E2E spec added for all 12 sources.
 
 ### Security

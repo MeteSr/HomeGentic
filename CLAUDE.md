@@ -114,6 +114,8 @@ All 17 active canisters use `persistent actor` (Motoko mo:core) — all variable
 | Premium | 20 | 30 | unlimited | $40/mo |
 | ContractorFree | 0 | 5 | unlimited | $0 |
 | ContractorPro | unlimited | 50 | unlimited | $30/mo |
+| RealtorFree | 0 | 5 | unlimited | $0 |
+| RealtorPro | 0 | 50 | unlimited | $30/mo |
 
 ### AI Agent Rate Limits (enforced in Express voice server)
 
@@ -121,9 +123,9 @@ Agent calls (agentic tool-use loop) are counted separately from chat calls. See 
 
 | Tier | Agent calls/day | Chat calls/day |
 |---|---|---|
-| Free / ContractorFree | 0 | 3 |
+| Free / ContractorFree / RealtorFree | 0 | 3 |
 | Basic | 5 | Unlimited |
-| Pro / ContractorPro | 10 | Unlimited |
+| Pro / ContractorPro / RealtorPro | 10 | Unlimited |
 | Premium | 20 | Unlimited |
 
 ### Frontend Service Layer

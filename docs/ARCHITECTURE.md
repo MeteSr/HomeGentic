@@ -131,14 +131,14 @@ Enforced server-side inside `payment`, `quote`, `photo`, and `property`.
 The frontend reflects tier state but never gates logic unilaterally.
 
 ```
-┌──────────────────┬──────────┬──────────┬──────────┬───────────────┬───────────────┐
-│                  │  Basic   │   Pro    │ Premium  │ContractorFree │ ContractorPro │
-├──────────────────┼──────────┼──────────┼──────────┼───────────────┼───────────────┤
-│ Price            │ $10 / mo │ $20 / mo │ $40 / mo │ $0            │ $30 / mo      │
-│ Properties       │ 1        │ 5        │ 20       │ 0             │ unlimited     │
-│ Photos / job     │ 5        │ 10       │ 30       │ 5             │ 50            │
-│ Open quote reqs  │ 3        │ 10       │ unlimited│ unlimited     │ unlimited     │
-└──────────────────┴──────────┴──────────┴──────────┴───────────────┴───────────────┘
+┌──────────────────┬──────────┬──────────┬──────────┬───────────────┬───────────────┬─────────────┬────────────┐
+│                  │  Basic   │   Pro    │ Premium  │ContractorFree │ ContractorPro │ RealtorFree │ RealtorPro │
+├──────────────────┼──────────┼──────────┼──────────┼───────────────┼───────────────┼─────────────┼────────────┤
+│ Price            │ $10 / mo │ $20 / mo │ $40 / mo │ $0            │ $30 / mo      │ $0          │ $30 / mo   │
+│ Properties       │ 1        │ 5        │ 20       │ 0             │ unlimited     │ 0           │ 0          │
+│ Photos / job     │ 5        │ 10       │ 30       │ 5             │ 50            │ 5           │ 50         │
+│ Open quote reqs  │ 3        │ 10       │ unlimited│ unlimited     │ unlimited     │ unlimited   │ unlimited  │
+└──────────────────┴──────────┴──────────┴──────────┴───────────────┴───────────────┴─────────────┴────────────┘
 ```
 
 All limits are enforced server-side in the `payment`, `quote`, `photo`, and `property` canisters.
