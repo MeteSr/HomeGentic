@@ -98,23 +98,35 @@ for i in "${!ACTIVE[@]}"; do
   PID="${PIDS[$i]}"
   START_S=$(cat "$LOG_DIR/$CANISTER.start")
 
-  echo "── [$CANISTER] ──────────────────────────────────────────────────────────"
-
   # wait returns the exit code of the background process
   if wait "$PID"; then
     END_S=$(date +%s)
     ELAPSED=$(( END_S - START_S ))
-    cat "$LOG_DIR/$CANISTER.log"
+    # Passing tests: suppress full log — just show the summary line.
+    # Full log is still on disk until rm -rf below if you need to debug locally.
     echo "   ✅  $CANISTER passed (${ELAPSED}s)"
     PASSED+=("$CANISTER")
   else
     END_S=$(date +%s)
     ELAPSED=$(( END_S - START_S ))
+    echo ""
+    echo "── [$CANISTER FAILED — full output] ──────────────────────────────────"
     cat "$LOG_DIR/$CANISTER.log"
+    echo ""
+    # Print a compact failure digest: lines with explicit ↳ ❌ markers + last
+    # 20 lines (which usually contain the point where the script exited).
+    ASSERTIONS=$(grep -n " ↳ ❌ " "$LOG_DIR/$CANISTER.log" || true)
+    if [ -n "$ASSERTIONS" ]; then
+      echo "   ── Assertion failures ─────────────────────────────────────────"
+      echo "$ASSERTIONS"
+      echo ""
+    fi
+    echo "   ── Last 20 lines (exit context) ───────────────────────────────"
+    tail -20 "$LOG_DIR/$CANISTER.log"
+    echo ""
     echo "   ❌  $CANISTER FAILED (${ELAPSED}s)"
     FAILED+=("$CANISTER")
   fi
-  echo ""
 done
 
 rm -rf "$LOG_DIR"

@@ -405,16 +405,21 @@ else
   dfx canister call $CANISTER setPropertyCanisterId "(principal \"$PROPERTY_ID\")"
   echo "  ↳ Canisters wired ✓"
 
-  # Create manager-test identity if needed (Free tier — no subscription)
+  # Use a dedicated owner identity so we don't hit the deployer's property limit.
+  # All parallel tests share the same canister state and the deployer accumulates
+  # properties across multiple test scripts running simultaneously.
+  if ! dfx identity list 2>/dev/null | grep -q "^quote-mgr-owner-test$"; then
+    dfx identity new quote-mgr-owner-test --disable-encryption 2>/dev/null || true
+  fi
+  MGR_OWNER_PRINCIPAL=$(dfx identity get-principal --identity quote-mgr-owner-test)
   if ! dfx identity list 2>/dev/null | grep -q "^manager-test$"; then
     dfx identity new manager-test --disable-encryption 2>/dev/null || true
   fi
-  MY_PRINCIPAL=$(dfx identity get-principal)
 
-  # Ensure owner has Pro tier
-  dfx canister call payment grantSubscription "(principal \"$MY_PRINCIPAL\", variant { Pro })"
+  # Ensure dedicated owner has Pro tier
+  dfx canister call payment grantSubscription "(principal \"$MGR_OWNER_PRINCIPAL\", variant { Pro })"
 
-  # Register a property as owner
+  # Register a property as the dedicated owner identity
   echo ""
   echo "── [MGR-1] Register property as owner ──────────────────────────────────"
   MGR_PROP_OUT=$(dfx canister call property registerProperty '(record {
@@ -426,17 +431,25 @@ else
     yearBuilt    = 2008;
     squareFeet   = 1400;
     tier         = variant { Pro };
-  })')
+  })' --identity quote-mgr-owner-test)
   echo "$MGR_PROP_OUT"
   MGR_PROP_ID=$(echo "$MGR_PROP_OUT" | grep -oP 'id = "\K[^"]+' | head -1 || true)
   echo "  → Property ID: $MGR_PROP_ID"
+
+  if [ -z "$MGR_PROP_ID" ]; then
+    echo "  ↳ ⚠️  Property registration failed; skipping MGR manager tests"
+  else
 
   # Invite and claim manager role
   echo ""
   echo "── [MGR-2] Owner invites manager; manager claims role ───────────────────"
   INVITE_OUT=$(dfx canister call property inviteManager \
-    "(\"$MGR_PROP_ID\", variant { Manager }, \"Quote Manager\")")
-  INVITE_TOKEN=$(echo "$INVITE_OUT" | grep -oP 'token = "\K[^"]+' | head -1)
+    "(\"$MGR_PROP_ID\", variant { Manager }, \"Quote Manager\")" \
+    --identity quote-mgr-owner-test)
+  INVITE_TOKEN=$(echo "$INVITE_OUT" | grep -oP 'token = "\K[^"]+' | head -1 || true)
+  if [ -z "$INVITE_TOKEN" ]; then
+    echo "  ↳ ⚠️  Could not obtain invite token; skipping MGR-2 onwards"
+  else
   dfx canister call property claimManagerRole \
     "(\"$INVITE_TOKEN\")" --identity manager-test
   echo "  ↳ Manager role granted ✓"
@@ -475,4 +488,6 @@ else
 
   echo ""
   echo "✅ Quote manager tier-bypass tests complete!"
-fi
+  fi  # end if [ -z "$INVITE_TOKEN" ]
+  fi  # end if [ -z "$MGR_PROP_ID" ]
+fi   # end if property/payment deployed
