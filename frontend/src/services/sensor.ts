@@ -7,7 +7,12 @@ const SENSOR_CANISTER_ID = (process.env as any).SENSOR_CANISTER_ID || "";
 
 export const idlFactory = ({ IDL }: any) => {
   const DeviceSource = IDL.Variant({
-    Nest: IDL.Null, Ecobee: IDL.Null, MoenFlo: IDL.Null, Manual: IDL.Null,
+    Nest:          IDL.Null, Ecobee:        IDL.Null,
+    MoenFlo:       IDL.Null, Manual:        IDL.Null,
+    RingAlarm:     IDL.Null, HoneywellHome: IDL.Null,
+    RheemEcoNet:   IDL.Null, Sense:         IDL.Null,
+    EmporiaVue:    IDL.Null, Rachio:        IDL.Null,
+    SmartThings:   IDL.Null, HomeAssistant: IDL.Null,
   });
   const SensorEventType = IDL.Variant({
     WaterLeak:       IDL.Null,
@@ -73,7 +78,10 @@ export const idlFactory = ({ IDL }: any) => {
 
 // ─── TypeScript types ─────────────────────────────────────────────────────────
 
-export type DeviceSource = "Nest" | "Ecobee" | "MoenFlo" | "Manual";
+export type DeviceSource =
+  | "Nest" | "Ecobee" | "MoenFlo" | "Manual"
+  | "RingAlarm" | "HoneywellHome" | "RheemEcoNet" | "Sense"
+  | "EmporiaVue" | "Rachio" | "SmartThings" | "HomeAssistant";
 export type SensorEventType =
   | "WaterLeak" | "LeakDetected" | "FloodRisk"
   | "LowTemperature" | "HvacAlert" | "HvacFilterDue"
@@ -172,6 +180,10 @@ function createSensorService() {
   },
 
   async getDevicesForProperty(propertyId: string): Promise<SensorDevice[]> {
+    if (typeof window !== "undefined" && (window as any).__e2e_devices) {
+      const map = (window as any).__e2e_devices as Record<string, SensorDevice[]>;
+      return map[propertyId] ?? [];
+    }
     const a = await getActor();
     return (await a.getDevicesForProperty(propertyId) as any[]).map(fromDevice);
   },
@@ -182,6 +194,10 @@ function createSensorService() {
   },
 
   async getPendingAlerts(propertyId: string): Promise<SensorEvent[]> {
+    if (typeof window !== "undefined" && (window as any).__e2e_alerts) {
+      const map = (window as any).__e2e_alerts as Record<string, SensorEvent[]>;
+      return map[propertyId] ?? [];
+    }
     const a = await getActor();
     return (await a.getPendingAlerts(propertyId) as any[]).map(fromEvent);
   },

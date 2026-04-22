@@ -16,10 +16,18 @@ const UI = {
 };
 
 const SOURCES: { value: DeviceSource; label: string }[] = [
-  { value: "Nest",    label: "Google Nest"  },
-  { value: "Ecobee",  label: "Ecobee"       },
-  { value: "MoenFlo", label: "Moen Flo"     },
-  { value: "Manual",  label: "Manual Entry" },
+  { value: "Nest",          label: "Google Nest"             },
+  { value: "Ecobee",        label: "Ecobee"                  },
+  { value: "MoenFlo",       label: "Moen Flo"                },
+  { value: "RingAlarm",     label: "Ring Alarm"              },
+  { value: "HoneywellHome", label: "Honeywell Home"          },
+  { value: "RheemEcoNet",   label: "Rheem EcoNet"            },
+  { value: "Sense",         label: "Sense Energy Monitor"    },
+  { value: "EmporiaVue",    label: "Emporia Vue"             },
+  { value: "Rachio",        label: "Rachio Smart Sprinkler"  },
+  { value: "SmartThings",   label: "Samsung SmartThings"     },
+  { value: "HomeAssistant", label: "Home Assistant"          },
+  { value: "Manual",        label: "Manual Entry"            },
 ];
 
 const BLANK = {

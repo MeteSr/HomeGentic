@@ -27,10 +27,18 @@ const UI = {
 };
 
 const SOURCES: { value: string; label: string }[] = [
-  { value: "Nest",    label: "Google Nest"  },
-  { value: "Ecobee",  label: "Ecobee"       },
-  { value: "MoenFlo", label: "Moen Flo"     },
-  { value: "Manual",  label: "Manual Entry" },
+  { value: "Nest",          label: "Google Nest"             },
+  { value: "Ecobee",        label: "Ecobee"                  },
+  { value: "MoenFlo",       label: "Moen Flo"                },
+  { value: "RingAlarm",     label: "Ring Alarm"              },
+  { value: "HoneywellHome", label: "Honeywell Home"          },
+  { value: "RheemEcoNet",   label: "Rheem EcoNet"            },
+  { value: "Sense",         label: "Sense Energy Monitor"    },
+  { value: "EmporiaVue",    label: "Emporia Vue"             },
+  { value: "Rachio",        label: "Rachio Smart Sprinkler"  },
+  { value: "SmartThings",   label: "Samsung SmartThings"     },
+  { value: "HomeAssistant", label: "Home Assistant"          },
+  { value: "Manual",        label: "Manual Entry"            },
 ];
 
 export default function SensorPage() {
@@ -182,7 +190,7 @@ export default function SensorPage() {
               <Wifi size={36} color={UI.rule} style={{ margin: "0 auto 1rem" }} />
               <p style={{ fontFamily: UI.serif, fontWeight: 700, marginBottom: "0.375rem" }}>No devices registered</p>
               <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight, marginBottom: "1.25rem" }}>
-                Connect a Nest, Ecobee, or Moen Flo device to automatically log critical home events.
+                Connect a Nest, Ecobee, Moen Flo, Ring Alarm, Honeywell Home, or other smart device to automatically log critical home events.
               </p>
               <Button icon={<Plus size={14} />} onClick={() => setModalOpen(true)}>
                 Register Your First Device
@@ -228,9 +236,10 @@ export default function SensorPage() {
             How it works
           </p>
           <p style={{ fontSize: "0.8rem", fontWeight: 300, lineHeight: 1.6, color: UI.inkLight }}>
-            Your IoT gateway forwards events from Nest, Ecobee, and Moen Flo to HomeGentic.
-            Critical events — water leaks, HVAC faults, pipe-freeze risk — automatically open a pending job
-            on your property record so nothing falls through the cracks.
+            Your IoT gateway forwards events from Nest, Ecobee, Moen Flo, Ring Alarm, Honeywell Home,
+            Rheem EcoNet, Sense, Emporia Vue, Rachio, Samsung SmartThings, Home Assistant, and manually
+            entered devices to HomeGentic. Critical events — water leaks, HVAC faults, pipe-freeze risk —
+            automatically open a pending job on your property record so nothing falls through the cracks.
           </p>
         </div>
 
