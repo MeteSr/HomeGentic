@@ -1,26 +1,28 @@
 /**
- * TDD — Issue #129 (take 2): Onboarding Wizard
+ * TDD — Issue #129 / #134: Onboarding Wizard
  *
  * Steps:
  *   1 — Property address
  *   2 — Property details (type, year built, sq ft)
- *   3 — Verify ownership  (legal name + ownership document — required)
- *   4 — Document import   (optional)
- *   5 — System ages       (optional, defaults to year built, + solar toggle)
+ *   3 — Capture baseline photos  (optional, NEW — issue #134)
+ *   4 — Verify ownership  (legal name + ownership document — required)
+ *   5 — Document import   (optional)
+ *   6 — System ages       (optional, defaults to year built, + solar toggle)
  *
  * Acceptance criteria:
- *   - Step indicator ("Step X of 5") visible throughout
- *   - No Back button on step 1; Back available on steps 2–5
+ *   - Step indicator ("Step X of 6") visible throughout
+ *   - No Back button on step 1; Back available on steps 2–6
  *   - Next advances; Back retreats
  *   - "Skip setup" link navigates to /dashboard from any step
- *   - Step 5 shows "Finish" (not "Next")
+ *   - Step 6 shows "Finish" (not "Next")
  *   - Finishing navigates to /dashboard
  *   - Step 1 Next disabled until required address fields are filled
  *   - Step 2 Next disabled until type, year, and sq ft are filled
- *   - Step 3 Next disabled until legal name and document file are provided
- *   - Step 3 calls propertyService.submitVerification on advance
- *   - Step 5 system age inputs default to year built
- *   - Step 5 solar toggle hides/shows a "Year Installed" input
+ *   - Step 3 (baseline photos) Next always enabled (optional step)
+ *   - Step 4 Next disabled until legal name and document file are provided
+ *   - Step 4 calls propertyService.submitVerification on advance
+ *   - Step 6 system age inputs default to year built
+ *   - Step 6 solar toggle hides/shows a "Year Installed" input
  */
 
 import React from "react";
@@ -140,7 +142,7 @@ function fillStep2() {
   fireEvent.change(screen.getByLabelText(/square feet/i), { target: { value: "2000" } });
 }
 
-function fillStep3() {
+function fillStep4() {
   fireEvent.change(screen.getByLabelText(/legal name/i), { target: { value: "John Doe" } });
   const file = new File(["deed-content"], "deed.pdf", { type: "application/pdf" });
   fireEvent.change(screen.getByLabelText(/ownership document/i), { target: { files: [file] } });
@@ -150,26 +152,31 @@ function clickNext() {
   fireEvent.click(screen.getByRole("button", { name: /^next$/i }));
 }
 
-async function goToStep(n: 2 | 3 | 4 | 5) {
+async function goToStep(n: 2 | 3 | 4 | 5 | 6) {
   renderWizard();
   fillStep1();
   clickNext();
-  await waitFor(() => screen.getByText(/step 2 of 5/i));
+  await waitFor(() => screen.getByText(/step 2 of 6/i));
   if (n === 2) return;
 
   fillStep2();
   clickNext();
-  await waitFor(() => screen.getByText(/step 3 of 5/i));
+  await waitFor(() => screen.getByText(/step 3 of 6/i));
   if (n === 3) return;
 
-  fillStep3();
+  // Step 3 (baseline photos) is optional — Next always enabled
   clickNext();
-  await waitFor(() => screen.getByText(/step 4 of 5/i));
+  await waitFor(() => screen.getByText(/step 4 of 6/i));
   if (n === 4) return;
 
-  // Step 4 is optional
+  fillStep4();
   clickNext();
-  await waitFor(() => screen.getByText(/step 5 of 5/i));
+  await waitFor(() => screen.getByText(/step 5 of 6/i));
+  if (n === 5) return;
+
+  // Step 5 is optional document upload
+  clickNext();
+  await waitFor(() => screen.getByText(/step 6 of 6/i));
 }
 
 // ─── Step indicator ───────────────────────────────────────────────────────────
@@ -177,31 +184,36 @@ async function goToStep(n: 2 | 3 | 4 | 5) {
 describe("OnboardingWizard — step indicator", () => {
   beforeEach(() => { vi.clearAllMocks(); mockNavigate.mockReset(); });
 
-  it("shows 'Step 1 of 5' on initial render", () => {
+  it("shows 'Step 1 of 6' on initial render", () => {
     renderWizard();
-    expect(screen.getByText(/step 1 of 5/i)).toBeInTheDocument();
+    expect(screen.getByText(/step 1 of 6/i)).toBeInTheDocument();
   });
 
-  it("shows 'Step 2 of 5' after advancing from step 1", async () => {
+  it("shows 'Step 2 of 6' after advancing from step 1", async () => {
     renderWizard();
     fillStep1();
     clickNext();
-    await waitFor(() => expect(screen.getByText(/step 2 of 5/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/step 2 of 6/i)).toBeInTheDocument());
   });
 
-  it("shows 'Step 3 of 5' after advancing from step 2", async () => {
+  it("shows 'Step 3 of 6' after advancing from step 2", async () => {
     await goToStep(3);
-    expect(screen.getByText(/step 3 of 5/i)).toBeInTheDocument();
+    expect(screen.getByText(/step 3 of 6/i)).toBeInTheDocument();
   });
 
-  it("shows 'Step 4 of 5' after advancing from step 3", async () => {
+  it("shows 'Step 4 of 6' after advancing from step 3", async () => {
     await goToStep(4);
-    expect(screen.getByText(/step 4 of 5/i)).toBeInTheDocument();
+    expect(screen.getByText(/step 4 of 6/i)).toBeInTheDocument();
   });
 
-  it("shows 'Step 5 of 5' after advancing from step 4", async () => {
+  it("shows 'Step 5 of 6' after advancing from step 4", async () => {
     await goToStep(5);
-    expect(screen.getByText(/step 5 of 5/i)).toBeInTheDocument();
+    expect(screen.getByText(/step 5 of 6/i)).toBeInTheDocument();
+  });
+
+  it("shows 'Step 6 of 6' after advancing from step 5", async () => {
+    await goToStep(6);
+    expect(screen.getByText(/step 6 of 6/i)).toBeInTheDocument();
   });
 });
 
@@ -235,28 +247,39 @@ describe("OnboardingWizard — Back button", () => {
     expect(screen.getByRole("button", { name: /^back$/i })).toBeInTheDocument();
   });
 
+  it("shows Back button on step 6", async () => {
+    await goToStep(6);
+    expect(screen.getByRole("button", { name: /^back$/i })).toBeInTheDocument();
+  });
+
   it("clicking Back on step 2 returns to step 1", async () => {
     await goToStep(2);
     fireEvent.click(screen.getByRole("button", { name: /^back$/i }));
-    await waitFor(() => expect(screen.getByText(/step 1 of 5/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/step 1 of 6/i)).toBeInTheDocument());
   });
 
   it("clicking Back on step 3 returns to step 2", async () => {
     await goToStep(3);
     fireEvent.click(screen.getByRole("button", { name: /^back$/i }));
-    await waitFor(() => expect(screen.getByText(/step 2 of 5/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/step 2 of 6/i)).toBeInTheDocument());
   });
 
   it("clicking Back on step 4 returns to step 3", async () => {
     await goToStep(4);
     fireEvent.click(screen.getByRole("button", { name: /^back$/i }));
-    await waitFor(() => expect(screen.getByText(/step 3 of 5/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/step 3 of 6/i)).toBeInTheDocument());
   });
 
   it("clicking Back on step 5 returns to step 4", async () => {
     await goToStep(5);
     fireEvent.click(screen.getByRole("button", { name: /^back$/i }));
-    await waitFor(() => expect(screen.getByText(/step 4 of 5/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/step 4 of 6/i)).toBeInTheDocument());
+  });
+
+  it("clicking Back on step 6 returns to step 5", async () => {
+    await goToStep(6);
+    fireEvent.click(screen.getByRole("button", { name: /^back$/i }));
+    await waitFor(() => expect(screen.getByText(/step 5 of 6/i)).toBeInTheDocument());
   });
 });
 
@@ -319,12 +342,47 @@ describe("OnboardingWizard — step 2 validation", () => {
   });
 });
 
-// ─── Step 3: ownership verification ──────────────────────────────────────────
+// ─── Step 3: baseline photos ──────────────────────────────────────────────────
 
-describe("OnboardingWizard — step 3 ownership verification", () => {
+describe("OnboardingWizard — step 3 capture baseline photos", () => {
   beforeEach(async () => {
     vi.clearAllMocks(); mockNavigate.mockReset();
     await goToStep(3);
+  });
+
+  it("shows the Capture Baseline Photos heading", () => {
+    expect(screen.getByRole("heading", { name: /capture baseline photos/i })).toBeInTheDocument();
+  });
+
+  it("shows all 6 baseline system categories", () => {
+    expect(screen.getAllByText(/HVAC/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Water Heater/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Electrical Panel/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Water Shut-off/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Roof/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Garage Door/i).length).toBeGreaterThan(0);
+  });
+
+  it("shows '0 / 6' progress count", () => {
+    // The counter renders as two text nodes: the count + a "/ N" span
+    expect(screen.getByText(/\/\s*6/)).toBeInTheDocument();
+  });
+
+  it("Next button is enabled without uploading anything (optional step)", () => {
+    expect(screen.getByRole("button", { name: /^next$/i })).not.toBeDisabled();
+  });
+
+  it("shows an 'Add photo' button for each of the 6 systems", () => {
+    expect(screen.getAllByRole("button", { name: /add photo/i })).toHaveLength(6);
+  });
+});
+
+// ─── Step 4: ownership verification ──────────────────────────────────────────
+
+describe("OnboardingWizard — step 4 ownership verification", () => {
+  beforeEach(async () => {
+    vi.clearAllMocks(); mockNavigate.mockReset();
+    await goToStep(4);
   });
 
   it("shows the Verify Ownership heading", () => {
@@ -343,15 +401,15 @@ describe("OnboardingWizard — step 3 ownership verification", () => {
   });
 
   it("Next button is enabled when legal name and document are provided", () => {
-    fillStep3();
+    fillStep4();
     expect(screen.getByRole("button", { name: /^next$/i })).not.toBeDisabled();
   });
 
   it("advancing calls submitVerification with the registered property id", async () => {
     const { propertyService } = await import("@/services/property");
-    fillStep3();
+    fillStep4();
     clickNext();
-    await waitFor(() => screen.getByText(/step 4 of 5/i));
+    await waitFor(() => screen.getByText(/step 5 of 6/i));
     expect(propertyService.submitVerification).toHaveBeenCalledWith(
       BigInt(1),
       expect.any(String), // docType
@@ -360,32 +418,32 @@ describe("OnboardingWizard — step 3 ownership verification", () => {
   });
 });
 
-// ─── Step 4: optional document upload ────────────────────────────────────────
+// ─── Step 5: optional document upload ────────────────────────────────────────
 
-describe("OnboardingWizard — step 4 document upload", () => {
+describe("OnboardingWizard — step 5 document upload", () => {
   beforeEach(async () => {
     vi.clearAllMocks(); mockNavigate.mockReset();
-    await goToStep(4);
+    await goToStep(5);
   });
 
   it("renders the document upload area", () => {
     expect(screen.getByTestId("doc-upload")).toBeInTheDocument();
   });
 
-  it("Next button is enabled on step 4 without any upload (optional)", () => {
+  it("Next button is enabled on step 5 without any upload (optional)", () => {
     expect(screen.getByRole("button", { name: /^next$/i })).not.toBeDisabled();
   });
 });
 
-// ─── Step 5: Finish button ────────────────────────────────────────────────────
+// ─── Step 6: Finish button ────────────────────────────────────────────────────
 
-describe("OnboardingWizard — step 5 Finish button", () => {
+describe("OnboardingWizard — step 6 Finish button", () => {
   beforeEach(async () => {
     vi.clearAllMocks(); mockNavigate.mockReset();
-    await goToStep(5);
+    await goToStep(6);
   });
 
-  it("shows 'Finish' button on step 5 instead of 'Next'", () => {
+  it("shows 'Finish' button on step 6 instead of 'Next'", () => {
     expect(screen.getByRole("button", { name: /^finish$/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^next$/i })).not.toBeInTheDocument();
   });
@@ -396,12 +454,12 @@ describe("OnboardingWizard — step 5 Finish button", () => {
   });
 });
 
-// ─── Step 5: system ages default to year built ───────────────────────────────
+// ─── Step 6: system ages default to year built ───────────────────────────────
 
-describe("OnboardingWizard — step 5 system ages default to year built", () => {
+describe("OnboardingWizard — step 6 system ages default to year built", () => {
   beforeEach(async () => {
     vi.clearAllMocks(); mockNavigate.mockReset();
-    await goToStep(5);
+    await goToStep(6);
   });
 
   it("HVAC input defaults to year built (1990)", () => {
@@ -431,12 +489,12 @@ describe("OnboardingWizard — step 5 system ages default to year built", () => 
   });
 });
 
-// ─── Step 5: solar panels toggle ─────────────────────────────────────────────
+// ─── Step 6: solar panels toggle ─────────────────────────────────────────────
 
-describe("OnboardingWizard — step 5 solar panels", () => {
+describe("OnboardingWizard — step 6 solar panels", () => {
   beforeEach(async () => {
     vi.clearAllMocks(); mockNavigate.mockReset();
-    await goToStep(5);
+    await goToStep(6);
   });
 
   it("solar panels checkbox is unchecked by default", () => {
@@ -463,7 +521,7 @@ describe("OnboardingWizard — step 5 solar panels", () => {
     expect(screen.queryByLabelText(/year installed/i)).not.toBeInTheDocument();
   });
 
-  it("Finish button is enabled on step 5 without solar (optional)", () => {
+  it("Finish button is enabled on step 6 without solar (optional)", () => {
     expect(screen.getByRole("button", { name: /^finish$/i })).not.toBeDisabled();
   });
 });
@@ -506,28 +564,33 @@ describe("OnboardingWizard — progress bar", () => {
     expect(screen.getByRole("progressbar")).toBeInTheDocument();
   });
 
-  it("progress bar shows 20% on step 1", () => {
+  it("progress bar shows 17% on step 1", () => {
     renderWizard();
-    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "20");
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "17");
   });
 
-  it("progress bar shows 40% on step 2", async () => {
+  it("progress bar shows 33% on step 2", async () => {
     await goToStep(2);
-    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "40");
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "33");
   });
 
-  it("progress bar shows 60% on step 3", async () => {
+  it("progress bar shows 50% on step 3", async () => {
     await goToStep(3);
-    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "60");
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "50");
   });
 
-  it("progress bar shows 80% on step 4", async () => {
+  it("progress bar shows 67% on step 4", async () => {
     await goToStep(4);
-    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "80");
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "67");
   });
 
-  it("progress bar shows 100% on step 5", async () => {
+  it("progress bar shows 83% on step 5", async () => {
     await goToStep(5);
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "83");
+  });
+
+  it("progress bar shows 100% on step 6", async () => {
+    await goToStep(6);
     expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "100");
   });
 });
@@ -547,18 +610,23 @@ describe("OnboardingWizard — step content headings", () => {
     expect(screen.getByRole("heading", { name: /property details/i })).toBeInTheDocument();
   });
 
-  it("step 3 shows verify ownership heading", async () => {
+  it("step 3 shows capture baseline photos heading", async () => {
     await goToStep(3);
+    expect(screen.getByRole("heading", { name: /capture baseline photos/i })).toBeInTheDocument();
+  });
+
+  it("step 4 shows verify ownership heading", async () => {
+    await goToStep(4);
     expect(screen.getByRole("heading", { name: /verify ownership/i })).toBeInTheDocument();
   });
 
-  it("step 4 shows import documents heading", async () => {
-    await goToStep(4);
+  it("step 5 shows import documents heading", async () => {
+    await goToStep(5);
     expect(screen.getByRole("heading", { name: /import documents/i })).toBeInTheDocument();
   });
 
-  it("step 5 shows system ages heading", async () => {
-    await goToStep(5);
+  it("step 6 shows system ages heading", async () => {
+    await goToStep(6);
     expect(screen.getByRole("heading", { name: /system ages/i })).toBeInTheDocument();
   });
 });

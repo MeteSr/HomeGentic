@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, CheckCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle, Camera } from "lucide-react";
 import { propertyService } from "@/services/property";
 import { photoService, type PhotoQuota } from "@/services/photo";
 import { authService } from "@/services/auth";
@@ -16,10 +16,19 @@ import type { PropertyType } from "@/services/property";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
 
 const PROPERTY_TYPES: PropertyType[] = [
   "SingleFamily", "Condo", "Townhouse", "MultiFamily",
+];
+
+const BASELINE_SYSTEMS = [
+  { key: "hvac",        label: "HVAC / Air Conditioning",   prompt: "Photograph your outdoor condenser and indoor air handler" },
+  { key: "waterHeater", label: "Water Heater",              prompt: "Photograph your water heater — note the model number if visible" },
+  { key: "electrical",  label: "Electrical Panel",          prompt: "Open the panel door and capture the breaker labels" },
+  { key: "shutoff",     label: "Main Water Shut-off Valve", prompt: "Locate and photograph your main water shut-off valve" },
+  { key: "roof",        label: "Roof",                      prompt: "Photograph visible roof areas from ground level or an attic hatch" },
+  { key: "garageDoor",  label: "Garage Door Opener",        prompt: "Photograph the garage door motor unit and model label" },
 ];
 
 const SYSTEM_LABELS = [
@@ -139,12 +148,24 @@ export default function OnboardingWizard() {
   const [verify, setVerify]           = useState<VerifyForm>({ legalName: "", docType: "DeedRecord", docFile: null });
   const [submittingVerify, setSubmittingVerify] = useState(false);
 
-  // Step 4 — documents
+  // Step 3 — baseline photos
+  const [baselineCompleted, setBaselineCompleted] = useState<Set<string>>(new Set());
+  const [uploadingBaseline, setUploadingBaseline] = useState<string | null>(null);
+  const baselineInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  // Step 5 — documents
   const [quota, setQuota] = useState<PhotoQuota>({ used: 0, limit: 10, tier: "Free" });
 
   // Step 5 — system ages
   const [ages, setAges]       = useState<SystemAgesForm>({});
   const [hasSolar, setHasSolar] = useState(false);
+
+  // Auto-skip baseline photos step in E2E tests
+  useEffect(() => {
+    if (step === 3 && (window as any).__e2e_skipBaselinePhotos) {
+      setStep((s) => s + 1);
+    }
+  }, [step]);
 
   // ── Validation ──────────────────────────────────────────────────────────────
 
@@ -160,7 +181,7 @@ export default function OnboardingWizard() {
     Number(details.yearBuilt) >= 1900 &&
     Number(details.yearBuilt) <= new Date().getFullYear();
 
-  const step3Valid =
+  const step4Valid =
     verify.legalName.trim().length > 0 &&
     verify.docFile !== null;
 
@@ -193,7 +214,7 @@ export default function OnboardingWizard() {
       setRegistering(false);
     }
 
-    if (step === 3 && registeredId) {
+    if (step === 4 && registeredId) {
       setSubmittingVerify(true);
       try {
         const buffer      = await verify.docFile!.arrayBuffer();
@@ -217,6 +238,19 @@ export default function OnboardingWizard() {
   const handleBack   = () => setStep((s) => s - 1);
   const handleFinish = () => { authService.completeOnboarding().catch((e) => console.error("[Onboarding] completeOnboarding failed:", e)); navigate("/dashboard"); };
   const handleSkip   = () => { authService.completeOnboarding().catch((e) => console.error("[Onboarding] completeOnboarding failed:", e)); navigate("/dashboard"); };
+
+  const handleBaselineUpload = async (systemKey: string, file: File) => {
+    if (!registeredId) return;
+    setUploadingBaseline(systemKey);
+    try {
+      await photoService.upload(file, `baseline_${registeredId}`, registeredId, "PostConstruction", systemKey);
+      setBaselineCompleted((prev) => new Set(prev).add(systemKey));
+    } catch (err: any) {
+      toast.error(err.message || "Upload failed");
+    } finally {
+      setUploadingBaseline(null);
+    }
+  };
 
   const handleDocUpload = async (file: File, docType: string) => {
     if (!registeredId) return;
@@ -342,7 +376,101 @@ export default function OnboardingWizard() {
           </div>
         );
 
-      case 3:
+      case 3: {
+        const completedCount = baselineCompleted.size;
+        return (
+          <div>
+            <StepHeading>Capture Baseline Photos</StepHeading>
+            <StepSubtitle>
+              Photograph your major home systems now to create a permanent baseline record.
+              This step is optional — you can always come back later.
+            </StepSubtitle>
+
+            {/* Progress count */}
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              marginBottom: "1.25rem",
+              padding: "0.625rem 0.875rem",
+              background: COLORS.white,
+              border: `1px solid ${COLORS.rule}`,
+            }}>
+              <span style={{ fontFamily: FONTS.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid }}>
+                Baseline photos captured
+              </span>
+              <span style={{ fontFamily: FONTS.serif, fontWeight: 700, fontSize: "1rem", color: completedCount === BASELINE_SYSTEMS.length ? COLORS.sage : COLORS.plum }}>
+                {completedCount} <span style={{ fontWeight: 300, color: COLORS.plumMid }}>/ {BASELINE_SYSTEMS.length}</span>
+              </span>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              {BASELINE_SYSTEMS.map(({ key, label, prompt }) => {
+                const done = baselineCompleted.has(key);
+                const uploading = uploadingBaseline === key;
+                return (
+                  <div
+                    key={key}
+                    style={{
+                      display: "flex", alignItems: "flex-start", gap: "0.875rem",
+                      padding: "0.875rem",
+                      border: `1px solid ${done ? COLORS.sage : COLORS.rule}`,
+                      background: done ? "#F2FAF4" : COLORS.white,
+                    }}
+                  >
+                    <div style={{
+                      flexShrink: 0, width: "1.5rem", height: "1.5rem",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      marginTop: "0.1rem",
+                    }}>
+                      {done
+                        ? <CheckCircle size={18} color={COLORS.sage} />
+                        : <Camera size={18} color={COLORS.plumMid} />
+                      }
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, color: COLORS.plum, margin: "0 0 0.2rem" }}>
+                        {label}
+                      </p>
+                      <p style={{ fontFamily: FONTS.sans, fontSize: "0.775rem", color: COLORS.plumMid, fontWeight: 300, margin: 0, lineHeight: 1.5 }}>
+                        {done ? "Photo captured" : prompt}
+                      </p>
+                    </div>
+                    {!done && (
+                      <div style={{ flexShrink: 0 }}>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: "none" }}
+                          ref={(el) => { baselineInputRefs.current[key] = el; }}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleBaselineUpload(key, file).catch(() => {}); // errors surfaced via toast inside handleBaselineUpload; outer catch prevents unhandled-rejection noise
+                            e.target.value = "";
+                          }}
+                        />
+                        <button
+                          disabled={uploading}
+                          onClick={() => baselineInputRefs.current[key]?.click()}
+                          style={{
+                            padding: "0.375rem 0.75rem",
+                            fontFamily: FONTS.sans, fontSize: "0.7rem", fontWeight: 600,
+                            background: "none", color: COLORS.plum,
+                            border: `1px solid ${COLORS.rule}`, cursor: uploading ? "wait" : "pointer",
+                            opacity: uploading ? 0.6 : 1,
+                          }}
+                        >
+                          {uploading ? "Uploading…" : "Add photo"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      }
+
+      case 4:
         return (
           <div>
             <StepHeading>Verify Ownership</StepHeading>
@@ -393,7 +521,7 @@ export default function OnboardingWizard() {
           </div>
         );
 
-      case 4:
+      case 5:
         return (
           <div>
             <StepHeading>Import Documents</StepHeading>
@@ -409,7 +537,7 @@ export default function OnboardingWizard() {
           </div>
         );
 
-      case 5:
+      case 6:
         return (
           <div>
             <StepHeading>System Ages</StepHeading>
@@ -480,7 +608,7 @@ export default function OnboardingWizard() {
   const isNextDisabled =
     (step === 1 && !step1Valid) ||
     (step === 2 && (!step2Valid || registering)) ||
-    (step === 3 && (!step3Valid || submittingVerify));
+    (step === 4 && (!step4Valid || submittingVerify));
 
   return (
     <div style={{

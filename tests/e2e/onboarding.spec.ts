@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, Page } from "@playwright/test";
 import { injectTestAuth } from "./helpers/auth";
 import { injectRegisterProperty } from "./helpers/testData";
 
@@ -20,12 +20,18 @@ async function fillStep2(page: Parameters<typeof injectTestAuth>[0]) {
   await page.getByRole("button", { name: /next/i }).click();
 }
 
+/** Inject the skip-baseline flag so tests that don't test the new step pass through it automatically. */
+async function injectSkipBaseline(page: Page) {
+  await page.addInitScript(() => { (window as any).__e2e_skipBaselinePhotos = true; });
+}
+
 test.describe("OnboardingWizard — /onboarding", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
+    await injectSkipBaseline(page);
     await page.goto("/onboarding");
     // Wait for wizard card to render
-    await expect(page.getByText(/step 1 of 5/i)).toBeVisible();
+    await expect(page.getByText(/step 1 of 6/i)).toBeVisible();
   });
 
   // ── Page structure ──────────────────────────────────────────────────────────
@@ -38,8 +44,8 @@ test.describe("OnboardingWizard — /onboarding", () => {
     await expect(page.getByRole("progressbar")).toBeVisible();
   });
 
-  test("shows 'Step 1 of 5' label on load", async ({ page }) => {
-    await expect(page.getByText("Step 1 of 5")).toBeVisible();
+  test("shows 'Step 1 of 6' label on load", async ({ page }) => {
+    await expect(page.getByText("Step 1 of 6")).toBeVisible();
   });
 
   test("shows 'Skip setup — go to my dashboard' link", async ({ page }) => {
@@ -117,7 +123,7 @@ test.describe("OnboardingWizard — /onboarding", () => {
     await page.getByLabel(/state/i).fill("TX");
     await page.getByLabel(/zip code/i).fill("78701");
     await page.getByRole("button", { name: /next/i }).click();
-    await expect(page.getByText("Step 2 of 5")).toBeVisible();
+    await expect(page.getByText("Step 2 of 6")).toBeVisible();
   });
 
   // ── Step 2: Property Details ────────────────────────────────────────────────
@@ -168,7 +174,7 @@ test.describe("OnboardingWizard — /onboarding", () => {
   test("Back from step 2 returns to step 1", async ({ page }) => {
     await fillStep1(page);
     await page.getByRole("button", { name: /back/i }).click();
-    await expect(page.getByText("Step 1 of 5")).toBeVisible();
+    await expect(page.getByText("Step 1 of 6")).toBeVisible();
   });
 
   test("Back from step 2 preserves address values", async ({ page }) => {
@@ -182,12 +188,13 @@ test.describe("OnboardingWizard — /onboarding", () => {
   // BEFORE page.goto so addInitScript fires on the initial load.
   // These tests use their own nested describe with a dedicated beforeEach.
 
-  test.describe("step 3 — Verify Ownership", () => {
+  test.describe("step 4 — Verify Ownership", () => {
     test.beforeEach(async ({ page }) => {
       await injectTestAuth(page);
       await injectRegisterProperty(page);          // must be before goto
+      await injectSkipBaseline(page);              // auto-skip baseline photos step
       await page.goto("/onboarding");
-      await expect(page.getByText(/step 1 of 5/i)).toBeVisible();
+      await expect(page.getByText(/step 1 of 6/i)).toBeVisible();
       // Navigate through step 1
       await page.getByLabel(/street address/i).fill("100 Onboarding Lane");
       await page.getByLabel(/city/i).fill("Austin");
@@ -198,8 +205,8 @@ test.describe("OnboardingWizard — /onboarding", () => {
       await page.getByLabel(/year built/i).fill("2000");
       await page.getByLabel(/square feet/i).fill("2000");
       await page.getByRole("button", { name: /next/i }).click();
-      // Confirm we landed on step 3
-      await expect(page.getByText(/step 3 of 5/i)).toBeVisible();
+      // Step 3 (baseline) is auto-skipped, confirm we landed on step 4
+      await expect(page.getByText(/step 4 of 6/i)).toBeVisible();
     });
 
     test("shows 'Verify Ownership' heading", async ({ page }) => {
@@ -227,7 +234,57 @@ test.describe("OnboardingWizard — /onboarding", () => {
     });
   });
 
-  // ── Step 5: System Ages ─────────────────────────────────────────────────────
+  // ── Step 3: Capture Baseline Photos ────────────────────────────────────────
+  // Uses a separate beforeEach WITHOUT __e2e_skipBaselinePhotos so the step renders.
+
+  test.describe("step 3 — Capture Baseline Photos", () => {
+    test.beforeEach(async ({ page }) => {
+      await injectTestAuth(page);
+      await injectRegisterProperty(page);
+      // No injectSkipBaseline — we want the baseline step to render
+      await page.goto("/onboarding");
+      await expect(page.getByText(/step 1 of 6/i)).toBeVisible();
+      await page.getByLabel(/street address/i).fill("100 Onboarding Lane");
+      await page.getByLabel(/city/i).fill("Austin");
+      await page.getByLabel(/state/i).fill("TX");
+      await page.getByLabel(/zip code/i).fill("78701");
+      await page.getByRole("button", { name: /next/i }).click();
+      await page.getByLabel(/year built/i).fill("2000");
+      await page.getByLabel(/square feet/i).fill("2000");
+      await page.getByRole("button", { name: /next/i }).click();
+      await expect(page.getByText(/step 3 of 6/i)).toBeVisible();
+    });
+
+    test("shows 'Capture Baseline Photos' heading", async ({ page }) => {
+      await expect(page.getByRole("heading", { name: /capture baseline photos/i })).toBeVisible();
+    });
+
+    test("shows all 6 baseline system categories", async ({ page }) => {
+      await expect(page.getByText(/HVAC/i)).toBeVisible();
+      await expect(page.getByText(/Water Heater/i)).toBeVisible();
+      await expect(page.getByText(/Electrical Panel/i)).toBeVisible();
+      await expect(page.getByText(/Water Shut-off/i)).toBeVisible();
+      await expect(page.getByText(/Roof/i)).toBeVisible();
+      await expect(page.getByText(/Garage Door/i)).toBeVisible();
+    });
+
+    test("shows progress count '0 / 6'", async ({ page }) => {
+      await expect(page.getByText(/0/)).toBeVisible();
+      await expect(page.getByText(/6/)).toBeVisible();
+    });
+
+    test("Next advances to step 4 without uploading anything", async ({ page }) => {
+      await page.getByRole("button", { name: /next/i }).click();
+      await expect(page.getByText(/step 4 of 6/i)).toBeVisible();
+    });
+
+    test("shows 'Add photo' button for each system", async ({ page }) => {
+      const addPhotoButtons = page.getByRole("button", { name: /add photo/i });
+      await expect(addPhotoButtons).toHaveCount(6);
+    });
+  });
+
+  // ── Step 6: System Ages ─────────────────────────────────────────────────────
   // Steps 4 and 5 can be reached with the skip link from step 3 indirectly,
   // but we validate step 5 via direct step count progression.
 
