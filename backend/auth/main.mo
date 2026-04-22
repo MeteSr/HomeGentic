@@ -195,6 +195,20 @@ persistent actor class Auth(initDeployer : Principal) {
     #ok(())
   };
 
+  // ─── Validation Helpers ───────────────────────────────────────────────────────
+
+  /// Returns a descriptive error message when the email is malformed, null when valid.
+  /// Email is optional in auth (empty string is allowed); call only when non-empty.
+  private func validateEmail(email: Text) : ?Text {
+    if (Text.size(email) > 254)
+      return ?"email exceeds 254 characters";
+    if (not Text.contains(email, #text "@"))
+      return ?"email must contain @";
+    if (Text.contains(email, #text " "))
+      return ?"email must not contain spaces";
+    null
+  };
+
   // ─── User Functions ───────────────────────────────────────────────────────────
 
   /// Register a new user with a role, email, and phone number
@@ -205,10 +219,13 @@ persistent actor class Auth(initDeployer : Principal) {
 
     if (Map.get(users, Principal.compare, caller) != null) return #err(#AlreadyExists);
     // Email and phone are optional; validate format only when provided
-    if (Text.size(args.email) > 256) return #err(#InvalidInput("email exceeds 256 characters"));
     if (Text.size(args.phone) > 30)  return #err(#InvalidInput("phone exceeds 30 characters"));
-    if (Text.size(args.email) > 0 and not Text.contains(args.email, #text "@"))
-      return #err(#InvalidInput("Email must contain @"));
+    if (Text.size(args.email) > 0) {
+      switch (validateEmail(args.email)) {
+        case (?msg) return #err(#InvalidInput(msg));
+        case null   {};
+      };
+    };
 
     let now = Time.now();
     let profile: UserProfile = {
@@ -242,10 +259,13 @@ persistent actor class Auth(initDeployer : Principal) {
     switch (Map.get(users, Principal.compare, msg.caller)) {
       case null { #err(#NotFound) };
       case (?existing) {
-        if (Text.size(args.email) > 256) return #err(#InvalidInput("email exceeds 256 characters"));
-        if (Text.size(args.phone) > 30)  return #err(#InvalidInput("phone exceeds 30 characters"));
-        if (Text.size(args.email) > 0 and not Text.contains(args.email, #text "@"))
-          return #err(#InvalidInput("Email must contain @"));
+        if (Text.size(args.phone) > 30) return #err(#InvalidInput("phone exceeds 30 characters"));
+        if (Text.size(args.email) > 0) {
+          switch (validateEmail(args.email)) {
+            case (?msg) return #err(#InvalidInput(msg));
+            case null   {};
+          };
+        };
 
         let updated: UserProfile = {
           principal          = existing.principal;

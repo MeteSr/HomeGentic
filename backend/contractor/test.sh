@@ -7,7 +7,7 @@ dfx canister call contractor register '(record {
   name = "ACME Services";
   specialties = vec { variant { Plumbing } };
   email = "acme@contractors.com";
-  phone = "555-9001";
+  phone = "+12125559001";
 })'
 
 echo "▶ Get my contractor profile..."
@@ -17,6 +17,42 @@ echo "▶ Get all contractors..."
 dfx canister call contractor getAll
 
 echo "✅ Contractor tests passed!"
+
+# ─── §147 input validation tests ─────────────────────────────────────────────
+echo ""
+echo "=== Contractor — §147 Input Validation Tests ==="
+
+echo ""
+echo "── [V1] register with non-E.164 phone → expect error ───────────────────"
+if ! dfx identity list 2>/dev/null | grep -q "^contractor-val-test$"; then
+  dfx identity new contractor-val-test --disable-encryption 2>/dev/null || true
+fi
+dfx canister call contractor register '(record {
+  name = "Bad Phone Co";
+  specialties = vec { variant { Electrical } };
+  email = "test@contractors.com";
+  phone = "555-1234";
+})' --identity contractor-val-test \
+  || echo "  ↳ Expected InvalidInput (phone not E.164) — ✓"
+
+echo ""
+echo "── [V2] register with email containing spaces → expect error ────────────"
+dfx canister call contractor register '(record {
+  name = "Spacey Co";
+  specialties = vec { variant { Electrical } };
+  email = "bad email@test.com";
+  phone = "+12125550001";
+})' --identity contractor-val-test \
+  || echo "  ↳ Expected InvalidInput (email must not contain spaces) — ✓"
+
+echo ""
+echo "── [V3] updateProfile with valid E.164 phone → expect ok ───────────────"
+dfx canister call contractor updateProfile '(record {
+  name = "ACME Services";
+  specialties = vec { variant { Plumbing } };
+  email = "acme@contractors.com";
+  phone = "+442071234567";
+})' && echo "  ↳ Valid E.164 phone accepted — ✓"
 
 # ─── §47 Trusted Canister (inter-canister whitelist) ─────────────────────────
 # contractor receives calls from: job (recordJobVerified)

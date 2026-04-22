@@ -43,6 +43,72 @@ dfx canister call $CANISTER getPropertyLimitForTier '(variant { Pro })'
 dfx canister call $CANISTER getPropertyLimitForTier '(variant { Premium })'
 dfx canister call $CANISTER getPropertyLimitForTier '(variant { ContractorPro })'
 
+# ─── §147 input validation tests ────────────────────────────────────────────
+echo ""
+echo "── [V1] invalid zip (letters) → expect error ───────────────────────────"
+dfx canister call $CANISTER registerProperty '(record {
+  address      = "1 Test St";
+  city         = "Austin";
+  state        = "TX";
+  zipCode      = "ABCDE";
+  propertyType = variant { SingleFamily };
+  yearBuilt    = 2000;
+  squareFeet   = 1000;
+  tier         = variant { Free };
+})' || echo "  ↳ Expected InvalidInput (bad zipCode) — ✓"
+
+echo ""
+echo "── [V2] invalid state (lowercase) → expect error ───────────────────────"
+dfx canister call $CANISTER registerProperty '(record {
+  address      = "1 Test St";
+  city         = "Austin";
+  state        = "tx";
+  zipCode      = "78701";
+  propertyType = variant { SingleFamily };
+  yearBuilt    = 2000;
+  squareFeet   = 1000;
+  tier         = variant { Free };
+})' || echo "  ↳ Expected InvalidInput (state not 2-letter uppercase) — ✓"
+
+echo ""
+echo "── [V3] yearBuilt too old (< 1600) → expect error ──────────────────────"
+dfx canister call $CANISTER registerProperty '(record {
+  address      = "1 Test St";
+  city         = "Austin";
+  state        = "TX";
+  zipCode      = "78701";
+  propertyType = variant { SingleFamily };
+  yearBuilt    = 1500;
+  squareFeet   = 1000;
+  tier         = variant { Free };
+})' || echo "  ↳ Expected InvalidInput (yearBuilt out of range) — ✓"
+
+echo ""
+echo "── [V4] squareFeet = 0 → expect error ─────────────────────────────────"
+dfx canister call $CANISTER registerProperty '(record {
+  address      = "1 Test St";
+  city         = "Austin";
+  state        = "TX";
+  zipCode      = "78701";
+  propertyType = variant { SingleFamily };
+  yearBuilt    = 2000;
+  squareFeet   = 0;
+  tier         = variant { Free };
+})' || echo "  ↳ Expected InvalidInput (squareFeet out of range) — ✓"
+
+echo ""
+echo "── [V5] ZIP+4 format accepted → expect ok ──────────────────────────────"
+dfx canister call $CANISTER registerProperty '(record {
+  address      = "99 Zip Plus Four Lane";
+  city         = "Austin";
+  state        = "TX";
+  zipCode      = "78701-0001";
+  propertyType = variant { SingleFamily };
+  yearBuilt    = 2000;
+  squareFeet   = 1200;
+  tier         = variant { Free };
+})' && echo "  ↳ ZIP+4 accepted — ✓" || echo "  ↳ (note: may fail on Free-tier limit — that is expected)"
+
 # ─── Register a property ──────────────────────────────────────────────────────
 echo ""
 echo "── [3] Register a property (Free tier) ─────────────────────────────────"

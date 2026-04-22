@@ -132,6 +132,11 @@ persistent actor Job {
   private let jobs        = Map.empty<Text, Job>();
   private let inviteTokens = Map.empty<Text, InviteToken>();
 
+  // ─── Constants ───────────────────────────────────────────────────────────────
+
+  /// Maximum job amount in cents ($1,000,000). Prevents runaway values in stable storage.
+  private let MAX_JOB_AMOUNT_CENTS : Nat = 100_000_000;
+
   // ─── Private Helpers ─────────────────────────────────────────────────────────
 
   // ─── Rate Limit (cycle-drain protection, §enterprise/#46) ────────────────────
@@ -241,8 +246,9 @@ persistent actor Job {
     if (Text.size(title)        > 200)  return #err(#InvalidInput("title exceeds 200 characters"));
     if (Text.size(description)  == 0) return #err(#InvalidInput("description cannot be empty"));
     if (Text.size(description)  > 5000) return #err(#InvalidInput("description exceeds 5000 characters"));
-    if (amount == 0 and not isDiy)    return #err(#InvalidInput("amount must be greater than 0 for contractor jobs"));
-    if (completedDate > Time.now())   return #err(#InvalidInput("completedDate cannot be in the future"));
+    if (amount == 0 and not isDiy)        return #err(#InvalidInput("amount must be greater than 0 for contractor jobs"));
+    if (amount > MAX_JOB_AMOUNT_CENTS)    return #err(#InvalidInput("amount exceeds maximum of 100,000,000 cents ($1,000,000)"));
+    if (completedDate > Time.now())       return #err(#InvalidInput("completedDate cannot be in the future"));
 
     // Contractor name is required for non-DIY jobs
     if (not isDiy) {
@@ -720,6 +726,7 @@ persistent actor Job {
     if (Text.size(propertyId)    == 0) return #err(#InvalidInput("propertyId cannot be empty"));
     if (Text.size(contractorName) == 0) return #err(#InvalidInput("contractorName is required"));
     if (amount == 0)                   return #err(#InvalidInput("amount must be greater than 0"));
+    if (amount > MAX_JOB_AMOUNT_CENTS) return #err(#InvalidInput("amount exceeds maximum of 100,000,000 cents ($1,000,000)"));
     if (Text.size(description)   == 0) return #err(#InvalidInput("description cannot be empty"));
 
     let id  = nextJobId();
@@ -914,6 +921,8 @@ persistent actor Job {
     if (Text.size(title)       > 200) return #err(#InvalidInput("title exceeds 200 characters"));
     if (Text.size(description) == 0) return #err(#InvalidInput("description cannot be empty"));
     if (Text.size(description) > 5000) return #err(#InvalidInput("description exceeds 5000 characters"));
+    if (amount == 0)                    return #err(#InvalidInput("amount must be greater than 0"));
+    if (amount > MAX_JOB_AMOUNT_CENTS)  return #err(#InvalidInput("amount exceeds maximum of 100,000,000 cents ($1,000,000)"));
 
     switch (contractorName) {
       case null    { return #err(#InvalidInput("contractorName is required for proposals")) };

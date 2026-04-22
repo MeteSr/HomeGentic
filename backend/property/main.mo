@@ -478,6 +478,31 @@ persistent actor Property {
     }
   };
 
+  // ─── Validation Helpers ───────────────────────────────────────────────────
+
+  /// Accepts 5-digit ("12345") or ZIP+4 ("12345-6789") formats.
+  private func validateZipCode(zip: Text) : Bool {
+    let size = Text.size(zip);
+    if (size != 5 and size != 10) return false;
+    var i = 0;
+    for (c in zip.chars()) {
+      if (i < 5 and (c < '0' or c > '9')) return false;
+      if (i == 5 and c != '-')            return false;
+      if (i > 5 and (c < '0' or c > '9')) return false;
+      i += 1;
+    };
+    true
+  };
+
+  /// Accepts exactly 2 uppercase US state letters (e.g. "TX", "CA").
+  private func validateStateCode(state: Text) : Bool {
+    if (Text.size(state) != 2) return false;
+    for (c in state.chars()) {
+      if (c < 'A' or c > 'Z') return false;
+    };
+    true
+  };
+
   // ─── Registration ─────────────────────────────────────────────────────────
 
   /// Register a new property for the calling principal.
@@ -494,14 +519,19 @@ persistent actor Property {
     switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
 
     if (Text.size(args.address) == 0)
-      return #err(#InvalidInput("Address cannot be empty"));
+      return #err(#InvalidInput("address cannot be empty"));
     if (Text.size(args.address) > 500) return #err(#InvalidInput("address exceeds 500 characters"));
+    if (Text.size(args.city)    == 0)  return #err(#InvalidInput("city cannot be empty"));
     if (Text.size(args.city)    > 100) return #err(#InvalidInput("city exceeds 100 characters"));
-    if (Text.size(args.state)   > 50)  return #err(#InvalidInput("state exceeds 50 characters"));
-    if (Text.size(args.zipCode) > 20)  return #err(#InvalidInput("zipCode exceeds 20 characters"));
+    if (not validateStateCode(args.state))
+      return #err(#InvalidInput("state must be a 2-letter uppercase US state code (e.g. TX)"));
+    if (not validateZipCode(args.zipCode))
+      return #err(#InvalidInput("zipCode must be 5 digits or ZIP+4 format (e.g. 12345 or 12345-6789)"));
+    if (args.squareFeet == 0 or args.squareFeet > 100_000)
+      return #err(#InvalidInput("squareFeet must be between 1 and 100,000"));
     let currentYear = Int.abs(Time.now()) / 1_000_000_000 / 31_536_000 + 1970;
-    if (args.yearBuilt < 1900 or args.yearBuilt > currentYear)
-      return #err(#InvalidInput("Year built must be between 1900 and " # Nat.toText(currentYear)));
+    if (args.yearBuilt < 1600 or args.yearBuilt > currentYear)
+      return #err(#InvalidInput("yearBuilt must be between 1600 and " # Nat.toText(currentYear)));
 
     let caller = msg.caller;
     let key    = addressKey(args.address, args.city, args.state, args.zipCode);

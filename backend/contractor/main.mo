@@ -218,6 +218,21 @@ persistent actor Contractor {
     }
   };
 
+  // ─── Validation Helpers ───────────────────────────────────────────────────────
+
+  /// Validates E.164 phone format: + followed by 7–15 digits (total 8–16 chars).
+  private func validateE164Phone(phone: Text) : Bool {
+    let size = Text.size(phone);
+    if (size < 8 or size > 16) return false;
+    var i = 0;
+    for (c in phone.chars()) {
+      if (i == 0 and c != '+')           return false;
+      if (i >  0 and (c < '0' or c > '9')) return false;
+      i += 1;
+    };
+    true
+  };
+
   // ─── Core Functions ────────────────────────────────────────────────────────────
 
   /// Register a new contractor profile. Validates all required fields.
@@ -228,11 +243,14 @@ persistent actor Contractor {
     if (Text.size(args.name)  == 0)   return #err(#InvalidInput("name cannot be empty"));
     if (Text.size(args.name)  > 200)  return #err(#InvalidInput("name exceeds 200 characters"));
     if (Text.size(args.email) == 0)   return #err(#InvalidInput("email cannot be empty"));
-    if (Text.size(args.email) > 256)  return #err(#InvalidInput("email exceeds 256 characters"));
+    if (Text.size(args.email) > 254)  return #err(#InvalidInput("email exceeds 254 characters"));
     if (not Text.contains(args.email, #text "@"))
       return #err(#InvalidInput("email must contain @"));
+    if (Text.contains(args.email, #text " "))
+      return #err(#InvalidInput("email must not contain spaces"));
     if (Text.size(args.phone) == 0)   return #err(#InvalidInput("phone cannot be empty"));
-    if (Text.size(args.phone) > 30)   return #err(#InvalidInput("phone exceeds 30 characters"));
+    if (not validateE164Phone(args.phone))
+      return #err(#InvalidInput("phone must be in E.164 format (e.g. +12125551234)"));
     if (args.specialties.size() == 0) return #err(#InvalidInput("at least one trade category is required"));
     if (args.specialties.size() > 10) return #err(#InvalidInput("cannot exceed 10 trade categories"));
 
@@ -310,11 +328,14 @@ persistent actor Contractor {
     if (Text.size(args.name)  == 0)   return #err(#InvalidInput("name cannot be empty"));
     if (Text.size(args.name)  > 200)  return #err(#InvalidInput("name exceeds 200 characters"));
     if (Text.size(args.email) == 0)   return #err(#InvalidInput("email cannot be empty"));
-    if (Text.size(args.email) > 256)  return #err(#InvalidInput("email exceeds 256 characters"));
+    if (Text.size(args.email) > 254)  return #err(#InvalidInput("email exceeds 254 characters"));
     if (not Text.contains(args.email, #text "@"))
       return #err(#InvalidInput("email must contain @"));
+    if (Text.contains(args.email, #text " "))
+      return #err(#InvalidInput("email must not contain spaces"));
     if (Text.size(args.phone) == 0)   return #err(#InvalidInput("phone cannot be empty"));
-    if (Text.size(args.phone) > 30)   return #err(#InvalidInput("phone exceeds 30 characters"));
+    if (not validateE164Phone(args.phone))
+      return #err(#InvalidInput("phone must be in E.164 format (e.g. +12125551234)"));
     if (args.specialties.size() == 0) return #err(#InvalidInput("at least one trade category is required"));
     if (args.specialties.size() > 10) return #err(#InvalidInput("cannot exceed 10 trade categories"));
 

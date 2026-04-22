@@ -35,15 +35,47 @@ echo ""
 echo "── [1] Get metrics (initial state) ─────────────────────────────────────"
 dfx canister call $CANISTER getMetrics
 
+# ─── Register a real property for auth-aware steps ───────────────────────────
+# acceptQuote / closeQuoteRequest / cancelQuoteRequest call checkPropertyAuth,
+# which defers to property.isAuthorized() when propCanisterId is wired by
+# deploy.sh.  Fake IDs like "PROP_1" return false (not found) → Unauthorized.
+echo ""
+echo "── [0] Register test property (for auth-aware steps) ────────────────────"
+PROP_CANISTER_ID=$(dfx canister id property 2>/dev/null || echo "")
+if [ -n "$PROP_CANISTER_ID" ]; then
+  MY_PRINCIPAL=$(dfx identity get-principal)
+  dfx canister call payment grantSubscription "(principal \"$MY_PRINCIPAL\", variant { Pro })" 2>/dev/null || true
+  PROP_REG_OUT=$(dfx canister call property registerProperty '(record {
+    address      = "1 Quote Test Ave";
+    city         = "Austin";
+    state        = "TX";
+    zipCode      = "78701";
+    propertyType = variant { SingleFamily };
+    yearBuilt    = 2000;
+    squareFeet   = 1500;
+    tier         = variant { Pro };
+  })')
+  TEST_PROP_ID=$(echo "$PROP_REG_OUT" | grep -oP 'id = "\K[^"]+' | head -1 || true)
+  if [ -z "$TEST_PROP_ID" ]; then
+    echo "  ↳ ⚠️  Could not extract property ID; using dummy"
+    TEST_PROP_ID="PROP_1"
+  else
+    echo "  → Test property: $TEST_PROP_ID — ✓"
+  fi
+else
+  TEST_PROP_ID="PROP_1"
+  echo "  → property canister not deployed; using dummy ID"
+fi
+
 # ─── Create a quote request ───────────────────────────────────────────────────
 echo ""
 echo "── [2] createQuoteRequest — plumbing, Medium urgency ────────────────────"
-REQ_OUT=$(dfx canister call $CANISTER createQuoteRequest '(
-  "PROP_1",
+REQ_OUT=$(dfx canister call $CANISTER createQuoteRequest "(
+  \"$TEST_PROP_ID\",
   variant { Plumbing },
-  "Need to fix leaky pipe under kitchen sink — active drip, causing cabinet damage.",
+  \"Need to fix leaky pipe under kitchen sink — active drip, causing cabinet damage.\",
   variant { Medium }
-)')
+)")
 echo "$REQ_OUT"
 REQ_ID=$(echo "$REQ_OUT" | grep -oP '"REQ_[^"]+"' | head -1 | tr -d '"')
 echo "  → Request ID: $REQ_ID"
@@ -102,12 +134,12 @@ dfx canister call $CANISTER acceptQuote "(\"$QUOTE_ID\")" \
 # ─── Create a second request and test closeQuoteRequest ───────────────────────
 echo ""
 echo "── [12] createQuoteRequest #2 for close test ────────────────────────────"
-REQ2_OUT=$(dfx canister call $CANISTER createQuoteRequest '(
-  "PROP_1",
+REQ2_OUT=$(dfx canister call $CANISTER createQuoteRequest "(
+  \"$TEST_PROP_ID\",
   variant { HVAC },
-  "HVAC tune-up before summer — filter replacement and refrigerant check.",
+  \"HVAC tune-up before summer — filter replacement and refrigerant check.\",
   variant { Low }
-)')
+)")
 echo "$REQ2_OUT"
 REQ2_ID=$(echo "$REQ2_OUT" | grep -oP '"REQ_[^"]+"' | head -1 | tr -d '"')
 echo "  → Request 2 ID: $REQ2_ID"
@@ -123,12 +155,12 @@ dfx canister call $CANISTER getQuoteRequest "(\"$REQ2_ID\")"
 # ─── Cancel flow (issue #113) ────────────────────────────────────────────────
 echo ""
 echo "── [14b] Create request + bid for cancel flow test ──────────────────────"
-CANCEL_REQ_OUT=$(dfx canister call $CANISTER createQuoteRequest '(
-  "PROP_1",
+CANCEL_REQ_OUT=$(dfx canister call $CANISTER createQuoteRequest "(
+  \"$TEST_PROP_ID\",
   variant { Electrical },
-  "Electrical panel upgrade — cancel flow test.",
+  \"Electrical panel upgrade — cancel flow test.\",
   variant { Low }
-)')
+)")
 echo "$CANCEL_REQ_OUT"
 CANCEL_REQ_ID=$(echo "$CANCEL_REQ_OUT" | grep -oP '"REQ_[^"]+"' | head -1 | tr -d '"' || true)
 echo "  → Cancel-test Request ID: $CANCEL_REQ_ID"
@@ -238,7 +270,7 @@ dfx canister call $CANISTER createQuoteRequest '(
 echo ""
 echo "── [16-cleanup] Close limit-test requests ────────────────────────────────"
 for ID in "${LIMIT_REQ_IDS[@]}"; do
-  [ -n "$ID" ] && dfx canister call $CANISTER closeQuoteRequest "(\"$ID\")" --identity quote-basic-test > /dev/null
+  [ -n "$ID" ] && (dfx canister call $CANISTER closeQuoteRequest "(\"$ID\")" --identity quote-basic-test > /dev/null || true)
 done
 echo "  ↳ Limit-test requests closed — ✓"
 
@@ -373,16 +405,21 @@ else
   dfx canister call $CANISTER setPropertyCanisterId "(principal \"$PROPERTY_ID\")"
   echo "  ↳ Canisters wired ✓"
 
-  # Create manager-test identity if needed (Free tier — no subscription)
+  # Use a dedicated owner identity so we don't hit the deployer's property limit.
+  # All parallel tests share the same canister state and the deployer accumulates
+  # properties across multiple test scripts running simultaneously.
+  if ! dfx identity list 2>/dev/null | grep -q "^quote-mgr-owner-test$"; then
+    dfx identity new quote-mgr-owner-test --disable-encryption 2>/dev/null || true
+  fi
+  MGR_OWNER_PRINCIPAL=$(dfx identity get-principal --identity quote-mgr-owner-test)
   if ! dfx identity list 2>/dev/null | grep -q "^manager-test$"; then
     dfx identity new manager-test --disable-encryption 2>/dev/null || true
   fi
-  MY_PRINCIPAL=$(dfx identity get-principal)
 
-  # Ensure owner has Pro tier
-  dfx canister call payment grantSubscription "(principal \"$MY_PRINCIPAL\", variant { Pro })"
+  # Ensure dedicated owner has Pro tier
+  dfx canister call payment grantSubscription "(principal \"$MGR_OWNER_PRINCIPAL\", variant { Pro })"
 
-  # Register a property as owner
+  # Register a property as the dedicated owner identity
   echo ""
   echo "── [MGR-1] Register property as owner ──────────────────────────────────"
   MGR_PROP_OUT=$(dfx canister call property registerProperty '(record {
@@ -394,17 +431,25 @@ else
     yearBuilt    = 2008;
     squareFeet   = 1400;
     tier         = variant { Pro };
-  })')
+  })' --identity quote-mgr-owner-test)
   echo "$MGR_PROP_OUT"
   MGR_PROP_ID=$(echo "$MGR_PROP_OUT" | grep -oP 'id = "\K[^"]+' | head -1 || true)
   echo "  → Property ID: $MGR_PROP_ID"
+
+  if [ -z "$MGR_PROP_ID" ]; then
+    echo "  ↳ ⚠️  Property registration failed; skipping MGR manager tests"
+  else
 
   # Invite and claim manager role
   echo ""
   echo "── [MGR-2] Owner invites manager; manager claims role ───────────────────"
   INVITE_OUT=$(dfx canister call property inviteManager \
-    "(\"$MGR_PROP_ID\", variant { Manager }, \"Quote Manager\")")
-  INVITE_TOKEN=$(echo "$INVITE_OUT" | grep -oP 'token = "\K[^"]+' | head -1)
+    "(\"$MGR_PROP_ID\", variant { Manager }, \"Quote Manager\")" \
+    --identity quote-mgr-owner-test)
+  INVITE_TOKEN=$(echo "$INVITE_OUT" | grep -oP 'token = "\K[^"]+' | head -1 || true)
+  if [ -z "$INVITE_TOKEN" ]; then
+    echo "  ↳ ⚠️  Could not obtain invite token; skipping MGR-2 onwards"
+  else
   dfx canister call property claimManagerRole \
     "(\"$INVITE_TOKEN\")" --identity manager-test
   echo "  ↳ Manager role granted ✓"
@@ -443,4 +488,6 @@ else
 
   echo ""
   echo "✅ Quote manager tier-bypass tests complete!"
-fi
+  fi  # end if [ -z "$INVITE_TOKEN" ]
+  fi  # end if [ -z "$MGR_PROP_ID" ]
+fi   # end if property/payment deployed

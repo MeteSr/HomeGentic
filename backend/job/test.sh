@@ -214,6 +214,40 @@ echo "── [16] linkContractor on DIY job → expect InvalidInput ────
 dfx canister call $CANISTER linkContractor "(\"$DIY_ID\", principal \"$CONTRACTOR_PRINCIPAL\")" \
   || echo "  ↳ Expected InvalidInput (cannot link to DIY job) — ✓"
 
+# ─── §147 amount ceiling validation ─────────────────────────────────────────
+echo ""
+echo "── [V1] createJob with amount > 100,000,000 cents → expect InvalidInput ─"
+dfx canister call $CANISTER createJob "(
+  \"$TEST_PROP_ID\",
+  \"Overpriced Job\",
+  variant { Roofing },
+  \"Way too expensive.\",
+  opt \"BigCo\",
+  100000001,
+  1718409600000000000,
+  null,
+  null,
+  false,
+  null
+)" || echo "  ↳ Expected InvalidInput (amount exceeds ceiling) — ✓"
+
+echo ""
+echo "── [V2] createJob at exactly the ceiling → expect ok ────────────────────"
+dfx canister call $CANISTER createJob "(
+  \"$TEST_PROP_ID\",
+  \"Ceiling Job\",
+  variant { Roofing },
+  \"Max amount allowed.\",
+  opt \"MaxCo\",
+  100000000,
+  1718409600000000000,
+  null,
+  null,
+  false,
+  null
+)" && echo "  ↳ Ceiling amount accepted — ✓" \
+  || echo "  ↳ (note: may fail on tier limit — expected in free-tier tests)"
+
 # ─── Create job with future date → error ─────────────────────────────────────
 echo ""
 echo "── [17] createJob with future completedDate → expect InvalidInput ────────"

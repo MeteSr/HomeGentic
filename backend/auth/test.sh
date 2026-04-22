@@ -88,12 +88,36 @@ dfx canister call $CANISTER updateProfile '(record {
 })' || echo "  ↳ Expected InvalidInput (email must contain @) — ✓"
 
 echo ""
-echo "── [11] updateProfile with email > 256 chars → expect error ─────────────"
+echo "── [11] updateProfile with email > 254 chars → expect error ─────────────"
 LONG_EMAIL=$(python3 -c "print('a'*250 + '@x.com')" 2>/dev/null || printf '%0.sa' {1..250}"@x.com")
 dfx canister call $CANISTER updateProfile "(record {
   email = \"$LONG_EMAIL\";
   phone = \"\"
 })" || echo "  ↳ Expected InvalidInput (email too long) — ✓"
+
+# ─── §147 input validation tests ────────────────────────────────────────────
+
+echo ""
+echo "── [V1] register with email containing spaces → expect error ────────────"
+dfx canister call $CANISTER register '(record {
+  role  = variant { Homeowner };
+  email = "bad email@test.com";
+  phone = ""
+})' || echo "  ↳ Expected InvalidInput (email must not contain spaces) — ✓"
+
+echo ""
+echo "── [V2] updateProfile with email having leading space → expect error ─────"
+dfx canister call $CANISTER updateProfile '(record {
+  email = " leading@test.com";
+  phone = ""
+})' || echo "  ↳ Expected InvalidInput (email must not contain spaces) — ✓"
+
+echo ""
+echo "── [V3] updateProfile with valid email (no spaces, has @) → expect ok ────"
+dfx canister call $CANISTER updateProfile '(record {
+  email = "valid@homegentic.app";
+  phone = ""
+})' && echo "  ↳ Valid email accepted — ✓"
 
 # ─── recordLogin (12.4.5) ────────────────────────────────────────────────────
 echo ""
