@@ -93,7 +93,8 @@ vi.mock("@/services/recurringService", () => ({
 
 vi.mock("@/services/payment", () => ({
   paymentService: {
-    getMySubscription: vi.fn(() => Promise.resolve({ tier: "Pro", expiresAt: null, cancelledAt: null })),
+    getMySubscription:   vi.fn(() => Promise.resolve({ tier: "Pro", expiresAt: null, cancelledAt: null })),
+    getMyAgentCredits:   vi.fn(() => Promise.resolve(0)),
   },
 }));
 
