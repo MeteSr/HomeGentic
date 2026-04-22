@@ -64,7 +64,11 @@ app.use(cors({ origin }));
 // 50 kb default — sufficient for all text payloads; prevents DoS on every route.
 // /api/classify gets its own 5 mb parser (base64 image payloads) registered below.
 app.use((req, res, next) => {
-  if (req.path === "/api/classify") {
+  if (req.path === "/api/stripe/webhook") {
+    // Stripe signature verification requires the raw request body — do NOT parse as JSON.
+    // Use type:"*/*" so the raw parser captures any Content-Type (Stripe sends application/json).
+    express.raw({ type: "*/*" })(req, res, next);
+  } else if (req.path === "/api/classify") {
     express.json({ limit: "5mb" })(req, res, next);
   } else {
     express.json({ limit: "50kb" })(req, res, next);
@@ -88,6 +92,8 @@ app.use("/api/", apiLimiter);
 // Skipped in dev when VOICE_AGENT_API_KEY is not set.
 app.use("/api/", (req: Request, res: Response, next: express.NextFunction): void => {
   if (!VOICE_API_KEY) { next(); return; }
+  // Stripe webhooks are authenticated via HMAC signature, not the API key header.
+  if (req.originalUrl.startsWith("/api/stripe/webhook")) { next(); return; }
   const provided = req.headers["x-api-key"];
   if (provided !== VOICE_API_KEY) {
     res.status(401).json({ error: "Unauthorized" });
@@ -1075,6 +1081,14 @@ async function activateInCanister(principal: string, tier: string, months: numbe
   }
 }
 
+/**
+ * Revert a user's subscription tier to Free in the payment canister.
+ * Called by the webhook handler on subscription cancellation or payment failure.
+ */
+async function revertPrincipalToFree(principal: string): Promise<void> {
+  await activateInCanister(principal, "Free", 0);
+}
+
 // ── Credit top-up helpers (#89) ───────────────────────────────────────────────
 
 /** Valid top-up pack sizes and their Stripe price-ID env vars. */
@@ -1351,6 +1365,118 @@ app.post("/api/buyers-truth-kit", async (req: Request, res: Response): Promise<v
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : "Analysis failed" });
   }
+});
+
+// ── POST /api/stripe/webhook ──────────────────────────────────────────────────
+// Handles Stripe subscription lifecycle events (#143).
+// Raw body required for HMAC signature verification — see body-parser middleware above.
+// Signature verified via STRIPE_WEBHOOK_SECRET (fail-closed: returns 500 if not set).
+//
+// Handled events:
+//   customer.subscription.deleted  → revert principal to Free
+//   customer.subscription.updated  → revert if cancelled (cancel_at_period_end) or status=canceled
+//   invoice.payment_failed         → revert principal to Free
+//   invoice.payment_succeeded      → activate tier in canister
+app.post("/api/stripe/webhook", async (req: Request, res: Response) => {
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    res.status(500).json({ error: "STRIPE_WEBHOOK_SECRET not configured" });
+    return;
+  }
+
+  const sig = req.headers["stripe-signature"];
+  if (!sig) {
+    res.status(400).json({ error: "Missing stripe-signature header" });
+    return;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let event: any;
+  try {
+    const Stripe = (await import("stripe")).default;
+    // constructEvent is synchronous and doesn't call the Stripe API —
+    // the secret key is only needed to instantiate the SDK.
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "placeholder_webhook_key");
+    event = stripe.webhooks.constructEvent(req.body as Buffer, sig as string, webhookSecret);
+  } catch (err) {
+    res.status(400).json({ error: `Webhook signature verification failed: ${(err as Error).message}` });
+    return;
+  }
+
+  try {
+    switch (event.type) {
+      case "customer.subscription.deleted": {
+        const sub       = event.data.object;
+        const principal = (sub.metadata?.icp_principal ?? "") as string;
+        if (principal) {
+          try { await revertPrincipalToFree(principal); }
+          catch (e) { console.warn(`[stripe-webhook] revert failed: ${(e as Error).message}`); }
+        }
+        break;
+      }
+      case "customer.subscription.updated": {
+        const sub       = event.data.object;
+        const status    = (sub.status ?? "") as string;
+        const cancelled = status === "canceled" || sub.cancel_at_period_end === true;
+        if (cancelled) {
+          const principal = (sub.metadata?.icp_principal ?? "") as string;
+          if (principal) {
+            try { await revertPrincipalToFree(principal); }
+            catch (e) { console.warn(`[stripe-webhook] revert failed: ${(e as Error).message}`); }
+          }
+        }
+        break;
+      }
+      case "invoice.payment_failed": {
+        const invoice   = event.data.object;
+        // Try subscription_details.metadata (newer Stripe API) then invoice.metadata
+        const principal = (
+          invoice.subscription_details?.metadata?.icp_principal ??
+          invoice.metadata?.icp_principal ??
+          ""
+        ) as string;
+        if (principal) {
+          try { await revertPrincipalToFree(principal); }
+          catch (e) { console.warn(`[stripe-webhook] payment_failed revert: ${(e as Error).message}`); }
+        }
+        break;
+      }
+      case "invoice.payment_succeeded": {
+        const invoice   = event.data.object;
+        const principal = (
+          invoice.subscription_details?.metadata?.icp_principal ??
+          invoice.metadata?.icp_principal ??
+          ""
+        ) as string;
+        const tier    = (
+          invoice.subscription_details?.metadata?.tier ??
+          invoice.metadata?.tier ??
+          ""
+        ) as string;
+        const billing = (
+          invoice.subscription_details?.metadata?.billing ??
+          invoice.metadata?.billing ??
+          "Monthly"
+        ) as string;
+        const months  = billing === "Yearly" ? 12 : 1;
+        if (principal && tier) {
+          try { await activateInCanister(principal, tier, months); }
+          catch (e) { console.warn(`[stripe-webhook] activate failed: ${(e as Error).message}`); }
+        }
+        break;
+      }
+      default:
+        process.stdout.write(JSON.stringify({
+          ts: new Date().toISOString(), event: "stripe_webhook_unhandled", type: event.type,
+        }) + "\n");
+    }
+  } catch (err) {
+    console.error(`[stripe-webhook] handler error: ${(err as Error).message}`);
+    res.status(500).json({ error: "Internal webhook handler error" });
+    return;
+  }
+
+  res.json({ received: true });
 });
 
 // ── GET /health ───────────────────────────────────────────────────────────────
