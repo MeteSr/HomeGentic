@@ -365,6 +365,7 @@ function createJobService() {
   },
 
   async getJobsPendingMySignature(): Promise<Job[]> {
+    if (!JOB_CANISTER_ID) return [];
     const a = await getActor();
     const result = await a.getJobsPendingMySignature();
     return (result as any[]).map(fromJob);

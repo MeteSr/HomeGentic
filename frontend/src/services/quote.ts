@@ -226,6 +226,7 @@ function createQuoteService() {
   },
 
   async getOpenRequests(): Promise<QuoteRequest[]> {
+    if (!QUOTE_CANISTER_ID) return [];
     const a = await getActor();
     return (await a.getOpenRequests() as any[]).map(fromRequest);
   },

@@ -221,6 +221,7 @@ function createContractorService() {
       const all = (window as any).__e2e_contractors as ContractorProfile[];
       return all.length > 0 ? all[0] : null;
     }
+    if (!CONTRACTOR_CANISTER_ID) return null;
     const a = await getActor();
     const result = await a.getMyProfile();
     if ("err" in result) return null;
