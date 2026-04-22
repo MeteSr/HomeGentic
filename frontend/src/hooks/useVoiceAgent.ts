@@ -405,7 +405,7 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
             ? new Date(resetsAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
             : "midnight UTC";
           // Refresh credit balance after a quota-exhausted response.
-          paymentService.getMyAgentCredits().then(setCreditBalance).catch(() => {});
+          paymentService.getMyAgentCredits().then(setCreditBalance).catch((e) => console.error("[useVoiceAgent] credit balance refresh failed:", e)); // display-only; failure does not affect the quota error already thrown
           throw new Error(
             `You've used your ${body.limit ?? ""} AI assistant calls for today. Resets at ${resetTime}.` +
             ` Buy a credit pack for instant top-up, or upgrade your plan for a higher daily limit.`

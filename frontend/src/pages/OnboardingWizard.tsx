@@ -181,7 +181,7 @@ export default function OnboardingWizard() {
     Number(details.yearBuilt) >= 1900 &&
     Number(details.yearBuilt) <= new Date().getFullYear();
 
-  const step3Valid =
+  const step4Valid =
     verify.legalName.trim().length > 0 &&
     verify.docFile !== null;
 
@@ -443,7 +443,7 @@ export default function OnboardingWizard() {
                           ref={(el) => { baselineInputRefs.current[key] = el; }}
                           onChange={(e) => {
                             const file = e.target.files?.[0];
-                            if (file) handleBaselineUpload(key, file).catch(() => {});
+                            if (file) handleBaselineUpload(key, file).catch(() => {}); // errors surfaced via toast inside handleBaselineUpload; outer catch prevents unhandled-rejection noise
                             e.target.value = "";
                           }}
                         />
@@ -608,7 +608,7 @@ export default function OnboardingWizard() {
   const isNextDisabled =
     (step === 1 && !step1Valid) ||
     (step === 2 && (!step2Valid || registering)) ||
-    (step === 4 && (!step3Valid || submittingVerify));
+    (step === 4 && (!step4Valid || submittingVerify));
 
   return (
     <div style={{
