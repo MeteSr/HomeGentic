@@ -126,9 +126,9 @@ test.describe("Tier limit — upgrade flow from Settings (Free tier)", () => {
 
   test("UpgradeModal shows Pro and Premium plan cards", async ({ page }) => {
     await page.getByRole("button", { name: /^upgrade$/i }).first().click();
-    const dialog = page.getByRole("dialog", { name: /upgrade your plan/i });
-    await expect(dialog.getByText("Pro")).toBeVisible();
-    await expect(dialog.getByText("Premium")).toBeVisible();
+    // Verify plan cards by their 'Select {tier}' buttons — unambiguous and accessible
+    await expect(page.getByRole("button", { name: "Select Pro" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Select Premium" })).toBeVisible();
   });
 
   test("UpgradeModal shows 'Pay with Card' payment method toggle", async ({ page }) => {
@@ -191,8 +191,8 @@ test.describe("UpgradeGate — CTA navigates to /pricing", () => {
     await page.goto("/jobs/new");
     // Wait for both async loads (subscription + job count) to resolve before the gate renders
     await expect(page.getByText(/job limit reached/i)).toBeVisible();
-    // UpgradeGate renders 'Upgrade to Pro →' — clicking navigates to /pricing
-    await page.getByRole("button", { name: /upgrade to pro/i }).click();
+    // UpgradeGate default tier is "Basic" → button text is "Upgrade to Basic →"
+    await page.getByRole("button", { name: /upgrade to basic/i }).click();
     await expect(page).toHaveURL(/\/pricing/);
   });
 });

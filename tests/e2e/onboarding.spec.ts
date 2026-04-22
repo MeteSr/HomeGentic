@@ -178,62 +178,53 @@ test.describe("OnboardingWizard — /onboarding", () => {
   });
 
   // ── Step 3: Verify Ownership ────────────────────────────────────────────────
-  // These tests require navigating through step 2, which calls registerProperty.
-  // We inject window.__e2e_register_property so the service returns a mock
-  // property immediately without hitting the canister.
+  // Step 2→3 calls registerProperty. We need __e2e_register_property injected
+  // BEFORE page.goto so addInitScript fires on the initial load.
+  // These tests use their own nested describe with a dedicated beforeEach.
 
-  test("step 3 shows 'Verify Ownership' heading", async ({ page }) => {
-    await injectRegisterProperty(page);
-    await fillStep1(page);
-    await page.getByLabel(/year built/i).fill("2000");
-    await page.getByLabel(/square feet/i).fill("2000");
-    await page.getByRole("button", { name: /next/i }).click();
-    await expect(page.getByRole("heading", { name: /verify ownership/i })).toBeVisible();
-  });
+  test.describe("step 3 — Verify Ownership", () => {
+    test.beforeEach(async ({ page }) => {
+      await injectTestAuth(page);
+      await injectRegisterProperty(page);          // must be before goto
+      await page.goto("/onboarding");
+      await expect(page.getByText(/step 1 of 5/i)).toBeVisible();
+      // Navigate through step 1
+      await page.getByLabel(/street address/i).fill("100 Onboarding Lane");
+      await page.getByLabel(/city/i).fill("Austin");
+      await page.getByLabel(/state/i).fill("TX");
+      await page.getByLabel(/zip code/i).fill("78701");
+      await page.getByRole("button", { name: /next/i }).click();
+      // Navigate through step 2 (triggers registerProperty → mock returns immediately)
+      await page.getByLabel(/year built/i).fill("2000");
+      await page.getByLabel(/square feet/i).fill("2000");
+      await page.getByRole("button", { name: /next/i }).click();
+      // Confirm we landed on step 3
+      await expect(page.getByText(/step 3 of 5/i)).toBeVisible();
+    });
 
-  test("step 3 shows Legal Name field", async ({ page }) => {
-    await injectRegisterProperty(page);
-    await fillStep1(page);
-    await page.getByLabel(/year built/i).fill("2000");
-    await page.getByLabel(/square feet/i).fill("2000");
-    await page.getByRole("button", { name: /next/i }).click();
-    await expect(page.getByLabel(/legal name/i)).toBeVisible();
-  });
+    test("shows 'Verify Ownership' heading", async ({ page }) => {
+      await expect(page.getByRole("heading", { name: /verify ownership/i })).toBeVisible();
+    });
 
-  test("step 3 shows Document Type selector", async ({ page }) => {
-    await injectRegisterProperty(page);
-    await fillStep1(page);
-    await page.getByLabel(/year built/i).fill("2000");
-    await page.getByLabel(/square feet/i).fill("2000");
-    await page.getByRole("button", { name: /next/i }).click();
-    await expect(page.getByLabel(/document type/i)).toBeVisible();
-  });
+    test("shows Legal Name field", async ({ page }) => {
+      await expect(page.getByLabel(/legal name/i)).toBeVisible();
+    });
 
-  test("step 3 shows file upload input", async ({ page }) => {
-    await injectRegisterProperty(page);
-    await fillStep1(page);
-    await page.getByLabel(/year built/i).fill("2000");
-    await page.getByLabel(/square feet/i).fill("2000");
-    await page.getByRole("button", { name: /next/i }).click();
-    await expect(page.locator('input[type="file"]')).toBeVisible();
-  });
+    test("shows Document Type selector", async ({ page }) => {
+      await expect(page.getByLabel(/document type/i)).toBeVisible();
+    });
 
-  test("Next is disabled on step 3 when legal name and file are missing", async ({ page }) => {
-    await injectRegisterProperty(page);
-    await fillStep1(page);
-    await page.getByLabel(/year built/i).fill("2000");
-    await page.getByLabel(/square feet/i).fill("2000");
-    await page.getByRole("button", { name: /next/i }).click();
-    await expect(page.getByRole("button", { name: /next/i })).toBeDisabled();
-  });
+    test("shows file upload input", async ({ page }) => {
+      await expect(page.locator('input[type="file"]')).toBeVisible();
+    });
 
-  test("step 3 document type includes Deed / Title option", async ({ page }) => {
-    await injectRegisterProperty(page);
-    await fillStep1(page);
-    await page.getByLabel(/year built/i).fill("2000");
-    await page.getByLabel(/square feet/i).fill("2000");
-    await page.getByRole("button", { name: /next/i }).click();
-    await expect(page.getByLabel(/document type/i).locator("option", { hasText: /deed/i })).toHaveCount(1);
+    test("Next is disabled when legal name and file are missing", async ({ page }) => {
+      await expect(page.getByRole("button", { name: /next/i })).toBeDisabled();
+    });
+
+    test("Document Type includes 'Deed / Title' option", async ({ page }) => {
+      await expect(page.getByLabel(/document type/i).locator("option", { hasText: /deed/i })).toHaveCount(1);
+    });
   });
 
   // ── Step 5: System Ages ─────────────────────────────────────────────────────
