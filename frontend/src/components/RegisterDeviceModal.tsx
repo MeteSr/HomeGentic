@@ -16,10 +16,18 @@ const UI = {
 };
 
 const SOURCES: { value: DeviceSource; label: string }[] = [
-  { value: "Nest",    label: "Google Nest"  },
-  { value: "Ecobee",  label: "Ecobee"       },
-  { value: "MoenFlo", label: "Moen Flo"     },
-  { value: "Manual",  label: "Manual Entry" },
+  { value: "Nest",          label: "Google Nest"             },
+  { value: "Ecobee",        label: "Ecobee"                  },
+  { value: "MoenFlo",       label: "Moen Flo"                },
+  { value: "RingAlarm",     label: "Ring Alarm"              },
+  { value: "HoneywellHome", label: "Honeywell Home"          },
+  { value: "RheemEcoNet",   label: "Rheem EcoNet"            },
+  { value: "Sense",         label: "Sense Energy Monitor"    },
+  { value: "EmporiaVue",    label: "Emporia Vue"             },
+  { value: "Rachio",        label: "Rachio Smart Sprinkler"  },
+  { value: "SmartThings",   label: "Samsung SmartThings"     },
+  { value: "HomeAssistant", label: "Home Assistant"          },
+  { value: "Manual",        label: "Manual Entry"            },
 ];
 
 const BLANK = {
@@ -117,8 +125,8 @@ export function RegisterDeviceModal({ isOpen, onClose, onSuccess, propertyId }: 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           {/* Source */}
           <div>
-            <label style={labelStyle}>Device Type</label>
-            <select value={form.source} onChange={set("source")} style={inputStyle}>
+            <label htmlFor="register-device-source" style={labelStyle}>Device Type</label>
+            <select id="register-device-source" value={form.source} onChange={set("source")} style={inputStyle}>
               {SOURCES.map((s) => (
                 <option key={s.value} value={s.value}>{s.label}</option>
               ))}

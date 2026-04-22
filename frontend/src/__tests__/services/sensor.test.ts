@@ -230,8 +230,12 @@ describe("sensorService mock path", () => {
       expect(device.registeredAt).toBeLessThanOrEqual(after);
     });
 
-    it("accepts all four DeviceSource values", async () => {
-      const sources = ["Nest", "Ecobee", "MoenFlo", "Manual"] as const;
+    it("accepts all twelve DeviceSource values", async () => {
+      const sources = [
+        "Nest", "Ecobee", "MoenFlo", "Manual",
+        "RingAlarm", "HoneywellHome", "RheemEcoNet", "Sense",
+        "EmporiaVue", "Rachio", "SmartThings", "HomeAssistant",
+      ] as const;
       for (const source of sources) {
         const d = await sensorService.registerDevice("p", "e", source, "Dev");
         expect(d.source).toBe(source);
@@ -327,11 +331,13 @@ describe("sensorService mock path", () => {
 // ─── DeviceSource type coverage ───────────────────────────────────────────────
 
 describe("DeviceSource values", () => {
-  it("SOURCES list covers all four platform values", async () => {
-    // We import the type — if the type changes, the test below would need updating.
-    // This test documents the expected set.
-    const expected = new Set(["Nest", "Ecobee", "MoenFlo", "Manual"]);
-    expect(expected.size).toBe(4);
+  it("SOURCES list covers all twelve platform values", async () => {
+    const expected = new Set([
+      "Nest", "Ecobee", "MoenFlo", "Manual",
+      "RingAlarm", "HoneywellHome", "RheemEcoNet", "Sense",
+      "EmporiaVue", "Rachio", "SmartThings", "HomeAssistant",
+    ]);
+    expect(expected.size).toBe(12);
   });
 });
 

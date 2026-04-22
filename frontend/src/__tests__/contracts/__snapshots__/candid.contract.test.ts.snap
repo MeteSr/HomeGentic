@@ -1428,7 +1428,7 @@ exports[`sensor IDL factory > full signature snapshot 1`] = `
       "query",
     ],
     "rets": [
-      "vec record {id:text; externalDeviceId:text; source:variant {Nest; MoenFlo; Ecobee; Manual}; name:text; propertyId:text; isActive:bool; homeowner:principal; registeredAt:int}",
+      "vec record {id:text; externalDeviceId:text; source:variant {Sense; Nest; HomeAssistant; MoenFlo; HoneywellHome; SmartThings; RheemEcoNet; RingAlarm; Ecobee; Rachio; Manual; EmporiaVue}; name:text; propertyId:text; isActive:bool; homeowner:principal; registeredAt:int}",
     ],
   },
   "getEventsForProperty": {
@@ -1471,12 +1471,12 @@ exports[`sensor IDL factory > full signature snapshot 1`] = `
     "args": [
       "text",
       "text",
-      "variant {Nest; MoenFlo; Ecobee; Manual}",
+      "variant {Sense; Nest; HomeAssistant; MoenFlo; HoneywellHome; SmartThings; RheemEcoNet; RingAlarm; Ecobee; Rachio; Manual; EmporiaVue}",
       "text",
     ],
     "mode": [],
     "rets": [
-      "variant {ok:record {id:text; externalDeviceId:text; source:variant {Nest; MoenFlo; Ecobee; Manual}; name:text; propertyId:text; isActive:bool; homeowner:principal; registeredAt:int}; err:variant {InvalidInput:text; NotFound; Unauthorized; AlreadyExists}}",
+      "variant {ok:record {id:text; externalDeviceId:text; source:variant {Sense; Nest; HomeAssistant; MoenFlo; HoneywellHome; SmartThings; RheemEcoNet; RingAlarm; Ecobee; Rachio; Manual; EmporiaVue}; name:text; propertyId:text; isActive:bool; homeowner:principal; registeredAt:int}; err:variant {InvalidInput:text; NotFound; Unauthorized; AlreadyExists}}",
     ],
   },
 }

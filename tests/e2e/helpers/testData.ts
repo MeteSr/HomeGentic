@@ -301,6 +301,38 @@ export async function injectFsboPhotos(page: Page, propertyId: string = "1") {
 }
 
 /**
+ * Injects mock sensor devices into window.__e2e_devices (keyed by propertyId)
+ * and mock pending alerts into window.__e2e_alerts (keyed by propertyId).
+ * sensorService.getDevicesForProperty() and getPendingAlerts() check these
+ * maps before making canister calls.
+ */
+export async function injectSensorDevices(
+  page: Page,
+  devicesByProperty: Record<string, Array<{
+    id: string; externalDeviceId: string; source: string; name: string; isActive: boolean;
+  }>>
+) {
+  await page.addInitScript((map: Record<string, any[]>) => {
+    const now = Date.now();
+    const result: Record<string, object[]> = {};
+    for (const [pid, devices] of Object.entries(map)) {
+      result[pid] = devices.map((d) => ({
+        id:               d.id,
+        propertyId:       pid,
+        homeowner:        "test-e2e-principal",
+        externalDeviceId: d.externalDeviceId,
+        source:           d.source,
+        name:             d.name,
+        registeredAt:     now - 86_400_000,
+        isActive:         d.isActive,
+      }));
+    }
+    (window as any).__e2e_devices = result;
+    (window as any).__e2e_alerts  = {};   // no pending alerts by default
+  }, devicesByProperty);
+}
+
+/**
  * Injects mock baseline photos into window.__e2e_baseline_photos.
  * photoService.getByJob() checks this map (keyed by jobId = "baseline_<propertyId>")
  * before making canister calls.
