@@ -12,7 +12,7 @@
 
 import React from "react";
 import { COLORS, FONTS, RADIUS } from "@/theme";
-import { reportFrontendError } from "@/services/errorReporting";
+import { errorTracker } from "@/services/errorTracker";
 
 interface Props {
   children: React.ReactNode;
@@ -50,7 +50,11 @@ export class ErrorBoundary extends React.Component<Props, State> {
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     this.setState({ errorInfo });
     console.error("[ErrorBoundary]", error, errorInfo.componentStack);
-    reportFrontendError(error, errorInfo.componentStack ?? null);
+    errorTracker.captureError(error, {
+      level:          this.props.global ? "fatal" : "error",
+      componentStack: errorInfo.componentStack ?? undefined,
+      source:         this.props.global ? "ErrorBoundary.global" : "ErrorBoundary.route",
+    });
   }
 
   handleReset = () => {

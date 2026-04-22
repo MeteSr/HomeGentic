@@ -788,23 +788,57 @@ Rules:
 });
 
 // ── POST /api/errors ─────────────────────────────────────────────────────────
-// Frontend ErrorBoundary reports caught render errors here (production only).
-// The structured logging middleware above records them as JSON lines — no extra
-// storage needed. Endpoint always returns 204 so the fire-and-forget client
-// doesn't need to parse a response body.
+// Receives structured error reports from the frontend errorTracker.
+// Enriched payload: level, errorType, stack, componentStack, breadcrumbs,
+// tier, release, userAgent, tags — all sanitised and length-bounded before logging.
+// Falls back gracefully to the legacy { message, componentStack, url, ts } shape
+// so old clients keep working. Always returns 204.
 app.post("/api/errors", (req: Request, res: Response): void => {
-  // Body is already captured by the logging middleware on "finish".
-  // Log it immediately at warn level so it stands out from regular request logs.
-  const { message, componentStack, url, ts } = req.body ?? {};
+  const b = req.body ?? {};
+
+  // Accept enriched payload (errorTracker) or legacy (old ErrorBoundary) shape.
+  const level         = typeof b.level === "string" ? b.level.slice(0, 20) : "error";
+  const message       = typeof b.message === "string" ? b.message.slice(0, 500) : "(no message)";
+  const errorType     = typeof b.errorType === "string" ? b.errorType.slice(0, 80) : undefined;
+  const stack         = typeof b.stack === "string" ? b.stack.slice(0, 3000) : undefined;
+  const componentStack = typeof b.componentStack === "string" ? b.componentStack.slice(0, 2000) : undefined;
+  const url           = typeof b.url === "string" ? b.url.slice(0, 500) : undefined;
+  const ts            = typeof b.ts === "string" ? b.ts : new Date().toISOString();
+  const tier          = typeof b.tier === "string" ? b.tier.slice(0, 40) : undefined;
+  const release       = typeof b.release === "string" ? b.release.slice(0, 50) : undefined;
+  const userAgent     = typeof b.userAgent === "string" ? b.userAgent.slice(0, 200) : undefined;
+  const tags          = b.tags && typeof b.tags === "object" && !Array.isArray(b.tags)
+    ? b.tags as Record<string, string>
+    : undefined;
+
+  // Sanitise breadcrumbs — cap count and individual field lengths.
+  type RawCrumb = { type?: unknown; message?: unknown; data?: unknown; ts?: unknown };
+  const breadcrumbs = Array.isArray(b.breadcrumbs)
+    ? (b.breadcrumbs as RawCrumb[]).slice(0, 25).map((c) => ({
+        type:    typeof c?.type    === "string" ? c.type.slice(0, 20) : "custom",
+        message: typeof c?.message === "string" ? c.message.slice(0, 200) : "",
+        data:    c?.data && typeof c.data === "object" && !Array.isArray(c.data) ? c.data : undefined,
+        ts:      typeof c?.ts === "number" ? c.ts : undefined,
+      }))
+    : undefined;
+
   process.stdout.write(JSON.stringify({
-    level:          "warn",
-    event:          "frontend_error",
-    message:        typeof message === "string"        ? message.slice(0, 500)  : "(no message)",
-    componentStack: typeof componentStack === "string" ? componentStack.slice(0, 2000) : null,
-    url:            typeof url === "string"            ? url.slice(0, 500)      : null,
-    ts:             typeof ts === "string"             ? ts                     : new Date().toISOString(),
-    principal:      (req.headers["x-icp-principal"] as string | undefined) ?? "anon",
+    event:      "frontend_error",
+    level,
+    message,
+    ...(errorType      && { errorType }),
+    ...(stack          && { stack }),
+    ...(componentStack && { componentStack }),
+    ...(url            && { url }),
+    ts,
+    principal:  (req.headers["x-icp-principal"] as string | undefined) ?? "anon",
+    ...(tier       && { tier }),
+    ...(release    && { release }),
+    ...(userAgent  && { userAgent }),
+    ...(breadcrumbs && { breadcrumbs }),
+    ...(tags       && { tags }),
   }) + "\n");
+
   res.sendStatus(204);
 });
 

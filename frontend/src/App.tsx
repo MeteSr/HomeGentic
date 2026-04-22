@@ -1,9 +1,19 @@
-import React, { Suspense } from "react";
+import React, { Suspense, useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { useAuthStore } from "@/store/authStore";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { errorTracker } from "@/services/errorTracker";
+
+/** Records route changes as navigation breadcrumbs in the error tracker. */
+function NavigationTracker() {
+  const location = useLocation();
+  useEffect(() => {
+    errorTracker.trackNavigation(location.pathname);
+  }, [location.pathname]);
+  return null;
+}
 
 // Critical path — kept static (first paint)
 import LandingPage           from "@/pages/LandingPage";
@@ -105,6 +115,7 @@ export default function App() {
             style: { borderRadius: 0, fontSize: "0.875rem", fontWeight: 500 },
           }}
         />
+        <NavigationTracker />
         <Suspense fallback={<PageLoader />}>
           <RouteErrorBoundary>
             <Routes>
