@@ -73,6 +73,8 @@ test.describe("Tier limit — job cap (Free)", () => {
     await injectFiveJobs(page);
     await injectSubscription(page, "Free");
     await page.goto("/jobs/new");
+    // Wait for both async loads (subscription + job count) to resolve so the gate renders
+    await expect(page.getByText(/job limit reached/i)).toBeVisible();
   });
 
   test("shows UpgradeGate instead of job form", async ({ page }) => {
@@ -124,8 +126,9 @@ test.describe("Tier limit — upgrade flow from Settings (Free tier)", () => {
 
   test("UpgradeModal shows Pro and Premium plan cards", async ({ page }) => {
     await page.getByRole("button", { name: /^upgrade$/i }).first().click();
-    await expect(page.getByText("Pro")).toBeVisible();
-    await expect(page.getByText("Premium")).toBeVisible();
+    const dialog = page.getByRole("dialog", { name: /upgrade your plan/i });
+    await expect(dialog.getByText("Pro")).toBeVisible();
+    await expect(dialog.getByText("Premium")).toBeVisible();
   });
 
   test("UpgradeModal shows 'Pay with Card' payment method toggle", async ({ page }) => {
@@ -186,7 +189,9 @@ test.describe("UpgradeGate — CTA navigates to /pricing", () => {
     await injectFiveJobs(page);
     await injectSubscription(page, "Free");
     await page.goto("/jobs/new");
-    // UpgradeGate renders 'Upgrade to Pro →' — clicking goes to /pricing
+    // Wait for both async loads (subscription + job count) to resolve before the gate renders
+    await expect(page.getByText(/job limit reached/i)).toBeVisible();
+    // UpgradeGate renders 'Upgrade to Pro →' — clicking navigates to /pricing
     await page.getByRole("button", { name: /upgrade to pro/i }).click();
     await expect(page).toHaveURL(/\/pricing/);
   });

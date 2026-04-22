@@ -301,6 +301,33 @@ export async function injectFsboPhotos(page: Page, propertyId: string = "1") {
 }
 
 /**
+ * Injects a mock return value for propertyService.registerProperty().
+ * Without this, the onboarding wizard's step 2→3 transition calls the canister
+ * and fails in E2E (no replica running).  The injected property is returned
+ * immediately so the wizard advances to step 3.
+ */
+export async function injectRegisterProperty(page: Page) {
+  await page.addInitScript(() => {
+    (window as any).__e2e_register_property = {
+      id: 99,
+      owner: "test-e2e-principal",
+      address: "100 Onboarding Lane",
+      city: "Austin",
+      state: "TX",
+      zipCode: "78701",
+      propertyType: "SingleFamily",
+      yearBuilt: 2000,
+      squareFeet: 2000,
+      verificationLevel: "Unverified",
+      tier: "Free",
+      createdAt: 0,
+      updatedAt: 0,
+      isActive: true,
+    };
+  });
+}
+
+/**
  * Injects mock warranty jobs (jobs with warrantyMonths > 0) alongside
  * the standard property fixture. Covers all three warranty states:
  * active, expiring-soon, and expired.

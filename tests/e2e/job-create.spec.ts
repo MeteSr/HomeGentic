@@ -125,11 +125,13 @@ test.describe("Job Create — /jobs/new", () => {
   });
 
   test("shows Date Completed field", async ({ page }) => {
-    await expect(page.getByLabel(/date completed/i)).toBeVisible();
+    // Label has no htmlFor — locate by input type
+    await expect(page.locator('input[type="date"]')).toBeVisible();
   });
 
   test("shows Description textarea", async ({ page }) => {
-    await expect(page.getByLabel(/description/i)).toBeVisible();
+    // Label has no htmlFor — locate by element type
+    await expect(page.locator("textarea")).toBeVisible();
   });
 
   test("shows 'Log Job to Blockchain' submit button", async ({ page }) => {
@@ -165,11 +167,12 @@ test.describe("Job Create — Free-tier job limit gate", () => {
       }));
     });
     await page.goto("/jobs/new");
+    // Wait for both async loads (subscription + job count) before asserting gate state
+    await expect(page.getByText(/job limit reached/i)).toBeVisible();
   });
 
   test("shows upgrade gate instead of the job form", async ({ page }) => {
     await expect(page.getByRole("heading", { name: "Log a Job" })).not.toBeVisible();
-    await expect(page.getByText(/job limit reached/i)).toBeVisible();
   });
 
   test("gate shows job count in description", async ({ page }) => {

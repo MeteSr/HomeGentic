@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { injectTestAuth } from "./helpers/auth";
+import { injectRegisterProperty } from "./helpers/testData";
 
 // Helper: fill Step 1 and advance
 async function fillStep1(page: Parameters<typeof injectTestAuth>[0]) {
@@ -177,11 +178,13 @@ test.describe("OnboardingWizard — /onboarding", () => {
   });
 
   // ── Step 3: Verify Ownership ────────────────────────────────────────────────
+  // These tests require navigating through step 2, which calls registerProperty.
+  // We inject window.__e2e_register_property so the service returns a mock
+  // property immediately without hitting the canister.
 
   test("step 3 shows 'Verify Ownership' heading", async ({ page }) => {
+    await injectRegisterProperty(page);
     await fillStep1(page);
-    // Stub canister call for property registration
-    await page.route("**/canister/**", (route) => route.fulfill({ status: 200, body: "" }));
     await page.getByLabel(/year built/i).fill("2000");
     await page.getByLabel(/square feet/i).fill("2000");
     await page.getByRole("button", { name: /next/i }).click();
@@ -189,8 +192,8 @@ test.describe("OnboardingWizard — /onboarding", () => {
   });
 
   test("step 3 shows Legal Name field", async ({ page }) => {
+    await injectRegisterProperty(page);
     await fillStep1(page);
-    await page.route("**/canister/**", (route) => route.fulfill({ status: 200, body: "" }));
     await page.getByLabel(/year built/i).fill("2000");
     await page.getByLabel(/square feet/i).fill("2000");
     await page.getByRole("button", { name: /next/i }).click();
@@ -198,8 +201,8 @@ test.describe("OnboardingWizard — /onboarding", () => {
   });
 
   test("step 3 shows Document Type selector", async ({ page }) => {
+    await injectRegisterProperty(page);
     await fillStep1(page);
-    await page.route("**/canister/**", (route) => route.fulfill({ status: 200, body: "" }));
     await page.getByLabel(/year built/i).fill("2000");
     await page.getByLabel(/square feet/i).fill("2000");
     await page.getByRole("button", { name: /next/i }).click();
@@ -207,8 +210,8 @@ test.describe("OnboardingWizard — /onboarding", () => {
   });
 
   test("step 3 shows file upload input", async ({ page }) => {
+    await injectRegisterProperty(page);
     await fillStep1(page);
-    await page.route("**/canister/**", (route) => route.fulfill({ status: 200, body: "" }));
     await page.getByLabel(/year built/i).fill("2000");
     await page.getByLabel(/square feet/i).fill("2000");
     await page.getByRole("button", { name: /next/i }).click();
@@ -216,8 +219,8 @@ test.describe("OnboardingWizard — /onboarding", () => {
   });
 
   test("Next is disabled on step 3 when legal name and file are missing", async ({ page }) => {
+    await injectRegisterProperty(page);
     await fillStep1(page);
-    await page.route("**/canister/**", (route) => route.fulfill({ status: 200, body: "" }));
     await page.getByLabel(/year built/i).fill("2000");
     await page.getByLabel(/square feet/i).fill("2000");
     await page.getByRole("button", { name: /next/i }).click();
@@ -225,8 +228,8 @@ test.describe("OnboardingWizard — /onboarding", () => {
   });
 
   test("step 3 document type includes Deed / Title option", async ({ page }) => {
+    await injectRegisterProperty(page);
     await fillStep1(page);
-    await page.route("**/canister/**", (route) => route.fulfill({ status: 200, body: "" }));
     await page.getByLabel(/year built/i).fill("2000");
     await page.getByLabel(/square feet/i).fill("2000");
     await page.getByRole("button", { name: /next/i }).click();

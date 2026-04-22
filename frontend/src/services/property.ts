@@ -326,6 +326,9 @@ function unwrap(result: any): Property {
 
 export const propertyService = {
   async registerProperty(args: RegisterPropertyArgs): Promise<Property> {
+    if (typeof window !== "undefined" && (window as any).__e2e_register_property) {
+      return (window as any).__e2e_register_property as Property;
+    }
     const a = await getActor();
     const result = await a.registerProperty({
       address: args.address,
