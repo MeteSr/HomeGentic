@@ -184,14 +184,11 @@ test.describe("DashboardPage — /dashboard", () => {
     });
 
     test("dismiss button hides the card for that property", async ({ page }) => {
-      const cards = page.getByText(/complete your property baseline/i);
-      const firstCard = cards.first();
-      await expect(firstCard).toBeVisible();
-      // Click dismiss on the first card's parent
-      await firstCard.locator("..").locator("..").getByRole("button", { name: /dismiss/i }).click();
-      await expect(page.getByText(/complete your property baseline/i).first()).not.toBeVisible({ timeout: 3000 }).catch(() => {
-        // If second property card still shows, that's expected — just verify first is gone
-      });
+      // Property 1's card has data-testid="baseline-prompt-1"
+      const card = page.locator('[data-testid="baseline-prompt-1"]');
+      await expect(card).toBeVisible();
+      await card.getByRole("button", { name: /dismiss/i }).click();
+      await expect(card).not.toBeVisible();
     });
   });
 

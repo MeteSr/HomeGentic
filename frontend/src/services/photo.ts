@@ -231,6 +231,7 @@ function createPhotoService() {
       const photosMap = (window as any).__e2e_baseline_photos as Record<string, Photo[]>;
       if (jobId in photosMap) return photosMap[jobId] ?? [];
     }
+    if (!PHOTO_CANISTER_ID) return [];
     const a = await getActor();
     return (await a.getPhotosByJob(jobId) as any[]).map(fromPhoto);
   },
