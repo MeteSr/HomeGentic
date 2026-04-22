@@ -239,7 +239,7 @@ export default function SensorPage() {
       <RegisterDeviceModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        onSuccess={(device) => setDevices((prev) => [...prev, device])}
+        onSuccess={(device: SensorDevice) => setDevices((prev) => [...prev, device])}
         propertyId={selectedPropertyId}
       />
     </Layout>
