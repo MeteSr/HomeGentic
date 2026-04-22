@@ -40,7 +40,7 @@ rewiring screens.
 | `/for-sale/:propertyId` | FsboListingPage | Public FSBO listing detail |
 | `/transfer/claim/:token` | PropertyTransferClaimPage | Accept a property ownership transfer |
 | `/manage/claim/:token` | PropertyManagerClaimPage | Accept a property manager invitation |
-| `/verify/:token` | ContractorVerifyPage | Contractor email verification link |
+| `/verify/:token` | ContractorVerifyPage | Out-of-network contractor job sign-off (no login required) |
 | `/report/:token` | ReportPage | Shareable HomeGentic report (print-ready) |
 | `/badge/:token` | BadgePage | Shareable verified badge |
 | `/cert/:token` | ScoreCertPage | HomeGentic score certificate |
@@ -186,7 +186,7 @@ Multi-tab page — the main workspace for a property.
 - `GenerateReportModal` — share link with expiry, view limit, visibility level
 - `LogJobModal` — full job creation form inline
 - `RequestQuoteModal` — post a quote request
-- `InviteContractorModal` — invite a contractor directly via token
+- `InviteContractorModal` — generate a single-use invite token for an out-of-network contractor; displays shareable link + QR code
 - `PropertyVerifyModal` — upload verification documents
 - `SystemAgesModal` — override system ages
 - `RecurringServiceCreateModal` — set up a recurring service
@@ -405,8 +405,12 @@ Multi-tab page — the main workspace for a property.
 - Filter by specialty; sort by trust score or job count
 - Contractor cards with name, specialties, trust score, verification badge
 
-**Verification link (`/verify/:token`)**
-- Email-based contractor verification flow
+**Out-of-network contractor sign-off (`/verify/:token`)**
+- Public page — no HomeGentic account required
+- Homeowner generates a single-use invite token from the job detail (via `InviteContractorModal`); shares it as a link or QR code
+- Contractor opens the link, sees a read-only job preview (description, property address, date)
+- Taps "Confirm & Sign" → `redeemInviteToken` co-signs the job record on-chain as the contractor party
+- Token is consumed on redemption (single-use); job gains contractor signature, completing dual-signature verification
 
 ---
 
