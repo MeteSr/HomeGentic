@@ -4,6 +4,7 @@
  * PROD.5  deploy.sh builds frontend and deploys the frontend canister
  * PROD.6  all backend canisters use `persistent actor` + mo:core/Map (no preupgrade needed)
  * PROD.7  deploy.sh wires addAdmin for every canister that has the method
+ *         (auth is excluded — its deployer is set atomically via --argument at install time)
  */
 
 import { describe, it, expect } from "vitest";
@@ -102,8 +103,11 @@ describe("PROD.7 — deploy.sh calls addAdmin for each non-payment canister", ()
   // ai_proxy is already wired in the existing AI Proxy section.
   // All others must have addAdmin called so the deployer owns them from the first block.
 
+  // auth is intentionally excluded: its deployer principal is set atomically via
+  // `dfx canister install auth --argument "(principal \"...\")"`  at install time,
+  // so no post-deploy addAdmin call is needed or safe (#144).
   const CANISTERS_WITH_ADMIN = [
-    "auth", "property", "job", "contractor", "quote",
+    "property", "job", "contractor", "quote",
     "photo", "report", "maintenance", "market", "sensor",
     "listing", "agent", "recurring", "monitoring",
   ];
@@ -126,6 +130,21 @@ describe("PROD.7 — deploy.sh calls addAdmin for each non-payment canister", ()
       ).toBe(true);
     });
   }
+
+  it("deploy.sh does NOT call addAdmin for auth (auth uses --argument constructor bootstrap instead)", () => {
+    // auth gets its deployer via `dfx canister install auth --argument "(principal \"...\")"`.
+    // Calling addAdmin after the fact would re-open the bootstrap race we closed in #144.
+    expect(deploy()).not.toMatch(/canister call auth addAdmin/);
+  });
+
+  it("deploy.sh installs auth with --argument passing the deployer principal", () => {
+    const src = deploy();
+    // Must pass the deployer principal as a Candid argument so the actor class
+    // constructor receives it atomically — closing the bootstrap race (#144).
+    // The two strings may be on separate lines, so check both independently.
+    expect(src).toContain("canister install auth");
+    expect(src).toMatch(/--argument.*principal/);
+  });
 
   it("deploy.sh does NOT call addAdmin for payment (payment uses initAdmins instead)", () => {
     // payment uses a one-time initAdmins bootstrap, not the addAdmin pattern
