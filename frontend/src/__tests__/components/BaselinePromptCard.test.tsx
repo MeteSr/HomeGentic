@@ -49,7 +49,8 @@ const PROPERTY = {
   address: "123 Maple Street", city: "Austin", state: "TX", zipCode: "78701",
   propertyType: "SingleFamily" as const,
   yearBuilt: BigInt(2001), squareFeet: BigInt(2400),
-  verificationLevel: "Unverified", tier: "Free",
+  verificationLevel: "Unverified" as const,
+  tier: "Free" as const,
   createdAt: BigInt(0), updatedAt: BigInt(0), isActive: true,
 };
 
