@@ -162,7 +162,7 @@ Owns subscription management and pricing table (merged from old `price` canister
 | `getPricing` | query | `(Tier)` | Pricing info for a specific tier |
 | `getAllPricing` | query | `()` | Pricing info for all tiers |
 
-**Tier:** `#Free | #Basic | #Pro | #Premium | #ContractorFree | #ContractorPro`
+**Tier:** `#Basic | #Pro | #Premium | #ContractorFree | #ContractorPro`
 
 **Admin / Lifecycle:** `setUpdateRateLimit(Nat)` · `addTrustedCanister(Principal)` · `removeTrustedCanister(Principal)`
 

@@ -230,7 +230,6 @@ homegentic/
 
 | Tier | Properties | Photos/Job | Open Quote Requests | Price |
 |---|---|---|---|---|
-| Free | 1 | 2 | 3 | $0 |
 | Basic | 1 | 5 | 3 | $10/mo |
 | Pro | 5 | 10 | 10 | $20/mo |
 | Premium | 20 | 30 | Unlimited | $40/mo |

@@ -109,7 +109,6 @@ All 17 active canisters use `persistent actor` (Motoko mo:core) — all variable
 
 | Tier | Properties | Photos/Job | Open Quotes | Price |
 |---|---|---|---|---|
-| Free | 1 | 2 | 3 | $0 |
 | Basic | 1 | 5 | 3 | $10/mo |
 | Pro | 5 | 10 | 10 | $20/mo |
 | Premium | 20 | 30 | unlimited | $40/mo |
