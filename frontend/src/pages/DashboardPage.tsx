@@ -23,7 +23,8 @@ import toast from "react-hot-toast";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 import { ScoreSparkline }    from "@/components/ScoreSparkline";
 import { ScoreHistoryChart } from "@/components/ScoreHistoryChart";
-import { PropertyCard }      from "@/components/PropertyCard";
+import { PropertyCard }          from "@/components/PropertyCard";
+import { BaselinePromptCard }    from "@/components/BaselinePromptCard";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { ResponsiveGrid } from "@/components/ResponsiveGrid";
 import { NeighborhoodBenchmark } from "@/components/NeighborhoodBenchmark";
@@ -983,11 +984,25 @@ export default function DashboardPage() {
               </div>
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: "1rem" }}>
-              {properties.map((property) => (
-                <PropertyCard key={String(property.id)} property={property} onClick={() => navigate(`/properties/${property.id}`)} badge={verificationBadge(property.verificationLevel)} />
-              ))}
-            </div>
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: "1rem" }}>
+                {properties.map((property) => (
+                  <PropertyCard key={String(property.id)} property={property} onClick={() => navigate(`/properties/${property.id}`)} badge={verificationBadge(property.verificationLevel)} />
+                ))}
+              </div>
+
+              {/* Baseline photo prompts — one per property, hidden once dismissed or all 6 captured */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginTop: "1rem" }}>
+                {properties.map((property) => (
+                  <BaselinePromptCard
+                    key={String(property.id)}
+                    property={property}
+                    dismissed={d.dismissedBaselinePrompts.has(String(property.id))}
+                    onDismiss={() => d.dismissBaselinePrompt(String(property.id))}
+                  />
+                ))}
+              </div>
+            </>
           )}
         </div>
 

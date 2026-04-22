@@ -6,6 +6,9 @@ export interface DashboardDismissals {
   bannerDismissed: boolean;
   dismissBanner(): void;
 
+  dismissedBaselinePrompts: Set<string>;
+  dismissBaselinePrompt(propertyId: string): void;
+
   milestoneDismissed: boolean;
   dismissMilestone(): void;
 
@@ -27,6 +30,14 @@ export interface DashboardDismissals {
 
 export function useDashboardDismissals(): DashboardDismissals {
   const [bannerDismissed, setBannerDismissed] = useState(false);
+
+  const [dismissedBaselinePrompts, setDismissedBaselinePrompts] = useState<Set<string>>(
+    () => new Set(
+      Object.keys(localStorage)
+        .filter((k) => k.startsWith("homegentic_baseline_prompt_dismissed_"))
+        .map((k) => k.replace("homegentic_baseline_prompt_dismissed_", ""))
+    )
+  );
 
   const [milestoneDismissed, setMilestoneDismissed] = useState(
     () => !!localStorage.getItem("homegentic_milestone_dismissed")
@@ -57,6 +68,12 @@ export function useDashboardDismissals(): DashboardDismissals {
   return {
     bannerDismissed,
     dismissBanner: () => setBannerDismissed(true),
+
+    dismissedBaselinePrompts,
+    dismissBaselinePrompt: (propertyId: string) => {
+      localStorage.setItem(`homegentic_baseline_prompt_dismissed_${propertyId}`, "1");
+      setDismissedBaselinePrompts((prev) => new Set([...prev, propertyId]));
+    },
 
     milestoneDismissed,
     dismissMilestone: () => {

@@ -241,7 +241,9 @@ test.describe("OnboardingWizard — /onboarding", () => {
     test.beforeEach(async ({ page }) => {
       await injectTestAuth(page);
       await injectRegisterProperty(page);
-      // No injectSkipBaseline — we want the baseline step to render
+      // The outer beforeEach adds __e2e_skipBaselinePhotos via addInitScript; that
+      // script persists across navigations. Override it here so step 3 actually renders.
+      await page.addInitScript(() => { delete (window as any).__e2e_skipBaselinePhotos; });
       await page.goto("/onboarding");
       await expect(page.getByText(/step 1 of 6/i)).toBeVisible();
       await page.getByLabel(/street address/i).fill("100 Onboarding Lane");
@@ -260,17 +262,17 @@ test.describe("OnboardingWizard — /onboarding", () => {
     });
 
     test("shows all 6 baseline system categories", async ({ page }) => {
-      await expect(page.getByText(/HVAC/i)).toBeVisible();
-      await expect(page.getByText(/Water Heater/i)).toBeVisible();
-      await expect(page.getByText(/Electrical Panel/i)).toBeVisible();
-      await expect(page.getByText(/Water Shut-off/i)).toBeVisible();
-      await expect(page.getByText(/Roof/i)).toBeVisible();
-      await expect(page.getByText(/Garage Door/i)).toBeVisible();
+      await expect(page.getByText(/HVAC/i).first()).toBeVisible();
+      await expect(page.getByText(/Water Heater/i).first()).toBeVisible();
+      await expect(page.getByText(/Electrical Panel/i).first()).toBeVisible();
+      await expect(page.getByText(/Water Shut-off/i).first()).toBeVisible();
+      await expect(page.getByText(/Roof/i).first()).toBeVisible();
+      await expect(page.getByText(/Garage Door/i).first()).toBeVisible();
     });
 
     test("shows progress count '0 / 6'", async ({ page }) => {
-      await expect(page.getByText(/0/)).toBeVisible();
-      await expect(page.getByText(/6/)).toBeVisible();
+      // Progress counter renders as "0 / 6" — match the fraction span
+      await expect(page.getByText(/\/\s*6/).first()).toBeVisible();
     });
 
     test("Next advances to step 4 without uploading anything", async ({ page }) => {

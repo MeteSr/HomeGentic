@@ -227,6 +227,10 @@ function createPhotoService() {
   },
 
   async getByJob(jobId: string): Promise<Photo[]> {
+    if (typeof window !== "undefined" && (window as any).__e2e_baseline_photos) {
+      const photosMap = (window as any).__e2e_baseline_photos as Record<string, Photo[]>;
+      if (jobId in photosMap) return photosMap[jobId] ?? [];
+    }
     const a = await getActor();
     return (await a.getPhotosByJob(jobId) as any[]).map(fromPhoto);
   },

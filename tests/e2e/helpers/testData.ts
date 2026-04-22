@@ -301,6 +301,39 @@ export async function injectFsboPhotos(page: Page, propertyId: string = "1") {
 }
 
 /**
+ * Injects mock baseline photos into window.__e2e_baseline_photos.
+ * photoService.getByJob() checks this map (keyed by jobId = "baseline_<propertyId>")
+ * before making canister calls.
+ *
+ * Pass an array of system keys already photographed for each property.
+ * All 6 keys: "hvac" | "waterHeater" | "electrical" | "shutoff" | "roof" | "garageDoor"
+ */
+export async function injectBaselinePhotos(
+  page: Page,
+  byProperty: Record<string, string[]>   // { propertyId: systemKey[] }
+) {
+  await page.addInitScript((map: Record<string, string[]>) => {
+    const FAKE_URL = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
+    const result: Record<string, object[]> = {};
+    for (const [pid, keys] of Object.entries(map)) {
+      result[`baseline_${pid}`] = keys.map((k, i) => ({
+        id:          `bp_${pid}_${k}`,
+        jobId:       `baseline_${pid}`,
+        propertyId:  pid,
+        phase:       "PostConstruction",
+        description: k,
+        hash:        `hash_${k}`,
+        url:         FAKE_URL,
+        size:        128,
+        verified:    false,
+        createdAt:   Date.now() - i * 1000,
+      }));
+    }
+    (window as any).__e2e_baseline_photos = result;
+  }, byProperty);
+}
+
+/**
  * Injects a mock return value for propertyService.registerProperty().
  * Without this, the onboarding wizard's step 2→3 transition calls the canister
  * and fails in E2E (no replica running).  The injected property is returned
