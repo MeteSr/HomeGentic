@@ -3,7 +3,7 @@ set -euo pipefail
 
 NETWORK=${1:-local}
 
-DEPLOY_SCRIPT_VERSION="1.0.2"
+DEPLOY_SCRIPT_VERSION="1.0.3"
 
 echo "============================================"
 echo "  HomeGentic — Deployment ($NETWORK) v$DEPLOY_SCRIPT_VERSION"
@@ -186,6 +186,26 @@ service ic : {
 };
 MGMT_DID
   echo "  ✓ Management canister IDL written (.dfx/local/canisters/idl/aaaaa-aa.did)"
+fi
+
+# ── Internet Identity (pull canister) ───────────────────────────────────────────
+# II is declared as a pull canister in dfx.json. Deploy it before the backend
+# canisters so the II popup is available as soon as the app is running.
+echo ""
+echo "============================================"
+echo "  Deploying Internet Identity"
+echo "============================================"
+echo "▶ dfx deps pull..."
+if dfx deps pull --network "$NETWORK" 2>/dev/null; then
+  echo "  ✓ Dependencies pulled"
+else
+  echo "  ⚠️  dfx deps pull failed — II canister may already be up to date"
+fi
+echo "▶ dfx deps deploy..."
+if dfx deps deploy --network "$NETWORK" 2>/dev/null; then
+  echo "  ✓ Internet Identity deployed"
+else
+  echo "  ⚠️  dfx deps deploy failed — II canister may already be installed"
 fi
 
 # ── Parallel canister deployment ────────────────────────────────────────────────
