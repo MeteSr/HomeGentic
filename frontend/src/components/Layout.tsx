@@ -298,10 +298,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 to={link.to}
                 title={!sidebarOpen ? link.label : undefined}
                 style={{ ...itemBase(active), textDecoration: "none" }}
-                onMouseEnter={(e) => {
+                onMouseEnter={(e: React.MouseEvent) => {
                   if (!active) (e.currentTarget as HTMLElement).style.color = COLORS.plum;
                 }}
-                onMouseLeave={(e) => {
+                onMouseLeave={(e: React.MouseEvent) => {
                   if (!active) (e.currentTarget as HTMLElement).style.color = COLORS.plumMid;
                 }}
               >
