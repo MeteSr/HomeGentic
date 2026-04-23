@@ -3,7 +3,7 @@ set -euo pipefail
 
 NETWORK=${1:-local}
 
-DEPLOY_SCRIPT_VERSION="1.0"
+DEPLOY_SCRIPT_VERSION="1.1"
 
 echo "============================================"
 echo "  HomeGentic — Deployment ($NETWORK) v$DEPLOY_SCRIPT_VERSION"
@@ -632,8 +632,8 @@ echo ""
 echo "============================================"
 echo "  Deploying Frontend Canister"
 echo "============================================"
-echo "▶ dfx deploy frontend --network $NETWORK..."
-if dfx deploy frontend --network "$NETWORK"; then
+echo "▶ dfx deploy frontend --no-build --network $NETWORK..."
+if dfx deploy frontend --no-build --network "$NETWORK"; then
   FRONTEND_ID=$(dfx canister id frontend --network "$NETWORK" 2>/dev/null || echo "unknown")
   echo "  ✓ Frontend canister deployed ($FRONTEND_ID)"
 else
