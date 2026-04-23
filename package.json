@@ -7,6 +7,7 @@
     "frontend"
   ],
   "scripts": {
+    "build": "echo 'Frontend already built by deploy script — skipping'",
     "deploy": "bash scripts/deploy.sh",
     "deploy:testnet": "bash scripts/deploy.sh --network testnet",
     "start": "dfx start --background",
