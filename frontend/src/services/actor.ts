@@ -11,17 +11,19 @@ export const II_URL = IS_LOCAL
 let _authClient: AuthClient | null = null;
 let _agent: HttpAgent | null = null;
 
-export async function getAuthClient(): Promise<AuthClient> {
+export function getAuthClient(): AuthClient {
   if (!_authClient) {
-    _authClient = await AuthClient.create();
+    // v6: synchronous constructor; identityProvider is set at creation time
+    _authClient = new AuthClient({ identityProvider: II_URL });
   }
   return _authClient;
 }
 
 export async function getAgent(): Promise<HttpAgent> {
   if (!_agent) {
-    const client = await getAuthClient();
-    const identity = client.getIdentity();
+    const client = getAuthClient();
+    // v6: getIdentity() is now async
+    const identity = await client.getIdentity();
     _agent = await HttpAgent.create({
       identity,
       host: IS_LOCAL ? "http://localhost:4943" : "https://ic0.app",
@@ -76,33 +78,28 @@ export async function loginWithLocalIdentity(): Promise<string> {
 }
 
 export async function login(): Promise<void> {
-  const client = await getAuthClient();
-  return new Promise((resolve, reject) => {
-    client.login({
-      identityProvider: II_URL,
-      maxTimeToLive: BigInt(8 * 60 * 60 * 1_000_000_000),
-      onSuccess: () => {
-        resetAgent();
-        resolve();
-      },
-      onError: reject,
-    });
-  });
+  const client = getAuthClient();
+  // v6: signIn() returns Promise<Identity> and throws on failure;
+  // identityProvider and maxTimeToLive are set here per-call
+  await client.signIn({ maxTimeToLive: BigInt(8 * 60 * 60 * 1_000_000_000) });
+  resetAgent();
 }
 
 export async function logout(): Promise<void> {
-  const client = await getAuthClient();
+  const client = getAuthClient();
   await client.logout();
   resetAgent();
   _authClient = null;
 }
 
 export async function isAuthenticated(): Promise<boolean> {
-  const client = await getAuthClient();
-  return client.isAuthenticated();
+  // v6: isAuthenticated() is synchronous
+  return getAuthClient().isAuthenticated();
 }
 
 export async function getPrincipal(): Promise<string> {
-  const client = await getAuthClient();
-  return client.getIdentity().getPrincipal().toText();
+  const client = getAuthClient();
+  // v6: getIdentity() is async
+  const identity = await client.getIdentity();
+  return identity.getPrincipal().toText();
 }

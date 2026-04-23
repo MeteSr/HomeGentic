@@ -51,6 +51,7 @@
   },
   "private": true,
   "overrides": {
-    "@tootallnate/once": "^3.0.1"
+    "@tootallnate/once": "^3.0.1",
+    "@xmldom/xmldom": "^0.8.13"
   }
 }
