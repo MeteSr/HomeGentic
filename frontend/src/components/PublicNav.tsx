@@ -81,8 +81,8 @@ export function PublicNav() {
                 textDecoration: "none",
                 transition:     "color 0.15s",
               }}
-              onMouseEnter={(e) => { (e.target as HTMLElement).style.color = COLORS.plum; }}
-              onMouseLeave={(e) => { (e.target as HTMLElement).style.color = COLORS.plumMid; }}
+              onMouseEnter={(e: React.MouseEvent) => { (e.target as HTMLElement).style.color = COLORS.plum; }}
+              onMouseLeave={(e: React.MouseEvent) => { (e.target as HTMLElement).style.color = COLORS.plumMid; }}
             >
               {label}
             </Link>

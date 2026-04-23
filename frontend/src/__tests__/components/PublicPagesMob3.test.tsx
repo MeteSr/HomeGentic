@@ -59,7 +59,10 @@ describe("ScoreCertPage — desktop (1280px)", () => {
         </MemoryRouter>
       ));
     });
-    const outer = container.firstChild as HTMLElement;
+    // React 19: react-helmet-async may render non-hoistable elements (e.g. JSON-LD
+    // script) into the container before the outer div, so we query directly.
+    const outer = container.querySelector("div[style*='min-height']") as HTMLElement;
+    expect(outer).not.toBeNull();
     expect(outer.style.padding).toBe("2rem");
   });
 });
@@ -87,7 +90,9 @@ describe("ScoreCertPage — mobile (390px)", () => {
         </MemoryRouter>
       ));
     });
-    const outer = container.firstChild as HTMLElement;
+    // React 19: query directly instead of relying on container.firstChild order.
+    const outer = container.querySelector("div[style*='min-height']") as HTMLElement;
+    expect(outer).not.toBeNull();
     expect(outer.style.padding).toBe("1rem");
   });
 });
