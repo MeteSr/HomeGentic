@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { CheckCircle, Sparkles } from "lucide-react";
 import { Button } from "@/components/Button";
-import { PLANS, ANNUAL_PLANS, type Plan, type PlanTier, type BillingCycle } from "@/services/planConstants";
+import { PLANS, ANNUAL_PLANS, ANNUAL_CONTRACTOR_PLANS, ANNUAL_REALTOR_PLANS, type Plan, type PlanTier, type BillingCycle } from "@/services/planConstants";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthStore } from "@/store/authStore";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
@@ -40,11 +40,11 @@ export default function PricingPage() {
     ? ANNUAL_PLANS
     : PLANS.filter((p) => p.tier === "Basic" || p.tier === "Pro" || p.tier === "Premium");
 
-  const contractorPlans: Plan[] = PLANS.filter(
+  const contractorPlans: Plan[] = annual ? ANNUAL_CONTRACTOR_PLANS : PLANS.filter(
     (p) => p.tier === "ContractorFree" || p.tier === "ContractorPro"
   );
 
-  const realtorPlans: Plan[] = PLANS.filter(
+  const realtorPlans: Plan[] = annual ? ANNUAL_REALTOR_PLANS : PLANS.filter(
     (p) => p.tier === "RealtorFree" || p.tier === "RealtorPro"
   );
 
@@ -122,9 +122,8 @@ Upgrade when you're ready. Cancel anytime.
           </div>
         </div>
 
-        {/* Monthly/Annual toggle — homeowner only (realtor/contractor plans don't have annual billing) */}
-        {audience === "homeowner" && (
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "0.75rem", marginBottom: "2.5rem" }}>
+        {/* Monthly/Annual toggle */}
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "0.75rem", marginBottom: "2.5rem" }}>
             <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: annual ? UI.inkLight : UI.ink, fontWeight: annual ? 400 : 700 }}>
               Monthly
             </span>
@@ -156,7 +155,6 @@ Upgrade when you're ready. Cancel anytime.
               </span>
             )}
           </div>
-        )}
 
         {/* Plan cards */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1.25rem", marginBottom: "4rem" }}>

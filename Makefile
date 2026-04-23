@@ -18,7 +18,7 @@ help:
 	@echo "  make check-motoko        Compile-check all Motoko canisters (no replica needed)"
 
 dev:
-	dfx start --clean --background && bash scripts/deploy.sh && cd frontend && npm run dev
+	dfx start --background && bash scripts/deploy.sh && cd frontend && npm run dev
 
 dev-full:
 	bash scripts/dev.sh

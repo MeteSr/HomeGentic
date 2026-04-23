@@ -26,7 +26,7 @@ and where in the codebase each integration lives.
 
 ## 0. Stripe
 
-**Purpose:** Subscription billing for Pro, Premium, and ContractorPro tiers.
+**Purpose:** Subscription billing for Pro, Premium, ContractorPro, and RealtorPro tiers.
 Handles payment collection via Stripe Elements (`PaymentElement`) embedded
 directly in the app's checkout page — no redirect to Stripe-hosted pages.
 
@@ -42,6 +42,8 @@ directly in the app's checkout page — no redirect to Stripe-hosted pages.
 | `STRIPE_PRICE_PREMIUM_YEARLY` | server | `price_xxx` ID |
 | `STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY` | server | `price_xxx` ID |
 | `STRIPE_PRICE_CONTRACTOR_PRO_YEARLY` | server | `price_xxx` ID |
+| `STRIPE_PRICE_REALTOR_PRO_MONTHLY` | server | `price_xxx` ID |
+| `STRIPE_PRICE_REALTOR_PRO_YEARLY` | server | `price_xxx` ID |
 
 **Pricing:** 2.9% + 30¢ per successful card charge (standard Stripe fees).
 No platform fee. See https://stripe.com/pricing

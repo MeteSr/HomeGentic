@@ -984,6 +984,8 @@ app.post("/api/stripe/create-checkout", async (req: Request, res: Response) => {
     PremiumYearly:        process.env.STRIPE_PRICE_PREMIUM_YEARLY?.trim(),
     ContractorProMonthly: process.env.STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY?.trim(),
     ContractorProYearly:  process.env.STRIPE_PRICE_CONTRACTOR_PRO_YEARLY?.trim(),
+    RealtorProMonthly:    process.env.STRIPE_PRICE_REALTOR_PRO_MONTHLY?.trim(),
+    RealtorProYearly:     process.env.STRIPE_PRICE_REALTOR_PRO_YEARLY?.trim(),
   };
 
   const priceId = PRICE_MAP[`${tier}${billing}`];
@@ -1036,6 +1038,8 @@ app.post("/api/stripe/create-subscription-intent", async (req: Request, res: Res
     "Premium-Yearly":         process.env.STRIPE_PRICE_PREMIUM_YEARLY?.trim(),
     "ContractorPro-Monthly":  process.env.STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY?.trim(),
     "ContractorPro-Yearly":   process.env.STRIPE_PRICE_CONTRACTOR_PRO_YEARLY?.trim(),
+    "RealtorPro-Monthly":     process.env.STRIPE_PRICE_REALTOR_PRO_MONTHLY?.trim(),
+    "RealtorPro-Yearly":      process.env.STRIPE_PRICE_REALTOR_PRO_YEARLY?.trim(),
   };
   const priceId = priceEnvMap[`${tier}-${billing}`];
   if (!priceId) { res.status(400).json({ error: `No price configured for ${tier}/${billing}` }); return; }
@@ -1096,7 +1100,7 @@ app.post("/api/stripe/create-subscription-intent", async (req: Request, res: Res
 // by calling adminActivateStripeSubscription via dfx CLI (local dev only).
 // Returns { type, tier?, billing? } so the frontend can refresh the subscription state.
 
-const VALID_TIERS = new Set(["Free", "Pro", "Premium", "ContractorFree", "ContractorPro"]);
+const VALID_TIERS = new Set(["Free", "Pro", "Premium", "ContractorFree", "ContractorPro", "RealtorFree", "RealtorPro"]);
 
 async function activateInCanister(principal: string, tier: string, months: number): Promise<void> {
   // Validate inputs before passing to shell

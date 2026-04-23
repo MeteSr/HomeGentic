@@ -73,14 +73,8 @@
       "type": "motoko"
     },
     "frontend": {
-      "dependencies": [
-        "auth", "property", "job", "contractor", "quote", "payment",
-        "photo", "report", "maintenance", "market", "sensor", "monitoring",
-        "listing", "agent", "recurring", "bills", "ai_proxy"
-      ],
       "source": ["frontend/dist"],
-      "type": "assets",
-      "workspace": "frontend"
+      "type": "assets"
     }
   },
   "networks": {

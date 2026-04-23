@@ -169,3 +169,11 @@ export const PLANS: Plan[] = [
 export const ANNUAL_PLANS: Plan[] = PLANS
   .filter((p) => p.tier === "Basic" || p.tier === "Pro" || p.tier === "Premium")
   .map((p) => ({ ...p, price: p.price * 10, period: "year" as const }));
+
+export const ANNUAL_CONTRACTOR_PLANS: Plan[] = PLANS
+  .filter((p) => p.tier === "ContractorFree" || p.tier === "ContractorPro")
+  .map((p) => p.price === 0 ? p : { ...p, price: p.price * 10, period: "year" as const });
+
+export const ANNUAL_REALTOR_PLANS: Plan[] = PLANS
+  .filter((p) => p.tier === "RealtorFree" || p.tier === "RealtorPro")
+  .map((p) => p.price === 0 ? p : { ...p, price: p.price * 10, period: "year" as const });

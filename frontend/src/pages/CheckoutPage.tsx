@@ -124,13 +124,25 @@ const PLAN_META: Record<string, { label: string; monthly: number; yearly: number
   ContractorPro: {
     label: "Contractor Pro",
     monthly: 30,
-    yearly:  288,
+    yearly:  300,
     features: [
       "Unlimited properties",
       "50 photos per job",
       "Verified contractor badge",
       "Lead generation tools",
       "Business analytics",
+    ],
+  },
+  RealtorPro: {
+    label: "Realtor Pro",
+    monthly: 30,
+    yearly:  300,
+    features: [
+      "Unlimited bid proposals",
+      "50 photos per bid proposal",
+      "10 AI agent calls/day",
+      "Priority placement in agent search",
+      "Verified Realtor badge",
     ],
   },
 };

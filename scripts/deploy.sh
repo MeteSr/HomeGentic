@@ -3,8 +3,10 @@ set -euo pipefail
 
 NETWORK=${1:-local}
 
+DEPLOY_SCRIPT_VERSION="1.0"
+
 echo "============================================"
-echo "  HomeGentic — Deployment ($NETWORK)"
+echo "  HomeGentic — Deployment ($NETWORK) v$DEPLOY_SCRIPT_VERSION"
 echo "============================================"
 
 # ── Load DFX identity from CI secret (non-local deploys only) ──────────────────
@@ -23,7 +25,12 @@ if [ "$NETWORK" = "local" ]; then
   if dfx ping 2>/dev/null; then
     echo "  ✓ dfx is already running"
   else
-    dfx start --background --clean
+    # Do NOT use --clean: it rotates the replica root key, which invalidates the
+    # II canister's service-worker cache and causes a 503 "Response Verification
+    # Error" in the Internet Identity popup on every fresh start.
+    # Canister installs use --mode reinstall (below) so re-deploys work without
+    # needing a state wipe. Use `make clean` explicitly when you need a full reset.
+    dfx start --background
     echo "  ✓ dfx started"
   fi
 fi
@@ -205,14 +212,14 @@ for canister in "${CANISTERS[@]}"; do
   if [ "$canister" = "auth" ]; then
     (
       dfx build auth --network "$NETWORK" 2>&1 && \
-      dfx canister install auth --mode install \
+      dfx canister install auth --mode reinstall \
         --argument "(principal \"$DEPLOY_PRINCIPAL\")" \
-        --network "$NETWORK" 2>&1
+        --network "$NETWORK" --yes 2>&1
     ) >"$LOG_DIR/auth.log" 2>&1 &
   else
     (
       dfx build "$canister" --network "$NETWORK" 2>&1 && \
-      dfx canister install "$canister" --mode install --network "$NETWORK" 2>&1
+      dfx canister install "$canister" --mode reinstall --network "$NETWORK" --yes 2>&1
     ) >"$LOG_DIR/$canister.log" 2>&1 &
   fi
   PIDS+=($!)
