@@ -93,8 +93,12 @@ export async function logout(): Promise<void> {
 }
 
 export async function isAuthenticated(): Promise<boolean> {
-  // v6: isAuthenticated() is synchronous
-  return getAuthClient().isAuthenticated();
+  try {
+    // v6: isAuthenticated() is synchronous, checks localStorage expiration flag
+    return getAuthClient().isAuthenticated();
+  } catch {
+    return false;
+  }
 }
 
 export async function getPrincipal(): Promise<string> {
