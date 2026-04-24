@@ -140,9 +140,7 @@ networks:
     mode: connected
     url: https://ic0.app
 
-  - name: ic
-    mode: connected
-    url: https://icp-api.io
+  # ic is a reserved built-in network in icp-cli (https://icp-api.io) — do not redeclare it
 
 environments:
   - name: local
