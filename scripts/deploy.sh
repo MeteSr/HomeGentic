@@ -3,7 +3,7 @@ set -euo pipefail
 
 NETWORK=${1:-local}
 
-DEPLOY_SCRIPT_VERSION="1.1.3"
+DEPLOY_SCRIPT_VERSION="1.1.4"
 
 echo "============================================"
 echo "  HomeGentic — Deployment ($NETWORK) v$DEPLOY_SCRIPT_VERSION"
@@ -29,6 +29,8 @@ if [ "$NETWORK" = "local" ]; then
     # invalidates the II service-worker cache and causes a 503 on the II popup.
     # Fall back to --clean only when the saved state is incompatible with the
     # current config (e.g. subnet_type changed) — dfx reports this explicitly.
+    # Kill any stale dfx/PocketIC process first so the port is free.
+    dfx stop 2>/dev/null || true
     START_LOG=$(mktemp)
     dfx start --background >"$START_LOG" 2>&1 || true
     cat "$START_LOG"
