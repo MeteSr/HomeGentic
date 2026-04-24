@@ -48,6 +48,18 @@ jobs:
           echo "moc: $MOC_BIN"
           "$MOC_BIN" --version
 
+      - name: Install ic-wasm
+        run: |
+          TMP=$(mktemp -d)
+          curl -sSfL \
+            https://github.com/dfinity/ic-wasm/releases/download/0.9.11/ic-wasm-x86_64-unknown-linux-musl.tar.xz \
+            -o "$TMP/ic-wasm.tar.xz"
+          tar -xJf "$TMP/ic-wasm.tar.xz" -C "$TMP"
+          BIN=$(find "$TMP" -name "ic-wasm" -type f | head -1)
+          sudo install -m 755 "$BIN" /usr/local/bin/ic-wasm
+          rm -rf "$TMP"
+          ic-wasm --version
+
       - name: Start local network (needed for canister ID allocation)
         run: icp network start -d
 

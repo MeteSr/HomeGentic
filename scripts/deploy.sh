@@ -39,6 +39,33 @@ if [ -z "$MOC_BIN" ]; then
 fi
 echo "  ✓ moc ready: $MOC_BIN"
 
+# Ensure ic-wasm is available — required by @dfinity/motoko@v4.0.0 recipe step 2.
+echo "▶ Checking ic-wasm..."
+if ! command -v ic-wasm >/dev/null 2>&1; then
+  # dfx bundles ic-wasm; check common install paths before downloading
+  for _dfx_bin in "$HOME/.local/share/dfx/bin" "$HOME/.dfinity/bin"; do
+    if [ -x "$_dfx_bin/ic-wasm" ]; then
+      export PATH="$_dfx_bin:$PATH"
+      break
+    fi
+  done
+fi
+if ! command -v ic-wasm >/dev/null 2>&1; then
+  echo "  ic-wasm not found — downloading 0.9.11..."
+  _IC_WASM_TMP=$(mktemp -d)
+  curl -sSfL \
+    "https://github.com/dfinity/ic-wasm/releases/download/0.9.11/ic-wasm-x86_64-unknown-linux-musl.tar.xz" \
+    -o "$_IC_WASM_TMP/ic-wasm.tar.xz"
+  tar -xJf "$_IC_WASM_TMP/ic-wasm.tar.xz" -C "$_IC_WASM_TMP"
+  mkdir -p "$HOME/.local/bin"
+  _IC_WASM_FILE=$(find "$_IC_WASM_TMP" -name "ic-wasm" -type f | head -1)
+  cp "$_IC_WASM_FILE" "$HOME/.local/bin/ic-wasm"
+  chmod +x "$HOME/.local/bin/ic-wasm"
+  rm -rf "$_IC_WASM_TMP"
+  export PATH="$HOME/.local/bin:$PATH"
+fi
+echo "  ✓ ic-wasm: $(ic-wasm --version 2>/dev/null | head -1)"
+
 if [ "$ENV" = "local" ]; then
   echo "▶ Starting local ICP network..."
   if icp network ping local >/dev/null 2>&1; then
