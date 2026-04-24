@@ -8,7 +8,7 @@ directory itself into the destination (creating `~/homegentic/homegentic/`)
 instead of syncing the contents.
 
 ```bash
-rsync -av /mnt/c/Users/demet/homegentic/ /home/mrwilliamson/homegentic/ --exclude node_modules --exclude .icp-cli
+rsync -av /mnt/c/Users/demet/homegentic/ /home/mrwilliamson/homegentic/ --exclude node_modules --exclude .dfx
 ```
 
 Run this every time you want to pick up changes made on the Windows side.
@@ -37,9 +37,9 @@ npm install
 ```bash
 cd ~/homegentic
 
-# Pull Internet Identity canister (one-time, after icp-cli start --clean or make clean)
-icp-cli deps pull
-icp-cli deps deploy
+# Pull Internet Identity canister (one-time, after dfx start --clean or make clean)
+dfx deps pull
+dfx deps deploy
 
 # Deploy all canisters + frontend
 bash scripts/deploy.sh
@@ -56,7 +56,7 @@ Use this to confirm you are running the expected version after a sync.
 ## Full reset (when you need a clean slate)
 
 ```bash
-make clean          # stops icp-cli, wipes .icp-cli/local
+make clean          # stops dfx, wipes .dfx/local
 bash scripts/deploy.sh   # starts fresh replica + deploys everything
 ```
 
@@ -86,6 +86,6 @@ root key (e.g. after `make clean`).
 |---|---|---|
 | Node / npm | Windows runtime | Separate Linux runtime |
 | node_modules | `C:\Users\demet\homegentic\...` | `~/homegentic/...` (separate install) |
-| icp-cli | Not used | Linux binary at `~/.local/share/icp-cli/` |
+| dfx | Not used | Linux binary at `~/.local/share/dfx/` |
 | Replica port | N/A | `localhost:4943` |
 | Frontend dev server | `localhost:5173` (Vite) | same port, accessible from Windows browser |
