@@ -135,7 +135,7 @@ for canister in "${CANISTERS[@]}"; do
   if [ "$canister" = "auth" ]; then
     (
       icp deploy auth -e "$ENV" \
-        --argument "(principal \"$DEPLOY_PRINCIPAL\")" 2>&1
+        --args "(principal \"$DEPLOY_PRINCIPAL\")" 2>&1
     ) >"$LOG_DIR/auth.log" 2>&1 &
   else
     (

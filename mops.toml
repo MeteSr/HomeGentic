@@ -2,6 +2,9 @@
 name = "homegentic"
 version = "0.1.0"
 
+[toolchain]
+moc = "0.13.4"
+
 [dependencies]
 core = "2.3.1"
 caffeineai-http-outcalls = "0.1.0"
