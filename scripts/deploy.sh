@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEPLOY_SCRIPT_VERSION="1.0.1"
+DEPLOY_SCRIPT_VERSION="1.1.0"
 ENV=${1:-local}
 
 echo "============================================"
@@ -193,41 +193,36 @@ if [ "${DRY_RUN:-0}" = "1" ]; then
   exit 0
 fi
 
-# ── Parallel canister deployment ────────────────────────────────────────────────
-# Each canister is deployed with `icp deploy <name>` in parallel.
-# auth gets a special init arg (deployer principal) to bootstrap ownership.
-# icp-cli builds in parallel internally; we also shell-parallelize for faster
-# feedback and per-canister log capture.
+# ── Sequential canister deployment ──────────────────────────────────────────────
+# icp-cli writes all canister IDs to a single local.ids.json file. Running deploys
+# in parallel causes concurrent writes that corrupt the JSON (EOF parse error).
+# Sequential deploys are the safe default; icp-cli parallelises compilation internally.
 
 CANISTERS=(auth property job contractor quote payment photo report maintenance market sensor monitoring listing agent recurring bills ai_proxy)
 LOG_DIR=$(mktemp -d /tmp/icp-deploy-XXXXXX)
 
-echo "▶ Deploying ${#CANISTERS[@]} canisters in parallel..."
+echo "▶ Deploying ${#CANISTERS[@]} canisters..."
 DEPLOY_PRINCIPAL=$(icp identity principal)
-PIDS=()
-for canister in "${CANISTERS[@]}"; do
-  if [ "$canister" = "auth" ]; then
-    (
-      icp deploy auth -e "$ENV" \
-        --args "(principal \"$DEPLOY_PRINCIPAL\")" 2>&1
-    ) >"$LOG_DIR/auth.log" 2>&1 &
-  else
-    (
-      icp deploy "$canister" -e "$ENV" 2>&1
-    ) >"$LOG_DIR/$canister.log" 2>&1 &
-  fi
-  PIDS+=($!)
-done
-
-# Collect results
 FAILED=()
-for i in "${!CANISTERS[@]}"; do
-  canister="${CANISTERS[$i]}"
-  if wait "${PIDS[$i]}"; then
-    echo "  ✓ $canister"
+for canister in "${CANISTERS[@]}"; do
+  echo -n "  $canister... "
+  if [ "$canister" = "auth" ]; then
+    if icp deploy auth -e "$ENV" \
+        --args "(principal \"$DEPLOY_PRINCIPAL\")" \
+        >"$LOG_DIR/auth.log" 2>&1; then
+      echo "✓"
+    else
+      echo "✗"
+      FAILED+=("$canister")
+    fi
   else
-    echo "  ✗ $canister (failed)"
-    FAILED+=("$canister")
+    if icp deploy "$canister" -e "$ENV" \
+        >"$LOG_DIR/$canister.log" 2>&1; then
+      echo "✓"
+    else
+      echo "✗"
+      FAILED+=("$canister")
+    fi
   fi
 done
 
