@@ -3,7 +3,7 @@ set -euo pipefail
 
 NETWORK=${1:-local}
 
-DEPLOY_SCRIPT_VERSION="1.1.1"
+DEPLOY_SCRIPT_VERSION="1.1.2"
 
 echo "============================================"
 echo "  HomeGentic — Deployment ($NETWORK) v$DEPLOY_SCRIPT_VERSION"
@@ -30,16 +30,14 @@ if [ "$NETWORK" = "local" ]; then
     # Fall back to --clean only when the saved state is incompatible with the
     # current config (e.g. subnet_type changed) — dfx reports this explicitly.
     START_LOG=$(mktemp)
-    dfx start --background 2>&1 | tee "$START_LOG" || true
-    # Check error condition FIRST — output includes "Running dfx start for version X"
-    # even on failure, so checking success first gives a false positive.
-    if grep -qi "can't be reused\|cannot be reused\|incompatible" "$START_LOG"; then
+    dfx start --background >"$START_LOG" 2>&1 || true
+    cat "$START_LOG"
+    if grep -qi "Rerun with" "$START_LOG"; then
       echo "  ⚠️  Network state incompatible with current config — restarting with --clean"
       dfx start --background --clean
       echo "  ✓ dfx started (clean)"
-    elif grep -qi "error\|failed\|fatal" "$START_LOG" && ! dfx ping 2>/dev/null; then
-      echo "  ✗ Failed to start dfx:"
-      cat "$START_LOG"
+    elif ! dfx ping 2>/dev/null; then
+      echo "  ✗ Failed to start dfx — see output above"
       rm -f "$START_LOG"
       exit 1
     else
