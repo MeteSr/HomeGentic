@@ -2,10 +2,13 @@
 
 NETWORK ?= local
 
+# Prefer icp-cli (new name for dfx); fall back to dfx if icp-cli isn't installed yet.
+ICP := $(shell command -v icp-cli 2>/dev/null || command -v dfx 2>/dev/null || echo dfx)
+
 help:
 	@echo "HomeGentic — Available commands:"
-	@echo "  make start               Start local icp-cli replica"
-	@echo "  make stop                Stop icp-cli replica"
+	@echo "  make start               Start local replica"
+	@echo "  make stop                Stop replica"
 	@echo "  make deploy              Deploy all canisters in parallel (local)"
 	@echo "  make deploy-one CANISTER=<name>  Deploy a single canister"
 	@echo "  make test                Run backend tests"
@@ -14,27 +17,27 @@ help:
 	@echo "  make upgrade             Upgrade all canisters"
 	@echo "  make dev                 Start replica, deploy canisters, and run frontend"
 	@echo "  make dev-full            Full local stack: replica + canisters + frontend + voice + dashboard"
-	@echo "  make clean               Clean local icp-cli state"
+	@echo "  make clean               Clean local replica state"
 	@echo "  make check-motoko        Compile-check all Motoko canisters (no replica needed)"
 
 dev:
-	icp-cli start --background && bash scripts/deploy.sh && cd frontend && npm run dev
+	bash scripts/deploy.sh && cd frontend && npm run dev
 
 dev-full:
 	bash scripts/dev.sh
 
 start:
-	icp-cli start --background
+	$(ICP) start --background
 
 stop:
-	icp-cli stop
+	$(ICP) stop
 
 deploy:
 	bash scripts/deploy.sh $(NETWORK)
 
 deploy-one:
 	@test -n "$(CANISTER)" || (echo "Usage: make deploy-one CANISTER=<canister_name>  e.g. make deploy-one CANISTER=payment" && exit 1)
-	icp-cli deploy $(CANISTER) --network $(NETWORK)
+	$(ICP) deploy $(CANISTER) --network $(NETWORK)
 
 test:
 	bash scripts/test-backend.sh
@@ -55,5 +58,5 @@ init-data:
 	bash scripts/init-test-data.sh
 
 check-motoko:
-	@jq -r '.canisters | to_entries[] | select(.value.type != "assets") | .key' icp-cli.json | \
-	  while read -r c; do echo "=== $$c ==="; icp-cli build "$$c" --check || exit 1; done
+	@jq -r '.canisters | to_entries[] | select(.value.type != "assets") | .key' dfx.json | \
+	  while read -r c; do echo "=== $$c ==="; $(ICP) build "$$c" --check || exit 1; done
