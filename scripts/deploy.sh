@@ -23,7 +23,21 @@ fi
 # mops toolchain init is idempotent — safe to run every time.
 echo "▶ Initializing mops toolchain..."
 mops toolchain init 2>/dev/null || true
-echo "  ✓ mops toolchain ready"
+echo "  ✓ mops toolchain initialized"
+
+# Pre-warm moc binary BEFORE parallel builds.
+# mops toolchain bin moc downloads + extracts the tarball on first call.
+# Without this, 17 parallel icp build processes race to download the same
+# file simultaneously, causing ENOENT failures and old-moc fallbacks.
+echo "▶ Pre-warming moc compiler..."
+MOC_BIN=$(mops toolchain bin moc 2>/dev/null) || MOC_BIN=""
+if [ -z "$MOC_BIN" ]; then
+  echo "  First call failed — clearing tmp cache and retrying..."
+  rm -rf .mops/_tmp
+  mops toolchain init 2>/dev/null || true
+  MOC_BIN=$(mops toolchain bin moc) || { echo "  ERROR: cannot resolve moc binary"; exit 1; }
+fi
+echo "  ✓ moc ready: $MOC_BIN"
 
 if [ "$ENV" = "local" ]; then
   echo "▶ Starting local ICP network..."

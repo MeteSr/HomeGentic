@@ -38,6 +38,16 @@ jobs:
       - name: Initialize mops toolchain (downloads moc)
         run: mops toolchain init
 
+      - name: Pre-warm moc binary
+        run: |
+          MOC_BIN=$(mops toolchain bin moc 2>/dev/null) || MOC_BIN=""
+          if [ -z "$MOC_BIN" ]; then
+            rm -rf .mops/_tmp && mops toolchain init
+            MOC_BIN=$(mops toolchain bin moc)
+          fi
+          echo "moc: $MOC_BIN"
+          "$MOC_BIN" --version
+
       - name: Start local network (needed for canister ID allocation)
         run: icp network start -d
 
