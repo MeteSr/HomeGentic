@@ -18,6 +18,13 @@ if [ "$ENV" != "local" ] && [ -n "${DFX_IDENTITY_PEM:-}" ]; then
   echo "  ✓ Identity loaded"
 fi
 
+# ── Ensure mops toolchain (moc) is initialized ───────────────────────────────
+# icp-cli's motoko recipe resolves the compiler via `mops toolchain bin moc`.
+# mops toolchain init is idempotent — safe to run every time.
+echo "▶ Initializing mops toolchain..."
+mops toolchain init 2>/dev/null || true
+echo "  ✓ mops toolchain ready"
+
 if [ "$ENV" = "local" ]; then
   echo "▶ Starting local ICP network..."
   if icp network ping local >/dev/null 2>&1; then
