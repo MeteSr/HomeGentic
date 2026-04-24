@@ -3,7 +3,7 @@ set -euo pipefail
 
 NETWORK=${1:-local}
 
-DEPLOY_SCRIPT_VERSION="1.1.2"
+DEPLOY_SCRIPT_VERSION="1.1.3"
 
 echo "============================================"
 echo "  HomeGentic — Deployment ($NETWORK) v$DEPLOY_SCRIPT_VERSION"
@@ -34,6 +34,7 @@ if [ "$NETWORK" = "local" ]; then
     cat "$START_LOG"
     if grep -qi "Rerun with" "$START_LOG"; then
       echo "  ⚠️  Network state incompatible with current config — restarting with --clean"
+      dfx stop 2>/dev/null || true
       dfx start --background --clean
       echo "  ✓ dfx started (clean)"
     elif ! dfx ping 2>/dev/null; then
