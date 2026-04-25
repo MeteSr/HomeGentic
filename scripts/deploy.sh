@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEPLOY_SCRIPT_VERSION="1.4.2"
+DEPLOY_SCRIPT_VERSION="1.4.3"
 ENV=${1:-local}
 
 echo "============================================"
@@ -193,13 +193,11 @@ if [ "${DRY_RUN:-0}" = "1" ]; then
   exit 0
 fi
 
-# ── Three-phase canister deployment ──────────────────────────────────────────────
-# icp-cli writes all canister IDs to a single local.ids.json file. Concurrent writes
-# corrupt the JSON (EOF parse error). The three-phase split avoids this:
-#   Phase 1 — create:  sequential (writes to local.ids.json, ~1s/canister)
-#   Phase 2 — build:   parallel   (Motoko→Wasm compilation, no JSON writes)
-#   Phase 3 — install: sequential (Wasm upload to replica, ~2-3s/canister)
-# Net result: 3-4x faster than fully sequential because compilation runs in parallel.
+# ── Canister deployment ───────────────────────────────────────────────────────────
+# icp-cli writes all canister IDs to a single local.ids.json file. Parallel icp build
+# calls also write to this file (recipe metadata), so concurrent builds corrupt it —
+# the "no JSON writes in Phase 2" assumption turned out to be wrong in CI.
+# Build sequentially to avoid corruption; CI deploy time (~3 min) is acceptable.
 
 CANISTERS=(auth property job contractor quote payment photo report maintenance market sensor monitoring listing agent recurring bills ai_proxy)
 LOG_DIR=$(mktemp -d /tmp/icp-deploy-XXXXXX)
@@ -213,25 +211,30 @@ for canister in "${CANISTERS[@]}"; do
   if icp canister create "$canister" -e "$ENV" >"$LOG_DIR/$canister.create.log" 2>&1; then
     echo "created"
   else
-    # canister already exists → not an error; install will find the ID
-    echo "exists"
+    # Non-zero exit: check whether the canister already exists (ID registered from a
+    # previous run) vs. a real failure (ID missing — must abort, not silently proceed).
+    EXISTING_ID=$(icp canister status "$canister" -e "$ENV" --id-only 2>/dev/null || echo "")
+    if [ -n "$EXISTING_ID" ]; then
+      echo "exists ($EXISTING_ID)"
+    else
+      echo "FAILED"
+      echo ""
+      echo "── $canister create log ──────────────────────────"
+      cat "$LOG_DIR/$canister.create.log"
+      rm -rf "$LOG_DIR"
+      exit 1
+    fi
   fi
 done
 
-# ── Phase 2: Build all canisters in parallel ─────────────────────────────────────
+# ── Phase 2: Build all canisters sequentially ────────────────────────────────────
+# Sequential (not parallel) to avoid concurrent writes to local.ids.json.
 echo ""
-echo "▶ Phase 2/3 — Compiling all canisters in parallel..."
-BUILD_PIDS=()
-for canister in "${CANISTERS[@]}"; do
-  icp build "$canister" >"$LOG_DIR/$canister.build.log" 2>&1 &
-  BUILD_PIDS+=($!)
-done
-
+echo "▶ Phase 2/3 — Compiling all canisters..."
 BUILD_FAILED=()
-for i in "${!CANISTERS[@]}"; do
-  canister="${CANISTERS[$i]}"
+for canister in "${CANISTERS[@]}"; do
   echo -n "  $canister... "
-  if wait "${BUILD_PIDS[$i]}"; then
+  if icp build "$canister" >"$LOG_DIR/$canister.build.log" 2>&1; then
     echo "✓"
   else
     echo "✗"
