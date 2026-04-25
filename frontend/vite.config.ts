@@ -3,27 +3,25 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
-// PROD.10 — strip dev-only localhost endpoints from the meta-tag CSP in production.
-// In dev the Vite dev server does NOT serve HTTP response headers, so the only CSP
-// in effect is the <meta> tag. http://localhost:4943 must stay there for the ICP
-// agent to connect to the local replica.
-// In production the assets canister serves a stricter HTTP header CSP (from
-// .ic-assets.json5) that does NOT include localhost. Both policies are enforced
-// simultaneously; the meta tag localhost entries are therefore unreachable anyway,
-// but they still leak dev topology. This plugin removes them from the built HTML.
-const stripDevCsp = {
-  name: "strip-dev-csp",
-  transformIndexHtml(html: string, ctx: { server?: unknown }): string {
-    if (ctx.server) return html; // dev server running — keep localhost entries
-    return html
-      .replace(/\s*http:\/\/localhost:\d+/g, "")
-      .replace(/\s*ws:\/\/localhost:\*/g, "");
-  },
-};
-
 export default defineConfig(({ mode }) => {
   // Load .env from project root (where dfx outputs canister IDs after deploy)
   const env = loadEnv(mode, path.resolve(__dirname, ".."), "");
+
+  // PROD.10 — strip dev-only localhost endpoints from the meta-tag CSP.
+  // Only strip on IC mainnet builds (DFX_NETWORK=ic). Local and testnet builds
+  // keep localhost so the asset canister can still reach the local replica at
+  // localhost:4943. On mainnet the assets canister serves a stricter HTTP-header
+  // CSP (.ic-assets.json5) that already excludes localhost.
+  const stripDevCsp = {
+    name: "strip-dev-csp",
+    transformIndexHtml(html: string, ctx: { server?: unknown }): string {
+      if (ctx.server) return html; // dev server running — keep localhost entries
+      if ((env.DFX_NETWORK || "local") !== "ic") return html; // local/testnet — keep localhost
+      return html
+        .replace(/\s*http:\/\/localhost:\d+/g, "")
+        .replace(/\s*ws:\/\/localhost:\*/g, "");
+    },
+  };
 
   return {
     plugins: [react(), stripDevCsp],
@@ -67,7 +65,7 @@ export default defineConfig(({ mode }) => {
       "process.env.AI_PROXY_CANISTER_ID":  JSON.stringify(env.CANISTER_ID_AI_PROXY  || env.AI_PROXY_CANISTER_ID  || ""),
       "process.env.MARKET_CANISTER_ID":    JSON.stringify(env.CANISTER_ID_MARKET    || env.MARKET_CANISTER_ID    || ""),
       "process.env.BILLS_CANISTER_ID":     JSON.stringify(env.CANISTER_ID_BILLS     || env.BILLS_CANISTER_ID     || ""),
-      "process.env.INTERNET_IDENTITY_CANISTER_ID": JSON.stringify(env.CANISTER_ID_INTERNET_IDENTITY || "rdmx6-jaaaa-aaaaa-aaadq-cai"),
+      "process.env.INTERNET_IDENTITY_CANISTER_ID": JSON.stringify(env.CANISTER_ID_INTERNET_IDENTITY || ""),
       // VITE_ prefix exposes this to import.meta.env in the browser bundle
       // (useVoiceAgent reads it as VITE_VOICE_AGENT_API_KEY, not via process.env)
     },

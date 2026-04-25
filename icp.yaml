@@ -118,17 +118,6 @@ canisters:
         main: backend/recurring/main.mo
         args: "--actor-idl did/"
 
-  # Internet Identity — deployed locally from a cached pre-built wasm.
-  # deploy.sh downloads the wasm to .cache/ii/ before running icp deploy internet-identity.
-  # On testnet/ic the well-known II canister (rdmx6-jaaaa-aaaaa-aaadq-cai) is used directly
-  # without deploying anything — the frontend reads CANISTER_ID_INTERNET_IDENTITY from .env.
-  - name: internet_identity
-    init_args: "(null)"
-    recipe:
-      type: "@dfinity/prebuilt@v2.0.0"
-      configuration:
-        path: .cache/ii/internet_identity_dev.wasm.gz
-
   # Frontend asset canister — dist/ is built by deploy.sh before icp deploy frontend
   - name: frontend
     recipe:
@@ -139,6 +128,7 @@ canisters:
 networks:
   - name: local
     mode: managed
+    ii: true
     gateway:
       bind: 127.0.0.1
       port: 4943

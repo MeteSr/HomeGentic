@@ -28,7 +28,7 @@ describe("PROD.5 — deploy.sh includes frontend build and deploy", () => {
   });
 
   it("deploy.sh deploys the frontend canister", () => {
-    expect(deploy()).toMatch(/dfx deploy frontend/);
+    expect(deploy()).toMatch(/icp deploy frontend/);
   });
 
   it("frontend build step appears after the Motoko canisters loop", () => {
@@ -43,16 +43,16 @@ describe("PROD.5 — deploy.sh includes frontend build and deploy", () => {
   it("frontend canister deploy step appears after the build step", () => {
     const src = deploy();
     const buildIdx   = src.search(/npm.*run.*build|npm.*build/);
-    const deployIdx  = src.indexOf("dfx deploy frontend");
+    const deployIdx  = src.indexOf("icp deploy frontend");
     expect(buildIdx).toBeGreaterThan(-1);
     expect(deployIdx).toBeGreaterThan(buildIdx);
   });
 
   it("DEPLOYMENT.md documents the build-before-deploy ordering", () => {
     const docs = read("docs/DEPLOYMENT.md");
-    // Must explain that npm run build must precede dfx deploy frontend
+    // Must explain that npm run build must precede icp deploy frontend
     expect(docs).toMatch(/npm run build/);
-    expect(docs).toMatch(/dfx deploy frontend/);
+    expect(docs).toMatch(/icp deploy frontend/);
   });
 });
 
@@ -143,7 +143,7 @@ describe("PROD.7 — deploy.sh calls addAdmin for each non-payment canister", ()
     // constructor receives it atomically — closing the bootstrap race (#144).
     // The two strings may be on separate lines, so check both independently.
     expect(src).toContain("canister install auth");
-    expect(src).toMatch(/--argument.*principal/);
+    expect(src).toMatch(/--args.*principal/);
   });
 
   it("deploy.sh does NOT call addAdmin for payment (payment uses initAdmins instead)", () => {

@@ -1,6 +1,13 @@
 [
   {
     "match": "**/*",
-    "security_policy": "standard"
+    "headers": {
+      "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+      "X-Frame-Options": "DENY",
+      "X-Content-Type-Options": "nosniff",
+      "Referrer-Policy": "strict-origin-when-cross-origin",
+      "Permissions-Policy": "camera=(), microphone=(self), geolocation=()",
+      "Content-Security-Policy": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://js.stripe.com https://m.stripe.network; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:4943 http://localhost:3001 https://ic0.app https://*.ic0.app https://icp-api.io https://api.stripe.com https://m.stripe.network https://m.stripe.com https://errors.stripe.com; img-src 'self' data: blob: https://*.stripe.com; frame-src https://js.stripe.com https://*.stripe.com https://m.stripe.network; frame-ancestors 'none'"
+    }
   }
 ]

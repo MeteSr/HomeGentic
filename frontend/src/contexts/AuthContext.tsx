@@ -78,7 +78,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async () => {
-    await iiLogin();
+    try {
+      await iiLogin();
+    } catch (err) {
+      console.error("[auth] II login failed:", err);
+      return;
+    }
     const principal = await getPrincipal();
     setAuthenticated(principal);
     try {

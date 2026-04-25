@@ -4,13 +4,15 @@ import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 
 const DFX_NETWORK = (process.env as any).DFX_NETWORK || "local";
 const IS_LOCAL = DFX_NETWORK !== "ic";
-// II canister ID is written to .env by deploy.sh (CANISTER_ID_INTERNET_IDENTITY).
-// Defaults to the well-known mainnet ID, which deploy.sh also uses as the target
-// for local deploys — so the value is stable across local restarts when possible.
-const II_CANISTER_ID = (process.env as any).INTERNET_IDENTITY_CANISTER_ID || "rdmx6-jaaaa-aaaaa-aaadq-cai";
+// ii: true in icp.yaml deploys II automatically on icp network start.
+// Skill-documented local URL — port matches our icp.yaml gateway port.
+// @icp-sdk/auth default is https://id.ai/authorize — /authorize is where the
+// ICRC-29 heartbeat listener lives. Opening the root URL lands on the II
+// dashboard which doesn't respond to icrc29_status, causing a 120-second
+// establish-timeout while the popup stays open.
 export const II_URL = IS_LOCAL
-  ? `http://${II_CANISTER_ID}.localhost:4943/`
-  : "https://id.ai";
+  ? "http://id.ai.localhost:4943/authorize"
+  : "https://id.ai/authorize";
 
 let _authClient: AuthClient | null = null;
 let _agent: HttpAgent | null = null;
@@ -83,9 +85,15 @@ export async function loginWithLocalIdentity(): Promise<string> {
 
 export async function login(): Promise<void> {
   const client = getAuthClient();
-  // v6: signIn() returns Promise<Identity> and throws on failure;
-  // identityProvider and maxTimeToLive are set here per-call
-  await client.signIn({ maxTimeToLive: BigInt(8 * 60 * 60 * 1_000_000_000) });
+  // v6: signIn() opens popup at identityProvider URL (set in constructor),
+  // establishes ICRC-29 heartbeat, then requests delegation via ICRC-34.
+  // Throws if the popup can't establish the channel (wrong URL, old II, etc.)
+  try {
+    await client.signIn({ maxTimeToLive: BigInt(8 * 60 * 60 * 1_000_000_000) });
+  } catch (err) {
+    console.error("[actor] signIn failed:", err);
+    throw err;
+  }
   resetAgent();
 }
 
