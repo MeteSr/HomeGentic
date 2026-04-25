@@ -90,8 +90,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install icp-cli
-        run: npm install -g @icp-sdk/icp-cli
+      - name: Install dfx
+        # test-backend uses dfx for local deployment: dfx handles cycle fabrication
+        # automatically on local replicas. icp-cli's managed PocketIC network has no
+        # cycles infrastructure so icp canister create fails on fresh networks.
+        # test-backend.sh also calls `dfx ping`, so dfx must be the active replica.
+        run: |
+          DFX_VERSION=0.24.3 sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
+          echo "$HOME/.local/share/dfx/bin" >> "$GITHUB_PATH"
 
       - name: Cache mops packages
         uses: actions/cache@v5
@@ -105,11 +111,63 @@ jobs:
       - name: Install Motoko dependencies
         run: mops install
 
-      - name: Start local network
-        run: icp network start -d
+      - name: Start local replica
+        run: dfx start --clean -d
 
       - name: Deploy canisters
-        run: bash scripts/deploy.sh
+        run: |
+          DEPLOYER=$(dfx identity get-principal)
+          dfx deploy auth --argument "(principal \"$DEPLOYER\")"
+          dfx deploy
+
+          # ── Bootstrap admin lists ────────────────────────────────────────────
+          for canister in property job contractor quote photo report maintenance market sensor listing agent recurring bills monitoring; do
+            dfx canister call "$canister" addAdmin "(principal \"$DEPLOYER\")"
+          done
+          dfx canister call payment initAdmins "(vec { principal \"$DEPLOYER\" })" || true
+          dfx canister call payment grantSubscription "(principal \"$DEPLOYER\", variant { Pro })"
+
+          # ── Wire inter-canister IDs ──────────────────────────────────────────
+          PAYMENT_ID=$(dfx canister id payment)
+          PROPERTY_ID=$(dfx canister id property)
+          PHOTO_ID=$(dfx canister id photo)
+          QUOTE_ID=$(dfx canister id quote)
+          JOB_ID=$(dfx canister id job)
+          CONTRACTOR_ID=$(dfx canister id contractor)
+          SENSOR_ID=$(dfx canister id sensor)
+          REPORT_ID=$(dfx canister id report)
+          BILLS_ID=$(dfx canister id bills)
+          MAINTENANCE_ID=$(dfx canister id maintenance)
+
+          dfx canister call job         setPaymentCanisterId    "(\"$PAYMENT_ID\")"
+          dfx canister call property    setPaymentCanisterId    "(principal \"$PAYMENT_ID\")"
+          dfx canister call photo       setPaymentCanisterId    "(principal \"$PAYMENT_ID\")"
+          dfx canister call quote       setPaymentCanisterId    "(principal \"$PAYMENT_ID\")"
+          dfx canister call bills       setPaymentCanisterId    "(\"$PAYMENT_ID\")"
+          dfx canister call job         setContractorCanisterId "(\"$CONTRACTOR_ID\")"
+          dfx canister call job         setPropertyCanisterId   "(\"$PROPERTY_ID\")"
+          dfx canister call photo       setPropertyCanisterId   "(principal \"$PROPERTY_ID\")"
+          dfx canister call quote       setPropertyCanisterId   "(principal \"$PROPERTY_ID\")"
+          dfx canister call maintenance setPropertyCanisterId   "(principal \"$PROPERTY_ID\")"
+
+          # ── Tier propagation wiring ──────────────────────────────────────────
+          dfx canister call property addAdmin "(principal \"$PAYMENT_ID\")"
+          dfx canister call quote    addAdmin "(principal \"$PAYMENT_ID\")"
+          dfx canister call photo    addAdmin "(principal \"$PAYMENT_ID\")"
+          dfx canister call payment  setTierCanisterIds \
+            "(principal \"$PROPERTY_ID\", principal \"$QUOTE_ID\", principal \"$PHOTO_ID\")"
+
+          # ── Trusted canister lists ───────────────────────────────────────────
+          dfx canister call payment    addTrustedCanister "(principal \"$JOB_ID\")"
+          dfx canister call payment    addTrustedCanister "(principal \"$PROPERTY_ID\")"
+          dfx canister call payment    addTrustedCanister "(principal \"$PHOTO_ID\")"
+          dfx canister call payment    addTrustedCanister "(principal \"$QUOTE_ID\")"
+          dfx canister call contractor addTrustedCanister "(principal \"$JOB_ID\")"
+          dfx canister call property   addTrustedCanister "(principal \"$JOB_ID\")"
+          dfx canister call property   addTrustedCanister "(principal \"$PHOTO_ID\")"
+          dfx canister call property   addTrustedCanister "(principal \"$QUOTE_ID\")"
+          dfx canister call property   addTrustedCanister "(principal \"$REPORT_ID\")"
+          dfx canister call job        addTrustedCanister "(principal \"$SENSOR_ID\")"
 
       - name: Run tests
         run: bash scripts/test-backend.sh
