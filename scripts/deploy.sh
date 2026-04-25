@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEPLOY_SCRIPT_VERSION="1.4.3"
+DEPLOY_SCRIPT_VERSION="1.4.4"
 ENV=${1:-local}
 
 echo "============================================"
@@ -104,6 +104,15 @@ if [ "$ENV" = "local" ]; then
     icp network start -d
     echo "  ✓ Local network started"
   fi
+
+  # PocketIC starts with 0 cycles in the identity balance. icp canister create
+  # requests 2T cycles per canister by default — which fails immediately.
+  # Mint enough for all 17 canisters (17 × 2T = 34T; mint 100T for headroom).
+  echo "▶ Minting local cycles (PocketIC faucet)..."
+  icp cycles mint 100000000000000 -e local 2>/dev/null || \
+    icp cycles mint 100000000000000 2>/dev/null || \
+    echo "  ⚠️  cycles mint failed — canister creates may fail if balance is zero"
+  echo "  ✓ Cycles available"
 fi
 
 # ── Pre-flight checks (non-local networks only) ──────────────────────────────────
