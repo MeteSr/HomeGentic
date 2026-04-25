@@ -125,14 +125,24 @@ jobs:
 
       - name: Debug moc-wrapper and aaaaa-aa.did location
         run: |
-          echo "=== dfx cache dir ==="
-          ls "$(dfx cache show)/"
-          echo "=== moc-wrapper ==="
-          cat "$(dfx cache show)/moc-wrapper" 2>/dev/null || echo "(binary or missing)"
-          echo "=== mops toolchain bin moc ==="
-          mops toolchain bin moc 2>/dev/null || echo "not found"
+          echo "=== dfx cache show ==="
+          dfx cache show
+          echo "=== dfx cache install ==="
+          dfx cache install 2>&1 || true
+          echo "=== dfx cache dir contents ==="
+          ls "$(dfx cache show)/" 2>/dev/null | head -40 || echo "(still empty)"
+          echo "=== dfxvm installation tree ==="
+          find "$HOME/.local/share/dfx" -maxdepth 4 2>/dev/null | head -60
+          echo "=== moc-wrapper (cache) ==="
+          cat "$(dfx cache show)/moc-wrapper" 2>/dev/null \
+            || file "$(dfx cache show)/moc-wrapper" 2>/dev/null \
+            || echo "not in cache"
+          echo "=== find moc-wrapper anywhere ==="
+          find "$HOME/.local/share/dfx" -name "moc-wrapper" 2>/dev/null | head -5
           echo "=== find aaaaa-aa.did ==="
-          find /home/runner -name "aaaaa-aa.did" 2>/dev/null || echo "not found anywhere"
+          find /home/runner -name "aaaaa-aa.did" 2>/dev/null | head -10 || echo "not found"
+          echo "=== mops toolchain bin moc ==="
+          mops toolchain bin moc 2>/dev/null || echo "not initialized"
 
       - name: Start local replica
         run: dfx start --clean --background
