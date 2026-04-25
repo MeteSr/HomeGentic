@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEPLOY_SCRIPT_VERSION="1.4.4"
+DEPLOY_SCRIPT_VERSION="1.4.5"
 ENV=${1:-local}
 
 echo "============================================"
@@ -105,14 +105,6 @@ if [ "$ENV" = "local" ]; then
     echo "  ✓ Local network started"
   fi
 
-  # PocketIC starts with 0 cycles in the identity balance. icp canister create
-  # requests 2T cycles per canister by default — which fails immediately.
-  # Mint enough for all 17 canisters (17 × 2T = 34T; mint 100T for headroom).
-  echo "▶ Minting local cycles (PocketIC faucet)..."
-  icp cycles mint 100000000000000 -e local 2>/dev/null || \
-    icp cycles mint 100000000000000 2>/dev/null || \
-    echo "  ⚠️  cycles mint failed — canister creates may fail if balance is zero"
-  echo "  ✓ Cycles available"
 fi
 
 # ── Pre-flight checks (non-local networks only) ──────────────────────────────────
@@ -213,11 +205,16 @@ LOG_DIR=$(mktemp -d /tmp/icp-deploy-XXXXXX)
 DEPLOY_PRINCIPAL=$(icp identity principal)
 
 # ── Phase 1: Create canister slots ──────────────────────────────────────────────
+# Local PocketIC: icp canister create defaults to requesting 2T cycles from the
+# identity balance, which starts at 0. Pass --cycles 0 so the create succeeds
+# without a funded balance — PocketIC doesn't enforce cycle balances locally.
 echo ""
 echo "▶ Phase 1/3 — Creating canister slots..."
 for canister in "${CANISTERS[@]}"; do
   echo -n "  $canister... "
-  if icp canister create "$canister" -e "$ENV" >"$LOG_DIR/$canister.create.log" 2>&1; then
+  CREATE_ARGS=(-e "$ENV")
+  [ "$ENV" = "local" ] && CREATE_ARGS+=(--cycles 0)
+  if icp canister create "$canister" "${CREATE_ARGS[@]}" >"$LOG_DIR/$canister.create.log" 2>&1; then
     echo "created"
   else
     # Non-zero exit: check whether the canister already exists (ID registered from a
