@@ -32,19 +32,20 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install DFX
-        uses: dfinity/setup-dfx@main
+      - uses: actions/setup-node@v6
         with:
-          dfx_version: "0.31.0"
+          node-version: '20'
 
-      - name: Install mops
-        run: npm install -g ic-mops
+      - name: Install icp-cli
+        run: npm install -g @icp-sdk/icp-cli
 
-      - name: Set DFX identity from secret
+      - name: Set ICP identity from secret
         run: |
-          mkdir -p ~/.config/dfx/identity/default
-          echo "$DFX_IDENTITY_PEM" > ~/.config/dfx/identity/default/identity.pem
-          chmod 600 ~/.config/dfx/identity/default/identity.pem
+          IDENTITY_FILE=$(mktemp /tmp/icp-identity-XXXXXX.pem)
+          printf '%s' "$DFX_IDENTITY_PEM" > "$IDENTITY_FILE"
+          icp identity import ci-watchdog --from-pem "$IDENTITY_FILE" --storage plaintext
+          icp identity default ci-watchdog
+          rm -f "$IDENTITY_FILE"
         env:
           DFX_IDENTITY_PEM: ${{ secrets.MAINNET_IDENTITY_PEM }}
 

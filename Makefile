@@ -4,37 +4,37 @@ NETWORK ?= local
 
 help:
 	@echo "HomeGentic — Available commands:"
-	@echo "  make start               Start local dfx replica"
-	@echo "  make stop                Stop dfx replica"
-	@echo "  make deploy              Deploy all canisters in parallel (local)"
+	@echo "  make start               Start local ICP network"
+	@echo "  make stop                Stop local ICP network"
+	@echo "  make deploy              Deploy all canisters (local)"
 	@echo "  make deploy-one CANISTER=<name>  Deploy a single canister"
 	@echo "  make test                Run backend tests"
 	@echo "  make frontend            Start frontend dev server"
 	@echo "  make status              Show canister status"
 	@echo "  make upgrade             Upgrade all canisters"
-	@echo "  make dev                 Start replica, deploy canisters, and run frontend"
-	@echo "  make dev-full            Full local stack: replica + canisters + frontend + voice + dashboard"
-	@echo "  make clean               Clean local dfx state"
-	@echo "  make check-motoko        Compile-check all Motoko canisters (no replica needed)"
+	@echo "  make dev                 Start network, deploy canisters, and run frontend"
+	@echo "  make dev-full            Full local stack: network + canisters + frontend + voice + dashboard"
+	@echo "  make clean               Clean local ICP state"
+	@echo "  make check-motoko        Compile-check all Motoko canisters (no network needed)"
 
 dev:
-	dfx start --clean --background && bash scripts/deploy.sh && cd frontend && npm run dev
+	icp network start -d && bash scripts/deploy.sh && cd frontend && npm run dev
 
 dev-full:
 	bash scripts/dev.sh
 
 start:
-	dfx start --background
+	icp network start -d
 
 stop:
-	dfx stop
+	icp network stop
 
 deploy:
 	bash scripts/deploy.sh $(NETWORK)
 
 deploy-one:
 	@test -n "$(CANISTER)" || (echo "Usage: make deploy-one CANISTER=<canister_name>  e.g. make deploy-one CANISTER=payment" && exit 1)
-	dfx deploy $(CANISTER) --network $(NETWORK)
+	icp deploy $(CANISTER) -e $(NETWORK)
 
 test:
 	bash scripts/test-backend.sh
@@ -55,5 +55,5 @@ init-data:
 	bash scripts/init-test-data.sh
 
 check-motoko:
-	@jq -r '.canisters | to_entries[] | select(.value.type != "assets") | .key' dfx.json | \
-	  while read -r c; do echo "=== $$c ==="; dfx build "$$c" --check || exit 1; done
+	@grep "^  - name:" icp.yaml | awk '{print $$3}' | grep -v "^frontend$$" | \
+	  while read -r c; do echo "=== $$c ==="; icp build "$$c" || exit 1; done

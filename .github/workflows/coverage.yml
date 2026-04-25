@@ -49,16 +49,8 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
-      - name: Cache DFX binary
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/dfinity
-          key: dfx-${{ runner.os }}-${{ hashFiles('dfx.json') }}
-
-      - name: Install DFX
-        uses: dfinity/setup-dfx@main
-        with:
-          dfx_version: "0.31.0"
+      - name: Install icp-cli
+        run: npm install -g @icp-sdk/icp-cli
 
       - name: Cache mops packages
         uses: actions/cache@v5
@@ -69,8 +61,8 @@ jobs:
       - name: Install mops
         run: npm install -g ic-mops
 
-      - name: Start replica
-        run: dfx start --background --clean
+      - name: Start local network
+        run: icp network start -d
 
       - name: Deploy canisters
         run: bash scripts/deploy.sh

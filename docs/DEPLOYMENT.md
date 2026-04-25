@@ -3,11 +3,11 @@
 ## Local Development
 
 ```bash
-# Start local replica and deploy all canisters
+# Start local ICP network and deploy all canisters
 make deploy
 
 # Or manually:
-dfx start --background --clean
+icp network start -d
 bash scripts/deploy.sh
 ```
 
@@ -51,17 +51,17 @@ Requires:
 
 ```bash
 # 1. Deploy all Motoko canisters (writes CANISTER_ID_* to .env)
-dfx deploy --network ic
+icp deploy -e ic
 
 # 2. Build the frontend (reads .env for canister IDs; writes dist/.ic-assets.json5)
 cd frontend && npm run build && cd ..
 
 # 3. Deploy the frontend/assets canister (uploads dist/ including security headers)
-dfx deploy frontend --network ic
+icp deploy frontend -e ic
 ```
 
 Running `npm run build` before step 1 will produce a bundle with empty canister IDs.
-Running `dfx deploy frontend` before step 2 will serve a stale build without the
+Running `icp deploy frontend` before step 2 will serve a stale build without the
 updated `.ic-assets.json5` security headers.
 
 ## Upgrading Canisters
@@ -90,8 +90,9 @@ stop, delete, or replace any canister.
 
 ### Adding a backup controller
 
-Set `BACKUP_CONTROLLER_PRINCIPAL` before deploying. The script will call
-`dfx canister update-settings --add-controller` for every canister.
+Set `BACKUP_CONTROLLER_PRINCIPAL` before deploying. The deploy script will add it
+to all canisters. Note: `icp canister settings --add-controller` is not yet
+documented — the script will print a warning until this is confirmed (see #174).
 
 ```bash
 export BACKUP_CONTROLLER_PRINCIPAL=<your-hardware-wallet-or-secondary-principal>
@@ -104,29 +105,18 @@ environment alongside `MAINNET_IDENTITY_PEM`.
 ### Viewing current controllers
 
 ```bash
-dfx canister info <canister-name> --network ic
+icp canister status <canister-name> -e ic
 ```
 
 ### Rotating the primary controller
 
-1. Add the new identity as a controller on all canisters:
-   ```bash
-   for c in auth property job contractor quote payment photo report \
-             maintenance market sensor monitoring listing agent \
-             recurring bills ai_proxy frontend; do
-     dfx canister update-settings $c --add-controller <NEW_PRINCIPAL> --network ic
-   done
-   ```
+1. Add the new identity as a controller on all canisters (using icp canister
+   settings when icp-cli documents the `--add-controller` flag; until then,
+   use the IC management canister directly via the dashboard or SDK).
 2. Verify the new identity can call admin methods.
-3. Remove the old identity:
-   ```bash
-   for c in auth property job contractor quote payment photo report \
-             maintenance market sensor monitoring listing agent \
-             recurring bills ai_proxy frontend; do
-     dfx canister update-settings $c --remove-controller <OLD_PRINCIPAL> --network ic
-   done
-   ```
-4. Rotate `MAINNET_IDENTITY_PEM` in GitHub Secrets.
+3. Remove the old identity and rotate `MAINNET_IDENTITY_PEM` in GitHub Secrets.
+
+**Never remove a controller before confirming the replacement has access.**
 
 **Never remove a controller before confirming the replacement has access.**
 
@@ -161,9 +151,9 @@ STRIPE_PRICE_CONTRACTOR_PRO_YEARLY=price_...
 3. Configure a Stripe webhook pointing at `https://your-domain/api/stripe/webhook`
    for the `payment_intent.succeeded` and `customer.subscription.updated` events
    (not yet wired — currently the success page calls verify-subscription directly).
-4. Replace the `dfx canister call` in `activateInCanister()` (`agents/voice/server.ts`)
+4. Replace the `icp canister call` in `activateInCanister()` (`agents/voice/server.ts`)
    with a proper server-to-canister call using the management canister or an
-   ICP HTTP outcall — `dfx` CLI is local-only.
+   ICP HTTP outcall — CLI tools are local-only.
 
 ### How payment verification works
 
@@ -180,4 +170,4 @@ See [docs/EXTERNAL_APIS.md](EXTERNAL_APIS.md#0-stripe) for the full flow.
 make clean
 ```
 
-Stops dfx and removes local canister state. Use before a fresh deployment.
+Stops the local ICP network and removes local canister state. Use before a fresh deployment.

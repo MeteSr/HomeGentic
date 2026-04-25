@@ -1,0 +1,150 @@
+canisters:
+  - name: ai_proxy
+    recipe:
+      type: "@dfinity/motoko@v4.0.0"
+      configuration:
+        main: backend/ai_proxy/main.mo
+        args: "--actor-idl did/"
+
+  - name: auth
+    recipe:
+      type: "@dfinity/motoko@v4.0.0"
+      configuration:
+        main: backend/auth/main.mo
+        args: "--actor-idl did/"
+
+  - name: property
+    recipe:
+      type: "@dfinity/motoko@v4.0.0"
+      configuration:
+        main: backend/property/main.mo
+        args: "--actor-idl did/"
+
+  - name: job
+    recipe:
+      type: "@dfinity/motoko@v4.0.0"
+      configuration:
+        main: backend/job/main.mo
+        args: "--actor-idl did/"
+
+  - name: contractor
+    recipe:
+      type: "@dfinity/motoko@v4.0.0"
+      configuration:
+        main: backend/contractor/main.mo
+        args: "--actor-idl did/"
+
+  - name: quote
+    recipe:
+      type: "@dfinity/motoko@v4.0.0"
+      configuration:
+        main: backend/quote/main.mo
+        args: "--actor-idl did/"
+
+  - name: payment
+    recipe:
+      type: "@dfinity/motoko@v4.0.0"
+      configuration:
+        main: backend/payment/main.mo
+        args: "--actor-idl did/"
+
+  - name: photo
+    recipe:
+      type: "@dfinity/motoko@v4.0.0"
+      configuration:
+        main: backend/photo/main.mo
+        args: "--actor-idl did/"
+
+  - name: monitoring
+    recipe:
+      type: "@dfinity/motoko@v4.0.0"
+      configuration:
+        main: backend/monitoring/main.mo
+        args: "--actor-idl did/"
+
+  - name: market
+    recipe:
+      type: "@dfinity/motoko@v4.0.0"
+      configuration:
+        main: backend/market/main.mo
+        args: "--actor-idl did/"
+
+  - name: report
+    recipe:
+      type: "@dfinity/motoko@v4.0.0"
+      configuration:
+        main: backend/report/main.mo
+        args: "--actor-idl did/"
+
+  - name: maintenance
+    recipe:
+      type: "@dfinity/motoko@v4.0.0"
+      configuration:
+        main: backend/maintenance/main.mo
+        args: "--actor-idl did/"
+
+  - name: sensor
+    recipe:
+      type: "@dfinity/motoko@v4.0.0"
+      configuration:
+        main: backend/sensor/main.mo
+        args: "--actor-idl did/"
+
+  - name: listing
+    recipe:
+      type: "@dfinity/motoko@v4.0.0"
+      configuration:
+        main: backend/listing/main.mo
+        args: "--actor-idl did/"
+
+  - name: agent
+    recipe:
+      type: "@dfinity/motoko@v4.0.0"
+      configuration:
+        main: backend/agent/main.mo
+        args: "--actor-idl did/"
+
+  - name: bills
+    recipe:
+      type: "@dfinity/motoko@v4.0.0"
+      configuration:
+        main: backend/bills/main.mo
+        args: "--actor-idl did/"
+
+  - name: recurring
+    recipe:
+      type: "@dfinity/motoko@v4.0.0"
+      configuration:
+        main: backend/recurring/main.mo
+        args: "--actor-idl did/"
+
+  # Frontend asset canister — dist/ is built by deploy.sh before icp deploy frontend
+  - name: frontend
+    recipe:
+      type: "@dfinity/asset-canister@v2.1.0"
+      configuration:
+        dir: frontend/dist
+
+networks:
+  - name: local
+    mode: managed
+    ii: true
+    gateway:
+      bind: 127.0.0.1
+      port: 4943
+
+  - name: testnet
+    mode: connected
+    url: https://ic0.app
+
+  # ic is a reserved built-in network in icp-cli (https://icp-api.io) — do not redeclare it
+
+environments:
+  - name: local
+    network: local
+
+  - name: testnet
+    network: testnet
+
+  - name: ic
+    network: ic

@@ -66,7 +66,7 @@ describe("PROD.9 — deploy.sh adds a backup controller when configured", () => 
       // Look back 900 chars — the backup-controller for-loop sits between
       // the NETWORK guard and the warning echo
       const window = src.slice(Math.max(0, warnIdx - 900), warnIdx + 100);
-      expect(window).toMatch(/NETWORK.*!=.*local|!=.*local.*NETWORK/);
+      expect(window).toMatch(/NETWORK.*!=.*local|!=.*local.*NETWORK|ENV.*!=.*local|!=.*local.*ENV/);
     }
   });
 

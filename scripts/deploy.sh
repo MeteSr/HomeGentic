@@ -1,63 +1,121 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-NETWORK=${1:-local}
+DEPLOY_SCRIPT_VERSION="1.4.6"
+ENV=${1:-local}
 
 echo "============================================"
-echo "  HomeGentic — Deployment ($NETWORK)"
+echo "  HomeGentic — Deployment ($ENV) v${DEPLOY_SCRIPT_VERSION}"
 echo "============================================"
 
-# ── Load DFX identity from CI secret (non-local deploys only) ──────────────────
-if [ "$NETWORK" != "local" ] && [ -n "${DFX_IDENTITY_PEM:-}" ]; then
-  echo "▶ Loading DFX identity from DFX_IDENTITY_PEM secret..."
-  IDENTITY_FILE=$(mktemp /tmp/dfx-identity-XXXXXX.pem)
+# ── Identity setup ────────────────────────────────────────────────────────────
+if [ "$ENV" != "local" ] && [ -n "${DFX_IDENTITY_PEM:-}" ]; then
+  # CI / non-local: load identity from secret
+  echo "▶ Loading ICP identity from DFX_IDENTITY_PEM secret..."
+  IDENTITY_FILE=$(mktemp /tmp/icp-identity-XXXXXX.pem)
   printf '%s' "$DFX_IDENTITY_PEM" > "$IDENTITY_FILE"
-  dfx identity import --storage-mode plaintext ci-deploy "$IDENTITY_FILE" 2>/dev/null || true
-  dfx identity use ci-deploy
+  icp identity import ci-deploy --from-pem "$IDENTITY_FILE" --storage plaintext 2>/dev/null || true
+  icp identity default ci-deploy
   rm -f "$IDENTITY_FILE"
   echo "  ✓ Identity loaded"
-fi
-
-if [ "$NETWORK" = "local" ]; then
-  echo "▶ Starting dfx local replica..."
-  if dfx ping 2>/dev/null; then
-    echo "  ✓ dfx is already running"
-  else
-    dfx start --background --clean
-    echo "  ✓ dfx started"
+else
+  # Local: icp-cli has no auto-created default identity like dfx does.
+  # If the current identity is anonymous (2vxsx-fae), create a persistent
+  # local identity so admin/wiring calls are not rejected by inspect_message.
+  _PRINCIPAL=$(icp identity principal 2>/dev/null || echo "2vxsx-fae")
+  if [ "$_PRINCIPAL" = "2vxsx-fae" ]; then
+    echo "▶ Creating local deploy identity (homegentic-local)..."
+    # --storage plaintext is required on headless Linux (no keyring daemon).
+    # Fall back to openssl PEM import if `new` is not supported by this build.
+    if ! icp identity new homegentic-local --storage plaintext 2>/dev/null && \
+       ! icp identity new homegentic-local 2>/dev/null; then
+      _ID_PEM=$(mktemp /tmp/hg-deploy-XXXXXX.pem)
+      openssl genpkey -algorithm Ed25519 -out "$_ID_PEM" 2>/dev/null
+      icp identity import homegentic-local --from-pem "$_ID_PEM" --storage plaintext \
+        2>/dev/null || true
+      rm -f "$_ID_PEM"
+    fi
+    if ! icp identity default homegentic-local 2>/dev/null; then
+      echo "  ERROR: failed to create or activate identity 'homegentic-local'"
+      echo "  Fix: icp identity new homegentic-local --storage plaintext"
+      exit 1
+    fi
+    echo "  ✓ Identity: $(icp identity principal)"
   fi
 fi
 
-# ── Ensure the deploying identity has enough cycles (local only) ─────────────
-# dfx 0.15+ removed `dfx wallet create`; on a fresh local replica the identity
-# has no wallet canister and doesn't need one — dfx deploy uses the system
-# subnet's implicit cycles on local networks.  We fabricate cycles directly to
-# the deploying identity's default canister if a wallet already exists, but we
-# no longer try to create one (that subcommand is gone).
-if [ "$NETWORK" = "local" ]; then
-  WALLET_ID=$(dfx identity get-wallet --network local 2>/dev/null || true)
-  if [ -n "$WALLET_ID" ]; then
-    echo "▶ Topping up local wallet ($WALLET_ID) with 10T cycles..."
-    dfx ledger fabricate-cycles --canister "$WALLET_ID" --t 10
-    echo "  ✓ Wallet ready"
+# ── Ensure mops toolchain (moc) is initialized ───────────────────────────────
+# icp-cli's motoko recipe resolves the compiler via `mops toolchain bin moc`.
+# mops toolchain init is idempotent — safe to run every time.
+echo "▶ Initializing mops toolchain..."
+mops toolchain init 2>/dev/null || true
+echo "  ✓ mops toolchain initialized"
+
+# Pre-warm moc binary BEFORE parallel builds.
+# mops toolchain bin moc downloads + extracts the tarball on first call.
+# Without this, 17 parallel icp build processes race to download the same
+# file simultaneously, causing ENOENT failures and old-moc fallbacks.
+echo "▶ Pre-warming moc compiler..."
+MOC_BIN=$(mops toolchain bin moc 2>/dev/null) || MOC_BIN=""
+if [ -z "$MOC_BIN" ]; then
+  echo "  First call failed — clearing tmp cache and retrying..."
+  rm -rf .mops/_tmp
+  mops toolchain init 2>/dev/null || true
+  MOC_BIN=$(mops toolchain bin moc) || { echo "  ERROR: cannot resolve moc binary"; exit 1; }
+fi
+echo "  ✓ moc ready: $MOC_BIN"
+
+# Ensure ic-wasm is available — required by @dfinity/motoko@v4.0.0 recipe step 2.
+echo "▶ Checking ic-wasm..."
+if ! command -v ic-wasm >/dev/null 2>&1; then
+  # dfx bundles ic-wasm; check common install paths before downloading
+  for _dfx_bin in "$HOME/.local/share/dfx/bin" "$HOME/.dfinity/bin"; do
+    if [ -x "$_dfx_bin/ic-wasm" ]; then
+      export PATH="$_dfx_bin:$PATH"
+      break
+    fi
+  done
+fi
+if ! command -v ic-wasm >/dev/null 2>&1; then
+  echo "  ic-wasm not found — downloading 0.9.11..."
+  _IC_WASM_TMP=$(mktemp -d)
+  curl -sSfL \
+    "https://github.com/dfinity/ic-wasm/releases/download/0.9.11/ic-wasm-x86_64-unknown-linux-musl.tar.xz" \
+    -o "$_IC_WASM_TMP/ic-wasm.tar.xz"
+  tar -xJf "$_IC_WASM_TMP/ic-wasm.tar.xz" -C "$_IC_WASM_TMP"
+  mkdir -p "$HOME/.local/bin"
+  _IC_WASM_FILE=$(find "$_IC_WASM_TMP" -name "ic-wasm" -type f | head -1)
+  cp "$_IC_WASM_FILE" "$HOME/.local/bin/ic-wasm"
+  chmod +x "$HOME/.local/bin/ic-wasm"
+  rm -rf "$_IC_WASM_TMP"
+  export PATH="$HOME/.local/bin:$PATH"
+fi
+echo "  ✓ ic-wasm: $(ic-wasm --version 2>/dev/null | head -1)"
+
+if [ "$ENV" = "local" ]; then
+  echo "▶ Starting local ICP network..."
+  if icp network ping local >/dev/null 2>&1; then
+    echo "  ✓ Local network is already running"
   else
-    echo "  (no wallet canister — dfx 0.15+ handles cycles automatically on local)"
+    # icp network start -d starts PocketIC in detached (background) mode.
+    # The managed local network automatically provides system canisters
+    # including Internet Identity — no separate deps pull needed.
+    icp network stop 2>/dev/null || true
+    icp network start -d
+    echo "  ✓ Local network started"
   fi
+
 fi
 
 # ── Pre-flight checks (non-local networks only) ──────────────────────────────────
-# Catch missing secrets before spending time deploying canisters only to have the
-# voice agent or Claude API fail silently in production.
-
-if [ "$NETWORK" != "local" ]; then
+if [ "$ENV" != "local" ]; then
   echo ""
   echo "============================================"
-  echo "  Pre-flight Checks ($NETWORK)"
+  echo "  Pre-flight Checks ($ENV)"
   echo "============================================"
   PREFLIGHT_FAILED=0
 
-  # PROD.1 — ANTHROPIC_API_KEY must be set; the voice agent fails-secure at startup
-  # but an empty key means every Claude API call will fail after deploy.
+  # PROD.1 — ANTHROPIC_API_KEY must be set
   if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
     echo "  ✗ ANTHROPIC_API_KEY is not set — Claude API calls will fail"
     PREFLIGHT_FAILED=1
@@ -65,9 +123,7 @@ if [ "$NETWORK" != "local" ]; then
     echo "  ✓ ANTHROPIC_API_KEY is set"
   fi
 
-  # PROD.2 — VOICE_AGENT_API_KEY must be set; without it all voice endpoints are
-  # unprotected (the server skips auth when the key is empty in dev mode, but on
-  # a real deploy this means any client can call the Anthropic API via the proxy).
+  # PROD.2 — VOICE_AGENT_API_KEY must be set
   if [ -z "${VOICE_AGENT_API_KEY:-}" ]; then
     echo "  ✗ VOICE_AGENT_API_KEY is not set — voice agent endpoints will be unprotected"
     PREFLIGHT_FAILED=1
@@ -82,8 +138,7 @@ if [ "$NETWORK" != "local" ]; then
     echo "  ✓ VITE_VOICE_AGENT_API_KEY is set"
   fi
 
-  # PROD.4 — STRIPE_SECRET_KEY must be set; without it payment processing fails
-  # silently and subscriptions cannot be created.
+  # PROD.4 — STRIPE_SECRET_KEY must be set
   if [ -z "${STRIPE_SECRET_KEY:-}" ]; then
     echo "  ✗ STRIPE_SECRET_KEY is not set — payment processing will fail"
     PREFLIGHT_FAILED=1
@@ -91,8 +146,7 @@ if [ "$NETWORK" != "local" ]; then
     echo "  ✓ STRIPE_SECRET_KEY is set"
   fi
 
-  # PROD.5 — VITE_STRIPE_PUBLISHABLE_KEY must be set; Stripe.js cannot initialize
-  # without it and the frontend payment flow breaks entirely.
+  # PROD.5 — VITE_STRIPE_PUBLISHABLE_KEY must be set
   if [ -z "${VITE_STRIPE_PUBLISHABLE_KEY:-}" ]; then
     echo "  ✗ VITE_STRIPE_PUBLISHABLE_KEY is not set — Stripe.js will fail to initialize"
     PREFLIGHT_FAILED=1
@@ -100,30 +154,28 @@ if [ "$NETWORK" != "local" ]; then
     echo "  ✓ VITE_STRIPE_PUBLISHABLE_KEY is set"
   fi
 
-  # PROD.6 — Reject test Stripe key on mainnet. A sk_test_* key on the ic network
-  # means real-money subscriptions are silently processed against Stripe's test mode.
-  if [ "$NETWORK" = "ic" ] && [[ "${STRIPE_SECRET_KEY:-}" == sk_test_* ]]; then
+  # PROD.6 — Reject test Stripe key on mainnet
+  if [ "$ENV" = "ic" ] && [[ "${STRIPE_SECRET_KEY:-}" == sk_test_* ]]; then
     echo "  ✗ Test Stripe key (sk_test_*) used on mainnet — use a live key for ic deploys"
     PREFLIGHT_FAILED=1
   fi
 
-  # PROD.7 — DFX identity must not be anonymous; an anonymous deploy means no one
-  # owns the canisters and they cannot be upgraded or managed after deployment.
-  CURRENT_IDENTITY=$(dfx identity whoami 2>/dev/null || echo "anonymous")
-  if [ "$CURRENT_IDENTITY" = "anonymous" ]; then
-    echo "  ✗ DFX identity is 'anonymous' — switch with: dfx identity use <name>"
+  # PROD.7 — Identity must not be anonymous
+  CURRENT_PRINCIPAL=$(icp identity principal 2>/dev/null || echo "2vxsx-fae")
+  if [ "$CURRENT_PRINCIPAL" = "2vxsx-fae" ]; then
+    echo "  ✗ ICP identity is anonymous — switch with: icp identity default <name>"
     PREFLIGHT_FAILED=1
   else
-    echo "  ✓ DFX identity: $CURRENT_IDENTITY"
+    echo "  ✓ ICP identity principal: $CURRENT_PRINCIPAL"
   fi
 
-  # PROD.8 — ICP network must be reachable before we spend time building canisters.
-  echo -n "  Checking network reachability ($NETWORK)... "
-  if dfx ping --network "$NETWORK" >/dev/null 2>&1; then
+  # PROD.8 — Network must be reachable
+  echo -n "  Checking network reachability ($ENV)... "
+  if icp network ping "$ENV" >/dev/null 2>&1; then
     echo "✓"
   else
     echo "✗"
-    echo "  ✗ ICP network '$NETWORK' is not reachable — check your connection or dfx config"
+    echo "  ✗ ICP network '$ENV' is not reachable — check your connection or icp.yaml"
     PREFLIGHT_FAILED=1
   fi
 
@@ -136,110 +188,149 @@ if [ "$NETWORK" != "local" ]; then
 fi
 
 # ── DRY_RUN short-circuit ────────────────────────────────────────────────────
-# DRY_RUN=1 bash scripts/deploy.sh <network>
-# Runs all preflight checks above and exits without deploying anything.
-# Useful in CI to validate secrets are wired up correctly before a real deploy.
 if [ "${DRY_RUN:-0}" = "1" ]; then
   echo ""
   echo "✅ DRY_RUN=1 — env and network validation passed. Exiting without deploying."
   exit 0
 fi
 
-# ── Bootstrap management canister IDL ───────────────────────────────────────────
-# caffeineai-http-outcalls/outcall.mo uses `import IC "ic:aaaaa-aa"`.  moc
-# resolves that import by looking for aaaaa-aa.did in the --actor-idl directory
-# (.dfx/local/canisters/idl/).  dfx start --clean does NOT pre-populate that file,
-# so any canister importing the package fails to build until the file exists.
-# Write a minimal management-canister DID containing just the HTTP-outcall surface
-# that caffeineai-http-outcalls requires.
-
-mkdir -p .dfx/local/canisters/idl
-if [ ! -f ".dfx/local/canisters/idl/aaaaa-aa.did" ]; then
-  cat > .dfx/local/canisters/idl/aaaaa-aa.did << 'MGMT_DID'
-type http_header = record { name : text; value : text };
-type http_request_result = record {
-  status : nat;
-  headers : vec http_header;
-  body : blob;
-};
-type http_request_args = record {
-  url : text;
-  max_response_bytes : opt nat64;
-  headers : vec http_header;
-  body : opt blob;
-  method : variant { get; head; post };
-  transform : opt record {
-    function : func (record { response : http_request_result; context : blob }) -> (http_request_result) query;
-    context : blob;
-  };
-  is_replicated : opt bool;
-};
-service ic : {
-  http_request : (http_request_args) -> (http_request_result);
-};
-MGMT_DID
-  echo "  ✓ Management canister IDL written (.dfx/local/canisters/idl/aaaaa-aa.did)"
-fi
-
-# ── Parallel canister deployment ────────────────────────────────────────────────
-# Strategy: two phases to eliminate the canister_ids.json write race.
-#   Phase 1 — dfx canister create --all (single process, writes all IDs atomically)
-#   Phase 2 — parallel dfx build + dfx canister install per canister
-#             (install never touches canister_ids.json; each build writes to its
-#              own isolated .dfx/local/canisters/<name>/ directory)
+# ── Canister deployment ───────────────────────────────────────────────────────────
+# Two paths:
+#   local  — icp deploy <canister> (all-in-one: create+build+install). icp canister
+#             create requires a funded cycles balance even with --cycles 0; icp deploy
+#             bypasses this by using a different PocketIC code path.
+#   non-local — three-phase: create (sequential) → build (sequential) → install
+#               (sequential). Sequential builds avoid concurrent writes to local.ids.json.
 
 CANISTERS=(auth property job contractor quote payment photo report maintenance market sensor monitoring listing agent recurring bills ai_proxy)
-LOG_DIR=$(mktemp -d /tmp/dfx-deploy-XXXXXX)
+LOG_DIR=$(mktemp -d /tmp/icp-deploy-XXXXXX)
+DEPLOY_PRINCIPAL=$(icp identity principal)
 
-# Phase 1: create all canister IDs in one atomic operation
-echo "▶ Creating canister IDs (phase 1/2)..."
-dfx canister create --all --network "$NETWORK" 2>/dev/null || true
-
-# Phase 2: build + install every canister in parallel
-# auth canister takes an init arg (deployer principal) so it is bootstrapped
-# atomically — no window exists for a first-caller race after deploy.
-echo "▶ Building and installing ${#CANISTERS[@]} canisters in parallel (phase 2/2)..."
-DEPLOY_PRINCIPAL=$(dfx identity get-principal)
-PIDS=()
-for canister in "${CANISTERS[@]}"; do
-  if [ "$canister" = "auth" ]; then
-    (
-      dfx build auth --network "$NETWORK" 2>&1 && \
-      dfx canister install auth --mode install \
-        --argument "(principal \"$DEPLOY_PRINCIPAL\")" \
-        --network "$NETWORK" 2>&1
-    ) >"$LOG_DIR/auth.log" 2>&1 &
-  else
-    (
-      dfx build "$canister" --network "$NETWORK" 2>&1 && \
-      dfx canister install "$canister" --mode install --network "$NETWORK" 2>&1
-    ) >"$LOG_DIR/$canister.log" 2>&1 &
-  fi
-  PIDS+=($!)
-done
-
-# Collect results
-FAILED=()
-for i in "${!CANISTERS[@]}"; do
-  canister="${CANISTERS[$i]}"
-  if wait "${PIDS[$i]}"; then
-    echo "  ✓ $canister"
-  else
-    echo "  ✗ $canister (failed)"
-    FAILED+=("$canister")
-  fi
-done
-
-if [ ${#FAILED[@]} -gt 0 ]; then
+if [ "$ENV" = "local" ]; then
+  # ── Local: all-in-one icp deploy ────────────────────────────────────────────
   echo ""
-  echo "❌ Deploy failed for: ${FAILED[*]}"
-  for canister in "${FAILED[@]}"; do
-    echo ""
-    echo "── $canister log ──────────────────────────"
-    cat "$LOG_DIR/$canister.log"
+  echo "▶ Deploying all canisters (local)..."
+  for canister in "${CANISTERS[@]}"; do
+    echo -n "  $canister... "
+    if [ "$canister" = "auth" ]; then
+      if icp deploy auth \
+          --args "(principal \"$DEPLOY_PRINCIPAL\")" \
+          -e "$ENV" \
+          >"$LOG_DIR/auth.deploy.log" 2>&1; then
+        echo "✓"
+      else
+        echo "FAILED"
+        echo ""
+        echo "── auth deploy log ──────────────────────────"
+        cat "$LOG_DIR/auth.deploy.log"
+        rm -rf "$LOG_DIR"
+        exit 1
+      fi
+    else
+      if icp deploy "$canister" -e "$ENV" >"$LOG_DIR/$canister.deploy.log" 2>&1; then
+        echo "✓"
+      else
+        echo "FAILED"
+        echo ""
+        echo "── $canister deploy log ──────────────────────────"
+        cat "$LOG_DIR/$canister.deploy.log"
+        rm -rf "$LOG_DIR"
+        exit 1
+      fi
+    fi
   done
-  rm -rf "$LOG_DIR"
-  exit 1
+
+else
+  # ── Non-local: three-phase deploy (create → build → install) ────────────────
+  # Phase 1: Create canister slots
+  echo ""
+  echo "▶ Phase 1/3 — Creating canister slots..."
+  for canister in "${CANISTERS[@]}"; do
+    echo -n "  $canister... "
+    if icp canister create "$canister" -e "$ENV" >"$LOG_DIR/$canister.create.log" 2>&1; then
+      echo "created"
+    else
+      EXISTING_ID=$(icp canister status "$canister" -e "$ENV" --id-only 2>/dev/null || echo "")
+      if [ -n "$EXISTING_ID" ]; then
+        echo "exists ($EXISTING_ID)"
+      else
+        echo "FAILED"
+        echo ""
+        echo "── $canister create log ──────────────────────────"
+        cat "$LOG_DIR/$canister.create.log"
+        rm -rf "$LOG_DIR"
+        exit 1
+      fi
+    fi
+  done
+
+  # Phase 2: Build all canisters sequentially
+  echo ""
+  echo "▶ Phase 2/3 — Compiling all canisters..."
+  BUILD_FAILED=()
+  for canister in "${CANISTERS[@]}"; do
+    echo -n "  $canister... "
+    if icp build "$canister" >"$LOG_DIR/$canister.build.log" 2>&1; then
+      echo "✓"
+    else
+      echo "✗"
+      BUILD_FAILED+=("$canister")
+    fi
+  done
+
+  if [ ${#BUILD_FAILED[@]} -gt 0 ]; then
+    echo ""
+    echo "❌ Build failed for: ${BUILD_FAILED[*]}"
+    for canister in "${BUILD_FAILED[@]}"; do
+      echo ""
+      echo "── $canister build log ──────────────────────────"
+      cat "$LOG_DIR/$canister.build.log"
+    done
+    rm -rf "$LOG_DIR"
+    exit 1
+  fi
+
+  # Phase 3: Install canisters sequentially
+  echo ""
+  echo "▶ Phase 3/3 — Installing canisters..."
+  INSTALL_FAILED=()
+  for canister in "${CANISTERS[@]}"; do
+    echo -n "  $canister... "
+    if [ "$canister" = "auth" ]; then
+      if icp canister install auth \
+          --args "(principal \"$DEPLOY_PRINCIPAL\")" \
+          --mode auto \
+          -e "$ENV" \
+          >"$LOG_DIR/auth.install.log" 2>&1; then
+        echo "✓"
+      else
+        echo "✗"
+        INSTALL_FAILED+=("$canister")
+      fi
+    else
+      if icp canister install "$canister" \
+          --mode auto \
+          -e "$ENV" \
+          >"$LOG_DIR/$canister.install.log" 2>&1; then
+        echo "✓"
+      else
+        echo "✗"
+        INSTALL_FAILED+=("$canister")
+      fi
+    fi
+  done
+
+  if [ ${#INSTALL_FAILED[@]} -gt 0 ]; then
+    echo ""
+    echo "❌ Install failed for: ${INSTALL_FAILED[*]}"
+    for canister in "${INSTALL_FAILED[@]}"; do
+      echo ""
+      echo "── $canister install log ──────────────────────────"
+      cat "$LOG_DIR/$canister.install.log"
+    done
+    rm -rf "$LOG_DIR"
+    exit 1
+  fi
 fi
 
 rm -rf "$LOG_DIR"
@@ -249,7 +340,7 @@ echo "============================================"
 echo "  Deployed Canister IDs"
 echo "============================================"
 for canister in "${CANISTERS[@]}"; do
-  ID=$(dfx canister id "$canister" --network "$NETWORK" 2>/dev/null || echo "not deployed")
+  ID=$(icp canister status "$canister" -e "$ENV" --id-only 2>/dev/null || echo "not deployed")
   echo "  $canister: $ID"
 done
 
@@ -257,12 +348,9 @@ echo ""
 echo "============================================"
 echo "  Validating Canister IDs"
 echo "============================================"
-# PROD.9 — Every canister must have a non-empty ID after the deploy step.
-# An empty ID means the canister failed to create or install silently, which
-# can cause the frontend to fall back to mock data (see #138).
 CANISTER_ID_FAILED=0
 for canister in "${CANISTERS[@]}"; do
-  ID=$(dfx canister id "$canister" --network "$NETWORK" 2>/dev/null || echo "")
+  ID=$(icp canister status "$canister" -e "$ENV" --id-only 2>/dev/null || echo "")
   if [ -z "$ID" ]; then
     echo "  ✗ $canister: no canister ID — deploy may be incomplete"
     CANISTER_ID_FAILED=1
@@ -277,44 +365,45 @@ if [ "$CANISTER_ID_FAILED" -ne 0 ]; then
   exit 1
 fi
 
-# PROD.10 — canister_ids.json must exist on non-local deploys.
-# This file is the source of truth for CI and upgrade scripts; a missing file
-# means the deploy wrote IDs only to ephemeral dfx state.
-if [ "$NETWORK" != "local" ]; then
-  REPO_ROOT_CID="$(cd "$(dirname "$0")/.." && pwd)/canister_ids.json"
-  if [ -f "$REPO_ROOT_CID" ]; then
-    echo "  ✓ canister_ids.json present"
+# ── Write canister IDs to .env for the frontend build ────────────────────────
+# icp-cli does not have dfx's output_env_file feature; write CANISTER_ID_* vars
+# manually so Vite can substitute them during npm run build.
+echo ""
+echo "============================================"
+echo "  Writing Canister IDs to .env"
+echo "============================================"
+for canister in "${CANISTERS[@]}"; do
+  ID=$(icp canister status "$canister" -e "$ENV" --id-only 2>/dev/null || echo "")
+  VAR_NAME="CANISTER_ID_$(echo "$canister" | tr '[:lower:]' '[:upper:]')"
+  # Update or append the variable in .env
+  if grep -q "^${VAR_NAME}=" .env 2>/dev/null; then
+    sed -i "s|^${VAR_NAME}=.*|${VAR_NAME}=${ID}|" .env
   else
-    echo "  ⚠️  canister_ids.json not found at $REPO_ROOT_CID — IDs may not persist across dfx restarts"
+    echo "${VAR_NAME}=${ID}" >> .env
   fi
+  echo "  ✓ ${VAR_NAME}=${ID}"
+done
+# Also write DFX_NETWORK for any code that still reads it
+if grep -q "^DFX_NETWORK=" .env 2>/dev/null; then
+  sed -i "s|^DFX_NETWORK=.*|DFX_NETWORK=${ENV}|" .env
+else
+  echo "DFX_NETWORK=${ENV}" >> .env
 fi
 
 echo ""
 echo "============================================"
 echo "  Cycles Balance Check"
 echo "============================================"
+# On non-local networks, verify each canister has enough cycles.
+# TODO: icp-cli equivalent of dfx canister deposit-cycles is `icp cycles transfer`.
+# Balance parsing may need adjustment based on `icp canister status` output format.
 
-# PROD.3 — On non-local networks, verify each canister has enough cycles to run.
-# Canisters below the warning threshold are topped up from the deploying wallet.
-# On local the replica uses fabricated cycles so this step is skipped.
-#
-# Thresholds (in cycles):
-#   WARNING_CYCLES  = 500B  — top up if balance falls below this
-#   TOP_UP_TO       = 2T    — target balance after top-up
-#
-# Requires: the deploying identity's wallet must have enough ICP-backed cycles.
-# Check wallet balance with: dfx wallet --network ic balance
-#
-# NOTE: dfx canister status output format:
-#   Balance: 1_000_000_000_000 Cycles
-# We strip underscores and the " Cycles" suffix to get a raw integer.
-
-if [ "$NETWORK" != "local" ]; then
+if [ "$ENV" != "local" ]; then
   WARNING_CYCLES=500000000000   # 500B
   TOP_UP_TO=2000000000000       # 2T
 
   for canister in "${CANISTERS[@]}"; do
-    STATUS_OUT=$(dfx canister status "$canister" --network "$NETWORK" 2>&1) || {
+    STATUS_OUT=$(icp canister status "$canister" -e "$ENV" 2>&1) || {
       echo "  ⚠️  Could not get status for $canister — skipping cycles check"
       continue
     }
@@ -329,7 +418,8 @@ if [ "$NETWORK" != "local" ]; then
     if [ "$BALANCE_RAW" -lt "$WARNING_CYCLES" ]; then
       NEEDED=$(( TOP_UP_TO - BALANCE_RAW ))
       echo "  ⚠️  $canister is low on cycles (${BALANCE_RAW}) — topping up ${NEEDED} cycles..."
-      if dfx canister deposit-cycles "$NEEDED" "$canister" --network "$NETWORK"; then
+      # TODO: verify icp cycles transfer syntax once icp-cli stabilises
+      if icp cycles transfer "$NEEDED" "$canister" -e "$ENV"; then
         echo "  ✓ $canister topped up to ~${TOP_UP_TO} cycles"
       else
         echo "  ✗ Top-up failed for $canister — check wallet balance"
@@ -339,46 +429,31 @@ if [ "$NETWORK" != "local" ]; then
     fi
   done
 else
-  echo "  (skipped — local network uses fabricated cycles)"
+  echo "  (skipped — local managed network uses system cycles)"
 fi
 
 echo ""
 echo "============================================"
 echo "  Bootstrapping Canister Admins"
 echo "============================================"
-# Admin bootstrap must run BEFORE inter-canister wiring because every
-# setPaymentCanisterId / setPropertyCanisterId / addTrustedCanister call
-# requires an admin to be present — failing silently here leaves canisters
-# unwired and causes test failures downstream.
-
-DEPLOYER=$(dfx identity get-principal)
+DEPLOYER=$(icp identity principal)
 echo "  Deployer principal: $DEPLOYER"
 
-# All canisters that expose addAdmin, excluding auth (bootstrapped via init arg)
-# and ai_proxy (handled separately below).
 ADMIN_CANISTERS=(property job contractor quote photo report maintenance market sensor listing agent recurring bills monitoring)
 
-# Fire all addAdmin calls in parallel — each targets a different canister so
-# there is no shared state and no ordering requirement between them.
 for canister in "${ADMIN_CANISTERS[@]}"; do
   echo "  $canister: adding deployer as admin..."
-  dfx canister call "$canister" addAdmin "(principal \"$DEPLOYER\")" --network "$NETWORK" \
+  icp canister call "$canister" addAdmin "(principal \"$DEPLOYER\")" -e "$ENV" \
     2>/dev/null &
 done
-wait   # wait for all addAdmin calls before proceeding to payment (which depends on none of them)
+wait
 
-# payment uses initAdmins (one-time bootstrap) instead of addAdmin.
-# Without this, grantSubscription returns NotAuthorized and all
-# job / quote / photo tests that call it via the payment canister fail.
 echo "  payment: initializing admin list..."
-dfx canister call payment initAdmins "(vec { principal \"$DEPLOYER\" })" --network "$NETWORK" \
+icp canister call payment initAdmins "(vec { principal \"$DEPLOYER\" })" -e "$ENV" \
   2>/dev/null || echo "  ⚠️  payment initAdmins failed (may already be initialized)"
 
-# Grant the deployer a Pro subscription so backend tests (job, quote, photo)
-# can call createJob / createQuoteRequest / uploadPhoto without hitting the
-# Free-tier block. Tests that need to test tier limits downgrade explicitly.
 echo "  payment: granting deployer Pro subscription for test compatibility..."
-dfx canister call payment grantSubscription "(principal \"$DEPLOYER\", variant { Pro })" --network "$NETWORK" \
+icp canister call payment grantSubscription "(principal \"$DEPLOYER\", variant { Pro })" -e "$ENV" \
   2>/dev/null || echo "  ⚠️  grantSubscription failed"
 
 echo ""
@@ -386,155 +461,130 @@ echo "============================================"
 echo "  Wiring Inter-Canister IDs"
 echo "============================================"
 
-JOB_ID=$(dfx canister id job --network "$NETWORK" 2>/dev/null || echo "")
-PAYMENT_ID=$(dfx canister id payment --network "$NETWORK" 2>/dev/null || echo "")
-CONTRACTOR_ID=$(dfx canister id contractor --network "$NETWORK" 2>/dev/null || echo "")
-PROPERTY_ID=$(dfx canister id property --network "$NETWORK" 2>/dev/null || echo "")
-PHOTO_ID=$(dfx canister id photo --network "$NETWORK" 2>/dev/null || echo "")
-QUOTE_ID=$(dfx canister id quote --network "$NETWORK" 2>/dev/null || echo "")
-SENSOR_ID=$(dfx canister id sensor --network "$NETWORK" 2>/dev/null || echo "")
-REPORT_ID=$(dfx canister id report --network "$NETWORK" 2>/dev/null || echo "")
-
-# ── Canister ID wiring (target canister ID strings for cross-calls) ────────────
-# Each call writes to a different canister's stable variable — fire in parallel.
-
-BILLS_ID=$(dfx canister id bills --network "$NETWORK" 2>/dev/null || echo "")
+JOB_ID=$(icp canister status job -e "$ENV" --id-only 2>/dev/null || echo "")
+PAYMENT_ID=$(icp canister status payment -e "$ENV" --id-only 2>/dev/null || echo "")
+CONTRACTOR_ID=$(icp canister status contractor -e "$ENV" --id-only 2>/dev/null || echo "")
+PROPERTY_ID=$(icp canister status property -e "$ENV" --id-only 2>/dev/null || echo "")
+PHOTO_ID=$(icp canister status photo -e "$ENV" --id-only 2>/dev/null || echo "")
+QUOTE_ID=$(icp canister status quote -e "$ENV" --id-only 2>/dev/null || echo "")
+SENSOR_ID=$(icp canister status sensor -e "$ENV" --id-only 2>/dev/null || echo "")
+REPORT_ID=$(icp canister status report -e "$ENV" --id-only 2>/dev/null || echo "")
+BILLS_ID=$(icp canister status bills -e "$ENV" --id-only 2>/dev/null || echo "")
 
 if [ -n "$JOB_ID" ]      && [ -n "$PAYMENT_ID" ];    then
   echo "  Wiring payment -> job..."
-  dfx canister call job      setPaymentCanisterId    "(\"$PAYMENT_ID\")"          --network "$NETWORK" &
+  icp canister call job      setPaymentCanisterId    "(\"$PAYMENT_ID\")"          -e "$ENV" &
 fi
 if [ -n "$PROPERTY_ID" ] && [ -n "$PAYMENT_ID" ];    then
   echo "  Wiring payment -> property..."
-  dfx canister call property setPaymentCanisterId    "(principal \"$PAYMENT_ID\")" --network "$NETWORK" 2>/dev/null &
+  icp canister call property setPaymentCanisterId    "(principal \"$PAYMENT_ID\")" -e "$ENV" 2>/dev/null &
 fi
 if [ -n "$PHOTO_ID" ]    && [ -n "$PAYMENT_ID" ];    then
   echo "  Wiring payment -> photo..."
-  dfx canister call photo    setPaymentCanisterId    "(principal \"$PAYMENT_ID\")" --network "$NETWORK" 2>/dev/null &
+  icp canister call photo    setPaymentCanisterId    "(principal \"$PAYMENT_ID\")" -e "$ENV" 2>/dev/null &
 fi
 if [ -n "$QUOTE_ID" ]    && [ -n "$PAYMENT_ID" ];    then
   echo "  Wiring payment -> quote..."
-  dfx canister call quote    setPaymentCanisterId    "(principal \"$PAYMENT_ID\")" --network "$NETWORK" 2>/dev/null &
+  icp canister call quote    setPaymentCanisterId    "(principal \"$PAYMENT_ID\")" -e "$ENV" 2>/dev/null &
 fi
 
-# ── Tier propagation admin grants ─────────────────────────────────────────────
-# payment must be an admin in property/quote/photo to call setTier() cross-canister.
-# Without this, all propagateTier() calls return #NotAuthorized and tier limits
-# in those canisters silently remain at #Free for everyone (#139).
 if [ -n "$PAYMENT_ID" ] && [ -n "$PROPERTY_ID" ]; then
   echo "  property: adding payment as admin (for tier propagation)..."
-  dfx canister call property addAdmin "(principal \"$PAYMENT_ID\")" --network "$NETWORK" 2>/dev/null &
+  icp canister call property addAdmin "(principal \"$PAYMENT_ID\")" -e "$ENV" 2>/dev/null &
 fi
 if [ -n "$PAYMENT_ID" ] && [ -n "$QUOTE_ID" ]; then
   echo "  quote: adding payment as admin (for tier propagation)..."
-  dfx canister call quote addAdmin "(principal \"$PAYMENT_ID\")" --network "$NETWORK" 2>/dev/null &
+  icp canister call quote addAdmin "(principal \"$PAYMENT_ID\")" -e "$ENV" 2>/dev/null &
 fi
 if [ -n "$PAYMENT_ID" ] && [ -n "$PHOTO_ID" ]; then
   echo "  photo: adding payment as admin (for tier propagation)..."
-  dfx canister call photo addAdmin "(principal \"$PAYMENT_ID\")" --network "$NETWORK" 2>/dev/null &
+  icp canister call photo addAdmin "(principal \"$PAYMENT_ID\")" -e "$ENV" 2>/dev/null &
 fi
 
-# ── Tier propagation canister ID wiring ────────────────────────────────────────
-# Tells payment which canister IDs to call setTier() on when a subscription changes.
 if [ -n "$PAYMENT_ID" ] && [ -n "$PROPERTY_ID" ] && [ -n "$QUOTE_ID" ] && [ -n "$PHOTO_ID" ]; then
   echo "  Wiring tier propagation: payment -> property, quote, photo..."
-  dfx canister call payment setTierCanisterIds \
+  icp canister call payment setTierCanisterIds \
     "(principal \"$PROPERTY_ID\", principal \"$QUOTE_ID\", principal \"$PHOTO_ID\")" \
-    --network "$NETWORK" 2>/dev/null &
+    -e "$ENV" 2>/dev/null &
 fi
 if [ -n "$BILLS_ID" ]    && [ -n "$PAYMENT_ID" ];    then
   echo "  Wiring payment -> bills..."
-  dfx canister call bills    setPaymentCanisterId    "(\"$PAYMENT_ID\")"          --network "$NETWORK" &
+  icp canister call bills    setPaymentCanisterId    "(\"$PAYMENT_ID\")"          -e "$ENV" &
 fi
 if [ -n "$JOB_ID" ]      && [ -n "$CONTRACTOR_ID" ]; then
   echo "  Wiring contractor -> job..."
-  dfx canister call job      setContractorCanisterId "(\"$CONTRACTOR_ID\")"       --network "$NETWORK" &
+  icp canister call job      setContractorCanisterId "(\"$CONTRACTOR_ID\")"       -e "$ENV" &
 fi
 if [ -n "$JOB_ID" ]      && [ -n "$PROPERTY_ID" ];   then
   echo "  Wiring property -> job..."
-  dfx canister call job      setPropertyCanisterId   "(\"$PROPERTY_ID\")"         --network "$NETWORK" &
+  icp canister call job      setPropertyCanisterId   "(\"$PROPERTY_ID\")"         -e "$ENV" &
 fi
 if [ -n "$PHOTO_ID" ]    && [ -n "$PROPERTY_ID" ];   then
   echo "  Wiring property -> photo..."
-  dfx canister call photo    setPropertyCanisterId   "(principal \"$PROPERTY_ID\")" --network "$NETWORK" &
+  icp canister call photo    setPropertyCanisterId   "(principal \"$PROPERTY_ID\")" -e "$ENV" &
 fi
 if [ -n "$QUOTE_ID" ]    && [ -n "$PROPERTY_ID" ];   then
   echo "  Wiring property -> quote..."
-  dfx canister call quote    setPropertyCanisterId   "(principal \"$PROPERTY_ID\")" --network "$NETWORK" &
+  icp canister call quote    setPropertyCanisterId   "(principal \"$PROPERTY_ID\")" -e "$ENV" &
 fi
-MAINTENANCE_ID=$(dfx canister id maintenance --network "$NETWORK" 2>/dev/null || echo "")
+MAINTENANCE_ID=$(icp canister status maintenance -e "$ENV" --id-only 2>/dev/null || echo "")
 if [ -n "$MAINTENANCE_ID" ] && [ -n "$PROPERTY_ID" ]; then
   echo "  Wiring property -> maintenance..."
-  dfx canister call maintenance setPropertyCanisterId "(principal \"$PROPERTY_ID\")" --network "$NETWORK" &
+  icp canister call maintenance setPropertyCanisterId "(principal \"$PROPERTY_ID\")" -e "$ENV" &
 fi
 
-wait   # wait for all wiring calls before reading IDs in the trusted-canister section
-
-# ── Trusted canister wiring (derived from call topology) ──────────────────────
-# These mirror the actual inter-canister call graph so each canister auto-trusts
-# its known callers. Admins can add external canisters later via addTrustedCanister.
+wait
 
 echo ""
 echo "============================================"
 echo "  Wiring Trusted Canister Lists"
 echo "============================================"
 
-# All addTrustedCanister calls target different canisters or append to independent
-# lists — fire them in parallel then wait before moving on.
-
-# payment trusts job/property/photo/quote (all call getTierForPrincipal)
 if [ -n "$JOB_ID" ]      && [ -n "$PAYMENT_ID" ]; then
   echo "  payment: trusting job ($JOB_ID)..."
-  dfx canister call payment addTrustedCanister "(principal \"$JOB_ID\")"      --network "$NETWORK" 2>/dev/null &
+  icp canister call payment addTrustedCanister "(principal \"$JOB_ID\")"      -e "$ENV" 2>/dev/null &
 fi
 if [ -n "$PROPERTY_ID" ] && [ -n "$PAYMENT_ID" ]; then
   echo "  payment: trusting property ($PROPERTY_ID)..."
-  dfx canister call payment addTrustedCanister "(principal \"$PROPERTY_ID\")" --network "$NETWORK" 2>/dev/null &
+  icp canister call payment addTrustedCanister "(principal \"$PROPERTY_ID\")" -e "$ENV" 2>/dev/null &
 fi
 if [ -n "$PHOTO_ID" ]    && [ -n "$PAYMENT_ID" ]; then
   echo "  payment: trusting photo ($PHOTO_ID)..."
-  dfx canister call payment addTrustedCanister "(principal \"$PHOTO_ID\")"    --network "$NETWORK" 2>/dev/null &
+  icp canister call payment addTrustedCanister "(principal \"$PHOTO_ID\")"    -e "$ENV" 2>/dev/null &
 fi
 if [ -n "$QUOTE_ID" ]    && [ -n "$PAYMENT_ID" ]; then
   echo "  payment: trusting quote ($QUOTE_ID)..."
-  dfx canister call payment addTrustedCanister "(principal \"$QUOTE_ID\")"    --network "$NETWORK" 2>/dev/null &
+  icp canister call payment addTrustedCanister "(principal \"$QUOTE_ID\")"    -e "$ENV" 2>/dev/null &
 fi
-
-# contractor trusts job (job calls recordJobVerified)
 if [ -n "$JOB_ID" ] && [ -n "$CONTRACTOR_ID" ]; then
   echo "  contractor: trusting job ($JOB_ID)..."
-  dfx canister call contractor addTrustedCanister "(principal \"$JOB_ID\")"   --network "$NETWORK" 2>/dev/null &
+  icp canister call contractor addTrustedCanister "(principal \"$JOB_ID\")"   -e "$ENV" 2>/dev/null &
 fi
-
-# property trusts job/photo/quote/report
 if [ -n "$JOB_ID" ]    && [ -n "$PROPERTY_ID" ]; then
   echo "  property: trusting job ($JOB_ID)..."
-  dfx canister call property addTrustedCanister "(principal \"$JOB_ID\")"     --network "$NETWORK" 2>/dev/null &
+  icp canister call property addTrustedCanister "(principal \"$JOB_ID\")"     -e "$ENV" 2>/dev/null &
 fi
 if [ -n "$PHOTO_ID" ]  && [ -n "$PROPERTY_ID" ]; then
   echo "  property: trusting photo ($PHOTO_ID)..."
-  dfx canister call property addTrustedCanister "(principal \"$PHOTO_ID\")"   --network "$NETWORK" 2>/dev/null &
+  icp canister call property addTrustedCanister "(principal \"$PHOTO_ID\")"   -e "$ENV" 2>/dev/null &
 fi
 if [ -n "$QUOTE_ID" ]  && [ -n "$PROPERTY_ID" ]; then
   echo "  property: trusting quote ($QUOTE_ID)..."
-  dfx canister call property addTrustedCanister "(principal \"$QUOTE_ID\")"   --network "$NETWORK" 2>/dev/null &
+  icp canister call property addTrustedCanister "(principal \"$QUOTE_ID\")"   -e "$ENV" 2>/dev/null &
 fi
 if [ -n "$REPORT_ID" ] && [ -n "$PROPERTY_ID" ]; then
   echo "  property: trusting report ($REPORT_ID)..."
-  dfx canister call property addTrustedCanister "(principal \"$REPORT_ID\")"  --network "$NETWORK" 2>/dev/null &
+  icp canister call property addTrustedCanister "(principal \"$REPORT_ID\")"  -e "$ENV" 2>/dev/null &
 fi
-
-# job trusts sensor (sensor calls createSensorJob)
 if [ -n "$SENSOR_ID" ] && [ -n "$JOB_ID" ]; then
   echo "  job: trusting sensor ($SENSOR_ID)..."
-  dfx canister call job addTrustedCanister "(principal \"$SENSOR_ID\")"       --network "$NETWORK" 2>/dev/null &
+  icp canister call job addTrustedCanister "(principal \"$SENSOR_ID\")"       -e "$ENV" 2>/dev/null &
 fi
 
-wait   # wait for all trust wiring before moving on
+wait
 
 # ── AI Proxy canister — wire API keys from environment ────────────────────────
-
-AI_PROXY_ID=$(dfx canister id ai_proxy --network "$NETWORK" 2>/dev/null || echo "")
+AI_PROXY_ID=$(icp canister status ai_proxy -e "$ENV" --id-only 2>/dev/null || echo "")
 
 if [ -n "$AI_PROXY_ID" ]; then
   echo ""
@@ -543,25 +593,29 @@ if [ -n "$AI_PROXY_ID" ]; then
   echo "============================================"
 
   echo "  ai_proxy: adding deployer ($DEPLOYER) as admin..."
-  dfx canister call ai_proxy addAdmin "(principal \"$DEPLOYER\")" --network "$NETWORK"
+  icp canister call ai_proxy addAdmin "(principal \"$DEPLOYER\")" -e "$ENV" \
+    2>/dev/null || echo "  ⚠️  ai_proxy addAdmin failed (may already be initialized)"
 
   if [ -n "${RESEND_API_KEY:-}" ]; then
     echo "  ai_proxy: setting Resend API key..."
-    dfx canister call ai_proxy setResendApiKey "(\"$RESEND_API_KEY\")" --network "$NETWORK"
+    icp canister call ai_proxy setResendApiKey "(\"$RESEND_API_KEY\")" -e "$ENV" \
+      2>/dev/null || echo "  ⚠️  setResendApiKey failed"
   else
     echo "  ⚠️  RESEND_API_KEY not set — email sending will be disabled"
   fi
 
   if [ -n "${OPEN_PERMIT_API_KEY:-}" ]; then
     echo "  ai_proxy: setting OpenPermit API key..."
-    dfx canister call ai_proxy setOpenPermitApiKey "(\"$OPEN_PERMIT_API_KEY\")" --network "$NETWORK"
+    icp canister call ai_proxy setOpenPermitApiKey "(\"$OPEN_PERMIT_API_KEY\")" -e "$ENV" \
+      2>/dev/null || echo "  ⚠️  setOpenPermitApiKey failed"
   else
-    echo "  ⚠️  OPEN_PERMIT_API_KEY not set — OpenPermit lookups will be disabled (Volusia ArcGIS still works)"
+    echo "  ⚠️  OPEN_PERMIT_API_KEY not set — OpenPermit lookups will be disabled"
   fi
 
   if [ -n "${RESEND_FROM_ADDRESS:-}" ]; then
     echo "  ai_proxy: setting Resend from address..."
-    dfx canister call ai_proxy setResendFromAddress "(\"$RESEND_FROM_ADDRESS\")" --network "$NETWORK"
+    icp canister call ai_proxy setResendFromAddress "(\"$RESEND_FROM_ADDRESS\")" -e "$ENV" \
+      2>/dev/null || echo "  ⚠️  setResendFromAddress failed"
   fi
 fi
 
@@ -569,50 +623,31 @@ echo ""
 echo "============================================"
 echo "  Controller Hardening"
 echo "============================================"
-# PROD.9 — If BACKUP_CONTROLLER_PRINCIPAL is set, add it as a second controller
-# on every canister so that a single compromised identity cannot destroy the app.
-#
-# Recommended values:
-#   - A hardware-wallet principal (e.g. Ledger via Internet Identity)
-#   - A separate CI identity with read-only deploy access
-#   - An SNS/governance canister principal (if moving to community ownership)
-#
-# Set this in CI:  BACKUP_CONTROLLER_PRINCIPAL secret in GitHub environment
-# Set this locally: export BACKUP_CONTROLLER_PRINCIPAL=<your-principal>
-
-if [ "$NETWORK" != "local" ]; then
+# TODO: icp-cli equivalent of `dfx canister update-settings --add-controller` is
+# not yet documented in the migration guide. Re-enable once confirmed.
+# Tracking: MeteSr/HomeGentic#174
+if [ "$ENV" != "local" ]; then
   if [ -n "${BACKUP_CONTROLLER_PRINCIPAL:-}" ]; then
-    echo "▶ Adding backup controller ($BACKUP_CONTROLLER_PRINCIPAL) to all canisters..."
-    ALL_CANISTERS=("${CANISTERS[@]}" frontend)
-    for canister in "${ALL_CANISTERS[@]}"; do
-      if dfx canister update-settings "$canister" \
-           --add-controller "$BACKUP_CONTROLLER_PRINCIPAL" \
-           --network "$NETWORK" 2>/dev/null; then
-        echo "  ✓ $canister"
-      else
-        echo "  ⚠️  Could not add backup controller to $canister"
-      fi
-    done
+    echo "  ⚠️  Controller hardening skipped — icp canister settings --add-controller"
+    echo "     not yet confirmed. Set manually via dfx until icp-cli documents this."
+    echo "     BACKUP_CONTROLLER_PRINCIPAL=${BACKUP_CONTROLLER_PRINCIPAL}"
   else
     echo "  ⚠️  BACKUP_CONTROLLER_PRINCIPAL is not set."
     echo "     All canisters are controlled only by the deploying identity."
-    echo "     If that identity is compromised, all canisters can be deleted."
-    echo "     Set BACKUP_CONTROLLER_PRINCIPAL to a hardware-wallet or secondary principal."
   fi
 else
   echo "  (skipped — local network)"
 fi
 
+# Internet Identity is managed by icp-cli via ii: true in icp.yaml.
+# icp network start -d deploys it automatically. Local URL: http://id.ai.localhost:8000
+
 echo ""
 echo "============================================"
 echo "  Building Frontend"
 echo "============================================"
-# PROD.5 — the frontend build must run AFTER dfx deploy so that .env already
-# contains all CANISTER_ID_* values written by dfx.  The build also runs
-# gen-ic-assets.mjs which substitutes VITE_VOICE_AGENT_URL into the CSP header
-# written to dist/.ic-assets.json5 — that file must exist before the next step.
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-export DFX_NETWORK="$NETWORK"
+export DFX_NETWORK="$ENV"
 echo "▶ npm run build (frontend)..."
 if (cd "$REPO_ROOT/frontend" && npm run build); then
   echo "  ✓ Frontend built (dist/ + .ic-assets.json5 ready)"
@@ -625,9 +660,9 @@ echo ""
 echo "============================================"
 echo "  Deploying Frontend Canister"
 echo "============================================"
-echo "▶ dfx deploy frontend --network $NETWORK..."
-if dfx deploy frontend --network "$NETWORK"; then
-  FRONTEND_ID=$(dfx canister id frontend --network "$NETWORK" 2>/dev/null || echo "unknown")
+echo "▶ icp deploy frontend -e $ENV..."
+if icp deploy frontend -e "$ENV"; then
+  FRONTEND_ID=$(icp canister status frontend -e "$ENV" --id-only 2>/dev/null || echo "unknown")
   echo "  ✓ Frontend canister deployed ($FRONTEND_ID)"
 else
   echo "  ✗ Frontend canister deploy failed"

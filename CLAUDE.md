@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Development
 ```bash
-make dev          # Start local ICP replica, deploy all canisters, run frontend (all-in-one)
-make start        # dfx start --background (replica only)
-make deploy       # bash scripts/deploy.sh (all 13 canisters)
+make dev          # Start local ICP network, deploy all canisters, run frontend (all-in-one)
+make start        # icp network start -d (network only)
+make deploy       # bash scripts/deploy.sh (all 17 canisters)
 make frontend     # cd frontend && npm run dev (Vite dev server at :5173)
 ```
 

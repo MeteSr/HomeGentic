@@ -51,6 +51,7 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
   const [linkDisclosures, setLinkDisclosures] = useState<Record<string, DisclosureOptions>>({});
   const [expandedToken, setExpandedToken] = useState<string | null>(null);
   const [userTier, setUserTier] = useState<PlanTier>("Free");
+  const [subscriptionLoading, setSubscriptionLoading] = useState(true);
 
   const getLinkDisclosure = (token: string): DisclosureOptions =>
     linkDisclosures[token] ?? { hideAmounts: false, hideContractors: false, hidePermits: false, hideDescriptions: false };
@@ -69,7 +70,8 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
       setUserTier(s.tier);
       // Free tier: cap expiry at 7 days (15.2.1)
       if (s.tier === "Free") setExpiryDays(7);
-    }).catch((e) => console.error("[GenerateReportModal] subscription load failed:", e));
+    }).catch((e) => console.error("[GenerateReportModal] subscription load failed:", e))
+      .finally(() => setSubscriptionLoading(false));
     reportService.listShareLinks(propertyId)
       .then(setLinks)
       .finally(() => setLoadingLinks(false));
@@ -261,6 +263,7 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
 
             <Button
               loading={generating}
+              disabled={subscriptionLoading}
               onClick={handleGenerate}
               icon={<Link2 size={14} />}
               style={{ width: "100%" }}

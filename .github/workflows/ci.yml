@@ -16,16 +16,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Cache DFX binary
-        uses: actions/cache@v5
+      - uses: actions/setup-node@v6
         with:
-          path: ~/.cache/dfinity
-          key: dfx-${{ runner.os }}-${{ hashFiles('dfx.json') }}
+          node-version: '20'
 
-      - name: Install DFX
-        uses: dfinity/setup-dfx@main
-        with:
-          dfx_version: "0.31.0"
+      - name: Install icp-cli
+        run: npm install -g @icp-sdk/icp-cli
 
       - name: Cache mops packages
         uses: actions/cache@v5
@@ -39,30 +35,45 @@ jobs:
       - name: Install Motoko dependencies
         run: mops install
 
-      - name: Start replica (needed for canister create)
-        run: dfx start --background --clean
+      - name: Initialize mops toolchain (downloads moc)
+        run: mops toolchain init
 
-      - name: Create canister stubs
-        # Registers canister IDs in local state so dfx build can resolve them.
-        # Does not deploy Wasm — just allocates IDs.
-        run: dfx canister create --all
-
-      - name: Seed management canister IDL
-        # caffeineai-http-outcalls imports ic:aaaaa-aa (the IC management canister).
-        # moc looks for aaaaa-aa.did in .dfx/local/canisters/idl/ but dfx canister create
-        # does not generate it. The minimal IDL is committed at .github/candid/aaaaa-aa.did.
+      - name: Pre-warm moc binary
         run: |
-          mkdir -p .dfx/local/canisters/idl
-          cp .github/candid/aaaaa-aa.did .dfx/local/canisters/idl/aaaaa-aa.did
+          MOC_BIN=$(mops toolchain bin moc 2>/dev/null) || MOC_BIN=""
+          if [ -z "$MOC_BIN" ]; then
+            rm -rf .mops/_tmp && mops toolchain init
+            MOC_BIN=$(mops toolchain bin moc)
+          fi
+          echo "moc: $MOC_BIN"
+          "$MOC_BIN" --version
+
+      - name: Install ic-wasm
+        run: |
+          TMP=$(mktemp -d)
+          curl -sSfL \
+            https://github.com/dfinity/ic-wasm/releases/download/0.9.11/ic-wasm-x86_64-unknown-linux-musl.tar.xz \
+            -o "$TMP/ic-wasm.tar.xz"
+          tar -xJf "$TMP/ic-wasm.tar.xz" -C "$TMP"
+          BIN=$(find "$TMP" -name "ic-wasm" -type f | head -1)
+          sudo install -m 755 "$BIN" /usr/local/bin/ic-wasm
+          rm -rf "$TMP"
+          ic-wasm --version
+
+      - name: Start local network (needed for canister ID allocation)
+        run: icp network start -d
 
       - name: Compile all Motoko canisters
-        # Build every canister whose type is not "assets" (i.e. all Motoko
-        # canisters). The frontend asset canister is excluded — its TypeScript
-        # build is already verified in the test-frontend job.
-        # jq is pre-installed on all GitHub-hosted runners.
+        # Build every canister except the frontend asset canister.
+        # Parse only the canisters: block — networks:/environments: also have
+        # "  - name:" entries (e.g. "local", "testnet") which are not canisters.
         run: |
-          jq -r '.canisters | to_entries[] | select(.value.type != "assets" and .value.type != "pull") | .key' dfx.json | \
-          while read -r canister; do dfx build "$canister" || exit 1; done
+          awk '/^canisters:/{p=1;next} /^[a-z]/{p=0} p && /^  - name:/{print $3}' icp.yaml \
+            | grep -v "^frontend$" | grep -v "^internet_identity$" \
+            | while read -r canister; do
+              echo "=== $canister ==="
+              icp build "$canister" || exit 1
+            done
 
   test-backend:
     runs-on: ubuntu-latest
@@ -79,17 +90,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Cache DFX binary
-        id: cache-dfx
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/dfinity
-          key: dfx-${{ runner.os }}-${{ hashFiles('dfx.json') }}
-
-      - name: Install DFX
-        uses: dfinity/setup-dfx@main
-        with:
-          dfx_version: "0.31.0"
+      - name: Install dfx
+        # test-backend uses dfx for local deployment: dfx handles cycle fabrication
+        # automatically on local replicas. icp-cli's managed PocketIC network has no
+        # cycles infrastructure so icp canister create fails on fresh networks.
+        # test-backend.sh also calls `dfx ping`, so dfx must be the active replica.
+        run: |
+          DFX_VERSION=0.24.3 DFXVM_INIT_YES=1 sh -c "$(curl -fsSL https://internetcomputer.org/install.sh)"
+          echo "$HOME/.local/share/dfx/bin" >> "$GITHUB_PATH"
 
       - name: Cache mops packages
         uses: actions/cache@v5
@@ -100,11 +108,82 @@ jobs:
       - name: Install mops
         run: npm install -g ic-mops
 
-      - name: Start replica
-        run: dfx start --background --clean
+      - name: Install Motoko dependencies
+        run: mops install
+
+      - name: Initialize mops toolchain (downloads moc 1.3.0)
+        # dfx 0.24.x uses the mops-managed moc when [toolchain] is set in mops.toml.
+        run: |
+          mops toolchain init
+          MOC_BIN=$(mops toolchain bin moc 2>/dev/null) || MOC_BIN=""
+          if [ -z "$MOC_BIN" ]; then
+            rm -rf .mops/_tmp && mops toolchain init
+            MOC_BIN=$(mops toolchain bin moc)
+          fi
+          "$MOC_BIN" --version
+
+      - name: Start local replica
+        run: dfx start --clean --background
 
       - name: Deploy canisters
-        run: bash scripts/deploy.sh
+        run: |
+          DEPLOYER=$(dfx identity get-principal)
+          # moc-wrapper (installed by ic-mops) delegates to mops moc 1.3.0.
+          # That moc still needs aaaaa-aa.did in the --actor-idl directory for
+          # canisters that import ic:aaaaa-aa (e.g. caffeineai-http-outcalls).
+          mkdir -p .dfx/local/canisters/idl/
+          cp did/aaaaa-aa.did .dfx/local/canisters/idl/
+          dfx deploy auth --argument "(principal \"$DEPLOYER\")"
+          dfx deploy
+
+          # ── Bootstrap admin lists ────────────────────────────────────────────
+          for canister in property job contractor quote photo report maintenance market sensor listing agent recurring bills monitoring; do
+            dfx canister call "$canister" addAdmin "(principal \"$DEPLOYER\")"
+          done
+          dfx canister call payment initAdmins "(vec { principal \"$DEPLOYER\" })" || true
+          dfx canister call payment grantSubscription "(principal \"$DEPLOYER\", variant { Pro })"
+
+          # ── Wire inter-canister IDs ──────────────────────────────────────────
+          PAYMENT_ID=$(dfx canister id payment)
+          PROPERTY_ID=$(dfx canister id property)
+          PHOTO_ID=$(dfx canister id photo)
+          QUOTE_ID=$(dfx canister id quote)
+          JOB_ID=$(dfx canister id job)
+          CONTRACTOR_ID=$(dfx canister id contractor)
+          SENSOR_ID=$(dfx canister id sensor)
+          REPORT_ID=$(dfx canister id report)
+          BILLS_ID=$(dfx canister id bills)
+          MAINTENANCE_ID=$(dfx canister id maintenance)
+
+          dfx canister call job         setPaymentCanisterId    "(\"$PAYMENT_ID\")"
+          dfx canister call property    setPaymentCanisterId    "(principal \"$PAYMENT_ID\")"
+          dfx canister call photo       setPaymentCanisterId    "(principal \"$PAYMENT_ID\")"
+          dfx canister call quote       setPaymentCanisterId    "(principal \"$PAYMENT_ID\")"
+          dfx canister call bills       setPaymentCanisterId    "(\"$PAYMENT_ID\")"
+          dfx canister call job         setContractorCanisterId "(\"$CONTRACTOR_ID\")"
+          dfx canister call job         setPropertyCanisterId   "(\"$PROPERTY_ID\")"
+          dfx canister call photo       setPropertyCanisterId   "(principal \"$PROPERTY_ID\")"
+          dfx canister call quote       setPropertyCanisterId   "(principal \"$PROPERTY_ID\")"
+          dfx canister call maintenance setPropertyCanisterId   "(principal \"$PROPERTY_ID\")"
+
+          # ── Tier propagation wiring ──────────────────────────────────────────
+          dfx canister call property addAdmin "(principal \"$PAYMENT_ID\")"
+          dfx canister call quote    addAdmin "(principal \"$PAYMENT_ID\")"
+          dfx canister call photo    addAdmin "(principal \"$PAYMENT_ID\")"
+          dfx canister call payment  setTierCanisterIds \
+            "(principal \"$PROPERTY_ID\", principal \"$QUOTE_ID\", principal \"$PHOTO_ID\")"
+
+          # ── Trusted canister lists ───────────────────────────────────────────
+          dfx canister call payment    addTrustedCanister "(principal \"$JOB_ID\")"
+          dfx canister call payment    addTrustedCanister "(principal \"$PROPERTY_ID\")"
+          dfx canister call payment    addTrustedCanister "(principal \"$PHOTO_ID\")"
+          dfx canister call payment    addTrustedCanister "(principal \"$QUOTE_ID\")"
+          dfx canister call contractor addTrustedCanister "(principal \"$JOB_ID\")"
+          dfx canister call property   addTrustedCanister "(principal \"$JOB_ID\")"
+          dfx canister call property   addTrustedCanister "(principal \"$PHOTO_ID\")"
+          dfx canister call property   addTrustedCanister "(principal \"$QUOTE_ID\")"
+          dfx canister call property   addTrustedCanister "(principal \"$REPORT_ID\")"
+          dfx canister call job        addTrustedCanister "(principal \"$SENSOR_ID\")"
 
       - name: Run tests
         run: bash scripts/test-backend.sh
@@ -169,7 +248,7 @@ jobs:
 
   test-e2e:
     runs-on: ubuntu-latest
-    # No DFX/replica needed: tests run in mock mode (no .env → no canister IDs →
+    # No replica needed: tests run in mock mode (no .env → no canister IDs →
     # all service calls fall back to in-memory mocks). loginWithLocalIdentity()
     # now silently skips fetchRootKey when the replica is absent.
     needs: [test-frontend]

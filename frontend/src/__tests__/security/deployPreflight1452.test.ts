@@ -35,7 +35,7 @@ describe("PROD.1 — deploy.sh validates ANTHROPIC_API_KEY for non-local deploys
     expect(anthIdx).toBeGreaterThan(-1);
     // Within the surrounding 600 chars there must be a non-local condition
     const window = deploy.slice(Math.max(0, anthIdx - 600), anthIdx + 200);
-    expect(window).toMatch(/NETWORK.*!=.*local|!=.*local.*NETWORK|\[.*"\$NETWORK".*!=.*"local"\]/);
+    expect(window).toMatch(/NETWORK.*!=.*local|!=.*local.*NETWORK|\[.*"\$NETWORK".*!=.*"local"\]|ENV.*!=.*local|!=.*local.*ENV|\[.*"\$ENV".*!=.*"local"\]/);
   });
 });
 
@@ -51,15 +51,15 @@ describe("PROD.2 — deploy.sh validates VOICE_AGENT_API_KEY for non-local deplo
     const idx = deploy.indexOf("VOICE_AGENT_API_KEY");
     expect(idx).toBeGreaterThan(-1);
     const window = deploy.slice(Math.max(0, idx - 600), idx + 200);
-    expect(window).toMatch(/NETWORK.*!=.*local|!=.*local.*NETWORK|\[.*"\$NETWORK".*!=.*"local"\]/);
+    expect(window).toMatch(/NETWORK.*!=.*local|!=.*local.*NETWORK|\[.*"\$NETWORK".*!=.*"local"\]|ENV.*!=.*local|!=.*local.*ENV|\[.*"\$ENV".*!=.*"local"\]/);
   });
 });
 
 // ── PROD.3 — cycles check in deploy.sh ───────────────────────────────────────
 
 describe("PROD.3 — deploy.sh has cycles balance check for non-local deploys", () => {
-  it("deploy.sh calls dfx canister status to read cycles balance", () => {
-    expect(read("scripts/deploy.sh")).toMatch(/dfx canister status/);
+  it("deploy.sh calls icp canister status to read cycles balance", () => {
+    expect(read("scripts/deploy.sh")).toMatch(/icp canister status/);
   });
 
   it("deploy.sh references deposit-cycles for top-up", () => {
@@ -68,11 +68,13 @@ describe("PROD.3 — deploy.sh has cycles balance check for non-local deploys", 
 
   it("cycles check is skipped for local network", () => {
     const deploy = read("scripts/deploy.sh");
-    // The cycles section must be guarded — local uses fabricate-cycles, not deposit-cycles
-    const depositIdx = deploy.indexOf("deposit-cycles");
-    expect(depositIdx).toBeGreaterThan(-1);
-    const window = deploy.slice(Math.max(0, depositIdx - 800), depositIdx + 100);
-    expect(window).toMatch(/NETWORK.*!=.*local|!=.*local.*NETWORK|\[.*"\$NETWORK".*!=.*"local"\]/);
+    // The cycles section must be guarded — local network uses managed system cycles.
+    // Use lastIndexOf to target the actual command (not the TODO comment that also
+    // contains the string).  The ENV guard sits ~823 chars before the call.
+    const transferIdx = deploy.lastIndexOf("icp cycles transfer");
+    expect(transferIdx).toBeGreaterThan(-1);
+    const window = deploy.slice(Math.max(0, transferIdx - 1000), transferIdx + 100);
+    expect(window).toMatch(/NETWORK.*!=.*local|!=.*local.*NETWORK|ENV.*!=.*local|!=.*local.*ENV|\[.*"\$ENV".*!=.*"local"\]/);
   });
 });
 
