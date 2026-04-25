@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEPLOY_SCRIPT_VERSION="1.4.5"
+DEPLOY_SCRIPT_VERSION="1.4.6"
 ENV=${1:-local}
 
 echo "============================================"
@@ -195,111 +195,142 @@ if [ "${DRY_RUN:-0}" = "1" ]; then
 fi
 
 # ── Canister deployment ───────────────────────────────────────────────────────────
-# icp-cli writes all canister IDs to a single local.ids.json file. Parallel icp build
-# calls also write to this file (recipe metadata), so concurrent builds corrupt it —
-# the "no JSON writes in Phase 2" assumption turned out to be wrong in CI.
-# Build sequentially to avoid corruption; CI deploy time (~3 min) is acceptable.
+# Two paths:
+#   local  — icp deploy <canister> (all-in-one: create+build+install). icp canister
+#             create requires a funded cycles balance even with --cycles 0; icp deploy
+#             bypasses this by using a different PocketIC code path.
+#   non-local — three-phase: create (sequential) → build (sequential) → install
+#               (sequential). Sequential builds avoid concurrent writes to local.ids.json.
 
 CANISTERS=(auth property job contractor quote payment photo report maintenance market sensor monitoring listing agent recurring bills ai_proxy)
 LOG_DIR=$(mktemp -d /tmp/icp-deploy-XXXXXX)
 DEPLOY_PRINCIPAL=$(icp identity principal)
 
-# ── Phase 1: Create canister slots ──────────────────────────────────────────────
-# Local PocketIC: icp canister create defaults to requesting 2T cycles from the
-# identity balance, which starts at 0. Pass --cycles 0 so the create succeeds
-# without a funded balance — PocketIC doesn't enforce cycle balances locally.
-echo ""
-echo "▶ Phase 1/3 — Creating canister slots..."
-for canister in "${CANISTERS[@]}"; do
-  echo -n "  $canister... "
-  CREATE_ARGS=(-e "$ENV")
-  [ "$ENV" = "local" ] && CREATE_ARGS+=(--cycles 0)
-  if icp canister create "$canister" "${CREATE_ARGS[@]}" >"$LOG_DIR/$canister.create.log" 2>&1; then
-    echo "created"
-  else
-    # Non-zero exit: check whether the canister already exists (ID registered from a
-    # previous run) vs. a real failure (ID missing — must abort, not silently proceed).
-    EXISTING_ID=$(icp canister status "$canister" -e "$ENV" --id-only 2>/dev/null || echo "")
-    if [ -n "$EXISTING_ID" ]; then
-      echo "exists ($EXISTING_ID)"
+if [ "$ENV" = "local" ]; then
+  # ── Local: all-in-one icp deploy ────────────────────────────────────────────
+  echo ""
+  echo "▶ Deploying all canisters (local)..."
+  for canister in "${CANISTERS[@]}"; do
+    echo -n "  $canister... "
+    if [ "$canister" = "auth" ]; then
+      if icp deploy auth \
+          --args "(principal \"$DEPLOY_PRINCIPAL\")" \
+          -e "$ENV" \
+          >"$LOG_DIR/auth.deploy.log" 2>&1; then
+        echo "✓"
+      else
+        echo "FAILED"
+        echo ""
+        echo "── auth deploy log ──────────────────────────"
+        cat "$LOG_DIR/auth.deploy.log"
+        rm -rf "$LOG_DIR"
+        exit 1
+      fi
     else
-      echo "FAILED"
+      if icp deploy "$canister" -e "$ENV" >"$LOG_DIR/$canister.deploy.log" 2>&1; then
+        echo "✓"
+      else
+        echo "FAILED"
+        echo ""
+        echo "── $canister deploy log ──────────────────────────"
+        cat "$LOG_DIR/$canister.deploy.log"
+        rm -rf "$LOG_DIR"
+        exit 1
+      fi
+    fi
+  done
+
+else
+  # ── Non-local: three-phase deploy (create → build → install) ────────────────
+  # Phase 1: Create canister slots
+  echo ""
+  echo "▶ Phase 1/3 — Creating canister slots..."
+  for canister in "${CANISTERS[@]}"; do
+    echo -n "  $canister... "
+    if icp canister create "$canister" -e "$ENV" >"$LOG_DIR/$canister.create.log" 2>&1; then
+      echo "created"
+    else
+      EXISTING_ID=$(icp canister status "$canister" -e "$ENV" --id-only 2>/dev/null || echo "")
+      if [ -n "$EXISTING_ID" ]; then
+        echo "exists ($EXISTING_ID)"
+      else
+        echo "FAILED"
+        echo ""
+        echo "── $canister create log ──────────────────────────"
+        cat "$LOG_DIR/$canister.create.log"
+        rm -rf "$LOG_DIR"
+        exit 1
+      fi
+    fi
+  done
+
+  # Phase 2: Build all canisters sequentially
+  echo ""
+  echo "▶ Phase 2/3 — Compiling all canisters..."
+  BUILD_FAILED=()
+  for canister in "${CANISTERS[@]}"; do
+    echo -n "  $canister... "
+    if icp build "$canister" >"$LOG_DIR/$canister.build.log" 2>&1; then
+      echo "✓"
+    else
+      echo "✗"
+      BUILD_FAILED+=("$canister")
+    fi
+  done
+
+  if [ ${#BUILD_FAILED[@]} -gt 0 ]; then
+    echo ""
+    echo "❌ Build failed for: ${BUILD_FAILED[*]}"
+    for canister in "${BUILD_FAILED[@]}"; do
       echo ""
-      echo "── $canister create log ──────────────────────────"
-      cat "$LOG_DIR/$canister.create.log"
-      rm -rf "$LOG_DIR"
-      exit 1
-    fi
+      echo "── $canister build log ──────────────────────────"
+      cat "$LOG_DIR/$canister.build.log"
+    done
+    rm -rf "$LOG_DIR"
+    exit 1
   fi
-done
 
-# ── Phase 2: Build all canisters sequentially ────────────────────────────────────
-# Sequential (not parallel) to avoid concurrent writes to local.ids.json.
-echo ""
-echo "▶ Phase 2/3 — Compiling all canisters..."
-BUILD_FAILED=()
-for canister in "${CANISTERS[@]}"; do
-  echo -n "  $canister... "
-  if icp build "$canister" >"$LOG_DIR/$canister.build.log" 2>&1; then
-    echo "✓"
-  else
-    echo "✗"
-    BUILD_FAILED+=("$canister")
-  fi
-done
-
-if [ ${#BUILD_FAILED[@]} -gt 0 ]; then
+  # Phase 3: Install canisters sequentially
   echo ""
-  echo "❌ Build failed for: ${BUILD_FAILED[*]}"
-  for canister in "${BUILD_FAILED[@]}"; do
-    echo ""
-    echo "── $canister build log ──────────────────────────"
-    cat "$LOG_DIR/$canister.build.log"
+  echo "▶ Phase 3/3 — Installing canisters..."
+  INSTALL_FAILED=()
+  for canister in "${CANISTERS[@]}"; do
+    echo -n "  $canister... "
+    if [ "$canister" = "auth" ]; then
+      if icp canister install auth \
+          --args "(principal \"$DEPLOY_PRINCIPAL\")" \
+          --mode auto \
+          -e "$ENV" \
+          >"$LOG_DIR/auth.install.log" 2>&1; then
+        echo "✓"
+      else
+        echo "✗"
+        INSTALL_FAILED+=("$canister")
+      fi
+    else
+      if icp canister install "$canister" \
+          --mode auto \
+          -e "$ENV" \
+          >"$LOG_DIR/$canister.install.log" 2>&1; then
+        echo "✓"
+      else
+        echo "✗"
+        INSTALL_FAILED+=("$canister")
+      fi
+    fi
   done
-  rm -rf "$LOG_DIR"
-  exit 1
-fi
 
-# ── Phase 3: Install canisters sequentially ──────────────────────────────────────
-echo ""
-echo "▶ Phase 3/3 — Installing canisters..."
-INSTALL_FAILED=()
-for canister in "${CANISTERS[@]}"; do
-  echo -n "  $canister... "
-  if [ "$canister" = "auth" ]; then
-    if icp canister install auth \
-        --args "(principal \"$DEPLOY_PRINCIPAL\")" \
-        --mode auto \
-        -e "$ENV" \
-        >"$LOG_DIR/auth.install.log" 2>&1; then
-      echo "✓"
-    else
-      echo "✗"
-      INSTALL_FAILED+=("$canister")
-    fi
-  else
-    if icp canister install "$canister" \
-        --mode auto \
-        -e "$ENV" \
-        >"$LOG_DIR/$canister.install.log" 2>&1; then
-      echo "✓"
-    else
-      echo "✗"
-      INSTALL_FAILED+=("$canister")
-    fi
+  if [ ${#INSTALL_FAILED[@]} -gt 0 ]; then
+    echo ""
+    echo "❌ Install failed for: ${INSTALL_FAILED[*]}"
+    for canister in "${INSTALL_FAILED[@]}"; do
+      echo ""
+      echo "── $canister install log ──────────────────────────"
+      cat "$LOG_DIR/$canister.install.log"
+    done
+    rm -rf "$LOG_DIR"
+    exit 1
   fi
-done
-
-if [ ${#INSTALL_FAILED[@]} -gt 0 ]; then
-  echo ""
-  echo "❌ Install failed for: ${INSTALL_FAILED[*]}"
-  for canister in "${INSTALL_FAILED[@]}"; do
-    echo ""
-    echo "── $canister install log ──────────────────────────"
-    cat "$LOG_DIR/$canister.install.log"
-  done
-  rm -rf "$LOG_DIR"
-  exit 1
 fi
 
 rm -rf "$LOG_DIR"
