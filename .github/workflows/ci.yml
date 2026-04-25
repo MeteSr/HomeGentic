@@ -111,27 +111,26 @@ jobs:
       - name: Install Motoko dependencies
         run: mops install
 
+      - name: Initialize mops toolchain (downloads moc 1.3.0)
+        # dfx 0.24.x uses the mops-managed moc when [toolchain] is set in mops.toml.
+        # moc 1.3.0 bundles aaaaa-aa.did internally; dfx's own bundled moc does not.
+        run: |
+          mops toolchain init
+          MOC_BIN=$(mops toolchain bin moc 2>/dev/null) || MOC_BIN=""
+          if [ -z "$MOC_BIN" ]; then
+            rm -rf .mops/_tmp && mops toolchain init
+            MOC_BIN=$(mops toolchain bin moc)
+          fi
+          "$MOC_BIN" --version
+
       - name: Start local replica
         run: dfx start --clean --background
 
       - name: Deploy canisters
         run: |
           DEPLOYER=$(dfx identity get-principal)
-          # Deploy all canisters in a single dfx deploy call.
-          # Splitting into "dfx deploy auth" + "dfx deploy" causes dfx to skip
-          # seeding aaaaa-aa.did on the second call because the IDL directory
-          # already exists from the first — breaking HTTP-outcall canisters.
-          # Use init_arg_file so auth receives its deployer principal at install.
-          echo "(principal \"$DEPLOYER\")" > /tmp/auth-init.did
-          cp dfx.json /tmp/dfx.json.bak
-          node -e "
-            const fs = require('fs');
-            const cfg = JSON.parse(fs.readFileSync('dfx.json'));
-            cfg.canisters.auth.init_arg_file = '/tmp/auth-init.did';
-            fs.writeFileSync('dfx.json', JSON.stringify(cfg, null, 2));
-          "
+          dfx deploy auth --argument "(principal \"$DEPLOYER\")"
           dfx deploy
-          cp /tmp/dfx.json.bak dfx.json
 
           # ── Bootstrap admin lists ────────────────────────────────────────────
           for canister in property job contractor quote photo report maintenance market sensor listing agent recurring bills monitoring; do
