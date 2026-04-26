@@ -133,6 +133,9 @@ jobs:
           # canisters that import ic:aaaaa-aa (e.g. caffeineai-http-outcalls).
           mkdir -p .dfx/local/canisters/idl/
           cp did/aaaaa-aa.did .dfx/local/canisters/idl/
+          # Fetch candid interfaces for pull-type canisters (e.g. internet_identity).
+          # dfx deploy fails if deps/candid/<canister>.did is absent.
+          dfx deps pull
           dfx deploy auth --argument "(principal \"$DEPLOYER\")"
           dfx deploy
 
