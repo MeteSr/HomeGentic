@@ -502,11 +502,16 @@ persistent actor Job {
                 case (#Windows)     { "Windows"     };
                 case (#Landscaping) { "Landscaping" };
               };
-              let contrActor = actor(contrCanisterId) : actor {
-                recordJobVerified : (Principal, Text, Text, Principal) -> async { #ok : (); #err : {} };
+              type ContrError = {
+                #NotFound; #AlreadyExists; #Unauthorized;
+                #Paused; #RateLimitExceeded; #InvalidInput : Text;
               };
-              // Await so rejections don't silently fail; job verification is already
-              // committed above — trust-score notification is best-effort.
+              let contrActor = actor(contrCanisterId) : actor {
+                recordJobVerified : (Principal, Text, Text, Principal) -> async { #ok : (); #err : ContrError };
+              };
+              // Await with try/catch so canister traps or network errors don't
+              // propagate. #err results (e.g. #Unauthorized) are valid values
+              // and are simply discarded — job verification is already committed.
               try {
                 ignore await contrActor.recordJobVerified(con, jobId, svcText, existing.homeowner);
               } catch (_e) {};
