@@ -7,6 +7,12 @@ import { render, act } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import React from "react";
 
+// Prevents VoiceAgent / AuthContext / @icp-sdk/auth → IndexedDB dependency
+// chain that causes act() to hang when multiple pages share one module registry.
+vi.mock("@/components/Layout", () => ({
+  Layout: ({ children }: any) => <>{children}</>,
+}));
+
 // ── matchMedia mock ───────────────────────────────────────────────────────────
 let currentWidth = 1280;
 function mockMatchMedia(width: number) {
