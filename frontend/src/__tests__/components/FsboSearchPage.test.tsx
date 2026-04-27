@@ -40,7 +40,7 @@ const TEST_LISTINGS: FsboPublicListing[] = [
 
 vi.mock("@/services/fsbo", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/fsbo")>();
-  return { ...actual, listPublicFsbos: () => TEST_LISTINGS };
+  return { ...actual, listPublicFsbos: async () => TEST_LISTINGS };
 });
 
 // ── matchMedia mock ───────────────────────────────────────────────────────────

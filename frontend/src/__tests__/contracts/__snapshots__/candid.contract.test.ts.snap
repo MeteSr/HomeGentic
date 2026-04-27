@@ -529,6 +529,15 @@ exports[`listing IDL factory > full signature snapshot 1`] = `
       "variant {ok; err:variant {InvalidInput:text; DeadlinePassed; NotFound; AlreadyCancelled; Unauthorized}}",
     ],
   },
+  "activateFsboListing": {
+    "args": [
+      "record {propertyType:text; systemHighlights:vec text; bedrooms:nat; activatedAt:int; city:text; squareFeet:nat; description:opt text; photoUrl:opt text; propertyId:text; hasPublicReport:bool; listPriceCents:nat; zipCode:text; score:opt nat; state:text; address:text; verificationLevel:text; bathrooms:nat; homeowner:principal; verifiedJobCount:nat; yearBuilt:nat}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; DeadlinePassed; NotFound; AlreadyCancelled; Unauthorized}}",
+    ],
+  },
   "addListingPhoto": {
     "args": [
       "text",
@@ -559,6 +568,15 @@ exports[`listing IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:record {id:text; status:variant {Open; Awarded; Cancelled}; targetListDate:int; desiredSalePrice:opt nat; createdAt:int; propertyId:text; notes:text; homeowner:principal; bidDeadline:int}; err:variant {InvalidInput:text; DeadlinePassed; NotFound; AlreadyCancelled; Unauthorized}}",
+    ],
+  },
+  "deactivateFsboListing": {
+    "args": [
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; DeadlinePassed; NotFound; AlreadyCancelled; Unauthorized}}",
     ],
   },
   "getBidRequest": {
@@ -619,6 +637,15 @@ exports[`listing IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "vec record {id:text; status:variant {Withdrawn; Rejected; Accepted; Pending}; marketingPlan:text; requestId:text; cmaSummary:text; createdAt:int; commissionBps:nat; agentName:text; coverLetter:text; agentId:principal; agentBrokerage:text; estimatedDaysOnMarket:nat; includedServices:vec text; estimatedSalePrice:nat; validUntil:int}",
+    ],
+  },
+  "listActiveFsboListings": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "vec record {propertyType:text; systemHighlights:vec text; bedrooms:nat; activatedAt:int; city:text; squareFeet:nat; description:opt text; photoUrl:opt text; propertyId:text; hasPublicReport:bool; listPriceCents:nat; zipCode:text; score:opt nat; state:text; address:text; verificationLevel:text; bathrooms:nat; homeowner:principal; verifiedJobCount:nat; yearBuilt:nat}",
     ],
   },
   "removeListingPhoto": {

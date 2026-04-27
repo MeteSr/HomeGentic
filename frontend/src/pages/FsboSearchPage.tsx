@@ -16,7 +16,7 @@
  *   - Individual listing URLs at /for-sale/:id already have their own schemas
  */
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { Search, SlidersHorizontal, ShieldCheck, Award, TrendingUp, Clock, Wrench, ChevronRight } from "lucide-react";
@@ -437,7 +437,15 @@ const PROPERTY_TYPES: PropertyType[] = ["SingleFamily", "Condo", "Townhouse", "M
 
 export default function FsboSearchPage() {
   const { isMobile } = useBreakpoint();
-  const allListings    = useMemo(() => listPublicFsbos(), []);
+  const [allListings, setAllListings] = useState<FsboPublicListing[]>([]);
+  const [listingsLoading, setListingsLoading] = useState(true);
+
+  useEffect(() => {
+    listPublicFsbos()
+      .then(setAllListings)
+      .catch((err) => console.error("[FsboSearchPage] failed to load listings:", err))
+      .finally(() => setListingsLoading(false));
+  }, []);
 
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [sort,    setSort]    = useState<SortKey>("newest");
@@ -742,7 +750,11 @@ export default function FsboSearchPage() {
           aria-label="FSBO listing results"
           style={{ maxWidth: "1200px", margin: "0 auto", padding: isMobile ? "0.5rem 1rem 3rem" : "0.75rem 2rem 4rem" }}
         >
-          {results.length === 0 ? (
+          {listingsLoading ? (
+            <div style={{ textAlign: "center", padding: "4rem 1rem", color: UI.inkLight, fontFamily: UI.sans }}>
+              <p style={{ fontSize: "0.9rem" }}>Loading listings…</p>
+            </div>
+          ) : results.length === 0 ? (
             <div
               data-testid="no-results-message"
               style={{

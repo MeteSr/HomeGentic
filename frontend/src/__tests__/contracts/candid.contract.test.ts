@@ -291,15 +291,18 @@ describe("listing IDL factory", () => {
     const svc = extractService(listingIdlFactory);
     expect(Object.keys(svc).sort()).toEqual([
       "acceptProposal",
+      "activateFsboListing",
       "addListingPhoto",
       "cancelBidRequest",
       "createBidRequest",
+      "deactivateFsboListing",
       "getBidRequest",
       "getListingPhotos",
       "getMyBidRequests",
       "getMyProposals",
       "getOpenBidRequests",
       "getProposalsForRequest",
+      "listActiveFsboListings",
       "removeListingPhoto",
       "reorderListingPhotos",
       "submitProposal",
@@ -319,6 +322,7 @@ describe("listing IDL factory", () => {
       "getMyProposals",
       "getOpenBidRequests",
       "getProposalsForRequest",
+      "listActiveFsboListings",
     ]);
   });
 

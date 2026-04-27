@@ -68,6 +68,31 @@ persistent actor Listing {
     isPaused:       Bool;
   };
 
+  /// Denormalised record written by the homeowner when they activate FSBO mode.
+  /// Returned verbatim by listActiveFsboListings() for the public buyer search.
+  public type PublicFsboListing = {
+    propertyId:        Text;
+    homeowner:         Principal;
+    listPriceCents:    Nat;
+    activatedAt:       Time.Time;
+    address:           Text;
+    city:              Text;
+    state:             Text;
+    zipCode:           Text;
+    propertyType:      Text;
+    yearBuilt:         Nat;
+    squareFeet:        Nat;
+    bedrooms:          Nat;
+    bathrooms:         Nat;
+    verificationLevel: Text;
+    score:             ?Nat;
+    verifiedJobCount:  Nat;
+    description:       ?Text;
+    photoUrl:          ?Text;
+    hasPublicReport:   Bool;
+    systemHighlights:  [Text];
+  };
+
   // ─── Stable State ────────────────────────────────────────────────────────────
 
   private var bidCounter:      Nat = 0;
@@ -79,8 +104,10 @@ persistent actor Listing {
 
   // ─── Stable State ────────────────────────────────────────────────────────────
 
-  private let requests  = Map.empty<Text, ListingBidRequest>();
-  private let proposals = Map.empty<Text, ListingProposal>();
+  private let requests       = Map.empty<Text, ListingBidRequest>();
+  private let proposals      = Map.empty<Text, ListingProposal>();
+  /// propertyId → active public FSBO listing (absent when not FSBO-active)
+  private let fsboListings   = Map.empty<Text, PublicFsboListing>();
   /// propertyId → ordered list of photo IDs (first = cover image)
   private let listingPhotos      = Map.empty<Text, [Text]>();
   /// propertyId → the principal who first added a photo (owner lock)
@@ -472,6 +499,62 @@ persistent actor Listing {
   };
 
   // ─── Admin Controls ───────────────────────────────────────────────────────────
+
+  // ─── Public FSBO search index ─────────────────────────────────────────────────
+
+  /// Register or update a property in the public FSBO buyer search index.
+  /// Only the property owner may call this; caller is recorded as homeowner.
+  public shared(msg) func activateFsboListing(listing: PublicFsboListing) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (Text.size(listing.propertyId) == 0) return #err(#InvalidInput("propertyId cannot be empty"));
+    if (listing.listPriceCents == 0)        return #err(#InvalidInput("listPriceCents must be positive"));
+    // Stamp the caller as the owner regardless of what was passed in the record.
+    let stamped : PublicFsboListing = {
+      propertyId        = listing.propertyId;
+      homeowner         = msg.caller;
+      listPriceCents    = listing.listPriceCents;
+      activatedAt       = Time.now();
+      address           = listing.address;
+      city              = listing.city;
+      state             = listing.state;
+      zipCode           = listing.zipCode;
+      propertyType      = listing.propertyType;
+      yearBuilt         = listing.yearBuilt;
+      squareFeet        = listing.squareFeet;
+      bedrooms          = listing.bedrooms;
+      bathrooms         = listing.bathrooms;
+      verificationLevel = listing.verificationLevel;
+      score             = listing.score;
+      verifiedJobCount  = listing.verifiedJobCount;
+      description       = listing.description;
+      photoUrl          = listing.photoUrl;
+      hasPublicReport   = listing.hasPublicReport;
+      systemHighlights  = listing.systemHighlights;
+    };
+    Map.add(fsboListings, Text.compare, listing.propertyId, stamped);
+    #ok(())
+  };
+
+  /// Remove a property from the public FSBO search index.
+  /// Only the original homeowner or an admin may deactivate.
+  public shared(msg) func deactivateFsboListing(propertyId: Text) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    switch (Map.get(fsboListings, Text.compare, propertyId)) {
+      case null { return #err(#NotFound) };
+      case (?existing) {
+        if (existing.homeowner != msg.caller and not isAdmin(msg.caller)) {
+          return #err(#Unauthorized);
+        };
+        ignore Map.remove(fsboListings, Text.compare, propertyId);
+        #ok(())
+      };
+    }
+  };
+
+  /// Return all active public FSBO listings. No authentication required.
+  public query func listActiveFsboListings() : async [PublicFsboListing] {
+    Iter.toArray(Map.values(fsboListings))
+  };
 
   /// Set the update-call rate limit (admin only). Pass 0 to disable enforcement.
   public shared(msg) func setUpdateRateLimit(n: Nat) : async Result.Result<(), Error> {

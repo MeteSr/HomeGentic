@@ -44,7 +44,40 @@ export const idlFactory = ({ IDL }: any) => {
     NotFound: IDL.Null, Unauthorized: IDL.Null, InvalidInput: IDL.Text,
     AlreadyCancelled: IDL.Null, DeadlinePassed: IDL.Null,
   });
+  const PublicFsboListing = IDL.Record({
+    propertyId:        IDL.Text,
+    homeowner:         IDL.Principal,
+    listPriceCents:    IDL.Nat,
+    activatedAt:       IDL.Int,
+    address:           IDL.Text,
+    city:              IDL.Text,
+    state:             IDL.Text,
+    zipCode:           IDL.Text,
+    propertyType:      IDL.Text,
+    yearBuilt:         IDL.Nat,
+    squareFeet:        IDL.Nat,
+    bedrooms:          IDL.Nat,
+    bathrooms:         IDL.Nat,
+    verificationLevel: IDL.Text,
+    score:             IDL.Opt(IDL.Nat),
+    verifiedJobCount:  IDL.Nat,
+    description:       IDL.Opt(IDL.Text),
+    photoUrl:          IDL.Opt(IDL.Text),
+    hasPublicReport:   IDL.Bool,
+    systemHighlights:  IDL.Vec(IDL.Text),
+  });
   return IDL.Service({
+    activateFsboListing: IDL.Func(
+      [PublicFsboListing],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
+    deactivateFsboListing: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
+    listActiveFsboListings: IDL.Func([], [IDL.Vec(PublicFsboListing)], ["query"]),
     createBidRequest: IDL.Func(
       [IDL.Text, IDL.Int, IDL.Opt(IDL.Nat), IDL.Text, IDL.Int],
       [IDL.Variant({ ok: ListingBidRequest, err: Error })],
@@ -629,6 +662,64 @@ function createListingService() {
   // ── createDirectInvite (9.6.2) — homeowner invites specific agent ─────────────
   async createDirectInvite(agentId: string, propertyId: string): Promise<ListingBidRequest> {
     throw new Error("createDirectInvite requires deployed canister");
+  },
+
+  // ── Public FSBO search index ─────────────────────────────────────────────────
+
+  async listActiveFsboListings(): Promise<import("./fsbo").FsboPublicListing[]> {
+    if (typeof window !== "undefined" && (window as any).__e2e_fsbo_listings) {
+      return (window as any).__e2e_fsbo_listings as import("./fsbo").FsboPublicListing[];
+    }
+    if (!LISTING_CANISTER_ID) return [];
+    const actor = await getActor();
+    const raw = (await actor.listActiveFsboListings()) as any[];
+    return raw.map((r: any) => ({
+      propertyId:        r.propertyId,
+      listPriceCents:    Number(r.listPriceCents),
+      activatedAt:       Number(r.activatedAt) / 1_000_000,
+      address:           r.address,
+      city:              r.city,
+      state:             r.state,
+      zipCode:           r.zipCode,
+      propertyType:      r.propertyType as import("./fsbo").PropertyType,
+      yearBuilt:         Number(r.yearBuilt),
+      squareFeet:        Number(r.squareFeet),
+      bedrooms:          Number(r.bedrooms),
+      bathrooms:         Number(r.bathrooms),
+      verificationLevel: r.verificationLevel as import("./fsbo").VerificationLevel,
+      score:             r.score[0] != null ? Number(r.score[0]) : undefined,
+      verifiedJobCount:  Number(r.verifiedJobCount),
+      description:       r.description[0] ?? undefined,
+      photoUrl:          r.photoUrl[0] ?? undefined,
+      hasPublicReport:   r.hasPublicReport,
+      systemHighlights:  r.systemHighlights as string[],
+    }));
+  },
+
+  async activateFsboListing(listing: import("./fsbo").FsboPublicListing & { homeowner: string }): Promise<void> {
+    const { Principal: P } = await import("@icp-sdk/core/principal");
+    const actor = await getActor();
+    const result = await actor.activateFsboListing({
+      ...listing,
+      homeowner:        P.fromText(listing.homeowner),
+      listPriceCents:   BigInt(listing.listPriceCents),
+      activatedAt:      BigInt(Math.round(listing.activatedAt * 1_000_000)),
+      yearBuilt:        BigInt(listing.yearBuilt),
+      squareFeet:       BigInt(listing.squareFeet),
+      bedrooms:         BigInt(listing.bedrooms),
+      bathrooms:        BigInt(listing.bathrooms),
+      score:            listing.score != null ? [BigInt(listing.score)] : [],
+      description:      listing.description != null ? [listing.description] : [],
+      photoUrl:         listing.photoUrl != null ? [listing.photoUrl] : [],
+      systemHighlights: listing.systemHighlights ?? [],
+    });
+    if ("err" in result) throw new Error(JSON.stringify(result.err));
+  },
+
+  async deactivateFsboListing(propertyId: string): Promise<void> {
+    const actor = await getActor();
+    const result = await actor.deactivateFsboListing(propertyId);
+    if ("err" in result) throw new Error(JSON.stringify(result.err));
   },
   };
 }

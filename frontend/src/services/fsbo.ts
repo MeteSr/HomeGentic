@@ -106,12 +106,13 @@ export interface FsboPublicListing {
 }
 
 /**
- * Returns all active public FSBO listings.
- * In production: calls `listActiveFsbos` canister query.
- * In dev/test (no canister): returns empty array — use scripts/seed.sh to populate.
+ * Returns all active public FSBO listings from the listing canister.
+ * Falls back to window.__e2e_fsbo_listings in E2E tests, and to [] when
+ * the canister is not deployed (local dev without deploy).
  */
-export function listPublicFsbos(): FsboPublicListing[] {
-  return [];
+export async function listPublicFsbos(): Promise<FsboPublicListing[]> {
+  const { listingService } = await import("./listing");
+  return listingService.listActiveFsboListings();
 }
 
 // ─── Service ──────────────────────────────────────────────────────────────────

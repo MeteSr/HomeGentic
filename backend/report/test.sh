@@ -339,14 +339,19 @@ echo "  ↳ addTrustedCanister succeeded — ✓"
 
 echo ""
 echo "── [20] getTrustedCanisters on report ───────────────────────────────────"
-dfx canister call report getTrustedCanisters | grep -q "$CALLER_TEST_PRINCIPAL" \
+# Capture output first to avoid SIGPIPE: grep -q exits on first match, which
+# breaks the pipe and causes dfx to panic. With set -o pipefail that non-zero
+# exit propagates even though grep succeeded.
+TRUSTED_LIST=$(dfx canister call report getTrustedCanisters)
+echo "$TRUSTED_LIST" | grep -q "$CALLER_TEST_PRINCIPAL" \
   && echo "  ↳ principal present — ✓" \
   || (echo "  ↳ ❌ principal NOT found"; exit 1)
 
 echo ""
 echo "── [21] removeTrustedCanister on report ─────────────────────────────────"
 dfx canister call report removeTrustedCanister "(principal \"$CALLER_TEST_PRINCIPAL\")"
-dfx canister call report getTrustedCanisters | grep -q "$CALLER_TEST_PRINCIPAL" \
+TRUSTED_LIST=$(dfx canister call report getTrustedCanisters)
+echo "$TRUSTED_LIST" | grep -q "$CALLER_TEST_PRINCIPAL" \
   && echo "  ↳ ❌ Principal still in list after removal" \
   || echo "  ↳ Principal correctly removed — ✓"
 
