@@ -17,7 +17,6 @@ import { systemAgesService } from "@/services/systemAges";
 import { marketService, buildPropertySummary, type ProjectRecommendation } from "@/services/market";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { paymentService, type PlanTier } from "@/services/payment";
-import { UpgradeGate } from "@/components/UpgradeGate";
 import SystemAgesModal from "@/components/SystemAgesModal";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 
@@ -77,13 +76,12 @@ function LifeBar({ pct, urgency }: { pct: number; urgency: UrgencyLevel }) {
 
 type TaskState = "none" | "scheduled" | "done";
 
-function SystemCard({ pred, onSchedule, marketRec, taskState, onTaskStateChange, isFree }: {
+function SystemCard({ pred, onSchedule, marketRec, taskState, onTaskStateChange }: {
   pred:              SystemPrediction;
   onSchedule:        (p: SystemPrediction) => void;
   marketRec?:        ProjectRecommendation;
   taskState:         TaskState;
   onTaskStateChange: (state: TaskState) => void;
-  isFree:            boolean;
 }) {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
@@ -116,22 +114,14 @@ function SystemCard({ pred, onSchedule, marketRec, taskState, onTaskStateChange,
           {(pred.urgency === "Critical" || pred.urgency === "Soon") ? (
             <>
               <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight }}>Replacement</div>
-              {isFree ? (
-                <button onClick={(e) => { e.stopPropagation(); navigate("/pricing"); }} style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.75rem", color: COLORS.plumMid, background: "none", border: "none", cursor: "pointer", padding: 0, filter: "blur(4px)", userSelect: "none" }}>$X,XXX–$X,XXX</button>
-              ) : (
-                <div style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.75rem", color: UI.ink }}>{low}–{high}</div>
-              )}
+              <div style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.75rem", color: UI.ink }}>{low}–{high}</div>
             </>
           ) : (
             <>
               <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight }}>Service call</div>
-              {isFree ? (
-                <button onClick={(e) => { e.stopPropagation(); navigate("/pricing"); }} style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.75rem", color: COLORS.plumMid, background: "none", border: "none", cursor: "pointer", padding: 0, filter: "blur(4px)", userSelect: "none" }}>$XXX–$XXX</button>
-              ) : (
-                <div style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.75rem", color: UI.ink }}>
-                  {maintenanceService.formatCents(pred.serviceCallLowCents)}–{maintenanceService.formatCents(pred.serviceCallHighCents)}
-                </div>
-              )}
+              <div style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.75rem", color: UI.ink }}>
+                {maintenanceService.formatCents(pred.serviceCallLowCents)}–{maintenanceService.formatCents(pred.serviceCallHighCents)}
+              </div>
             </>
           )}
         </div>
@@ -768,7 +758,6 @@ export default function PredictiveMaintenancePage() {
                         marketRec={marketRecsByCategory[pred.systemName]}
                         taskState={taskStates[taskKey(pred.systemName)] ?? "none"}
                         onTaskStateChange={(s) => setTaskState(pred.systemName, s)}
-                        isFree={userTier === "Free"}
                       />
                     ))}
                   </div>
@@ -786,8 +775,7 @@ export default function PredictiveMaintenancePage() {
                             marketRec={marketRecsByCategory[pred.systemName]}
                             taskState="done"
                             onTaskStateChange={(s) => setTaskState(pred.systemName, s)}
-                            isFree={userTier === "Free"}
-                          />
+                              />
                         ))}
                       </div>
                     </details>
@@ -893,14 +881,6 @@ export default function PredictiveMaintenancePage() {
             })()}
 
             {activeTab === "schedule" && (
-              userTier === "Free" ? (
-                <UpgradeGate
-                  feature="5-Year Maintenance Calendar"
-                  description="Plan ahead with a full 5-year schedule. Drag systems onto your calendar and export a printable PDF."
-                  icon={<Calendar size={20} color={COLORS.plumMid} />}
-                  style={{ marginTop: "0.5rem" }}
-                />
-              ) : (
                 <div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
                     <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>5-Year Maintenance Calendar</p>
@@ -910,7 +890,6 @@ export default function PredictiveMaintenancePage() {
                   </div>
                   <FiveYearCalendar entries={scheduleEntries} onComplete={handleComplete} onDelete={handleDelete} onAddYear={() => setActiveTab("systems")} />
                 </div>
-              )
             )}
 
             {activeTab === "advisor" && property && (

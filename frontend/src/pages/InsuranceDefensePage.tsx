@@ -61,7 +61,7 @@ export default function InsuranceDefensePage() {
   const [showSuccessPrompt, setShowSuccessPrompt] = useState(false);
   const [successSubmitted,  setSuccessSubmitted]  = useState(false);
   const [savingsInput,      setSavingsInput]       = useState("");
-  const [userTier, setUserTier] = useState<PlanTier>("Free");
+  const [userTier, setUserTier] = useState<PlanTier>("Basic");
 
   // ── Sensor discount estimator state ──────────────────────────────────────
   const [sensorDevices,    setSensorDevices]    = useState<SensorDevice[]>([]);
@@ -145,20 +145,6 @@ export default function InsuranceDefensePage() {
       .filter((j) => j.propertyId === String(p.id))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
   })).filter((g) => g.jobs.length > 0);
-
-  if (userTier === "Free") {
-    return (
-      <Layout>
-        <div style={{ maxWidth: "48rem", margin: "0 auto", padding: "2rem 1.5rem" }}>
-          <UpgradeGate
-            feature="Insurance Defense Mode"
-            description="Generate a print-ready insurance report from your verified maintenance records — roof, HVAC, electrical, and more."
-            icon="🛡️"
-          />
-        </div>
-      </Layout>
-    );
-  }
 
   return (
     <Layout>

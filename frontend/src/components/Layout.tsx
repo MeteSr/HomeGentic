@@ -168,7 +168,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         { to: "/dashboard",      label: "Dashboard",    Icon: LayoutDashboard },
         { to: "/market",         label: "Market",       Icon: TrendingUp },
         { to: "/maintenance",    label: "Maintenance",  Icon: Cpu },
-        ...(userTier !== "Free" ? [{ to: "/contractors", label: "Contractors", Icon: Users }] : []),
+        { to: "/contractors", label: "Contractors", Icon: Users },
         { to: "/sensors",        label: "Sensors",      Icon: Radio },
         ...(singlePropertyId && hasActiveListing
           ? [{ to: `/my-listing/${singlePropertyId}`, label: "My Listing", Icon: HomeIcon }]

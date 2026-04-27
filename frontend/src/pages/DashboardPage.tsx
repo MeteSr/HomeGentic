@@ -12,7 +12,6 @@ import { isNewSince, hasQuoteActivity, pendingQuoteCount } from "@/services/noti
 import { computeScore, computeScoreWithDecay, computeBreakdown, getScoreGrade, scoreDelta, scoreValueDelta, premiumEstimate, isCertified } from "@/services/scoreService";
 import { getAllDecayEvents, getAtRiskWarnings, getTotalDecay, type DecayEvent, type AtRiskWarning } from "@/services/scoreDecayService";
 import { certService } from "@/services/cert";
-import { UpgradeGate } from "@/components/UpgradeGate";
 import { getWeeklyPulse } from "@/services/pulseService";
 import { marketService, jobToSummary, type PropertyProfile, type ProjectRecommendation } from "@/services/market";
 import { getRecentScoreEvents, type ScoreEvent } from "@/services/scoreEventService";
@@ -389,40 +388,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Free-tier upgrade nudge — shown after 3rd job logged (15.7.2) */}
-        {!loading && userTier === "Free" && jobs.length >= 3 && !d.upgradeBannerDismissed && (
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem",
-            border: `1.5px solid ${COLORS.sageMid}`, padding: "1rem 1.25rem", marginBottom: "2rem",
-            background: COLORS.sageLight, flexWrap: "wrap", borderRadius: RADIUS.sm,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.875rem", flex: 1 }}>
-              <div style={{ width: "2rem", height: "2rem", border: `2px solid ${UI.sage}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: RADIUS.sm, fontSize: "1rem" }}>
-                🔓
-              </div>
-              <div>
-                <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.sage, marginBottom: "0.2rem" }}>
-                  Upgrade to Pro
-                </p>
-                <p style={{ fontSize: "0.875rem", fontWeight: 300, color: UI.ink }}>
-                  You've logged <strong style={{ fontWeight: 600 }}>{jobs.length} jobs</strong>. Unlock score breakdowns, warranty tracking, and full report sharing with Pro.
-                </p>
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexShrink: 0 }}>
-              <button
-                onClick={openUpgrade}
-                style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.45rem 1rem", border: "none", background: UI.sage, color: COLORS.white, cursor: "pointer", borderRadius: RADIUS.sm, fontWeight: 600 }}
-              >
-                See Plans →
-              </button>
-              <button onClick={d.dismissUpgradeBanner} style={{ background: "none", border: "none", cursor: "pointer", color: UI.inkLight }}>
-                <X size={15} />
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Home Pulse tip */}
         {showPulse && pulseTip && (
           <div style={{
@@ -605,15 +570,7 @@ export default function DashboardPage() {
               <span style={{ flex: 1 }}>How is my HomeGentic Score calculated?</span>
               <span style={{ fontSize: "0.75rem" }}>{modals.showScoreBreakdown ? "▲" : "▼"}</span>
             </button>
-            {modals.showScoreBreakdown && userTier === "Free" && (
-              <UpgradeGate
-                feature="Score Breakdown"
-                description="See exactly which factors are dragging your score down — and what to fix first."
-                style={{ borderRadius: `0 0 ${RADIUS.card}px ${RADIUS.card}px`, borderTop: "none" }}
-                onUpgrade={openUpgrade}
-              />
-            )}
-            {modals.showScoreBreakdown && userTier !== "Free" && (
+            {modals.showScoreBreakdown && (
               <div style={{ border: `1px solid ${UI.rule}`, borderTop: "none", background: COLORS.white, borderRadius: `0 0 ${RADIUS.card}px ${RADIUS.card}px`, overflow: "hidden" }}>
                 {scoreBreakdown.map((row) => (
                   <div key={row.label} style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.875rem 1rem", borderBottom: `1px solid ${UI.rule}` }}>

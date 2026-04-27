@@ -36,7 +36,7 @@ export default function RecurringServiceCreatePage() {
   const [loading, setLoading]   = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [createdName, setCreatedName] = useState("");
-  const [userTier, setUserTier] = useState<PlanTier>("Free");
+  const [userTier, setUserTier] = useState<PlanTier>("Basic");
 
   useEffect(() => {
     paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch((e) => console.error("[RecurringServiceCreatePage] subscription load failed:", e));
@@ -133,19 +133,6 @@ export default function RecurringServiceCreatePage() {
     );
   }
 
-  if (userTier === "Free") {
-    return (
-      <Layout>
-        <div style={{ maxWidth: "38rem", margin: "0 auto", padding: "2rem 1.5rem" }}>
-          <UpgradeGate
-            feature="Recurring Services"
-            description="Track lawn care, pest control, pool maintenance, and more — and show buyers your complete service history."
-            icon="🔄"
-          />
-        </div>
-      </Layout>
-    );
-  }
 
   return (
     <Layout>

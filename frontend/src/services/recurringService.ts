@@ -267,6 +267,7 @@ function createRecurringService() {
 
   return {
   async getById(serviceId: string): Promise<RecurringService | null> {
+    if (mockServices.length > 0) return mockServices.find((s) => s.id === serviceId) ?? null;
     const a = await getActor();
     const result = await a.getRecurringService(serviceId);
     if ("ok" in result) return fromService(result.ok);
@@ -274,6 +275,7 @@ function createRecurringService() {
   },
 
   async getByProperty(propertyId: string): Promise<RecurringService[]> {
+    if (mockServices.length > 0) return mockServices.filter((s) => s.propertyId === propertyId);
     const a = await getActor();
     return (await a.getByProperty(propertyId) as any[]).map(fromService);
   },

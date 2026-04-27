@@ -19,10 +19,10 @@ vi.mock("@/services/icpLedger", () => ({
 }));
 
 const mockSubscribeActor = vi.fn().mockResolvedValue({
-  ok: { tier: { Free: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0), cancelledAt: [] },
+  ok: { tier: { Basic: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0), cancelledAt: [] },
 });
 const mockGetMySubscription = vi.fn().mockResolvedValue({
-  ok: { tier: { Free: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0), cancelledAt: [] },
+  ok: { tier: { Basic: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0), cancelledAt: [] },
 });
 const mockCancelSubscription = vi.fn().mockResolvedValue({
   ok: { tier: { Pro: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0), cancelledAt: [BigInt(1_000_000_000)] },
@@ -262,9 +262,9 @@ describe("paymentService.subscribe (mock)", () => {
 // ─── getMySubscription (mock path) ───────────────────────────────────────────
 
 describe("paymentService.getMySubscription (mock)", () => {
-  it("returns Free tier when no canister is deployed", async () => {
+  it("returns Basic tier when no canister is deployed", async () => {
     const sub = await paymentService.getMySubscription();
-    expect(sub.tier).toBe("Free");
+    expect(sub.tier).toBe("Basic");
   });
 
   it("returns null expiresAt in mock mode", async () => {
@@ -276,10 +276,10 @@ describe("paymentService.getMySubscription (mock)", () => {
 // ─── hasPaidFor (mock path) ───────────────────────────────────────────────────
 
 describe("paymentService.hasPaidFor (mock)", () => {
-  it("returns false for any feature when tier is Free", async () => {
-    expect(await paymentService.hasPaidFor("reports")).toBe(false);
-    expect(await paymentService.hasPaidFor("analytics")).toBe(false);
-    expect(await paymentService.hasPaidFor("")).toBe(false);
+  it("returns true for paid tiers (Basic and above)", async () => {
+    expect(await paymentService.hasPaidFor("reports")).toBe(true);
+    expect(await paymentService.hasPaidFor("analytics")).toBe(true);
+    expect(await paymentService.hasPaidFor("")).toBe(true);
   });
 });
 
@@ -347,10 +347,10 @@ describe("paymentService.getMySubscription — tier parsing", () => {
     expect(sub.cancelledAt).toBeCloseTo(1_735_689_600_000, -3);
   });
 
-  it("returns Free tier when canister returns an error", async () => {
+  it("returns Basic tier when canister returns NotFound (mid-checkout fallback)", async () => {
     mockGetMySubscription.mockResolvedValueOnce({ err: { NotFound: null } });
     const sub = await paymentService.getMySubscription();
-    expect(sub.tier).toBe("Free");
+    expect(sub.tier).toBe("Basic");
     expect(sub.expiresAt).toBeNull();
     expect(sub.cancelledAt).toBeNull();
   });

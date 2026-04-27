@@ -17,7 +17,7 @@ const defaultProps = {
   scoreStagnant:   false,
   pulseTip:        null,
   pulseEnabled:    true,
-  userTier:        "Free" as const,
+  userTier:        "Basic" as const,
   onLogJob:        vi.fn(),
   onNavigate:      vi.fn(),
 };
@@ -84,26 +84,8 @@ describe("AlertStack", () => {
     expect(screen.queryByText("Home Pulse")).not.toBeInTheDocument();
   });
 
-  it("shows upgrade banner for Free tier", () => {
-    render(<AlertStack {...defaultProps} userTier="Free" />);
-    expect(screen.getByText(/Upgrade to Pro/)).toBeInTheDocument();
-  });
-
-  it("hides upgrade banner for Pro tier", () => {
-    render(<AlertStack {...defaultProps} userTier="Pro" />);
-    expect(screen.queryByText(/Upgrade to Pro/)).not.toBeInTheDocument();
-  });
-
-  it("calls onNavigate with /pricing when See Plans is clicked", () => {
-    const onNavigate = vi.fn();
-    render(<AlertStack {...defaultProps} userTier="Free" onNavigate={onNavigate} />);
-    fireEvent.click(screen.getByText(/See Plans/));
-    expect(onNavigate).toHaveBeenCalledWith("/pricing");
-  });
-
-  it("dismisses upgrade banner on X click", () => {
-    render(<AlertStack {...defaultProps} userTier="Free" />);
-    fireEvent.click(screen.getByLabelText("Dismiss upgrade banner"));
+  it("never shows upgrade banner (no free tier)", () => {
+    render(<AlertStack {...defaultProps} userTier="Basic" />);
     expect(screen.queryByText(/Upgrade to Pro/)).not.toBeInTheDocument();
   });
 });

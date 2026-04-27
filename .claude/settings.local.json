@@ -164,7 +164,40 @@
       "Read(//c/ProgramData/chocolatey/bin//**)",
       "Bash(perl -pi -e 's/if \\\\\\(!\\([A-Z_]+CANISTER_ID\\) && !process\\\\.env\\\\.VITEST\\\\\\)/if \\(import.meta.env.DEV \\\\&\\\\& !$1\\)/g' frontend/src/services/*.ts)",
       "Bash(perl -pi -e 's/if \\\\\\(!\\([A-Z_]+CANISTER_ID\\)\\\\\\)/if \\(import.meta.env.DEV \\\\&\\\\& !$1\\)/g' frontend/src/services/*.ts)",
-      "Bash(perl -pi -e 's/import\\\\.meta\\\\.env\\\\.DEV && !/import.meta.env.MODE === '\"'\"'development'\"'\"' && !/g' c:/Users/demet/homegentic/frontend/src/services/*.ts)"
+      "Bash(perl -pi -e 's/import\\\\.meta\\\\.env\\\\.DEV && !/import.meta.env.MODE === '\"'\"'development'\"'\"' && !/g' c:/Users/demet/homegentic/frontend/src/services/*.ts)",
+      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); [print\\(j['name'], j['conclusion']\\) for j in data.get\\('jobs',[]\\)]\")",
+      "WebFetch(domain:brson.github.io)",
+      "Bash(gh job *)",
+      "Bash(gh label *)",
+      "Bash(python3 -)",
+      "Bash(awk -F: '{print $1}')",
+      "Bash(cat C:\\\\\\\\Users\\\\\\\\demet\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\claude\\\\\\\\c--Users-demet-homegentic\\\\\\\\c0622dab-da28-4639-8ffd-cadd985f6bb3\\\\\\\\tasks\\\\\\\\b3bw6rid0.output)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('canisters',{}\\).get\\('auth',{}\\), indent=2\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\('defaults',{}\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; [print\\(r['databaseId'], r['conclusion'], r['name'][:30]\\) for r in json.load\\(sys.stdin\\)]\")",
+      "Bash(awk '/\\\\[quote\\\\]/{found=1} found{print}')",
+      "Bash(awk '/\\\\[quote\\\\]/{f=1} f{print}')",
+      "Bash(awk '/\\\\[quote\\\\]/,/quote.*FAIL/')",
+      "Bash(bash scripts/check-secrets.sh --all)",
+      "Bash(xargs perl *)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); cans=[k for k in d['canisters'] if d['canisters'][k].get\\('type'\\)!='pull']; print\\(f'Total: {len\\(cans\\)}'\\); [print\\(' -',k\\) for k in sorted\\(cans\\)]\")",
+      "Bash(npm update *)",
+      "Bash(npm outdated *)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('version:', d.get\\('version'\\)\\); print\\('peerDeps:', d.get\\('peerDependencies',{}\\)\\); print\\('deps:', d.get\\('dependencies',{}\\)\\)\")",
+      "Bash(npm audit *)",
+      "Bash(ls node_modules/@stripe)",
+      "Bash(ls frontend/node_modules/@stripe)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('exports','NO EXPORTS'\\), indent=2\\)\\)\")",
+      "WebFetch(domain:cli.internetcomputer.org)",
+      "WebFetch(domain:docs.mops.one)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(npm search *)",
+      "Bash(icp deploy *)",
+      "Bash(icp build *)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\('version','?'\\)\\); print\\(d.get\\('description','?'\\)\\)\")"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\demet\\homegentic"
     ]
   }
 }

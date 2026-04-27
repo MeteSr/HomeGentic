@@ -263,14 +263,14 @@ export const paymentService = {
     const a = await getActor();
     const result = await a.getMySubscription();
     if ("err" in result) {
-      // NotFound = user has no subscription record → Free tier is correct.
+      // NotFound = no subscription record yet (e.g. mid-checkout).
       // Any other error (Unauthorized, Paused, etc.) is a real failure: throw
-      // so callers don't silently treat a paid user as Free.
+      // so callers don't silently treat a paid user as unsubscribed.
       if (!("NotFound" in (result.err as any))) {
         const key = Object.keys(result.err as any)[0];
         throw new Error(`getMySubscription: ${key}`);
       }
-      return { tier: "Free", expiresAt: null, cancelledAt: null };
+      return { tier: "Basic", expiresAt: null, cancelledAt: null };
     }
     const sub = result.ok;
     const tierKey       = Object.keys(sub.tier)[0] as PlanTier;
@@ -347,7 +347,7 @@ export const paymentService = {
 
   async hasPaidFor(_feature: string): Promise<boolean> {
     const sub = await this.getMySubscription();
-    return sub.tier !== "Free";
+    return sub.tier !== "ContractorFree" && sub.tier !== "RealtorFree";
   },
 
   getPlan(tier: PlanTier): Plan {

@@ -37,12 +37,7 @@ export function AlertStack({
   const [pulseDismissed, setPulseDismissed] = useState(
     () => !!localStorage.getItem(PULSE_KEY)
   );
-  const [upgradeDismissed, setUpgradeDismissed] = useState(
-    () => !!localStorage.getItem("homegentic_upgrade_banner_dismissed")
-  );
-
-  const showPulse   = pulseEnabled && !!pulseTip && !pulseDismissed;
-  const showUpgrade = userTier === "Free" && !upgradeDismissed;
+  const showPulse = pulseEnabled && !!pulseTip && !pulseDismissed;
 
   return (
     <>
@@ -304,76 +299,6 @@ export function AlertStack({
         </div>
       )}
 
-      {/* Free-tier upgrade banner */}
-      {showUpgrade && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: "1rem",
-            border: `1.5px solid ${COLORS.sageMid}`,
-            padding: "1rem 1.25rem",
-            marginBottom: "1.5rem",
-            background: COLORS.sageLight,
-            flexWrap: "wrap",
-            borderRadius: RADIUS.sm,
-          }}
-        >
-          <div style={{ flex: 1 }}>
-            <p
-              style={{
-                fontFamily: UI.mono,
-                fontSize: "0.6rem",
-                letterSpacing: "0.14em",
-                textTransform: "uppercase",
-                color: UI.sage,
-                marginBottom: "0.2rem",
-              }}
-            >
-              Upgrade to Pro
-            </p>
-            <p style={{ fontSize: "0.875rem", fontWeight: 300, color: UI.ink }}>
-              Unlock score breakdowns, warranty tracking, and full report sharing.
-            </p>
-          </div>
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexShrink: 0 }}>
-            <button
-              onClick={() => onNavigate("/pricing")}
-              style={{
-                fontFamily: UI.mono,
-                fontSize: "0.6rem",
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-                padding: "0.45rem 1rem",
-                border: "none",
-                background: UI.sage,
-                color: COLORS.white,
-                cursor: "pointer",
-                borderRadius: RADIUS.sm,
-                fontWeight: 600,
-              }}
-            >
-              See Plans →
-            </button>
-            <button
-              onClick={() => {
-                localStorage.setItem("homegentic_upgrade_banner_dismissed", "1");
-                setUpgradeDismissed(true);
-              }}
-              style={{
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                color: UI.inkLight,
-              }}
-              aria-label="Dismiss upgrade banner"
-            >
-              <X size={15} />
-            </button>
-          </div>
-        </div>
-      )}
     </>
   );
 }

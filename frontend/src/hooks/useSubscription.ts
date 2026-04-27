@@ -6,7 +6,7 @@ export interface Subscription {
 }
 
 export function useSubscription(): Subscription {
-  const [userTier, setUserTier] = useState<PlanTier>("Free");
+  const [userTier, setUserTier] = useState<PlanTier>("Basic");
 
   useEffect(() => {
     paymentService.getMySubscription()

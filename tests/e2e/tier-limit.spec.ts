@@ -5,8 +5,6 @@
  * Uses window.__e2e_* injection so no canister is required.
  *
  * Coverage:
- *  - Free tier job cap (≥5 jobs → UpgradeGate on /jobs/new)
- *  - Free tier property cap (≥1 property → UpgradeGate on /properties/new)
  *  - Subscription upgrade click navigates to /checkout with correct tier param
  *  - Subscription downgrade click navigates to /checkout with correct tier param
  */
@@ -15,9 +13,9 @@ import { test, expect } from "@playwright/test";
 import { injectTestAuth } from "./helpers/auth";
 import { injectTestProperties, injectSubscription } from "./helpers/testData";
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helpers (kept for Settings upgrade/downgrade flows) ──────────────────────
 
-/** Injects 5 jobs so the Free-tier job cap (≥5) triggers on /jobs/new. */
+/** @deprecated Only used by removed Free-tier job cap tests — safe to delete once Settings tests migrated. */
 async function injectFiveJobs(page: Parameters<typeof injectTestAuth>[0]) {
   await page.addInitScript(() => {
     (window as any).__e2e_jobs = Array.from({ length: 5 }, (_, i) => ({
@@ -63,41 +61,6 @@ async function injectOnePropertyAtFreeLimit(page: Parameters<typeof injectTestAu
     ];
   });
 }
-
-// ── Job limit (Free tier ≥5 jobs) ─────────────────────────────────────────────
-
-test.describe("Tier limit — job cap (Free)", () => {
-  test.beforeEach(async ({ page }) => {
-    await injectTestAuth(page);
-    await injectTestProperties(page);
-    await injectFiveJobs(page);
-    await injectSubscription(page, "Free");
-    await page.goto("/jobs/new");
-    // Wait for both async loads (subscription + job count) to resolve so the gate renders
-    await expect(page.getByText(/job limit reached/i)).toBeVisible();
-  });
-
-  test("shows UpgradeGate instead of job form", async ({ page }) => {
-    // The free-tier gate replaces the form — 'Log a Job' heading must NOT appear
-    await expect(page.getByRole("heading", { name: "Log a Job" })).not.toBeVisible();
-  });
-
-  test("shows 'Job Limit Reached' feature label", async ({ page }) => {
-    await expect(page.getByText(/job limit reached/i)).toBeVisible();
-  });
-
-  test("shows current job count in the gate description", async ({ page }) => {
-    await expect(page.getByText(/5 jobs/i)).toBeVisible();
-  });
-
-  test("shows upgrade call-to-action button", async ({ page }) => {
-    await expect(page.getByRole("button", { name: /upgrade/i }).first()).toBeVisible();
-  });
-
-  test("Back button is visible above the gate", async ({ page }) => {
-    await expect(page.getByRole("button", { name: /back/i })).toBeVisible();
-  });
-});
 
 // ── Subscription upgrade flow from Settings ───────────────────────────────────
 
@@ -180,19 +143,3 @@ test.describe("Tier limit — plan switch flow from Settings (Pro tier)", () => 
   });
 });
 
-// ── UpgradeGate component — /pricing fallback ─────────────────────────────────
-
-test.describe("UpgradeGate — CTA navigates to /pricing", () => {
-  test("UpgradeGate 'Upgrade to Pro' button navigates to /pricing", async ({ page }) => {
-    await injectTestAuth(page);
-    await injectTestProperties(page);
-    await injectFiveJobs(page);
-    await injectSubscription(page, "Free");
-    await page.goto("/jobs/new");
-    // Wait for both async loads (subscription + job count) to resolve before the gate renders
-    await expect(page.getByText(/job limit reached/i)).toBeVisible();
-    // UpgradeGate default tier is "Basic" → button text is "Upgrade to Basic →"
-    await page.getByRole("button", { name: /upgrade to basic/i }).click();
-    await expect(page).toHaveURL(/\/pricing/);
-  });
-});

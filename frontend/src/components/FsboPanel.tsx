@@ -24,7 +24,6 @@ import { mlsService, type MlsSubmitResult } from "@/services/mlsService";
 import { listingService } from "@/services/listing";
 import { fsboOfferService } from "@/services/fsboOffer";
 import { paymentService, type PlanTier } from "@/services/payment";
-import { UpgradeGate } from "@/components/UpgradeGate";
 import type { Property } from "@/services/property";
 import { COLORS, FONTS } from "@/theme";
 
@@ -78,7 +77,7 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
   const [mlsError,       setMlsError]       = useState<string | null>(null);
   const [mlsLoading,     setMlsLoading]     = useState(false);
   const [agentRequested, setAgentRequested] = useState(false);
-  const [userTier,       setUserTier]       = useState<PlanTier>("Free");
+  const [userTier,       setUserTier]       = useState<PlanTier>("Basic");
 
   useEffect(() => {
     paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch((e) => console.error("[FsboPanel] subscription load failed:", e));
@@ -139,16 +138,6 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
       bidDeadline:      now + 7 * 86_400_000,
     });
     setAgentRequested(true);
-  }
-
-  if (userTier === "Free") {
-    return (
-      <UpgradeGate
-        feature="Agent Marketplace &amp; FSBO"
-        description="Selling your home? Upgrade to Pro to make agents compete for your listing — or go FSBO with our full toolkit."
-        icon="🏡"
-      />
-    );
   }
 
   return (

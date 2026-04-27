@@ -1,13 +1,8 @@
 /**
- * TDD — 15.6.4: Upgrade gate on Agent Marketplace and FSBO flows
+ * 15.6.4: Agent Marketplace and FSBO flows are accessible to all paying tiers.
  *
- * Free users who navigate to:
- *   - /listing/new (create listing bid request)
- *   - /agents       (agent browse / find an agent)
- *   - FsboPanel     (FSBO mode panel)
- *
- * …see an UpgradeGate instead of the real content.
- * Pro and Premium users see the real content.
+ * The old Free-tier UpgradeGate was removed — Basic is now the minimum tier
+ * and costs money.  All tests verify that Basic+ users see the real content.
  */
 
 import React from "react";
@@ -17,7 +12,7 @@ import { MemoryRouter, Routes, Route } from "react-router-dom";
 
 // ─── Mutable tier (controlled per-test) ──────────────────────────────────────
 
-let mockTier: "Free" | "Pro" | "Premium" | "ContractorPro" = "Pro";
+let mockTier: "Basic" | "Pro" | "Premium" | "ContractorPro" = "Basic";
 
 vi.mock("@/services/payment", () => ({
   paymentService: {
@@ -165,7 +160,7 @@ function renderFsboPanel(tier = "Pro") {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-describe("ListingNewPage — free tier gate (15.6.4)", () => {
+describe("ListingNewPage — accessible to all paying tiers (15.6.4)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(paymentService.getMySubscription).mockImplementation(() =>
@@ -173,43 +168,32 @@ describe("ListingNewPage — free tier gate (15.6.4)", () => {
     );
   });
 
-  it("free user sees the upgrade gate instead of the listing form", async () => {
-    mockTier = "Free";
+  it("Basic user sees the listing form", async () => {
+    mockTier = "Basic";
     renderListing();
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /upgrade to basic/i })).toBeInTheDocument()
-    );
-    expect(screen.queryByText(/list your home/i)).not.toBeInTheDocument();
-  });
-
-  it("gate message mentions selling their home or making agents compete", async () => {
-    mockTier = "Free";
-    renderListing();
-    await waitFor(() =>
-      expect(screen.getByText(/selling your home|agents compete/i)).toBeInTheDocument()
+      expect(screen.getByText(/list your home/i)).toBeInTheDocument()
     );
   });
 
-  it("Pro user sees the listing form (not the gate)", async () => {
+  it("Pro user sees the listing form", async () => {
     mockTier = "Pro";
     renderListing();
     await waitFor(() =>
       expect(screen.getByText(/list your home/i)).toBeInTheDocument()
     );
-    expect(screen.queryByText(/selling your home\?/i)).not.toBeInTheDocument();
   });
 
-  it("Premium user sees the listing form (not the gate)", async () => {
+  it("Premium user sees the listing form", async () => {
     mockTier = "Premium";
     renderListing();
     await waitFor(() =>
       expect(screen.getByText(/list your home/i)).toBeInTheDocument()
     );
-    expect(screen.queryByText(/selling your home\?/i)).not.toBeInTheDocument();
   });
 });
 
-describe("AgentBrowsePage — free tier gate (15.6.4)", () => {
+describe("AgentBrowsePage — accessible to all paying tiers (15.6.4)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(paymentService.getMySubscription).mockImplementation(() =>
@@ -217,34 +201,24 @@ describe("AgentBrowsePage — free tier gate (15.6.4)", () => {
     );
   });
 
-  it("free user sees the upgrade gate instead of the agent directory", async () => {
-    mockTier = "Free";
+  it("Basic user sees the agent directory", async () => {
+    mockTier = "Basic";
     renderBrowse();
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /upgrade to basic/i })).toBeInTheDocument()
-    );
-    expect(screen.queryByText(/find an agent/i)).not.toBeInTheDocument();
-  });
-
-  it("gate message mentions making agents compete or FSBO", async () => {
-    mockTier = "Free";
-    renderBrowse();
-    await waitFor(() =>
-      expect(screen.getByText(/selling your home|agents compete/i)).toBeInTheDocument()
+      expect(screen.getByText(/find an agent/i)).toBeInTheDocument()
     );
   });
 
-  it("Pro user sees the agent directory (not the gate)", async () => {
+  it("Pro user sees the agent directory", async () => {
     mockTier = "Pro";
     renderBrowse();
     await waitFor(() =>
       expect(screen.getByText(/find an agent/i)).toBeInTheDocument()
     );
-    expect(screen.queryByText(/selling your home\?/i)).not.toBeInTheDocument();
   });
 });
 
-describe("FsboPanel — free tier gate (15.6.4)", () => {
+describe("FsboPanel — accessible to all paying tiers (15.6.4)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(paymentService.getMySubscription).mockImplementation(() =>
@@ -252,24 +226,15 @@ describe("FsboPanel — free tier gate (15.6.4)", () => {
     );
   });
 
-  it("free user sees the upgrade gate instead of the FSBO panel", async () => {
-    mockTier = "Free";
+  it("Basic user sees the FSBO panel", async () => {
+    mockTier = "Basic";
     renderFsboPanel();
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /upgrade to basic/i })).toBeInTheDocument()
-    );
-    expect(screen.queryByText(/sell this home yourself/i)).not.toBeInTheDocument();
-  });
-
-  it("gate message mentions FSBO or making agents compete", async () => {
-    mockTier = "Free";
-    renderFsboPanel();
-    await waitFor(() =>
-      expect(screen.getByText(/selling your home|go fsbo|agents compete/i)).toBeInTheDocument()
+      expect(screen.getByText(/sell this home yourself/i)).toBeInTheDocument()
     );
   });
 
-  it("Pro user sees the FSBO panel (not the gate)", async () => {
+  it("Pro user sees the FSBO panel", async () => {
     mockTier = "Pro";
     renderFsboPanel();
     await waitFor(() =>

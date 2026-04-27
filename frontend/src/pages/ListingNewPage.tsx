@@ -54,7 +54,7 @@ export default function ListingNewPage() {
   const navigate = useNavigate();
   const { properties } = usePropertyStore();
   const { jobs } = useJobStore();
-  const [userTier,   setUserTier]   = useState<PlanTier>("Free");
+  const [userTier,   setUserTier]   = useState<PlanTier>("Basic");
   const [loading,    setLoading]    = useState(false);
   const [visibility, setVisibility] = useState<BidVisibility>("open");
   const [form, setForm] = useState({
@@ -72,20 +72,6 @@ export default function ListingNewPage() {
   useEffect(() => {
     if (properties[0]) setForm((f) => ({ ...f, propertyId: String(properties[0].id) }));
   }, [properties]);
-
-  if (userTier === "Free") {
-    return (
-      <Layout>
-        <div style={{ maxWidth: "48rem", margin: "0 auto", padding: "2rem 1.5rem" }}>
-          <UpgradeGate
-            feature="Agent Marketplace &amp; FSBO"
-            description="Selling your home? Upgrade to Pro to make agents compete for your listing — or go FSBO with our full toolkit."
-            icon="🏡"
-          />
-        </div>
-      </Layout>
-    );
-  }
 
   function set(field: string, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
