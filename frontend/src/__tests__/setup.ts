@@ -40,6 +40,28 @@ if (typeof HTMLCanvasElement !== "undefined") {
   HTMLCanvasElement.prototype.getContext = () => null;
 }
 
+// window.indexedDB stub — jsdom provides no IDB implementation.
+// AuthContext (and ICP auth-client) calls indexedDB.open() at mount; without
+// this stub the call returns undefined and the promise-chain hangs, causing
+// parallel test suites to time-out waiting on IDB-dependent async effects.
+// Throwing a DOMException makes the error path run immediately so the
+// component reaches a settled state before assertions run.
+if (!("indexedDB" in window) || (window as any).indexedDB == null) {
+  Object.defineProperty(window, "indexedDB", {
+    writable: true,
+    configurable: true,
+    value: {
+      open(_name: string, _version?: number): never {
+        throw new DOMException("Not available in jsdom", "UnknownError");
+      },
+      deleteDatabase(): never {
+        throw new DOMException("Not available in jsdom", "UnknownError");
+      },
+      cmp: () => 0,
+    },
+  });
+}
+
 // Default requestAnimationFrame stub — react-helmet-async defers DOM writes
 // via RAF; this makes those writes synchronous in tests.
 if (typeof (globalThis as any).requestAnimationFrame !== "function") {

@@ -68,6 +68,9 @@ vi.mock("@/services/job", () => ({
 vi.mock("react-hot-toast", () => ({
   default: { success: vi.fn(), error: vi.fn() },
 }));
+vi.mock("@/components/Layout", () => ({
+  Layout: ({ children }: any) => <>{children}</>,
+}));
 
 // ─── Imports ──────────────────────────────────────────────────────────────────
 

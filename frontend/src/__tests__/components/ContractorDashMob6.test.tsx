@@ -4,6 +4,11 @@
 import { render, act } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import React from "react";
+import { vi } from "vitest";
+
+vi.mock("@/components/Layout", () => ({
+  Layout: ({ children }: any) => <>{children}</>,
+}));
 
 // ── matchMedia mock ───────────────────────────────────────────────────────────
 let currentWidth = 1280;

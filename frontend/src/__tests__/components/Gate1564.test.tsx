@@ -115,6 +115,9 @@ vi.mock("@/services/property", () => ({
     getMyProperties: vi.fn().mockResolvedValue([]),
   },
 }));
+vi.mock("@/components/Layout", () => ({
+  Layout: ({ children }: any) => <>{children}</>,
+}));
 
 // ─── Imports ──────────────────────────────────────────────────────────────────
 

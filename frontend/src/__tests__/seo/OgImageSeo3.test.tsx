@@ -11,9 +11,44 @@ import { HelmetProvider } from "react-helmet-async";
 import React from "react";
 import { existsSync } from "fs";
 import { resolve } from "path";
+import { vi } from "vitest";
 
 (globalThis as any).requestAnimationFrame = (cb: FrameRequestCallback) => { cb(0); return 0; };
 (globalThis as any).cancelAnimationFrame = () => {};
+
+const PENDING = vi.hoisted(() => new Promise<never>(() => {}));
+
+vi.mock("@/components/Layout", () => ({
+  Layout: ({ children }: any) => <>{children}</>,
+}));
+vi.mock("@/services/contractor", () => ({
+  contractorService: {
+    getContractor:  vi.fn(() => PENDING),
+    getCredentials: vi.fn(() => PENDING),
+  },
+}));
+vi.mock("@/services/agent", () => ({
+  agentService: {
+    getPublicProfile: vi.fn(() => PENDING),
+    getReviews:       vi.fn(() => PENDING),
+  },
+}));
+vi.mock("@/services/listing", () => ({
+  listingService: {
+    getAgentPerformanceRecords: vi.fn(() => PENDING),
+    getListing:                 vi.fn(() => PENDING),
+    getPublicListing:           vi.fn(() => PENDING),
+  },
+}));
+vi.mock("@/services/property", () => ({
+  propertyService: { getProperty: vi.fn(() => PENDING) },
+}));
+vi.mock("@/services/job", () => ({
+  jobService: { getByProperty: vi.fn(() => PENDING) },
+}));
+vi.mock("@/services/fsbo", () => ({
+  fsboService: { getRecord: vi.fn(() => null) },
+}));
 
 Object.defineProperty(window, "matchMedia", {
   writable: true, configurable: true,

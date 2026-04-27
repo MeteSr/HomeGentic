@@ -88,6 +88,9 @@ vi.mock("@/store/propertyStore", () => ({
 vi.mock("@/store/jobStore", () => ({
   useJobStore: () => ({ jobs: [] }),
 }));
+vi.mock("@/components/Layout", () => ({
+  Layout: ({ children }: any) => <>{children}</>,
+}));
 
 import AgentBrowsePage from "@/pages/AgentBrowsePage";
 import AgentPublicPage  from "@/pages/AgentPublicPage";

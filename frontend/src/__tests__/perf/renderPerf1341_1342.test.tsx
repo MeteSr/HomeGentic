@@ -279,6 +279,9 @@ vi.mock("@/services/agentProfile", () => ({
     appendToUrl: vi.fn((url: string) => url),
   },
 }));
+vi.mock("@/components/Layout", () => ({
+  Layout: ({ children }: any) => <>{children}</>,
+}));
 
 // ─── 13.4.1 tests ─────────────────────────────────────────────────────────────
 

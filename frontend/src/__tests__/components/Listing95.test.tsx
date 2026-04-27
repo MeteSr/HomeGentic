@@ -182,6 +182,9 @@ vi.mock("@/services/agent", () => ({
   },
   computeAverageRating: () => 0,
 }));
+vi.mock("@/components/Layout", () => ({
+  Layout: ({ children }: any) => <>{children}</>,
+}));
 
 import ListingDetailPage  from "@/pages/ListingDetailPage";
 import AgentPublicPage    from "@/pages/AgentPublicPage";

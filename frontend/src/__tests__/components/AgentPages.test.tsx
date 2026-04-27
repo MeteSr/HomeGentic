@@ -88,6 +88,9 @@ vi.mock("@/store/authStore", () => {
   };
   return { useAuthStore: Object.assign(() => state, { getState: () => state }) };
 });
+vi.mock("@/components/Layout", () => ({
+  Layout: ({ children }: any) => <>{children}</>,
+}));
 
 import AgentProfileEditPage from "@/pages/AgentProfileEditPage";
 import AgentPublicPage      from "@/pages/AgentPublicPage";

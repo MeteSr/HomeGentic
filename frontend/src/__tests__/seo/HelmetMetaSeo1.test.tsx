@@ -12,11 +12,46 @@ import { render } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import React from "react";
+import { vi } from "vitest";
 
 // ── requestAnimationFrame — react-helmet-async defers DOM writes via RAF ───────
 // Run synchronously so document.title and meta tags are set before assertions.
 (globalThis as any).requestAnimationFrame = (cb: FrameRequestCallback) => { cb(0); return 0; };
 (globalThis as any).cancelAnimationFrame = () => {};
+
+const PENDING = vi.hoisted(() => new Promise<never>(() => {}));
+
+vi.mock("@/components/Layout", () => ({
+  Layout: ({ children }: any) => <>{children}</>,
+}));
+vi.mock("@/services/contractor", () => ({
+  contractorService: {
+    getContractor:  vi.fn(() => PENDING),
+    getCredentials: vi.fn(() => PENDING),
+  },
+}));
+vi.mock("@/services/agent", () => ({
+  agentService: {
+    getPublicProfile: vi.fn(() => PENDING),
+    getReviews:       vi.fn(() => PENDING),
+  },
+}));
+vi.mock("@/services/listing", () => ({
+  listingService: {
+    getAgentPerformanceRecords: vi.fn(() => PENDING),
+    getListing:                 vi.fn(() => PENDING),
+    getPublicListing:           vi.fn(() => PENDING),
+  },
+}));
+vi.mock("@/services/property", () => ({
+  propertyService: { getProperty: vi.fn(() => PENDING) },
+}));
+vi.mock("@/services/job", () => ({
+  jobService: { getByProperty: vi.fn(() => PENDING) },
+}));
+vi.mock("@/services/fsbo", () => ({
+  fsboService: { getRecord: vi.fn(() => null) },
+}));
 
 // ── matchMedia stub (required by useBreakpoint) ───────────────────────────────
 Object.defineProperty(window, "matchMedia", {
