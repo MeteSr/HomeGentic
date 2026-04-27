@@ -1,0 +1,5 @@
+# Claude Code agent worktrees live here.
+# Each subdirectory is a temporary git worktree (contains a .git file).
+# Ignore everything so git never stages a nested repo as a gitlink.
+*
+!.gitignore

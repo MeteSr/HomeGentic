@@ -38,5 +38,12 @@ Thumbs.db
 *.swp
 *.swo
 
-# Claude Code local settings
-.claude/
+# Claude Code local settings (memory, project config, conversation state).
+# Use .claude/* rather than .claude/ so negation rules for children work.
+.claude/*
+# Worktrees created by Claude Code's isolation mode are nested git repos.
+# Gitlinks (mode 160000) bypass parent .gitignore, so we commit a sentinel
+# .gitignore inside worktrees/ that makes git ignore every subdirectory there.
+!.claude/worktrees/
+.claude/worktrees/*
+!.claude/worktrees/.gitignore
