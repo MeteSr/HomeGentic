@@ -229,6 +229,11 @@ function createContractorService() {
   },
 
   async getContractor(principalText: string): Promise<ContractorProfile | null> {
+    if (typeof window !== "undefined" && (window as any).__e2e_contractors) {
+      const all = (window as any).__e2e_contractors as ContractorProfile[];
+      return all.find((c) => c.id === principalText) ?? null;
+    }
+    if (!CONTRACTOR_CANISTER_ID) return null;
     const a = await getActor();
     const { Principal: P } = await import("@icp-sdk/core/principal");
     const result = await a.getContractor(P.fromText(principalText));
