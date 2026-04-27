@@ -1,9 +1,132 @@
 import React, { useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { ShieldCheck, TrendingUp, CalendarDays, Archive, RefreshCw } from "lucide-react";
 import { CSS } from "./landingStyles";
 
+// ── Inline SVG house illustration ────────────────────────────────────────────
+const HouseIllustration = () => (
+  <svg width="280" height="300" viewBox="0 0 280 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+    {/* Ground shadow */}
+    <ellipse cx="142" cy="278" rx="100" ry="14" fill="rgba(46,37,64,0.12)" />
+
+    {/* Back wall */}
+    <path d="M80 220 L80 110 L142 80 L204 110 L204 220 Z" fill="#3D3254" />
+
+    {/* Roof left face */}
+    <path d="M52 118 L142 72 L142 80 L80 110 Z" fill="#1A1425" />
+    {/* Roof right face */}
+    <path d="M142 72 L232 118 L204 110 L142 80 Z" fill="#221B31" />
+    {/* Roof ridge cap */}
+    <path d="M52 118 L142 72 L232 118" stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" fill="none" />
+
+    {/* Left face */}
+    <path d="M52 118 L80 110 L80 220 L52 228 Z" fill="#221B31" />
+    {/* Right face */}
+    <path d="M204 110 L232 118 L232 228 L204 220 Z" fill="#1A1425" />
+
+    {/* Front face */}
+    <rect x="80" y="110" width="124" height="110" fill="#2E2540" />
+
+    {/* Windows left column */}
+    <rect x="95" y="130" width="30" height="24" rx="3" fill="#7AAF76" opacity="0.65" />
+    <rect x="135" y="130" width="30" height="24" rx="3" fill="#7AAF76" opacity="0.45" />
+    {/* Window top row */}
+    <rect x="175" y="130" width="20" height="14" rx="2" fill="#7AAF76" opacity="0.3" />
+    {/* Lower windows */}
+    <rect x="95" y="165" width="30" height="20" rx="3" fill="#7AAF76" opacity="0.3" />
+    <rect x="135" y="165" width="30" height="20" rx="3" fill="#7AAF76" opacity="0.2" />
+
+    {/* Door */}
+    <path d="M151 220 L151 192 Q151 188 155 188 L171 188 Q175 188 175 192 L175 220 Z" fill="#0F0B1A" />
+    {/* Door knob */}
+    <circle cx="152" cy="207" r="2" fill="#7AAF76" opacity="0.6" />
+
+    {/* Left face windows */}
+    <rect x="57" y="138" width="16" height="12" rx="2" fill="#7AAF76" opacity="0.2" />
+    <rect x="57" y="160" width="16" height="12" rx="2" fill="#7AAF76" opacity="0.15" />
+
+    {/* Chimney */}
+    <rect x="170" y="64" width="14" height="22" fill="#1A1425" />
+    <rect x="168" y="62" width="18" height="5" fill="#221B31" />
+
+    {/* Green accent dots (IoT sensors) */}
+    <circle cx="88" cy="126" r="4" fill="#7AAF76" opacity="0.8" />
+    <circle cx="88" cy="126" r="7" fill="#7AAF76" opacity="0.15" />
+    <circle cx="202" cy="118" r="3.5" fill="#7AAF76" opacity="0.6" />
+    <circle cx="202" cy="118" r="6" fill="#7AAF76" opacity="0.12" />
+  </svg>
+);
+
+// ── Orbit diagram for final CTA ───────────────────────────────────────────────
+const ORBIT_NODES = [
+  { label: "REPORT",    emoji: "📋", angle: -90  },
+  { label: "HVAC",      emoji: "❄️", angle: -30  },
+  { label: "ELECTRICAL",emoji: "⚡", angle: 30   },
+  { label: "PLUMBING",  emoji: "🔧", angle: 90   },
+  { label: "ROOF",      emoji: "🏠", angle: 150  },
+  { label: "LANDSCAPE", emoji: "🌿", angle: 210  },
+];
+
+function OrbitDiagram() {
+  const R = 150;
+  return (
+    <div className="hfl-orbit-wrap">
+      <div className="hfl-orbit-ring hfl-orbit-ring-1" />
+      <div className="hfl-orbit-ring hfl-orbit-ring-2" />
+      <div className="hfl-orbit-center">
+        <div className="hfl-orbit-score">91</div>
+        <div className="hfl-orbit-score-lbl">Score</div>
+      </div>
+      {ORBIT_NODES.map((n) => {
+        const rad = (n.angle * Math.PI) / 180;
+        const x = Math.cos(rad) * R;
+        const y = Math.sin(rad) * R;
+        return (
+          <div
+            key={n.label}
+            className="hfl-orbit-node"
+            style={{ transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`, position: "absolute", top: "50%", left: "50%" }}
+          >
+            <div className="hfl-orbit-node-circle">{n.emoji}</div>
+            <div className="hfl-orbit-node-lbl">{n.label}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Feature showcase tabs ─────────────────────────────────────────────────────
+const FEATURES = [
+  {
+    icon: "📋", kicker: "THE VERIFIED RECORD",
+    heading: <>The Carfax<br /><em>your home deserves</em></>,
+    desc: "Every service, repair, and renovation — documented, signed, and stored permanently on the blockchain. No middlemen, no expiry.",
+    bullets: ["Full ownership & transaction history", "Verified contractor records & warranties", "Permitted renovations on file", "AI agents continuously update your score"],
+    cta: "Build my record",
+  },
+  {
+    icon: "🎤", kicker: "AI HOME INTELLIGENCE",
+    heading: <>Your home has a voice.<br /><em>So do you.</em></>,
+    desc: "Ask your home anything out loud, and it reaches out first when something needs attention — before you even think to ask.",
+    bullets: ["Voice queries across your full maintenance history", "Proactive alerts before costly failures occur", "Utility bill anomaly & spike detection", "IoT sensor events trigger auto-scheduling"],
+    cta: "Try the AI",
+  },
+  {
+    icon: "⚖️", kicker: "SELL SMARTER",
+    heading: <>Make agents compete<br /><em>for your listing</em></>,
+    desc: "Post your listing intent and let verified agents submit competing proposals. Compare commissions and net proceeds side by side — or go FSBO.",
+    bullets: ["Competing agent proposals within 48 hours", "Compare strategy, commissions & estimated net proceeds", "FSBO mode with showing management & offer inbox", "Sealed-bid offer management"],
+    cta: "List your home",
+  },
+  {
+    icon: "👷", kicker: "SERVICE NETWORK",
+    heading: <>Verified contractors,<br /><em>auto-logged work</em></>,
+    desc: "Every contractor in our network is credentialed and reviewed. Their completed work is automatically logged to your home's permanent record.",
+    bullets: ["Credentialed & background-checked providers", "Work auto-signed and logged to your record", "Verified receipts & warranties on file", "Rate-limited reviews — real feedback only"],
+    cta: "Browse the network",
+  },
+];
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -11,47 +134,13 @@ export default function LandingPage() {
   const [activeFeature, setActiveFeature] = React.useState(0);
   const [showcasePaused, setShowcasePaused] = React.useState(false);
 
-  const FEATURES = [
-    {
-      icon: "📋", kicker: "The Verified Record",
-      heading: <>The Carfax<br /><em>your home deserves</em></>,
-      desc: "Every service, repair, and renovation — documented, signed, and stored permanently on the blockchain. No middlemen, no expiry.",
-      bullets: ["Full ownership & transaction history", "Verified contractor records & warranties", "Permitted renovations on file", "AI agents continuously update your score"],
-      cta: "Build my record",
-    },
-    {
-      icon: "🎤", kicker: "AI Home Intelligence",
-      heading: <>Your home has a voice.<br /><em>So do you.</em></>,
-      desc: "Ask your home anything out loud, and it reaches out first when something needs attention — before you even think to ask.",
-      bullets: ["Voice queries across your full maintenance history", "Proactive alerts before costly failures occur", "Utility bill anomaly & spike detection", "IoT sensor events trigger auto-scheduling"],
-      cta: "Try the AI",
-    },
-    {
-      icon: "⚖️", kicker: "Sell Smarter",
-      heading: <>Make agents compete<br /><em>for your listing</em></>,
-      desc: "Post your listing intent and let verified agents submit competing proposals. Compare commissions and net proceeds side by side — or go FSBO.",
-      bullets: ["Competing agent proposals within 48 hours", "Compare strategy, commissions & estimated net proceeds", "FSBO mode with showing management & offer inbox", "Sealed-bid offer management"],
-      cta: "List your home",
-    },
-    {
-      icon: "👷", kicker: "Service Network",
-      heading: <>Verified contractors,<br /><em>auto-logged work</em></>,
-      desc: "Every contractor in our network is credentialed, reviewed, and bonded. Their completed work is automatically logged to your home's permanent record.",
-      bullets: ["Credentialed & background-checked providers", "Work auto-signed and logged to your record", "Verified receipts & warranties on file", "Rate-limited reviews — real feedback only"],
-      cta: "Browse the network",
-    },
-  ];
-
   useEffect(() => {
     if (!menuOpen) return;
     const close = () => setMenuOpen(false);
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
     window.addEventListener("scroll", close, { passive: true });
     window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("scroll", close);
-      window.removeEventListener("keydown", onKey);
-    };
+    return () => { window.removeEventListener("scroll", close); window.removeEventListener("keydown", onKey); };
   }, [menuOpen]);
 
   useEffect(() => {
@@ -59,13 +148,10 @@ export default function LandingPage() {
       const link = document.createElement("link");
       link.id = "hf-landing-fonts";
       link.rel = "stylesheet";
-      link.href =
-        "https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,900;1,9..144,300;1,9..144,600;1,9..144,900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap";
+      link.href = "https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,900;1,9..144,300;1,9..144,600;1,9..144,900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap";
       document.head.appendChild(link);
     }
-    return () => {
-      document.getElementById("hf-landing-fonts")?.remove();
-    };
+    return () => { document.getElementById("hf-landing-fonts")?.remove(); };
   }, []);
 
   useEffect(() => {
@@ -74,8 +160,7 @@ export default function LandingPage() {
     return () => clearInterval(t);
   }, [showcasePaused, FEATURES.length]);
 
-  const scrollTo = (id: string) =>
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+  const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
 
   return (
     <>
@@ -85,21 +170,7 @@ export default function LandingPage() {
         <meta property="og:title" content="HomeGentic — Verified Home Maintenance Records" />
         <meta property="og:description" content="Prove your home's history. Verified maintenance records for homeowners, contractors, and buyers." />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://homegentic.app/" />
-        <meta property="og:image" content="https://homegentic.app/og-default.png" />
         <link rel="canonical" href="https://homegentic.app/" />
-        <script type="application/ld+json">{JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "WebSite",
-          "name": "HomeGentic",
-          "url": "https://homegentic.app/",
-          "description": "Verified home maintenance records on the blockchain.",
-          "potentialAction": {
-            "@type": "SearchAction",
-            "target": "https://homegentic.app/check?address={search_term_string}",
-            "query-input": "required name=search_term_string"
-          }
-        })}</script>
       </Helmet>
       <style>{CSS}</style>
       <div className="hfl">
@@ -108,8 +179,8 @@ export default function LandingPage() {
         <nav className="hfl-nav">
           <a href="/" className="hfl-logo">Home<span>Gentic</span></a>
           <ul className={`hfl-nav-links${menuOpen ? " hfl-menu-open" : ""}`}>
-            <li><a onClick={(e) => { e.preventDefault(); setMenuOpen(false); scrollTo("hfl-features"); }}>For Homeowners</a></li>
-            <li><a onClick={(e) => { e.preventDefault(); setMenuOpen(false); scrollTo("hfl-sell"); }}>Sell Smarter</a></li>
+            <li><a onClick={(e) => { e.preventDefault(); setMenuOpen(false); scrollTo("hfl-how"); }}>For Homeowners</a></li>
+            <li><a onClick={(e) => { e.preventDefault(); setMenuOpen(false); scrollTo("hfl-split"); }}>Sell Smarter</a></li>
             <li><a onClick={(e) => { e.preventDefault(); setMenuOpen(false); navigate("/demo"); }}>Demo</a></li>
             <li><a onClick={(e) => { e.preventDefault(); setMenuOpen(false); navigate("/pricing"); }}>Pricing</a></li>
           </ul>
@@ -130,107 +201,120 @@ export default function LandingPage() {
         {/* ── Hero ────────────────────────────────────────────────────────── */}
         <section className="hfl-hero">
           <div className="hfl-hero-left">
+            <div className="hfl-eyebrow">
+              <span className="hfl-eyebrow-dot" />
+              Blockchain-verified home records
+            </div>
             <h1>Own It.<br /><em>Prove It.</em><br />Sell It.</h1>
             <p className="hfl-sub">
-              HomeGentic tracks every repair, reminds you before things break, and builds
-              the complete maintenance record your home deserves — so when it's time to sell,
-              you're ready to command a premium.
+              HomeGentic builds your home's permanent blockchain record, generates your HomeGentic Score,
+              tracks every repair, and helps you sell with confidence — so you command a premium price.
             </p>
             <div className="hfl-actions">
-              <button className="hfl-btn-main" onClick={() => navigate("/login")}>Get Started</button>
-              <button className="hfl-btn-soft" onClick={() => navigate("/login")}>See a HomeGentic Report</button>
+              <button className="hfl-btn-main" onClick={() => navigate("/login")}>Get Started Free</button>
+              <button className="hfl-btn-soft" onClick={() => navigate("/login")}>See a Sample HomeGentic Report</button>
             </div>
-            <div className="hfl-hero-trust">
-              <span className="hfl-hero-trust-lbl">Trusted by homeowners in</span>
-              {["Austin, TX", "Denver, CO", "Seattle, WA", "Tampa, FL"].map((c) => (
-                <span key={c} className="hfl-hero-city">📍 {c}</span>
-              ))}
+            <div className="hfl-hero-badges">
+              <span className="hfl-hero-badge"><span>🔒</span>Blockchain-Secured</span>
+              <span className="hfl-hero-badge"><span>🛡️</span>Privacy First</span>
+              <span className="hfl-hero-badge"><span>✓</span>GDPR Compliant</span>
             </div>
           </div>
 
           <div className="hfl-hero-right">
-            <div className="hfl-blob-wrap">
-              <div className="hfl-blob-bg" />
-              <div className="hfl-dash-card">
-                <div className="hfl-dc-header">
-                  <div className="hfl-dc-top">
-                    <span className="hfl-dc-title">My Home Dashboard</span>
-                    <span className="hfl-dc-ver">✓ Verified</span>
-                  </div>
-                  <div className="hfl-dc-addr">327 Keech Street, Daytona Beach FL</div>
-                  <div className="hfl-dc-score-row">
-                    <div>
-                      <div className="hfl-dc-score-lbl">HomeGentic Score</div>
-                      <div className="hfl-dc-num">91</div>
-                    </div>
+            <div className="hfl-hero-visual">
+              <div className="hfl-house">
+                <HouseIllustration />
+              </div>
+
+              {/* Dashboard card */}
+              <div className="hfl-hero-card">
+                <div className="hfl-hc-hdr">
+                  <div className="hfl-hc-title">HomeGentic Dashboard</div>
+                  <div className="hfl-hc-addr">327 Keech St, Daytona Beach FL</div>
+                  <div className="hfl-hc-score">
+                    <div className="hfl-hc-num">91</div>
                     <div style={{ flex: 1 }}>
-                      <div className="hfl-dc-bar-wrap"><div className="hfl-dc-bar" /></div>
+                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>Score</div>
+                      <div className="hfl-hc-bar-wrap"><div className="hfl-hc-bar" /></div>
                     </div>
                   </div>
                 </div>
-                <div className="hfl-dc-body">
-                  <div className="hfl-dc-sec-lbl">Maintenance &amp; Services</div>
-                  <div className="hfl-dc-items">
-                    <div className="hfl-dc-item">
-                      <span className="hfl-dc-item-l"><span>❄️</span> HVAC Service</span>
-                      <span className="hfl-status-done">✓ Logged</span>
+                <div className="hfl-hc-body">
+                  {[
+                    { icon: "❄️", label: "HVAC Service",      status: "✓ Logged",    cls: "hfl-hc-pass" },
+                    { icon: "🔌", label: "Electrical Panel",  status: "✓ Verified",  cls: "hfl-hc-pass" },
+                    { icon: "🌿", label: "Landscaping",       status: "Due Nov 10",  cls: "hfl-hc-due"  },
+                  ].map((r) => (
+                    <div key={r.label} className="hfl-hc-item">
+                      <span className="hfl-hc-lbl"><span>{r.icon}</span>{r.label}</span>
+                      <span className={r.cls}>{r.status}</span>
                     </div>
-                    <div className="hfl-dc-item">
-                      <span className="hfl-dc-item-l"><span>🔌</span> Electrical Panel</span>
-                      <span className="hfl-status-ok">✓ Verified</span>
-                    </div>
-                    <div className="hfl-dc-item">
-                      <span className="hfl-dc-item-l"><span>🌿</span> Landscaping</span>
-                      <span className="hfl-status-due">Due Nov 10</span>
-                    </div>
-                  </div>
-                  <div className="hfl-dc-ver-row">
-                    <span style={{ fontSize: 18 }}>📋</span>
-                    <span className="hfl-dc-ver-text">
-                      <strong>HomeGentic Report Ready</strong> — 14 records verified, share in one click
-                    </span>
-                  </div>
+                  ))}
                 </div>
               </div>
-              <div className="hfl-badge hfl-badge-1">
-                <span className="hfl-badge-icon">🏆</span> Score: 91 · Top 8%
+
+              {/* Floating chips */}
+              <div className="hfl-float-chip hfl-float-chip-1">
+                <span className="hfl-float-chip-dot" />
+                🏆 Score: 91 · Top 8%
               </div>
-              <div className="hfl-badge hfl-badge-2">
-                <span className="hfl-badge-icon">⚡</span> 3 agents competing
+              <div className="hfl-float-chip hfl-float-chip-2">
+                <span className="hfl-float-chip-dot" />
+                ⚡ 3 agents competing
               </div>
             </div>
           </div>
         </section>
 
-
         {/* ── How It Works ────────────────────────────────────────────────── */}
-        <section id="hfl-features" className="hfl-how">
-          <div className="hfl-section-header">
+        <section id="hfl-how" className="hfl-how">
+          <div className="hfl-how-header">
+            <span className="hfl-kicker">✦ Simple By Design</span>
             <h2>How It Works</h2>
             <p className="hfl-sec-sub">HomeGentic works across the entire homeownership lifecycle — from move-in to sale day.</p>
           </div>
-          <div className="hfl-flow">
+          <div className="hfl-how-grid">
             {[
-              { icon: "🏠", num: "01", title: "Set Up Your Home", desc: "Add your property and import existing records. AI agents begin organizing your home's history automatically." },
-              { icon: "🔧", num: "02", title: "Manage & Maintain", desc: "Schedule services with verified providers. Every job is logged, receipted, and stored on your permanent record." },
-              { icon: "📋", num: "03", title: "Generate Your Report", desc: "Your HomeGentic Report is a tamper-proof property biography. Share it with buyers or attach it to any listing." },
-              { icon: "🏆", num: "04", title: "Sell With Confidence", desc: "List with the agent who wins your bid — or go FSBO with our full suite of seller tools. Your home, your terms." },
+              { num: "01", icon: "🏠", title: "Set Up Your Home", desc: "Add your property and import existing records. AI agents begin organizing your home's history automatically." },
+              { num: "02", icon: "🔧", title: "Manage & Maintain", desc: (<>Schedule services with <span style={{ color: "var(--sage-dark)", fontWeight: 600 }}>verified</span> providers. Every job is logged, receipted, and stored on your permanent record.</>), },
+              { num: "03", icon: "📋", title: "Generate Your Report", desc: (<>Your <span style={{ color: "var(--sage-dark)", fontWeight: 600 }}>HomeGentic Report</span> is a tamper-proof property biography. Share it with buyers or attach it to any listing.</>), },
+              { num: "04", icon: "🏆", title: "Sell With Confidence", desc: "List with the agent who wins your bid — or go FSBO with our full suite of seller tools. Your home, your terms." },
             ].map((s) => (
-              <div key={s.title} className="hfl-step">
-                <div className="hfl-step-num">{s.num}</div>
-                <div className="hfl-step-icon">{s.icon}</div>
-                <h3>{s.title}</h3>
-                <p>{s.desc}</p>
+              <div key={s.num} className="hfl-how-card">
+                <div className="hfl-how-card-top">
+                  <div className="hfl-how-card-icon">{s.icon}</div>
+                </div>
+                <div className="hfl-how-card-body">
+                  <div className="hfl-how-num">{s.num}</div>
+                  <div className="hfl-how-title">{s.title}</div>
+                  <p className="hfl-how-desc">{s.desc}</p>
+                </div>
               </div>
             ))}
           </div>
         </section>
 
-        {/* ── Feature Showcase ────────────────────────────────────────────── */}
-        <section id="hfl-sell" className="hfl-showcase">
-          <div className="hfl-showcase-header">
-            <div className="hfl-kicker">✦ Everything You Need</div>
-            <h2>Built for the entire<br /><em>homeownership journey</em></h2>
+        {/* ── Stats Strip ─────────────────────────────────────────────────── */}
+        <div className="hfl-stats">
+          {[
+            { num: "98%",  lbl: "Secure Records"    },
+            { num: "42%",  lbl: "Faster Hiring"     },
+            { num: "5K+",  lbl: "Homes Managed"     },
+            { num: "250+", lbl: "IoT Integrations"  },
+          ].map((s) => (
+            <div key={s.lbl} className="hfl-stat">
+              <div className="hfl-stat-num">{s.num}</div>
+              <div className="hfl-stat-lbl">{s.lbl}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Key Features ────────────────────────────────────────────────── */}
+        <section id="hfl-features" className="hfl-features">
+          <div className="hfl-features-header">
+            <span className="hfl-kicker">✦ Everything You Need</span>
+            <h2>Key Features</h2>
           </div>
           <div
             className="hfl-showcase-inner"
@@ -248,7 +332,7 @@ export default function LandingPage() {
                 >
                   <div className="hfl-sc-tab-row">
                     <span className="hfl-sc-tab-icon">{f.icon}</span>
-                    <span className="hfl-sc-tab-title">{f.kicker}</span>
+                    <span className="hfl-sc-tab-title">{f.kicker.split(" ").slice(1).join(" ")}</span>
                   </div>
                   {activeFeature === i && (
                     <div className="hfl-sc-progress-track">
@@ -267,7 +351,7 @@ export default function LandingPage() {
                 <p className="hfl-sc-desc">{FEATURES[activeFeature].desc}</p>
                 <ul className="hfl-sc-bullets">
                   {FEATURES[activeFeature].bullets.map((b) => (
-                    <li key={b}><span className="hfl-sc-bullet-dot">✓</span>{b}</li>
+                    <li key={b}><span className="hfl-sc-check">✓</span>{b}</li>
                   ))}
                 </ul>
                 <button className="hfl-sc-cta" onClick={() => navigate("/login")}>
@@ -277,8 +361,8 @@ export default function LandingPage() {
 
               {/* Visual panel */}
               <div className="hfl-sc-visual" key={`v-${activeFeature}`}>
-                {activeFeature === 0 && (
-                  <div className="hfl-rec-hdr" style={{ borderRadius: 0 }}>
+                {activeFeature === 0 && (<>
+                  <div className="hfl-rec-hdr">
                     <div className="hfl-rec-hdr-top">
                       <span className="hfl-rec-title">HomeGentic Record</span>
                       <span className="hfl-rec-verified">✓ Verified</span>
@@ -292,16 +376,14 @@ export default function LandingPage() {
                       </div>
                     </div>
                   </div>
-                )}
-                {activeFeature === 0 && (
                   <div className="hfl-rec-body">
                     <div className="hfl-rec-section-lbl">Verified History</div>
                     <div className="hfl-rec-items">
                       {[
-                        { icon: "🔨", label: "Roof Replacement", val: "2022 · Signed ✓", cls: "hfl-rec-pass" },
-                        { icon: "❄️", label: "HVAC Full Service", val: "Aug 2024 · Verified ✓", cls: "hfl-rec-pass" },
-                        { icon: "🔌", label: "Electrical Panel",  val: "Permitted 2021 ✓", cls: "hfl-rec-pass" },
-                        { icon: "🚰", label: "Water Heater",      val: "Lifespan: 2 yrs", cls: "hfl-rec-due" },
+                        { icon: "🔨", label: "Roof Replacement",  val: "2022 · Signed ✓",    cls: "hfl-rec-pass" },
+                        { icon: "❄️", label: "HVAC Full Service",  val: "Aug 2024 · Verified ✓", cls: "hfl-rec-pass" },
+                        { icon: "🔌", label: "Electrical Panel",   val: "Permitted 2021 ✓",   cls: "hfl-rec-pass" },
+                        { icon: "🚰", label: "Water Heater",       val: "Lifespan: 2 yrs",    cls: "hfl-rec-due"  },
                       ].map((r) => (
                         <div key={r.label} className="hfl-rec-item">
                           <span className="hfl-rec-item-l"><span>{r.icon}</span>{r.label}</span>
@@ -309,16 +391,14 @@ export default function LandingPage() {
                         </div>
                       ))}
                     </div>
-                    <div className="hfl-rec-footer" style={{ margin: "16px -26px -20px", padding: "14px 26px" }}>
-                      📋 <span>47 records verified · Link ready</span>
-                    </div>
+                    <div className="hfl-rec-footer">📋 <span>47 records verified · Link ready</span></div>
                   </div>
-                )}
+                </>)}
 
                 {activeFeature === 1 && (<>
                   <div className="hfl-ai-panel-hdr">
                     <div className="hfl-ai-panel-hdr-l">
-                      <span style={{ fontSize: 16 }}>🏠</span>
+                      <span style={{ fontSize: 14 }}>🏠</span>
                       <span className="hfl-ai-panel-name">HomeGentic AI</span>
                     </div>
                     <div className="hfl-ai-panel-live"><div className="hfl-ai-panel-dot" />Live</div>
@@ -351,7 +431,7 @@ export default function LandingPage() {
                   </div>
                   <div className="hfl-compete-body">
                     {[
-                      { avi: "👩", name: "Lisa Chen · Keller Williams", detail: "2.4% · Est. net $487k · 18 days", comm: "2.4%", best: true },
+                      { avi: "👩", name: "Lisa Chen · Keller Williams", detail: "2.4% · Est. net $487k · 18 days", comm: "2.4%", best: true  },
                       { avi: "👨", name: "Marcus Rivera · RE/MAX",      detail: "2.8% · Est. net $481k · 22 days", comm: "2.8%", best: false },
                       { avi: "👩", name: "Priya Nair · Compass",        detail: "3.0% · Est. net $479k · 25 days", comm: "3.0%", best: false },
                     ].map((a, i) => (
@@ -370,130 +450,137 @@ export default function LandingPage() {
                 </>)}
 
                 {activeFeature === 3 && (<>
-                  <div style={{ background: "var(--plum)", padding: "18px 22px", borderBottom: "1px solid rgba(253,252,250,0.08)" }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                      <span style={{ fontFamily: "'Fraunces',serif", fontSize: 15, fontWeight: 700, color: "white" }}>Service Network</span>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: "#A8DCA5", background: "rgba(122,175,118,0.25)", border: "1px solid rgba(122,175,118,0.4)", borderRadius: 100, padding: "3px 9px" }}>247 providers nearby</span>
+                  <div className="hfl-sc-contr-hdr">
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span style={{ fontFamily: "'Fraunces',serif", fontSize: 14, fontWeight: 700, color: "white" }}>Service Network</span>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: "#A8DCA5", background: "rgba(122,175,118,0.2)", borderRadius: 100, padding: "2px 8px" }}>247 nearby</span>
                     </div>
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>Daytona Beach, FL · All trades</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Daytona Beach, FL</div>
                   </div>
-                  <div style={{ padding: "16px 22px", display: "flex", flexDirection: "column" as const, gap: 10 }}>
+                  <div className="hfl-sc-contr-cards">
                     {[
-                      { emoji: "🔧", name: "Mike's HVAC Pro",      rating: "4.9★", jobs: "32 jobs on HomeGentic", verified: true },
-                      { emoji: "🔌", name: "Coastal Electric",      rating: "4.8★", jobs: "18 jobs on HomeGentic", verified: true },
-                      { emoji: "🔨", name: "Sunrise Roofing Co.",   rating: "5.0★", jobs: "41 jobs on HomeGentic", verified: true },
+                      { emoji: "🔧", name: "Mike's HVAC Pro",     rating: "4.9★", jobs: "32 jobs on HomeGentic" },
+                      { emoji: "🔌", name: "Coastal Electric",     rating: "4.8★", jobs: "18 jobs on HomeGentic" },
+                      { emoji: "🔨", name: "Sunrise Roofing Co.",  rating: "5.0★", jobs: "41 jobs on HomeGentic" },
                     ].map((c) => (
-                      <div key={c.name} style={{ background: "var(--sage-light)", borderRadius: 10, padding: "10px 14px", display: "flex", alignItems: "center", gap: 12, fontSize: 12 }}>
-                        <span style={{ fontSize: 20 }}>{c.emoji}</span>
+                      <div key={c.name} className="hfl-sc-contr-card">
+                        <span style={{ fontSize: 18 }}>{c.emoji}</span>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 700, color: "var(--plum)", marginBottom: 2 }}>{c.name}</div>
-                          <div style={{ color: "var(--plum-mid)" }}>{c.jobs}</div>
+                          <div className="hfl-sc-contr-name">{c.name}</div>
+                          <div className="hfl-sc-contr-jobs">{c.jobs}</div>
                         </div>
                         <div style={{ textAlign: "right" as const }}>
-                          <div style={{ fontWeight: 700, color: "var(--plum)" }}>{c.rating}</div>
-                          {c.verified && <div style={{ fontSize: 10, color: "var(--sage)", fontWeight: 700 }}>✓ Verified</div>}
+                          <div style={{ fontWeight: 700, color: "white", fontSize: 12 }}>{c.rating}</div>
+                          <div className="hfl-sc-contr-vbadge">✓ Verified</div>
                         </div>
                       </div>
                     ))}
-                    {/* Contractor bid snippet */}
-                    <div style={{ background: "var(--butter)", border: "1px solid rgba(46,37,64,0.1)", borderRadius: 10, padding: "12px 14px" }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: "var(--plum)", letterSpacing: "1.5px", textTransform: "uppercase" as const, marginBottom: 6 }}>⚡ Open Quote Request</div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--plum)", marginBottom: 4 }}>Roof inspection + repair estimate</div>
-                      <div style={{ fontSize: 11, color: "var(--plum-mid)", marginBottom: 8 }}>3 contractors have submitted bids · Closes in 48 hrs</div>
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--plum)", background: "rgba(46,37,64,0.08)", borderRadius: 100, padding: "3px 10px" }}>$420</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--plum)", background: "rgba(46,37,64,0.08)", borderRadius: 100, padding: "3px 10px" }}>$395</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--sage)", background: "rgba(122,175,118,0.2)", borderRadius: 100, padding: "3px 10px" }}>$380 ✦ lowest</span>
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 11, color: "var(--plum-mid)", fontWeight: 600, padding: "4px 0 0", display: "flex", alignItems: "center", gap: 8 }}>
-                      👷 <span>Work auto-logged to your HomeGentic Record</span>
+                  </div>
+                  <div className="hfl-sc-quote-box">
+                    <div className="hfl-sc-quote-label">⚡ Open Quote Request</div>
+                    <div className="hfl-sc-quote-title">Roof inspection + repair estimate</div>
+                    <div className="hfl-sc-quote-sub">3 contractors · Closes in 48 hrs</div>
+                    <div className="hfl-sc-quote-bids">
+                      <span className="hfl-sc-quote-bid">$420</span>
+                      <span className="hfl-sc-quote-bid">$395</span>
+                      <span className="hfl-sc-quote-bid hfl-sc-quote-bid-best">$380 ✦ lowest</span>
                     </div>
                   </div>
                 </>)}
-
               </div>
             </div>
           </div>
         </section>
 
-        {/* ── Report CTA ──────────────────────────────────────────────────── */}
-        <section id="hfl-report" className="hfl-report">
-          <div>
-            <div className="hfl-rc-label">The HomeGentic Report</div>
-            <h2>Your Home's Verified<br /><em>Biography</em></h2>
-            <p>
-              When it's time to sell, your HomeGentic Report is a tamper-proof document showing
-              every owner, every service, every improvement. Buyers love it. Agents share it.
-              Homes with it sell first.
-            </p>
-            <div className="hfl-rc-actions">
-              <button className="hfl-rc-btn" onClick={() => navigate("/login")}>Generate My HomeGentic</button>
-              <button className="hfl-rc-ghost" onClick={() => window.open("/sample-report", "_blank", "noopener,noreferrer")}>View Sample Report</button>
-            </div>
+        {/* ── Split: Sell Smarter / Service Network ───────────────────────── */}
+        <div id="hfl-split" className="hfl-split">
+          <div className="hfl-split-left">
+            <div className="hfl-split-kicker-l">🏡 Sell Smarter</div>
+            <h2>Make agents compete<br /><em>for your listing</em></h2>
+            <ul className="hfl-split-bullets">
+              <li><span>✓</span>Get multiple competing proposals</li>
+              <li><span>✓</span>Compare commission structures side-by-side</li>
+              <li><span>✓</span>FSBO tools to sell on your own terms</li>
+            </ul>
+            <button className="hfl-split-btn-l" onClick={() => navigate("/login")}>List Your Home</button>
           </div>
-          <div>
-            <div className="hfl-report-mock">
-              <div className="hfl-mock-top">
-                <span className="hfl-mock-addr">327 Keech Street, Daytona Beach FL</span>
-                <span className="hfl-mock-badge">HomeGentic ✓</span>
+          <div className="hfl-split-right">
+            <div className="hfl-split-kicker-r">👷 Service Network</div>
+            <h2>Verified contractors,<br /><em>auto-logged work</em></h2>
+            <div className="hfl-contr-grid">
+              {[
+                { emoji: "🔧", name: "Mike's HVAC Pro",    stars: "★★★★★", jobs: "Jobs completed" },
+                { emoji: "⚡", name: "Coastal Electric",    stars: "★★★★½", jobs: "Jobs completed" },
+                { emoji: "🔨", name: "Sunrise Roofing Co.", stars: "★★★★★", jobs: "Jobs completed" },
+                { emoji: "💧", name: "Flow Masters",        stars: "★★★★★", jobs: "Jobs completed" },
+              ].map((c) => (
+                <div key={c.name} className="hfl-contr-card">
+                  <div className="hfl-contr-emoji">{c.emoji}</div>
+                  <div className="hfl-contr-name">{c.name}</div>
+                  <div className="hfl-contr-stars">{c.stars}</div>
+                  <div className="hfl-contr-jobs">{c.jobs}</div>
+                  <div className="hfl-contr-badge">Verified</div>
+                </div>
+              ))}
+            </div>
+            <button className="hfl-contr-browse" onClick={() => navigate("/login")}>
+              Browse the Network →
+            </button>
+          </div>
+        </div>
+
+        {/* ── AI Section ──────────────────────────────────────────────────── */}
+        <section id="hfl-ai" className="hfl-ai-section">
+          <div className="hfl-ai-visual">
+            <div className="hfl-ai-chat-wrap">
+              <div style={{ position: "relative", display: "inline-block" }}>
+                <div className="hfl-ai-pulse-ring" />
+                <div className="hfl-ai-pulse-ring hfl-ai-pulse-ring-2" />
               </div>
-              <div className="hfl-mock-score">
-                <div className="hfl-mock-num">91</div>
-                <div style={{ flex: 1 }}>
-                  <div className="hfl-mock-score-lbl">HomeGentic Property Score</div>
-                  <div className="hfl-mock-bar"><div className="hfl-mock-bar-fill" /></div>
+              <div className="hfl-ai-bubble">
+                <div className="hfl-ai-bubble-header">
+                  <div className="hfl-ai-bubble-icon">🏠</div>
+                  <div>
+                    <div className="hfl-ai-bubble-title">HomeGentic AI</div>
+                    <div className="hfl-ai-bubble-tag">Proactive alert</div>
+                  </div>
+                </div>
+                <div className="hfl-ai-bubble-text">
+                  Your water heater (2013) is past average lifespan. I've found 3 verified HVAC techs nearby — want me to request quotes?
                 </div>
               </div>
-              <div className="hfl-mock-rows">
-                {[
-                  { label: "📋 Title & Ownership",     val: "Clear ✓",            cls: "hfl-mock-pass" },
-                  { label: "🔨 Permits & Renovations", val: "12 Logged ✓",        cls: "hfl-mock-pass" },
-                  { label: "🔧 Service History",        val: "47 Records ✓",       cls: "hfl-mock-pass" },
-                  { label: "🌿 Recurring Services",     val: "4 Under Contract ✓", cls: "hfl-mock-pass" },
-                  { label: "⚖️ Liens & Encumbrances",  val: "None ✓",             cls: "hfl-mock-pass" },
-                ].map((r) => (
-                  <div key={r.label} className="hfl-mock-row">
-                    <span className="hfl-mock-row-lbl">{r.label}</span>
-                    <span className={r.cls}>{r.val}</span>
-                  </div>
-                ))}
+              <div className="hfl-ai-user-bubble">
+                <div className="hfl-ai-mic-icon">🎤</div>
+                <span>"What's my biggest maintenance risk heading into winter?"</span>
               </div>
-              <div className="hfl-mock-footer">📋 <span>All records independently verified · Shareable link generated</span></div>
+              <div className="hfl-ai-bubble" style={{ marginTop: 12 }}>
+                <div className="hfl-ai-bubble-header">
+                  <div className="hfl-ai-bubble-icon">🏠</div>
+                  <div>
+                    <div className="hfl-ai-bubble-title">HomeGentic AI</div>
+                    <div className="hfl-ai-bubble-tag">Analysis complete</div>
+                  </div>
+                </div>
+                <div className="hfl-ai-bubble-text">
+                  Roof last inspected 2021, furnace filter 3 months overdue. I'd prioritize both. Shall I schedule?
+                </div>
+              </div>
             </div>
           </div>
-        </section>
-
-        {/* ── Feature Deep Dive ───────────────────────────────────────────── */}
-        <section className="hfl-fdd">
-          <div className="hfl-fdd-inner">
-            <div className="hfl-fdd-header">
-              <div className="hfl-kicker">✦ Feature Deep Dive</div>
-              <h2>Built for the moments<br /><em>that actually matter</em></h2>
-              <p>Most home apps give you a checklist. HomeGentic gives you documentation that works for you at resale, during insurance claims, and before emergencies happen.</p>
-            </div>
-            <div className="hfl-fdd-cols">
-              {([
-                { icon: ShieldCheck,  title: "Insurance Defense Mode",      tagline: "Fight a rate hike or claim denial with a single report.",        desc: "Generates a print-ready document of every insurance-relevant job — roof, HVAC, electrical, plumbing — sorted by system and dated, ready to hand to your insurer." },
-                { icon: TrendingUp,   title: "Market Intelligence",         tagline: "Know which renovations actually pay off in your zip code.",       desc: "Uses remodeling data to rank projects by ROI for your area. Compares your score to similar nearby properties so you see exactly where you stand." },
-                  { icon: CalendarDays, title: "5-Year Maintenance Calendar", tagline: "Budget for the future instead of being blindsided.",             desc: "Based on your home's system ages and service history, HomeGentic generates a personalized 5-year schedule with projected costs for every task." },
-                { icon: Archive,      title: "Warranty Wallet",             tagline: "Every warranty, receipt, and manual — attached to your home.",   desc: "Store appliance warranties, installation receipts, and product manuals tied to the exact job they belong to. Linked to your blockchain record, not buried in your email." },
-                { icon: RefreshCw,    title: "Recurring Services",          tagline: "Never miss the HVAC tune-up that prevents a $12k failure.",      desc: "Log ongoing service contracts — HVAC, pest control, landscaping — and HomeGentic tracks every visit, sends reminders, and builds a documented history automatically." },
-              ] as const).map((f) => {
-                const Icon = f.icon;
-                return (
-                  <div key={f.title} className="hfl-fdd-row">
-                    <div className="hfl-fdd-icon-wrap">
-                      <Icon size={18} color="var(--sage)" />
-                    </div>
-                    <div className="hfl-fdd-text">
-                      <div className="hfl-fdd-title">{f.title}</div>
-                      <div className="hfl-fdd-tagline">{f.tagline}</div>
-                      <div className="hfl-fdd-desc">{f.desc}</div>
-                    </div>
-                  </div>
-                );
-              })}
+          <div className="hfl-ai-text">
+            <span className="hfl-kicker" style={{ color: "var(--sage)" }}>✦ AI Home Intelligence</span>
+            <h2>Your home has a voice.<br /><em>So do you.</em></h2>
+            <ul className="hfl-ai-bullets">
+              <li><span>✓</span>Voice queries across your full maintenance history</li>
+              <li><span>✓</span>Proactive alerts before costly failures occur</li>
+              <li><span>✓</span>Utility bill anomaly &amp; spike detection</li>
+              <li><span>✓</span>IoT sensor events trigger auto-scheduling</li>
+            </ul>
+            <div className="hfl-ai-btns">
+              <button className="hfl-ai-btn-live">
+                <span className="hfl-ai-live-dot" /> Live
+              </button>
+              <button className="hfl-ai-btn-try" onClick={() => navigate("/login")}>Try the AI</button>
             </div>
           </div>
         </section>
@@ -501,206 +588,72 @@ export default function LandingPage() {
         {/* ── Testimonials ────────────────────────────────────────────────── */}
         <section className="hfl-testimonials">
           <div className="hfl-testimonials-header">
-            <div className="hfl-kicker">★ Homeowner Stories</div>
+            <span className="hfl-kicker">★ Homeowner Stories</span>
             <h2>Homeowners Love Home<em>Gentic</em></h2>
             <p>Real results from real people who took control of their home's story.</p>
           </div>
-
-          <div className="hfl-featured-quote">
-            <p className="hfl-featured-quote-text">
-              "We got <em>$28k over asking</em>. Our buyers said the HomeGentic Report was
-              the reason they felt comfortable waiving the inspection contingency. It's a game changer."
-            </p>
-            <div className="hfl-featured-author">
-              <div className="hfl-featured-avi">👩</div>
-              <div>
-                <div className="hfl-featured-name">Sarah M.</div>
-                <div className="hfl-featured-role">Seller · Austin, TX</div>
-              </div>
-              <div className="hfl-featured-result">
-                <div className="hfl-featured-result-num">+$28k</div>
-                <div className="hfl-featured-result-lbl">over asking price</div>
-              </div>
-            </div>
-          </div>
-
           <div className="hfl-test-grid">
             {[
               {
-                quote: "I posted my listing intent and got five agent proposals in 48 hours. Ended up saving $11k in commission compared to what I would have paid without negotiating.",
-                name: "Marcus T.", role: "Seller · Denver, CO", avi: "hfl-avi-2", emoji: "👨",
+                initial: "S", stars: "★★★★★",
+                headline: "$28k Over Asking!",
+                quote: "Our buyers said the HomeGentic Report was the reason they felt comfortable waiving the inspection contingency. It's a game changer.",
+                name: "Sarah M.", role: "Seller · Austin, TX",
               },
               {
-                quote: "The AI agent reminded me my HVAC was overdue, booked a verified tech, and logged it to my HomeGentic automatically. When I sold six months later, it was right there in the report.",
-                name: "Priya K.", role: "Homeowner · Seattle, WA", avi: "hfl-avi-3", emoji: "👩",
+                initial: "M", stars: "★★★★★",
+                headline: "Best Offer in Austin!",
+                quote: "I posted my listing intent and got five agent proposals in 48 hours. Ended up saving $11k in commission.",
+                name: "Marcus T.", role: "Seller · Denver, CO",
               },
               {
+                initial: "J", stars: "★★★★☆",
+                headline: "Top 1% in Tampa!",
                 quote: "Our inspector said our HomeGentic Score was the highest he'd seen. Buyers skipped the inspection entirely. Closed in 11 days.",
-                name: "James L.", role: "Seller · Tampa, FL", avi: "hfl-avi-1", emoji: "👨",
+                name: "James L.", role: "Seller · Tampa, FL",
               },
             ].map((t) => (
               <div key={t.name} className="hfl-test-card">
-                <div className="hfl-stars">★★★★★</div>
-                <blockquote>"{t.quote}"</blockquote>
-                <div className="hfl-test-author">
-                  <div className={`hfl-avi ${t.avi}`}>{t.emoji}</div>
-                  <div>
-                    <div className="hfl-test-name">{t.name}</div>
-                    <div className="hfl-test-role">{t.role}</div>
-                  </div>
+                <div className="hfl-test-card-top">
+                  <div className="hfl-test-avi">{t.initial}</div>
+                  <div className="hfl-test-stars">{t.stars}</div>
                 </div>
+                <div className="hfl-test-headline">{t.headline}</div>
+                <p className="hfl-test-quote">"{t.quote}"</p>
+                <div className="hfl-test-author-name">{t.name}</div>
+                <div className="hfl-test-author-role">{t.role}</div>
               </div>
             ))}
           </div>
         </section>
 
-        {/* ── Persona CTA ─────────────────────────────────────────────────── */}
-        <section className="hfl-cta">
-          <div className="hfl-cta-inner">
-            <div className="hfl-cta-blob1" />
-            <div className="hfl-cta-blob2" />
-            <h2>How do you want to start?</h2>
-            <p className="hfl-cta-sub">HomeGentic works for every stage of homeownership. Pick what fits you now.</p>
-            <div className="hfl-personas">
-              {[
-                {
-                  icon: "🏠", role: "Homeowner", title: "Build My HomeGentic",
-                  desc: "Log services, track maintenance, grow your property score, and be ready to sell on your terms.",
-                  cta: "Get started",
-                },
-                {
-                  icon: "👷", role: "Contractor", title: "Join the Network",
-                  desc: "Get verified, receive job requests, and have your work permanently credited on homeowner records.",
-                  cta: "Apply to join",
-                },
-                {
-                  icon: "🏡", role: "Real Estate Agent", title: "Win More Listings",
-                  desc: "Submit proposals on active listing intents, showcase your track record, and earn verified reviews directly on HomeGentic.",
-                  cta: "Join as an agent",
-                  giftCta: true,
-                },
-                {
-                  icon: "🏆", role: "Ready to Sell", title: "Make Agents Compete for Your Listing",
-                  desc: "Post your listing intent, collect competing agent proposals, or go FSBO with our full seller toolkit.",
-                  cta: "Start selling smarter",
-                },
-              ].map((p) => (
-                <div key={p.role} className="hfl-persona" onClick={() => navigate("/login")}>
-                  <div className="hfl-persona-icon">{p.icon}</div>
-                  <div className="hfl-persona-role">{p.role}</div>
-                  <div className="hfl-persona-title">{p.title}</div>
-                  <div className="hfl-persona-desc">{p.desc}</div>
-                  <div className="hfl-persona-cta">
-                    {p.cta}
-                  </div>
-                  {(p as any).giftCta && (
-                    <a
-                      href="/gift"
-                      onClick={(e) => e.stopPropagation()}
-                      style={{
-                        display: "inline-block", marginTop: 12,
-                        fontFamily: "var(--sans)", fontSize: 13, fontWeight: 600,
-                        color: "var(--sage)", textDecoration: "none",
-                        borderBottom: "1px solid transparent",
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.borderBottomColor = "var(--sage)")}
-                      onMouseLeave={(e) => (e.currentTarget.style.borderBottomColor = "transparent")}
-                    >
-                      🎁 Gift a subscription to a buyer
-                    </a>
-                  )}
-                </div>
-              ))}
+        {/* ── Final CTA ───────────────────────────────────────────────────── */}
+        <section className="hfl-final-cta">
+          <div>
+            <div className="hfl-cta-kicker">✦ Get Started Today</div>
+            <h2>Take Control of Your<br /><em>Home's Story Today</em></h2>
+            <p>
+              Your home is your biggest asset. Build the permanent record that proves its value,
+              protects your investment, and helps you sell with confidence.
+            </p>
+            <div className="hfl-cta-btns">
+              <button className="hfl-cta-btn-main" onClick={() => navigate("/login")}>Get Started Free</button>
+              <button className="hfl-cta-btn-ghost" onClick={() => window.open("/sample-report", "_blank", "noopener,noreferrer")}>See a Sample Report</button>
+            </div>
+            <div className="hfl-cta-trust">
+              <span className="hfl-cta-trust-item">🔒 Blockchain-Secured</span>
+              <span className="hfl-cta-trust-item">🛡️ Privacy First</span>
+              <span className="hfl-cta-trust-item">✓ GDPR Compliant</span>
             </div>
           </div>
-        </section>
-
-        {/* ── Your Data ───────────────────────────────────────────────────── */}
-        <section id="hfl-data" className="hfl-data">
-          <div className="hfl-data-inner">
-            <div>
-              <h2>Your records.<br /><em>Forever yours.</em></h2>
-              <p className="hfl-data-lead">
-                Most apps keep your data on their servers. If they shut down, your records disappear.
-                HomeGentic is different — every record you log lives on a public blockchain that no one
-                controls, including us. You own it completely.
-              </p>
-            </div>
-            <div className="hfl-data-cards">
-              {[
-                { icon: "🏠", title: "Your home, your history", body: "Every repair, permit, and inspection you log is yours to keep — whether you stay with HomeGentic for one year or ten." },
-                { icon: "📥", title: "Download anytime",        body: "Export your full record as a PDF or raw data file whenever you want. No hoops, no waiting, no fees." },
-                { icon: "🔗", title: "Survives us",             body: "Even if HomeGentic ever closed tomorrow, your records would still be readable by anyone with the address. That's the promise." },
-                { icon: "🔐", title: "Private by default",      body: "Only you decide who sees what. Sharing a HomeGentic Report with a buyer is your choice — nothing is public until you say so." },
-              ].map((card) => (
-                <div key={card.title} className="hfl-data-card">
-                  <div className="hfl-data-card-icon">{card.icon}</div>
-                  <div>
-                    <div className="hfl-data-card-title">{card.title}</div>
-                    <div className="hfl-data-card-body">{card.body}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ── Free Tools ──────────────────────────────────────────────────── */}
-        <section id="hfl-tools" className="hfl-tools">
-          <div className="hfl-tools-inner">
-            <div className="hfl-cta-blob1" />
-            <div className="hfl-cta-blob2" />
-          <div className="hfl-tools-header">
-            <h2>Free tools</h2>
-            <p className="hfl-tools-sub">Try these before you sign up — no login, no credit card.</p>
-          </div>
-          <div className="hfl-tools-grid">
-            {[
-              {
-                icon: "🔍", label: "Buyer tool", title: "HomeGentic Report Lookup",
-                desc: "Enter any address to see if the owner has a verified HomeGentic maintenance report ready to share.",
-                cta: "Check an address", href: "/check",
-              },
-              {
-                icon: "📅", label: "Planning tool", title: "Instant System Forecast",
-                desc: "Enter your home's year built and get a 10-year cost forecast for HVAC, roof, plumbing, electrical, and more.",
-                cta: "Get my forecast", href: "/instant-forecast",
-              },
-              {
-                icon: "💰", label: "Pricing tool", title: "Contractor Price Lookup",
-                desc: "See what homeowners in your area actually pay for roofing, HVAC, plumbing, flooring, and other common jobs.",
-                cta: "Look up prices", href: "/prices",
-              },
-              {
-                icon: "⚙️", label: "Estimator", title: "Home Systems Estimator",
-                desc: "Get lifespan estimates and replacement cost ranges for every major system in your home based on install year.",
-                cta: "Estimate my systems", href: "/home-systems",
-              },
-              {
-                icon: "🔎", label: "Buyer tool", title: "Buyer's Truth Kit",
-                desc: "Enter any address and what the seller is claiming. Get permit records, credibility flags, and the exact questions to ask before you close.",
-                cta: "Build my kit", href: "/truth-kit",
-              },
-            ].map((tool) => (
-              <a key={tool.href} href={tool.href} className="hfl-tool-card">
-                <div className="hfl-tool-icon">{tool.icon}</div>
-                <div>
-                  <div className="hfl-tool-label">{tool.label}</div>
-                  <div className="hfl-tool-title">{tool.title}</div>
-                </div>
-                <p className="hfl-tool-desc">{tool.desc}</p>
-                <span className="hfl-tool-cta">{tool.cta}</span>
-              </a>
-            ))}
-          </div>
-          </div>
+          <OrbitDiagram />
         </section>
 
         {/* ── Footer ──────────────────────────────────────────────────────── */}
         <footer className="hfl-footer">
           <div className="hfl-footer-top">
             <div>
-              <span className="hfl-footer-logo">Home<span>Gentic</span></span>
+              <a href="/" className="hfl-footer-logo">Home<span>Gentic</span></a>
               <p className="hfl-footer-tagline">
                 The verified maintenance record that makes your home worth more and easier to sell.
               </p>
@@ -715,10 +668,9 @@ export default function LandingPage() {
             <div>
               <div className="hfl-footer-col-title">Product</div>
               <ul className="hfl-footer-col-links">
-                <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-features"); }}>For Homeowners</a></li>
-                <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-features"); }}>Service Network</a></li>
-                <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-report"); }}>HomeGentic Report</a></li>
-                <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-sell"); }}>Sell Smarter</a></li>
+                <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-how"); }}>For Homeowners</a></li>
+                <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-features"); }}>Key Features</a></li>
+                <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-split"); }}>Sell Smarter</a></li>
                 <li><a onClick={() => navigate("/demo")}>Interactive Demo</a></li>
                 <li><a onClick={() => navigate("/pricing")}>Pricing</a></li>
               </ul>
@@ -741,7 +693,6 @@ export default function LandingPage() {
                 <li><Link to="/privacy">Privacy Policy</Link></li>
                 <li><Link to="/terms">Terms of Service</Link></li>
                 <li><Link to="/support">Support</Link></li>
-                <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-data"); }}>Your Data</a></li>
               </ul>
             </div>
           </div>
