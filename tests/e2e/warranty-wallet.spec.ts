@@ -8,7 +8,7 @@
 
 import { test, expect } from "@playwright/test";
 import { injectTestAuth } from "./helpers/auth";
-import { injectTestProperties, injectSubscription, injectWarrantyJobs } from "./helpers/testData";
+import { injectSubscription, injectWarrantyJobs } from "./helpers/testData";
 
 // ── WW.1 — No jobs empty state ────────────────────────────────────────────────
 
@@ -41,8 +41,8 @@ test.describe("WW.2 — /warranties (Basic, with warranty jobs)", () => {
     await injectWarrantyJobs(page);
     await injectSubscription(page, "Basic");
     await page.goto("/warranties");
-    // Wait for async job data to resolve — sections only appear once warrantyJobs > 0
-    await expect(page.getByText("Expiring Soon")).toBeVisible({ timeout: 10_000 });
+    // Wait for sections to render — title includes "(N)" count, only appears after warrantyJobs loads
+    await expect(page.getByText(/Expiring Soon \(\d+\)/)).toBeVisible({ timeout: 10_000 });
   });
 
   test("WW.2 shows 'Your Warranties' heading", async ({ page }) => {
@@ -66,6 +66,6 @@ test.describe("WW.2 — /warranties (Basic, with warranty jobs)", () => {
   });
 
   test("WW.3 shows scan document panel upload button", async ({ page }) => {
-    await expect(page.getByText(/save to wallet/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: /scan document/i })).toBeVisible();
   });
 });
