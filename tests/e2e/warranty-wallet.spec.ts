@@ -54,7 +54,7 @@ test.describe("WW.2 — /warranties (Basic, with warranty jobs)", () => {
   });
 
   test("WW.2 shows Expiring Soon section", async ({ page }) => {
-    await expect(page.getByText("Expiring Soon")).toBeVisible();
+    await expect(page.getByText(/Expiring Soon \(\d+\)/)).toBeVisible();
   });
 
   test("WW.2 shows Active section", async ({ page }) => {
@@ -62,7 +62,7 @@ test.describe("WW.2 — /warranties (Basic, with warranty jobs)", () => {
   });
 
   test("WW.2 shows Expired section", async ({ page }) => {
-    await expect(page.getByText("Expired")).toBeVisible();
+    await expect(page.getByText(/Expired \(\d+\)/)).toBeVisible();
   });
 
   test("WW.3 shows scan document panel upload button", async ({ page }) => {
