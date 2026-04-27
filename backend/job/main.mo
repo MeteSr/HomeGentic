@@ -502,10 +502,19 @@ persistent actor Job {
                 case (#Windows)     { "Windows"     };
                 case (#Landscaping) { "Landscaping" };
               };
-              let contrActor = actor(contrCanisterId) : actor {
-                recordJobVerified : (Principal, Text, Text, Principal) -> async { #ok : (); #err : {} };
+              type ContrError = {
+                #NotFound; #AlreadyExists; #Unauthorized;
+                #Paused; #RateLimitExceeded; #InvalidInput : Text;
               };
-              ignore contrActor.recordJobVerified(con, jobId, svcText, existing.homeowner);
+              let contrActor = actor(contrCanisterId) : actor {
+                recordJobVerified : (Principal, Text, Text, Principal) -> async { #ok : (); #err : ContrError };
+              };
+              // Await with try/catch so canister traps or network errors don't
+              // propagate. #err results (e.g. #Unauthorized) are valid values
+              // and are simply discarded — job verification is already committed.
+              try {
+                ignore await contrActor.recordJobVerified(con, jobId, svcText, existing.homeowner);
+              } catch (_e) {};
             };
             case null {};
           };
@@ -622,7 +631,9 @@ persistent actor Job {
 
   public shared(msg) func addAdmin(newAdmin: Principal) : async Result.Result<(), Error> {
     if (adminInitialized and not isAdmin(msg.caller)) return #err(#Unauthorized);
-    adminListEntries := Array.concat(adminListEntries, [newAdmin]);
+    if (not isAdmin(newAdmin)) {
+      adminListEntries := Array.concat(adminListEntries, [newAdmin]);
+    };
     adminInitialized := true;
     #ok(())
   };

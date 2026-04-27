@@ -106,8 +106,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const pending = sessionStorage.getItem("pendingCheckout");
         if (pending) {
           sessionStorage.removeItem("pendingCheckout");
-          const { tier, billing } = JSON.parse(pending);
-          navigate(`/checkout?tier=${tier}&billing=${billing}`);
+          try {
+            const { tier, billing } = JSON.parse(pending);
+            if (typeof tier === "string" && typeof billing === "string") {
+              navigate(`/checkout?tier=${tier}&billing=${billing}`);
+              return;
+            }
+          } catch {
+            // Malformed session data — fall through to normal destination
+          }
+          navigate(await homeownerDestination(profile));
         } else {
           navigate(await homeownerDestination(profile));
         }
@@ -140,8 +148,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const pending = sessionStorage.getItem("pendingCheckout");
         if (pending) {
           sessionStorage.removeItem("pendingCheckout");
-          const { tier, billing } = JSON.parse(pending);
-          navigate(`/checkout?tier=${tier}&billing=${billing}`);
+          try {
+            const { tier, billing } = JSON.parse(pending);
+            if (typeof tier === "string" && typeof billing === "string") {
+              navigate(`/checkout?tier=${tier}&billing=${billing}`);
+              return;
+            }
+          } catch {
+            // Malformed session data — fall through to normal destination
+          }
+          navigate(await homeownerDestination(profile));
         } else {
           navigate(await homeownerDestination(profile));
         }

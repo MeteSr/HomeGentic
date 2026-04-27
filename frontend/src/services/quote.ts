@@ -132,6 +132,13 @@ const QUOTE_STATUS_MAP: Record<string, QuoteStatus> = {
   Pending: "pending", Accepted: "accepted", Rejected: "rejected", Expired: "expired",
 };
 
+function mapVariant<T>(map: Record<string, T>, raw: any, field: string): T {
+  const key = Object.keys(raw)[0];
+  const val = map[key];
+  if (val === undefined) throw new Error(`Unknown canister variant for ${field}: "${key}"`);
+  return val;
+}
+
 function fromRequest(raw: any): QuoteRequest {
   const closeAtArr = raw.closeAt as bigint[] | undefined;
   return {
@@ -139,9 +146,9 @@ function fromRequest(raw: any): QuoteRequest {
     propertyId:  raw.propertyId,
     homeowner:   raw.homeowner.toText(),
     serviceType: Object.keys(raw.serviceType)[0],
-    urgency:     URGENCY_MAP[Object.keys(raw.urgency)[0]] ?? "medium",
+    urgency:     mapVariant(URGENCY_MAP, raw.urgency, "urgency"),
     description: raw.description,
-    status:      REQUEST_STATUS_MAP[Object.keys(raw.status)[0]] ?? "open",
+    status:      mapVariant(REQUEST_STATUS_MAP, raw.status, "requestStatus"),
     createdAt:   Number(raw.createdAt) / 1_000_000,
     closeAt:     closeAtArr && closeAtArr.length > 0
                    ? Number(closeAtArr[0]) / 1_000_000
@@ -157,7 +164,7 @@ function fromQuote(raw: any): Quote {
     amount:     Number(raw.amount),
     timeline:   Number(raw.timeline),
     validUntil: Number(raw.validUntil) / 1_000_000,
-    status:     QUOTE_STATUS_MAP[Object.keys(raw.status)[0]] ?? "pending",
+    status:     mapVariant(QUOTE_STATUS_MAP, raw.status, "quoteStatus"),
     createdAt:  Number(raw.createdAt) / 1_000_000,
   };
 }
@@ -275,8 +282,8 @@ function createQuoteService() {
   },
 
   async getMyBids(): Promise<Quote[]> {
-    // No dedicated canister endpoint yet — return empty; canister can add getMyQuotes later
-    return [];
+    // TODO(#xxx): canister does not expose getMyQuotes yet; implement when added.
+    throw new Error("getMyBids: not implemented — canister endpoint pending");
   },
 
   async getQuotesForRequest(requestId: string): Promise<Quote[]> {

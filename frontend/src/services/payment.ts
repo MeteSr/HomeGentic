@@ -262,7 +262,16 @@ export const paymentService = {
     }
     const a = await getActor();
     const result = await a.getMySubscription();
-    if ("err" in result) return { tier: "Free", expiresAt: null, cancelledAt: null };
+    if ("err" in result) {
+      // NotFound = user has no subscription record → Free tier is correct.
+      // Any other error (Unauthorized, Paused, etc.) is a real failure: throw
+      // so callers don't silently treat a paid user as Free.
+      if (!("NotFound" in (result.err as any))) {
+        const key = Object.keys(result.err as any)[0];
+        throw new Error(`getMySubscription: ${key}`);
+      }
+      return { tier: "Free", expiresAt: null, cancelledAt: null };
+    }
     const sub = result.ok;
     const tierKey       = Object.keys(sub.tier)[0] as PlanTier;
     const expiresNs     = Number(sub.expiresAt);

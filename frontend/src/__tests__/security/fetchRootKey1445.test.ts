@@ -1,13 +1,20 @@
 /**
  * TDD — 14.4.5: Verify fetchRootKey is never called in production
  *
- * shouldFetchRootKey: true is safe only in local dev — it disables certificate
- * verification and must never appear in production code paths.
+ * shouldFetchRootKey: true disables certificate verification and must never
+ * appear unconditionally in production code paths.
+ *
+ * getAgent() now fetches the root key explicitly with a 2 s timeout instead
+ * of relying on the shouldFetchRootKey flag, which caused hangs when no
+ * replica was reachable (E2E mock mode, CI without dfx).
  *
  * Checks:
- *  1. The production getAgent() path uses shouldFetchRootKey: IS_LOCAL (not true)
- *  2. Any occurrence of shouldFetchRootKey: true is inside a DEV-guarded block
- *  3. No file other than actor.ts uses fetchRootKey: true outside a DEV guard
+ *  1. getAgent() does NOT pass shouldFetchRootKey: true to HttpAgent.create()
+ *  2. getAgent() calls fetchRootKey() only inside an IS_LOCAL guard
+ *  3. The explicit fetchRootKey call has a timeout (prevents hangs in mock mode)
+ *  4. Any occurrence of shouldFetchRootKey: true is inside a DEV-guarded block
+ *  5. loginWithLocalIdentity() is hard-blocked in production
+ *  6. No other TS/TSX source file uses fetchRootKey: true outside actor.ts
  */
 
 import { describe, it, expect } from "vitest";
@@ -37,17 +44,28 @@ function walk(dir: string): string[] {
 describe("14.4.5: fetchRootKey production safety", () => {
   const actor = read("frontend/src/services/actor.ts");
 
-  it("production getAgent() uses shouldFetchRootKey: IS_LOCAL (not hardcoded true)", () => {
-    // Extract the getAgent function body (up to the first closing brace after its open)
+  it("getAgent() does not pass shouldFetchRootKey: true to HttpAgent.create()", () => {
+    // shouldFetchRootKey: true disables cert verification — must never be hardcoded.
+    // getAgent() now fetches root key explicitly with a timeout instead of using this flag.
     const start = actor.indexOf("async function getAgent");
     expect(start).toBeGreaterThan(-1);
-    // Grab up to 600 chars — enough to cover the whole function
-    const snippet = actor.slice(start, start + 600);
-    expect(snippet).toMatch(/shouldFetchRootKey:\s*IS_LOCAL/);
+    const snippet = actor.slice(start, start + 800);
     expect(snippet).not.toMatch(/shouldFetchRootKey:\s*true/);
   });
 
-  it("every shouldFetchRootKey: true in actor.ts is inside a DEV-guarded block", () => {
+  it("getAgent() calls fetchRootKey() inside an IS_LOCAL guard with a timeout", () => {
+    const start = actor.indexOf("async function getAgent");
+    expect(start).toBeGreaterThan(-1);
+    const snippet = actor.slice(start, start + 800);
+    // Must be gated on IS_LOCAL — never called unconditionally
+    expect(snippet).toMatch(/if\s*\(IS_LOCAL\)/);
+    // Must use an explicit fetchRootKey() call (not the flag)
+    expect(snippet).toMatch(/fetchRootKey\(\)/);
+    // Must have a timeout to prevent indefinite hangs when no replica is reachable
+    expect(snippet).toMatch(/setTimeout/);
+  });
+
+  it("every shouldFetchRootKey: true in actor.ts is inside a local-only guard", () => {
     const trueOccurrences: number[] = [];
     let pos = 0;
     while (true) {

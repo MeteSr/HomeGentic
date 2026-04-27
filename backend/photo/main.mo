@@ -11,6 +11,7 @@ import Nat       "mo:core/Nat";
 import Option    "mo:core/Option";
 import Principal "mo:core/Principal";
 import Result    "mo:core/Result";
+import Runtime   "mo:core/Runtime";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
 
@@ -155,16 +156,15 @@ persistent actor Photo {
   };
 
   /// Delegate property-ownership check to the property canister.
-  /// Falls back to direct principal comparison when propCanisterId is unset (local dev).
+  /// Traps if propCanisterId is unset — auth must never silently degrade.
   private func checkPropertyAuth(propertyId: Text, owner: Principal, caller: Principal, requireWrite: Bool) : async Bool {
-    if (Text.size(propCanisterId) > 0) {
-      let propActor = actor(propCanisterId) : actor {
-        isAuthorized : (Text, Principal, Bool) -> async Bool;
-      };
-      await propActor.isAuthorized(propertyId, caller, requireWrite)
-    } else {
-      caller == owner
-    }
+    if (Text.size(propCanisterId) == 0) {
+      Runtime.trap("photo: propCanisterId not configured — call setPropertyCanisterId first");
+    };
+    let propActor = actor(propCanisterId) : actor {
+      isAuthorized : (Text, Principal, Bool) -> async Bool;
+    };
+    await propActor.isAuthorized(propertyId, caller, requireWrite)
   };
 
   private func nextPhotoId() : Text {
@@ -513,7 +513,9 @@ persistent actor Photo {
   public shared(msg) func addAdmin(newAdmin: Principal) : async Result.Result<(), Error> {
     if (adminListEntries.size() > 0 and not isAdmin(msg.caller))
       return #err(#Unauthorized);
-    adminListEntries := Array.concat(adminListEntries, [newAdmin]);
+    if (not isAdmin(newAdmin)) {
+      adminListEntries := Array.concat(adminListEntries, [newAdmin]);
+    };
     #ok(())
   };
 

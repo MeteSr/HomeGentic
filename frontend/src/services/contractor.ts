@@ -211,9 +211,15 @@ function createContractorService() {
   },
 
   async getTopRated(): Promise<ContractorProfile[]> {
-    const a = await getActor();
-    const all = (await a.getAll() as any[]).map(fromProfile);
-    return all.sort((a, b) => b.trustScore - a.trustScore);
+    if (!CONTRACTOR_CANISTER_ID) return [];
+    try {
+      const a = await getActor();
+      const all = (await a.getAll() as any[]).map(fromProfile);
+      return all.sort((a, b) => b.trustScore - a.trustScore);
+    } catch (err) {
+      console.warn("[contractorService] getTopRated failed:", err);
+      return [];
+    }
   },
 
   async getMyProfile(): Promise<ContractorProfile | null> {
@@ -234,9 +240,15 @@ function createContractorService() {
       return all.find((c) => c.id === principalText) ?? null;
     }
     if (!CONTRACTOR_CANISTER_ID) return null;
-    const a = await getActor();
     const { Principal: P } = await import("@icp-sdk/core/principal");
-    const result = await a.getContractor(P.fromText(principalText));
+    let principal;
+    try {
+      principal = P.fromText(principalText);
+    } catch {
+      return null;
+    }
+    const a = await getActor();
+    const result = await a.getContractor(principal);
     if ("err" in result) return null;
     return fromProfile(result.ok);
   },
