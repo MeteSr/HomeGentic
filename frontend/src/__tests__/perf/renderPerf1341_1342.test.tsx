@@ -13,6 +13,10 @@ import { render, screen, waitFor, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 
+vi.mock("@/components/Layout", () => ({
+  Layout: ({ children }: any) => <>{children}</>,
+}));
+
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
 function makeProperty(i: number) {

@@ -13,6 +13,32 @@ vi.mock("@/components/Layout", () => ({
   Layout: ({ children }: any) => <>{children}</>,
 }));
 
+// vi.hoisted ensures PENDING is initialized before vi.mock factories run.
+// Never-resolving promises prevent setLoading(false) from firing outside act().
+const PENDING = vi.hoisted(() => new Promise<never>(() => {}));
+
+vi.mock("@/services/contractor", () => ({
+  contractorService: {
+    getContractor:  vi.fn(() => PENDING),
+    getCredentials: vi.fn(() => PENDING),
+  },
+}));
+
+vi.mock("@/services/agent", () => ({
+  agentService: {
+    getPublicProfile: vi.fn(() => PENDING),
+    getReviews:       vi.fn(() => PENDING),
+  },
+}));
+
+vi.mock("@/services/listing", () => ({
+  listingService: {
+    getAgentPerformanceRecords: vi.fn(() => PENDING),
+    getListing:                 vi.fn(() => PENDING),
+    getPublicListing:           vi.fn(() => PENDING),
+  },
+}));
+
 (globalThis as any).requestAnimationFrame = (cb: FrameRequestCallback) => { cb(0); return 0; };
 (globalThis as any).cancelAnimationFrame = () => {};
 

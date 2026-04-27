@@ -11,6 +11,10 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 
+vi.mock("@/components/Layout", () => ({
+  Layout: ({ children }: any) => <>{children}</>,
+}));
+
 // ─── Mock service layer ────────────────────────────────────────────────────────
 
 // vi.hoisted ensures these are available inside the vi.mock factory (which is hoisted)

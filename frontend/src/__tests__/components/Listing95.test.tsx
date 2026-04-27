@@ -12,6 +12,10 @@ import { render, screen, fireEvent, waitFor, within } from "@testing-library/rea
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 
+vi.mock("@/components/Layout", () => ({
+  Layout: ({ children }: any) => <>{children}</>,
+}));
+
 // ─── Mock data (vi.hoisted so factories can reference them) ───────────────────
 
 const {
