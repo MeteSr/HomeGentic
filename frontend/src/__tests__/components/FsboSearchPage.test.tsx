@@ -22,6 +22,10 @@ import { render, act, screen, fireEvent, within } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import React from "react";
 import { vi } from "vitest";
+
+vi.mock("@/components/Layout", () => ({
+  Layout: ({ children }: any) => <>{children}</>,
+}));
 import type { FsboPublicListing } from "@/services/fsbo";
 
 // ── Test listings fixture (injected via vi.mock — no static data in service) ──

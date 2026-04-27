@@ -9,6 +9,10 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 
+vi.mock("@/components/Layout", () => ({
+  Layout: ({ children }: any) => <>{children}</>,
+}));
+
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
 vi.mock("react-router-dom", async (importOriginal) => {
