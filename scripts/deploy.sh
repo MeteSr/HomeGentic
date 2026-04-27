@@ -204,6 +204,7 @@ fi
 
 CANISTERS=(auth property job contractor quote payment photo report maintenance market sensor monitoring listing agent recurring bills ai_proxy)
 LOG_DIR=$(mktemp -d /tmp/icp-deploy-XXXXXX)
+trap 'rm -rf "$LOG_DIR"' EXIT
 DEPLOY_PRINCIPAL=$(icp identity principal)
 
 if [ "$ENV" = "local" ]; then

@@ -385,6 +385,7 @@ persistent actor Property {
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
 
   private transient let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
+  private transient var rateLimitSweepTick : Nat = 0;
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
   private let ONE_MINUTE_NS       : Int = 60_000_000_000;
@@ -396,11 +397,24 @@ persistent actor Property {
     not Principal.isAnonymous(caller) and arg.size() > 0
   };
 
+  private func sweepRateLimits(now: Int) {
+    let stale = Iter.toArray(
+      Iter.filter(Map.keys(updateCallLimits), func(k: Text) : Bool {
+        switch (Map.get(updateCallLimits, Text.compare, k)) {
+          case (?(_, ws)) { now - ws >= ONE_MINUTE_NS };
+          case null       { false };
+        }
+      })
+    );
+    for (k in stale.vals()) { ignore Map.remove(updateCallLimits, Text.compare, k) };
+  };
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
     if (isAdmin(caller) or isTrustedCanister(caller)) return true;
     let key = Principal.toText(caller);
     let now = Time.now();
+    rateLimitSweepTick += 1;
+    if (rateLimitSweepTick >= 200) { rateLimitSweepTick := 0; sweepRateLimits(now) };
     switch (Map.get(updateCallLimits, Text.compare, key)) {
       case null { Map.add(updateCallLimits, Text.compare, key, (1, now)); true };
       case (?(count, windowStart)) {

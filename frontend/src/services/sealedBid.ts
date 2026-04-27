@@ -56,8 +56,16 @@ function mockIbeEncrypt(amountCents: number, requestId: string): string {
 }
 
 function mockIbeDecrypt(ciphertext: string): { amountCents: number; requestId: string } {
-  const { a, r } = JSON.parse(atob(ciphertext));
-  return { amountCents: a, requestId: r };
+  let parsed: any;
+  try {
+    parsed = JSON.parse(atob(ciphertext));
+  } catch {
+    throw new Error("sealedBid: invalid ciphertext — cannot decode bid");
+  }
+  if (typeof parsed?.a !== "number" || typeof parsed?.r !== "string") {
+    throw new Error("sealedBid: malformed bid payload");
+  }
+  return { amountCents: parsed.a, requestId: parsed.r };
 }
 
 // ─── Service factory ──────────────────────────────────────────────────────────

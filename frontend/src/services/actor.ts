@@ -30,11 +30,24 @@ export async function getAgent(): Promise<HttpAgent> {
     const client = getAuthClient();
     // v6: getIdentity() is now async
     const identity = await client.getIdentity();
+    // Do NOT pass shouldFetchRootKey to HttpAgent.create() — on @icp-sdk/core/agent
+    // that flag triggers an eager synchronous root-key fetch that hangs when no
+    // replica is reachable (e.g. E2E mock mode, CI without dfx).  Instead, fetch
+    // explicitly with a timeout, matching the pattern in loginWithLocalIdentity().
     _agent = await HttpAgent.create({
       identity,
       host: IS_LOCAL ? "http://localhost:4943" : "https://ic0.app",
-      shouldFetchRootKey: IS_LOCAL,
     });
+    if (IS_LOCAL) {
+      await Promise.race([
+        _agent.fetchRootKey(),
+        new Promise<void>((_, reject) =>
+          setTimeout(() => reject(new Error("fetchRootKey timeout")), 2000)
+        ),
+      ]).catch((err: unknown) => {
+        console.warn("[actor] getAgent fetchRootKey failed — running in mock mode:", err);
+      });
+    }
   }
   return _agent;
 }

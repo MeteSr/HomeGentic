@@ -505,7 +505,11 @@ persistent actor Job {
               let contrActor = actor(contrCanisterId) : actor {
                 recordJobVerified : (Principal, Text, Text, Principal) -> async { #ok : (); #err : {} };
               };
-              ignore contrActor.recordJobVerified(con, jobId, svcText, existing.homeowner);
+              // Await so rejections don't silently fail; job verification is already
+              // committed above — trust-score notification is best-effort.
+              try {
+                ignore await contrActor.recordJobVerified(con, jobId, svcText, existing.homeowner);
+              } catch (_e) {};
             };
             case null {};
           };
@@ -622,7 +626,9 @@ persistent actor Job {
 
   public shared(msg) func addAdmin(newAdmin: Principal) : async Result.Result<(), Error> {
     if (adminInitialized and not isAdmin(msg.caller)) return #err(#Unauthorized);
-    adminListEntries := Array.concat(adminListEntries, [newAdmin]);
+    if (not isAdmin(newAdmin)) {
+      adminListEntries := Array.concat(adminListEntries, [newAdmin]);
+    };
     adminInitialized := true;
     #ok(())
   };

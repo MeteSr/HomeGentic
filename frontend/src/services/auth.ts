@@ -68,7 +68,7 @@ export const idlFactory = ({ IDL }: any) => {
   });
 };
 
-export type UserRole = "Homeowner" | "Contractor" | "Realtor";
+export type UserRole = "Homeowner" | "Contractor" | "Realtor" | "Builder";
 
 export interface UserProfile {
   principal:          string;
@@ -98,10 +98,14 @@ async function getActor() {
   return _actor;
 }
 
+const VALID_ROLES = new Set<string>(["Homeowner", "Contractor", "Realtor", "Builder"]);
+
 function fromProfile(raw: any): UserProfile {
+  const roleKey = Object.keys(raw.role)[0];
+  if (!VALID_ROLES.has(roleKey)) throw new Error(`Unknown user role from canister: "${roleKey}"`);
   return {
     principal:    raw.principal.toText(),
-    role:         Object.keys(raw.role)[0] as UserRole,
+    role:         roleKey as UserRole,
     email:        raw.email,
     phone:        raw.phone,
     createdAt:    raw.createdAt,
