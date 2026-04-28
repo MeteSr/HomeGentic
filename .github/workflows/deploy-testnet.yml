@@ -37,6 +37,13 @@ jobs:
       - name: Install mops
         run: npm install -g ic-mops
 
+      - name: Wallet cycles pre-flight
+        run: bash scripts/check-wallet-balance.sh
+        env:
+          DFX_IDENTITY_PEM: ${{ secrets.DFX_IDENTITY_PEM }}
+          DFX_NETWORK: ic
+          MIN_WALLET_CYCLES: '5000000000000'
+
       - name: Deploy to testnet
         run: bash scripts/deploy.sh testnet
         env:
