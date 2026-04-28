@@ -40,8 +40,8 @@ jobs:
 
       - name: Install dfx
         run: |
-          curl -fsSL "https://github.com/dfinity/sdk/releases/download/0.24.3/dfx-x86_64-unknown-linux-musl.tar.xz" \
-            | tar -xJ dfx
+          curl -fsSL "https://github.com/dfinity/sdk/releases/download/0.24.3/dfx-x86_64-unknown-linux-gnu.tar.gz" \
+            | tar -xz dfx
           sudo install -m 755 dfx /usr/local/bin/dfx
           dfx --version
 
