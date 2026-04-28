@@ -229,6 +229,7 @@ if [ "$ENV" != "local" ] && [ -n "${DFX_WALLET_ID:-}" ] && [ -n "${DFX_IDENTITY_
   if dfx canister call um5iw-rqaaa-aaaaq-qaaba-cai deposit_cycles \
     "(record { to = record { owner = principal \"$DEPLOY_PRINCIPAL\"; subaccount = null } })" \
     --with-cycles "$_FUND" \
+    --wallet "$DFX_WALLET_ID" \
     --network ic; then
     echo "  ✓ Cycles ledger funded"
   else
