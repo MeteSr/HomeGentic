@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEPLOY_SCRIPT_VERSION="1.4.8"
+DEPLOY_SCRIPT_VERSION="1.4.9"
 ENV=${1:-local}
 
 echo "============================================"
@@ -226,8 +226,8 @@ if [ "$ENV" != "local" ] && [ -n "${DFX_WALLET_ID:-}" ] && [ -n "${DFX_IDENTITY_
   # Wallet must hold ≥ 40T cycles — top up at https://nns.ic0.app if needed.
   _FUND=40000000000000
   echo "▶ Depositing ${_FUND} cycles from wallet to cycles ledger for $DEPLOY_PRINCIPAL..."
-  if dfx canister call um5iw-rqaaa-aaaaq-qaaba-cai deposit_cycles \
-    "(record { to = record { owner = principal \"$DEPLOY_PRINCIPAL\"; subaccount = null } })" \
+  if dfx canister call um5iw-rqaaa-aaaaq-qaaba-cai deposit \
+    "(record { to = record { owner = principal \"$DEPLOY_PRINCIPAL\"; subaccount = null }; memo = null; created_at_time = null })" \
     --with-cycles "$_FUND" \
     --wallet "$DFX_WALLET_ID" \
     --network ic; then
