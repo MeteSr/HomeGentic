@@ -137,5 +137,11 @@ test.describe("Job Create — /jobs/new", () => {
   test("shows 'Log Job to Blockchain' submit button", async ({ page }) => {
     await expect(page.getByRole("button", { name: /log job to blockchain/i })).toBeVisible();
   });
+
+  // ── Photo upload section (#178) ───────────────────────────────────────────────
+
+  test("shows Photos & Receipts optional upload section", async ({ page }) => {
+    await expect(page.getByText(/photos & receipts/i)).toBeVisible();
+  });
 });
 
