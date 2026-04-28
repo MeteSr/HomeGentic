@@ -66,10 +66,10 @@ jobs:
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.VITE_STRIPE_PUBLISHABLE_KEY }}
 
-      - name: Commit canister_ids.json
+      - name: Commit canister IDs
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add canister_ids.json
-          git diff --staged --quiet && echo "canister_ids.json unchanged, nothing to commit" || \
-            git commit -m "ops: update canister_ids.json after testnet deploy [skip ci]" && git push
+          git add canister_ids.json .icp/data/mappings/
+          git diff --staged --quiet && echo "canister IDs unchanged, nothing to commit" || \
+            git commit -m "ops: update canister IDs after testnet deploy [skip ci]" && git push
