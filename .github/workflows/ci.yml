@@ -96,8 +96,11 @@ jobs:
         # cycles infrastructure so icp canister create fails on fresh networks.
         # test-backend.sh also calls `dfx ping`, so dfx must be the active replica.
         run: |
-          DFX_VERSION=0.24.3 DFXVM_INIT_YES=1 sh -c "$(curl -fsSL https://internetcomputer.org/install.sh)"
-          echo "$HOME/.local/share/dfx/bin" >> "$GITHUB_PATH"
+          curl -fsSL "https://github.com/dfinity/sdk/releases/download/0.24.3/dfx-x86_64-unknown-linux-gnu.tar.gz" \
+            | tar -xz
+          DFX_BIN=$(find . -name "dfx*" -type f -perm /111 | head -1)
+          sudo install -m 755 "$DFX_BIN" /usr/local/bin/dfx
+          dfx --version
 
       - name: Cache mops packages
         uses: actions/cache@v5
