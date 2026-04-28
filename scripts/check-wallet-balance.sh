@@ -9,6 +9,7 @@
 #   bash scripts/check-wallet-balance.sh
 #
 # Environment:
+#   DFX_IDENTITY_PEM  — PEM content for the deploy identity (required in CI)
 #   DFX_NETWORK       — target network (default: ic)
 #   MIN_WALLET_CYCLES — minimum required cycles (default: 5T)
 
@@ -16,6 +17,15 @@ set -uo pipefail
 
 DFX_NETWORK="${DFX_NETWORK:-ic}"
 MIN_WALLET_CYCLES="${MIN_WALLET_CYCLES:-5000000000000}"   # 5T
+
+# Load deploy identity from PEM env var when running in CI.
+if [ -n "${DFX_IDENTITY_PEM:-}" ]; then
+  PEM_FILE=$(mktemp /tmp/ci-identity-XXXXXX.pem)
+  trap 'rm -f "$PEM_FILE"' EXIT
+  printf '%s' "$DFX_IDENTITY_PEM" > "$PEM_FILE"
+  dfx identity import --storage-mode=plaintext ci-deploy "$PEM_FILE" 2>/dev/null || true
+  dfx identity use ci-deploy
+fi
 
 echo "============================================"
 echo "  HomeGentic — Wallet Pre-flight Check"
