@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEPLOY_SCRIPT_VERSION="1.4.10"
+DEPLOY_SCRIPT_VERSION="1.4.11"
 ENV=${1:-local}
 
 echo "============================================"
@@ -207,12 +207,28 @@ LOG_DIR=$(mktemp -d /tmp/icp-deploy-XXXXXX)
 trap 'rm -rf "$LOG_DIR"' EXIT
 DEPLOY_PRINCIPAL=$(icp identity principal)
 
-# ── Fund cycles ledger from dfx wallet (non-local first deploy) ───────────────
-# icp canister create draws cycles from the identity's cycles ledger account.
-# Cycles live in the dfx wallet canister (h4jao-bqaaa-aaaao-ba3lq-cai), not
-# the ledger. Bridge them by depositing into the IC cycles ledger canister
-# before Phase 1 so canister slots can be created.
-if [ "$ENV" != "local" ] && [ -n "${DFX_WALLET_ID:-}" ] && [ -n "${DFX_IDENTITY_PEM:-}" ]; then
+# ── Determine which canisters need new slot creation ─────────────────────────
+# Read canister_ids.json to skip creation for canisters already deployed.
+# Upgrade deploys (all IDs known) cost 0 cycles — only fresh canisters need 2T each.
+CANISTERS_TO_CREATE=()
+if [ "$ENV" != "local" ] && [ -f "canister_ids.json" ] && command -v jq >/dev/null 2>&1; then
+  for _c in "${CANISTERS[@]}"; do
+    _id=$(jq -r ".\"$_c\".\"$ENV\" // empty" canister_ids.json 2>/dev/null || echo "")
+    [ -z "$_id" ] && CANISTERS_TO_CREATE+=("$_c")
+  done
+else
+  CANISTERS_TO_CREATE=("${CANISTERS[@]}")
+fi
+
+if [ ${#CANISTERS_TO_CREATE[@]} -eq 0 ]; then
+  echo "▶ All canister IDs found in canister_ids.json — upgrade deploy, skipping slot creation"
+elif [ ${#CANISTERS_TO_CREATE[@]} -lt ${#CANISTERS[@]} ]; then
+  echo "▶ ${#CANISTERS_TO_CREATE[@]} new canister(s) need slot creation: ${CANISTERS_TO_CREATE[*]}"
+fi
+
+# ── Fund cycles ledger from dfx wallet (non-local fresh deploy only) ─────────
+# Only needed when creating new canister slots (2T each). Upgrade deploys skip this.
+if [ "$ENV" != "local" ] && [ ${#CANISTERS_TO_CREATE[@]} -gt 0 ] && [ -n "${DFX_WALLET_ID:-}" ] && [ -n "${DFX_IDENTITY_PEM:-}" ]; then
   echo "▶ Configuring dfx wallet for cycles-funded canister creation..."
   _DFX_PEM=$(mktemp /tmp/dfx-pem-XXXXXX.pem)
   printf '%s' "$DFX_IDENTITY_PEM" > "$_DFX_PEM"
@@ -281,11 +297,20 @@ if [ "$ENV" = "local" ]; then
 
 else
   # ── Non-local: three-phase deploy (create → build → install) ────────────────
-  # Phase 1: Create canister slots
+  # Phase 1: Create canister slots (skipped for already-deployed canisters)
   echo ""
   echo "▶ Phase 1/3 — Creating canister slots..."
   for canister in "${CANISTERS[@]}"; do
     echo -n "  $canister... "
+    # Check canister_ids.json first — if the ID is recorded, no slot creation needed.
+    _known_id=""
+    if [ -f "canister_ids.json" ] && command -v jq >/dev/null 2>&1; then
+      _known_id=$(jq -r ".\"$canister\".\"$ENV\" // empty" canister_ids.json 2>/dev/null || echo "")
+    fi
+    if [ -n "$_known_id" ]; then
+      echo "exists ($_known_id)"
+      continue
+    fi
     if icp canister create "$canister" -e "$ENV" >"$LOG_DIR/$canister.create.log" 2>&1; then
       echo "created"
     else
