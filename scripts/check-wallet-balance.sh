@@ -25,6 +25,9 @@ if [ -n "${DFX_IDENTITY_PEM:-}" ]; then
   printf '%s' "$DFX_IDENTITY_PEM" > "$PEM_FILE"
   dfx identity import --storage-mode=plaintext ci-deploy "$PEM_FILE" 2>/dev/null || true
   dfx identity use ci-deploy
+  if [ -n "${DFX_WALLET_ID:-}" ]; then
+    dfx identity set-wallet "$DFX_WALLET_ID" --network "$DFX_NETWORK"
+  fi
 fi
 
 echo "============================================"

@@ -50,6 +50,7 @@ jobs:
         run: bash scripts/check-wallet-balance.sh
         env:
           DFX_IDENTITY_PEM: ${{ secrets.DFX_IDENTITY_PEM }}
+          DFX_WALLET_ID: ${{ secrets.DFX_WALLET_ID }}
           DFX_NETWORK: ic
           MIN_WALLET_CYCLES: '5000000000000'
 
