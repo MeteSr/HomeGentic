@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEPLOY_SCRIPT_VERSION="1.4.13"
+DEPLOY_SCRIPT_VERSION="1.4.14"
 ENV=${1:-local}
 
 echo "============================================"
@@ -213,7 +213,7 @@ DEPLOY_PRINCIPAL=$(icp identity principal)
 # canister_ids.json so installs work without re-creating canister slots.
 if [ "$ENV" != "local" ] && [ -f "canister_ids.json" ] && command -v python3 >/dev/null 2>&1; then
   mkdir -p ".icp/data/mappings"
-  python3 - <<'PYEOF'
+  ENV="$ENV" python3 - <<'PYEOF'
 import json, os, sys
 env = os.environ.get("ENV", "")
 src = json.load(open("canister_ids.json"))
