@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEPLOY_SCRIPT_VERSION="1.4.12"
+DEPLOY_SCRIPT_VERSION="1.4.13"
 ENV=${1:-local}
 
 echo "============================================"
@@ -229,18 +229,19 @@ fi
 # Upgrade deploys (all IDs known) cost 0 cycles — only fresh canisters need 2T each.
 CANISTERS_TO_CREATE=()
 if [ "$ENV" != "local" ] && [ -f "canister_ids.json" ] && command -v python3 >/dev/null 2>&1; then
-  for _c in "${CANISTERS[@]}"; do
+  # Check all 17 backend canisters plus frontend (deployed separately but also needs a slot)
+  for _c in "${CANISTERS[@]}" frontend; do
     _id=$(python3 -c "import json,sys; d=json.load(open('canister_ids.json')); print(d.get('$_c',{}).get('$ENV',''))" 2>/dev/null || echo "")
     [ -z "$_id" ] && CANISTERS_TO_CREATE+=("$_c")
   done
 else
-  CANISTERS_TO_CREATE=("${CANISTERS[@]}")
+  CANISTERS_TO_CREATE=("${CANISTERS[@]}" frontend)
 fi
 
 if [ ${#CANISTERS_TO_CREATE[@]} -eq 0 ]; then
   echo "▶ All canister IDs found in canister_ids.json — upgrade deploy, skipping slot creation"
-elif [ ${#CANISTERS_TO_CREATE[@]} -lt ${#CANISTERS[@]} ]; then
-  echo "▶ ${#CANISTERS_TO_CREATE[@]} new canister(s) need slot creation: ${CANISTERS_TO_CREATE[*]}"
+else
+  echo "▶ ${#CANISTERS_TO_CREATE[@]} new canister slot(s) needed: ${CANISTERS_TO_CREATE[*]}"
 fi
 
 # ── Fund cycles ledger from dfx wallet (non-local fresh deploy only) ─────────
@@ -255,10 +256,10 @@ if [ "$ENV" != "local" ] && [ ${#CANISTERS_TO_CREATE[@]} -gt 0 ] && [ -n "${DFX_
   rm -f "$_DFX_PEM"
   echo "  ✓ dfx wallet: $DFX_WALLET_ID"
 
-  # 18 canisters × 2T each = 36T minimum; use 40T to include overhead.
-  # Wallet must hold ≥ 40T cycles — top up at https://nns.ic0.app if needed.
-  _FUND=40000000000000
-  echo "▶ Depositing ${_FUND} cycles from wallet to cycles ledger for $DEPLOY_PRINCIPAL..."
+  # 2.5T per new canister (2T slot + 0.5T overhead for install gas and calls).
+  # Wallet must hold at least this amount — top up at https://nns.ic0.app if needed.
+  _FUND=$(( ${#CANISTERS_TO_CREATE[@]} * 2500000000000 ))
+  echo "▶ Depositing ${_FUND} cycles (${#CANISTERS_TO_CREATE[@]} × 2.5T) from wallet to cycles ledger for $DEPLOY_PRINCIPAL..."
   if dfx canister call um5iw-rqaaa-aaaaq-qaaba-cai deposit \
     "(record { to = record { owner = principal \"$DEPLOY_PRINCIPAL\"; subaccount = null }; memo = null; created_at_time = null })" \
     --with-cycles "$_FUND" \
@@ -745,6 +746,16 @@ echo "▶ icp deploy frontend -e $ENV..."
 if icp deploy frontend -e "$ENV"; then
   FRONTEND_ID=$(icp canister status frontend -e "$ENV" --id-only 2>/dev/null || echo "unknown")
   echo "  ✓ Frontend canister deployed ($FRONTEND_ID)"
+  # Persist frontend ID so future deploys recognise it as an existing canister.
+  if [ "$FRONTEND_ID" != "unknown" ] && command -v python3 >/dev/null 2>&1; then
+    python3 - <<PYEOF
+import json
+d = json.load(open("canister_ids.json")) if __import__("os").path.exists("canister_ids.json") else {}
+d.setdefault("frontend", {})["$ENV"] = "$FRONTEND_ID"
+json.dump(d, open("canister_ids.json", "w"), indent=2)
+print("  ✓ canister_ids.json updated with frontend ID: $FRONTEND_ID")
+PYEOF
+  fi
 else
   echo "  ✗ Frontend canister deploy failed"
   exit 1
