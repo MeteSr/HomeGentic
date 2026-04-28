@@ -97,7 +97,9 @@ jobs:
         # test-backend.sh also calls `dfx ping`, so dfx must be the active replica.
         run: |
           DFX_VERSION=0.24.3 DFXVM_INIT_YES=1 sh -c "$(curl -fsSL https://internetcomputer.org/install.sh)"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          . "$HOME/.local/share/dfx/env"
+          echo "PATH=$PATH" >> "$GITHUB_ENV"
+          dfx --version
 
       - name: Cache mops packages
         uses: actions/cache@v5
