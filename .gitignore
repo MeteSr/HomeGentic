@@ -1,6 +1,8 @@
 # DFX artifacts (kept during icp-cli transition)
 .dfx/
-canister_ids.json
+# canister_ids.json is intentionally NOT ignored — it maps canister names to
+# their on-chain IDs and must be committed so CI upgrades existing canisters
+# instead of creating new orphans on every deploy (see issue #101).
 
 # icp-cli cache (ephemeral local state — do NOT gitignore .icp/data/ which holds mainnet canister IDs)
 .icp/cache/
