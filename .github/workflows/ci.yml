@@ -133,11 +133,12 @@ jobs:
           # canisters that import ic:aaaaa-aa (e.g. caffeineai-http-outcalls).
           mkdir -p .dfx/local/canisters/idl/
           cp did/aaaaa-aa.did .dfx/local/canisters/idl/
-          # Fetch candid interfaces for pull-type canisters (e.g. internet_identity).
-          # dfx deploy fails if deps/candid/<canister>.did is absent.
-          dfx deps pull
+          # Deploy backend canisters explicitly — internet_identity and frontend are
+          # excluded because: (a) no backend canister imports II, (b) dfx deps pull
+          # fails on dfx 0.24.x with "dfx metadata not found" for the II canister.
           dfx deploy auth --argument "(principal \"$DEPLOYER\")"
-          dfx deploy
+          dfx deploy ai_proxy property job contractor quote payment photo \
+            monitoring market report maintenance sensor listing agent bills recurring
 
           # ── Bootstrap admin lists ────────────────────────────────────────────
           for canister in property job contractor quote photo report maintenance market sensor listing agent recurring bills monitoring; do
