@@ -211,9 +211,9 @@ DEPLOY_PRINCIPAL=$(icp identity principal)
 # Read canister_ids.json to skip creation for canisters already deployed.
 # Upgrade deploys (all IDs known) cost 0 cycles — only fresh canisters need 2T each.
 CANISTERS_TO_CREATE=()
-if [ "$ENV" != "local" ] && [ -f "canister_ids.json" ] && command -v jq >/dev/null 2>&1; then
+if [ "$ENV" != "local" ] && [ -f "canister_ids.json" ] && command -v python3 >/dev/null 2>&1; then
   for _c in "${CANISTERS[@]}"; do
-    _id=$(jq -r ".\"$_c\".\"$ENV\" // empty" canister_ids.json 2>/dev/null || echo "")
+    _id=$(python3 -c "import json,sys; d=json.load(open('canister_ids.json')); print(d.get('$_c',{}).get('$ENV',''))" 2>/dev/null || echo "")
     [ -z "$_id" ] && CANISTERS_TO_CREATE+=("$_c")
   done
 else
@@ -304,8 +304,8 @@ else
     echo -n "  $canister... "
     # Check canister_ids.json first — if the ID is recorded, no slot creation needed.
     _known_id=""
-    if [ -f "canister_ids.json" ] && command -v jq >/dev/null 2>&1; then
-      _known_id=$(jq -r ".\"$canister\".\"$ENV\" // empty" canister_ids.json 2>/dev/null || echo "")
+    if [ -f "canister_ids.json" ] && command -v python3 >/dev/null 2>&1; then
+      _known_id=$(python3 -c "import json,sys; d=json.load(open('canister_ids.json')); print(d.get('$canister',{}).get('$ENV',''))" 2>/dev/null || echo "")
     fi
     if [ -n "$_known_id" ]; then
       echo "exists ($_known_id)"
