@@ -12,6 +12,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: testnet
     if: github.event.workflow_run.conclusion == 'success'
     steps:
       - uses: actions/checkout@v6
@@ -49,3 +50,8 @@ jobs:
         env:
           DFX_IDENTITY_PEM: ${{ secrets.DFX_IDENTITY_PEM }}
           BACKUP_CONTROLLER_PRINCIPAL: ${{ secrets.BACKUP_CONTROLLER_PRINCIPAL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          VOICE_AGENT_API_KEY: ${{ secrets.VOICE_AGENT_API_KEY }}
+          VITE_VOICE_AGENT_API_KEY: ${{ secrets.VITE_VOICE_AGENT_API_KEY }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.VITE_STRIPE_PUBLISHABLE_KEY }}
