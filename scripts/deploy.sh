@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEPLOY_SCRIPT_VERSION="1.4.11"
+DEPLOY_SCRIPT_VERSION="1.4.12"
 ENV=${1:-local}
 
 echo "============================================"
@@ -206,6 +206,23 @@ CANISTERS=(auth property job contractor quote payment photo report maintenance m
 LOG_DIR=$(mktemp -d /tmp/icp-deploy-XXXXXX)
 trap 'rm -rf "$LOG_DIR"' EXIT
 DEPLOY_PRINCIPAL=$(icp identity principal)
+
+# ── Seed icp-cli state from canister_ids.json ────────────────────────────────
+# icp canister install resolves names via .icp/data/mappings/<env>.ids.json.
+# On a fresh CI runner that file doesn't exist; generate it from the committed
+# canister_ids.json so installs work without re-creating canister slots.
+if [ "$ENV" != "local" ] && [ -f "canister_ids.json" ] && command -v python3 >/dev/null 2>&1; then
+  mkdir -p ".icp/data/mappings"
+  python3 - <<'PYEOF'
+import json, os, sys
+env = os.environ.get("ENV", "")
+src = json.load(open("canister_ids.json"))
+flat = {k: v[env] for k, v in src.items() if isinstance(v, dict) and v.get(env)}
+dest = f".icp/data/mappings/{env}.ids.json"
+json.dump(flat, open(dest, "w"), indent=2)
+print(f"  ✓ Seeded {len(flat)} canister IDs into {dest}")
+PYEOF
+fi
 
 # ── Determine which canisters need new slot creation ─────────────────────────
 # Read canister_ids.json to skip creation for canisters already deployed.
