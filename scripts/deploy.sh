@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEPLOY_SCRIPT_VERSION="1.4.14"
+DEPLOY_SCRIPT_VERSION="1.4.15"
 ENV=${1:-local}
 
 echo "============================================"
@@ -490,7 +490,7 @@ if [ "$ENV" != "local" ]; then
       continue
     }
 
-    BALANCE_RAW=$(echo "$STATUS_OUT" | grep "Balance:" | head -1 | sed 's/.*Balance: //;s/ Cycles.*//;s/_//g') || BALANCE_RAW=""
+    BALANCE_RAW=$(echo "$STATUS_OUT" | grep -i "^Cycles:" | head -1 | awk '{print $2}' | tr -d '_,') || BALANCE_RAW=""
 
     if [ -z "$BALANCE_RAW" ] || ! [[ "$BALANCE_RAW" =~ ^[0-9]+$ ]]; then
       echo "  ⚠️  Could not parse cycles balance for $canister"
