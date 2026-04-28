@@ -1,0 +1,19 @@
+{
+  "auth": { "testnet": "bkyzt-paaaa-aaaaj-a6mlq-cai" },
+  "property": { "testnet": "ahw55-aiaaa-aaaaj-a6mma-cai" },
+  "job": { "testnet": "aax3j-nqaaa-aaaaj-a6mmq-cai" },
+  "contractor": { "testnet": "ajuqv-3yaaa-aaaaj-a6mna-cai" },
+  "quote": { "testnet": "aovwb-waaaa-aaaaj-a6mnq-cai" },
+  "payment": { "testnet": "a3shm-xiaaa-aaaaj-a6moa-cai" },
+  "photo": { "testnet": "a4tby-2qaaa-aaaaj-a6moq-cai" },
+  "report": { "testnet": "avqke-myaaa-aaaaj-a6mpa-cai" },
+  "maintenance": { "testnet": "asrmq-baaaa-aaaaj-a6mpq-cai" },
+  "market": { "testnet": "fokwv-kiaaa-aaaaj-a6mqa-cai" },
+  "sensor": { "testnet": "fjlqb-hqaaa-aaaaj-a6mqq-cai" },
+  "monitoring": { "testnet": "fai35-ryaaa-aaaaj-a6mra-cai" },
+  "listing": { "testnet": "fhj5j-4aaaa-aaaaj-a6mrq-cai" },
+  "agent": { "testnet": "fsome-5iaaa-aaaaj-a6msa-cai" },
+  "recurring": { "testnet": "fvpkq-qqaaa-aaaaj-a6msq-cai" },
+  "bills": { "testnet": "f4mbm-gyaaa-aaaaj-a6mta-cai" },
+  "ai_proxy": { "testnet": "f3nhy-laaaa-aaaaj-a6mtq-cai" }
+}
