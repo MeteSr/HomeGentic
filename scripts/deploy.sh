@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEPLOY_SCRIPT_VERSION="1.4.6"
+DEPLOY_SCRIPT_VERSION="1.4.7"
 ENV=${1:-local}
 
 echo "============================================"
@@ -208,6 +208,12 @@ trap 'rm -rf "$LOG_DIR"' EXIT
 DEPLOY_PRINCIPAL=$(icp identity principal)
 
 if [ "$ENV" = "local" ]; then
+  # PocketIC starts with 0 cycles — mint enough for all 18 canisters (2T each)
+  # plus generous headroom for storage and inter-canister calls.
+  echo "▶ Minting local cycles..."
+  icp cycles mint 100000000000000 -e local >/dev/null 2>&1 || true
+  echo "  ✓ Cycles minted (100T)"
+
   # ── Local: all-in-one icp deploy ────────────────────────────────────────────
   echo ""
   echo "▶ Deploying all canisters (local)..."

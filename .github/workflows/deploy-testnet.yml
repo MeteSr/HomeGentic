@@ -38,6 +38,11 @@ jobs:
       - name: Install mops
         run: npm install -g ic-mops
 
+      - name: Install dfx
+        run: |
+          DFX_VERSION=0.24.3 DFXVM_INIT_YES=1 sh -c "$(curl -fsSL https://internetcomputer.org/install.sh)"
+          echo "$HOME/.local/share/dfx/bin" >> "$GITHUB_PATH"
+
       - name: Wallet cycles pre-flight
         run: bash scripts/check-wallet-balance.sh
         env:
