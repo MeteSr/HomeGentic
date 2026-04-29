@@ -22,8 +22,10 @@ import { readFileSync } from "fs";
 import { resolve } from "path";
 import { CREDIT_PACKS } from "../server";
 
-const SERVER_PATH = resolve(__dirname, "../server.ts");
-const src = readFileSync(SERVER_PATH, "utf8");
+const SERVER_PATH          = resolve(__dirname, "../server.ts");
+const src                  = readFileSync(SERVER_PATH, "utf8");
+const PAYMENT_CANISTER_PATH = resolve(__dirname, "../paymentCanister.ts");
+const canisterSrc           = readFileSync(PAYMENT_CANISTER_PATH, "utf8");
 
 // ── CREDIT.1 — CREDIT_PACKS exported with 25 and 100 entries ─────────────────
 
@@ -52,22 +54,22 @@ describe("CREDIT.1 — CREDIT_PACKS constant", () => {
 // ── CREDIT.2 / CREDIT.3 — helpers defined in server source ───────────────────
 
 describe("CREDIT.2 — consumeAgentCredit helper", () => {
-  it("is defined as an async function in server.ts", () => {
-    expect(src).toMatch(/async function consumeAgentCredit/);
+  it("is defined as an exported async function in paymentCanister.ts", () => {
+    expect(canisterSrc).toMatch(/export async function consumeAgentCredit/);
   });
 
-  it("calls the payment canister consumeAgentCredit method via dfx", () => {
-    expect(src).toMatch(/dfx canister call payment consumeAgentCredit/);
+  it("calls the payment canister consumeAgentCredit method via @dfinity/agent", () => {
+    expect(canisterSrc).toMatch(/\.consumeAgentCredit\(Principal\.fromText/);
   });
 });
 
 describe("CREDIT.3 — grantAgentCredits helper", () => {
-  it("is defined as an async function in server.ts", () => {
-    expect(src).toMatch(/async function grantAgentCredits/);
+  it("is defined as an exported async function in paymentCanister.ts", () => {
+    expect(canisterSrc).toMatch(/export async function grantAgentCredits/);
   });
 
-  it("calls the payment canister adminGrantAgentCredits method", () => {
-    expect(src).toMatch(/adminGrantAgentCredits/);
+  it("calls the payment canister adminGrantAgentCredits method via @dfinity/agent", () => {
+    expect(canisterSrc).toMatch(/adminGrantAgentCredits/);
   });
 });
 
@@ -151,21 +153,19 @@ describe("CREDIT.11 — 429 response includes creditsAvailable: false", () => {
 // ── CREDIT.12 / CREDIT.13 — principal validation ─────────────────────────────
 
 describe("CREDIT.12 — consumeAgentCredit validates principal", () => {
-  it("rejects an invalid principal format before calling dfx", () => {
-    // The principal regex check must appear inside consumeAgentCredit
-    const helperBlock = src.slice(
-      src.indexOf("async function consumeAgentCredit"),
-      src.indexOf("async function grantAgentCredits"),
+  it("rejects an invalid principal format before making a canister call", () => {
+    const helperBlock = canisterSrc.slice(
+      canisterSrc.indexOf("export async function consumeAgentCredit"),
+      canisterSrc.indexOf("export async function grantAgentCredits"),
     );
     expect(helperBlock).toMatch(/Invalid principal/);
   });
 });
 
 describe("CREDIT.13 — grantAgentCredits validates principal", () => {
-  it("rejects an invalid principal format before calling dfx", () => {
-    const helperBlock = src.slice(
-      src.indexOf("async function grantAgentCredits"),
-      src.indexOf("// ── Credit top-up helpers") + 5000,
+  it("rejects an invalid principal format before making a canister call", () => {
+    const helperBlock = canisterSrc.slice(
+      canisterSrc.indexOf("export async function grantAgentCredits"),
     );
     expect(helperBlock).toMatch(/Invalid principal/);
   });
