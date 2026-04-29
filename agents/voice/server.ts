@@ -1514,8 +1514,25 @@ app.post("/api/stripe/webhook", async (req: Request, res: Response) => {
 });
 
 // ── GET /health ───────────────────────────────────────────────────────────────
+// Liveness + post-deployment config check.
+// Returns 200 when all required env vars are present, 503 otherwise.
+// Railway uses this path as its healthcheck — a 503 here will mark the
+// deployment unhealthy immediately rather than routing traffic to it.
 app.get("/health", (_req, res) => {
-  res.json({ ok: true, model: MODEL });
+  const checks: Record<string, boolean> = {
+    anthropic_key:   !!process.env.ANTHROPIC_API_KEY,
+    api_key:         !!process.env.VOICE_AGENT_API_KEY,
+    frontend_origin: !!process.env.FRONTEND_ORIGIN,
+    stripe_key:      !!process.env.STRIPE_SECRET_KEY,
+    stripe_webhook:  !!process.env.STRIPE_WEBHOOK_SECRET,
+  };
+  const allOk = Object.values(checks).every(Boolean);
+  res.status(allOk ? 200 : 503).json({
+    ok:     allOk,
+    model:  MODEL,
+    env:    process.env.NODE_ENV ?? "development",
+    checks,
+  });
 });
 
 // Export app for testing; only bind the port when running as the main entry point.
