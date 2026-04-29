@@ -20,7 +20,7 @@ export const VALID_TIERS = new Set([
 // canister (done during deploy bootstrap in scripts/deploy.sh).
 export function identityFromPem(pem: string): Ed25519KeyIdentity {
   const keyObj = crypto.createPrivateKey({ key: pem, format: "pem" });
-  const jwk = keyObj.export({ format: "jwk" }) as crypto.JsonWebKey;
+  const jwk = keyObj.export({ format: "jwk" }) as { crv?: string; d?: string };
   if (jwk.crv !== "Ed25519" || !jwk.d) {
     throw new Error(
       `DFX_IDENTITY_PEM must be an Ed25519 key (got crv=${jwk.crv ?? "unknown"})`,
