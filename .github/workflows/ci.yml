@@ -255,6 +255,38 @@ jobs:
       - name: Performance tests
         run: cd frontend && npm run test:perf
 
+  test-voice:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: agents/voice/package-lock.json
+
+      - name: Install dependencies
+        run: cd agents/voice && npm ci
+
+      - name: Unit tests
+        run: cd agents/voice && npm test
+
+      - name: Integration tests
+        # describeIfConfigured guards in the test files skip automatically
+        # when keys are absent (empty string), so this step is always safe
+        # to run — forks and PRs without secrets get 0 failures, 0 errors.
+        env:
+          STRIPE_SECRET_KEY:                 ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET:             ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          STRIPE_PRICE_PRO_MONTHLY:          ${{ secrets.STRIPE_PRICE_PRO_MONTHLY }}
+          STRIPE_PRICE_PRO_YEARLY:           ${{ secrets.STRIPE_PRICE_PRO_YEARLY }}
+          STRIPE_PRICE_PREMIUM_MONTHLY:      ${{ secrets.STRIPE_PRICE_PREMIUM_MONTHLY }}
+          STRIPE_PRICE_PREMIUM_YEARLY:       ${{ secrets.STRIPE_PRICE_PREMIUM_YEARLY }}
+          STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY: ${{ secrets.STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY }}
+          STRIPE_PRICE_CONTRACTOR_PRO_YEARLY:  ${{ secrets.STRIPE_PRICE_CONTRACTOR_PRO_YEARLY }}
+        run: cd agents/voice && npm test -- stripe.integration stripe.elements.integration stripe.subscription.integration
+
   test-e2e:
     runs-on: ubuntu-latest
     # No replica needed: tests run in mock mode (no .env → no canister IDs →
