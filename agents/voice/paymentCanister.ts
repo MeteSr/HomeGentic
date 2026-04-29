@@ -18,16 +18,19 @@ export const VALID_TIERS = new Set([
 // Parse DFX_IDENTITY_PEM (Ed25519 SEC1 or PKCS8) into an @dfinity/identity.
 // The principal of this identity must be registered as admin in the payment
 // canister (done during deploy bootstrap in scripts/deploy.sh).
-function identityFromPem(pem: string): Ed25519KeyIdentity {
+export function identityFromPem(pem: string): Ed25519KeyIdentity {
   const keyObj = crypto.createPrivateKey({ key: pem, format: "pem" });
-  const jwk = keyObj.export({ format: "jwk" }) as crypto.JsonWebKey;
+  const jwk = keyObj.export({ format: "jwk" }) as { crv?: string; d?: string };
   if (jwk.crv !== "Ed25519" || !jwk.d) {
     throw new Error(
       `DFX_IDENTITY_PEM must be an Ed25519 key (got crv=${jwk.crv ?? "unknown"})`,
     );
   }
   const seed = Buffer.from(jwk.d, "base64url");
-  return Ed25519KeyIdentity.fromSecretKey(seed.buffer as ArrayBuffer);
+  // Use slice to get an owned ArrayBuffer — seed.buffer may point to Node's
+  // shared pool (up to 8 KiB), which @noble/curves rejects as too large.
+  const seedBuffer = seed.buffer.slice(seed.byteOffset, seed.byteOffset + seed.byteLength);
+  return Ed25519KeyIdentity.fromSecretKey(seedBuffer as ArrayBuffer);
 }
 
 // ── Agent (lazy singleton) ────────────────────────────────────────────────────

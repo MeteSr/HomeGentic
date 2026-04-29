@@ -36,11 +36,12 @@ jest.mock("../prompts", () => ({
 jest.mock("../../maintenance/prompts", () => ({
   buildMaintenanceSystemPrompt: jest.fn().mockReturnValue("test"),
 }));
-// Prevent dfx CLI calls during tests — canister activation is best-effort anyway.
-jest.mock("child_process", () => ({
-  exec: jest.fn((_cmd: string, cb: (err: null, result: { stdout: string; stderr: string }) => void) => {
-    cb(null, { stdout: "(ok)", stderr: "" });
-  }),
+// Prevent canister calls during tests — activation is best-effort anyway.
+jest.mock("../paymentCanister", () => ({
+  activateInCanister: jest.fn().mockResolvedValue(undefined),
+  consumeAgentCredit: jest.fn().mockResolvedValue(undefined),
+  grantAgentCredits:  jest.fn().mockResolvedValue(undefined),
+  VALID_TIERS: new Set(["Free", "Basic", "Pro", "Premium", "ContractorFree", "ContractorPro", "RealtorFree", "RealtorPro"]),
 }));
 
 import Stripe from "stripe";

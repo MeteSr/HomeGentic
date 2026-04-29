@@ -35,6 +35,67 @@ bash scripts/deploy.sh testnet
 
 Requires a DFX identity with cycles. Set `DFX_IDENTITY_PEM` as a GitHub secret for CI.
 
+## Voice Agent (Railway)
+
+The voice agent (`agents/voice/`) is a Node/Express server that proxies Claude API
+calls and handles Stripe payments. It is deployed separately to
+[Railway](https://railway.app) — not to ICP.
+
+### First deploy
+
+1. Create a new Railway project and connect the GitHub repo.
+2. In **Settings → Build**:
+   - Root Directory: `/` (repo root — required for the Dockerfile build context)
+   - Dockerfile Path: `agents/voice/Dockerfile`
+3. In **Settings → Deploy**, the health check path `/health` and timeout 30 s are
+   already set via `agents/voice/railway.json`.
+4. Add all required environment variables (see below).
+5. Deploy. Verify at `https://<your-service>.railway.app/health` — all `checks`
+   should be `true`.
+
+### Required environment variables
+
+| Variable | Description |
+|---|---|
+| `NODE_ENV` | `production` |
+| `ANTHROPIC_API_KEY` | Claude API key (`sk-ant-...`) |
+| `VOICE_AGENT_API_KEY` | Shared secret sent by the frontend in `x-api-key` |
+| `FRONTEND_ORIGIN` | Exact origin of the frontend canister (no trailing slash) |
+| `STRIPE_SECRET_KEY` | Stripe live secret key (`sk_live_...`) |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret (`whsec_...`) |
+| `STRIPE_PRICE_BASIC_MONTHLY` | Stripe price ID |
+| `STRIPE_PRICE_BASIC_YEARLY` | Stripe price ID |
+| `STRIPE_PRICE_PRO_MONTHLY` | Stripe price ID |
+| `STRIPE_PRICE_PRO_YEARLY` | Stripe price ID |
+| `STRIPE_PRICE_PREMIUM_MONTHLY` | Stripe price ID |
+| `STRIPE_PRICE_PREMIUM_YEARLY` | Stripe price ID |
+| `STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY` | Stripe price ID |
+| `STRIPE_PRICE_CONTRACTOR_PRO_YEARLY` | Stripe price ID |
+| `STRIPE_PRICE_CREDITS_25` | Stripe price ID |
+| `STRIPE_PRICE_CREDITS_100` | Stripe price ID |
+| `DFX_IDENTITY_PEM` | Ed25519 PEM of the identity registered as admin in the payment canister — same value as the `DFX_IDENTITY_PEM` GitHub secret used for testnet deploys |
+
+`CANISTER_ID_PAYMENT` is optional; it defaults to the testnet canister
+`a3shm-xiaaa-aaaaj-a6moa-cai`. Override only when deploying against a different
+payment canister.
+
+### How canister calls work in production
+
+After Stripe confirms payment, the voice server calls the ICP payment canister
+directly via `@dfinity/agent` (see `agents/voice/paymentCanister.ts`). It uses
+the Ed25519 identity from `DFX_IDENTITY_PEM` to authenticate as an admin and
+invoke `adminActivateStripeSubscription`, `adminGrantAgentCredits`, or
+`consumeAgentCredit`. No `dfx` binary is required at runtime.
+
+Locally, `DFX_IDENTITY_PEM` is typically unset — canister calls gracefully degrade
+with a `console.warn` and the activation is skipped. See issue #217 for the
+planned local integration test path.
+
+### Subsequent deploys
+
+Railway redeploys automatically on every push to `main`. No manual steps needed
+unless environment variables change.
+
 ## Mainnet Deployment
 
 ```bash
@@ -151,9 +212,8 @@ STRIPE_PRICE_CONTRACTOR_PRO_YEARLY=price_...
 3. Configure a Stripe webhook pointing at `https://your-domain/api/stripe/webhook`
    for the `payment_intent.succeeded` and `customer.subscription.updated` events
    (not yet wired — currently the success page calls verify-subscription directly).
-4. Replace the `icp canister call` in `activateInCanister()` (`agents/voice/server.ts`)
-   with a proper server-to-canister call using the management canister or an
-   ICP HTTP outcall — CLI tools are local-only.
+4. Ensure `DFX_IDENTITY_PEM` is set in Railway — the voice server calls the ICP
+   payment canister directly via `@dfinity/agent` (no `dfx` binary required).
 
 ### How payment verification works
 

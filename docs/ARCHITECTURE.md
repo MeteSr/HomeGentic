@@ -185,10 +185,14 @@ split into separate Vite chunks.
 
 ## Voice Agent
 
-A standalone Node/Express proxy at `agents/voice/` (port 3001) bridges the
-browser to the Claude API. It is intentionally outside ICP — it needs
-Anthropic SDK streaming, which the browser's CORS environment can't do
-directly.
+A standalone Node/Express proxy at `agents/voice/` (port 3001 locally,
+Railway in production) bridges the browser to the Claude API. It is
+intentionally outside ICP — it needs Anthropic SDK streaming, which the
+browser's CORS environment can't do directly.
+
+**Production hosting**: Railway. Dockerfile at `agents/voice/Dockerfile`
+(build context: repo root). See [docs/DEPLOYMENT.md](DEPLOYMENT.md#voice-agent-railway)
+for Railway setup, required env vars, and the post-deploy health check.
 
 ```
 User speaks
@@ -197,7 +201,7 @@ User speaks
 useVoiceAgent hook
     │  builds context: live properties + jobs from ICP canisters
     ▼
-POST /api/agent   ──►  Express proxy
+POST /api/agent   ──►  Express proxy (Railway)
                             │
                             ▼
                        Claude API (claude-opus-4-6)
@@ -216,6 +220,10 @@ POST /api/agent   ──►  Express proxy
 Tool calls are executed on the **frontend** (not the proxy), so they hit
 the real ICP canisters with the user's identity. The proxy only sees
 serialized context and tool results — never raw canister credentials.
+
+After Stripe payment, the proxy calls the ICP payment canister directly
+via `@dfinity/agent` (`agents/voice/paymentCanister.ts`) using an
+Ed25519 admin identity — no `dfx` binary at runtime.
 
 Max response: 200 tokens, 2–3 sentences, tuned for speech rhythm.
 

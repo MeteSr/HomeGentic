@@ -89,10 +89,42 @@ async function* fakeStream(chunks: string[]) {
 // ── HEALTH ────────────────────────────────────────────────────────────────────
 
 describe("HEALTH.1 — GET /health", () => {
-  it("returns ok: true", async () => {
+  const ENV_KEYS = [
+    "ANTHROPIC_API_KEY", "VOICE_AGENT_API_KEY",
+    "FRONTEND_ORIGIN", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET",
+  ];
+  let saved: Record<string, string | undefined> = {};
+
+  beforeEach(() => {
+    saved = Object.fromEntries(ENV_KEYS.map(k => [k, process.env[k]]));
+    process.env.ANTHROPIC_API_KEY     = "sk-ant-test";
+    process.env.VOICE_AGENT_API_KEY   = "test-key";
+    process.env.FRONTEND_ORIGIN       = "http://localhost:5173";
+    process.env.STRIPE_SECRET_KEY     = "sk_test_placeholder";
+    process.env.STRIPE_WEBHOOK_SECRET = "whsec_test_placeholder";
+  });
+  afterEach(() => {
+    for (const k of ENV_KEYS) {
+      saved[k] === undefined ? delete process.env[k] : (process.env[k] = saved[k]);
+    }
+  });
+
+  it("returns 200 ok: true when all required env vars are set", async () => {
     const res = await supertest(app).get("/health");
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
+    expect(res.body.checks).toEqual({
+      anthropic_key: true, api_key: true, frontend_origin: true,
+      stripe_key: true, stripe_webhook: true,
+    });
+  });
+
+  it("returns 503 ok: false when a required env var is missing", async () => {
+    delete process.env.STRIPE_SECRET_KEY;
+    const res = await supertest(app).get("/health");
+    expect(res.status).toBe(503);
+    expect(res.body.ok).toBe(false);
+    expect(res.body.checks.stripe_key).toBe(false);
   });
 });
 

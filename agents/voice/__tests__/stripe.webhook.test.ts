@@ -15,7 +15,7 @@
  * WEBHOOK.12 webhook route bypasses VOICE_AGENT_API_KEY auth (source)
  *
  * No real Stripe API calls — uses stripe.webhooks.generateTestHeaderString with a
- * fixed test secret. child_process is mocked so no dfx binary is needed.
+ * fixed test secret. paymentCanister is mocked so no IC node connection is needed.
  */
 
 // jest.mock calls are hoisted above all imports by babel-jest.
@@ -33,23 +33,23 @@ jest.mock("../../maintenance/prompts", () => ({
   buildMaintenanceSystemPrompt: jest.fn().mockReturnValue("test"),
 }));
 
-// Mock exec so dfx CLI calls inside activateInCanister / revertPrincipalToFree succeed.
-// util.promisify wraps the callback-style exec, so the mock must accept (cmd, callback).
-jest.mock("child_process", () => ({
-  exec: jest.fn((_cmd: string, cb: (err: null, result: { stdout: string; stderr: string }) => void) => {
-    cb(null, { stdout: "(ok)", stderr: "" });
-  }),
+// Mock paymentCanister so no IC node connection is needed during tests.
+jest.mock("../paymentCanister", () => ({
+  activateInCanister: jest.fn().mockResolvedValue(undefined),
+  consumeAgentCredit: jest.fn().mockResolvedValue(undefined),
+  grantAgentCredits:  jest.fn().mockResolvedValue(undefined),
+  VALID_TIERS: new Set(["Free", "Basic", "Pro", "Premium", "ContractorFree", "ContractorPro", "RealtorFree", "RealtorPro"]),
 }));
 
 import { describe, it, expect, beforeEach, afterEach } from "@jest/globals";
 import supertest from "supertest";
 import Stripe from "stripe";
-import { exec } from "child_process";
 import { readFileSync } from "fs";
 import { resolve } from "path";
 import { app } from "../server";
+import { activateInCanister } from "../paymentCanister";
 
-const mockExec = exec as jest.Mock;
+const mockActivate = activateInCanister as jest.Mock;
 
 const SERVER_PATH = resolve(__dirname, "../server.ts");
 const src = readFileSync(SERVER_PATH, "utf8");
@@ -194,11 +194,11 @@ describe("WEBHOOK.6 — valid signature, unhandled event type", () => {
 describe("WEBHOOK.7 — customer.subscription.deleted", () => {
   beforeEach(() => {
     process.env.STRIPE_WEBHOOK_SECRET = WEBHOOK_SECRET;
-    mockExec.mockClear();
+    mockActivate.mockClear();
   });
   afterEach(() => { delete process.env.STRIPE_WEBHOOK_SECRET; });
 
-  it("returns 200 and calls dfx to revert principal to Free", async () => {
+  it("returns 200 and reverts principal to Free via canister call", async () => {
     const sub = {
       id: "sub_test123", object: "subscription", status: "canceled",
       metadata: { icp_principal: "test-user-001" },
@@ -214,11 +214,7 @@ describe("WEBHOOK.7 — customer.subscription.deleted", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ received: true });
-    expect(mockExec).toHaveBeenCalled();
-    const cmd = mockExec.mock.calls[0][0] as string;
-    expect(cmd).toContain("adminActivateStripeSubscription");
-    expect(cmd).toContain("Free");
-    expect(cmd).toContain("test-user-001");
+    expect(mockActivate).toHaveBeenCalledWith("test-user-001", "Free", 0);
   });
 });
 
@@ -227,11 +223,11 @@ describe("WEBHOOK.7 — customer.subscription.deleted", () => {
 describe("WEBHOOK.8 — subscription.deleted with no principal", () => {
   beforeEach(() => {
     process.env.STRIPE_WEBHOOK_SECRET = WEBHOOK_SECRET;
-    mockExec.mockClear();
+    mockActivate.mockClear();
   });
   afterEach(() => { delete process.env.STRIPE_WEBHOOK_SECRET; });
 
-  it("returns 200 and makes no dfx call when principal is absent", async () => {
+  it("returns 200 and makes no canister call when principal is absent", async () => {
     const sub = { id: "sub_noprincipal", object: "subscription", status: "canceled", metadata: {} };
     const payload = makeEvent("customer.subscription.deleted", sub);
     const header  = sign(payload);
@@ -243,7 +239,7 @@ describe("WEBHOOK.8 — subscription.deleted with no principal", () => {
       .send(payload);
 
     expect(res.status).toBe(200);
-    expect(mockExec).not.toHaveBeenCalled();
+    expect(mockActivate).not.toHaveBeenCalled();
   });
 });
 
@@ -252,7 +248,7 @@ describe("WEBHOOK.8 — subscription.deleted with no principal", () => {
 describe("WEBHOOK.9 — invoice.payment_failed", () => {
   beforeEach(() => {
     process.env.STRIPE_WEBHOOK_SECRET = WEBHOOK_SECRET;
-    mockExec.mockClear();
+    mockActivate.mockClear();
   });
   afterEach(() => { delete process.env.STRIPE_WEBHOOK_SECRET; });
 
@@ -272,10 +268,7 @@ describe("WEBHOOK.9 — invoice.payment_failed", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ received: true });
-    expect(mockExec).toHaveBeenCalled();
-    const cmd = mockExec.mock.calls[0][0] as string;
-    expect(cmd).toContain("Free");
-    expect(cmd).toContain("test-user-002");
+    expect(mockActivate).toHaveBeenCalledWith("test-user-002", "Free", 0);
   });
 });
 
@@ -284,7 +277,7 @@ describe("WEBHOOK.9 — invoice.payment_failed", () => {
 describe("WEBHOOK.10 — invoice.payment_succeeded", () => {
   beforeEach(() => {
     process.env.STRIPE_WEBHOOK_SECRET = WEBHOOK_SECRET;
-    mockExec.mockClear();
+    mockActivate.mockClear();
   });
   afterEach(() => { delete process.env.STRIPE_WEBHOOK_SECRET; });
 
@@ -304,11 +297,7 @@ describe("WEBHOOK.10 — invoice.payment_succeeded", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ received: true });
-    expect(mockExec).toHaveBeenCalled();
-    const cmd = mockExec.mock.calls[0][0] as string;
-    expect(cmd).toContain("adminActivateStripeSubscription");
-    expect(cmd).toContain("Pro");
-    expect(cmd).toContain("test-user-003");
+    expect(mockActivate).toHaveBeenCalledWith("test-user-003", "Pro", 1);
   });
 
   it("uses 12 months for Yearly billing", async () => {
@@ -318,7 +307,7 @@ describe("WEBHOOK.10 — invoice.payment_succeeded", () => {
     };
     const payload = makeEvent("invoice.payment_succeeded", invoice);
     const header  = sign(payload);
-    mockExec.mockClear();
+    mockActivate.mockClear();
 
     await supertest(app)
       .post("/api/stripe/webhook")
@@ -326,8 +315,7 @@ describe("WEBHOOK.10 — invoice.payment_succeeded", () => {
       .set("stripe-signature", header)
       .send(payload);
 
-    const cmd = mockExec.mock.calls[0][0] as string;
-    expect(cmd).toContain("12");  // 12 months for Yearly
+    expect(mockActivate).toHaveBeenCalledWith("test-user-004", "Premium", 12);
   });
 });
 
