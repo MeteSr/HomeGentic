@@ -55,6 +55,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         onboardingComplete: e2eProfile?.onboardingComplete  ?? false,
       });
       setLastLoginAt(null);
+      const e2eSub = (window as any).__e2e_subscription;
+      if (e2eSub?.tier) setTier(e2eSub.tier);
       setLoading(false);
       return;
     }
@@ -68,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setLastLoginAt(profile.lastLoggedIn);   // capture previous session timestamp
           setProfile(profile);
           authService.recordLogin().catch((err) => console.error("[AuthContext] recordLogin failed:", err)); // fire-and-forget
-          paymentService.getMySubscription().then((sub) => setTier(sub.tier)).catch((e) => console.error("[AuthContext] subscription fetch failed:", e)); // fire-and-forget; tier defaults to Free
+          paymentService.getMySubscription().then((sub) => setTier(sub.tier)).catch((e) => console.error("[AuthContext] subscription fetch failed:", e)); // fire-and-forget; tier stays null until resolved
         } catch {
           // Not registered yet
         }
@@ -91,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLastLoginAt(profile.lastLoggedIn);
       setProfile(profile);
       authService.recordLogin().catch((err) => console.error("[AuthContext] recordLogin failed:", err));
-      paymentService.getMySubscription().then((sub) => setTier(sub.tier)).catch((e) => console.error("[AuthContext] subscription fetch failed:", e)); // fire-and-forget; tier defaults to Free
+      paymentService.getMySubscription().then((sub) => setTier(sub.tier)).catch((e) => console.error("[AuthContext] subscription fetch failed:", e)); // fire-and-forget; tier stays null until resolved
       if (profile.role === "Contractor") {
         navigate("/contractor-dashboard");
       } else {
@@ -133,7 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLastLoginAt(profile.lastLoggedIn);
       setProfile(profile);
       authService.recordLogin().catch((err) => console.error("[AuthContext] recordLogin failed:", err));
-      paymentService.getMySubscription().then((sub) => setTier(sub.tier)).catch((e) => console.error("[AuthContext] subscription fetch failed:", e)); // fire-and-forget; tier defaults to Free
+      paymentService.getMySubscription().then((sub) => setTier(sub.tier)).catch((e) => console.error("[AuthContext] subscription fetch failed:", e)); // fire-and-forget; tier stays null until resolved
       if (profile.role === "Contractor") {
         navigate("/contractor-dashboard");
       } else {

@@ -5,6 +5,7 @@
  * Uses window.__e2e_* injection so no canister is required.
  *
  * Coverage:
+ *  - Free homeowner accessing /dashboard is redirected to /pricing
  *  - Subscription upgrade click navigates to /checkout with correct tier param
  *  - Subscription downgrade click navigates to /checkout with correct tier param
  */
@@ -13,71 +14,40 @@ import { test, expect } from "@playwright/test";
 import { injectTestAuth } from "./helpers/auth";
 import { injectTestProperties, injectSubscription } from "./helpers/testData";
 
-// ── Helpers (kept for Settings upgrade/downgrade flows) ──────────────────────
+// ── Free homeowner redirect ───────────────────────────────────────────────────
 
-/** @deprecated Only used by removed Free-tier job cap tests — safe to delete once Settings tests migrated. */
-async function injectFiveJobs(page: Parameters<typeof injectTestAuth>[0]) {
-  await page.addInitScript(() => {
-    (window as any).__e2e_jobs = Array.from({ length: 5 }, (_, i) => ({
-      id: String(i + 1),
-      propertyId: "1",
-      homeowner: "test-e2e-principal",
-      serviceType: "Plumbing",
-      contractorName: "Contractor Co",
-      amount: 10_000,
-      date: "2024-01-01",
-      description: "",
-      isDiy: false,
-      status: "verified",
-      verified: true,
-      homeownerSigned: true,
-      contractorSigned: true,
-      photos: [],
-      createdAt: Date.now() - 86_400_000 * (i + 1),
-    }));
+test.describe("Tier limit — Free homeowner redirect", () => {
+  test("Free homeowner visiting /dashboard is redirected to /pricing", async ({ page }) => {
+    await injectTestAuth(page);
+    await injectSubscription(page, "Free");
+    await page.goto("/dashboard");
+    await expect(page).toHaveURL(/\/pricing/);
   });
-}
 
-/** Injects 1 property (the Free-tier limit) so adding another triggers the gate. */
-async function injectOnePropertyAtFreeLimit(page: Parameters<typeof injectTestAuth>[0]) {
-  await page.addInitScript(() => {
-    (window as any).__e2e_properties = [
-      {
-        id: 1,
-        owner: "test-e2e-principal",
-        address: "123 Maple Street",
-        city: "Austin",
-        state: "TX",
-        zipCode: "78701",
-        propertyType: "SingleFamily",
-        yearBuilt: 2001,
-        squareFeet: 2400,
-        verificationLevel: "Unverified",
-        tier: "Free",
-        createdAt: 0,
-        updatedAt: 0,
-        isActive: true,
-      },
-    ];
+  test("Free homeowner visiting /properties/new is redirected to /pricing", async ({ page }) => {
+    await injectTestAuth(page);
+    await injectSubscription(page, "Free");
+    await page.goto("/properties/new");
+    await expect(page).toHaveURL(/\/pricing/);
   });
-}
+});
 
 // ── Subscription upgrade flow from Settings ───────────────────────────────────
 
-test.describe("Tier limit — upgrade flow from Settings (Free tier)", () => {
+test.describe("Tier limit — upgrade flow from Settings (Basic tier)", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
     await injectTestProperties(page);
-    await injectSubscription(page, "Free");
+    await injectSubscription(page, "Basic");
     await page.goto("/settings");
     await page.getByRole("button", { name: /subscription/i }).click();
   });
 
-  test("Free tier shows 'Upgrade Plan' section heading", async ({ page }) => {
+  test("Basic tier shows 'Upgrade Plan' section heading", async ({ page }) => {
     await expect(page.getByText("Upgrade Plan")).toBeVisible();
   });
 
-  test("Free tier shows 'Upgrade' buttons (not 'Switch') in plan grid", async ({ page }) => {
+  test("Basic tier shows 'Upgrade' buttons (not 'Switch') in plan grid", async ({ page }) => {
     await expect(page.getByRole("button", { name: /^upgrade$/i }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: /^switch$/i })).toHaveCount(0);
   });

@@ -105,6 +105,22 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Blocks authenticated homeowners with no active paid subscription.
+// ContractorFree and RealtorFree pass through — only plain "Free" on a
+// Homeowner role is rejected. tier===null means still loading; hold here
+// to avoid a flash redirect before the subscription fetch resolves.
+function PaidHomeownerRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading, tier, profile } = useAuthStore();
+
+  if (isLoading) return <PageLoader />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (tier === null) return <PageLoader />;
+  if (tier === "Free" && profile?.role === "Homeowner") {
+    return <Navigate to="/pricing" replace />;
+  }
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
     <ErrorBoundary global>
@@ -137,32 +153,32 @@ export default function App() {
           <Route path="/manage/claim/:token"   element={<PropertyManagerClaimPage />} />
 
           <Route path="/register"     element={<ProtectedRoute><RegisterPage /></ProtectedRoute>} />
-          <Route path="/dashboard"    element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+          <Route path="/dashboard"    element={<PaidHomeownerRoute><DashboardPage /></PaidHomeownerRoute>} />
           <Route path="/contractor-dashboard" element={<ProtectedRoute><ContractorDashboardPage /></ProtectedRoute>} />
           <Route path="/contractors"  element={<ProtectedRoute><ContractorBrowsePage /></ProtectedRoute>} />
           <Route path="/contractor/:id" element={<ProtectedRoute><ContractorPublicPage /></ProtectedRoute>} />
           <Route path="/contractor/profile" element={<ProtectedRoute><ContractorProfilePage /></ProtectedRoute>} />
-          <Route path="/properties/new" element={<ProtectedRoute><PropertyRegisterPage /></ProtectedRoute>} />
-          <Route path="/properties/:id" element={<ProtectedRoute><PropertyDetailPage /></ProtectedRoute>} />
-          <Route path="/properties/:id/verify" element={<ProtectedRoute><PropertyVerifyPage /></ProtectedRoute>} />
-          <Route path="/properties/:id/systems" element={<ProtectedRoute><SystemAgesPage /></ProtectedRoute>} />
-          <Route path="/jobs/new"     element={<ProtectedRoute><JobCreatePage /></ProtectedRoute>} />
-          <Route path="/quotes/new"   element={<ProtectedRoute><QuoteRequestPage /></ProtectedRoute>} />
-          <Route path="/quotes/:id"   element={<ProtectedRoute><QuoteDetailPage /></ProtectedRoute>} />
+          <Route path="/properties/new" element={<PaidHomeownerRoute><PropertyRegisterPage /></PaidHomeownerRoute>} />
+          <Route path="/properties/:id" element={<PaidHomeownerRoute><PropertyDetailPage /></PaidHomeownerRoute>} />
+          <Route path="/properties/:id/verify" element={<PaidHomeownerRoute><PropertyVerifyPage /></PaidHomeownerRoute>} />
+          <Route path="/properties/:id/systems" element={<PaidHomeownerRoute><SystemAgesPage /></PaidHomeownerRoute>} />
+          <Route path="/jobs/new"     element={<PaidHomeownerRoute><JobCreatePage /></PaidHomeownerRoute>} />
+          <Route path="/quotes/new"   element={<PaidHomeownerRoute><QuoteRequestPage /></PaidHomeownerRoute>} />
+          <Route path="/quotes/:id"   element={<PaidHomeownerRoute><QuoteDetailPage /></PaidHomeownerRoute>} />
           <Route path="/settings"     element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-          <Route path="/market"       element={<ProtectedRoute><MarketIntelligencePage /></ProtectedRoute>} />
-          <Route path="/maintenance"  element={<ProtectedRoute><PredictiveMaintenancePage /></ProtectedRoute>} />
+          <Route path="/market"       element={<PaidHomeownerRoute><MarketIntelligencePage /></PaidHomeownerRoute>} />
+          <Route path="/maintenance"  element={<PaidHomeownerRoute><PredictiveMaintenancePage /></PaidHomeownerRoute>} />
           <Route path="/admin"        element={<ProtectedRoute><AdminDashboardPage /></ProtectedRoute>} />
           <Route path="/onboarding"   element={<ProtectedRoute><OnboardingWizard /></ProtectedRoute>} />
           <Route path="/agent-dashboard" element={<ProtectedRoute><AgentDashboardPage /></ProtectedRoute>} />
-          <Route path="/sensors"      element={<ProtectedRoute><SensorPage /></ProtectedRoute>} />
-          <Route path="/warranties"   element={<ProtectedRoute><WarrantyWalletPage /></ProtectedRoute>} />
-          <Route path="/insurance-defense" element={<ProtectedRoute><InsuranceDefensePage /></ProtectedRoute>} />
-          <Route path="/resale-ready" element={<ProtectedRoute><ResaleReadyPage /></ProtectedRoute>} />
-          <Route path="/recurring/new" element={<ProtectedRoute><RecurringServiceCreatePage /></ProtectedRoute>} />
-          <Route path="/recurring/:id" element={<ProtectedRoute><RecurringServiceDetailPage /></ProtectedRoute>} />
-          <Route path="/listing/new"  element={<ProtectedRoute><ListingNewPage /></ProtectedRoute>} />
-          <Route path="/listing/:id"  element={<ProtectedRoute><ListingDetailPage /></ProtectedRoute>} />
+          <Route path="/sensors"      element={<PaidHomeownerRoute><SensorPage /></PaidHomeownerRoute>} />
+          <Route path="/warranties"   element={<PaidHomeownerRoute><WarrantyWalletPage /></PaidHomeownerRoute>} />
+          <Route path="/insurance-defense" element={<PaidHomeownerRoute><InsuranceDefensePage /></PaidHomeownerRoute>} />
+          <Route path="/resale-ready" element={<PaidHomeownerRoute><ResaleReadyPage /></PaidHomeownerRoute>} />
+          <Route path="/recurring/new" element={<PaidHomeownerRoute><RecurringServiceCreatePage /></PaidHomeownerRoute>} />
+          <Route path="/recurring/:id" element={<PaidHomeownerRoute><RecurringServiceDetailPage /></PaidHomeownerRoute>} />
+          <Route path="/listing/new"  element={<PaidHomeownerRoute><ListingNewPage /></PaidHomeownerRoute>} />
+          <Route path="/listing/:id"  element={<PaidHomeownerRoute><ListingDetailPage /></PaidHomeownerRoute>} />
           <Route path="/agent/marketplace" element={<ProtectedRoute><AgentMarketplacePage /></ProtectedRoute>} />
           <Route path="/agent/profile" element={<ProtectedRoute><AgentProfileEditPage /></ProtectedRoute>} />
           <Route path="/agent/:id"    element={<ProtectedRoute><AgentPublicPage /></ProtectedRoute>} />

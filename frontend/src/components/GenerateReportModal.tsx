@@ -68,8 +68,6 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
   useEffect(() => {
     paymentService.getMySubscription().then((s) => {
       setUserTier(s.tier);
-      // Free tier: cap expiry at 7 days (15.2.1)
-      if (s.tier === "Free") setExpiryDays(7);
     }).catch((e) => console.error("[GenerateReportModal] subscription load failed:", e))
       .finally(() => setSubscriptionLoading(false));
     reportService.listShareLinks(propertyId)
@@ -110,13 +108,6 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
       setFreshLink(link);
       setPreviewStats({ score, grade, verifiedCount });
       toast.success("HomeGentic report created!");
-      if (userTier === "Free") {
-        notificationService.create({
-          type: "ReportExpiry",
-          message: "Your HomeGentic report expires in 7 days — upgrade to Pro for a permanent link.",
-          propertyId,
-        });
-      }
     } catch (err: any) {
       toast.error(err.message || "Failed to generate report");
     } finally {

@@ -18,7 +18,7 @@ import { paymentService, type PlanTier } from "./payment";
 
 // Inline tier→property limit to avoid PLANS import breaking payment mocks in tests
 const TIER_PROPERTY_LIMIT: Partial<Record<PlanTier, number>> = {
-  Free: 1, Basic: 1, Pro: 5, Premium: 20,
+  Basic: 1, Pro: 5, Premium: 20,
 };
 import { buildMaintenanceForecast } from "./maintenanceForecast";
 import { reportService, jobToInput, propertyToInput } from "./report";

@@ -26,7 +26,7 @@ import { fsboService } from "@/services/fsbo";
 // Inline tier→property limit so Layout never imports PLANS from payment,
 // keeping the payment mock surface small in tests.
 const TIER_PROPERTY_LIMIT: Partial<Record<PlanTier, number>> = {
-  Free: 1, Basic: 1, Pro: 5, Premium: 20,
+  Basic: 1, Pro: 5, Premium: 20,
 };
 import { VoiceAgent } from "./VoiceAgent";
 import UpgradeModal from "./UpgradeModal";
