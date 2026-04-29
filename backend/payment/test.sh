@@ -322,29 +322,51 @@ if [ -n "$PROPERTY_ID" ] && [ -n "$QUOTE_ID" ] && [ -n "$PHOTO_ID" ]; then
     dfx canister call photo    addAdmin "(principal \"$PAYMENT_ID\")" 2>/dev/null || true
   fi
 
-  # Grant Pro subscription — should propagate to property, quote, photo
+  # Grant Pro subscription — triggers propagateTier → property/quote/photo.setTier
   dfx canister call payment grantSubscription \
     "(principal \"$PROP_TEST_PRINCIPAL\", variant { Pro })" 2>/dev/null
 
-  # Verify tier was propagated to property
-  PROP_TIER=$(dfx canister call property setTier \
-    "(principal \"$PROP_TEST_PRINCIPAL\", variant { Pro })" 2>/dev/null || echo "")
-  # Simpler check: read it back via a query if available, otherwise call setTier directly
-  # Since property doesn't expose getTierForPrincipal, we verify indirectly:
-  # calling registerProperty should no longer be blocked by Free-tier limit (0 properties)
-  echo "  ↳ grantSubscription + propagateTier completed without error — ✓"
+  # [P3a] payment records the tier correctly
+  TIER=$(dfx canister call payment getTierForPrincipal "(principal \"$PROP_TEST_PRINCIPAL\")")
+  echo "$TIER" | grep -q "Pro" \
+    && echo "  ↳ [P3a] getTierForPrincipal = Pro — ✓" \
+    || (echo "  ↳ ❌ [P3a] Expected Pro in payment: $TIER"; exit 1)
 
-  # Downgrade to Free via grantSubscription (cancellation path)
+  # [P3b] property enforces Pro limit (5 properties allowed): registration succeeds
+  REG=$(dfx canister call property registerProperty '(record {
+    address = "100 Tier Test St"; city = "Austin"; state = "TX";
+    zipCode = "78701"; propertyType = variant { SingleFamily };
+    yearBuilt = 2000; squareFeet = 1500; tier = variant { Free };
+  })' --identity tier-prop-test 2>&1)
+  echo "$REG" | grep -q "LimitReached" \
+    && echo "  ↳ ❌ [P3b] registerProperty blocked under Pro tier — unexpected" \
+    || echo "  ↳ [P3b] registerProperty succeeded under Pro tier — ✓"
+
+  # Downgrade to Free — property should now block further registrations
   dfx canister call payment grantSubscription \
     "(principal \"$PROP_TEST_PRINCIPAL\", variant { Free })" 2>/dev/null
-  echo "  ↳ Downgrade to Free propagated without error — ✓"
+
+  TIER_AFTER=$(dfx canister call payment getTierForPrincipal "(principal \"$PROP_TEST_PRINCIPAL\")")
+  echo "$TIER_AFTER" | grep -q "Free" \
+    && echo "  ↳ [P3c] getTierForPrincipal = Free after downgrade — ✓" \
+    || echo "  ↳ ❌ [P3c] Expected Free after downgrade: $TIER_AFTER"
+
+  # [P3d] property enforces Free limit (0 properties): second registration fails
+  REG2=$(dfx canister call property registerProperty '(record {
+    address = "200 Tier Test Ave"; city = "Austin"; state = "TX";
+    zipCode = "78702"; propertyType = variant { SingleFamily };
+    yearBuilt = 2001; squareFeet = 1200; tier = variant { Free };
+  })' --identity tier-prop-test 2>&1)
+  echo "$REG2" | grep -q "LimitReached\|NotAuthorized" \
+    && echo "  ↳ [P3d] registerProperty blocked after Free downgrade — ✓" \
+    || echo "  ↳ ❌ [P3d] Expected LimitReached after downgrade: $REG2"
 else
   echo "  ↳ SKIP — property/quote/photo not deployed (will run in full integration suite)"
 fi
 
 echo ""
 echo "── [P4] cancelSubscription → Free tier propagated ───────────────────────"
-# Grant the tier-prop-test user Pro, then cancel, verify payment record shows cancelledAt
+# Grant the tier-prop-test user Pro, then cancel, verify payment record shows cancelledAt.
 RESULT=$(dfx canister call payment grantSubscription \
   "(principal \"$PROP_TEST_PRINCIPAL\", variant { Pro })" 2>&1)
 echo "$RESULT" | grep -q "ok" \
@@ -357,6 +379,13 @@ CANCEL_RESULT=$(dfx canister call payment cancelSubscription \
 echo "$CANCEL_RESULT" | grep -q "cancelledAt" \
   && echo "  ↳ cancelSubscription set cancelledAt — ✓" \
   || echo "  ↳ ❌ Expected cancelledAt in cancellation result: $CANCEL_RESULT"
+
+# [P4a] payment reflects the cancellation: tier query should still show Pro (access until expiry)
+TIER_AFTER_CANCEL=$(dfx canister call payment getTierForPrincipal \
+  "(principal \"$PROP_TEST_PRINCIPAL\")" 2>&1)
+echo "$TIER_AFTER_CANCEL" | grep -q "Pro" \
+  && echo "  ↳ [P4a] tier still Pro after cancellation (access until expiry) — ✓" \
+  || echo "  ↳ ❌ [P4a] Expected Pro to persist until expiry: $TIER_AFTER_CANCEL"
 
 echo ""
 echo "✅ Tier propagation tests complete!"
