@@ -34,19 +34,30 @@ export function identityFromPem(pem: string): Ed25519KeyIdentity {
 }
 
 // ── Agent (lazy singleton) ────────────────────────────────────────────────────
-let _agent: HttpAgent | undefined;
+// Route to local dfx replica when DFX_NETWORK=local; otherwise IC mainnet.
+const IC_HOST = process.env.DFX_NETWORK === "local"
+  ? "http://localhost:4943"
+  : "https://ic0.app";
 
-function getAgent(): HttpAgent {
-  if (_agent) return _agent;
+let _agentPromise: Promise<HttpAgent> | undefined;
+
+async function getAgent(): Promise<HttpAgent> {
+  if (_agentPromise) return _agentPromise;
   const pem = process.env.DFX_IDENTITY_PEM;
   if (!pem) {
     throw new Error(
       "DFX_IDENTITY_PEM is not set — cannot make authenticated canister calls",
     );
   }
-  _agent = new HttpAgent({ host: "https://ic0.app", identity: identityFromPem(pem) });
-  // Do NOT call fetchRootKey() — IC mainnet uses the hardcoded root key.
-  return _agent;
+  _agentPromise = (async () => {
+    const agent = new HttpAgent({ host: IC_HOST, identity: identityFromPem(pem) });
+    // Local replica uses a self-signed root key; mainnet has a hardcoded one.
+    if (process.env.DFX_NETWORK === "local") {
+      await agent.fetchRootKey();
+    }
+    return agent;
+  })();
+  return _agentPromise;
 }
 
 // ── Minimal IDL for the three admin methods ───────────────────────────────────
@@ -98,9 +109,9 @@ type PaymentActor = {
   ): Promise<{ ok: bigint } | { err: unknown }>;
 };
 
-function getActor(): PaymentActor {
+async function getActor(): Promise<PaymentActor> {
   return Actor.createActor(idlFactory, {
-    agent:     getAgent(),
+    agent:      await getAgent(),
     canisterId: PAYMENT_CANISTER_ID,
   }) as unknown as PaymentActor;
 }
@@ -114,7 +125,7 @@ export async function activateInCanister(
 ): Promise<void> {
   if (!VALID_TIERS.has(tier)) throw new Error(`Invalid tier: ${tier}`);
   if (!PRINCIPAL_RE.test(principal)) throw new Error("Invalid principal format");
-  const result = await getActor().adminActivateStripeSubscription(
+  const result = await (await getActor()).adminActivateStripeSubscription(
     Principal.fromText(principal),
     { [tier]: null },
     BigInt(months),
@@ -125,7 +136,7 @@ export async function activateInCanister(
 
 export async function consumeAgentCredit(principal: string): Promise<void> {
   if (!PRINCIPAL_RE.test(principal)) throw new Error("Invalid principal format");
-  const result = await getActor().consumeAgentCredit(Principal.fromText(principal));
+  const result = await (await getActor()).consumeAgentCredit(Principal.fromText(principal));
   if ("err" in result) throw new Error("No agent credits available");
 }
 
@@ -136,7 +147,7 @@ export async function grantAgentCredits(
   if (!PRINCIPAL_RE.test(principal)) throw new Error("Invalid principal format");
   if (!Number.isInteger(amount) || amount <= 0)
     throw new Error("Invalid credit amount");
-  const result = await getActor().adminGrantAgentCredits(
+  const result = await (await getActor()).adminGrantAgentCredits(
     Principal.fromText(principal),
     BigInt(amount),
   );
