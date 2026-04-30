@@ -76,7 +76,7 @@ vi.mock("react-hot-toast", () => ({
 }));
 
 // paymentService mock is set per-test
-let mockTier: "Free" | "Pro" | "Premium" | "ContractorPro" = "Free";
+let mockTier: "Free" | "Basic" | "Pro" | "Premium" | "ContractorPro" = "Basic";
 vi.mock("@/services/payment", () => ({
   paymentService: {
     getMyAgentCredits: vi.fn(() => Promise.resolve(0)),
