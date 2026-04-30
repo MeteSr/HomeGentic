@@ -34,7 +34,7 @@ test.describe("Tier limit — Free homeowner redirect", () => {
 
 // ── Subscription upgrade flow from Settings ───────────────────────────────────
 
-test.describe("Tier limit — upgrade flow from Settings (Basic tier)", () => {
+test.describe("Tier limit — plan switch flow from Settings (Basic tier)", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
     await injectTestProperties(page);
@@ -43,39 +43,39 @@ test.describe("Tier limit — upgrade flow from Settings (Basic tier)", () => {
     await page.getByRole("button", { name: /subscription/i }).click();
   });
 
-  test("Basic tier shows 'Upgrade Plan' section heading", async ({ page }) => {
-    await expect(page.getByText("Upgrade Plan")).toBeVisible();
+  test("Basic tier shows 'Switch Plan' section heading", async ({ page }) => {
+    await expect(page.getByText("Switch Plan")).toBeVisible();
   });
 
-  test("Basic tier shows 'Upgrade' buttons (not 'Switch') in plan grid", async ({ page }) => {
-    await expect(page.getByRole("button", { name: /^upgrade$/i }).first()).toBeVisible();
-    await expect(page.getByRole("button", { name: /^switch$/i })).toHaveCount(0);
+  test("Basic tier shows 'Switch' buttons (not 'Upgrade') in plan grid", async ({ page }) => {
+    await expect(page.getByRole("button", { name: /^switch$/i }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /^upgrade$/i })).toHaveCount(0);
   });
 
-  test("clicking Upgrade opens the UpgradeModal dialog", async ({ page }) => {
-    await page.getByRole("button", { name: /^upgrade$/i }).first().click();
+  test("clicking Switch opens the UpgradeModal dialog", async ({ page }) => {
+    await page.getByRole("button", { name: /^switch$/i }).first().click();
     await expect(page.getByRole("dialog", { name: /upgrade your plan/i })).toBeVisible();
   });
 
   test("UpgradeModal shows Pro and Premium plan cards", async ({ page }) => {
-    await page.getByRole("button", { name: /^upgrade$/i }).first().click();
+    await page.getByRole("button", { name: /^switch$/i }).first().click();
     // Verify plan cards by their 'Select {tier}' buttons — unambiguous and accessible
     await expect(page.getByRole("button", { name: "Select Pro" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Select Premium" })).toBeVisible();
   });
 
   test("UpgradeModal shows 'Pay with Card' payment method toggle", async ({ page }) => {
-    await page.getByRole("button", { name: /^upgrade$/i }).first().click();
+    await page.getByRole("button", { name: /^switch$/i }).first().click();
     await expect(page.getByRole("button", { name: /pay with card/i })).toBeVisible();
   });
 
   test("UpgradeModal shows 'Pay with ICP' payment method toggle", async ({ page }) => {
-    await page.getByRole("button", { name: /^upgrade$/i }).first().click();
+    await page.getByRole("button", { name: /^switch$/i }).first().click();
     await expect(page.getByRole("button", { name: /pay with icp/i })).toBeVisible();
   });
 
   test("UpgradeModal can be closed", async ({ page }) => {
-    await page.getByRole("button", { name: /^upgrade$/i }).first().click();
+    await page.getByRole("button", { name: /^switch$/i }).first().click();
     await expect(page.getByRole("dialog", { name: /upgrade your plan/i })).toBeVisible();
     // Close button (X) dismisses the modal
     await page.locator('[aria-label="Upgrade Your Plan"] button').first().click();

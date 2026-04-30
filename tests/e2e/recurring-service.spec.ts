@@ -48,6 +48,7 @@ test.describe("RS — /recurring/new", () => {
 test.describe("RS — /recurring/:id (injected data)", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
+    await injectSubscription(page);
     await injectTestProperties(page);
     await injectRecurringServices(page);
     // rs1 = LawnCare service ("Lawn Care" after label mapping)
