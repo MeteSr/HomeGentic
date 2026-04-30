@@ -27,8 +27,15 @@ echo "Job canister:    $JOB_ID"
 # Wire up job canister so Critical events auto-create jobs
 if [ -n "$JOB_ID" ]; then
   echo ""
-  echo "── [0] Wire job canister into sensor ────────────────────────────────────"
-  dfx canister call sensor setJobCanisterId "(\"$JOB_ID\")" || echo "  ↳ Already set or admin required"
+  echo "── [0a] Wire job canister into sensor ───────────────────────────────────"
+  dfx canister call sensor setJobCanisterId "(\"$JOB_ID\")" \
+    || echo "  ↳ Already set or admin required"
+
+  echo ""
+  echo "── [0b] Authorize sensor canister in job (required for createSensorJob) ─"
+  dfx canister call job addSensorCanister "(principal \"$CANISTER\")" \
+    && echo "  ↳ Sensor authorized in job canister — ✓" \
+    || echo "  ↳ Already authorized or admin required"
 fi
 
 # ─── Initial state ────────────────────────────────────────────────────────────
