@@ -6,7 +6,7 @@
  * QF.3  /quotes/:id — injected bids appear with "Bids Received" count and amounts
  * QF.4  /quotes/:id — "Best Value" and "Lowest Quote" badges appear with multiple bids
  * QF.5  Accept bid — confirmation modal → Confirm Accept → "Quote Accepted" banner
- * QF.6  Tier limit (Free = 3): button disabled and shows "Quote limit reached" at 3 open requests
+ * QF.6  Tier limit (Basic = 3): button disabled and shows "Quote limit reached" at 3 open requests
  * QF.7  Tier limit (Pro = 10): 9 open requests still allow submission (button enabled)
  *
  * All tests use window.__e2e_* injection — no canister required.
@@ -56,6 +56,7 @@ const BIDS = [
 test.describe("QF — /quotes/new form", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
+    await injectSubscription(page);
     await injectTestProperties(page);
   });
 
@@ -113,6 +114,7 @@ test.describe("QF — /quotes/new form", () => {
 test.describe("QF — /quotes/:id bid display", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
+    await injectSubscription(page);
     await injectTestProperties(page);
     await injectQuoteRequests(page, [ANCHOR_REQUEST]);
     await injectQuotes(page, BIDS);
@@ -161,6 +163,7 @@ test.describe("QF — /quotes/:id bid display", () => {
 test.describe("QF — accept bid flow", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
+    await injectSubscription(page);
     await injectTestProperties(page);
     await injectQuoteRequests(page, [ANCHOR_REQUEST]);
     await injectQuotes(page, BIDS);
@@ -212,11 +215,11 @@ test.describe("QF — open-quote tier limit", () => {
     await injectTestProperties(page);
   });
 
-  // QF.6 — Free tier: 3 open requests → button disabled
-  test("Free tier: submit button disabled and shows 'Quote limit reached' at 3 open requests", async ({ page }) => {
-    await injectSubscription(page, "Free");
+  // QF.6 — Basic tier: 3 open requests → button disabled
+  test("Basic tier: submit button disabled and shows 'Quote limit reached' at 3 open requests", async ({ page }) => {
+    await injectSubscription(page, "Basic");
     const threeOpen = Array.from({ length: 3 }, (_, i) => ({
-      id:          `E2E_FREE_${i}`,
+      id:          `E2E_BASIC_${i}`,
       propertyId:  "1",
       homeowner:   "test-e2e-principal",
       serviceType: "HVAC",
@@ -232,11 +235,11 @@ test.describe("QF — open-quote tier limit", () => {
     await expect(page.getByRole("button", { name: /quote limit reached/i })).toBeDisabled();
   });
 
-  // QF.6 — Free tier: 2 open requests → button still enabled
-  test("Free tier: submit button enabled with 2 open requests (below limit of 3)", async ({ page }) => {
-    await injectSubscription(page, "Free");
+  // QF.6 — Basic tier: 2 open requests → button still enabled
+  test("Basic tier: submit button enabled with 2 open requests (below limit of 3)", async ({ page }) => {
+    await injectSubscription(page, "Basic");
     const twoOpen = Array.from({ length: 2 }, (_, i) => ({
-      id:          `E2E_FREE_${i}`,
+      id:          `E2E_BASIC_${i}`,
       propertyId:  "1",
       homeowner:   "test-e2e-principal",
       serviceType: "HVAC",

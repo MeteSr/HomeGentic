@@ -5,6 +5,7 @@ import { injectTestProperties, injectSubscription } from "./helpers/testData";
 test.describe("Job Create — /jobs/new", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
+    await injectSubscription(page);
     await injectTestProperties(page);
     await page.goto("/jobs/new");
     // Wait for the form to render (not redirected to /login)

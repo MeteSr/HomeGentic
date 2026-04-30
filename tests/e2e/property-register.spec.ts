@@ -1,9 +1,11 @@
 import { test, expect } from "@playwright/test";
 import { injectTestAuth } from "./helpers/auth";
+import { injectSubscription } from "./helpers/testData";
 
 test.describe("PropertyRegisterPage — /properties/new", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
+    await injectSubscription(page);
     await page.goto("/properties/new");
     await expect(page.getByRole("heading", { name: "Register a Property" })).toBeVisible();
   });

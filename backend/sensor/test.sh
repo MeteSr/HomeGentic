@@ -27,8 +27,25 @@ echo "Job canister:    $JOB_ID"
 # Wire up job canister so Critical events auto-create jobs
 if [ -n "$JOB_ID" ]; then
   echo ""
-  echo "── [0] Wire job canister into sensor ────────────────────────────────────"
-  dfx canister call sensor setJobCanisterId "(\"$JOB_ID\")" || echo "  ↳ Already set or admin required"
+  echo "── [0a] Wire job canister into sensor ───────────────────────────────────"
+  dfx canister call sensor setJobCanisterId "(\"$JOB_ID\")" \
+    || echo "  ↳ Already set or admin required"
+
+  echo ""
+  echo "── [0b] Authorize sensor canister in job (required for createSensorJob) ─"
+  dfx canister call job addSensorCanister "(principal \"$CANISTER\")" \
+    && echo "  ↳ Sensor authorized in job canister — ✓" \
+    || echo "  ↳ Already authorized or admin required"
+
+  echo ""
+  echo "── [0c] Clear property-ownership check in job (test uses fake property IDs)"
+  # createSensorJob skips ownership verification when propCanisterId is empty.
+  # Tests use a fake propertyId ("PROP_1") that doesn't exist in the property
+  # canister, so we must clear it — we restore it in [16] after tests complete.
+  PROP_CANISTER_ID=$(dfx canister id property 2>/dev/null || echo "")
+  dfx canister call job setPropertyCanisterId '("")' \
+    && echo "  ↳ Property canister cleared for test isolation — ✓" \
+    || echo "  ↳ Could not clear propCanisterId — jobId assertions may fail"
 fi
 
 # ─── Initial state ────────────────────────────────────────────────────────────
@@ -137,7 +154,24 @@ dfx canister call sensor getDevicesForProperty '("PROP_1")'
 # ─── Final metrics ────────────────────────────────────────────────────────────
 echo ""
 echo "── [15] Get metrics (after tests) ──────────────────────────────────────"
-dfx canister call sensor getMetrics
+METRICS=$(dfx canister call sensor getMetrics)
+echo "$METRICS"
+if [ -n "$JOB_ID" ]; then
+  echo "$METRICS" | grep -qE "jobsCreated = [1-9]" \
+    && echo "  ↳ jobsCreated > 0 — ✓" \
+    || (echo "  ↳ ❌ Expected jobsCreated > 0 after Critical events"; exit 1)
+else
+  echo "  ↳ SKIP jobsCreated assertion — job canister not deployed"
+fi
+
+# ─── Restore property canister in job ────────────────────────────────────────
+if [ -n "$JOB_ID" ] && [ -n "${PROP_CANISTER_ID:-}" ]; then
+  echo ""
+  echo "── [16] Restore property canister in job ────────────────────────────────"
+  dfx canister call job setPropertyCanisterId "(\"$PROP_CANISTER_ID\")" \
+    && echo "  ↳ Restored — ✓" \
+    || echo "  ↳ Restore failed — run: dfx canister call job setPropertyCanisterId"
+fi
 
 echo ""
 echo "============================================"

@@ -32,6 +32,7 @@
 import { testWithII } from "@dfinity/internet-identity-playwright";
 import { test, expect } from "@playwright/test";
 import { injectTestAuth } from "./helpers/auth";
+import { injectSubscription } from "./helpers/testData";
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -102,6 +103,7 @@ testWithII.describe("Internet Identity — login flow", () => {
 test.describe("Internet Identity — logout flow", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
+    await injectSubscription(page);
   });
 
   // II.2

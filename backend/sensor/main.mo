@@ -185,7 +185,7 @@ persistent actor Sensor {
       case (#LeakDetected)    { #Critical };
       case (#FloodRisk)       { #Critical };
       case (#LowTemperature)  { #Warning  };
-      case (#HvacAlert)       { #Warning  };
+      case (#HvacAlert)       { #Critical };
       case (#HighTemperature) { #Warning  };
       case (#HighHumidity)    { #Warning  };
       case (#HvacFilterDue)   { #Info     };

@@ -9,11 +9,12 @@
 
 import { test, expect } from "@playwright/test";
 import { injectTestAuth } from "./helpers/auth";
-import { injectTestProperties } from "./helpers/testData";
+import { injectTestProperties, injectSubscription } from "./helpers/testData";
 
 test.describe("PropertyVerifyPage — /properties/1/verify", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
+    await injectSubscription(page);
     await injectTestProperties(page);
     await page.goto("/properties/1/verify");
     await expect(page.getByRole("heading", { name: /verify ownership/i })).toBeVisible();
