@@ -224,6 +224,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         className="hf-sidebar"
         style={{ width: sidebarW }}
         aria-label="Main navigation"
+        aria-hidden={addPropOpen || undefined}
       >
         {/* Header: branding + add-property + toggle */}
         <div style={{
@@ -413,6 +414,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <div
         className="hf-main"
         style={{ marginLeft: sidebarW, flex: 1, minWidth: 0 }}
+        aria-hidden={addPropOpen || undefined}
       >
         {/* Mobile-only top header */}
         <header
