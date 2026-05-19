@@ -55,6 +55,7 @@ persistent actor Referrals {
   private var adminInitialized   : Bool = false;
   private var codeCounter        : Nat = 0;
   private var paused             : Bool = false;
+  private var pauseExpiryNs      : ?Int = null;
 
   // code  → referrer (Text principal)
   private let codeOwner    = Map.empty<Text, Text>();
@@ -90,6 +91,17 @@ persistent actor Referrals {
     "HG-" # padNum(codeCounter)
   };
 
+  private func requireActive(caller : Principal) : Result.Result<(), Error> {
+    if (Principal.isAnonymous(caller)) return #err(#Unauthorized);
+    if (paused) {
+      switch (pauseExpiryNs) {
+        case (?expiry) { if (Time.now() < expiry) return #err(#InvalidInput("Canister is paused")) };
+        case null      { return #err(#InvalidInput("Canister is paused")) };
+      };
+    };
+    #ok(())
+  };
+
   private func addCredit(p : Text, amount : Nat) {
     let current = Option.get(Map.get(credits, Text.compare, p), 0);
     ignore Map.add(credits, Text.compare, p, current + amount);
@@ -114,7 +126,7 @@ persistent actor Referrals {
   /// Record that the caller is signing up via `code`.
   /// Call once during onboarding — idempotent error if already referred.
   public shared(msg) func useReferralCode(code : Text) : async Result.Result<(), Error> {
-    if (paused) return #err(#InvalidInput("service paused"));
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     let callerId = Principal.toText(msg.caller);
 
     if (Text.size(code) == 0) return #err(#InvalidInput("code cannot be empty"));
@@ -203,8 +215,22 @@ persistent actor Referrals {
     #ok(())
   };
 
-  public shared(msg) func pause()   : async () { assert isAdmin(msg.caller); paused := true };
-  public shared(msg) func unpause() : async () { assert isAdmin(msg.caller); paused := false };
+  public shared(msg) func pause(durationSeconds : ?Nat) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#Unauthorized);
+    paused := true;
+    pauseExpiryNs := switch (durationSeconds) {
+      case null      { null };
+      case (?secs)   { ?(Time.now() + secs * 1_000_000_000) };
+    };
+    #ok(())
+  };
+
+  public shared(msg) func unpause() : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#Unauthorized);
+    paused        := false;
+    pauseExpiryNs := null;
+    #ok(())
+  };
 
   // ─── Metrics ──────────────────────────────────────────────────────────────────
 
