@@ -76,11 +76,15 @@
       "main": "backend/audit/main.mo",
       "type": "motoko"
     },
+    "referrals": {
+      "main": "backend/referrals/main.mo",
+      "type": "motoko"
+    },
     "frontend": {
       "dependencies": [
         "auth", "property", "job", "contractor", "quote", "payment",
         "photo", "report", "maintenance", "market", "sensor", "monitoring",
-        "listing", "agent", "recurring", "bills", "ai_proxy", "audit"
+        "listing", "agent", "recurring", "bills", "ai_proxy", "audit", "referrals"
       ],
       "source": ["frontend/dist"],
       "type": "assets",

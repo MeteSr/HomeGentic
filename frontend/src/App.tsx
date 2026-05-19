@@ -39,6 +39,7 @@ const JobCreatePage              = React.lazy(() => import("@/pages/JobCreatePag
 const QuoteRequestPage           = React.lazy(() => import("@/pages/QuoteRequestPage"));
 const QuoteDetailPage            = React.lazy(() => import("@/pages/QuoteDetailPage"));
 const SettingsPage               = React.lazy(() => import("@/pages/SettingsPage"));
+const ReferralPage               = React.lazy(() => import("@/pages/ReferralPage"));
 const ContractorDashboardPage    = React.lazy(() => import("@/pages/ContractorDashboardPage"));
 const ContractorProfilePage      = React.lazy(() => import("@/pages/ContractorProfilePage"));
 const ContractorPublicPage       = React.lazy(() => import("@/pages/ContractorPublicPage"));
@@ -166,6 +167,7 @@ export default function App() {
           <Route path="/quotes/new"   element={<PaidHomeownerRoute><QuoteRequestPage /></PaidHomeownerRoute>} />
           <Route path="/quotes/:id"   element={<PaidHomeownerRoute><QuoteDetailPage /></PaidHomeownerRoute>} />
           <Route path="/settings"     element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+          <Route path="/refer"        element={<ProtectedRoute><ReferralPage /></ProtectedRoute>} />
           <Route path="/market"       element={<PaidHomeownerRoute><MarketIntelligencePage /></PaidHomeownerRoute>} />
           <Route path="/maintenance"  element={<PaidHomeownerRoute><PredictiveMaintenancePage /></PaidHomeownerRoute>} />
           <Route path="/admin"        element={<ProtectedRoute><AdminDashboardPage /></ProtectedRoute>} />
