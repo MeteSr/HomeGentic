@@ -39,6 +39,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { useScoreTracking } from "@/hooks/useScoreTracking";
 import { useDashboardDismissals } from "@/hooks/useDashboardDismissals";
 import { useVoiceAgent } from "@/hooks/useVoiceAgent";
+import LocalBrokerModal, { isLocalBrokerArea, isLocalBrokerDismissed } from "@/components/LocalBrokerModal";
 
 const UI = {
   ink:      COLORS.plum,
@@ -429,6 +430,14 @@ export default function DashboardPage() {
 
   // ─── Dismissals ──────────────────────────────────────────────────────────────
   const d = useDashboardDismissals();
+
+  // ─── Local broker modal ───────────────────────────────────────────────────────
+  const [showBrokerModal, setShowBrokerModal] = useState(false);
+  useEffect(() => {
+    if (propLoading || properties.length === 0 || isLocalBrokerDismissed()) return;
+    const cities = properties.map((p) => (p as any).city ?? "");
+    if (isLocalBrokerArea(cities)) setShowBrokerModal(true);
+  }, [propLoading, properties]);
 
   // ─── Modal state (2 of 3 useState in this file) ───────────────────────────────
   const [modals, setModals] = useState<ModalState>(MODAL_INITIAL);
@@ -1706,6 +1715,14 @@ export default function DashboardPage() {
         onClose={() => setModals((m) => ({ ...m, showAddService: false }))}
         onSuccess={() => { /* useMaintenanceSchedule / usePropertySummary will refresh on next mount */ }}
       />
+
+      {/* Local broker modal — Daytona area geo-targeting */}
+      {showBrokerModal && (
+        <LocalBrokerModal
+          propertyAddress={(properties[0] as any)?.address ?? ""}
+          onClose={() => setShowBrokerModal(false)}
+        />
+      )}
 
     </Layout>
   );

@@ -9,7 +9,6 @@ import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Shield, CheckCircle, Wrench, FileText, Printer, AlertTriangle, XCircle } from "lucide-react";
 import { reportService, ReportSnapshot, ShareLink, JobInput, disclosureFromParams } from "@/services/report";
-import { agentProfileService } from "@/services/agentProfile";
 import { premiumEstimate, getScoreGrade } from "@/services/scoreService";
 import { DocumentedValueSection } from "@/components/DocumentedValueSection";
 import { COLORS, FONTS } from "@/theme";
@@ -152,9 +151,8 @@ export default function ReportPage() {
     );
   }
 
-  const cfg          = VERIFICATION_CONFIG[snapshot.verificationLevel] ?? VERIFICATION_CONFIG.Unverified;
-  const agentProfile = agentProfileService.fromParams(searchParams);
-  const sortedJobs   = [...snapshot.jobs].sort((a, b) => b.date.localeCompare(a.date));
+  const cfg        = VERIFICATION_CONFIG[snapshot.verificationLevel] ?? VERIFICATION_CONFIG.Unverified;
+  const sortedJobs = [...snapshot.jobs].sort((a, b) => b.date.localeCompare(a.date));
 
   // Certification: score ≥ 88 + 3 verified + 2 key systems
   const reportScore   = (() => {
@@ -249,24 +247,6 @@ export default function ReportPage() {
             <span>Generated: {new Date(snapshot.generatedAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</span>
           </div>
         </div>
-
-        {/* Agent co-branding banner */}
-        {agentProfile && (
-          <div style={{ border: `1px solid ${UI.rule}`, padding: "0.875rem 1.25rem", marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "1rem", background: COLORS.white }}>
-            {agentProfile.logoUrl && (
-              <img src={agentProfile.logoUrl} alt="agent logo" style={{ height: "2.5rem", objectFit: "contain", flexShrink: 0 }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-            )}
-            <div style={{ flex: 1 }}>
-              <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "0.9rem", color: UI.ink, marginBottom: "0.125rem" }}>{agentProfile.name}</p>
-              {agentProfile.brokerage && <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: UI.inkLight }}>{agentProfile.brokerage}</p>}
-              {agentProfile.phone     && <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight }}>{agentProfile.phone}</p>}
-            </div>
-            <div style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, textAlign: "right" }}>
-              <Shield size={11} style={{ display: "inline", marginRight: "0.25rem" }} />
-              Verified by HomeGentic
-            </div>
-          </div>
-        )}
 
         {/* 48-hour expiry warning (15.2.2) — urgent banner when link expires soon */}
         {link && link.expiresAt && (link.expiresAt - Date.now()) <= 48 * 3600_000 && (

@@ -50,7 +50,6 @@ const BadgePage                  = React.lazy(() => import("@/pages/BadgePage"))
 const ScoreCertPage              = React.lazy(() => import("@/pages/ScoreCertPage"));
 const PredictiveMaintenancePage  = React.lazy(() => import("@/pages/PredictiveMaintenancePage"));
 const AdminDashboardPage         = React.lazy(() => import("@/pages/AdminDashboardPage"));
-const AgentDashboardPage         = React.lazy(() => import("@/pages/AgentDashboardPage"));
 const SensorPage                 = React.lazy(() => import("@/pages/SensorPage"));
 const WarrantyWalletPage         = React.lazy(() => import("@/pages/WarrantyWalletPage"));
 const InsuranceDefensePage       = React.lazy(() => import("@/pages/InsuranceDefensePage"));
@@ -61,10 +60,6 @@ const RecurringServiceDetailPage = React.lazy(() => import("@/pages/RecurringSer
 // const NeighborhoodHealthPage  = React.lazy(() => import("@/pages/NeighborhoodHealthPage"));
 const ListingNewPage             = React.lazy(() => import("@/pages/ListingNewPage"));
 const ListingDetailPage          = React.lazy(() => import("@/pages/ListingDetailPage"));
-const AgentMarketplacePage       = React.lazy(() => import("@/pages/AgentMarketplacePage"));
-const AgentProfileEditPage       = React.lazy(() => import("@/pages/AgentProfileEditPage"));
-const AgentPublicPage            = React.lazy(() => import("@/pages/AgentPublicPage"));
-const AgentBrowsePage            = React.lazy(() => import("@/pages/AgentBrowsePage"));
 const FsboListingPage            = React.lazy(() => import("@/pages/FsboListingPage"));
 const FsboSearchPage             = React.lazy(() => import("@/pages/FsboSearchPage"));
 const FsboListingManagerPage     = React.lazy(() => import("@/pages/FsboListingManagerPage"));
@@ -106,8 +101,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 // Blocks authenticated homeowners with no active paid subscription.
-// ContractorFree and RealtorFree pass through — only plain "Free" on a
-// Homeowner role is rejected. tier===null means still loading; hold here
+// ContractorFree passes through — only plain "Free" on a Homeowner role is rejected. tier===null means still loading; hold here
 // to avoid a flash redirect before the subscription fetch resolves.
 function PaidHomeownerRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, tier, profile } = useAuthStore();
@@ -172,7 +166,7 @@ export default function App() {
           <Route path="/maintenance"  element={<PaidHomeownerRoute><PredictiveMaintenancePage /></PaidHomeownerRoute>} />
           <Route path="/admin"        element={<ProtectedRoute><AdminDashboardPage /></ProtectedRoute>} />
           <Route path="/onboarding"   element={<Navigate to="/dashboard" replace />} />
-          <Route path="/agent-dashboard" element={<ProtectedRoute><AgentDashboardPage /></ProtectedRoute>} />
+          <Route path="/agent-dashboard" element={<Navigate to="/dashboard" replace />} />
           <Route path="/sensors"      element={<PaidHomeownerRoute><SensorPage /></PaidHomeownerRoute>} />
           <Route path="/warranties"   element={<PaidHomeownerRoute><WarrantyWalletPage /></PaidHomeownerRoute>} />
           <Route path="/insurance-defense" element={<PaidHomeownerRoute><InsuranceDefensePage /></PaidHomeownerRoute>} />
@@ -181,10 +175,10 @@ export default function App() {
           <Route path="/recurring/:id" element={<PaidHomeownerRoute><RecurringServiceDetailPage /></PaidHomeownerRoute>} />
           <Route path="/listing/new"  element={<PaidHomeownerRoute><ListingNewPage /></PaidHomeownerRoute>} />
           <Route path="/listing/:id"  element={<PaidHomeownerRoute><ListingDetailPage /></PaidHomeownerRoute>} />
-          <Route path="/agent/marketplace" element={<ProtectedRoute><AgentMarketplacePage /></ProtectedRoute>} />
-          <Route path="/agent/profile" element={<ProtectedRoute><AgentProfileEditPage /></ProtectedRoute>} />
-          <Route path="/agent/:id"    element={<ProtectedRoute><AgentPublicPage /></ProtectedRoute>} />
-          <Route path="/agents"       element={<ProtectedRoute><AgentBrowsePage /></ProtectedRoute>} />
+          <Route path="/agent/marketplace" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/agent/profile" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/agent/:id"    element={<Navigate to="/dashboard" replace />} />
+          <Route path="/agents"       element={<Navigate to="/dashboard" replace />} />
 
           {/* Demo — public, no auth required */}
           <Route path="/demo"          element={<DemoPage />} />

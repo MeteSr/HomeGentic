@@ -175,19 +175,11 @@ vi.mock("@/store/jobStore", () => ({
   useJobStore: () => ({ jobs: [] }),
 }));
 
-vi.mock("@/services/agent", () => ({
-  agentService: {
-    getPublicProfile: vi.fn().mockResolvedValue(mockProfile),
-    getReviews:       vi.fn().mockResolvedValue([]),
-  },
-  computeAverageRating: () => 0,
-}));
 vi.mock("@/components/Layout", () => ({
   Layout: ({ children }: any) => <>{children}</>,
 }));
 
 import ListingDetailPage  from "@/pages/ListingDetailPage";
-import AgentPublicPage    from "@/pages/AgentPublicPage";
 import { listingService } from "@/services/listing";
 
 function renderDetail(path = "/listing/BID_1") {
@@ -195,16 +187,6 @@ function renderDetail(path = "/listing/BID_1") {
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/listing/:id" element={<ListingDetailPage />} />
-      </Routes>
-    </MemoryRouter>
-  );
-}
-
-function renderAgent(agentId = "agent-1") {
-  return render(
-    <MemoryRouter initialEntries={[`/agent/${agentId}`]}>
-      <Routes>
-        <Route path="/agent/:id" element={<AgentPublicPage />} />
       </Routes>
     </MemoryRouter>
   );
@@ -427,60 +409,3 @@ describe("ListingDetailPage — agent performance logging (9.5.4)", () => {
   });
 });
 
-// ─── 9.5.4 Agent performance score (public profile) ──────────────────────────
-
-describe("AgentPublicPage — performance score (9.5.4)", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.mocked(listingService.getAgentPerformanceRecords).mockResolvedValue([mockPerformance as any]);
-  });
-
-  it("shows an 'Agent Performance' section", async () => {
-    renderAgent();
-    await waitFor(() => {
-      expect(screen.getByText(/agent performance/i)).toBeInTheDocument();
-    });
-  });
-
-  it("shows the overall performance score", async () => {
-    renderAgent();
-    await waitFor(() => {
-      const perf = screen.getByRole("region", { name: /agent performance/i });
-      expect(within(perf).getByText("82")).toBeInTheDocument();
-    });
-  });
-
-  it("shows DOM accuracy score", async () => {
-    renderAgent();
-    await waitFor(() => {
-      const perf = screen.getByRole("region", { name: /agent performance/i });
-      expect(within(perf).getByText(/days on market|dom accuracy/i)).toBeInTheDocument();
-      expect(within(perf).getByText("76")).toBeInTheDocument();
-    });
-  });
-
-  it("shows price accuracy score", async () => {
-    renderAgent();
-    await waitFor(() => {
-      const perf = screen.getByRole("region", { name: /agent performance/i });
-      expect(within(perf).getByText(/price accuracy/i)).toBeInTheDocument();
-      expect(within(perf).getByText("88")).toBeInTheDocument();
-    });
-  });
-
-  it("shows commission honesty score", async () => {
-    renderAgent();
-    await waitFor(() => {
-      const perf = screen.getByRole("region", { name: /agent performance/i });
-      expect(within(perf).getByText(/commission honesty/i)).toBeInTheDocument();
-      expect(within(perf).getByText("100")).toBeInTheDocument();
-    });
-  });
-
-  it("does not show performance section when no records exist", async () => {
-    vi.mocked(listingService.getAgentPerformanceRecords).mockResolvedValue([]);
-    renderAgent();
-    await waitFor(() => screen.getByText("Jane Smith"));
-    expect(screen.queryByText(/agent performance/i)).not.toBeInTheDocument();
-  });
-});

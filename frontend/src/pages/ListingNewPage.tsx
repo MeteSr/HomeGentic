@@ -129,9 +129,29 @@ export default function ListingNewPage() {
         <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", color: UI.ink, margin: "0 0 0.4rem" }}>
           List Your Home
         </h1>
-        <p style={{ fontFamily: UI.sans, fontSize: "0.9rem", color: UI.inkLight, margin: "0 0 2rem" }}>
+        <p style={{ fontFamily: UI.sans, fontSize: "0.9rem", color: UI.inkLight, margin: "0 0 1.5rem" }}>
           Invite licensed agents to compete for your listing with sealed proposals. You choose after the deadline.
         </p>
+
+        {/* BidToList cross-sell banner */}
+        <div style={{ border: `1px solid ${UI.rule}`, background: "#F0F7FF", padding: "1rem 1.25rem", marginBottom: "2rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+          <div>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.2rem" }}>
+              Want more agent competition?
+            </p>
+            <p style={{ fontFamily: UI.sans, fontSize: "0.875rem", fontWeight: 500, color: UI.ink }}>
+              BidToList lets agents bid for your listing — you pick the best offer.
+            </p>
+          </div>
+          <a
+            href="https://bidtolist.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.45rem 1rem", background: "#1B3266", color: "#fff", textDecoration: "none", flexShrink: 0 }}
+          >
+            Go to BidToList →
+          </a>
+        </div>
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
           {/* Property selector */}

@@ -141,12 +141,12 @@ jobs:
           # fails on dfx 0.24.x with "dfx metadata not found" for the II canister.
           dfx deploy auth --argument "(principal \"$DEPLOYER\")"
           for canister in ai_proxy property job contractor quote payment photo \
-            monitoring market report maintenance sensor listing agent bills recurring audit referrals; do
+            monitoring market report maintenance sensor listing bills recurring audit referrals; do
             dfx deploy "$canister"
           done
 
           # ── Bootstrap admin lists ────────────────────────────────────────────
-          for canister in property job contractor quote photo report maintenance market sensor listing agent recurring bills monitoring referrals; do
+          for canister in property job contractor quote photo report maintenance market sensor listing recurring bills monitoring referrals; do
             dfx canister call "$canister" addAdmin "(principal \"$DEPLOYER\")"
           done
           dfx canister call payment initAdmins "(vec { principal \"$DEPLOYER\" })" || true
@@ -274,11 +274,11 @@ jobs:
 
           dfx deploy auth --argument "(principal \"$DEPLOYER\")"
           for canister in ai_proxy property job contractor quote payment photo \
-            monitoring market report maintenance sensor listing agent bills recurring audit referrals; do
+            monitoring market report maintenance sensor listing bills recurring audit referrals; do
             dfx deploy "$canister"
           done
 
-          for canister in property job contractor quote photo report maintenance market sensor listing agent recurring bills monitoring referrals; do
+          for canister in property job contractor quote photo report maintenance market sensor listing recurring bills monitoring referrals; do
             dfx canister call "$canister" addAdmin "(principal \"$DEPLOYER\")"
           done
           dfx canister call payment initAdmins "(vec { principal \"$DEPLOYER\" })" || true

@@ -176,6 +176,29 @@ export default function ResaleReadyPage() {
           ))}
         </div>
 
+        {/* BidToList cross-sell */}
+        <div style={{ border: `1px solid ${UI.rule}`, background: "#F0F7FF", padding: "1.25rem 1.5rem", marginBottom: "2rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+          <div>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.25rem" }}>
+              Ready to Sell?
+            </p>
+            <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1rem", marginBottom: "0.25rem" }}>
+              List your home on BidToList — agents compete for your listing
+            </p>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>
+              Get multiple agent proposals and choose the best commission offer.
+            </p>
+          </div>
+          <a
+            href="https://bidtolist.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.5rem 1.25rem", background: "#1B3266", color: "#fff", textDecoration: "none", flexShrink: 0 }}
+          >
+            Go to BidToList →
+          </a>
+        </div>
+
         {/* Buyer premium estimate */}
         {premium && (
           <div style={{ border: `1px solid ${UI.rule}`, padding: "1.5rem", marginBottom: "2rem", background: COLORS.white, display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>

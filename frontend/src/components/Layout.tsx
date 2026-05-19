@@ -12,7 +12,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Bell, LogOut, Plus,
   LayoutDashboard, TrendingUp, Users, Cpu, Radio, Home as HomeIcon, PlusSquare,
-  Store, PanelLeft, Menu, X,
+  PanelLeft, Menu, X,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthStore } from "@/store/authStore";
@@ -138,8 +138,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const initials    = (profile?.email || "U")[0].toUpperCase();
 
   const isContractor = profile?.role === "Contractor";
-  const isRealtor    = profile?.role === "Realtor";
-  const isHomeowner  = !isContractor && !isRealtor;
+  const isHomeowner  = !isContractor;
 
   const atPropertyLimit  = properties.length >= (TIER_PROPERTY_LIMIT[userTier] ?? Infinity);
   const dashboardPath = isContractor ? "/contractor-dashboard" : "/dashboard";
@@ -161,11 +160,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const navLinks: NavLink[] = isContractor
     ? [
         { to: "/contractor-dashboard", label: "Dashboard", Icon: LayoutDashboard },
-      ]
-    : isRealtor
-    ? [
-        { to: "/agent-dashboard",   label: "Dashboard",  Icon: LayoutDashboard },
-        { to: "/agent/marketplace", label: "Marketplace", Icon: Store },
       ]
     : [
         { to: "/dashboard",      label: "Dashboard",    Icon: LayoutDashboard },

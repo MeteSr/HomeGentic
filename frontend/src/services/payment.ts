@@ -14,7 +14,6 @@ export const idlFactory = ({ IDL }: any) => {
   const Tier = IDL.Variant({
     Free: IDL.Null, Basic: IDL.Null, Pro: IDL.Null, Premium: IDL.Null,
     ContractorFree: IDL.Null, ContractorPro: IDL.Null,
-    RealtorFree: IDL.Null, RealtorPro: IDL.Null,
   });
   const BillingPeriod = IDL.Variant({ Monthly: IDL.Null, Yearly: IDL.Null });
   const Subscription = IDL.Record({
@@ -47,8 +46,6 @@ export const idlFactory = ({ IDL }: any) => {
     premium:         IDL.Nat,
     contractorFree:  IDL.Nat,
     contractorPro:   IDL.Nat,
-    realtorFree:     IDL.Nat,
-    realtorPro:      IDL.Nat,
     activePaid:      IDL.Nat,
     estimatedMrrUsd: IDL.Nat,
   });
@@ -81,8 +78,6 @@ export const idlFactory = ({ IDL }: any) => {
     premiumYearly:        IDL.Text,
     contractorProMonthly: IDL.Text,
     contractorProYearly:  IDL.Text,
-    realtorProMonthly:    IDL.Text,
-    realtorProYearly:     IDL.Text,
   });
   const StripeConfig = IDL.Record({
     secretKey:  IDL.Text,
@@ -360,7 +355,7 @@ export const paymentService = {
 
   async hasPaidFor(_feature: string): Promise<boolean> {
     const sub = await this.getMySubscription();
-    return sub.tier !== "ContractorFree" && sub.tier !== "RealtorFree";
+    return sub.tier !== "ContractorFree";
   },
 
   getPlan(tier: PlanTier): Plan {

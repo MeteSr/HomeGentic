@@ -36,7 +36,6 @@ import { idlFactory as photoIdlFactory }       from "../../services/photo";
 import { idlFactory as reportIdlFactory }      from "../../services/report";
 import { idlFactory as sensorIdlFactory }      from "../../services/sensor";
 import { idlFactory as maintenanceIdlFactory } from "../../services/maintenance";
-import { idlFactory as agentIdlFactory }       from "../../services/agent";
 import { idlFactory as billsIdlFactory }       from "../../services/billService";
 import { idlFactory as aiProxyIdlFactory }     from "../../services/aiProxy";
 
@@ -610,50 +609,6 @@ describe("maintenance IDL factory", () => {
 
   it("full signature snapshot", () => {
     expect(extractService(maintenanceIdlFactory)).toMatchSnapshot();
-  });
-});
-
-// ── Agent (Realtor) canister ──────────────────────────────────────────────────
-
-describe("agent IDL factory", () => {
-  it("exposes the expected methods", () => {
-    const svc = extractService(agentIdlFactory);
-    expect(Object.keys(svc).sort()).toEqual([
-      "addReview",
-      "getAllProfiles",
-      "getMyProfile",
-      "getProfile",
-      "getReviews",
-      "register",
-      "updateProfile",
-      "verifyAgent",
-    ]);
-  });
-
-  it("marks the correct methods as query", () => {
-    const svc = extractService(agentIdlFactory);
-    const queries = Object.entries(svc)
-      .filter(([, sig]) => sig.mode.includes("query"))
-      .map(([name]) => name)
-      .sort();
-    expect(queries).toEqual(["getAllProfiles", "getMyProfile", "getProfile", "getReviews"]);
-  });
-
-  it("getMyProfile returns opt AgentProfile (not a Result — null means not registered)", () => {
-    // A drift to ok/err Result would break the 'not yet registered' code path.
-    const svc = extractService(agentIdlFactory);
-    expect(svc.getMyProfile.rets[0]).toMatch(/opt/i);
-    expect(svc.getMyProfile.rets[0]).not.toMatch(/variant\s*\{\s*ok/i);
-  });
-
-  it("getReviews and verifyAgent take IDL.Principal (not Text)", () => {
-    const svc = extractService(agentIdlFactory);
-    expect(svc.getReviews.args[0]).toContain("principal");
-    expect(svc.verifyAgent.args[0]).toContain("principal");
-  });
-
-  it("full signature snapshot", () => {
-    expect(extractService(agentIdlFactory)).toMatchSnapshot();
   });
 });
 

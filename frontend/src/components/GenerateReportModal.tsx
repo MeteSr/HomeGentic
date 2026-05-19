@@ -3,7 +3,6 @@ import { X, Link2, Copy, CheckCircle, Trash2, Shield, Eye, Clock, EyeOff } from 
 import { Button } from "@/components/Button";
 import { reportService, ShareLink, propertyToInput, jobToInput, roomToInput, DisclosureOptions } from "@/services/report";
 import { roomService } from "@/services/room";
-import { agentProfileService } from "@/services/agentProfile";
 import { jobService } from "@/services/job";
 import { recurringService } from "@/services/recurringService";
 import { computeScore, getScoreGrade } from "@/services/scoreService";
@@ -116,9 +115,7 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
   };
 
   const handleCopy = (token: string, linkDisclosure?: DisclosureOptions) => {
-    let url = reportService.shareUrl(token, linkDisclosure ?? disclosure);
-    const agentProfile = agentProfileService.load();
-    if (agentProfile) url = agentProfileService.appendToUrl(url, agentProfile);
+    const url = reportService.shareUrl(token, linkDisclosure ?? disclosure);
     navigator.clipboard.writeText(url);
     setCopiedToken(token);
     toast.success("Link copied!");

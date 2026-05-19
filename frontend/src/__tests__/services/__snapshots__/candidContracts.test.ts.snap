@@ -1,16 +1,5 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`Candid contract snapshots — method arity > agent 1`] = `
-"addReview(1) -> (1)
-getAllProfiles(0) -> (1) [query]
-getMyProfile(0) -> (1) [query]
-getProfile(1) -> (1) [query]
-getReviews(1) -> (1) [query]
-register(1) -> (1)
-updateProfile(1) -> (1)
-verifyAgent(1) -> (1)"
-`;
-
 exports[`Candid contract snapshots — method arity > ai_proxy 1`] = `
 "addAdmin(1) -> (1)
 addTrustedCanister(1) -> (1)
