@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { neighborReferralService } from "@/services/neighborReferral";
 import { Helmet } from "react-helmet-async";
 import { TrendingUp, CalendarDays, Archive, Home, Download, Link as LinkIcon, Lock } from "lucide-react";
 import { CSS } from "./landingStyles";
@@ -7,6 +8,7 @@ import { CSS } from "./landingStyles";
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [activeFeature, setActiveFeature] = React.useState(0);
   const [heroPhase, setHeroPhase] = React.useState(0);
@@ -79,6 +81,11 @@ export default function LandingPage() {
     const t = setInterval(() => setHeroPhase((p) => (p + 1) % 3), 4000);
     return () => clearInterval(t);
   }, []);
+
+  useEffect(() => {
+    const ref = searchParams.get("ref");
+    if (ref) neighborReferralService.capturePendingRefCode(ref);
+  }, [searchParams]);
 
   const scrollTo = (id: string) =>
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });

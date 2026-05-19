@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { Settings, ArrowUpCircle, Paperclip, LogOut } from "lucide-react";
+import { Settings, ArrowUpCircle, Paperclip, LogOut, Gift } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { voiceAgentFileInputRef } from "./VoiceAgent";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
@@ -69,6 +69,11 @@ export function UserMenuPopover({ displayName, onClose, onUpgrade }: UserMenuPop
         <button onClick={() => { onClose(); navigate("/settings"); }} style={menuItemStyle} onMouseEnter={hoverOn} onMouseLeave={hoverOff}>
           <Settings size={16} style={{ flexShrink: 0, color: COLORS.plumMid }} />
           Settings
+        </button>
+
+        <button onClick={() => { onClose(); navigate("/refer"); }} style={menuItemStyle} onMouseEnter={hoverOn} onMouseLeave={hoverOff}>
+          <Gift size={16} style={{ flexShrink: 0, color: COLORS.sageText }} />
+          Invite a neighbor
         </button>
 
         <button

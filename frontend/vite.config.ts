@@ -64,7 +64,8 @@ export default defineConfig(({ mode }) => {
       "process.env.AGENT_CANISTER_ID":     JSON.stringify(env.CANISTER_ID_AGENT     || env.AGENT_CANISTER_ID     || ""),
       "process.env.AI_PROXY_CANISTER_ID":  JSON.stringify(env.CANISTER_ID_AI_PROXY  || env.AI_PROXY_CANISTER_ID  || ""),
       "process.env.MARKET_CANISTER_ID":    JSON.stringify(env.CANISTER_ID_MARKET    || env.MARKET_CANISTER_ID    || ""),
-      "process.env.BILLS_CANISTER_ID":     JSON.stringify(env.CANISTER_ID_BILLS     || env.BILLS_CANISTER_ID     || ""),
+      "process.env.BILLS_CANISTER_ID":      JSON.stringify(env.CANISTER_ID_BILLS      || env.BILLS_CANISTER_ID      || ""),
+      "process.env.REFERRALS_CANISTER_ID":  JSON.stringify(env.CANISTER_ID_REFERRALS  || env.REFERRALS_CANISTER_ID  || ""),
       "process.env.INTERNET_IDENTITY_CANISTER_ID": JSON.stringify(env.CANISTER_ID_INTERNET_IDENTITY || ""),
       // VITE_ prefix exposes this to import.meta.env in the browser bundle
       // (useVoiceAgent reads it as VITE_VOICE_AGENT_API_KEY, not via process.env)
