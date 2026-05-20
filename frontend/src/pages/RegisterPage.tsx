@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Home, HardHat, Building2, CheckCircle, ArrowRight, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/Button";
 import { authService, UserRole } from "@/services/auth";
+import { neighborReferralService } from "@/services/neighborReferral";
 import { useAuthStore } from "@/store/authStore";
 import toast from "react-hot-toast";
 import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
@@ -50,6 +51,11 @@ export default function RegisterPage() {
     try {
       const profile = await authService.register({ role, email, phone });
       setProfile(profile);
+      const pendingCode = neighborReferralService.getPendingRefCode();
+      if (pendingCode) {
+        neighborReferralService.clearPendingRefCode();
+        void neighborReferralService.useReferralCode(pendingCode);
+      }
       toast.success("Welcome to HomeGentic!");
       const pending = sessionStorage.getItem("pendingCheckout");
       if (pending && profile.role !== "Contractor") {

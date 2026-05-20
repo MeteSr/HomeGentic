@@ -37,6 +37,14 @@ vi.mock("@/services/auth", () => ({
   },
 }));
 
+vi.mock("@/services/neighborReferral", () => ({
+  neighborReferralService: {
+    getPendingRefCode:   vi.fn(() => null),
+    clearPendingRefCode: vi.fn(),
+    useReferralCode:     vi.fn(() => Promise.resolve({ ok: true })),
+  },
+}));
+
 vi.mock("@/store/authStore", () => ({
   useAuthStore: () => ({ setProfile: vi.fn(), tier: null, setTier: vi.fn() }),
 }));
@@ -53,6 +61,7 @@ vi.mock("react-router-dom", async (importOriginal) => {
 
 import RegisterPage from "@/pages/RegisterPage";
 import { authService } from "@/services/auth";
+import { neighborReferralService } from "@/services/neighborReferral";
 import toast from "react-hot-toast";
 
 const MOCK_PROFILE = {
@@ -239,5 +248,23 @@ describe("RegisterPage — step 3: confirm & submit", () => {
     goToStep3();
     fireEvent.click(screen.getByRole("button", { name: /create account/i }));
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith("AlreadyExists"));
+  });
+
+  it("calls useReferralCode and clears storage when a pending ref code exists", async () => {
+    vi.mocked(authService.register).mockResolvedValue(MOCK_PROFILE);
+    vi.mocked(neighborReferralService.getPendingRefCode).mockReturnValue("HG-000042");
+    goToStep3();
+    fireEvent.click(screen.getByRole("button", { name: /create account/i }));
+    await waitFor(() => expect(neighborReferralService.clearPendingRefCode).toHaveBeenCalled());
+    expect(neighborReferralService.useReferralCode).toHaveBeenCalledWith("HG-000042");
+  });
+
+  it("skips useReferralCode when no pending ref code is stored", async () => {
+    vi.mocked(authService.register).mockResolvedValue(MOCK_PROFILE);
+    vi.mocked(neighborReferralService.getPendingRefCode).mockReturnValue(null);
+    goToStep3();
+    fireEvent.click(screen.getByRole("button", { name: /create account/i }));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalled());
+    expect(neighborReferralService.useReferralCode).not.toHaveBeenCalled();
   });
 });

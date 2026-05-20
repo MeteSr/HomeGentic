@@ -165,6 +165,7 @@ jobs:
           BILLS_ID=$(dfx canister id bills)
           MAINTENANCE_ID=$(dfx canister id maintenance)
           AUDIT_ID=$(dfx canister id audit)
+          REFERRALS_ID=$(dfx canister id referrals)
 
           dfx canister call job         setPaymentCanisterId    "(\"$PAYMENT_ID\")"
           dfx canister call property    setPaymentCanisterId    "(principal \"$PAYMENT_ID\")"
@@ -172,6 +173,7 @@ jobs:
           dfx canister call quote       setPaymentCanisterId    "(principal \"$PAYMENT_ID\")"
           dfx canister call bills       setPaymentCanisterId    "(\"$PAYMENT_ID\")"
           dfx canister call referrals   setPaymentCanisterId    "(\"$PAYMENT_ID\")"
+          dfx canister call payment     setReferralsCanisterId  "(\"$REFERRALS_ID\")"
           dfx canister call job         setContractorCanisterId "(\"$CONTRACTOR_ID\")"
           dfx canister call job         setPropertyCanisterId   "(\"$PROPERTY_ID\")"
           dfx canister call photo       setPropertyCanisterId   "(principal \"$PROPERTY_ID\")"
@@ -298,6 +300,7 @@ jobs:
           REPORT_ID=$(dfx canister id report)
           MAINTENANCE_ID=$(dfx canister id maintenance)
           AUDIT_ID=$(dfx canister id audit)
+          REFERRALS_ID=$(dfx canister id referrals)
 
           dfx canister call job         setPaymentCanisterId    "(\"$PAYMENT_ID\")"
           dfx canister call property    setPaymentCanisterId    "(principal \"$PAYMENT_ID\")"
@@ -305,6 +308,7 @@ jobs:
           dfx canister call quote       setPaymentCanisterId    "(principal \"$PAYMENT_ID\")"
           dfx canister call bills       setPaymentCanisterId    "(\"$PAYMENT_ID\")"
           dfx canister call referrals   setPaymentCanisterId    "(\"$PAYMENT_ID\")"
+          dfx canister call payment     setReferralsCanisterId  "(\"$REFERRALS_ID\")"
           dfx canister call job         setContractorCanisterId "(\"$CONTRACTOR_ID\")"
           dfx canister call job         setPropertyCanisterId   "(\"$PROPERTY_ID\")"
           dfx canister call photo       setPropertyCanisterId   "(principal \"$PROPERTY_ID\")"
