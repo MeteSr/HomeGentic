@@ -111,6 +111,20 @@ canisters:
         main: backend/recurring/main.mo
         args: "--actor-idl did/"
 
+  - name: audit
+    recipe:
+      type: "@dfinity/motoko@v4.0.0"
+      configuration:
+        main: backend/audit/main.mo
+        args: "--actor-idl did/"
+
+  - name: referrals
+    recipe:
+      type: "@dfinity/motoko@v4.0.0"
+      configuration:
+        main: backend/referrals/main.mo
+        args: "--actor-idl did/"
+
   # Frontend asset canister — dist/ is built by deploy.sh before icp deploy frontend
   - name: frontend
     recipe:
