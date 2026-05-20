@@ -371,7 +371,7 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const { profile, lastLoginAt } = useAuthStore();
   const { isMobile } = useBreakpoint();
-  const { open: openAddProp } = useAddPropertyStore();
+  const { isOpen: isWizardOpen, open: openAddProp } = useAddPropertyStore();
 
   // ─── Domain hooks ────────────────────────────────────────────────────────────
   const {
@@ -462,12 +462,14 @@ export default function DashboardPage() {
 
   // ─── Effects ─────────────────────────────────────────────────────────────────
 
-  // Redirect when user has exactly one property (nothing to select on dashboard)
+  // Redirect when user has exactly one property (nothing to select on dashboard).
+  // Suppressed while the add-property wizard is open so mid-onboarding navigation
+  // doesn't fire while the user is still stepping through the wizard.
   useEffect(() => {
-    if (!propLoading && properties.length === 1) {
+    if (!propLoading && properties.length === 1 && !isWizardOpen) {
       navigate(`/properties/${properties[0].id}`, { replace: true });
     }
-  }, [propLoading, properties.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [propLoading, properties.length, isWizardOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Initialise property selector to first property after load
   useEffect(() => {
