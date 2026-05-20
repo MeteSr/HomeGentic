@@ -19,7 +19,8 @@ export const CSS = `
   text-decoration:none; display:flex; align-items:center; gap:7px;
   flex-shrink:0;
 }
-.hfl-logo span { color:var(--lp-green); }
+.hfl-logo-text { color:var(--lp-navy); }
+.hfl-logo-text span { color:var(--lp-green); }
 .hfl-nav-links {
   display:flex; align-items:center; list-style:none;
   margin:0; padding:0;

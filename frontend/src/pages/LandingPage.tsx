@@ -88,7 +88,7 @@ function DashboardMockup() {
       <div className="hfl-dm-topbar">
         <div className="hfl-dm-topbar-logo">
           <HouseSvg />
-          Home<span className="green">Gentic</span>
+          <span>Home<span className="green">Gentic</span></span>
         </div>
         <div className="hfl-dm-topbar-icons">
           <span>🔔</span>
@@ -286,7 +286,7 @@ export default function LandingPage() {
           <div style={{ display: "flex", alignItems: "center", gap: "1.25rem" }}>
             <a href="/" className="hfl-logo">
               <HouseSvg />
-              Home<span>Gentic</span>
+              <span className="hfl-logo-text">Home<span>Gentic</span></span>
             </a>
             <ul className="hfl-nav-links">
               <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-features-section"); }}>Features</a></li>
