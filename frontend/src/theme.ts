@@ -19,6 +19,10 @@ export const COLORS = {
   rule:       "#D4CFC8",   // borders / dividers
   rust:       "#C94C2E",   // error / destructive states — use as accent/border only
   errorText:  "#AA3820",   // error text — 6.4:1 on white, passes WCAG AA at small sizes
+  // ── Nav / sidebar active state (matches mockup blue palette) ─────────────
+  navActive:     "#2563EB",   // active nav text, icon, border
+  navActiveBg:   "#EFF6FF",   // active nav item background
+  navInactive:   "#6B7280",   // inactive nav text and icons
 } as const;
 
 export const FONTS = {

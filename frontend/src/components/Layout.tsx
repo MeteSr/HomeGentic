@@ -196,9 +196,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
     justifyContent:  sidebarOpen ? "flex-start" : "center",
     overflow:        "hidden",
     whiteSpace:      "nowrap",
-    color:           active ? COLORS.plum : COLORS.plumMid,
-    background:      active ? COLORS.sageLight : "transparent",
-    borderLeft:      active ? `2px solid ${COLORS.sage}` : "2px solid transparent",
+    color:           active ? COLORS.navActive : COLORS.navInactive,
+    background:      active ? COLORS.navActiveBg : "transparent",
+    borderLeft:      active ? `3px solid ${COLORS.navActive}` : "3px solid transparent",
     transition:      "color 0.15s, background 0.15s",
   });
 
@@ -243,7 +243,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 whiteSpace:     "nowrap",
               }}
             >
-              Home<span style={{ color: COLORS.sageText, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
+              Home<span style={{ color: COLORS.navActive, fontStyle: "normal", fontWeight: 700 }}>Gentic</span>
             </Link>
           )}
           <button
@@ -257,7 +257,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               background: "none",
               border:     "none",
               cursor:     "pointer",
-              color:      COLORS.plumMid,
+              color:      COLORS.navInactive,
               padding:    "0.375rem",
               borderRadius: "0.25rem",
               flexShrink: 0,
@@ -282,8 +282,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 }
               }}
               style={{ ...itemBase(), width: "100%", border: "none", cursor: "pointer" }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = COLORS.plum; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = COLORS.plumMid; }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = COLORS.navActive; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = COLORS.navInactive; }}
             >
               <Plus size={17} style={{ flexShrink: 0 }} />
               {sidebarOpen && <span style={labelStyle}>Add property</span>}
@@ -299,10 +299,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 aria-current={active ? "page" : undefined}
                 style={{ ...itemBase(active), textDecoration: "none" }}
                 onMouseEnter={(e: React.MouseEvent) => {
-                  if (!active) (e.currentTarget as HTMLElement).style.color = COLORS.plum;
+                  if (!active) (e.currentTarget as HTMLElement).style.color = COLORS.navActive;
                 }}
                 onMouseLeave={(e: React.MouseEvent) => {
-                  if (!active) (e.currentTarget as HTMLElement).style.color = COLORS.plumMid;
+                  if (!active) (e.currentTarget as HTMLElement).style.color = COLORS.navInactive;
                 }}
               >
                 <link.Icon size={17} style={{ flexShrink: 0 }} />
@@ -427,7 +427,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               flex:           1,
             }}
           >
-            Home<span style={{ color: COLORS.sageText, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
+            Home<span style={{ color: COLORS.navActive, fontStyle: "normal", fontWeight: 700 }}>Gentic</span>
           </Link>
 
           {/* Bell */}
