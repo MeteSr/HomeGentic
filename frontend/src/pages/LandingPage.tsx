@@ -322,7 +322,7 @@ export default function LandingPage() {
               <span className="green">Protect. Your Home.</span>
             </h1>
             <p>
-              HomeGentic helps homeowners and contractors manage maintenance,
+              HomeGentic helps homeowners manage maintenance,
               documentation, and transactions with blockchain-verified trust
               and AI-powered insights.
             </p>
