@@ -18,25 +18,21 @@ test.describe("LoginPage — /login", () => {
     await expect(page.getByText(/HomeGentic/).first()).toBeVisible();
   });
 
-  test("shows 'Sign In' eyebrow label", async ({ page }) => {
-    await expect(page.getByText("Sign In").first()).toBeVisible();
+  test("shows 'Log in to your account' heading", async ({ page }) => {
+    await expect(page.getByRole("heading", { name: /log in to your account/i })).toBeVisible();
   });
 
-  test("shows 'Welcome back.' heading", async ({ page }) => {
+  test("shows 'Welcome back!' heading on the left panel", async ({ page }) => {
     await expect(page.getByRole("heading", { name: /welcome back/i })).toBeVisible();
   });
 
-  test("shows friendly sign-in description mentioning Google and Apple", async ({ page }) => {
-    await expect(page.getByText(/Google/).first()).toBeVisible();
-    await expect(page.getByText(/Apple/).first()).toBeVisible();
+  test("shows Google and Apple sign-in buttons", async ({ page }) => {
+    await expect(page.getByRole("button", { name: /continue with google/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /continue with apple/i })).toBeVisible();
   });
 
-  test("shows biometric option hint", async ({ page }) => {
-    await expect(page.getByText(/Touch ID|Face ID/i)).toBeVisible();
-  });
-
-  test("shows 'Continue' button", async ({ page }) => {
-    await expect(page.getByRole("button", { name: /continue/i })).toBeVisible();
+  test("shows Internet Computer sign-in button", async ({ page }) => {
+    await expect(page.getByRole("button", { name: /continue with internet computer/i })).toBeVisible();
   });
 
   test("shows 'Secured by Internet Identity' footer note", async ({ page }) => {
@@ -46,7 +42,6 @@ test.describe("LoginPage — /login", () => {
   // ── Dev login (only rendered when import.meta.env.DEV is true) ────────────
 
   test("shows Dev Login button in dev mode", async ({ page }) => {
-    // Vite dev server sets DEV=true — this button should be present
     await expect(page.getByRole("button", { name: /dev login/i })).toBeVisible();
   });
 
@@ -64,7 +59,6 @@ test.describe("LoginPage — /login", () => {
   // ── Protected route redirect ──────────────────────────────────────────────
 
   test("unauthenticated access to /dashboard redirects to /login", async ({ page }) => {
-    // Without auth injection, PrivateRoute should redirect to /login
     await page.goto("/dashboard");
     await expect(page).toHaveURL("/login");
   });
@@ -74,21 +68,10 @@ test.describe("LoginPage — /login", () => {
     await expect(page).toHaveURL("/login");
   });
 
-  // ── Back link ─────────────────────────────────────────────────────────────
+  // ── Sign-up link ──────────────────────────────────────────────────────────
 
-  test("shows '← Back to HomeGentic' link", async ({ page }) => {
-    await expect(page.getByText(/← Back to HomeGentic/)).toBeVisible();
-  });
-
-  test("back link navigates to /", async ({ page }) => {
-    await page.getByText(/← Back to HomeGentic/).click();
-    await expect(page).toHaveURL("/");
-  });
-
-  // ── No account link ───────────────────────────────────────────────────────
-
-  test("shows 'No account?' text with Create one link", async ({ page }) => {
-    await expect(page.getByText(/No account/)).toBeVisible();
-    await expect(page.getByText(/Create one free/)).toBeVisible();
+  test("shows 'Don't have an account?' with Get Started link", async ({ page }) => {
+    await expect(page.getByText(/don't have an account/i)).toBeVisible();
+    await expect(page.getByText(/get started/i).first()).toBeVisible();
   });
 });

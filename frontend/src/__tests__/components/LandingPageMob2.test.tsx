@@ -41,10 +41,10 @@ describe("LandingPage — key sections render", () => {
     expect(btns.length).toBeGreaterThan(0);
   });
 
-  it("renders 4 How It Works steps", () => {
+  it("renders the pricing section with plan cards", () => {
     const { container } = renderLanding();
-    const steps = container.querySelectorAll(".hfl-step");
-    expect(steps.length).toBe(4);
+    const cards = container.querySelectorAll(".hfl-plan-card");
+    expect(cards.length).toBeGreaterThanOrEqual(3);
   });
 
 });
