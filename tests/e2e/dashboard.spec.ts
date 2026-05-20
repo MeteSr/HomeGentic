@@ -4,11 +4,11 @@ import { injectBaselinePhotos } from "./helpers/testData";
 import { assertNoA11yViolations } from "./helpers/a11y";
 
 // Dashboard requires 2+ properties — a single property triggers an immediate
-// redirect to the property detail page (DashboardPage line 83-85).
+// redirect to the property detail page (DashboardPage redirect effect).
 async function setup(page: Parameters<typeof injectTestAuth>[0]) {
   await injectTestAuth(page);
   await page.addInitScript(() => {
-    // Pro tier so 2 properties don't hit the property limit (Pro allows 5)
+    // Pro tier so 2 properties don't hit the property limit
     (window as any).__e2e_subscription = { tier: "Pro", expiresAt: null };
     (window as any).__e2e_properties = [
       {
@@ -71,49 +71,91 @@ test.describe("DashboardPage — /dashboard", () => {
   test.beforeEach(async ({ page }) => {
     await setup(page);
     await page.goto("/dashboard");
-    await expect(page.getByText("My Properties")).toBeVisible();
+    await expect(page.getByRole("heading", { name: /good morning|good afternoon|good evening/i })).toBeVisible();
   });
 
   test.afterEach(async ({ page }) => {
     await assertNoA11yViolations(page);
   });
 
-  // ── Stats panel ─────────────────────────────────────────────────────────────
+  // ── Welcome header ──────────────────────────────────────────────────────────
 
-  test("shows both properties in My Properties section", async ({ page }) => {
-    await expect(page.getByText("My Properties")).toBeVisible();
+  test("shows greeting heading", async ({ page }) => {
+    await expect(page.getByRole("heading", { name: /good morning|good afternoon|good evening/i })).toBeVisible();
+  });
+
+  test("shows 'Here's what's happening with your home' subtitle", async ({ page }) => {
+    await expect(page.getByText(/here's what's happening with your home/i)).toBeVisible();
+  });
+
+  // ── Stat cards ─────────────────────────────────────────────────────────────
+
+  test("shows Property Health Score stat card", async ({ page }) => {
+    await expect(page.getByText("Property Health Score")).toBeVisible();
+  });
+
+  test("shows Upcoming Maintenance stat card", async ({ page }) => {
+    await expect(page.getByText("Upcoming Maintenance").first()).toBeVisible();
+  });
+
+  test("shows Open Tasks stat card", async ({ page }) => {
+    await expect(page.getByText("Open Tasks")).toBeVisible();
+  });
+
+  test("shows Property Value Impact stat card", async ({ page }) => {
+    await expect(page.getByText("Property Value Impact")).toBeVisible();
+  });
+
+  // ── Sections ────────────────────────────────────────────────────────────────
+
+  test("shows Upcoming Maintenance section heading", async ({ page }) => {
+    // The section panel heading (second occurrence)
+    await expect(page.getByRole("heading", { name: /upcoming maintenance/i }).first()).toBeVisible();
+  });
+
+  test("shows Recent Documents section", async ({ page }) => {
+    await expect(page.getByRole("heading", { name: /recent documents/i })).toBeVisible();
+  });
+
+  test("shows Property Insights section", async ({ page }) => {
+    await expect(page.getByRole("heading", { name: /property insights/i })).toBeVisible();
+  });
+
+  test("shows Property Value Tracker section", async ({ page }) => {
+    await expect(page.getByRole("heading", { name: /property value tracker/i })).toBeVisible();
+  });
+
+  test("shows Quick Actions section", async ({ page }) => {
+    await expect(page.getByRole("heading", { name: /quick actions/i })).toBeVisible();
+  });
+
+  // ── Right panel ─────────────────────────────────────────────────────────────
+
+  test("shows AI Assistant panel", async ({ page }) => {
+    // The panel header shows a BETA badge unique to the AI Assistant panel
+    await expect(page.getByText("BETA")).toBeVisible();
+  });
+
+  test("shows Recent Activity section", async ({ page }) => {
+    await expect(page.getByRole("heading", { name: /recent activity/i })).toBeVisible();
+  });
+
+  test("shows Quorum HOA members banner", async ({ page }) => {
+    await expect(page.getByText(/Quorum HOA Members Save/i)).toBeVisible();
+  });
+
+  // ── My Properties section ───────────────────────────────────────────────────
+
+  test("shows My Properties section", async ({ page }) => {
+    await expect(page.getByRole("heading", { name: /my properties/i })).toBeVisible();
+  });
+
+  test("shows both property addresses in My Properties", async ({ page }) => {
     await expect(page.getByText("123 Maple Street").first()).toBeVisible();
     await expect(page.getByText("456 Oak Ave").first()).toBeVisible();
   });
 
-  test("shows Verified Jobs stat equal to 3", async ({ page }) => {
-    // propertyInitialized auto-selects property 1 → isAllView=false → single-property stats render.
-    // exact:true avoids a strict-mode violation from the "↑ 3 this month" sub-label.
-    await expect(page.getByText("Verified Jobs").locator("..").getByText("3", { exact: true })).toBeVisible();
-  });
-
-  test("shows Total Value stat", async ({ page }) => {
-    await expect(page.getByText("Total Value")).toBeVisible();
-    // $11,830 total across all 4 jobs (in cents: 240k + 850k + 65k + 28k = 1,183,000)
-    await expect(page.getByText("$11,830")).toBeVisible();
-  });
-
-  test("shows HomeGentic Premium stat", async ({ page }) => {
-    await expect(page.getByText(/HomeGentic Premium/)).toBeVisible();
-  });
-
-  // ── Properties section ──────────────────────────────────────────────────────
-
-  test("shows My Properties section heading", async ({ page }) => {
-    await expect(page.getByText("My Properties")).toBeVisible();
-  });
-
-  test("shows the injected property address", async ({ page }) => {
-    await expect(page.getByText("123 Maple Street").first()).toBeVisible();
-  });
-
   test("clicking a property card navigates to property detail", async ({ page }) => {
-    // The PropertyCard renders the address in an <h3>; selector buttons are plain text
     await page.getByRole("heading", { name: "123 Maple Street" }).click();
     await expect(page).toHaveURL(/\/properties\/1/);
   });
@@ -121,20 +163,24 @@ test.describe("DashboardPage — /dashboard", () => {
   // ── Navigation ──────────────────────────────────────────────────────────────
 
   test("Add Property button opens the add-property modal", async ({ page }) => {
-    // Sidebar "+" button (aria-label="Add property")
     await page.getByRole("button", { name: /add property/i }).first().click();
     await expect(page.getByText(/step 1 of 6/i)).toBeVisible();
+  });
+
+  // ── Quick Actions ───────────────────────────────────────────────────────────
+
+  test("Log Maintenance quick action button is visible", async ({ page }) => {
+    await expect(page.getByRole("button", { name: /log maintenance/i })).toBeVisible();
   });
 
   // ── Baseline photo prompt ───────────────────────────────────────────────────
 
   test.describe("baseline prompt — zero photos", () => {
     test.beforeEach(async ({ page }) => {
-      // Inject empty arrays so getByJob returns [] without hitting the canister
       await injectBaselinePhotos(page, { "1": [], "2": [] });
       await setup(page);
       await page.goto("/dashboard");
-      await expect(page.getByText("My Properties")).toBeVisible();
+      await expect(page.getByRole("heading", { name: /good morning|good afternoon|good evening/i })).toBeVisible();
     });
 
     test("shows 'Complete your property baseline' card for first property", async ({ page }) => {
@@ -156,7 +202,6 @@ test.describe("DashboardPage — /dashboard", () => {
     });
 
     test("dismiss button hides the card for that property", async ({ page }) => {
-      // Property 1's card has data-testid="baseline-prompt-1"
       const card = page.locator('[data-testid="baseline-prompt-1"]');
       await expect(card).toBeVisible();
       await card.getByRole("button", { name: /dismiss/i }).click();
@@ -172,7 +217,7 @@ test.describe("DashboardPage — /dashboard", () => {
       });
       await setup(page);
       await page.goto("/dashboard");
-      await expect(page.getByText("My Properties")).toBeVisible();
+      await expect(page.getByRole("heading", { name: /good morning|good afternoon|good evening/i })).toBeVisible();
     });
 
     test("shows 'Baseline photos complete' badge when all 6 are captured", async ({ page }) => {
