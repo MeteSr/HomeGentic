@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEPLOY_SCRIPT_VERSION="1.9.0"
+DEPLOY_SCRIPT_VERSION="1.9.1"
 ENV=${1:-local}
 
 echo "============================================"
@@ -608,8 +608,9 @@ if [ -n "$BILLS_ID" ]    && [ -n "$PAYMENT_ID" ];    then
 fi
 REFERRALS_ID=$(icp canister status referrals -e "$ENV" --id-only 2>/dev/null || echo "")
 if [ -n "$REFERRALS_ID" ] && [ -n "$PAYMENT_ID" ]; then
-  echo "  Wiring payment -> referrals..."
-  icp canister call referrals setPaymentCanisterId "(\"$PAYMENT_ID\")" -e "$ENV" &
+  echo "  Wiring payment <-> referrals..."
+  icp canister call referrals setPaymentCanisterId  "(\"$PAYMENT_ID\")"   -e "$ENV" &
+  icp canister call payment   setReferralsCanisterId "(\"$REFERRALS_ID\")" -e "$ENV" &
 fi
 if [ -n "$JOB_ID" ]      && [ -n "$CONTRACTOR_ID" ]; then
   echo "  Wiring contractor -> job..."

@@ -263,13 +263,18 @@ persistent actor Payment {
   /// Canister IDs for tier propagation — set by admin via setTierCanisterIds().
   /// Propagation is best-effort: errors are swallowed so a downstream canister
   /// failure cannot prevent the payment record from being written.
-  private var propertyCanisterId : ?Principal = null;
-  private var quoteCanisterId    : ?Principal = null;
-  private var photoCanisterId    : ?Principal = null;
+  private var propertyCanisterId   : ?Principal = null;
+  private var quoteCanisterId      : ?Principal = null;
+  private var photoCanisterId      : ?Principal = null;
+  private var referralsCanisterId  : ?Text      = null;
 
   // Remote error types for setTier cross-canister calls.
   // Declared as supertypes of what setTier can actually return so Candid
   // decoding never traps on an unexpected variant tag.
+  type ReferralsMarkConvertedErr = {
+    #AlreadyReferred; #SelfReferral; #CodeNotFound; #AlreadyConverted; #Unauthorized; #InvalidInput : Text;
+  };
+
   type PropertySetTierErr = {
     #NotFound; #NotAuthorized; #Paused; #LimitReached;
     #InvalidInput : Text; #DuplicateAddress; #AddressConflict : Int;
@@ -387,6 +392,26 @@ persistent actor Payment {
     quoteCanisterId    := ?quote;
     photoCanisterId    := ?photo;
     #ok(())
+  };
+
+  public shared(msg) func setReferralsCanisterId(id: Text) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    referralsCanisterId := ?id;
+    #ok(())
+  };
+
+  /// Notify the referrals canister that a user's first paid subscription is active.
+  /// Fire-and-forget: all errors are swallowed so a referrals failure never blocks payment.
+  private func notifyReferralConverted(user: Principal) : async () {
+    switch (referralsCanisterId) {
+      case null {};
+      case (?rid) {
+        let a : actor {
+          markConverted : (Principal) -> async Result.Result<(), ReferralsMarkConvertedErr>
+        } = actor(rid);
+        try { ignore await a.markConverted(user) } catch _ {};
+      };
+    };
   };
 
   /// Push the new tier to the property, quote, and photo canisters.
@@ -677,6 +702,7 @@ persistent actor Payment {
         };
         Map.add(subscriptions, Principal.compare, msg.caller, sub);
         await propagateTier(msg.caller, tier);
+        await notifyReferralConverted(msg.caller);
         #ok(sub)
       }
     } catch (_e) {
@@ -841,6 +867,7 @@ persistent actor Payment {
     Map.add(subscriptions, Principal.compare, msg.caller, sub);
     Map.remove(activeSubscribers, Text.compare, callerKey);  // release lock before cross-canister calls
     await propagateTier(msg.caller, sub.tier);
+    if (usdPrice > 0) { await notifyReferralConverted(msg.caller) };
     #ok(sub)
   };
 
@@ -864,6 +891,7 @@ persistent actor Payment {
     };
     Map.add(subscriptions, Principal.compare, userPrincipal, sub);
     await propagateTier(userPrincipal, tier);
+    await notifyReferralConverted(userPrincipal);
     try { ignore await auditLog("TierActivated", ?userPrincipal, "months=" # Nat.toText(months) # " caller=" # Principal.toText(msg.caller)) } catch _ {};
     #ok(sub)
   };
