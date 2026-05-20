@@ -18,13 +18,13 @@ test.describe("LandingPage — /", () => {
   });
 
   test("shows current nav links including Pricing", async ({ page }) => {
-    await expect(page.locator("nav li a", { hasText: "Demo" })).toBeVisible();
+    await expect(page.locator("nav li a", { hasText: "Features" })).toBeVisible();
     await expect(page.locator("nav li a", { hasText: "Pricing" })).toBeVisible();
   });
 
-  test("Pricing nav link navigates to /pricing", async ({ page }) => {
+  test("Pricing nav link scrolls to the pricing section", async ({ page }) => {
     await page.locator("nav li a", { hasText: "Pricing" }).click();
-    await expect(page).toHaveURL("/pricing");
+    await expect(page.locator("#hfl-pricing-section")).toBeVisible();
   });
 
   // ── Hero CTA ──────────────────────────────────────────────────────────────
@@ -42,20 +42,19 @@ test.describe("LandingPage — /", () => {
   // ── Hero content ──────────────────────────────────────────────────────────
 
   test("shows hero heading text", async ({ page }) => {
-    // The hero h1 contains some variant of HomeGentic value proposition
     await expect(page.locator("h1").first()).toBeVisible();
   });
 
-  // ── How it Works section ──────────────────────────────────────────────────
+  // ── Pricing section ───────────────────────────────────────────────────────
 
-  test("shows How It Works section heading", async ({ page }) => {
-    await expect(page.getByText(/How It Works/i)).toBeVisible();
+  test("shows Pricing section heading", async ({ page }) => {
+    await expect(page.locator("#hfl-pricing-section")).toBeVisible();
   });
 
   // ── Features section ─────────────────────────────────────────────────────
 
   test("shows Features section", async ({ page }) => {
-    await expect(page.getByText("Features")).toBeVisible();
+    await expect(page.locator("#hfl-features-section")).toBeVisible();
   });
 
   // ── Mobile nav ────────────────────────────────────────────────────────────
@@ -63,7 +62,6 @@ test.describe("LandingPage — /", () => {
   test("hamburger menu is hidden at desktop width", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     const hamburger = page.locator(".hfl-hamburger");
-    // Should not be visible at desktop (CSS display: none)
     await expect(hamburger).toBeHidden();
   });
 
@@ -73,7 +71,7 @@ test.describe("LandingPage — /", () => {
     await expect(hamburger).toBeVisible();
   });
 
-  // ── Footer / Sign-in links ────────────────────────────────────────────────
+  // ── Nav CTA ───────────────────────────────────────────────────────────────
 
   test("shows Sign In link in nav", async ({ page }) => {
     await expect(page.getByRole("button", { name: /sign in|get started/i }).first()).toBeVisible();
