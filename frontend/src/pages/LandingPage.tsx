@@ -4,52 +4,236 @@ import { neighborReferralService } from "@/services/neighborReferral";
 import { Helmet } from "react-helmet-async";
 import { CSS } from "./landingStyles";
 
+/* ── House SVG logo (matches mockup: green roof, orange-left/blue-right body) */
+function HouseSvg() {
+  return (
+    <svg width="26" height="24" viewBox="0 0 26 24" fill="none" aria-hidden="true">
+      <polygon points="13,1 25,11 1,11" fill="#16A34A" />
+      <rect x="1" y="11" width="12" height="12" fill="#F97316" />
+      <rect x="13" y="11" width="12" height="12" fill="#2563EB" />
+      <rect x="10" y="17" width="6" height="6" fill="white" fillOpacity="0.9" />
+    </svg>
+  );
+}
+
+/* ── ICP gradient infinity symbol ── */
+function IcpLogo({ size = 40 }: { size?: number }) {
+  const id = `icp-${size}`;
+  return (
+    <svg width={size} height={size * 0.6} viewBox="0 0 60 36" fill="none" aria-hidden="true">
+      <defs>
+        <linearGradient id={id} x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%"   stopColor="#8B5CF6" />
+          <stop offset="50%"  stopColor="#F97316" />
+          <stop offset="100%" stopColor="#EAB308" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M30 18C30 18 20 2 10 2C2 2 2 18 10 18C2 18 2 34 10 34C20 34 30 18 30 18Z"
+        fill={`url(#${id})`}
+      />
+      <path
+        d="M30 18C30 18 40 2 50 2C58 2 58 18 50 18C58 18 58 34 50 34C40 34 30 18 30 18Z"
+        fill={`url(#${id})`}
+      />
+    </svg>
+  );
+}
+
+/* ── Quorum hexagon logo ── */
+function QuorumLogo() {
+  return (
+    <svg width="44" height="44" viewBox="0 0 44 44" fill="none" aria-hidden="true">
+      <polygon points="22,2 40,12 40,32 22,42 4,32 4,12" fill="#0F4C2A" />
+      <polygon points="22,8 36,16 36,30 22,38 8,30 8,16" fill="#16A34A" fillOpacity="0.3" />
+      <text x="22" y="26" textAnchor="middle" fontSize="11" fontWeight="700" fill="white" fontFamily="Inter,sans-serif">Q</text>
+    </svg>
+  );
+}
+
+/* ── Gift icon ── */
+function GiftIcon() {
+  return (
+    <svg width="44" height="44" viewBox="0 0 44 44" fill="none" aria-hidden="true">
+      <rect x="4" y="18" width="36" height="24" rx="2" fill="#FED7AA" />
+      <rect x="4" y="12" width="36" height="8" rx="2" fill="#FB923C" />
+      <rect x="20" y="4" width="4" height="36" fill="#F97316" />
+      <path d="M22 12C22 12 16 4 12 6C9 7.5 10 12 22 12Z" fill="#F97316" />
+      <path d="M22 12C22 12 28 4 32 6C35 7.5 34 12 22 12Z" fill="#F97316" />
+    </svg>
+  );
+}
+
+/* ── Dashboard mockup (right side of hero) ── */
+function DashboardMockup() {
+  const navItems = [
+    { icon: "📊", label: "Dashboard",      active: true },
+    { icon: "🏠", label: "My Properties"  },
+    { icon: "🔧", label: "Maintenance"    },
+    { icon: "📄", label: "Documents"      },
+    { icon: "💳", label: "Transactions"   },
+    { icon: "⚡", label: "Bills & Utilities" },
+    { icon: "📡", label: "IoT Devices"    },
+    { icon: "📋", label: "Reports"        },
+    { icon: "🤖", label: "AI Assistant"   },
+  ];
+  const activity = [
+    { dot: "hfl-dm-act-dot-green",  title: "HVAC maintenance completed",    sub: "Duct cleaning by you and AC Pro Services", date: "May 4" },
+    { dot: "hfl-dm-act-dot-blue",   title: "Added document: Roof Inspection", sub: "Uploaded to 123 Maple St",                date: "May 3" },
+    { dot: "hfl-dm-act-dot-orange", title: "New quote received",             sub: "Kitchen sink repair",                      date: "May 2" },
+  ];
+  return (
+    <div className="hfl-dm">
+      {/* Top bar */}
+      <div className="hfl-dm-topbar">
+        <div className="hfl-dm-topbar-logo">
+          <HouseSvg />
+          Home<span className="green">Gentic</span>
+        </div>
+        <div className="hfl-dm-topbar-icons">
+          <span>🔔</span>
+          <span>⋮</span>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="hfl-dm-body">
+        {/* Sidebar */}
+        <div className="hfl-dm-sidebar">
+          {navItems.map((item) => (
+            <div key={item.label} className={`hfl-dm-nav${item.active ? " hfl-dm-nav-active" : ""}`}>
+              <span>{item.icon}</span>
+              {item.label}
+            </div>
+          ))}
+        </div>
+
+        {/* Main content */}
+        <div className="hfl-dm-main">
+          <div className="hfl-dm-welcome">Welcome back, Sarah!</div>
+
+          {/* Score + Maintenance */}
+          <div className="hfl-dm-cards-row">
+            <div className="hfl-dm-score-card">
+              <div className="hfl-dm-card-label">Property Health Score</div>
+              <div className="hfl-dm-score-wrap">
+                <div className="hfl-dm-score-ring">
+                  <span className="hfl-dm-score-val">82</span>
+                </div>
+                <div>
+                  <div className="hfl-dm-score-delta">↑ 12 pts</div>
+                  <div className="hfl-dm-score-sub">vs last month</div>
+                </div>
+              </div>
+            </div>
+            <div className="hfl-dm-maint-card">
+              <div className="hfl-dm-card-label">Upcoming Maintenance</div>
+              <div className="hfl-dm-maint-nums">
+                <div>
+                  <div className="hfl-dm-maint-num">3</div>
+                  <div className="hfl-dm-maint-lbl">This Week</div>
+                </div>
+                <div>
+                  <div className="hfl-dm-maint-num">7</div>
+                  <div className="hfl-dm-maint-lbl">This Month</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div className="hfl-dm-stats-row">
+            {[
+              { label: "Open Jobs",       val: 2 },
+              { label: "Quotes Received", val: 5 },
+              { label: "Open Offers",     val: 1 },
+            ].map((s) => (
+              <div key={s.label} className="hfl-dm-stat">
+                <div className="hfl-dm-stat-label">{s.label}</div>
+                <div className="hfl-dm-stat-val">{s.val}</div>
+                <div className="hfl-dm-stat-link">View</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Recent Activity */}
+          <div className="hfl-dm-activity-label">Recent Activity</div>
+          {activity.map((a) => (
+            <div key={a.title} className="hfl-dm-act-item">
+              <div className={`hfl-dm-act-dot ${a.dot}`} />
+              <div className="hfl-dm-act-body">
+                <div className="hfl-dm-act-title">{a.title}</div>
+                <div className="hfl-dm-act-sub">{a.sub}</div>
+              </div>
+              <div className="hfl-dm-act-date">{a.date}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Data ── */
 const TRUST_BADGES = [
-  { bg: "#F0FDF4", color: "#16A34A", icon: "🛡️", title: "Blockchain Verified", sub: "Every record is cryptographically signed and stored on-chain — tamper-proof forever." },
-  { bg: "#FEFCE8", color: "#CA8A04", icon: "🔒", title: "Secure & Private",     sub: "You own your data. Nothing is public until you choose to share it." },
-  { bg: "#EFF6FF", color: "#2563EB", icon: "✍️", title: "Dual-Signature",       sub: "Both homeowner and contractor must sign every completed job record." },
-  { bg: "#F5F3FF", color: "#7C3AED", icon: "∞",  title: "Internet Computer",    sub: "Built on the ICP blockchain — no servers, no downtime, no single point of failure." },
+  { bg: "#F0FDF4", color: "#16A34A", icon: "🛡️", title: "Blockchain Verified",  sub: "Built on ICP for data permanence" },
+  { bg: "#FEFCE8", color: "#CA8A04", icon: "🔒", title: "Secure & Private",      sub: "You own your data. Always." },
+  { bg: "#EFF6FF", color: "#2563EB", icon: "✍️", title: "Dual-Signature",        sub: "Every job verified by both parties" },
+  { bg: "#F5F3FF", color: "#7C3AED", icon: "∞",  title: "Internet Computer",     sub: "Decentralized. Scalable. Unstoppable." },
 ];
 
 const ROLES = [
   {
-    bg: "#F0FDF4", icon: "🏠", title: "For Homeowners",
-    desc: "Register properties, log maintenance jobs, and build a verified home history that pays off at resale.",
-    link: "/login",
+    bg: "#F0FDF4", icon: "🏘️", title: "For Homeowners",
+    desc: "Track maintenance, manage bills, get quotes, monitor property health, and list FSBO.",
   },
   {
-    bg: "#EFF6FF", icon: "👷", title: "For Contractors",
-    desc: "Sign verified job completions, receive leads from local homeowners, and build your on-chain reputation.",
-    link: "/login",
+    bg: "#FFF7ED", icon: "👷", title: "For Contractors",
+    desc: "Receive quote requests, submit bids, log jobs, build your reputation, and grow your business.",
   },
   {
-    bg: "#FFF7ED", icon: "🏢", title: "For Realtors / Admins",
-    desc: "Access verified property histories to streamline transactions and build buyer trust from day one.",
-    link: "/login",
+    bg: "#EFF6FF", icon: "🛡️", title: "For Admins",
+    desc: "Verify ownership, manage subscriptions, monitor platform health and security.",
   },
 ];
 
 const FEATURES = [
-  { bg: "#F0FDF4", icon: "📅", title: "Smart Maintenance",       desc: "AI-generated seasonal schedules based on your home's age and system history." },
-  { bg: "#EFF6FF", icon: "📡", title: "IoT Integration",         desc: "Connect Nest, Ecobee, Moen Flo, Ring, and 8+ more smart devices automatically." },
-  { bg: "#FFF7ED", icon: "💬", title: "Get Quotes",              desc: "Post a job and receive competing bids from verified, background-checked contractors." },
-  { bg: "#F5F3FF", icon: "✍️", title: "Dual-Signature Jobs",    desc: "Both parties sign every job — creating a tamper-proof, legally credible work record." },
-  { bg: "#FFF1F2", icon: "🏷️", title: "FSBO Listings",          desc: "List your home as FSBO with showing management, sealed-bid offers, and agent matching." },
-  { bg: "#F0FDF4", icon: "🌐", title: "360° Panorama Viewer",   desc: "Attach room-by-room 360° walkthroughs to your FSBO listing for remote buyers." },
-  { bg: "#EFF6FF", icon: "🎤", title: "AI Voice Agent",          desc: "Ask your home anything out loud — maintenance history, upcoming tasks, or repair costs." },
-  { bg: "#FFF7ED", icon: "📋", title: "Immutable Reports",      desc: "Generate a shareable, blockchain-backed home biography that buyers and agents trust." },
+  { bg: "#F0FDF4", icon: "🔧", title: "Smart Maintenance",     desc: "Track history, schedule tasks, and get AI-powered predictive maintenance recommendations." },
+  { bg: "#EFF6FF", icon: "📡", title: "IoT Integration",       desc: "Connect Nest, Ecobee, Moen Flo, Ring Alarm, and 8+ devices for real-time monitoring." },
+  { bg: "#EFF6FF", icon: "💬", title: "Get Quotes",            desc: "Request quotes from trusted contractors and compare bids side-by-side." },
+  { bg: "#EFF6FF", icon: "✍️", title: "Dual-Signature Jobs",  desc: "Jobs are verified by both homeowner and contractor and immutably recorded on ICP." },
+  { bg: "#F0FDF4", icon: "🏠", title: "FSBO Listings",        desc: "List your property for sale, manage sealed-bid offers, and match with verified agents." },
+  { bg: "#FFF7ED", icon: "🌐", title: "360° Panorama Viewer", desc: "Immersive property tours with PlayCanvas-powered 360° panorama viewer." },
+  { bg: "#EFF6FF", icon: "🎤", title: "AI Voice Agent",        desc: "Ask questions, get updates, and manage your property—hands-free with Claude-powered AI." },
+  { bg: "#EFF6FF", icon: "📋", title: "Immutable Reports",    desc: "Generate tamper-proof reports with shareable links for insurance, buyers, or contractors." },
 ];
 
 const PLANS = [
-  { tier: "Basic",          sub: "1 Property",          price: 10, tag: null as string | null,   features: ["1 property", "5 photos/job", "3 open quotes", "Maintenance record", "AI scheduling"] },
-  { tier: "Pro",            sub: "Up to 5 Properties",  price: 20, tag: null,                    features: ["5 properties", "10 photos/job", "10 open quotes", "FSBO listings", "AI Voice Agent"] },
-  { tier: "Premium",        sub: "Up to 20 Properties", price: 40, tag: "Most Popular",          features: ["20 properties", "30 photos/job", "Unlimited quotes", "360° Panorama", "Priority support"] },
-  { tier: "Contractor",     sub: "Free Forever",        price:  0, tag: null,                    features: ["Accept job leads", "Sign work records", "Build reputation", "5 photos/job", "Unlimited quotes"] },
-  { tier: "ContractorPro",  sub: "Unlimited Leads",     price: 30, tag: null,                    features: ["Unlimited properties", "50 photos/job", "Unlimited quotes", "Premium placement", "Analytics"] },
+  {
+    tier: "Basic", sub: "For homeowners getting started", price: 10, tag: null as string | null, cta: "green" as const,
+    features: ["1 Property", "Basic Maintenance Tracking", "Document Storage", "Email Support"],
+  },
+  {
+    tier: "Pro", sub: "For growing homeowners", price: 20, tag: null, cta: "green" as const,
+    features: ["Up to 5 Properties", "Advanced Maintenance", "IoT Integrations", "Priority Support"],
+  },
+  {
+    tier: "Premium", sub: "For power users", price: 40, tag: "Most Popular", cta: "blue" as const,
+    features: ["Up to 20 Properties", "All Insights & Predictions", "360° Viewer", "Premium Support"],
+  },
+  {
+    tier: "Contractor Free", sub: "For contractors starting out", price: 0, tag: null, cta: "green" as const,
+    features: ["Receive Quote Requests", "Submit Bids", "Basic Profile", "Up to 5 Jobs/Month"],
+  },
+  {
+    tier: "Contractor Pro", sub: "For growing contractors", price: 30, tag: null, cta: "blue" as const,
+    features: ["Unlimited Quote Requests", "Priority Placement", "Verified Badge", "Analytics & Insights"],
+  },
 ];
 
-const INTEGRATIONS = ["Nest", "ecobee", "Moen Flo", "Ring", "Schneider Electric", "myQ", "August", "Rachio", "Emporia Vue", "SmartThings", "+8 more"];
+const INTEGRATIONS = ["nest", "ecobee", "MOEN", "ring", "Schneider Electric", "myQ", "August", "+8 more"];
 
+/* ── Component ── */
 export default function LandingPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -79,7 +263,7 @@ export default function LandingPage() {
     <>
       <Helmet>
         <title>HomeGentic — Verified Home Maintenance Records on ICP</title>
-        <meta name="description" content="HomeGentic gives homeowners a verified, blockchain-backed record of every repair, upgrade, and inspection — boosting home value and buyer confidence." />
+        <meta name="description" content="HomeGentic helps homeowners and contractors manage maintenance, documentation, and transactions with blockchain-verified trust and AI-powered insights." />
         <meta property="og:title" content="HomeGentic — Verified Home Maintenance Records" />
         <meta property="og:description" content="Manage. Maintain. Protect. Your Home. Built on the Internet Computer." />
         <meta property="og:type" content="website" />
@@ -99,9 +283,10 @@ export default function LandingPage() {
 
         {/* ── Nav ───────────────────────────────────────────────────────── */}
         <nav className="hfl-nav">
-          <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "1.25rem" }}>
             <a href="/" className="hfl-logo">
-              <span>🏠</span>Home<span>Gentic</span>
+              <HouseSvg />
+              Home<span>Gentic</span>
             </a>
             <ul className="hfl-nav-links">
               <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-features-section"); }}>Features</a></li>
@@ -109,6 +294,7 @@ export default function LandingPage() {
               <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-roles-section"); }}>For Contractors</a></li>
               <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-pricing-section"); }}>Pricing</a></li>
               <li><a onClick={(e) => { e.preventDefault(); navigate("/invite"); }}>Invite a Neighbor</a></li>
+              <li><a onClick={(e) => e.preventDefault()}>Resources ▾</a></li>
             </ul>
           </div>
           <div className="hfl-nav-actions">
@@ -130,16 +316,15 @@ export default function LandingPage() {
         {/* ── Hero ──────────────────────────────────────────────────────── */}
         <section className="hfl-hero">
           <div>
-            <div className="hfl-hero-badge">
-              ∞ BUILT ON THE INTERNET COMPUTER (ICP)
-            </div>
+            <div className="hfl-hero-badge">BUILT ON THE INTERNET COMPUTER (ICP)</div>
             <h1>
               Manage. Maintain.<br />
               <span className="green">Protect. Your Home.</span>
             </h1>
             <p>
-              HomeGentic is the verified home record platform built on the ICP blockchain.
-              Every repair, upgrade, and inspection — signed, stored, and shareable forever.
+              HomeGentic helps homeowners and contractors manage maintenance,
+              documentation, and transactions with blockchain-verified trust
+              and AI-powered insights.
             </p>
             <div className="hfl-actions">
               <button className="hfl-btn-main" onClick={() => navigate("/login")}>Get Started</button>
@@ -148,9 +333,9 @@ export default function LandingPage() {
               </button>
             </div>
           </div>
-          <div className="hfl-hero-img-wrap">
-            <img src="/hero_home.png" alt="HomeGentic dashboard" className="hfl-hero-img" />
-          </div>
+
+          {/* Dashboard mockup (hidden on mobile via CSS) */}
+          <DashboardMockup />
         </section>
 
         {/* ── Trust Badges ──────────────────────────────────────────────── */}
@@ -173,7 +358,7 @@ export default function LandingPage() {
         {/* ── Roles ─────────────────────────────────────────────────────── */}
         <section id="hfl-roles-section" className="hfl-roles">
           <div className="hfl-section-header">
-            <h2>Built for every role</h2>
+            <h2>Built for every role in your property journey</h2>
           </div>
           <div className="hfl-roles-grid">
             {ROLES.map((r) => (
@@ -181,7 +366,7 @@ export default function LandingPage() {
                 <div className="hfl-role-icon" style={{ background: r.bg }}>{r.icon}</div>
                 <div className="hfl-role-title">{r.title}</div>
                 <div className="hfl-role-desc">{r.desc}</div>
-                <button className="hfl-role-link" onClick={() => navigate(r.link)}>
+                <button className="hfl-role-link" onClick={() => navigate("/login")}>
                   Learn more →
                 </button>
               </div>
@@ -192,14 +377,16 @@ export default function LandingPage() {
         {/* ── Features ──────────────────────────────────────────────────── */}
         <section id="hfl-features-section" className="hfl-features">
           <div className="hfl-section-header">
-            <h2>Everything you need</h2>
+            <h2>Everything you need to protect and grow your property</h2>
           </div>
           <div className="hfl-features-grid">
             {FEATURES.map((f) => (
               <div key={f.title} className="hfl-feat-card">
                 <div className="hfl-feat-icon" style={{ background: f.bg }}>{f.icon}</div>
-                <div className="hfl-feat-title">{f.title}</div>
-                <div className="hfl-feat-desc">{f.desc}</div>
+                <div className="hfl-feat-body">
+                  <div className="hfl-feat-title">{f.title}</div>
+                  <div className="hfl-feat-desc">{f.desc}</div>
+                </div>
               </div>
             ))}
           </div>
@@ -209,28 +396,30 @@ export default function LandingPage() {
         <div className="hfl-strip">
           <div className="hfl-strip-inner">
             <div className="hfl-strip-col">
-              <div className="hfl-strip-logo">🏘️</div>
+              <div className="hfl-strip-logo"><QuorumLogo /></div>
               <div>
                 <div className="hfl-strip-title">Quorum HOA Members</div>
-                <div className="hfl-strip-desc">HOA members on Quorum save 10% on any HomeGentic plan.</div>
-                <div><span className="hfl-strip-code">QUORUM10</span></div>
+                <div className="hfl-strip-desc">Get 10% off any plan</div>
+                <div>Use code: <span className="hfl-strip-code">QUORUM10</span></div>
               </div>
             </div>
             <div className="hfl-strip-col">
-              <div className="hfl-strip-logo">🤝</div>
+              <div className="hfl-strip-logo"><GiftIcon /></div>
               <div>
-                <div className="hfl-strip-title">Invite a Neighbor</div>
-                <div className="hfl-strip-desc">You and your neighbor each earn $10 credit when they join.</div>
+                <div className="hfl-strip-title">Invite a Neighbor, Get Rewarded</div>
+                <div className="hfl-strip-desc">You get $10 credit. They get $10 off.</div>
                 <button className="hfl-strip-link" onClick={() => navigate("/invite")}>
                   Learn how it works →
                 </button>
               </div>
             </div>
             <div className="hfl-strip-col">
-              <div className="hfl-strip-logo">∞</div>
+              <div className="hfl-strip-logo"><IcpLogo size={44} /></div>
               <div>
                 <div className="hfl-strip-title">Built on ICP</div>
-                <div className="hfl-strip-desc">Your records live on the Internet Computer — no servers, no downtime, no middlemen. Yours forever.</div>
+                <div className="hfl-strip-desc">
+                  Your data is yours. Permanently stored. Tamper-proof. Future-proof.
+                </div>
               </div>
             </div>
           </div>
@@ -238,7 +427,7 @@ export default function LandingPage() {
 
         {/* ── Integrations ──────────────────────────────────────────────── */}
         <div className="hfl-integrations">
-          <h3>Works with your smart home devices</h3>
+          <h3>Works with the tools you already use</h3>
           <div className="hfl-integ-logos">
             {INTEGRATIONS.map((name) => (
               <span key={name} className="hfl-integ-logo">{name}</span>
@@ -249,8 +438,8 @@ export default function LandingPage() {
         {/* ── Pricing ───────────────────────────────────────────────────── */}
         <section id="hfl-pricing-section" className="hfl-pricing">
           <div className="hfl-pricing-header">
-            <h2>Simple, transparent pricing</h2>
-            <p>Start at $10/mo. Your verified home record pays for itself at resale.</p>
+            <h2>Simple, transparent pricing for everyone</h2>
+            <p>Choose the plan that fits your needs. All plans include blockchain verification and immutable storage.</p>
           </div>
           <div className="hfl-pricing-grid">
             {PLANS.map((p) => (
@@ -259,21 +448,32 @@ export default function LandingPage() {
                 <div className="hfl-plan-tier">{p.tier}</div>
                 <div className="hfl-plan-sub">{p.sub}</div>
                 <div className="hfl-plan-price">
-                  {p.price === 0 ? "Free" : `$${p.price}`}
-                  {p.price > 0 && <span>/mo</span>}
+                  {p.price === 0 ? "$0" : `$${p.price}`}
+                  <span>/month</span>
                 </div>
                 <ul className="hfl-plan-features">
-                  {p.features.map((f) => <li key={f}>{f}</li>)}
+                  {p.features.map((f) => (
+                    <li key={f}>
+                      <span className="hfl-plan-feat-check">✓</span>
+                      {f}
+                    </li>
+                  ))}
                 </ul>
-                <button className="hfl-plan-cta" onClick={() => navigate("/login")}>
-                  {p.price === 0 ? "Join free" : "Get started"}
+                <button
+                  className={`hfl-plan-cta hfl-plan-cta-${p.cta}`}
+                  onClick={() => navigate("/login")}
+                >
+                  Get Started
                 </button>
               </div>
             ))}
           </div>
-          <p className="hfl-pricing-guarantee">
-            <span>🔒</span> Cancel anytime · Your blockchain records remain yours forever
-          </p>
+          <div className="hfl-pricing-guarantee">
+            <span>🛡</span>
+            <span>30-day money-back guarantee</span>
+            <span className="hfl-pricing-guarantee-sep">•</span>
+            <span>Cancel anytime</span>
+          </div>
         </section>
 
         </main>
@@ -282,26 +482,28 @@ export default function LandingPage() {
         <footer className="hfl-footer">
           <div className="hfl-footer-inner">
             <div className="hfl-footer-left">
-              <div className="hfl-footer-icp-logo">∞</div>
+              <div className="hfl-footer-icp-logo">
+                <IcpLogo size={44} />
+              </div>
               <div>
-                <div className="hfl-footer-icp-title">HomeGentic · Built on ICP</div>
+                <div className="hfl-footer-icp-title">Built on the Internet Computer Protocol (ICP)</div>
                 <div className="hfl-footer-icp-sub">
-                  Verified home records on the Internet Computer blockchain.
-                  No servers. No downtime. Your data lives forever.
-                </div>
-                <div className="hfl-footer-quorum">
-                  Quorum HOA members save 10% ·
-                  <span className="hfl-footer-quorum-code">QUORUM10</span>
+                  Your data is yours. Permanently stored. Tamper-proof. Future-proof.
                 </div>
               </div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
-              <Link to="/privacy" style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.45)", textDecoration: "none" }}>Privacy</Link>
-              <Link to="/terms"   style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.45)", textDecoration: "none" }}>Terms</Link>
-              <button className="hfl-footer-btn" onClick={() => window.open("https://internetcomputer.org", "_blank", "noopener,noreferrer")}>
-                Learn About ICP
-              </button>
+            <div className="hfl-footer-quorum-center">
+              <div className="hfl-footer-quorum-center-title">Quorum HOA members save 10%</div>
+              <div className="hfl-footer-quorum-center-code">
+                Use code: <span className="hfl-footer-quorum-code">QUORUM10</span>
+              </div>
             </div>
+            <button
+              className="hfl-footer-btn"
+              onClick={() => window.open("https://internetcomputer.org", "_blank", "noopener,noreferrer")}
+            >
+              Learn About ICP
+            </button>
           </div>
         </footer>
 
