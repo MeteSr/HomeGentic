@@ -114,7 +114,7 @@ export default function LoginPage() {
         <Link to="/" style={{ display: "flex", alignItems: "center", gap: "0.625rem", textDecoration: "none" }}>
           <NavHouseLogo />
           <span style={{ fontWeight: 700, fontSize: "1.125rem", color: C.navy, letterSpacing: "-0.3px" }}>
-            Home<span style={{ color: C.green }}>Gentic</span>
+            Home<span style={{ color: "#15803D" }}>Gentic</span>
           </span>
         </Link>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
@@ -408,7 +408,7 @@ export default function LoginPage() {
             <span key={t} style={{ fontSize: "0.8125rem", color: "#94A3B8", cursor: "pointer" }}>{t}</span>
           ))}
         </div>
-        <span style={{ fontSize: "0.8125rem", color: "#64748B" }}>© 2025 HomeGentic. All rights reserved.</span>
+        <span style={{ fontSize: "0.8125rem", color: "#94A3B8" }}>© 2025 HomeGentic. All rights reserved.</span>
       </div>
     </div>
   );

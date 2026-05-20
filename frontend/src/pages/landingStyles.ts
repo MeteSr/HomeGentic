@@ -1,7 +1,7 @@
 export const CSS = `
 /* ── Reset / Variables ──────────────────────────────────────────────────── */
 .hfl { --lp-navy:#0F172A; --lp-text:#1E293B; --lp-muted:#64748B;
-  --lp-rule:#E2E8F0; --lp-light:#F8FAFC; --lp-green:#16A34A;
+  --lp-rule:#E2E8F0; --lp-light:#F8FAFC; --lp-green:#15803D;
   --lp-blue:#2563EB; --lp-white:#FFFFFF;
   font-family:'Inter','Segoe UI',system-ui,sans-serif;
   color:var(--lp-text); background:var(--lp-white);
@@ -228,7 +228,7 @@ export const CSS = `
   gap:2.5rem; flex-wrap:wrap; max-width:900px; margin:0 auto;
 }
 .hfl-integ-logo {
-  font-size:0.82rem; font-weight:700; color:#94A3B8; white-space:nowrap;
+  font-size:0.82rem; font-weight:700; color:#64748B; white-space:nowrap;
 }
 
 /* ── Pricing ────────────────────────────────────────────────────────────── */
@@ -310,7 +310,7 @@ export const CSS = `
   display:flex; align-items:center; gap:5px;
   font-size:12px; font-weight:800; color:#0F172A;
 }
-.hfl-dm-topbar-logo .green { color:#16A34A; }
+.hfl-dm-topbar-logo .green { color:#15803D; }
 .hfl-dm-topbar-icons { display:flex; gap:8px; color:#94A3B8; font-size:14px; }
 .hfl-dm-body { display:flex; }
 .hfl-dm-sidebar {
@@ -343,8 +343,8 @@ export const CSS = `
   content:""; position:absolute; inset:7px; border-radius:50%; background:#F8FAFC;
 }
 .hfl-dm-score-val { position:relative; z-index:1; font-size:13px; font-weight:800; color:#0F172A; }
-.hfl-dm-score-delta { font-size:8px; color:#16A34A; font-weight:600; }
-.hfl-dm-score-sub { font-size:7px; color:#94A3B8; }
+.hfl-dm-score-delta { font-size:8px; color:#15803D; font-weight:600; }
+.hfl-dm-score-sub { font-size:7px; color:#64748B; }
 .hfl-dm-maint-nums { display:flex; gap:14px; padding-top:2px; }
 .hfl-dm-maint-num { font-size:20px; font-weight:800; color:#0F172A; line-height:1; }
 .hfl-dm-maint-lbl { font-size:7.5px; color:#64748B; margin-top:2px; }
@@ -357,7 +357,7 @@ export const CSS = `
 .hfl-dm-stat-val { font-size:15px; font-weight:800; color:#0F172A; line-height:1.1; }
 .hfl-dm-stat-link { font-size:7.5px; color:#2563EB; font-weight:600; }
 .hfl-dm-activity-label {
-  font-size:7.5px; font-weight:700; color:#94A3B8;
+  font-size:7.5px; font-weight:700; color:#64748B;
   text-transform:uppercase; letter-spacing:0.07em; margin-bottom:5px;
 }
 .hfl-dm-act-item {
@@ -370,8 +370,8 @@ export const CSS = `
 .hfl-dm-act-dot-orange { background:#F97316; }
 .hfl-dm-act-body { flex:1; min-width:0; }
 .hfl-dm-act-title { font-size:8.5px; font-weight:600; color:#1E293B; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.hfl-dm-act-sub   { font-size:7px; color:#94A3B8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.hfl-dm-act-date  { font-size:7.5px; color:#94A3B8; flex-shrink:0; white-space:nowrap; }
+.hfl-dm-act-sub   { font-size:7px; color:#64748B; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.hfl-dm-act-date  { font-size:7.5px; color:#64748B; flex-shrink:0; white-space:nowrap; }
 
 /* ── Footer ─────────────────────────────────────────────────────────────── */
 .hfl-footer { background:var(--lp-navy); padding:1.5rem 2rem; }

@@ -83,7 +83,7 @@ function DashboardMockup() {
     { dot: "hfl-dm-act-dot-orange", title: "New quote received",             sub: "Kitchen sink repair",                      date: "May 2" },
   ];
   return (
-    <div className="hfl-dm">
+    <div className="hfl-dm" aria-hidden="true">
       {/* Top bar */}
       <div className="hfl-dm-topbar">
         <div className="hfl-dm-topbar-logo">
