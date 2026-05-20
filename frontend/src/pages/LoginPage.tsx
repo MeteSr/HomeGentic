@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthStore } from "@/store/authStore";
@@ -64,41 +64,7 @@ function IcpInfinityIcon({ size = 20 }: { size?: number }) {
   );
 }
 
-function MailIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <rect x="1" y="3" width="14" height="10" rx="1.5" stroke="#94A3B8" strokeWidth="1.5" fill="none"/>
-      <path d="M1 4.5L8 9.5L15 4.5" stroke="#94A3B8" strokeWidth="1.5" strokeLinecap="round"/>
-    </svg>
-  );
-}
-
-function LockIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <rect x="3" y="7" width="10" height="8" rx="1.5" stroke="#94A3B8" strokeWidth="1.5" fill="none"/>
-      <path d="M5 7V5a3 3 0 0 1 6 0v2" stroke="#94A3B8" strokeWidth="1.5" strokeLinecap="round"/>
-      <circle cx="8" cy="11" r="1" fill="#94A3B8"/>
-    </svg>
-  );
-}
-
-function EyeIcon({ open }: { open: boolean }) {
-  return open ? (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M1 8C2.5 5 5 3 8 3s5.5 2 7 5c-1.5 3-4 5-7 5S2.5 11 1 8z" stroke="#94A3B8" strokeWidth="1.5" fill="none"/>
-      <circle cx="8" cy="8" r="2" stroke="#94A3B8" strokeWidth="1.5" fill="none"/>
-    </svg>
-  ) : (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M1 8C2.5 5 5 3 8 3s5.5 2 7 5c-1.5 3-4 5-7 5S2.5 11 1 8z" stroke="#94A3B8" strokeWidth="1.5" fill="none"/>
-      <circle cx="8" cy="8" r="2" stroke="#94A3B8" strokeWidth="1.5" fill="none"/>
-      <line x1="2" y1="2" x2="14" y2="14" stroke="#94A3B8" strokeWidth="1.5" strokeLinecap="round"/>
-    </svg>
-  );
-}
-
-// ─── Colours (local to this page) ──────────────────────────────────────────────
+// ─── Colours ───────────────────────────────────────────────────────────────────
 
 const C = {
   navy:       "#0A1628",
@@ -118,10 +84,10 @@ const C = {
 };
 
 const FEATURES = [
-  { bg: C.greenBg,  color: C.green,  emoji: "🛡️", title: "Secure & Private",       sub: "Your data is encrypted and stored on the Internet Computer (ICP)." },
-  { bg: C.purpleBg, color: C.purple, emoji: "✓",  title: "Blockchain Verified",    sub: "Immutable records you can trust. Verified by ICP." },
-  { bg: C.blueBg,   color: C.blue,   emoji: "🧠", title: "AI-Powered Insights",    sub: "Get answers, recommendations, and insights about your home." },
-  { bg: C.orangeBg, color: C.orange, emoji: "👥", title: "Built for Homeowners",   sub: "Everything you need to maintain, protect, and grow your property value." },
+  { bg: C.greenBg,  color: C.green,  emoji: "🛡️", title: "Secure & Private",    sub: "Your data is encrypted and stored on the Internet Computer (ICP)." },
+  { bg: C.purpleBg, color: C.purple, emoji: "✓",  title: "Blockchain Verified", sub: "Immutable records you can trust. Verified by ICP." },
+  { bg: C.blueBg,   color: C.blue,   emoji: "🧠", title: "AI-Powered Insights", sub: "Get answers, recommendations, and insights about your home." },
+  { bg: C.orangeBg, color: C.orange, emoji: "👥", title: "Built for Homeowners", sub: "Everything you need to maintain, protect, and grow your property value." },
 ];
 
 // ─── Component ─────────────────────────────────────────────────────────────────
@@ -130,9 +96,6 @@ export default function LoginPage() {
   const { login, devLogin } = useAuth();
   const { isLoading } = useAuthStore();
   const navigate = useNavigate();
-
-  const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Inter', 'IBM Plex Sans', sans-serif", display: "flex", flexDirection: "column" }}>
@@ -224,12 +187,7 @@ export default function LoginPage() {
           </div>
 
           {/* House image */}
-          <div style={{
-            borderRadius: "16px",
-            overflow: "hidden",
-            position: "relative",
-            maxHeight: "260px",
-          }}>
+          <div style={{ borderRadius: "16px", overflow: "hidden", position: "relative", maxHeight: "260px" }}>
             <img
               src="/hero_home.png"
               alt="A well-maintained home"
@@ -259,157 +217,41 @@ export default function LoginPage() {
           <h2 style={{ fontWeight: 700, fontSize: "1.5rem", color: C.navy, textAlign: "center", marginBottom: "0.375rem" }}>
             Log in to your account
           </h2>
-          <p style={{ fontSize: "0.875rem", color: C.muted, textAlign: "center", marginBottom: "1.75rem" }}>
-            Enter your credentials to access your dashboard
+          <p style={{ fontSize: "0.875rem", color: C.muted, textAlign: "center", marginBottom: "2rem" }}>
+            Select your preferred sign-in method. No password needed — secured by Internet Identity.
           </p>
 
-          {/* Email */}
-          <div style={{ marginBottom: "1rem" }}>
-            <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 500, color: C.navyMid, marginBottom: "0.375rem" }}>
-              Email address
-            </label>
-            <div style={{ position: "relative" }}>
-              <div style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)" }}>
-                <MailIcon />
-              </div>
-              <input
-                type="email"
-                placeholder="you@example.com"
-                style={{
-                  width: "100%",
-                  padding: "0.625rem 0.875rem 0.625rem 2.25rem",
-                  border: `1.5px solid ${C.border}`,
-                  borderRadius: "8px",
-                  fontSize: "0.9375rem",
-                  color: C.navyMid,
-                  background: C.white,
-                  outline: "none",
-                  boxSizing: "border-box",
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Password */}
-          <div style={{ marginBottom: "0.875rem" }}>
-            <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 500, color: C.navyMid, marginBottom: "0.375rem" }}>
-              Password
-            </label>
-            <div style={{ position: "relative" }}>
-              <div style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)" }}>
-                <LockIcon />
-              </div>
-              <input
-                type={showPassword ? "text" : "password"}
-                placeholder="Enter your password"
-                style={{
-                  width: "100%",
-                  padding: "0.625rem 2.5rem 0.625rem 2.25rem",
-                  border: `1.5px solid ${C.border}`,
-                  borderRadius: "8px",
-                  fontSize: "0.9375rem",
-                  color: C.navyMid,
-                  background: C.white,
-                  outline: "none",
-                  boxSizing: "border-box",
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                style={{
-                  position: "absolute",
-                  right: "12px",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: 0,
-                  display: "flex",
-                }}
-              >
-                <EyeIcon open={showPassword} />
-              </button>
-            </div>
-          </div>
-
-          {/* Remember me + Forgot password */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.25rem" }}>
-            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                style={{ accentColor: C.blue, width: "15px", height: "15px" }}
-              />
-              <span style={{ fontSize: "0.875rem", color: C.muted }}>Remember me</span>
-            </label>
-            <span
-              onClick={login}
-              style={{ fontSize: "0.875rem", color: C.blue, fontWeight: 500, cursor: "pointer" }}
-            >
-              Forgot password?
-            </span>
-          </div>
-
-          {/* Log In button */}
-          <button
-            onClick={login}
-            disabled={isLoading}
-            data-tid="login-button"
-            style={{
-              width: "100%",
-              padding: "0.75rem",
-              background: isLoading ? "#93C5FD" : C.blue,
-              color: C.white,
-              border: "none",
-              borderRadius: "8px",
-              fontSize: "1rem",
-              fontWeight: 600,
-              cursor: isLoading ? "not-allowed" : "pointer",
-              marginBottom: "1.25rem",
-              transition: "background 0.15s",
-            }}
-          >
-            {isLoading ? "Connecting…" : "Log In"}
-          </button>
-
-          {/* Divider */}
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
-            <div style={{ flex: 1, height: "1px", background: C.border }} />
-            <span style={{ fontSize: "0.8125rem", color: C.muted }}>or</span>
-            <div style={{ flex: 1, height: "1px", background: C.border }} />
-          </div>
-
-          {/* Social / ICP buttons */}
+          {/* Provider buttons — all open Internet Identity (which handles Google/Apple/WebAuthn) */}
           {[
-            { icon: <GoogleIcon />,     label: "Continue with Google" },
-            { icon: <AppleIcon />,      label: "Continue with Apple" },
+            { icon: <GoogleIcon />,              label: "Continue with Google" },
+            { icon: <AppleIcon />,               label: "Continue with Apple" },
             { icon: <IcpInfinityIcon size={22} />, label: "Continue with Internet Computer" },
           ].map(({ icon, label }) => (
             <button
               key={label}
               onClick={login}
+              disabled={isLoading}
+              data-tid={label === "Continue with Internet Computer" ? "login-button" : undefined}
               style={{
                 width: "100%",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 gap: "0.625rem",
-                padding: "0.65rem",
+                padding: "0.75rem",
                 border: `1.5px solid ${C.border}`,
                 borderRadius: "8px",
                 background: C.white,
                 fontSize: "0.9375rem",
                 fontWeight: 500,
                 color: C.navyMid,
-                cursor: "pointer",
-                marginBottom: "0.625rem",
+                cursor: isLoading ? "not-allowed" : "pointer",
+                marginBottom: "0.75rem",
                 transition: "background 0.12s",
+                opacity: isLoading ? 0.6 : 1,
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = C.bg)}
-              onMouseLeave={(e) => (e.currentTarget.style.background = C.white)}
+              onMouseEnter={(e) => { if (!isLoading) e.currentTarget.style.background = C.bg; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = C.white; }}
             >
               {icon}
               {label}
@@ -417,7 +259,7 @@ export default function LoginPage() {
           ))}
 
           {/* Sign up link */}
-          <p style={{ textAlign: "center", fontSize: "0.875rem", color: C.muted, marginTop: "1rem" }}>
+          <p style={{ textAlign: "center", fontSize: "0.875rem", color: C.muted, marginTop: "1.25rem" }}>
             Don't have an account?{" "}
             <span
               onClick={() => navigate("/register")}
@@ -426,6 +268,20 @@ export default function LoginPage() {
               Get Started
             </span>
           </p>
+
+          {/* Security note */}
+          <div style={{
+            marginTop: "1.5rem",
+            paddingTop: "1.25rem",
+            borderTop: `1px solid ${C.border}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "0.5rem",
+          }}>
+            <span style={{ fontSize: "0.75rem", color: C.muted }}>🔒</span>
+            <span style={{ fontSize: "0.75rem", color: C.muted }}>Secured by Internet Identity — no passwords stored</span>
+          </div>
 
           {import.meta.env.DEV && (
             <div style={{ marginTop: "1.25rem", borderTop: `1px solid ${C.border}`, paddingTop: "1.25rem" }}>
@@ -460,13 +316,7 @@ export default function LoginPage() {
         <h3 style={{ fontWeight: 700, fontSize: "1.25rem", color: C.navy, marginBottom: "1.75rem" }}>
           Your trust is our foundation
         </h3>
-        <div style={{
-          display: "flex",
-          justifyContent: "center",
-          gap: "3rem",
-          marginBottom: "2.5rem",
-          flexWrap: "wrap",
-        }}>
+        <div style={{ display: "flex", justifyContent: "center", gap: "3rem", marginBottom: "2.5rem", flexWrap: "wrap" }}>
           {[
             { icon: "🛡️", title: "Built on ICP",          sub: "Decentralized.\nScalable. Unstoppable." },
             { icon: "🔒", title: "Your Data, Yours",       sub: "You own your data.\nAlways." },
