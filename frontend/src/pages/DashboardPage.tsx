@@ -540,13 +540,13 @@ interface QuickAction {
   onClick: () => void;
 }
 
-function QuickActionsPanel({ actions }: { actions: QuickAction[] }) {
+function QuickActionsPanel({ actions, isTablet }: { actions: QuickAction[]; isTablet?: boolean }) {
   return (
     <Card style={{ padding: "1.25rem" }}>
       <h2 style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "1rem", color: C.text, marginBottom: "1rem" }}>
         Quick Actions
       </h2>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "0.75rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: isTablet ? "repeat(3, 1fr)" : "repeat(5, 1fr)", gap: "0.75rem" }}>
         {actions.map((a) => (
           <button
             key={a.label}
@@ -950,7 +950,7 @@ function MyPropertiesPanel({
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { profile } = useAuthStore();
-  const { isMobile } = useBreakpoint();
+  const { isMobile, isTablet } = useBreakpoint();
   const { isOpen: isWizardOpen, open: openAddProp } = useAddPropertyStore();
 
   // ─── Domain hooks ─────────────────────────────────────────────────────────────
@@ -1279,7 +1279,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Quick Actions */}
-          {!isMobile && <QuickActionsPanel actions={quickActions} />}
+          {!isMobile && <QuickActionsPanel actions={quickActions} isTablet={isTablet} />}
 
           {/* My Properties */}
           <MyPropertiesPanel
