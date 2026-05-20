@@ -6,7 +6,6 @@ import { monitoringService, CanisterMetrics, CycleLevelResult, runwayDays, cycle
 import { jobService, Job } from "@/services/job";
 import { referralService } from "@/services/referralService";
 import { contractorService, ContractorProfile } from "@/services/contractor";
-import { agentService, AgentOnChainProfile } from "@/services/agent";
 import { useAuthStore } from "@/store/authStore";
 import { Shield, CheckCircle, XCircle, RefreshCw, AlertTriangle, DollarSign } from "lucide-react";
 import toast from "react-hot-toast";
@@ -23,7 +22,7 @@ const UI = {
   mono:     FONTS.sans,
 };
 
-type Tab = "verifications" | "contractors" | "realtors" | "tiers" | "cycles" | "referrals";
+type Tab = "verifications" | "contractors" | "tiers" | "cycles" | "referrals";
 const TIERS: SubscriptionTier[] = ["Basic", "Pro", "Premium", "ContractorFree", "ContractorPro"];
 
 // ─── 13.6.3: Cycles burn rate dashboard ──────────────────────────────────────
@@ -644,106 +643,6 @@ function ContractorVerificationTab() {
   );
 }
 
-function AgentVerificationTab() {
-  const [agents, setAgents]       = useState<AgentOnChainProfile[]>([]);
-  const [loading, setLoading]     = useState(false);
-  const [verifying, setVerifying] = useState<string | null>(null);
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      const all = await agentService.getAllProfiles();
-      setAgents(all);
-    } catch {
-      toast.error("Failed to load agents");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { load(); }, []);
-
-  const handleVerify = async (agentId: string) => {
-    setVerifying(agentId);
-    try {
-      await agentService.verifyAgent(agentId);
-      toast.success("Agent verified");
-      setAgents((prev) =>
-        prev.map((a) => a.id === agentId ? { ...a, isVerified: true } : a)
-      );
-    } catch (err: any) {
-      toast.error(err.message ?? "Verification failed");
-    } finally {
-      setVerifying(null);
-    }
-  };
-
-  const unverified = agents.filter((a) => !a.isVerified);
-  const verified   = agents.filter((a) =>  a.isVerified);
-
-  if (loading) {
-    return (
-      <div style={{ display: "flex", justifyContent: "center", padding: "3rem" }}>
-        <div className="spinner-lg" />
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight }}>
-          {unverified.length} unverified · {verified.length} verified
-        </p>
-        <button
-          onClick={load}
-          style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.375rem 0.875rem", border: `1px solid ${UI.rule}`, background: COLORS.white, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", color: UI.inkLight }}
-        >
-          <RefreshCw size={11} /> Refresh
-        </button>
-      </div>
-
-      {unverified.length === 0 ? (
-        <div style={{ border: `1px dashed ${UI.rule}`, padding: "3rem", textAlign: "center" }}>
-          <CheckCircle size={32} color={UI.rule} style={{ margin: "0 auto 0.75rem" }} />
-          <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight }}>All agents are verified.</p>
-        </div>
-      ) : (
-        <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: UI.mono, fontSize: "0.7rem" }}>
-            <thead>
-              <tr style={{ borderBottom: `1px solid ${UI.rule}` }}>
-                {["Name", "Brokerage", "License", "States", "Action"].map((h) => (
-                  <th key={h} style={{ padding: "0.625rem 1rem", textAlign: "left", fontWeight: 400, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {unverified.map((a) => (
-                <tr key={a.id} style={{ borderBottom: `1px solid ${UI.rule}` }}>
-                  <td style={{ padding: "0.625rem 1rem", color: UI.ink, fontWeight: 600 }}>{a.name}</td>
-                  <td style={{ padding: "0.625rem 1rem", color: UI.inkLight }}>{a.brokerage}</td>
-                  <td style={{ padding: "0.625rem 1rem", color: UI.inkLight }}>{a.licenseNumber}</td>
-                  <td style={{ padding: "0.625rem 1rem", color: UI.inkLight }}>{a.statesLicensed.join(", ")}</td>
-                  <td style={{ padding: "0.625rem 1rem" }}>
-                    <button
-                      onClick={() => handleVerify(a.id)}
-                      disabled={verifying === a.id}
-                      style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", padding: "0.375rem 0.875rem", border: `1px solid ${UI.sage}`, background: COLORS.white, color: UI.sage, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", cursor: verifying === a.id ? "not-allowed" : "pointer", opacity: verifying === a.id ? 0.6 : 1 }}
-                    >
-                      <Shield size={11} /> {verifying === a.id ? "Verifying…" : "Verify"}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function AdminDashboardPage() {
   const { isAuthenticated, principal } = useAuthStore();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
@@ -855,7 +754,6 @@ export default function AdminDashboardPage() {
           {([
             { id: "verifications", label: `Verifications${pending.length > 0 ? ` (${pending.length})` : ""}` },
             { id: "contractors",   label: "Contractors" },
-            { id: "realtors",      label: "Realtors" },
             { id: "tiers",         label: "Subscription Tiers" },
             { id: "cycles",        label: "Cycles & Health" },
             { id: "referrals",     label: "Referral Fees" },
@@ -913,8 +811,6 @@ export default function AdminDashboardPage() {
         )}
 
         {tab === "contractors" && <ContractorVerificationTab />}
-
-        {tab === "realtors" && <AgentVerificationTab />}
 
         {tab === "tiers" && <TierManager />}
 

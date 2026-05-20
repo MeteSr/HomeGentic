@@ -26,12 +26,6 @@ vi.mock("@/services/contractor", () => ({
     getCredentials: vi.fn(() => PENDING),
   },
 }));
-vi.mock("@/services/agent", () => ({
-  agentService: {
-    getPublicProfile: vi.fn(() => PENDING),
-    getReviews:       vi.fn(() => PENDING),
-  },
-}));
 vi.mock("@/services/listing", () => ({
   listingService: {
     getAgentPerformanceRecords: vi.fn(() => PENDING),
@@ -142,35 +136,6 @@ describe("ContractorPublicPage — JSON-LD", () => {
     );
     const schema = ldJson();
     expect(["LocalBusiness", "Person"]).toContain(schema?.["@type"]);
-  });
-});
-
-// ── AgentPublicPage — Person ──────────────────────────────────────────────────
-describe("AgentPublicPage — JSON-LD", () => {
-  let AgentPublicPage: React.ComponentType;
-  beforeAll(async () => { AgentPublicPage = (await import("@/pages/AgentPublicPage")).default; });
-
-  it("renders a JSON-LD script tag", () => {
-    render(
-      <HelmetProvider>
-        <MemoryRouter initialEntries={["/agent/xyz"]}>
-          <Routes><Route path="/agent/:id" element={<AgentPublicPage />} /></Routes>
-        </MemoryRouter>
-      </HelmetProvider>
-    );
-    expect(ldJson()).not.toBeNull();
-  });
-
-  it("has @type Person or RealEstateAgent", () => {
-    render(
-      <HelmetProvider>
-        <MemoryRouter initialEntries={["/agent/xyz"]}>
-          <Routes><Route path="/agent/:id" element={<AgentPublicPage />} /></Routes>
-        </MemoryRouter>
-      </HelmetProvider>
-    );
-    const schema = ldJson();
-    expect(["Person", "RealEstateAgent"]).toContain(schema?.["@type"]);
   });
 });
 

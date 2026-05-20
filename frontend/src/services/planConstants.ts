@@ -6,7 +6,7 @@
  * mock surface).
  */
 
-export type PlanTier     = "Free" | "Basic" | "Pro" | "Premium" | "ContractorFree" | "ContractorPro" | "RealtorFree" | "RealtorPro";
+export type PlanTier     = "Free" | "Basic" | "Pro" | "Premium" | "ContractorFree" | "ContractorPro";
 export type BillingCycle = "Monthly" | "Yearly";
 
 export interface GiftMeta {
@@ -124,40 +124,6 @@ export const PLANS: Plan[] = [
       "Trust score display",
       "Customer reviews",
       "Earnings dashboard",
-    ],
-    propertyLimit: 0,
-    photosPerJob: 50,
-    quoteRequests: Infinity,
-  },
-  {
-    tier: "RealtorFree",
-    price: 0,
-    period: "free",
-    features: [
-      "Realtor profile listing",
-      "Bid on homeowner FSBO listing requests",
-      "5 photos per bid proposal",
-      "$100 per won bid",
-      "Basic performance score",
-      "Job completion certificates",
-    ],
-    propertyLimit: 0,
-    photosPerJob: 5,
-    quoteRequests: Infinity,
-  },
-  {
-    tier: "RealtorPro",
-    price: 30,
-    period: "month",
-    features: [
-      "Everything in Realtor Free",
-      "Unlimited bid proposals",
-      "50 photos per bid proposal",
-      "10 AI agent calls/day",
-      "Priority placement in agent search",
-      "Verified Realtor badge",
-      "Performance analytics dashboard",
-      "Customer reviews",
     ],
     propertyLimit: 0,
     photosPerJob: 50,

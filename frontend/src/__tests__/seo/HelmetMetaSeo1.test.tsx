@@ -30,12 +30,6 @@ vi.mock("@/services/contractor", () => ({
     getCredentials: vi.fn(() => PENDING),
   },
 }));
-vi.mock("@/services/agent", () => ({
-  agentService: {
-    getPublicProfile: vi.fn(() => PENDING),
-    getReviews:       vi.fn(() => PENDING),
-  },
-}));
 vi.mock("@/services/listing", () => ({
   listingService: {
     getAgentPerformanceRecords: vi.fn(() => PENDING),
@@ -175,40 +169,6 @@ describe("ContractorPublicPage — Helmet meta", () => {
         <MemoryRouter initialEntries={["/contractor/abc"]}>
           <Routes>
             <Route path="/contractor/:id" element={<ContractorPublicPage />} />
-          </Routes>
-        </MemoryRouter>
-      </HelmetProvider>
-    );
-    expect(metaContent('meta[property="og:type"]')).toBe("website");
-  });
-});
-
-// ── AgentPublicPage ───────────────────────────────────────────────────────────
-describe("AgentPublicPage — Helmet meta", () => {
-  let AgentPublicPage: React.ComponentType;
-  beforeAll(async () => {
-    AgentPublicPage = (await import("@/pages/AgentPublicPage")).default;
-  });
-
-  it("sets a title (loading or loaded)", () => {
-    render(
-      <HelmetProvider>
-        <MemoryRouter initialEntries={["/agent/xyz"]}>
-          <Routes>
-            <Route path="/agent/:id" element={<AgentPublicPage />} />
-          </Routes>
-        </MemoryRouter>
-      </HelmetProvider>
-    );
-    expect(document.title).toMatch(/HomeGentic/i);
-  });
-
-  it("sets og:type to website", () => {
-    render(
-      <HelmetProvider>
-        <MemoryRouter initialEntries={["/agent/xyz"]}>
-          <Routes>
-            <Route path="/agent/:id" element={<AgentPublicPage />} />
           </Routes>
         </MemoryRouter>
       </HelmetProvider>

@@ -39,7 +39,7 @@ export default function PricingPage() {
     : PLANS.filter((p) => p.tier === "Basic" || p.tier === "Pro" || p.tier === "Premium");
 
   const handleUpgrade = async (tier: PlanTier) => {
-    if (tier === "ContractorFree" || tier === "RealtorFree") {
+    if (tier === "ContractorFree") {
       await handleLogin();
       return;
     }

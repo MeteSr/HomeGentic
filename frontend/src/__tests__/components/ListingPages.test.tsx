@@ -4,7 +4,6 @@
  * Pages under test:
  *   ListingNewPage        — homeowner creates a sealed-bid listing request
  *   ListingDetailPage     — homeowner views proposals, compares, accepts
- *   AgentMarketplacePage  — agent browses open requests and submits proposals
  */
 
 import React from "react";
@@ -100,9 +99,6 @@ const mockProposal = {
   status: "Pending" as const, createdAt: _now - 1000,
   cmaComps: [{ address: "100 Oak Ave", salePriceCents: 51_000_000, bedrooms: 3, bathrooms: 2, sqft: 1800, soldDate: "2024-06-01" }],
 };
-const mockOpenRequest = {
-  ...mockBidRequest, id: "BID_2", bidDeadline: _now + 7 * 86_400_000, status: "Open" as const,
-};
 
 vi.mock("@/services/payment", () => ({
   paymentService: {
@@ -173,7 +169,6 @@ vi.mock("@/components/Layout", async (importOriginal) => {
 
 import ListingNewPage       from "@/pages/ListingNewPage";
 import ListingDetailPage    from "@/pages/ListingDetailPage";
-import AgentMarketplacePage from "@/pages/AgentMarketplacePage";
 import { listingService }   from "@/services/listing";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -339,107 +334,6 @@ describe("ListingDetailPage", () => {
   });
 });
 
-// ─── AgentMarketplacePage ─────────────────────────────────────────────────────
-
-describe("AgentMarketplacePage", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.mocked(listingService.getOpenBidRequests).mockResolvedValue([mockOpenRequest]);
-    vi.mocked(listingService.submitProposal).mockResolvedValue(mockProposal);
-  });
-
-  it("renders the marketplace heading", async () => {
-    renderPage(
-      <AgentMarketplacePage />,
-      "/agent/marketplace",
-      "/agent/marketplace"
-    );
-    await waitFor(() => {
-      expect(screen.getByRole("heading", { name: /marketplace/i })).toBeInTheDocument();
-    });
-  });
-
-  it("displays open bid requests", async () => {
-    renderPage(
-      <AgentMarketplacePage />,
-      "/agent/marketplace",
-      "/agent/marketplace"
-    );
-    await waitFor(() => {
-      expect(listingService.getOpenBidRequests).toHaveBeenCalled();
-    });
-  });
-
-  it("shows a Submit Proposal button for each open request", async () => {
-    renderPage(
-      <AgentMarketplacePage />,
-      "/agent/marketplace",
-      "/agent/marketplace"
-    );
-    await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: /submit proposal|propose|bid/i })
-      ).toBeInTheDocument();
-    });
-  });
-
-  it("shows proposal form when Submit Proposal is clicked", async () => {
-    renderPage(
-      <AgentMarketplacePage />,
-      "/agent/marketplace",
-      "/agent/marketplace"
-    );
-    await waitFor(() => screen.getByRole("button", { name: /submit proposal|propose|bid/i }));
-    fireEvent.click(screen.getByRole("button", { name: /submit proposal|propose|bid/i }));
-    expect(screen.getByLabelText(/commission/i)).toBeInTheDocument();
-  });
-
-  it("calls submitProposal when form is submitted", async () => {
-    renderPage(
-      <AgentMarketplacePage />,
-      "/agent/marketplace",
-      "/agent/marketplace"
-    );
-    // Open the form
-    await waitFor(() => screen.getByRole("button", { name: /submit proposal/i }));
-    fireEvent.click(screen.getByRole("button", { name: /submit proposal/i }));
-    // Fill required fields
-    fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Jane Smith" } });
-    fireEvent.change(screen.getByLabelText(/brokerage/i), { target: { value: "Premier Realty" } });
-    fireEvent.change(screen.getByLabelText(/commission/i), { target: { value: "250" } });
-    fireEvent.change(screen.getByLabelText(/est\. sale price/i), { target: { value: "550000" } });
-    // Submit the form — by submitting the form element directly (avoids button ambiguity)
-    const form = screen.getByLabelText(/your name/i).closest("form")!;
-    fireEvent.submit(form);
-    await waitFor(() => {
-      expect(listingService.submitProposal).toHaveBeenCalled();
-    });
-  });
-
-  it("shows empty-state message when no open requests exist", async () => {
-    vi.mocked(listingService.getOpenBidRequests).mockResolvedValueOnce([]);
-    renderPage(
-      <AgentMarketplacePage />,
-      "/agent/marketplace",
-      "/agent/marketplace"
-    );
-    await waitFor(() => {
-      expect(screen.getByText(/no open|no listings|no requests/i)).toBeInTheDocument();
-    });
-  });
-
-  it("displays bid deadline for each request", async () => {
-    renderPage(
-      <AgentMarketplacePage />,
-      "/agent/marketplace",
-      "/agent/marketplace"
-    );
-    await waitFor(() => {
-      expect(screen.getByText(/deadline|closes/i)).toBeInTheDocument();
-    });
-  });
-});
-
 // ─── 9.2.3 Property snapshot ──────────────────────────────────────────────────
 
 describe("ListingDetailPage — property snapshot (9.2.3)", () => {
@@ -486,47 +380,6 @@ describe("ListingNewPage — visibility controls (9.2.4)", () => {
   });
 });
 
-// ─── 9.2.5 Deadline enforcement ───────────────────────────────────────────────
-
-describe("AgentMarketplacePage — deadline enforcement (9.2.5)", () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it("shows open requests that have not expired", async () => {
-    vi.mocked(listingService.getOpenBidRequests).mockResolvedValueOnce([mockOpenRequest as any]);
-    renderPage(<AgentMarketplacePage />, "/agent/marketplace", "/agent/marketplace");
-    await waitFor(() => {
-      expect(screen.getByText(/Ocean view unit/i)).toBeInTheDocument();
-    });
-  });
-});
-
-// ─── 9.3.4 CMA comps ──────────────────────────────────────────────────────────
-
-describe("AgentMarketplacePage — CMA comps (9.3.4)", () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it("shows an Add Comp button in the proposal form", async () => {
-    vi.mocked(listingService.getOpenBidRequests).mockResolvedValueOnce([mockOpenRequest as any]);
-    renderPage(<AgentMarketplacePage />, "/agent/marketplace", "/agent/marketplace");
-    await waitFor(() => screen.getByText(/Submit Proposal/i));
-    fireEvent.click(screen.getByText(/Submit Proposal/i));
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /add comp/i })).toBeInTheDocument();
-    });
-  });
-
-  it("shows comp fields after clicking Add Comp", async () => {
-    vi.mocked(listingService.getOpenBidRequests).mockResolvedValueOnce([mockOpenRequest as any]);
-    renderPage(<AgentMarketplacePage />, "/agent/marketplace", "/agent/marketplace");
-    await waitFor(() => screen.getByText(/Submit Proposal/i));
-    fireEvent.click(screen.getByText(/Submit Proposal/i));
-    await waitFor(() => screen.getByRole("button", { name: /add comp/i }));
-    fireEvent.click(screen.getByRole("button", { name: /add comp/i }));
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText(/comp address/i)).toBeInTheDocument();
-    });
-  });
-});
 
 describe("ListingDetailPage — CMA comps display (9.3.4)", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -541,39 +394,3 @@ describe("ListingDetailPage — CMA comps display (9.3.4)", () => {
   });
 });
 
-// ─── 9.3.5 Proposal draft ─────────────────────────────────────────────────────
-
-describe("AgentMarketplacePage — proposal draft (9.3.5)", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    localStorage.clear();
-  });
-
-  it("shows a Save Draft button in the proposal form", async () => {
-    vi.mocked(listingService.getOpenBidRequests).mockResolvedValueOnce([mockOpenRequest as any]);
-    renderPage(<AgentMarketplacePage />, "/agent/marketplace", "/agent/marketplace");
-    await waitFor(() => screen.getByText(/Submit Proposal/i));
-    fireEvent.click(screen.getByText(/Submit Proposal/i));
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /save draft/i })).toBeInTheDocument();
-    });
-  });
-
-  it("pre-fills form from localStorage draft", async () => {
-    localStorage.setItem("proposal_draft_BID_2", JSON.stringify({
-      form: {
-        agentName: "Drafted Agent", agentBrokerage: "Draft Realty",
-        commissionBps: "300", estimatedSalePrice: "", estimatedDaysOnMarket: "",
-        cmaSummary: "", marketingPlan: "", includedServices: "", coverLetter: "",
-      },
-      comps: [],
-    }));
-    vi.mocked(listingService.getOpenBidRequests).mockResolvedValueOnce([mockOpenRequest as any]);
-    renderPage(<AgentMarketplacePage />, "/agent/marketplace", "/agent/marketplace");
-    await waitFor(() => screen.getByText(/Submit Proposal/i));
-    fireEvent.click(screen.getByText(/Submit Proposal/i));
-    await waitFor(() => {
-      expect(screen.getByDisplayValue("Drafted Agent")).toBeInTheDocument();
-    });
-  });
-});

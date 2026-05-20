@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEPLOY_SCRIPT_VERSION="1.8.0"
+DEPLOY_SCRIPT_VERSION="1.9.0"
 ENV=${1:-local}
 
 echo "============================================"
@@ -202,7 +202,7 @@ fi
 #   non-local — three-phase: create (sequential) → build (sequential) → install
 #               (sequential). Sequential builds avoid concurrent writes to local.ids.json.
 
-CANISTERS=(auth property job contractor quote payment photo report maintenance market sensor monitoring listing agent recurring bills ai_proxy audit referrals)
+CANISTERS=(auth property job contractor quote payment photo report maintenance market sensor monitoring listing recurring bills ai_proxy audit referrals)
 LOG_DIR=$(mktemp -d /tmp/icp-deploy-XXXXXX)
 trap 'rm -rf "$LOG_DIR"' EXIT
 DEPLOY_PRINCIPAL=$(icp identity principal)
@@ -530,7 +530,7 @@ echo "============================================"
 DEPLOYER=$(icp identity principal)
 echo "  Deployer principal: $DEPLOYER"
 
-ADMIN_CANISTERS=(property job contractor quote photo report maintenance market sensor listing agent recurring bills monitoring audit referrals)
+ADMIN_CANISTERS=(property job contractor quote photo report maintenance market sensor listing recurring bills monitoring audit referrals)
 
 for canister in "${ADMIN_CANISTERS[@]}"; do
   echo "  $canister: adding deployer as admin..."
@@ -815,7 +815,7 @@ echo "============================================"
 FREEZE_CANISTERS=(
   auth property job contractor quote payment photo
   report maintenance market sensor monitoring listing
-  agent recurring bills ai_proxy audit referrals
+  recurring bills ai_proxy audit referrals
 )
 FREEZE_THRESHOLD=2592000  # 30 days in seconds
 if command -v dfx >/dev/null 2>&1; then

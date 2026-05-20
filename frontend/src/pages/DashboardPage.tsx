@@ -39,6 +39,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { useScoreTracking } from "@/hooks/useScoreTracking";
 import { useDashboardDismissals } from "@/hooks/useDashboardDismissals";
 import { useVoiceAgent } from "@/hooks/useVoiceAgent";
+import LocalBrokerModal, { isLocalBrokerArea, isLocalBrokerDismissed } from "@/components/LocalBrokerModal";
 
 const UI = {
   ink:      COLORS.plum,
@@ -370,7 +371,7 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const { profile, lastLoginAt } = useAuthStore();
   const { isMobile } = useBreakpoint();
-  const { open: openAddProp } = useAddPropertyStore();
+  const { isOpen: isWizardOpen, open: openAddProp } = useAddPropertyStore();
 
   // ─── Domain hooks ────────────────────────────────────────────────────────────
   const {
@@ -430,6 +431,14 @@ export default function DashboardPage() {
   // ─── Dismissals ──────────────────────────────────────────────────────────────
   const d = useDashboardDismissals();
 
+  // ─── Local broker modal ───────────────────────────────────────────────────────
+  const [showBrokerModal, setShowBrokerModal] = useState(false);
+  useEffect(() => {
+    if (propLoading || properties.length === 0 || isLocalBrokerDismissed()) return;
+    const cities = properties.map((p) => (p as any).city ?? "");
+    if (isLocalBrokerArea(cities)) setShowBrokerModal(true);
+  }, [propLoading, properties]);
+
   // ─── Modal state (2 of 3 useState in this file) ───────────────────────────────
   const [modals, setModals] = useState<ModalState>(MODAL_INITIAL);
   const openLogJob = (prefill?: ModalState["logJobPrefill"]) =>
@@ -453,12 +462,14 @@ export default function DashboardPage() {
 
   // ─── Effects ─────────────────────────────────────────────────────────────────
 
-  // Redirect when user has exactly one property (nothing to select on dashboard)
+  // Redirect when user has exactly one property (nothing to select on dashboard).
+  // Suppressed while the add-property wizard is open so mid-onboarding navigation
+  // doesn't fire while the user is still stepping through the wizard.
   useEffect(() => {
-    if (!propLoading && properties.length === 1) {
+    if (!propLoading && properties.length === 1 && !isWizardOpen) {
       navigate(`/properties/${properties[0].id}`, { replace: true });
     }
-  }, [propLoading, properties.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [propLoading, properties.length, isWizardOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Initialise property selector to first property after load
   useEffect(() => {
@@ -1706,6 +1717,14 @@ export default function DashboardPage() {
         onClose={() => setModals((m) => ({ ...m, showAddService: false }))}
         onSuccess={() => { /* useMaintenanceSchedule / usePropertySummary will refresh on next mount */ }}
       />
+
+      {/* Local broker modal — Daytona area geo-targeting */}
+      {showBrokerModal && (
+        <LocalBrokerModal
+          propertyAddress={(properties[0] as any)?.address ?? ""}
+          onClose={() => setShowBrokerModal(false)}
+        />
+      )}
 
     </Layout>
   );

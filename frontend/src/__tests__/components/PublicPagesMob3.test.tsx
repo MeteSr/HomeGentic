@@ -23,14 +23,12 @@ function mockMatchMedia(width: number) {
 // ── lazy imports (after matchMedia is set up) ─────────────────────────────────
 let ScoreCertPage: React.ComponentType;
 let ContractorPublicPage: React.ComponentType;
-let AgentPublicPage: React.ComponentType;
 let ListingDetailPage: React.ComponentType;
 
 beforeAll(async () => {
   mockMatchMedia(1280);
   ScoreCertPage        = (await import("@/pages/ScoreCertPage")).default;
   ContractorPublicPage = (await import("@/pages/ContractorPublicPage")).default;
-  AgentPublicPage      = (await import("@/pages/AgentPublicPage")).default;
   ListingDetailPage    = (await import("@/pages/ListingDetailPage")).default;
 });
 
@@ -144,24 +142,6 @@ describe("ContractorPublicPage — renders on desktop", () => {
     const contentDiv = container.querySelector("[style*='max-width']") as HTMLElement | null;
     expect(contentDiv).not.toBeNull();
     expect(contentDiv!.style.padding).toBeTruthy();
-  });
-});
-
-// ── AgentPublicPage ───────────────────────────────────────────────────────────
-
-describe("AgentPublicPage — renders on mobile", () => {
-  beforeEach(() => mockMatchMedia(390));
-
-  it("renders loading state without crashing on phone", async () => {
-    let container!: HTMLElement;
-    await act(async () => {
-      ({ container } = render(
-        <MemoryRouter initialEntries={["/agent/test-id"]}>
-          <Routes><Route path="/agent/:id" element={<AgentPublicPage />} /></Routes>
-        </MemoryRouter>
-      ));
-    });
-    expect(container.firstChild).not.toBeNull();
   });
 });
 

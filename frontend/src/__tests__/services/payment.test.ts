@@ -58,12 +58,12 @@ vi.mock("@icp-sdk/core/agent", () => ({
 // ─── PLANS data integrity ─────────────────────────────────────────────────────
 
 describe("PLANS", () => {
-  it("contains exactly 8 tiers (Free, Basic, Pro, Premium, ContractorFree, ContractorPro, RealtorFree, RealtorPro)", () => {
-    expect(PLANS).toHaveLength(8);
+  it("contains exactly 6 tiers (Free, Basic, Pro, Premium, ContractorFree, ContractorPro)", () => {
+    expect(PLANS).toHaveLength(6);
   });
 
   it("contains all expected tiers in order", () => {
-    expect(PLANS.map((p) => p.tier)).toEqual(["Free", "Basic", "Pro", "Premium", "ContractorFree", "ContractorPro", "RealtorFree", "RealtorPro"]);
+    expect(PLANS.map((p) => p.tier)).toEqual(["Free", "Basic", "Pro", "Premium", "ContractorFree", "ContractorPro"]);
   });
 
   it("Free tier is $0 unsubscribed sentinel with no limits", () => {

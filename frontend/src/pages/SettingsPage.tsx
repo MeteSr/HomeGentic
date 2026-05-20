@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { User, CreditCard, Bell, Lock, CheckCircle, LayoutDashboard, Download } from "lucide-react";
+import { User, CreditCard, Bell, Lock, CheckCircle, Download } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { Badge } from "@/components/Badge";
@@ -8,7 +8,6 @@ import { authService } from "@/services/auth";
 import { PLANS, type PlanTier } from "@/services/planConstants";
 import { paymentService } from "@/services/payment";
 import { winBackService } from "@/services/winBackService";
-import { agentProfileService, type AgentProfile } from "@/services/agentProfile";
 import { useAuthStore } from "@/store/authStore";
 import { usePropertyStore } from "@/store/propertyStore";
 import { useJobStore } from "@/store/jobStore";
@@ -163,112 +162,6 @@ function AccountTab({ profile, setProfile }: { profile: any; setProfile: any }) 
         </div>
       </div>
 
-      {profile?.role === "Realtor" && (
-        <>
-          <SectionDivider />
-          <AgentBrandingSection />
-          <SectionDivider />
-          <AgentDashboardLink />
-        </>
-      )}
-    </div>
-  );
-}
-
-// ── Agent branding ────────────────────────────────────────────────────────────
-
-function AgentBrandingSection() {
-  const saved = agentProfileService.load();
-  const [name,      setName]      = useState(saved?.name      ?? "");
-  const [brokerage, setBrokerage] = useState(saved?.brokerage ?? "");
-  const [phone,     setBrandPhone] = useState(saved?.phone    ?? "");
-  const [logoUrl,   setLogoUrl]   = useState(saved?.logoUrl   ?? "");
-
-  const handleSave = () => {
-    if (phone && !isValidPhone(phone)) { toast.error("Enter a valid phone number"); return; }
-    if (logoUrl && !isValidHttpsUrl(logoUrl)) { toast.error("Logo URL must start with https://"); return; }
-    agentProfileService.save({ name, brokerage, phone, logoUrl });
-    toast.success("Agent branding saved");
-  };
-
-  const handleClear = () => {
-    agentProfileService.clear();
-    setName(""); setBrokerage(""); setBrandPhone(""); setLogoUrl("");
-    toast.success("Branding cleared");
-  };
-
-  return (
-    <div>
-      <SectionHeading>Agent Co-Branding</SectionHeading>
-      <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: COLORS.plumMid, marginBottom: "1.25rem", fontWeight: 300 }}>
-        Your branding appears on HomeGentic reports you share with buyers. ICP verification remains intact.
-      </p>
-      <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-        <div>
-          <FieldLabel>Full Name</FieldLabel>
-          <input className="form-input" type="text" placeholder="Jane Smith" value={name} onChange={(e) => setName(e.target.value)} />
-        </div>
-        <div>
-          <FieldLabel>Brokerage</FieldLabel>
-          <input className="form-input" type="text" placeholder="Keller Williams Austin" value={brokerage} onChange={(e) => setBrokerage(e.target.value)} />
-        </div>
-        <div>
-          <FieldLabel>Phone</FieldLabel>
-          <input className="form-input" type="tel" placeholder="+1 (512) 000-0000" value={phone}
-            onChange={(e) => setBrandPhone(e.target.value)}
-            style={phone && !isValidPhone(phone) ? { borderColor: COLORS.rust } : undefined}
-          />
-          {phone && !isValidPhone(phone) && (
-            <p style={{ color: COLORS.rust, fontSize: "0.75rem", marginTop: "0.25rem", fontFamily: FONTS.sans }}>Enter a valid phone number</p>
-          )}
-        </div>
-        <div>
-          <FieldLabel>
-            Logo URL{" "}
-            <span style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: COLORS.plumMid, fontWeight: 400 }}>(optional — https://)</span>
-          </FieldLabel>
-          <input className="form-input" type="url" placeholder="https://yourbrokerage.com/logo.png" value={logoUrl}
-            onChange={(e) => setLogoUrl(e.target.value)}
-            style={logoUrl && !isValidHttpsUrl(logoUrl) ? { borderColor: COLORS.rust } : undefined}
-          />
-          {logoUrl && !isValidHttpsUrl(logoUrl) && (
-            <p style={{ color: COLORS.rust, fontSize: "0.75rem", marginTop: "0.25rem", fontFamily: FONTS.sans }}>Must be a valid https:// URL</p>
-          )}
-        </div>
-
-        {(name || brokerage) && (
-          <div style={{ background: COLORS.butter, padding: "0.875rem 1.25rem", display: "flex", alignItems: "center", gap: "0.875rem" }}>
-            {logoUrl && isValidHttpsUrl(logoUrl) && (
-              <img src={logoUrl} alt="logo" style={{ height: "2rem", objectFit: "contain", flexShrink: 0 }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-            )}
-            <div>
-              {name && <p style={{ fontFamily: FONTS.serif, fontWeight: 700, fontSize: "0.875rem", color: COLORS.plum }}>{name}</p>}
-              {brokerage && <p style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: COLORS.plumMid }}>{brokerage}</p>}
-              {phone && <p style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: COLORS.plumMid }}>{phone}</p>}
-            </div>
-          </div>
-        )}
-
-        <div style={{ display: "flex", gap: "0.75rem" }}>
-          <Button onClick={handleSave} icon={<CheckCircle size={14} />}>Save Branding</Button>
-          {saved && <Button variant="outline" onClick={handleClear}>Clear</Button>}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AgentDashboardLink() {
-  const navigate = useNavigate();
-  return (
-    <div>
-      <SectionHeading>Agent Dashboard</SectionHeading>
-      <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: COLORS.plumMid, marginBottom: "1rem", fontWeight: 300 }}>
-        Track all share links across your client properties — view counts, expiry, and revocation.
-      </p>
-      <Button onClick={() => navigate("/agent-dashboard")} icon={<LayoutDashboard size={14} />}>
-        Open Agent Dashboard
-      </Button>
     </div>
   );
 }

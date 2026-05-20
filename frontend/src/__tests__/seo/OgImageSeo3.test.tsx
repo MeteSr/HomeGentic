@@ -27,12 +27,6 @@ vi.mock("@/services/contractor", () => ({
     getCredentials: vi.fn(() => PENDING),
   },
 }));
-vi.mock("@/services/agent", () => ({
-  agentService: {
-    getPublicProfile: vi.fn(() => PENDING),
-    getReviews:       vi.fn(() => PENDING),
-  },
-}));
 vi.mock("@/services/listing", () => ({
   listingService: {
     getAgentPerformanceRecords: vi.fn(() => PENDING),
@@ -139,21 +133,6 @@ describe("ContractorPublicPage — og:image", () => {
   });
 });
 
-describe("AgentPublicPage — og:image", () => {
-  let AgentPublicPage: React.ComponentType;
-  beforeAll(async () => { AgentPublicPage = (await import("@/pages/AgentPublicPage")).default; });
-
-  it("sets og:image", () => {
-    render(
-      <HelmetProvider>
-        <MemoryRouter initialEntries={["/agent/xyz"]}>
-          <Routes><Route path="/agent/:id" element={<AgentPublicPage />} /></Routes>
-        </MemoryRouter>
-      </HelmetProvider>
-    );
-    expect(ogImage()).toMatch(/og-default\.png/);
-  });
-});
 
 describe("ScoreCertPage — og:image", () => {
   let ScoreCertPage: React.ComponentType;

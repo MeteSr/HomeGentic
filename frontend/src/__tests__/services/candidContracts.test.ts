@@ -113,7 +113,6 @@ import { idlFactory as reportIdl }      from "@/services/report";
 import { idlFactory as maintenanceIdl } from "@/services/maintenance";
 import { idlFactory as sensorIdl }      from "@/services/sensor";
 import { idlFactory as listingIdl }     from "@/services/listing";
-import { idlFactory as agentIdl }       from "@/services/agent";
 import { idlFactory as recurringIdl }   from "@/services/recurringService";
 import { idlFactory as aiProxyIdl }     from "@/services/aiProxy";
 import { idlFactory as monitoringIdl }  from "@/services/monitoringService";
@@ -131,7 +130,6 @@ describe("Candid contract snapshots — method arity", () => {
   it("maintenance", ()  => { expect(extractServiceDef(maintenanceIdl as any)).toMatchSnapshot(); });
   it("sensor", ()       => { expect(extractServiceDef(sensorIdl as any)).toMatchSnapshot(); });
   it("listing", ()      => { expect(extractServiceDef(listingIdl as any)).toMatchSnapshot(); });
-  it("agent", ()        => { expect(extractServiceDef(agentIdl as any)).toMatchSnapshot(); });
   it("recurring", ()    => { expect(extractServiceDef(recurringIdl as any)).toMatchSnapshot(); });
   it("ai_proxy", ()     => { expect(extractServiceDef(aiProxyIdl as any)).toMatchSnapshot(); });
   it("monitoring", ()   => { expect(extractServiceDef(monitoringIdl as any)).toMatchSnapshot(); });

@@ -123,7 +123,6 @@ vi.mock("@/components/Layout", () => ({
 }));
 
 import ListingDetailPage  from "@/pages/ListingDetailPage";
-import AgentMarketplacePage from "@/pages/AgentMarketplacePage";
 import { listingService } from "@/services/listing";
 
 function renderDetail(path = "/listing/BID_1") {
@@ -131,16 +130,6 @@ function renderDetail(path = "/listing/BID_1") {
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/listing/:id" element={<ListingDetailPage />} />
-      </Routes>
-    </MemoryRouter>
-  );
-}
-
-function renderMarketplace() {
-  return render(
-    <MemoryRouter initialEntries={["/agent/marketplace"]}>
-      <Routes>
-        <Route path="/agent/marketplace" element={<AgentMarketplacePage />} />
       </Routes>
     </MemoryRouter>
   );
@@ -274,43 +263,3 @@ describe("ListingDetailPage — counter-proposal (9.4.6)", () => {
   });
 });
 
-describe("AgentMarketplacePage — respond to counter (9.4.6)", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.mocked(listingService.getOpenBidRequests).mockResolvedValue([]);
-    vi.mocked(listingService.getMyCounters).mockResolvedValue([mockCounter as any]);
-    vi.mocked(listingService.respondToCounter).mockResolvedValue(undefined);
-  });
-
-  it("shows pending counters section", async () => {
-    renderMarketplace();
-    await waitFor(() => {
-      expect(screen.getByText(/pending counter|counter offer/i)).toBeInTheDocument();
-    });
-  });
-
-  it("shows the counter commission rate", async () => {
-    renderMarketplace();
-    await waitFor(() => {
-      expect(screen.getByText(/2\.25%|225/)).toBeInTheDocument();
-    });
-  });
-
-  it("Accept counter button calls respondToCounter with 'accept'", async () => {
-    renderMarketplace();
-    await waitFor(() => screen.getByRole("button", { name: /accept/i }));
-    fireEvent.click(screen.getByRole("button", { name: /accept/i }));
-    await waitFor(() => {
-      expect(listingService.respondToCounter).toHaveBeenCalledWith("COUNTER_1", "accept");
-    });
-  });
-
-  it("Decline counter button calls respondToCounter with 'reject'", async () => {
-    renderMarketplace();
-    await waitFor(() => screen.getByRole("button", { name: /decline|reject/i }));
-    fireEvent.click(screen.getByRole("button", { name: /decline|reject/i }));
-    await waitFor(() => {
-      expect(listingService.respondToCounter).toHaveBeenCalledWith("COUNTER_1", "reject");
-    });
-  });
-});

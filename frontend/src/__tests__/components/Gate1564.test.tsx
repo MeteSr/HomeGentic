@@ -75,23 +75,6 @@ vi.mock("@/services/listing", () => ({
   computeNetProceeds: vi.fn().mockReturnValue(0),
 }));
 
-vi.mock("@/services/agent", () => ({
-  agentService: {
-    getAllProfiles: vi.fn().mockResolvedValue([
-      {
-        id: "a1", name: "Alice Agent", brokerage: "Realty Co",
-        licenseNumber: "LIC-001", bio: "Agent bio",
-        statesLicensed: ["TX"], avgDaysOnMarket: 20,
-        listingsLast12Months: 5, isVerified: true,
-        homeGenticTransactionCount: 2, typicalCommissionBps: 250,
-        phone: "555-0001", email: "alice@example.com",
-        createdAt: 0, updatedAt: 0,
-      },
-    ]),
-  },
-  computeAverageRating: vi.fn().mockReturnValue(0),
-}));
-
 vi.mock("@/services/fsbo", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/fsbo")>();
   return {
@@ -122,7 +105,6 @@ vi.mock("@/components/Layout", () => ({
 // ─── Imports ──────────────────────────────────────────────────────────────────
 
 import ListingNewPage  from "@/pages/ListingNewPage";
-import AgentBrowsePage from "@/pages/AgentBrowsePage";
 import FsboPanel       from "@/components/FsboPanel";
 import { paymentService } from "@/services/payment";
 
@@ -133,16 +115,6 @@ function renderListing() {
     <MemoryRouter initialEntries={["/listing/new"]}>
       <Routes>
         <Route path="/listing/new" element={<ListingNewPage />} />
-      </Routes>
-    </MemoryRouter>
-  );
-}
-
-function renderBrowse() {
-  return render(
-    <MemoryRouter initialEntries={["/agents"]}>
-      <Routes>
-        <Route path="/agents" element={<AgentBrowsePage />} />
       </Routes>
     </MemoryRouter>
   );
@@ -192,31 +164,6 @@ describe("ListingNewPage — accessible to all paying tiers (15.6.4)", () => {
     renderListing();
     await waitFor(() =>
       expect(screen.getByText(/list your home/i)).toBeInTheDocument()
-    );
-  });
-});
-
-describe("AgentBrowsePage — accessible to all paying tiers (15.6.4)", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.mocked(paymentService.getMySubscription).mockImplementation(() =>
-      Promise.resolve({ tier: mockTier, expiresAt: null, cancelledAt: null })
-    );
-  });
-
-  it("Basic user sees the agent directory", async () => {
-    mockTier = "Basic";
-    renderBrowse();
-    await waitFor(() =>
-      expect(screen.getByText(/find an agent/i)).toBeInTheDocument()
-    );
-  });
-
-  it("Pro user sees the agent directory", async () => {
-    mockTier = "Pro";
-    renderBrowse();
-    await waitFor(() =>
-      expect(screen.getByText(/find an agent/i)).toBeInTheDocument()
     );
   });
 });

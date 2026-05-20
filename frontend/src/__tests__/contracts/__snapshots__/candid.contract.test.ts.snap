@@ -1,86 +1,5 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`agent IDL factory > full signature snapshot 1`] = `
-{
-  "addReview": {
-    "args": [
-      "record {agentId:principal; comment:text; rating:nat; transactionId:text}",
-    ],
-    "mode": [],
-    "rets": [
-      "variant {ok:record {id:text; createdAt:int; agentId:principal; comment:text; reviewerPrincipal:principal; rating:nat; transactionId:text}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; DuplicateReview; AlreadyExists; RateLimitExceeded}}",
-    ],
-  },
-  "getAllProfiles": {
-    "args": [],
-    "mode": [
-      "query",
-    ],
-    "rets": [
-      "vec record {id:principal; bio:text; statesLicensed:vec text; name:text; createdAt:int; email:text; brokerage:text; updatedAt:int; isVerified:bool; listingsLast12Months:nat; avgDaysOnMarket:nat; licenseNumber:text; phone:text}",
-    ],
-  },
-  "getMyProfile": {
-    "args": [],
-    "mode": [
-      "query",
-    ],
-    "rets": [
-      "opt record {id:principal; bio:text; statesLicensed:vec text; name:text; createdAt:int; email:text; brokerage:text; updatedAt:int; isVerified:bool; listingsLast12Months:nat; avgDaysOnMarket:nat; licenseNumber:text; phone:text}",
-    ],
-  },
-  "getProfile": {
-    "args": [
-      "principal",
-    ],
-    "mode": [
-      "query",
-    ],
-    "rets": [
-      "opt record {id:principal; bio:text; statesLicensed:vec text; name:text; createdAt:int; email:text; brokerage:text; updatedAt:int; isVerified:bool; listingsLast12Months:nat; avgDaysOnMarket:nat; licenseNumber:text; phone:text}",
-    ],
-  },
-  "getReviews": {
-    "args": [
-      "principal",
-    ],
-    "mode": [
-      "query",
-    ],
-    "rets": [
-      "vec record {id:text; createdAt:int; agentId:principal; comment:text; reviewerPrincipal:principal; rating:nat; transactionId:text}",
-    ],
-  },
-  "register": {
-    "args": [
-      "record {bio:text; statesLicensed:vec text; name:text; email:text; brokerage:text; licenseNumber:text; phone:text}",
-    ],
-    "mode": [],
-    "rets": [
-      "variant {ok:record {id:principal; bio:text; statesLicensed:vec text; name:text; createdAt:int; email:text; brokerage:text; updatedAt:int; isVerified:bool; listingsLast12Months:nat; avgDaysOnMarket:nat; licenseNumber:text; phone:text}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; DuplicateReview; AlreadyExists; RateLimitExceeded}}",
-    ],
-  },
-  "updateProfile": {
-    "args": [
-      "record {bio:text; statesLicensed:vec text; name:text; email:text; brokerage:text; licenseNumber:text; phone:text}",
-    ],
-    "mode": [],
-    "rets": [
-      "variant {ok:record {id:principal; bio:text; statesLicensed:vec text; name:text; createdAt:int; email:text; brokerage:text; updatedAt:int; isVerified:bool; listingsLast12Months:nat; avgDaysOnMarket:nat; licenseNumber:text; phone:text}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; DuplicateReview; AlreadyExists; RateLimitExceeded}}",
-    ],
-  },
-  "verifyAgent": {
-    "args": [
-      "principal",
-    ],
-    "mode": [],
-    "rets": [
-      "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; DuplicateReview; AlreadyExists; RateLimitExceeded}}",
-    ],
-  },
-}
-`;
-
 exports[`ai_proxy IDL factory > full signature snapshot 1`] = `
 {
   "addAdmin": {
@@ -1217,12 +1136,12 @@ exports[`payment IDL factory > full signature snapshot 1`] = `
     "args": [],
     "mode": [],
     "rets": [
-      "variant {ok:record {expiresAt:int; owner:principal; createdAt:int; tier:variant {Pro; Premium; Free; RealtorFree; Basic; ContractorPro; ContractorFree; RealtorPro}; cancelledAt:opt int}; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
+      "variant {ok:record {expiresAt:int; owner:principal; createdAt:int; tier:variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}; cancelledAt:opt int}; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
     ],
   },
   "configureStripe": {
     "args": [
-      "record {cancelUrl:text; secretKey:text; priceIds:record {premiumMonthly:text; contractorProYearly:text; contractorProMonthly:text; realtorProMonthly:text; realtorProYearly:text; proMonthly:text; basicYearly:text; basicMonthly:text; proYearly:text; premiumYearly:text}; successUrl:text}",
+      "record {cancelUrl:text; secretKey:text; priceIds:record {premiumMonthly:text; contractorProYearly:text; contractorProMonthly:text; proMonthly:text; basicYearly:text; basicMonthly:text; proYearly:text; premiumYearly:text}; successUrl:text}",
     ],
     "mode": [],
     "rets": [
@@ -1231,7 +1150,7 @@ exports[`payment IDL factory > full signature snapshot 1`] = `
   },
   "createStripeCheckoutSession": {
     "args": [
-      "variant {Pro; Premium; Free; RealtorFree; Basic; ContractorPro; ContractorFree; RealtorPro}",
+      "variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}",
       "variant {Monthly; Yearly}",
       "opt record {giftMessage:text; deliveryDate:text; senderName:text; recipientName:text; recipientEmail:text}",
     ],
@@ -1246,7 +1165,7 @@ exports[`payment IDL factory > full signature snapshot 1`] = `
       "query",
     ],
     "rets": [
-      "vec record {periodDays:nat; tier:variant {Pro; Premium; Free; RealtorFree; Basic; ContractorPro; ContractorFree; RealtorPro}; quoteRequestsPerMonth:nat; propertyLimit:nat; priceUSD:nat; photosPerJob:nat}",
+      "vec record {periodDays:nat; tier:variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}; quoteRequestsPerMonth:nat; propertyLimit:nat; priceUSD:nat; photosPerJob:nat}",
     ],
   },
   "getMyAgentCredits": {
@@ -1264,12 +1183,12 @@ exports[`payment IDL factory > full signature snapshot 1`] = `
       "query",
     ],
     "rets": [
-      "variant {ok:record {expiresAt:int; owner:principal; createdAt:int; tier:variant {Pro; Premium; Free; RealtorFree; Basic; ContractorPro; ContractorFree; RealtorPro}; cancelledAt:opt int}; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
+      "variant {ok:record {expiresAt:int; owner:principal; createdAt:int; tier:variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}; cancelledAt:opt int}; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
     ],
   },
   "getPriceQuote": {
     "args": [
-      "variant {Pro; Premium; Free; RealtorFree; Basic; ContractorPro; ContractorFree; RealtorPro}",
+      "variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}",
     ],
     "mode": [],
     "rets": [
@@ -1278,13 +1197,13 @@ exports[`payment IDL factory > full signature snapshot 1`] = `
   },
   "getPricing": {
     "args": [
-      "variant {Pro; Premium; Free; RealtorFree; Basic; ContractorPro; ContractorFree; RealtorPro}",
+      "variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}",
     ],
     "mode": [
       "query",
     ],
     "rets": [
-      "record {periodDays:nat; tier:variant {Pro; Premium; Free; RealtorFree; Basic; ContractorPro; ContractorFree; RealtorPro}; quoteRequestsPerMonth:nat; propertyLimit:nat; priceUSD:nat; photosPerJob:nat}",
+      "record {periodDays:nat; tier:variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}; quoteRequestsPerMonth:nat; propertyLimit:nat; priceUSD:nat; photosPerJob:nat}",
     ],
   },
   "getSubscriptionStats": {
@@ -1293,17 +1212,17 @@ exports[`payment IDL factory > full signature snapshot 1`] = `
       "query",
     ],
     "rets": [
-      "record {pro:nat; total:nat; premium:nat; contractorPro:nat; free:nat; realtorFree:nat; estimatedMrrUsd:nat; realtorPro:nat; basic:nat; contractorFree:nat; activePaid:nat}",
+      "record {pro:nat; total:nat; premium:nat; contractorPro:nat; free:nat; estimatedMrrUsd:nat; basic:nat; contractorFree:nat; activePaid:nat}",
     ],
   },
   "grantSubscription": {
     "args": [
       "principal",
-      "variant {Pro; Premium; Free; RealtorFree; Basic; ContractorPro; ContractorFree; RealtorPro}",
+      "variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}",
     ],
     "mode": [],
     "rets": [
-      "variant {ok:record {expiresAt:int; owner:principal; createdAt:int; tier:variant {Pro; Premium; Free; RealtorFree; Basic; ContractorPro; ContractorFree; RealtorPro}; cancelledAt:opt int}; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
+      "variant {ok:record {expiresAt:int; owner:principal; createdAt:int; tier:variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}; cancelledAt:opt int}; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
     ],
   },
   "initAdmins": {
@@ -1330,7 +1249,7 @@ exports[`payment IDL factory > full signature snapshot 1`] = `
       "query",
     ],
     "rets": [
-      "variant {ok:vec record {redeemedBy:opt principal; giftMessage:text; createdAt:int; tier:variant {Pro; Premium; Free; RealtorFree; Basic; ContractorPro; ContractorFree; RealtorPro}; deliveryDate:text; billing:variant {Monthly; Yearly}; senderName:text; recipientName:text; giftToken:text; recipientEmail:text}; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
+      "variant {ok:vec record {redeemedBy:opt principal; giftMessage:text; createdAt:int; tier:variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}; deliveryDate:text; billing:variant {Monthly; Yearly}; senderName:text; recipientName:text; giftToken:text; recipientEmail:text}; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
     ],
   },
   "redeemGift": {
@@ -1339,7 +1258,7 @@ exports[`payment IDL factory > full signature snapshot 1`] = `
     ],
     "mode": [],
     "rets": [
-      "variant {ok:record {expiresAt:int; owner:principal; createdAt:int; tier:variant {Pro; Premium; Free; RealtorFree; Basic; ContractorPro; ContractorFree; RealtorPro}; cancelledAt:opt int}; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
+      "variant {ok:record {expiresAt:int; owner:principal; createdAt:int; tier:variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}; cancelledAt:opt int}; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
     ],
   },
   "setTierCanisterIds": {
@@ -1355,11 +1274,11 @@ exports[`payment IDL factory > full signature snapshot 1`] = `
   },
   "subscribe": {
     "args": [
-      "variant {Pro; Premium; Free; RealtorFree; Basic; ContractorPro; ContractorFree; RealtorPro}",
+      "variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}",
     ],
     "mode": [],
     "rets": [
-      "variant {ok:record {expiresAt:int; owner:principal; createdAt:int; tier:variant {Pro; Premium; Free; RealtorFree; Basic; ContractorPro; ContractorFree; RealtorPro}; cancelledAt:opt int}; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
+      "variant {ok:record {expiresAt:int; owner:principal; createdAt:int; tier:variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}; cancelledAt:opt int}; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
     ],
   },
   "verifyStripeSession": {
@@ -1368,7 +1287,7 @@ exports[`payment IDL factory > full signature snapshot 1`] = `
     ],
     "mode": [],
     "rets": [
-      "variant {ok:record {expiresAt:int; owner:principal; createdAt:int; tier:variant {Pro; Premium; Free; RealtorFree; Basic; ContractorPro; ContractorFree; RealtorPro}; cancelledAt:opt int}; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
+      "variant {ok:record {expiresAt:int; owner:principal; createdAt:int; tier:variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}; cancelledAt:opt int}; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
     ],
   },
 }

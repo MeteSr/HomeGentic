@@ -109,7 +109,7 @@ describe("PROD.7 — deploy.sh calls addAdmin for each non-payment canister", ()
   const CANISTERS_WITH_ADMIN = [
     "property", "job", "contractor", "quote",
     "photo", "report", "maintenance", "market", "sensor",
-    "listing", "agent", "recurring", "monitoring",
+    "listing", "recurring", "monitoring",
   ];
 
   const deploy = () => read("scripts/deploy.sh");
@@ -287,7 +287,7 @@ describe("SEC.1 — Principal.isAnonymous guard in every update-capable canister
   const CANISTERS_WITH_UPDATE_FUNCS = [
     "auth", "property", "job", "contractor", "quote", "payment",
     "photo", "report", "market", "maintenance", "sensor",
-    "monitoring", "listing", "agent", "recurring", "bills",
+    "monitoring", "listing", "recurring", "bills",
   ];
 
   for (const canister of CANISTERS_WITH_UPDATE_FUNCS) {

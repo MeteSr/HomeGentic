@@ -40,41 +40,6 @@ const CONTRACTOR_PLANS = [
   },
 ];
 
-const REALTOR_PLANS = [
-  {
-    tier: "Realtor Free",
-    planTier: "RealtorFree" as PlanTier,
-    price: "$0",
-    tag: null as string | null,
-    fee: "+ $100 per won bid",
-    features: [
-      "Realtor profile listing",
-      "Bid on homeowner FSBO listing requests",
-      "5 photos per bid proposal",
-      "Basic performance score",
-      "Job completion certificates",
-    ],
-    cta: "Join free",
-  },
-  {
-    tier: "Realtor Pro",
-    planTier: "RealtorPro" as PlanTier,
-    price: "$30/mo",
-    tag: "Most Popular",
-    fee: "No bid fees",
-    features: [
-      "Everything in Realtor Free",
-      "Unlimited bid proposals",
-      "50 photos per bid proposal",
-      "10 AI agent calls/day",
-      "Priority placement in agent search",
-      "Verified Realtor badge",
-      "Performance analytics dashboard",
-      "Customer reviews",
-    ],
-    cta: "Go Pro",
-  },
-];
 
 const CANCELLATION_STYLE: React.CSSProperties = {
   textAlign: "center",
@@ -103,7 +68,7 @@ export default function ForProsPage() {
   const { isAuthenticated } = useAuthStore();
 
   async function handleUpgrade(tier: PlanTier) {
-    if (tier === "ContractorFree" || tier === "RealtorFree") {
+    if (tier === "ContractorFree") {
       await handleLogin();
       return;
     }
@@ -142,8 +107,8 @@ export default function ForProsPage() {
   return (
     <>
       <Helmet>
-        <title>For Pros — Join the HomeGentic Network</title>
-        <meta name="description" content="Contractors and realtors: grow your business with HomeGentic. Get leads from verified homeowners, auto-log completed work, and build a trusted profile." />
+        <title>For Contractors — Join the HomeGentic Network</title>
+        <meta name="description" content="Contractors: grow your business with HomeGentic. Get leads from verified homeowners, auto-log completed work, and build a trusted profile." />
         <link rel="canonical" href="https://homegentic.app/for-pros" />
       </Helmet>
       <style>{CSS}</style>
@@ -178,7 +143,7 @@ export default function ForProsPage() {
             Grow your business<br /><em style={{ fontWeight: 300, color: "var(--sage)" }}>with HomeGentic.</em>
           </h1>
           <p style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: "1.1rem", color: "var(--plum-mid)", maxWidth: 560, margin: "0 auto 2.5rem", lineHeight: 1.7 }}>
-            Join a network of trusted contractors and realtors connected directly to motivated homeowners. No cold outreach. No bidding wars. Verified work auto-logged to permanent records.
+            Join a network of trusted contractors connected directly to motivated homeowners. No cold outreach. No bidding wars. Verified work auto-logged to permanent records.
           </p>
           <div style={{ display: "flex", gap: "1rem", justifyContent: "center", flexWrap: "wrap" }}>
             <button className="hfl-nav-pill" style={{ fontSize: "1rem", padding: "14px 32px" }} onClick={() => document.getElementById("contractor-plans")?.scrollIntoView({ behavior: "smooth" })}>Join the network</button>
@@ -242,33 +207,25 @@ export default function ForProsPage() {
           </div>
         </section>
 
-        {/* ── Realtor Plans ────────────────────────────────────────────────── */}
-        <section className="hfl-pricing" id="realtor-plans">
-          <div className="hfl-pricing-inner" style={{ background: "var(--sage-light)", borderColor: "var(--sage-mid)" }}>
-            <div className="hfl-pricing-header" style={{ textAlign: "center", margin: "0 auto 56px" }}>
-              <div className="hfl-kicker">🏡 Realtors</div>
-              <h2>Win more listings.<br /><em>Compete on merit.</em></h2>
-              <p className="hfl-sec-sub">Homeowners post listing requests and verified agents submit competing proposals. The best offer wins — no referral networks, no gatekeepers.</p>
-            </div>
-            <div className="hfl-pricing-grid" style={{ gridTemplateColumns: "repeat(2, 1fr)", maxWidth: 720, margin: "0 auto" }}>
-              {REALTOR_PLANS.map((plan) => (
-                <div key={plan.tier} className={`hfl-plan-card${plan.tag ? " hfl-plan-featured" : ""}`}>
-                  {plan.tag && <div className="hfl-plan-badge">{plan.tag}</div>}
-                  <div className="hfl-plan-tier">{plan.tier}</div>
-                  <div className="hfl-plan-price">{plan.price}</div>
-                  <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: "0.8rem", color: plan.tag ? "rgba(122,175,118,0.9)" : "var(--plum-mid)", marginTop: "-16px", marginBottom: "18px", fontWeight: 600 }}>
-                    {plan.fee}
-                  </div>
-                  <ul className="hfl-plan-features">
-                    {plan.features.map((f) => <li key={f}>✓ {f}</li>)}
-                  </ul>
-                  <button className="hfl-plan-cta" onClick={() => handleUpgrade(plan.planTier)}>{plan.cta}</button>
-                </div>
-              ))}
-            </div>
-            <p style={CANCELLATION_STYLE}>
-              * Plans billed monthly. Cancel anytime — access ends at the close of your current billing period. Bid fees are charged per won listing and are non-refundable.
+        {/* ── BidToList cross-sell ─────────────────────────────────────────── */}
+        <section style={{ padding: "72px 56px", background: "var(--plum)" }}>
+          <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
+            <div className="hfl-kicker" style={{ color: "rgba(253,252,250,0.45)", marginBottom: "1rem" }}>🏡 Real Estate Agents</div>
+            <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: "clamp(1.8rem, 3.5vw, 2.6rem)", fontWeight: 900, color: "white", marginBottom: "1rem" }}>
+              Competing for listings?<br /><em style={{ fontWeight: 300, color: "var(--sage)" }}>Try BidToList.</em>
+            </h2>
+            <p style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: "1rem", color: "rgba(253,252,250,0.6)", maxWidth: 520, margin: "0 auto 2rem", lineHeight: 1.7 }}>
+              HomeGentic focuses on home maintenance records. For agents looking to win seller listings through competitive proposals, our sister platform BidToList is built exactly for that.
             </p>
+            <a
+              href="https://bidtolist.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hfl-nav-pill"
+              style={{ fontSize: "1rem", padding: "14px 32px", textDecoration: "none", display: "inline-block" }}
+            >
+              Go to BidToList →
+            </a>
           </div>
         </section>
 
@@ -294,7 +251,7 @@ export default function ForProsPage() {
               <div className="hfl-footer-col-title">For Pros</div>
               <ul className="hfl-footer-col-links">
                 <li><a onClick={(e) => { e.preventDefault(); document.getElementById("contractor-plans")?.scrollIntoView({ behavior: "smooth" }); }}>Contractor Plans</a></li>
-                <li><a onClick={(e) => { e.preventDefault(); document.getElementById("realtor-plans")?.scrollIntoView({ behavior: "smooth" }); }}>Realtor Plans</a></li>
+                <li><a href="https://bidtolist.com" target="_blank" rel="noopener noreferrer">Real Estate Agents →</a></li>
                 <li><a onClick={() => navigate("/login")}>Create Profile</a></li>
               </ul>
             </div>
