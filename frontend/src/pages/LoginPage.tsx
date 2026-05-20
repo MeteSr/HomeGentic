@@ -218,7 +218,7 @@ export default function LoginPage() {
             Log in to your account
           </h2>
           <p style={{ fontSize: "0.875rem", color: C.muted, textAlign: "center", marginBottom: "2rem" }}>
-            Select your preferred sign-in method. No password needed — secured by Internet Identity.
+            Select your preferred sign-in method.
           </p>
 
           {/* Provider buttons — all open Internet Identity (which handles Google/Apple/WebAuthn) */}
