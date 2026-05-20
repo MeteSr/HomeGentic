@@ -41,7 +41,7 @@ import { isNewSince, hasQuoteActivity, pendingQuoteCount } from "@/services/noti
 // ─── Design tokens ─────────────────────────────────────────────────────────────
 
 const C = {
-  bg:        "#F8F9FA",
+  bg:        COLORS.canvas,
   card:      "#FFFFFF",
   border:    "#E5E7EB",
   text:      COLORS.plum,

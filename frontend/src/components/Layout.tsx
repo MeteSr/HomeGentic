@@ -211,7 +211,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // ─── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", backgroundColor: COLORS.white }}>
+    <div style={{ display: "flex", minHeight: "100vh", backgroundColor: COLORS.canvas }}>
 
       {/* ── Left sidebar (desktop) ──────────────────────────────────────────── */}
       <nav
