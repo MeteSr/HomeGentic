@@ -50,22 +50,30 @@ vi.mock("@/services/payment", () => ({
   },
 }));
 
-vi.mock("@/services/fsbo", () => ({
-  fsboService: {
-    getRecord:   vi.fn().mockReturnValue(mockRecord),
-    setFsboMode: vi.fn(),
-    advanceStep: vi.fn(),
-    deactivate:  vi.fn(),
-  },
-}));
+vi.mock("@/services/fsbo", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/services/fsbo")>();
+  return {
+    ...actual,
+    fsboService: {
+      getRecord:   vi.fn().mockReturnValue(mockRecord),
+      setFsboMode: vi.fn(),
+      advanceStep: vi.fn(),
+      deactivate:  vi.fn(),
+    },
+  };
+});
 
 vi.mock("@/services/listing", () => ({
   listingService: { createBidRequest: vi.fn().mockResolvedValue({}) },
 }));
 
-vi.mock("@/services/fsboOffer", () => ({
-  fsboOfferService: { getByProperty: vi.fn().mockReturnValue([]) },
-}));
+vi.mock("@/services/fsboOffer", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/services/fsboOffer")>();
+  return {
+    ...actual,
+    fsboOfferService: { getByProperty: vi.fn().mockReturnValue([]) },
+  };
+});
 
 vi.mock("@/services/mlsService", () => ({
   mlsService: {
