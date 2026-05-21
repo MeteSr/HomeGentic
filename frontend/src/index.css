@@ -13,6 +13,7 @@
   --sky:         #BAD5E8;
   --butter:      #F5E9BB;
   --white:       #FDFCFA;
+  --canvas:      #FFFFFF;
   --rule:        #D4CFC8;
 
   /* Legacy aliases — kept so old inline styles degrade gracefully during migration */
@@ -199,7 +200,7 @@ table { border-collapse: collapse; }
   top: 0; left: 0; bottom: 0;
   display: flex;
   flex-direction: column;
-  background: var(--white);
+  background: var(--canvas);
   border-right: 1px solid var(--rule);
   z-index: 50;
   transition: width 0.2s ease;
@@ -208,6 +209,7 @@ table { border-collapse: collapse; }
 
 .hf-main {
   min-height: 100vh;
+  background: var(--canvas);
   transition: margin-left 0.2s ease;
 }
 
@@ -217,7 +219,7 @@ table { border-collapse: collapse; }
   gap: 0.5rem;
   height: 3.5rem;
   padding: 0 1rem 0 1.25rem;
-  background: var(--white);
+  background: var(--canvas);
   position: sticky;
   top: 0;
   z-index: 50;

@@ -31,8 +31,8 @@ test.describe("LoginPage — /login", () => {
     await expect(page.getByRole("button", { name: /continue with apple/i })).toBeVisible();
   });
 
-  test("shows Internet Computer sign-in button", async ({ page }) => {
-    await expect(page.getByRole("button", { name: /continue with internet computer/i })).toBeVisible();
+  test("shows Internet Identity sign-in button", async ({ page }) => {
+    await expect(page.getByRole("button", { name: /continue with internet identity/i })).toBeVisible();
   });
 
   test("shows 'Secured by Internet Identity' footer note", async ({ page }) => {
