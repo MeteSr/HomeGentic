@@ -139,8 +139,8 @@ test.describe("DashboardPage — /dashboard", () => {
     await expect(page.getByRole("heading", { name: /recent activity/i })).toBeVisible();
   });
 
-  test("shows Quorum HOA members banner", async ({ page }) => {
-    await expect(page.getByText(/Quorum HOA Members Save/i)).toBeVisible();
+  test("shows Invite a Neighbor panel", async ({ page }) => {
+    await expect(page.getByRole("heading", { name: /invite a neighbor/i })).toBeVisible();
   });
 
   // ── My Properties section ───────────────────────────────────────────────────

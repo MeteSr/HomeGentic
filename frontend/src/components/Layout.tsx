@@ -30,7 +30,6 @@ import { fsboService } from "@/services/fsbo";
 const TIER_PROPERTY_LIMIT: Partial<Record<PlanTier, number>> = {
   Basic: 1, Pro: 5, Premium: 20,
 };
-import { VoiceAgent } from "./VoiceAgent";
 import UpgradeModal from "./UpgradeModal";
 import { ActivityFeedDrawer } from "./ActivityFeedDrawer";
 import { UserMenuPopover } from "./UserMenuPopover";
@@ -494,9 +493,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         <main>{children}</main>
       </div>
-
-      {/* Floating voice agent — hidden on dashboard where inline AI bar is used */}
-      {location.pathname !== "/dashboard" && <VoiceAgent />}
 
       {/* Upgrade modal — triggered from user menu */}
       <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />

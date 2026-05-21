@@ -824,35 +824,37 @@ function RecentActivityPanel({
   );
 }
 
-// ─── Quorum banner ─────────────────────────────────────────────────────────────
+// ─── Invite a Neighbor panel ───────────────────────────────────────────────────
 
-function QuorumBanner({ onLearnMore }: { onLearnMore: () => void }) {
+function InviteNeighborPanel({ onInvite }: { onInvite: () => void }) {
   return (
     <Card style={{ padding: "1.25rem" }}>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "0.75rem" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: "0.875rem" }}>
+        {/* Icon: 2×2 grid of colored squares */}
+        <div style={{ flexShrink: 0, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px", width: 40, height: 40 }}>
+          <div style={{ background: "#F59E0B", borderRadius: "3px" }} />
+          <div style={{ background: "#3B82F6", borderRadius: "3px" }} />
+          <div style={{ background: "#10B981", borderRadius: "3px" }} />
+          <div style={{ background: "#F97316", borderRadius: "3px" }} />
+        </div>
         <div style={{ flex: 1 }}>
-          <h3 style={{ fontFamily: FONTS.sans, fontWeight: 700, fontSize: "0.9375rem", color: C.text, marginBottom: "0.375rem" }}>
-            Quorum HOA Members Save 10%
+          <h3 style={{ fontFamily: FONTS.sans, fontWeight: 700, fontSize: "0.9375rem", color: C.text, marginBottom: "0.25rem" }}>
+            Invite a Neighbor
           </h3>
-          <p style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: C.muted, lineHeight: 1.4, marginBottom: "0.75rem" }}>
-            As a Quorum HOA member, you get 10% off all plans.
+          <p style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: C.muted, lineHeight: 1.4, marginBottom: "0.625rem" }}>
+            You get $10 credit.<br />They get $10 off.
           </p>
           <button
-            onClick={onLearnMore}
+            onClick={onInvite}
             style={{
               fontFamily: FONTS.sans, fontSize: "0.8125rem", fontWeight: 600,
               color: C.blue, background: "none", border: "none",
-              cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: "0.25rem",
+              cursor: "pointer", padding: 0,
             }}
           >
-            Learn more <ArrowRight size={13} />
+            Invite Now
           </button>
         </div>
-        {/* Quorum hex logo */}
-        <svg width="44" height="44" viewBox="0 0 44 44" fill="none" aria-hidden="true">
-          <polygon points="22,2 40,12 40,32 22,42 4,32 4,12" stroke="#1E3A5F" strokeWidth="2.5" fill="#EFF6FF" />
-          <text x="22" y="27" textAnchor="middle" fontFamily="sans-serif" fontSize="11" fontWeight="700" fill="#1E3A5F">Q</text>
-        </svg>
       </div>
     </Card>
   );
@@ -1371,7 +1373,7 @@ export default function DashboardPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             <AIAssistantPanel />
             <RecentActivityPanel items={activityItems} onViewAll={() => navigate(`/properties/${activePropertyId}`)} />
-            <QuorumBanner onLearnMore={() => navigate("/checkout")} />
+            <InviteNeighborPanel onInvite={() => navigate("/referrals")} />
           </div>
         )}
 
