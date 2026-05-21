@@ -631,13 +631,6 @@ function AIAssistantPanel() {
           <span style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.9375rem", color: C.text }}>
             AI Assistant
           </span>
-          <span style={{
-            fontFamily: FONTS.sans, fontSize: "0.6875rem", fontWeight: 600,
-            color: "#7C3AED", background: "#EDE9FE", borderRadius: "0.25rem",
-            padding: "0.125rem 0.375rem",
-          }}>
-            BETA
-          </span>
         </div>
       </div>
 

@@ -132,8 +132,7 @@ test.describe("DashboardPage — /dashboard", () => {
   // ── Right panel ─────────────────────────────────────────────────────────────
 
   test("shows AI Assistant panel", async ({ page }) => {
-    // The panel header shows a BETA badge unique to the AI Assistant panel
-    await expect(page.getByText("BETA")).toBeVisible();
+    await expect(page.getByRole("heading", { name: /ai assistant/i })).toBeVisible();
   });
 
   test("shows Recent Activity section", async ({ page }) => {
