@@ -45,7 +45,7 @@ test.describe("MM.2 — /maintenance (with property)", () => {
   });
 
   test("shows system health description", async ({ page }) => {
-    await expect(page.getByText(/system health predictions/i)).toBeVisible();
+    await expect(page.getByText(/ai-powered insights/i)).toBeVisible();
   });
 });
 
