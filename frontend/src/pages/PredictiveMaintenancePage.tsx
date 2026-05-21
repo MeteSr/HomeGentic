@@ -6,318 +6,137 @@ import {
   maintenanceService,
   type MaintenanceReport,
   type SystemPrediction,
-  type UrgencyLevel,
+  type AnnualTask,
   type ScheduleEntry,
 } from "@/services/maintenance";
 import {
-  AlertTriangle, Clock, Eye, CheckCircle2, Calendar,
-  Bot, Send, Wrench, ChevronDown, ChevronUp, PlusCircle, X, Settings2, Download,
+  Send, Wrench, X, Settings2, Download,
+  ChevronLeft, ChevronRight, CheckCircle2, ArrowRight,
+  BarChart2, CalendarDays, DollarSign, Bot,
 } from "lucide-react";
 import { systemAgesService } from "@/services/systemAges";
-import { marketService, buildPropertySummary, type ProjectRecommendation } from "@/services/market";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { paymentService, type PlanTier } from "@/services/payment";
+import { paymentService } from "@/services/payment";
 import SystemAgesModal from "@/components/SystemAgesModal";
-import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { COLORS, FONTS } from "@/theme";
 
+// ─── Design tokens ─────────────────────────────────────────────────────────────
+const C = {
+  bg:       COLORS.canvas,
+  card:     "#FFFFFF",
+  border:   "#E5E7EB",
+  text:     COLORS.plum,
+  muted:    COLORS.plumMid,
+  green:    COLORS.sageText,
+  greenBg:  COLORS.sageLight,
+  greenBdr: COLORS.sageMid,
+  blue:     "#2563EB",
+  blueBg:   "#EFF6FF",
+  orange:   "#D97706",
+  orangeBg: "#FFFBEB",
+  red:      COLORS.errorText,
+  redBg:    "#FEF2F2",
+  shadow:   "0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
+};
+
+// Kept for AddToScheduleModal / MaintenanceChatPanel internals
 const UI = {
   ink:      COLORS.plum,
   paper:    COLORS.white,
   rule:     COLORS.rule,
-  rust:     COLORS.sage,
   inkLight: COLORS.plumMid,
-  sage:     COLORS.sage,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
 };
 
-const URGENCY_RUST: Record<UrgencyLevel, string> = {
-  Critical: UI.rust, Soon: COLORS.plumMid, Watch: COLORS.plumMid, Good: UI.sage,
-};
-const URGENCY_BG: Record<UrgencyLevel, string> = {
-  Critical: COLORS.blush, Soon: COLORS.butter, Watch: UI.paper, Good: COLORS.sageLight,
-};
+// ─── Local components ──────────────────────────────────────────────────────────
 
-// ─── Urgency Badge ─────────────────────────────────────────────────────────────
-
-function UrgencyBadge({ urgency }: { urgency: UrgencyLevel }) {
-  const icons: Record<UrgencyLevel, React.ReactNode> = {
-    Critical: <AlertTriangle size={10} />,
-    Soon:     <Clock size={10} />,
-    Watch:    <Eye size={10} />,
-    Good:     <CheckCircle2 size={10} />,
-  };
+function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: "0.25rem",
-      padding: "0.15rem 0.5rem",
-      fontFamily: UI.mono, fontSize: "0.6rem", fontWeight: 700,
-      letterSpacing: "0.1em", textTransform: "uppercase",
-      color: URGENCY_RUST[urgency],
-      background: URGENCY_BG[urgency],
-      border: `1px solid ${URGENCY_RUST[urgency]}40`,
-    }}>
-      {icons[urgency]}{urgency}
-    </span>
-  );
-}
-
-// ─── Life Bar ──────────────────────────────────────────────────────────────────
-
-function LifeBar({ pct, urgency }: { pct: number; urgency: UrgencyLevel }) {
-  return (
-    <div style={{ height: "3px", background: UI.rule, flex: 1, overflow: "hidden" }}>
-      <div style={{ height: "3px", width: `${Math.min(pct, 100)}%`, background: URGENCY_RUST[urgency], transition: "width 0.6s ease" }} />
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "0.75rem", boxShadow: C.shadow, ...style }}>
+      {children}
     </div>
   );
 }
 
-// ─── System Card ───────────────────────────────────────────────────────────────
-
-type TaskState = "none" | "scheduled" | "done";
-
-function SystemCard({ pred, onSchedule, marketRec, taskState, onTaskStateChange }: {
-  pred:              SystemPrediction;
-  onSchedule:        (p: SystemPrediction) => void;
-  marketRec?:        ProjectRecommendation;
-  taskState:         TaskState;
-  onTaskStateChange: (state: TaskState) => void;
-}) {
-  const navigate = useNavigate();
-  const [expanded, setExpanded] = useState(false);
-  const low  = maintenanceService.formatCents(pred.estimatedCostLowCents);
-  const high = maintenanceService.formatCents(pred.estimatedCostHighCents);
-
+function HealthGauge({ score, grade }: { score: number; grade: string }) {
+  const r = 40, circ = 2 * Math.PI * r;
+  const color = score >= 70 ? C.green : score >= 50 ? C.orange : C.red;
   return (
-    <div style={{ border: `1px solid ${taskState === "done" ? UI.sage : pred.urgency === "Critical" ? UI.rust : UI.rule}`, background: taskState === "done" ? COLORS.sageLight : COLORS.white, opacity: taskState === "done" ? 0.75 : 1 }}>
-      <div style={{ padding: "1rem 1.25rem", display: "flex", alignItems: "center", gap: "0.75rem", cursor: "pointer" }} onClick={() => setExpanded((e) => !e)}>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.375rem" }}>
-            <span style={{ fontWeight: 700, fontSize: "0.9rem", color: UI.ink }}>{pred.systemName}</span>
-            {taskState === "done"      ? <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.sage, border: `1px solid ${UI.sage}40`, padding: "0.1rem 0.4rem" }}>✓ Done</span>
-            : taskState === "scheduled" ? <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.plumMid, border: `1px solid ${COLORS.plumMid}40`, padding: "0.1rem 0.4rem" }}>Scheduled</span>
-            : <UrgencyBadge urgency={pred.urgency} />}
-            {pred.diyViable && (
-              <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight, border: `1px solid ${UI.rule}`, padding: "0.1rem 0.4rem" }}>
-                DIY OK
-              </span>
-            )}
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-            <LifeBar pct={pred.percentLifeUsed} urgency={pred.urgency} />
-            <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight, whiteSpace: "nowrap" }}>
-              {pred.percentLifeUsed}% life used
-            </span>
-          </div>
-        </div>
-        <div style={{ textAlign: "right", minWidth: "7rem" }}>
-          {(pred.urgency === "Critical" || pred.urgency === "Soon") ? (
-            <>
-              <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight }}>Replacement</div>
-              <div style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.75rem", color: UI.ink }}>{low}–{high}</div>
-            </>
-          ) : (
-            <>
-              <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight }}>Service call</div>
-              <div style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.75rem", color: UI.ink }}>
-                {maintenanceService.formatCents(pred.serviceCallLowCents)}–{maintenanceService.formatCents(pred.serviceCallHighCents)}
-              </div>
-            </>
-          )}
-        </div>
-        <div style={{ color: UI.inkLight }}>
-          {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-        </div>
+    <div style={{ position: "relative", width: 90, height: 90 }}>
+      <svg width={90} height={90} style={{ transform: "rotate(-90deg)" }}>
+        <circle cx={45} cy={45} r={r} fill="none" stroke="#E5E7EB" strokeWidth={9} />
+        <circle cx={45} cy={45} r={r} fill="none" stroke={color} strokeWidth={9}
+          strokeDasharray={`${Math.min(score / 100, 1) * circ} ${circ}`} strokeLinecap="round" />
+      </svg>
+      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ fontFamily: FONTS.sans, fontWeight: 700, fontSize: "1.25rem", color: C.text, lineHeight: 1 }}>{score}</div>
+        <div style={{ fontFamily: FONTS.sans, fontSize: "0.625rem", color, fontWeight: 600 }}>{grade}</div>
       </div>
-
-      {expanded && (
-        <div style={{ borderTop: `1px solid ${UI.rule}`, padding: "0.875rem 1.25rem", background: UI.paper }}>
-          <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: UI.ink, marginBottom: "0.75rem", lineHeight: 1.6 }}>
-            {pred.recommendation.replace(/^[⚠️📅👁✅]\s*/, "")}
-          </p>
-          <div style={{ display: "flex", gap: "1.5rem", fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, marginBottom: "0.75rem" }}>
-            <span>Last serviced: <strong style={{ color: UI.ink }}>{pred.lastServiceYear}</strong></span>
-            <span>
-              {pred.yearsRemaining >= 0
-                ? <>Years remaining: <strong style={{ color: UI.ink }}>{pred.yearsRemaining}</strong></>
-                : <><strong style={{ color: UI.rust }}>{Math.abs(pred.yearsRemaining)} yrs overdue</strong></>}
-            </span>
-          </div>
-
-          {/* Market ROI data */}
-          {marketRec && (
-            <div style={{ border: `1px solid ${UI.rule}`, padding: "0.75rem 1rem", marginBottom: "0.75rem", display: "flex", gap: "1.5rem", flexWrap: "wrap", background: COLORS.white }}>
-              <div>
-                <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.2rem" }}>Market ROI</p>
-                <p style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.75rem", color: UI.sage }}>{marketRec.estimatedRoiPercent}%</p>
-              </div>
-              <div>
-                <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.2rem" }}>Est. Value Gain</p>
-                <p style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.75rem", color: UI.ink }}>{marketService.formatCost(marketRec.estimatedGainCents)}</p>
-              </div>
-              <div>
-                <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.2rem" }}>Payback</p>
-                <p style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.75rem", color: UI.ink }}>{marketRec.paybackMonths} mo</p>
-              </div>
-              <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.04em", color: UI.inkLight, width: "100%", marginTop: "-0.25rem" }}>
-                Source: 2024 Remodeling Magazine · {marketRec.requiresPermit ? "Permit required" : "No permit typically required"}
-              </p>
-            </div>
-          )}
-
-          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-            <button
-              onClick={(e) => { e.stopPropagation(); onSchedule(pred); }}
-              style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.4rem 0.875rem", border: `1px solid ${UI.rule}`, background: COLORS.white, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.ink, cursor: "pointer" }}
-            >
-              <Calendar size={11} /> Add to schedule
-            </button>
-
-            {taskState !== "scheduled" && taskState !== "done" && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onTaskStateChange("scheduled"); }}
-                style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.4rem 0.875rem", border: `1px solid ${COLORS.plumMid}`, background: COLORS.butter, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, cursor: "pointer" }}
-              >
-                <Clock size={11} /> Mark Scheduled
-              </button>
-            )}
-
-            {taskState !== "done" && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onTaskStateChange("done"); }}
-                style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.4rem 0.875rem", border: `1px solid ${UI.sage}`, background: COLORS.sageLight, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.sage, cursor: "pointer" }}
-              >
-                <CheckCircle2 size={11} /> Mark Done
-              </button>
-            )}
-
-            {taskState !== "none" && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onTaskStateChange("none"); }}
-                style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.4rem 0.875rem", border: `1px solid ${UI.rule}`, background: COLORS.white, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight, cursor: "pointer" }}
-              >
-                <X size={11} /> Undo
-              </button>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
-// ─── Five-Year Calendar ────────────────────────────────────────────────────────
+function MiniCalendar({ scheduleEntries }: { scheduleEntries: ScheduleEntry[] }) {
+  const [viewDate, setViewDate] = useState(() => new Date());
+  const yr = viewDate.getFullYear(), mo = viewDate.getMonth();
+  const firstDay = new Date(yr, mo, 1).getDay();
+  const daysInMonth = new Date(yr, mo + 1, 0).getDate();
+  const today = new Date();
+  const isCurrentMonth = today.getFullYear() === yr && today.getMonth() === mo;
 
-const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-
-function FiveYearCalendar({ entries, onComplete, onDelete, onAddYear }: {
-  entries: ScheduleEntry[];
-  onComplete: (id: string) => void;
-  onDelete: (id: string) => void;
-  onAddYear: () => void;
-}) {
-  const currentYear = new Date().getFullYear();
-  const years = [currentYear, currentYear+1, currentYear+2, currentYear+3, currentYear+4];
-
-  const byYear = (year: number) => entries.filter((e) => e.plannedYear === year);
-  const pending = entries.filter((e) => !e.isCompleted);
-  const yearBudget = (year: number) =>
-    byYear(year).filter((e) => !e.isCompleted && e.estimatedCostCents)
-      .reduce((s, e) => s + (e.estimatedCostCents ?? 0), 0);
-
-  if (entries.length === 0) {
-    return (
-      <div style={{ border: `1px dashed ${UI.rule}`, padding: "2.5rem", textAlign: "center" }}>
-        <Calendar size={28} color={UI.rule} style={{ margin: "0 auto 0.5rem" }} />
-        <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight }}>No scheduled maintenance yet.</p>
-        <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, marginTop: "0.25rem" }}>
-          Click "Add to schedule" on any system card to populate your 5-year calendar.
-        </p>
-      </div>
-    );
+  const eventsByDay = new Map<number, "completed" | "scheduled">();
+  for (const e of scheduleEntries) {
+    if (!e.date) continue;
+    const d = new Date(e.date);
+    if (d.getFullYear() === yr && d.getMonth() === mo) {
+      eventsByDay.set(d.getDate(), e.isCompleted ? "completed" : "scheduled");
+    }
   }
 
-  const renderEntry = (entry: ScheduleEntry) => (
-    <div key={entry.id} style={{ display: "flex", alignItems: "flex-start", gap: "0.625rem", padding: "0.625rem 0.875rem", background: entry.isCompleted ? UI.paper : COLORS.white, opacity: entry.isCompleted ? 0.6 : 1 }}>
-      <button
-        onClick={() => !entry.isCompleted && onComplete(entry.id)}
-        style={{ width: "1rem", height: "1rem", border: `2px solid ${entry.isCompleted ? UI.sage : UI.rule}`, background: entry.isCompleted ? UI.sage : COLORS.white, display: "flex", alignItems: "center", justifyContent: "center", cursor: entry.isCompleted ? "default" : "pointer", flexShrink: 0, marginTop: "0.1rem" }}
-      >
-        {entry.isCompleted && <CheckCircle2 size={8} color={COLORS.white} />}
-      </button>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: "0.85rem", fontWeight: 600, color: UI.ink }}>{entry.systemName}</div>
-        <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, letterSpacing: "0.04em" }}>
-          {entry.plannedMonth ? `${MONTH_NAMES[entry.plannedMonth - 1]} · ` : ""}{entry.taskDescription}
-          {entry.estimatedCostCents ? ` · ~${maintenanceService.formatCents(entry.estimatedCostCents)}` : ""}
-        </div>
-      </div>
-      <button onClick={() => onDelete(entry.id)} style={{ color: UI.inkLight, background: "none", border: "none", cursor: "pointer", padding: "0.125rem", flexShrink: 0 }}>
-        <X size={11} />
-      </button>
-    </div>
-  );
+  const monthLabel = viewDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const navBtn: React.CSSProperties = { background: "none", border: `1px solid ${C.border}`, borderRadius: "0.375rem", width: 28, height: 28, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.muted };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      {/* Total pending budget banner */}
-      {pending.length > 0 && (
-        <div style={{ border: `1px solid ${UI.rule}`, padding: "0.875rem 1.25rem", display: "flex", justifyContent: "space-between", alignItems: "center", background: COLORS.white }}>
-          <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>
-            {pending.length} tasks scheduled
-          </span>
-          <span style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.75rem", color: UI.ink }}>
-            5-yr budget: {maintenanceService.formatCents(years.reduce((s, y) => s + yearBudget(y), 0))}
-          </span>
-        </div>
-      )}
-
-      {/* Year columns */}
-      {years.map((year) => {
-        const yearEntries = byYear(year);
-        const budget = yearBudget(year);
-        const isCurrentYear = year === currentYear;
-        return (
-          <div key={year} style={{ border: `1px solid ${isCurrentYear ? UI.rust : UI.rule}`, background: COLORS.white, overflow: "hidden" }}>
-            <div style={{
-              padding: "0.625rem 1rem", borderBottom: `1px solid ${isCurrentYear ? UI.rust : UI.rule}`,
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              background: isCurrentYear ? COLORS.blush : UI.paper,
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-                <span style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.7rem", letterSpacing: "0.1em", color: isCurrentYear ? UI.rust : UI.inkLight }}>
-                  {year}
-                </span>
-                {isCurrentYear && (
-                  <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.rust, border: `1px solid ${UI.rust}`, padding: "0.1rem 0.35rem" }}>
-                    This year
-                  </span>
-                )}
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.875rem" }}>
+        <button style={navBtn} onClick={() => setViewDate(new Date(yr, mo - 1, 1))}><ChevronLeft size={14} /></button>
+        <span style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.875rem", color: C.text }}>{monthLabel}</span>
+        <button style={navBtn} onClick={() => setViewDate(new Date(yr, mo + 1, 1))}><ChevronRight size={14} /></button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: "0.375rem" }}>
+        {["SUN","MON","TUE","WED","THU","FRI","SAT"].map(d => (
+          <div key={d} style={{ textAlign: "center", fontFamily: FONTS.sans, fontSize: "0.5625rem", color: C.muted, fontWeight: 600, padding: "2px 0" }}>{d}</div>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", rowGap: "2px" }}>
+        {Array.from({ length: firstDay }).map((_, i) => <div key={`e${i}`} />)}
+        {Array.from({ length: daysInMonth }).map((_, i) => {
+          const day = i + 1;
+          const ev = eventsByDay.get(day);
+          const isToday = isCurrentMonth && day === today.getDate();
+          const evColor = ev === "completed" ? C.blue : C.green;
+          return (
+            <div key={day} style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "2px 0" }}>
+              <div style={{ width: 26, height: 26, borderRadius: "50%", background: isToday ? C.blue : "transparent", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: isToday ? "white" : C.text, lineHeight: 1 }}>{day}</div>
+                {ev && <div style={{ width: 4, height: 4, borderRadius: "50%", background: isToday ? "rgba(255,255,255,0.7)" : evColor, marginTop: "1px" }} />}
               </div>
-              <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: budget > 0 ? UI.ink : UI.inkLight, fontWeight: budget > 0 ? 700 : 400 }}>
-                {budget > 0 ? maintenanceService.formatCents(budget) : "No estimate"}
-              </span>
             </div>
-
-            {yearEntries.length === 0 ? (
-              <div style={{ padding: "0.75rem 1rem" }}>
-                <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight }}>
-                  No tasks scheduled — add from System Health tab
-                </span>
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: UI.rule }}>
-                {yearEntries.map(renderEntry)}
-              </div>
-            )}
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", gap: "1rem", marginTop: "0.875rem", justifyContent: "center" }}>
+        {[{ color: C.orange, label: "Due Soon" }, { color: C.green, label: "Scheduled" }, { color: C.blue, label: "Completed" }].map(({ color, label }) => (
+          <div key={label} style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
+            <span style={{ fontFamily: FONTS.sans, fontSize: "0.6875rem", color: C.muted }}>{label}</span>
           </div>
-        );
-      })}
+        ))}
+      </div>
     </div>
   );
 }
 
-// ─── Add to Schedule Modal ─────────────────────────────────────────────────────
+// ─── AddToScheduleModal ────────────────────────────────────────────────────────
 
 function AddToScheduleModal({ pred, propertyId, onSave, onClose }: { pred: SystemPrediction; propertyId: string; onSave: (e: ScheduleEntry) => void; onClose: () => void }) {
   const currentYear = new Date().getFullYear();
@@ -336,14 +155,13 @@ function AddToScheduleModal({ pred, propertyId, onSave, onClose }: { pred: Syste
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "1rem" }} onClick={onClose}>
-      <div style={{ background: COLORS.white, padding: "1.5rem", maxWidth: "26rem", width: "100%", border: `1px solid ${UI.rule}` }} onClick={(e) => e.stopPropagation()}>
+      <div style={{ background: COLORS.white, padding: "1.5rem", maxWidth: "26rem", width: "100%", borderRadius: "0.75rem", border: `1px solid ${C.border}` }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.25rem" }}>
-          <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
+          <p style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.9375rem", color: C.text, margin: 0 }}>
             Schedule {pred.systemName} Work
           </p>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: UI.inkLight }}><X size={16} /></button>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted }}><X size={16} /></button>
         </div>
-
         <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
           <div>
             <label className="form-label">Task description</label>
@@ -369,12 +187,11 @@ function AddToScheduleModal({ pred, propertyId, onSave, onClose }: { pred: Syste
             <input type="number" value={cost} onChange={(e) => setCost(e.target.value)} placeholder="Optional" className="form-input" />
           </div>
         </div>
-
         <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.25rem" }}>
-          <button onClick={onClose} style={{ flex: 1, padding: "0.6rem", border: `1px solid ${UI.rule}`, background: COLORS.white, fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer", color: UI.inkLight }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "0.6rem", border: `1px solid ${C.border}`, background: "white", fontFamily: FONTS.sans, fontSize: "0.875rem", cursor: "pointer", color: C.muted, borderRadius: "0.5rem" }}>
             Cancel
           </button>
-          <button onClick={save} disabled={!year || !desc} style={{ flex: 2, padding: "0.6rem", border: `1px solid ${UI.ink}`, background: UI.ink, color: COLORS.white, fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer" }}>
+          <button onClick={save} disabled={!year || !desc} style={{ flex: 2, padding: "0.6rem", border: "none", background: C.blue, color: "white", fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", borderRadius: "0.5rem", opacity: !year || !desc ? 0.6 : 1 }}>
             Save to Schedule
           </button>
         </div>
@@ -383,7 +200,7 @@ function AddToScheduleModal({ pred, propertyId, onSave, onClose }: { pred: Syste
   );
 }
 
-// ─── AI Chat ───────────────────────────────────────────────────────────────────
+// ─── Maintenance Chat ──────────────────────────────────────────────────────────
 
 function MaintenanceChatPanel({ yearBuilt, propertyAddress, report }: { yearBuilt: number; propertyAddress: string; report: MaintenanceReport | null }) {
   interface Msg { role: "user" | "assistant"; text: string }
@@ -393,53 +210,41 @@ function MaintenanceChatPanel({ yearBuilt, propertyAddress, report }: { yearBuil
   const [input, setInput]     = useState("");
   const [loading, setLoading] = useState(false);
   const bottomRef             = useRef<HTMLDivElement>(null);
-
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   const send = async () => {
     const msg = input.trim();
     if (!msg || loading) return;
     setInput("");
-    setMessages((m) => [...m, { role: "user", text: msg }]);
+    setMessages(m => [...m, { role: "user", text: msg }]);
     setLoading(true);
     try {
       let reply = "";
-      setMessages((m) => [...m, { role: "assistant", text: "…" }]);
+      setMessages(m => [...m, { role: "assistant", text: "…" }]);
       for await (const chunk of maintenanceService.chat(msg, { yearBuilt, propertyAddress, report: report ?? undefined })) {
         reply += chunk;
-        setMessages((m) => { const copy = [...m]; copy[copy.length - 1] = { role: "assistant", text: reply }; return copy; });
+        setMessages(m => { const copy = [...m]; copy[copy.length - 1] = { role: "assistant", text: reply }; return copy; });
       }
     } catch {
-      setMessages((m) => { const copy = [...m]; copy[copy.length - 1] = { role: "assistant", text: "Sorry, I couldn't reach the advisor. Make sure the agent server is running." }; return copy; });
+      setMessages(m => { const copy = [...m]; copy[copy.length - 1] = { role: "assistant", text: "Sorry, I couldn't reach the advisor. Make sure the agent server is running." }; return copy; });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: "0" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
       <div style={{ flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
         {messages.map((m, i) => (
-          <div key={i} style={{
-            maxWidth: "85%", alignSelf: m.role === "user" ? "flex-end" : "flex-start",
-            padding: "0.625rem 0.875rem",
-            background: m.role === "user" ? UI.ink : UI.paper,
-            color: m.role === "user" ? COLORS.white : UI.ink,
-            fontFamily: UI.mono, fontSize: "0.7rem", letterSpacing: "0.03em", lineHeight: 1.6,
-          }}>
+          <div key={i} style={{ maxWidth: "85%", alignSelf: m.role === "user" ? "flex-end" : "flex-start", padding: "0.625rem 0.875rem", background: m.role === "user" ? UI.ink : UI.paper, color: m.role === "user" ? COLORS.white : UI.ink, fontFamily: FONTS.sans, fontSize: "0.8125rem", lineHeight: 1.5, borderRadius: "0.5rem" }}>
             {m.text}
           </div>
         ))}
         <div ref={bottomRef} />
       </div>
-      <div style={{ borderTop: `1px solid ${UI.rule}`, padding: "0.75rem 1rem", display: "flex", gap: "0.5rem" }}>
-        <input
-          value={input} onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
-          placeholder="Ask about your home systems…" disabled={loading}
-          style={{ flex: 1, padding: "0.5rem 0.75rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.7rem", outline: "none", background: COLORS.white }}
-        />
-        <button onClick={send} disabled={loading || !input.trim()} style={{ padding: "0.5rem 0.875rem", border: `1px solid ${UI.ink}`, background: UI.ink, color: COLORS.white, cursor: loading || !input.trim() ? "not-allowed" : "pointer", opacity: loading || !input.trim() ? 0.6 : 1 }}>
+      <div style={{ borderTop: `1px solid ${C.border}`, padding: "0.75rem 1rem", display: "flex", gap: "0.5rem" }}>
+        <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && !e.shiftKey && send()} placeholder="Ask about your home systems…" disabled={loading} style={{ flex: 1, padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: "0.5rem", fontFamily: FONTS.sans, fontSize: "0.8125rem", outline: "none", background: "white" }} />
+        <button onClick={send} disabled={loading || !input.trim()} style={{ padding: "0.5rem 0.875rem", border: "none", background: C.blue, color: "white", borderRadius: "0.5rem", cursor: loading || !input.trim() ? "not-allowed" : "pointer", opacity: loading || !input.trim() ? 0.6 : 1 }}>
           <Send size={14} />
         </button>
       </div>
@@ -447,85 +252,61 @@ function MaintenanceChatPanel({ yearBuilt, propertyAddress, report }: { yearBuil
   );
 }
 
+// ─── Helpers ───────────────────────────────────────────────────────────────────
+
+const SEASON_MONTHS: Record<string, number[]> = {
+  Spring: [2, 3, 4], Summer: [5, 6, 7], Fall: [8, 9, 10], Winter: [11, 0, 1],
+};
+
+function taskDueDate(task: AnnualTask, index: number): Date {
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  // Find next occurrence based on season or frequency
+  if (task.season && SEASON_MONTHS[task.season]) {
+    const seasonMonths = SEASON_MONTHS[task.season];
+    // Find next season month >= current month, or wrap to next year
+    const nextMonth = seasonMonths.find(m => m >= currentMonth) ?? seasonMonths[0];
+    const d = new Date(now.getFullYear(), nextMonth, 15);
+    if (d < now) d.setFullYear(d.getFullYear() + 1);
+    return d;
+  }
+  // No season — distribute across the year based on frequency
+  const freqMonths: Record<string, number> = { Quarterly: 3, "Semi-annually": 6, Annually: 12 };
+  const interval = Object.entries(freqMonths).find(([k]) => task.frequency?.includes(k.split("-")[0]))?.[1] ?? 12;
+  const d = new Date(now.getFullYear(), (currentMonth + interval + index) % 12, 10);
+  if (d < now) d.setMonth(d.getMonth() + interval);
+  return d;
+}
+
+function taskStatus(due: Date): { label: string; color: string } {
+  const ms = due.getTime() - Date.now();
+  if (ms < 0)                return { label: "Overdue",   color: C.red };
+  if (ms < 30 * 86_400_000)  return { label: "Due Soon",  color: C.orange };
+  return                            { label: "Upcoming",  color: C.muted };
+}
+
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
-type Tab = "systems" | "annual" | "schedule" | "advisor";
+type MaintenanceFilter = "all" | "dueSoon" | "overdue" | "scheduled";
 
 export default function PredictiveMaintenancePage() {
   const { properties } = usePropertyStore();
   const { jobs }       = useJobStore();
   const navigate       = useNavigate();
-
   const [searchParams] = useSearchParams();
-  const deepLinkSystem = searchParams.get("system");    // e.g. "HVAC"
+  const deepLinkSystem = searchParams.get("system");
 
   const [selectedId, setSelectedId]         = useState(String(properties[0]?.id ?? ""));
   const [showSystemAges, setShowSystemAges] = useState(false);
-  const [report, setReport]         = useState<MaintenanceReport | null>(null);
-  const [activeTab, setActiveTab]   = useState<Tab>(deepLinkSystem ? "systems" : "systems");
+  const [showChatPanel, setShowChatPanel]   = useState(false);
+  const [report, setReport]                 = useState<MaintenanceReport | null>(null);
   const [scheduleEntries, setScheduleEntries] = useState<ScheduleEntry[]>([]);
   const [scheduleTarget, setScheduleTarget]   = useState<SystemPrediction | null>(null);
-  const [taskStates, setTaskStates] = useState<Record<string, TaskState>>(() => {
-    try { return JSON.parse(localStorage.getItem("homegentic_task_states") ?? "{}"); }
-    catch { return {}; }
-  });
+  const [maintenanceFilter, setMaintenanceFilter] = useState<MaintenanceFilter>("all");
 
-  const taskKey = (systemName: string) => `${selectedId}::${systemName}`;
-  const setTaskState = (systemName: string, state: TaskState) => {
-    setTaskStates((prev) => {
-      const next = { ...prev, [taskKey(systemName)]: state };
-      localStorage.setItem("homegentic_task_states", JSON.stringify(next));
-      return next;
-    });
-  };
-
+  const property = properties.find(p => String(p.id) === selectedId);
+  const propJobs = jobs.filter(j => j.propertyId === selectedId);
   const currentYear = new Date().getFullYear();
-  const [annualTaskDone, setAnnualTaskDone] = useState<Record<string, boolean>>(() => {
-    try { return JSON.parse(localStorage.getItem("homegentic_annual_tasks") ?? "{}"); }
-    catch { return {}; }
-  });
-  const annualKey = (taskName: string) => `${selectedId}::${taskName}::${currentYear}`;
-  const toggleAnnualTask = (taskName: string) => {
-    setAnnualTaskDone((prev) => {
-      const key  = annualKey(taskName);
-      const next = { ...prev, [key]: !prev[key] };
-      localStorage.setItem("homegentic_annual_tasks", JSON.stringify(next));
-      return next;
-    });
-  };
-
-  const [userTier, setUserTier] = useState<PlanTier>("Free");
-  useEffect(() => {
-    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch((e) => console.error("[PredictiveMaintenancePage] subscription load failed:", e));
-  }, []);
-
-  const property = properties.find((p) => String(p.id) === selectedId);
-  const propJobs = jobs.filter((j) => j.propertyId === selectedId);
-
-  // Market recommendations indexed by service category for O(1) lookup in SystemCard
-  const marketRecsByCategory = React.useMemo<Record<string, ProjectRecommendation>>(() => {
-    if (!property) return {};
-    const recs = marketService.recommendValueAddingProjects(
-      {
-        yearBuilt:    Number(property.yearBuilt),
-        squareFeet:   Number(property.squareFeet),
-        propertyType: String(property.propertyType),
-        state:        property.state,
-        zipCode:      property.zipCode,
-      },
-      propJobs.map((j) => ({
-        serviceType:   j.serviceType,
-        completedYear: j.date ? parseInt(j.date.split("-")[0], 10) : new Date().getFullYear(),
-        amountCents:   j.amount,
-        isDiy:         j.isDiy,
-        isVerified:    j.status === "verified",
-      })),
-      0
-    );
-    const map: Record<string, ProjectRecommendation> = {};
-    for (const r of recs) map[r.category] = r;
-    return map;
-  }, [selectedId, property, propJobs.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!property) return;
@@ -534,456 +315,444 @@ export default function PredictiveMaintenancePage() {
     maintenanceService.getScheduleByProperty(String(property.id)).then(setScheduleEntries);
   }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // One-tap add: if ?system=HVAC is in the URL, open the schedule modal for that system
+  // Auto-open schedule modal from deep-link
   React.useEffect(() => {
     if (!deepLinkSystem || !report) return;
-    const pred = report.systemPredictions.find(
-      (p) => p.systemName.toLowerCase() === deepLinkSystem.toLowerCase()
-    );
+    const pred = report.systemPredictions.find(p => p.systemName.toLowerCase() === deepLinkSystem.toLowerCase());
     if (pred) setScheduleTarget(pred);
   }, [deepLinkSystem, report]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleScheduleSave = (entry: ScheduleEntry) => { setScheduleEntries((prev) => [...prev, entry]); setActiveTab("schedule"); };
-  const handleComplete = async (id: string) => { await maintenanceService.markCompleted(id); setScheduleEntries((prev) => prev.map((e) => (e.id === id ? { ...e, isCompleted: true } : e))); };
-  const handleDelete   = (id: string) => { maintenanceService.deleteEntry(id); setScheduleEntries((prev) => prev.filter((e) => e.id !== id)); };
+  const handleScheduleSave  = (entry: ScheduleEntry) => setScheduleEntries(prev => [...prev, entry]);
+  const handleComplete      = async (id: string) => { await maintenanceService.markCompleted(id); setScheduleEntries(prev => prev.map(e => e.id === id ? { ...e, isCompleted: true } : e)); };
+  const handleDelete        = (id: string) => { maintenanceService.deleteEntry(id); setScheduleEntries(prev => prev.filter(e => e.id !== id)); };
 
-  const criticalCount = report?.systemPredictions.filter((p) => p.urgency === "Critical").length ?? 0;
-  const soonCount     = report?.systemPredictions.filter((p) => p.urgency === "Soon").length ?? 0;
+  // ── Derived values ───────────────────────────────────────────────────────────
+  const allTasks   = report?.annualTasks ?? [];
+  const criticalPreds = report?.systemPredictions.filter(p => p.urgency === "Critical") ?? [];
+  const soonPreds     = report?.systemPredictions.filter(p => p.urgency === "Soon") ?? [];
 
-  // Cross-property overview (only computed when 2+ properties)
-  const allPropertyReports = React.useMemo(() => {
-    if (properties.length < 2) return [];
-    return properties.map((p) => {
-      const pJobs = jobs.filter((j) => j.propertyId === String(p.id));
-      const ages  = systemAgesService.get(String(p.id));
-      const r     = maintenanceService.predict(Number(p.yearBuilt), pJobs, ages, String(p.state));
-      return {
-        property: p,
-        critical: r.systemPredictions.filter((s) => s.urgency === "Critical").length,
-        soon:     r.systemPredictions.filter((s) => s.urgency === "Soon").length,
-        overdueSystems: r.systemPredictions.filter((s) => s.yearsRemaining < 0),
-      };
-    });
-  }, [properties, jobs]); // eslint-disable-line react-hooks/exhaustive-deps
+  const goodFraction = report
+    ? report.systemPredictions.filter(p => p.urgency === "Good" || p.urgency === "Watch").length / Math.max(report.systemPredictions.length, 1)
+    : 0;
+  const healthScore = Math.round(50 + goodFraction * 50);
+  const healthGrade = healthScore >= 80 ? "Good" : healthScore >= 65 ? "Fair" : "Poor";
+  const healthDelta = soonPreds.length === 0 && criticalPreds.length === 0 ? 6 : -soonPreds.length;
 
-  const TABS: { id: Tab; label: string }[] = [
-    { id: "systems",  label: "System Health" },
-    { id: "annual",   label: "Annual Tasks" },
-    { id: "schedule", label: `Schedule (${scheduleEntries.filter((e) => !e.isCompleted).length})` },
-    { id: "advisor",  label: "AI Advisor" },
-  ];
+  const upcomingTasksWithDates = allTasks.map((t, i) => {
+    const due = taskDueDate(t, i);
+    const status = taskStatus(due);
+    return { task: t, due, status };
+  });
+
+  const filteredTasks = upcomingTasksWithDates.filter(({ status }) => {
+    if (maintenanceFilter === "all")       return true;
+    if (maintenanceFilter === "dueSoon")   return status.label === "Due Soon";
+    if (maintenanceFilter === "overdue")   return status.label === "Overdue";
+    if (maintenanceFilter === "scheduled") return status.label === "Upcoming";
+    return true;
+  });
+
+  const dueSoonCount  = upcomingTasksWithDates.filter(t => t.status.label === "Due Soon").length + criticalPreds.length;
+  const completedThisYear = scheduleEntries.filter(e => e.isCompleted && new Date(e.date).getFullYear() === currentYear).length;
+  const budgetTotal   = report ? Math.round((report.totalBudgetLowCents + report.totalBudgetHighCents) / 2 / 100) : 0;
+  const potentialSavings = Math.round(criticalPreds.reduce((s, p) => s + p.estimatedCostLowCents * 0.2, 0) / 100 + soonPreds.reduce((s, p) => s + p.serviceCallLowCents * 0.5, 0) / 100);
+
+  const completedHistory = scheduleEntries
+    .filter(e => e.isCompleted)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 4);
+
+  const insights = React.useMemo(() => {
+    if (!report) return [];
+    const list = [];
+    if (criticalPreds.length > 0) {
+      list.push({ icon: "⚡", type: "warning" as const, title: `Your ${criticalPreds[0].systemName} needs attention.`, desc: `This system is ${Math.abs(criticalPreds[0].yearsRemaining)} year(s) past its expected service life. Schedule maintenance to prevent costly repairs.`, action: "View Details" });
+    }
+    if (soonPreds.length > 0) {
+      list.push({ icon: "🔧", type: "info" as const, title: `${soonPreds[0].systemName} service recommended.`, desc: `Proactive maintenance can extend your system's life and keep your warranty valid. Estimated service: ${maintenanceService.formatCents(soonPreds[0].serviceCallLowCents)}–${maintenanceService.formatCents(soonPreds[0].serviceCallHighCents)}.`, action: "View Tasks" });
+    }
+    const month = new Date().getMonth();
+    if (list.length < 2) {
+      const seasonal = month >= 8 && month <= 10
+        ? { icon: "🍂", type: "tip" as const, title: "Fall maintenance checklist.", desc: "Clean gutters, check seals and weatherstripping, and schedule a furnace tune-up before cold weather arrives.", action: "View Tasks" }
+        : month >= 2 && month <= 4
+        ? { icon: "🌸", type: "tip" as const, title: "Spring maintenance checklist.", desc: "Check roof and attic after winter. Test AC system before summer heat. Clean dryer vents and inspect foundation.", action: "View Tasks" }
+        : { icon: "🌤️", type: "tip" as const, title: "Seasonal maintenance tip.", desc: "Based on your location, consider checking seals, weatherstripping, and HVAC filters before the next season.", action: "View Tasks" };
+      list.push(seasonal);
+    }
+    return list.slice(0, 2);
+  }, [report]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Layout>
       <style>{`
         @media print {
-          /* Hide everything except the print calendar */
           body > * { display: none !important; }
           #hf-print-calendar { display: block !important; }
-
-          #hf-print-calendar {
-            font-family: ${FONTS.sans};
-            color: ${COLORS.plum};
-            padding: 2rem;
-          }
+          #hf-print-calendar { font-family: ${FONTS.sans}; color: ${COLORS.plum}; padding: 2rem; }
           .hf-print-header { margin-bottom: 1.5rem; border-bottom: 2px solid ${COLORS.plum}; padding-bottom: 0.75rem; }
-          .hf-print-header h1 { font-family: ${FONTS.serif}; font-size: 1.6rem; font-weight: 900; margin: 0 0 0.25rem; }
-          .hf-print-header p  { font-size: 0.65rem; letter-spacing: 0.06em; color: ${COLORS.plumMid}; margin: 0; }
-          .hf-print-section   { margin-bottom: 1.5rem; }
+          .hf-print-header h1 { font-size: 1.6rem; font-weight: 900; margin: 0 0 0.25rem; }
+          .hf-print-section { margin-bottom: 1.5rem; }
           .hf-print-section-title { font-size: 0.6rem; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 700; border-bottom: 1px solid ${COLORS.rule}; padding-bottom: 0.25rem; margin-bottom: 0.5rem; }
-          .hf-print-row { display: flex; justify-content: space-between; align-items: baseline; padding: 0.3rem 0; border-bottom: 1px dotted ${COLORS.rule}; font-size: 0.72rem; }
-          .hf-print-row-label { flex: 1; }
-          .hf-print-row-meta  { font-size: 0.6rem; color: ${COLORS.plumMid}; margin-left: 1rem; }
-          .hf-print-row-cost  { font-weight: 700; margin-left: 1rem; }
-          .hf-print-urgency-critical { color: ${COLORS.sage}; font-weight: 700; }
-          .hf-print-urgency-soon     { color: ${COLORS.plumMid}; font-weight: 700; }
-          .hf-print-footer { margin-top: 2rem; font-size: 0.55rem; color: ${COLORS.plumMid}; letter-spacing: 0.05em; border-top: 1px solid ${COLORS.rule}; padding-top: 0.5rem; }
+          .hf-print-row { display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px dotted ${COLORS.rule}; font-size: 0.72rem; }
+          .hf-print-footer { margin-top: 2rem; font-size: 0.55rem; color: ${COLORS.plumMid}; border-top: 1px solid ${COLORS.rule}; padding-top: 0.5rem; }
         }
         @media screen { #hf-print-calendar { display: none; } }
       `}</style>
 
-      <div style={{ maxWidth: "72rem", margin: "0 auto", padding: "2rem 1.5rem" }}>
+      <div style={{ padding: "1.5rem 2rem", background: C.bg, minHeight: "100vh" }}>
 
-        <div style={{ marginBottom: "2rem" }}>
-          <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: UI.rust, marginBottom: "0.5rem" }}>
-            Maintenance
+        {/* ── Page header ────────────────────────────────────────────────────── */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem" }}>
+          <div>
+            <h1 style={{ fontFamily: FONTS.sans, fontWeight: 700, fontSize: "1.625rem", color: C.text, margin: 0 }}>
+              Predictive Maintenance
+            </h1>
+            <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: C.muted, marginTop: "0.25rem", marginBottom: 0 }}>
+              AI-powered insights to keep your home in top condition and avoid costly repairs.
+            </p>
           </div>
-          <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "2rem", lineHeight: 1, marginBottom: "0.375rem" }}>
-            Predictive Maintenance
-          </h1>
-          <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight }}>
-            System health predictions based on home age and service history.
-          </p>
+          <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+            {properties.length > 1 && (
+              <select value={selectedId} onChange={e => setSelectedId(e.target.value)} style={{ padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: "0.5rem", fontFamily: FONTS.sans, fontSize: "0.875rem", color: C.text, background: "white", cursor: "pointer" }}>
+                {properties.map(p => <option key={String(p.id)} value={String(p.id)}>{p.address}</option>)}
+              </select>
+            )}
+            <button
+              onClick={() => setShowSystemAges(true)}
+              style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 500, color: C.text, border: `1px solid ${C.border}`, background: "white", borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}
+            >
+              <Settings2 size={15} /> Maintenance Settings
+            </button>
+            <button onClick={() => window.print()} style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: FONTS.sans, fontSize: "0.875rem", color: C.muted, border: `1px solid ${C.border}`, background: "white", borderRadius: "0.5rem", padding: "0.5rem 0.75rem", cursor: "pointer" }}>
+              <Download size={15} />
+            </button>
+          </div>
         </div>
 
         {properties.length === 0 ? (
-          <div style={{ border: `1px dashed ${UI.rule}`, padding: "3rem", textAlign: "center" }}>
-            <Wrench size={32} color={UI.rule} style={{ margin: "0 auto 0.75rem" }} />
-            <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight }}>Add a property to see maintenance predictions.</p>
-          </div>
+          <Card style={{ padding: "3rem", textAlign: "center" }}>
+            <Wrench size={32} color={C.muted} style={{ margin: "0 auto 0.75rem" }} />
+            <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: C.muted }}>Add a property to see maintenance predictions.</p>
+          </Card>
         ) : (
           <>
-            {/* Cross-property overdue overview */}
-            {allPropertyReports.length >= 2 && (
-              <div style={{ border: `1px solid ${UI.rule}`, marginBottom: "1.5rem", background: COLORS.white }}>
-                <div style={{ padding: "0.75rem 1.25rem", borderBottom: `1px solid ${UI.rule}`, background: UI.paper }}>
-                  <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.inkLight }}>
-                    All Properties — Overdue Overview
-                  </span>
+            {/* ── KPI cards ─────────────────────────────────────────────────── */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "1rem", marginBottom: "1.25rem" }}>
+
+              {/* Overall Health Score */}
+              <Card style={{ padding: "1.25rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem" }}>
+                <span style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: C.muted, alignSelf: "flex-start" }}>Overall Health Score</span>
+                <HealthGauge score={healthScore} grade={healthGrade} />
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: healthDelta >= 0 ? C.green : C.red, fontWeight: 600 }}>
+                    {healthDelta >= 0 ? "↑" : "↓"} {Math.abs(healthDelta)} pts
+                  </div>
+                  <div style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.muted }}>vs last month</div>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: UI.rule }}>
-                  {allPropertyReports.map(({ property: p, critical, soon, overdueSystems }) => (
+                <button onClick={() => setShowSystemAges(true)} style={{ width: "100%", fontFamily: FONTS.sans, fontSize: "0.8125rem", fontWeight: 600, color: C.blue, border: `1px solid ${C.border}`, background: "white", borderRadius: "0.5rem", padding: "0.5rem", cursor: "pointer" }}>
+                  View Full Report
+                </button>
+              </Card>
+
+              {/* Upcoming Tasks */}
+              <Card style={{ padding: "1.25rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.75rem" }}>
+                  <span style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: C.muted }}>Upcoming Tasks</span>
+                  <div style={{ width: 32, height: 32, borderRadius: "50%", background: C.orangeBg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Wrench size={15} color={C.orange} />
+                  </div>
+                </div>
+                <div style={{ fontFamily: FONTS.sans, fontWeight: 700, fontSize: "2rem", color: C.text, lineHeight: 1 }}>{dueSoonCount}</div>
+                <div style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.orange, fontWeight: 600, marginTop: "0.25rem" }}>Due Soon</div>
+                {upcomingTasksWithDates.length > 0 && (
+                  <div style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.muted, marginTop: "0.25rem" }}>
+                    Next: {upcomingTasksWithDates[0]?.due.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  </div>
+                )}
+                <button onClick={() => setMaintenanceFilter("dueSoon")} style={{ marginTop: "0.75rem", width: "100%", fontFamily: FONTS.sans, fontSize: "0.8125rem", fontWeight: 600, color: C.blue, border: `1px solid ${C.border}`, background: "white", borderRadius: "0.5rem", padding: "0.5rem", cursor: "pointer" }}>
+                  View All Tasks
+                </button>
+              </Card>
+
+              {/* Potential Savings */}
+              <Card style={{ padding: "1.25rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.75rem" }}>
+                  <span style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: C.muted }}>Potential Savings</span>
+                  <div style={{ width: 32, height: 32, borderRadius: "50%", background: C.greenBg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <DollarSign size={15} color={C.green} />
+                  </div>
+                </div>
+                <div style={{ fontFamily: FONTS.sans, fontWeight: 700, fontSize: "2rem", color: C.text, lineHeight: 1 }}>
+                  ${potentialSavings > 0 ? potentialSavings.toLocaleString() : "—"}
+                </div>
+                <div style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.muted, marginTop: "0.25rem" }}>By staying on track</div>
+                <button onClick={() => navigate("/market")} style={{ marginTop: "0.75rem", width: "100%", fontFamily: FONTS.sans, fontSize: "0.8125rem", fontWeight: 600, color: C.blue, border: `1px solid ${C.border}`, background: "white", borderRadius: "0.5rem", padding: "0.5rem", cursor: "pointer" }}>
+                  See How
+                </button>
+              </Card>
+
+              {/* Completed This Year */}
+              <Card style={{ padding: "1.25rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.75rem" }}>
+                  <span style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: C.muted }}>Completed This Year</span>
+                  <div style={{ width: 32, height: 32, borderRadius: "50%", background: C.blueBg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <CheckCircle2 size={15} color={C.blue} />
+                  </div>
+                </div>
+                <div style={{ fontFamily: FONTS.sans, fontWeight: 700, fontSize: "2rem", color: C.text, lineHeight: 1 }}>{completedThisYear}</div>
+                <div style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.muted, marginTop: "0.25rem" }}>Tasks Completed</div>
+                <button onClick={() => {}} style={{ marginTop: "0.75rem", width: "100%", fontFamily: FONTS.sans, fontSize: "0.8125rem", fontWeight: 600, color: C.blue, border: `1px solid ${C.border}`, background: "white", borderRadius: "0.5rem", padding: "0.5rem", cursor: "pointer" }}>
+                  View History
+                </button>
+              </Card>
+
+              {/* Maintenance Budget */}
+              <Card style={{ padding: "1.25rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.75rem" }}>
+                  <span style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: C.muted }}>Maintenance Budget</span>
+                  <div style={{ width: 32, height: 32, borderRadius: "50%", background: C.blueBg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <BarChart2 size={15} color={C.blue} />
+                  </div>
+                </div>
+                <div style={{ fontFamily: FONTS.sans, fontWeight: 700, fontSize: "2rem", color: C.text, lineHeight: 1 }}>
+                  {budgetTotal > 0 ? `$${budgetTotal.toLocaleString()}` : "—"}
+                </div>
+                <div style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.muted, marginTop: "0.25rem" }}>Annual estimate</div>
+                <button onClick={() => setShowSystemAges(true)} style={{ marginTop: "0.75rem", width: "100%", fontFamily: FONTS.sans, fontSize: "0.8125rem", fontWeight: 600, color: C.blue, border: `1px solid ${C.border}`, background: "white", borderRadius: "0.5rem", padding: "0.5rem", cursor: "pointer" }}>
+                  View Budget
+                </button>
+              </Card>
+            </div>
+
+            {/* ── Two-column: Maintenance list + Calendar ───────────────────── */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "1.25rem", marginBottom: "1.25rem" }}>
+
+              {/* Upcoming Maintenance */}
+              <Card style={{ display: "flex", flexDirection: "column" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem 1.25rem", borderBottom: `1px solid ${C.border}` }}>
+                  <h3 style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.9375rem", color: C.text, margin: 0 }}>Upcoming Maintenance</h3>
+                  <button onClick={() => {}} style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: FONTS.sans, fontSize: "0.8125rem", color: C.blue, background: "none", border: `1px solid ${C.border}`, borderRadius: "0.5rem", padding: "0.375rem 0.75rem", cursor: "pointer" }}>
+                    <CalendarDays size={13} /> View Calendar
+                  </button>
+                </div>
+
+                {/* Filter tabs */}
+                <div style={{ display: "flex", borderBottom: `1px solid ${C.border}`, padding: "0 1.25rem" }}>
+                  {([["all", "All"], ["dueSoon", "Due Soon"], ["overdue", "Overdue"], ["scheduled", "Scheduled"]] as const).map(([key, label]) => (
                     <button
-                      key={String(p.id)}
-                      onClick={() => setSelectedId(String(p.id))}
-                      style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.75rem 1.25rem", background: String(p.id) === selectedId ? COLORS.blush : COLORS.white, border: "none", cursor: "pointer", textAlign: "left", width: "100%" }}
+                      key={key}
+                      onClick={() => setMaintenanceFilter(key)}
+                      style={{ padding: "0.625rem 0.875rem", fontFamily: FONTS.sans, fontSize: "0.8125rem", fontWeight: maintenanceFilter === key ? 600 : 400, color: maintenanceFilter === key ? C.blue : C.muted, background: "none", border: "none", borderBottom: maintenanceFilter === key ? `2px solid ${C.blue}` : "2px solid transparent", marginBottom: "-1px", cursor: "pointer" }}
                     >
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontWeight: 600, fontSize: "0.875rem", color: UI.ink, marginBottom: "0.2rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {p.address}
-                        </p>
-                        {overdueSystems.length > 0 ? (
-                          <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, letterSpacing: "0.04em" }}>
-                            Overdue: {overdueSystems.map((s) => s.systemName).join(", ")}
-                          </p>
-                        ) : (
-                          <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.sage, letterSpacing: "0.04em" }}>No overdue systems</p>
-                        )}
-                      </div>
-                      <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
-                        {critical > 0 && (
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", padding: "0.2rem 0.5rem", border: `1px solid ${UI.rust}`, fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.rust }}>
-                            <AlertTriangle size={9} /> {critical}
-                          </span>
-                        )}
-                        {soon > 0 && (
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", padding: "0.2rem 0.5rem", border: `1px solid ${COLORS.plumMid}`, fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.plumMid }}>
-                            <Clock size={9} /> {soon}
-                          </span>
-                        )}
-                        {critical === 0 && soon === 0 && (
-                          <span style={{ padding: "0.2rem 0.5rem", border: `1px solid ${UI.sage}`, fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.sage }}>
-                            Good
-                          </span>
-                        )}
-                      </div>
+                      {label}
                     </button>
                   ))}
                 </div>
-              </div>
-            )}
 
-            <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
-              <select
-                value={selectedId}
-                onChange={(e) => setSelectedId(String(e.target.value))}
-                style={{ padding: "0.5rem 0.875rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.65rem", background: COLORS.white, cursor: "pointer" }}
-              >
-                {properties.map((p) => (
-                  <option key={String(p.id)} value={String(p.id)}>{p.address}, {p.city} ({String(p.yearBuilt)})</option>
-                ))}
-              </select>
-              <button
-                onClick={() => setShowSystemAges(true)}
-                style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.5rem 0.875rem", border: `1px solid ${UI.rule}`, background: COLORS.white, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, cursor: "pointer" }}
-              >
-                <Settings2 size={12} />
-                {systemAgesService.hasAny(selectedId) ? "Edit system ages" : "Set system ages"}
-              </button>
-
-              {report && (
-                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                  {criticalCount > 0 && (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", padding: "0.25rem 0.625rem", border: `1px solid ${UI.rust}`, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.rust }}>
-                      <AlertTriangle size={10} /> {criticalCount} Critical
-                    </span>
-                  )}
-                  {soonCount > 0 && (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", padding: "0.25rem 0.625rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight }}>
-                      <Clock size={10} /> {soonCount} Soon
-                    </span>
-                  )}
-                  {report.totalBudgetLowCents > 0 && (
-                    <span style={{ padding: "0.25rem 0.625rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: UI.inkLight }}>
-                      Budget: {maintenanceService.formatCents(report.totalBudgetLowCents)}–{maintenanceService.formatCents(report.totalBudgetHighCents)}
-                    </span>
+                {/* Task list */}
+                <div style={{ flex: 1 }}>
+                  {filteredTasks.length === 0 ? (
+                    <div style={{ padding: "2rem", textAlign: "center" }}>
+                      <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: C.muted }}>No tasks in this category.</p>
+                    </div>
+                  ) : (
+                    filteredTasks.slice(0, 6).map(({ task, due, status }, i) => (
+                      <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto", alignItems: "center", gap: "1rem", padding: "0.875rem 1.25rem", borderBottom: `1px solid ${C.border}` }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: C.text, fontWeight: 500 }}>{task.task}</div>
+                          <div style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.muted }}>{task.frequency}</div>
+                          <div style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: status.color, fontWeight: status.label !== "Upcoming" ? 600 : 400, marginTop: "0.125rem" }}>
+                            Due {due.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                            {" "}· <span style={{ color: status.color }}>{status.label}</span>
+                          </div>
+                        </div>
+                        <div style={{ textAlign: "right", flexShrink: 0 }}>
+                          <div style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: C.text, fontWeight: 500 }}>{task.estimatedCost}</div>
+                          <div style={{ fontFamily: FONTS.sans, fontSize: "0.6875rem", color: C.muted }}>Est. Cost</div>
+                        </div>
+                        <button
+                          onClick={() => navigate("/quotes/new")}
+                          style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", fontWeight: 600, color: C.blue, border: `1px solid ${C.border}`, background: "white", borderRadius: "0.5rem", padding: "0.375rem 0.75rem", cursor: "pointer", whiteSpace: "nowrap" }}
+                        >
+                          {task.task.toLowerCase().includes("filter") || task.task.toLowerCase().includes("flush") || task.task.toLowerCase().includes("test") ? "Schedule" : "Get Quotes"}
+                        </button>
+                        <button style={{ background: "none", border: "none", cursor: "pointer", color: C.muted, padding: "0.25rem" }}>⋯</button>
+                      </div>
+                    ))
                   )}
                 </div>
-              )}
-              {report && (
-                <button
-                  onClick={() => window.print()}
-                  style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.5rem 0.875rem", border: `1px solid ${UI.rule}`, background: COLORS.white, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, cursor: "pointer" }}
-                >
-                  <Download size={12} /> Export PDF
-                </button>
-              )}
+
+                <div style={{ padding: "0.875rem 1.25rem", borderTop: `1px solid ${C.border}`, textAlign: "center" }}>
+                  <button
+                    onClick={() => setMaintenanceFilter("all")}
+                    style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", fontWeight: 600, color: C.blue, background: "none", border: "none", cursor: "pointer" }}
+                  >
+                    View All Maintenance Tasks
+                  </button>
+                </div>
+              </Card>
+
+              {/* Maintenance Calendar */}
+              <Card style={{ padding: "1.25rem" }}>
+                <h3 style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.9375rem", color: C.text, margin: "0 0 1rem" }}>
+                  Maintenance Calendar
+                </h3>
+                <MiniCalendar scheduleEntries={scheduleEntries} />
+              </Card>
             </div>
 
-            {/* Tabs */}
-            <div style={{ display: "flex", borderBottom: `1px solid ${UI.rule}`, marginBottom: "1.25rem" }}>
-              {TABS.map((tab) => (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ padding: "0.6rem 1.1rem", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", border: "none", borderBottom: activeTab === tab.id ? `2px solid ${UI.rust}` : "2px solid transparent", color: activeTab === tab.id ? UI.rust : UI.inkLight, background: "transparent", cursor: "pointer", marginBottom: "-1px" }}>
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+            {/* ── Two-column: AI Insights + Maintenance History ─────────────── */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "1.25rem", marginBottom: "1.25rem" }}>
 
-            {activeTab === "systems" && report && (() => {
-              const active = report.systemPredictions.filter((p) => taskStates[taskKey(p.systemName)] !== "done");
-              const done   = report.systemPredictions.filter((p) => taskStates[taskKey(p.systemName)] === "done");
-              const zone   = report.climateZone;
-              const adjustedSystems = Object.keys(zone.lifespanMultipliers);
-              return (
-                <>
-                  {zone.id !== "mixed" && (
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", padding: "0.65rem 0.875rem", background: COLORS.sky, border: `1px solid ${COLORS.plum}40`, marginBottom: "0.75rem" }}>
-                      <span style={{ fontSize: "0.85rem", lineHeight: 1 }}>🌡️</span>
-                      <div>
-                        <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.plum, fontWeight: 700 }}>
-                          {zone.name} Climate
-                        </span>
-                        <span style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: COLORS.plumDark, marginLeft: "0.5rem" }}>
-                          {adjustedSystems.join(", ")} lifespans adjusted for local conditions
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                  <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: UI.rule }}>
-                    {active.map((pred) => (
-                      <SystemCard
-                        key={pred.systemName}
-                        pred={pred}
-                        onSchedule={setScheduleTarget}
-                        marketRec={marketRecsByCategory[pred.systemName]}
-                        taskState={taskStates[taskKey(pred.systemName)] ?? "none"}
-                        onTaskStateChange={(s) => setTaskState(pred.systemName, s)}
-                      />
-                    ))}
+              {/* AI Insights & Recommendations */}
+              <Card style={{ padding: "1.25rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem" }}>
+                  <div style={{ width: 28, height: 28, borderRadius: "50%", background: C.blueBg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Bot size={15} color={C.blue} />
                   </div>
-                  {done.length > 0 && (
-                    <details style={{ marginTop: "1rem" }}>
-                      <summary style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, cursor: "pointer", padding: "0.5rem 0", userSelect: "none" }}>
-                        Completed systems ({done.length})
-                      </summary>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: UI.rule, marginTop: "0.5rem" }}>
-                        {done.map((pred) => (
-                          <SystemCard
-                            key={pred.systemName}
-                            pred={pred}
-                            onSchedule={setScheduleTarget}
-                            marketRec={marketRecsByCategory[pred.systemName]}
-                            taskState="done"
-                            onTaskStateChange={(s) => setTaskState(pred.systemName, s)}
-                              />
-                        ))}
+                  <h3 style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.9375rem", color: C.text, margin: 0 }}>
+                    AI Insights & Recommendations
+                  </h3>
+                  <button
+                    onClick={() => setShowChatPanel(p => !p)}
+                    style={{ marginLeft: "auto", fontFamily: FONTS.sans, fontSize: "0.8125rem", color: C.blue, background: "none", border: `1px solid ${C.border}`, borderRadius: "0.5rem", padding: "0.375rem 0.75rem", cursor: "pointer" }}
+                  >
+                    {showChatPanel ? "Hide Chat" : "Chat with AI"}
+                  </button>
+                </div>
+                {showChatPanel && property ? (
+                  <div style={{ height: "280px", border: `1px solid ${C.border}`, borderRadius: "0.5rem", overflow: "hidden" }}>
+                    <MaintenanceChatPanel yearBuilt={Number(property.yearBuilt)} propertyAddress={`${property.address}, ${property.city}`} report={report} />
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                    {insights.length === 0 ? (
+                      <div style={{ padding: "1.5rem", textAlign: "center", color: C.muted, fontFamily: FONTS.sans, fontSize: "0.875rem" }}>
+                        No insights available yet. Set your system ages to get predictions.
                       </div>
-                    </details>
-                  )}
-                </>
-              );
-            })()}
-
-            {activeTab === "annual" && report && (() => {
-              const pending = report.annualTasks.filter((t) => !annualTaskDone[annualKey(t.task)]);
-              const done    = report.annualTasks.filter((t) =>  annualTaskDone[annualKey(t.task)]);
-              const pct     = report.annualTasks.length > 0 ? Math.round((done.length / report.annualTasks.length) * 100) : 0;
-              const pendingBudgetLow  = pending.reduce((s, t) => s + t.estimatedCostLowCents,  0);
-              const pendingBudgetHigh = pending.reduce((s, t) => s + t.estimatedCostHighCents, 0);
-              return (
-                <>
-                  {/* Progress bar + budget */}
-                  <div style={{ marginBottom: "1.25rem" }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.375rem" }}>
-                      <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>
-                        {currentYear} Annual Tasks
-                      </span>
-                      <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", fontWeight: 700, color: pct === 100 ? UI.sage : UI.ink }}>
-                        {done.length} / {report.annualTasks.length} done ({pct}%)
-                      </span>
-                    </div>
-                    <div style={{ height: "4px", background: UI.rule }}>
-                      <div style={{ height: "100%", width: `${pct}%`, background: pct === 100 ? UI.sage : UI.rust, transition: "width 0.3s" }} />
-                    </div>
-                    {pending.length > 0 && (
-                      <div style={{ marginTop: "0.625rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight }}>
-                          {pending.length} task{pending.length !== 1 ? "s" : ""} remaining
-                        </span>
-                        <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.ink }}>
-                          Est. remaining cost: <strong>{maintenanceService.formatCents(pendingBudgetLow)}–{maintenanceService.formatCents(pendingBudgetHigh)}</strong>
-                        </span>
-                      </div>
+                    ) : (
+                      insights.map((ins, i) => (
+                        <div key={i} style={{ display: "flex", gap: "0.875rem", padding: "1rem", background: ins.type === "warning" ? C.redBg : ins.type === "info" ? C.orangeBg : C.greenBg, borderRadius: "0.5rem", border: `1px solid ${ins.type === "warning" ? C.red + "33" : ins.type === "info" ? C.orange + "33" : C.greenBdr}` }}>
+                          <span style={{ fontSize: "1.25rem", lineHeight: 1, flexShrink: 0 }}>{ins.icon}</span>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, color: ins.type === "warning" ? C.red : ins.type === "info" ? C.orange : C.green, marginBottom: "0.25rem" }}>
+                              {ins.title}
+                            </div>
+                            <div style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: C.text, lineHeight: 1.4, marginBottom: "0.5rem" }}>
+                              {ins.desc}
+                            </div>
+                            <button
+                              onClick={() => ins.type === "warning" ? setShowSystemAges(true) : setMaintenanceFilter("dueSoon")}
+                              style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", fontWeight: 600, color: C.blue, border: `1px solid ${C.border}`, background: "white", borderRadius: "0.375rem", padding: "0.375rem 0.75rem", cursor: "pointer" }}
+                            >
+                              {ins.action}
+                            </button>
+                          </div>
+                        </div>
+                      ))
                     )}
                   </div>
+                )}
+              </Card>
 
-                  {/* Pending tasks */}
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(16rem, 1fr))", gap: "1px", background: UI.rule }}>
-                    {pending.map((task) => (
-                      <div key={task.task} style={{ background: COLORS.white, padding: "1rem" }}>
-                        <label style={{ display: "flex", alignItems: "flex-start", gap: "0.625rem", cursor: "pointer" }}>
-                          <input
-                            type="checkbox"
-                            checked={false}
-                            onChange={() => toggleAnnualTask(task.task)}
-                            style={{ marginTop: "0.2rem", accentColor: UI.rust, cursor: "pointer", flexShrink: 0 }}
-                          />
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: 600, fontSize: "0.875rem", color: UI.ink, marginBottom: "0.375rem" }}>{task.task}</div>
-                            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "0.5rem" }}>
-                              <span style={{ border: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.rust, padding: "0.125rem 0.4rem" }}>
-                                {task.frequency}
-                              </span>
-                              {task.season && <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>{task.season}</span>}
-                            </div>
-                            <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: UI.ink, fontWeight: 600 }}>
-                              {task.estimatedCost}
-                              {task.diyViable && (
-                                <span style={{ marginLeft: "0.5rem", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: UI.sage, border: `1px solid ${UI.sage}40`, padding: "0.1rem 0.4rem", textTransform: "uppercase" }}>
-                                  DIY
-                                </span>
-                              )}
-                            </div>
+              {/* Maintenance History */}
+              <Card style={{ display: "flex", flexDirection: "column" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem", borderBottom: `1px solid ${C.border}` }}>
+                  <h3 style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.9375rem", color: C.text, margin: 0 }}>Maintenance History</h3>
+                  <button style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: C.blue, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                    View All History <ArrowRight size={13} />
+                  </button>
+                </div>
+                <div style={{ flex: 1 }}>
+                  {completedHistory.length === 0 ? (
+                    <div style={{ padding: "1.5rem", textAlign: "center" }}>
+                      <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: C.muted, marginBottom: "0.5rem" }}>No completed tasks yet.</p>
+                      <p style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.muted }}>Completed tasks from your schedule will appear here.</p>
+                    </div>
+                  ) : (
+                    completedHistory.map(entry => (
+                      <div key={entry.id} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.875rem 1.25rem", borderBottom: `1px solid ${C.border}` }}>
+                        <CheckCircle2 size={18} color={C.green} style={{ flexShrink: 0 }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: C.text, fontWeight: 500 }}>{entry.systemName}</div>
+                          <div style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.muted }}>
+                            Completed {new Date(entry.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                           </div>
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Done tasks */}
-                  {done.length > 0 && (
-                    <details style={{ marginTop: "1rem" }}>
-                      <summary style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.sage, cursor: "pointer", padding: "0.5rem 0", userSelect: "none" }}>
-                        ✓ Done this year ({done.length})
-                      </summary>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(16rem, 1fr))", gap: "1px", background: UI.rule, marginTop: "0.5rem" }}>
-                        {done.map((task) => (
-                          <div key={task.task} style={{ background: COLORS.sageLight, padding: "1rem", opacity: 0.7 }}>
-                            <label style={{ display: "flex", alignItems: "flex-start", gap: "0.625rem", cursor: "pointer" }}>
-                              <input
-                                type="checkbox"
-                                checked={true}
-                                onChange={() => toggleAnnualTask(task.task)}
-                                style={{ marginTop: "0.2rem", accentColor: UI.sage, cursor: "pointer", flexShrink: 0 }}
-                              />
-                              <div>
-                                <div style={{ fontWeight: 600, fontSize: "0.875rem", color: UI.inkLight, textDecoration: "line-through", marginBottom: "0.2rem" }}>{task.task}</div>
-                                <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: UI.sage }}>Completed {currentYear}</span>
-                              </div>
-                            </label>
+                        </div>
+                        {entry.estimatedCostCents && (
+                          <div style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, color: C.text, flexShrink: 0 }}>
+                            ${Math.round(entry.estimatedCostCents / 100).toLocaleString()}
                           </div>
-                        ))}
+                        )}
+                        <ArrowRight size={14} color={C.muted} />
                       </div>
-                    </details>
+                    ))
                   )}
-                </>
-              );
-            })()}
-
-            {activeTab === "schedule" && (
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-                    <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>5-Year Maintenance Calendar</p>
-                    <button onClick={() => setActiveTab("systems")} style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "0.35rem 0.75rem", cursor: "pointer" }}>
-                      <PlusCircle size={11} /> Add from systems
-                    </button>
-                  </div>
-                  <FiveYearCalendar entries={scheduleEntries} onComplete={handleComplete} onDelete={handleDelete} onAddYear={() => setActiveTab("systems")} />
                 </div>
-            )}
+              </Card>
+            </div>
 
-            {activeTab === "advisor" && property && (
-              <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, overflow: "hidden", height: "30rem", display: "flex", flexDirection: "column" }}>
-                <div style={{ padding: "0.875rem 1.25rem", borderBottom: `1px solid ${UI.rule}`, display: "flex", alignItems: "center", gap: "0.5rem", background: UI.paper }}>
-                  <Bot size={14} color={UI.rust} />
-                  <span style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.ink }}>
-                    AI Maintenance Advisor
-                  </span>
-                  <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>· Powered by Claude</span>
+            {/* ── CTA banner ────────────────────────────────────────────────── */}
+            <div style={{ background: C.blueBg, border: `1px solid ${C.blue}33`, borderRadius: "0.75rem", padding: "1.25rem 1.75rem", display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+              <div style={{ width: 40, height: 40, borderRadius: "50%", background: C.blue, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <CalendarDays size={20} color="white" />
+              </div>
+              <div style={{ flex: 1, minWidth: "200px" }}>
+                <div style={{ fontFamily: FONTS.sans, fontWeight: 700, fontSize: "1rem", color: C.text, marginBottom: "0.25rem" }}>
+                  Stay Ahead &amp; Repairs
                 </div>
-                <div style={{ flex: 1, minHeight: 0 }}>
-                  <MaintenanceChatPanel yearBuilt={Number(property.yearBuilt)} propertyAddress={`${property.address}, ${property.city}`} report={report} />
+                <div style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: C.muted }}>
+                  Enable predictive scheduling and never miss important maintenance again.
                 </div>
               </div>
-            )}
+              <button
+                onClick={() => setShowSystemAges(true)}
+                style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 700, color: "white", background: C.blue, border: "none", borderRadius: "0.5rem", padding: "0.75rem 1.5rem", cursor: "pointer", flexShrink: 0 }}
+              >
+                Enable Auto-Schedule
+              </button>
+            </div>
           </>
         )}
       </div>
 
+      {/* ── Modals ─────────────────────────────────────────────────────────────── */}
       {scheduleTarget && property && (
         <AddToScheduleModal pred={scheduleTarget} propertyId={String(property.id)} onSave={handleScheduleSave} onClose={() => setScheduleTarget(null)} />
       )}
 
-      {/* ── Print-only calendar ───────────────────────────────────────────── */}
+      {/* Print-only calendar */}
       <div id="hf-print-calendar">
         {report && property && (() => {
-          const zone = report.climateZone;
-          const urgent = report.systemPredictions.filter((p) => p.urgency === "Critical" || p.urgency === "Soon");
-          const watching = report.systemPredictions.filter((p) => p.urgency === "Watch" || p.urgency === "Good");
-          const totalReplacementLow  = urgent.reduce((s, p) => s + p.estimatedCostLowCents, 0);
-          const totalReplacementHigh = urgent.reduce((s, p) => s + p.estimatedCostHighCents, 0);
-
-          const tasksBySeason: Record<string, typeof report.annualTasks> = { Spring: [], Summer: [], Fall: [], Winter: [], "Year-round": [] };
-          for (const t of report.annualTasks) {
-            const bucket = t.season ?? "Year-round";
-            (tasksBySeason[bucket] ??= []).push(t);
-          }
-
+          const urgent = report.systemPredictions.filter(p => p.urgency === "Critical" || p.urgency === "Soon");
           return (
             <>
               <div className="hf-print-header">
                 <h1>HomeGentic Maintenance Calendar</h1>
                 <p>{property.address}, {property.city}, {property.state} {property.zipCode} · Built {String(property.yearBuilt)} · Generated {new Date().toLocaleDateString()}</p>
-                {zone.id !== "mixed" && <p style={{ marginTop: "0.25rem" }}>Climate zone: {zone.name} — {zone.description}</p>}
               </div>
-
               <div className="hf-print-section">
                 <div className="hf-print-section-title">System Health Summary</div>
-                {urgent.map((p) => (
+                {urgent.map(p => (
                   <div key={p.systemName} className="hf-print-row">
-                    <span className={`hf-print-row-label hf-print-urgency-${p.urgency.toLowerCase()}`}>{p.urgency === "Critical" ? "⚠" : "⏰"} {p.systemName}</span>
-                    <span className="hf-print-row-meta">{p.yearsRemaining < 0 ? `${Math.abs(p.yearsRemaining)}y overdue` : `${p.yearsRemaining}y remaining`}</span>
-                    <span className="hf-print-row-cost">{maintenanceService.formatCents(p.estimatedCostLowCents)}–{maintenanceService.formatCents(p.estimatedCostHighCents)}</span>
+                    <span>{p.urgency === "Critical" ? "⚠" : "⏰"} {p.systemName}</span>
+                    <span>{p.yearsRemaining < 0 ? `${Math.abs(p.yearsRemaining)}y overdue` : `${p.yearsRemaining}y remaining`}</span>
+                    <span>{maintenanceService.formatCents(p.estimatedCostLowCents)}–{maintenanceService.formatCents(p.estimatedCostHighCents)}</span>
                   </div>
                 ))}
-                {watching.map((p) => (
-                  <div key={p.systemName} className="hf-print-row">
-                    <span className="hf-print-row-label">{p.systemName}</span>
-                    <span className="hf-print-row-meta">{p.yearsRemaining}y remaining · {p.urgency}</span>
-                    <span className="hf-print-row-cost">—</span>
-                  </div>
-                ))}
-                {totalReplacementLow > 0 && (
-                  <div className="hf-print-row" style={{ marginTop: "0.5rem", borderBottom: "none", fontWeight: 700 }}>
-                    <span className="hf-print-row-label">Replacement budget (Critical + Soon)</span>
-                    <span className="hf-print-row-cost">{maintenanceService.formatCents(totalReplacementLow)}–{maintenanceService.formatCents(totalReplacementHigh)}</span>
-                  </div>
-                )}
               </div>
-
               <div className="hf-print-section">
-                <div className="hf-print-section-title">Annual Maintenance Tasks by Season</div>
-                {Object.entries(tasksBySeason).filter(([, tasks]) => tasks.length > 0).map(([season, tasks]) => (
-                  <div key={season} style={{ marginBottom: "0.75rem" }}>
-                    <div style={{ fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.25rem" }}>{season}</div>
-                    {tasks.map((t) => (
-                      <div key={t.task} className="hf-print-row">
-                        <span className="hf-print-row-label">□ {t.task}</span>
-                        <span className="hf-print-row-meta">{t.frequency}</span>
-                        <span className="hf-print-row-cost">{t.estimatedCost}</span>
-                      </div>
-                    ))}
+                <div className="hf-print-section-title">Annual Maintenance Tasks</div>
+                {report.annualTasks.map(t => (
+                  <div key={t.task} className="hf-print-row">
+                    <span>□ {t.task}</span>
+                    <span>{t.frequency}</span>
+                    <span>{t.estimatedCost}</span>
                   </div>
                 ))}
-                <div className="hf-print-row" style={{ borderBottom: "none", fontWeight: 700 }}>
-                  <span className="hf-print-row-label">Annual task budget</span>
-                  <span className="hf-print-row-cost">{maintenanceService.formatCents(report.annualTaskBudgetLowCents)}–{maintenanceService.formatCents(report.annualTaskBudgetHighCents)}</span>
-                </div>
               </div>
-
-              <div className="hf-print-footer">
-                Generated by HomeGentic · Records verified on Internet Computer Protocol · homegentic.app
-              </div>
+              <div className="hf-print-footer">Generated by HomeGentic · Records verified on Internet Computer Protocol · homegentic.app</div>
             </>
           );
         })()}
@@ -995,7 +764,6 @@ export default function PredictiveMaintenancePage() {
         propertyId={selectedId}
         yearBuilt={property ? Number(property.yearBuilt) : new Date().getFullYear() - 20}
         onSuccess={() => {
-          // Re-run forecast with updated system ages
           if (property) {
             const updatedAges = systemAgesService.get(selectedId);
             setReport(maintenanceService.predict(Number(property.yearBuilt), propJobs, updatedAges, String(property.state)));
