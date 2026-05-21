@@ -628,9 +628,9 @@ function AIAssistantPanel() {
           }}>
             <Sparkles size={14} color="#7C3AED" />
           </div>
-          <span style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.9375rem", color: C.text }}>
+          <h3 style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.9375rem", color: C.text, margin: 0 }}>
             AI Assistant
-          </span>
+          </h3>
         </div>
       </div>
 
