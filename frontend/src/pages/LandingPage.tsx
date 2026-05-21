@@ -3,6 +3,13 @@ import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { neighborReferralService } from "@/services/neighborReferral";
 import { Helmet } from "react-helmet-async";
 import { CSS } from "./landingStyles";
+import {
+  LayoutDashboard, Home, Wrench, FileText, CreditCard, Zap, Cpu,
+  ClipboardList, Bot, Bell, MoreVertical,
+  ShieldCheck, Lock, CheckCircle2, Infinity,
+  Users, Briefcase, Shield,
+  Wifi, MessageSquare, Globe, Mic,
+} from "lucide-react";
 
 /* ── House SVG logo (matches mockup: green roof, orange-left/blue-right body) */
 function HouseSvg() {
@@ -67,15 +74,15 @@ function GiftIcon() {
 /* ── Dashboard mockup (right side of hero) ── */
 function DashboardMockup() {
   const navItems = [
-    { icon: "📊", label: "Dashboard",      active: true },
-    { icon: "🏠", label: "My Properties"  },
-    { icon: "🔧", label: "Maintenance"    },
-    { icon: "📄", label: "Documents"      },
-    { icon: "💳", label: "Transactions"   },
-    { icon: "⚡", label: "Bills & Utilities" },
-    { icon: "📡", label: "IoT Devices"    },
-    { icon: "📋", label: "Reports"        },
-    { icon: "🤖", label: "AI Assistant"   },
+    { Icon: LayoutDashboard, label: "Dashboard",         active: true },
+    { Icon: Home,            label: "My Properties"     },
+    { Icon: Wrench,          label: "Maintenance"       },
+    { Icon: FileText,        label: "Documents"         },
+    { Icon: CreditCard,      label: "Transactions"      },
+    { Icon: Zap,             label: "Bills & Utilities" },
+    { Icon: Cpu,             label: "IoT Devices"       },
+    { Icon: ClipboardList,   label: "Reports"           },
+    { Icon: Bot,             label: "AI Assistant"      },
   ];
   const activity = [
     { dot: "hfl-dm-act-dot-green",  title: "HVAC maintenance completed",    sub: "Duct cleaning by you and AC Pro Services", date: "May 4" },
@@ -91,8 +98,8 @@ function DashboardMockup() {
           <span>Home<span className="green">Gentic</span></span>
         </div>
         <div className="hfl-dm-topbar-icons">
-          <span>🔔</span>
-          <span>⋮</span>
+          <Bell size={12} color="#64748B" />
+          <MoreVertical size={12} color="#64748B" />
         </div>
       </div>
 
@@ -102,7 +109,7 @@ function DashboardMockup() {
         <div className="hfl-dm-sidebar">
           {navItems.map((item) => (
             <div key={item.label} className={`hfl-dm-nav${item.active ? " hfl-dm-nav-active" : ""}`}>
-              <span>{item.icon}</span>
+              <item.Icon size={12} color={item.active ? "#2563EB" : "#64748B"} />
               {item.label}
             </div>
           ))}
@@ -175,37 +182,37 @@ function DashboardMockup() {
 }
 
 /* ── Data ── */
-const TRUST_BADGES = [
-  { bg: "#F0FDF4", color: "#16A34A", icon: "🛡️", title: "Blockchain Verified",  sub: "Built on ICP for data permanence" },
-  { bg: "#FEFCE8", color: "#CA8A04", icon: "🔒", title: "Secure & Private",      sub: "You own your data. Always." },
-  { bg: "#EFF6FF", color: "#2563EB", icon: "✍️", title: "Dual-Signature",        sub: "Every job verified by both parties" },
-  { bg: "#F5F3FF", color: "#7C3AED", icon: "∞",  title: "Internet Computer",     sub: "Decentralized. Scalable. Unstoppable." },
+const TRUST_BADGES: { bg: string; color: string; Icon: React.ElementType; title: string; sub: string }[] = [
+  { bg: "#F0FDF4", color: "#16A34A", Icon: ShieldCheck,   title: "Blockchain Verified",  sub: "Built on ICP for data permanence" },
+  { bg: "#FEFCE8", color: "#CA8A04", Icon: Lock,          title: "Secure & Private",      sub: "You own your data. Always." },
+  { bg: "#EFF6FF", color: "#2563EB", Icon: CheckCircle2,  title: "Dual-Signature",        sub: "Every job verified by both parties" },
+  { bg: "#F5F3FF", color: "#7C3AED", Icon: Infinity,      title: "Internet Computer",     sub: "Decentralized. Scalable. Unstoppable." },
 ];
 
-const ROLES = [
+const ROLES: { bg: string; color: string; Icon: React.ElementType; title: string; desc: string }[] = [
   {
-    bg: "#F0FDF4", icon: "🏘️", title: "For Homeowners",
+    bg: "#F0FDF4", color: "#16A34A", Icon: Users, title: "For Homeowners",
     desc: "Track maintenance, manage bills, get quotes, monitor property health, and list FSBO.",
   },
   {
-    bg: "#FFF7ED", icon: "👷", title: "For Contractors",
+    bg: "#FFF7ED", color: "#D97706", Icon: Briefcase, title: "For Contractors",
     desc: "Receive quote requests, submit bids, log jobs, build your reputation, and grow your business.",
   },
   {
-    bg: "#EFF6FF", icon: "🛡️", title: "For Admins",
+    bg: "#EFF6FF", color: "#2563EB", Icon: Shield, title: "For Admins",
     desc: "Verify ownership, manage subscriptions, monitor platform health and security.",
   },
 ];
 
-const FEATURES = [
-  { bg: "#F0FDF4", icon: "🔧", title: "Smart Maintenance",     desc: "Track history, schedule tasks, and get AI-powered predictive maintenance recommendations." },
-  { bg: "#EFF6FF", icon: "📡", title: "IoT Integration",       desc: "Connect Nest, Ecobee, Moen Flo, Ring Alarm, and 8+ devices for real-time monitoring." },
-  { bg: "#EFF6FF", icon: "💬", title: "Get Quotes",            desc: "Request quotes from trusted contractors and compare bids side-by-side." },
-  { bg: "#EFF6FF", icon: "✍️", title: "Dual-Signature Jobs",  desc: "Jobs are verified by both homeowner and contractor and immutably recorded on ICP." },
-  { bg: "#F0FDF4", icon: "🏠", title: "FSBO Listings",        desc: "List your property for sale, manage sealed-bid offers, and match with verified agents." },
-  { bg: "#FFF7ED", icon: "🌐", title: "360° Panorama Viewer", desc: "Immersive property tours with PlayCanvas-powered 360° panorama viewer." },
-  { bg: "#EFF6FF", icon: "🎤", title: "AI Voice Agent",        desc: "Ask questions, get updates, and manage your property—hands-free with Claude-powered AI." },
-  { bg: "#EFF6FF", icon: "📋", title: "Immutable Reports",    desc: "Generate tamper-proof reports with shareable links for insurance, buyers, or contractors." },
+const FEATURES: { bg: string; color: string; Icon: React.ElementType; title: string; desc: string }[] = [
+  { bg: "#F0FDF4", color: "#16A34A", Icon: Wrench,       title: "Smart Maintenance",     desc: "Track history, schedule tasks, and get AI-powered predictive maintenance recommendations." },
+  { bg: "#FFF7ED", color: "#D97706", Icon: Wifi,         title: "IoT Integration",       desc: "Connect Nest, Ecobee, Moen Flo, Ring Alarm, and 8+ devices for real-time monitoring." },
+  { bg: "#EFF6FF", color: "#2563EB", Icon: MessageSquare,title: "Get Quotes",            desc: "Request quotes from trusted contractors and compare bids side-by-side." },
+  { bg: "#EFF6FF", color: "#2563EB", Icon: ShieldCheck,  title: "Dual-Signature Jobs",  desc: "Jobs are verified by both homeowner and contractor and immutably recorded on ICP." },
+  { bg: "#F0FDF4", color: "#16A34A", Icon: Home,         title: "FSBO Listings",        desc: "List your property for sale, manage sealed-bid offers, and match with verified agents." },
+  { bg: "#FFF7ED", color: "#D97706", Icon: Globe,        title: "360° Panorama Viewer", desc: "Immersive property tours with PlayCanvas-powered 360° panorama viewer." },
+  { bg: "#EFF6FF", color: "#2563EB", Icon: Mic,          title: "AI Voice Agent",        desc: "Ask questions, get updates, and manage your property—hands-free with Claude-powered AI." },
+  { bg: "#EFF6FF", color: "#2563EB", Icon: ClipboardList,title: "Immutable Reports",    desc: "Generate tamper-proof reports with shareable links for insurance, buyers, or contractors." },
 ];
 
 const PLANS = [
@@ -343,8 +350,8 @@ export default function LandingPage() {
           <div className="hfl-trust-inner">
             {TRUST_BADGES.map((b) => (
               <div key={b.title} className="hfl-trust-item">
-                <div className="hfl-trust-icon" style={{ background: b.bg, color: b.color }}>
-                  {b.icon}
+                <div className="hfl-trust-icon" style={{ background: b.bg }}>
+                  <b.Icon size={20} color={b.color} />
                 </div>
                 <div>
                   <div className="hfl-trust-text-title">{b.title}</div>
@@ -363,7 +370,9 @@ export default function LandingPage() {
           <div className="hfl-roles-grid">
             {ROLES.map((r) => (
               <div key={r.title} className="hfl-role-card">
-                <div className="hfl-role-icon" style={{ background: r.bg }}>{r.icon}</div>
+                <div className="hfl-role-icon" style={{ background: r.bg }}>
+                  <r.Icon size={24} color={r.color} />
+                </div>
                 <div className="hfl-role-title">{r.title}</div>
                 <div className="hfl-role-desc">{r.desc}</div>
                 <button className="hfl-role-link" onClick={() => navigate("/login")}>
@@ -382,7 +391,9 @@ export default function LandingPage() {
           <div className="hfl-features-grid">
             {FEATURES.map((f) => (
               <div key={f.title} className="hfl-feat-card">
-                <div className="hfl-feat-icon" style={{ background: f.bg }}>{f.icon}</div>
+                <div className="hfl-feat-icon" style={{ background: f.bg }}>
+                  <f.Icon size={20} color={f.color} />
+                </div>
                 <div className="hfl-feat-body">
                   <div className="hfl-feat-title">{f.title}</div>
                   <div className="hfl-feat-desc">{f.desc}</div>
@@ -469,7 +480,7 @@ export default function LandingPage() {
             ))}
           </div>
           <div className="hfl-pricing-guarantee">
-            <span>🛡</span>
+            <ShieldCheck size={16} color="#16A34A" />
             <span>30-day money-back guarantee</span>
             <span className="hfl-pricing-guarantee-sep">•</span>
             <span>Cancel anytime</span>
