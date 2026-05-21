@@ -85,8 +85,7 @@ function MiniCalendar({ scheduleEntries }: { scheduleEntries: ScheduleEntry[] })
 
   const eventsByDay = new Map<number, "completed" | "scheduled">();
   for (const e of scheduleEntries) {
-    if (!e.date) continue;
-    const d = new Date(e.date);
+    const d = entryDate(e);
     if (d.getFullYear() === yr && d.getMonth() === mo) {
       eventsByDay.set(d.getDate(), e.isCompleted ? "completed" : "scheduled");
     }
@@ -134,6 +133,11 @@ function MiniCalendar({ scheduleEntries }: { scheduleEntries: ScheduleEntry[] })
       </div>
     </div>
   );
+}
+
+function entryDate(e: ScheduleEntry): Date {
+  const month = e.plannedMonth !== undefined ? e.plannedMonth - 1 : 0;
+  return new Date(e.plannedYear, month, 1);
 }
 
 // ─── AddToScheduleModal ────────────────────────────────────────────────────────
@@ -353,13 +357,13 @@ export default function PredictiveMaintenancePage() {
   });
 
   const dueSoonCount  = upcomingTasksWithDates.filter(t => t.status.label === "Due Soon").length + criticalPreds.length;
-  const completedThisYear = scheduleEntries.filter(e => e.isCompleted && new Date(e.date).getFullYear() === currentYear).length;
+  const completedThisYear = scheduleEntries.filter(e => e.isCompleted && entryDate(e).getFullYear() === currentYear).length;
   const budgetTotal   = report ? Math.round((report.totalBudgetLowCents + report.totalBudgetHighCents) / 2 / 100) : 0;
   const potentialSavings = Math.round(criticalPreds.reduce((s, p) => s + p.estimatedCostLowCents * 0.2, 0) / 100 + soonPreds.reduce((s, p) => s + p.serviceCallLowCents * 0.5, 0) / 100);
 
   const completedHistory = scheduleEntries
     .filter(e => e.isCompleted)
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .sort((a, b) => entryDate(b).getTime() - entryDate(a).getTime())
     .slice(0, 4);
 
   const insights = React.useMemo(() => {
@@ -677,7 +681,7 @@ export default function PredictiveMaintenancePage() {
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: C.text, fontWeight: 500 }}>{entry.systemName}</div>
                           <div style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.muted }}>
-                            Completed {new Date(entry.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                            Completed {entryDate(entry).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
                           </div>
                         </div>
                         {entry.estimatedCostCents && (

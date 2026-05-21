@@ -174,7 +174,7 @@ export default function PropertyDetailPage() {
   const homegenticScore = property ? computeScoreWithDecay(jobs, [property], totalDecay) : 0;
   const scoreGrade     = getScoreGrade(homegenticScore);
   const delta          = scoreDelta(scoreHistory);
-  const heroPhotoUrl   = Object.values(photosByJob).flat().find(Boolean) ?? null;
+  const heroPhotoUrl   = Object.values(photosByJob).flat().find(Boolean)?.url ?? null;
   const recentActivity = React.useMemo(
     () => [...jobs].sort((a, b) => Number(b.createdAt) - Number(a.createdAt)).slice(0, 4),
     [jobs],
