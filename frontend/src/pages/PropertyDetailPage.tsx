@@ -1,45 +1,34 @@
 import React from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Share2, Shield, Wrench, MessageSquare, AlertCircle } from "lucide-react";
+import {
+  Share2, Shield, Wrench, MessageSquare, AlertCircle,
+  CalendarDays, Activity, Cpu, ArrowRight,
+} from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
-import { Badge } from "@/components/Badge";
-import { GenerateReportModal }     from "@/components/GenerateReportModal";
-import { InsuranceShareModal }     from "@/components/InsuranceShareModal";
-import { LogJobModal }              from "@/components/LogJobModal";
-import { RequestQuoteModal }        from "@/components/RequestQuoteModal";
-import { InviteContractorModal }    from "@/components/InviteContractorModal";
-import PropertyVerifyModal              from "@/components/PropertyVerifyModal";
-import SystemAgesModal                  from "@/components/SystemAgesModal";
-import RecurringServiceCreateModal      from "@/components/RecurringServiceCreateModal";
-import InitListingModal                 from "@/components/InitListingModal";
-import { fsboService } from "@/services/fsbo";
-import { type Job, jobService } from "@/services/job";
-import { computeScoreWithDecay, computeBreakdown, getScoreGrade, premiumEstimate, isCertified, scoreDelta } from "@/services/scoreService";
-import { ScoreValueBanner } from "@/components/ScoreValueBanner";
-import { PropertyEstimatedValueInput, getStoredEstimatedValue } from "@/components/PropertyEstimatedValueInput";
-import { getAllDecayEvents, getAtRiskWarnings, getTotalDecay, type DecayEvent, type AtRiskWarning } from "@/services/scoreDecayService";
-import { getRecentScoreEvents, type ScoreEvent } from "@/services/scoreEventService";
-import { getReEngagementPrompts, type ReEngagementPrompt } from "@/services/reEngagementService";
-import { marketService, jobToSummary, type PropertyProfile, type ProjectRecommendation } from "@/services/market";
-import { getWeeklyPulse } from "@/services/pulseService";
-import { ScorePanel } from "@/components/ScorePanel";
-import { ScoreActivityFeed } from "@/components/ScoreActivityFeed";
-import { AlertStack } from "@/components/AlertStack";
-import { MilestoneStack } from "@/components/MilestoneStack";
-import { ReEngagementStack } from "@/components/ReEngagementStack";
-import { MarketIntelPanel } from "@/components/MarketIntelPanel";
-import { RecurringServicesPanel } from "@/components/RecurringServicesPanel";
-import FsboPanel from "@/components/FsboPanel";
-import { usePropertyStore } from "@/store/propertyStore";
-import { useAuthStore } from "@/store/authStore";
-import { usePropertyDetail } from "@/hooks/usePropertyDetail";
-import { usePropertyJobs } from "@/hooks/usePropertyJobs";
-import { usePropertyPhotos } from "@/hooks/usePropertyPhotos";
-import { usePropertyRooms } from "@/hooks/usePropertyRooms";
-import { usePropertyMaintenance } from "@/hooks/usePropertyMaintenance";
-import { usePropertyScore } from "@/hooks/usePropertyScore";
-import { useUserTier } from "@/hooks/useUserTier";
+import { GenerateReportModal }       from "@/components/GenerateReportModal";
+import { InsuranceShareModal }       from "@/components/InsuranceShareModal";
+import { LogJobModal }               from "@/components/LogJobModal";
+import { RequestQuoteModal }         from "@/components/RequestQuoteModal";
+import { InviteContractorModal }     from "@/components/InviteContractorModal";
+import PropertyVerifyModal           from "@/components/PropertyVerifyModal";
+import SystemAgesModal               from "@/components/SystemAgesModal";
+import RecurringServiceCreateModal   from "@/components/RecurringServiceCreateModal";
+import InitListingModal              from "@/components/InitListingModal";
+import { fsboService }               from "@/services/fsbo";
+import { type Job, jobService }      from "@/services/job";
+import { computeScoreWithDecay, getScoreGrade, scoreDelta } from "@/services/scoreService";
+import { getAllDecayEvents, getAtRiskWarnings, getTotalDecay } from "@/services/scoreDecayService";
+import { type RecurringService, SERVICE_TYPE_LABELS } from "@/services/recurringService";
+import { getStoredEstimatedValue }   from "@/components/PropertyEstimatedValueInput";
+import { usePropertyStore }          from "@/store/propertyStore";
+import { useAuthStore }              from "@/store/authStore";
+import { usePropertyDetail }         from "@/hooks/usePropertyDetail";
+import { usePropertyJobs }           from "@/hooks/usePropertyJobs";
+import { usePropertyPhotos }         from "@/hooks/usePropertyPhotos";
+import { usePropertyRooms }          from "@/hooks/usePropertyRooms";
+import { usePropertyMaintenance }    from "@/hooks/usePropertyMaintenance";
+import { usePropertyScore }          from "@/hooks/usePropertyScore";
 import { TimelineTab }  from "./PropertyDetail/TimelineTab";
 import { JobsTab }      from "./PropertyDetail/JobsTab";
 import { DocumentsTab } from "./PropertyDetail/DocumentsTab";
@@ -47,20 +36,28 @@ import { SettingsTab }  from "./PropertyDetail/SettingsTab";
 import { RoomsTab }     from "./PropertyDetail/RoomsTab";
 import { BillsTab }     from "./PropertyDetail/BillsTab";
 import { useState, useEffect } from "react";
-import toast from "react-hot-toast";
+import { COLORS, FONTS } from "@/theme";
 
-import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
-
-const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  rust:     COLORS.sage,
-  inkLight: COLORS.plumMid,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
+// ─── Design tokens ─────────────────────────────────────────────────────────────
+const C = {
+  bg:       COLORS.canvas,
+  card:     "#FFFFFF",
+  border:   "#E5E7EB",
+  text:     COLORS.plum,
+  muted:    COLORS.plumMid,
+  green:    COLORS.sageText,
+  greenBg:  COLORS.sageLight,
+  greenBdr: COLORS.sageMid,
+  blue:     "#2563EB",
+  blueBg:   "#EFF6FF",
+  orange:   "#D97706",
+  orangeBg: "#FFFBEB",
+  red:      COLORS.errorText,
+  redBg:    "#FEF2F2",
+  shadow:   "0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
 };
 
+// ─── Types ─────────────────────────────────────────────────────────────────────
 type Tab = "timeline" | "jobs" | "rooms" | "documents" | "bills" | "settings";
 
 interface ModalState {
@@ -78,27 +75,79 @@ interface ModalState {
 }
 
 const MODALS_CLOSED: ModalState = {
-  report:        false,
-  insurance:     false,
-  logJob:        false,
-  quote:         false,
-  verify:        false,
-  systemAges:    false,
-  addService:    false,
-  listing:       false,
-  inviteJob:     null,
-  logJobPrefill: undefined,
-  quotePrefill:  undefined,
+  report: false, insurance: false, logJob: false, quote: false,
+  verify: false, systemAges: false, addService: false, listing: false,
+  inviteJob: null, logJobPrefill: undefined, quotePrefill: undefined,
 };
+
+// ─── Local components ──────────────────────────────────────────────────────────
+
+function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+  return (
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "0.75rem", boxShadow: C.shadow, ...style }}>
+      {children}
+    </div>
+  );
+}
+
+function HealthGauge({ score, grade }: { score: number; grade: string }) {
+  const r = 44, circ = 2 * Math.PI * r;
+  const color = score >= 70 ? C.green : score >= 50 ? C.orange : C.red;
+  return (
+    <div style={{ position: "relative", width: 110, height: 110 }}>
+      <svg width={110} height={110} style={{ transform: "rotate(-90deg)" }}>
+        <circle cx={55} cy={55} r={r} fill="none" stroke="#E5E7EB" strokeWidth={10} />
+        <circle cx={55} cy={55} r={r} fill="none" stroke={color} strokeWidth={10}
+          strokeDasharray={`${Math.min(score / 100, 1) * circ} ${circ}`} strokeLinecap="round" />
+      </svg>
+      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ fontFamily: FONTS.sans, fontWeight: 700, fontSize: "1.5rem", color: C.text, lineHeight: 1 }}>{score}</div>
+        <div style={{ fontFamily: FONTS.sans, fontSize: "0.6875rem", color, fontWeight: 600 }}>{grade}</div>
+      </div>
+    </div>
+  );
+}
+
+function relativeTime(tsMs: number): string {
+  const diff = Date.now() - tsMs;
+  const h = Math.floor(diff / 3_600_000);
+  if (h < 1) return "Just now";
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `${d}d ago`;
+  return `${Math.floor(d / 30)}mo ago`;
+}
+
+function nextDueDate(svc: RecurringService, lastVisit?: string): Date {
+  const base = lastVisit ? new Date(lastVisit) : new Date(svc.startDate);
+  const d = new Date(base);
+  switch (svc.frequency as string) {
+    case "Monthly":    d.setMonth(d.getMonth() + 1);       break;
+    case "Quarterly":  d.setMonth(d.getMonth() + 3);       break;
+    case "SemiAnnual": d.setMonth(d.getMonth() + 6);       break;
+    case "Annual":     d.setFullYear(d.getFullYear() + 1); break;
+    case "BiAnnual":   d.setFullYear(d.getFullYear() + 2); break;
+    default:           d.setMonth(d.getMonth() + 1);
+  }
+  return d;
+}
+
+function maintenanceBadge(due: Date): { label: string; color: string } {
+  const ms = due.getTime() - Date.now();
+  if (ms < 0)               return { label: "Overdue",   color: C.red };
+  if (ms < 30 * 86_400_000) return { label: "Due Soon",  color: C.orange };
+  return                           { label: "Scheduled", color: C.green };
+}
+
+// ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { properties: storeProperties } = usePropertyStore();
-  const { principal, profile } = useAuthStore();
+  const { principal } = useAuthStore();
 
-  // ── domain hooks (each owns its own data + loading) ──────────────────────
   const { property, loading: propLoading } = usePropertyDetail(id);
   const { jobs, loading: jobsLoading, reload: reloadJobs, verifyJob } = usePropertyJobs(id);
   const { photosByJob, uploadPhoto, uploadRoomPhoto } = usePropertyPhotos(id);
@@ -106,81 +155,30 @@ export default function PropertyDetailPage() {
   const { recurringServices, visitLogMap, systemAges } = usePropertyMaintenance(id);
   const loading = propLoading || jobsLoading;
   const { scoreHistory } = usePropertyScore(id, property, jobs, loading);
-  const userTier = useUserTier();
 
-  // ── Check whether the user already has an active FSBO listing ────────────
   const [fsboRecord, setFsboRecord] = useState(() => id ? fsboService.getRecord(id) : null);
-  useEffect(() => {
-    if (id) setFsboRecord(fsboService.getRecord(id));
-  }, [id]);
+  useEffect(() => { if (id) setFsboRecord(fsboService.getRecord(id)); }, [id]);
 
-  // ── UI state (3 useState calls) ───────────────────────────────────────────
   const initialTab = (searchParams.get("tab") as Tab | null) ?? "timeline";
-  const [tab,   setTab]   = useState<Tab>(initialTab);
+  const [tab,    setTab]    = useState<Tab>(initialTab);
   const [modals, setModals] = useState<ModalState>(MODALS_CLOSED);
   const [estimatedHomeDollars, setEstimatedHomeDollars] = useState<number | null>(null);
+  useEffect(() => { if (id) setEstimatedHomeDollars(getStoredEstimatedValue(id)); }, [id]);
 
-  useEffect(() => {
-    if (id) setEstimatedHomeDollars(getStoredEstimatedValue(id));
-  }, [id]);
-
-  // ── derived values ────────────────────────────────────────────────────────
-  const totalValue    = jobService.getTotalValue(jobs);
-  const verifiedCount = jobService.getVerifiedCount(jobs);
-
-  const decayEvents: DecayEvent[] = React.useMemo(
-    () => !loading ? getAllDecayEvents(jobs, systemAges, Date.now()) : [],
-    [jobs, systemAges, loading]
-  );
-  const atRiskWarnings: AtRiskWarning[] = React.useMemo(
-    () => !loading ? getAtRiskWarnings(jobs, systemAges, Date.now()) : [],
-    [jobs, systemAges, loading]
-  );
-  const totalDecay      = getTotalDecay(decayEvents);
+  // ── Derived values ─────────────────────────────────────────────────────────
+  const totalValue     = jobService.getTotalValue(jobs);
+  const verifiedCount  = jobService.getVerifiedCount(jobs);
+  const decayEvents    = React.useMemo(() => !loading ? getAllDecayEvents(jobs, systemAges, Date.now()) : [], [jobs, systemAges, loading]);
+  const atRiskWarnings = React.useMemo(() => !loading ? getAtRiskWarnings(jobs, systemAges, Date.now()) : [], [jobs, systemAges, loading]);
+  const totalDecay     = getTotalDecay(decayEvents);
   const homegenticScore = property ? computeScoreWithDecay(jobs, [property], totalDecay) : 0;
-  const scoreGrade      = getScoreGrade(homegenticScore);
-  const delta           = scoreDelta(scoreHistory);
-  const certified       = isCertified(homegenticScore, jobs);
-
-  const scoreEvents: ScoreEvent[] = React.useMemo(
-    () => !loading && property ? getRecentScoreEvents(jobs, [property]) : [],
-    [jobs, property, loading]
+  const scoreGrade     = getScoreGrade(homegenticScore);
+  const delta          = scoreDelta(scoreHistory);
+  const heroPhotoUrl   = Object.values(photosByJob).flat().find(Boolean)?.url ?? null;
+  const recentActivity = React.useMemo(
+    () => [...jobs].sort((a, b) => Number(b.createdAt) - Number(a.createdAt)).slice(0, 4),
+    [jobs],
   );
-
-  const reEngagementPrompts: ReEngagementPrompt[] = React.useMemo(
-    () => !loading ? getReEngagementPrompts(jobs) : [],
-    [jobs, loading]
-  );
-
-  const recommendations: ProjectRecommendation[] = React.useMemo(() => {
-    if (!property) return [];
-    const prof: PropertyProfile = {
-      yearBuilt:    Number(property.yearBuilt),
-      squareFeet:   Number(property.squareFeet),
-      propertyType: String(property.propertyType),
-      state:        property.state,
-      zipCode:      property.zipCode,
-    };
-    return marketService.recommendValueAddingProjects(prof, jobs.map(jobToSummary), 0).slice(0, 3);
-  }, [property, jobs]);
-
-  const pulseTip = React.useMemo(
-    () => !loading && property ? getWeeklyPulse([property], jobs) : null,
-    [property, jobs, loading]
-  );
-  const pulseEnabled = localStorage.getItem("homegentic_pulse_enabled") !== "false";
-
-  const scoreStagnant = React.useMemo(() => {
-    if (scoreHistory.length < 2) return false;
-    const FOUR_WEEKS_MS = 28 * 24 * 60 * 60 * 1000;
-    const now     = Date.now();
-    const current = scoreHistory[scoreHistory.length - 1];
-    const old     = scoreHistory.find((s) => now - s.timestamp >= FOUR_WEEKS_MS);
-    if (!old) return false;
-    return current.score <= old.score;
-  }, [scoreHistory]);
-
-  const accountAgeMs = profile?.createdAt ? Date.now() - Number(profile.createdAt) / 1_000_000 : 0;
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "timeline",  label: "Timeline" },
@@ -191,6 +189,7 @@ export default function PropertyDetailPage() {
     { key: "settings",  label: "Settings" },
   ];
 
+  // ── Loading / not found ────────────────────────────────────────────────────
   if (loading) {
     return (
       <Layout>
@@ -204,9 +203,9 @@ export default function PropertyDetailPage() {
   if (!property) {
     return (
       <Layout>
-        <div style={{ maxWidth: "48rem", margin: "2rem auto", padding: "0 1.5rem", textAlign: "center" }}>
-          <AlertCircle size={48} color={UI.rule} style={{ margin: "0 auto 1rem" }} />
-          <h2 style={{ fontFamily: UI.serif, fontWeight: 900, color: UI.ink }}>Property not found</h2>
+        <div style={{ maxWidth: "40rem", margin: "4rem auto", padding: "0 1.5rem", textAlign: "center" }}>
+          <AlertCircle size={48} color={C.muted} style={{ margin: "0 auto 1rem" }} />
+          <h2 style={{ fontFamily: FONTS.sans, fontWeight: 700, color: C.text }}>Property not found</h2>
           <Button onClick={() => navigate("/dashboard")} style={{ marginTop: "1rem" }}>
             Back to Dashboard
           </Button>
@@ -215,382 +214,438 @@ export default function PropertyDetailPage() {
     );
   }
 
-  const verificationColor =
-    property.verificationLevel === "Premium" ? "success"
-    : property.verificationLevel === "Basic" ? "info"
-    : property.verificationLevel === "PendingReview" ? "warning"
-    : "default";
-
   return (
     <Layout>
-      <div style={{ maxWidth: "60rem", margin: "0 auto", padding: "2rem 1.5rem" }}>
+      <div style={{ padding: "1.5rem 2rem", background: C.bg, minHeight: "100vh" }}>
 
-        {/* Back — hidden for single-property users whose home base is this page */}
-        {storeProperties.length !== 1 && (
-          <button
-            onClick={() => navigate("/dashboard")}
-            style={{
-              display: "flex", alignItems: "center", gap: "0.375rem",
-              fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em",
-              textTransform: "uppercase", color: UI.inkLight,
-              background: "none", border: "none", cursor: "pointer",
-              padding: 0, marginBottom: "1.5rem",
-            }}
-          >
-            <ArrowLeft size={14} /> Back to Dashboard
-          </button>
-        )}
-
-        {/* Header */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
+        {/* ── Page header ────────────────────────────────────────────────────── */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem" }}>
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", flexWrap: "wrap", marginBottom: "0.375rem" }}>
-              <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, margin: 0 }}>
-                {property.address}
-              </h1>
-              {property.verificationLevel === "Unverified" ? (
-                <span style={{ display: "inline-flex", alignItems: "center", fontFamily: UI.mono, fontWeight: 600, fontSize: "0.6rem", letterSpacing: "0.06em", textTransform: "uppercase", padding: "0.2rem 0.625rem", borderRadius: 100, backgroundColor: COLORS.rust, color: "#fff", border: `1px solid ${COLORS.rust}`, flexShrink: 0 }}>
-                  Unverified
-                </span>
-              ) : (
-                <Badge variant={verificationColor as any}>{property.verificationLevel}</Badge>
-              )}
-            </div>
-            <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight }}>
-              {property.city}, {property.state} {property.zipCode} · {property.propertyType} · Built {String(property.yearBuilt)}
+            <h1 style={{ fontFamily: FONTS.sans, fontWeight: 700, fontSize: "1.625rem", color: C.text, margin: 0 }}>
+              Property Overview
+            </h1>
+            <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: C.muted, marginTop: "0.25rem", marginBottom: 0 }}>
+              Stay on top of your home's health, maintenance, and value.
             </p>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
-            <Button
-              variant="primary"
-              icon={<Wrench size={14} />}
-              onClick={() => setModals((m) => ({ ...m, logJob: true }))}
-            >
-              Log Job
-            </Button>
-            <Button
-              variant="secondary"
-              icon={<MessageSquare size={14} />}
-              onClick={() => setModals((m) => ({ ...m, quote: true }))}
-            >
-              Request Quote
-            </Button>
-            {property.verificationLevel !== "Unverified" && (
-              <>
-                <Button variant="outline" icon={<Share2 size={14} />} onClick={() => setModals((m) => ({ ...m, report: true }))}>
-                  Share Report
-                </Button>
-                <Button variant="outline" icon={<Shield size={14} />} onClick={() => setModals((m) => ({ ...m, insurance: true }))}>
-                  Insurance Report
-                </Button>
-                {!fsboRecord?.isFsbo && (
-                  <Button
-                    variant="outline"
-                    style={{ borderColor: COLORS.sageText, color: COLORS.sageText }}
-                    onClick={() => setModals((m) => ({ ...m, listing: true }))}
-                  >
-                    List Your Home
-                  </Button>
-                )}
-              </>
-            )}
-          </div>
+          <button style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 500, color: C.text, border: `1px solid ${C.border}`, background: "white", borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}>
+            + Add Widget
+          </button>
         </div>
 
-        {/* Verification banners */}
+        {/* ── Verification banners ───────────────────────────────────────────── */}
         {property.verificationLevel === "Unverified" && (
-          <div style={{
-            border: `1px solid ${UI.rust}`, padding: "1rem 1.25rem",
-            marginBottom: "1.5rem", background: COLORS.sageLight,
-            display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap",
-          }}>
-            <Shield size={16} color={UI.rust} style={{ flexShrink: 0 }} />
+          <div style={{ border: `1px solid ${COLORS.sageMid}`, padding: "1rem 1.25rem", marginBottom: "1.25rem", background: COLORS.sageLight, display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap", borderRadius: "0.75rem" }}>
+            <Shield size={16} color={C.orange} style={{ flexShrink: 0 }} />
             <div style={{ flex: 1 }}>
-              <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "0.25rem" }}>
-                Ownership not verified
-              </p>
-              <p style={{ fontSize: "0.8rem", color: UI.inkLight, fontWeight: 300 }}>
-                Upload a utility bill, deed, or tax record to confirm ownership. Unverified properties cannot generate shareable HomeGentic reports.
+              <p style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.875rem", color: C.text, marginBottom: "0.25rem" }}>Ownership not verified</p>
+              <p style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: C.muted, marginBottom: 0 }}>
+                Upload a utility bill, deed, or tax record to confirm ownership.
               </p>
             </div>
-            <Button size="sm" onClick={() => setModals((m) => ({ ...m, verify: true }))}>
-              Verify Now
-            </Button>
+            <Button size="sm" onClick={() => setModals(m => ({ ...m, verify: true }))}>Verify Now</Button>
           </div>
         )}
-
         {property.verificationLevel === "PendingReview" && (
-          <div style={{
-            border: `1px solid ${UI.rule}`, padding: "1rem 1.25rem",
-            marginBottom: "1.5rem", background: COLORS.butter,
-            display: "flex", alignItems: "center", gap: "1rem",
-          }}>
-            <Shield size={16} color={COLORS.plum} style={{ flexShrink: 0 }} />
+          <div style={{ border: `1px solid ${C.border}`, padding: "1rem 1.25rem", marginBottom: "1.25rem", background: "#FFFBEB", display: "flex", alignItems: "center", gap: "1rem", borderRadius: "0.75rem" }}>
+            <Shield size={16} color={C.orange} style={{ flexShrink: 0 }} />
             <div>
-              <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "0.25rem" }}>
-                Under review
-              </p>
-              <p style={{ fontSize: "0.8rem", color: UI.inkLight, fontWeight: 300 }}>
-                Your documents are awaiting review. Reports will be unlocked once approved (typically 1–2 business days).
+              <p style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.875rem", color: C.text, marginBottom: "0.25rem" }}>Under review</p>
+              <p style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: C.muted, marginBottom: 0 }}>
+                Documents are awaiting review (typically 1–2 business days).
               </p>
             </div>
           </div>
         )}
 
-        {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "1rem", marginBottom: "2rem" }}>
-          {[
-            { label: "Total Jobs",   value: String(jobs.length) },
-            { label: "Verified",     value: String(verifiedCount) },
-            { label: "Value Added",  value: `$${(totalValue / 100).toLocaleString()}` },
-          ].map((s) => (
-            <div key={s.label} style={{ padding: "1.25rem", borderRadius: RADIUS.card, border: `1px solid ${COLORS.rule}`, background: COLORS.white, boxShadow: SHADOWS.card }}>
-              <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.5rem" }}>
-                {s.label}
+        {/* ── Hero + Health Score ─────────────────────────────────────────────── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: "1.25rem", marginBottom: "1.25rem" }}>
+
+          {/* Property image */}
+          <div style={{ position: "relative", borderRadius: "0.75rem", overflow: "hidden", minHeight: "240px", background: heroPhotoUrl ? "transparent" : "linear-gradient(135deg, #1a2f4e 0%, #2563EB 100%)" }}>
+            {heroPhotoUrl && (
+              <img src={heroPhotoUrl} alt="Property" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+            )}
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.72) 100%)" }} />
+            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "1.5rem 1.75rem", color: "white" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", flexWrap: "wrap", marginBottom: "0.375rem" }}>
+                <h2 style={{ fontFamily: FONTS.sans, fontWeight: 700, fontSize: "1.375rem", margin: 0, lineHeight: 1.2 }}>
+                  {property.address}
+                </h2>
+                {property.verificationLevel !== "Unverified" && (
+                  <span style={{ background: "#16A34A", color: "white", borderRadius: "1rem", padding: "0.125rem 0.625rem", fontSize: "0.75rem", fontWeight: 600 }}>
+                    ✓ Verified
+                  </span>
+                )}
               </div>
-              <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.75rem", lineHeight: 1, color: UI.ink }}>
-                {s.value}
+              <p style={{ margin: "0 0 0.75rem", opacity: 0.9, fontSize: "0.875rem", fontFamily: FONTS.sans }}>
+                {property.city}, {property.state} {property.zipCode}
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "1.25rem", fontSize: "0.8125rem", opacity: 0.85, marginBottom: "1.25rem", fontFamily: FONTS.sans }}>
+                <span>🏠 {property.propertyType}</span>
+                <span>📅 Built {String(property.yearBuilt)}</span>
+                {Number(property.squareFeet) > 0 && (
+                  <span>📐 {Number(property.squareFeet).toLocaleString()} Sq Ft</span>
+                )}
               </div>
-            </div>
-          ))}
-          {/* HomeGentic Score — accent cell */}
-          <div style={{ padding: "1.25rem", borderRadius: RADIUS.card, border: `1px solid ${COLORS.plum}`, background: COLORS.plum, boxShadow: SHADOWS.card }}>
-            <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.6)", marginBottom: "0.5rem" }}>
-              HomeGentic Score
-            </div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "0.375rem" }}>
-              <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.75rem", lineHeight: 1, color: COLORS.white }}>
-                {homegenticScore}
-              </div>
-              <div style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: "rgba(255,255,255,0.7)" }}>
-                {scoreGrade}
-              </div>
+              <button
+                onClick={() => document.getElementById("property-tabs")?.scrollIntoView({ behavior: "smooth" })}
+                style={{ background: "transparent", border: "2px solid rgba(255,255,255,0.75)", color: "white", padding: "0.5rem 1.25rem", borderRadius: "0.5rem", fontFamily: FONTS.sans, fontWeight: 600, cursor: "pointer", fontSize: "0.875rem" }}
+              >
+                View Property Details
+              </button>
             </div>
           </div>
+
+          {/* Health Score */}
+          <Card style={{ padding: "1.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
+            <h3 style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.9375rem", color: C.text, margin: 0, alignSelf: "flex-start", width: "100%" }}>
+              Property Health Score
+            </h3>
+            <HealthGauge score={homegenticScore} grade={scoreGrade} />
+            {delta !== 0 && (
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: delta > 0 ? C.green : C.red, fontWeight: 600 }}>
+                  {delta > 0 ? "↑" : "↓"} {Math.abs(delta)} pts
+                </div>
+                <div style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.muted }}>vs last month</div>
+              </div>
+            )}
+            <button
+              onClick={() => setModals(m => ({ ...m, report: true }))}
+              style={{ width: "100%", fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, color: C.blue, border: `1px solid ${C.border}`, background: "white", borderRadius: "0.5rem", padding: "0.5rem", cursor: "pointer" }}
+            >
+              View Full Report
+            </button>
+          </Card>
         </div>
 
-        {/* §17.3.2 — Score → Dollar Value (zip-aware + home value personalization) */}
-        {!loading && homegenticScore >= 40 && property && (
-          <div style={{ marginBottom: "1.5rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-            <ScoreValueBanner
-              score={homegenticScore}
-              zip={property.zipCode || undefined}
-              homeValueDollars={estimatedHomeDollars ?? undefined}
-            />
-            <PropertyEstimatedValueInput
-              propertyId={String(property.id)}
-              onValueChange={setEstimatedHomeDollars}
-            />
-          </div>
-        )}
+        {/* ── Action buttons ──────────────────────────────────────────────────── */}
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "1.25rem" }}>
+          <button
+            onClick={() => setModals(m => ({ ...m, logJob: true }))}
+            style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, color: "white", background: C.blue, border: "none", borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}
+          >
+            <Wrench size={15} /> Log Job
+          </button>
+          <button
+            onClick={() => setModals(m => ({ ...m, quote: true }))}
+            style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, color: C.blue, background: C.blueBg, border: `1px solid ${C.blue}`, borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}
+          >
+            <MessageSquare size={15} /> Request Quote
+          </button>
+          {property.verificationLevel !== "Unverified" && (
+            <>
+              <button
+                onClick={() => setModals(m => ({ ...m, report: true }))}
+                style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 500, color: C.text, background: "white", border: `1px solid ${C.border}`, borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}
+              >
+                <Share2 size={15} /> Share Report
+              </button>
+              <button
+                onClick={() => setModals(m => ({ ...m, insurance: true }))}
+                style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 500, color: C.text, background: "white", border: `1px solid ${C.border}`, borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}
+              >
+                <Shield size={15} /> Insurance Report
+              </button>
+              {!fsboRecord?.isFsbo && (
+                <button
+                  onClick={() => setModals(m => ({ ...m, listing: true }))}
+                  style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 500, color: C.green, background: "white", border: `1px solid ${COLORS.sageMid}`, borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}
+                >
+                  List Your Home
+                </button>
+              )}
+            </>
+          )}
+        </div>
 
-        {/* Improvement actions (15.4.2) */}
-        {!loading && homegenticScore > 0 && (() => {
-          const unverified = jobs.filter((j) => j.status !== "verified").length;
-          const uniqueTypes = new Set(jobs.map((j) => j.serviceType)).size;
-          const actions = [
-            unverified > 0
-              ? `Verify ${unverified} unverified job${unverified > 1 ? "s" : ""} — each verified record adds up to 4 pts`
-              : null,
-            uniqueTypes < 5
-              ? `Log a new service type — diversity adds up to 10 pts (currently ${uniqueTypes}/5 categories)`
-              : null,
-            jobs.length < 10
-              ? `Add more maintenance records — ${10 - jobs.length} more job${10 - jobs.length !== 1 ? "s" : ""} to reach 10 total`
-              : null,
-            "Attach photos to each job — documented proof strengthens your verified score",
-          ].filter(Boolean).slice(0, 3) as string[];
-
-          return (
-            <div style={{ border: `1px solid ${COLORS.rule}`, background: COLORS.white, marginBottom: "1.5rem" }}>
-              <div style={{ padding: "0.75rem 1.25rem", borderBottom: `1px solid ${COLORS.rule}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
-                  How to improve your score
-                </span>
-                <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: UI.inkLight }}>
-                  {actions.length} action{actions.length !== 1 ? "s" : ""}
-                </span>
+        {/* ── KPI cards ───────────────────────────────────────────────────────── */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "0.875rem", marginBottom: "1.25rem" }}>
+          {[
+            {
+              label: "Maintenance Due",
+              icon:  <Wrench size={15} color={C.blue} />,
+              value: String(atRiskWarnings.length),
+              sub:   "Tasks",
+              badge: atRiskWarnings.length > 0 ? { label: "● Overdue", color: C.red } : null,
+            },
+            {
+              label: "Total Jobs",
+              icon:  <CalendarDays size={15} color={C.blue} />,
+              value: String(jobs.length),
+              sub:   "Logged",
+              badge: null,
+            },
+            {
+              label: "Verified Records",
+              icon:  <Shield size={15} color={C.blue} />,
+              value: String(verifiedCount),
+              sub:   `of ${jobs.length} jobs`,
+              badge: null,
+            },
+            {
+              label: "Value Added",
+              icon:  <Activity size={15} color={C.blue} />,
+              value: `$${(totalValue / 100).toLocaleString()}`,
+              sub:   "Documented",
+              badge: null,
+            },
+            {
+              label: "Market Value",
+              icon:  <span style={{ fontFamily: FONTS.sans, fontSize: "0.9rem", color: C.blue, fontWeight: 700 }}>$</span>,
+              value: estimatedHomeDollars ? `$${Math.round(estimatedHomeDollars / 1_000)}K` : "—",
+              sub:   "Estimated",
+              badge: null,
+            },
+          ].map(stat => (
+            <Card key={stat.label} style={{ padding: "1rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
+                <span style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.muted, lineHeight: 1.3 }}>{stat.label}</span>
+                <div style={{ width: 28, height: 28, borderRadius: "50%", background: C.blueBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  {stat.icon}
+                </div>
               </div>
-              {userTier === "Free" ? (
-                <div style={{ padding: "1.25rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
-                  <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight }}>
-                    {actions.length} action{actions.length !== 1 ? "s" : ""} available — upgrade to see them
-                  </p>
+              <div style={{ fontFamily: FONTS.sans, fontWeight: 700, fontSize: "1.625rem", color: C.text, lineHeight: 1 }}>
+                {stat.value}
+              </div>
+              <div style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.muted, marginTop: "0.25rem" }}>{stat.sub}</div>
+              {stat.badge && (
+                <div style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: stat.badge.color, fontWeight: 600, marginTop: "0.375rem" }}>
+                  {stat.badge.label}
+                </div>
+              )}
+            </Card>
+          ))}
+        </div>
+
+        {/* ── Three panels ────────────────────────────────────────────────────── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1.25rem", marginBottom: "1.25rem" }}>
+
+          {/* Upcoming Maintenance */}
+          <Card style={{ display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem 1.25rem", borderBottom: `1px solid ${C.border}` }}>
+              <h3 style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.9375rem", color: C.text, margin: 0 }}>Upcoming Maintenance</h3>
+              <button onClick={() => navigate("/maintenance")} style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: C.blue, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                View All <ArrowRight size={13} />
+              </button>
+            </div>
+            <div style={{ flex: 1 }}>
+              {recurringServices.length === 0 ? (
+                <div style={{ padding: "1.5rem 1.25rem", textAlign: "center" }}>
+                  <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: C.muted, marginBottom: "0.5rem" }}>No scheduled services yet.</p>
                   <button
-                    onClick={() => navigate("/pricing")}
-                    style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 0.875rem", border: "none", background: COLORS.plum, color: COLORS.white, cursor: "pointer", whiteSpace: "nowrap" }}
+                    onClick={() => setModals(m => ({ ...m, addService: true }))}
+                    style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", fontWeight: 600, color: C.blue, background: "none", border: "none", cursor: "pointer" }}
                   >
-                    Upgrade to Pro →
+                    + Add recurring service
                   </button>
                 </div>
               ) : (
-                <div>
-                  {actions.map((action, i) => (
-                    <div key={i} style={{ padding: "0.75rem 1.25rem", borderBottom: i < actions.length - 1 ? `1px solid ${COLORS.rule}` : "none", display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
-                      <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: COLORS.sageText, marginTop: "0.1rem", flexShrink: 0 }}>→</span>
-                      <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.ink, lineHeight: 1.5 }}>{action}</span>
+                recurringServices.slice(0, 3).map(svc => {
+                  const visits = visitLogMap[svc.id] ?? [];
+                  const lastVisit = visits[visits.length - 1]?.visitDate;
+                  const due = nextDueDate(svc, lastVisit);
+                  const badge = maintenanceBadge(due);
+                  return (
+                    <div key={svc.id} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.75rem 1.25rem", borderBottom: `1px solid ${C.border}` }}>
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: badge.color, flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: C.text, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {SERVICE_TYPE_LABELS[svc.serviceType] ?? svc.serviceType}
+                        </div>
+                        <div style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.muted }}>
+                          Due {due.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                        </div>
+                      </div>
+                      <span style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", fontWeight: 600, color: badge.color, flexShrink: 0 }}>
+                        {badge.label}
+                      </span>
                     </div>
-                  ))}
-                </div>
+                  );
+                })
               )}
             </div>
-          );
-        })()}
+            <div style={{ padding: "1rem 1.25rem", borderTop: `1px solid ${C.border}` }}>
+              <button
+                onClick={() => navigate("/maintenance")}
+                style={{ width: "100%", fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, color: C.blue, border: `1px solid ${C.border}`, background: "white", borderRadius: "0.5rem", padding: "0.625rem", cursor: "pointer" }}
+              >
+                View Maintenance Plan
+              </button>
+            </div>
+          </Card>
 
-        {/* ── Home Panel (16.2) — visible only to single-property users ──────── */}
-        {storeProperties.length === 1 && !loading && (
-          <div style={{ marginBottom: "2rem" }}>
-            <ScorePanel
-              score={homegenticScore}
-              grade={scoreGrade}
-              delta={delta}
-              certified={certified}
-              premium={premiumEstimate(homegenticScore)}
-              market={property ? `${property.city}, ${property.state}` : ""}
-              onResaleReady={() => navigate("/resale-ready")}
-              onCopyCertLink={async () => {
-                if (!property) return;
-                const { certService } = await import("@/services/cert");
-                const payload = { address: property.address, score: homegenticScore, grade: scoreGrade, certified, generatedAt: Date.now(), planTier: userTier, breakdown: computeBreakdown(jobs, [property]) };
-                const { token } = await certService.issueCert(String(property.id), payload);
-                navigator.clipboard.writeText(`${window.location.origin}/cert/${token}`);
-                toast.success("Lender certificate link copied!");
-              }}
-            />
-            <AlertStack
-              atRiskWarnings={atRiskWarnings}
-              scoreStagnant={scoreStagnant}
-              pulseTip={pulseTip}
-              pulseEnabled={pulseEnabled}
-              userTier={userTier}
-              onLogJob={() => setModals((m) => ({ ...m, logJob: true, logJobPrefill: undefined }))}
-              onNavigate={(path) => navigate(path)}
-            />
-            <MilestoneStack
-              verifiedJobCount={verifiedCount}
-              accountAgeMs={accountAgeMs}
-              certified={certified}
-              onNavigate={(path) => navigate(path)}
-            />
-            <ScoreActivityFeed scoreEvents={scoreEvents} decayEvents={decayEvents} />
-            <ReEngagementStack
-              prompts={reEngagementPrompts}
-              onRequestQuote={() => setModals((m) => ({ ...m, quote: true }))}
-              onLogJob={(prefill) => setModals((m) => ({ ...m, logJob: true, logJobPrefill: prefill }))}
-            />
-            <MarketIntelPanel
-              recommendations={recommendations}
-              onRequestQuote={(prefill) => setModals((m) => ({ ...m, quote: true, quotePrefill: prefill }))}
-              onSeeAll={() => navigate("/market")}
-            />
-            <RecurringServicesPanel
-              services={recurringServices}
-              visitLogMap={visitLogMap}
-              userTier={userTier}
-              onAddService={() => setModals((m) => ({ ...m, addService: true }))}
-              onViewService={(svcId) => navigate(`/recurring/${svcId}`)}
-            />
-          </div>
-        )}
+          {/* Recent Activity */}
+          <Card style={{ display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem 1.25rem", borderBottom: `1px solid ${C.border}` }}>
+              <h3 style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.9375rem", color: C.text, margin: 0 }}>Recent Activity</h3>
+              <button
+                onClick={() => { setTab("jobs"); document.getElementById("property-tabs")?.scrollIntoView({ behavior: "smooth" }); }}
+                style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: C.blue, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.25rem" }}
+              >
+                View All <ArrowRight size={13} />
+              </button>
+            </div>
+            <div style={{ flex: 1 }}>
+              {recentActivity.length === 0 ? (
+                <div style={{ padding: "1.5rem 1.25rem", textAlign: "center" }}>
+                  <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: C.muted, marginBottom: "0.5rem" }}>No activity yet. Log your first job!</p>
+                  <button
+                    onClick={() => setModals(m => ({ ...m, logJob: true }))}
+                    style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", fontWeight: 600, color: C.blue, background: "none", border: "none", cursor: "pointer" }}
+                  >
+                    + Log a job
+                  </button>
+                </div>
+              ) : (
+                recentActivity.map(job => (
+                  <div key={job.id} style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", padding: "0.75rem 1.25rem", borderBottom: `1px solid ${C.border}` }}>
+                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: job.status === "verified" ? C.greenBg : C.blueBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Wrench size={13} color={job.status === "verified" ? C.green : C.blue} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: C.text, fontWeight: 500 }}>{job.serviceType}</div>
+                      <div style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.muted }}>
+                        {job.isDiy ? "DIY" : (job.contractorName ?? "Unknown contractor")}
+                      </div>
+                    </div>
+                    <span style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.muted, flexShrink: 0 }}>
+                      {relativeTime(Number(job.createdAt))}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
 
-        {/* 10.1 — FSBO Panel */}
-        {!loading && property && (
-          <div style={{ marginBottom: "2rem" }}>
-            <FsboPanel
-              propertyId={String(property.id)}
-              score={homegenticScore}
-              verifiedJobCount={verifiedCount}
-              hasReport={false}
-            />
-          </div>
-        )}
-
-        {/* Tabs */}
-        <div style={{ display: "flex", borderBottom: `1px solid ${COLORS.rule}`, marginBottom: "1.5rem" }}>
-          {tabs.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              style={{
-                padding: "0.625rem 1.25rem",
-                fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: tab === t.key ? 600 : 400,
-                color: tab === t.key ? COLORS.sageText : COLORS.plumMid,
-                background: "none",
-                border: "none",
-                borderBottom: tab === t.key ? `2px solid ${COLORS.sage}` : "2px solid transparent",
-                marginBottom: "-1px",
-                cursor: "pointer",
-                transition: "color 0.15s",
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
+          {/* Connected Devices */}
+          <Card style={{ display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem 1.25rem", borderBottom: `1px solid ${C.border}` }}>
+              <h3 style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.9375rem", color: C.text, margin: 0 }}>Connected Devices</h3>
+              <button
+                onClick={() => navigate("/sensors")}
+                style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: C.blue, background: "none", border: "none", cursor: "pointer" }}
+              >
+                Manage
+              </button>
+            </div>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "2rem 1.25rem", gap: "0.75rem" }}>
+              <Cpu size={32} color={C.muted} />
+              <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: C.muted, textAlign: "center", margin: 0 }}>
+                No devices connected yet.
+              </p>
+              <button
+                onClick={() => navigate("/sensors")}
+                style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", fontWeight: 600, color: C.blue, border: `1px solid ${C.border}`, background: "white", borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}
+              >
+                View All Devices
+              </button>
+            </div>
+          </Card>
         </div>
 
-        {tab === "timeline"  && <TimelineTab property={property} jobs={jobs} onVerify={verifyJob} currentPrincipal={principal} photosByJob={photosByJob} onPhotoUpload={(jobId, file) => uploadPhoto(jobId, file, id!)} onInviteContractor={(job) => setModals((m) => ({ ...m, inviteJob: job }))} />}
-        {tab === "jobs"      && <JobsTab jobs={jobs} />}
-        {tab === "rooms"     && <RoomsTab propertyId={id!} rooms={rooms} onRoomsChange={setRooms} photosByJob={photosByJob} onRoomPhotoUpload={(roomId, file) => uploadRoomPhoto(roomId, file, id!)} />}
-        {tab === "documents" && <DocumentsTab propertyId={id!} />}
-        {tab === "bills"     && <BillsTab propertyId={id!} />}
-        {tab === "settings"  && <SettingsTab property={property} currentPrincipal={principal ?? ""} onVerifyOwnership={() => setModals((m) => ({ ...m, verify: true }))} />}
+        {/* ── CTA banner ──────────────────────────────────────────────────────── */}
+        <div style={{ background: "#F0F9FF", border: "1px solid #BAE6FD", borderRadius: "0.75rem", padding: "1.5rem 2rem", display: "flex", alignItems: "center", gap: "1.5rem", flexWrap: "wrap", marginBottom: "2rem" }}>
+          <span style={{ fontSize: "2.25rem", lineHeight: 1 }}>🪖</span>
+          <div style={{ flex: 1, minWidth: "200px" }}>
+            <div style={{ fontFamily: FONTS.sans, fontWeight: 700, fontSize: "1.0625rem", color: C.text, marginBottom: "0.25rem" }}>
+              Need help with your home?
+            </div>
+            <div style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: C.muted }}>
+              Get matched with trusted local pros or request a quote.
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: "0.75rem", flexShrink: 0 }}>
+            <button
+              onClick={() => navigate("/contractors")}
+              style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, color: "white", background: C.blue, border: "none", borderRadius: "0.5rem", padding: "0.625rem 1.25rem", cursor: "pointer" }}
+            >
+              Find Contractors
+            </button>
+            <button
+              onClick={() => setModals(m => ({ ...m, quote: true }))}
+              style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, color: C.blue, background: "white", border: `1px solid ${C.border}`, borderRadius: "0.5rem", padding: "0.625rem 1.25rem", cursor: "pointer" }}
+            >
+              Request a Quote
+            </button>
+          </div>
+        </div>
+
+        {/* ── Property details tabs ────────────────────────────────────────────── */}
+        <div id="property-tabs">
+          <h2 style={{ fontFamily: FONTS.sans, fontWeight: 700, fontSize: "1.125rem", color: C.text, marginBottom: "1rem" }}>
+            Property Details
+          </h2>
+          <div style={{ display: "flex", borderBottom: `1px solid ${C.border}`, marginBottom: "1.5rem" }}>
+            {tabs.map(t => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                style={{ padding: "0.625rem 1.25rem", fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: tab === t.key ? 600 : 400, color: tab === t.key ? C.blue : C.muted, background: "none", border: "none", borderBottom: tab === t.key ? `2px solid ${C.blue}` : "2px solid transparent", marginBottom: "-1px", cursor: "pointer", transition: "color 0.15s" }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          {tab === "timeline"  && <TimelineTab property={property} jobs={jobs} onVerify={verifyJob} currentPrincipal={principal} photosByJob={photosByJob} onPhotoUpload={(jobId, file) => uploadPhoto(jobId, file, id!)} onInviteContractor={job => setModals(m => ({ ...m, inviteJob: job }))} />}
+          {tab === "jobs"      && <JobsTab jobs={jobs} />}
+          {tab === "rooms"     && <RoomsTab propertyId={id!} rooms={rooms} onRoomsChange={setRooms} photosByJob={photosByJob} onRoomPhotoUpload={(roomId, file) => uploadRoomPhoto(roomId, file, id!)} />}
+          {tab === "documents" && <DocumentsTab propertyId={id!} />}
+          {tab === "bills"     && <BillsTab propertyId={id!} />}
+          {tab === "settings"  && <SettingsTab property={property} currentPrincipal={principal ?? ""} onVerifyOwnership={() => setModals(m => ({ ...m, verify: true }))} />}
+        </div>
+
       </div>
 
+      {/* ── Modals ─────────────────────────────────────────────────────────────── */}
       {modals.report && (
-        <GenerateReportModal property={property} onClose={() => setModals((m) => ({ ...m, report: false }))} />
+        <GenerateReportModal property={property} onClose={() => setModals(m => ({ ...m, report: false }))} />
       )}
-
       {modals.insurance && (
-        <InsuranceShareModal property={property} onClose={() => setModals((m) => ({ ...m, insurance: false }))} />
+        <InsuranceShareModal property={property} onClose={() => setModals(m => ({ ...m, insurance: false }))} />
       )}
-
       <LogJobModal
         isOpen={modals.logJob}
-        onClose={() => setModals((m) => ({ ...m, logJob: false }))}
+        onClose={() => setModals(m => ({ ...m, logJob: false }))}
         onSuccess={reloadJobs}
         properties={storeProperties.length > 0 ? storeProperties : (property ? [property] : [])}
         prefill={modals.logJobPrefill}
       />
-
       <RequestQuoteModal
         isOpen={modals.quote}
-        onClose={() => setModals((m) => ({ ...m, quote: false, quotePrefill: undefined }))}
-        onSuccess={(quoteId) => { setModals((m) => ({ ...m, quote: false, quotePrefill: undefined })); navigate(`/quotes/${quoteId}`); }}
+        onClose={() => setModals(m => ({ ...m, quote: false, quotePrefill: undefined }))}
+        onSuccess={quoteId => { setModals(m => ({ ...m, quote: false, quotePrefill: undefined })); navigate(`/quotes/${quoteId}`); }}
         properties={storeProperties.length > 0 ? storeProperties : (property ? [property] : [])}
         prefill={modals.quotePrefill}
       />
-
       {modals.inviteJob && property && (
         <InviteContractorModal
           job={modals.inviteJob}
           propertyAddress={`${property.address}, ${property.city} ${property.state} ${property.zipCode}`}
-          onClose={() => setModals((m) => ({ ...m, inviteJob: null }))}
+          onClose={() => setModals(m => ({ ...m, inviteJob: null }))}
         />
       )}
-
       <PropertyVerifyModal
         open={modals.verify}
-        onClose={() => setModals((m) => ({ ...m, verify: false }))}
+        onClose={() => setModals(m => ({ ...m, verify: false }))}
         propertyId={id ?? ""}
       />
-
       <SystemAgesModal
         open={modals.systemAges}
-        onClose={() => setModals((m) => ({ ...m, systemAges: false }))}
+        onClose={() => setModals(m => ({ ...m, systemAges: false }))}
         propertyId={id ?? ""}
         yearBuilt={property ? Number(property.yearBuilt) : new Date().getFullYear() - 20}
       />
-
       <RecurringServiceCreateModal
         open={modals.addService}
-        onClose={() => setModals((m) => ({ ...m, addService: false }))}
+        onClose={() => setModals(m => ({ ...m, addService: false }))}
         defaultPropertyId={id}
       />
-
       {modals.listing && property && (
         <InitListingModal
           open
-          onClose={() => setModals((m) => ({ ...m, listing: false }))}
+          onClose={() => setModals(m => ({ ...m, listing: false }))}
           property={property}
           jobs={jobs}
           score={homegenticScore}

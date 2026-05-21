@@ -9,6 +9,29 @@ auth, job signing, payment, reports, or the voice agent.
 
 ---
 
+## Targeting Testnet vs. Local
+
+All tests below can run against either environment. Set the target once before
+starting:
+
+**Local replica**
+```bash
+make dev           # starts dfx + deploys all canisters + runs frontend at :5173
+```
+
+**Testnet** (recommended for pre-production sign-off)
+```bash
+bash scripts/deploy.sh testnet
+# then start the frontend pointed at testnet canister IDs:
+cd frontend && VITE_DFX_NETWORK=testnet npm run dev
+```
+
+Testnet canisters persist state across sessions, making it the right environment
+for multi-day, multi-device, and upgrade-safety tests. Local is fine for
+single-session flows.
+
+---
+
 ## Legend
 
 | Symbol | Meaning |
@@ -25,7 +48,7 @@ auth, job signing, payment, reports, or the voice agent.
 The real production auth path has never been exercised by a test runner.
 
 **Prerequisites**
-- A running ICP local replica (`dfx start --background`) or mainnet target
+- A running ICP local replica (`dfx start --background`) or testnet target
 - Chrome or Firefox with no existing II session
 - A configured Internet Identity anchor (or create one during the test)
 
@@ -34,7 +57,7 @@ The real production auth path has never been exercised by a test runner.
 | # | Action | Expected Result |
 |---|--------|-----------------|
 | 1 | Open a fresh browser profile (no cookies, no extensions pre-loaded) | Clean slate |
-| 2 | Navigate to `http://localhost:5173` (or prod URL) | Landing page renders; no console errors |
+| 2 | Navigate to `http://localhost:5173` (or testnet URL) | Landing page renders; no console errors |
 | 3 | Click **Sign In** or **Get Started** | Login page shown |
 | 4 | Click **Sign in with Internet Identity** | II popup or redirect opens |
 | 5 | Authenticate with an existing anchor, or create a new one | II flow completes; popup closes |
@@ -92,29 +115,32 @@ and has never been tested across two real sessions.
 verifies the real `payment` canister writes the new tier, that the UI reflects
 it on next load, and that tier-gated features unlock immediately.
 
+**Note:** Basic ($10/mo) is the entry tier — there is no Free tier. A newly
+registered user must complete checkout before accessing the dashboard.
+
 **Prerequisites**
-- A user account currently on the **Free** tier
-- Local replica running with `payment` canister deployed
+- A user account currently on the **Basic** tier (newly registered or downgraded)
+- Local replica or testnet running with `payment` canister deployed
+- Stripe test card `4242 4242 4242 4242` available for checkout steps
 
 **Steps**
 
 | # | Action | Expected Result |
 |---|--------|-----------------|
-| 1 | Log in and navigate to `/settings` | Subscription tab shows **Free** plan |
-| 2 | Confirm Warranty Wallet is gated: navigate to `/warranties` | Upgrade prompt shown, not the wallet UI |
-| 3 | Return to `/settings`, click **Subscription** tab | Free plan card + upgrade options visible |
-| 4 | Click **Upgrade** on the **Pro** plan | Loading spinner on button |
-| 5 | Wait for confirmation toast ("Upgraded to Pro!") | Toast appears; no error |
+| 1 | Log in and navigate to `/settings` | Subscription tab shows **Basic** plan |
+| 2 | Confirm the property limit: navigate to `/properties/new` and register a second property | Should be blocked — Basic allows 1 property |
+| 3 | Return to `/settings`, click **Subscription** tab | Basic plan card + upgrade options visible |
+| 4 | Click **Upgrade** on the **Pro** plan | Redirects to checkout or loading spinner on button |
+| 5 | Complete Stripe checkout with test card | Redirected to `/payment-success`; toast "Upgraded to Pro!" |
 | 6 | Confirm the Subscription tab now shows **Pro** | Plan card updated in current session |
 | 7 | Hard-refresh the page | Still shows **Pro** — tier persisted to canister |
 | 8 | Open a new tab, navigate to `/settings` → Subscription | Still Pro |
-| 9 | Navigate to `/warranties` | Warranty Wallet renders (no upgrade gate) |
-| 10 | Navigate to `/recurring` | Recurring Services renders (no upgrade gate) |
-| 11 | Return to `/settings` → Subscription → click **Switch** to Premium | Confirm switch succeeds and persists |
+| 9 | Navigate to `/properties/new` and register a second property | Succeeds — Pro allows up to 5 properties |
+| 10 | Return to `/settings` → Subscription → click **Upgrade** to Premium | Confirm switch succeeds and persists after hard refresh |
 
 **Watch for**
-- UI showing Pro but canister still returning Free on next session (optimistic update bug)
-- Tier-gated pages not unlocking without a full reload
+- UI showing Pro but canister still returning Basic on next session (optimistic update bug)
+- Tier-gated property limit not relaxing without a full reload
 - "Switch" button still showing upgrade options for the current tier
 
 ---
@@ -175,13 +201,13 @@ real file; no test verifies that a hash stored under job A is rejected
 | 5 | Upload the same test image to Job B | Note the behavior: duplicate flagged? Accepted? Photo count? |
 | 6 | Check photo counts across both jobs | Each job shows its own photo reference; canister stores 1 hash |
 | 7 | Upload a **different** image to Job B | Photo count increments normally |
-| 8 | Verify the Free tier photo cap: attempt to upload 6 photos to one job | 6th upload blocked with tier message |
+| 8 | Verify the **Basic** tier photo cap: attempt to upload 6 photos to one job | 6th upload blocked with tier message (Basic = 5 photos/job) |
 
 **Watch for**
 - Duplicate upload silently succeeding (dedup not firing)
 - Dedup error shown to user without a friendly message
 - Photo count in job detail not matching actual stored photos
-- Tier cap not enforced (6th photo accepted on Free tier)
+- Tier cap not enforced (6th photo accepted on Basic tier)
 
 ---
 
@@ -263,14 +289,180 @@ a real property is a product judgment no fixture can make.
 
 ---
 
+## MT-08 — FSBO Listing + 360° Panorama Tour
+
+**Why manual:** The FSBO listing lifecycle involves real canister state
+transitions (draft → active → offer → accepted). The PlayCanvas WebGL renderer
+cannot be exercised in jsdom — only a real browser confirms the 360° tour loads,
+the sphere renders correctly, and room navigation works.
+
+**Prerequisites**
+- A Pro or Premium homeowner account (FSBO requires at least one verified job for
+  the trust score to be non-zero)
+- A 360° equirectangular photo (JPG/PNG, ~4000×2000px) — a test file works
+- Two browsers: homeowner (authenticated) + buyer (incognito)
+
+**Steps — Listing activation**
+
+| # | Action | Expected Result |
+|---|--------|-----------------|
+| 1 | Navigate to `/dashboard` | Property card has a **Start Listing** CTA |
+| 2 | Click **Start Listing** | `InitListingModal` opens; choose **FSBO** |
+| 3 | Set list price (e.g. $450,000) and activate | Listing created; redirected to `/my-listing/:propertyId` |
+| 4 | Verify listing status badge = **Active** | Status shown correctly |
+| 5 | Navigate to `/for-sale/:propertyId` in incognito | Public listing renders: price, score badge, property details |
+| 6 | Confirm no login prompt on the public page | Public page, no auth required |
+
+**Steps — 360° panorama management**
+
+| # | Action | Expected Result |
+|---|--------|-----------------|
+| 7 | In the homeowner session, on `/my-listing/:propertyId`, scroll to the **360° Tour** section | Section renders with empty state and an add form |
+| 8 | Enter Room Label = "Living Room" and select the 360° test photo | Form accepts both inputs |
+| 9 | Click **Add Room** | Entry appears in the panorama list; "Living Room" shown |
+| 10 | Add a second entry: Room Label = "Kitchen", different photo file | Second entry appears; order preserved |
+| 11 | In incognito, refresh the public listing at `/for-sale/:propertyId` | A **360° Tour** button or panel appears |
+| 12 | Click the 360° Tour button | PlayCanvas viewer loads; no blank canvas or error |
+| 13 | Click and drag inside the viewer | Camera pans smoothly — equirectangular texture covers the full sphere |
+| 14 | If multiple rooms exist, click a room label in the navigation panel | Viewer transitions to that room's photo |
+| 15 | Return to the homeowner session; click **Remove** on "Kitchen" | Entry removed; kitchen no longer in public view |
+
+**Steps — offer flow**
+
+| # | Action | Who | Expected Result |
+|---|--------|-----|-----------------|
+| 16 | In incognito, click **Request Showing** on the public listing | Buyer | Form submits; confirmation shown |
+| 17 | In homeowner session, showing request appears in listing manager | Homeowner | Inbox updated |
+| 18 | In incognito, submit an offer (use the offer form on the public page) | Buyer | Offer confirmed |
+| 19 | In homeowner session, offer appears in offer inbox | Homeowner | Offer amount and buyer contact shown |
+| 20 | Click **Accept** on the offer | Homeowner | Listing status changes to "Under Contract" |
+| 21 | Refresh the public listing in incognito | Buyer | "Under Contract" or equivalent status shown; offer form hidden |
+
+**Watch for**
+- PlayCanvas canvas remaining blank (WebGL context not acquired — check browser WebGL support)
+- Panorama photos not persisting after page reload (canister write not flushing)
+- Room labels not rendering over the 3D scene
+- Offer accept not updating the listing status on the public page without reload
+
+---
+
+## MT-09 — Sensor / IoT Device → Auto-Job
+
+**Why manual:** The sensor canister's auto-job creation path runs on-chain.
+No E2E test fires a real IoT event against a deployed canister; the auto-job
+write and the alert resolution flow require a human to confirm the full cycle.
+
+**Prerequisites**
+- `sensor` canister deployed
+- A registered property with at least one verified job
+
+**Steps**
+
+| # | Action | Expected Result |
+|---|--------|-----------------|
+| 1 | Navigate to `/sensors` | Page loads; device list empty if first visit |
+| 2 | Click **Add Device** | `RegisterDeviceModal` opens |
+| 3 | Select device type = **Moen Flo** (water leak), enter device name and property | Device registered; appears in device list with **Active** badge |
+| 4 | Trigger a test Critical event (use the admin panel or the canister CLI: `dfx canister call sensor addEvent '(...)' `) | Event logged; alert appears in the **Pending Alerts** panel |
+| 5 | Confirm the alert severity badge = **Critical** | Badge shows correctly |
+| 6 | Navigate to `/dashboard` → Activity feed | Auto-created pending job appears in the feed |
+| 7 | Navigate to the pending job | Status = pending; description references the sensor device |
+| 8 | Return to `/sensors`; click **Acknowledge** on the alert | Alert moves out of pending; active alert count decrements |
+| 9 | Deactivate the device | Badge changes to **Inactive**; device no longer triggers future alerts |
+
+**Watch for**
+- Alert not appearing without a manual page refresh (real-time polling or push needed)
+- Auto-job not linked to the correct property
+- Acknowledging an alert not clearing it from the pending panel
+
+---
+
+## MT-10 — Out-of-Network Contractor Sign-off
+
+**Why manual:** This flow requires two people with two different devices — a
+homeowner who generates the invite link, and a contractor who has no HomeGentic
+account. It cannot be simulated with the standard principal injection.
+
+**Prerequisites**
+- A homeowner session with a job in "awaiting contractor" status
+- A second device (phone or another browser profile) to act as the contractor
+- No HomeGentic login on the contractor device
+
+**Steps**
+
+| # | Action | Who | Expected Result |
+|---|--------|-----|-----------------|
+| 1 | Open the job detail page for the target job | Homeowner | Job detail loads |
+| 2 | Click **Invite Contractor** | Homeowner | `InviteContractorModal` opens; shows unique link + QR code |
+| 3 | Copy or QR-scan the invite link on the contractor device | Contractor | `/verify/:token` page loads without a login prompt |
+| 4 | Confirm the page shows the read-only job preview (description, address, date) | Contractor | Correct job details displayed |
+| 5 | Click **Confirm & Sign** | Contractor | Success confirmation shown; token consumed |
+| 6 | In the homeowner session, refresh the job | Homeowner | Job status = **Verified**; contractor signature shown |
+| 7 | Attempt to use the same invite link again on the contractor device | Contractor | Error: "This link has already been used" or token-expired message |
+
+**Watch for**
+- Job preview leaking sensitive data beyond description/address/date
+- Token not being consumed after first use (reuse attack surface)
+- Homeowner signature overwritten or cleared after contractor signs
+
+---
+
+## MT-11 — Push Notifications
+
+**Why manual:** Browser push permission dialogs and actual push delivery
+require a real browser with a service worker registered. Automated tests
+mock the push subscription endpoint and cannot confirm delivery.
+
+**Prerequisites**
+- A modern browser with push notification support (Chrome or Firefox)
+- Voice agent (`cd agents/voice && npm run dev`) and notification relay running
+- `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` set in the notification relay `.env`
+- A contractor account to receive job-match notifications
+
+**Steps — subscribe**
+
+| # | Action | Expected Result |
+|---|--------|-----------------|
+| 1 | Log in as a contractor and navigate to `/settings` → Notifications tab | Notification preferences shown |
+| 2 | Enable **Job Match Alerts** | Browser permission prompt appears |
+| 3 | Click **Allow** in the browser prompt | Permission granted; subscription confirmed |
+| 4 | Hard-refresh the page | Notification toggle still enabled — subscription persisted |
+
+**Steps — receive a push**
+
+| # | Action | Expected Result |
+|---|--------|-----------------|
+| 5 | In a separate homeowner session, post a new quote request matching the contractor's specialty | Quote request created |
+| 6 | Wait up to 30 seconds on the contractor session | Browser push notification appears (even if tab is in background) |
+| 7 | Click the notification | Browser focuses the app and navigates to the relevant quote |
+| 8 | Minimize the browser entirely and repeat step 5 | Push notification still delivered to OS notification tray |
+
+**Steps — unsubscribe**
+
+| # | Action | Expected Result |
+|---|--------|-----------------|
+| 9 | Return to `/settings` → Notifications; disable **Job Match Alerts** | Toggle off; no confirmation |
+| 10 | Post another matching quote request | No push notification received |
+
+**Watch for**
+- Service worker not registering (check DevTools → Application → Service Workers)
+- Push delivered but notification click not navigating to the correct page
+- Re-enabling notifications after a deny requiring manual browser permission reset
+
+---
+
 ## Sign-Off
 
-| Test | Date | Tester | Result | Notes |
-|------|------|--------|--------|-------|
-| MT-01 Internet Identity | | | | |
-| MT-02 Dual-Signature Jobs | | | | |
-| MT-03 Subscription Upgrade | | | | |
-| MT-04 Report Share + Revoke | | | | |
-| MT-05 Photo Deduplication | | | | |
-| MT-06 Voice Agent | | | | |
-| MT-07 Instant Forecast | | | | |
+| Test | Date | Tester | Environment | Result | Notes |
+|------|------|--------|-------------|--------|-------|
+| MT-01 Internet Identity | | | | | |
+| MT-02 Dual-Signature Jobs | | | | | |
+| MT-03 Subscription Upgrade | | | | | |
+| MT-04 Report Share + Revoke | | | | | |
+| MT-05 Photo Deduplication | | | | | |
+| MT-06 Voice Agent | | | | | |
+| MT-07 Instant Forecast | | | | | |
+| MT-08 FSBO Listing + 360° Panorama | | | | | |
+| MT-09 Sensor / Auto-Job | | | | | |
+| MT-10 Out-of-Network Contractor Sign-off | | | | | |
+| MT-11 Push Notifications | | | | | |
