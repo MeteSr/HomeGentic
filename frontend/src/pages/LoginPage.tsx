@@ -47,19 +47,22 @@ function AppleIcon() {
   );
 }
 
-function IcpInfinityIcon({ size = 20 }: { size?: number }) {
-  const id = `icp-login-${size}`;
+function IcpLogoIcon({ size = 22 }: { size?: number }) {
+  const w = Math.round(size * (236.26 / 115.26));
   return (
-    <svg width={size} height={size * 0.6} viewBox="0 0 60 36" fill="none" aria-hidden="true">
+    <svg width={w} height={size} viewBox="0 0 236.26 115.26" fill="none" aria-hidden="true">
       <defs>
-        <linearGradient id={id} x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#8B5CF6" />
-          <stop offset="50%" stopColor="#F97316" />
-          <stop offset="100%" stopColor="#EAB308" />
+        <linearGradient id="icp-a" x1="148.81" y1="8.35" x2="227.82" y2="90.17" gradientUnits="userSpaceOnUse">
+          <stop offset=".21" stopColor="#f15a24"/><stop offset=".68" stopColor="#fbb03b"/>
+        </linearGradient>
+        <linearGradient id="icp-b" x1="-1244.74" y1="-1414.65" x2="-1165.72" y2="-1332.83" gradientTransform="translate(-1157.28 -1307.74) rotate(-180)" gradientUnits="userSpaceOnUse">
+          <stop offset=".21" stopColor="#ed1e79"/><stop offset=".89" stopColor="#522785"/>
         </linearGradient>
       </defs>
-      <path d="M30 18C30 18 20 2 10 2C2 2 2 18 10 18C2 18 2 34 10 34C20 34 30 18 30 18Z" fill={`url(#${id})`} />
-      <path d="M30 18C30 18 40 2 50 2C58 2 58 18 50 18C58 18 58 34 50 34C40 34 30 18 30 18Z" fill={`url(#${id})`} />
+      <path fill="url(#icp-a)" d="M178.88,0c-13.19,0-27.6,6.99-42.81,20.76-7.21,6.53-13.45,13.51-18.14,19.11,0,0,.02.02.02.03.01-.01.02-.02.02-.02,0,0,7.4,8.32,15.53,17.22,4.38-5.38,10.71-12.72,17.99-19.3,13.53-12.25,22.36-14.82,27.39-14.82,18.97,0,34.41,15.55,34.41,34.65s-15.44,34.54-34.43,34.65c-.86,0-1.98-.11-3.35-.42,5.53,2.48,11.48,4.25,17.14,4.25,34.78,0,41.57-23.45,42.04-25.11,1.03-4.3,1.58-8.77,1.58-13.37,0-31.78-25.74-57.63-57.38-57.63Z"/>
+      <path fill="#29abe2" d="M192.59,95.53c-17.81-.45-36.31-14.96-40.09-18.57-9.75-9.32-19-19.87-19-19.87-8.14-8.9-15.53-17.22-15.53-17.22,0,0,0,.01-.02.02,0,0-.02-.02-.02-.03-2.63,3.14-15.43,17.75-15.43,17.75,0,0,8.56,9.16,9.28,10.04,16.81,20.43,42.05,47.59,67.11,47.59h.06c27.01-.14,49.71-19.04,55.75-44.25-.46,1.66-9.42,25.36-42.1,24.53Z"/>
+      <path fill="url(#icp-b)" d="M57.38,115.26c13.19,0,27.6-6.99,42.81-20.76,7.21-6.53,13.45-13.51,18.14-19.11,0,0-.02-.02-.02-.03-.01.01-.02.02-.02.02,0,0-7.4-8.32-15.53-17.22-4.38,5.38-10.71,12.72-17.99,19.3-13.53,12.25-22.36,14.82-27.39,14.82-18.97,0-34.41-15.55-34.41-34.65s15.44-34.54,34.43-34.65c.86,0,1.98.11,3.35.42-5.53-2.48-11.48-4.25-17.14-4.25C8.83,19.15,2.04,42.59,1.58,44.25c-1.03,4.3-1.58,8.77-1.58,13.37,0,31.78,25.74,57.63,57.38,57.63Z"/>
+      <path fill="#29abe2" d="M43.59,19.53c17.81.45,36.4,15.15,40.18,18.76,9.75,9.32,19,19.87,19,19.87,8.14,8.9,15.53,17.22,15.53,17.22,0,0,0-.01.02-.02,0,0,.02.02.02.03,2.63-3.14,15.43-17.75,15.43-17.75,0,0-8.56-9.16-9.28-10.04C107.69,27.16,82.44,0,57.38,0h-.06C30.32.14,7.61,19.04,1.58,44.25c.46-1.66,9.34-25.55,42.01-24.72Z"/>
     </svg>
   );
 }
@@ -225,7 +228,7 @@ export default function LoginPage() {
           {[
             { icon: <GoogleIcon />,              label: "Continue with Google" },
             { icon: <AppleIcon />,               label: "Continue with Apple" },
-            { icon: <IcpInfinityIcon size={22} />, label: "Continue with Internet Identity" },
+            { icon: <IcpLogoIcon size={22} />, label: "Continue with Internet Identity" },
           ].map(({ icon, label }) => (
             <button
               key={label}
