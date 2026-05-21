@@ -225,13 +225,13 @@ export default function LoginPage() {
           {[
             { icon: <GoogleIcon />,              label: "Continue with Google" },
             { icon: <AppleIcon />,               label: "Continue with Apple" },
-            { icon: <IcpInfinityIcon size={22} />, label: "Continue with Internet Computer" },
+            { icon: <IcpInfinityIcon size={22} />, label: "Continue with Internet Identity" },
           ].map(({ icon, label }) => (
             <button
               key={label}
               onClick={login}
               disabled={isLoading}
-              data-tid={label === "Continue with Internet Computer" ? "login-button" : undefined}
+              data-tid={label === "Continue with Internet Identity" ? "login-button" : undefined}
               style={{
                 width: "100%",
                 display: "flex",
