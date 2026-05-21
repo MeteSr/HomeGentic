@@ -365,7 +365,7 @@ export default function LoginPage() {
         gap: "1rem",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-          <IcpInfinityIcon size={32} />
+          <IcpLogoIcon size={32} />
           <div>
             <div style={{ color: C.white, fontWeight: 600, fontSize: "0.9375rem" }}>Built on the Internet Computer Protocol (ICP)</div>
             <div style={{ color: "#94A3B8", fontSize: "0.8125rem" }}>Your data is yours. Permanently stored. Tamper-proof. Future-proof.</div>
