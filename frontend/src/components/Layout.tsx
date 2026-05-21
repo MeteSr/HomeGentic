@@ -11,7 +11,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Bell, LogOut, Plus,
-  LayoutDashboard, TrendingUp, Users, Cpu, Radio, Home as HomeIcon, PlusSquare,
+  LayoutDashboard, TrendingUp, Users, Wrench, Radio, Home as HomeIcon, PlusSquare,
   PanelLeft, Menu, X,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -163,7 +163,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     : [
         { to: "/dashboard",      label: "Dashboard",    Icon: LayoutDashboard },
         { to: "/market",         label: "Market",       Icon: TrendingUp },
-        { to: "/maintenance",    label: "Maintenance",  Icon: Cpu },
+        { to: "/maintenance",    label: "Maintenance",  Icon: Wrench },
         { to: "/contractors", label: "Contractors", Icon: Users },
         { to: "/sensors",        label: "Sensors",      Icon: Radio },
         ...(singlePropertyId && hasActiveListing
