@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   motoko-check:
-    name: Motoko compile check
+    name: motoko-compile-check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
