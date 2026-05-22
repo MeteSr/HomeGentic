@@ -721,7 +721,7 @@ persistent actor MarketIntelligence {
       (sorted[(n / 2) - 1] + sorted[n / 2]) / 2
     };
 
-    #ok({ zipCode; mean; median; sampleSize = scores.size(); grade = scoreGrade(median) })
+    #ok({ zipCode; mean; median; sampleSize = List.size(scoresBuf); grade = scoreGrade(median) })
   };
 
   /// Returns the canister's vetKeys public key for the neighbourhood score context.
