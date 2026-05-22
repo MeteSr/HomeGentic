@@ -396,6 +396,8 @@ persistent actor Property {
 
   private let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   private transient var rateLimitSweepTick : Nat = 0;
+  /// In-flight guard for registerProperty: caller principal → true while a registration is live.
+  private transient let inFlightRegistrations = Map.empty<Text, Bool>();
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
   private let ONE_MINUTE_NS       : Int = 60_000_000_000;
@@ -590,6 +592,16 @@ persistent actor Property {
       case null {};
     };
 
+    // ── Per-caller in-flight guard ───────────────────────────────────────────
+    // Prevents concurrent calls from the same principal all passing the tier
+    // limit check before any property is written (tier-limit bypass race).
+    let callerKey = Principal.toText(caller);
+    switch (Map.get(inFlightRegistrations, Text.compare, callerKey)) {
+      case (?_) { return #err(#InvalidInput("A property registration is already in progress for this account")) };
+      case null {};
+    };
+    Map.add(inFlightRegistrations, Text.compare, callerKey, true);
+
     // ── Tier limit check ────────────────────────────────────────────────────
     // When payment canister is wired, tier comes from getTierForPrincipal();
     // otherwise falls back to the local admin-grant map.
@@ -624,6 +636,7 @@ persistent actor Property {
         case (#Pro)   " Upgrade to Premium ($35/mo) for 20, or ContractorPro ($30/mo) for unlimited.";
         case _        "";
       };
+      Map.remove(inFlightRegistrations, Text.compare, callerKey);
       return #err(#InvalidInput(
         tierName # " plan limit of " # Nat.toText(limit) # " propert" #
         (if (limit == 1) "y" else "ies") # " reached." # upgradeMsg
@@ -655,6 +668,7 @@ persistent actor Property {
 
     Map.add(properties, Text.compare, id, prop);
     Map.add(addressIdx, Text.compare, key, id);
+    Map.remove(inFlightRegistrations, Text.compare, callerKey);
     #ok(prop)
   };
 
