@@ -30,7 +30,11 @@ vi.mock("@/store/authStore", () => ({
   useAuthStore: vi.fn(),
 }));
 
-const mockDevLogin = vi.fn().mockResolvedValue(undefined);
+const { mockDevLogin, mockNavigate } = vi.hoisted(() => ({
+  mockDevLogin: vi.fn().mockResolvedValue(undefined),
+  mockNavigate: vi.fn(),
+}));
+
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ login: vi.fn(), devLogin: mockDevLogin, logout: vi.fn() }),
 }));
@@ -47,7 +51,6 @@ vi.mock("@/services/payment", async (importOriginal) => {
   };
 });
 
-const mockNavigate = vi.fn();
 vi.mock("react-router-dom", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react-router-dom")>();
   return { ...actual, useNavigate: () => mockNavigate };
