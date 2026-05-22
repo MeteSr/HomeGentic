@@ -437,7 +437,7 @@ export default function ContractorBrowsePage() {
         {/* Page header */}
         <div style={{ marginBottom: "1.75rem" }}>
           <h1 style={{ fontFamily: S.serif, fontWeight: 900, fontSize: "1.75rem", color: S.ink, lineHeight: 1.1, marginBottom: "0.375rem" }}>
-            Contractors
+            Find a Contractor
           </h1>
           <p style={{ fontFamily: S.sans, fontSize: "0.875rem", color: S.muted }}>
             Find trusted professionals and manage the contractors who work on your home.
@@ -469,7 +469,7 @@ export default function ContractorBrowsePage() {
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search by service, trade, or company name..."
+                  placeholder="Search by name, service, or trade..."
                   style={{ width: "100%", padding: "0.625rem 0.75rem 0.625rem 2.5rem", border: `1px solid ${S.rule}`, borderRadius: RADIUS.input, fontFamily: S.sans, fontSize: "0.85rem", background: S.paper, boxSizing: "border-box", outline: "none" }}
                 />
               </div>
