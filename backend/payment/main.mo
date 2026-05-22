@@ -1,4 +1,5 @@
 import Array     "mo:core/Array";
+import Blob      "mo:core/Blob";
 import Debug     "mo:core/Debug";
 import Int       "mo:core/Int";
 import Iter      "mo:core/Iter";
