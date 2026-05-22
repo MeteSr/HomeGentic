@@ -138,10 +138,11 @@ if (!CANISTER_ID) return mockData;   // canister not deployed → use mock
 ```
 Canister IDs come from `vite.config.ts` `define` block mapping `CANISTER_ID_*` env vars (written to `.env` by `scripts/deploy.sh`).
 
-**IDL maintenance rule** — whenever you add or rename a variant in a Motoko `.mo` file, you must update the matching IDL in **all three** of these files or the client will silently misread the variant:
-1. `frontend/src/services/<canister>.ts` — inline `idlFactory` function
+**IDL maintenance rule** — whenever you add or rename a variant in a Motoko `.mo` file, you must update the matching IDL in **two** places:
+1. `frontend/src/declarations/<canister>/index.ts` — the single source of truth for each canister's Candid interface (replaces the old inline `idlFactory` in service files). Run `bash scripts/generate-declarations.sh` if `dfx` is available, otherwise edit the file by hand.
 2. `agents/iot-gateway/icp.ts` — `SensorDeviceIDL` / `SensorEventTypeIDL` (sensor canister only)
-3. Any snapshot files under `frontend/src/services/__snapshots__/` — run `npm run test:unit -- --update` and commit the updated `.snap`
+
+After updating declarations, regenerate snapshots: `cd frontend && npm run test:unit -- --update` and commit the `.snap` files.
 
 ### State Management
 
