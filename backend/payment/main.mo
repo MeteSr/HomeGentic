@@ -661,31 +661,31 @@ persistent actor Payment {
         );
 
         if (json.contains(#text "\"error\"")) {
-          break exit #err(#PaymentFailed("Stripe error: " # json));
+          break exit (#err(#PaymentFailed("Stripe error: " # json)));
         };
 
         let payStatus = switch (jsonExtract(json, "payment_status")) {
           case (?s) s;
-          case null break exit #err(#PaymentFailed("Missing payment_status in session"));
+          case null break exit (#err(#PaymentFailed("Missing payment_status in session")));
         };
         let sessStatus = switch (jsonExtract(json, "status")) {
           case (?s) s;
-          case null break exit #err(#PaymentFailed("Missing status in session"));
+          case null break exit (#err(#PaymentFailed("Missing status in session")));
         };
 
         if (payStatus != "paid" or sessStatus != "complete") {
-          break exit #err(#PaymentFailed(
+          break exit (#err(#PaymentFailed(
             "Payment not complete — status: " # sessStatus # ", payment_status: " # payStatus
-          ));
+          )));
         };
 
         let tierText_ = switch (jsonExtract(json, "tier")) {
           case (?t) t;
-          case null break exit #err(#PaymentFailed("Missing tier in session metadata"));
+          case null break exit (#err(#PaymentFailed("Missing tier in session metadata")));
         };
         let tier = switch (tierFromText(tierText_)) {
           case (?t) t;
-          case null break exit #err(#PaymentFailed("Unknown tier: " # tierText_));
+          case null break exit (#err(#PaymentFailed("Unknown tier: " # tierText_)));
         };
         let billing  = billingFromText(Option.get(jsonExtract(json, "billing"), "Monthly"));
         let isGift   = Option.get(jsonExtract(json, "is_gift"), "false") == "true";
@@ -709,7 +709,7 @@ persistent actor Payment {
         } else {
           let sessionPrincipal = Option.get(jsonExtract(json, "principal"), "");
           if (sessionPrincipal != Principal.toText(msg.caller)) {
-            break exit #err(#NotAuthorized);
+            break exit (#err(#NotAuthorized));
           };
           let sub : Subscription = {
             owner       = msg.caller;
