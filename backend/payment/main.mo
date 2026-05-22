@@ -1,4 +1,5 @@
 import Array     "mo:core/Array";
+import Blob      "mo:core/Blob";
 import Debug     "mo:core/Debug";
 import Int       "mo:core/Int";
 import Iter      "mo:core/Iter";
@@ -254,6 +255,8 @@ persistent actor Payment {
   private let updateCallLimits        : Map.Map<Text, (Nat, Int)> = Map.empty();
   // CallerGuard: prevents concurrent subscribe() calls from the same principal
   private transient let activeSubscribers       : Map.Map<Text, Bool>       = Map.empty();
+  /// In-flight guard for verifyStripeSession: sessionId → true while an HTTP outcall is live.
+  private transient let inFlightVerifications   : Map.Map<Text, Bool>       = Map.empty();
   private var maxUpdatesPerMin        : Nat = 30;
   private let ONE_MINUTE_NS           : Int = 60_000_000_000;
   private var trustedCanisterEntries  : [Principal] = [];
@@ -423,7 +426,9 @@ persistent actor Payment {
         let a : actor {
           setTier : (Principal, Tier) -> async Result.Result<(), PropertySetTierErr>
         } = actor(Principal.toText(pid));
-        try { ignore await a.setTier(user, tier) } catch _ {};
+        try { ignore await a.setTier(user, tier) } catch _ {
+          Debug.print("propagateTier: property setTier failed for " # Principal.toText(user));
+        };
       };
       case null {};
     };
@@ -432,7 +437,9 @@ persistent actor Payment {
         let a : actor {
           setTier : (Principal, Tier) -> async Result.Result<(), QuoteSetTierErr>
         } = actor(Principal.toText(pid));
-        try { ignore await a.setTier(user, tier) } catch _ {};
+        try { ignore await a.setTier(user, tier) } catch _ {
+          Debug.print("propagateTier: quote setTier failed for " # Principal.toText(user));
+        };
       };
       case null {};
     };
@@ -441,7 +448,9 @@ persistent actor Payment {
         let a : actor {
           setTier : (Principal, Tier) -> async Result.Result<(), PhotoSetTierErr>
         } = actor(Principal.toText(pid));
-        try { ignore await a.setTier(user, tier) } catch _ {};
+        try { ignore await a.setTier(user, tier) } catch _ {
+          Debug.print("propagateTier: photo setTier failed for " # Principal.toText(user));
+        };
       };
       case null {};
     };
@@ -635,79 +644,92 @@ persistent actor Payment {
       case (?c)  { c };
     };
 
-    try {
-      let json = await OutCall.httpGetRequest(
-        "https://api.stripe.com/v1/checkout/sessions/" # sessionId,
-        [{ name = "authorization"; value = "Bearer " # cfg.secretKey }],
-        transform,
-      );
+    // In-flight guard: set before the HTTP outcall so a second concurrent call with
+    // the same sessionId returns early rather than issuing a duplicate subscription.
+    switch (Map.get(inFlightVerifications, Text.compare, sessionId)) {
+      case (?_) { return #err(#InvalidInput("Session verification already in progress")) };
+      case null {};
+    };
+    Map.add(inFlightVerifications, Text.compare, sessionId, true);
 
-      if (json.contains(#text "\"error\"")) {
-        return #err(#PaymentFailed("Stripe error: " # json));
-      };
+    // Labeled expression ensures Map.remove runs on every exit path.
+    let result = label exit : Result.Result<Subscription, Error> {
+      try {
+        let json = await OutCall.httpGetRequest(
+          "https://api.stripe.com/v1/checkout/sessions/" # sessionId,
+          [{ name = "authorization"; value = "Bearer " # cfg.secretKey }],
+          transform,
+        );
 
-      let payStatus = switch (jsonExtract(json, "payment_status")) {
-        case (?s) s;
-        case null return #err(#PaymentFailed("Missing payment_status in session"));
-      };
-      let sessStatus = switch (jsonExtract(json, "status")) {
-        case (?s) s;
-        case null return #err(#PaymentFailed("Missing status in session"));
-      };
-
-      if (payStatus != "paid" or sessStatus != "complete") {
-        return #err(#PaymentFailed(
-          "Payment not complete — status: " # sessStatus # ", payment_status: " # payStatus
-        ));
-      };
-
-      let tierText_ = switch (jsonExtract(json, "tier")) {
-        case (?t) t;
-        case null return #err(#PaymentFailed("Missing tier in session metadata"));
-      };
-      let tier = switch (tierFromText(tierText_)) {
-        case (?t) t;
-        case null return #err(#PaymentFailed("Unknown tier: " # tierText_));
-      };
-      let billing  = billingFromText(Option.get(jsonExtract(json, "billing"), "Monthly"));
-      let isGift   = Option.get(jsonExtract(json, "is_gift"), "false") == "true";
-      let now = Time.now();
-
-      if (isGift) {
-        let gift : PendingGift = {
-          giftToken      = sessionId;
-          tier;
-          billing;
-          recipientEmail = Option.get(jsonExtract(json, "recipient_email"), "");
-          recipientName  = Option.get(jsonExtract(json, "recipient_name"),  "");
-          senderName     = Option.get(jsonExtract(json, "sender_name"),     "");
-          giftMessage    = Option.get(jsonExtract(json, "gift_message"),    "");
-          deliveryDate   = Option.get(jsonExtract(json, "delivery_date"),   "");
-          createdAt      = now;
-          redeemedBy     = null;
+        if (json.contains(#text "\"error\"")) {
+          break exit (#err(#PaymentFailed("Stripe error: " # json)));
         };
-        Map.add(pendingGifts, Text.compare, sessionId, gift);
-        #err(#NotFound) // frontend detects this + sessionId to show gift-sent screen
-      } else {
-        let sessionPrincipal = Option.get(jsonExtract(json, "principal"), "");
-        if (sessionPrincipal != Principal.toText(msg.caller)) {
-          return #err(#NotAuthorized);
+
+        let payStatus = switch (jsonExtract(json, "payment_status")) {
+          case (?s) s;
+          case null break exit (#err(#PaymentFailed("Missing payment_status in session")));
         };
-        let sub : Subscription = {
-          owner       = msg.caller;
-          tier;
-          expiresAt   = now + durationNsFor(billing);
-          createdAt   = now;
-          cancelledAt = null;
+        let sessStatus = switch (jsonExtract(json, "status")) {
+          case (?s) s;
+          case null break exit (#err(#PaymentFailed("Missing status in session")));
         };
-        Map.add(subscriptions, Principal.compare, msg.caller, sub);
-        await propagateTier(msg.caller, tier);
-        await notifyReferralConverted(msg.caller);
-        #ok(sub)
+
+        if (payStatus != "paid" or sessStatus != "complete") {
+          break exit (#err(#PaymentFailed(
+            "Payment not complete — status: " # sessStatus # ", payment_status: " # payStatus
+          )));
+        };
+
+        let tierText_ = switch (jsonExtract(json, "tier")) {
+          case (?t) t;
+          case null break exit (#err(#PaymentFailed("Missing tier in session metadata")));
+        };
+        let tier = switch (tierFromText(tierText_)) {
+          case (?t) t;
+          case null break exit (#err(#PaymentFailed("Unknown tier: " # tierText_)));
+        };
+        let billing  = billingFromText(Option.get(jsonExtract(json, "billing"), "Monthly"));
+        let isGift   = Option.get(jsonExtract(json, "is_gift"), "false") == "true";
+        let now = Time.now();
+
+        if (isGift) {
+          let gift : PendingGift = {
+            giftToken      = sessionId;
+            tier;
+            billing;
+            recipientEmail = Option.get(jsonExtract(json, "recipient_email"), "");
+            recipientName  = Option.get(jsonExtract(json, "recipient_name"),  "");
+            senderName     = Option.get(jsonExtract(json, "sender_name"),     "");
+            giftMessage    = Option.get(jsonExtract(json, "gift_message"),    "");
+            deliveryDate   = Option.get(jsonExtract(json, "delivery_date"),   "");
+            createdAt      = now;
+            redeemedBy     = null;
+          };
+          Map.add(pendingGifts, Text.compare, sessionId, gift);
+          #err(#NotFound) // frontend detects this + sessionId to show gift-sent screen
+        } else {
+          let sessionPrincipal = Option.get(jsonExtract(json, "principal"), "");
+          if (sessionPrincipal != Principal.toText(msg.caller)) {
+            break exit (#err(#NotAuthorized));
+          };
+          let sub : Subscription = {
+            owner       = msg.caller;
+            tier;
+            expiresAt   = now + durationNsFor(billing);
+            createdAt   = now;
+            cancelledAt = null;
+          };
+          Map.add(subscriptions, Principal.compare, msg.caller, sub);
+          await propagateTier(msg.caller, tier);
+          await notifyReferralConverted(msg.caller);
+          #ok(sub)
+        }
+      } catch (_e) {
+        #err(#PaymentFailed("Stripe verification request failed"))
       }
-    } catch (_e) {
-      #err(#PaymentFailed("Stripe verification request failed"))
-    }
+    };
+    Map.remove(inFlightVerifications, Text.compare, sessionId);
+    result
   };
 
   /// Redeem a pending gift. Any authenticated principal can call this once with
@@ -728,20 +750,12 @@ persistent actor Payment {
           cancelledAt = null;
         };
         Map.add(subscriptions, Principal.compare, msg.caller, sub);
+        // Mark redeemed BEFORE the first await so concurrent calls see the guard
+        // and return #err(#InvalidInput) instead of granting a second subscription.
+        Map.add(pendingGifts, Text.compare, giftToken, {
+          gift with redeemedBy = ?msg.caller
+        });
         await propagateTier(msg.caller, gift.tier);
-        let updated : PendingGift = {
-          giftToken      = gift.giftToken;
-          tier           = gift.tier;
-          billing        = gift.billing;
-          recipientEmail = gift.recipientEmail;
-          recipientName  = gift.recipientName;
-          senderName     = gift.senderName;
-          giftMessage    = gift.giftMessage;
-          deliveryDate   = gift.deliveryDate;
-          createdAt      = gift.createdAt;
-          redeemedBy     = ?msg.caller;
-        };
-        Map.add(pendingGifts, Text.compare, giftToken, updated);
         #ok(sub)
       };
     }
@@ -826,8 +840,10 @@ persistent actor Payment {
         to                 = { owner = Principal.fromActor(Payment); subaccount = null };
         amount             = priceE8s;
         fee                = ?ICP_FEE;
-        memo               = null;
-        created_at_time    = null;
+        memo               = ?Blob.fromArray([]);
+        // created_at_time gives the ledger a 24-hour deduplication window, preventing
+        // replay of an approved allowance if the client retries after a timeout.
+        created_at_time    = ?Nat64.fromNat(Int.abs(Time.now()));
       });
       switch (transferResult) {
         case (#Err(e)) {

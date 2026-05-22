@@ -14,6 +14,7 @@
 
 import Array    "mo:core/Array";
 import Blob     "mo:core/Blob";
+import List     "mo:core/List";
 import Map      "mo:core/Map";
 import Int      "mo:core/Int";
 import Nat      "mo:core/Nat";
@@ -493,7 +494,7 @@ persistent actor MarketIntelligence {
       };
     };
 
-    var recommendations : [ProjectRecommendation] = [];
+    let recsBuf = List.empty<ProjectRecommendation>();
 
     for (tmpl in PROJECT_TEMPLATES.vals()) {
 
@@ -547,7 +548,7 @@ persistent actor MarketIntelligence {
 
             let rationale = ageNote # roiNote # stateNote;
 
-            let rec : ProjectRecommendation = {
+            List.add(recsBuf, {
               name                = tmpl.name;
               category            = tmpl.category;
               estimatedCostCents  = adjustedCost;
@@ -557,8 +558,7 @@ persistent actor MarketIntelligence {
               priority;
               rationale;
               requiresPermit      = tmpl.requiresPermit;
-            };
-            recommendations := Array.concat(recommendations, [rec]);
+            });
           }
         }
       }
@@ -566,7 +566,7 @@ persistent actor MarketIntelligence {
 
     // Sort descending by adjustedRoi (higher ROI first)
     Array.sort<ProjectRecommendation>(
-      recommendations,
+      List.toArray(recsBuf),
       func(a, b) : Order.Order {
         if      (a.estimatedRoiPercent > b.estimatedRoiPercent) #less     // reversed for descending
         else if (a.estimatedRoiPercent < b.estimatedRoiPercent) #greater
@@ -700,20 +700,20 @@ persistent actor MarketIntelligence {
     let principals = Option.get(Map.get(zipIndex, Text.compare, zipCode), []);
     if (principals.size() == 0) return #err(#NotFound);
 
-    var scores : [Nat] = [];
+    let scoresBuf = List.empty<Nat>();
     for (p in principals.vals()) {
       switch (Map.get(scoreStore, Principal.compare, p)) {
-        case (?s) { scores := Array.concat(scores, [s.score]) };
+        case (?s) { List.add(scoresBuf, s.score) };
         case null {};
       };
     };
-    if (scores.size() == 0) return #err(#NotFound);
+    if (List.size(scoresBuf) == 0) return #err(#NotFound);
 
     var total : Nat = 0;
-    for (s in scores.vals()) { total += s };
-    let mean = total / scores.size();
+    List.forEach(scoresBuf, func(s : Nat) { total += s });
+    let mean = total / List.size(scoresBuf);
 
-    let sorted = Array.sort<Nat>(scores, Nat.compare);
+    let sorted = Array.sort<Nat>(List.toArray(scoresBuf), Nat.compare);
     let n = sorted.size();
     let median = if (n % 2 == 1) {
       sorted[n / 2]
@@ -721,7 +721,7 @@ persistent actor MarketIntelligence {
       (sorted[(n / 2) - 1] + sorted[n / 2]) / 2
     };
 
-    #ok({ zipCode; mean; median; sampleSize = scores.size(); grade = scoreGrade(median) })
+    #ok({ zipCode; mean; median; sampleSize = List.size(scoresBuf); grade = scoreGrade(median) })
   };
 
   /// Returns the canister's vetKeys public key for the neighbourhood score context.

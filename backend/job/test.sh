@@ -27,6 +27,14 @@ fi
 CONTRACTOR_PRINCIPAL=$(dfx identity get-principal --identity contractor-test)
 echo "Contractor test principal: $CONTRACTOR_PRINCIPAL"
 
+# ── Reset cross-canister wiring so this run starts from a known state ─────────
+# propCanisterId and payCanisterId are stable vars that persist across runs.
+# MGR-0 (at the end) re-wires them for manager-tier tests.  Clearing here
+# ensures steps 1–29 use the direct caller==owner fallback and are not
+# affected by stale wiring from a previous run.
+dfx canister call $CANISTER setPropertyCanisterId '("")' > /dev/null 2>&1 || true
+dfx canister call $CANISTER setPaymentCanisterId  '("")' > /dev/null 2>&1 || true
+
 # ── Register a test property so cross-canister auth checks have a real target ─
 # When the job canister has propCanisterId wired (e.g. after deploy.sh), calls
 # like verifyJob/linkContractor/createInviteToken delegate to

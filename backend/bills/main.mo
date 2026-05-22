@@ -23,6 +23,7 @@
 
 import Array     "mo:core/Array";
 import Float     "mo:core/Float";
+import List      "mo:core/List";
 import Map       "mo:core/Map";
 import Iter      "mo:core/Iter";
 import Nat       "mo:core/Nat";
@@ -322,7 +323,7 @@ persistent actor Bills {
     months     : Nat,
   ) : async Result.Result<[UsagePeriod], Error> {
     let cutoffNs : Int = Time.now() - (months * 30 * 24 * 3_600_000_000_000 : Nat);
-    var periods : [UsagePeriod] = [];
+    let periodsBuf = List.empty<UsagePeriod>();
 
     for ((_, b) in Map.entries(bills)) {
       if (b.propertyId == propertyId
@@ -336,11 +337,11 @@ persistent actor Bills {
             switch (b.usageUnit) {
               case null {};
               case (?unit) {
-                periods := Array.concat(periods, [{
+                List.add(periodsBuf, {
                   periodStart = b.periodStart;
                   usageAmount = amount;
                   usageUnit   = unit;
-                }]);
+                });
               };
             };
           };
@@ -349,7 +350,7 @@ persistent actor Bills {
     };
 
     // Sort chronologically by periodStart (lexicographic on YYYY-MM-DD is correct)
-    let sorted = Array.sort<UsagePeriod>(periods, func(a, b) {
+    let sorted = Array.sort<UsagePeriod>(List.toArray(periodsBuf), func(a, b) {
       Text.compare(a.periodStart, b.periodStart)
     });
     #ok(sorted)

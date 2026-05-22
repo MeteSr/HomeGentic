@@ -16,6 +16,7 @@
 
 import Array     "mo:core/Array";
 import Blob      "mo:core/Blob";
+import List      "mo:core/List";
 import Debug     "mo:core/Debug";
 import Int       "mo:core/Int";
 import Iter      "mo:core/Iter";
@@ -390,7 +391,7 @@ persistent actor AiProxy {
 
     // Sort by urgency rank — collect first, then sort
     type SE = { name: Text; install: Nat; age: Nat; lifespan: Nat; pct: Int; remaining: Int; urgency: Text; low: Nat; high: Nat };
-    var estimates : [SE] = [];
+    let estimatesBuf = List.empty<SE>();
 
     for (sys in SYSTEMS.vals()) {
       let mult        = climateMultiplierFor(zoneKey, sys.name);
@@ -407,7 +408,7 @@ persistent actor AiProxy {
         tenYearBudget += costLow;
       };
 
-      estimates := Array.concat(estimates, [{
+      List.add(estimatesBuf, {
         name     = sys.name;
         install  = yearBuilt;
         age      = age;
@@ -417,11 +418,11 @@ persistent actor AiProxy {
         urgency  = urgency;
         low      = costLow;
         high     = costHigh;
-      }]);
+      });
     };
 
     // Sort by urgency rank
-    estimates := Array.sort<SE>(estimates, func(a, b) {
+    let estimates = Array.sort<SE>(List.toArray(estimatesBuf), func(a, b) {
       Nat.compare(urgencyRank(a.urgency), urgencyRank(b.urgency))
     });
 
