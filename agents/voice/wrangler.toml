@@ -1,0 +1,56 @@
+name = "homegentic-voice-agent"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+AI_MODEL = "claude-sonnet-4-6"
+NODE_ENV = "production"
+DFX_NETWORK = "ic"
+BIDTOLIST_RESEND_FROM = "noreply@bidtolist.com"
+BIDTOLIST_ICP_HOST = "https://ic0.app"
+HOMEGENTIC_ICP_HOST = "https://ic0.app"
+
+# KV namespace for rate limiting (global 30 req/min + agent daily quotas).
+# Create with: wrangler kv:namespace create RATE_LIMIT
+# then replace the placeholder IDs below.
+[[kv_namespaces]]
+binding     = "RATE_LIMIT"
+id          = "PLACEHOLDER_KV_NAMESPACE_ID"
+preview_id  = "PLACEHOLDER_KV_PREVIEW_NAMESPACE_ID"
+
+# ── Secrets — never stored here, set via `wrangler secret put <NAME>` ────────
+#
+# Required:
+#   ANTHROPIC_API_KEY
+#   VOICE_AGENT_API_KEY
+#   FRONTEND_ORIGIN               e.g. https://homegentic.com
+#   STRIPE_SECRET_KEY
+#   STRIPE_WEBHOOK_SECRET
+#   DFX_IDENTITY_PEM              Ed25519 PEM for ICP canister admin calls
+#   CANISTER_ID_PAYMENT
+#
+# Stripe price IDs (one per plan × billing cycle):
+#   STRIPE_PRICE_BASIC_MONTHLY
+#   STRIPE_PRICE_BASIC_YEARLY
+#   STRIPE_PRICE_PRO_MONTHLY
+#   STRIPE_PRICE_PRO_YEARLY
+#   STRIPE_PRICE_PREMIUM_MONTHLY
+#   STRIPE_PRICE_PREMIUM_YEARLY
+#   STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY
+#   STRIPE_PRICE_CONTRACTOR_PRO_YEARLY
+#   STRIPE_PRICE_CREDITS_25
+#   STRIPE_PRICE_CREDITS_100
+#
+# Optional:
+#   CANISTER_ID_MONITORING
+#   BIDTOLIST_FRONTEND_ORIGIN     e.g. https://bidtolist.com
+#   BIDTOLIST_RESEND_API_KEY
+#   BIDTOLIST_STRIPE_SECRET_KEY
+#   BIDTOLIST_STRIPE_WEBHOOK_SECRET
+#   BIDTOLIST_STRIPE_PRICE_PLATFORM_FEE
+#   BIDTOLIST_LISTING_CANISTER_ID
+#   BIDTOLIST_AGENT_CANISTER_ID
+#   BIDTOLIST_FEE_CANISTER_ID
+#   BIDTOLIST_IDENTITY_SEED
+#   HOMEGENTIC_CANISTER_ID

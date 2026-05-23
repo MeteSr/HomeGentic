@@ -46,3 +46,24 @@ jobs:
           DFX_NETWORK:     ic
           CRITICAL_CYCLES: '500000000'
           WARNING_CYCLES:  '1000000000000'
+
+  deploy-voice-worker:
+    runs-on: ubuntu-latest
+    environment: production
+    needs: deploy
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: agents/voice/package-lock.json
+      - name: Install voice agent dependencies
+        working-directory: agents/voice
+        run: npm ci
+      - name: Deploy voice agent to Cloudflare Workers
+        working-directory: agents/voice
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
