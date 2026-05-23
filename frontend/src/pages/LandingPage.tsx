@@ -293,7 +293,7 @@ export default function LandingPage() {
           <div style={{ display: "flex", alignItems: "center", gap: "1.25rem" }}>
             <a href="/" className="hfl-logo">
               <HouseSvg />
-              <span className="hfl-logo-text">Home<span>Gentic</span></span>
+              <span className="hfl-logo-text">Home<span>Gentic™</span></span>
             </a>
             <ul className="hfl-nav-links">
               <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-features-section"); }}>Features</a></li>
