@@ -269,9 +269,9 @@ export default function LandingPage() {
   return (
     <>
       <Helmet>
-        <title>HomeGentic — Verified Home Maintenance Records on ICP</title>
+        <title>HomeGentic™ — Verified Home Maintenance Records on ICP</title>
         <meta name="description" content="HomeGentic helps homeowners and contractors manage maintenance, documentation, and transactions with blockchain-verified trust and AI-powered insights." />
-        <meta property="og:title" content="HomeGentic — Verified Home Maintenance Records" />
+        <meta property="og:title" content="HomeGentic™ — Verified Home Maintenance Records" />
         <meta property="og:description" content="Manage. Maintain. Protect. Your Home. Built on the Internet Computer." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://homegentic.app/" />
@@ -280,7 +280,7 @@ export default function LandingPage() {
         <script type="application/ld+json">{JSON.stringify({
           "@context": "https://schema.org",
           "@type": "WebSite",
-          "name": "HomeGentic",
+          "name": "HomeGentic™",
           "url": "https://homegentic.app/",
           "description": "Verified home maintenance records on the Internet Computer blockchain.",
         })}</script>

@@ -95,7 +95,7 @@ export default function ContractorPublicPage() {
   };
 
   const helmetName = contractor?.name ?? "Contractor";
-  const helmetTitle = `${helmetName} — Verified Contractor | HomeGentic`;
+  const helmetTitle = `${helmetName} — Verified Contractor | HomeGentic™`;
   const helmetDesc = contractor
     ? `${helmetName} is a verified contractor on HomeGentic with a trust score of ${contractor.trustScore ?? 0}. View credentials, reviews, and verified job history.`
     : "Verified contractor profile on HomeGentic.";
@@ -106,12 +106,12 @@ export default function ContractorPublicPage() {
         <Helmet>
           <title>Contractor Profile | HomeGentic</title>
           <meta name="description" content="Verified contractor profile on HomeGentic." />
-          <meta property="og:title" content="Contractor Profile | HomeGentic" />
+          <meta property="og:title" content="Contractor Profile | HomeGentic™" />
           <meta property="og:description" content="Verified contractor profile on HomeGentic." />
           <meta property="og:type" content="website" />
           <meta property="og:image" content="https://homegentic.app/og-default.png" />
           <link rel="canonical" href="https://homegentic.app/contractor" />
-          <script type="application/ld+json">{JSON.stringify({ "@context": "https://schema.org", "@type": "LocalBusiness", "name": "Contractor | HomeGentic", "description": "Verified contractor on HomeGentic." })}</script>
+          <script type="application/ld+json">{JSON.stringify({ "@context": "https://schema.org", "@type": "LocalBusiness", "name": "Contractor | HomeGentic™", "description": "Verified contractor on HomeGentic." })}</script>
         </Helmet>
         <div style={{ display: "flex", justifyContent: "center", padding: "4rem" }}>
           <div className="spinner-lg" />

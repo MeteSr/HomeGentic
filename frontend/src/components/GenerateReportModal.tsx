@@ -164,7 +164,7 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
             <Shield size={16} color={COLORS.sage} />
             <div>
               <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.2rem" }}>
-                HomeGentic Report
+                HomeGentic Report™
               </p>
               <h2 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.1rem", lineHeight: 1, color: COLORS.white }}>
                 {property.address}

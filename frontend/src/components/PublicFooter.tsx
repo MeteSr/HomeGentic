@@ -62,7 +62,7 @@ export function PublicFooter() {
         fontWeight: 400,
         color:      COLORS.plumMid,
       }}>
-        © {new Date().getFullYear()} HomeGentic Inc.
+        © {new Date().getFullYear()} HomeGentic™ Inc.
       </p>
     </footer>
   );

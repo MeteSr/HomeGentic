@@ -273,7 +273,7 @@ export default function InstantForecastPage() {
       <Helmet>
         <title>Instant Maintenance Forecast | HomeGentic</title>
         <meta name="description" content="Get a free instant forecast of your home's upcoming maintenance costs. Enter your address and year built — no login required." />
-        <meta property="og:title" content="Instant Maintenance Forecast | HomeGentic" />
+        <meta property="og:title" content="Instant Maintenance Forecast | HomeGentic™" />
         <meta property="og:description" content="Free instant home maintenance forecast. No login required." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://homegentic.app/instant-forecast" />

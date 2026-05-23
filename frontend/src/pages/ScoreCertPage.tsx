@@ -58,9 +58,9 @@ export default function ScoreCertPage() {
     return (
       <>
         <Helmet>
-          <title>Score Certificate | HomeGentic</title>
+          <title>Score Certificate | HomeGentic™</title>
           <meta name="description" content="HomeGentic Score Certificate — blockchain-verified home maintenance score." />
-          <meta property="og:title" content="Score Certificate | HomeGentic" />
+          <meta property="og:title" content="Score Certificate | HomeGentic™" />
           <meta property="og:description" content="HomeGentic Score Certificate." />
           <meta property="og:type" content="website" />
           <meta property="og:image" content="https://homegentic.app/og-default.png" />
@@ -96,7 +96,7 @@ export default function ScoreCertPage() {
   return (
     <>
       <Helmet>
-        <title>{certTitle} | HomeGentic</title>
+        <title>{certTitle} | HomeGentic™</title>
         <meta name="description" content={certDesc} />
         <meta property="og:title" content={certTitle} />
         <meta property="og:description" content={certDesc} />
