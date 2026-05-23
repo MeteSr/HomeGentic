@@ -12,9 +12,9 @@ make deploy       # bash scripts/deploy.sh (all 17 canisters)
 make frontend     # cd frontend && npm run dev (Vite dev server at :5173)
 ```
 
-The voice agent runs separately:
+The voice agent runs separately (Cloudflare Workers via wrangler):
 ```bash
-cd agents/voice && npm install && npm run dev   # Express proxy at :3001
+cd agents/voice && npm install && npm run dev   # wrangler dev at :8787
 ```
 
 ### Testing
