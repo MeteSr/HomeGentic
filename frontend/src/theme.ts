@@ -8,11 +8,11 @@ export const COLORS = {
   plum:       "#2E2540",   // primary text / headings / CTA fill
   plumMid:    "#6B5B7B",   // muted text, secondary labels
   plumDark:   "#1E1928",   // deep emphasis
-  sage:       "#7AAF76",   // success / accent / active state (backgrounds + borders only)
-  sageText:   "#3D7339",   // sage-family text — 5.7:1 on white, passes WCAG AA
-  sageMid:    "#C4DCC2",   // borders on sage surfaces
-  sageLight:  "#E5F0E4",   // surface tint / background cards
-  blush:      "#F0CDBA",   // warm accent surface (quotes, offers)
+  sage:       "#00CEC8",   // success / accent / active state (backgrounds + borders only)
+  sageText:   "#007B78",   // sage-family text — passes WCAG AA on white
+  sageMid:    "#A0EDED",   // borders on sage surfaces
+  sageLight:  "#E0FAFA",   // surface tint / background cards
+  blush:      "#FCEFC3",   // warm accent surface (quotes, offers)
   sky:        "#BAD5E8",   // cool accent surface (sensors, IoT)
   butter:     "#F5E9BB",   // highlight surface (warranties, milestones)
   white:      "#FDFCFA",   // warm off-white (cards, popovers)
@@ -20,9 +20,9 @@ export const COLORS = {
   rule:       "#D4CFC8",   // borders / dividers
   rust:       "#C94C2E",   // error / destructive states — use as accent/border only
   errorText:  "#AA3820",   // error text — 6.4:1 on white, passes WCAG AA at small sizes
-  // ── Nav / sidebar active state (matches mockup blue palette) ─────────────
-  navActive:     "#2563EB",   // active nav text, icon, border
-  navActiveBg:   "#EFF6FF",   // active nav item background
+  // ── Nav / sidebar active state ────────────────────────────────────────────
+  navActive:     "#EB4203",   // active nav text, icon, border
+  navActiveBg:   "#FFF3EE",   // active nav item background
   navInactive:   "#6B7280",   // inactive nav text and icons
 } as const;
 

@@ -1,8 +1,8 @@
 export const CSS = `
 /* ── Reset / Variables ──────────────────────────────────────────────────── */
 .hfl { --lp-navy:#0F172A; --lp-text:#1E293B; --lp-muted:#64748B;
-  --lp-rule:#E2E8F0; --lp-light:#F8FAFC; --lp-green:#15803D;
-  --lp-blue:#2563EB; --lp-white:#FFFFFF;
+  --lp-rule:#E2E8F0; --lp-light:#FCEFC3; --lp-green:#00CEC8;
+  --lp-blue:#EB4203; --lp-white:#FFFFFF;
   font-family:'Inter','Segoe UI',system-ui,sans-serif;
   color:var(--lp-text); background:var(--lp-white);
 }
@@ -64,15 +64,15 @@ export const CSS = `
 .hfl-hero-badge {
   display:inline-flex; align-items:center; gap:6px;
   font-size:0.65rem; font-weight:700; letter-spacing:0.08em;
-  text-transform:uppercase; color:#1E40AF;
-  background:#EFF6FF; border:1px solid #BFDBFE;
+  text-transform:uppercase; color:#00858F;
+  background:#E0FAFA; border:1px solid #A0EDED;
   padding:4px 12px; border-radius:100px; margin-bottom:1.25rem;
 }
 .hfl-hero h1 {
   font-size:clamp(2rem,3.5vw,2.75rem); font-weight:800; line-height:1.15;
   color:var(--lp-navy); margin:0 0 1rem;
 }
-.hfl-hero h1 .green { color:var(--lp-green); display:block; }
+.hfl-hero h1 .green { color:var(--lp-blue); display:block; }
 .hfl-hero p {
   font-size:0.95rem; color:var(--lp-muted); line-height:1.7;
   margin:0 0 1.75rem;
@@ -82,7 +82,7 @@ export const CSS = `
 }
 .hfl-btn-main {
   font-size:0.9rem; font-weight:600; color:white;
-  background:var(--lp-blue); border:none;
+  background:var(--lp-green); border:none;
   padding:0.65rem 1.5rem; border-radius:8px; cursor:pointer;
   transition:opacity 0.15s;
 }
@@ -209,7 +209,7 @@ export const CSS = `
 .hfl-strip-link:hover { text-decoration:underline; }
 .hfl-strip-code {
   display:inline-block; font-size:0.7rem; font-weight:700; letter-spacing:0.05em;
-  color:var(--lp-green); background:#F0FDF4; border:1px solid #BBF7D0;
+  color:var(--lp-green); background:#E0FAFA; border:1px solid #A0EDED;
   padding:2px 8px; border-radius:4px;
 }
 
@@ -248,7 +248,7 @@ export const CSS = `
   padding:1.5rem 1.25rem; position:relative;
 }
 .hfl-plan-card.hfl-plan-featured {
-  border-color:var(--lp-blue); box-shadow:0 0 0 3px rgba(37,99,235,0.1);
+  border-color:var(--lp-blue); box-shadow:0 0 0 3px rgba(235,66,3,0.1);
 }
 .hfl-plan-badge {
   position:absolute; top:-12px; left:50%; transform:translateX(-50%);
@@ -323,8 +323,8 @@ export const CSS = `
   overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
 }
 .hfl-dm-nav-active {
-  background:#EFF6FF; color:#2563EB; font-weight:600;
-  border-right:2px solid #2563EB;
+  background:#E0FAFA; color:#00CEC8; font-weight:600;
+  border-right:2px solid #00CEC8;
 }
 .hfl-dm-main { flex:1; padding:10px 12px; overflow:hidden; min-width:0; }
 .hfl-dm-welcome { font-size:12px; font-weight:700; color:#0F172A; margin-bottom:8px; }
@@ -336,14 +336,14 @@ export const CSS = `
 .hfl-dm-score-wrap { display:flex; align-items:center; gap:8px; }
 .hfl-dm-score-ring {
   width:42px; height:42px; border-radius:50%; flex-shrink:0;
-  background:conic-gradient(#16A34A 0% 82%,#E2E8F0 82% 100%);
+  background:conic-gradient(#00CEC8 0% 82%,#E2E8F0 82% 100%);
   display:flex; align-items:center; justify-content:center; position:relative;
 }
 .hfl-dm-score-ring::before {
   content:""; position:absolute; inset:7px; border-radius:50%; background:#F8FAFC;
 }
 .hfl-dm-score-val { position:relative; z-index:1; font-size:13px; font-weight:800; color:#0F172A; }
-.hfl-dm-score-delta { font-size:8px; color:#15803D; font-weight:600; }
+.hfl-dm-score-delta { font-size:8px; color:#00CEC8; font-weight:600; }
 .hfl-dm-score-sub { font-size:7px; color:#64748B; }
 .hfl-dm-maint-nums { display:flex; gap:14px; padding-top:2px; }
 .hfl-dm-maint-num { font-size:20px; font-weight:800; color:#0F172A; line-height:1; }
@@ -355,7 +355,7 @@ export const CSS = `
 }
 .hfl-dm-stat-label { font-size:7px; color:#64748B; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .hfl-dm-stat-val { font-size:15px; font-weight:800; color:#0F172A; line-height:1.1; }
-.hfl-dm-stat-link { font-size:7.5px; color:#2563EB; font-weight:600; }
+.hfl-dm-stat-link { font-size:7.5px; color:#EB4203; font-weight:600; }
 .hfl-dm-activity-label {
   font-size:7.5px; font-weight:700; color:#64748B;
   text-transform:uppercase; letter-spacing:0.07em; margin-bottom:5px;
@@ -365,9 +365,9 @@ export const CSS = `
   padding:4px 0; border-top:1px solid #F1F5F9;
 }
 .hfl-dm-act-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; margin-top:3px; }
-.hfl-dm-act-dot-green  { background:#16A34A; }
-.hfl-dm-act-dot-blue   { background:#2563EB; }
-.hfl-dm-act-dot-orange { background:#F97316; }
+.hfl-dm-act-dot-green  { background:#00CEC8; }
+.hfl-dm-act-dot-blue   { background:#EB4203; }
+.hfl-dm-act-dot-orange { background:#FF9C5F; }
 .hfl-dm-act-body { flex:1; min-width:0; }
 .hfl-dm-act-title { font-size:8.5px; font-weight:600; color:#1E293B; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .hfl-dm-act-sub   { font-size:7px; color:#64748B; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -392,8 +392,8 @@ export const CSS = `
 .hfl-footer-quorum-center-code  { font-size:0.78rem; color:rgba(255,255,255,0.5); }
 .hfl-footer-quorum-code {
   font-size:0.75rem; font-weight:700; letter-spacing:0.05em;
-  color:#4ADE80; background:rgba(74,222,128,0.12);
-  border:1px solid rgba(74,222,128,0.3);
+  color:#00CEC8; background:rgba(0,206,200,0.12);
+  border:1px solid rgba(0,206,200,0.3);
   padding:1px 7px; border-radius:4px;
 }
 .hfl-footer-btn {

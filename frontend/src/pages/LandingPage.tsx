@@ -15,9 +15,9 @@ import {
 function HouseSvg() {
   return (
     <svg width="26" height="24" viewBox="0 0 26 24" fill="none" aria-hidden="true">
-      <polygon points="13,1 25,11 1,11" fill="#16A34A" />
-      <rect x="1" y="11" width="12" height="12" fill="#F97316" />
-      <rect x="13" y="11" width="12" height="12" fill="#2563EB" />
+      <polygon points="13,1 25,11 1,11" fill="#00CEC8" />
+      <rect x="1" y="11" width="12" height="12" fill="#EB4203" />
+      <rect x="13" y="11" width="12" height="12" fill="#FF9C5F" />
       <rect x="10" y="17" width="6" height="6" fill="white" fillOpacity="0.9" />
     </svg>
   );
@@ -109,7 +109,7 @@ function DashboardMockup() {
         <div className="hfl-dm-sidebar">
           {navItems.map((item) => (
             <div key={item.label} className={`hfl-dm-nav${item.active ? " hfl-dm-nav-active" : ""}`}>
-              <item.Icon size={12} color={item.active ? "#2563EB" : "#64748B"} />
+              <item.Icon size={12} color={item.active ? "#00CEC8" : "#64748B"} />
               {item.label}
             </div>
           ))}
@@ -183,36 +183,36 @@ function DashboardMockup() {
 
 /* ── Data ── */
 const TRUST_BADGES: { bg: string; color: string; Icon: React.ElementType; title: string; sub: string }[] = [
-  { bg: "#F0FDF4", color: "#16A34A", Icon: ShieldCheck,   title: "Blockchain Verified",  sub: "Built on ICP for data permanence" },
-  { bg: "#FEFCE8", color: "#CA8A04", Icon: Lock,          title: "Secure & Private",      sub: "You own your data. Always." },
-  { bg: "#EFF6FF", color: "#2563EB", Icon: CheckCircle2,  title: "Dual-Signature",        sub: "Every job verified by both parties" },
-  { bg: "#F5F3FF", color: "#7C3AED", Icon: Infinity,      title: "Internet Computer",     sub: "Decentralized. Scalable. Unstoppable." },
+  { bg: "#E0FAFA", color: "#00CEC8", Icon: ShieldCheck,   title: "Blockchain Verified",  sub: "Built on ICP for data permanence" },
+  { bg: "#FFF3EE", color: "#FF9C5F", Icon: Lock,          title: "Secure & Private",      sub: "You own your data. Always." },
+  { bg: "#FFF3EE", color: "#EB4203", Icon: CheckCircle2,  title: "Dual-Signature",        sub: "Every job verified by both parties" },
+  { bg: "#E0FAFA", color: "#00CEC8", Icon: Infinity,      title: "Internet Computer",     sub: "Decentralized. Scalable. Unstoppable." },
 ];
 
 const ROLES: { bg: string; color: string; Icon: React.ElementType; title: string; desc: string }[] = [
   {
-    bg: "#F0FDF4", color: "#16A34A", Icon: Users, title: "For Homeowners",
+    bg: "#E0FAFA", color: "#00CEC8", Icon: Users, title: "For Homeowners",
     desc: "Track maintenance, manage bills, get quotes, monitor property health, and list FSBO.",
   },
   {
-    bg: "#FFF7ED", color: "#D97706", Icon: Briefcase, title: "For Contractors",
+    bg: "#FFF3EE", color: "#FF9C5F", Icon: Briefcase, title: "For Contractors",
     desc: "Receive quote requests, submit bids, log jobs, build your reputation, and grow your business.",
   },
   {
-    bg: "#EFF6FF", color: "#2563EB", Icon: Shield, title: "For Admins",
+    bg: "#FFF3EE", color: "#EB4203", Icon: Shield, title: "For Admins",
     desc: "Verify ownership, manage subscriptions, monitor platform health and security.",
   },
 ];
 
 const FEATURES: { bg: string; color: string; Icon: React.ElementType; title: string; desc: string }[] = [
-  { bg: "#F0FDF4", color: "#16A34A", Icon: Wrench,       title: "Smart Maintenance",     desc: "Track history, schedule tasks, and get AI-powered predictive maintenance recommendations." },
-  { bg: "#FFF7ED", color: "#D97706", Icon: Wifi,         title: "IoT Integration",       desc: "Connect Nest, Ecobee, Moen Flo, Ring Alarm, and 8+ devices for real-time monitoring." },
-  { bg: "#EFF6FF", color: "#2563EB", Icon: MessageSquare,title: "Get Quotes",            desc: "Request quotes from trusted contractors and compare bids side-by-side." },
-  { bg: "#EFF6FF", color: "#2563EB", Icon: ShieldCheck,  title: "Dual-Signature Jobs",  desc: "Jobs are verified by both homeowner and contractor and immutably recorded on ICP." },
-  { bg: "#F0FDF4", color: "#16A34A", Icon: Home,         title: "FSBO Listings",        desc: "List your property for sale, manage sealed-bid offers, and match with verified agents." },
-  { bg: "#FFF7ED", color: "#D97706", Icon: Globe,        title: "360° Panorama Viewer", desc: "Immersive property tours with PlayCanvas-powered 360° panorama viewer." },
-  { bg: "#EFF6FF", color: "#2563EB", Icon: Mic,          title: "AI Voice Agent",        desc: "Ask questions, get updates, and manage your property—hands-free with Claude-powered AI." },
-  { bg: "#EFF6FF", color: "#2563EB", Icon: ClipboardList,title: "Immutable Reports",    desc: "Generate tamper-proof reports with shareable links for insurance, buyers, or contractors." },
+  { bg: "#E0FAFA", color: "#00CEC8", Icon: Wrench,       title: "Smart Maintenance",     desc: "Track history, schedule tasks, and get AI-powered predictive maintenance recommendations." },
+  { bg: "#FFF3EE", color: "#FF9C5F", Icon: Wifi,         title: "IoT Integration",       desc: "Connect Nest, Ecobee, Moen Flo, Ring Alarm, and 8+ devices for real-time monitoring." },
+  { bg: "#FFF3EE", color: "#EB4203", Icon: MessageSquare,title: "Get Quotes",            desc: "Request quotes from trusted contractors and compare bids side-by-side." },
+  { bg: "#FFF3EE", color: "#EB4203", Icon: ShieldCheck,  title: "Dual-Signature Jobs",  desc: "Jobs are verified by both homeowner and contractor and immutably recorded on ICP." },
+  { bg: "#E0FAFA", color: "#00CEC8", Icon: Home,         title: "FSBO Listings",        desc: "List your property for sale, manage sealed-bid offers, and match with verified agents." },
+  { bg: "#FFF3EE", color: "#FF9C5F", Icon: Globe,        title: "360° Panorama Viewer", desc: "Immersive property tours with PlayCanvas-powered 360° panorama viewer." },
+  { bg: "#FFF3EE", color: "#EB4203", Icon: Mic,          title: "AI Voice Agent",        desc: "Ask questions, get updates, and manage your property—hands-free with Claude-powered AI." },
+  { bg: "#E0FAFA", color: "#00CEC8", Icon: ClipboardList,title: "Immutable Reports",    desc: "Generate tamper-proof reports with shareable links for insurance, buyers, or contractors." },
 ];
 
 const PLANS = [
@@ -300,13 +300,13 @@ export default function LandingPage() {
               <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-roles-section"); }}>For Homeowners</a></li>
               <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-roles-section"); }}>For Contractors</a></li>
               <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-pricing-section"); }}>Pricing</a></li>
-              <li><a onClick={(e) => { e.preventDefault(); navigate("/invite"); }}>Invite a Neighbor</a></li>
+              <li><a onClick={(e) => e.preventDefault()}>Security</a></li>
               <li><a onClick={(e) => e.preventDefault()}>Resources ▾</a></li>
             </ul>
           </div>
           <div className="hfl-nav-actions">
             <button className="hfl-nav-signin" onClick={() => navigate("/login")}>Log In</button>
-            <button className="hfl-nav-pill" onClick={() => navigate("/login")}>Get Started</button>
+            <button className="hfl-nav-pill" onClick={() => navigate("/login")}>Sign Up</button>
             <button
               className={`hfl-hamburger${menuOpen ? " hfl-menu-open" : ""}`}
               aria-label={menuOpen ? "Close menu" : "Open menu"}
@@ -334,9 +334,9 @@ export default function LandingPage() {
               and AI-powered insights.
             </p>
             <div className="hfl-actions">
-              <button className="hfl-btn-main" onClick={() => navigate("/login")}>Get Started</button>
-              <button className="hfl-btn-soft" onClick={() => scrollTo("hfl-pricing-section")}>
-                ▶ See Plans
+              <button className="hfl-btn-main" onClick={() => navigate("/login")}>Get Started Free</button>
+              <button className="hfl-btn-soft" onClick={() => scrollTo("hfl-features-section")}>
+                ▶ See How It Works
               </button>
             </div>
           </div>
@@ -480,7 +480,7 @@ export default function LandingPage() {
             ))}
           </div>
           <div className="hfl-pricing-guarantee">
-            <ShieldCheck size={16} color="#16A34A" />
+            <ShieldCheck size={16} color="#00CEC8" />
             <span>30-day money-back guarantee</span>
             <span className="hfl-pricing-guarantee-sep">•</span>
             <span>Cancel anytime</span>
