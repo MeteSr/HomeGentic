@@ -2,7 +2,7 @@ export const CSS = `
 /* ── Design Tokens ───────────────────────────────────────────────────────── */
 .hfl {
   --teal:         #00CEC8;
-  --teal-dark:    #00A09B;
+  --teal-dark:    #007B78;
   --teal-light:   #E0FAFA;
   --orange:       #EB4203;
   --orange-dark:  #C83A00;
@@ -40,7 +40,7 @@ export const CSS = `
   text-decoration: none; display: flex; align-items: center; gap: 8px; flex-shrink: 0;
 }
 .hfl-logo-text { color: var(--navy); }
-.hfl-logo-text span { color: var(--teal); }
+.hfl-logo-text span { color: var(--teal-dark); }
 .hfl-nav-links {
   display: flex; align-items: center; justify-content: center;
   list-style: none; margin: 0; padding: 0;
@@ -57,19 +57,19 @@ export const CSS = `
   flex-shrink: 0; justify-self: end;
 }
 .hfl-nav-signin {
-  font-size: 0.84rem; font-weight: 600; color: var(--orange);
+  font-size: 0.84rem; font-weight: 600; color: var(--orange-dark);
   background: none; border: none; padding: 0.4rem 0.875rem;
   cursor: pointer; border-radius: 6px; transition: opacity 0.15s;
 }
 .hfl-nav-signin:hover { opacity: 0.75; }
 .hfl-nav-pill {
   font-size: 0.84rem; font-weight: 600; color: white;
-  background: var(--orange); border: none;
+  background: var(--orange-dark); border: none;
   padding: 0.5rem 1.25rem; border-radius: 100px; cursor: pointer;
-  box-shadow: 0 2px 8px rgba(235,66,3,0.28);
+  box-shadow: 0 2px 8px rgba(200,58,0,0.28);
   transition: transform 0.15s, box-shadow 0.15s;
 }
-.hfl-nav-pill:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(235,66,3,0.4); }
+.hfl-nav-pill:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(200,58,0,0.4); }
 .hfl-hamburger {
   display: none; flex-direction: column; gap: 4px;
   background: none; border: none; cursor: pointer; padding: 6px;
@@ -105,7 +105,7 @@ export const CSS = `
 .hfl-hero-badge {
   display: inline-flex; align-items: center; gap: 7px;
   font-size: 0.64rem; font-weight: 700; letter-spacing: 0.09em;
-  text-transform: uppercase; color: #00858F;
+  text-transform: uppercase; color: var(--teal-dark);
   background: #E0FAFA; border: 1px solid #A0EDED;
   padding: 5px 13px; border-radius: 100px; margin-bottom: 1.5rem;
 }
@@ -118,8 +118,8 @@ export const CSS = `
   line-height: 1.1; letter-spacing: -0.03em;
   color: var(--navy); margin: 0 0 1.25rem;
 }
-.hfl-hero-teal   { color: var(--teal);   }
-.hfl-hero-orange { color: var(--orange); }
+.hfl-hero-teal   { color: var(--teal-dark);   }
+.hfl-hero-orange { color: var(--orange-dark); }
 .hfl-hero p {
   font-size: 1rem; color: var(--muted); line-height: 1.75;
   margin: 0 0 2rem; max-width: 440px;
@@ -130,12 +130,12 @@ export const CSS = `
 }
 .hfl-btn-main {
   font-size: 0.9375rem; font-weight: 600; color: white;
-  background: var(--teal); border: none;
+  background: var(--teal-dark); border: none;
   padding: 0.75rem 1.75rem; border-radius: 100px; cursor: pointer;
-  box-shadow: 0 2px 12px rgba(0,206,200,0.32);
+  box-shadow: 0 2px 12px rgba(0,123,120,0.32);
   transition: transform 0.15s, box-shadow 0.15s;
 }
-.hfl-btn-main:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,206,200,0.44); }
+.hfl-btn-main:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,123,120,0.44); }
 .hfl-btn-soft {
   font-size: 0.9375rem; font-weight: 500; color: var(--text);
   background: white; border: 1.5px solid rgba(0,0,0,0.12);
@@ -204,8 +204,8 @@ export const CSS = `
   transition: background 0.1s;
 }
 .hfl-dm-nav-active {
-  background: #FFF3EE; color: #EB4203; font-weight: 600;
-  border-right: 2px solid #EB4203;
+  background: #FFF3EE; color: #C83A00; font-weight: 600;
+  border-right: 2px solid #C83A00;
 }
 .hfl-dm-main { flex: 1; padding: 10px; overflow: hidden; min-width: 0; }
 .hfl-dm-main-cols { display: flex; gap: 8px; }
@@ -228,7 +228,7 @@ export const CSS = `
   content: ""; position: absolute; inset: 7px; border-radius: 50%; background: #F9FAFB;
 }
 .hfl-dm-score-val { position: relative; z-index: 1; font-size: 12px; font-weight: 800; color: #0F172A; }
-.hfl-dm-score-delta { font-size: 8px; color: #00CEC8; font-weight: 600; }
+.hfl-dm-score-delta { font-size: 8px; color: #007B78; font-weight: 600; }
 .hfl-dm-score-sub   { font-size: 7px; color: #94A3B8; }
 .hfl-dm-maint-nums  { display: flex; gap: 12px; padding-top: 2px; }
 .hfl-dm-maint-num   { font-size: 18px; font-weight: 800; color: #0F172A; line-height: 1; }
@@ -274,11 +274,11 @@ export const CSS = `
   display: flex; align-items: center; gap: 4px; margin-bottom: 2px;
 }
 .hfl-dm-member-verified {
-  font-size: 6.5px; color: #00CEC8; font-weight: 700;
+  font-size: 6.5px; color: #007B78; font-weight: 700;
   background: #E0FAFA; padding: 1px 4px; border-radius: 3px;
 }
 .hfl-dm-member-detail, .hfl-dm-next-task { font-size: 6.5px; color: #94A3B8; margin-bottom: 4px; }
-.hfl-dm-member-link, .hfl-dm-next-link { font-size: 7px; font-weight: 600; color: #EB4203; cursor: pointer; }
+.hfl-dm-member-link, .hfl-dm-next-link { font-size: 7px; font-weight: 600; color: #C83A00; cursor: pointer; }
 .hfl-dm-next-date  { font-size: 9px; font-weight: 700; color: #0F172A; margin-bottom: 1px; }
 
 /* ── Role Cards ─────────────────────────────────────────────────────────── */
@@ -311,7 +311,7 @@ export const CSS = `
 .hfl-role-title { font-size: 1rem; font-weight: 700; color: var(--navy); margin-bottom: 0.5rem; }
 .hfl-role-desc  { font-size: 0.835rem; color: var(--muted); line-height: 1.65; margin-bottom: 1rem; }
 .hfl-role-link  {
-  font-size: 0.835rem; font-weight: 600; color: var(--teal);
+  font-size: 0.835rem; font-weight: 600; color: var(--teal-dark);
   cursor: pointer; background: none; border: none; padding: 0;
   transition: color 0.15s;
 }
@@ -361,13 +361,13 @@ export const CSS = `
 .hfl-strip-title { font-size: 0.875rem; font-weight: 700; color: var(--navy); margin-bottom: 0.3rem; }
 .hfl-strip-desc  { font-size: 0.78rem; color: var(--muted); line-height: 1.55; margin-bottom: 0.375rem; }
 .hfl-strip-link  {
-  font-size: 0.78rem; font-weight: 600; color: var(--teal);
+  font-size: 0.78rem; font-weight: 600; color: var(--teal-dark);
   background: none; border: none; padding: 0; cursor: pointer;
 }
 .hfl-strip-link:hover { text-decoration: underline; }
 .hfl-strip-code {
   display: inline-block; font-size: 0.71rem; font-weight: 700; letter-spacing: 0.05em;
-  color: var(--teal); background: #E0FAFA; border: 1px solid #A0EDED;
+  color: var(--teal-dark); background: #E0FAFA; border: 1px solid #A0EDED;
   padding: 2px 8px; border-radius: 4px;
 }
 
@@ -378,7 +378,7 @@ export const CSS = `
 }
 .hfl-integrations h3 {
   text-align: center; font-size: 0.75rem; font-weight: 600;
-  color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.1em;
+  color: #4B5563; text-transform: uppercase; letter-spacing: 0.1em;
   margin: 0 0 2rem;
 }
 .hfl-integ-logos {
@@ -386,11 +386,11 @@ export const CSS = `
   gap: 3rem; flex-wrap: wrap; max-width: 900px; margin: 0 auto;
 }
 .hfl-integ-logo {
-  font-size: 0.84rem; font-weight: 700; color: #B0B8C8;
+  font-size: 0.84rem; font-weight: 700; color: #64748B;
   white-space: nowrap; letter-spacing: 0.02em;
   transition: color 0.15s;
 }
-.hfl-integ-logo:hover { color: #6B7280; }
+.hfl-integ-logo:hover { color: #374151; }
 
 /* ── Pricing ────────────────────────────────────────────────────────────── */
 .hfl-pricing {
@@ -416,22 +416,22 @@ export const CSS = `
 }
 .hfl-plan-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
 .hfl-plan-card.hfl-plan-featured {
-  border-color: var(--orange);
-  box-shadow: 0 0 0 3px rgba(235,66,3,0.08), var(--shadow-md);
+  border-color: var(--orange-dark);
+  box-shadow: 0 0 0 3px rgba(200,58,0,0.08), var(--shadow-md);
   margin-top: -8px;
 }
 .hfl-plan-card.hfl-plan-featured:hover { transform: translateY(-4px); }
 .hfl-plan-badge {
   position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
   font-size: 0.61rem; font-weight: 700; letter-spacing: 0.07em;
-  text-transform: uppercase; color: white; background: var(--orange);
+  text-transform: uppercase; color: white; background: var(--orange-dark);
   padding: 3px 12px; border-radius: 100px; white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(235,66,3,0.3);
+  box-shadow: 0 2px 8px rgba(200,58,0,0.3);
 }
 .hfl-plan-tier          { font-size: 0.875rem; font-weight: 700; margin-bottom: 0.25rem; }
-.hfl-plan-tier-teal     { color: var(--teal);   }
-.hfl-plan-tier-orange   { color: var(--orange); }
-.hfl-plan-tier-peach    { color: var(--peach);  }
+.hfl-plan-tier-teal     { color: var(--teal-dark);   }
+.hfl-plan-tier-orange   { color: var(--orange-dark); }
+.hfl-plan-tier-peach    { color: var(--orange-dark); }
 .hfl-plan-sub   { font-size: 0.72rem; color: var(--muted); margin-bottom: 1rem; line-height: 1.4; }
 .hfl-plan-price {
   font-size: 2.25rem; font-weight: 800; color: var(--navy);
@@ -447,17 +447,17 @@ export const CSS = `
   display: flex; align-items: flex-start; gap: 6px;
 }
 .hfl-plan-feat-check         { font-weight: 700; flex-shrink: 0; }
-.hfl-plan-feat-check-teal    { color: var(--teal);   }
-.hfl-plan-feat-check-orange  { color: var(--orange); }
+.hfl-plan-feat-check-teal    { color: var(--teal-dark);   }
+.hfl-plan-feat-check-orange  { color: var(--orange-dark); }
 .hfl-plan-cta {
   width: 100%; font-size: 0.84rem; font-weight: 600;
   padding: 0.65rem; border-radius: 8px; cursor: pointer; border: none;
   transition: opacity 0.15s, transform 0.12s;
 }
 .hfl-plan-cta:hover { opacity: 0.9; transform: translateY(-1px); }
-.hfl-plan-cta-teal   { background: var(--teal);   color: white; }
-.hfl-plan-cta-orange { background: var(--orange); color: white; }
-.hfl-plan-cta-peach  { background: var(--peach);  color: white; }
+.hfl-plan-cta-teal   { background: var(--teal-dark);   color: white; }
+.hfl-plan-cta-orange { background: var(--orange-dark); color: white; }
+.hfl-plan-cta-peach  { background: var(--peach);  color: var(--navy); }
 .hfl-pricing-guarantee {
   text-align: center; font-size: 0.8rem; color: var(--muted);
   display: flex; align-items: center; justify-content: center; gap: 0.875rem;
@@ -473,10 +473,10 @@ export const CSS = `
 .hfl-footer-left { display: flex; align-items: flex-start; gap: 1rem; flex: 1; min-width: 0; }
 .hfl-footer-icp-logo { flex-shrink: 0; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; }
 .hfl-footer-icp-title { font-size: 0.875rem; font-weight: 700; color: white; margin-bottom: 3px; }
-.hfl-footer-icp-sub   { font-size: 0.75rem; color: rgba(255,255,255,0.45); line-height: 1.5; }
+.hfl-footer-icp-sub   { font-size: 0.75rem; color: rgba(255,255,255,0.70); line-height: 1.5; }
 .hfl-footer-quorum-center { text-align: center; flex-shrink: 0; }
 .hfl-footer-quorum-center-title { font-size: 0.84rem; color: rgba(255,255,255,0.7); margin-bottom: 4px; }
-.hfl-footer-quorum-center-code  { font-size: 0.8rem; color: rgba(255,255,255,0.45); }
+.hfl-footer-quorum-center-code  { font-size: 0.8rem; color: rgba(255,255,255,0.70); }
 .hfl-footer-quorum-code {
   font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em;
   color: #00CEC8; background: rgba(0,206,200,0.12);
