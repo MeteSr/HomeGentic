@@ -21,7 +21,7 @@ export const COLORS = {
   rust:       "#C94C2E",   // error / destructive states — use as accent/border only
   errorText:  "#AA3820",   // error text — 6.4:1 on white, passes WCAG AA at small sizes
   // ── Nav / sidebar active state ────────────────────────────────────────────
-  navActive:     "#EB4203",   // active nav text, icon, border
+  navActive:     "#C83A00",   // active nav text, icon, border — 5.2:1 on white, 4.8:1 on navActiveBg
   navActiveBg:   "#FFF3EE",   // active nav item background
   navInactive:   "#6B7280",   // inactive nav text and icons
 } as const;
