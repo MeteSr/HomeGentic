@@ -29,7 +29,7 @@ export function PublicFooter() {
           color:          COLORS.plum,
         }}
       >
-        Home<span style={{ color: COLORS.sageText, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
+        Home<span style={{ color: COLORS.sageText, fontStyle: "italic", fontWeight: 300 }}>Gentic™</span>
       </Link>
 
       <nav style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
@@ -62,7 +62,7 @@ export function PublicFooter() {
         fontWeight: 400,
         color:      COLORS.plumMid,
       }}>
-        © {new Date().getFullYear()} HomeGentic Inc.
+        © {new Date().getFullYear()} HomeGentic™ Inc.
       </p>
     </footer>
   );

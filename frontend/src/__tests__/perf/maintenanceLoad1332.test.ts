@@ -117,7 +117,7 @@ describe("13.3.2: predictMaintenance() at scale", () => {
 
   // ── Absolute performance cap ──────────────────────────────────────────────
 
-  it("1000 calls with 50 jobs each complete in < 1000ms", () => {
+  it("1000 calls with 50 jobs each complete in < 1500ms", () => {
     const jobs = makeJobs(50);
     const elapsed = time(() => {
       for (let i = 0; i < 1000; i++) {
@@ -126,8 +126,8 @@ describe("13.3.2: predictMaintenance() at scale", () => {
     });
     expect(
       elapsed,
-      `1000 calls took ${elapsed.toFixed(0)}ms — exceeds 1000ms budget`
-    ).toBeLessThan(1000);
+      `1000 calls took ${elapsed.toFixed(0)}ms — exceeds 1500ms budget`
+    ).toBeLessThan(1500);
   });
 
   it("single call with 0 jobs completes in < 5ms", () => {

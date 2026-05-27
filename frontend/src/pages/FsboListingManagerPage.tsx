@@ -228,8 +228,8 @@ export default function FsboListingManagerPage() {
   }
 
   const pageTitle = record?.step === "done"
-    ? `Manage Listing — ${propertyId} | HomeGentic`
-    : "Activate FSBO Listing | HomeGentic";
+    ? `Manage Listing — ${propertyId} | HomeGentic™`
+    : "Activate FSBO Listing | HomeGentic™";
 
   // ── Not activated ────────────────────────────────────────────────────────────
   if (listingState === "not-activated") {

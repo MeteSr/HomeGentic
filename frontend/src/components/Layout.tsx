@@ -242,7 +242,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 whiteSpace:     "nowrap",
               }}
             >
-              Home<span style={{ color: COLORS.navActive, fontStyle: "normal", fontWeight: 700 }}>Gentic</span>
+              Home<span style={{ color: COLORS.navActive, fontStyle: "normal", fontWeight: 700 }}>Gentic™</span>
             </Link>
           )}
           <button
@@ -426,7 +426,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               flex:           1,
             }}
           >
-            Home<span style={{ color: COLORS.navActive, fontStyle: "normal", fontWeight: 700 }}>Gentic</span>
+            Home<span style={{ color: COLORS.navActive, fontStyle: "normal", fontWeight: 700 }}>Gentic™</span>
           </Link>
 
           {/* Bell */}

@@ -46,7 +46,7 @@ function ScorePill({ score, grade }: { score: number; grade: string }) {
           {grade}
         </p>
         <p style={{ fontFamily: UI.mono, fontSize: "0.45rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", lineHeight: 1.4 }}>
-          HomeGentic Score
+          HomeGentic Score™
         </p>
       </div>
     </div>

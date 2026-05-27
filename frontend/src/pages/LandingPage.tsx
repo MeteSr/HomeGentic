@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { neighborReferralService } from "@/services/neighborReferral";
 import { Helmet } from "react-helmet-async";
 import { CSS } from "./landingStyles";
@@ -11,13 +11,13 @@ import {
   Wifi, MessageSquare, Globe, Mic,
 } from "lucide-react";
 
-/* ── House SVG logo (matches mockup: green roof, orange-left/blue-right body) */
+/* ── House SVG logo ── */
 function HouseSvg() {
   return (
     <svg width="26" height="24" viewBox="0 0 26 24" fill="none" aria-hidden="true">
-      <polygon points="13,1 25,11 1,11" fill="#16A34A" />
-      <rect x="1" y="11" width="12" height="12" fill="#F97316" />
-      <rect x="13" y="11" width="12" height="12" fill="#2563EB" />
+      <polygon points="13,1 25,11 1,11" fill="#00CEC8" />
+      <rect x="1" y="11" width="12" height="12" fill="#EB4203" />
+      <rect x="13" y="11" width="12" height="12" fill="#FF9C5F" />
       <rect x="10" y="17" width="6" height="6" fill="white" fillOpacity="0.9" />
     </svg>
   );
@@ -71,6 +71,53 @@ function GiftIcon() {
   );
 }
 
+/* ── Hero illustration: warm glow + house silhouette + palm trees ── */
+function HeroIllustration() {
+  return (
+    <svg
+      className="hfl-hero-illustration"
+      viewBox="0 0 600 480"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      {/* Warm background glows */}
+      <ellipse cx="480" cy="120" rx="260" ry="200" fill="rgba(252,239,195,0.45)" />
+      <ellipse cx="520" cy="300" rx="180" ry="160" fill="rgba(255,156,95,0.18)" />
+      <ellipse cx="100" cy="360" rx="160" ry="120" fill="rgba(0,206,200,0.10)" />
+
+      {/* Faded luxury house silhouette */}
+      <g opacity="0.07" fill="#1E293B">
+        <polygon points="300,140 460,240 140,240" />
+        <rect x="140" y="240" width="320" height="180" />
+        <rect x="240" y="300" width="60" height="120" />
+        <rect x="320" y="280" width="80" height="60" />
+        <rect x="180" y="260" width="70" height="50" />
+      </g>
+
+      {/* Teal palm tree — left */}
+      <g opacity="0.22">
+        <rect x="88" y="290" width="7" height="160" rx="3" fill="#00CEC8" />
+        <ellipse cx="68" cy="270" rx="38" ry="18" fill="#00CEC8" transform="rotate(-30 68 270)" />
+        <ellipse cx="118" cy="258" rx="38" ry="18" fill="#00A09B" transform="rotate(20 118 258)" />
+        <ellipse cx="78" cy="248" rx="32" ry="15" fill="#00CEC8" transform="rotate(-50 78 248)" />
+        <ellipse cx="108" cy="242" rx="32" ry="15" fill="#00A09B" transform="rotate(45 108 242)" />
+        <ellipse cx="91" cy="235" rx="28" ry="12" fill="#00CEC8" transform="rotate(-10 91 235)" />
+      </g>
+
+      {/* Salmon palm tree — right */}
+      <g opacity="0.15">
+        <rect x="496" y="310" width="7" height="140" rx="3" fill="#FF9C5F" />
+        <ellipse cx="476" cy="292" rx="36" ry="16" fill="#FF9C5F" transform="rotate(-25 476 292)" />
+        <ellipse cx="522" cy="280" rx="36" ry="16" fill="#EB4203" transform="rotate(18 522 280)" />
+        <ellipse cx="482" cy="270" rx="30" ry="13" fill="#FF9C5F" transform="rotate(-45 482 270)" />
+        <ellipse cx="514" cy="265" rx="30" ry="13" fill="#EB4203" transform="rotate(40 514 265)" />
+        <ellipse cx="499" cy="258" rx="26" ry="11" fill="#FF9C5F" transform="rotate(-8 499 258)" />
+      </g>
+    </svg>
+  );
+}
+
 /* ── Dashboard mockup (right side of hero) ── */
 function DashboardMockup() {
   const navItems = [
@@ -86,8 +133,8 @@ function DashboardMockup() {
   ];
   const activity = [
     { dot: "hfl-dm-act-dot-green",  title: "HVAC maintenance completed",    sub: "Duct cleaning by you and AC Pro Services", date: "May 4" },
-    { dot: "hfl-dm-act-dot-blue",   title: "Added document: Roof Inspection", sub: "Uploaded to 123 Maple St",                date: "May 3" },
-    { dot: "hfl-dm-act-dot-orange", title: "New quote received",             sub: "Kitchen sink repair",                      date: "May 2" },
+    { dot: "hfl-dm-act-dot-blue",   title: "Added document: Roof Inspection", sub: "Uploaded to 123 Maple St",               date: "May 3" },
+    { dot: "hfl-dm-act-dot-orange", title: "New quote received",             sub: "Kitchen sink repair",                     date: "May 2" },
   ];
   return (
     <div className="hfl-dm" aria-hidden="true">
@@ -95,7 +142,7 @@ function DashboardMockup() {
       <div className="hfl-dm-topbar">
         <div className="hfl-dm-topbar-logo">
           <HouseSvg />
-          <span>Home<span className="green">Gentic</span></span>
+          <span>Home<span style={{ color: "#00CEC8" }}>Gentic</span></span>
         </div>
         <div className="hfl-dm-topbar-icons">
           <Bell size={12} color="#64748B" />
@@ -109,7 +156,7 @@ function DashboardMockup() {
         <div className="hfl-dm-sidebar">
           {navItems.map((item) => (
             <div key={item.label} className={`hfl-dm-nav${item.active ? " hfl-dm-nav-active" : ""}`}>
-              <item.Icon size={12} color={item.active ? "#2563EB" : "#64748B"} />
+              <item.Icon size={12} color={item.active ? "#EB4203" : "#64748B"} />
               {item.label}
             </div>
           ))}
@@ -118,63 +165,101 @@ function DashboardMockup() {
         {/* Main content */}
         <div className="hfl-dm-main">
           <div className="hfl-dm-welcome">Welcome back, Sarah!</div>
-
-          {/* Score + Maintenance */}
-          <div className="hfl-dm-cards-row">
-            <div className="hfl-dm-score-card">
-              <div className="hfl-dm-card-label">Property Health Score</div>
-              <div className="hfl-dm-score-wrap">
-                <div className="hfl-dm-score-ring">
-                  <span className="hfl-dm-score-val">82</span>
+          <div className="hfl-dm-main-cols">
+            {/* Left column: existing cards */}
+            <div className="hfl-dm-main-left">
+              <div className="hfl-dm-cards-row">
+                <div className="hfl-dm-score-card">
+                  <div className="hfl-dm-card-label">Property Health Score</div>
+                  <div className="hfl-dm-score-wrap">
+                    <div className="hfl-dm-score-ring">
+                      <span className="hfl-dm-score-val">82</span>
+                    </div>
+                    <div>
+                      <div className="hfl-dm-score-delta">↑ 12 pts</div>
+                      <div className="hfl-dm-score-sub">vs last month</div>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <div className="hfl-dm-score-delta">↑ 12 pts</div>
-                  <div className="hfl-dm-score-sub">vs last month</div>
+                <div className="hfl-dm-maint-card">
+                  <div className="hfl-dm-card-label">Upcoming Maintenance</div>
+                  <div className="hfl-dm-maint-nums">
+                    <div>
+                      <div className="hfl-dm-maint-num">3</div>
+                      <div className="hfl-dm-maint-lbl">This Week</div>
+                    </div>
+                    <div>
+                      <div className="hfl-dm-maint-num">7</div>
+                      <div className="hfl-dm-maint-lbl">This Month</div>
+                    </div>
+                  </div>
                 </div>
               </div>
+
+              <div className="hfl-dm-stats-row">
+                {[
+                  { label: "Open Jobs",       val: 2 },
+                  { label: "Quotes Received", val: 5 },
+                  { label: "Open Offers",     val: 1 },
+                ].map((s) => (
+                  <div key={s.label} className="hfl-dm-stat">
+                    <div className="hfl-dm-stat-label">{s.label}</div>
+                    <div className="hfl-dm-stat-val">{s.val}</div>
+                    <div className="hfl-dm-stat-link">View</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="hfl-dm-activity-label">Recent Activity</div>
+              {activity.map((a) => (
+                <div key={a.title} className="hfl-dm-act-item">
+                  <div className={`hfl-dm-act-dot ${a.dot}`} />
+                  <div className="hfl-dm-act-body">
+                    <div className="hfl-dm-act-title">{a.title}</div>
+                    <div className="hfl-dm-act-sub">{a.sub}</div>
+                  </div>
+                  <div className="hfl-dm-act-date">{a.date}</div>
+                </div>
+              ))}
             </div>
-            <div className="hfl-dm-maint-card">
-              <div className="hfl-dm-card-label">Upcoming Maintenance</div>
-              <div className="hfl-dm-maint-nums">
-                <div>
-                  <div className="hfl-dm-maint-num">3</div>
-                  <div className="hfl-dm-maint-lbl">This Week</div>
+
+            {/* Right column: property, membership, next maintenance */}
+            <div className="hfl-dm-main-right">
+              {/* Property card */}
+              <div className="hfl-dm-prop-card">
+                <svg width="108" height="52" viewBox="0 0 108 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="108" height="52" fill="#F1F5F9" />
+                  <polygon points="54,8 90,28 18,28" fill="#00CEC8" opacity="0.7" />
+                  <rect x="18" y="28" width="36" height="20" fill="#EB4203" opacity="0.6" />
+                  <rect x="54" y="28" width="36" height="20" fill="#FF9C5F" opacity="0.6" />
+                  <rect x="47" y="36" width="14" height="12" fill="white" opacity="0.8" />
+                </svg>
+                <div className="hfl-dm-prop-info">
+                  <div className="hfl-dm-prop-addr">123 Maple Street</div>
+                  <div className="hfl-dm-prop-city">Austin, TX 78701</div>
                 </div>
-                <div>
-                  <div className="hfl-dm-maint-num">7</div>
-                  <div className="hfl-dm-maint-lbl">This Month</div>
+              </div>
+
+              {/* Membership card */}
+              <div className="hfl-dm-member-card">
+                <div className="hfl-dm-member-title">MEMBERSHIP</div>
+                <div className="hfl-dm-member-tier">
+                  Pro Plan
+                  <span className="hfl-dm-member-verified">✓ Verified</span>
                 </div>
+                <div className="hfl-dm-member-detail">5 properties · Renews Jun 1</div>
+                <div className="hfl-dm-member-link">Manage plan →</div>
+              </div>
+
+              {/* Next maintenance card */}
+              <div className="hfl-dm-next-maint">
+                <div className="hfl-dm-next-title">NEXT TASK</div>
+                <div className="hfl-dm-next-date">May 28</div>
+                <div className="hfl-dm-next-task">HVAC filter replacement due</div>
+                <div className="hfl-dm-next-link">Schedule →</div>
               </div>
             </div>
           </div>
-
-          {/* Stats */}
-          <div className="hfl-dm-stats-row">
-            {[
-              { label: "Open Jobs",       val: 2 },
-              { label: "Quotes Received", val: 5 },
-              { label: "Open Offers",     val: 1 },
-            ].map((s) => (
-              <div key={s.label} className="hfl-dm-stat">
-                <div className="hfl-dm-stat-label">{s.label}</div>
-                <div className="hfl-dm-stat-val">{s.val}</div>
-                <div className="hfl-dm-stat-link">View</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Recent Activity */}
-          <div className="hfl-dm-activity-label">Recent Activity</div>
-          {activity.map((a) => (
-            <div key={a.title} className="hfl-dm-act-item">
-              <div className={`hfl-dm-act-dot ${a.dot}`} />
-              <div className="hfl-dm-act-body">
-                <div className="hfl-dm-act-title">{a.title}</div>
-                <div className="hfl-dm-act-sub">{a.sub}</div>
-              </div>
-              <div className="hfl-dm-act-date">{a.date}</div>
-            </div>
-          ))}
         </div>
       </div>
     </div>
@@ -183,57 +268,62 @@ function DashboardMockup() {
 
 /* ── Data ── */
 const TRUST_BADGES: { bg: string; color: string; Icon: React.ElementType; title: string; sub: string }[] = [
-  { bg: "#F0FDF4", color: "#16A34A", Icon: ShieldCheck,   title: "Blockchain Verified",  sub: "Built on ICP for data permanence" },
-  { bg: "#FEFCE8", color: "#CA8A04", Icon: Lock,          title: "Secure & Private",      sub: "You own your data. Always." },
-  { bg: "#EFF6FF", color: "#2563EB", Icon: CheckCircle2,  title: "Dual-Signature",        sub: "Every job verified by both parties" },
-  { bg: "#F5F3FF", color: "#7C3AED", Icon: Infinity,      title: "Internet Computer",     sub: "Decentralized. Scalable. Unstoppable." },
+  { bg: "#E0FAFA", color: "#00CEC8", Icon: ShieldCheck,   title: "Blockchain Verified",  sub: "Built on ICP for data permanence" },
+  { bg: "#FFF3EE", color: "#FF9C5F", Icon: Lock,          title: "Secure & Private",      sub: "You own your data. Always." },
+  { bg: "#FFF3EE", color: "#EB4203", Icon: CheckCircle2,  title: "Dual-Signature",        sub: "Every job verified by both parties" },
+  { bg: "#E0FAFA", color: "#00CEC8", Icon: Infinity,      title: "Internet Computer",     sub: "Decentralized. Scalable. Unstoppable." },
 ];
 
 const ROLES: { bg: string; color: string; Icon: React.ElementType; title: string; desc: string }[] = [
   {
-    bg: "#F0FDF4", color: "#16A34A", Icon: Users, title: "For Homeowners",
+    bg: "#E0FAFA", color: "#00CEC8", Icon: Users, title: "For Homeowners",
     desc: "Track maintenance, manage bills, get quotes, monitor property health, and list FSBO.",
   },
   {
-    bg: "#FFF7ED", color: "#D97706", Icon: Briefcase, title: "For Contractors",
+    bg: "#FFF3EE", color: "#FF9C5F", Icon: Briefcase, title: "For Contractors",
     desc: "Receive quote requests, submit bids, log jobs, build your reputation, and grow your business.",
   },
   {
-    bg: "#EFF6FF", color: "#2563EB", Icon: Shield, title: "For Admins",
+    bg: "#FFF3EE", color: "#EB4203", Icon: Shield, title: "For Admins",
     desc: "Verify ownership, manage subscriptions, monitor platform health and security.",
   },
 ];
 
 const FEATURES: { bg: string; color: string; Icon: React.ElementType; title: string; desc: string }[] = [
-  { bg: "#F0FDF4", color: "#16A34A", Icon: Wrench,       title: "Smart Maintenance",     desc: "Track history, schedule tasks, and get AI-powered predictive maintenance recommendations." },
-  { bg: "#FFF7ED", color: "#D97706", Icon: Wifi,         title: "IoT Integration",       desc: "Connect Nest, Ecobee, Moen Flo, Ring Alarm, and 8+ devices for real-time monitoring." },
-  { bg: "#EFF6FF", color: "#2563EB", Icon: MessageSquare,title: "Get Quotes",            desc: "Request quotes from trusted contractors and compare bids side-by-side." },
-  { bg: "#EFF6FF", color: "#2563EB", Icon: ShieldCheck,  title: "Dual-Signature Jobs",  desc: "Jobs are verified by both homeowner and contractor and immutably recorded on ICP." },
-  { bg: "#F0FDF4", color: "#16A34A", Icon: Home,         title: "FSBO Listings",        desc: "List your property for sale, manage sealed-bid offers, and match with verified agents." },
-  { bg: "#FFF7ED", color: "#D97706", Icon: Globe,        title: "360° Panorama Viewer", desc: "Immersive property tours with PlayCanvas-powered 360° panorama viewer." },
-  { bg: "#EFF6FF", color: "#2563EB", Icon: Mic,          title: "AI Voice Agent",        desc: "Ask questions, get updates, and manage your property—hands-free with Claude-powered AI." },
-  { bg: "#EFF6FF", color: "#2563EB", Icon: ClipboardList,title: "Immutable Reports",    desc: "Generate tamper-proof reports with shareable links for insurance, buyers, or contractors." },
+  { bg: "#E0FAFA", color: "#00CEC8", Icon: Wrench,        title: "Smart Maintenance",     desc: "Track history, schedule tasks, and get AI-powered predictive maintenance recommendations." },
+  { bg: "#FFF3EE", color: "#FF9C5F", Icon: Wifi,          title: "IoT Integration",       desc: "Connect Nest, Ecobee, Moen Flo, Ring Alarm, and 8+ devices for real-time monitoring." },
+  { bg: "#FFF3EE", color: "#EB4203", Icon: MessageSquare, title: "Get Quotes",            desc: "Request quotes from trusted contractors and compare bids side-by-side." },
+  { bg: "#FFF3EE", color: "#EB4203", Icon: ShieldCheck,   title: "Dual-Signature Jobs",  desc: "Jobs are verified by both homeowner and contractor and immutably recorded on ICP." },
+  { bg: "#E0FAFA", color: "#00CEC8", Icon: Home,          title: "FSBO Listings",        desc: "List your property for sale, manage sealed-bid offers, and match with verified agents." },
+  { bg: "#FFF3EE", color: "#FF9C5F", Icon: Globe,         title: "360° Panorama Viewer", desc: "Immersive property tours with PlayCanvas-powered 360° panorama viewer." },
+  { bg: "#FFF3EE", color: "#EB4203", Icon: Mic,           title: "AI Voice Agent",        desc: "Ask questions, get updates, and manage your property—hands-free with Claude-powered AI." },
+  { bg: "#E0FAFA", color: "#00CEC8", Icon: ClipboardList, title: "Immutable Reports",    desc: "Generate tamper-proof reports with shareable links for insurance, buyers, or contractors." },
 ];
 
 const PLANS = [
   {
-    tier: "Basic", sub: "For homeowners getting started", price: 10, tag: null as string | null, cta: "green" as const,
+    tier: "Basic", sub: "For homeowners getting started", price: 10, tag: null as string | null,
+    tierClass: "hfl-plan-tier-teal", ctaClass: "hfl-plan-cta-teal", checkClass: "hfl-plan-feat-check-teal",
     features: ["1 Property", "Basic Maintenance Tracking", "Document Storage", "Email Support"],
   },
   {
-    tier: "Pro", sub: "For growing homeowners", price: 20, tag: null, cta: "green" as const,
+    tier: "Pro", sub: "For growing homeowners", price: 20, tag: null,
+    tierClass: "hfl-plan-tier-teal", ctaClass: "hfl-plan-cta-teal", checkClass: "hfl-plan-feat-check-teal",
     features: ["Up to 5 Properties", "Advanced Maintenance", "IoT Integrations", "Priority Support"],
   },
   {
-    tier: "Premium", sub: "For power users", price: 40, tag: "Most Popular", cta: "blue" as const,
+    tier: "Premium", sub: "For power users", price: 40, tag: "Most Popular",
+    tierClass: "hfl-plan-tier-orange", ctaClass: "hfl-plan-cta-orange", checkClass: "hfl-plan-feat-check-orange",
     features: ["Up to 20 Properties", "All Insights & Predictions", "360° Viewer", "Premium Support"],
   },
   {
-    tier: "Contractor Free", sub: "For contractors starting out", price: 0, tag: null, cta: "green" as const,
+    tier: "Contractor Free", sub: "For contractors starting out", price: 0, tag: null,
+    tierClass: "hfl-plan-tier-peach", ctaClass: "hfl-plan-cta-peach", checkClass: "hfl-plan-feat-check-teal",
     features: ["Receive Quote Requests", "Submit Bids", "Basic Profile", "Up to 5 Jobs/Month"],
   },
   {
-    tier: "Contractor Pro", sub: "For growing contractors", price: 30, tag: null, cta: "blue" as const,
+    tier: "Contractor Pro", sub: "For growing contractors", price: 30, tag: null,
+    tierClass: "hfl-plan-tier-orange", ctaClass: "hfl-plan-cta-orange", checkClass: "hfl-plan-feat-check-orange",
     features: ["Unlimited Quote Requests", "Priority Placement", "Verified Badge", "Analytics & Insights"],
   },
 ];
@@ -269,9 +359,9 @@ export default function LandingPage() {
   return (
     <>
       <Helmet>
-        <title>HomeGentic — Verified Home Maintenance Records on ICP</title>
+        <title>HomeGentic™ — Verified Home Maintenance Records on ICP</title>
         <meta name="description" content="HomeGentic helps homeowners and contractors manage maintenance, documentation, and transactions with blockchain-verified trust and AI-powered insights." />
-        <meta property="og:title" content="HomeGentic — Verified Home Maintenance Records" />
+        <meta property="og:title" content="HomeGentic™ — Verified Home Maintenance Records" />
         <meta property="og:description" content="Manage. Maintain. Protect. Your Home. Built on the Internet Computer." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://homegentic.app/" />
@@ -280,7 +370,7 @@ export default function LandingPage() {
         <script type="application/ld+json">{JSON.stringify({
           "@context": "https://schema.org",
           "@type": "WebSite",
-          "name": "HomeGentic",
+          "name": "HomeGentic™",
           "url": "https://homegentic.app/",
           "description": "Verified home maintenance records on the Internet Computer blockchain.",
         })}</script>
@@ -288,25 +378,23 @@ export default function LandingPage() {
       <style>{CSS}</style>
       <div className="hfl">
 
-        {/* ── Nav ───────────────────────────────────────────────────────── */}
+        {/* ── Nav ── */}
         <nav className="hfl-nav">
-          <div style={{ display: "flex", alignItems: "center", gap: "1.25rem" }}>
-            <a href="/" className="hfl-logo">
-              <HouseSvg />
-              <span className="hfl-logo-text">Home<span>Gentic</span></span>
-            </a>
-            <ul className="hfl-nav-links">
-              <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-features-section"); }}>Features</a></li>
-              <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-roles-section"); }}>For Homeowners</a></li>
-              <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-roles-section"); }}>For Contractors</a></li>
-              <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-pricing-section"); }}>Pricing</a></li>
-              <li><a onClick={(e) => { e.preventDefault(); navigate("/invite"); }}>Invite a Neighbor</a></li>
-              <li><a onClick={(e) => e.preventDefault()}>Resources ▾</a></li>
-            </ul>
-          </div>
+          <a href="/" className="hfl-logo">
+            <HouseSvg />
+            <span className="hfl-logo-text">Home<span>Gentic™</span></span>
+          </a>
+          <ul className="hfl-nav-links">
+            <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-features-section"); }}>Features</a></li>
+            <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-roles-section"); }}>For Homeowners</a></li>
+            <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-roles-section"); }}>For Contractors</a></li>
+            <li><a onClick={(e) => { e.preventDefault(); scrollTo("hfl-pricing-section"); }}>Pricing</a></li>
+            <li><a onClick={(e) => e.preventDefault()}>Security</a></li>
+            <li><a onClick={(e) => e.preventDefault()}>Resources ▾</a></li>
+          </ul>
           <div className="hfl-nav-actions">
             <button className="hfl-nav-signin" onClick={() => navigate("/login")}>Log In</button>
-            <button className="hfl-nav-pill" onClick={() => navigate("/login")}>Get Started</button>
+            <button className="hfl-nav-pill" onClick={() => navigate("/login")}>Sign Up</button>
             <button
               className={`hfl-hamburger${menuOpen ? " hfl-menu-open" : ""}`}
               aria-label={menuOpen ? "Close menu" : "Open menu"}
@@ -320,49 +408,52 @@ export default function LandingPage() {
 
         <main>
 
-        {/* ── Hero ──────────────────────────────────────────────────────── */}
-        <section className="hfl-hero">
-          <div>
-            <div className="hfl-hero-badge">BUILT ON THE INTERNET COMPUTER (ICP)</div>
-            <h1>
-              Manage. Maintain.<br />
-              <span className="green">Protect. Your Home.</span>
-            </h1>
-            <p>
-              HomeGentic helps homeowners manage maintenance,
-              documentation, and transactions with blockchain-verified trust
-              and AI-powered insights.
-            </p>
-            <div className="hfl-actions">
-              <button className="hfl-btn-main" onClick={() => navigate("/login")}>Get Started</button>
-              <button className="hfl-btn-soft" onClick={() => scrollTo("hfl-pricing-section")}>
-                ▶ See Plans
-              </button>
-            </div>
-          </div>
-
-          {/* Dashboard mockup (hidden on mobile via CSS) */}
-          <DashboardMockup />
-        </section>
-
-        {/* ── Trust Badges ──────────────────────────────────────────────── */}
-        <div className="hfl-trust">
-          <div className="hfl-trust-inner">
-            {TRUST_BADGES.map((b) => (
-              <div key={b.title} className="hfl-trust-item">
-                <div className="hfl-trust-icon" style={{ background: b.bg }}>
-                  <b.Icon size={20} color={b.color} />
-                </div>
-                <div>
-                  <div className="hfl-trust-text-title">{b.title}</div>
-                  <div className="hfl-trust-text-sub">{b.sub}</div>
-                </div>
+        {/* ── Hero ── */}
+        <div className="hfl-hero-wrap">
+          <section className="hfl-hero">
+            <div className="hfl-hero-left">
+              <div className="hfl-hero-badge">BUILT ON THE INTERNET COMPUTER (ICP)</div>
+              <h1>
+                Manage. Maintain.<br />
+                <span className="hfl-hero-teal">Protect.</span>{" "}
+                <span className="hfl-hero-orange">Your Home.</span>
+              </h1>
+              <p>
+                HomeGentic helps homeowners manage maintenance,
+                documentation, and transactions with blockchain-verified trust
+                and AI-powered insights.
+              </p>
+              <div className="hfl-actions">
+                <button className="hfl-btn-main" onClick={() => navigate("/login")}>Get Started Free</button>
+                <button className="hfl-btn-soft" onClick={() => scrollTo("hfl-features-section")}>
+                  ▶ See How It Works
+                </button>
               </div>
-            ))}
-          </div>
+              <div className="hfl-trust-pills">
+                {TRUST_BADGES.map((b) => (
+                  <div key={b.title} className="hfl-trust-pill">
+                    <div className="hfl-trust-pill-icon" style={{ background: b.bg }}>
+                      <b.Icon size={15} color={b.color} />
+                    </div>
+                    <div>
+                      <div className="hfl-trust-pill-label">{b.title}</div>
+                      <div className="hfl-trust-pill-sub">{b.sub}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="hfl-hero-right">
+              <HeroIllustration />
+              <div className="hfl-dm-wrap">
+                <DashboardMockup />
+              </div>
+            </div>
+          </section>
         </div>
 
-        {/* ── Roles ─────────────────────────────────────────────────────── */}
+        {/* ── Roles ── */}
         <section id="hfl-roles-section" className="hfl-roles">
           <div className="hfl-section-header">
             <h2>Built for every role in your property journey</h2>
@@ -383,7 +474,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ── Features ──────────────────────────────────────────────────── */}
+        {/* ── Features ── */}
         <section id="hfl-features-section" className="hfl-features">
           <div className="hfl-section-header">
             <h2>Everything you need to protect and grow your property</h2>
@@ -403,7 +494,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ── Trust Strip ───────────────────────────────────────────────── */}
+        {/* ── Trust Strip ── */}
         <div className="hfl-strip">
           <div className="hfl-strip-inner">
             <div className="hfl-strip-col">
@@ -436,7 +527,7 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* ── Integrations ──────────────────────────────────────────────── */}
+        {/* ── Integrations ── */}
         <div className="hfl-integrations">
           <h3>Works with the tools you already use</h3>
           <div className="hfl-integ-logos">
@@ -446,7 +537,7 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* ── Pricing ───────────────────────────────────────────────────── */}
+        {/* ── Pricing ── */}
         <section id="hfl-pricing-section" className="hfl-pricing">
           <div className="hfl-pricing-header">
             <h2>Simple, transparent pricing for everyone</h2>
@@ -456,7 +547,7 @@ export default function LandingPage() {
             {PLANS.map((p) => (
               <div key={p.tier} className={`hfl-plan-card${p.tag ? " hfl-plan-featured" : ""}`}>
                 {p.tag && <div className="hfl-plan-badge">{p.tag}</div>}
-                <div className="hfl-plan-tier">{p.tier}</div>
+                <div className={`hfl-plan-tier ${p.tierClass}`}>{p.tier}</div>
                 <div className="hfl-plan-sub">{p.sub}</div>
                 <div className="hfl-plan-price">
                   {p.price === 0 ? "$0" : `$${p.price}`}
@@ -465,13 +556,13 @@ export default function LandingPage() {
                 <ul className="hfl-plan-features">
                   {p.features.map((f) => (
                     <li key={f}>
-                      <span className="hfl-plan-feat-check">✓</span>
+                      <span className={`hfl-plan-feat-check ${p.checkClass}`}>✓</span>
                       {f}
                     </li>
                   ))}
                 </ul>
                 <button
-                  className={`hfl-plan-cta hfl-plan-cta-${p.cta}`}
+                  className={`hfl-plan-cta ${p.ctaClass}`}
                   onClick={() => navigate("/login")}
                 >
                   Get Started
@@ -480,7 +571,7 @@ export default function LandingPage() {
             ))}
           </div>
           <div className="hfl-pricing-guarantee">
-            <ShieldCheck size={16} color="#16A34A" />
+            <ShieldCheck size={16} color="#00CEC8" />
             <span>30-day money-back guarantee</span>
             <span className="hfl-pricing-guarantee-sep">•</span>
             <span>Cancel anytime</span>
@@ -489,7 +580,7 @@ export default function LandingPage() {
 
         </main>
 
-        {/* ── Footer ────────────────────────────────────────────────────── */}
+        {/* ── Footer ── */}
         <footer className="hfl-footer">
           <div className="hfl-footer-inner">
             <div className="hfl-footer-left">

@@ -175,8 +175,8 @@ export default function FsboListingPage() {
   const [panoramas,  setPanoramas]  = useState<PanoramaEntry[]>([]);
 
   const helmetTitle = property && fsbo
-    ? `${property.address} — For Sale by Owner | HomeGentic`
-    : "For Sale by Owner | HomeGentic";
+    ? `${property.address} — For Sale by Owner | HomeGentic™`
+    : "For Sale by Owner | HomeGentic™";
   const helmetDesc = property && fsbo
     ? `${property.address} — $${(fsbo.listPriceCents / 100).toLocaleString("en-US", { maximumFractionDigits: 0 })} · ${property.city}, ${property.state}. Verified maintenance history on HomeGentic.`
     : "Browse verified FSBO listings with blockchain-backed maintenance history on HomeGentic.";
@@ -223,12 +223,12 @@ export default function FsboListingPage() {
         <Helmet>
           <title>For Sale by Owner | HomeGentic</title>
           <meta name="description" content="Browse verified FSBO listings with blockchain-backed maintenance history on HomeGentic." />
-          <meta property="og:title" content="For Sale by Owner | HomeGentic" />
+          <meta property="og:title" content="For Sale by Owner | HomeGentic™" />
           <meta property="og:description" content="Verified FSBO listings on HomeGentic." />
           <meta property="og:type" content="website" />
           <meta property="og:image" content="https://homegentic.app/og-default.png" />
           <link rel="canonical" href="https://homegentic.app/for-sale" />
-          <script type="application/ld+json">{JSON.stringify({ "@context": "https://schema.org", "@type": "RealEstateListing", "name": "For Sale by Owner | HomeGentic", "description": "Verified FSBO listing on HomeGentic." })}</script>
+          <script type="application/ld+json">{JSON.stringify({ "@context": "https://schema.org", "@type": "RealEstateListing", "name": "For Sale by Owner | HomeGentic™", "description": "Verified FSBO listing on HomeGentic." })}</script>
         </Helmet>
         <div style={outerStyle}>
           <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: UI.mono, color: UI.inkLight }}>
@@ -246,12 +246,12 @@ export default function FsboListingPage() {
         <Helmet>
           <title>Not Listed For Sale | HomeGentic</title>
           <meta name="description" content="This property is not currently listed for sale via FSBO on HomeGentic." />
-          <meta property="og:title" content="Not Listed For Sale | HomeGentic" />
+          <meta property="og:title" content="Not Listed For Sale | HomeGentic™" />
           <meta property="og:description" content="This property is not currently available via FSBO." />
           <meta property="og:type" content="website" />
           <meta property="og:image" content="https://homegentic.app/og-default.png" />
           <link rel="canonical" href="https://homegentic.app/for-sale" />
-          <script type="application/ld+json">{JSON.stringify({ "@context": "https://schema.org", "@type": "RealEstateListing", "name": "For Sale by Owner | HomeGentic", "description": "Verified FSBO listing on HomeGentic." })}</script>
+          <script type="application/ld+json">{JSON.stringify({ "@context": "https://schema.org", "@type": "RealEstateListing", "name": "For Sale by Owner | HomeGentic™", "description": "Verified FSBO listing on HomeGentic." })}</script>
         </Helmet>
         <div style={outerStyle}>
           <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "0.5rem" }}>

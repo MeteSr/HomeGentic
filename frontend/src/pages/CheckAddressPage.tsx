@@ -304,8 +304,8 @@ export default function CheckAddressPage() {
   const helmetTitle = result?.found
     ? `HomeGentic Report — ${result.address}`
     : rawAddress
-      ? `Check Address — ${rawAddress} | HomeGentic`
-      : "Check Address | HomeGentic";
+      ? `Check Address — ${rawAddress} | HomeGentic™`
+      : "Check Address | HomeGentic™";
   const helmetDesc = "Verify a property's HomeGentic maintenance report. Search by address to see if a verified home history is available.";
 
   const helmet = (
