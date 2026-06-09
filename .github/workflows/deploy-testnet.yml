@@ -77,3 +77,23 @@ jobs:
             git commit -m "ops: update canister IDs after testnet deploy [skip ci]"
             git push || echo "⚠️  Push blocked by branch protection — commit canister_ids.json manually from the deploy log above"
           fi
+
+  deploy-email-worker:
+    runs-on: ubuntu-latest
+    environment: testnet
+    if: github.event.workflow_run.conclusion == 'success'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: agents/email/package-lock.json
+      - name: Install email relay dependencies
+        working-directory: agents/email
+        run: npm ci
+      - name: Deploy email relay to Cloudflare Workers
+        working-directory: agents/email
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
