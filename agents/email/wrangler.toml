@@ -1,0 +1,12 @@
+name = "homegentic-email-relay"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+
+# ── Secrets — never stored here, set via `wrangler secret put <NAME>` ─────────
+#
+# Required:
+#   RESEND_API_KEY     API key from https://resend.com/api-keys
+#   ROUTE_CONFIG       JSON string — see .dev.vars.example for format
+#
+# After setting secrets, deploy with: wrangler deploy
+# The Worker URL will be: https://homegentic-email-relay.<account>.workers.dev
