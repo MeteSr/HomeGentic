@@ -126,11 +126,17 @@ canisters:
         args: "--actor-idl did/"
 
   # Frontend asset canister — dist/ is built by deploy.sh before icp deploy frontend
+  # Manual spec replaces @dfinity/asset-canister@v2.1.0 recipe whose `type: assets`
+  # sync step is no longer supported in current icp-cli.
   - name: frontend
-    recipe:
-      type: "@dfinity/asset-canister@v2.1.0"
-      configuration:
-        dir: frontend/dist
+    build:
+      steps:
+        - type: pre-built
+          url: https://github.com/dfinity/sdk/raw/refs/tags/0.30.2/src/distributed/assetstorage.wasm.gz
+    sync:
+      steps:
+        - type: script
+          script: icx-asset sync $CANISTER_ID frontend/dist
 
 networks:
   - name: local
