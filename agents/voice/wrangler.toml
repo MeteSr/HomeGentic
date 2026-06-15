@@ -19,6 +19,9 @@ binding     = "RATE_LIMIT"
 id          = "PLACEHOLDER_KV_NAMESPACE_ID"
 preview_id  = "PLACEHOLDER_KV_PREVIEW_NAMESPACE_ID"
 
+[triggers]
+crons = ["0 * * * *"]   # every hour — fires scheduledBidtolist (deadline reminders)
+
 # ── Secrets — never stored here, set via `wrangler secret put <NAME>` ────────
 #
 # Required:

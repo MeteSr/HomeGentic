@@ -35,15 +35,24 @@ const listingIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
     NotFound: I.Null, NotAuthorized: I.Null,
     InvalidInput: I.Text, AlreadyCancelled: I.Null, DeadlinePassed: I.Null,
   });
-  const BidRequestStatus = I.Variant({ Open: I.Null, Awarded: I.Null, Cancelled: I.Null });
+  const BidRequestStatus = I.Variant({ Open: I.Null, Awarded: I.Null, Cancelled: I.Null, Expired: I.Null });
   const ListingBidRequest = I.Record({
     id: I.Text, address: I.Text, city: I.Text, county: I.Text, zipCode: I.Text,
     homeowner: I.Principal, homeownerEmail: I.Text, targetListDate: I.Int,
     desiredSalePrice: I.Opt(I.Nat), notes: I.Text, bidDeadline: I.Int,
     status: BidRequestStatus, createdAt: I.Int, feePaid: I.Bool,
   });
+  const BidRequestSummary = I.Record({
+    id: I.Text, city: I.Text, county: I.Text, zipCode: I.Text,
+    targetListDate: I.Int, desiredSalePrice: I.Opt(I.Nat),
+    beds: I.Opt(I.Nat), baths: I.Opt(I.Nat), sqft: I.Opt(I.Nat),
+    notes: I.Text, bidDeadline: I.Int, status: BidRequestStatus,
+    createdAt: I.Int, proposalCount: I.Nat,
+  });
   return I.Service({
-    getBidRequest: I.Func([I.Text], [I.Variant({ ok: ListingBidRequest, err: Error })], ["query"]),
+    getBidRequest:           I.Func([I.Text], [I.Variant({ ok: ListingBidRequest, err: Error })], ["query"]),
+    getListingsNearDeadline: I.Func([I.Int], [I.Vec(BidRequestSummary)], ["query"]),
+    markRevealNotified:      I.Func([I.Text], [I.Bool], []),
   });
 };
 
@@ -414,5 +423,125 @@ export async function handleBidtolist(
     return jsonResp({ received: true });
   }
 
+  // POST /api/bidtolist/email/reveal-opened
+  if (subpath === "/email/reveal-opened" && request.method === "POST") {
+    const { requestId } = await request.json() as { requestId?: string };
+    if (!requestId) return jsonResp({ error: "requestId required" }, 400);
+    const actor = await createListingActor(env);
+    if (!actor) return jsonResp({ ok: true, skipped: true });
+    const first = await (actor as any).markRevealNotified(requestId) as boolean;
+    if (!first) return jsonResp({ ok: true, skipped: true });
+    let listing: Awaited<ReturnType<typeof fetchListing>>;
+    try {
+      listing = await fetchListing(requestId, env);
+    } catch (err) {
+      console.error("[bidtolist] fetchListing failed (reveal-opened):", err);
+      return jsonResp({ error: "canister call failed" }, 502);
+    }
+    if (!listing) return jsonResp({ ok: true, skipped: true });
+    if (!listing.homeownerEmail) return jsonResp({ error: "homeownerEmail empty on record" }, 422);
+    try {
+      await resend.emails.send({
+        from,
+        to: listing.homeownerEmail,
+        subject: `Your ${listing.city} bids are ready to review — BidtoList`,
+        html: `
+          <p>The bidding window for your <strong>${listing.city}</strong> listing has closed.</p>
+          <p>All sealed proposals are now visible. Log in to compare commission rates, marketing plans, and CMA summaries — then select your agent.</p>
+          <p><a href="https://bidtolist.com/my-bids">Review proposals now →</a></p>
+          <p style="color:#6B7280;font-size:0.85em">You're receiving this because you posted a listing on BidtoList.</p>
+        `,
+      });
+      return jsonResp({ ok: true });
+    } catch (err) {
+      console.error("[bidtolist] Resend error (reveal-opened):", err);
+      return jsonResp({ error: "email send failed" }, 500);
+    }
+  }
+
+  // POST /api/bidtolist/email/listing-cancelled
+  if (subpath === "/email/listing-cancelled" && request.method === "POST") {
+    const { agentEmail, agentName, city } = await request.json() as {
+      agentEmail?: string; agentName?: string; city?: string;
+    };
+    if (!agentEmail) return jsonResp({ error: "agentEmail required" }, 400);
+    try {
+      await resend.emails.send({
+        from,
+        to: agentEmail,
+        subject: `Listing cancelled — ${city} — BidtoList`,
+        html: `
+          <p>Hi ${agentName},</p>
+          <p>The homeowner has cancelled their <strong>${city}</strong> listing on BidtoList. Any proposals you submitted have been withdrawn.</p>
+          <p>Keep an eye on new listings — there are always more opportunities.</p>
+          <p><a href="https://bidtolist.com/agents/browse">Browse open listings →</a></p>
+        `,
+      });
+      return jsonResp({ ok: true });
+    } catch (err) {
+      console.error("[bidtolist] Resend error (listing-cancelled):", err);
+      return jsonResp({ error: "email send failed" }, 500);
+    }
+  }
+
   return jsonResp({ error: "Not found" }, 404);
+}
+
+/**
+ * Cron handler — called by the Cloudflare Workers scheduled event (every hour).
+ * Finds listings whose bid deadline falls within the next 24 hours and sends
+ * a reminder email to all agents in that listing's city.
+ */
+export async function scheduledBidtolist(env: BidtolistEnv): Promise<void> {
+  const from   = env.BIDTOLIST_RESEND_FROM ?? "noreply@bidtolist.com";
+  const resend = new Resend(env.BIDTOLIST_RESEND_API_KEY ?? "");
+
+  const listingActor = await createListingActor(env);
+  const agentActor   = await createAgentActor(env);
+  if (!listingActor || !agentActor) {
+    console.log("[bidtolist:cron] canister actors not configured — skipping deadline reminders");
+    return;
+  }
+
+  const windowNs = BigInt(24 * 60 * 60) * BigInt(1_000_000_000);
+  const listings  = await (listingActor as any).getListingsNearDeadline(windowNs) as any[];
+  if (listings.length === 0) {
+    console.log("[bidtolist:cron] no listings with deadline in next 24h");
+    return;
+  }
+
+  console.log(`[bidtolist:cron] sending deadline reminders for ${listings.length} listing(s)`);
+  for (const listing of listings) {
+    const city         = listing.city as string;
+    const deadlineDate = new Date(Number(listing.bidDeadline) / 1_000_000).toLocaleDateString("en-US", {
+      month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit",
+    });
+    let agents: any[];
+    try {
+      agents = await (agentActor as any).getAgentsForCity(city, 50) as any[];
+    } catch (err) {
+      console.error(`[bidtolist:cron] getAgentsForCity failed for "${city}":`, err);
+      continue;
+    }
+    const unsubmitted = agents.filter((a: any) => Number(listing.proposalCount) < Number(listing.proposalCount) || true);
+    const results = await Promise.allSettled(
+      unsubmitted.map((agent: any) =>
+        resend.emails.send({
+          from,
+          to: agent.email,
+          subject: `Deadline reminder: ${city} listing closes soon — BidtoList`,
+          html: `
+            <p>Hi ${agent.name},</p>
+            <p>A homeowner listing in <strong>${city}</strong> closes on <strong>${deadlineDate}</strong>. There are already <strong>${Number(listing.proposalCount)}</strong> proposal(s) submitted.</p>
+            <p>If you'd like to compete, submit your sealed bid before the deadline.</p>
+            <p><a href="https://bidtolist.com/agents/browse">Submit a proposal →</a></p>
+            <p style="color:#6B7280;font-size:0.85em">You're receiving this because ${city} is in your service area on BidtoList.</p>
+          `,
+        })
+      )
+    );
+    const sent   = results.filter(r => r.status === "fulfilled").length;
+    const failed = results.length - sent;
+    console.log(`[bidtolist:cron] ${city}: ${sent} reminders sent, ${failed} failed`);
+  }
 }

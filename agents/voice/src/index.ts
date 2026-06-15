@@ -35,7 +35,7 @@ import type { ChatRequest } from "../types";
 import { TIER_LIMITS, type SubscriptionTier } from "../agentLimiter";
 import { logger } from "../logger";
 import { checkGlobalRateLimit, checkAgentRateLimit } from "./rateLimiter";
-import { handleBidtolist } from "./bidtolist";
+import { handleBidtolist, scheduledBidtolist } from "./bidtolist";
 
 // ── Environment bindings ──────────────────────────────────────────────────────
 
@@ -268,6 +268,10 @@ async function flushErrorAggregations(): Promise<void> {
 // ── Main fetch handler ────────────────────────────────────────────────────────
 
 export default {
+  async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(scheduledBidtolist(env));
+  },
+
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const startMs  = Date.now();
     const reqId    = request.headers.get("x-request-id") ?? crypto.randomUUID();
