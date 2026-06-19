@@ -53,6 +53,7 @@ const listingIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
     getBidRequest:           I.Func([I.Text], [I.Variant({ ok: ListingBidRequest, err: Error })], ["query"]),
     getListingsNearDeadline: I.Func([I.Int], [I.Vec(BidRequestSummary)], ["query"]),
     markRevealNotified:      I.Func([I.Text], [I.Bool], []),
+    tickCascade:             I.Func([], [], []),
   });
 };
 
@@ -501,6 +502,13 @@ export async function scheduledBidtolist(env: BidtolistEnv): Promise<void> {
   if (!listingActor || !agentActor) {
     console.log("[bidtolist:cron] canister actors not configured — skipping deadline reminders");
     return;
+  }
+
+  try {
+    await (listingActor as any).tickCascade();
+    console.log("[bidtolist:cron] cascade tick complete");
+  } catch (err) {
+    console.error("[bidtolist:cron] tickCascade failed:", err);
   }
 
   const windowNs = BigInt(24 * 60 * 60) * BigInt(1_000_000_000);
