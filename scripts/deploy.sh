@@ -352,8 +352,26 @@ else
       else
         echo "FAILED"
         echo ""
-        echo "── $canister create log ──────────────────────────"
-        cat "$LOG_DIR/$canister.create.log"
+        # Check for cycles shortage and emit a human-readable diagnosis
+        _CREATE_LOG=$(cat "$LOG_DIR/$canister.create.log")
+        _REQUESTED=$(echo "$_CREATE_LOG" | grep -oE 'Requested: [0-9_]+' | grep -oE '[0-9_]+' | tr -d '_' || echo "")
+        _AVAILABLE=$(echo "$_CREATE_LOG" | grep -oE 'available balance: [0-9_]+' | grep -oE '[0-9_]+' | tr -d '_' || echo "")
+        if [ -n "$_REQUESTED" ] && [ -n "$_AVAILABLE" ]; then
+          _SHORTAGE=$(( _REQUESTED - _AVAILABLE ))
+          _REMAINING=$(( ${#CANISTERS[@]} - $(grep -c '"testnet"' canister_ids.json 2>/dev/null || echo 0) ))
+          _TOTAL_NEEDED=$(( _REMAINING * _REQUESTED ))
+          echo "  ✗ Cycles shortage creating '$canister':"
+          echo "    Needed per canister : $( echo "$_REQUESTED" | awk '{printf "%0.2fT\n", $1/1e12}' )"
+          echo "    Available balance   : $( echo "$_AVAILABLE" | awk '{printf "%0.2fT\n", $1/1e12}' )"
+          echo "    Shortfall           : $( echo "$_SHORTAGE"  | awk '{printf "%0.2fT\n", $1/1e12}' ) (this canister)"
+          echo "    Remaining canisters : $_REMAINING (approx $( echo "$_TOTAL_NEEDED" | awk '{printf "%0.1fT", $1/1e12}' ) more needed)"
+          echo ""
+          echo "  Top up your cycles ledger at https://nns.ic0.app and re-run."
+          echo "  Already-created canisters are recorded in canister_ids.json and will be skipped."
+        else
+          echo "── $canister create log ──────────────────────────"
+          echo "$_CREATE_LOG"
+        fi
         rm -rf "$LOG_DIR"
         exit 1
       fi
