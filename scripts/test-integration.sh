@@ -24,11 +24,21 @@ FRONTEND_DIR="$ROOT_DIR/frontend"
 
 # ── 1. Replica health check ───────────────────────────────────────────────────
 
-_INT_FILE_COUNT=$(find "$FRONTEND_DIR/src/__tests__/integration" -name "*.test.ts" 2>/dev/null | wc -l | tr -d ' ')
+_INT_COUNTS=$(node -e "
+const fs = require('fs'), path = require('path');
+const dir = '$FRONTEND_DIR/src/__tests__/integration';
+const files = fs.readdirSync(dir).filter(f => f.endsWith('.test.ts'));
+let total = 0;
+for (const f of files) {
+  const txt = fs.readFileSync(path.join(dir, f), 'utf8');
+  total += (txt.match(/^\s*(it|test)\(/mg) || []).length;
+}
+process.stdout.write(files.length + ' files · ' + total + ' tests');
+" 2>/dev/null || echo "? files")
 
 echo "============================================"
 echo "  HomeGentic — Frontend Integration Tests"
-echo "  ${_INT_FILE_COUNT} test file(s)"
+echo "  ${_INT_COUNTS}"
 echo "============================================"
 echo ""
 echo "▶ Checking local replica…"

@@ -12,7 +12,7 @@ set -euo pipefail
 
 echo "============================================"
 echo "  HomeGentic — Cross-Canister Integration Tests"
-echo "  4 scenarios"
+echo "  4 scenarios  ·  6 checks"
 echo "============================================"
 
 if ! dfx ping 2>/dev/null; then

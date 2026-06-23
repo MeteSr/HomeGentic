@@ -57,15 +57,22 @@ declare -a PIDS=()     # matching background PIDs
 
 LOG_DIR=$(mktemp -d /tmp/test-backend-XXXXXX)
 
-_TOTAL_ASSERTIONS=0
-for _C in "${CANISTERS[@]}"; do
-  _SH="$REPO_ROOT/backend/$_C/test.sh"
-  [ -f "$_SH" ] && _TOTAL_ASSERTIONS=$(( _TOTAL_ASSERTIONS + $(grep -c " ↳ " "$_SH" 2>/dev/null || echo 0) ))
-done
+_TOTAL_TESTS=$(node -e "
+const fs = require('fs');
+const canisters = $(printf '"%s",' "${CANISTERS[@]}" | sed 's/,$//; s/^/[/; s/$/]/');
+let t = 0;
+for (const c of canisters) {
+  const f = '$REPO_ROOT/backend/' + c + '/test.sh';
+  if (!fs.existsSync(f)) continue;
+  const txt = fs.readFileSync(f, 'utf8');
+  t += (txt.match(/── \[/g) || []).length + (txt.match(/^echo .▶ /mg) || []).length;
+}
+process.stdout.write(String(t));
+" 2>/dev/null || echo "?")
 
 echo "============================================"
 echo "  HomeGentic — Backend Test Suite"
-echo "  ${#CANISTERS[@]} canister suite(s)  ·  ~${_TOTAL_ASSERTIONS} assertions"
+echo "  ${#CANISTERS[@]} canister suite(s)  ·  ${_TOTAL_TESTS} tests"
 echo "============================================"
 echo "  Launching ${#CANISTERS[@]} canister suite(s) in parallel"
 echo ""
