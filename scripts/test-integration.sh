@@ -24,6 +24,13 @@ FRONTEND_DIR="$ROOT_DIR/frontend"
 
 # ── 1. Replica health check ───────────────────────────────────────────────────
 
+_INT_FILE_COUNT=$(find "$FRONTEND_DIR/src/__tests__/integration" -name "*.test.ts" 2>/dev/null | wc -l | tr -d ' ')
+
+echo "============================================"
+echo "  HomeGentic — Frontend Integration Tests"
+echo "  ${_INT_FILE_COUNT} test file(s)"
+echo "============================================"
+echo ""
 echo "▶ Checking local replica…"
 if ! curl -sf http://localhost:4943/api/v2/status >/dev/null 2>&1; then
   echo ""

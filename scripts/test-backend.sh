@@ -57,8 +57,15 @@ declare -a PIDS=()     # matching background PIDs
 
 LOG_DIR=$(mktemp -d /tmp/test-backend-XXXXXX)
 
+_TOTAL_ASSERTIONS=0
+for _C in "${CANISTERS[@]}"; do
+  _SH="$REPO_ROOT/backend/$_C/test.sh"
+  [ -f "$_SH" ] && _TOTAL_ASSERTIONS=$(( _TOTAL_ASSERTIONS + $(grep -c " ↳ " "$_SH" 2>/dev/null || echo 0) ))
+done
+
 echo "============================================"
 echo "  HomeGentic — Backend Test Suite"
+echo "  ${#CANISTERS[@]} canister suite(s)  ·  ~${_TOTAL_ASSERTIONS} assertions"
 echo "============================================"
 echo "  Launching ${#CANISTERS[@]} canister suite(s) in parallel"
 echo ""
