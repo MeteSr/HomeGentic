@@ -78,21 +78,22 @@ describe("PROD.3 — deploy.sh has cycles balance check for non-local deploys", 
   });
 });
 
-// ── PROD.8 — monitoring canister heartbeat ────────────────────────────────────
+// ── PROD.8 — monitoring canister staleness detection ─────────────────────────
 
-describe("PROD.8 — monitoring canister has a heartbeat for staleness detection", () => {
-  it("monitoring/main.mo defines system func heartbeat", () => {
-    expect(read("backend/monitoring/main.mo")).toMatch(/system func heartbeat/);
-  });
-
-  it("heartbeat is throttled with a counter (not running full logic every round)", () => {
+describe("PROD.8 — monitoring canister has a periodic timer for staleness detection", () => {
+  it("monitoring/main.mo uses recurringTimer instead of heartbeat (heartbeat wastes cycles every round)", () => {
     const mo = read("backend/monitoring/main.mo");
-    // Must have a tick/count variable and a modulo check
-    expect(mo).toMatch(/heartbeatTick|heartbeat_tick|tickCount|tick_count/);
-    expect(mo).toMatch(/%\s*\w*[Ii]nterval\w*|%\s*\d+/);
+    expect(mo).toMatch(/recurringTimer/);
+    expect(mo).not.toMatch(/system func heartbeat/);
   });
 
-  it("heartbeat checks updatedAt for staleness and fires an alert", () => {
+  it("timer fires on a fixed nanosecond interval", () => {
+    const mo = read("backend/monitoring/main.mo");
+    expect(mo).toMatch(/#nanoseconds/);
+    expect(mo).toMatch(/STALE_CHECK_NS/);
+  });
+
+  it("timer callback checks updatedAt for staleness and fires an alert", () => {
     const mo = read("backend/monitoring/main.mo");
     expect(mo).toMatch(/updatedAt|updated_at/);
     expect(mo).toMatch(/stale|Stale|STALE/);
