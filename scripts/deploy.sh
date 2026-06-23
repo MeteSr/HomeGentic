@@ -277,8 +277,13 @@ if [ "$ENV" = "local" ]; then
   # PocketIC starts with 0 cycles — mint enough for all 18 canisters (2T each)
   # plus generous headroom for storage and inter-canister calls.
   echo "▶ Minting local cycles..."
-  icp cycles mint 500000000000000 -e local >/dev/null 2>&1 || true
-  echo "  ✓ Cycles minted (500T)"
+  if ! icp cycles mint 500000000000000 -e local; then
+    echo "  ERROR: icp cycles mint failed — cycles balance is 0, deploy will fail."
+    echo "  Try: icp identity default homegentic-local && icp cycles mint 500000000000000 -e local"
+    exit 1
+  fi
+  CYCLES_BALANCE=$(icp cycles balance -e local 2>/dev/null | grep -oE '[0-9]+' | head -1 || echo "unknown")
+  echo "  ✓ Cycles minted — current balance: ${CYCLES_BALANCE}"
 
   # ── Local: all-in-one icp deploy ────────────────────────────────────────────
   echo ""
