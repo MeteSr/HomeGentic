@@ -115,6 +115,19 @@ if [ "$ENV" != "local" ]; then
   echo "============================================"
   PREFLIGHT_FAILED=0
 
+  # BACKUP_CONTROLLER — required on all non-local deploys.
+  # A second principal (your personal identity) is added as co-controller on
+  # every canister so you can recover them if CI's PEM is ever lost.
+  # Get yours with: icp identity principal  (or: dfx identity get-principal)
+  if [ -z "${BACKUP_CONTROLLER_PRINCIPAL:-}" ]; then
+    echo "  ✗ BACKUP_CONTROLLER_PRINCIPAL is not set"
+    echo "    Without it, losing the CI identity PEM orphans all canisters permanently."
+    echo "    Set it to your personal principal: icp identity principal"
+    PREFLIGHT_FAILED=1
+  else
+    echo "  ✓ BACKUP_CONTROLLER_PRINCIPAL: $BACKUP_CONTROLLER_PRINCIPAL"
+  fi
+
   # PROD.1 — ANTHROPIC_API_KEY must be set
   if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
     echo "  ✗ ANTHROPIC_API_KEY is not set — Claude API calls will fail"
@@ -400,6 +413,23 @@ print(sum(1 for v in d.values() if isinstance(v,dict) and v.get(os.environ['ENV'
       fi
     fi
   done
+
+  # ── Set backup controller on every slot (idempotent) ─────────────────────────
+  # Ensures a second principal can always recover canisters if CI PEM is lost.
+  if [ -n "${BACKUP_CONTROLLER_PRINCIPAL:-}" ]; then
+    echo ""
+    echo "▶ Setting backup controller ($BACKUP_CONTROLLER_PRINCIPAL)..."
+    for canister in "${CANISTERS[@]}"; do
+      echo -n "  $canister... "
+      if icp canister settings update "$canister" \
+          --add-controller "$BACKUP_CONTROLLER_PRINCIPAL" \
+          -e "$ENV" >/dev/null 2>&1; then
+        echo "✓"
+      else
+        echo "⚠ (may already be set)"
+      fi
+    done
+  fi
 
   # Phase 2: Build all canisters sequentially
   echo ""
