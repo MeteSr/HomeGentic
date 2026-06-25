@@ -1,1 +1,7 @@
-{}
+{
+  "auth": { "testnet": "bzniw-5qaaa-aaaaj-qsbya-cai" },
+  "property": { "testnet": "b6moc-qiaaa-aaaaj-qsbyq-cai" },
+  "job": { "testnet": "bxpf6-gaaaa-aaaaj-qsbza-cai" },
+  "contractor": { "testnet": "bqodk-lyaaa-aaaaj-qsbzq-cai" },
+  "quote": { "testnet": "bfjsh-kqaaa-aaaaj-qsb2a-cai" }
+}

@@ -344,10 +344,27 @@ else
       continue
     fi
     if icp canister create "$canister" -e "$ENV" >"$LOG_DIR/$canister.create.log" 2>&1; then
+      _new_id=$(icp canister status "$canister" -e "$ENV" --id-only 2>/dev/null || echo "")
+      if [ -n "$_new_id" ]; then
+        ENV="$ENV" CANISTER="$canister" ID="$_new_id" python3 -c "
+import json,os
+f='canister_ids.json'
+d=json.load(open(f)) if os.path.exists(f) and os.path.getsize(f)>2 else {}
+d.setdefault(os.environ['CANISTER'],{})[os.environ['ENV']]=os.environ['ID']
+json.dump(d,open(f,'w'),indent=2)
+" 2>/dev/null || true
+      fi
       echo "created"
     else
       EXISTING_ID=$(icp canister status "$canister" -e "$ENV" --id-only 2>/dev/null || echo "")
       if [ -n "$EXISTING_ID" ]; then
+        ENV="$ENV" CANISTER="$canister" ID="$EXISTING_ID" python3 -c "
+import json,os
+f='canister_ids.json'
+d=json.load(open(f)) if os.path.exists(f) and os.path.getsize(f)>2 else {}
+d.setdefault(os.environ['CANISTER'],{})[os.environ['ENV']]=os.environ['ID']
+json.dump(d,open(f,'w'),indent=2)
+" 2>/dev/null || true
         echo "exists ($EXISTING_ID)"
       else
         echo "FAILED"
@@ -358,7 +375,13 @@ else
         _AVAILABLE=$(echo "$_CREATE_LOG" | grep -oE 'available balance: [0-9_]+' | grep -oE '[0-9_]+' | tr -d '_' || echo "")
         if [ -n "$_REQUESTED" ] && [ -n "$_AVAILABLE" ]; then
           _SHORTAGE=$(( _REQUESTED - _AVAILABLE ))
-          _REMAINING=$(( ${#CANISTERS[@]} - $(grep -c '"testnet"' canister_ids.json 2>/dev/null || echo 0) ))
+          _CREATED=$(ENV="$ENV" python3 -c "
+import json,os
+f='canister_ids.json'
+d=json.load(open(f)) if os.path.exists(f) else {}
+print(sum(1 for v in d.values() if isinstance(v,dict) and v.get(os.environ['ENV'],'')))
+" 2>/dev/null || echo 0)
+          _REMAINING=$(( ${#CANISTERS[@]} - _CREATED ))
           _TOTAL_NEEDED=$(( _REMAINING * _REQUESTED ))
           echo "  ✗ Cycles shortage creating '$canister':"
           echo "    Needed per canister : $( echo "$_REQUESTED" | awk '{printf "%0.2fT\n", $1/1e12}' )"
