@@ -3,7 +3,9 @@ import { HttpAgent } from "@icp-sdk/core/agent";
 import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 
 const DFX_NETWORK = (process.env as any).DFX_NETWORK || "local";
-const IS_LOCAL = DFX_NETWORK !== "ic";
+// IS_LOCAL is true only when running against a local replica (dfx start).
+// testnet / ic / any other named IC network all use the production II URL.
+const IS_LOCAL = DFX_NETWORK === "local";
 // ii: true in icp.yaml deploys II automatically on icp network start.
 // Skill-documented local URL — port matches our icp.yaml gateway port.
 // @icp-sdk/auth default is https://id.ai/authorize — /authorize is where the
