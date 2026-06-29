@@ -24,7 +24,7 @@ jobs:
         run: npm install -g @icp-sdk/icp-cli
 
       - name: Cache mops packages
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cache/mops
           key: mops-${{ runner.os }}-${{ hashFiles('mops.toml') }}
@@ -103,7 +103,7 @@ jobs:
           dfx --version
 
       - name: Cache mops packages
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cache/mops
           key: mops-${{ runner.os }}-${{ hashFiles('mops.toml') }}
@@ -254,7 +254,7 @@ jobs:
           dfx --version
 
       - name: Cache mops packages
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cache/mops
           key: mops-${{ runner.os }}-${{ hashFiles('mops.toml') }}
