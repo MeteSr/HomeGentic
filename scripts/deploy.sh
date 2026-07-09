@@ -115,19 +115,6 @@ if [ "$ENV" != "local" ]; then
   echo "============================================"
   PREFLIGHT_FAILED=0
 
-  # BACKUP_CONTROLLER — required on all non-local deploys.
-  # A second principal (your personal identity) is added as co-controller on
-  # every canister so you can recover them if CI's PEM is ever lost.
-  # Get yours with: icp identity principal  (or: dfx identity get-principal)
-  if [ -z "${BACKUP_CONTROLLER_PRINCIPAL:-}" ]; then
-    echo "  ✗ BACKUP_CONTROLLER_PRINCIPAL is not set"
-    echo "    Without it, losing the CI identity PEM orphans all canisters permanently."
-    echo "    Set it to your personal principal: icp identity principal"
-    PREFLIGHT_FAILED=1
-  else
-    echo "  ✓ BACKUP_CONTROLLER_PRINCIPAL: $BACKUP_CONTROLLER_PRINCIPAL"
-  fi
-
   # PROD.1 — ANTHROPIC_API_KEY must be set
   if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
     echo "  ✗ ANTHROPIC_API_KEY is not set — Claude API calls will fail"
@@ -142,6 +129,19 @@ if [ "$ENV" != "local" ]; then
     PREFLIGHT_FAILED=1
   else
     echo "  ✓ VOICE_AGENT_API_KEY is set"
+  fi
+
+  # BACKUP_CONTROLLER — required on all non-local deploys.
+  # A second principal (your personal identity) is added as co-controller on
+  # every canister so you can recover them if CI's PEM is ever lost.
+  # Get yours with: icp identity principal  (or: dfx identity get-principal)
+  if [ -z "${BACKUP_CONTROLLER_PRINCIPAL:-}" ]; then
+    echo "  ✗ BACKUP_CONTROLLER_PRINCIPAL is not set"
+    echo "    Without it, losing the CI identity PEM orphans all canisters permanently."
+    echo "    Set it to your personal principal: icp identity principal"
+    PREFLIGHT_FAILED=1
+  else
+    echo "  ✓ BACKUP_CONTROLLER_PRINCIPAL: $BACKUP_CONTROLLER_PRINCIPAL"
   fi
 
   if [ -z "${VITE_VOICE_AGENT_API_KEY:-}" ]; then
