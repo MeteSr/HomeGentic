@@ -881,20 +881,20 @@ else
 fi
 
 # ── Freezing threshold (cycle safety net) ────────────────────────────────────
-# Sets freezing_threshold to 30 days on every canister so the IC will reject
-# new calls before cycles hit zero, giving a 30-day window for the cycle-watchdog
+# Sets freezing_threshold to 90 days on every canister so the IC will reject
+# new calls before cycles hit zero, giving a 90-day window for the cycle-watchdog
 # to top up before an outage. Uses dfx (icp-cli update-settings not yet available,
 # see #174). Skipped silently when dfx is absent.
 echo ""
 echo "============================================"
-echo "  Freezing Threshold (30-day safety net)"
+echo "  Freezing Threshold (90-day safety net)"
 echo "============================================"
 FREEZE_CANISTERS=(
   auth property job contractor quote payment photo
   report maintenance market sensor monitoring listing
   recurring bills ai_proxy audit referrals
 )
-FREEZE_THRESHOLD=2592000  # 30 days in seconds
+FREEZE_THRESHOLD=7776000  # 90 days in seconds
 if command -v dfx >/dev/null 2>&1; then
   FREEZE_NETWORK="${ENV}"
   [ "$ENV" = "local" ] && FREEZE_NETWORK="local"
