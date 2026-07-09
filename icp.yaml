@@ -125,12 +125,15 @@ canisters:
         main: backend/referrals/main.mo
         args: "--actor-idl did/"
 
-  # Frontend asset canister — dist/ is built by deploy.sh before icp deploy frontend
+  # Frontend asset canister
   - name: frontend
     recipe:
       type: "@dfinity/asset-canister@v2.2.1"
       configuration:
         dir: frontend/dist
+        build:
+          script: npm run build
+          workdir: frontend
 
 networks:
   - name: local
