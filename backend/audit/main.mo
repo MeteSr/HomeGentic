@@ -97,7 +97,13 @@ persistent actor Audit {
       subject;
       detail;
     };
-    entries := Array.concat(entries, [entry]);
+    // Cap at 50 000 entries — drop oldest when full to bound heap growth.
+    let maxEntries = 50_000;
+    entries := if (entries.size() >= maxEntries) {
+      Array.concat(Array.subArray(entries, entries.size() - maxEntries + 1, maxEntries - 1), [entry])
+    } else {
+      Array.concat(entries, [entry])
+    };
     nextId  := nextId + 1;
     #ok(entry.id)
   };

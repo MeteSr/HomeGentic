@@ -104,7 +104,7 @@ persistent actor AiProxy {
   private var permitsFetched         : Nat = 0;
 
   // Rate limiting
-  private let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
+  private transient let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   private var maxUpdatesPerMin : Nat = 30;
   private let ONE_MINUTE_NS    : Int = 60_000_000_000;
   private let ONE_DAY_NS       : Int = 86_400_000_000_000;
@@ -615,6 +615,8 @@ persistent actor AiProxy {
     from    : ?Text,
   ) : async Result.Result<Text, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (not isTrustedCanister(msg.caller) and not isAdmin(msg.caller))
+      return #err(#NotAuthorized);
     if (Text.size(resendApiKey) == 0) return #err(#KeyNotConfigured);
 
     resetEmailCountersIfNeeded();
@@ -694,6 +696,8 @@ persistent actor AiProxy {
     verifyUrl       : Text,
   ) : async Result.Result<Text, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (not isTrustedCanister(msg.caller) and not isAdmin(msg.caller))
+      return #err(#NotAuthorized);
     if (Text.size(resendApiKey) == 0) return #err(#KeyNotConfigured);
 
     let greeting    = switch (contractorName) {

@@ -1715,3 +1715,11 @@ function shutdown(signal: string): void {
 
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT",  () => shutdown("SIGINT"));
+
+process.on("unhandledRejection", (reason) => {
+  logger.error("voice-agent", `unhandledRejection: ${reason}`);
+});
+process.on("uncaughtException", (err) => {
+  logger.error("voice-agent", `uncaughtException: ${err.message}`);
+  shutdown("uncaughtException");
+});
