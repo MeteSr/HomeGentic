@@ -421,7 +421,17 @@ persistent actor Contractor {
   };
 
   public query func getAll() : async [ContractorProfile] {
-    Iter.toArray(Map.values(contractors))
+    let all = Iter.toArray(Map.values(contractors));
+    if (all.size() <= 500) all
+    else Array.tabulate<ContractorProfile>(500, func(i) { all[i] })
+  };
+
+  public query func getPage(from : Nat, limit : Nat) : async [ContractorProfile] {
+    let all = Iter.toArray(Map.values(contractors));
+    let total = all.size();
+    if (from >= total) return [];
+    let bound = Nat.min(from + Nat.min(limit, 100), total);
+    Array.tabulate<ContractorProfile>(bound - from, func(i) { all[from + i] })
   };
 
   public query func getReviewsForContractor(c: Principal) : async [Review] {

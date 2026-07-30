@@ -84,6 +84,7 @@ export const idlFactory = ({ IDL }: any) => {
       ["query"]
     ),
     getAll: IDL.Func([], [IDL.Vec(ContractorProfile)], ["query"]),
+    getPage: IDL.Func([IDL.Nat, IDL.Nat], [IDL.Vec(ContractorProfile)], ["query"]),
     getBySpecialty: IDL.Func([ServiceType], [IDL.Vec(ContractorProfile)], ["query"]),
     submitReview: IDL.Func(
       [IDL.Principal, IDL.Nat, IDL.Text, IDL.Text],

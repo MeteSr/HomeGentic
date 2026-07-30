@@ -15,6 +15,7 @@
 
 import Array     "mo:core/Array";
 import Blob      "mo:core/Blob";
+import Debug     "mo:core/Debug";
 import Map       "mo:core/Map";
 import Int        "mo:core/Int";
 import Iter       "mo:core/Iter";
@@ -550,7 +551,7 @@ persistent actor Report {
           hideDescriptions = link.hideDescriptions;
         };
         Map.add(links, Text.compare, token, revoked);
-        try { ignore await auditLog("ShareLinkRevoked", ?link.createdBy, "token=" # token # " caller=" # Principal.toText(msg.caller)) } catch _ {};
+        try { ignore await auditLog("ShareLinkRevoked", ?link.createdBy, "token=" # token # " caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[report] fire-and-forget call failed") };
         #ok(())
       };
     }
@@ -580,7 +581,7 @@ persistent actor Report {
       adminListEntries := Array.concat(adminListEntries, [newAdmin]);
     };
     adminInitialized := true;
-    try { ignore await auditLog("AdminAdded", ?newAdmin, "caller=" # Principal.toText(msg.caller)) } catch _ {};
+    try { ignore await auditLog("AdminAdded", ?newAdmin, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[report] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -593,7 +594,7 @@ persistent actor Report {
 
   public shared(msg) func setAuditCanisterId(id : Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    try { ignore await auditLog("AuditCanisterSet", ?id, "caller=" # Principal.toText(msg.caller)) } catch _ {};
+    try { ignore await auditLog("AuditCanisterSet", ?id, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[report] fire-and-forget call failed") };
     auditCanisterId := ?id;
     #ok(())
   };
@@ -605,7 +606,7 @@ persistent actor Report {
         let a : actor {
           log : (Text, Text, ?Principal, Text) -> async { #ok : Nat; #err : { #NotAuthorized; #InvalidInput : Text } }
         } = actor(Principal.toText(aid));
-        try { ignore await a.log("report", action, subject, detail) } catch _ {};
+        try { ignore await a.log("report", action, subject, detail) } catch _ { Debug.print("[report] fire-and-forget call failed") };
       };
     };
   };
@@ -617,7 +618,7 @@ persistent actor Report {
     if (not isTrustedCanister(p)) {
       trustedCanisterEntries := Array.concat(trustedCanisterEntries, [p]);
     };
-    try { ignore await auditLog("TrustedCanisterAdded", ?p, "caller=" # Principal.toText(msg.caller)) } catch _ {};
+    try { ignore await auditLog("TrustedCanisterAdded", ?p, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[report] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -640,7 +641,7 @@ persistent actor Report {
       case null    { null };
       case (?secs) { ?(Time.now() + secs * 1_000_000_000) };
     };
-    try { ignore await auditLog("CanisterPaused", null, "caller=" # Principal.toText(msg.caller)) } catch _ {};
+    try { ignore await auditLog("CanisterPaused", null, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[report] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -648,7 +649,7 @@ persistent actor Report {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     isPaused := false;
     pauseExpiryNs := null;
-    try { ignore await auditLog("CanisterUnpaused", null, "caller=" # Principal.toText(msg.caller)) } catch _ {};
+    try { ignore await auditLog("CanisterUnpaused", null, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[report] fire-and-forget call failed") };
     #ok(())
   };
 

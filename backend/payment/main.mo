@@ -316,7 +316,7 @@ persistent actor Payment {
     if (not isTrustedCanister(p)) {
       trustedCanisterEntries := Array.concat(trustedCanisterEntries, [p]);
     };
-    try { ignore await auditLog("TrustedCanisterAdded", ?p, "caller=" # Principal.toText(msg.caller)) } catch _ {};
+    try { ignore await auditLog("TrustedCanisterAdded", ?p, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -348,7 +348,7 @@ persistent actor Payment {
     if (not isAdmin(newAdmin)) {
       adminEntries := Array.concat(adminEntries, [newAdmin]);
     };
-    try { ignore await auditLog("AdminAdded", ?newAdmin, "caller=" # Principal.toText(msg.caller)) } catch _ {};
+    try { ignore await auditLog("AdminAdded", ?newAdmin, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -356,7 +356,7 @@ persistent actor Payment {
   public shared(msg) func removeAdmin(target: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     adminEntries := Array.filter<Principal>(adminEntries, func(a) { a != target });
-    try { ignore await auditLog("AdminRemoved", ?target, "caller=" # Principal.toText(msg.caller)) } catch _ {};
+    try { ignore await auditLog("AdminRemoved", ?target, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(())
   };
 
@@ -366,7 +366,7 @@ persistent actor Payment {
 
   public shared(msg) func setAuditCanisterId(id : Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    try { ignore await auditLog("AuditCanisterSet", ?id, "caller=" # Principal.toText(msg.caller)) } catch _ {};
+    try { ignore await auditLog("AuditCanisterSet", ?id, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     auditCanisterId := ?id;
     #ok(())
   };
@@ -378,7 +378,7 @@ persistent actor Payment {
         let a : actor {
           log : (Text, Text, ?Principal, Text) -> async { #ok : Nat; #err : { #NotAuthorized; #InvalidInput : Text } }
         } = actor(Principal.toText(aid));
-        try { ignore await a.log("payment", action, subject, detail) } catch _ {};
+        try { ignore await a.log("payment", action, subject, detail) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
       };
     };
   };
@@ -412,7 +412,7 @@ persistent actor Payment {
         let a : actor {
           markConverted : (Principal) -> async Result.Result<(), ReferralsMarkConvertedErr>
         } = actor(rid);
-        try { ignore await a.markConverted(user) } catch _ {};
+        try { ignore await a.markConverted(user) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
       };
     };
   };
@@ -908,7 +908,7 @@ persistent actor Payment {
     Map.add(subscriptions, Principal.compare, userPrincipal, sub);
     await propagateTier(userPrincipal, tier);
     await notifyReferralConverted(userPrincipal);
-    try { ignore await auditLog("TierActivated", ?userPrincipal, "months=" # Nat.toText(months) # " caller=" # Principal.toText(msg.caller)) } catch _ {};
+    try { ignore await auditLog("TierActivated", ?userPrincipal, "months=" # Nat.toText(months) # " caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(sub)
   };
 
@@ -930,7 +930,7 @@ persistent actor Payment {
     };
     Map.add(subscriptions, Principal.compare, principal, sub);
     await propagateTier(principal, tier);
-    try { ignore await auditLog("TierGranted", ?principal, "caller=" # Principal.toText(msg.caller)) } catch _ {};
+    try { ignore await auditLog("TierGranted", ?principal, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(sub)
   };
 

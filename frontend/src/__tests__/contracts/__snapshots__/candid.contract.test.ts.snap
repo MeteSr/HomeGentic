@@ -415,6 +415,18 @@ exports[`contractor IDL factory > full signature snapshot 1`] = `
       "variant {ok:record {id:principal; bio:opt text; serviceArea:opt text; jobsCompleted:nat; alertZips:vec text; serviceZips:vec text; name:text; createdAt:int; trustScore:nat; email:text; isVerified:bool; licenseNumber:opt text; specialties:vec variant {Solar; HVAC; Pest; Pool; Plumbing; Painting; Concrete; Fencing; Gutters; Insulation; Landscaping; Windows; Electrical; Flooring; Roofing; GeneralHandyman}; notifyPush:opt bool; notifyEmail:opt text; phone:text}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists; RateLimitExceeded}}",
     ],
   },
+  "getPage": {
+    "args": [
+      "nat",
+      "nat",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "vec record {id:principal; bio:opt text; serviceArea:opt text; jobsCompleted:nat; alertZips:vec text; serviceZips:vec text; name:text; createdAt:int; trustScore:nat; email:text; isVerified:bool; licenseNumber:opt text; specialties:vec variant {Solar; HVAC; Pest; Pool; Plumbing; Painting; Concrete; Fencing; Gutters; Insulation; Landscaping; Windows; Electrical; Flooring; Roofing; GeneralHandyman}; notifyPush:opt bool; notifyEmail:opt text; phone:text}",
+    ],
+  },
   "getReviewsForContractor": {
     "args": [
       "principal",
@@ -549,6 +561,18 @@ exports[`contractor IDL factory — notification preferences (#279) > Contractor
     ],
     "rets": [
       "variant {ok:record {id:principal; bio:opt text; serviceArea:opt text; jobsCompleted:nat; alertZips:vec text; serviceZips:vec text; name:text; createdAt:int; trustScore:nat; email:text; isVerified:bool; licenseNumber:opt text; specialties:vec variant {Solar; HVAC; Pest; Pool; Plumbing; Painting; Concrete; Fencing; Gutters; Insulation; Landscaping; Windows; Electrical; Flooring; Roofing; GeneralHandyman}; notifyPush:opt bool; notifyEmail:opt text; phone:text}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists; RateLimitExceeded}}",
+    ],
+  },
+  "getPage": {
+    "args": [
+      "nat",
+      "nat",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "vec record {id:principal; bio:opt text; serviceArea:opt text; jobsCompleted:nat; alertZips:vec text; serviceZips:vec text; name:text; createdAt:int; trustScore:nat; email:text; isVerified:bool; licenseNumber:opt text; specialties:vec variant {Solar; HVAC; Pest; Pool; Plumbing; Painting; Concrete; Fencing; Gutters; Insulation; Landscaping; Windows; Electrical; Flooring; Roofing; GeneralHandyman}; notifyPush:opt bool; notifyEmail:opt text; phone:text}",
     ],
   },
   "getReviewsForContractor": {
@@ -1758,6 +1782,18 @@ exports[`quote IDL factory > full signature snapshot 1`] = `
   "getOpenRequestsForMe": {
     "args": [],
     "mode": [],
+    "rets": [
+      "vec record {id:text; status:variant {Quoted; Open; Closed; Accepted; Cancelled}; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; urgency:variant {Low; High; Medium; Emergency}; createdAt:int; minTrustScore:opt nat; description:text; propertyId:text; zipCode:opt text; closeAt:opt int; maxBids:opt nat; homeowner:principal; minReviews:opt nat; minJobsCompleted:opt nat}",
+    ],
+  },
+  "getOpenRequestsPage": {
+    "args": [
+      "nat",
+      "nat",
+    ],
+    "mode": [
+      "query",
+    ],
     "rets": [
       "vec record {id:text; status:variant {Quoted; Open; Closed; Accepted; Cancelled}; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; urgency:variant {Low; High; Medium; Emergency}; createdAt:int; minTrustScore:opt nat; description:text; propertyId:text; zipCode:opt text; closeAt:opt int; maxBids:opt nat; homeowner:principal; minReviews:opt nat; minJobsCompleted:opt nat}",
     ],
