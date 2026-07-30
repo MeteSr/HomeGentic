@@ -104,7 +104,7 @@ persistent actor AiProxy {
   private var permitsFetched         : Nat = 0;
 
   // Rate limiting
-  private transient let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
+  private let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   private var maxUpdatesPerMin : Nat = 30;
   private let ONE_MINUTE_NS    : Int = 60_000_000_000;
   private let ONE_DAY_NS       : Int = 86_400_000_000_000;
