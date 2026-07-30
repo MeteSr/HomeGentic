@@ -7,9 +7,15 @@ permissions:
   contents: read
 
 jobs:
+  test:
+    name: Pre-deploy test gate
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
   deploy:
     runs-on: ubuntu-latest
     environment: production
+    needs: [test]
     steps:
       - uses: actions/checkout@v6
       - name: Install Node.js

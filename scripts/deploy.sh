@@ -421,12 +421,12 @@ print(sum(1 for v in d.values() if isinstance(v,dict) and v.get(os.environ['ENV'
     echo "▶ Setting backup controller ($BACKUP_CONTROLLER_PRINCIPAL)..."
     for canister in "${CANISTERS[@]}"; do
       echo -n "  $canister... "
-      if icp canister settings update "$canister" \
+      if icp canister update-settings "$canister" \
           --add-controller "$BACKUP_CONTROLLER_PRINCIPAL" \
           -e "$ENV" >/dev/null 2>&1; then
         echo "✓"
       else
-        echo "⚠ (may already be set)"
+        echo "⚠ (may already be set or not yet deployed)"
       fi
     done
   fi
@@ -883,8 +883,7 @@ fi
 # ── Freezing threshold (cycle safety net) ────────────────────────────────────
 # Sets freezing_threshold to 90 days on every canister so the IC will reject
 # new calls before cycles hit zero, giving a 90-day window for the cycle-watchdog
-# to top up before an outage. Uses dfx (icp-cli update-settings not yet available,
-# see #174). Skipped silently when dfx is absent.
+# to top up before an outage.
 echo ""
 echo "============================================"
 echo "  Freezing Threshold (90-day safety net)"
@@ -895,25 +894,18 @@ FREEZE_CANISTERS=(
   recurring bills ai_proxy audit referrals
 )
 FREEZE_THRESHOLD=7776000  # 90 days in seconds
-if command -v dfx >/dev/null 2>&1; then
-  FREEZE_NETWORK="${ENV}"
-  [ "$ENV" = "local" ] && FREEZE_NETWORK="local"
-  FREEZE_OK=0
-  FREEZE_SKIP=0
-  for CANISTER in "${FREEZE_CANISTERS[@]}"; do
-    if dfx canister update-settings "$CANISTER" \
-         --freezing-threshold "$FREEZE_THRESHOLD" \
-         --network "$FREEZE_NETWORK" >/dev/null 2>&1; then
-      FREEZE_OK=$(( FREEZE_OK + 1 ))
-    else
-      FREEZE_SKIP=$(( FREEZE_SKIP + 1 ))
-    fi
-  done
-  echo "  ✓ Freezing threshold set (${FREEZE_OK} ok, ${FREEZE_SKIP} skipped — not yet deployed)"
-else
-  echo "  ⚠️  dfx not found — set freezing_threshold manually:"
-  echo "     dfx canister update-settings <name> --freezing-threshold 2592000 --network ic"
-fi
+FREEZE_OK=0
+FREEZE_SKIP=0
+for CANISTER in "${FREEZE_CANISTERS[@]}"; do
+  if icp canister update-settings "$CANISTER" \
+       --freezing-threshold "$FREEZE_THRESHOLD" \
+       -e "$ENV" >/dev/null 2>&1; then
+    FREEZE_OK=$(( FREEZE_OK + 1 ))
+  else
+    FREEZE_SKIP=$(( FREEZE_SKIP + 1 ))
+  fi
+done
+echo "  ✓ Freezing threshold set (${FREEZE_OK} ok, ${FREEZE_SKIP} skipped — not yet deployed)"
 
 # Internet Identity is managed by icp-cli via ii: true in icp.yaml.
 # icp network start -d deploys it automatically. Local URL: http://id.ai.localhost:8000

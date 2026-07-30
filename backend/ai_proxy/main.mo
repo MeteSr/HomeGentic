@@ -615,6 +615,8 @@ persistent actor AiProxy {
     from    : ?Text,
   ) : async Result.Result<Text, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (not isTrustedCanister(msg.caller) and not isAdmin(msg.caller))
+      return #err(#NotAuthorized);
     if (Text.size(resendApiKey) == 0) return #err(#KeyNotConfigured);
 
     resetEmailCountersIfNeeded();
@@ -694,6 +696,8 @@ persistent actor AiProxy {
     verifyUrl       : Text,
   ) : async Result.Result<Text, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (not isTrustedCanister(msg.caller) and not isAdmin(msg.caller))
+      return #err(#NotAuthorized);
     if (Text.size(resendApiKey) == 0) return #err(#KeyNotConfigured);
 
     let greeting    = switch (contractorName) {
