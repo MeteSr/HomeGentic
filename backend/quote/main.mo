@@ -478,12 +478,27 @@ persistent actor Quote {
   };
 
   /// Fetch all open or quoted requests — unfiltered, visible to any contractor.
+  /// Capped at 200 entries; use getOpenRequestsPage for full pagination.
   public query func getOpenRequests() : async [QuoteRequest] {
-    Iter.toArray(
+    let open = Iter.toArray(
       Iter.filter(Map.values(requests), func(r: QuoteRequest) : Bool {
         r.status == #Open or r.status == #Quoted
       })
-    )
+    );
+    if (open.size() <= 200) open
+    else Array.tabulate<QuoteRequest>(200, func(i) { open[i] })
+  };
+
+  public query func getOpenRequestsPage(from : Nat, limit : Nat) : async [QuoteRequest] {
+    let open = Iter.toArray(
+      Iter.filter(Map.values(requests), func(r: QuoteRequest) : Bool {
+        r.status == #Open or r.status == #Quoted
+      })
+    );
+    let total = open.size();
+    if (from >= total) return [];
+    let bound = Nat.min(from + Nat.min(limit, 100), total);
+    Array.tabulate<QuoteRequest>(bound - from, func(i) { open[from + i] })
   };
 
   /// Fetch all requests created by the caller.
