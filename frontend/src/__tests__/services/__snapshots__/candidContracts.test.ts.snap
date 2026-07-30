@@ -51,6 +51,7 @@ getBySpecialty(1) -> (1) [query]
 getContractor(1) -> (1) [query]
 getCredentials(1) -> (1) [query]
 getMyProfile(0) -> (1) [query]
+getPage(2) -> (1) [query]
 getReviewsForContractor(1) -> (1) [query]
 recordJobVerified(4) -> (1)
 register(1) -> (1)
@@ -198,6 +199,7 @@ getMyQuoteRequests(0) -> (1) [query]
 getMyQuotes(0) -> (1) [query]
 getOpenRequests(0) -> (1) [query]
 getOpenRequestsForMe(0) -> (1)
+getOpenRequestsPage(2) -> (1) [query]
 getQuoteRequest(1) -> (1) [query]
 getQuotesForRequest(1) -> (1) [query]
 setPropertyCanisterId(1) -> (1)
