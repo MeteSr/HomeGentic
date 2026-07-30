@@ -143,18 +143,16 @@ networks:
       bind: 127.0.0.1
       port: 4943
 
-  - name: testnet
-    mode: connected
-    url: https://ic0.app
-
   # ic is a reserved built-in network in icp-cli (https://icp-api.io) — do not redeclare it
 
 environments:
   - name: local
     network: local
 
+  # testnet and ic both target the IC mainnet; use the built-in ic network
+  # which has the root-key pre-configured (no custom network declaration needed)
   - name: testnet
-    network: testnet
+    network: ic
 
   - name: ic
     network: ic
