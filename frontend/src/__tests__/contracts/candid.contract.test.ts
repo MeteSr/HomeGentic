@@ -377,6 +377,7 @@ describe("quote IDL factory", () => {
       "getMyQuotes",
       "getOpenRequests",
       "getOpenRequestsForMe",
+      "getOpenRequestsPage",
       "getQuoteRequest",
       "getQuotesForRequest",
       "setPropertyCanisterId",
@@ -394,6 +395,7 @@ describe("quote IDL factory", () => {
       "getMyQuoteRequests",
       "getMyQuotes",
       "getOpenRequests",
+      "getOpenRequestsPage",
       "getQuoteRequest",
       "getQuotesForRequest",
     ]);
@@ -430,6 +432,7 @@ describe("contractor IDL factory", () => {
       "getContractor",
       "getCredentials",
       "getMyProfile",
+      "getPage",
       "getReviewsForContractor",
       "recordJobVerified",
       "register",
@@ -453,6 +456,7 @@ describe("contractor IDL factory", () => {
       "getContractor",
       "getCredentials",
       "getMyProfile",
+      "getPage",
       "getReviewsForContractor",
     ]);
   });
