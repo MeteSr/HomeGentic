@@ -159,12 +159,28 @@ export default function PropertyVerifyModal({ open, onClose, propertyId, onSucce
               Upload a document proving you own this property. We compute a SHA-256 hash and record it on-chain — the file itself is never stored.
             </p>
 
-            {/* Info banner */}
-            <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.blush, padding: "0.75rem 1rem", marginBottom: "1.5rem", display: "flex", gap: "0.75rem", borderRadius: RADIUS.sm }}>
-              <AlertCircle size={14} color={UI.sage} style={{ flexShrink: 0, marginTop: "0.1rem" }} />
-              <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.ink, lineHeight: 1.65, margin: 0 }}>
-                Verified properties can generate shareable HomeGentic reports and command higher buyer trust.
-              </p>
+            {/* What you'll unlock */}
+            <div style={{ border: `1px solid ${UI.rule}`, marginBottom: "1.5rem" }}>
+              <div style={{ padding: "0.5rem 0.875rem", borderBottom: `1px solid ${UI.rule}`, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
+                What you'll unlock
+              </div>
+              {[
+                { doc: "Utility Bill",               level: "Basic",   color: UI.sage,   perks: "Shareable reports · Contractor trust badge" },
+                { doc: "Property Deed or Tax Record", level: "Premium", color: "#2563EB", perks: "All Basic perks · Highest buyer trust · Premium badge" },
+              ].map(({ doc, level, color, perks }) => (
+                <div key={level} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.625rem 0.875rem", borderBottom: `1px solid ${UI.rule}` }}>
+                  <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color, background: `${color}18`, padding: "0.25rem 0.5rem", whiteSpace: "nowrap" }}>
+                    {level}
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.ink, fontWeight: 600 }}>{doc}</div>
+                    <div style={{ fontFamily: UI.mono, fontSize: "0.58rem", color: UI.inkLight, letterSpacing: "0.04em", marginTop: "0.1rem" }}>{perks}</div>
+                  </div>
+                </div>
+              ))}
+              <div style={{ padding: "0.5rem 0.875rem", fontFamily: UI.mono, fontSize: "0.58rem", color: UI.inkLight, letterSpacing: "0.04em" }}>
+                The file is never stored — only a SHA-256 hash is recorded on-chain.
+              </div>
             </div>
 
             {/* Step 1: Document type */}

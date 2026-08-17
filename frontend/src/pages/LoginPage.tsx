@@ -220,9 +220,33 @@ export default function LoginPage() {
           <h2 style={{ fontWeight: 700, fontSize: "1.5rem", color: C.navy, textAlign: "center", marginBottom: "0.375rem" }}>
             Log in to your account
           </h2>
-          <p style={{ fontSize: "0.875rem", color: C.muted, textAlign: "center", marginBottom: "2rem" }}>
-            Select your preferred sign-in method.
+          <p style={{ fontSize: "0.875rem", color: C.muted, textAlign: "center", marginBottom: "0.75rem" }}>
+            All options use{" "}
+            <a
+              href="https://identity.ic0.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: C.blue, fontWeight: 600, textDecoration: "none" }}
+            >
+              Internet Identity
+            </a>
+            {" "}— a password-free system that supports Google, Apple, passkeys, and hardware keys.
           </p>
+          <div style={{
+            background: C.blueBg,
+            border: `1px solid #BFDBFE`,
+            borderRadius: "8px",
+            padding: "0.625rem 0.875rem",
+            marginBottom: "1.5rem",
+            display: "flex",
+            gap: "0.5rem",
+            alignItems: "flex-start",
+          }}>
+            <span style={{ fontSize: "0.875rem", flexShrink: 0 }}>ℹ️</span>
+            <span style={{ fontSize: "0.8125rem", color: C.blue, lineHeight: 1.5 }}>
+              You'll be redirected to a secure sign-in page. Choose Google, Apple, a passkey, or a hardware key there. No HomeGentic password is ever created or stored.
+            </span>
+          </div>
 
           {/* Provider buttons — all open Internet Identity (which handles Google/Apple/WebAuthn) */}
           {[
