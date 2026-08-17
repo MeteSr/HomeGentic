@@ -97,8 +97,8 @@ export function StatCard({ icon, iconBg, title, children, action, actionLabel }:
 // ─── Stat cards ────────────────────────────────────────────────────────────────
 
 export function PropertyHealthScoreCard({
-  score, grade, delta, onViewDetails,
-}: { score: number; grade: string; delta: number; onViewDetails: () => void }) {
+  score, grade, delta, onViewDetails, onImprove,
+}: { score: number; grade: string; delta: number; onViewDetails: () => void; onImprove?: () => void }) {
   const r = 28, cx = 36, cy = 36;
   const circ   = 2 * Math.PI * r;
   const arcLen = circ * 0.75;
@@ -153,6 +153,19 @@ export function PropertyHealthScoreCard({
             </p>
           )}
           <p style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.muted }}>vs last month</p>
+          {onImprove && (
+            <button
+              onClick={onImprove}
+              style={{
+                marginTop: "0.375rem", background: "none", border: "none", padding: 0,
+                fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.green,
+                cursor: "pointer", display: "flex", alignItems: "center", gap: "0.25rem",
+                textDecoration: "underline", textUnderlineOffset: "2px",
+              }}
+            >
+              How to improve →
+            </button>
+          )}
         </div>
       </div>
     </StatCard>
@@ -486,52 +499,87 @@ export interface QuickAction {
   label: string;
   desc: string;
   onClick: () => void;
+  primary?: boolean;
 }
 
 export function QuickActionsPanel({ actions, isTablet }: { actions: QuickAction[]; isTablet?: boolean }) {
+  const [primary, ...secondary] = actions;
+  const cols = isTablet ? "repeat(2, 1fr)" : `repeat(${secondary.length}, 1fr)`;
   return (
     <Card style={{ padding: "1.25rem" }}>
       <h2 style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "1rem", color: C.text, marginBottom: "1rem" }}>
         Quick Actions
       </h2>
-      <div style={{ display: "grid", gridTemplateColumns: isTablet ? "repeat(3, 1fr)" : "repeat(5, 1fr)", gap: "0.75rem" }}>
-        {actions.map((a) => (
-          <button
-            key={a.label}
-            onClick={a.onClick}
-            style={{
-              background: "#F9FAFB", border: `1px solid ${C.border}`,
-              borderRadius: "0.625rem", padding: "1rem 0.75rem",
-              display: "flex", flexDirection: "column", alignItems: "flex-start",
-              gap: "0.5rem", cursor: "pointer", textAlign: "left",
-              transition: "background 0.15s, border-color 0.15s",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background = "#F3F4F6";
-              (e.currentTarget as HTMLButtonElement).style.borderColor = "#D1D5DB";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background = "#F9FAFB";
-              (e.currentTarget as HTMLButtonElement).style.borderColor = C.border;
-            }}
-          >
-            <div style={{
-              width: "2rem", height: "2rem", borderRadius: "0.5rem",
-              background: a.iconBg, display: "flex", alignItems: "center", justifyContent: "center",
-            }}>
-              {a.icon}
-            </div>
-            <div>
-              <p style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", fontWeight: 600, color: C.text, marginBottom: "0.25rem" }}>
-                {a.label}
-              </p>
-              <p style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.muted, lineHeight: 1.3 }}>
-                {a.desc}
-              </p>
-            </div>
-            <ArrowRight size={14} color={C.muted} style={{ alignSelf: "flex-end" }} />
-          </button>
-        ))}
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+        {/* Primary action — full-width filled */}
+        <button
+          onClick={primary.onClick}
+          style={{
+            background: C.green, border: `1px solid ${C.green}`,
+            borderRadius: "0.625rem", padding: "0.875rem 1.25rem",
+            display: "flex", alignItems: "center", gap: "0.75rem",
+            cursor: "pointer", textAlign: "left", width: "100%",
+            transition: "opacity 0.15s",
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = "0.9"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = "1"; }}
+        >
+          <div style={{
+            width: "2rem", height: "2rem", borderRadius: "0.5rem",
+            background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+          }}>
+            {primary.icon}
+          </div>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontFamily: FONTS.sans, fontSize: "0.9375rem", fontWeight: 700, color: "#fff", marginBottom: "0.125rem" }}>
+              {primary.label}
+            </p>
+            <p style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: "rgba(255,255,255,0.75)", lineHeight: 1.3 }}>
+              {primary.desc}
+            </p>
+          </div>
+          <ArrowRight size={16} color="rgba(255,255,255,0.8)" style={{ flexShrink: 0 }} />
+        </button>
+        {/* Secondary actions — equal grid */}
+        <div style={{ display: "grid", gridTemplateColumns: cols, gap: "0.75rem" }}>
+          {secondary.map((a) => (
+            <button
+              key={a.label}
+              onClick={a.onClick}
+              style={{
+                background: "#F9FAFB", border: `1px solid ${C.border}`,
+                borderRadius: "0.625rem", padding: "1rem 0.75rem",
+                display: "flex", flexDirection: "column", alignItems: "flex-start",
+                gap: "0.5rem", cursor: "pointer", textAlign: "left",
+                transition: "background 0.15s, border-color 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background = "#F3F4F6";
+                (e.currentTarget as HTMLButtonElement).style.borderColor = "#D1D5DB";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background = "#F9FAFB";
+                (e.currentTarget as HTMLButtonElement).style.borderColor = C.border;
+              }}
+            >
+              <div style={{
+                width: "2rem", height: "2rem", borderRadius: "0.5rem",
+                background: a.iconBg, display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                {a.icon}
+              </div>
+              <div>
+                <p style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", fontWeight: 600, color: C.text, marginBottom: "0.25rem" }}>
+                  {a.label}
+                </p>
+                <p style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.muted, lineHeight: 1.3 }}>
+                  {a.desc}
+                </p>
+              </div>
+              <ArrowRight size={14} color={C.muted} style={{ alignSelf: "flex-end" }} />
+            </button>
+          ))}
+        </div>
       </div>
     </Card>
   );
