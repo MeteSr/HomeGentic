@@ -162,6 +162,7 @@ export default function PropertyDetailPage() {
   const initialTab = (searchParams.get("tab") as Tab | null) ?? "timeline";
   const [tab,    setTab]    = useState<Tab>(initialTab);
   const [modals, setModals] = useState<ModalState>(MODALS_CLOSED);
+  const [showReportMenu, setShowReportMenu] = useState(false);
   const [estimatedHomeDollars, setEstimatedHomeDollars] = useState<number | null>(null);
   useEffect(() => { if (id) setEstimatedHomeDollars(getStoredEstimatedValue(id)); }, [id]);
 
@@ -336,23 +337,32 @@ export default function PropertyDetailPage() {
           </button>
           {property.verificationLevel !== "Unverified" && (
             <>
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.125rem" }}>
+              <div style={{ position: "relative" }}>
                 <button
-                  onClick={() => setModals(m => ({ ...m, report: true }))}
+                  onClick={() => setShowReportMenu(v => !v)}
                   style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 500, color: C.text, background: "white", border: `1px solid ${C.border}`, borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}
                 >
-                  <Share2 size={15} /> Share Report
+                  <Share2 size={15} /> Reports ▾
                 </button>
-                <span style={{ fontFamily: FONTS.sans, fontSize: "0.6875rem", color: C.muted, paddingLeft: "0.25rem" }}>Share with buyers, agents, or tenants</span>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.125rem" }}>
-                <button
-                  onClick={() => setModals(m => ({ ...m, insurance: true }))}
-                  style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 500, color: C.text, background: "white", border: `1px solid ${C.border}`, borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}
-                >
-                  <Shield size={15} /> Insurance Report
-                </button>
-                <span style={{ fontFamily: FONTS.sans, fontSize: "0.6875rem", color: C.muted, paddingLeft: "0.25rem" }}>For claims, renewals, or coverage review</span>
+                {showReportMenu && (
+                  <>
+                    <div style={{ position: "fixed", inset: 0, zIndex: 49 }} onClick={() => setShowReportMenu(false)} />
+                    <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 50, background: "white", border: `1px solid ${C.border}`, borderRadius: "0.5rem", boxShadow: "0 4px 16px rgba(0,0,0,0.1)", minWidth: "220px", overflow: "hidden" }}>
+                      <button onClick={() => { setShowReportMenu(false); setModals(m => ({ ...m, report: true })); }} style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", width: "100%", padding: "0.75rem 1rem", background: "none", border: "none", cursor: "pointer", borderBottom: `1px solid ${C.border}` }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#F9FAFB"; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "none"; }}>
+                        <span style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, color: C.text }}><Share2 size={14} /> Share Report</span>
+                        <span style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.muted, marginTop: "0.1rem" }}>Share with buyers, agents, or tenants</span>
+                      </button>
+                      <button onClick={() => { setShowReportMenu(false); setModals(m => ({ ...m, insurance: true })); }} style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", width: "100%", padding: "0.75rem 1rem", background: "none", border: "none", cursor: "pointer" }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#F9FAFB"; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "none"; }}>
+                        <span style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, color: C.text }}><Shield size={14} /> Insurance Report</span>
+                        <span style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.muted, marginTop: "0.1rem" }}>For claims, renewals, or coverage review</span>
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
               {!fsboRecord?.isFsbo && (
                 <button

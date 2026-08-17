@@ -712,6 +712,7 @@ export default function ContractorDashboardPage() {
                 { icon: <Clock size={11} />, text: "Respond within 2 hours — fast quotes win." },
                 { icon: <Star  size={11} />, text: "Include a brief note with your quote." },
                 { icon: <Briefcase size={11} />, text: "Emergency leads pay 30–50% more." },
+                { icon: <UserCog size={11} />, text: "Share your portfolio link with a homeowner so they can invite you to sign a specific job — no cold outreach needed." },
               ].map((tip, i) => (
                 <div key={i} style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start", marginBottom: "0.625rem" }}>
                   <span style={{ color: UI.rust, flexShrink: 0, marginTop: "0.1rem" }}>{tip.icon}</span>
@@ -724,19 +725,19 @@ export default function ContractorDashboardPage() {
             {profile && (
               <div style={{ borderTop: `1px solid ${UI.rule}`, padding: "1rem 1.25rem" }}>
                 <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.5rem" }}>
-                  Credential Portfolio
+                  Get Invited to Jobs
                 </p>
                 <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: UI.inkLight, lineHeight: 1.5, marginBottom: "0.625rem" }}>
-                  Share your on-chain verified work history with homeowners and agents.
+                  Send homeowners your profile link — they can invite you directly to sign a job or submit a bid without you needing to wait for the leads feed.
                 </p>
                 <button
                   onClick={() => {
                     const url = `${window.location.origin}/contractor/${profile.id}`;
-                    navigator.clipboard.writeText(url).then(() => toast.success("Portfolio link copied"));
+                    navigator.clipboard.writeText(url).then(() => toast.success("Profile link copied — send it to any homeowner"));
                   }}
-                  style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.5rem 0.875rem", border: `1px solid ${UI.rule}`, background: "none", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight, cursor: "pointer" }}
+                  style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.5rem 0.875rem", border: `1px solid ${UI.rust}`, background: COLORS.blush, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.rust, cursor: "pointer", fontWeight: 700 }}
                 >
-                  Copy Portfolio Link
+                  Copy Profile Link
                 </button>
               </div>
             )}

@@ -261,8 +261,8 @@ export default function DashboardPage() {
     {
       icon:    <BarChart3 size={16} color={C.blue} />,
       iconBg:  C.blueBg,
-      label:   "View Reports",
-      desc:    "See insights and property reports",
+      label:   "Market Intelligence",
+      desc:    "ROI rankings, project impact, competitive analysis",
       onClick: () => navigate("/market"),
     },
   ];
@@ -295,6 +295,42 @@ export default function DashboardPage() {
               Here's what's happening with your home.
             </p>
           </div>
+
+          {/* Getting started — shown only when user has no jobs yet */}
+          {!loading && properties.length > 0 && allJobs.length === 0 && (
+            <div style={{
+              border: `1px solid ${C.border}`, borderRadius: "0.75rem",
+              background: "white", padding: "1.25rem 1.5rem",
+              display: "flex", flexDirection: "column", gap: "0.75rem",
+            }}>
+              <div>
+                <p style={{ fontFamily: FONTS.sans, fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: C.muted, marginBottom: "0.25rem" }}>
+                  Getting started
+                </p>
+                <h2 style={{ fontFamily: FONTS.sans, fontWeight: 700, fontSize: "1rem", color: C.text, margin: 0 }}>
+                  3 steps to protect your home
+                </h2>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: "0.75rem" }}>
+                {[
+                  { step: "1", label: "Log your first job", sub: "Record any past repair or maintenance — roof, HVAC, plumbing, anything.", action: "Log a job →", onClick: () => openLogJob(undefined) },
+                  { step: "2", label: "Verify your property", sub: "Upload a utility bill or deed to unlock shareable reports and a trust badge.", action: "Verify now →", onClick: () => navigate(`/properties/${activePropertyId}`) },
+                  { step: "3", label: "Explore Market Intel", sub: "See which projects have the highest ROI for your home and market.", action: "See rankings →", onClick: () => navigate("/market") },
+                ].map(({ step, label, sub, action, onClick }) => (
+                  <div key={step} style={{ border: `1px solid ${C.border}`, borderRadius: "0.5rem", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                    <div style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", background: C.greenBg, border: `1px solid ${C.green}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <span style={{ fontFamily: FONTS.sans, fontSize: "0.65rem", fontWeight: 700, color: C.green }}>{step}</span>
+                    </div>
+                    <p style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.875rem", color: C.text, margin: 0 }}>{label}</p>
+                    <p style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: C.muted, lineHeight: 1.5, margin: 0 }}>{sub}</p>
+                    <button onClick={onClick} style={{ alignSelf: "flex-start", fontFamily: FONTS.sans, fontSize: "0.8125rem", fontWeight: 600, color: C.green, background: "none", border: "none", padding: 0, cursor: "pointer" }}>
+                      {action}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* 4 stat cards */}
           {!loading && properties.length > 0 && (
