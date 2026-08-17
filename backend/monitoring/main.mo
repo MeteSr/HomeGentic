@@ -953,10 +953,10 @@ persistent actor Monitoring {
 
   /// Set the canister IDs used by getProductMetrics(). Admin-only.
   public shared(msg) func setProductCanisterIds(
-    prop    : Text;
-    job     : Text;
-    quote   : Text;
-    payment : Text;
+    prop    : Text,
+    job     : Text,
+    quote   : Text,
+    payment : Text,
   ) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     propCanisterId    := prop;
