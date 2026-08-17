@@ -641,6 +641,7 @@ MARKET_ID=$(icp canister status market -e "$ENV" --id-only 2>/dev/null || echo "
 BILLS_ID=$(icp canister status bills -e "$ENV" --id-only 2>/dev/null || echo "")
 AUTH_ID=$(icp canister status auth -e "$ENV" --id-only 2>/dev/null || echo "")
 AUDIT_ID=$(icp canister status audit -e "$ENV" --id-only 2>/dev/null || echo "")
+MONITORING_ID=$(icp canister status monitoring -e "$ENV" --id-only 2>/dev/null || echo "")
 
 if [ -n "$JOB_ID" ]      && [ -n "$PAYMENT_ID" ];    then
   echo "  Wiring payment -> job..."
@@ -756,6 +757,12 @@ fi
 if [ -n "$MARKET_ID" ]     && [ -n "$JOB_ID" ]; then
   echo "  Wiring job -> market (score computation)..."
   icp canister call market     setJobCanisterId        "(\"$JOB_ID\")"              -e "$ENV" &
+fi
+if [ -n "$MONITORING_ID" ] && [ -n "$PROPERTY_ID" ] && [ -n "$JOB_ID" ] && [ -n "$QUOTE_ID" ] && [ -n "$PAYMENT_ID" ]; then
+  echo "  Wiring product metrics -> monitoring..."
+  icp canister call monitoring setProductCanisterIds \
+    "(\"$PROPERTY_ID\", \"$JOB_ID\", \"$QUOTE_ID\", \"$PAYMENT_ID\")" \
+    -e "$ENV" 2>/dev/null &
 fi
 
 wait
