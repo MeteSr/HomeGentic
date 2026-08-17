@@ -15,9 +15,9 @@ jobs:
     environment: testnet
     if: github.event.workflow_run.conclusion == 'success'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: 'npm'
@@ -30,7 +30,7 @@ jobs:
         run: npm install -g @icp-sdk/icp-cli
 
       - name: Cache mops packages
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cache/mops
           key: mops-${{ runner.os }}-${{ hashFiles('mops.toml') }}
@@ -83,8 +83,8 @@ jobs:
     environment: testnet
     if: github.event.workflow_run.conclusion == 'success'
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: npm

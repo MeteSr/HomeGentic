@@ -5,6 +5,7 @@
  */
 
 import Array     "mo:core/Array";
+import Error     "mo:core/Error";
 import Float     "mo:core/Float";
 import Map       "mo:core/Map";
 import Int       "mo:core/Int";
@@ -131,6 +132,41 @@ persistent actor Monitoring {
     #InvalidInput: Text;
   };
 
+  public type ProductMetrics = {
+    // Property verification funnel
+    totalProperties         : Nat;
+    unverifiedProperties    : Nat;
+    pendingReviewProperties : Nat;
+    verifiedProperties      : Nat;   // Basic + Premium combined
+    verificationRate        : Float; // verifiedProperties / totalProperties
+
+    // Job activity
+    totalJobs        : Nat;
+    completedJobs    : Nat;
+    verifiedJobs     : Nat;
+    diyJobs          : Nat;
+    avgJobsPerProperty : Float;  // totalJobs / totalProperties; 0 if no properties
+
+    // Quote funnel
+    totalQuoteRequests  : Nat;
+    openQuoteRequests   : Nat;
+    acceptedQuotes      : Nat;
+    quoteAcceptanceRate : Float; // acceptedQuotes / totalQuoteRequests; 0 if no requests
+
+    // Subscription tier distribution
+    totalSubscriptions  : Nat;
+    freeUsers           : Nat;
+    basicUsers          : Nat;
+    proUsers            : Nat;
+    premiumUsers        : Nat;
+    contractorFreeUsers : Nat;
+    contractorProUsers  : Nat;
+    activePaidUsers     : Nat;
+    estimatedMrrUsd     : Nat;
+
+    snapshotAt : Time.Time;
+  };
+
   /// Per-method cycles summary stored by recordCallCycles().
   /// avgCycles is a rolling average; sampleCount tracks how many observations
   /// went into the average so callers can judge statistical confidence.
@@ -201,6 +237,55 @@ persistent actor Monitoring {
   private let warningResponseMs : Nat   = 2_000;
   private let warningMemoryPct  : Float = 80.0;
 
+  // ─── Cross-canister actor interfaces (for getProductMetrics) ────────────────
+
+  type PropertyActor = actor {
+    getMetrics : shared query () -> async {
+      totalProperties         : Nat;
+      verifiedProperties      : Nat;
+      pendingReviewProperties : Nat;
+      unverifiedProperties    : Nat;
+      isPaused                : Bool;
+      errorsByMethod          : [(Text, Nat)];
+    };
+  };
+
+  type JobActor = actor {
+    getMetrics : shared query () -> async {
+      totalJobs     : Nat;
+      pendingJobs   : Nat;
+      completedJobs : Nat;
+      verifiedJobs  : Nat;
+      diyJobs       : Nat;
+      isPaused      : Bool;
+      errorsByMethod : [(Text, Nat)];
+    };
+  };
+
+  type QuoteActor = actor {
+    getMetrics : shared query () -> async {
+      totalRequests    : Nat;
+      openRequests     : Nat;
+      acceptedRequests : Nat;
+      totalQuotes      : Nat;
+      isPaused         : Bool;
+    };
+  };
+
+  type PaymentActor = actor {
+    getSubscriptionStats : shared query () -> async {
+      total           : Nat;
+      free            : Nat;
+      basic           : Nat;
+      pro             : Nat;
+      premium         : Nat;
+      contractorFree  : Nat;
+      contractorPro   : Nat;
+      activePaid      : Nat;
+      estimatedMrrUsd : Nat;
+    };
+  };
+
   // ─── Stable State ────────────────────────────────────────────────────────────
 
   private var alertCounter: Nat = 0;
@@ -211,6 +296,11 @@ persistent actor Monitoring {
   private var trackedCanisterEntries : [TrackedCanister] = [];
   /// Configurable low-cycle threshold — default 1T cycles (issue #55).
   private var lowCycleThresholdT : Nat = 1_000_000_000_000;
+  /// Canister IDs for cross-canister product metrics pull.
+  private var propCanisterId    : Text = "";
+  private var jobCanisterId     : Text = "";
+  private var quoteCanisterId   : Text = "";
+  private var paymentCanisterId : Text = "";
   // ─── Stable State ────────────────────────────────────────────────────────────
 
   private let canisterMetrics = Map.empty<Principal, CanisterMetrics>();
@@ -857,6 +947,93 @@ persistent actor Monitoring {
       if (index < 10) { top := Array.concat(top, [item]); index += 1 };
     };
     { total = Map.size(frontendErrors); unresolved; topFingerprints = top }
+  };
+
+  // ─── Product Metrics (cross-canister pull) ───────────────────────────────────
+
+  /// Set the canister IDs used by getProductMetrics(). Admin-only.
+  public shared(msg) func setProductCanisterIds(
+    prop    : Text,
+    job     : Text,
+    quote   : Text,
+    payment : Text,
+  ) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    propCanisterId    := prop;
+    jobCanisterId     := job;
+    quoteCanisterId   := quote;
+    paymentCanisterId := payment;
+    #ok(())
+  };
+
+  /// Pull live product metrics from property, job, quote, and payment canisters.
+  /// Returns #err if any canister ID has not been configured or a call fails.
+  public func getProductMetrics() : async Result.Result<ProductMetrics, Text> {
+    if (propCanisterId == "" or jobCanisterId == "" or quoteCanisterId == "" or paymentCanisterId == "") {
+      return #err("Product canister IDs not configured. Call setProductCanisterIds() first.");
+    };
+
+    let propActor    : PropertyActor = actor(propCanisterId);
+    let jobActor     : JobActor      = actor(jobCanisterId);
+    let quoteActor   : QuoteActor    = actor(quoteCanisterId);
+    let paymentActor : PaymentActor  = actor(paymentCanisterId);
+
+    try {
+      // Fork all 4 calls before awaiting any — parallel cross-canister execution.
+      let fProp    = propActor.getMetrics();
+      let fJob     = jobActor.getMetrics();
+      let fQuote   = quoteActor.getMetrics();
+      let fPayment = paymentActor.getSubscriptionStats();
+      let pm = await fProp;
+      let jm = await fJob;
+      let qm = await fQuote;
+      let sm = await fPayment;
+
+      let verificationRate = if (pm.totalProperties > 0)
+        Float.fromInt(pm.verifiedProperties) / Float.fromInt(pm.totalProperties)
+        else 0.0;
+
+      let avgJobsPerProperty = if (pm.totalProperties > 0)
+        Float.fromInt(jm.totalJobs) / Float.fromInt(pm.totalProperties)
+        else 0.0;
+
+      let quoteAcceptanceRate = if (qm.totalRequests > 0)
+        Float.fromInt(qm.acceptedRequests) / Float.fromInt(qm.totalRequests)
+        else 0.0;
+
+      #ok({
+        totalProperties         = pm.totalProperties;
+        unverifiedProperties    = pm.unverifiedProperties;
+        pendingReviewProperties = pm.pendingReviewProperties;
+        verifiedProperties      = pm.verifiedProperties;
+        verificationRate;
+
+        totalJobs          = jm.totalJobs;
+        completedJobs      = jm.completedJobs;
+        verifiedJobs       = jm.verifiedJobs;
+        diyJobs            = jm.diyJobs;
+        avgJobsPerProperty;
+
+        totalQuoteRequests  = qm.totalRequests;
+        openQuoteRequests   = qm.openRequests;
+        acceptedQuotes      = qm.acceptedRequests;
+        quoteAcceptanceRate;
+
+        totalSubscriptions  = sm.total;
+        freeUsers           = sm.free;
+        basicUsers          = sm.basic;
+        proUsers            = sm.pro;
+        premiumUsers        = sm.premium;
+        contractorFreeUsers = sm.contractorFree;
+        contractorProUsers  = sm.contractorPro;
+        activePaidUsers     = sm.activePaid;
+        estimatedMrrUsd     = sm.estimatedMrrUsd;
+
+        snapshotAt = Time.now();
+      })
+    } catch (e) {
+      #err("Cross-canister call failed: " # Error.message(e))
+    }
   };
 
   // ─── Admin Functions ──────────────────────────────────────────────────────────

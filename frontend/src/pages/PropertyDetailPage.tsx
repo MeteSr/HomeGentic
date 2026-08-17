@@ -183,9 +183,9 @@ export default function PropertyDetailPage() {
   const tabs: { key: Tab; label: string }[] = [
     { key: "timeline",  label: "Timeline" },
     { key: "jobs",      label: `Jobs (${jobs.length})` },
+    { key: "bills",     label: "Bills" },
     { key: "rooms",     label: `Rooms (${rooms.length})` },
     { key: "documents", label: "Documents" },
-    { key: "bills",     label: "Bills" },
     { key: "settings",  label: "Settings" },
   ];
 

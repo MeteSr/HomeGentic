@@ -14,9 +14,9 @@ jobs:
     name: motoko-compile-check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
 
@@ -24,7 +24,7 @@ jobs:
         run: npm install -g @icp-sdk/icp-cli
 
       - name: Cache mops packages
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cache/mops
           key: mops-${{ runner.os }}-${{ hashFiles('mops.toml') }}
@@ -79,9 +79,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [motoko-check]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: 'npm'
@@ -103,7 +103,7 @@ jobs:
           dfx --version
 
       - name: Cache mops packages
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cache/mops
           key: mops-${{ runner.os }}-${{ hashFiles('mops.toml') }}
@@ -231,9 +231,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [motoko-check]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: 'npm'
@@ -254,7 +254,7 @@ jobs:
           dfx --version
 
       - name: Cache mops packages
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cache/mops
           key: mops-${{ runner.os }}-${{ hashFiles('mops.toml') }}
@@ -374,9 +374,9 @@ jobs:
       contents: read
       pull-requests: write   # allows posting the coverage comment on PRs
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: 'npm'
@@ -413,9 +413,9 @@ jobs:
   test-perf:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: 'npm'
@@ -429,9 +429,9 @@ jobs:
   test-voice:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: 'npm'
@@ -465,9 +465,9 @@ jobs:
     # now silently skips fetchRootKey when the replica is absent.
     needs: [test-frontend]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: 'npm'

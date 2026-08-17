@@ -455,18 +455,28 @@ export default function ContractorDashboardPage() {
             { label: "Pending Signatures", value: loading ? "…" : pendingJobs.length, alert: pendingJobs.length > 0 },
             { label: "Jobs Completed",     value: profile?.jobsCompleted ?? "—" },
             { label: "Win Rate",           value: winRate !== null ? `${winRate}%` : "—", highlight: winRate !== null && winRate >= 50 },
-            { label: "Trust Score",        value: profile ? `${profile.trustScore}/100` : "—", accent: true },
+            { label: "Trust Score", value: profile ? `${profile.trustScore}/100` : "—", accent: true,
+              hint: "Composite of verified jobs (40%), review rating (40%), and profile completeness (20%). Improves when homeowners verify your work and leave reviews." },
           ].map((stat) => {
             const isAccent    = !!(stat as any).accent;
             const isAlert     = !!(stat as any).alert;
             const isHighlight = !!(stat as any).highlight;
+            const hint        = (stat as any).hint as string | undefined;
             const bg    = isAccent ? UI.ink : isAlert ? COLORS.blush : isHighlight ? COLORS.sageLight : COLORS.white;
             const color = isAccent ? COLORS.plumMid : isAlert ? UI.rust : isHighlight ? UI.sage : UI.inkLight;
             const valColor = isAccent ? COLORS.white : isAlert ? UI.rust : isHighlight ? UI.sage : UI.ink;
             return (
-              <div key={stat.label} style={{ padding: "1.5rem", borderRight: `1px solid ${UI.rule}`, borderBottom: `1px solid ${UI.rule}`, background: bg }}>
-                <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color, marginBottom: "0.625rem" }}>
+              <div key={stat.label} style={{ padding: "1.5rem", borderRight: `1px solid ${UI.rule}`, borderBottom: `1px solid ${UI.rule}`, background: bg, position: "relative" }}>
+                <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color, marginBottom: "0.625rem", display: "flex", alignItems: "center", gap: "0.375rem" }}>
                   {stat.label}
+                  {hint && (
+                    <span
+                      title={hint}
+                      style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "13px", height: "13px", borderRadius: "50%", border: `1px solid ${color}`, fontSize: "0.55rem", cursor: "help", flexShrink: 0 }}
+                    >
+                      ?
+                    </span>
+                  )}
                 </div>
                 <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "2rem", lineHeight: 1, color: valColor }}>
                   {stat.value}
