@@ -1,5 +1,5 @@
 import React from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthStore } from "@/store/authStore";
 
@@ -95,10 +95,19 @@ const FEATURES = [
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 
+const ROLE_CONTEXT: Record<string, { heading: string; sub: string }> = {
+  homeowner:  { heading: "Welcome, homeowner",  sub: "Sign in to manage your property records and maintenance history." },
+  contractor: { heading: "Welcome, contractor", sub: "Sign in to view quote requests, log jobs, and grow your reputation." },
+  realtor:    { heading: "Welcome, realtor",    sub: "Sign in to access listings, client properties, and market insights." },
+};
+
 export default function LoginPage() {
   const { login, devLogin } = useAuth();
   const { isLoading } = useAuthStore();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const role = searchParams.get("role") ?? "";
+  const ctx = ROLE_CONTEXT[role];
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Inter', 'IBM Plex Sans', sans-serif", display: "flex", flexDirection: "column" }}>
@@ -218,8 +227,13 @@ export default function LoginPage() {
           </div>
 
           <h2 style={{ fontWeight: 700, fontSize: "1.5rem", color: C.navy, textAlign: "center", marginBottom: "0.375rem" }}>
-            Log in to your account
+            {ctx ? ctx.heading : "Log in to your account"}
           </h2>
+          {ctx && (
+            <p style={{ fontSize: "0.875rem", color: C.muted, textAlign: "center", marginBottom: "0.75rem" }}>
+              {ctx.sub}
+            </p>
+          )}
           <p style={{ fontSize: "0.875rem", color: C.muted, textAlign: "center", marginBottom: "0.75rem" }}>
             All options use{" "}
             <a
