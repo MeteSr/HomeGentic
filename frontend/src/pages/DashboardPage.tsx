@@ -308,6 +308,7 @@ export default function DashboardPage() {
                 grade={scoreGrade}
                 delta={delta}
                 onViewDetails={() => navigate(`/properties/${activePropertyId}`)}
+                onImprove={() => navigate("/maintenance")}
               />
               <UpcomingMaintenanceStatCard
                 thisWeek={maintenanceThisWeek}
