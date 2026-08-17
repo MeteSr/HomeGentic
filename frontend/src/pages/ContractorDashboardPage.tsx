@@ -368,9 +368,10 @@ export default function ContractorDashboardPage() {
   const newLeadsCount   = openRequests.filter((r) => !submittedIds.has(r.id)).length;
   const newSinceLogin   = countNew(openRequests, lastLoginAt);
 
-  const resolvedBids = myBids.filter((b) => b.status === "accepted" || b.status === "rejected");
-  const wonBids      = myBids.filter((b) => b.status === "accepted");
-  const winRate      = resolvedBids.length > 0 ? Math.round((wonBids.length / resolvedBids.length) * 100) : null;
+  const resolvedBids       = myBids.filter((b) => b.status === "accepted" || b.status === "rejected");
+  const wonBids            = myBids.filter((b) => b.status === "accepted");
+  const winRate            = resolvedBids.length > 0 ? Math.round((wonBids.length / resolvedBids.length) * 100) : null;
+  const totalEarningsCents = wonBids.reduce((sum, b) => sum + b.amount, 0);
 
   return (
     <Layout>
@@ -447,7 +448,7 @@ export default function ContractorDashboardPage() {
         )}
 
         {/* Stats */}
-        <ResponsiveGrid cols={{ mobile: 2, tablet: 4, desktop: 7 }} style={{ borderTop: `1px solid ${UI.rule}`, borderLeft: `1px solid ${UI.rule}`, marginBottom: "2.5rem" }} gap="0">
+        <ResponsiveGrid cols={{ mobile: 2, tablet: 4, desktop: 8 }} style={{ borderTop: `1px solid ${UI.rule}`, borderLeft: `1px solid ${UI.rule}`, marginBottom: "2.5rem" }} gap="0">
           {[
             { label: "Open Leads",         value: loading ? "…" : newLeadsCount },
             { label: "New Since Last Visit", value: loading ? "…" : newSinceLogin, alert: newSinceLogin > 0 },
@@ -455,6 +456,10 @@ export default function ContractorDashboardPage() {
             { label: "Pending Signatures", value: loading ? "…" : pendingJobs.length, alert: pendingJobs.length > 0 },
             { label: "Jobs Completed",     value: profile?.jobsCompleted ?? "—" },
             { label: "Win Rate",           value: winRate !== null ? `${winRate}%` : "—", highlight: winRate !== null && winRate >= 50 },
+            { label: "Earnings via HG",
+              value: loading ? "…" : totalEarningsCents > 0 ? `$${Math.round(totalEarningsCents / 100).toLocaleString()}` : "—",
+              highlight: totalEarningsCents > 0,
+              hint: "Total value of accepted bids submitted through HomeGentic." },
             { label: "Trust Score", value: profile ? `${profile.trustScore}/100` : "—", accent: true,
               hint: "Composite of verified jobs (40%), review rating (40%), and profile completeness (20%). Improves when homeowners verify your work and leave reviews." },
           ].map((stat) => {
