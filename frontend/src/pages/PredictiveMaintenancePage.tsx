@@ -370,7 +370,7 @@ export default function PredictiveMaintenancePage() {
     if (!report) return [];
     const list = [];
     if (criticalPreds.length > 0) {
-      list.push({ icon: "⚡", type: "warning" as const, title: `Your ${criticalPreds[0].systemName} needs attention.`, desc: `This system is ${Math.abs(criticalPreds[0].yearsRemaining)} year(s) past its expected service life. Schedule maintenance to prevent costly repairs.`, action: "View Details" });
+      list.push({ icon: "⚡", type: "warning" as const, title: `Your ${criticalPreds[0].systemName} needs attention.`, desc: `This system is ${Math.abs(criticalPreds[0].yearsRemaining)} year(s) past its expected service life. Schedule maintenance to prevent costly repairs.`, action: "Get Quotes →", navTo: `/quotes/new?system=${encodeURIComponent(criticalPreds[0].systemName)}` });
     }
     if (soonPreds.length > 0) {
       list.push({ icon: "🔧", type: "info" as const, title: `${soonPreds[0].systemName} service recommended.`, desc: `Proactive maintenance can extend your system's life and keep your warranty valid. Estimated service: ${maintenanceService.formatCents(soonPreds[0].serviceCallLowCents)}–${maintenanceService.formatCents(soonPreds[0].serviceCallHighCents)}.`, action: "View Tasks" });
@@ -647,8 +647,8 @@ export default function PredictiveMaintenancePage() {
                               {ins.desc}
                             </div>
                             <button
-                              onClick={() => ins.type === "warning" ? setShowSystemAges(true) : setMaintenanceFilter("dueSoon")}
-                              style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", fontWeight: 600, color: C.blue, border: `1px solid ${C.border}`, background: "white", borderRadius: "0.375rem", padding: "0.375rem 0.75rem", cursor: "pointer" }}
+                              onClick={() => (ins as any).navTo ? navigate((ins as any).navTo) : setMaintenanceFilter("dueSoon")}
+                              style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", fontWeight: 600, color: ins.type === "warning" ? C.red : C.blue, border: `1px solid ${ins.type === "warning" ? C.red + "55" : C.border}`, background: ins.type === "warning" ? C.redBg : "white", borderRadius: "0.375rem", padding: "0.375rem 0.75rem", cursor: "pointer" }}
                             >
                               {ins.action}
                             </button>

@@ -146,6 +146,38 @@ export const CSS = `
 }
 .hfl-btn-soft:hover { border-color: rgba(0,0,0,0.22); box-shadow: var(--shadow-sm); }
 
+/* ── Persona chips ───────────────────────────────────────────────────────── */
+.hfl-persona-row {
+  display: flex; align-items: center; gap: 0.5rem;
+  margin-bottom: 2rem; flex-wrap: wrap;
+}
+.hfl-persona-label {
+  font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted);
+  white-space: nowrap; margin-right: 0.25rem;
+}
+.hfl-persona-chip {
+  display: flex; align-items: center; gap: 0.375rem;
+  font-size: 0.8125rem; font-weight: 600; color: var(--navy);
+  background: white; border: 1.5px solid rgba(0,0,0,0.12);
+  padding: 0.375rem 0.875rem; border-radius: 100px; cursor: pointer;
+  box-shadow: var(--shadow-xs);
+  transition: border-color 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s;
+  white-space: nowrap;
+}
+.hfl-persona-chip:hover {
+  border-color: var(--teal-dark); color: var(--teal-dark);
+  box-shadow: 0 2px 8px rgba(0,123,120,0.18);
+}
+.hfl-persona-chip.hfl-persona-chip--contractor:hover {
+  border-color: var(--orange); color: var(--orange);
+  box-shadow: 0 2px 8px rgba(235,66,3,0.15);
+}
+.hfl-persona-chip.hfl-persona-chip--realtor:hover {
+  border-color: #7C3AED; color: #7C3AED;
+  box-shadow: 0 2px 8px rgba(124,58,237,0.15);
+}
+
 /* ── Trust Pills (inline in hero) ───────────────────────────────────────── */
 .hfl-trust-pills {
   display: grid; grid-template-columns: 1fr 1fr;

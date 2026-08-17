@@ -268,7 +268,7 @@ function DashboardMockup() {
 
 /* ── Data ── */
 const TRUST_BADGES: { bg: string; color: string; Icon: React.ElementType; title: string; sub: string }[] = [
-  { bg: "#E0FAFA", color: "#00CEC8", Icon: ShieldCheck,   title: "Blockchain Verified",  sub: "Built on ICP for data permanence" },
+  { bg: "#E0FAFA", color: "#00CEC8", Icon: ShieldCheck,   title: "Tamper-Proof Records",  sub: "No one can alter or delete your history" },
   { bg: "#FFF3EE", color: "#FF9C5F", Icon: Lock,          title: "Secure & Private",      sub: "You own your data. Always." },
   { bg: "#FFF3EE", color: "#EB4203", Icon: CheckCircle2,  title: "Dual-Signature",        sub: "Every job verified by both parties" },
   { bg: "#E0FAFA", color: "#00CEC8", Icon: Infinity,      title: "Internet Computer",     sub: "Decentralized. Scalable. Unstoppable." },
@@ -293,7 +293,7 @@ const FEATURES: { bg: string; color: string; Icon: React.ElementType; title: str
   { bg: "#E0FAFA", color: "#00CEC8", Icon: Wrench,        title: "Smart Maintenance",     desc: "Track history, schedule tasks, and get AI-powered predictive maintenance recommendations." },
   { bg: "#FFF3EE", color: "#FF9C5F", Icon: Wifi,          title: "IoT Integration",       desc: "Connect Nest, Ecobee, Moen Flo, Ring Alarm, and 8+ devices for real-time monitoring." },
   { bg: "#FFF3EE", color: "#EB4203", Icon: MessageSquare, title: "Get Quotes",            desc: "Request quotes from trusted contractors and compare bids side-by-side." },
-  { bg: "#FFF3EE", color: "#EB4203", Icon: ShieldCheck,   title: "Dual-Signature Jobs",  desc: "Jobs are verified by both homeowner and contractor and immutably recorded on ICP." },
+  { bg: "#FFF3EE", color: "#EB4203", Icon: ShieldCheck,   title: "Dual-Signature Jobs",  desc: "Jobs are verified by both homeowner and contractor, creating a permanent record neither party can alter." },
   { bg: "#E0FAFA", color: "#00CEC8", Icon: Home,          title: "FSBO Listings",        desc: "List your property for sale, manage sealed-bid offers, and match with verified agents." },
   { bg: "#FFF3EE", color: "#FF9C5F", Icon: Globe,         title: "360° Panorama Viewer", desc: "Immersive property tours with PlayCanvas-powered 360° panorama viewer." },
   { bg: "#FFF3EE", color: "#EB4203", Icon: Mic,           title: "AI Voice Agent",        desc: "Ask questions, get updates, and manage your property—hands-free with Claude-powered AI." },
@@ -420,13 +420,25 @@ export default function LandingPage() {
               </h1>
               <p>
                 HomeGentic helps homeowners manage maintenance,
-                documentation, and transactions with blockchain-verified trust
+                documentation, and transactions with permanently verified records
                 and AI-powered insights.
               </p>
               <div className="hfl-actions">
                 <button className="hfl-btn-main" onClick={() => navigate("/login")}>Get Started Free</button>
                 <button className="hfl-btn-soft" onClick={() => scrollTo("hfl-features-section")}>
                   ▶ See How It Works
+                </button>
+              </div>
+              <div className="hfl-persona-row">
+                <span className="hfl-persona-label">I am a</span>
+                <button className="hfl-persona-chip" onClick={() => navigate("/login?role=homeowner")}>
+                  🏠 Homeowner
+                </button>
+                <button className="hfl-persona-chip hfl-persona-chip--contractor" onClick={() => navigate("/login?role=contractor")}>
+                  🔨 Contractor
+                </button>
+                <button className="hfl-persona-chip hfl-persona-chip--realtor" onClick={() => navigate("/login?role=realtor")}>
+                  🏡 Realtor
                 </button>
               </div>
               <div className="hfl-trust-pills">
@@ -541,7 +553,7 @@ export default function LandingPage() {
         <section id="hfl-pricing-section" className="hfl-pricing">
           <div className="hfl-pricing-header">
             <h2>Simple, transparent pricing for everyone</h2>
-            <p>Choose the plan that fits your needs. All plans include blockchain verification and immutable storage.</p>
+            <p>Choose the plan that fits your needs. All plans include tamper-proof records and permanent storage.</p>
           </div>
           <div className="hfl-pricing-grid">
             {PLANS.map((p) => (

@@ -249,6 +249,7 @@ export default function MarketIntelligencePage() {
             )}
 
             {tab === "projects" && (
+              <>
               <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
                 {/* Sort controls */}
                 {projects.length > 1 && (
@@ -318,10 +319,24 @@ export default function MarketIntelligencePage() {
                           </div>
                         ))}
                       </div>
+                      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "0.875rem" }}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          icon={<ArrowRight size={13} />}
+                          onClick={() => navigate("/quotes/new")}
+                        >
+                          Request Quote
+                        </Button>
+                      </div>
                     </div>
                   ))
                 )}
               </div>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.04em", color: UI.inkLight, marginTop: "0.75rem", padding: "0 0.25rem" }}>
+                ROI data: 2024 Cost vs. Value Report, Remodeling Magazine. Adjusted for national averages; actual returns vary by market and condition.
+              </p>
+              </>
             )}
           </>
         )}

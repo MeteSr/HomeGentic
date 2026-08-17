@@ -85,39 +85,69 @@ Upgrade when you're ready. Cancel anytime.
           </p>
         </div>
 
-        {/* Monthly/Annual toggle */}
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "0.75rem", marginBottom: "2.5rem" }}>
-            <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: annual ? UI.inkLight : UI.ink, fontWeight: annual ? 400 : 700 }}>
-              Monthly
-            </span>
+        {/* Persona tabs */}
+        <div style={{ display: "flex", justifyContent: "center", gap: "0.5rem", marginBottom: "2rem" }}>
+          {[
+            { label: "Homeowner", active: true },
+            { label: "Contractor / Realtor", active: false, href: "/for-pros" },
+          ].map(({ label, active, href }) => (
             <button
-              onClick={() => setAnnual((v) => !v)}
-              aria-label="Toggle annual billing"
+              key={label}
+              onClick={() => href && navigate(href)}
               style={{
-                width: "2.5rem", height: "1.375rem",
-                borderRadius: 100, border: "none", cursor: "pointer",
-                background: annual ? COLORS.sage : COLORS.rule,
-                position: "relative", transition: "background 0.2s",
+                padding: "0.5rem 1.25rem",
+                border: `1.5px solid ${active ? UI.ink : UI.rule}`,
+                background: active ? UI.ink : "transparent",
+                color: active ? COLORS.white : UI.inkLight,
+                fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em",
+                textTransform: "uppercase", cursor: href ? "pointer" : "default",
+                fontWeight: active ? 700 : 400,
               }}
             >
-              <span style={{
-                position: "absolute", top: "3px",
-                left: annual ? "calc(100% - 1.125rem)" : "3px",
-                width: "1rem", height: "1rem",
-                borderRadius: "50%", background: COLORS.white,
-                transition: "left 0.2s",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-              }} />
+              {label}
             </button>
-            <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: annual ? UI.ink : UI.inkLight, fontWeight: annual ? 700 : 400 }}>
-              Annual
-            </span>
-            {annual && (
-              <span style={{ background: COLORS.sage, color: COLORS.white, padding: "2px 10px", borderRadius: 100, fontFamily: UI.mono, fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.06em" }}>
-                Save 2 months
-              </span>
-            )}
-          </div>
+          ))}
+        </div>
+
+        {/* Monthly/Annual toggle */}
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "0.75rem", marginBottom: !annual ? "0.75rem" : "2.5rem" }}>
+          <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: annual ? UI.inkLight : UI.ink, fontWeight: annual ? 400 : 700 }}>
+            Monthly
+          </span>
+          <button
+            onClick={() => setAnnual((v) => !v)}
+            aria-label="Toggle annual billing"
+            style={{
+              width: "2.5rem", height: "1.375rem",
+              borderRadius: 100, border: "none", cursor: "pointer",
+              background: annual ? COLORS.sage : COLORS.rule,
+              position: "relative", transition: "background 0.2s",
+            }}
+          >
+            <span style={{
+              position: "absolute", top: "3px",
+              left: annual ? "calc(100% - 1.125rem)" : "3px",
+              width: "1rem", height: "1rem",
+              borderRadius: "50%", background: COLORS.white,
+              transition: "left 0.2s",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+            }} />
+          </button>
+          <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: annual ? UI.ink : UI.inkLight, fontWeight: annual ? 700 : 400 }}>
+            Annual
+          </span>
+          <span style={{ background: annual ? COLORS.sage : COLORS.rule, color: COLORS.white, padding: "2px 10px", borderRadius: 100, fontFamily: UI.mono, fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.06em" }}>
+            {annual ? "2 months free" : "Save 2 months"}
+          </span>
+        </div>
+        {!annual && (
+          <p style={{ textAlign: "center", fontFamily: FONTS.sans, fontSize: "0.8rem", color: UI.inkLight, marginBottom: "2.5rem" }}>
+            Switch to annual and get 2 months free —{" "}
+            <button onClick={() => setAnnual(true)} style={{ background: "none", border: "none", color: COLORS.sage, fontWeight: 700, cursor: "pointer", textDecoration: "underline", fontSize: "inherit", fontFamily: "inherit" }}>
+              switch now
+            </button>
+          </p>
+        )}
 
         {/* Plan cards */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1.25rem", marginBottom: "4rem" }}>
