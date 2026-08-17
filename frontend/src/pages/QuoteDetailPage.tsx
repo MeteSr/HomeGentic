@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, CheckCircle, Clock, XCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle, Clock, XCircle } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { Badge } from "@/components/Badge";
@@ -215,12 +215,35 @@ export default function QuoteDetailPage() {
 
         {/* Quotes */}
         {quotes.length === 0 ? (
-          <div style={{ border: `1px dashed ${UI.rule}`, padding: "3rem", textAlign: "center" }}>
-            <Clock size={36} color={UI.rule} style={{ margin: "0 auto 1rem" }} />
-            <p style={{ fontFamily: UI.serif, fontWeight: 700, marginBottom: "0.375rem" }}>Waiting for quotes</p>
-            <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight }}>
-              Typically receive 2–5 quotes within 24 hours.
-            </p>
+          <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white }}>
+            <div style={{ padding: "2rem", textAlign: "center", borderBottom: `1px solid ${UI.rule}` }}>
+              <Clock size={32} color={UI.rule} style={{ margin: "0 auto 0.75rem" }} />
+              <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.125rem", marginBottom: "0.375rem" }}>Waiting for quotes</p>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight }}>
+                Your request has been sent to contractors in your area. Most requests receive their first bid within 24–48 hours.
+              </p>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", borderBottom: `1px solid ${UI.rule}` }}>
+              {[
+                { step: "1", label: "Request sent", detail: "Contractors notified", done: true },
+                { step: "2", label: "Reviewing details", detail: "~0–12 hours", done: false },
+                { step: "3", label: "Quotes arrive", detail: "Usually 24–48 hours", done: false },
+              ].map((s, i) => (
+                <div key={i} style={{ padding: "1rem", borderRight: i < 2 ? `1px solid ${UI.rule}` : undefined, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.375rem", textAlign: "center" }}>
+                  <div style={{ width: 28, height: 28, borderRadius: "50%", background: s.done ? UI.sage : UI.rule, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {s.done ? <CheckCircle size={15} color="#fff" /> : <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: COLORS.white }}>{s.step}</span>}
+                  </div>
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", fontWeight: 600, color: s.done ? UI.ink : UI.inkLight, letterSpacing: "0.04em" }}>{s.label}</p>
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>{s.detail}</p>
+                </div>
+              ))}
+            </div>
+            <div style={{ padding: "1rem 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.75rem" }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight }}>In the meantime, you can hand-pick a contractor.</p>
+              <Button variant="outline" size="sm" icon={<ArrowRight size={13} />} onClick={() => navigate("/contractors")}>
+                Browse Contractors
+              </Button>
+            </div>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
@@ -252,13 +275,19 @@ export default function QuoteDetailPage() {
                 return (
                   <div key={quote.id} style={{ border: `1px solid ${borderColor}`, background: COLORS.white, padding: "1.25rem", position: "relative", borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
                     {label && (
-                      <div style={{
-                        position: "absolute", top: "-1px", left: "1rem",
-                        background: labelColor, color: COLORS.white,
-                        fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase",
-                        padding: "0.2rem 0.625rem",
-                      }}>
-                        {label}
+                      <div style={{ position: "absolute", top: "-1px", left: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                        <div style={{
+                          background: labelColor, color: COLORS.white,
+                          fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase",
+                          padding: "0.2rem 0.625rem",
+                        }}>
+                          {label}
+                        </div>
+                        {isBestValue && (
+                          <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: UI.inkLight, letterSpacing: "0.04em" }}>
+                            Best balance of price and trust score
+                          </span>
+                        )}
                       </div>
                     )}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1rem", marginTop: label ? "0.75rem" : 0 }}>
@@ -309,7 +338,7 @@ export default function QuoteDetailPage() {
                         icon={<CheckCircle size={14} />}
                         style={{ width: "100%" }}
                       >
-                        Accept This Quote
+                        {isBestValue ? "Accept — Recommended" : isLowest ? "Accept — Lowest Price" : "Accept This Quote"}
                       </Button>
                     )}
                   </div>
