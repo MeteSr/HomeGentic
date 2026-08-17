@@ -336,18 +336,24 @@ export default function PropertyDetailPage() {
           </button>
           {property.verificationLevel !== "Unverified" && (
             <>
-              <button
-                onClick={() => setModals(m => ({ ...m, report: true }))}
-                style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 500, color: C.text, background: "white", border: `1px solid ${C.border}`, borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}
-              >
-                <Share2 size={15} /> Share Report
-              </button>
-              <button
-                onClick={() => setModals(m => ({ ...m, insurance: true }))}
-                style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 500, color: C.text, background: "white", border: `1px solid ${C.border}`, borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}
-              >
-                <Shield size={15} /> Insurance Report
-              </button>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.125rem" }}>
+                <button
+                  onClick={() => setModals(m => ({ ...m, report: true }))}
+                  style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 500, color: C.text, background: "white", border: `1px solid ${C.border}`, borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}
+                >
+                  <Share2 size={15} /> Share Report
+                </button>
+                <span style={{ fontFamily: FONTS.sans, fontSize: "0.6875rem", color: C.muted, paddingLeft: "0.25rem" }}>Share with buyers, agents, or tenants</span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.125rem" }}>
+                <button
+                  onClick={() => setModals(m => ({ ...m, insurance: true }))}
+                  style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 500, color: C.text, background: "white", border: `1px solid ${C.border}`, borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}
+                >
+                  <Shield size={15} /> Insurance Report
+                </button>
+                <span style={{ fontFamily: FONTS.sans, fontSize: "0.6875rem", color: C.muted, paddingLeft: "0.25rem" }}>For claims, renewals, or coverage review</span>
+              </div>
               {!fsboRecord?.isFsbo && (
                 <button
                   onClick={() => setModals(m => ({ ...m, listing: true }))}

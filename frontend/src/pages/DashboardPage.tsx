@@ -461,8 +461,8 @@ export default function DashboardPage() {
         {/* ── Right panel ──────────────────────────────────────────────────────── */}
         {!isMobile && (
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            <AIAssistantPanel />
             <RecentActivityPanel items={activityItems} onViewAll={() => navigate(`/properties/${activePropertyId}`)} />
+            <AIAssistantPanel />
             <InviteNeighborPanel onInvite={() => navigate("/referrals")} />
           </div>
         )}

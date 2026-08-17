@@ -310,6 +310,17 @@ export default function LoginPage() {
             </span>
           </p>
 
+          {/* Demo path */}
+          <p style={{ textAlign: "center", fontSize: "0.8125rem", color: C.muted, marginTop: "0.625rem" }}>
+            Not ready to commit?{" "}
+            <span
+              onClick={() => navigate("/demo")}
+              style={{ color: C.green, fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}
+            >
+              Try the demo first →
+            </span>
+          </p>
+
           {/* Security note */}
           <div style={{
             marginTop: "1.5rem",

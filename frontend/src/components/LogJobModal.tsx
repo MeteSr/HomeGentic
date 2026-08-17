@@ -271,6 +271,13 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
                   )}
                 </div>
 
+                <div style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", padding: "0.625rem 0.875rem", background: COLORS.sageLight, border: `1px solid ${COLORS.sageMid}`, borderRadius: RADIUS.sm }}>
+                  <span style={{ fontSize: "0.85rem", flexShrink: 0 }}>📸</span>
+                  <p style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", fontWeight: 300, color: COLORS.sageText, lineHeight: 1.5, margin: 0 }}>
+                    You'll be able to attach <strong>Before, During, and After</strong> photos in the next step.
+                  </p>
+                </div>
+
                 <Button onClick={() => setStep(1)} style={{ width: "100%" }}>
                   Next: Add Details →
                 </Button>
