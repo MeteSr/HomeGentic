@@ -429,6 +429,18 @@ export default function LandingPage() {
                   ▶ See How It Works
                 </button>
               </div>
+              <div className="hfl-persona-row">
+                <span className="hfl-persona-label">I am a</span>
+                <button className="hfl-persona-chip" onClick={() => navigate("/login?role=homeowner")}>
+                  🏠 Homeowner
+                </button>
+                <button className="hfl-persona-chip hfl-persona-chip--contractor" onClick={() => navigate("/login?role=contractor")}>
+                  🔨 Contractor
+                </button>
+                <button className="hfl-persona-chip hfl-persona-chip--realtor" onClick={() => navigate("/login?role=realtor")}>
+                  🏡 Realtor
+                </button>
+              </div>
               <div className="hfl-trust-pills">
                 {TRUST_BADGES.map((b) => (
                   <div key={b.title} className="hfl-trust-pill">
