@@ -262,42 +262,43 @@ export default function LoginPage() {
             </span>
           </div>
 
-          {/* Provider buttons — all open Internet Identity (which handles Google/Apple/WebAuthn) */}
-          {[
-            { icon: <GoogleIcon />,              label: "Continue with Google" },
-            { icon: <AppleIcon />,               label: "Continue with Apple" },
-            { icon: <IcpLogoIcon size={22} />, label: "Continue with Internet Identity" },
-          ].map(({ icon, label }) => (
-            <button
-              key={label}
-              onClick={login}
-              disabled={isLoading}
-              data-tid={label === "Continue with Internet Identity" ? "login-button" : undefined}
-              style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "0.625rem",
-                padding: "0.75rem",
-                border: `1.5px solid ${C.border}`,
-                borderRadius: "8px",
-                background: C.white,
-                fontSize: "0.9375rem",
-                fontWeight: 500,
-                color: C.navyMid,
-                cursor: isLoading ? "not-allowed" : "pointer",
-                marginBottom: "0.75rem",
-                transition: "background 0.12s",
-                opacity: isLoading ? 0.6 : 1,
-              }}
-              onMouseEnter={(e) => { if (!isLoading) e.currentTarget.style.background = C.bg; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = C.white; }}
-            >
-              {icon}
-              {label}
-            </button>
-          ))}
+          {/* Single sign-in button — Internet Identity handles all providers */}
+          <button
+            onClick={login}
+            disabled={isLoading}
+            data-tid="login-button"
+            style={{
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.75rem",
+              padding: "0.875rem",
+              border: `1.5px solid ${C.blue}`,
+              borderRadius: "8px",
+              background: C.blue,
+              fontSize: "1rem",
+              fontWeight: 600,
+              color: "#fff",
+              cursor: isLoading ? "not-allowed" : "pointer",
+              marginBottom: "0.875rem",
+              transition: "opacity 0.12s",
+              opacity: isLoading ? 0.6 : 1,
+            }}
+          >
+            <IcpLogoIcon size={20} />
+            {isLoading ? "Connecting…" : "Sign in with Internet Identity"}
+          </button>
+
+          {/* Provider icons — shown inside Internet Identity */}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", justifyContent: "center", marginBottom: "1rem" }}>
+            <span style={{ fontSize: "0.75rem", color: C.muted }}>Supports</span>
+            <div style={{ display: "flex", gap: "0.625rem", alignItems: "center" }}>
+              <GoogleIcon />
+              <AppleIcon />
+              <span style={{ fontSize: "0.75rem", color: C.muted }}>· Passkeys · Hardware keys</span>
+            </div>
+          </div>
 
           {/* Sign up link */}
           <p style={{ textAlign: "center", fontSize: "0.875rem", color: C.muted, marginTop: "1.25rem" }}>
@@ -307,6 +308,17 @@ export default function LoginPage() {
               style={{ color: C.blue, fontWeight: 600, cursor: "pointer" }}
             >
               Get Started
+            </span>
+          </p>
+
+          {/* Demo path */}
+          <p style={{ textAlign: "center", fontSize: "0.8125rem", color: C.muted, marginTop: "0.625rem" }}>
+            Not ready to commit?{" "}
+            <span
+              onClick={() => navigate("/demo")}
+              style={{ color: "#15803D", fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}
+            >
+              Try the demo first →
             </span>
           </p>
 

@@ -425,8 +425,8 @@ export default function LandingPage() {
               </p>
               <div className="hfl-actions">
                 <button className="hfl-btn-main" onClick={() => navigate("/login")}>Get Started Free</button>
-                <button className="hfl-btn-soft" onClick={() => scrollTo("hfl-features-section")}>
-                  ▶ See How It Works
+                <button className="hfl-btn-soft" onClick={() => navigate("/demo")}>
+                  Try Demo →
                 </button>
               </div>
               <div className="hfl-persona-row">

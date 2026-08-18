@@ -50,23 +50,35 @@ async function injectUnverifiedProperty(page: any) {
   });
 }
 
+// ── helpers ───────────────────────────────────────────────────────────────────
+
+/** Open the Reports ▾ dropdown and click "Insurance Report" inside it. */
+async function openInsuranceModal(page: any) {
+  await page.getByRole("button", { name: /reports/i }).click();
+  await page.getByRole("button", { name: /insurance report/i }).click();
+}
+
 // ── IR.1 — Button visibility by verification level ────────────────────────────
 
 test.describe("IR.1 — Insurance Report button visibility", () => {
-  test("button is visible for a verified (Basic) property", async ({ page }) => {
+  test("Reports dropdown is visible for a verified (Basic) property", async ({ page }) => {
     await injectTestAuth(page);
     await injectSubscription(page, "Basic");
     await injectVerifiedProperty(page);
     await page.goto("/properties/1");
+    // The "Reports ▾" dropdown trigger is shown for verified properties
+    await expect(page.getByRole("button", { name: /reports/i })).toBeVisible();
+    // Opening it exposes the Insurance Report option
+    await page.getByRole("button", { name: /reports/i }).click();
     await expect(page.getByRole("button", { name: /insurance report/i })).toBeVisible();
   });
 
-  test("button is NOT visible for an unverified property", async ({ page }) => {
+  test("Reports dropdown is NOT visible for an unverified property", async ({ page }) => {
     await injectTestAuth(page);
     await injectSubscription(page, "Basic");
     await injectUnverifiedProperty(page);
     await page.goto("/properties/1");
-    await expect(page.getByRole("button", { name: /insurance report/i })).not.toBeVisible();
+    await expect(page.getByRole("button", { name: /reports/i })).not.toBeVisible();
   });
 });
 
@@ -78,7 +90,7 @@ test.describe("IR.2 — InsuranceShareModal opens", () => {
     await injectSubscription(page, "Basic");
     await injectVerifiedProperty(page);
     await page.goto("/properties/1");
-    await page.getByRole("button", { name: /insurance report/i }).click();
+    await openInsuranceModal(page);
   });
 
   test("modal heading 'Insurance Risk Report' is visible", async ({ page }) => {
@@ -100,7 +112,7 @@ test.describe("IR.3 — Modal form content", () => {
     await injectSubscription(page, "Basic");
     await injectVerifiedProperty(page);
     await page.goto("/properties/1");
-    await page.getByRole("button", { name: /insurance report/i }).click();
+    await openInsuranceModal(page);
   });
 
   test("shows 'Link expiry' label", async ({ page }) => {
@@ -137,7 +149,7 @@ test.describe("IR.4 — Score and grade after generating", () => {
     await injectSubscription(page, "Basic");
     await injectVerifiedProperty(page);
     await page.goto("/properties/1");
-    await page.getByRole("button", { name: /insurance report/i }).click();
+    await openInsuranceModal(page);
     const modal = page.locator("[data-testid='insurance-modal']");
     await modal.getByRole("button", { name: /generate risk profile/i }).click();
     await expect(modal.getByText(/maintenance score/i)).toBeVisible();
@@ -187,7 +199,7 @@ test.describe("IR.5 — Verification link section", () => {
     await injectSubscription(page, "Basic");
     await injectVerifiedProperty(page);
     await page.goto("/properties/1");
-    await page.getByRole("button", { name: /insurance report/i }).click();
+    await openInsuranceModal(page);
     const modal = page.locator("[data-testid='insurance-modal']");
     await modal.getByRole("button", { name: /generate risk profile/i }).click();
     await expect(modal.getByText(/maintenance score/i)).toBeVisible();
@@ -212,7 +224,7 @@ test.describe("IR.6 — Download JSON button", () => {
     await injectSubscription(page, "Basic");
     await injectVerifiedProperty(page);
     await page.goto("/properties/1");
-    await page.getByRole("button", { name: /insurance report/i }).click();
+    await openInsuranceModal(page);
     const modal = page.locator("[data-testid='insurance-modal']");
     await modal.getByRole("button", { name: /generate risk profile/i }).click();
     await expect(modal.getByText(/maintenance score/i)).toBeVisible();
@@ -232,7 +244,7 @@ test.describe("IR.7 — Generate new resets modal", () => {
     await injectSubscription(page, "Basic");
     await injectVerifiedProperty(page);
     await page.goto("/properties/1");
-    await page.getByRole("button", { name: /insurance report/i }).click();
+    await openInsuranceModal(page);
     const modal = page.locator("[data-testid='insurance-modal']");
     await modal.getByRole("button", { name: /generate risk profile/i }).click();
     await expect(modal.getByText(/maintenance score/i)).toBeVisible();

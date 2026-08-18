@@ -425,8 +425,9 @@ export default function PredictiveMaintenancePage() {
             <button
               onClick={() => setShowSystemAges(true)}
               style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 500, color: C.text, border: `1px solid ${C.border}`, background: "white", borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}
+              title="Enter actual install dates to improve accuracy of lifespan predictions"
             >
-              <Settings2 size={15} /> Maintenance Settings
+              <Settings2 size={15} /> Update System Ages
             </button>
             <button onClick={() => window.print()} style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: FONTS.sans, fontSize: "0.875rem", color: C.muted, border: `1px solid ${C.border}`, background: "white", borderRadius: "0.5rem", padding: "0.5rem 0.75rem", cursor: "pointer" }}>
               <Download size={15} />
@@ -441,6 +442,15 @@ export default function PredictiveMaintenancePage() {
           </Card>
         ) : (
           <>
+            {/* ── Accuracy note ─────────────────────────────────────────────── */}
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.875rem", fontFamily: FONTS.sans, fontSize: "0.8125rem", color: C.muted }}>
+              <BarChart2 size={13} color={C.muted} style={{ flexShrink: 0 }} />
+              Predictions use your home's build year. For higher accuracy,{" "}
+              <button onClick={() => setShowSystemAges(true)} style={{ background: "none", border: "none", padding: 0, fontFamily: FONTS.sans, fontSize: "0.8125rem", color: C.blue, cursor: "pointer", textDecoration: "underline" }}>
+                enter actual system install dates →
+              </button>
+            </div>
+
             {/* ── KPI cards ─────────────────────────────────────────────────── */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "1rem", marginBottom: "1.25rem" }}>
 

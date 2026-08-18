@@ -534,7 +534,7 @@ export function QuickActionsPanel({ actions, isTablet }: { actions: QuickAction[
             <p style={{ fontFamily: FONTS.sans, fontSize: "0.9375rem", fontWeight: 700, color: "#fff", marginBottom: "0.125rem" }}>
               {primary.label}
             </p>
-            <p style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: "rgba(255,255,255,0.75)", lineHeight: 1.3 }}>
+            <p style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: "rgba(255,255,255,0.95)", lineHeight: 1.3 }}>
               {primary.desc}
             </p>
           </div>

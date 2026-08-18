@@ -48,6 +48,7 @@ export default function PropertyVerifyModal({ open, onClose, propertyId, onSucce
   const [method,     setMethod]     = useState<VerificationMethod>("UtilityBill");
   const [file,       setFile]       = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [hashing,    setHashing]    = useState(false);
   const [submitted,  setSubmitted]  = useState(false);
   const [dragOver,   setDragOver]   = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -68,15 +69,18 @@ export default function PropertyVerifyModal({ open, onClose, propertyId, onSucce
 
   const handleSubmit = async () => {
     if (!file) return;
-    setSubmitting(true);
+    setHashing(true);
     try {
       const hash = await sha256Hex(file);
+      setHashing(false);
+      setSubmitting(true);
       await propertyService.submitVerification(propertyId, method, hash);
       setSubmitted(true);
       onSuccess?.();
     } catch (err: any) {
       toast.error(err.message ?? "Submission failed. Please try again.");
     } finally {
+      setHashing(false);
       setSubmitting(false);
     }
   };
@@ -263,12 +267,29 @@ export default function PropertyVerifyModal({ open, onClose, propertyId, onSucce
               )}
             </div>
 
-            <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight, lineHeight: 1.65, marginBottom: "1.5rem" }}>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight, lineHeight: 1.65, marginBottom: "1rem" }}>
               Your document is stored on ICP and only accessible to HomeGentic admins for review. A SHA-256 hash is recorded on-chain so the file cannot be altered after submission.
             </p>
 
-            <Button size="lg" style={{ width: "100%" }} disabled={!file || submitting} onClick={handleSubmit} icon={<Shield size={14} />}>
-              {submitting ? "Hashing & submitting…" : "Submit for verification"}
+            {/* 7-day conflict window explanation */}
+            <div style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", padding: "0.625rem 0.875rem", border: `1px solid ${UI.rule}`, background: COLORS.canvas, marginBottom: "1.5rem" }}>
+              <AlertCircle size={13} color={UI.inkLight} style={{ flexShrink: 0, marginTop: "0.15rem" }} />
+              <p style={{ fontFamily: UI.mono, fontSize: "0.58rem", color: UI.inkLight, lineHeight: 1.6, letterSpacing: "0.04em", margin: 0 }}>
+                <strong style={{ color: UI.ink }}>Note:</strong> If another user submits the same address within 7 days of your submission, both claims are held for manual review. You'll be notified by email.
+              </p>
+            </div>
+
+            {hashing && (
+              <div style={{ marginBottom: "0.75rem", padding: "0.625rem 0.875rem", background: COLORS.sageLight, border: `1px solid ${COLORS.sageMid}`, display: "flex", alignItems: "center", gap: "0.625rem" }}>
+                <div style={{ width: "14px", height: "14px", border: `2px solid ${COLORS.sage}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.7s linear infinite", flexShrink: 0 }} />
+                <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: COLORS.sageText, letterSpacing: "0.06em" }}>
+                  Computing SHA-256 hash of your file…
+                </span>
+              </div>
+            )}
+
+            <Button size="lg" style={{ width: "100%" }} disabled={!file || submitting || hashing} onClick={handleSubmit} icon={<Shield size={14} />}>
+              {hashing ? "Hashing file…" : submitting ? "Submitting…" : "Submit for verification"}
             </Button>
           </>
         )}

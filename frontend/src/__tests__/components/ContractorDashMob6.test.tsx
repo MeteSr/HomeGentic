@@ -58,26 +58,26 @@ describe("ContractorDashboardPage — renders on both viewports", () => {
   });
 });
 
-// ── 7-stat KPI row ────────────────────────────────────────────────────────────
+// ── 8-stat KPI row ────────────────────────────────────────────────────────────
 
 describe("ContractorDashboardPage — KPI stats row", () => {
-  it("does NOT use repeat(7,1fr) on mobile", async () => {
+  it("does NOT use repeat(8,1fr) on mobile", async () => {
     const { container } = await renderDash(390);
     const allDivs = Array.from(container.querySelectorAll("[style]")) as HTMLElement[];
     expect(allDivs.length).toBeGreaterThan(0);
-    const sevenCol = allDivs.find((el) =>
-      el.style.gridTemplateColumns?.replace(/\s/g, "") === "repeat(7,1fr)"
+    const eightCol = allDivs.find((el) =>
+      el.style.gridTemplateColumns?.replace(/\s/g, "") === "repeat(8,1fr)"
     );
-    expect(sevenCol).toBeUndefined();
+    expect(eightCol).toBeUndefined();
   });
 
-  it("uses repeat(7,1fr) on desktop", async () => {
+  it("uses repeat(8,1fr) on desktop", async () => {
     const { container } = await renderDash(1280);
     const allDivs = Array.from(container.querySelectorAll("[style]")) as HTMLElement[];
-    const sevenCol = allDivs.find((el) =>
-      el.style.gridTemplateColumns?.replace(/\s/g, "") === "repeat(7,1fr)"
+    const eightCol = allDivs.find((el) =>
+      el.style.gridTemplateColumns?.replace(/\s/g, "") === "repeat(8,1fr)"
     );
-    expect(sevenCol).toBeDefined();
+    expect(eightCol).toBeDefined();
   });
 });
 
