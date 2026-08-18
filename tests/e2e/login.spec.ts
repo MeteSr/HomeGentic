@@ -31,8 +31,8 @@ test.describe("LoginPage — /login", () => {
   });
 
   test("shows provider icon strip (Google, Apple, passkeys)", async ({ page }) => {
-    // "Supports" label is unique to the provider icon strip
-    await expect(page.getByText("Supports")).toBeVisible();
+    // exact:true matches only the <span>Supports</span> in the provider strip, not the paragraph that contains "supports"
+    await expect(page.getByText("Supports", { exact: true })).toBeVisible();
   });
 
   test("shows 'Secured by Internet Identity' footer note", async ({ page }) => {
