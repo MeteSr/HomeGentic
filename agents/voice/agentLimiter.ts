@@ -32,9 +32,20 @@ export const TIER_LIMITS: Record<SubscriptionTier, number> = {
   ContractorPro:  10,
 };
 
-// ── in-memory counter ─────────────────────────────────────────────────────────
+/** Daily chat-call limits per tier (-1 = unlimited). */
+export const CHAT_LIMITS: Record<SubscriptionTier, number> = {
+  Free:            3,
+  Basic:          -1,
+  Pro:            -1,
+  Premium:        -1,
+  ContractorFree:  3,
+  ContractorPro:  -1,
+};
 
-const counts = new Map<string, number>();
+// ── in-memory counters ────────────────────────────────────────────────────────
+
+const counts     = new Map<string, number>(); // agent calls
+const chatCounts = new Map<string, number>(); // chat calls
 
 function utcDateString(): string {
   return new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
@@ -46,9 +57,11 @@ function counterKey(principal: string, date: string): string {
 
 /** Remove any counter keys for this principal that are not today. */
 function pruneStale(principal: string, today: string): void {
-  for (const key of counts.keys()) {
-    if (key.startsWith(`${principal}:`) && !key.endsWith(`:${today}`)) {
-      counts.delete(key);
+  for (const map of [counts, chatCounts]) {
+    for (const key of map.keys()) {
+      if (key.startsWith(`${principal}:`) && !key.endsWith(`:${today}`)) {
+        map.delete(key);
+      }
     }
   }
 }
@@ -105,6 +118,44 @@ export function checkAndRecord(
   process.stdout.write(JSON.stringify(usageEvent) + "\n");
 
   return { allowed, count, limit, resetsAt };
+}
+
+/**
+ * Check whether a principal may make a chat call and, if so, record it.
+ * Free / ContractorFree tiers are limited to 3 chats/day; paid tiers are unlimited.
+ */
+export function checkAndRecordChat(
+  principal: string,
+  tier: SubscriptionTier,
+): LimitCheckResult {
+  const today    = utcDateString();
+  const key      = counterKey(principal, today);
+  const limit    = CHAT_LIMITS[tier] ?? 3;
+  const resetsAt = nextMidnightUtc();
+
+  pruneStale(principal, today);
+
+  const current = chatCounts.get(key) ?? 0;
+  const allowed = limit === -1 || current < limit;
+
+  if (allowed) {
+    chatCounts.set(key, current + 1);
+  }
+
+  const count = allowed ? current + 1 : current;
+
+  const usageEvent = {
+    ts:        new Date().toISOString(),
+    event:     "chat_call",
+    principal,
+    tier,
+    count,
+    limit,
+    allowed,
+  };
+  process.stdout.write(JSON.stringify(usageEvent) + "\n");
+
+  return { allowed, count, limit: limit === -1 ? Infinity : limit, resetsAt };
 }
 
 /**
