@@ -316,7 +316,7 @@ export default function LoginPage() {
             Not ready to commit?{" "}
             <span
               onClick={() => navigate("/demo")}
-              style={{ color: C.green, fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}
+              style={{ color: "#15803D", fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}
             >
               Try the demo first →
             </span>
