@@ -80,7 +80,6 @@ export function Button({
     cursor: isDisabled ? "not-allowed" : "pointer",
     opacity: isDisabled ? 0.5 : 1,
     transition: "background-color 0.18s, border-color 0.18s, color 0.18s, transform 0.18s, box-shadow 0.18s",
-    outline: "none",
     whiteSpace: "nowrap",
     minHeight: "44px",
     ...VARIANT_STYLES[variant],
