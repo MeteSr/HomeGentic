@@ -31,8 +31,8 @@ test.describe("LoginPage — /login", () => {
   });
 
   test("shows provider icon strip (Google, Apple, passkeys)", async ({ page }) => {
-    // Provider icons appear below the sign-in button — verify supporting text is present
-    await expect(page.getByText(/passkeys/i)).toBeVisible();
+    // "Supports" label is unique to the provider icon strip
+    await expect(page.getByText("Supports")).toBeVisible();
   });
 
   test("shows 'Secured by Internet Identity' footer note", async ({ page }) => {
