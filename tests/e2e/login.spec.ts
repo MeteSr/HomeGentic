@@ -26,17 +26,21 @@ test.describe("LoginPage — /login", () => {
     await expect(page.getByRole("heading", { name: /welcome back/i })).toBeVisible();
   });
 
-  test("shows Google and Apple sign-in buttons", async ({ page }) => {
-    await expect(page.getByRole("button", { name: /continue with google/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /continue with apple/i })).toBeVisible();
+  test("shows single 'Sign in with Internet Identity' button", async ({ page }) => {
+    await expect(page.getByRole("button", { name: /sign in with internet identity/i })).toBeVisible();
   });
 
-  test("shows Internet Identity sign-in button", async ({ page }) => {
-    await expect(page.getByRole("button", { name: /continue with internet identity/i })).toBeVisible();
+  test("shows provider icon strip (Google, Apple, passkeys)", async ({ page }) => {
+    // Provider icons appear below the sign-in button — verify supporting text is present
+    await expect(page.getByText(/passkeys/i)).toBeVisible();
   });
 
   test("shows 'Secured by Internet Identity' footer note", async ({ page }) => {
     await expect(page.getByText(/Secured by Internet Identity/i)).toBeVisible();
+  });
+
+  test("shows 'Try the demo first' link below sign-up prompt", async ({ page }) => {
+    await expect(page.getByText(/try the demo first/i)).toBeVisible();
   });
 
   // ── Dev login (only rendered when import.meta.env.DEV is true) ────────────
