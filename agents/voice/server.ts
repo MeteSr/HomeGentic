@@ -17,7 +17,7 @@ import {
 } from "./extractDocumentHelpers";
 import type { ChatRequest } from "./types";
 import type { MaintenanceContext } from "../maintenance/prompts";
-import { checkAndRecord, TIER_LIMITS } from "./agentLimiter";
+import { checkAndRecord, checkAndRecordChat, TIER_LIMITS } from "./agentLimiter";
 import type { SubscriptionTier } from "./agentLimiter";
 import { logger } from "./logger";
 // NOTE: Email (Resend), permits, price-benchmark, forecast, check, report-request
@@ -285,6 +285,20 @@ app.post("/api/chat", async (req: Request, res: Response): Promise<void> => {
 
   if (!message?.trim()) {
     res.status(400).json({ error: "message is required" });
+    return;
+  }
+
+  // Per-tier chat rate limit: free tiers capped at 3/day, paid tiers unlimited.
+  const chatPrincipal = (req.headers["x-icp-principal"] as string | undefined) ?? "anon";
+  const chatRawTier   = (req.headers["x-subscription-tier"] as string | undefined) ?? "Free";
+  const chatTier      = (chatRawTier in TIER_LIMITS ? chatRawTier : "Free") as SubscriptionTier;
+  const chatCheck     = checkAndRecordChat(chatPrincipal, chatTier);
+  if (!chatCheck.allowed) {
+    res.status(429).json({
+      error:     "daily_chat_limit_reached",
+      limit:     chatCheck.limit,
+      resetsAt:  chatCheck.resetsAt,
+    });
     return;
   }
 
