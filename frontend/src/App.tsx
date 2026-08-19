@@ -28,6 +28,7 @@ import ContractorVerifyPage  from "@/pages/ContractorVerifyPage";
 import ForProsPage           from "@/pages/ForProsPage";
 import PaymentSuccessPage    from "@/pages/PaymentSuccessPage";
 import PaymentFailurePage    from "@/pages/PaymentFailurePage";
+import SampleReportPage      from "@/pages/SampleReportPage";
 
 // All other pages lazy-loaded (split into separate chunks)
 const RegisterPage               = React.lazy(() => import("@/pages/RegisterPage"));
@@ -186,6 +187,9 @@ export default function App() {
 
           {/* Buyer's Truth Kit — public free tool */}
           <Route path="/truth-kit" element={<BuyersTruthKitPage />} />
+
+          {/* Sample report — public marketing page */}
+          <Route path="/sample-report" element={<SampleReportPage />} />
 
           {/* Public — no auth required */}
           <Route path="/home-systems"          element={<HomeSystemsEstimatorPage />} />

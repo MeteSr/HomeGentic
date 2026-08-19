@@ -495,7 +495,7 @@ export default function LandingPage() {
                 </p>
                 <div style={{ display: "flex", gap: 12, marginTop: 38, flexWrap: "wrap", alignItems: "center" }}>
                   <PillBtn label="Start your record" onClick={() => navigate("/login")} variant="yellow" size="lg" />
-                  <PillBtn label="See a sample report" onClick={() => navigate("/truth-kit")} variant="glass" size="lg" />
+                  <PillBtn label="See a sample report" onClick={() => navigate("/sample-report")} variant="glass" size="lg" />
                 </div>
               </div>
               <div style={{ flexShrink: 0, animation: "hgwRise .7s cubic-bezier(.2,.8,.3,1) both", animationDelay: ".12s" }}>
@@ -541,7 +541,7 @@ export default function LandingPage() {
               <p style={{ font: `400 16.5px/1.66 ${BODY}`, color: "rgba(252,252,253,0.7)", marginTop: 18, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
                 Every verified job, receipt and inspection adds points. Lapsed warranties, aging systems and long gaps take them away, so the score reflects the house as it is today — not the day you signed up.
               </p>
-              <PillBtn label="See a sample report" onClick={() => navigate("/truth-kit")} variant="yellow" />
+              <PillBtn label="See a sample report" onClick={() => navigate("/sample-report")} variant="yellow" />
             </div>
             <div style={{ minWidth: 0, background: "rgba(252,252,253,0.06)", border: "1px solid rgba(252,252,253,0.14)", borderRadius: 26, padding: 30 }}>
               <div style={{ font: `700 9.5px/1 ${MONO}`, letterSpacing: ".16em", color: "rgba(252,252,253,0.56)" }}>WHERE THE POINTS COME FROM</div>
