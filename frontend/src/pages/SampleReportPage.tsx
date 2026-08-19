@@ -18,8 +18,8 @@ const MONO    = "'JetBrains Mono', monospace";
 
 // ── Mock data ──────────────────────────────────────────────────────────────────
 const PROPERTY = {
-  address: "2847 Belcourt Ave",
-  city:    "Nashville, TN 37212",
+  address: "323 Keech St",
+  city:    "Daytona Beach, FL 32114",
   since:   "2019",
   score:   87,
   grade:   "A",
