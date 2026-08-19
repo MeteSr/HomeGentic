@@ -1,16 +1,30 @@
 /**
  * PublicNav — shared sticky navigation for all public-facing pages.
  *
- * Matches the landing page's nav aesthetic:
- *   - Fraunces serif logo
- *   - Backdrop-blur glass effect
- *   - Sage-tinted bottom border
- *   - "Get Started Free" pill CTA
+ * Cobalt/yellow design system:
+ *   - Clean paper/white background
+ *   - "Home" in C.ink + "Gentic" in C.yellow — Bricolage Grotesque 800
+ *   - Blue pill CTA
+ *   - Border-bottom: 1px solid C.border
  */
 
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { COLORS, FONTS, RADIUS } from "@/theme";
+
+const C = {
+  blue:   "#2B34FF",
+  yellow: "#FFD23F",
+  ink:    "#0B0D1A",
+  paper:  "#FCFCFD",
+  muted:  "#6B7080",
+  border: "#EDEEF2",
+  white:  "#FFFFFF",
+};
+const F = {
+  display: "'Bricolage Grotesque', 'Inter', sans-serif",
+  body:    "'Hanken Grotesk', 'Inter', sans-serif",
+  mono:    "'JetBrains Mono', monospace",
+};
 
 const NAV_LINKS = [
   { label: "Features",   href: "/#features" },
@@ -42,29 +56,29 @@ export function PublicNav() {
         alignItems:      "center",
         justifyContent:  "space-between",
         padding:         "0 2.5rem",
-        height:          "60px",
+        height:          "64px",
         background:      scrolled
-          ? "rgba(253,252,250,0.92)"
-          : "rgba(253,252,250,0.80)",
+          ? "rgba(252,252,253,0.96)"
+          : "rgba(252,252,253,0.88)",
         backdropFilter:  "blur(14px)",
         WebkitBackdropFilter: "blur(14px)",
-        borderBottom:    `1px solid rgba(122,175,118,${scrolled ? "0.25" : "0.15"})`,
-        transition:      "background 0.2s, border-color 0.2s",
+        borderBottom:    `1px solid ${C.border}`,
+        transition:      "background 0.2s",
       }}>
         {/* Logo */}
         <Link
           to="/"
           style={{
             textDecoration: "none",
-            fontFamily:     FONTS.serif,
-            fontWeight:     900,
-            fontSize:       "1.25rem",
-            letterSpacing:  "-0.5px",
-            color:          COLORS.plum,
+            fontFamily:     F.display,
+            fontWeight:     800,
+            fontSize:       "1.125rem",
+            letterSpacing:  "-0.3px",
+            color:          C.ink,
             flexShrink:     0,
           }}
         >
-          Home<span style={{ color: COLORS.sageText, fontStyle: "italic", fontWeight: 300 }}>Gentic™</span>
+          Home<span style={{ color: C.yellow }}>Gentic</span>
         </Link>
 
         {/* Desktop nav links */}
@@ -74,15 +88,15 @@ export function PublicNav() {
               key={label}
               to={href}
               style={{
-                fontFamily:     FONTS.sans,
+                fontFamily:     F.body,
                 fontSize:       "0.875rem",
                 fontWeight:     500,
-                color:          COLORS.plumMid,
+                color:          C.muted,
                 textDecoration: "none",
                 transition:     "color 0.15s",
               }}
-              onMouseEnter={(e: React.MouseEvent) => { (e.target as HTMLElement).style.color = COLORS.plum; }}
-              onMouseLeave={(e: React.MouseEvent) => { (e.target as HTMLElement).style.color = COLORS.plumMid; }}
+              onMouseEnter={(e: React.MouseEvent) => { (e.target as HTMLElement).style.color = C.ink; }}
+              onMouseLeave={(e: React.MouseEvent) => { (e.target as HTMLElement).style.color = C.muted; }}
             >
               {label}
             </Link>
@@ -96,25 +110,26 @@ export function PublicNav() {
             display:         "flex",
             alignItems:      "center",
             gap:             "6px",
-            background:      COLORS.plum,
-            color:           COLORS.white,
+            background:      C.blue,
+            color:           C.white,
             border:          "none",
-            borderRadius:    RADIUS.pill,
+            borderRadius:    "100px",
             padding:         "9px 20px",
-            fontFamily:      FONTS.sans,
+            fontFamily:      F.body,
             fontSize:        "0.8125rem",
             fontWeight:      600,
             cursor:          "pointer",
             flexShrink:      0,
             transition:      "transform 0.15s, box-shadow 0.15s",
+            boxShadow:       "0 4px 18px rgba(43,52,255,0.28)",
           }}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLElement).style.transform  = "translateY(-1px)";
-            (e.currentTarget as HTMLElement).style.boxShadow = "0 6px 20px rgba(46,37,64,0.28)";
+            (e.currentTarget as HTMLElement).style.boxShadow = "0 6px 24px rgba(43,52,255,0.38)";
           }}
           onMouseLeave={(e) => {
             (e.currentTarget as HTMLElement).style.transform  = "translateY(0)";
-            (e.currentTarget as HTMLElement).style.boxShadow = "none";
+            (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 18px rgba(43,52,255,0.28)";
           }}
         >
           Get Started Free
@@ -130,7 +145,7 @@ export function PublicNav() {
             border:     "none",
             cursor:     "pointer",
             padding:    "4px",
-            color:      COLORS.plum,
+            color:      C.ink,
           }}
           className="public-nav-hamburger"
         >
@@ -142,12 +157,12 @@ export function PublicNav() {
       {menuOpen && (
         <div style={{
           position:   "fixed",
-          top:        "60px",
+          top:        "64px",
           left:       0,
           right:      0,
           zIndex:     99,
-          background: COLORS.white,
-          borderBottom: `1px solid ${COLORS.rule}`,
+          background: C.white,
+          borderBottom: `1px solid ${C.border}`,
           padding:    "1rem 2rem",
           display:    "flex",
           flexDirection: "column",
@@ -159,10 +174,10 @@ export function PublicNav() {
               to={href}
               onClick={() => setMenuOpen(false)}
               style={{
-                fontFamily:     FONTS.sans,
+                fontFamily:     F.body,
                 fontSize:       "0.9375rem",
                 fontWeight:     500,
-                color:          COLORS.plum,
+                color:          C.ink,
                 textDecoration: "none",
               }}
             >
@@ -172,17 +187,18 @@ export function PublicNav() {
           <button
             onClick={() => { setMenuOpen(false); navigate("/login"); }}
             style={{
-              background:   COLORS.plum,
-              color:        COLORS.white,
+              background:   C.blue,
+              color:        C.white,
               border:       "none",
-              borderRadius: RADIUS.pill,
+              borderRadius: "100px",
               padding:      "10px 20px",
-              fontFamily:   FONTS.sans,
+              fontFamily:   F.body,
               fontSize:     "0.875rem",
               fontWeight:   600,
               cursor:       "pointer",
               alignSelf:    "flex-start",
               marginTop:    "0.25rem",
+              boxShadow:    "0 4px 18px rgba(43,52,255,0.28)",
             }}
           >
             Get Started Free
@@ -191,7 +207,7 @@ export function PublicNav() {
       )}
 
       {/* Spacer so content doesn't hide under fixed nav */}
-      <div style={{ height: "60px" }} />
+      <div style={{ height: "64px" }} />
 
       <style>{`
         @media (max-width: 680px) {

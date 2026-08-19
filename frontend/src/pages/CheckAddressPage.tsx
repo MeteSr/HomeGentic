@@ -12,22 +12,24 @@ import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { Shield, ArrowRight, CheckCircle } from "lucide-react";
 import { lookupReport, submitReportRequest, type BuyerLookupResult } from "@/services/buyerLookup";
-import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 import { PublicNav } from "@/components/PublicNav";
 import { PublicFooter } from "@/components/PublicFooter";
 import { isValidEmail } from "@/utils/validators";
 
-const UI = {
-  ink:       COLORS.plum,
-  inkLight:  COLORS.plumMid,
-  rule:      COLORS.rule,
-  sage:      COLORS.sage,
-  sageLight: COLORS.sageLight,
-  sageMid:   COLORS.sageMid,
-  butter:    COLORS.butter,
-  serif:     FONTS.serif,
-  mono:      FONTS.sans,
-  sans:      FONTS.sans,
+const C = {
+  blue:   "#2B34FF",
+  coral:  "#FF5C39",
+  ink:    "#0B0D1A",
+  paper:  "#FCFCFD",
+  muted:  "#6B7080",
+  border: "#EDEEF2",
+  white:  "#FFFFFF",
+  blueFg: "#F3F4FF",
+};
+const F = {
+  display: "'Bricolage Grotesque', 'Inter', sans-serif",
+  body:    "'Hanken Grotesk', 'Inter', sans-serif",
+  mono:    "'JetBrains Mono', monospace",
 };
 
 // ── Address search form ───────────────────────────────────────────────────────
@@ -42,25 +44,25 @@ function SearchForm() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: COLORS.white, display: "flex", flexDirection: "column" }}>
+    <div style={{ minHeight: "100vh", background: C.paper, display: "flex", flexDirection: "column" }}>
       <PublicNav />
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "3rem 1.5rem" }}>
         <div style={{ width: "100%", maxWidth: "36rem" }}>
           {/* Eyebrow */}
-          <div style={{ display: "inline-flex", alignItems: "center", background: UI.butter, color: UI.ink, padding: "5px 16px", borderRadius: RADIUS.pill, fontSize: "0.75rem", fontWeight: 600, marginBottom: "1.25rem", border: `1px solid rgba(46,37,64,0.1)`, fontFamily: UI.sans }}>
+          <div style={{ display: "inline-flex", alignItems: "center", background: C.blueFg, color: C.blue, padding: "5px 16px", borderRadius: "100px", fontSize: "0.75rem", fontWeight: 600, marginBottom: "1.25rem", fontFamily: F.mono, letterSpacing: "0.12em", textTransform: "uppercase" }}>
             Buyer Tools
           </div>
 
-          <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "clamp(1.75rem, 4vw, 2.5rem)", lineHeight: 1.1, color: UI.ink, marginBottom: "0.75rem" }}>
+          <h1 style={{ fontFamily: F.display, fontWeight: 800, fontSize: "clamp(1.75rem, 4vw, 2.5rem)", lineHeight: 1.1, color: C.ink, marginBottom: "0.75rem" }}>
             Check any home's maintenance history
           </h1>
-          <p style={{ fontFamily: UI.sans, fontSize: "0.9375rem", color: UI.inkLight, marginBottom: "2.5rem", lineHeight: 1.7, fontWeight: 300 }}>
+          <p style={{ fontFamily: F.body, fontSize: "0.9375rem", color: C.muted, marginBottom: "2.5rem", lineHeight: 1.7, fontWeight: 300 }}>
             Enter a property address to see if the seller has a verified HomeGentic report on file.
           </p>
 
-          <div style={{ background: COLORS.white, border: `1px solid ${UI.rule}`, borderRadius: RADIUS.card, padding: "2rem", boxShadow: SHADOWS.card }}>
+          <div style={{ background: C.white, border: `1.5px solid ${C.border}`, borderRadius: "24px", padding: "2rem", boxShadow: "0 4px 18px rgba(43,52,255,0.08)" }}>
             <label style={{ display: "flex", flexDirection: "column", gap: "0.375rem", marginBottom: "1rem" }}>
-              <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
+              <span style={{ fontFamily: F.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: C.muted }}>
                 Property Address
               </span>
               <input
@@ -70,9 +72,9 @@ function SearchForm() {
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                 placeholder="123 Main St, Daytona Beach, FL"
                 style={{
-                  padding: "0.75rem 1rem", border: `1px solid ${UI.rule}`,
-                  borderRadius: RADIUS.input, fontFamily: UI.sans, fontSize: "0.9375rem",
-                  outline: "none", background: COLORS.white, color: UI.ink,
+                  padding: "0.75rem 1rem", border: `1.5px solid ${C.border}`,
+                  borderRadius: "10px", fontFamily: F.body, fontSize: "0.9375rem",
+                  outline: "none", background: C.white, color: C.ink,
                 }}
               />
             </label>
@@ -82,19 +84,20 @@ function SearchForm() {
               aria-label="check address"
               style={{
                 width: "100%", padding: "0.875rem",
-                background: address.trim() ? UI.ink : UI.rule,
-                color: COLORS.white, border: "none",
-                borderRadius: RADIUS.pill,
+                background: address.trim() ? C.blue : C.border,
+                color: C.white, border: "none",
+                borderRadius: "100px",
                 cursor: address.trim() ? "pointer" : "not-allowed",
-                fontFamily: UI.sans, fontSize: "0.9375rem", fontWeight: 600,
+                fontFamily: F.body, fontSize: "0.9375rem", fontWeight: 600,
                 transition: "background 0.15s",
+                boxShadow: address.trim() ? "0 4px 18px rgba(43,52,255,0.28)" : "none",
               }}
             >
               Check Address
             </button>
           </div>
 
-          <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight, textAlign: "center", marginTop: "1.25rem" }}>
+          <p style={{ fontFamily: F.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: C.muted, textAlign: "center", marginTop: "1.25rem" }}>
             FREE · NO ACCOUNT REQUIRED
           </p>
         </div>
@@ -110,26 +113,26 @@ function FoundResult({ result }: { result: BuyerLookupResult & { found: true } }
   const reportUrl = `/report/${result.token}`;
 
   return (
-    <div style={{ minHeight: "100vh", background: COLORS.white, display: "flex", flexDirection: "column" }}>
+    <div style={{ minHeight: "100vh", background: C.paper, display: "flex", flexDirection: "column" }}>
       <PublicNav />
       <div style={{ flex: 1, maxWidth: "44rem", margin: "0 auto", padding: "3rem 1.5rem", width: "100%" }}>
         {/* Verified badge */}
         <div style={{
           display: "inline-flex", alignItems: "center", gap: "0.5rem",
-          padding: "0.5rem 1rem", background: UI.sageLight,
-          border: `1px solid ${UI.sageMid}`, borderRadius: RADIUS.pill,
+          padding: "0.5rem 1rem", background: C.blueFg,
+          border: `1.5px solid ${C.border}`, borderRadius: "100px",
           marginBottom: "1.75rem",
         }}>
-          <Shield size={15} color={UI.sage} />
-          <span style={{ fontFamily: UI.mono, fontSize: "0.68rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.sage, fontWeight: 700 }}>
+          <Shield size={15} color={C.blue} />
+          <span style={{ fontFamily: F.mono, fontSize: "0.68rem", letterSpacing: "0.1em", textTransform: "uppercase", color: C.blue, fontWeight: 700 }}>
             HomeGentic Verified
           </span>
         </div>
 
-        <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "clamp(1.5rem, 4vw, 2rem)", lineHeight: 1.1, color: UI.ink, marginBottom: "0.5rem" }}>
+        <h1 style={{ fontFamily: F.display, fontWeight: 800, fontSize: "clamp(1.5rem, 4vw, 2rem)", lineHeight: 1.1, color: C.ink, marginBottom: "0.5rem" }}>
           {result.address}
         </h1>
-        <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", color: UI.inkLight, marginBottom: "2.5rem" }}>
+        <p style={{ fontFamily: F.mono, fontSize: "0.65rem", letterSpacing: "0.08em", color: C.muted, marginBottom: "2.5rem" }}>
           {result.verificationLevel} · {result.propertyType}{result.yearBuilt ? ` · Built ${result.yearBuilt}` : ""}
         </p>
 
@@ -138,9 +141,10 @@ function FoundResult({ result }: { result: BuyerLookupResult & { found: true } }
           aria-label="view report"
           style={{
             display: "inline-flex", alignItems: "center", gap: "0.5rem",
-            padding: "0.875rem 2rem", background: UI.ink, color: COLORS.white,
-            textDecoration: "none", borderRadius: RADIUS.pill,
-            fontFamily: UI.sans, fontSize: "0.9375rem", fontWeight: 600,
+            padding: "0.875rem 2rem", background: C.blue, color: C.white,
+            textDecoration: "none", borderRadius: "100px",
+            fontFamily: F.body, fontSize: "0.9375rem", fontWeight: 600,
+            boxShadow: "0 4px 18px rgba(43,52,255,0.28)",
           }}
         >
           View Full Report <ArrowRight size={15} />
@@ -169,28 +173,28 @@ function NotFoundResult({ address }: { address: string }) {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: COLORS.white, display: "flex", flexDirection: "column" }}>
+    <div style={{ minHeight: "100vh", background: C.paper, display: "flex", flexDirection: "column" }}>
       <PublicNav />
       <div style={{ flex: 1, maxWidth: "44rem", margin: "0 auto", padding: "3rem 1.5rem", width: "100%" }}>
         {/* Eyebrow */}
-        <div style={{ display: "inline-flex", alignItems: "center", background: UI.butter, color: UI.ink, padding: "5px 16px", borderRadius: RADIUS.pill, fontSize: "0.75rem", fontWeight: 600, marginBottom: "1.25rem", border: `1px solid rgba(46,37,64,0.1)`, fontFamily: UI.sans }}>
+        <div style={{ display: "inline-flex", alignItems: "center", background: C.blueFg, color: C.blue, padding: "5px 16px", borderRadius: "100px", fontSize: "0.75rem", fontWeight: 600, marginBottom: "1.25rem", fontFamily: F.mono, letterSpacing: "0.12em", textTransform: "uppercase" }}>
           No Report Found
         </div>
 
-        <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "clamp(1.5rem, 4vw, 2rem)", lineHeight: 1.1, color: UI.ink, marginBottom: "0.75rem" }}>
+        <h1 style={{ fontFamily: F.display, fontWeight: 800, fontSize: "clamp(1.5rem, 4vw, 2rem)", lineHeight: 1.1, color: C.ink, marginBottom: "0.75rem" }}>
           No report on file
         </h1>
-        <p style={{ fontFamily: UI.sans, fontSize: "0.9375rem", color: UI.inkLight, marginBottom: "2.5rem", lineHeight: 1.7, fontWeight: 300 }}>
+        <p style={{ fontFamily: F.body, fontSize: "0.9375rem", color: C.muted, marginBottom: "2.5rem", lineHeight: 1.7, fontWeight: 300 }}>
           This property doesn't have a HomeGentic report yet. You can request one from the seller or be notified when one is created.
         </p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           {/* §17.4.5 — Seller CTA */}
-          <div style={{ border: `1px solid ${UI.rule}`, borderRadius: RADIUS.card, padding: "1.75rem", boxShadow: SHADOWS.card }}>
-            <p style={{ fontFamily: UI.mono, fontSize: "0.62rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.sage, marginBottom: "0.5rem" }}>
+          <div style={{ border: `1.5px solid ${C.border}`, borderRadius: "24px", padding: "1.75rem", boxShadow: "0 4px 18px rgba(43,52,255,0.08)" }}>
+            <p style={{ fontFamily: F.mono, fontSize: "0.62rem", letterSpacing: "0.1em", textTransform: "uppercase", color: C.blue, marginBottom: "0.5rem" }}>
               Are you the homeowner?
             </p>
-            <p style={{ fontFamily: UI.sans, fontSize: "0.875rem", color: UI.inkLight, marginBottom: "1.25rem", lineHeight: 1.7, fontWeight: 300 }}>
+            <p style={{ fontFamily: F.body, fontSize: "0.875rem", color: C.muted, marginBottom: "1.25rem", lineHeight: 1.7, fontWeight: 300 }}>
               Start a free HomeGentic report in 2 minutes. Buyers are already searching for this address.
             </p>
             <Link
@@ -198,9 +202,10 @@ function NotFoundResult({ address }: { address: string }) {
               aria-label="start your report"
               style={{
                 display: "inline-flex", alignItems: "center", gap: "0.5rem",
-                padding: "0.75rem 1.5rem", background: UI.ink, color: COLORS.white,
-                textDecoration: "none", borderRadius: RADIUS.pill,
-                fontFamily: UI.sans, fontSize: "0.875rem", fontWeight: 600,
+                padding: "0.75rem 1.5rem", background: C.blue, color: C.white,
+                textDecoration: "none", borderRadius: "100px",
+                fontFamily: F.body, fontSize: "0.875rem", fontWeight: 600,
+                boxShadow: "0 4px 18px rgba(43,52,255,0.28)",
               }}
             >
               Create a Free Report <ArrowRight size={14} />
@@ -208,22 +213,22 @@ function NotFoundResult({ address }: { address: string }) {
           </div>
 
           {/* §17.4.2 — Buyer request form */}
-          <div style={{ background: UI.sageLight, border: `1px solid ${UI.sageMid}`, borderRadius: RADIUS.card, padding: "1.75rem" }}>
+          <div style={{ background: C.blueFg, border: `1.5px solid ${C.border}`, borderRadius: "24px", padding: "1.75rem" }}>
             {submitted ? (
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                <CheckCircle size={20} color={UI.sage} />
-                <p style={{ fontFamily: UI.sans, fontSize: "0.9rem", color: UI.ink, fontWeight: 500 }}>
+                <CheckCircle size={20} color={C.blue} />
+                <p style={{ fontFamily: F.body, fontSize: "0.9rem", color: C.ink, fontWeight: 500 }}>
                   We'll notify you when a report is created for this address.
                 </p>
               </div>
             ) : (
               <>
-                <p style={{ fontFamily: UI.mono, fontSize: "0.62rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.75rem" }}>
+                <p style={{ fontFamily: F.mono, fontSize: "0.62rem", letterSpacing: "0.1em", textTransform: "uppercase", color: C.muted, marginBottom: "0.75rem" }}>
                   Get notified when a report is available
                 </p>
                 <div style={{ display: "flex", gap: "0.5rem" }}>
                   <label style={{ flex: 1 }}>
-                    <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, display: "block", marginBottom: "0.25rem" }}>
+                    <span style={{ fontFamily: F.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: C.muted, display: "block", marginBottom: "0.25rem" }}>
                       Your email
                     </span>
                     <input
@@ -234,14 +239,15 @@ function NotFoundResult({ address }: { address: string }) {
                       placeholder="you@example.com"
                       style={{
                         width: "100%", padding: "0.625rem 0.875rem",
-                        border: `1px solid ${email && !isValidEmail(email) ? COLORS.rust : UI.rule}`,
-                        borderRadius: RADIUS.input,
-                        fontFamily: UI.sans, fontSize: "0.875rem", outline: "none",
-                        background: COLORS.white, boxSizing: "border-box",
+                        border: `1.5px solid ${email && !isValidEmail(email) ? C.coral : C.border}`,
+                        borderRadius: "10px",
+                        fontFamily: F.body, fontSize: "0.875rem", outline: "none",
+                        background: C.white, boxSizing: "border-box",
+                        color: C.ink,
                       }}
                     />
                     {email && !isValidEmail(email) && (
-                      <span style={{ color: COLORS.rust, fontSize: "0.65rem", marginTop: "0.2rem", display: "block", fontFamily: UI.mono }}>Enter a valid email address</span>
+                      <span style={{ color: C.coral, fontSize: "0.65rem", marginTop: "0.2rem", display: "block", fontFamily: F.mono }}>Enter a valid email address</span>
                     )}
                   </label>
                   <button
@@ -250,11 +256,12 @@ function NotFoundResult({ address }: { address: string }) {
                     aria-label="notify me"
                     style={{
                       alignSelf: "flex-end", padding: "0.625rem 1.25rem",
-                      background: UI.ink, color: COLORS.white, border: "none",
-                      borderRadius: RADIUS.pill,
+                      background: C.blue, color: C.white, border: "none",
+                      borderRadius: "100px",
                       cursor: email.trim() ? "pointer" : "not-allowed",
-                      fontFamily: UI.sans, fontSize: "0.875rem", fontWeight: 600,
+                      fontFamily: F.body, fontSize: "0.875rem", fontWeight: 600,
                       whiteSpace: "nowrap",
+                      boxShadow: "0 4px 18px rgba(43,52,255,0.28)",
                     }}
                   >
                     Notify Me
@@ -274,7 +281,7 @@ function NotFoundResult({ address }: { address: string }) {
 
 function LoadingState() {
   return (
-    <div style={{ minHeight: "100vh", background: COLORS.white, display: "flex", flexDirection: "column" }}>
+    <div style={{ minHeight: "100vh", background: C.paper, display: "flex", flexDirection: "column" }}>
       <PublicNav />
       <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center" }}>
         <div role="status" aria-label="loading" className="spinner-lg" />

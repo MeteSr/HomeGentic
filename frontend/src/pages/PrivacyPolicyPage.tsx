@@ -1,19 +1,22 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { COLORS, FONTS, RADIUS } from "@/theme";
 
-const UI = {
-  paper:    COLORS.white,
-  ink:      COLORS.plum,
-  inkLight: COLORS.plumMid,
-  rule:     COLORS.rule,
-  sage:     COLORS.sage,
-  sageLight: COLORS.sageLight,
-  butter:   COLORS.butter,
-  serif:    FONTS.serif,
-  sans:     FONTS.sans,
-  mono:     FONTS.sans,
+const C = {
+  blue:   "#2B34FF",
+  yellow: "#FFD23F",
+  coral:  "#FF5C39",
+  ink:    "#0B0D1A",
+  paper:  "#FCFCFD",
+  muted:  "#6B7080",
+  border: "#EDEEF2",
+  white:  "#FFFFFF",
+  blueFg: "#F3F4FF",
+};
+const F = {
+  display: "'Bricolage Grotesque', 'Inter', sans-serif",
+  body:    "'Hanken Grotesk', 'Inter', sans-serif",
+  mono:    "'JetBrains Mono', monospace",
 };
 
 const EFFECTIVE_DATE = "April 5, 2026";
@@ -31,7 +34,7 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <p>HomeGentic ("we", "us", "our") operates homegentic.app. This Privacy Policy explains what information we collect, how we use it, and what choices you have. We built HomeGentic on the Internet Computer Protocol (ICP) — a decentralized, blockchain-based cloud platform — which means your property records are stored on-chain rather than in a traditional database we own and control.</p>
-        <p>If you have questions or concerns, contact us at <a href="mailto:privacy@homegentic.app" style={{ color: UI.sage }}>privacy@homegentic.app</a>.</p>
+        <p>If you have questions or concerns, contact us at <a href="mailto:privacy@homegentic.app" style={{ color: C.blue }}>privacy@homegentic.app</a>.</p>
       </>
     ),
   },
@@ -45,7 +48,7 @@ const SECTIONS: Section[] = [
         <p><strong>Property and job records.</strong> Addresses, photos, maintenance job descriptions, contractor details, receipts, and related data you upload are stored in ICP canisters. These records are replicated across ICP subnet nodes worldwide and governed by a decentralized protocol — no single company, including HomeGentic, can unilaterally delete them.</p>
         <p><strong>Billing information.</strong> Subscription payments are processed by our payment provider. We store only your subscription tier and expiry date. We never see or store full card numbers, bank account numbers, or other raw payment credentials.</p>
         <p><strong>Usage data.</strong> We log server-side events (route hits, error rates, canister call latency) for reliability monitoring. These logs do not contain property record content. We do not use third-party behavioral analytics or ad-tracking pixels.</p>
-        <p><strong>Voice agent interactions.</strong> If you use the voice assistant, your message and property context are sent to Anthropic's Claude API to generate a response. These requests are not stored by HomeGentic beyond the duration of the API call. Review Anthropic's <a href="https://www.anthropic.com/legal/privacy" target="_blank" rel="noopener noreferrer" style={{ color: UI.sage }}>Privacy Policy</a> for how they handle API data.</p>
+        <p><strong>Voice agent interactions.</strong> If you use the voice assistant, your message and property context are sent to Anthropic's Claude API to generate a response. These requests are not stored by HomeGentic beyond the duration of the API call. Review Anthropic's <a href="https://www.anthropic.com/legal/privacy" target="_blank" rel="noopener noreferrer" style={{ color: C.blue }}>Privacy Policy</a> for how they handle API data.</p>
       </>
     ),
   },
@@ -115,7 +118,7 @@ const SECTIONS: Section[] = [
         <p><strong>Account and profile data.</strong> If you delete your HomeGentic account, we remove your profile information and disassociate your principal from application-layer records within 30 days.</p>
         <p><strong>On-chain records.</strong> As described above, records written to ICP canisters cannot be fully erased from the blockchain's history. We will mark them as deleted in our application index, making them inaccessible via the HomeGentic interface.</p>
         <p><strong>Server logs.</strong> Infrastructure logs are retained for up to 90 days for reliability and security purposes, then deleted.</p>
-        <p>To request deletion of your account, email <a href="mailto:privacy@homegentic.app" style={{ color: UI.sage }}>privacy@homegentic.app</a>. We will respond within 30 days.</p>
+        <p>To request deletion of your account, email <a href="mailto:privacy@homegentic.app" style={{ color: C.blue }}>privacy@homegentic.app</a>. We will respond within 30 days.</p>
       </>
     ),
   },
@@ -123,7 +126,7 @@ const SECTIONS: Section[] = [
     id: "security",
     title: "Security",
     body: (
-      <p>We use Internet Identity for authentication, which means no passwords are stored — your identity is secured by your device's hardware key or passkey. Data in transit is encrypted via TLS. ICP canister data is replicated and integrity-protected by the protocol. We conduct periodic security reviews and follow responsible disclosure practices. If you discover a security vulnerability, please report it to <a href="mailto:security@homegentic.app" style={{ color: UI.sage }}>security@homegentic.app</a>.</p>
+      <p>We use Internet Identity for authentication, which means no passwords are stored — your identity is secured by your device's hardware key or passkey. Data in transit is encrypted via TLS. ICP canister data is replicated and integrity-protected by the protocol. We conduct periodic security reviews and follow responsible disclosure practices. If you discover a security vulnerability, please report it to <a href="mailto:security@homegentic.app" style={{ color: C.blue }}>security@homegentic.app</a>.</p>
     ),
   },
   {
@@ -145,7 +148,7 @@ const SECTIONS: Section[] = [
     title: "Your Privacy Rights",
     body: (
       <>
-        <p>Depending on your location, you may have rights to access, correct, port, or delete your personal data. To exercise any of these rights, contact us at <a href="mailto:privacy@homegentic.app" style={{ color: UI.sage }}>privacy@homegentic.app</a>. We will respond within 30 days. Note that on-chain records are subject to the immutability constraints described above.</p>
+        <p>Depending on your location, you may have rights to access, correct, port, or delete your personal data. To exercise any of these rights, contact us at <a href="mailto:privacy@homegentic.app" style={{ color: C.blue }}>privacy@homegentic.app</a>. We will respond within 30 days. Note that on-chain records are subject to the immutability constraints described above.</p>
         <p>If you are in the European Economic Area, you may also have the right to lodge a complaint with your local data protection authority.</p>
       </>
     ),
@@ -161,7 +164,7 @@ const SECTIONS: Section[] = [
     id: "contact",
     title: "Contact Us",
     body: (
-      <p>HomeGentic, Inc. · <a href="mailto:privacy@homegentic.app" style={{ color: UI.sage }}>privacy@homegentic.app</a> · For support inquiries, visit our <Link to="/support" style={{ color: UI.sage }}>Support page</Link>.</p>
+      <p>HomeGentic, Inc. · <a href="mailto:privacy@homegentic.app" style={{ color: C.blue }}>privacy@homegentic.app</a> · For support inquiries, visit our <Link to="/support" style={{ color: C.blue }}>Support page</Link>.</p>
     ),
   },
 ];
@@ -178,16 +181,17 @@ export default function PrivacyPolicyPage() {
         <meta property="og:url" content="https://homegentic.app/privacy" />
       </Helmet>
 
-      <div style={{ minHeight: "100vh", background: UI.paper, fontFamily: UI.sans }}>
+      <div style={{ minHeight: "100vh", background: C.paper, fontFamily: F.body }}>
+
         {/* Nav */}
-        <header style={{ borderBottom: `1px solid ${UI.rule}`, position: "sticky", top: 0, background: UI.paper, zIndex: 50 }}>
+        <header style={{ borderBottom: `1px solid ${C.border}`, position: "sticky", top: 0, background: C.paper, zIndex: 50 }}>
           <div style={{ maxWidth: "80rem", margin: "0 auto", padding: "0 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", height: "3.5rem" }}>
-            <Link to="/" style={{ textDecoration: "none", fontFamily: UI.serif, fontWeight: 900, fontSize: "1.1rem", letterSpacing: "-0.5px", color: UI.ink }}>
-              Home<span style={{ color: UI.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
+            <Link to="/" style={{ textDecoration: "none", fontFamily: F.display, fontWeight: 800, fontSize: "1.1rem", letterSpacing: "-0.5px", color: C.ink }}>
+              Home<span style={{ color: C.yellow }}>Gentic</span>
             </Link>
             <nav style={{ display: "flex", gap: "1.5rem", alignItems: "center" }}>
-              <Link to="/pricing" style={{ textDecoration: "none", fontFamily: UI.mono, fontSize: "0.7rem", letterSpacing: "0.06em", color: UI.inkLight }}>PRICING</Link>
-              <Link to="/support" style={{ textDecoration: "none", fontFamily: UI.mono, fontSize: "0.7rem", letterSpacing: "0.06em", color: UI.inkLight }}>SUPPORT</Link>
+              <Link to="/pricing" style={{ textDecoration: "none", fontFamily: F.mono, fontSize: "0.7rem", letterSpacing: "0.12em", textTransform: "uppercase" as const, color: C.muted }}>PRICING</Link>
+              <Link to="/support" style={{ textDecoration: "none", fontFamily: F.mono, fontSize: "0.7rem", letterSpacing: "0.12em", textTransform: "uppercase" as const, color: C.muted }}>SUPPORT</Link>
             </nav>
           </div>
         </header>
@@ -195,22 +199,30 @@ export default function PrivacyPolicyPage() {
         <div style={{ maxWidth: "52rem", margin: "0 auto", padding: "4rem 1.5rem 6rem" }}>
 
           {/* Header */}
-          <div style={{ marginBottom: "3rem", paddingBottom: "2rem", borderBottom: `1px solid ${UI.rule}` }}>
-            <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "clamp(2rem, 4vw, 2.75rem)", lineHeight: 1.05, color: UI.ink, marginBottom: "0.75rem" }}>
+          <div style={{ marginBottom: "3rem", paddingBottom: "2rem", borderBottom: `1px solid ${C.border}` }}>
+            <div style={{
+              display: "inline-block",
+              fontFamily: F.mono, fontSize: "0.65rem", letterSpacing: "0.12em",
+              textTransform: "uppercase" as const, color: C.blue,
+              marginBottom: "1rem",
+            }}>
+              Legal
+            </div>
+            <h1 style={{ fontFamily: F.display, fontWeight: 800, fontSize: "clamp(2rem, 4vw, 2.75rem)", lineHeight: 1.05, color: C.ink, marginBottom: "0.75rem" }}>
               Privacy Policy
             </h1>
-            <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight }}>
+            <p style={{ fontFamily: F.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase" as const, color: C.muted }}>
               Effective date: {EFFECTIVE_DATE}
             </p>
           </div>
 
           {/* Table of contents */}
-          <nav aria-label="Table of contents" style={{ background: UI.sageLight, padding: "1.25rem 1.5rem", borderRadius: RADIUS.sm, marginBottom: "3rem", border: `1px solid ${COLORS.sageMid}` }}>
-            <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", color: UI.inkLight, marginBottom: "0.75rem", fontWeight: 700 }}>CONTENTS</p>
+          <nav aria-label="Table of contents" style={{ background: C.blueFg, padding: "1.25rem 1.5rem", borderRadius: 18, marginBottom: "3rem", border: `1px solid ${C.border}` }}>
+            <p style={{ fontFamily: F.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase" as const, color: C.blue, marginBottom: "0.75rem", fontWeight: 700 }}>CONTENTS</p>
             <ol style={{ margin: 0, padding: "0 0 0 1.25rem", display: "flex", flexDirection: "column", gap: "0.35rem" }}>
               {SECTIONS.map((s, i) => (
                 <li key={s.id}>
-                  <a href={`#${s.id}`} style={{ fontFamily: UI.sans, fontSize: "0.875rem", color: UI.ink, textDecoration: "none", fontWeight: 500 }}>
+                  <a href={`#${s.id}`} style={{ fontFamily: F.body, fontSize: "0.875rem", color: C.ink, textDecoration: "none", fontWeight: 500 }}>
                     {i + 1}. {s.title}
                   </a>
                 </li>
@@ -222,15 +234,15 @@ export default function PrivacyPolicyPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: "2.5rem" }}>
             {SECTIONS.map((section, i) => (
               <section key={section.id} id={section.id}>
-                <h2 style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.25rem", color: UI.ink, marginBottom: "1rem", display: "flex", alignItems: "baseline", gap: "0.5rem" }}>
-                  <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, letterSpacing: "0.06em" }}>{String(i + 1).padStart(2, "0")}</span>
+                <h2 style={{ fontFamily: F.display, fontWeight: 800, fontSize: "1.25rem", color: C.ink, marginBottom: "1rem", display: "flex", alignItems: "baseline", gap: "0.5rem" }}>
+                  <span style={{ fontFamily: F.mono, fontSize: "0.65rem", color: C.blue, letterSpacing: "0.12em" }}>{String(i + 1).padStart(2, "0")}</span>
                   {section.title}
                 </h2>
-                <div style={{ fontFamily: UI.sans, fontSize: "0.9375rem", lineHeight: 1.75, color: UI.inkLight, fontWeight: 300, display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+                <div style={{ fontFamily: F.body, fontSize: "0.9375rem", lineHeight: 1.75, color: C.muted, fontWeight: 400, display: "flex", flexDirection: "column", gap: "0.875rem" }}>
                   {section.body}
                 </div>
                 {i < SECTIONS.length - 1 && (
-                  <div style={{ marginTop: "2.5rem", borderBottom: `1px solid ${UI.rule}` }} />
+                  <div style={{ marginTop: "2.5rem", borderBottom: `1px solid ${C.border}` }} />
                 )}
               </section>
             ))}
@@ -238,16 +250,18 @@ export default function PrivacyPolicyPage() {
         </div>
 
         {/* Footer */}
-        <footer style={{ borderTop: `1px solid ${UI.rule}`, padding: "2rem 1.5rem", textAlign: "center" }}>
+        <footer style={{ background: C.ink, padding: "32px 1.5rem", fontFamily: F.body }}>
           <div style={{ maxWidth: "52rem", margin: "0 auto", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
-            <Link to="/" style={{ textDecoration: "none", fontFamily: UI.serif, fontWeight: 900, fontSize: "1rem", color: UI.ink }}>
-              Home<span style={{ color: UI.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
-            </Link>
-            <div style={{ display: "flex", gap: "1.5rem" }}>
-              <Link to="/support" style={{ textDecoration: "none", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight }}>SUPPORT</Link>
-              <Link to="/pricing" style={{ textDecoration: "none", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight }}>PRICING</Link>
+            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.35)" }}>
+              © 2025 HomeGentic
+            </span>
+            <div style={{ display: "flex", gap: 24 }}>
+              {[["Security", "/privacy#security"], ["Privacy", "/privacy"], ["Terms", "/terms"], ["Contact", "/support"]].map(([label, href]) => (
+                <Link key={label} to={href} style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", textDecoration: "none" }}>
+                  {label}
+                </Link>
+              ))}
             </div>
-            <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: UI.inkLight }}>© 2026 HomeGentic Inc.</p>
           </div>
         </footer>
       </div>

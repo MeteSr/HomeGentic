@@ -3,7 +3,23 @@ import { Link, useNavigate } from "react-router-dom";
 import { paymentService } from "@/services/payment";
 import { Helmet } from "react-helmet-async";
 import { CheckCircle } from "lucide-react";
-import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+
+const C = {
+  blue:   "#2B34FF",
+  yellow: "#FFD23F",
+  coral:  "#FF5C39",
+  ink:    "#0B0D1A",
+  paper:  "#FCFCFD",
+  muted:  "#6B7080",
+  border: "#EDEEF2",
+  white:  "#FFFFFF",
+  blueFg: "#F3F4FF",
+};
+const F = {
+  display: "'Bricolage Grotesque', 'Inter', sans-serif",
+  body:    "'Hanken Grotesk', 'Inter', sans-serif",
+  mono:    "'JetBrains Mono', monospace",
+};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -81,19 +97,20 @@ function NavBar() {
   return (
     <nav style={{
       display: "flex", alignItems: "center", justifyContent: "space-between",
-      padding: "0 56px", height: 64, borderBottom: `1px solid ${COLORS.rule}`,
-      background: COLORS.white, position: "sticky", top: 0, zIndex: 100,
+      padding: "0 56px", height: 64, borderBottom: `1px solid ${C.border}`,
+      background: C.paper, position: "sticky", top: 0, zIndex: 100,
     }}>
       <Link to="/" style={{
-        fontFamily: FONTS.serif, fontSize: 20, fontWeight: 900,
-        color: COLORS.plum, textDecoration: "none", letterSpacing: "-0.5px",
+        fontFamily: F.display, fontSize: 20, fontWeight: 800,
+        color: C.ink, textDecoration: "none", letterSpacing: "-0.5px",
       }}>
-        Home<span style={{ color: COLORS.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
+        Home<span style={{ color: C.yellow }}>Gentic</span>
       </Link>
       <Link to="/login" style={{
-        fontFamily: FONTS.sans, fontSize: 14, fontWeight: 600,
-        color: COLORS.white, background: COLORS.plum, textDecoration: "none",
-        padding: "10px 22px", borderRadius: RADIUS.pill,
+        fontFamily: F.body, fontSize: 14, fontWeight: 700,
+        color: C.white, background: C.blue, textDecoration: "none",
+        padding: "10px 22px", borderRadius: "100px",
+        boxShadow: "0 4px 18px rgba(43,52,255,0.28)",
       }}>
         Sign In
       </Link>
@@ -113,18 +130,18 @@ function StepIndicator({ step }: { step: GiftStep }) {
           <React.Fragment key={s.key}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
               <div style={{
-                width: 28, height: 28, borderRadius: RADIUS.pill,
-                background: done || active ? COLORS.sage : "transparent",
-                border: `2px solid ${done || active ? COLORS.sage : COLORS.rule}`,
+                width: 28, height: 28, borderRadius: "100px",
+                background: done || active ? C.blue : "transparent",
+                border: `2px solid ${done || active ? C.blue : C.border}`,
                 display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 12, fontWeight: 700, color: done || active ? COLORS.white : COLORS.rule,
-                fontFamily: FONTS.sans, transition: "all .2s",
+                fontSize: 12, fontWeight: 700, color: done || active ? C.white : C.border,
+                fontFamily: F.body, transition: "all .2s",
               }}>
                 {done ? "✓" : i + 1}
               </div>
               <span style={{
-                fontFamily: FONTS.sans, fontSize: 12,
-                color: active ? COLORS.plum : done ? COLORS.sage : COLORS.rule,
+                fontFamily: F.body, fontSize: 12,
+                color: active ? C.ink : done ? C.blue : C.border,
                 fontWeight: active ? 700 : 400, whiteSpace: "nowrap",
               }}>
                 {s.label}
@@ -133,7 +150,7 @@ function StepIndicator({ step }: { step: GiftStep }) {
             {i < STEP_LABELS.length - 1 && (
               <div style={{
                 width: 64, height: 2, margin: "0 8px", marginBottom: 28,
-                background: i < activeIndex ? COLORS.sage : COLORS.rule,
+                background: i < activeIndex ? C.blue : C.border,
                 transition: "background .3s",
               }} />
             )}
@@ -153,7 +170,7 @@ function InputField({
   const [focused, setFocused] = useState(false);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <label style={{ fontFamily: FONTS.sans, fontSize: 13, fontWeight: 600, color: COLORS.plumMid }}>
+      <label style={{ fontFamily: F.body, fontSize: 13, fontWeight: 600, color: C.muted }}>
         {label}
       </label>
       <input
@@ -165,15 +182,15 @@ function InputField({
         placeholder={placeholder}
         maxLength={maxLength}
         style={{
-          width: "100%", padding: "12px 14px", borderRadius: RADIUS.input,
-          border: `1.5px solid ${error ? COLORS.rust : focused ? COLORS.sage : COLORS.rule}`,
-          fontFamily: FONTS.sans, fontSize: "0.9rem", color: COLORS.plum,
-          background: COLORS.white, outline: "none", boxSizing: "border-box",
+          width: "100%", padding: "12px 14px", borderRadius: "10px",
+          border: `1.5px solid ${error ? C.coral : focused ? C.blue : C.border}`,
+          fontFamily: F.body, fontSize: "0.9rem", color: C.ink,
+          background: C.white, outline: "none", boxSizing: "border-box",
           transition: "border-color .15s",
         }}
       />
       {error && (
-        <span style={{ fontFamily: FONTS.sans, fontSize: 12, color: COLORS.rust }}>{error}</span>
+        <span style={{ fontFamily: F.body, fontSize: 12, color: C.coral }}>{error}</span>
       )}
     </div>
   );
@@ -195,17 +212,17 @@ function StepSelect({ data, setData, onNext }: {
             key={b}
             onClick={() => setData((d) => ({ ...d, billing: b }))}
             style={{
-              fontFamily: FONTS.sans, fontSize: 13, fontWeight: 600,
-              padding: "8px 20px", borderRadius: RADIUS.pill,
-              border: `1.5px solid ${data.billing === b ? COLORS.plum : COLORS.rule}`,
-              background: data.billing === b ? COLORS.plum : "transparent",
-              color: data.billing === b ? COLORS.white : COLORS.plumMid,
+              fontFamily: F.body, fontSize: 13, fontWeight: 600,
+              padding: "8px 20px", borderRadius: "100px",
+              border: `1.5px solid ${data.billing === b ? C.blue : C.border}`,
+              background: data.billing === b ? C.blue : "transparent",
+              color: data.billing === b ? C.white : C.muted,
               cursor: "pointer", transition: "all .2s",
             }}
           >
             {b === "monthly" ? "Monthly" : "Annual"}
             {b === "annual" && (
-              <span style={{ marginLeft: 8, background: COLORS.sage, color: COLORS.white, padding: "2px 8px", borderRadius: RADIUS.pill, fontSize: 10 }}>
+              <span style={{ marginLeft: 8, background: C.yellow, color: C.ink, padding: "2px 8px", borderRadius: "100px", fontSize: 10, fontWeight: 700 }}>
                 Save 2mo
               </span>
             )}
@@ -227,35 +244,35 @@ function StepSelect({ data, setData, onNext }: {
               key={tier}
               onClick={() => setData((d) => ({ ...d, tier }))}
               style={{
-                padding: "2rem", borderRadius: RADIUS.card, cursor: "pointer",
-                background: isPopular ? COLORS.plum : COLORS.white,
-                border: `1.5px solid ${isPopular ? COLORS.plum : active ? COLORS.sage : COLORS.rule}`,
-                boxShadow: isPopular ? SHADOWS.hover : active ? `0 0 0 3px ${COLORS.sage}22` : SHADOWS.card,
+                padding: "2rem", borderRadius: "24px", cursor: "pointer",
+                background: isPopular ? C.blue : C.white,
+                border: `${isPopular ? "2px" : "1.5px"} solid ${isPopular ? C.blue : active ? C.blue : C.border}`,
+                boxShadow: isPopular ? "0 8px 40px rgba(43,52,255,0.22)" : active ? `0 0 0 3px ${C.blue}22` : "0 2px 12px rgba(11,13,26,0.06)",
                 transition: "all .2s", position: "relative",
               }}
             >
               {isPopular && (
-                <div style={{ display: "inline-flex", alignItems: "center", background: COLORS.sage, color: COLORS.white, padding: "3px 12px", borderRadius: 100, fontSize: "0.7rem", fontWeight: 600, marginBottom: "0.75rem" }}>
+                <div style={{ display: "inline-flex", alignItems: "center", background: C.yellow, color: C.ink, padding: "3px 12px", borderRadius: 100, fontSize: "0.65rem", fontWeight: 700, marginBottom: "0.75rem", fontFamily: F.mono, letterSpacing: "0.08em", textTransform: "uppercase" }}>
                   Most Popular
                 </div>
               )}
 
-              <div style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.875rem", color: isPopular ? COLORS.sageLight : COLORS.plumMid, marginBottom: "0.5rem" }}>
+              <div style={{ fontFamily: F.body, fontWeight: 600, fontSize: "0.875rem", color: isPopular ? "rgba(255,255,255,0.7)" : C.muted, marginBottom: "0.5rem" }}>
                 {tier}
               </div>
-              <div style={{ fontFamily: FONTS.sans, fontSize: 13, color: isPopular ? "rgba(253,252,250,0.55)" : COLORS.plumMid, marginBottom: 20, lineHeight: 1.4 }}>
+              <div style={{ fontFamily: F.body, fontSize: 13, color: isPopular ? "rgba(255,255,255,0.55)" : C.muted, marginBottom: 20, lineHeight: 1.4 }}>
                 {plan.tagline}
               </div>
 
               <div style={{ marginBottom: "1.5rem" }}>
-                <span style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "2.5rem", lineHeight: 1, color: isPopular ? COLORS.white : COLORS.plum }}>
+                <span style={{ fontFamily: F.display, fontWeight: 800, fontSize: "2.5rem", lineHeight: 1, color: isPopular ? C.white : C.ink }}>
                   ${price}
                 </span>
-                <span style={{ fontFamily: FONTS.sans, fontSize: "0.65rem", color: isPopular ? "rgba(253,252,250,0.5)" : COLORS.plumMid }}>
+                <span style={{ fontFamily: F.body, fontSize: "0.65rem", color: isPopular ? "rgba(255,255,255,0.5)" : C.muted }}>
                   {period}
                 </span>
                 {data.billing === "annual" && (
-                  <div style={{ fontFamily: FONTS.sans, fontSize: "0.6rem", color: COLORS.sage, marginTop: "0.25rem" }}>
+                  <div style={{ fontFamily: F.body, fontSize: "0.6rem", color: isPopular ? C.yellow : C.blue, marginTop: "0.25rem" }}>
                     ${(price / 12).toFixed(2)}/mo billed annually
                   </div>
                 )}
@@ -263,8 +280,8 @@ function StepSelect({ data, setData, onNext }: {
 
               <ul style={{ listStyle: "none", padding: 0, margin: "0 0 1.5rem", display: "flex", flexDirection: "column", gap: "0.625rem" }}>
                 {plan.bullets.map((b) => (
-                  <li key={b} style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", fontFamily: FONTS.sans, fontSize: "0.85rem", color: isPopular ? COLORS.sageLight : COLORS.plumMid, fontWeight: 300 }}>
-                    <CheckCircle size={14} color={COLORS.sage} style={{ flexShrink: 0, marginTop: "0.1rem" }} />
+                  <li key={b} style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", fontFamily: F.body, fontSize: "0.85rem", color: isPopular ? "rgba(255,255,255,0.85)" : C.muted, fontWeight: 300 }}>
+                    <CheckCircle size={14} color={isPopular ? C.yellow : C.blue} style={{ flexShrink: 0, marginTop: "0.1rem" }} />
                     {b}
                   </li>
                 ))}
@@ -273,12 +290,12 @@ function StepSelect({ data, setData, onNext }: {
               <button
                 onClick={(e) => { e.stopPropagation(); setData((d) => ({ ...d, tier })); onNext(); }}
                 style={{
-                  width: "100%", padding: "13px 0", borderRadius: RADIUS.pill,
-                  fontFamily: FONTS.sans, fontSize: 15, fontWeight: 700,
-                  background: isPopular ? COLORS.sage : tier === "Basic" ? COLORS.plum : COLORS.plumDark,
-                  color: COLORS.white,
-                  border: tier === "Premium" ? `2px solid ${COLORS.sage}` : "none",
-                  cursor: "pointer", transition: "opacity .2s",
+                  width: "100%", padding: "13px 0", borderRadius: "100px",
+                  fontFamily: F.body, fontSize: 15, fontWeight: 700,
+                  background: isPopular ? C.yellow : tier === "Basic" ? C.blue : C.ink,
+                  color: isPopular ? C.ink : C.white,
+                  border: "none", cursor: "pointer", transition: "opacity .2s",
+                  boxShadow: tier === "Basic" ? "0 4px 18px rgba(43,52,255,0.28)" : "none",
                 }}
               >
                 Gift {tier}
@@ -360,7 +377,7 @@ function StepMessage({ data, setData, onNext, onBack }: {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <label style={{ fontFamily: FONTS.sans, fontSize: 13, fontWeight: 600, color: COLORS.plumMid }}>
+        <label style={{ fontFamily: F.body, fontSize: 13, fontWeight: 600, color: C.muted }}>
           Gift message <span style={{ fontWeight: 400 }}>(optional)</span>
         </label>
         <textarea
@@ -372,33 +389,33 @@ function StepMessage({ data, setData, onNext, onBack }: {
           rows={4}
           placeholder={`e.g. Congratulations on the new home! This subscription will help you build a verified maintenance record from day one. — ${data.senderName || "Your Name"}`}
           style={{
-            width: "100%", padding: "12px 14px", borderRadius: RADIUS.input,
-            border: `1.5px solid ${focused ? COLORS.sage : COLORS.rule}`,
-            fontFamily: FONTS.sans, fontSize: "0.9rem", color: COLORS.plum,
-            background: COLORS.white, outline: "none", resize: "vertical",
+            width: "100%", padding: "12px 14px", borderRadius: "10px",
+            border: `1.5px solid ${focused ? C.blue : C.border}`,
+            fontFamily: F.body, fontSize: "0.9rem", color: C.ink,
+            background: C.white, outline: "none", resize: "vertical",
             boxSizing: "border-box", lineHeight: 1.6,
           }}
         />
-        <span style={{ fontFamily: FONTS.sans, fontSize: 12, color: count > 250 ? COLORS.rust : COLORS.plumMid, alignSelf: "flex-end" }}>
+        <span style={{ fontFamily: F.body, fontSize: 12, color: count > 250 ? C.coral : C.muted, alignSelf: "flex-end" }}>
           {count}/280
         </span>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <label style={{ fontFamily: FONTS.sans, fontSize: 13, fontWeight: 600, color: COLORS.plumMid }}>
+        <label style={{ fontFamily: F.body, fontSize: 13, fontWeight: 600, color: C.muted }}>
           Delivery
         </label>
         {[
           { value: "now",   label: "Send immediately" },
           { value: "later", label: "Schedule for a date" },
         ].map((opt) => (
-          <label key={opt.value} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontFamily: FONTS.sans, fontSize: 15, color: COLORS.plum }}>
+          <label key={opt.value} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontFamily: F.body, fontSize: 15, color: C.ink }}>
             <input
               type="radio"
               name="delivery"
               checked={opt.value === "now" ? data.deliveryDate === "now" : data.deliveryDate !== "now"}
               onChange={() => setData((d) => ({ ...d, deliveryDate: opt.value === "now" ? "now" : today() }))}
-              style={{ accentColor: COLORS.sage, width: 16, height: 16 }}
+              style={{ accentColor: C.blue, width: 16, height: 16 }}
             />
             {opt.label}
           </label>
@@ -410,9 +427,9 @@ function StepMessage({ data, setData, onNext, onBack }: {
             min={today()}
             onChange={(e) => setData((d) => ({ ...d, deliveryDate: e.target.value }))}
             style={{
-              padding: "10px 14px", borderRadius: RADIUS.input, maxWidth: 220,
-              border: `1.5px solid ${COLORS.rule}`, fontFamily: FONTS.sans, fontSize: "0.9rem",
-              color: COLORS.plum, background: COLORS.white, outline: "none",
+              padding: "10px 14px", borderRadius: "10px", maxWidth: 220,
+              border: `1.5px solid ${C.border}`, fontFamily: F.body, fontSize: "0.9rem",
+              color: C.ink, background: C.white, outline: "none",
             }}
           />
         )}
@@ -437,29 +454,31 @@ function StepReview({ data, onSubmit, onBack, loading, error }: {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
       {/* Summary card */}
-      <div style={{ borderRadius: RADIUS.card, border: `1.5px solid ${COLORS.rule}`, overflow: "hidden" }}>
-        <div style={{ background: COLORS.plum, padding: "20px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ borderRadius: "24px", border: `1.5px solid ${C.border}`, overflow: "hidden" }}>
+        <div style={{ background: C.ink, padding: "20px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <span style={{ fontFamily: FONTS.serif, fontSize: 22, fontWeight: 900, color: COLORS.white }}>{data.tier}</span>
-            <span style={{ fontFamily: FONTS.sans, fontSize: 13, color: "rgba(253,252,250,0.5)", marginLeft: 12 }}>{data.billing}</span>
+            <span style={{ fontFamily: F.display, fontSize: 22, fontWeight: 800, color: C.white }}>{data.tier}</span>
+            <span style={{ fontFamily: F.body, fontSize: 13, color: "rgba(252,252,253,0.45)", marginLeft: 12 }}>{data.billing}</span>
           </div>
-          <span style={{ fontFamily: FONTS.serif, fontSize: 28, fontWeight: 900, color: COLORS.white }}>${price}<span style={{ fontFamily: FONTS.sans, fontSize: 14, color: "rgba(253,252,250,0.5)" }}>{period}</span></span>
+          <span style={{ fontFamily: F.display, fontSize: 28, fontWeight: 800, color: C.white }}>
+            ${price}<span style={{ fontFamily: F.body, fontSize: 14, color: "rgba(252,252,253,0.45)" }}>{period}</span>
+          </span>
         </div>
-        <div style={{ padding: "20px 28px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div style={{ padding: "20px 28px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, background: C.white }}>
           {[
             { label: "To",      value: `${data.recipientName} · ${data.recipientEmail}` },
             { label: "From",    value: `${data.senderName} · ${data.senderEmail}` },
             { label: "Deliver", value: data.deliveryDate === "now" ? "Immediately" : data.deliveryDate },
           ].map(({ label, value }) => (
             <div key={label}>
-              <div style={{ fontFamily: FONTS.sans, fontSize: 11, fontWeight: 600, color: COLORS.plumMid, marginBottom: 4 }}>{label}</div>
-              <div style={{ fontFamily: FONTS.sans, fontSize: 14, color: COLORS.plum }}>{value}</div>
+              <div style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4, letterSpacing: "0.08em", textTransform: "uppercase" }}>{label}</div>
+              <div style={{ fontFamily: F.body, fontSize: 14, color: C.ink }}>{value}</div>
             </div>
           ))}
         </div>
         {data.giftMessage && (
-          <div style={{ margin: "0 28px 24px", padding: "20px 24px", background: `linear-gradient(135deg, ${COLORS.blush}, ${COLORS.butter})`, borderRadius: RADIUS.sm }}>
-            <p style={{ fontFamily: FONTS.serif, fontSize: 16, fontStyle: "italic", color: COLORS.plum, margin: 0, lineHeight: 1.65 }}>
+          <div style={{ margin: "0 28px 24px", padding: "20px 24px", background: `linear-gradient(135deg, ${C.blueFg}, #FFFBEB)`, borderRadius: "12px" }}>
+            <p style={{ fontFamily: F.display, fontSize: 16, fontStyle: "italic", color: C.ink, margin: 0, lineHeight: 1.65 }}>
               "{data.giftMessage}"
             </p>
           </div>
@@ -467,7 +486,7 @@ function StepReview({ data, onSubmit, onBack, loading, error }: {
       </div>
 
       {error && (
-        <div style={{ padding: "12px 16px", background: "#FEE2E2", border: "1px solid #FCA5A5", fontFamily: FONTS.sans, fontSize: 13, color: "#991B1B" }}>
+        <div style={{ padding: "12px 16px", background: "#FEE2E2", border: "1px solid #FCA5A5", borderRadius: "10px", fontFamily: F.body, fontSize: 13, color: "#991B1B" }}>
           {error}
         </div>
       )}
@@ -481,35 +500,37 @@ function StepDone({ data }: { data: GiftFormData }) {
   return (
     <div style={{ textAlign: "center", padding: "48px 0" }}>
       <div style={{ marginBottom: 24, display: "flex", justifyContent: "center" }}>
-        <CheckCircle size={56} color={COLORS.sage} strokeWidth={1.5} />
+        <CheckCircle size={56} color={C.blue} strokeWidth={1.5} />
       </div>
-      <h2 style={{ fontFamily: FONTS.serif, fontSize: "clamp(28px, 4vw, 42px)", fontWeight: 900, color: COLORS.plum, letterSpacing: "-1px", margin: "0 0 16px" }}>
+      <h2 style={{ fontFamily: F.display, fontSize: "clamp(28px, 4vw, 42px)", fontWeight: 800, color: C.ink, letterSpacing: "-1px", margin: "0 0 16px" }}>
         Your gift is on its way.
       </h2>
-      <p style={{ fontFamily: FONTS.sans, fontSize: 17, color: COLORS.plumMid, lineHeight: 1.7, maxWidth: 520, margin: "0 auto 32px" }}>
-        We'll send <strong>{data.recipientName}</strong> an email at <strong>{data.recipientEmail}</strong> with instructions to activate their {data.tier} subscription. A receipt will go to <strong>{data.senderEmail}</strong>.
+      <p style={{ fontFamily: F.body, fontSize: 17, color: C.muted, lineHeight: 1.7, maxWidth: 520, margin: "0 auto 32px" }}>
+        We'll send <strong style={{ color: C.ink }}>{data.recipientName}</strong> an email at <strong style={{ color: C.ink }}>{data.recipientEmail}</strong> with instructions to activate their {data.tier} subscription. A receipt will go to <strong style={{ color: C.ink }}>{data.senderEmail}</strong>.
       </p>
 
       <div style={{
-        display: "inline-block", padding: "16px 28px", borderRadius: RADIUS.card,
-        background: COLORS.butter, maxWidth: 480, textAlign: "left", marginBottom: 40,
-        fontFamily: FONTS.sans, fontSize: 14, color: COLORS.plum, lineHeight: 1.65,
+        display: "inline-block", padding: "16px 28px", borderRadius: "18px",
+        background: "#FFFBEB", maxWidth: 480, textAlign: "left", marginBottom: 40,
+        fontFamily: F.body, fontSize: 14, color: C.ink, lineHeight: 1.65,
+        border: `1px solid ${C.yellow}44`,
       }}>
         🎁 The subscription activates when {data.recipientName.split(" ")[0]} signs in and accepts the gift. They'll have 30 days to redeem.
       </div>
 
       <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
         <Link to="/pricing" style={{
-          fontFamily: FONTS.sans, fontSize: 15, fontWeight: 600,
-          padding: "12px 28px", borderRadius: RADIUS.pill,
-          border: `1.5px solid ${COLORS.plum}`, color: COLORS.plum, textDecoration: "none",
+          fontFamily: F.body, fontSize: 15, fontWeight: 600,
+          padding: "12px 28px", borderRadius: "100px",
+          border: `1.5px solid ${C.border}`, color: C.ink, textDecoration: "none",
         }}>
           View Pricing
         </Link>
         <Link to="/" style={{
-          fontFamily: FONTS.sans, fontSize: 15, fontWeight: 600,
-          padding: "12px 28px", borderRadius: RADIUS.pill,
-          background: COLORS.plum, color: COLORS.white, textDecoration: "none",
+          fontFamily: F.body, fontSize: 15, fontWeight: 700,
+          padding: "12px 28px", borderRadius: "100px",
+          background: C.blue, color: C.white, textDecoration: "none",
+          boxShadow: "0 4px 18px rgba(43,52,255,0.28)",
         }}>
           Back to Home
         </Link>
@@ -527,10 +548,10 @@ function NavButtons({ onBack, onNext, nextLabel = "Continue", disabled = false }
         onClick={onBack}
         disabled={disabled}
         style={{
-          fontFamily: FONTS.sans, fontSize: 15, fontWeight: 600,
-          padding: "12px 28px", borderRadius: RADIUS.pill,
-          border: `1.5px solid ${COLORS.rule}`, background: "transparent",
-          color: COLORS.plumMid, cursor: disabled ? "not-allowed" : "pointer",
+          fontFamily: F.body, fontSize: 15, fontWeight: 600,
+          padding: "12px 28px", borderRadius: "100px",
+          border: `1.5px solid ${C.border}`, background: "transparent",
+          color: C.muted, cursor: disabled ? "not-allowed" : "pointer",
           opacity: disabled ? 0.5 : 1,
         }}
       >
@@ -540,11 +561,12 @@ function NavButtons({ onBack, onNext, nextLabel = "Continue", disabled = false }
         onClick={onNext}
         disabled={disabled}
         style={{
-          fontFamily: FONTS.sans, fontSize: 15, fontWeight: 700,
-          padding: "12px 32px", borderRadius: RADIUS.pill,
-          background: COLORS.plum, color: COLORS.white,
+          fontFamily: F.body, fontSize: 15, fontWeight: 700,
+          padding: "12px 32px", borderRadius: "100px",
+          background: C.blue, color: C.white,
           border: "none", cursor: disabled ? "not-allowed" : "pointer",
           opacity: disabled ? 0.7 : 1,
+          boxShadow: disabled ? "none" : "0 4px 18px rgba(43,52,255,0.28)",
         }}
       >
         {nextLabel}
@@ -555,47 +577,47 @@ function NavButtons({ onBack, onNext, nextLabel = "Continue", disabled = false }
 
 function Footer() {
   return (
-    <footer style={{ background: "#1E1928", padding: "64px 56px 32px", fontFamily: FONTS.sans }}>
+    <footer style={{ background: C.ink, padding: "64px 56px 32px", fontFamily: F.body }}>
       <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 1fr 1fr", gap: 48, marginBottom: 52 }}>
         <div>
-          <span style={{ fontFamily: FONTS.serif, fontSize: 24, fontWeight: 900, color: "white", marginBottom: 14, display: "block" }}>
-            Home<span style={{ color: COLORS.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
+          <span style={{ fontFamily: F.display, fontSize: 24, fontWeight: 800, color: C.white, marginBottom: 14, display: "block" }}>
+            Home<span style={{ color: C.yellow }}>Gentic</span>
           </span>
-          <p style={{ fontSize: 14, color: "rgba(253,252,250,0.45)", lineHeight: 1.65, maxWidth: 220, margin: "0 0 24px" }}>
+          <p style={{ fontFamily: F.body, fontSize: 14, color: "rgba(252,252,253,0.45)", lineHeight: 1.65, maxWidth: 220, margin: "0 0 24px" }}>
             The verified maintenance record that makes your home worth more and easier to sell.
           </p>
         </div>
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase" as const, color: "rgba(253,252,250,0.35)", marginBottom: 20 }}>Product</div>
+          <div style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase" as const, color: "rgba(252,252,253,0.35)", marginBottom: 20 }}>Product</div>
           <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column" as const, gap: 12 }}>
             {[["Pricing", "/pricing"], ["Gift a Sub", "/gift"], ["FAQ", "/faq"]].map(([label, href]) => (
-              <li key={label}><Link to={href} style={{ fontSize: 14, color: "rgba(253,252,250,0.6)", textDecoration: "none" }}>{label}</Link></li>
+              <li key={label}><Link to={href} style={{ fontFamily: F.body, fontSize: 14, color: "rgba(252,252,253,0.6)", textDecoration: "none" }}>{label}</Link></li>
             ))}
           </ul>
         </div>
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase" as const, color: "rgba(253,252,250,0.35)", marginBottom: 20 }}>Free Tools</div>
+          <div style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase" as const, color: "rgba(252,252,253,0.35)", marginBottom: 20 }}>Free Tools</div>
           <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column" as const, gap: 12 }}>
             {[["Report Lookup", "/check"], ["System Forecast", "/instant-forecast"], ["Price Lookup", "/prices"], ["Systems Estimator", "/home-systems"]].map(([label, href]) => (
-              <li key={label}><Link to={href} style={{ fontSize: 14, color: "rgba(253,252,250,0.6)", textDecoration: "none" }}>{label}</Link></li>
+              <li key={label}><Link to={href} style={{ fontFamily: F.body, fontSize: 14, color: "rgba(252,252,253,0.6)", textDecoration: "none" }}>{label}</Link></li>
             ))}
           </ul>
         </div>
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase" as const, color: "rgba(253,252,250,0.35)", marginBottom: 20 }}>Company</div>
+          <div style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase" as const, color: "rgba(252,252,253,0.35)", marginBottom: 20 }}>Company</div>
           <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column" as const, gap: 12 }}>
             {[["Privacy Policy", "/privacy"], ["Terms of Service", "/terms"], ["Support", "/support"]].map(([label, href]) => (
-              <li key={label}><Link to={href} style={{ fontSize: 14, color: "rgba(253,252,250,0.6)", textDecoration: "none" }}>{label}</Link></li>
+              <li key={label}><Link to={href} style={{ fontFamily: F.body, fontSize: 14, color: "rgba(252,252,253,0.6)", textDecoration: "none" }}>{label}</Link></li>
             ))}
           </ul>
         </div>
       </div>
-      <div style={{ borderTop: "1px solid rgba(253,252,250,0.08)", paddingTop: 24, display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 13, color: "rgba(253,252,250,0.35)" }}>
+      <div style={{ borderTop: "1px solid rgba(252,252,253,0.08)", paddingTop: 24, display: "flex", alignItems: "center", justifyContent: "space-between", fontFamily: F.body, fontSize: 13, color: "rgba(252,252,253,0.35)" }}>
         <span>© 2026 HomeGentic Inc.</span>
         <div style={{ display: "flex", gap: 24 }}>
-          <Link to="/privacy" style={{ color: "rgba(253,252,250,0.35)", textDecoration: "none" }}>Privacy</Link>
-          <Link to="/terms"   style={{ color: "rgba(253,252,250,0.35)", textDecoration: "none" }}>Terms</Link>
-          <Link to="/support" style={{ color: "rgba(253,252,250,0.35)", textDecoration: "none" }}>Support</Link>
+          <Link to="/privacy" style={{ color: "rgba(252,252,253,0.35)", textDecoration: "none" }}>Privacy</Link>
+          <Link to="/terms"   style={{ color: "rgba(252,252,253,0.35)", textDecoration: "none" }}>Terms</Link>
+          <Link to="/support" style={{ color: "rgba(252,252,253,0.35)", textDecoration: "none" }}>Support</Link>
         </div>
       </div>
     </footer>
@@ -659,7 +681,7 @@ export default function GiftPage() {
         <meta name="description" content="Give the gift of a verified home. Gift a HomeGentic Pro or Premium subscription to a buyer, client, or homeowner you care about." />
       </Helmet>
 
-      <div style={{ background: COLORS.white, minHeight: "100vh", fontFamily: FONTS.sans }}>
+      <div style={{ background: C.paper, minHeight: "100vh", fontFamily: F.body }}>
         <NavBar />
 
         <div style={{ maxWidth: 860, margin: "0 auto", padding: "72px 56px 100px" }}>
@@ -668,20 +690,22 @@ export default function GiftPage() {
           {step !== "done" && (
             <div style={{ textAlign: "center", marginBottom: 64 }}>
               <h1 style={{
-                fontFamily: FONTS.serif, fontSize: "clamp(36px, 5vw, 56px)",
-                fontWeight: 900, color: COLORS.plum, letterSpacing: "-1.5px",
+                fontFamily: F.display, fontSize: "clamp(36px, 5vw, 56px)",
+                fontWeight: 800, color: C.ink, letterSpacing: "-1.5px",
                 lineHeight: 1.05, margin: "0 0 20px",
               }}>
                 Give the gift of a<br />
-                <em style={{ fontStyle: "italic", fontWeight: 300, color: COLORS.sage }}>verified home.</em>
+                <span style={{ fontWeight: 400, color: C.blue }}>verified home.</span>
               </h1>
               <p style={{
-                fontFamily: FONTS.sans, fontSize: 17, color: COLORS.plumMid,
+                fontFamily: F.body, fontSize: 17, color: C.muted,
                 lineHeight: 1.7, maxWidth: 560, margin: "0 auto 10px",
               }}>
-                Close more confidently. Gift your buyer a <span style={{ fontFamily: FONTS.serif, fontWeight: 900, color: COLORS.plum }}>Home</span><span style={{ color: COLORS.sage, fontStyle: "italic", fontWeight: 300, fontFamily: FONTS.serif }}>Gentic</span> Pro or Premium subscription at closing — so they start building a verified maintenance record from day one.
+                Close more confidently. Gift your buyer a{" "}
+                <span style={{ fontFamily: F.display, fontWeight: 800, color: C.ink }}>Home</span><span style={{ color: C.yellow, fontFamily: F.display, fontWeight: 800 }}>Gentic</span>
+                {" "}Pro or Premium subscription at closing — so they start building a verified maintenance record from day one.
               </p>
-              <p style={{ fontFamily: FONTS.sans, fontSize: 14, color: COLORS.plumMid, margin: 0 }}>
+              <p style={{ fontFamily: F.body, fontSize: 14, color: C.muted, margin: 0 }}>
                 Works for anyone: family, friends, clients, neighbors.
               </p>
             </div>
