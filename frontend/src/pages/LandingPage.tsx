@@ -322,7 +322,7 @@ const PLANS = [
     tag: null as string | null, tagBg: YELLOW,
     bg: PAPER, border: BORDER, shadow: "none",
     titleColor: INK, subColor: MUTED,
-    ctaBg: "transparent", ctaBorder: BLUE, ctaColor: BLUE, cta: "Start free",
+    ctaBg: "transparent", ctaBorder: BLUE, ctaColor: BLUE, cta: "Get started",
     checkBg: LBLUE, checkColor: BLUE,
   },
   {
@@ -331,7 +331,7 @@ const PLANS = [
     tag: "MOST POPULAR", tagBg: YELLOW,
     bg: BLUE, border: BLUE, shadow: "0 20px 60px rgba(43,52,255,0.4)",
     titleColor: PAPER, subColor: "rgba(252,252,253,0.72)",
-    ctaBg: YELLOW, ctaBorder: YELLOW, ctaColor: INK, cta: "Start free",
+    ctaBg: YELLOW, ctaBorder: YELLOW, ctaColor: INK, cta: "Get Pro",
     checkBg: "rgba(252,252,253,0.2)", checkColor: PAPER,
   },
   {
@@ -340,7 +340,7 @@ const PLANS = [
     tag: null, tagBg: YELLOW,
     bg: INK, border: INK, shadow: "0 20px 60px rgba(11,13,26,0.4)",
     titleColor: PAPER, subColor: "rgba(252,252,253,0.6)",
-    ctaBg: YELLOW, ctaBorder: YELLOW, ctaColor: INK, cta: "Start free",
+    ctaBg: YELLOW, ctaBorder: YELLOW, ctaColor: INK, cta: "Get Premium",
     checkBg: "rgba(252,252,253,0.15)", checkColor: PAPER,
   },
 ];
