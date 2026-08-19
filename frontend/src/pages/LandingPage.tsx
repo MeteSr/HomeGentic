@@ -664,7 +664,7 @@ export default function LandingPage() {
                 </p>
               </div>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                <PillBtn label="Get started free" onClick={() => navigate("/login")} variant="yellow" size="lg" />
+                <PillBtn label="Get started" onClick={() => navigate("/login")} variant="yellow" size="lg" />
                 <PillBtn label="Talk to us" onClick={() => navigate("/support")} variant="glass" size="lg" />
               </div>
             </div>
