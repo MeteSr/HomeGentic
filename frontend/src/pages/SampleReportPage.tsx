@@ -361,7 +361,7 @@ export default function SampleReportPage() {
         <div style={{ marginTop: 56, background: BLUE, borderRadius: 28, padding: "48px 48px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 32, flexWrap: "wrap" }}>
           <div>
             <div style={{ fontFamily: DISPLAY, fontWeight: 800, fontSize: "1.75rem", color: PAPER, letterSpacing: "-0.04em", lineHeight: 1.15 }}>
-              Build yours — free for one property.
+              Build yours — from $10 a month.
             </div>
             <p style={{ fontFamily: BODY, fontSize: "0.9375rem", color: "rgba(252,252,253,0.76)", marginTop: 10, maxWidth: 480 }}>
               Every plan comes with permanent storage and shareable reports. Start with the last repair you paid for.
@@ -373,7 +373,7 @@ export default function SampleReportPage() {
               onClick={() => navigate("/login")}
               style={{ padding: "15px 30px", borderRadius: 100, background: YELLOW, border: "none", fontFamily: BODY, fontWeight: 700, fontSize: "0.9375rem", color: INK, cursor: "pointer" }}
             >
-              Get started free
+              Get started
             </button>
             <button
               type="button"
