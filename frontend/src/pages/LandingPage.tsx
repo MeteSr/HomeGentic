@@ -306,17 +306,12 @@ const FEATURES = [
   {
     span: 1, kicker: "MARKET", title: "What the work is worth",
     desc: "See which projects return the most in your zip code before you spend.",
-    bg: PAPER, border: BORDER, kickerColor: CORAL, titleColor: INK, bodyColor: MUTED2,
+    bg: BLUE, border: BLUE, kickerColor: YELLOW, titleColor: PAPER, bodyColor: "rgba(252,252,253,0.76)",
   },
   {
     span: 1, kicker: "ALERTS", title: "Warnings before penalties",
     desc: "Expiring warranties and aging systems surface while there is still time to act.",
     bg: INK, border: INK, kickerColor: YELLOW, titleColor: PAPER, bodyColor: "rgba(252,252,253,0.7)",
-  },
-  {
-    span: 1, kicker: "VOICE AI", title: "Ask your home anything",
-    desc: "The AI reads your own record — jobs, contractors, prices — and can book the next visit on the spot.",
-    bg: BLUE, border: BLUE, kickerColor: YELLOW, titleColor: PAPER, bodyColor: "rgba(252,252,253,0.76)",
   },
 ];
 
