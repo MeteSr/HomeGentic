@@ -190,7 +190,7 @@ export default function LoginPage() {
               <p style={{ fontSize: "0.9375rem", color: "rgba(255,255,255,0.82)", lineHeight: 1.7, fontStyle: "italic", marginBottom: "0.75rem" }}>
                 "HomeGentic gives me peace of mind knowing my home is protected and my records are secure."
               </p>
-              <p style={{ fontFamily: F.mono, fontSize: "0.68rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)" }}>
+              <p style={{ fontFamily: F.mono, fontSize: "0.68rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.65)" }}>
                 — AUSTIN HOMEOWNER
               </p>
             </div>
@@ -398,12 +398,12 @@ export default function LoginPage() {
             <IcpLogoIcon size={28} />
             <div>
               <div style={{ color: C.white, fontWeight: 600, fontSize: "0.9375rem" }}>Built on the Internet Computer Protocol (ICP)</div>
-              <div style={{ color: "rgba(255,255,255,0.42)", fontSize: "0.8125rem" }}>Your data is yours. Permanently stored. Tamper-proof. Future-proof.</div>
+              <div style={{ color: "rgba(255,255,255,0.65)", fontSize: "0.8125rem" }}>Your data is yours. Permanently stored. Tamper-proof. Future-proof.</div>
             </div>
           </div>
           <div style={{ textAlign: "center" }}>
             <div style={{ color: C.white, fontWeight: 600, fontSize: "0.9375rem" }}>Quorum HOA members save 10%</div>
-            <div style={{ color: "rgba(255,255,255,0.42)", fontSize: "0.8125rem" }}>
+            <div style={{ color: "rgba(255,255,255,0.65)", fontSize: "0.8125rem" }}>
               Use code:{" "}
               <span style={{ color: C.coral, fontWeight: 700, letterSpacing: "0.05em" }}>QUORUM10</span>
             </div>
@@ -440,10 +440,10 @@ export default function LoginPage() {
       }}>
         <div style={{ display: "flex", gap: "1.5rem" }}>
           {["Security", "Privacy", "Terms of Service", "Contact Us"].map((t) => (
-            <span key={t} style={{ fontSize: "0.8125rem", color: "rgba(255,255,255,0.35)", cursor: "pointer" }}>{t}</span>
+            <span key={t} style={{ fontSize: "0.8125rem", color: "rgba(255,255,255,0.65)", cursor: "pointer" }}>{t}</span>
           ))}
         </div>
-        <span style={{ fontSize: "0.8125rem", color: "rgba(255,255,255,0.35)" }}>© 2025 HomeGentic. All rights reserved.</span>
+        <span style={{ fontSize: "0.8125rem", color: "rgba(255,255,255,0.65)" }}>© 2025 HomeGentic. All rights reserved.</span>
       </div>
     </div>
   );

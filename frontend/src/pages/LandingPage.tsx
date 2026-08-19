@@ -238,7 +238,7 @@ function VoiceDemo() {
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 16, padding: "7px 10px 7px 16px", border: `1.5px solid #E6E7EE`, borderRadius: 100, flexShrink: 0 }}>
-        <div style={{ flex: 1, minWidth: 0, font: `400 13.5px/1.2 ${BODY}`, color: "#9AA0B0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <div style={{ flex: 1, minWidth: 0, font: `400 13.5px/1.2 ${BODY}`, color: MUTED, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           Ask anything about your home…
         </div>
         <div style={{ width: 36, height: 36, borderRadius: 100, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: BLUE }}>
@@ -519,7 +519,7 @@ export default function LandingPage() {
 
         {/* ── How It Works ── */}
         <div id="hg-how" style={{ maxWidth: 1280, margin: "0 auto", padding: "104px 40px 0", boxSizing: "border-box" }}>
-          <div style={{ font: `700 10px/1 ${MONO}`, letterSpacing: ".18em", color: CORAL }}>HOW IT WORKS</div>
+          <div aria-hidden="true" style={{ font: `700 10px/1 ${MONO}`, letterSpacing: ".18em", color: CORAL }}>HOW IT WORKS</div>
           <div style={{ font: `800 52px/1.04 ${DISPLAY}`, color: INK, letterSpacing: "-.04em", marginTop: 18, maxWidth: 660, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
             Three steps, then the record keeps itself.
           </div>
@@ -614,7 +614,7 @@ export default function LandingPage() {
 
         {/* ── What You Get ── */}
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: "104px 40px 0", boxSizing: "border-box" }}>
-          <div style={{ font: `700 10px/1 ${MONO}`, letterSpacing: ".18em", color: CORAL }}>WHAT YOU GET</div>
+          <div aria-hidden="true" style={{ font: `700 10px/1 ${MONO}`, letterSpacing: ".18em", color: CORAL }}>WHAT YOU GET</div>
           <div style={{ font: `800 52px/1.04 ${DISPLAY}`, color: INK, letterSpacing: "-.04em", marginTop: 18, maxWidth: 720, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
             Built for the years you own the house, not just the week you sell it.
           </div>
@@ -629,7 +629,7 @@ export default function LandingPage() {
         <div id="hg-pricing" style={{ maxWidth: 1280, margin: "0 auto", padding: "104px 40px 0", boxSizing: "border-box" }}>
           <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 40, flexWrap: "wrap" }}>
             <div style={{ maxWidth: 620 }}>
-              <div style={{ font: `700 10px/1 ${MONO}`, letterSpacing: ".18em", color: CORAL }}>PRICING</div>
+              <div aria-hidden="true" style={{ font: `700 10px/1 ${MONO}`, letterSpacing: ".18em", color: CORAL }}>PRICING</div>
               <div style={{ font: `800 52px/1.04 ${DISPLAY}`, color: INK, letterSpacing: "-.04em", marginTop: 18, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
                 Priced under a single service call.
               </div>
@@ -645,9 +645,9 @@ export default function LandingPage() {
           </div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 14, marginTop: 28, font: `500 13.5px/1 ${BODY}`, color: MUTED }}>
             <span>30-day money-back guarantee</span>
-            <span style={{ color: "#C9CCD6" }}>·</span>
+            <span aria-hidden="true" style={{ color: "#C9CCD6" }}>·</span>
             <span>Cancel anytime</span>
-            <span style={{ color: "#C9CCD6" }}>·</span>
+            <span aria-hidden="true" style={{ color: "#C9CCD6" }}>·</span>
             <span>Your records stay yours if you leave</span>
           </div>
         </div>
@@ -689,13 +689,13 @@ export default function LandingPage() {
             </div>
             <div style={{ display: "flex", gap: 64, flexWrap: "wrap" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-                <div style={{ font: `700 9.5px/1 ${MONO}`, letterSpacing: ".16em", color: "#9AA0B0" }}>PRODUCT</div>
+                <div style={{ font: `700 9.5px/1 ${MONO}`, letterSpacing: ".16em", color: MUTED }}>PRODUCT</div>
                 {["The record", "The score", "Pricing", "For contractors"].map((l) => (
                   <FooterLink key={l} label={l} onClick={() => l === "For contractors" ? navigate("/for-pros") : scrollTo(l === "Pricing" ? "hg-pricing" : l === "The score" ? "hg-score" : "hg-how")} />
                 ))}
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-                <div style={{ font: `700 9.5px/1 ${MONO}`, letterSpacing: ".16em", color: "#9AA0B0" }}>COMPANY</div>
+                <div style={{ font: `700 9.5px/1 ${MONO}`, letterSpacing: ".16em", color: MUTED }}>COMPANY</div>
                 {[
                   { label: "Security",  path: "/support" },
                   { label: "Privacy",   path: "/privacy" },
@@ -707,7 +707,7 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
-          <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 40px 44px", boxSizing: "border-box", font: `500 12.5px/1 ${BODY}`, color: "#9AA0B0" }}>
+          <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 40px 44px", boxSizing: "border-box", font: `500 12.5px/1 ${BODY}`, color: MUTED }}>
             © 2026 HomeGentic · Nashville, TN
           </div>
         </footer>
