@@ -446,6 +446,13 @@ export default function LandingPage() {
         <meta property="og:url" content="https://homegentic.app/" />
         <meta property="og:image" content="https://homegentic.app/og-default.png" />
         <link rel="canonical" href="https://homegentic.app/" />
+        <script type="application/ld+json">{JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          "name": "HomeGentic",
+          "url": "https://homegentic.app",
+          "description": "Verified home maintenance records on the Internet Computer. One number buyers, agents, and insurers can trust.",
+        })}</script>
       </Helmet>
 
       <style>{KEYFRAMES}</style>
