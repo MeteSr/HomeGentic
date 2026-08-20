@@ -507,9 +507,9 @@ export default function LandingPage() {
 
         {/* ── Marquee ── */}
         <div style={{ background: YELLOW, padding: "20px 0", overflow: "hidden" }}>
-          <div style={{ display: "flex", width: "max-content", animation: "hgwMarquee 34s linear infinite" }}>
+          <div style={{ display: "flex", width: "max-content", animation: "hgwMarquee 34s linear infinite", background: YELLOW }}>
             {marqueeItems.map((label, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 22, padding: "0 22px", whiteSpace: "nowrap" }}>
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 22, padding: "0 22px", whiteSpace: "nowrap", background: YELLOW }}>
                 <div style={{ font: `700 15px/1 ${MONO}`, letterSpacing: "-.01em", color: INK }}>{label}</div>
                 <div style={{ width: 6, height: 6, borderRadius: "50%", background: BLUE, flexShrink: 0 }} />
               </div>
@@ -570,7 +570,7 @@ export default function LandingPage() {
           <div style={{ background: BLUE, borderRadius: 34, padding: 56, position: "relative", overflow: "hidden" }}>
             <div aria-hidden="true" style={{ position: "absolute", top: -200, left: -120, width: 520, height: 520, borderRadius: "50%", background: "#3D46FF", pointerEvents: "none" }} />
             <div style={{ position: "relative" }}>
-              <div style={{ font: `700 10px/1 ${MONO}`, letterSpacing: ".18em", color: YELLOW }}>ASK IT ANYTHING</div>
+              <div style={{ font: `700 10px/1 ${MONO}`, letterSpacing: ".18em", color: PAPER }}>ASK IT ANYTHING</div>
               <div style={{ font: `800 46px/1.06 ${DISPLAY}`, color: PAPER, letterSpacing: "-.04em", marginTop: 18, maxWidth: 720, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
                 It knows your house, not houses in general.
               </div>
