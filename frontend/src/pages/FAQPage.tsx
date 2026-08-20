@@ -1,20 +1,22 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { COLORS, FONTS } from "@/theme";
 
-const UI = {
-  paper:    COLORS.white,
-  ink:      COLORS.plum,
-  inkLight: COLORS.plumMid,
-  rule:     COLORS.rule,
-  sage:     COLORS.sage,
-  sageLight: COLORS.sageLight,
-  blush:    COLORS.blush,
-  butter:   COLORS.butter,
-  serif:    FONTS.serif,
-  sans:     FONTS.sans,
-  mono:     FONTS.sans,
+const C = {
+  blue:   "#2B34FF",
+  yellow: "#FFD23F",
+  coral:  "#FF5C39",
+  ink:    "#0B0D1A",
+  paper:  "#FCFCFD",
+  muted:  "#6B7080",
+  border: "#EDEEF2",
+  white:  "#FFFFFF",
+  blueFg: "#F3F4FF",
+};
+const F = {
+  display: "'Bricolage Grotesque', 'Inter', sans-serif",
+  body:    "'Hanken Grotesk', 'Inter', sans-serif",
+  mono:    "'JetBrains Mono', monospace",
 };
 
 interface FaqItem { q: string; a: string; }
@@ -71,7 +73,7 @@ function FaqRow({ item }: { item: FaqItem }) {
   return (
     <div
       style={{
-        borderTop: `1px solid ${UI.rule}`,
+        borderTop: `1px solid ${C.border}`,
         cursor: "pointer",
       }}
       onClick={() => setOpen((o) => !o)}
@@ -87,10 +89,10 @@ function FaqRow({ item }: { item: FaqItem }) {
       >
         <p
           style={{
-            fontFamily: UI.sans,
+            fontFamily: F.body,
             fontWeight: 700,
             fontSize: "1rem",
-            color: UI.ink,
+            color: C.ink,
             margin: 0,
             lineHeight: 1.4,
           }}
@@ -105,7 +107,7 @@ function FaqRow({ item }: { item: FaqItem }) {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            color: UI.sage,
+            color: open ? C.blue : C.muted,
             fontSize: 20,
             fontWeight: 300,
             transition: "transform .2s",
@@ -118,10 +120,10 @@ function FaqRow({ item }: { item: FaqItem }) {
       {open && (
         <p
           style={{
-            fontFamily: UI.sans,
+            fontFamily: F.body,
             fontWeight: 400,
             fontSize: "0.9rem",
-            color: UI.inkLight,
+            color: C.muted,
             margin: "0 0 20px",
             lineHeight: 1.7,
             maxWidth: 680,
@@ -151,29 +153,30 @@ export default function FAQPage() {
         })}</script>
       </Helmet>
 
-      <div style={{ background: UI.paper, minHeight: "100vh", fontFamily: UI.sans }}>
+      <div style={{ background: C.paper, minHeight: "100vh", fontFamily: F.body }}>
 
         {/* Nav */}
         <nav style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "0 56px", height: 64, borderBottom: `1px solid ${UI.rule}`,
-          background: UI.paper, position: "sticky", top: 0, zIndex: 100,
+          padding: "0 56px", height: 64, borderBottom: `1px solid ${C.border}`,
+          background: C.paper, position: "sticky", top: 0, zIndex: 100,
         }}>
           <Link
             to="/"
             style={{
-              fontFamily: UI.serif, fontSize: 20, fontWeight: 900,
-              color: UI.ink, textDecoration: "none", letterSpacing: "-0.5px",
+              fontFamily: F.display, fontSize: 20, fontWeight: 800,
+              color: C.ink, textDecoration: "none", letterSpacing: "-0.5px",
             }}
           >
-            Home<span style={{ color: UI.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
+            Home<span style={{ color: C.yellow }}>Gentic</span>
           </Link>
           <Link
             to="/login"
             style={{
-              fontFamily: UI.sans, fontSize: 14, fontWeight: 600,
-              color: UI.paper, background: UI.ink, textDecoration: "none",
+              fontFamily: F.body, fontSize: 14, fontWeight: 600,
+              color: C.white, background: C.blue, textDecoration: "none",
               padding: "10px 22px", borderRadius: 100,
+              boxShadow: "0 4px 18px rgba(43,52,255,0.28)",
             }}
           >
             Sign In
@@ -185,16 +188,23 @@ export default function FAQPage() {
           maxWidth: 860, margin: "0 auto", padding: "72px 56px 0",
           textAlign: "center",
         }}>
+          <div style={{
+            display: "inline-block",
+            fontFamily: F.mono, fontSize: "0.65rem", letterSpacing: "0.12em",
+            textTransform: "uppercase", color: C.blue,
+            marginBottom: 20,
+          }}>
+            Support / FAQ
+          </div>
           <h1 style={{
-            fontFamily: UI.serif, fontSize: "clamp(36px, 5vw, 56px)",
-            fontWeight: 900, color: UI.ink, letterSpacing: "-1.5px",
+            fontFamily: F.display, fontSize: "clamp(36px, 5vw, 56px)",
+            fontWeight: 800, color: C.ink, letterSpacing: "-1.5px",
             lineHeight: 1.05, margin: "0 0 20px",
           }}>
-            Frequently Asked<br />
-            <em style={{ fontStyle: "italic", fontWeight: 300, color: UI.sage }}>Questions</em>
+            Frequently Asked Questions
           </h1>
           <p style={{
-            fontFamily: UI.sans, fontSize: 17, color: UI.inkLight,
+            fontFamily: F.body, fontSize: 17, color: C.muted,
             lineHeight: 1.7, maxWidth: 560, margin: "0 auto 64px",
           }}>
             Everything you need to know about HomeGentic's verified home records,
@@ -207,22 +217,23 @@ export default function FAQPage() {
           {FAQS.map((item) => (
             <FaqRow key={item.q} item={item} />
           ))}
-          <div style={{ borderTop: `1px solid ${UI.rule}` }} />
+          <div style={{ borderTop: `1px solid ${C.border}` }} />
 
           {/* Still have questions */}
           <div style={{
             marginTop: 64, padding: "40px 48px",
-            background: `linear-gradient(135deg, ${UI.sageLight}, ${COLORS.sageMid}60)`,
+            background: C.blueFg,
+            border: `1px solid ${C.border}`,
             borderRadius: 24, textAlign: "center",
           }}>
             <p style={{
-              fontFamily: UI.serif, fontSize: 22, fontWeight: 700,
-              color: UI.ink, margin: "0 0 10px",
+              fontFamily: F.display, fontSize: 22, fontWeight: 800,
+              color: C.ink, margin: "0 0 10px",
             }}>
               Still have questions?
             </p>
             <p style={{
-              fontFamily: UI.sans, fontSize: 15, color: UI.inkLight,
+              fontFamily: F.body, fontSize: 15, color: C.muted,
               margin: "0 0 24px", lineHeight: 1.6,
             }}>
               Our support team is happy to help.
@@ -231,9 +242,10 @@ export default function FAQPage() {
               to="/support"
               style={{
                 display: "inline-block",
-                fontFamily: UI.sans, fontSize: 14, fontWeight: 600,
-                color: UI.paper, background: UI.ink, textDecoration: "none",
+                fontFamily: F.body, fontSize: 14, fontWeight: 600,
+                color: C.white, background: C.blue, textDecoration: "none",
                 padding: "10px 28px", borderRadius: 100,
+                boxShadow: "0 4px 18px rgba(43,52,255,0.28)",
               }}
             >
               Contact Support
@@ -242,47 +254,20 @@ export default function FAQPage() {
         </div>
 
         {/* Footer */}
-        <footer style={{ background: "#1E1928", padding: "64px 56px 32px", fontFamily: UI.sans }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 1fr 1fr", gap: 48, marginBottom: 52 }}>
-            <div>
-              <span style={{ fontFamily: UI.serif, fontSize: 24, fontWeight: 900, color: "white", marginBottom: 14, display: "block" }}>
-                Home<span style={{ color: UI.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
-              </span>
-              <p style={{ fontSize: 14, color: "rgba(253,252,250,0.45)", lineHeight: 1.65, maxWidth: 220, margin: "0 0 24px" }}>
-                The verified maintenance record that makes your home worth more and easier to sell.
-              </p>
-            </div>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase" as const, color: "rgba(253,252,250,0.35)", marginBottom: 20 }}>Product</div>
-              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column" as const, gap: 12 }}>
-                {[["Pricing", "/pricing"], ["Gift a Sub", "/gift"], ["FAQ", "/faq"]].map(([label, href]) => (
-                  <li key={label}><Link to={href} style={{ fontSize: 14, color: "rgba(253,252,250,0.6)", textDecoration: "none" }}>{label}</Link></li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase" as const, color: "rgba(253,252,250,0.35)", marginBottom: 20 }}>Free Tools</div>
-              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column" as const, gap: 12 }}>
-                {[["Report Lookup", "/check"], ["System Forecast", "/instant-forecast"], ["Price Lookup", "/prices"], ["Systems Estimator", "/home-systems"]].map(([label, href]) => (
-                  <li key={label}><Link to={href} style={{ fontSize: 14, color: "rgba(253,252,250,0.6)", textDecoration: "none" }}>{label}</Link></li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase" as const, color: "rgba(253,252,250,0.35)", marginBottom: 20 }}>Company</div>
-              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column" as const, gap: 12 }}>
-                {[["Privacy Policy", "/privacy"], ["Terms of Service", "/terms"], ["Support", "/support"]].map(([label, href]) => (
-                  <li key={label}><Link to={href} style={{ fontSize: 14, color: "rgba(253,252,250,0.6)", textDecoration: "none" }}>{label}</Link></li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          <div style={{ borderTop: "1px solid rgba(253,252,250,0.08)", paddingTop: 24, display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 13, color: "rgba(253,252,250,0.35)" }}>
-            <span>© 2026 HomeGentic Inc.</span>
+        <footer style={{ background: C.ink, padding: "32px 56px", fontFamily: F.body }}>
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            flexWrap: "wrap", gap: 16,
+          }}>
+            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.35)" }}>
+              © 2025 HomeGentic
+            </span>
             <div style={{ display: "flex", gap: 24 }}>
-              <Link to="/privacy" style={{ color: "rgba(253,252,250,0.35)", textDecoration: "none" }}>Privacy</Link>
-              <Link to="/terms"   style={{ color: "rgba(253,252,250,0.35)", textDecoration: "none" }}>Terms</Link>
-              <Link to="/support" style={{ color: "rgba(253,252,250,0.35)", textDecoration: "none" }}>Support</Link>
+              {[["Security", "/privacy#security"], ["Privacy", "/privacy"], ["Terms", "/terms"], ["Contact", "/support"]].map(([label, href]) => (
+                <Link key={label} to={href} style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", textDecoration: "none" }}>
+                  {label}
+                </Link>
+              ))}
             </div>
           </div>
         </footer>

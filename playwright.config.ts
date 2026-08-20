@@ -10,6 +10,10 @@ export default defineConfig({
   use: {
     baseURL: "http://localhost:3000",
     trace: "on-first-retry",
+    // axe-playwright injects axe-core via page.addScriptTag which is blocked
+    // by the app's Content-Security-Policy meta tag. bypassCSP lets the test
+    // runner inject scripts without relaxing the production CSP.
+    bypassCSP: true,
   },
 
   projects: [

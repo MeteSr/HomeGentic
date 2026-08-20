@@ -17,25 +17,28 @@ test.describe("LandingPage — /", () => {
     await expect(page.getByText(/HomeGentic/).first()).toBeVisible();
   });
 
-  test("shows current nav links including Pricing", async ({ page }) => {
-    await expect(page.locator("nav li a", { hasText: "Features" })).toBeVisible();
-    await expect(page.locator("nav li a", { hasText: "Pricing" })).toBeVisible();
+  test("shows nav links including Pricing and The record", async ({ page }) => {
+    // Nav uses onClick div elements, not anchor tags
+    await expect(page.getByText("The record").first()).toBeVisible();
+    await expect(page.getByText("Pricing").first()).toBeVisible();
   });
 
   test("Pricing nav link scrolls to the pricing section", async ({ page }) => {
-    await page.locator("nav li a", { hasText: "Pricing" }).click();
-    await expect(page.locator("#hfl-pricing-section")).toBeVisible();
+    // Section ID is now hg-pricing (was hfl-pricing-section)
+    await page.getByText("Pricing").first().click();
+    await expect(page.locator("#hg-pricing")).toBeVisible();
   });
 
   // ── Hero CTA ──────────────────────────────────────────────────────────────
 
-  test("shows a 'Get Started' CTA button in the hero", async ({ page }) => {
-    const cta = page.getByRole("button", { name: /get started/i }).first();
+  test("shows a primary CTA button in the hero", async ({ page }) => {
+    // Hero CTA is now 'Start your record' (was 'Get Started')
+    const cta = page.getByRole("button", { name: /start your record|start free/i }).first();
     await expect(cta).toBeVisible();
   });
 
-  test("hero 'Get Started' CTA triggers auth flow", async ({ page }) => {
-    await page.getByRole("button", { name: /get started/i }).first().click();
+  test("hero primary CTA triggers auth flow", async ({ page }) => {
+    await page.getByRole("button", { name: /start your record/i }).first().click();
     await expect(page).toHaveURL(/\/(dashboard|login)/);
   });
 
@@ -47,33 +50,22 @@ test.describe("LandingPage — /", () => {
 
   // ── Pricing section ───────────────────────────────────────────────────────
 
-  test("shows Pricing section heading", async ({ page }) => {
-    await expect(page.locator("#hfl-pricing-section")).toBeVisible();
+  test("shows Pricing section", async ({ page }) => {
+    // Section ID is now hg-pricing (was hfl-pricing-section)
+    await expect(page.locator("#hg-pricing")).toBeVisible();
   });
 
-  // ── Features section ─────────────────────────────────────────────────────
+  // ── How it works section ──────────────────────────────────────────────────
 
-  test("shows Features section", async ({ page }) => {
-    await expect(page.locator("#hfl-features-section")).toBeVisible();
-  });
-
-  // ── Mobile nav ────────────────────────────────────────────────────────────
-
-  test("hamburger menu is hidden at desktop width", async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 800 });
-    const hamburger = page.locator(".hfl-hamburger");
-    await expect(hamburger).toBeHidden();
-  });
-
-  test("hamburger menu is visible at mobile width", async ({ page }) => {
-    await page.setViewportSize({ width: 375, height: 812 });
-    const hamburger = page.locator(".hfl-hamburger");
-    await expect(hamburger).toBeVisible();
+  test("shows 'The record' section", async ({ page }) => {
+    // Section ID is now hg-how (was hfl-features-section)
+    await expect(page.locator("#hg-how")).toBeVisible();
   });
 
   // ── Nav CTA ───────────────────────────────────────────────────────────────
 
-  test("shows Sign In link in nav", async ({ page }) => {
-    await expect(page.getByRole("button", { name: /sign in|get started/i }).first()).toBeVisible();
+  test("shows Log in / Start free action in nav", async ({ page }) => {
+    // Nav CTA labels changed: 'Log in' + 'Start free' (was 'Sign In' / 'Get Started')
+    await expect(page.getByRole("button", { name: /log in|start free/i }).first()).toBeVisible();
   });
 });

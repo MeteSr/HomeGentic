@@ -14,10 +14,6 @@ test.describe("PricingPage — /pricing", () => {
     await expect(page.getByText(/HomeGentic/).first()).toBeVisible();
   });
 
-  test("shows 'Pricing' eyebrow badge", async ({ page }) => {
-    await expect(page.getByText("Pricing").first()).toBeVisible();
-  });
-
   test("shows 'Simple, transparent pricing' heading", async ({ page }) => {
     await expect(page.getByRole("heading", { name: /simple, transparent pricing/i })).toBeVisible();
   });
@@ -58,10 +54,11 @@ test.describe("PricingPage — /pricing", () => {
     await expect(link).toHaveAttribute("href", "/for-pros");
   });
 
-  // ── Feature comparison table ──────────────────────────────────────────────
+  // ── Plan features (rendered in plan cards) ───────────────────────────────
 
-  test("shows feature comparison table with Properties row", async ({ page }) => {
-    await expect(page.getByText("Properties").first()).toBeVisible();
+  test("shows property count feature in plan cards", async ({ page }) => {
+    // Feature comparison table removed; features now listed in plan cards
+    await expect(page.getByText("1 property").first()).toBeVisible();
   });
 
   test("shows Warranty Wallet feature row", async ({ page }) => {

@@ -20,7 +20,6 @@ import React, { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { Search, SlidersHorizontal, ShieldCheck, Award, TrendingUp, Clock, Wrench, ChevronRight } from "lucide-react";
-import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import {
   listPublicFsbos,
@@ -30,18 +29,21 @@ import {
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
-const UI = {
-  ink:       COLORS.plum,
-  inkLight:  COLORS.plumMid,
-  paper:     COLORS.white,
-  rule:      COLORS.rule,
-  sage:      COLORS.sage,
-  sageLight: COLORS.sageLight,
-  rust:      COLORS.rust,
-  butter:    COLORS.butter,
-  serif:     FONTS.serif,
-  sans:      FONTS.sans,
-  mono:      FONTS.sans,
+const C = {
+  blue:   "#2B34FF",
+  yellow: "#FFD23F",
+  coral:  "#FF5C39",
+  ink:    "#0B0D1A",
+  paper:  "#FCFCFD",
+  muted:  "#6B7080",
+  border: "#EDEEF2",
+  white:  "#FFFFFF",
+  blueFg: "#F3F4FF",
+};
+const F = {
+  display: "'Bricolage Grotesque', 'Inter', sans-serif",
+  body:    "'Hanken Grotesk', 'Inter', sans-serif",
+  mono:    "'JetBrains Mono', monospace",
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -69,10 +71,10 @@ function humanType(t: PropertyType): string {
 }
 
 function scoreColor(score: number): string {
-  if (score >= 85) return COLORS.sage;
-  if (score >= 70) return "#5B9E57";
-  if (score >= 50) return "#C4882A";
-  return COLORS.rust;
+  if (score >= 85) return C.blue;
+  if (score >= 70) return "#4A54E8";
+  if (score >= 50) return "#FFB340";
+  return C.coral;
 }
 
 function scoreLabel(score: number): string {
@@ -87,11 +89,11 @@ function scoreLabel(score: number): string {
 type SortKey = "newest" | "price_asc" | "price_desc" | "score_desc";
 
 interface Filters {
-  query:       string;
-  type:        PropertyType | "";
-  minPrice:    string;   // dollars, empty = no limit
-  maxPrice:    string;
-  hasScore:    boolean;
+  query:    string;
+  type:     PropertyType | "";
+  minPrice: string;   // dollars, empty = no limit
+  maxPrice: string;
+  hasScore: boolean;
 }
 
 const DEFAULT_FILTERS: Filters = {
@@ -151,18 +153,18 @@ function ScoreBadge({ score }: { score: number }) {
       data-testid="listing-score"
       title={`HomeGentic Score: ${score}/100 — ${label}`}
       style={{
-        display:        "inline-flex",
-        alignItems:     "center",
-        gap:            "0.35rem",
-        background:     color + "18",
-        border:         `1.5px solid ${color}40`,
-        borderRadius:   RADIUS.pill,
-        padding:        "0.2rem 0.65rem",
-        fontFamily:     UI.mono,
-        fontSize:       "0.7rem",
-        fontWeight:     700,
+        display:       "inline-flex",
+        alignItems:    "center",
+        gap:           "0.35rem",
+        background:    color + "18",
+        border:        `1.5px solid ${color}40`,
+        borderRadius:  100,
+        padding:       "0.2rem 0.65rem",
+        fontFamily:    F.mono,
+        fontSize:      "0.7rem",
+        fontWeight:    700,
         color,
-        letterSpacing:  "0.04em",
+        letterSpacing: "0.04em",
       }}
     >
       <Award size={11} strokeWidth={2.5} />
@@ -183,14 +185,14 @@ function VerifiedBadge({ level }: { level: string }) {
         display:       "inline-flex",
         alignItems:    "center",
         gap:           "0.3rem",
-        background:    isPremium ? COLORS.sageLight : "#EAF2FF",
-        border:        `1px solid ${isPremium ? COLORS.sageMid : "#B3D0F5"}`,
-        borderRadius:  RADIUS.pill,
+        background:    isPremium ? C.blueFg : "#EAF2FF",
+        border:        `1px solid ${isPremium ? "rgba(43,52,255,0.25)" : "#B3D0F5"}`,
+        borderRadius:  100,
         padding:       "0.2rem 0.6rem",
-        fontFamily:    UI.mono,
+        fontFamily:    F.mono,
         fontSize:      "0.65rem",
         fontWeight:    600,
-        color:         isPremium ? "#2A6B26" : "#1A4E8A",
+        color:         C.blue,
         letterSpacing: "0.06em",
         textTransform: "uppercase" as const,
       }}
@@ -204,26 +206,26 @@ function VerifiedBadge({ level }: { level: string }) {
 // ─── Listing card ─────────────────────────────────────────────────────────────
 
 function ListingCard({ listing }: { listing: FsboPublicListing }) {
-  const dom    = daysOnMarket(listing.activatedAt);
-  const isNew  = dom <= 7;
+  const dom   = daysOnMarket(listing.activatedAt);
+  const isNew = dom <= 7;
   const showVerified = listing.verificationLevel === "Basic" || listing.verificationLevel === "Premium";
 
   return (
     <article
       data-testid="fsbo-listing-card"
       style={{
-        background:   UI.paper,
-        border:       `1px solid ${UI.rule}`,
-        borderRadius: RADIUS.card,
-        overflow:     "hidden",
-        boxShadow:    SHADOWS.card,
-        display:      "flex",
+        background:    C.white,
+        border:        `1px solid ${C.border}`,
+        borderRadius:  18,
+        overflow:      "hidden",
+        boxShadow:     "0 2px 12px rgba(11,13,26,0.06)",
+        display:       "flex",
         flexDirection: "column",
-        transition:   "box-shadow 0.15s",
+        transition:    "box-shadow 0.15s",
       }}
     >
       {/* ── Photo ─────────────────────────────────────────────────────────── */}
-      <div style={{ position: "relative", height: "200px", background: UI.rule, overflow: "hidden", flexShrink: 0 }}>
+      <div style={{ position: "relative", height: "200px", background: C.border, overflow: "hidden", flexShrink: 0 }}>
         {listing.photoUrl ? (
           <img
             src={listing.photoUrl}
@@ -233,7 +235,7 @@ function ListingCard({ listing }: { listing: FsboPublicListing }) {
           />
         ) : (
           <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "0.5rem" }}>
-            <div style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: UI.inkLight, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+            <div style={{ fontFamily: F.mono, fontSize: "0.7rem", color: C.muted, textTransform: "uppercase", letterSpacing: "0.08em" }}>
               {humanType(listing.propertyType)}
             </div>
           </div>
@@ -245,15 +247,15 @@ function ListingCard({ listing }: { listing: FsboPublicListing }) {
             position:      "absolute",
             top:           "0.75rem",
             left:          "0.75rem",
-            background:    UI.sage,
-            color:         "#fff",
-            fontFamily:    UI.mono,
+            background:    C.blue,
+            color:         C.white,
+            fontFamily:    F.mono,
             fontSize:      "0.6rem",
             fontWeight:    700,
             letterSpacing: "0.08em",
             textTransform: "uppercase" as const,
             padding:       "0.2rem 0.55rem",
-            borderRadius:  RADIUS.pill,
+            borderRadius:  100,
           }}>
             New
           </div>
@@ -261,18 +263,18 @@ function ListingCard({ listing }: { listing: FsboPublicListing }) {
 
         {/* FSBO pill */}
         <div style={{
-          position:      "absolute",
-          top:           "0.75rem",
-          right:         "0.75rem",
-          background:    UI.ink + "CC",
-          color:         "#fff",
-          fontFamily:    UI.mono,
-          fontSize:      "0.6rem",
-          fontWeight:    700,
-          letterSpacing: "0.1em",
-          textTransform: "uppercase" as const,
-          padding:       "0.2rem 0.55rem",
-          borderRadius:  RADIUS.pill,
+          position:       "absolute",
+          top:            "0.75rem",
+          right:          "0.75rem",
+          background:     C.ink + "CC",
+          color:          C.white,
+          fontFamily:     F.mono,
+          fontSize:       "0.6rem",
+          fontWeight:     700,
+          letterSpacing:  "0.1em",
+          textTransform:  "uppercase" as const,
+          padding:        "0.2rem 0.55rem",
+          borderRadius:   100,
           backdropFilter: "blur(4px)",
         }}>
           For Sale By Owner
@@ -285,7 +287,7 @@ function ListingCard({ listing }: { listing: FsboPublicListing }) {
         {/* Price */}
         <div
           data-testid="listing-price"
-          style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.45rem", color: UI.ink, lineHeight: 1.1 }}
+          style={{ fontFamily: F.display, fontWeight: 800, fontSize: "1.45rem", color: C.ink, lineHeight: 1.1 }}
         >
           {formatPrice(listing.listPriceCents)}
         </div>
@@ -294,11 +296,11 @@ function ListingCard({ listing }: { listing: FsboPublicListing }) {
         <div>
           <div
             data-testid="listing-address"
-            style={{ fontFamily: UI.sans, fontWeight: 600, fontSize: "0.9rem", color: UI.ink }}
+            style={{ fontFamily: F.body, fontWeight: 600, fontSize: "0.9rem", color: C.ink }}
           >
             {listing.address}
           </div>
-          <div style={{ fontFamily: UI.sans, fontSize: "0.8rem", color: UI.inkLight }}>
+          <div style={{ fontFamily: F.body, fontSize: "0.8rem", color: C.muted }}>
             {listing.city}, {listing.state} {listing.zipCode}
           </div>
         </div>
@@ -314,11 +316,11 @@ function ListingCard({ listing }: { listing: FsboPublicListing }) {
             <div key={label} style={{ textAlign: "center" as const, minWidth: "2.5rem" }}>
               <div
                 data-testid={testId}
-                style={{ fontFamily: UI.sans, fontWeight: 700, fontSize: "0.85rem", color: UI.ink }}
+                style={{ fontFamily: F.body, fontWeight: 700, fontSize: "0.85rem", color: C.ink }}
               >
                 {value}
               </div>
-              <div style={{ fontFamily: UI.mono, fontSize: "0.58rem", textTransform: "uppercase" as const, letterSpacing: "0.07em", color: UI.inkLight }}>
+              <div style={{ fontFamily: F.mono, fontSize: "0.58rem", textTransform: "uppercase" as const, letterSpacing: "0.07em", color: C.muted }}>
                 {label}
               </div>
             </div>
@@ -331,7 +333,7 @@ function ListingCard({ listing }: { listing: FsboPublicListing }) {
         {listing.score !== undefined && (
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" as const }}>
             <ScoreBadge score={listing.score} />
-            <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight }}>HomeGentic Score</span>
+            <span style={{ fontFamily: F.mono, fontSize: "0.65rem", color: C.muted }}>HomeGentic Score</span>
           </div>
         )}
 
@@ -345,13 +347,13 @@ function ListingCard({ listing }: { listing: FsboPublicListing }) {
               <span
                 key={h}
                 style={{
-                  background:    UI.sageLight,
-                  border:        `1px solid ${COLORS.sageMid}`,
-                  borderRadius:  RADIUS.sm,
+                  background:    C.blueFg,
+                  border:        `1px solid rgba(43,52,255,0.15)`,
+                  borderRadius:  100,
                   padding:       "0.15rem 0.5rem",
-                  fontFamily:    UI.mono,
+                  fontFamily:    F.mono,
                   fontSize:      "0.6rem",
-                  color:         "#2A6B26",
+                  color:         C.blue,
                   letterSpacing: "0.04em",
                 }}
               >
@@ -362,18 +364,18 @@ function ListingCard({ listing }: { listing: FsboPublicListing }) {
         )}
 
         {/* Footer meta */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto", paddingTop: "0.5rem", borderTop: `1px solid ${UI.rule}` }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto", paddingTop: "0.5rem", borderTop: `1px solid ${C.border}` }}>
           <div style={{ display: "flex", gap: "0.9rem" }}>
             <span
               data-testid="listing-dom"
-              style={{ display: "flex", alignItems: "center", gap: "0.25rem", fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight }}
+              style={{ display: "flex", alignItems: "center", gap: "0.25rem", fontFamily: F.mono, fontSize: "0.65rem", color: C.muted }}
             >
               <Clock size={11} />
               {dom} day{dom === 1 ? "" : "s"}
             </span>
             <span
               data-testid="listing-jobs"
-              style={{ display: "flex", alignItems: "center", gap: "0.25rem", fontFamily: UI.mono, fontSize: "0.65rem", color: COLORS.sage }}
+              style={{ display: "flex", alignItems: "center", gap: "0.25rem", fontFamily: F.mono, fontSize: "0.65rem", color: C.blue }}
             >
               <Wrench size={11} />
               {listing.verifiedJobCount} verified
@@ -383,15 +385,15 @@ function ListingCard({ listing }: { listing: FsboPublicListing }) {
           <Link
             to={`/for-sale/${listing.propertyId}`}
             style={{
-              display:       "inline-flex",
-              alignItems:    "center",
-              gap:           "0.2rem",
-              fontFamily:    UI.mono,
-              fontSize:      "0.7rem",
-              fontWeight:    700,
-              color:         UI.sage,
+              display:        "inline-flex",
+              alignItems:     "center",
+              gap:            "0.2rem",
+              fontFamily:     F.mono,
+              fontSize:       "0.7rem",
+              fontWeight:     700,
+              color:          C.blue,
               textDecoration: "none",
-              letterSpacing: "0.04em",
+              letterSpacing:  "0.04em",
             }}
           >
             View <ChevronRight size={13} />
@@ -412,14 +414,14 @@ function TypeChip({
       data-testid={`filter-type-${type}`}
       onClick={onClick}
       style={{
-        border:        `1.5px solid ${active ? UI.sage : UI.rule}`,
-        borderRadius:  RADIUS.pill,
+        border:        `1.5px solid ${active ? C.blue : C.border}`,
+        borderRadius:  100,
         padding:       "0.35rem 0.9rem",
-        background:    active ? UI.sageLight : "transparent",
-        fontFamily:    UI.mono,
+        background:    active ? C.blueFg : "transparent",
+        fontFamily:    F.mono,
         fontSize:      "0.72rem",
         fontWeight:    active ? 700 : 400,
-        color:         active ? "#2A6B26" : UI.inkLight,
+        color:         active ? C.blue : C.muted,
         cursor:        "pointer",
         letterSpacing: "0.04em",
         transition:    "all 0.12s",
@@ -456,9 +458,9 @@ export default function FsboSearchPage() {
   );
 
   // ── SEO helpers ─────────────────────────────────────────────────────────────
-  const pageTitle      = "FSBO Homes for Sale — Verified Listings with HomeGentic Scores";
-  const pageDesc       = `Browse ${allListings.length} homes for sale by owner with verified maintenance histories, HomeGentic scores, and transparent system ages. Find your next home with full confidence.`;
-  const canonicalUrl   = "https://homegentic.app/homes";
+  const pageTitle    = "FSBO Homes for Sale — Verified Listings with HomeGentic Scores";
+  const pageDesc     = `Browse ${allListings.length} homes for sale by owner with verified maintenance histories, HomeGentic scores, and transparent system ages. Find your next home with full confidence.`;
+  const canonicalUrl = "https://homegentic.app/homes";
 
   const jsonLdItemList = {
     "@context":     "https://schema.org",
@@ -473,13 +475,13 @@ export default function FsboSearchPage() {
       "url":      `https://homegentic.app/for-sale/${l.propertyId}`,
       "name":     `${l.bedrooms} bed ${l.bathrooms} bath ${humanType(l.propertyType)} in ${l.city}, ${l.state} — ${formatPrice(l.listPriceCents)}`,
       "item": {
-        "@type":          "RealEstateListing",
-        "name":           `${l.address}, ${l.city}, ${l.state} ${l.zipCode}`,
-        "url":            `https://homegentic.app/for-sale/${l.propertyId}`,
-        "description":    l.description ?? "",
-        "price":          String(Math.round(l.listPriceCents / 100)),
-        "priceCurrency":  "USD",
-        "image":          l.photoUrl ?? "",
+        "@type":         "RealEstateListing",
+        "name":          `${l.address}, ${l.city}, ${l.state} ${l.zipCode}`,
+        "url":           `https://homegentic.app/for-sale/${l.propertyId}`,
+        "description":   l.description ?? "",
+        "price":         String(Math.round(l.listPriceCents / 100)),
+        "priceCurrency": "USD",
+        "image":         l.photoUrl ?? "",
         "address": {
           "@type":           "PostalAddress",
           "streetAddress":   l.address,
@@ -535,26 +537,26 @@ export default function FsboSearchPage() {
         <script type="application/ld+json">{JSON.stringify(jsonLdBreadcrumb)}</script>
       </Helmet>
 
-      <div style={{ minHeight: "100vh", background: "#F7F5F2", fontFamily: UI.sans }}>
+      <div style={{ minHeight: "100vh", background: C.paper, fontFamily: F.body }}>
 
         {/* ── Hero search header ───────────────────────────────────────────── */}
         <header style={{
-          background:   UI.ink,
-          padding:      isMobile ? "1.5rem 1rem 1.25rem" : "2.5rem 2rem 2rem",
+          background: C.ink,
+          padding:    isMobile ? "1.5rem 1rem 1.25rem" : "2.5rem 2rem 2rem",
         }}>
           <div style={{ maxWidth: "860px", margin: "0 auto" }}>
 
-            {/* Breadcrumb — hidden visually but present for SEO */}
+            {/* Breadcrumb */}
             <nav aria-label="Breadcrumb" style={{ marginBottom: "0.75rem" }}>
               <ol style={{ display: "flex", gap: "0.4rem", listStyle: "none", margin: 0, padding: 0 }}>
                 <li>
-                  <a href="/" style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: "#ffffff80", textDecoration: "none" }}>
+                  <a href="/" style={{ fontFamily: F.mono, fontSize: "0.65rem", color: "rgba(255,255,255,0.5)", textDecoration: "none" }}>
                     HomeGentic
                   </a>
                 </li>
-                <li style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: "#ffffff40" }}>/</li>
+                <li style={{ fontFamily: F.mono, fontSize: "0.65rem", color: "rgba(255,255,255,0.25)" }}>/</li>
                 <li>
-                  <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: "#ffffffCC" }}>
+                  <span style={{ fontFamily: F.mono, fontSize: "0.65rem", color: "rgba(255,255,255,0.8)" }}>
                     Homes for Sale
                   </span>
                 </li>
@@ -562,19 +564,19 @@ export default function FsboSearchPage() {
             </nav>
 
             <h1 style={{
-              fontFamily:  UI.serif,
-              fontWeight:  900,
-              fontSize:    isMobile ? "1.6rem" : "2.2rem",
-              color:       "#FDFCFA",
-              margin:      "0 0 0.25rem",
-              lineHeight:  1.15,
+              fontFamily: F.display,
+              fontWeight: 800,
+              fontSize:   isMobile ? "1.6rem" : "2.2rem",
+              color:      C.white,
+              margin:     "0 0 0.25rem",
+              lineHeight: 1.15,
             }}>
               Find FSBO Homes for Sale
             </h1>
             <p style={{
-              fontFamily: UI.sans,
+              fontFamily: F.body,
               fontSize:   "0.9rem",
-              color:      "#ffffff99",
+              color:      "rgba(255,255,255,0.6)",
               margin:     "0 0 1.25rem",
               fontWeight: 300,
             }}>
@@ -587,11 +589,11 @@ export default function FsboSearchPage() {
               <Search
                 size={16}
                 style={{
-                  position:  "absolute",
-                  left:      "0.85rem",
-                  top:       "50%",
-                  transform: "translateY(-50%)",
-                  color:     UI.inkLight,
+                  position:      "absolute",
+                  left:          "0.85rem",
+                  top:           "50%",
+                  transform:     "translateY(-50%)",
+                  color:         C.muted,
                   pointerEvents: "none",
                 }}
               />
@@ -602,16 +604,16 @@ export default function FsboSearchPage() {
                 onChange={(e) => setFilter("query", e.target.value)}
                 aria-label="Search by city, state, or zip code"
                 style={{
-                  width:         "100%",
-                  padding:       "0.75rem 1rem 0.75rem 2.5rem",
-                  border:        "none",
-                  borderRadius:  RADIUS.input,
-                  fontFamily:    UI.sans,
-                  fontSize:      "0.95rem",
-                  color:         UI.ink,
-                  background:    "#FDFCFA",
-                  boxSizing:     "border-box" as const,
-                  outline:       "none",
+                  width:        "100%",
+                  padding:      "0.75rem 1rem 0.75rem 2.5rem",
+                  border:       "none",
+                  borderRadius: 10,
+                  fontFamily:   F.body,
+                  fontSize:     "0.95rem",
+                  color:        C.ink,
+                  background:   C.white,
+                  boxSizing:    "border-box" as const,
+                  outline:      "none",
                 }}
               />
             </div>
@@ -620,12 +622,12 @@ export default function FsboSearchPage() {
 
         {/* ── Filters bar ──────────────────────────────────────────────────── */}
         <div style={{
-          background:  "#fff",
-          borderBottom: `1px solid ${UI.rule}`,
-          padding:     isMobile ? "0.75rem 1rem" : "0.85rem 2rem",
-          position:    "sticky",
-          top:         0,
-          zIndex:      10,
+          background:   C.white,
+          borderBottom: `1px solid ${C.border}`,
+          padding:      isMobile ? "0.75rem 1rem" : "0.85rem 2rem",
+          position:     "sticky",
+          top:          0,
+          zIndex:       10,
         }}>
           <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
             <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" as const, alignItems: "center" }}>
@@ -642,7 +644,7 @@ export default function FsboSearchPage() {
 
               {/* Price range */}
               <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginLeft: isMobile ? 0 : "0.5rem" }}>
-                <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, whiteSpace: "nowrap" as const }}>$</span>
+                <span style={{ fontFamily: F.mono, fontSize: "0.65rem", color: C.muted, whiteSpace: "nowrap" as const }}>$</span>
                 <input
                   data-testid="filter-min-price"
                   type="number"
@@ -653,14 +655,15 @@ export default function FsboSearchPage() {
                   style={{
                     width:        "80px",
                     padding:      "0.3rem 0.5rem",
-                    border:       `1px solid ${UI.rule}`,
-                    borderRadius: RADIUS.input,
-                    fontFamily:   UI.sans,
+                    border:       `1.5px solid ${C.border}`,
+                    borderRadius: 10,
+                    fontFamily:   F.body,
                     fontSize:     "0.78rem",
-                    color:        UI.ink,
+                    color:        C.ink,
+                    outline:      "none",
                   }}
                 />
-                <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight }}>–</span>
+                <span style={{ fontFamily: F.mono, fontSize: "0.65rem", color: C.muted }}>–</span>
                 <input
                   data-testid="filter-max-price"
                   type="number"
@@ -671,11 +674,12 @@ export default function FsboSearchPage() {
                   style={{
                     width:        "80px",
                     padding:      "0.3rem 0.5rem",
-                    border:       `1px solid ${UI.rule}`,
-                    borderRadius: RADIUS.input,
-                    fontFamily:   UI.sans,
+                    border:       `1.5px solid ${C.border}`,
+                    borderRadius: 10,
+                    fontFamily:   F.body,
                     fontSize:     "0.78rem",
-                    color:        UI.ink,
+                    color:        C.ink,
+                    outline:      "none",
                   }}
                 />
               </div>
@@ -688,14 +692,14 @@ export default function FsboSearchPage() {
                   display:       "flex",
                   alignItems:    "center",
                   gap:           "0.35rem",
-                  border:        `1.5px solid ${filters.hasScore ? UI.sage : UI.rule}`,
-                  borderRadius:  RADIUS.pill,
+                  border:        `1.5px solid ${filters.hasScore ? C.blue : C.border}`,
+                  borderRadius:  100,
                   padding:       "0.35rem 0.9rem",
-                  background:    filters.hasScore ? UI.sageLight : "transparent",
-                  fontFamily:    UI.mono,
+                  background:    filters.hasScore ? C.blueFg : "transparent",
+                  fontFamily:    F.mono,
                   fontSize:      "0.72rem",
                   fontWeight:    filters.hasScore ? 700 : 400,
-                  color:         filters.hasScore ? "#2A6B26" : UI.inkLight,
+                  color:         filters.hasScore ? C.blue : C.muted,
                   cursor:        "pointer",
                   letterSpacing: "0.04em",
                   whiteSpace:    "nowrap" as const,
@@ -713,27 +717,28 @@ export default function FsboSearchPage() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap" as const }}>
             <div
               data-testid="results-count"
-              style={{ fontFamily: UI.mono, fontSize: "0.78rem", color: UI.inkLight }}
+              style={{ fontFamily: F.mono, fontSize: "0.78rem", color: C.muted }}
             >
               {results.length} {results.length === 1 ? "home" : "homes"} for sale
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <SlidersHorizontal size={14} color={UI.inkLight} />
+              <SlidersHorizontal size={14} color={C.muted} />
               <select
                 data-testid="sort-select"
                 value={sort}
                 onChange={(e) => setSort(e.target.value as SortKey)}
                 aria-label="Sort listings"
                 style={{
-                  border:       `1px solid ${UI.rule}`,
-                  borderRadius: RADIUS.input,
+                  border:       `1.5px solid ${C.border}`,
+                  borderRadius: 10,
                   padding:      "0.3rem 0.6rem",
-                  fontFamily:   UI.mono,
+                  fontFamily:   F.mono,
                   fontSize:     "0.75rem",
-                  color:        UI.ink,
+                  color:        C.ink,
                   background:   "transparent",
                   cursor:       "pointer",
+                  outline:      "none",
                 }}
               >
                 <option value="newest">Newest</option>
@@ -751,21 +756,16 @@ export default function FsboSearchPage() {
           style={{ maxWidth: "1200px", margin: "0 auto", padding: isMobile ? "0.5rem 1rem 3rem" : "0.75rem 2rem 4rem" }}
         >
           {listingsLoading ? (
-            <div style={{ textAlign: "center", padding: "4rem 1rem", color: UI.inkLight, fontFamily: UI.sans }}>
+            <div style={{ textAlign: "center", padding: "4rem 1rem", color: C.muted, fontFamily: F.body }}>
               <p style={{ fontSize: "0.9rem" }}>Loading listings…</p>
             </div>
           ) : results.length === 0 ? (
             <div
               data-testid="no-results-message"
-              style={{
-                textAlign:  "center",
-                padding:    "4rem 1rem",
-                color:      UI.inkLight,
-                fontFamily: UI.sans,
-              }}
+              style={{ textAlign: "center", padding: "4rem 1rem", color: C.muted, fontFamily: F.body }}
             >
-              <TrendingUp size={40} color={UI.rule} style={{ marginBottom: "1rem" }} />
-              <p style={{ fontSize: "1.1rem", fontWeight: 600, color: UI.ink, margin: "0 0 0.5rem" }}>
+              <TrendingUp size={40} color={C.border} style={{ marginBottom: "1rem" }} />
+              <p style={{ fontSize: "1.1rem", fontWeight: 600, color: C.ink, margin: "0 0 0.5rem" }}>
                 No listings match your filters
               </p>
               <p style={{ fontSize: "0.875rem", margin: 0 }}>
@@ -783,28 +783,28 @@ export default function FsboSearchPage() {
 
         {/* ── Value-prop footer strip ───────────────────────────────────────── */}
         <footer style={{
-          borderTop:  `1px solid ${UI.rule}`,
-          background: "#fff",
+          borderTop:  `1px solid ${C.border}`,
+          background: C.white,
           padding:    isMobile ? "2rem 1rem" : "2.5rem 2rem",
         }}>
           <div style={{ maxWidth: "860px", margin: "0 auto" }}>
-            <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.1rem", color: UI.ink, margin: "0 0 0.75rem" }}>
+            <p style={{ fontFamily: F.display, fontWeight: 700, fontSize: "1.1rem", color: C.ink, margin: "0 0 0.75rem" }}>
               Why HomeGentic FSBO listings are different
             </p>
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: "1rem" }}>
               {[
                 {
-                  icon:  <Award size={20} color={UI.sage} />,
+                  icon:  <Award size={20} color={C.blue} />,
                   title: "HomeGentic Score",
                   body:  "A 0–100 score built from verified maintenance records, system ages, and property verification — the first objective home health score in real estate.",
                 },
                 {
-                  icon:  <ShieldCheck size={20} color={UI.sage} />,
+                  icon:  <ShieldCheck size={20} color={C.blue} />,
                   title: "Verified by HomeGentic",
                   body:  "Basic and Premium verified properties have had their maintenance history reviewed and cryptographically signed on-chain.",
                 },
                 {
-                  icon:  <Wrench size={20} color={UI.sage} />,
+                  icon:  <Wrench size={20} color={C.blue} />,
                   title: "Transparent History",
                   body:  "See the count of verified maintenance jobs before you schedule a showing. No surprises after inspection.",
                 },
@@ -812,10 +812,10 @@ export default function FsboSearchPage() {
                 <div key={title} style={{ display: "flex", gap: "0.75rem" }}>
                   <div style={{ flexShrink: 0, marginTop: "0.1rem" }}>{icon}</div>
                   <div>
-                    <div style={{ fontFamily: UI.sans, fontWeight: 700, fontSize: "0.875rem", color: UI.ink, marginBottom: "0.3rem" }}>
+                    <div style={{ fontFamily: F.body, fontWeight: 700, fontSize: "0.875rem", color: C.ink, marginBottom: "0.3rem" }}>
                       {title}
                     </div>
-                    <div style={{ fontFamily: UI.sans, fontSize: "0.8rem", color: UI.inkLight, lineHeight: 1.5 }}>
+                    <div style={{ fontFamily: F.body, fontSize: "0.8rem", color: C.muted, lineHeight: 1.5 }}>
                       {body}
                     </div>
                   </div>

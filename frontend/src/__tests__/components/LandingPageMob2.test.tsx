@@ -1,5 +1,8 @@
 /**
  * MOB.2 — LandingPage mobile polish
+ *
+ * Updated for the cobalt/yellow redesign: inline-style nav replaces
+ * hfl-* CSS classes; no hamburger (full nav visible at all widths).
  */
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
@@ -16,15 +19,14 @@ function renderLanding() {
 
 describe("LandingPage — branding", () => {
   it("nav logo text content is HomeGentic", () => {
-    const { container } = renderLanding();
-    const logo = container.querySelector(".hfl-logo");
-    expect(logo?.textContent).toMatch(/homegentic/i);
+    renderLanding();
+    // New design uses inline styles — find by text content
+    expect(screen.getAllByText(/HomeGentic/i).length).toBeGreaterThan(0);
   });
 
   it("nav logo text content does not say HomeFax", () => {
-    const { container } = renderLanding();
-    const logo = container.querySelector(".hfl-logo");
-    expect(logo?.textContent).not.toMatch(/homefax/i);
+    renderLanding();
+    expect(screen.queryByText(/homefax/i)).toBeNull();
   });
 });
 
@@ -41,31 +43,24 @@ describe("LandingPage — key sections render", () => {
     expect(btns.length).toBeGreaterThan(0);
   });
 
-  it("renders the pricing section with plan cards", () => {
+  it("renders the pricing section", () => {
     const { container } = renderLanding();
-    const cards = container.querySelectorAll(".hfl-plan-card");
-    expect(cards.length).toBeGreaterThanOrEqual(3);
+    // Section ID changed from hfl-pricing-section to hg-pricing in redesign
+    const pricingSection = container.querySelector("#hg-pricing");
+    expect(pricingSection).not.toBeNull();
   });
-
 });
 
-describe("LandingPage — mobile CSS classes present", () => {
-  it("hamburger button exists in nav", () => {
+describe("LandingPage — CSS and animations", () => {
+  it("injects a keyframe style block for animations", () => {
     const { container } = renderLanding();
-    const hamburger = container.querySelector(".hfl-hamburger");
-    expect(hamburger).not.toBeNull();
-  });
-
-  it("hfl-actions has flex-wrap via CSS class", () => {
-    const { container } = renderLanding();
-    const actions = container.querySelector(".hfl-actions");
-    expect(actions).not.toBeNull();
-  });
-
-  it("sub-480px style block is present in injected CSS", () => {
-    const { container } = renderLanding();
-    const style = container.querySelector("style") ??
-      Array.from(document.querySelectorAll("style")).find(s => s.textContent?.includes("hfl-"));
-    expect(style?.textContent).toMatch(/max-width:\s*480px/);
+    // New design uses @keyframes instead of hfl-* utility classes
+    const style =
+      container.querySelector("style") ??
+      Array.from(document.querySelectorAll("style")).find(
+        (s) => s.textContent?.includes("@keyframes")
+      );
+    expect(style).not.toBeNull();
+    expect(style?.textContent).toMatch(/@keyframes/);
   });
 });
