@@ -62,6 +62,8 @@ jobs:
 
       - name: Start local network (needed for canister ID allocation)
         run: icp network start -d
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Compile all Motoko canisters
         # Build every canister except the frontend asset canister.
