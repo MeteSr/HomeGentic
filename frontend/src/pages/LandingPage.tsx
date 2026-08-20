@@ -625,6 +625,9 @@ export default function LandingPage() {
           </div>
         </div>
 
+        {/* ── Dual Signature ── */}
+        <DualSignatureSection />
+
         {/* ── Pricing ── */}
         <div id="hg-pricing" style={{ maxWidth: 1280, margin: "0 auto", padding: "104px 40px 0", boxSizing: "border-box" }}>
           <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 40, flexWrap: "wrap" }}>
@@ -734,6 +737,318 @@ function StepCard({ step }: { step: typeof STEPS[number] }) {
       </div>
       <div style={{ font: `700 24px/1.16 ${DISPLAY}`, color: step.titleColor, letterSpacing: "-.03em", marginTop: 22 }}>{step.title}</div>
       <p style={{ font: `400 15px/1.62 ${BODY}`, color: step.bodyColor, marginTop: 12, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>{step.body}</p>
+    </div>
+  );
+}
+
+// ── Dual Signature data ────────────────────────────────────────────────────────
+const MS_PATHS = [
+  {
+    id: "requested",
+    label: "Requested in HomeGentic",
+    jobId: "HG-2291",
+    steps: [
+      { title: "Homeowner requests job", body: "You open a job request in HomeGentic and describe the work needed." },
+      { title: "Contractor selected", body: "You pick a contractor from your network or from HomeGentic recommendations." },
+      { title: "Contractor completes job", body: "The work is done. The contractor uploads their report or invoice." },
+      { title: "Both parties sign", body: "You confirm the work; the contractor countersigns. The record is sealed." },
+      { title: "Record created and updated", body: "The verified job is added to your Home Score with the full contractor signature." },
+    ],
+    rows: [
+      { label: "REQUESTED", detail: "Aug 14 · 50 gal gas unit", at: 0 },
+      { label: "CONTRACTOR", detail: "Bell & Sons Plumbing · accepted Aug 15", at: 1 },
+      { label: "WORK COMPLETED", detail: "Aug 18 · $2,140 · 6 yr parts warranty", at: 2 },
+    ],
+    signAt: 3,
+    sealAt: 4,
+  },
+  {
+    id: "done",
+    label: "Work already done",
+    jobId: "HG-2308",
+    steps: [
+      { title: "Contractor completes job", body: "Work finishes before you've opened HomeGentic. You have an invoice or receipt." },
+      { title: "Homeowner creates job in HomeGentic", body: "You log the job yourself: upload the invoice, photos, and date of work." },
+      { title: "Both sign", body: "The contractor countersigns remotely. The sealed record enters the Home Score." },
+    ],
+    rows: [
+      { label: "WORK COMPLETED", detail: "Aug 18 · emergency call-out", at: 0 },
+      { label: "LOGGED BY HOMEOWNER", detail: "Aug 19 · $2,140 · invoice attached", at: 1 },
+    ],
+    signAt: 2,
+    sealAt: 2,
+  },
+];
+
+function DualSignatureSection() {
+  const navigate = useNavigate();
+  const [pathIdx, setPathIdx] = useState(0);
+  const [step, setStep] = useState(0);
+  const [skipContractor, setSkipContractor] = useState(false);
+
+  const path = MS_PATHS[pathIdx];
+
+  // Reset step when path changes
+  const handlePathChange = (idx: number) => {
+    setPathIdx(idx);
+    setStep(0);
+    setSkipContractor(false);
+  };
+
+  const signed  = step >= path.signAt;
+  const sealed  = step >= path.sealAt;
+
+  const status      = sealed ? (skipContractor ? "UNVERIFIED" : "VERIFIED") : signed ? "SIGNED" : "IN PROGRESS";
+  const statusColor = sealed ? (skipContractor ? "#9E5540" : BLUE) : MUTED;
+  const statusBg    = sealed ? (skipContractor ? "#FFDCD3" : VBADGE) : "#EDEEF2";
+
+  const sealLine = sealed
+    ? (skipContractor
+        ? "Sealed on ICP · homeowner proof only · counts toward the Home Score at a lower weight"
+        : "Sealed on ICP · block 4,912,880 · homeowner proof + contractor signature")
+    : "Sealed on ICP once the job is documented";
+
+  const homeownerSig = signed
+    ? { name: "Invoice + 4 photos", sub: "Uploaded Aug 19 · 2:41 PM", signed: true }
+    : { name: "Awaiting proof", sub: "Nothing attached yet", signed: false };
+
+  const contractorSig = signed && !skipContractor
+    ? { name: "Bell & Sons", sub: "Signed Aug 19 · 4:08 PM", signed: true }
+    : skipContractor
+    ? { name: "No contractor signature", sub: "Record stays unverified", signed: false }
+    : { name: "Awaiting signature", sub: "Not signed", signed: false };
+
+  return (
+    <div style={{ maxWidth: 1280, margin: "0 auto", padding: "104px 40px 0", boxSizing: "border-box" }}>
+      <div style={{ background: YELLOW, borderRadius: 34, padding: "72px 56px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 520px", gap: 56, alignItems: "start" }}>
+
+          {/* Left column */}
+          <div style={{ minWidth: 0 }}>
+            <h2 style={{ font: `800 52px/1.04 ${DISPLAY}`, color: INK, letterSpacing: "-.04em", margin: "0", textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
+              Your proof, the contractor's signature.
+            </h2>
+            <p style={{ font: `400 17px/1.65 ${BODY}`, color: "rgba(11,13,26,0.72)", marginTop: 20, maxWidth: 540, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
+              A job joins the record as soon as you document it — receipts, invoices, photos. A contractor signature on top of that earns the verified tag; documented work without one still counts toward the Home Score, at a lower weight. Jobs can start either way.
+            </p>
+
+            {/* Tab switcher */}
+            <div style={{ display: "inline-flex", background: "rgba(11,13,26,0.09)", borderRadius: 100, padding: 5, marginTop: 32, gap: 4 }}>
+              {MS_PATHS.map((p, i) => (
+                <button
+                  key={p.id}
+                  onClick={() => handlePathChange(i)}
+                  style={{
+                    font: `600 13.5px/1 ${BODY}`,
+                    color: pathIdx === i ? PAPER : "rgba(11,13,26,0.7)",
+                    background: pathIdx === i ? BLUE : "transparent",
+                    border: "none",
+                    borderRadius: 100,
+                    padding: "10px 20px",
+                    cursor: "pointer",
+                    transition: "all .18s",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Steps accordion */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 24 }}>
+              {path.steps.map((s, i) => {
+                const active = i === step;
+                const past   = i < step;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => setStep(i)}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      textAlign: "left",
+                      border: `1.5px solid ${active ? BLUE : past ? "rgba(11,13,26,0.18)" : "rgba(11,13,26,0.12)"}`,
+                      borderRadius: 18,
+                      padding: "16px 20px",
+                      background: active ? PAPER : past ? "rgba(252,252,253,0.55)" : "rgba(252,252,253,0.32)",
+                      cursor: "pointer",
+                      transition: "all .18s",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{
+                        width: 22, height: 22, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
+                        background: active ? BLUE : past ? "rgba(11,13,26,0.12)" : "rgba(11,13,26,0.08)",
+                        font: `700 11px/1 ${MONO}`,
+                        color: active ? PAPER : past ? "rgba(11,13,26,0.55)" : "rgba(11,13,26,0.35)",
+                      }}>
+                        {past ? "✓" : i + 1}
+                      </div>
+                      <div style={{ font: `600 15px/1.3 ${BODY}`, color: active ? INK : past ? "rgba(11,13,26,0.65)" : "rgba(11,13,26,0.45)" }}>
+                        {s.title}
+                      </div>
+                    </div>
+                    {active && (
+                      <p style={{ font: `400 14px/1.6 ${BODY}`, color: MUTED2, margin: "10px 0 0 32px", textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
+                        {s.body}
+                      </p>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Advance button */}
+            {step < path.steps.length - 1 && (
+              <button
+                onClick={() => setStep((s) => s + 1)}
+                style={{
+                  marginTop: 16,
+                  font: `600 14px/1 ${BODY}`,
+                  color: BLUE,
+                  background: "rgba(43,52,255,0.1)",
+                  border: "none",
+                  borderRadius: 100,
+                  padding: "11px 22px",
+                  cursor: "pointer",
+                }}
+              >
+                Next step →
+              </button>
+            )}
+
+            {/* CTAs */}
+            <div style={{ marginTop: 36, display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+              <button
+                onClick={() => navigate("/demo")}
+                style={{
+                  font: `600 14.5px/1 ${BODY}`,
+                  color: PAPER,
+                  background: BLUE,
+                  border: "none",
+                  borderRadius: 100,
+                  padding: "14px 26px",
+                  cursor: "pointer",
+                }}
+              >
+                Try Demo
+              </button>
+              <span style={{ font: `400 14px/1.5 ${BODY}`, color: "rgba(11,13,26,0.55)" }}>
+                Sign both sides yourself. No account needed.
+              </span>
+            </div>
+          </div>
+
+          {/* Right column — sticky job card */}
+          <div style={{ position: "sticky", top: 40 }}>
+            <div style={{ background: PAPER, border: `1.5px solid #E6E7EE`, borderRadius: 28, padding: 30, boxShadow: "0 30px 70px rgba(11,13,26,0.09)" }}>
+              {/* Card header */}
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ font: `500 11px/1 ${MONO}`, letterSpacing: ".1em", color: MUTED }}>24 Maple Ridge Dr · {path.jobId}</div>
+                  <div style={{ font: `700 20px/1.2 ${DISPLAY}`, color: INK, letterSpacing: "-.03em", marginTop: 6 }}>Water heater replacement</div>
+                </div>
+                <div style={{
+                  font: `700 9.5px/1 ${MONO}`, letterSpacing: ".1em",
+                  color: statusColor, background: statusBg,
+                  borderRadius: 100, padding: "6px 12px", flexShrink: 0, whiteSpace: "nowrap",
+                  transition: "all .25s",
+                }}>
+                  {status}
+                </div>
+              </div>
+
+              {/* Timeline rows */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 0, marginTop: 24 }}>
+                {path.rows.map((row, i) => {
+                  const active = step >= row.at;
+                  return (
+                    <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 14, opacity: active ? 1 : 0.32, transition: "opacity .3s" }}>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, paddingTop: 2 }}>
+                        <div style={{
+                          width: 22, height: 22, borderRadius: "50%",
+                          background: active ? VBADGE : "#EDEEF2",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          transition: "background .3s",
+                        }}>
+                          <div style={{ width: 8, height: 8, borderRadius: "50%", background: active ? BLUE : "#C9CCD6", transition: "background .3s" }} />
+                        </div>
+                        {i < path.rows.length - 1 && (
+                          <div style={{ width: 1.5, height: 28, background: active ? "#D5D8FF" : "#EDEEF2", marginTop: 3 }} />
+                        )}
+                      </div>
+                      <div style={{ minWidth: 0, paddingBottom: i < path.rows.length - 1 ? 16 : 0 }}>
+                        <div style={{ font: `700 10px/1 ${MONO}`, letterSpacing: ".1em", color: active ? BLUE : MUTED }}>{row.label}</div>
+                        <div style={{ font: `400 13.5px/1.4 ${BODY}`, color: MUTED2, marginTop: 4 }}>{row.detail}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Signature boxes */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 24 }}>
+                {[
+                  { role: "HOMEOWNER · PROOF OF WORK", sig: homeownerSig },
+                  { role: "CONTRACTOR · OPTIONAL", sig: contractorSig },
+                ].map(({ role, sig }) => (
+                  <div key={role} style={{
+                    border: `2px dashed ${sig.signed ? BLUE : "#DDDFE8"}`,
+                    borderRadius: 18,
+                    padding: 18,
+                    background: sig.signed ? LBLUE : PAPER,
+                    transition: "all .3s",
+                  }}>
+                    <div style={{ font: `700 8.5px/1 ${MONO}`, letterSpacing: ".1em", color: sig.signed ? BLUE : "#9AA0B0" }}>{role}</div>
+                    <div style={{ font: `600 14px/1.3 ${BODY}`, color: sig.signed ? INK : "#9AA0B0", marginTop: 8 }}>{sig.name}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
+                      <div style={{ width: 7, height: 7, borderRadius: "50%", background: sig.signed ? BLUE : "#DDDFE8", flexShrink: 0, transition: "background .3s" }} />
+                      <div style={{ font: `400 12px/1.3 ${BODY}`, color: sig.signed ? MUTED2 : "#9AA0B0" }}>{sig.sub}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Contractor toggle */}
+              {signed && (
+                <button
+                  onClick={() => setSkipContractor((v) => !v)}
+                  style={{
+                    marginTop: 14,
+                    font: `400 12.5px/1.4 ${BODY}`,
+                    color: MUTED,
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: 0,
+                    textDecoration: "underline",
+                    textUnderlineOffset: 3,
+                    display: "block",
+                    width: "100%",
+                    textAlign: "left",
+                  }}
+                >
+                  {skipContractor ? "Show it with the contractor signature" : "Show it without the contractor signature"}
+                </button>
+              )}
+
+              {/* Seal line */}
+              <div style={{
+                marginTop: 20,
+                paddingTop: 16,
+                borderTop: `1px solid ${BORDER}`,
+                font: `400 12px/1.5 ${MONO}`,
+                color: MUTED,
+                opacity: sealed ? 1 : 0.45,
+                transition: "opacity .4s",
+              }}>
+                {sealLine}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
