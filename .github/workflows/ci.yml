@@ -117,7 +117,8 @@ jobs:
         run: mops install
 
       - name: Initialize mops toolchain (downloads moc 1.3.0)
-        # dfx 0.24.x uses the mops-managed moc when [toolchain] is set in mops.toml.
+        # Export DFX_MOC_PATH so dfx uses the mops-managed moc instead of its
+        # bundled one — dfx 0.24.x bundles an older moc that lacks persistent actor.
         run: |
           mops toolchain use moc 1.3.0
           MOC_BIN=$(mops toolchain bin moc 2>/dev/null) || MOC_BIN=""
@@ -126,6 +127,7 @@ jobs:
             MOC_BIN=$(mops toolchain bin moc)
           fi
           "$MOC_BIN" --version
+          echo "DFX_MOC_PATH=$MOC_BIN" >> "$GITHUB_ENV"
 
       - name: Start local replica
         run: dfx start --clean --background
