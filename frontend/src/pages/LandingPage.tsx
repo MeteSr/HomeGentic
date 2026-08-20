@@ -877,7 +877,7 @@ function DualSignatureSection() {
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div style={{
+                      <div aria-hidden="true" style={{
                         width: 22, height: 22, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
                         background: active ? BLUE : past ? "rgba(11,13,26,0.12)" : "rgba(11,13,26,0.08)",
                         font: `700 11px/1 ${MONO}`,
@@ -885,7 +885,7 @@ function DualSignatureSection() {
                       }}>
                         {past ? "✓" : i + 1}
                       </div>
-                      <div style={{ font: `600 15px/1.3 ${BODY}`, color: active ? INK : past ? "rgba(11,13,26,0.65)" : "rgba(11,13,26,0.45)" }}>
+                      <div style={{ font: `600 15px/1.3 ${BODY}`, color: active ? INK : past ? "rgba(11,13,26,0.65)" : "#5A5F70" }}>
                         {s.title}
                       </div>
                     </div>
@@ -907,7 +907,7 @@ function DualSignatureSection() {
                   marginTop: 16,
                   font: `600 14px/1 ${BODY}`,
                   color: BLUE,
-                  background: "rgba(43,52,255,0.1)",
+                  background: PAPER,
                   border: "none",
                   borderRadius: 100,
                   padding: "11px 22px",
@@ -934,7 +934,7 @@ function DualSignatureSection() {
               >
                 Try Demo
               </button>
-              <span style={{ font: `400 14px/1.5 ${BODY}`, color: "rgba(11,13,26,0.55)" }}>
+              <span style={{ font: `400 14px/1.5 ${BODY}`, color: "#3D4155" }}>
                 Sign both sides yourself. No account needed.
               </span>
             </div>
