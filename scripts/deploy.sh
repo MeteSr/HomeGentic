@@ -46,10 +46,10 @@ fi
 
 # ── Ensure mops toolchain (moc) is initialized ───────────────────────────────
 # icp-cli's motoko recipe resolves the compiler via `mops toolchain bin moc`.
-# mops toolchain init is idempotent — safe to run every time.
+# mops toolchain use moc 1.3.0 is idempotent — safe to run every time.
 echo "▶ Initializing mops toolchain..."
-mops toolchain init 2>/dev/null || true
-echo "  ✓ mops toolchain initialized"
+mops toolchain use moc 1.3.0 2>/dev/null || true
+echo "  ✓ mops toolchain use moc 1.3.0ialized"
 
 # Pre-warm moc binary BEFORE parallel builds.
 # mops toolchain bin moc downloads + extracts the tarball on first call.
@@ -60,7 +60,7 @@ MOC_BIN=$(mops toolchain bin moc 2>/dev/null) || MOC_BIN=""
 if [ -z "$MOC_BIN" ]; then
   echo "  First call failed — clearing tmp cache and retrying..."
   rm -rf .mops/_tmp
-  mops toolchain init 2>/dev/null || true
+  mops toolchain use moc 1.3.0 2>/dev/null || true
   MOC_BIN=$(mops toolchain bin moc) || { echo "  ERROR: cannot resolve moc binary"; exit 1; }
 fi
 echo "  ✓ moc ready: $MOC_BIN"

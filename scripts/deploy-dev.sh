@@ -38,11 +38,11 @@ echo "  ✓ Local network is running"
 
 # ── moc compiler ─────────────────────────────────────────────────────────────
 echo "▶ Initializing moc compiler..."
-mops toolchain init >/dev/null 2>&1 || true
+mops toolchain use moc 1.3.0 >/dev/null 2>&1 || true
 MOC_BIN=$(mops toolchain bin moc 2>/dev/null) || MOC_BIN=""
 if [ -z "$MOC_BIN" ]; then
   rm -rf .mops/_tmp
-  mops toolchain init >/dev/null 2>&1 || true
+  mops toolchain use moc 1.3.0 >/dev/null 2>&1 || true
   MOC_BIN=$(mops toolchain bin moc) || { echo "  ERROR: cannot resolve moc"; exit 1; }
 fi
 echo "  ✓ moc: $MOC_BIN"
