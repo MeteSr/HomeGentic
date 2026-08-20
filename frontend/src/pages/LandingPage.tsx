@@ -799,7 +799,7 @@ function DualSignatureSection() {
   const sealed  = step >= path.sealAt;
 
   const status      = sealed ? (skipContractor ? "UNVERIFIED" : "VERIFIED") : signed ? "SIGNED" : "IN PROGRESS";
-  const statusColor = sealed ? (skipContractor ? "#9E5540" : BLUE) : MUTED;
+  const statusColor = sealed ? (skipContractor ? "#9E5540" : BLUE) : INK;
   const statusBg    = sealed ? (skipContractor ? "#FFDCD3" : VBADGE) : "#EDEEF2";
 
   const sealLine = sealed
@@ -964,7 +964,7 @@ function DualSignatureSection() {
                 {path.rows.map((row, i) => {
                   const active = step >= row.at;
                   return (
-                    <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 14, opacity: active ? 1 : 0.32, transition: "opacity .3s" }}>
+                    <div key={i} aria-hidden={!active || undefined} style={{ display: "flex", alignItems: "flex-start", gap: 14, opacity: active ? 1 : 0.32, transition: "opacity .3s" }}>
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, paddingTop: 2 }}>
                         <div style={{
                           width: 22, height: 22, borderRadius: "50%",
@@ -1000,11 +1000,11 @@ function DualSignatureSection() {
                     background: sig.signed ? LBLUE : PAPER,
                     transition: "all .3s",
                   }}>
-                    <div style={{ font: `700 8.5px/1 ${MONO}`, letterSpacing: ".1em", color: sig.signed ? BLUE : "#9AA0B0" }}>{role}</div>
-                    <div style={{ font: `600 14px/1.3 ${BODY}`, color: sig.signed ? INK : "#9AA0B0", marginTop: 8 }}>{sig.name}</div>
+                    <div style={{ font: `700 8.5px/1 ${MONO}`, letterSpacing: ".1em", color: sig.signed ? BLUE : MUTED }}>{role}</div>
+                    <div style={{ font: `600 14px/1.3 ${BODY}`, color: sig.signed ? INK : MUTED, marginTop: 8 }}>{sig.name}</div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
                       <div style={{ width: 7, height: 7, borderRadius: "50%", background: sig.signed ? BLUE : "#DDDFE8", flexShrink: 0, transition: "background .3s" }} />
-                      <div style={{ font: `400 12px/1.3 ${BODY}`, color: sig.signed ? MUTED2 : "#9AA0B0" }}>{sig.sub}</div>
+                      <div style={{ font: `400 12px/1.3 ${BODY}`, color: sig.signed ? MUTED2 : MUTED }}>{sig.sub}</div>
                     </div>
                   </div>
                 ))}
@@ -1034,7 +1034,7 @@ function DualSignatureSection() {
               )}
 
               {/* Seal line */}
-              <div style={{
+              <div aria-hidden={!sealed || undefined} style={{
                 marginTop: 20,
                 paddingTop: 16,
                 borderTop: `1px solid ${BORDER}`,
