@@ -150,7 +150,7 @@ export default function LoginPage() {
           </Link>
 
           <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-            <p style={{ fontFamily: F.mono, fontSize: "0.68rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.5)", marginBottom: "1rem" }}>
+            <p style={{ fontFamily: F.mono, fontSize: "0.68rem", letterSpacing: "0.12em", textTransform: "uppercase", color: C.white, marginBottom: "1rem" }}>
               SIGN IN
             </p>
             <h1 style={{ fontFamily: F.display, fontWeight: 800, fontSize: "2.625rem", color: C.white, lineHeight: 1.1, marginBottom: "0.375rem" }}>
@@ -159,7 +159,7 @@ export default function LoginPage() {
             <h2 style={{ fontFamily: F.display, fontWeight: 800, fontSize: "2.625rem", color: C.yellow, lineHeight: 1.1, marginBottom: "1.5rem" }}>
               Let's protect what<br />matters most.
             </h2>
-            <p style={{ fontSize: "0.9375rem", color: "rgba(255,255,255,0.7)", lineHeight: 1.7, marginBottom: "2.5rem", maxWidth: "360px" }}>
+            <p style={{ fontSize: "0.9375rem", color: C.white, lineHeight: 1.7, marginBottom: "2.5rem", maxWidth: "360px" }}>
               Log in to manage your property, track maintenance, access important documents, and get AI-powered insights — all in one secure place.
             </p>
 
@@ -180,7 +180,7 @@ export default function LoginPage() {
                   </div>
                   <div>
                     <div style={{ fontWeight: 600, fontSize: "0.9375rem", color: C.white, marginBottom: "0.2rem" }}>{f.title}</div>
-                    <div style={{ fontSize: "0.8125rem", color: "rgba(255,255,255,0.58)", lineHeight: 1.5 }}>{f.sub}</div>
+                    <div style={{ fontSize: "0.8125rem", color: C.white, lineHeight: 1.5 }}>{f.sub}</div>
                   </div>
                 </div>
               ))}
@@ -190,7 +190,7 @@ export default function LoginPage() {
               <p style={{ fontSize: "0.9375rem", color: "rgba(255,255,255,0.82)", lineHeight: 1.7, fontStyle: "italic", marginBottom: "0.75rem" }}>
                 "HomeGentic gives me peace of mind knowing my home is protected and my records are secure."
               </p>
-              <p style={{ fontFamily: F.mono, fontSize: "0.68rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.65)" }}>
+              <p style={{ fontFamily: F.mono, fontSize: "0.68rem", letterSpacing: "0.12em", textTransform: "uppercase", color: C.white }}>
                 — AUSTIN HOMEOWNER
               </p>
             </div>
@@ -405,7 +405,7 @@ export default function LoginPage() {
             <div style={{ color: C.white, fontWeight: 600, fontSize: "0.9375rem" }}>Quorum HOA members save 10%</div>
             <div style={{ color: "rgba(255,255,255,0.65)", fontSize: "0.8125rem" }}>
               Use code:{" "}
-              <span style={{ color: C.coral, fontWeight: 700, letterSpacing: "0.05em" }}>QUORUM10</span>
+              <span style={{ color: C.yellow, fontWeight: 700, letterSpacing: "0.05em" }}>QUORUM10</span>
             </div>
           </div>
           <button

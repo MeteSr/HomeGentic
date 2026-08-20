@@ -26,8 +26,8 @@ const KEYFRAMES = `
   to   { transform: translateX(-50%); }
 }
 @keyframes hgwRise {
-  from { opacity: 0; transform: translateY(22px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { transform: translateY(22px); }
+  to   { transform: translateY(0); }
 }
 @keyframes hgwPulse {
   0%   { opacity: 0.7; transform: scale(1); }
@@ -60,7 +60,7 @@ function Logo({ size = 28, dark = false }: { size?: number; dark?: boolean }) {
 const LEDGER = [
   { title: "Roof replacement",     meta: "Harpeth Roofing · $14,200 · Jun 2025", tag: "VERIFIED",  bg: LBLUE,       tagColor: BLUE,     tagBg: VBADGE    },
   { title: "Panel upgrade to 200A",meta: "Eastside Electric · $3,850 · Apr 2024",tag: "VERIFIED",  bg: LBLUE,       tagColor: BLUE,     tagBg: VBADGE    },
-  { title: "Water heater · 14 yrs",meta: "Past its 10-year rated life",           tag: "AT RISK",  bg: "#FFF0EC",   tagColor: "#C23F1F",tagBg: "#FFDCD3" },
+  { title: "Water heater · 14 yrs",meta: "Past its 10-year rated life",           tag: "AT RISK",  bg: LBLUE,       tagColor: "#8C2402",tagBg: "#FFDCD3" },
   { title: "Gutter cleaning",      meta: "Bell & Sons · $180 · Aug 2026",         tag: "VERIFIED",  bg: LBLUE,       tagColor: BLUE,     tagBg: VBADGE    },
 ];
 
@@ -69,7 +69,7 @@ function PropertyCard() {
     <div style={{ background: PAPER, borderRadius: 28, padding: 26, boxShadow: `0 44px 90px rgba(11,13,26,0.4)` }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
         <div>
-          <div style={{ font: `700 9.5px/1 ${MONO}`, letterSpacing: ".16em", color: MUTED }}>412 ELDER ST · 37206</div>
+          <div style={{ font: `700 9.5px/1 ${MONO}`, letterSpacing: ".16em", color: MUTED2 }}>412 ELDER ST · 37206</div>
           <div style={{ font: `700 20px/1.2 ${DISPLAY}`, color: INK, letterSpacing: "-.03em", marginTop: 8 }}>Property record</div>
         </div>
         <div style={{ flexShrink: 0, width: 76, height: 76, borderRadius: "50%", background: BLUE, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
@@ -82,7 +82,7 @@ function PropertyCard() {
           <div key={e.title} style={{ background: e.bg, borderRadius: 16, padding: "14px 16px", display: "flex", alignItems: "center", gap: 14 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ font: `600 14.5px/1.3 ${BODY}`, color: INK }}>{e.title}</div>
-              <div style={{ font: `400 12.5px/1.3 ${BODY}`, color: MUTED, marginTop: 5 }}>{e.meta}</div>
+              <div style={{ font: `400 12.5px/1.3 ${BODY}`, color: MUTED2, marginTop: 5 }}>{e.meta}</div>
             </div>
             <div style={{ flexShrink: 0, font: `700 8.5px/1 ${MONO}`, letterSpacing: ".1em", color: e.tagColor, background: e.tagBg, borderRadius: 100, padding: "6px 9px" }}>{e.tag}</div>
           </div>
@@ -92,7 +92,7 @@ function PropertyCard() {
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={BLUE} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
           <rect x="4" y="10" width="16" height="11" rx="2.5" /><path d="M8 10V7a4 4 0 0 1 8 0v3" />
         </svg>
-        <div style={{ font: `500 12px/1.45 ${BODY}`, color: MUTED }}>Stored on Internet Computer Protocol · Record #HG-2026-04129</div>
+        <div style={{ font: `500 12px/1.45 ${BODY}`, color: MUTED2 }}>Stored on Internet Computer Protocol · Record #HG-2026-04129</div>
       </div>
     </div>
   );
@@ -265,7 +265,7 @@ const STEPS = [
   {
     num: "02", title: "The contractor signs it",
     body: "The pro who did the job confirms it from their side. Both signatures make the record permanent: neither of you can quietly edit it later.",
-    bg: BLUE, numBg: YELLOW, numColor: INK, titleColor: PAPER, bodyColor: "rgba(252,252,253,0.76)",
+    bg: BLUE, numBg: YELLOW, numColor: INK, titleColor: PAPER, bodyColor: PAPER,
   },
   {
     num: "03", title: "Share the proof",
@@ -282,7 +282,7 @@ const SCORE_FACTORS = [
 ];
 
 const PULSE_ITEMS = [
-  { title: "Gutter cleaning", tag: "DUE NOW",  tone: CORAL,  chipColor: CORAL,  chipBg: "#FFDCD3", body: "Bell & Sons quoted $180 in May. They have Friday open." },
+  { title: "Gutter cleaning", tag: "DUE NOW",  tone: CORAL,  chipColor: "#8C2402",  chipBg: "#FFDCD3", body: "Bell & Sons quoted $180 in May. They have Friday open." },
   { title: "HVAC filter",     tag: "DUE SEP 2",tone: YELLOW, chipColor: "#8A6800",chipBg: "#FFF0B0",body: "Last replaced 84 days ago. Rated for 90 days." },
   { title: "Chimney",         tag: "ANNUAL",   tone: BLUE,   chipColor: BLUE,   chipBg: VBADGE,    body: "Last inspected Oct 2024. Due before first fire of the season." },
 ];
@@ -296,22 +296,22 @@ const FEATURES = [
   {
     span: 1, kicker: "VERIFICATION", title: "Dual-signature jobs",
     desc: "Verified by both homeowner and contractor, creating a record neither party can alter.",
-    bg: PAPER, border: BORDER, kickerColor: CORAL, titleColor: INK, bodyColor: MUTED2,
+    bg: PAPER, border: BORDER, kickerColor: MUTED, titleColor: INK, bodyColor: MUTED2,
   },
   {
     span: 1, kicker: "REPORTS", title: "Shareable proof",
     desc: "Tamper-proof reports with links for insurance, buyers, or contractors.",
-    bg: PAPER, border: BORDER, kickerColor: CORAL, titleColor: INK, bodyColor: MUTED2,
+    bg: PAPER, border: BORDER, kickerColor: MUTED, titleColor: INK, bodyColor: MUTED2,
   },
   {
     span: 1, kicker: "MARKET", title: "What the work is worth",
     desc: "See which projects return the most in your zip code before you spend.",
-    bg: BLUE, border: BLUE, kickerColor: YELLOW, titleColor: PAPER, bodyColor: "rgba(252,252,253,0.76)",
+    bg: BLUE, border: BLUE, kickerColor: YELLOW, titleColor: PAPER, bodyColor: PAPER,
   },
   {
     span: 1, kicker: "ALERTS", title: "Warnings before penalties",
     desc: "Expiring warranties and aging systems surface while there is still time to act.",
-    bg: INK, border: INK, kickerColor: YELLOW, titleColor: PAPER, bodyColor: "rgba(252,252,253,0.7)",
+    bg: INK, border: INK, kickerColor: YELLOW, titleColor: PAPER, bodyColor: PAPER,
   },
 ];
 
@@ -330,7 +330,7 @@ const PLANS = [
     features: ["Up to 5 properties", "All Basic features", "Voice AI assistant", "Priority support"],
     tag: "MOST POPULAR", tagBg: YELLOW,
     bg: BLUE, border: BLUE, shadow: "0 20px 60px rgba(43,52,255,0.4)",
-    titleColor: PAPER, subColor: "rgba(252,252,253,0.72)",
+    titleColor: PAPER, subColor: PAPER,
     ctaBg: YELLOW, ctaBorder: YELLOW, ctaColor: INK, cta: "Get Pro",
     checkBg: "rgba(252,252,253,0.2)", checkColor: PAPER,
   },
@@ -339,7 +339,7 @@ const PLANS = [
     features: ["Up to 20 properties", "All Pro features", "20 AI calls/day", "White-glove support"],
     tag: null, tagBg: YELLOW,
     bg: INK, border: INK, shadow: "0 20px 60px rgba(11,13,26,0.4)",
-    titleColor: PAPER, subColor: "rgba(252,252,253,0.6)",
+    titleColor: PAPER, subColor: PAPER,
     ctaBg: YELLOW, ctaBorder: YELLOW, ctaColor: INK, cta: "Get Premium",
     checkBg: "rgba(252,252,253,0.15)", checkColor: PAPER,
   },
@@ -366,7 +366,7 @@ function NavLink({ label, onClick }: { label: string; onClick: () => void }) {
       onClick={onClick}
       {...handlers}
       style={{
-        font: `600 13.5px/1 ${BODY}`, color: hovered ? INK : "rgba(252,252,253,0.82)",
+        font: `600 13.5px/1 ${BODY}`, color: hovered ? INK : PAPER,
         cursor: "pointer", padding: "10px 16px", borderRadius: 100,
         background: hovered ? PAPER : "transparent",
         border: "none",
@@ -472,7 +472,7 @@ export default function LandingPage() {
               <NavLink label="Contractors" onClick={() => navigate("/for-pros")} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <button onClick={() => navigate("/login")} style={{ cursor: "pointer", font: `600 14px/1 ${BODY}`, color: "rgba(252,252,253,0.86)", background: "none", border: "none", padding: "12px 6px" }}>
+              <button onClick={() => navigate("/login")} style={{ cursor: "pointer", font: `600 14px/1 ${BODY}`, color: PAPER, background: "none", border: "none", padding: "12px 6px" }}>
                 Log in
               </button>
               <PillBtn label="Start free" onClick={() => navigate("/login")} variant="yellow" />
@@ -482,15 +482,15 @@ export default function LandingPage() {
 
         {/* ── Hero ── */}
         <div style={{ background: BLUE, position: "relative", overflow: "hidden" }}>
-          <div style={{ position: "absolute", top: -180, right: -140, width: 620, height: 620, borderRadius: "50%", background: "#3D46FF", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", bottom: -260, left: -120, width: 520, height: 520, borderRadius: "50%", background: "#1F27E8", pointerEvents: "none" }} />
+          <div aria-hidden="true" style={{ position: "absolute", top: -180, right: -140, width: 620, height: 620, borderRadius: "50%", background: "#3D46FF", pointerEvents: "none" }} />
+          <div aria-hidden="true" style={{ position: "absolute", bottom: -260, left: -120, width: 520, height: 520, borderRadius: "50%", background: "#1F27E8", pointerEvents: "none" }} />
           <div style={{ position: "relative", maxWidth: 1280, margin: "0 auto", padding: "72px 40px 108px", boxSizing: "border-box" }}>
             <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 460px", gap: 56, alignItems: "center" }}>
               <div style={{ minWidth: 0, animation: "hgwRise .6s cubic-bezier(.2,.8,.3,1) both" }}>
                 <h1 style={{ font: `800 80px/.94 ${DISPLAY}`, color: PAPER, letterSpacing: "-.045em", margin: 0, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
                   Your house<br />keeps <span style={{ color: YELLOW }}>receipts</span>.
                 </h1>
-                <p style={{ font: `400 19px/1.6 ${BODY}`, color: "rgba(252,252,253,0.84)", marginTop: 24, maxWidth: 500, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
+                <p style={{ font: `400 19px/1.6 ${BODY}`, color: PAPER, marginTop: 24, maxWidth: 500, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
                   The roof, the rewire, the furnace you replaced in a cold snap. HomeGentic keeps every job in one record, signed by the contractor who did the work and stored where nobody can edit it.
                 </p>
                 <div style={{ display: "flex", gap: 12, marginTop: 38, flexWrap: "wrap", alignItems: "center" }}>
@@ -519,7 +519,7 @@ export default function LandingPage() {
 
         {/* ── How It Works ── */}
         <div id="hg-how" style={{ maxWidth: 1280, margin: "0 auto", padding: "104px 40px 0", boxSizing: "border-box" }}>
-          <div aria-hidden="true" style={{ font: `700 10px/1 ${MONO}`, letterSpacing: ".18em", color: CORAL }}>HOW IT WORKS</div>
+          <div style={{ font: `700 10px/1 ${MONO}`, letterSpacing: ".18em", color: MUTED }}>HOW IT WORKS</div>
           <div style={{ font: `800 52px/1.04 ${DISPLAY}`, color: INK, letterSpacing: "-.04em", marginTop: 18, maxWidth: 660, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
             Three steps, then the record keeps itself.
           </div>
@@ -538,19 +538,19 @@ export default function LandingPage() {
               <div style={{ font: `800 42px/1.08 ${DISPLAY}`, color: PAPER, letterSpacing: "-.04em", marginTop: 18, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
                 One number a buyer, an agent or an insurer can check.
               </div>
-              <p style={{ font: `400 16.5px/1.66 ${BODY}`, color: "rgba(252,252,253,0.7)", marginTop: 18, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
+              <p style={{ font: `400 16.5px/1.66 ${BODY}`, color: PAPER, marginTop: 18, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
                 Every verified job, receipt and inspection adds points. Lapsed warranties, aging systems and long gaps take them away, so the score reflects the house as it is today — not the day you signed up.
               </p>
               <PillBtn label="See a sample report" onClick={() => navigate("/sample-report")} variant="yellow" />
             </div>
             <div style={{ minWidth: 0, background: "rgba(252,252,253,0.06)", border: "1px solid rgba(252,252,253,0.14)", borderRadius: 26, padding: 30 }}>
-              <div style={{ font: `700 9.5px/1 ${MONO}`, letterSpacing: ".16em", color: "rgba(252,252,253,0.56)" }}>WHERE THE POINTS COME FROM</div>
+              <div style={{ font: `700 9.5px/1 ${MONO}`, letterSpacing: ".16em", color: PAPER }}>WHERE THE POINTS COME FROM</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 20, marginTop: 22 }}>
                 {SCORE_FACTORS.map((f) => (
                   <div key={f.label}>
                     <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
                       <div style={{ font: `600 14.5px/1.3 ${BODY}`, color: PAPER }}>{f.label}</div>
-                      <div style={{ font: `500 12px/1 ${MONO}`, color: "rgba(252,252,253,0.56)", flexShrink: 0 }}>{f.max}</div>
+                      <div style={{ font: `500 12px/1 ${MONO}`, color: PAPER, flexShrink: 0 }}>{f.max}</div>
                     </div>
                     <div style={{ height: 6, borderRadius: 100, background: "rgba(252,252,253,0.12)", marginTop: 9, overflow: "hidden" }}>
                       <div style={{ height: 6, width: f.pct, background: f.color, borderRadius: 100 }} />
@@ -558,7 +558,7 @@ export default function LandingPage() {
                   </div>
                 ))}
               </div>
-              <p style={{ font: `400 13px/1.6 ${BODY}`, color: "rgba(252,252,253,0.6)", marginTop: 24, paddingTop: 18, borderTop: "1px solid rgba(252,252,253,0.12)", textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
+              <p style={{ font: `400 13px/1.6 ${BODY}`, color: PAPER, marginTop: 24, paddingTop: 18, borderTop: "1px solid rgba(252,252,253,0.12)", textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
                 Points are capped per category, so a hundred filter changes never outweigh a verified roof.
               </p>
             </div>
@@ -568,24 +568,24 @@ export default function LandingPage() {
         {/* ── AI Section ── */}
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: "104px 40px 0", boxSizing: "border-box" }}>
           <div style={{ background: BLUE, borderRadius: 34, padding: 56, position: "relative", overflow: "hidden" }}>
-            <div style={{ position: "absolute", top: -200, left: -120, width: 520, height: 520, borderRadius: "50%", background: "#3D46FF", pointerEvents: "none" }} />
+            <div aria-hidden="true" style={{ position: "absolute", top: -200, left: -120, width: 520, height: 520, borderRadius: "50%", background: "#3D46FF", pointerEvents: "none" }} />
             <div style={{ position: "relative" }}>
               <div style={{ font: `700 10px/1 ${MONO}`, letterSpacing: ".18em", color: YELLOW }}>ASK IT ANYTHING</div>
               <div style={{ font: `800 46px/1.06 ${DISPLAY}`, color: PAPER, letterSpacing: "-.04em", marginTop: 18, maxWidth: 720, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
                 It knows your house, not houses in general.
               </div>
-              <p style={{ font: `400 16.5px/1.66 ${BODY}`, color: "rgba(252,252,253,0.84)", marginTop: 18, maxWidth: 620, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
+              <p style={{ font: `400 16.5px/1.66 ${BODY}`, color: PAPER, marginTop: 18, maxWidth: 620, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
                 Ask out loud and the answer comes from your own record — the job, the contractor who did it last time, the price they charged. It can book the next one while you are still standing in the driveway.
               </p>
               <div style={{ display: "grid", gridTemplateColumns: "minmax(0,420px) minmax(0,1fr)", gap: 32, marginTop: 44, alignItems: "start" }}>
                 <VoiceDemo />
                 <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 20 }}>
                   <div style={{ background: "rgba(252,252,253,0.08)", border: "1px solid rgba(252,252,253,0.14)", borderRadius: 26, padding: 30 }}>
-                    <div style={{ font: `700 9.5px/1 ${MONO}`, letterSpacing: ".16em", color: YELLOW }}>MONDAY BRIEFING · ZONE 4 · SUMMER</div>
+                    <div style={{ font: `700 9.5px/1 ${MONO}`, letterSpacing: ".16em", color: PAPER }}>MONDAY BRIEFING · ZONE 4 · SUMMER</div>
                     <div style={{ font: `700 26px/1.2 ${DISPLAY}`, color: PAPER, letterSpacing: "-.03em", marginTop: 14, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
                       Every Monday, your house tells you what it needs.
                     </div>
-                    <p style={{ font: `400 15px/1.62 ${BODY}`, color: "rgba(252,252,253,0.8)", marginTop: 12, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
+                    <p style={{ font: `400 15px/1.62 ${BODY}`, color: PAPER, marginTop: 12, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
                       Not a generic checklist. The briefing reads the age of each system, your climate zone and the season, then ranks what actually matters this week.
                     </p>
                     <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 26 }}>
@@ -597,13 +597,13 @@ export default function LandingPage() {
                               <div style={{ font: `600 15px/1.3 ${BODY}`, color: PAPER }}>{pi.title}</div>
                               <div style={{ font: `700 8.5px/1 ${MONO}`, letterSpacing: ".1em", color: pi.chipColor, background: pi.chipBg, borderRadius: 100, padding: "5px 9px" }}>{pi.tag}</div>
                             </div>
-                            <div style={{ font: `400 13.5px/1.55 ${BODY}`, color: "rgba(252,252,253,0.76)", marginTop: 6 }}>{pi.body}</div>
+                            <div style={{ font: `400 13.5px/1.55 ${BODY}`, color: PAPER, marginTop: 6 }}>{pi.body}</div>
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
-                  <div style={{ font: `500 13px/1.5 ${BODY}`, color: "rgba(252,252,253,0.7)" }}>
+                  <div style={{ font: `500 13px/1.5 ${BODY}`, color: PAPER }}>
                     Voice runs in your browser · Chrome today, more soon
                   </div>
                 </div>
@@ -614,7 +614,7 @@ export default function LandingPage() {
 
         {/* ── What You Get ── */}
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: "104px 40px 0", boxSizing: "border-box" }}>
-          <div aria-hidden="true" style={{ font: `700 10px/1 ${MONO}`, letterSpacing: ".18em", color: CORAL }}>WHAT YOU GET</div>
+          <div style={{ font: `700 10px/1 ${MONO}`, letterSpacing: ".18em", color: MUTED }}>WHAT YOU GET</div>
           <div style={{ font: `800 52px/1.04 ${DISPLAY}`, color: INK, letterSpacing: "-.04em", marginTop: 18, maxWidth: 720, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
             Built for the years you own the house, not just the week you sell it.
           </div>
@@ -629,7 +629,7 @@ export default function LandingPage() {
         <div id="hg-pricing" style={{ maxWidth: 1280, margin: "0 auto", padding: "104px 40px 0", boxSizing: "border-box" }}>
           <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 40, flexWrap: "wrap" }}>
             <div style={{ maxWidth: 620 }}>
-              <div aria-hidden="true" style={{ font: `700 10px/1 ${MONO}`, letterSpacing: ".18em", color: CORAL }}>PRICING</div>
+              <div style={{ font: `700 10px/1 ${MONO}`, letterSpacing: ".18em", color: MUTED }}>PRICING</div>
               <div style={{ font: `800 52px/1.04 ${DISPLAY}`, color: INK, letterSpacing: "-.04em", marginTop: 18, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
                 Priced under a single service call.
               </div>
@@ -655,13 +655,13 @@ export default function LandingPage() {
         {/* ── CTA Band ── */}
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: "104px 40px", boxSizing: "border-box" }}>
           <div style={{ background: BLUE, borderRadius: 34, padding: "72px 56px", position: "relative", overflow: "hidden" }}>
-            <div style={{ position: "absolute", top: -140, right: -80, width: 460, height: 460, borderRadius: "50%", background: "#3D46FF", pointerEvents: "none" }} />
+            <div aria-hidden="true" style={{ position: "absolute", top: -140, right: -80, width: 460, height: 460, borderRadius: "50%", background: "#3D46FF", pointerEvents: "none" }} />
             <div style={{ position: "relative", display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 48, flexWrap: "wrap" }}>
               <div style={{ maxWidth: 580 }}>
                 <div style={{ font: `800 46px/1.06 ${DISPLAY}`, color: PAPER, letterSpacing: "-.04em", textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
                   Start with the last repair you paid for.
                 </div>
-                <p style={{ font: `400 16.5px/1.62 ${BODY}`, color: "rgba(252,252,253,0.8)", marginTop: 16, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
+                <p style={{ font: `400 16.5px/1.62 ${BODY}`, color: PAPER, marginTop: 16, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
                   One receipt is enough to open a record. Free for a single property, and the record is yours whether you stay or go.
                 </p>
               </div>
@@ -780,7 +780,7 @@ function PlanCard({ plan: pl, onStart }: { plan: typeof PLANS[number]; onStart: 
                 <path d="m5 12.5 4.5 4.5L19 7.5" />
               </svg>
             </div>
-            <div style={{ font: `400 14.5px/1.45 ${BODY}`, color: pl.titleColor === PAPER ? "rgba(252,252,253,0.88)" : MUTED2 }}>{pf}</div>
+            <div style={{ font: `400 14.5px/1.45 ${BODY}`, color: pl.titleColor === PAPER ? PAPER : MUTED2 }}>{pf}</div>
           </div>
         ))}
       </div>
