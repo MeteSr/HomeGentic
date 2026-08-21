@@ -382,6 +382,8 @@ describe("jobService.create", () => {
     expect(job.status).toBe("pending");
     expect(job.verified).toBe(false);
     expect(job.homeownerSigned).toBe(false);
+    // photos is always [] on the Job record itself — photos live in the photo canister
+    // and are retrieved separately via photoService.upload / getByJob, not embedded here.
     expect(job.photos).toEqual([]);
     expect(typeof job.id).toBe("string");
   });
