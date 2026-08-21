@@ -964,7 +964,7 @@ function DualSignatureSection() {
                 {path.rows.map((row, i) => {
                   const active = step >= row.at;
                   return (
-                    <div key={i} aria-hidden={!active || undefined} style={{ display: "flex", alignItems: "flex-start", gap: 14, opacity: active ? 1 : 0.32, transition: "opacity .3s" }}>
+                    <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, paddingTop: 2 }}>
                         <div style={{
                           width: 22, height: 22, borderRadius: "50%",
@@ -1034,14 +1034,12 @@ function DualSignatureSection() {
               )}
 
               {/* Seal line */}
-              <div aria-hidden={!sealed || undefined} style={{
+              <div style={{
                 marginTop: 20,
                 paddingTop: 16,
                 borderTop: `1px solid ${BORDER}`,
                 font: `400 12px/1.5 ${MONO}`,
                 color: MUTED,
-                opacity: sealed ? 1 : 0.45,
-                transition: "opacity .4s",
               }}>
                 {sealLine}
               </div>
