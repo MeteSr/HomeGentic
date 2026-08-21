@@ -112,6 +112,67 @@ function fillRequiredFields() {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
+describe("JobCreatePage — submit correctness (issue #182)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetByProp.mockResolvedValue([]);
+    mockCreate.mockResolvedValue({ id: "job-x", propertyId: "prop-1", serviceType: "HVAC" });
+  });
+
+  it("passes correct fields to jobService.create for a DIY job", async () => {
+    renderPage();
+    await act(async () => {});
+
+    fireEvent.change(screen.getByLabelText(/service type/i), { target: { value: "Roofing" } });
+    fireEvent.click(screen.getByText(/I did this myself/i));
+    fireEvent.change(screen.getByLabelText(/materials cost/i), { target: { value: "1200" } });
+    fireEvent.change(screen.getByLabelText(/date completed/i), { target: { value: "2024-07-04" } });
+    fireEvent.change(screen.getByLabelText(/description/i), { target: { value: "Replaced shingles" } });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /log job/i }));
+    });
+
+    await waitFor(() => expect(mockCreate).toHaveBeenCalledTimes(1));
+
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        propertyId:     "prop-1",
+        serviceType:    "Roofing",
+        isDiy:          true,
+        amount:         120000,       // 1200 * 100 cents
+        date:           "2024-07-04",
+        description:    "Replaced shingles",
+        contractorName: undefined,    // DIY — no contractor name
+      })
+    );
+  });
+
+  it("passes contractor name and amount when not DIY", async () => {
+    renderPage();
+    await act(async () => {});
+
+    // isDiy defaults to false — fill the contractor name field that appears
+    fireEvent.change(screen.getByLabelText(/contractor.*company name/i), { target: { value: "Cool Air LLC" } });
+    fireEvent.change(screen.getByLabelText(/amount paid/i), { target: { value: "850" } });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /log job/i }));
+    });
+
+    await waitFor(() => expect(mockCreate).toHaveBeenCalledTimes(1));
+
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        propertyId:     "prop-1",
+        isDiy:          false,
+        contractorName: "Cool Air LLC",
+        amount:         85000,        // 850 * 100 cents
+      })
+    );
+  });
+});
+
 describe("JobCreatePage — post-create photo upload", () => {
   beforeEach(() => {
     vi.clearAllMocks();
