@@ -227,9 +227,6 @@ export default function ForProsPage() {
           className="fpro-hero"
           style={{ paddingTop: "140px", paddingBottom: "80px", paddingLeft: "56px", paddingRight: "56px", textAlign: "center", background: C.paper }}
         >
-          <div style={{ fontFamily: F.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: C.blue, marginBottom: "1.5rem" }}>
-            ✦ Service Professionals
-          </div>
           <h1 style={{ fontFamily: F.display, fontSize: "clamp(2.4rem, 5vw, 4rem)", fontWeight: 800, color: C.ink, lineHeight: 1.1, marginBottom: "1.25rem" }}>
             Grow your business<br />
             <span style={{ fontWeight: 400, color: C.blue }}>with HomeGentic.</span>
@@ -269,9 +266,6 @@ export default function ForProsPage() {
           style={{ background: C.ink, padding: "72px 56px" }}
         >
           <div style={{ maxWidth: 960, margin: "0 auto" }}>
-            <div style={{ fontFamily: F.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: C.yellow, textAlign: "center", marginBottom: "1rem" }}>
-              ✦ Why Join
-            </div>
             <h2 style={{ fontFamily: F.display, fontSize: "clamp(1.8rem, 3.5vw, 2.6rem)", fontWeight: 800, color: C.white, textAlign: "center", marginBottom: "0.75rem" }}>
               Why professionals choose HomeGentic
             </h2>
@@ -302,9 +296,6 @@ export default function ForProsPage() {
         <section style={{ padding: "80px 56px", background: C.paper }} id="contractor-plans">
           <div style={{ maxWidth: 960, margin: "0 auto" }}>
             <div style={{ textAlign: "center", marginBottom: "3.5rem" }}>
-              <div style={{ fontFamily: F.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: C.blue, marginBottom: "1rem" }}>
-                👷 Contractors
-              </div>
               <h2 style={{ fontFamily: F.display, fontSize: "clamp(1.8rem, 3.5vw, 2.6rem)", fontWeight: 800, color: C.ink, marginBottom: "0.75rem" }}>
                 Start free.<br /><span style={{ fontWeight: 400, color: C.blue }}>Scale when you're ready.</span>
               </h2>
@@ -421,9 +412,6 @@ export default function ForProsPage() {
         {/* ── Final CTA ───────────────────────────────────────────────────── */}
         <section style={{ background: C.blue, padding: "80px 56px", textAlign: "center" }}>
           <div style={{ maxWidth: 640, margin: "0 auto" }}>
-            <div style={{ fontFamily: F.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.5)", marginBottom: "1.25rem" }}>
-              ✦ Ready to grow?
-            </div>
             <h2 style={{ fontFamily: F.display, fontSize: "clamp(2rem, 4vw, 3rem)", fontWeight: 800, color: C.white, marginBottom: "1rem", lineHeight: 1.1 }}>
               Join 3,400+ homeowners<br />already on the network.
             </h2>
