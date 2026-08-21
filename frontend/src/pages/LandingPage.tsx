@@ -43,6 +43,80 @@ const KEYFRAMES = `
 }
 `;
 
+const RESPONSIVE_CSS = `
+/* Nav */
+@media (max-width: 767px) {
+  .hg-nav-inner { padding: 0 16px !important; gap: 8px !important; }
+  .hg-nav-links { display: none !important; }
+}
+/* Hero */
+@media (max-width: 1023px) {
+  .hg-hero-inner { padding: 56px 40px 80px !important; }
+  .hg-hero-grid  { grid-template-columns: 1fr !important; gap: 40px !important; }
+}
+@media (max-width: 767px) {
+  .hg-hero-inner { padding: 48px 20px 60px !important; }
+  .hg-h1         { font-size: 52px !important; line-height: 0.96 !important; }
+}
+@media (max-width: 480px) {
+  .hg-h1 { font-size: 40px !important; }
+}
+/* Section horizontal padding */
+@media (max-width: 767px) {
+  .hg-section { padding-left: 20px !important; padding-right: 20px !important; }
+}
+/* 3-col grids */
+@media (max-width: 1023px) { .hg-grid-3 { grid-template-columns: 1fr 1fr !important; } }
+@media (max-width: 767px)  {
+  .hg-grid-3 { grid-template-columns: 1fr !important; }
+  .hg-feature-span2 { grid-column: span 1 !important; }
+}
+/* 2-col grids */
+@media (max-width: 767px) { .hg-grid-2 { grid-template-columns: 1fr !important; } }
+/* Score card */
+@media (max-width: 767px) {
+  .hg-score-card { padding: 36px 24px !important; border-radius: 24px !important; }
+}
+/* Section headings */
+@media (max-width: 767px) {
+  .hg-section-h { font-size: 36px !important; line-height: 1.1 !important; }
+}
+/* AI section */
+@media (max-width: 1023px) {
+  .hg-ai-inner { padding: 40px !important; }
+  .hg-ai-grid  { grid-template-columns: 1fr !important; gap: 28px !important; }
+}
+@media (max-width: 767px) {
+  .hg-ai-inner { padding: 28px 20px !important; border-radius: 24px !important; }
+}
+/* Voice demo height */
+@media (max-width: 767px) { .hg-voice-demo { height: auto !important; min-height: 460px; } }
+/* Dual Signature */
+@media (max-width: 1023px) {
+  .hg-ds-inner  { padding: 48px 36px !important; }
+  .hg-ds-grid   { grid-template-columns: 1fr !important; gap: 36px !important; }
+  .hg-ds-sticky { position: static !important; }
+}
+@media (max-width: 767px) {
+  .hg-ds-inner { padding: 32px 20px !important; border-radius: 24px !important; }
+  .hg-ds-h2    { font-size: 36px !important; line-height: 1.1 !important; }
+}
+/* Pricing */
+@media (max-width: 900px) {
+  .hg-grid-plans { grid-template-columns: 1fr !important; max-width: 420px; margin-left: auto !important; margin-right: auto !important; }
+}
+/* CTA band */
+@media (max-width: 767px) {
+  .hg-cta-inner { padding: 44px 28px !important; border-radius: 24px !important; }
+  .hg-cta-h     { font-size: 32px !important; line-height: 1.1 !important; }
+}
+/* Footer */
+@media (max-width: 767px) {
+  .hg-footer-inner { padding: 40px 20px 24px !important; }
+  .hg-footer-copy  { padding: 0 20px 32px !important; }
+}
+`;
+
 // ── Logo ───────────────────────────────────────────────────────────────────────
 function Logo({ size = 28, dark = false }: { size?: number; dark?: boolean }) {
   const bodyColor  = dark ? BLUE  : PAPER;
@@ -190,7 +264,7 @@ function VoiceDemo() {
   const stateBg    = mode === "idle" ? YELLOW : mode === "listening" ? "rgba(255,255,255,0.18)" : mode === "thinking" ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.18)";
 
   return (
-    <div style={{ background: PAPER, borderRadius: 28, padding: 24, boxShadow: "0 30px 70px rgba(0,0,0,0.4)", height: 560, boxSizing: "border-box", display: "flex", flexDirection: "column" }}>
+    <div className="hg-voice-demo" style={{ background: PAPER, borderRadius: 28, padding: 24, boxShadow: "0 30px 70px rgba(0,0,0,0.4)", height: 560, boxSizing: "border-box", display: "flex", flexDirection: "column" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
         <div style={{ font: `700 15px/1 ${DISPLAY}`, letterSpacing: "-.02em", color: INK }}>Ask about your home</div>
         <div style={{ flex: 1 }} />
@@ -452,20 +526,20 @@ export default function LandingPage() {
         })}</script>
       </Helmet>
 
-      <style>{KEYFRAMES}</style>
+      <style>{KEYFRAMES + RESPONSIVE_CSS}</style>
 
       <div style={{ width: "100%", background: PAPER, color: INK, overflowX: "hidden" }}>
 
         {/* ── Nav ── */}
         <div style={{ background: BLUE, position: "sticky", top: 0, zIndex: 100 }}>
-          <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 40px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 72, gap: 24, boxSizing: "border-box" }}>
+          <div className="hg-nav-inner" style={{ maxWidth: 1280, margin: "0 auto", padding: "0 40px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 72, gap: 24, boxSizing: "border-box" }}>
             <a href="/" style={{ display: "flex", alignItems: "center", gap: 11, textDecoration: "none" }}>
               <Logo size={26} />
               <span style={{ font: `800 20px/1 ${DISPLAY}`, letterSpacing: "-.03em", color: PAPER, whiteSpace: "nowrap" }}>
                 Home<span style={{ color: YELLOW }}>Gentic</span>
               </span>
             </a>
-            <div style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(11,13,26,0.18)", borderRadius: 100, padding: 6 }}>
+            <div className="hg-nav-links" style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(11,13,26,0.18)", borderRadius: 100, padding: 6 }}>
               <NavLink label="The record" onClick={() => scrollTo("hg-how")} />
               <NavLink label="The score"  onClick={() => scrollTo("hg-score")} />
               <NavLink label="Pricing"    onClick={() => scrollTo("hg-pricing")} />
@@ -484,10 +558,10 @@ export default function LandingPage() {
         <div style={{ background: BLUE, position: "relative", overflow: "hidden" }}>
           <div aria-hidden="true" style={{ position: "absolute", top: -180, right: -140, width: 620, height: 620, borderRadius: "50%", background: "#3D46FF", pointerEvents: "none" }} />
           <div aria-hidden="true" style={{ position: "absolute", bottom: -260, left: -120, width: 520, height: 520, borderRadius: "50%", background: "#1F27E8", pointerEvents: "none" }} />
-          <div style={{ position: "relative", maxWidth: 1280, margin: "0 auto", padding: "72px 40px 108px", boxSizing: "border-box" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 460px", gap: 56, alignItems: "center" }}>
+          <div className="hg-hero-inner" style={{ position: "relative", maxWidth: 1280, margin: "0 auto", padding: "72px 40px 108px", boxSizing: "border-box" }}>
+            <div className="hg-hero-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 460px", gap: 56, alignItems: "center" }}>
               <div style={{ minWidth: 0, animation: "hgwRise .6s cubic-bezier(.2,.8,.3,1) both" }}>
-                <h1 style={{ font: `800 80px/.94 ${DISPLAY}`, color: PAPER, letterSpacing: "-.045em", margin: 0, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
+                <h1 className="hg-h1" style={{ font: `800 80px/.94 ${DISPLAY}`, color: PAPER, letterSpacing: "-.045em", margin: 0, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
                   Your house<br />keeps <span style={{ color: YELLOW }}>receipts</span>.
                 </h1>
                 <p style={{ font: `400 19px/1.6 ${BODY}`, color: PAPER, marginTop: 24, maxWidth: 500, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
@@ -518,12 +592,12 @@ export default function LandingPage() {
         </div>
 
         {/* ── How It Works ── */}
-        <div id="hg-how" style={{ maxWidth: 1280, margin: "0 auto", padding: "104px 40px 0", boxSizing: "border-box" }}>
+        <div id="hg-how" className="hg-section" style={{ maxWidth: 1280, margin: "0 auto", padding: "104px 40px 0", boxSizing: "border-box" }}>
           <div style={{ font: `700 10px/1 ${MONO}`, letterSpacing: ".18em", color: MUTED }}>HOW IT WORKS</div>
-          <div style={{ font: `800 52px/1.04 ${DISPLAY}`, color: INK, letterSpacing: "-.04em", marginTop: 18, maxWidth: 660, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
+          <div className="hg-section-h" style={{ font: `800 52px/1.04 ${DISPLAY}`, color: INK, letterSpacing: "-.04em", marginTop: 18, maxWidth: 660, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
             Three steps, then the record keeps itself.
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 20, marginTop: 48 }}>
+          <div className="hg-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 20, marginTop: 48 }}>
             {STEPS.map((st) => (
               <StepCard key={st.num} step={st} />
             ))}
@@ -531,8 +605,8 @@ export default function LandingPage() {
         </div>
 
         {/* ── The Score ── */}
-        <div id="hg-score" style={{ maxWidth: 1280, margin: "0 auto", padding: "104px 40px 0", boxSizing: "border-box" }}>
-          <div style={{ background: INK, borderRadius: 34, padding: 56, display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 56, alignItems: "center" }}>
+        <div id="hg-score" className="hg-section" style={{ maxWidth: 1280, margin: "0 auto", padding: "104px 40px 0", boxSizing: "border-box" }}>
+          <div className="hg-score-card hg-grid-2" style={{ background: INK, borderRadius: 34, padding: 56, display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 56, alignItems: "center" }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ font: `700 10px/1 ${MONO}`, letterSpacing: ".18em", color: YELLOW }}>THE SCORE</div>
               <div style={{ font: `800 42px/1.08 ${DISPLAY}`, color: PAPER, letterSpacing: "-.04em", marginTop: 18, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
@@ -566,8 +640,8 @@ export default function LandingPage() {
         </div>
 
         {/* ── AI Section ── */}
-        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "104px 40px 0", boxSizing: "border-box" }}>
-          <div style={{ background: BLUE, borderRadius: 34, padding: 56, position: "relative", overflow: "hidden" }}>
+        <div className="hg-section" style={{ maxWidth: 1280, margin: "0 auto", padding: "104px 40px 0", boxSizing: "border-box" }}>
+          <div className="hg-ai-inner" style={{ background: BLUE, borderRadius: 34, padding: 56, position: "relative", overflow: "hidden" }}>
             <div aria-hidden="true" style={{ position: "absolute", top: -200, left: -120, width: 520, height: 520, borderRadius: "50%", background: "#3D46FF", pointerEvents: "none" }} />
             <div style={{ position: "relative" }}>
               <div style={{ font: `700 10px/1 ${MONO}`, letterSpacing: ".18em", color: PAPER }}>ASK IT ANYTHING</div>
@@ -577,7 +651,7 @@ export default function LandingPage() {
               <p style={{ font: `400 16.5px/1.66 ${BODY}`, color: PAPER, marginTop: 18, maxWidth: 620, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
                 Ask out loud and the answer comes from your own record — the job, the contractor who did it last time, the price they charged. It can book the next one while you are still standing in the driveway.
               </p>
-              <div style={{ display: "grid", gridTemplateColumns: "minmax(0,420px) minmax(0,1fr)", gap: 32, marginTop: 44, alignItems: "start" }}>
+              <div className="hg-ai-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0,420px) minmax(0,1fr)", gap: 32, marginTop: 44, alignItems: "start" }}>
                 <VoiceDemo />
                 <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 20 }}>
                   <div style={{ background: "rgba(252,252,253,0.08)", border: "1px solid rgba(252,252,253,0.14)", borderRadius: 26, padding: 30 }}>
@@ -613,12 +687,12 @@ export default function LandingPage() {
         </div>
 
         {/* ── What You Get ── */}
-        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "104px 40px 0", boxSizing: "border-box" }}>
+        <div className="hg-section" style={{ maxWidth: 1280, margin: "0 auto", padding: "104px 40px 0", boxSizing: "border-box" }}>
           <div style={{ font: `700 10px/1 ${MONO}`, letterSpacing: ".18em", color: MUTED }}>WHAT YOU GET</div>
-          <div style={{ font: `800 52px/1.04 ${DISPLAY}`, color: INK, letterSpacing: "-.04em", marginTop: 18, maxWidth: 720, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
+          <div className="hg-section-h" style={{ font: `800 52px/1.04 ${DISPLAY}`, color: INK, letterSpacing: "-.04em", marginTop: 18, maxWidth: 720, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
             Built for the years you own the house, not just the week you sell it.
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 20, marginTop: 48 }}>
+          <div className="hg-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 20, marginTop: 48 }}>
             {FEATURES.map((ft) => (
               <FeatureCard key={ft.title} feature={ft} />
             ))}
@@ -629,11 +703,11 @@ export default function LandingPage() {
         <DualSignatureSection />
 
         {/* ── Pricing ── */}
-        <div id="hg-pricing" style={{ maxWidth: 1280, margin: "0 auto", padding: "104px 40px 0", boxSizing: "border-box" }}>
+        <div id="hg-pricing" className="hg-section" style={{ maxWidth: 1280, margin: "0 auto", padding: "104px 40px 0", boxSizing: "border-box" }}>
           <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 40, flexWrap: "wrap" }}>
             <div style={{ maxWidth: 620 }}>
               <div style={{ font: `700 10px/1 ${MONO}`, letterSpacing: ".18em", color: MUTED }}>PRICING</div>
-              <div style={{ font: `800 52px/1.04 ${DISPLAY}`, color: INK, letterSpacing: "-.04em", marginTop: 18, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
+              <div className="hg-section-h" style={{ font: `800 52px/1.04 ${DISPLAY}`, color: INK, letterSpacing: "-.04em", marginTop: 18, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
                 Priced under a single service call.
               </div>
             </div>
@@ -641,7 +715,7 @@ export default function LandingPage() {
               Every plan keeps your records permanently and includes shareable reports. Contractors have their own free plan.
             </p>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 20, marginTop: 48, alignItems: "stretch" }}>
+          <div className="hg-grid-plans" style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 20, marginTop: 48, alignItems: "stretch" }}>
             {PLANS.map((pl) => (
               <PlanCard key={pl.tier} plan={pl} onStart={() => navigate("/login")} />
             ))}
@@ -656,12 +730,12 @@ export default function LandingPage() {
         </div>
 
         {/* ── CTA Band ── */}
-        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "104px 40px", boxSizing: "border-box" }}>
-          <div style={{ background: BLUE, borderRadius: 34, padding: "72px 56px", position: "relative", overflow: "hidden" }}>
+        <div className="hg-section" style={{ maxWidth: 1280, margin: "0 auto", padding: "104px 40px", boxSizing: "border-box" }}>
+          <div className="hg-cta-inner" style={{ background: BLUE, borderRadius: 34, padding: "72px 56px", position: "relative", overflow: "hidden" }}>
             <div aria-hidden="true" style={{ position: "absolute", top: -140, right: -80, width: 460, height: 460, borderRadius: "50%", background: "#3D46FF", pointerEvents: "none" }} />
             <div style={{ position: "relative", display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 48, flexWrap: "wrap" }}>
               <div style={{ maxWidth: 580 }}>
-                <div style={{ font: `800 46px/1.06 ${DISPLAY}`, color: PAPER, letterSpacing: "-.04em", textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
+                <div className="hg-cta-h" style={{ font: `800 46px/1.06 ${DISPLAY}`, color: PAPER, letterSpacing: "-.04em", textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
                   Start with the last repair you paid for.
                 </div>
                 <p style={{ font: `400 16.5px/1.62 ${BODY}`, color: PAPER, marginTop: 16, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
@@ -678,7 +752,7 @@ export default function LandingPage() {
 
         {/* ── Footer ── */}
         <footer style={{ borderTop: `1px solid ${BORDER}` }}>
-          <div style={{ maxWidth: 1280, margin: "0 auto", padding: "48px 40px 28px", boxSizing: "border-box", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 48, flexWrap: "wrap" }}>
+          <div className="hg-footer-inner" style={{ maxWidth: 1280, margin: "0 auto", padding: "48px 40px 28px", boxSizing: "border-box", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 48, flexWrap: "wrap" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 320 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
                 <Logo size={26} dark />
@@ -710,7 +784,7 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
-          <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 40px 44px", boxSizing: "border-box", font: `500 12.5px/1 ${BODY}`, color: MUTED }}>
+          <div className="hg-footer-copy" style={{ maxWidth: 1280, margin: "0 auto", padding: "0 40px 44px", boxSizing: "border-box", font: `500 12.5px/1 ${BODY}`, color: MUTED }}>
             © 2026 HomeGentic · Nashville, TN
           </div>
         </footer>
@@ -819,13 +893,13 @@ function DualSignatureSection() {
     : { name: "Awaiting signature", sub: "Not signed", signed: false };
 
   return (
-    <div style={{ maxWidth: 1280, margin: "0 auto", padding: "104px 40px 0", boxSizing: "border-box" }}>
-      <div style={{ background: YELLOW, borderRadius: 34, padding: "72px 56px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 520px", gap: 56, alignItems: "start" }}>
+    <div className="hg-section" style={{ maxWidth: 1280, margin: "0 auto", padding: "104px 40px 0", boxSizing: "border-box" }}>
+      <div className="hg-ds-inner" style={{ background: YELLOW, borderRadius: 34, padding: "72px 56px" }}>
+        <div className="hg-ds-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 520px", gap: 56, alignItems: "start" }}>
 
           {/* Left column */}
           <div style={{ minWidth: 0 }}>
-            <h2 style={{ font: `800 52px/1.04 ${DISPLAY}`, color: INK, letterSpacing: "-.04em", margin: "0", textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
+            <h2 className="hg-ds-h2" style={{ font: `800 52px/1.04 ${DISPLAY}`, color: INK, letterSpacing: "-.04em", margin: "0", textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
               Your proof, the contractor's signature.
             </h2>
             <p style={{ font: `400 17px/1.65 ${BODY}`, color: "rgba(11,13,26,0.72)", marginTop: 20, maxWidth: 540, textWrap: "pretty" as React.CSSProperties["textWrap"] }}>
@@ -941,7 +1015,7 @@ function DualSignatureSection() {
           </div>
 
           {/* Right column — sticky job card */}
-          <div style={{ position: "sticky", top: 40 }}>
+          <div className="hg-ds-sticky" style={{ position: "sticky", top: 40 }}>
             <div style={{ background: PAPER, border: `1.5px solid #E6E7EE`, borderRadius: 28, padding: 30, boxShadow: "0 30px 70px rgba(11,13,26,0.09)" }}>
               {/* Card header */}
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
@@ -1056,6 +1130,7 @@ function FeatureCard({ feature: ft }: { feature: typeof FEATURES[number] }) {
   return (
     <div
       {...handlers}
+      className={ft.span === 2 ? "hg-feature-span2" : undefined}
       style={{
         minWidth: 0, gridColumn: `span ${ft.span}`,
         background: ft.bg, border: `1px solid ${ft.border}`, borderRadius: 26, padding: 30,
