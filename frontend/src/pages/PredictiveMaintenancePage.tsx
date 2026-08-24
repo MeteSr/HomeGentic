@@ -300,11 +300,8 @@ export default function PredictiveMaintenancePage() {
                         </div>
                         <div style={{ fontFamily: F.body, fontSize: 12, color: C.muted, marginBottom: 4 }}>
                           {task.frequency}
-                          {matchedPred?.contractorName ? ` · ${matchedPred.contractorName}` : ""}
+                          {matchedPred ? ` · ${matchedPred.recommendation.slice(0, 40)}` : ""}
                         </div>
-                        {task.notes && (
-                          <p style={{ fontFamily: F.body, fontSize: 12, color: C.muted, margin: 0, lineHeight: 1.4 }}>{task.notes}</p>
-                        )}
                       </div>
 
                       <DaysChip days={days} />

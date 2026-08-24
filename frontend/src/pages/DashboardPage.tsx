@@ -253,7 +253,7 @@ export default function DashboardPage() {
 
   // ── Points breakdown ──────────────────────────────────────────────────────
   const verifiedJobCount = jobs.filter(j => j.verified).length;
-  const docValue         = jobs.filter(j => j.photoIds && j.photoIds.length > 0).length;
+  const docValue         = jobs.filter(j => j.photos && j.photos.length > 0).length;
   const propVerified     = activeProperty?.verificationLevel === "Basic" || activeProperty?.verificationLevel === "Premium";
   const jobDiversity     = new Set(jobs.map(j => j.serviceType)).size;
 
@@ -372,8 +372,8 @@ export default function DashboardPage() {
                 <AlertCard
                   key={i}
                   label={w.label ?? "Risk"}
-                  pts={`-${w.decayPts ?? 1} pt`}
-                  sub={w.description ?? ""}
+                  pts={`-${w.pts ?? 1} pt`}
+                  sub={`${w.daysRemaining} day${w.daysRemaining !== 1 ? "s" : ""} remaining`}
                   action="Log a job"
                   onAction={() => setShowLogJobModal(true)}
                 />
@@ -439,11 +439,11 @@ export default function DashboardPage() {
                   <div key={i} style={{ marginBottom: 8 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
                       <span style={{ fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, color: INK }}>{w.label}</span>
-                      <span style={{ fontFamily: FONTS.mono, fontSize: 10, background: w.decayPts ? "#FEF2F2" : V2_COLORS.lblue, color: w.decayPts ? "#DC2626" : BLUE, borderRadius: 4, padding: "1px 5px" }}>
-                        {w.decayPts ? `-${w.decayPts} pts` : "REVIEW"}
+                      <span style={{ fontFamily: FONTS.mono, fontSize: 10, background: w.pts ? "#FEF2F2" : V2_COLORS.lblue, color: w.pts ? "#DC2626" : BLUE, borderRadius: 4, padding: "1px 5px" }}>
+                        {w.pts ? `-${w.pts} pts` : "REVIEW"}
                       </span>
                     </div>
-                    <p style={{ fontFamily: FONTS.body, fontSize: 12, color: MUTED, margin: 0, lineHeight: 1.4 }}>{w.description ?? ""}</p>
+                    <p style={{ fontFamily: FONTS.body, fontSize: 12, color: MUTED, margin: 0, lineHeight: 1.4 }}>{w.label}</p>
                   </div>
                 ))}
               </div>
@@ -552,9 +552,9 @@ export default function DashboardPage() {
                       {new Date(ev.timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" }).toUpperCase()}
                     </span>
                     <span style={{ fontFamily: FONTS.body, fontSize: 13, color: INK, flex: 1 }}>{ev.label}</span>
-                    {ev.delta !== 0 && (
-                      <span style={{ fontFamily: FONTS.mono, fontSize: 12, fontWeight: 700, color: ev.delta > 0 ? "#16A34A" : "#DC2626" }}>
-                        {ev.delta > 0 ? `+${ev.delta}` : ev.delta} pts
+                    {ev.pts !== 0 && (
+                      <span style={{ fontFamily: FONTS.mono, fontSize: 12, fontWeight: 700, color: ev.pts > 0 ? "#16A34A" : "#DC2626" }}>
+                        {ev.pts > 0 ? `+${ev.pts}` : ev.pts} pts
                       </span>
                     )}
                   </div>

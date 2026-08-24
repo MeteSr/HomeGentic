@@ -203,7 +203,7 @@ export default function ContractorBrowsePage() {
                 key={ctr.id}
                 name={ctr.name}
                 specialty={ctr.specialties[0] ?? "General"}
-                city={ctr.serviceArea}
+                city={ctr.serviceArea ?? undefined}
                 jobs={ctr.jobsCompleted}
                 lastJob="—"
                 lastAmount="—"

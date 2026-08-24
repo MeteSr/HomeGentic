@@ -21,7 +21,7 @@ function inferServiceType(eventType: string): string {
 
 function SensorCard({ device, alert }: { device: SensorDevice; alert?: SensorEvent }) {
   const isAlert  = !!alert && alert.severity === "Critical";
-  const isHigh   = !!alert && alert.severity === "High";
+  const isHigh   = !!alert && alert.severity === "Warning";
   const isNormal = !alert;
 
   const statusLabel = isAlert ? "ALERT" : isHigh ? "HIGH" : "NORMAL";
@@ -129,7 +129,7 @@ export default function SensorPage() {
 
   const criticalAlert   = alerts.find(a => a.severity === "Critical");
   const activeCount     = devices.filter(d => d.isActive).length;
-  const needsAttention  = alerts.filter(a => a.severity === "Critical" || a.severity === "High").length;
+  const needsAttention  = alerts.filter(a => a.severity === "Critical" || a.severity === "Warning").length;
 
   // Map device → alert
   const alertByDevice   = new Map<string, SensorEvent>();
