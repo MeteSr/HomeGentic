@@ -59,9 +59,10 @@ test.describe("CB — /contractors browse page", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
     await injectContractors(page, CONTRACTORS);
-    // No jobs → myContractors is empty; registry contractors show as extras
+    // One verified job with a contractor NOT in the registry → myContractors
+    // becomes non-empty, which makes the grid render; registry contractors
+    // ("Cool Air Services", "Top Roof Co") then appear as the extra cards.
     await page.addInitScript(() => {
-      (window as any).__e2e_jobs = [];
       (window as any).__e2e_subscription = { tier: "Pro", expiresAt: null };
       (window as any).__e2e_properties = [
         {
@@ -70,6 +71,17 @@ test.describe("CB — /contractors browse page", () => {
           propertyType: "SingleFamily", yearBuilt: 2001, squareFeet: 2400,
           verificationLevel: "Unverified", tier: "Free",
           createdAt: 0, updatedAt: 0, isActive: true,
+        },
+      ];
+      (window as any).__e2e_jobs = [
+        {
+          id: "j0", propertyId: "1", homeowner: "test-e2e-principal",
+          serviceType: "Plumbing", contractorName: "Flow Masters",
+          amount: 65_000, date: "2024-03-01",
+          description: "Fixed leaking pipes.",
+          isDiy: false, status: "verified", verified: true,
+          homeownerSigned: true, contractorSigned: true,
+          photos: [], createdAt: Date.now() - 86_400_000 * 30,
         },
       ];
     });
@@ -104,8 +116,10 @@ test.describe("CB — /contractors browse page", () => {
 
   // CB.5 — empty state
   test("shows 'No contractors yet' empty state when no jobs and no registry", async ({ page }) => {
+    // Override both: empty registry AND no jobs → myContractors empty → empty state
     await page.addInitScript(() => {
       (window as any).__e2e_contractors = [];
+      (window as any).__e2e_jobs = [];
     });
     await page.goto("/contractors");
     await expect(page.getByText(/no contractors yet/i)).toBeVisible();
