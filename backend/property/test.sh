@@ -162,7 +162,8 @@ echo "── [8] submitVerification → expect PendingReview (12.4.2) ───�
 dfx canister call $CANISTER submitVerification "(
   \"$PROP_ID\",
   \"UtilityBill\",
-  \"sha256:a3f2b9c8d1e4f7a0b3c6d9e2f5a8b1c4d7e0f3a6b9c2d5e8f1a4b7c0d3e6f9\"
+  \"sha256:a3f2b9c8d1e4f7a0b3c6d9e2f5a8b1c4d7e0f3a6b9c2d5e8f1a4b7c0d3e6f9\",
+  null
 )"
 
 echo ""
@@ -178,7 +179,8 @@ echo "── [11] submitVerification again on PendingReview → expect error ─
 dfx canister call $CANISTER submitVerification "(
   \"$PROP_ID\",
   \"Deed\",
-  \"sha256:b4a3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4\"
+  \"sha256:b4a3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4\",
+  null
 )" || echo "  ↳ Expected InvalidInput (already pending) — ✓"
 
 echo ""
