@@ -11,8 +11,8 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { injectTestAuth, injectSubscription } from "./helpers/auth";
-import { injectTestProperties } from "./helpers/testData";
+import { injectTestAuth } from "./helpers/auth";
+import { injectTestProperties, injectSubscription } from "./helpers/testData";
 
 const BASE_NOW = Date.now();
 
@@ -151,7 +151,7 @@ test.describe("State 3 — Document upload", () => {
 
   test("PV2-3.4 shows identity cleared sidebar", async ({ page }) => {
     await expect(page.getByText("IDENTITY CLEARED")).toBeVisible();
-    await expect(page.getByText("Dana R. Whitfield")).toBeVisible();
+    await expect(page.getByText("Dana R. Whitfield").first()).toBeVisible();
   });
 });
 
@@ -180,7 +180,7 @@ test.describe("State 5 — Pending review", () => {
   });
 
   test("PV2-5.2 shows PENDING REVIEW badge", async ({ page }) => {
-    await expect(page.getByText("PENDING REVIEW")).toBeVisible();
+    await expect(page.getByText("PENDING REVIEW", { exact: true })).toBeVisible();
   });
 
   test("PV2-5.3 shows on-chain receipt with hash", async ({ page }) => {
@@ -251,8 +251,8 @@ test.describe("State 7 — Contested", () => {
   });
 
   test("PV2-7.3 shows evidence strength bars", async ({ page }) => {
-    await expect(page.getByText("STRONG")).toBeVisible();
-    await expect(page.getByText("WEAK")).toBeVisible();
+    await expect(page.getByText("STRONG").first()).toBeVisible();
+    await expect(page.getByText("WEAK").first()).toBeVisible();
   });
 
   test("PV2-7.4 add stronger document button navigates to document page", async ({ page }) => {
