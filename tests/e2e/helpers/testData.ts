@@ -1,5 +1,36 @@
 import { Page } from "@playwright/test";
 
+// ── VerifyClaimData type (mirrored from service layer for test helpers) ──────
+
+interface VerifyClaimData {
+  propertyId           : string;
+  address              : string;
+  city                 : string;
+  state                : string;
+  verificationLevel    : string;
+  claimStartedAt       : number;
+  claimWindowEndsAt    : number;
+  identityVerified     : boolean;
+  identityVerifiedAt  ?: number;
+  nameOnId            ?: string;
+  verificationDocHash ?: string;
+  verificationMethod  ?: string;
+  nameOnDocument      ?: string;
+  contestedWithId     ?: string;
+  conflictWindowEndsAt?: number;
+  currentStep          : string;
+}
+
+/**
+ * Injects a mock VerifyClaimData into window.__e2e_verify_status.
+ * propertyService.getVerifyStatus() checks this before making canister calls.
+ */
+export async function injectVerifyStatus(page: Page, status: Partial<VerifyClaimData>) {
+  await page.addInitScript((s) => {
+    (window as any).__e2e_verify_status = s;
+  }, status);
+}
+
 type PlanTier = "Free" | "Basic" | "Pro" | "Premium" | "ContractorPro";
 
 // ── Quote helpers ─────────────────────────────────────────────────────────────

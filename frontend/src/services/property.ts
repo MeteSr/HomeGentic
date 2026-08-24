@@ -25,6 +25,42 @@ export interface Property {
   createdAt: bigint;
   updatedAt: bigint;
   isActive: boolean;
+  identityVerified     ?: boolean;
+  identityVerifiedAt   ?: number;   // ms
+  identitySessionId    ?: string;
+  nameOnId             ?: string;
+  nameOnDocument       ?: string;
+  contestedWithId      ?: string;
+  conflictWindowEndsAt ?: number;   // ms
+}
+
+export type VerifyStep =
+  | "claim"
+  | "identity"
+  | "document"
+  | "representative"
+  | "status"
+  | "expired"
+  | "contested";
+
+export interface VerifyClaimData {
+  propertyId           : string;
+  address              : string;
+  city                 : string;
+  state                : string;
+  verificationLevel    : VerificationLevel;
+  claimStartedAt       : number;   // ms
+  claimWindowEndsAt    : number;   // ms
+  identityVerified     : boolean;
+  identityVerifiedAt  ?: number;   // ms
+  identitySessionId   ?: string;
+  nameOnId            ?: string;
+  verificationDocHash ?: string;
+  verificationMethod  ?: string;
+  nameOnDocument      ?: string;
+  contestedWithId     ?: string;
+  conflictWindowEndsAt?: number;   // ms
+  currentStep          : VerifyStep;
 }
 
 export interface TransferRecord {
@@ -111,7 +147,25 @@ function fromProperty(raw: any): Property {
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
     isActive: raw.isActive,
+    identityVerified     : raw.identityVerified?.[0] ?? undefined,
+    identityVerifiedAt   : raw.identityVerifiedAt?.[0] != null ? Number(raw.identityVerifiedAt[0]) / 1_000_000 : undefined,
+    identitySessionId    : raw.identitySessionId?.[0] ?? undefined,
+    nameOnId             : raw.nameOnId?.[0] ?? undefined,
+    nameOnDocument       : raw.nameOnDocument?.[0] ?? undefined,
+    contestedWithId      : raw.contestedWithId?.[0] ?? undefined,
+    conflictWindowEndsAt : raw.conflictWindowEndsAt?.[0] != null ? Number(raw.conflictWindowEndsAt[0]) / 1_000_000 : undefined,
   };
+}
+
+function computeStep(raw: VerifyClaimData): VerifyStep {
+  const now = Date.now();
+  if (raw.contestedWithId) return "contested";
+  if (raw.verificationLevel === "PendingReview" || raw.verificationLevel === "Basic" || raw.verificationLevel === "Premium") return "status";
+  if (now > raw.claimWindowEndsAt) return "expired";
+  if (raw.identityVerified && raw.verificationDocHash) return "status";
+  if (raw.nameOnDocument && raw.nameOnId && raw.nameOnDocument !== raw.nameOnId) return "representative";
+  if (raw.identityVerified) return "document";
+  return "claim";
 }
 
 function fromPendingTransfer(r: any): PendingTransfer {
@@ -216,11 +270,62 @@ export const propertyService = {
   async submitVerification(
     propertyId: string,
     method: string,
-    documentHash: string
+    documentHash: string,
+    nameOnDocument?: string
   ): Promise<Property> {
     const a = await getActor();
-    const result = await a.submitVerification(propertyId, method, documentHash);
+    const result = await a.submitVerification(propertyId, method, documentHash, nameOnDocument ? [nameOnDocument] : []);
     return unwrap(result);
+  },
+
+  async getVerifyStatus(propertyId: string): Promise<VerifyClaimData> {
+    if (typeof window !== "undefined" && (window as any).__e2e_verify_status) {
+      return (window as any).__e2e_verify_status as VerifyClaimData;
+    }
+    if (!PROPERTY_CANISTER_ID) {
+      // mock: return a default claim state
+      const now = Date.now();
+      const base: VerifyClaimData = {
+        propertyId, address: "412 Elder St", city: "Nashville", state: "TN",
+        verificationLevel: "Unverified",
+        claimStartedAt: now - 30 * 60 * 1000,
+        claimWindowEndsAt: now + (71.5 * 60 * 60 * 1000),
+        identityVerified: false,
+        currentStep: "claim",
+      };
+      return { ...base, currentStep: computeStep(base) };
+    }
+    const a = await getActor();
+    const result = await a.getVerifyStatus(propertyId);
+    if ("err" in result) throw new Error(Object.keys(result.err)[0]);
+    const r = result.ok;
+    const base: VerifyClaimData = {
+      propertyId: r.propertyId,
+      address: r.address,
+      city: r.city,
+      state: r.state,
+      verificationLevel: Object.keys(r.verificationLevel)[0] as VerificationLevel,
+      claimStartedAt: Number(r.claimStartedAt) / 1_000_000,
+      claimWindowEndsAt: Number(r.claimWindowEndsAt) / 1_000_000,
+      identityVerified: r.identityVerified,
+      identityVerifiedAt: r.identityVerifiedAt[0] ? Number(r.identityVerifiedAt[0]) / 1_000_000 : undefined,
+      identitySessionId: r.identitySessionId[0] ?? undefined,
+      nameOnId: r.nameOnId[0] ?? undefined,
+      verificationDocHash: r.verificationDocHash[0] ?? undefined,
+      verificationMethod: r.verificationMethod[0] ?? undefined,
+      nameOnDocument: r.nameOnDocument[0] ?? undefined,
+      contestedWithId: r.contestedWithId[0] ?? undefined,
+      conflictWindowEndsAt: r.conflictWindowEndsAt[0] ? Number(r.conflictWindowEndsAt[0]) / 1_000_000 : undefined,
+      currentStep: "claim",
+    };
+    return { ...base, currentStep: computeStep(base) };
+  },
+
+  async markIdentityCleared(propertyId: string, sessionId: string, name: string): Promise<Property> {
+    const a = await getActor();
+    const result = await a.markIdentityCleared(propertyId, sessionId, name);
+    if ("err" in result) throw new Error(Object.keys(result.err)[0]);
+    return fromProperty(result.ok);
   },
 
   async getPendingVerifications(): Promise<Property[]> {

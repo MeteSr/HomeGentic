@@ -35,6 +35,31 @@ export const idlFactory = ({ IDL }: any) => {
     createdAt: IDL.Int,
     updatedAt: IDL.Int,
     isActive: IDL.Bool,
+    identityVerified     : IDL.Opt(IDL.Bool),
+    identityVerifiedAt   : IDL.Opt(IDL.Int),
+    identitySessionId    : IDL.Opt(IDL.Text),
+    nameOnId             : IDL.Opt(IDL.Text),
+    nameOnDocument       : IDL.Opt(IDL.Text),
+    contestedWithId      : IDL.Opt(IDL.Text),
+    conflictWindowEndsAt : IDL.Opt(IDL.Int),
+  });
+  const VerifyStatus = IDL.Record({
+    propertyId           : IDL.Text,
+    address              : IDL.Text,
+    city                 : IDL.Text,
+    state                : IDL.Text,
+    verificationLevel    : VerificationLevel,
+    claimStartedAt       : IDL.Int,
+    claimWindowEndsAt    : IDL.Int,
+    identityVerified     : IDL.Bool,
+    identityVerifiedAt   : IDL.Opt(IDL.Int),
+    identitySessionId    : IDL.Opt(IDL.Text),
+    nameOnId             : IDL.Opt(IDL.Text),
+    verificationDocHash  : IDL.Opt(IDL.Text),
+    verificationMethod   : IDL.Opt(IDL.Text),
+    nameOnDocument       : IDL.Opt(IDL.Text),
+    contestedWithId      : IDL.Opt(IDL.Text),
+    conflictWindowEndsAt : IDL.Opt(IDL.Int),
   });
   const RegisterArgs = IDL.Record({
     address: IDL.Text,
@@ -103,6 +128,16 @@ export const idlFactory = ({ IDL }: any) => {
     getProperty: IDL.Func([IDL.Text], [IDL.Variant({ ok: Property, err: Error })], ["query"]),
     getPropertyLimitForTier: IDL.Func([SubscriptionTier], [IDL.Nat], ["query"]),
     submitVerification: IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Opt(IDL.Text)],
+      [IDL.Variant({ ok: Property, err: Error })],
+      []
+    ),
+    getVerifyStatus: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: VerifyStatus, err: Error })],
+      ["query"]
+    ),
+    markIdentityCleared: IDL.Func(
       [IDL.Text, IDL.Text, IDL.Text],
       [IDL.Variant({ ok: Property, err: Error })],
       []

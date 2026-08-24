@@ -34,7 +34,14 @@ import SampleReportPage      from "@/pages/SampleReportPage";
 const RegisterPage               = React.lazy(() => import("@/pages/RegisterPage"));
 const DashboardPage              = React.lazy(() => import("@/pages/DashboardPage"));
 const PropertyDetailPage         = React.lazy(() => import("@/pages/PropertyDetailPage"));
-const PropertyVerifyPage         = React.lazy(() => import("@/pages/PropertyVerifyPage"));
+const VerifyLayout              = React.lazy(() => import("@/pages/PropertyVerify/VerifyLayout"));
+const VerifyClaimPage           = React.lazy(() => import("@/pages/PropertyVerify/VerifyClaimPage"));
+const VerifyIdentityPage        = React.lazy(() => import("@/pages/PropertyVerify/VerifyIdentityPage"));
+const VerifyDocumentPage        = React.lazy(() => import("@/pages/PropertyVerify/VerifyDocumentPage"));
+const VerifyRepresentativePage  = React.lazy(() => import("@/pages/PropertyVerify/VerifyRepresentativePage"));
+const VerifyStatusPage          = React.lazy(() => import("@/pages/PropertyVerify/VerifyStatusPage"));
+const VerifyExpiredPage         = React.lazy(() => import("@/pages/PropertyVerify/VerifyExpiredPage"));
+const VerifyContestedPage       = React.lazy(() => import("@/pages/PropertyVerify/VerifyContestedPage"));
 const SystemAgesPage             = React.lazy(() => import("@/pages/SystemAgesPage"));
 const JobCreatePage              = React.lazy(() => import("@/pages/JobCreatePage"));
 const QuoteRequestPage           = React.lazy(() => import("@/pages/QuoteRequestPage"));
@@ -156,7 +163,15 @@ export default function App() {
           <Route path="/contractor/profile" element={<ProtectedRoute><ContractorProfilePage /></ProtectedRoute>} />
           <Route path="/properties/new" element={<Navigate to="/dashboard" replace />} />
           <Route path="/properties/:id" element={<PaidHomeownerRoute><PropertyDetailPage /></PaidHomeownerRoute>} />
-          <Route path="/properties/:id/verify" element={<PaidHomeownerRoute><PropertyVerifyPage /></PaidHomeownerRoute>} />
+          <Route path="/properties/:id/verify" element={<PaidHomeownerRoute><VerifyLayout /></PaidHomeownerRoute>}>
+            <Route index                  element={<VerifyClaimPage />} />
+            <Route path="identity"        element={<VerifyIdentityPage />} />
+            <Route path="document"        element={<VerifyDocumentPage />} />
+            <Route path="representative"  element={<VerifyRepresentativePage />} />
+            <Route path="status"          element={<VerifyStatusPage />} />
+            <Route path="expired"         element={<VerifyExpiredPage />} />
+            <Route path="contested"       element={<VerifyContestedPage />} />
+          </Route>
           <Route path="/properties/:id/systems" element={<PaidHomeownerRoute><SystemAgesPage /></PaidHomeownerRoute>} />
           <Route path="/jobs/new"     element={<PaidHomeownerRoute><JobCreatePage /></PaidHomeownerRoute>} />
           <Route path="/quotes/new"   element={<PaidHomeownerRoute><QuoteRequestPage /></PaidHomeownerRoute>} />

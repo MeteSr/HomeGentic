@@ -51,6 +51,8 @@ persistent actor Property {
   private let SEVEN_DAYS_NS   : Int = 7  * 24 * 3600 * 1_000_000_000;
   /// Nanoseconds in 90 days — the property transfer link expiry window.
   private let NINETY_DAYS_NS  : Int = 90 * 24 * 3600 * 1_000_000_000;
+  /// Nanoseconds in 72 hours — the v2 claim submission window.
+  private let SEVENTY_TWO_HOURS_NS : Int = 72 * 3600 * 1_000_000_000;
 
   // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -106,6 +108,14 @@ persistent actor Property {
     createdAt           : Int;
     updatedAt           : Int;
     isActive            : Bool;
+    // ── Verify v2 fields ──────────────────────────────────────────────────
+    identityVerified     : ?Bool;       // null = not started, true = cleared by Stripe
+    identityVerifiedAt   : ?Time.Time;
+    identitySessionId    : ?Text;       // Stripe VerificationSession ID
+    nameOnId             : ?Text;       // legal name extracted from Stripe
+    nameOnDocument       : ?Text;       // name on the submitted ownership document
+    contestedWithId      : ?Text;       // property ID of the competing claim
+    conflictWindowEndsAt : ?Time.Time;  // set when both proofs submitted (#PendingReview)
   };
 
   public type RegisterPropertyArgs = {
@@ -126,6 +136,26 @@ persistent actor Property {
     unverifiedProperties    : Nat;
     isPaused                : Bool;
     errorsByMethod          : [(Text, Nat)];
+  };
+
+  /// Aggregated verification status for the v2 verify flow.
+  public type VerifyStatus = {
+    propertyId           : Text;
+    address              : Text;
+    city                 : Text;
+    state                : Text;
+    verificationLevel    : VerificationLevel;
+    claimStartedAt       : Int;          // nanoseconds — property.createdAt
+    claimWindowEndsAt    : Int;          // claimStartedAt + SEVENTY_TWO_HOURS_NS
+    identityVerified     : Bool;
+    identityVerifiedAt   : ?Time.Time;
+    identitySessionId    : ?Text;
+    nameOnId             : ?Text;
+    verificationDocHash  : ?Text;
+    verificationMethod   : ?Text;
+    nameOnDocument       : ?Text;
+    contestedWithId      : ?Text;
+    conflictWindowEndsAt : ?Time.Time;
   };
 
   public type BulkImportError = {
@@ -664,6 +694,13 @@ persistent actor Property {
       createdAt           = now;
       updatedAt           = now;
       isActive            = true;
+      identityVerified     = null;
+      identityVerifiedAt   = null;
+      identitySessionId    = null;
+      nameOnId             = null;
+      nameOnDocument       = null;
+      contestedWithId      = null;
+      conflictWindowEndsAt = null;
     };
 
     Map.add(properties, Text.compare, id, prop);
@@ -685,7 +722,8 @@ persistent actor Property {
   public shared(msg) func submitVerification(
     propertyId   : Text,
     method       : Text,
-    documentHash : Text
+    documentHash : Text,
+    nameOnDoc    : ?Text
   ) : async Result.Result<Property, Error> {
     switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
 
@@ -702,23 +740,18 @@ persistent actor Property {
           return #err(#InvalidInput("Property is already verified"));
 
         let updated : Property = {
-          id                  = existing.id;
-          owner               = existing.owner;
-          address             = existing.address;
-          city                = existing.city;
-          state               = existing.state;
-          zipCode             = existing.zipCode;
-          propertyType        = existing.propertyType;
-          yearBuilt           = existing.yearBuilt;
-          squareFeet          = existing.squareFeet;
-          verificationLevel   = #PendingReview;
-          verificationDate    = existing.verificationDate;
-          verificationMethod  = ?method;
-          verificationDocHash = ?documentHash;
-          tier                = existing.tier;
-          createdAt           = existing.createdAt;
-          updatedAt           = Time.now();
-          isActive            = existing.isActive;
+          existing with
+          verificationLevel    = #PendingReview;
+          verificationMethod   = ?method;
+          verificationDocHash  = ?documentHash;
+          updatedAt            = Time.now();
+          nameOnDocument       = nameOnDoc;
+          conflictWindowEndsAt = ?(Time.now() + SEVEN_DAYS_NS);
+          identityVerified     = existing.identityVerified;
+          identityVerifiedAt   = existing.identityVerifiedAt;
+          identitySessionId    = existing.identitySessionId;
+          nameOnId             = existing.nameOnId;
+          contestedWithId      = existing.contestedWithId;
         };
         Map.add(properties, Text.compare, propertyId, updated);
         #ok(updated)
@@ -750,26 +783,14 @@ persistent actor Property {
       case (?existing) {
         let now  = Time.now();
         let updated : Property = {
-          id                  = existing.id;
-          owner               = existing.owner;
-          address             = existing.address;
-          city                = existing.city;
-          state               = existing.state;
-          zipCode             = existing.zipCode;
-          propertyType        = existing.propertyType;
-          yearBuilt           = existing.yearBuilt;
-          squareFeet          = existing.squareFeet;
+          existing with
           verificationLevel   = level;
           verificationDate    = if (isVerified(level)) ?now else existing.verificationDate;
           verificationMethod  = switch (method) {
             case (?m) { ?m };
             case null { existing.verificationMethod };
           };
-          verificationDocHash = existing.verificationDocHash;
-          tier                = existing.tier;
-          createdAt           = existing.createdAt;
           updatedAt           = now;
-          isActive            = existing.isActive;
         };
         Map.add(properties, Text.compare, id, updated);
         try { ignore await auditLog("PropertyVerified", ?existing.owner, "propertyId=" # id # " caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[property] fire-and-forget call failed") };
@@ -861,6 +882,63 @@ persistent actor Property {
     Option.isSome(Array.find<Principal>(admins, func(a) { a == p }))
   };
 
+  /// Returns the aggregated verification status for the v2 verify flow.
+  /// Only the property owner or an authorised manager may call this.
+  public query(msg) func getVerifyStatus(
+    propertyId : Text
+  ) : async Result.Result<VerifyStatus, Error> {
+    switch (Map.get(properties, Text.compare, propertyId)) {
+      case null { #err(#NotFound) };
+      case (?p) {
+        if (not checkAuthorized(propertyId, msg.caller, false)) return #err(#NotAuthorized);
+        #ok({
+          propertyId           = p.id;
+          address              = p.address;
+          city                 = p.city;
+          state                = p.state;
+          verificationLevel    = p.verificationLevel;
+          claimStartedAt       = p.createdAt;
+          claimWindowEndsAt    = p.createdAt + SEVENTY_TWO_HOURS_NS;
+          identityVerified     = switch (p.identityVerified) { case (?v) v; case null false };
+          identityVerifiedAt   = p.identityVerifiedAt;
+          identitySessionId    = p.identitySessionId;
+          nameOnId             = p.nameOnId;
+          verificationDocHash  = p.verificationDocHash;
+          verificationMethod   = p.verificationMethod;
+          nameOnDocument       = p.nameOnDocument;
+          contestedWithId      = p.contestedWithId;
+          conflictWindowEndsAt = p.conflictWindowEndsAt;
+        })
+      };
+    }
+  };
+
+  /// Called by the backend webhook handler after Stripe Identity confirms verification.
+  /// Admin or trusted canister only.
+  public shared(msg) func markIdentityCleared(
+    propertyId : Text,
+    sessionId  : Text,
+    name       : Text
+  ) : async Result.Result<Property, Error> {
+    if (not isAdmin(msg.caller) and not isTrustedCanister(msg.caller)) return #err(#NotAuthorized);
+    switch (Map.get(properties, Text.compare, propertyId)) {
+      case null { #err(#NotFound) };
+      case (?existing) {
+        let now = Time.now();
+        let updated : Property = {
+          existing with
+          identityVerified   = ?true;
+          identityVerifiedAt = ?now;
+          identitySessionId  = ?sessionId;
+          nameOnId           = ?name;
+          updatedAt          = now;
+        };
+        Map.add(properties, Text.compare, propertyId, updated);
+        #ok(updated)
+      };
+    }
+  };
+
   // ─── Ownership Transfer (Option B — bearer-token link) ───────────────────
   //
   //  Flow:
@@ -946,23 +1024,9 @@ persistent actor Property {
                 let now = Time.now();
 
                 let updated : Property = {
-                  id                  = prop.id;
-                  owner               = msg.caller;
-                  address             = prop.address;
-                  city                = prop.city;
-                  state               = prop.state;
-                  zipCode             = prop.zipCode;
-                  propertyType        = prop.propertyType;
-                  yearBuilt           = prop.yearBuilt;
-                  squareFeet          = prop.squareFeet;
-                  verificationLevel   = prop.verificationLevel;
-                  verificationDate    = prop.verificationDate;
-                  verificationMethod  = prop.verificationMethod;
-                  verificationDocHash = prop.verificationDocHash;
-                  tier                = prop.tier;
-                  createdAt           = prop.createdAt;
-                  updatedAt           = now;
-                  isActive            = prop.isActive;
+                  prop with
+                  owner     = msg.caller;
+                  updatedAt = now;
                 };
                 Map.add(properties, Text.compare, propertyId, updated);
 
@@ -1487,6 +1551,13 @@ persistent actor Property {
           createdAt           = now;
           updatedAt           = now;
           isActive            = true;
+          identityVerified     = null;
+          identityVerifiedAt   = null;
+          identitySessionId    = null;
+          nameOnId             = null;
+          nameOnDocument       = null;
+          contestedWithId      = null;
+          conflictWindowEndsAt = null;
         };
         Map.add(properties, Text.compare, newId, prop);
         succeeded := Array.concat(succeeded, [newId]);

@@ -62,3 +62,24 @@ export const srOnly: React.CSSProperties = {
   whiteSpace: "nowrap",
   border:      0,
 };
+
+// ── Verify v2 / Landing design tokens ─────────────────────────────────────────
+// Used by PropertyVerify pages and the public landing page.
+export const V2_COLORS = {
+  blue:   "#2B34FF",
+  yellow: "#FFD23F",
+  coral:  "#FF5C39",
+  ink:    "#0B0D1A",
+  paper:  "#FCFCFD",
+  muted:  "#6B7080",
+  muted2: "#5A5F70",
+  border: "#EDEEF2",
+  lblue:  "#F3F4FF",
+  vbadge: "#E0E2FF",
+} as const;
+
+export const V2_FONTS = {
+  display: "'Bricolage Grotesque', system-ui, sans-serif",
+  body:    "'Hanken Grotesk', sans-serif",
+  mono:    "'JetBrains Mono', monospace",
+} as const;
