@@ -176,16 +176,18 @@ getPropertyManagers(1) -> (1) [query]
 getPropertyOwner(1) -> (1) [query]
 getPropertyYearBuilt(1) -> (1) [query]
 getVerificationLevel(1) -> (1) [query]
+getVerifyStatus(1) -> (1) [query]
 initiateTransfer(1) -> (1)
 inviteManager(3) -> (1)
 isAdminPrincipal(1) -> (1) [query]
 isAuthorized(3) -> (1) [query]
+markIdentityCleared(3) -> (1)
 recordManagerActivity(2) -> (1)
 registerProperty(1) -> (1)
 removeManager(2) -> (1)
 resignAsManager(1) -> (1)
 setTier(2) -> (1)
-submitVerification(3) -> (1)
+submitVerification(4) -> (1)
 updateManagerRole(3) -> (1)
 verifyProperty(3) -> (1)"
 `;
