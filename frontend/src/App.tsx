@@ -44,6 +44,7 @@ const VerifyExpiredPage         = React.lazy(() => import("@/pages/PropertyVerif
 const VerifyContestedPage       = React.lazy(() => import("@/pages/PropertyVerify/VerifyContestedPage"));
 const SystemAgesPage             = React.lazy(() => import("@/pages/SystemAgesPage"));
 const JobCreatePage              = React.lazy(() => import("@/pages/JobCreatePage"));
+const JobsPage                   = React.lazy(() => import("@/pages/JobsPage"));
 const QuoteRequestPage           = React.lazy(() => import("@/pages/QuoteRequestPage"));
 const QuoteDetailPage            = React.lazy(() => import("@/pages/QuoteDetailPage"));
 const SettingsPage               = React.lazy(() => import("@/pages/SettingsPage"));
@@ -173,6 +174,7 @@ export default function App() {
             <Route path="contested"       element={<VerifyContestedPage />} />
           </Route>
           <Route path="/properties/:id/systems" element={<PaidHomeownerRoute><SystemAgesPage /></PaidHomeownerRoute>} />
+          <Route path="/jobs"         element={<PaidHomeownerRoute><JobsPage /></PaidHomeownerRoute>} />
           <Route path="/jobs/new"     element={<PaidHomeownerRoute><JobCreatePage /></PaidHomeownerRoute>} />
           <Route path="/quotes/new"   element={<PaidHomeownerRoute><QuoteRequestPage /></PaidHomeownerRoute>} />
           <Route path="/quotes/:id"   element={<PaidHomeownerRoute><QuoteDetailPage /></PaidHomeownerRoute>} />

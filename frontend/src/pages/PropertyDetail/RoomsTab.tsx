@@ -3,19 +3,312 @@ import { roomService, type Room as RoomRecord, type UpdateRoomArgs, type AddFixt
 import { type Photo } from "@/services/photo";
 import { Button } from "@/components/Button";
 import { AddRoomModal } from "@/components/AddRoomModal";
-import { COLORS, FONTS, SHADOWS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 import toast from "react-hot-toast";
+
+const C = V2_COLORS;
+const F = V2_FONTS;
 
 const FLOOR_TYPES = ["Hardwood", "Tile", "Carpet", "Laminate", "Vinyl", "Concrete", "Stone", "Other"];
 
 const EMPTY_FIXTURE_FORM: AddFixtureArgs = {
-  brand: "",
-  model: "",
-  serialNumber: "",
-  installedDate: "",
-  warrantyExpiry: "",
-  notes: "",
+  brand: "", model: "", serialNumber: "", installedDate: "", warrantyExpiry: "", notes: "",
 };
+
+function RoomCard({
+  room,
+  onEdit,
+  onDelete,
+  onAddFixture,
+}: {
+  room:        RoomRecord;
+  onEdit:      (id: string) => void;
+  onDelete:    (id: string) => void;
+  onAddFixture:(id: string) => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const receipted = room.fixtures.filter(f => f.warrantyExpiry || f.installedDate).length;
+  const finishCount = (room.floorType ? 1 : 0) + (room.paintColor ? 1 : 0) + room.fixtures.length;
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        border: `1px solid ${C.border}`,
+        borderRadius: 12,
+        background: "#fff",
+        padding: "18px 20px",
+        position: "relative",
+        transition: "box-shadow 0.15s",
+        boxShadow: hovered ? "0 4px 16px rgba(0,0,0,0.08)" : "none",
+      }}
+    >
+      {/* Header row */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontFamily: F.display, fontSize: 17, fontWeight: 800, color: C.ink }}>
+              {room.name}
+            </span>
+            {receipted > 0 && (
+              <span style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: C.blue, background: C.vbadge, borderRadius: 4, padding: "2px 7px" }}>
+                {receipted} RECEIPTED
+              </span>
+            )}
+          </div>
+          {(room as any).sqft && (
+            <div style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, marginTop: 2 }}>
+              {(room as any).sqft} SQ FT
+            </div>
+          )}
+        </div>
+        <button
+          onClick={() => onEdit(room.id)}
+          style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 10px", fontFamily: F.body, fontSize: 12, color: C.muted, cursor: "pointer" }}
+        >
+          ›
+        </button>
+      </div>
+
+      {/* Flooring */}
+      {room.floorType && (
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>
+            FLOORING
+          </div>
+          <div style={{ fontFamily: F.body, fontSize: 13, fontWeight: 600, color: C.ink }}>
+            {room.floorName || room.floorType}
+          </div>
+          {room.paintCode && (
+            <div style={{ fontFamily: F.body, fontSize: 12, color: C.blue }}>
+              {room.paintCode}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Wall paint */}
+      {room.paintColor && (
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>
+            WALL PAINT
+          </div>
+          <div style={{ fontFamily: F.body, fontSize: 13, fontWeight: 600, color: C.ink }}>
+            {room.paintBrand ? `${room.paintBrand} ${room.paintColor}` : room.paintColor}
+          </div>
+          {room.paintCode && !room.floorType && (
+            <div style={{ fontFamily: F.body, fontSize: 12, color: C.blue }}>
+              {room.paintCode}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Fixtures / appliances */}
+      {room.fixtures.length > 0 && (
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>
+            APPLIANCE
+          </div>
+          {room.fixtures.slice(0, 1).map(f => (
+            <div key={f.id}>
+              <div style={{ fontFamily: F.body, fontSize: 13, fontWeight: 600, color: C.ink }}>
+                {f.brand} {f.model}
+              </div>
+              {f.notes && (
+                <div style={{ fontFamily: F.body, fontSize: 12, color: C.blue }}>
+                  {f.notes}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Footer */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
+        <span style={{ fontFamily: F.body, fontSize: 12, color: C.muted }}>
+          {finishCount} finish{finishCount !== 1 ? "es" : ""} recorded
+        </span>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={() => onAddFixture(room.id)}
+            style={{ fontFamily: F.body, fontSize: 12, fontWeight: 500, color: C.blue, background: "none", border: "none", padding: 0, cursor: "pointer" }}
+          >
+            + Add
+          </button>
+          <button
+            onClick={() => { if (window.confirm(`Delete "${room.name}"?`)) onDelete(room.id); }}
+            style={{ fontFamily: F.body, fontSize: 12, color: C.muted, background: "none", border: "none", padding: 0, cursor: "pointer" }}
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Edit drawer ────────────────────────────────────────────────────────────────
+
+function EditRoomDrawer({
+  room,
+  onSave,
+  onClose,
+}: {
+  room:    RoomRecord;
+  onSave:  (id: string, args: UpdateRoomArgs) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [form, setForm] = useState<UpdateRoomArgs>({
+    name:       room.name,
+    floorName:  room.floorName,
+    floorType:  room.floorType,
+    paintColor: room.paintColor,
+    paintBrand: room.paintBrand,
+    paintCode:  room.paintCode,
+    notes:      room.notes,
+  });
+  const [saving, setSaving] = useState(false);
+
+  const inp: React.CSSProperties = {
+    width: "100%", padding: "8px 10px",
+    fontFamily: F.body, fontSize: 13,
+    border: `1px solid ${C.border}`, borderRadius: 8, outline: "none",
+    background: "#fff", color: C.ink,
+    boxSizing: "border-box",
+  };
+  const lbl: React.CSSProperties = {
+    display: "block", fontFamily: F.mono, fontSize: 9, fontWeight: 700,
+    letterSpacing: "0.1em", textTransform: "uppercase", color: C.muted, marginBottom: 4,
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try { await onSave(room.id, form); onClose(); }
+    catch (err: any) { toast.error(err.message ?? "Failed to save"); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 500, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={onClose}>
+      <div style={{ background: "#fff", borderRadius: "16px 16px 0 0", padding: 24, width: "100%", maxWidth: 540, maxHeight: "80vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+        <h3 style={{ fontFamily: F.display, fontSize: 18, fontWeight: 800, color: C.ink, marginBottom: 20 }}>Edit {room.name}</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={{ gridColumn: "1/-1" }}>
+            <label style={lbl}>Room name *</label>
+            <input style={inp} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+          </div>
+          <div>
+            <label style={lbl}>Floor type</label>
+            <select style={inp} value={form.floorType} onChange={e => setForm(f => ({ ...f, floorType: e.target.value }))}>
+              <option value="">— Select —</option>
+              {FLOOR_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={lbl}>Floor name / product</label>
+            <input style={inp} placeholder="e.g. White oak, site-finished" value={form.floorName} onChange={e => setForm(f => ({ ...f, floorName: e.target.value }))} />
+          </div>
+          <div>
+            <label style={lbl}>Paint color</label>
+            <input style={inp} value={form.paintColor} onChange={e => setForm(f => ({ ...f, paintColor: e.target.value }))} />
+          </div>
+          <div>
+            <label style={lbl}>Paint brand</label>
+            <input style={inp} value={form.paintBrand} onChange={e => setForm(f => ({ ...f, paintBrand: e.target.value }))} />
+          </div>
+          <div style={{ gridColumn: "1/-1" }}>
+            <label style={lbl}>Paint code / finish</label>
+            <input style={inp} placeholder="e.g. SW 7008 · eggshell" value={form.paintCode} onChange={e => setForm(f => ({ ...f, paintCode: e.target.value }))} />
+          </div>
+          <div style={{ gridColumn: "1/-1" }}>
+            <label style={lbl}>Notes</label>
+            <textarea style={{ ...inp, minHeight: 64, resize: "vertical" }} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+          <button onClick={handleSave} disabled={saving || !form.name.trim()} style={{ flex: 1, fontFamily: F.body, fontSize: 14, fontWeight: 700, color: "#fff", background: C.blue, border: "none", borderRadius: 100, padding: "11px", cursor: "pointer", opacity: saving || !form.name.trim() ? 0.6 : 1 }}>
+            {saving ? "Saving…" : "Save changes"}
+          </button>
+          <button onClick={onClose} style={{ fontFamily: F.body, fontSize: 14, color: C.muted, background: "none", border: `1px solid ${C.border}`, borderRadius: 100, padding: "11px 20px", cursor: "pointer" }}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Add fixture drawer ─────────────────────────────────────────────────────────
+
+function AddFixtureDrawer({ roomId, onSave, onClose }: { roomId: string; onSave: (id: string, args: AddFixtureArgs) => Promise<void>; onClose: () => void }) {
+  const [form, setForm] = useState<AddFixtureArgs>({ ...EMPTY_FIXTURE_FORM });
+  const [saving, setSaving] = useState(false);
+
+  const inp: React.CSSProperties = {
+    width: "100%", padding: "8px 10px",
+    fontFamily: F.body, fontSize: 13,
+    border: `1px solid ${C.border}`, borderRadius: 8, outline: "none",
+    background: "#fff", color: C.ink, boxSizing: "border-box",
+  };
+  const lbl: React.CSSProperties = {
+    display: "block", fontFamily: F.mono, fontSize: 9, fontWeight: 700,
+    letterSpacing: "0.1em", textTransform: "uppercase", color: C.muted, marginBottom: 4,
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try { await onSave(roomId, form); onClose(); }
+    catch (err: any) { toast.error(err.message ?? "Failed to add"); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 500, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={onClose}>
+      <div style={{ background: "#fff", borderRadius: "16px 16px 0 0", padding: 24, width: "100%", maxWidth: 540, maxHeight: "80vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+        <h3 style={{ fontFamily: F.display, fontSize: 18, fontWeight: 800, color: C.ink, marginBottom: 20 }}>Add Appliance / Fixture</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div>
+            <label style={lbl}>Brand</label>
+            <input style={inp} placeholder="e.g. Rheem" value={form.brand} onChange={e => setForm(f => ({ ...f, brand: e.target.value }))} />
+          </div>
+          <div>
+            <label style={lbl}>Model</label>
+            <input style={inp} placeholder="e.g. XE50T10H45U0" value={form.model} onChange={e => setForm(f => ({ ...f, model: e.target.value }))} />
+          </div>
+          <div>
+            <label style={lbl}>Serial number</label>
+            <input style={inp} value={form.serialNumber} onChange={e => setForm(f => ({ ...f, serialNumber: e.target.value }))} />
+          </div>
+          <div>
+            <label style={lbl}>Installed date</label>
+            <input style={inp} type="date" value={form.installedDate} onChange={e => setForm(f => ({ ...f, installedDate: e.target.value }))} />
+          </div>
+          <div>
+            <label style={lbl}>Warranty expires</label>
+            <input style={inp} type="date" value={form.warrantyExpiry} onChange={e => setForm(f => ({ ...f, warrantyExpiry: e.target.value }))} />
+          </div>
+          <div>
+            <label style={lbl}>Notes / description</label>
+            <input style={inp} placeholder="e.g. 50 gal" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+          <button onClick={handleSave} disabled={saving} style={{ flex: 1, fontFamily: F.body, fontSize: 14, fontWeight: 700, color: "#fff", background: C.blue, border: "none", borderRadius: 100, padding: "11px", cursor: "pointer", opacity: saving ? 0.6 : 1 }}>
+            {saving ? "Saving…" : "Add fixture"}
+          </button>
+          <button onClick={onClose} style={{ fontFamily: F.body, fontSize: 14, color: C.muted, background: "none", border: `1px solid ${C.border}`, borderRadius: 100, padding: "11px 20px", cursor: "pointer" }}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main export ────────────────────────────────────────────────────────────────
 
 export function RoomsTab({
   propertyId,
@@ -31,74 +324,34 @@ export function RoomsTab({
   onRoomPhotoUpload: (roomId: string, file: File) => Promise<void>;
 }) {
   const [showAddRoom,    setShowAddRoom]    = useState(false);
-  const [savingRoom,     setSavingRoom]     = useState(false);
-  const [expandedRoom,   setExpandedRoom]   = useState<string | null>(null);
-  const [editingRoom,    setEditingRoom]    = useState<string | null>(null);
-  const [editForm,       setEditForm]       = useState<UpdateRoomArgs | null>(null);
+  const [editingRoom,    setEditingRoom]    = useState<RoomRecord | null>(null);
   const [addFixtureRoom, setAddFixtureRoom] = useState<string | null>(null);
-  const [fixtureForm,    setFixtureForm]    = useState<AddFixtureArgs>({ ...EMPTY_FIXTURE_FORM });
-  const [savingFixture,  setSavingFixture]  = useState(false);
-  const [uploadingPhoto, setUploadingPhoto] = useState<string | null>(null);
 
-  const handleUpdateRoom = async (id: string) => {
-    if (!editForm || !editForm.name.trim()) return;
-    setSavingRoom(true);
-    try {
-      const updated = await roomService.updateRoom(id, editForm);
-      onRoomsChange(rooms.map((r) => r.id === id ? updated : r));
-      setEditingRoom(null);
-      setEditForm(null);
-    } catch (err: any) {
-      toast.error(err.message ?? "Failed to update room");
-    } finally {
-      setSavingRoom(false);
-    }
+  const totalFinishes = rooms.reduce((acc, r) => {
+    return acc + (r.floorType ? 1 : 0) + (r.paintColor ? 1 : 0) + r.fixtures.length;
+  }, 0);
+  const totalReceipted = rooms.reduce((acc, r) => {
+    return acc + r.fixtures.filter(f => f.warrantyExpiry || f.installedDate).length;
+  }, 0);
+  const totalSqft = rooms.reduce((acc, r) => acc + ((r as any).sqft ?? 0), 0);
+
+  const handleUpdateRoom = async (id: string, args: UpdateRoomArgs) => {
+    const updated = await roomService.updateRoom(id, args);
+    onRoomsChange(rooms.map(r => r.id === id ? updated : r));
   };
 
   const handleDeleteRoom = async (id: string) => {
     try {
       await roomService.deleteRoom(id);
-      onRoomsChange(rooms.filter((r) => r.id !== id));
-      if (expandedRoom === id) setExpandedRoom(null);
+      onRoomsChange(rooms.filter(r => r.id !== id));
     } catch (err: any) {
       toast.error(err.message ?? "Failed to delete room");
     }
   };
 
-  const handleAddFixture = async (roomId: string) => {
-    setSavingFixture(true);
-    try {
-      const updated = await roomService.addFixture(roomId, fixtureForm);
-      onRoomsChange(rooms.map((r) => r.id === roomId ? updated : r));
-      setAddFixtureRoom(null);
-      setFixtureForm({ ...EMPTY_FIXTURE_FORM });
-    } catch (err: any) {
-      toast.error(err.message ?? "Failed to add fixture");
-    } finally {
-      setSavingFixture(false);
-    }
-  };
-
-  const handleRemoveFixture = async (roomId: string, fixtureId: string) => {
-    try {
-      const updated = await roomService.removeFixture(roomId, fixtureId);
-      onRoomsChange(rooms.map((r) => r.id === roomId ? updated : r));
-    } catch (err: any) {
-      toast.error(err.message ?? "Failed to remove fixture");
-    }
-  };
-
-  const inputStyle: React.CSSProperties = {
-    width: "100%", padding: "0.5rem 0.625rem",
-    fontFamily: FONTS.sans, fontSize: "0.8rem",
-    border: `1px solid ${COLORS.rule}`, background: COLORS.white,
-    color: COLORS.plum, outline: "none",
-  };
-
-  const labelStyle: React.CSSProperties = {
-    display: "block", fontFamily: FONTS.sans, fontSize: "0.6rem",
-    letterSpacing: "0.08em", textTransform: "uppercase",
-    color: COLORS.plumMid, marginBottom: "0.25rem",
+  const handleAddFixture = async (roomId: string, args: AddFixtureArgs) => {
+    const updated = await roomService.addFixture(roomId, args);
+    onRoomsChange(rooms.map(r => r.id === roomId ? updated : r));
   };
 
   return (
@@ -107,264 +360,82 @@ export function RoomsTab({
         isOpen={showAddRoom}
         onClose={() => setShowAddRoom(false)}
         propertyId={propertyId}
-        onSuccess={(room) => {
-          onRoomsChange([...rooms, room]);
-          setExpandedRoom(room.id);
-        }}
+        onSuccess={(room) => onRoomsChange([...rooms, room])}
       />
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
-        <p style={{ fontFamily: FONTS.sans, fontSize: "0.85rem", color: COLORS.plumMid, fontWeight: 300 }}>
-          Track finishes, paint, and appliances room by room.
-        </p>
-        <Button size="sm" onClick={() => setShowAddRoom(true)}>+ Add Room</Button>
-      </div>
+      {editingRoom && (
+        <EditRoomDrawer
+          room={editingRoom}
+          onSave={handleUpdateRoom}
+          onClose={() => setEditingRoom(null)}
+        />
+      )}
 
-      {rooms.length === 0 && !showAddRoom && (
-        <div style={{ textAlign: "center", padding: "3rem 1rem", border: `1px dashed ${COLORS.rule}` }}>
-          <p style={{ fontFamily: FONTS.sans, color: COLORS.plumMid, fontSize: "0.875rem", fontWeight: 300 }}>
-            No rooms yet. Add your first room to start building your digital twin.
-          </p>
+      {addFixtureRoom && (
+        <AddFixtureDrawer
+          roomId={addFixtureRoom}
+          onSave={handleAddFixture}
+          onClose={() => setAddFixtureRoom(null)}
+        />
+      )}
+
+      {/* Stats row */}
+      {rooms.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 1, background: C.border, border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden", marginBottom: 24 }}>
+          {[
+            { label: "ROOMS",         value: String(rooms.length) },
+            { label: "FINISHES",      value: String(totalFinishes) },
+            { label: "RECEIPTED",     value: `${totalReceipted} of ${totalFinishes}` },
+            { label: "RECORDED AREA", value: totalSqft > 0 ? `${totalSqft.toLocaleString()} sq ft` : "—" },
+          ].map(({ label, value }) => (
+            <div key={label} style={{ background: "#fff", padding: "14px 16px" }}>
+              <div style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>
+                {label}
+              </div>
+              <div style={{ fontFamily: F.display, fontSize: 20, fontWeight: 900, color: C.ink }}>
+                {value}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-        {rooms.map((room) => {
-          const isExpanded = expandedRoom === room.id;
-          const isEditing  = editingRoom  === room.id;
-
-          return (
-            <div key={room.id} style={{ border: `1px solid ${COLORS.rule}`, background: COLORS.white, boxShadow: SHADOWS.card }}>
-              {/* Room header */}
-              <div
-                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1rem 1.25rem", cursor: "pointer" }}
-                onClick={() => setExpandedRoom(isExpanded ? null : room.id)}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                  <div>
-                    <div style={{ fontFamily: FONTS.serif, fontWeight: 700, fontSize: "1rem", color: COLORS.plum }}>{room.name}</div>
-                    <div style={{ fontFamily: FONTS.sans, fontSize: "0.6rem", letterSpacing: "0.06em", color: COLORS.plumMid, marginTop: "0.2rem" }}>
-                      {[room.floorType, room.paintColor && `${room.paintColor}${room.paintCode ? ` (${room.paintCode})` : ""}`]
-                        .filter(Boolean).join(" · ") || "No finishes recorded"}
-                      {room.fixtures.length > 0 && ` · ${room.fixtures.length} fixture${room.fixtures.length === 1 ? "" : "s"}`}
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }} onClick={(e) => e.stopPropagation()}>
-                  <button
-                    onClick={() => { setEditingRoom(room.id); setEditForm({ name: room.name, floorName: room.floorName, floorType: room.floorType, paintColor: room.paintColor, paintBrand: room.paintBrand, paintCode: room.paintCode, notes: room.notes }); setExpandedRoom(room.id); }}
-                    style={{ fontFamily: FONTS.sans, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.plumMid, background: "none", border: "none", cursor: "pointer", padding: "0.25rem 0.5rem" }}
-                  >Edit</button>
-                  <button
-                    onClick={() => { if (window.confirm(`Delete "${room.name}"?`)) handleDeleteRoom(room.id); }}
-                    style={{ fontFamily: FONTS.sans, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.sage, background: "none", border: "none", cursor: "pointer", padding: "0.25rem 0.5rem" }}
-                  >Delete</button>
-                  <span style={{ color: COLORS.plumMid, fontSize: "0.75rem" }}>{isExpanded ? "▲" : "▼"}</span>
-                </div>
-              </div>
-
-              {isExpanded && (
-                <div style={{ borderTop: `1px solid ${COLORS.rule}`, padding: "1rem 1.25rem" }}>
-
-                  {isEditing && editForm && (
-                    <div style={{ marginBottom: "1.25rem", padding: "1rem", background: COLORS.white, border: `1px solid ${COLORS.rule}` }}>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "0.75rem" }}>
-                        <div>
-                          <label style={labelStyle}>Room Name *</label>
-                          <input style={inputStyle} value={editForm.name}
-                            onChange={(e) => setEditForm((f) => f && ({ ...f, name: e.target.value }))} />
-                        </div>
-                        <div>
-                          <label style={labelStyle}>Floor Type</label>
-                          <select style={inputStyle} value={editForm.floorType}
-                            onChange={(e) => setEditForm((f) => f && ({ ...f, floorType: e.target.value }))}>
-                            <option value="">— Select —</option>
-                            {FLOOR_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label style={labelStyle}>Paint Color</label>
-                          <input style={inputStyle} value={editForm.paintColor}
-                            onChange={(e) => setEditForm((f) => f && ({ ...f, paintColor: e.target.value }))} />
-                        </div>
-                        <div>
-                          <label style={labelStyle}>Paint Brand</label>
-                          <input style={inputStyle} value={editForm.paintBrand}
-                            onChange={(e) => setEditForm((f) => f && ({ ...f, paintBrand: e.target.value }))} />
-                        </div>
-                        <div>
-                          <label style={labelStyle}>Paint Code</label>
-                          <input style={inputStyle} value={editForm.paintCode}
-                            onChange={(e) => setEditForm((f) => f && ({ ...f, paintCode: e.target.value }))} />
-                        </div>
-                      </div>
-                      <div style={{ marginBottom: "1rem" }}>
-                        <label style={labelStyle}>Notes</label>
-                        <textarea style={{ ...inputStyle, minHeight: "3.5rem", resize: "vertical" }} value={editForm.notes}
-                          onChange={(e) => setEditForm((f) => f && ({ ...f, notes: e.target.value }))} />
-                      </div>
-                      <div style={{ display: "flex", gap: "0.5rem" }}>
-                        <Button size="sm" onClick={() => handleUpdateRoom(room.id)} disabled={savingRoom}>
-                          {savingRoom ? "Saving…" : "Save Changes"}
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => { setEditingRoom(null); setEditForm(null); }}>Cancel</Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {!isEditing && room.notes && (
-                    <p style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", color: COLORS.plumMid, fontWeight: 300, marginBottom: "1rem", fontStyle: "italic" }}>
-                      {room.notes}
-                    </p>
-                  )}
-
-                  {/* Photo gallery */}
-                  {(() => {
-                    const roomPhotos = photosByJob[`ROOM_${room.id}`] ?? [];
-                    return (
-                      <div style={{ marginBottom: "1rem" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                          <span style={{ fontFamily: FONTS.sans, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid }}>
-                            Photos{roomPhotos.length > 0 ? ` (${roomPhotos.length})` : ""}
-                          </span>
-                          <label style={{ fontFamily: FONTS.sans, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.sage, cursor: "pointer" }}>
-                            {uploadingPhoto === room.id ? "Uploading…" : "+ Add Photo"}
-                            <input
-                              type="file"
-                              accept="image/*"
-                              style={{ display: "none" }}
-                              disabled={uploadingPhoto === room.id}
-                              onChange={async (e) => {
-                                const file = e.target.files?.[0];
-                                if (!file) return;
-                                setUploadingPhoto(room.id);
-                                try { await onRoomPhotoUpload(room.id, file); }
-                                finally { setUploadingPhoto(null); e.target.value = ""; }
-                              }}
-                            />
-                          </label>
-                        </div>
-                        {roomPhotos.length > 0 && (
-                          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                            {roomPhotos.map((photo) => (
-                              <img
-                                key={photo.id}
-                                src={photo.url}
-                                alt={photo.description || "Room photo"}
-                                style={{ width: "5rem", height: "5rem", objectFit: "cover", border: `1px solid ${COLORS.rule}` }}
-                              />
-                            ))}
-                          </div>
-                        )}
-                        {roomPhotos.length === 0 && (
-                          <p style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: COLORS.plumMid, fontWeight: 300, fontStyle: "italic" }}>
-                            No photos yet.
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })()}
-
-                  {/* Fixtures */}
-                  <div style={{ marginBottom: "0.75rem" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                      <span style={{ fontFamily: FONTS.sans, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid }}>
-                        Appliances & Fixtures
-                      </span>
-                      {addFixtureRoom !== room.id && (
-                        <button
-                          onClick={() => { setAddFixtureRoom(room.id); setFixtureForm({ ...EMPTY_FIXTURE_FORM }); }}
-                          style={{ fontFamily: FONTS.sans, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.sage, background: "none", border: "none", cursor: "pointer" }}
-                        >+ Add Fixture</button>
-                      )}
-                    </div>
-
-                    {addFixtureRoom === room.id && (
-                      <div style={{ border: `1px solid ${COLORS.rule}`, padding: "1rem", marginBottom: "0.75rem", background: COLORS.white }}>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.625rem", marginBottom: "0.625rem" }}>
-                          <div>
-                            <label style={labelStyle}>Brand</label>
-                            <input style={inputStyle} placeholder="e.g. KitchenAid" value={fixtureForm.brand}
-                              onChange={(e) => setFixtureForm((f) => ({ ...f, brand: e.target.value }))} />
-                          </div>
-                          <div>
-                            <label style={labelStyle}>Model</label>
-                            <input style={inputStyle} placeholder="e.g. KFIS29PBMS" value={fixtureForm.model}
-                              onChange={(e) => setFixtureForm((f) => ({ ...f, model: e.target.value }))} />
-                          </div>
-                          <div>
-                            <label style={labelStyle}>Serial Number</label>
-                            <input style={inputStyle} value={fixtureForm.serialNumber}
-                              onChange={(e) => setFixtureForm((f) => ({ ...f, serialNumber: e.target.value }))} />
-                          </div>
-                          <div>
-                            <label style={labelStyle}>Installed Date</label>
-                            <input style={inputStyle} type="date" value={fixtureForm.installedDate}
-                              onChange={(e) => setFixtureForm((f) => ({ ...f, installedDate: e.target.value }))} />
-                          </div>
-                          <div>
-                            <label style={labelStyle}>Warranty Expires</label>
-                            <input style={inputStyle} type="date" value={fixtureForm.warrantyExpiry}
-                              onChange={(e) => setFixtureForm((f) => ({ ...f, warrantyExpiry: e.target.value }))} />
-                          </div>
-                          <div>
-                            <label style={labelStyle}>Notes</label>
-                            <input style={inputStyle} placeholder="e.g. French door refrigerator" value={fixtureForm.notes}
-                              onChange={(e) => setFixtureForm((f) => ({ ...f, notes: e.target.value }))} />
-                          </div>
-                        </div>
-                        <div style={{ display: "flex", gap: "0.5rem" }}>
-                          <Button size="sm" onClick={() => handleAddFixture(room.id)} disabled={savingFixture}>
-                            {savingFixture ? "Saving…" : "Add Fixture"}
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => setAddFixtureRoom(null)}>Cancel</Button>
-                        </div>
-                      </div>
-                    )}
-
-                    {room.fixtures.length === 0 && addFixtureRoom !== room.id && (
-                      <p style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: COLORS.plumMid, fontWeight: 300, fontStyle: "italic" }}>
-                        No fixtures recorded.
-                      </p>
-                    )}
-                    {room.fixtures.map((f) => {
-                      const isExpired     = f.warrantyExpiry && new Date(f.warrantyExpiry) < new Date();
-                      const expiringSoon  = f.warrantyExpiry && !isExpired && new Date(f.warrantyExpiry) < new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
-                      return (
-                        <div key={f.id} style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "0.625rem 0", borderBottom: `1px solid ${COLORS.rule}` }}>
-                          <div>
-                            <div style={{ fontFamily: FONTS.sans, fontWeight: 500, fontSize: "0.825rem", color: COLORS.plum }}>
-                              {f.brand} {f.model}
-                            </div>
-                            <div style={{ fontFamily: FONTS.sans, fontSize: "0.55rem", letterSpacing: "0.06em", color: COLORS.plumMid, marginTop: "0.2rem" }}>
-                              {f.serialNumber && `S/N ${f.serialNumber}`}
-                              {f.installedDate && ` · Installed ${f.installedDate}`}
-                              {f.warrantyExpiry && (
-                                <span style={{ color: isExpired ? COLORS.sage : expiringSoon ? "#C94C2E" : COLORS.plumMid }}>
-                                  {` · Warranty ${isExpired ? "expired" : "expires"} ${f.warrantyExpiry}`}
-                                </span>
-                              )}
-                            </div>
-                            {f.notes && (
-                              <div style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: COLORS.plumMid, fontWeight: 300, marginTop: "0.2rem" }}>
-                                {f.notes}
-                              </div>
-                            )}
-                          </div>
-                          <button
-                            onClick={() => handleRemoveFixture(room.id, f.id)}
-                            style={{ fontFamily: FONTS.sans, fontSize: "0.55rem", letterSpacing: "0.06em", color: COLORS.plumMid, background: "none", border: "none", cursor: "pointer", flexShrink: 0, marginLeft: "1rem" }}
-                          >Remove</button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+      {/* Add room header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <p style={{ fontFamily: F.body, fontSize: 14, color: C.muted }}>
+          What the house is made of, room by room. Paint codes, flooring, fixtures and appliances, so an exact match is one lookup away years later.
+        </p>
+        <button
+          onClick={() => setShowAddRoom(true)}
+          style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: F.body, fontSize: 14, fontWeight: 600, color: "#fff", background: C.blue, border: "none", borderRadius: 100, padding: "10px 18px", cursor: "pointer", flexShrink: 0, marginLeft: 16 }}
+        >
+          + Add room
+        </button>
       </div>
+
+      {rooms.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "48px 24px", border: `1px dashed ${C.border}`, borderRadius: 12 }}>
+          <p style={{ fontFamily: F.body, fontSize: 15, fontWeight: 600, color: C.ink, marginBottom: 6 }}>No rooms yet</p>
+          <p style={{ fontFamily: F.body, fontSize: 13, color: C.muted, marginBottom: 20 }}>
+            Add rooms to track your finishes, paint codes, and appliances.
+          </p>
+          <button onClick={() => setShowAddRoom(true)} style={{ fontFamily: F.body, fontSize: 14, fontWeight: 600, color: "#fff", background: C.blue, border: "none", borderRadius: 100, padding: "10px 24px", cursor: "pointer" }}>
+            + Add your first room
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+          {rooms.map(room => (
+            <RoomCard
+              key={room.id}
+              room={room}
+              onEdit={id => setEditingRoom(rooms.find(r => r.id === id) ?? null)}
+              onDelete={handleDeleteRoom}
+              onAddFixture={id => setAddFixtureRoom(id)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

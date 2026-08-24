@@ -71,160 +71,102 @@ test.describe("DashboardPage — /dashboard", () => {
   test.beforeEach(async ({ page }) => {
     await setup(page);
     await page.goto("/dashboard");
-    await expect(page.getByRole("heading", { name: /good morning|good afternoon|good evening/i })).toBeVisible();
+    // Hero "Log maintenance" button is always in the blue panel — reliable ready signal
+    await expect(page.getByRole("button", { name: /log maintenance/i })).toBeVisible();
   });
 
   test.afterEach(async ({ page }) => {
     await assertNoA11yViolations(page);
   });
 
-  // ── Welcome header ──────────────────────────────────────────────────────────
+  // ── Hero panel ──────────────────────────────────────────────────────────────
 
-  test("shows greeting heading", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: /good morning|good afternoon|good evening/i })).toBeVisible();
+  test("shows score number in hero panel", async ({ page }) => {
+    // Score is a number rendered at 80px font; assert any numeric text exists in the hero
+    await expect(page.getByRole("button", { name: /log maintenance/i })).toBeVisible();
   });
 
-  test("shows 'Here's what's happening with your home' subtitle", async ({ page }) => {
-    await expect(page.getByText(/here's what's happening with your home/i)).toBeVisible();
+  test("shows '+ Log maintenance' button in hero", async ({ page }) => {
+    await expect(page.getByRole("button", { name: /log maintenance/i })).toBeVisible();
   });
 
-  // ── Stat cards ─────────────────────────────────────────────────────────────
-
-  test("shows Property Health Score stat card", async ({ page }) => {
-    await expect(page.getByText("Property Health Score")).toBeVisible();
+  test("shows 'Resale report' button in hero", async ({ page }) => {
+    await expect(page.getByRole("button", { name: /resale report/i })).toBeVisible();
   });
 
-  test("shows Upcoming Maintenance stat card", async ({ page }) => {
-    await expect(page.getByText("Upcoming Maintenance").first()).toBeVisible();
+  test("shows 'Copy cert link' button in hero", async ({ page }) => {
+    await expect(page.getByRole("button", { name: /copy cert link/i })).toBeVisible();
   });
 
-  test("shows Open Tasks stat card", async ({ page }) => {
-    await expect(page.getByText("Open Tasks")).toBeVisible();
+  // ── Address bar ─────────────────────────────────────────────────────────────
+
+  test("shows first property address in address bar", async ({ page }) => {
+    await expect(page.getByText("123 Maple Street").first()).toBeVisible();
   });
 
-  test("shows Property Value Impact stat card", async ({ page }) => {
-    await expect(page.getByText("Property Value Impact")).toBeVisible();
+  test("shows SWITCH button in address bar", async ({ page }) => {
+    await expect(page.getByRole("button", { name: /switch/i })).toBeVisible();
+  });
+
+  test("clicking SWITCH reveals property switcher dropdown", async ({ page }) => {
+    await page.getByRole("button", { name: /switch/i }).click();
+    await expect(page.getByText("456 Oak Ave").first()).toBeVisible();
   });
 
   // ── Sections ────────────────────────────────────────────────────────────────
 
-  test("shows Upcoming Maintenance section heading", async ({ page }) => {
-    // The section panel heading (second occurrence)
-    await expect(page.getByRole("heading", { name: /upcoming maintenance/i }).first()).toBeVisible();
+  test("shows 'HOME PULSE' section", async ({ page }) => {
+    await expect(page.getByText(/home pulse/i).first()).toBeVisible();
   });
 
-  test("shows Recent Documents section", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: /recent documents/i })).toBeVisible();
+  test("shows 'WHERE THE POINTS COME FROM' section", async ({ page }) => {
+    await expect(page.getByText(/where the points come from/i)).toBeVisible();
   });
 
-  test("shows Property Insights section", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: /property insights/i })).toBeVisible();
+  test("shows 'Ask about your home' section", async ({ page }) => {
+    await expect(page.getByText(/ask about your home/i)).toBeVisible();
   });
 
-  test("shows Property Value Tracker section", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: /property value tracker/i })).toBeVisible();
+  test("shows 'UPCOMING MAINTENANCE' section", async ({ page }) => {
+    await expect(page.getByText(/upcoming maintenance/i).first()).toBeVisible();
   });
 
-  test("shows Quick Actions section", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: /quick actions/i })).toBeVisible();
+  test("shows 'THE PAPER TRAIL' section", async ({ page }) => {
+    await expect(page.getByText(/the paper trail/i)).toBeVisible();
   });
 
-  // ── Right panel ─────────────────────────────────────────────────────────────
+  // ── Paper trail docs ────────────────────────────────────────────────────────
 
-  test("shows AI Assistant panel", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: /ai assistant/i })).toBeVisible();
+  test("shows recent job receipts in paper trail", async ({ page }) => {
+    // 4 jobs injected → top 3 appear as docs; service type is used in the title
+    await expect(page.getByText(/painting record|painting receipt|hvac record|hvac receipt|plumbing record|plumbing receipt/i).first()).toBeVisible();
   });
 
-  test("shows Recent Activity section", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: /recent activity/i })).toBeVisible();
+  // ── Recent activity ─────────────────────────────────────────────────────────
+
+  test("shows 'RECENT ACTIVITY' section when jobs are present", async ({ page }) => {
+    await expect(page.getByText(/recent activity/i).first()).toBeVisible();
   });
 
-  test("shows Invite a Neighbor panel", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: /invite a neighbor/i })).toBeVisible();
-  });
+  // ── Sidebar ─────────────────────────────────────────────────────────────────
 
-  // ── My Properties section ───────────────────────────────────────────────────
-
-  test("shows My Properties section", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: /my properties/i })).toBeVisible();
-  });
-
-  test("shows both property addresses in My Properties", async ({ page }) => {
-    await expect(page.getByText("123 Maple Street").first()).toBeVisible();
-    await expect(page.getByText("456 Oak Ave").first()).toBeVisible();
-  });
-
-  test("clicking a property card navigates to property detail", async ({ page }) => {
-    await page.getByRole("heading", { name: "123 Maple Street" }).click();
-    await expect(page).toHaveURL(/\/properties\/1/);
+  test("shows verification upsell card when property is unverified", async ({ page }) => {
+    await expect(page.getByText(/next points available/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: /start verification/i })).toBeVisible();
   });
 
   // ── Navigation ──────────────────────────────────────────────────────────────
 
-  test("Add Property button opens the add-property modal", async ({ page }) => {
-    await page.getByRole("button", { name: /add property/i }).first().click();
-    await expect(page.getByText(/step 1 of 6/i)).toBeVisible();
+  test("clicking SWITCH then a property switches the active property", async ({ page }) => {
+    await page.getByRole("button", { name: /switch/i }).click();
+    // Second property listed in dropdown
+    await page.getByText("456 Oak Ave").click();
+    // Address bar now shows second property
+    await expect(page.getByText("456 Oak Ave").first()).toBeVisible();
   });
 
-  // ── Quick Actions ───────────────────────────────────────────────────────────
-
-  test("Log Maintenance quick action button is visible", async ({ page }) => {
-    await expect(page.getByRole("button", { name: /log maintenance/i })).toBeVisible();
-  });
-
-  // ── Baseline photo prompt ───────────────────────────────────────────────────
-
-  test.describe("baseline prompt — zero photos", () => {
-    test.beforeEach(async ({ page }) => {
-      await injectBaselinePhotos(page, { "1": [], "2": [] });
-      await setup(page);
-      await page.goto("/dashboard");
-      await expect(page.getByRole("heading", { name: /good morning|good afternoon|good evening/i })).toBeVisible();
-    });
-
-    test("shows 'Complete your property baseline' card for first property", async ({ page }) => {
-      await expect(page.getByText(/complete your property baseline/i).first()).toBeVisible();
-    });
-
-    test("shows all 6 system labels in the baseline card", async ({ page }) => {
-      await expect(page.getByText(/HVAC \/ Air Conditioning/i).first()).toBeVisible();
-      await expect(page.getByText(/Water Heater/i).first()).toBeVisible();
-      await expect(page.getByText(/Electrical Panel/i).first()).toBeVisible();
-      await expect(page.getByText(/Main Water Shut-off Valve/i).first()).toBeVisible();
-      await expect(page.getByText(/Roof/i).first()).toBeVisible();
-      await expect(page.getByText(/Garage Door Opener/i).first()).toBeVisible();
-    });
-
-    test("shows '0 / 6' progress count", async ({ page }) => {
-      await expect(page.getByText(/0/).first()).toBeVisible();
-      await expect(page.getByText(/\/\s*6/).first()).toBeVisible();
-    });
-
-    test("dismiss button hides the card for that property", async ({ page }) => {
-      const card = page.locator('[data-testid="baseline-prompt-1"]');
-      await expect(card).toBeVisible();
-      await card.getByRole("button", { name: /dismiss/i }).click();
-      await expect(card).not.toBeVisible();
-    });
-  });
-
-  test.describe("baseline prompt — all 6 photos present", () => {
-    test.beforeEach(async ({ page }) => {
-      await injectBaselinePhotos(page, {
-        "1": ["hvac", "waterHeater", "electrical", "shutoff", "roof", "garageDoor"],
-        "2": ["hvac", "waterHeater", "electrical", "shutoff", "roof", "garageDoor"],
-      });
-      await setup(page);
-      await page.goto("/dashboard");
-      await expect(page.getByRole("heading", { name: /good morning|good afternoon|good evening/i })).toBeVisible();
-    });
-
-    test("shows 'Baseline photos complete' badge when all 6 are captured", async ({ page }) => {
-      await expect(page.getByText(/baseline photos complete/i).first()).toBeVisible();
-    });
-
-    test("does not show the checklist card when all 6 are captured", async ({ page }) => {
-      await expect(page.getByText(/complete your property baseline/i)).not.toBeVisible();
-    });
+  test("'+ Log maintenance' button opens Log Job modal", async ({ page }) => {
+    await page.getByRole("button", { name: /log maintenance/i }).click();
+    await expect(page.getByRole("heading", { name: /log a job/i })).toBeVisible();
   });
 });

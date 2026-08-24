@@ -1,13 +1,12 @@
 /**
  * Contractor flow E2E tests                                           (#72)
  *
- * CB.1  /contractors — "Find a Contractor" heading and search input
- * CB.2  /contractors — injected contractor cards appear
- * CB.3  /contractors — specialty filter chips are rendered
- * CB.4  /contractors — search by name filters results
- * CB.5  /contractors — clicking a card navigates to /contractor/:id
- * CB.6  /contractors — empty state shown when injection is empty
- * CB.7  /contractors — specialty filter chip narrows results
+ * CB.1  /contractors — heading shows "pros with work on this record"
+ * CB.2  /contractors — registry contractors appear as cards
+ * CB.3  /contractors — "Request quote" button visible on contractor cards
+ * CB.4  /contractors — "View jobs" button navigates to /contractor/:id for registry cards
+ * CB.5  /contractors — empty state shown when no jobs and no registry
+ * CB.6  /contractors — awaiting signature banner when job is homeowner-signed but not contractor-signed
  * CD.1  /contractor-dashboard — "Contractor Dashboard" heading
  * CD.2  /contractor-dashboard (no profile) — "Profile incomplete" banner shown
  * CD.3  /contractor-dashboard (with profile) — profile name shown in header
@@ -60,60 +59,75 @@ test.describe("CB — /contractors browse page", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
     await injectContractors(page, CONTRACTORS);
+    // No jobs → myContractors is empty; registry contractors show as extras
+    await page.addInitScript(() => {
+      (window as any).__e2e_jobs = [];
+      (window as any).__e2e_subscription = { tier: "Pro", expiresAt: null };
+      (window as any).__e2e_properties = [
+        {
+          id: 1, owner: "test-e2e-principal",
+          address: "123 Maple Street", city: "Austin", state: "TX", zipCode: "78701",
+          propertyType: "SingleFamily", yearBuilt: 2001, squareFeet: 2400,
+          verificationLevel: "Unverified", tier: "Free",
+          createdAt: 0, updatedAt: 0, isActive: true,
+        },
+      ];
+    });
   });
 
-  // CB.1
-  test("shows 'Find a Contractor' heading and search input", async ({ page }) => {
+  // CB.1 — heading
+  test("shows 'pros with work on this record' heading", async ({ page }) => {
     await page.goto("/contractors");
-    await expect(page.getByRole("heading", { name: /find a contractor/i })).toBeVisible();
-    await expect(page.getByPlaceholder(/search by name/i)).toBeVisible();
+    await expect(page.getByRole("heading", { name: /pros with work on this record/i })).toBeVisible();
   });
 
-  // CB.2
-  test("shows injected contractor names as cards", async ({ page }) => {
+  // CB.2 — registry contractors appear
+  test("shows injected registry contractor names as cards", async ({ page }) => {
     await page.goto("/contractors");
     await expect(page.getByText("Cool Air Services")).toBeVisible();
     await expect(page.getByText("Top Roof Co")).toBeVisible();
   });
 
-  // CB.3
-  test("renders specialty filter chips including HVAC and Roofing", async ({ page }) => {
+  // CB.3 — Request quote button
+  test("shows 'Request quote' button on contractor cards", async ({ page }) => {
     await page.goto("/contractors");
-    await expect(page.getByRole("button", { name: /^hvac$/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /^roofing$/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /request quote/i }).first()).toBeVisible();
   });
 
-  // CB.4
-  test("search by name filters visible contractors", async ({ page }) => {
+  // CB.4 — View jobs navigates to /contractor/:id for registry cards
+  test("'View jobs' button on registry card navigates to /contractor/:id", async ({ page }) => {
     await page.goto("/contractors");
-    await page.getByPlaceholder(/search by name/i).fill("Cool Air");
-    await expect(page.getByText("Cool Air Services")).toBeVisible();
-    await expect(page.getByText("Top Roof Co")).not.toBeVisible();
+    // First registry contractor card — the View jobs button calls navigate(`/contractor/${ctr.id}`)
+    await page.getByRole("button", { name: /view jobs/i }).first().click();
+    await expect(page).toHaveURL(/\/contractor\//);
   });
 
-  // CB.5
-  test("clicking a contractor card navigates to /contractor/:id", async ({ page }) => {
-    await page.goto("/contractors");
-    await page.getByText("Cool Air Services").click();
-    await expect(page).toHaveURL(/\/contractor\/principal-hvac/);
-  });
-
-  // CB.6
-  test("shows 'No contractors found' empty state when injection is empty", async ({ page }) => {
-    // Override injection with empty list
+  // CB.5 — empty state
+  test("shows 'No contractors yet' empty state when no jobs and no registry", async ({ page }) => {
     await page.addInitScript(() => {
       (window as any).__e2e_contractors = [];
     });
     await page.goto("/contractors");
-    await expect(page.getByText(/no contractors found/i)).toBeVisible();
+    await expect(page.getByText(/no contractors yet/i)).toBeVisible();
   });
 
-  // CB.7
-  test("HVAC specialty filter shows only Cool Air Services", async ({ page }) => {
+  // CB.6 — awaiting signature banner
+  test("shows awaiting-signature banner when contractor has not countersigned", async ({ page }) => {
+    await page.addInitScript(() => {
+      (window as any).__e2e_jobs = [
+        {
+          id: "j1", propertyId: "1", homeowner: "test-e2e-principal",
+          serviceType: "HVAC", contractorName: "Cool Air Services",
+          amount: 240_000, date: "2024-01-15",
+          description: "HVAC replacement.",
+          isDiy: false, status: "completed", verified: false,
+          homeownerSigned: true, contractorSigned: false,
+          photos: [], createdAt: Date.now() - 86_400_000 * 5,
+        },
+      ];
+    });
     await page.goto("/contractors");
-    await page.getByRole("button", { name: /^hvac$/i }).click();
-    await expect(page.getByText("Cool Air Services")).toBeVisible();
-    await expect(page.getByText("Top Roof Co")).not.toBeVisible();
+    await expect(page.getByText(/has not countersigned/i)).toBeVisible();
   });
 });
 

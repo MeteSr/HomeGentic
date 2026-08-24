@@ -33,19 +33,27 @@ test.describe("MM.2 — /maintenance (with property)", () => {
     await injectTestProperties(page);
     await injectSubscription(page, "Pro");
     await page.goto("/maintenance");
-    await expect(page.getByRole("heading", { name: /predictive maintenance/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /tasks due in the next 30 days/i })).toBeVisible();
   });
 
-  test("shows 'Predictive Maintenance' heading", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: /predictive maintenance/i })).toBeVisible();
+  test("shows task count heading", async ({ page }) => {
+    await expect(page.getByRole("heading", { name: /tasks due in the next 30 days/i })).toBeVisible();
   });
 
   test("shows 'Maintenance' eyebrow label", async ({ page }) => {
-    await expect(page.getByText("Maintenance").first()).toBeVisible();
+    await expect(page.getByText("MAINTENANCE").first()).toBeVisible();
   });
 
-  test("shows system health description", async ({ page }) => {
-    await expect(page.getByText(/ai-powered insights/i)).toBeVisible();
+  test("shows 'Log work' button", async ({ page }) => {
+    await expect(page.getByRole("button", { name: /log work/i })).toBeVisible();
+  });
+
+  test("shows 'Back to dashboard' button", async ({ page }) => {
+    await expect(page.getByRole("button", { name: /back to dashboard/i })).toBeVisible();
+  });
+
+  test("shows 'System ages' button", async ({ page }) => {
+    await expect(page.getByRole("button", { name: /system ages/i })).toBeVisible();
   });
 });
 

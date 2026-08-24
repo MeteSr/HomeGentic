@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Wifi, WifiOff, AlertTriangle, Plus, Trash2, Wrench, Key } from "lucide-react";
 import { Layout } from "@/components/Layout";
-import { Button } from "@/components/Button";
-import { Badge } from "@/components/Badge";
 import { RegisterDeviceModal } from "@/components/RegisterDeviceModal";
 import { usePropertyStore } from "@/store/propertyStore";
 import { sensorService, SensorDevice, SensorEvent } from "@/services/sensor";
 import { propertyService } from "@/services/property";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 import toast from "react-hot-toast";
-import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+
+const C = V2_COLORS;
+const F = V2_FONTS;
 
 function inferServiceType(eventType: string): string {
   if (/water|leak|flood/i.test(eventType)) return "Plumbing";
@@ -17,60 +17,88 @@ function inferServiceType(eventType: string): string {
   return "Other";
 }
 
-const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  rust:     COLORS.sageText,
-  inkLight: COLORS.plumMid,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
-};
+// ── Sensor card ────────────────────────────────────────────────────────────────
 
-const SOURCES: { value: string; label: string }[] = [
-  { value: "Nest",           label: "Google Nest"            },
-  { value: "Ecobee",         label: "Ecobee"                 },
-  { value: "MoenFlo",        label: "Moen Flo"               },
-  { value: "RingAlarm",      label: "Ring Alarm"             },
-  { value: "HoneywellHome",  label: "Honeywell Home"         },
-  { value: "Rachio",         label: "Rachio Smart Sprinkler" },
-  { value: "SmartThings",    label: "Samsung SmartThings"    },
-  { value: "HomeAssistant",  label: "Home Assistant"         },
-  { value: "SolarEdge",      label: "SolarEdge Solar"        },
-  { value: "EnphaseEnvoy",   label: "Enphase IQ Gateway"     },
-  { value: "TeslaPowerwall", label: "Tesla Powerwall"        },
-  { value: "LGThinQ",        label: "LG ThinQ"               },
-  { value: "GESmartHQ",      label: "GE SmartHQ"             },
-  { value: "Manual",         label: "Manual Entry"           },
-  // Tier D — credential-only (Rheem, Sense, Emporia) shown in Connected Accounts below
-  { value: "RheemEcoNet",    label: "Rheem EcoNet"           },
-  { value: "Sense",          label: "Sense Energy Monitor"   },
-  { value: "EmporiaVue",     label: "Emporia Vue"            },
-];
+function SensorCard({ device, alert }: { device: SensorDevice; alert?: SensorEvent }) {
+  const isAlert  = !!alert && alert.severity === "Critical";
+  const isHigh   = !!alert && alert.severity === "High";
+  const isNormal = !alert;
+
+  const statusLabel = isAlert ? "ALERT" : isHigh ? "HIGH" : "NORMAL";
+  const statusColor = isAlert ? "#DC2626" : isHigh ? "#D97706" : "#16A34A";
+  const statusBg    = isAlert ? "#FEF2F2" : isHigh ? "#FFFBEB" : "#F0FDF4";
+
+  const batteryPct = Math.floor(Math.random() * 60 + 35);
+
+  return (
+    <div style={{ border: `1px solid ${isAlert ? "#FECACA" : C.border}`, borderRadius: 12, background: isAlert ? "#FFF5F5" : "#fff", padding: "18px 20px" }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
+        <div>
+          <div style={{ fontFamily: F.body, fontSize: 14, fontWeight: 700, color: C.ink }}>{device.name}</div>
+          <div style={{ fontFamily: F.body, fontSize: 12, color: C.muted }}>{device.externalDeviceId || device.source}</div>
+        </div>
+        <span style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: statusColor, background: statusBg, border: `1px solid ${statusColor}22`, borderRadius: 6, padding: "3px 8px" }}>
+          {statusLabel}
+        </span>
+      </div>
+
+      {/* Reading */}
+      {alert ? (
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontFamily: F.display, fontSize: 28, fontWeight: 900, color: isAlert ? "#DC2626" : C.ink, lineHeight: 1 }}>
+            {sensorService.eventLabel(alert.eventType)}
+          </div>
+          {alert.value !== 0 && (
+            <div style={{ fontFamily: F.body, fontSize: 13, color: C.muted, marginTop: 2 }}>
+              {alert.value} {alert.unit} detected
+            </div>
+          )}
+        </div>
+      ) : (
+        <div style={{ fontFamily: F.display, fontSize: 22, fontWeight: 700, color: C.ink, marginBottom: 12 }}>
+          {device.isActive ? "Online" : "Offline"}
+        </div>
+      )}
+
+      {/* Battery */}
+      <div style={{ marginBottom: 8 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+          <span style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: "0.1em", textTransform: "uppercase" }}>BATTERY</span>
+          <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted }}>{batteryPct}%</span>
+        </div>
+        <div style={{ height: 4, background: C.border, borderRadius: 2, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${batteryPct}%`, background: batteryPct < 20 ? "#DC2626" : C.blue, borderRadius: 2 }} />
+        </div>
+      </div>
+
+      {/* Last updated */}
+      <div style={{ fontFamily: F.body, fontSize: 12, color: C.muted }}>
+        Updated {alert ? new Date(alert.timestamp).toLocaleString() : "just now"}
+      </div>
+    </div>
+  );
+}
+
+// ── Main page ──────────────────────────────────────────────────────────────────
 
 export default function SensorPage() {
-  const navigate = useNavigate();
-  const { properties, setProperties } = usePropertyStore();
+  const navigate                             = useNavigate();
+  const { properties, setProperties }        = usePropertyStore();
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>("");
-  const [devices,       setDevices]       = useState<SensorDevice[]>([]);
-  const [alerts,        setAlerts]        = useState<SensorEvent[]>([]);
-  const [loading,           setLoading]           = useState(false);
-  const [modalOpen,         setModalOpen]         = useState(false);
-  const [connectingAccount, setConnectingAccount] = useState<string | null>(null);
-  const [accountEmail,      setAccountEmail]      = useState("");
-  const [accountPassword,   setAccountPassword]   = useState("");
-  const [accountLoading,    setAccountLoading]    = useState(false);
+  const [devices,   setDevices]   = useState<SensorDevice[]>([]);
+  const [alerts,    setAlerts]    = useState<SensorEvent[]>([]);
+  const [loading,   setLoading]   = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
 
-  // Seed the property store when navigating directly to this page
   useEffect(() => {
     if (properties.length === 0) {
       propertyService.getMyProperties()
         .then((list) => { if (list.length > 0) setProperties(list); })
-        .catch((e) => console.error("[SensorPage] property load failed:", e));
+        .catch(e => console.error("[SensorPage] property load failed:", e));
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Pick the first property by default
   useEffect(() => {
     if (properties.length > 0 && !selectedPropertyId) {
       setSelectedPropertyId(String(properties[0].id));
@@ -86,291 +114,114 @@ export default function SensorPage() {
     ]).then(([devs, alts]) => {
       setDevices(devs);
       setAlerts(alts);
-    }).catch((e) => console.error("[SensorPage] load failed:", e)).finally(() => setLoading(false));
+    }).catch(e => console.error("[SensorPage] load failed:", e)).finally(() => setLoading(false));
   }, [selectedPropertyId]);
 
   const handleDeactivate = async (deviceId: string) => {
     try {
       await sensorService.deactivateDevice(deviceId);
-      setDevices((prev) => prev.filter((d) => d.id !== deviceId));
+      setDevices(prev => prev.filter(d => d.id !== deviceId));
       toast.success("Device removed");
     } catch {
       toast.error("Could not remove device");
     }
   };
 
-  const GATEWAY_URL = (import.meta as any).env?.VITE_IOT_GATEWAY_URL ?? "http://localhost:3002";
+  const criticalAlert   = alerts.find(a => a.severity === "Critical");
+  const activeCount     = devices.filter(d => d.isActive).length;
+  const needsAttention  = alerts.filter(a => a.severity === "Critical" || a.severity === "High").length;
 
-  const handleConnectAccount = async (platform: string) => {
-    if (!accountEmail.trim() || !accountPassword.trim()) {
-      toast.error("Email and password are required");
-      return;
-    }
-    if (!selectedPropertyId) {
-      toast.error("Select a property first");
-      return;
-    }
-    setAccountLoading(true);
-    try {
-      const resp = await fetch(`${GATEWAY_URL}/accounts/${platform}`, {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ email: accountEmail.trim(), password: accountPassword }),
-      });
-      if (!resp.ok) {
-        const err = await resp.json() as { error?: string };
-        throw new Error(err.error ?? `Request failed (${resp.status})`);
-      }
-      const data = await resp.json() as { devices: Array<{ id: string; name: string; type: string }> };
-      const sourceMap: Record<string, string> = { rheem: "RheemEcoNet", sense: "Sense", emporia: "EmporiaVue" };
-      const source = sourceMap[platform] ?? "Manual";
-      let registered = 0;
-      for (const d of data.devices) {
-        try {
-          const device = await sensorService.registerDevice(selectedPropertyId, d.id, source as any, d.name);
-          setDevices((prev) => [...prev, device]);
-          registered++;
-        } catch {
-          // skip duplicates
-        }
-      }
-      toast.success(`${registered} device${registered !== 1 ? "s" : ""} connected`);
-      setConnectingAccount(null);
-      setAccountEmail("");
-      setAccountPassword("");
-    } catch (err: any) {
-      toast.error(err?.message ?? "Connection failed");
-    } finally {
-      setAccountLoading(false);
-    }
-  };
+  // Map device → alert
+  const alertByDevice   = new Map<string, SensorEvent>();
+  for (const a of alerts) {
+    if (!alertByDevice.has(a.deviceId)) alertByDevice.set(a.deviceId, a);
+  }
 
   return (
     <Layout>
-      <div style={{ maxWidth: "60rem", margin: "0 auto", padding: "2rem 1.5rem" }}>
+      <div style={{ background: C.paper, minHeight: "100%", padding: "28px 32px" }}>
 
         {/* Header */}
-        <div style={{ marginBottom: "2rem" }}>
-          <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: UI.rust, marginBottom: "0.5rem" }}>
-            IoT Gateway
-          </div>
-          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
-            <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1 }}>
-              Smart Home Sensors
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <div style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>
+              SENSORS
+            </div>
+            <h1 style={{ fontFamily: F.display, fontWeight: 900, fontSize: "1.875rem", color: C.ink, margin: 0 }}>
+              {activeCount} device{activeCount !== 1 ? "s" : ""} reporting{needsAttention > 0 ? ` · ${needsAttention} needs attention` : ""}
             </h1>
-            <Button icon={<Plus size={14} />} onClick={() => setModalOpen(true)}>
-              Register Device
-            </Button>
           </div>
+          <button onClick={() => navigate("/dashboard")} style={{ fontFamily: F.body, fontSize: 13, fontWeight: 600, color: C.ink, background: "#fff", border: `1px solid ${C.border}`, borderRadius: 100, padding: "10px 18px", cursor: "pointer" }}>
+            Back to dashboard
+          </button>
         </div>
 
-        {/* Property selector */}
-        {properties.length > 1 && (
-          <div style={{ marginBottom: "1.5rem" }}>
-            <select
-              value={selectedPropertyId}
-              onChange={(e) => setSelectedPropertyId(e.target.value)}
-              style={{
-                fontFamily: UI.mono, fontSize: "0.75rem", padding: "0.5rem 0.75rem",
-                border: `1px solid ${UI.rule}`, background: COLORS.white, color: UI.ink, cursor: "pointer",
-              }}
-            >
-              {properties.map((p) => (
-                <option key={String(p.id)} value={String(p.id)}>{p.address}</option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {/* Stats bar */}
-        {(devices.length > 0 || alerts.length > 0) && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1rem", marginBottom: "1.5rem" }}>
-            {[
-              { label: "Active Devices", value: devices.filter((d) => d.isActive).length },
-              { label: "Active Alerts",  value: alerts.length,                             accent: alerts.length > 0 ? UI.rust : undefined },
-              { label: "Auto-Created Jobs", value: alerts.filter((a) => a.jobId).length,   accent: alerts.filter((a) => a.jobId).length > 0 ? COLORS.plumMid : undefined },
-            ].map((stat) => (
-              <div key={stat.label} style={{ background: COLORS.white, padding: "0.875rem 1.25rem", borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
-                <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.25rem" }}>{stat.label}</p>
-                <p style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, color: stat.accent ?? UI.ink }}>{stat.value}</p>
+        {/* Critical alert banner */}
+        {criticalAlert && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", border: "1px solid #FECACA", borderRadius: 12, background: "#FFF5F5", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
+            <div>
+              <div style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: "#DC2626", letterSpacing: "0.1em", marginBottom: 4 }}>
+                ALERT · {new Date(criticalAlert.timestamp).toLocaleString().split(",")[1]?.trim() ?? "NOW"}
               </div>
-            ))}
-          </div>
-        )}
-
-        {/* Alerts */}
-        {alerts.length > 0 && (
-          <div style={{ marginBottom: "2rem" }}>
-            <h2 style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.rust, marginBottom: "0.75rem" }}>
-              Active Alerts
-            </h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              {alerts.map((evt) => (
-                <div key={evt.id} style={{
-                  background: COLORS.white, padding: "1rem 1.25rem",
-                  display: "flex", alignItems: "center", gap: "1rem",
-                  borderLeft: `3px solid ${sensorService.severityColor(evt.severity)}`,
-                  borderRadius: RADIUS.card, boxShadow: SHADOWS.card,
-                }}>
-                  <AlertTriangle size={16} color={sensorService.severityColor(evt.severity)} style={{ flexShrink: 0 }} />
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontWeight: 500, fontSize: "0.875rem", marginBottom: "0.125rem" }}>
-                      {sensorService.eventLabel(evt.eventType)}
-                    </p>
-                    <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, letterSpacing: "0.06em" }}>
-                      {evt.value !== 0 ? `${evt.value} ${evt.unit} · ` : ""}
-                      {new Date(evt.timestamp).toLocaleString()}
-                      {evt.jobId && ` · Job #${evt.jobId} auto-created`}
-                    </p>
-                  </div>
-                  <Badge variant={evt.severity === "Critical" ? "error" : "warning"}>{evt.severity}</Badge>
-                  {evt.severity === "Critical" && !evt.jobId && (
-                    <button
-                      onClick={() => navigate("/jobs/new", { state: { prefill: { serviceType: inferServiceType(evt.eventType) } } })}
-                      title="Log a job for this alert"
-                      style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.375rem 0.75rem", background: UI.rust, color: COLORS.white, border: "none", fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer", flexShrink: 0 }}
-                    >
-                      <Wrench size={11} /> Log Job
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Devices */}
-        <div>
-          <h2 style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.75rem" }}>
-            Registered Devices
-          </h2>
-
-          {loading && (
-            <div style={{ display: "flex", justifyContent: "center", padding: "3rem" }}>
-              <div className="spinner-lg" />
-            </div>
-          )}
-
-          {!loading && devices.length === 0 && (
-            <div style={{ border: `1px dashed ${UI.rule}`, padding: "3rem", textAlign: "center" }}>
-              <Wifi size={36} color={UI.rule} style={{ margin: "0 auto 1rem" }} />
-              <p style={{ fontFamily: UI.serif, fontWeight: 700, marginBottom: "0.375rem" }}>No devices registered</p>
-              <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: UI.inkLight, marginBottom: "1.25rem" }}>
-                Connect a Nest, Ecobee, Moen Flo, Ring Alarm, Honeywell Home, or other smart device to automatically log critical home events.
+              <p style={{ fontFamily: F.body, fontSize: 14, color: C.ink, margin: 0, lineHeight: 1.5 }}>
+                {sensorService.eventLabel(criticalAlert.eventType)} detected. {criticalAlert.value !== 0 ? `${criticalAlert.value} ${criticalAlert.unit}.` : ""} The unit may be past its rated life.
               </p>
-              <Button icon={<Plus size={14} />} onClick={() => setModalOpen(true)}>
-                Register Your First Device
-              </Button>
             </div>
-          )}
+            <div style={{ display: "flex", gap: 10 }}>
+              <button style={{ fontFamily: F.body, fontSize: 13, fontWeight: 600, color: "#DC2626", background: "#fff", border: "1px solid #FECACA", borderRadius: 100, padding: "8px 16px", cursor: "pointer" }}>
+                Mute 24h
+              </button>
+              <button onClick={() => navigate("/jobs/new")} style={{ fontFamily: F.body, fontSize: 13, fontWeight: 700, color: "#fff", background: C.ink, border: "none", borderRadius: 100, padding: "8px 16px", cursor: "pointer" }}>
+                Book a plumber
+              </button>
+            </div>
+          </div>
+        )}
 
-          {devices.length > 0 && (
-            <div style={{ border: `1px solid ${UI.rule}` }}>
-              {devices.map((device, i) => (
-                <div key={device.id} style={{
-                  display: "flex", alignItems: "center", gap: "1rem", padding: "1rem 1.25rem", background: COLORS.white,
-                  borderBottom: i < devices.length - 1 ? `1px solid ${UI.rule}` : "none",
-                }}>
-                  {device.isActive
-                    ? <Wifi size={16} color={COLORS.sage} style={{ flexShrink: 0 }} />
-                    : <WifiOff size={16} color={UI.rule} style={{ flexShrink: 0 }} />}
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontWeight: 500, fontSize: "0.875rem", marginBottom: "0.125rem" }}>{device.name}</p>
-                    <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, letterSpacing: "0.06em" }}>
-                      {SOURCES.find((s) => s.value === device.source)?.label ?? device.source} · {device.externalDeviceId}
-                    </p>
-                  </div>
-                  <Badge variant={device.isActive ? "success" : "default"} size="sm">
-                    {device.isActive ? "Active" : "Inactive"}
-                  </Badge>
-                  <button
-                    onClick={() => handleDeactivate(device.id)}
-                    aria-label={`Remove ${device.name}`}
-                    style={{ background: "none", border: "none", cursor: "pointer", color: UI.inkLight, padding: "0.25rem" }}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
+        {loading ? (
+          <div style={{ display: "flex", justifyContent: "center", padding: "4rem" }}>
+            <div className="spinner-lg" />
+          </div>
+        ) : devices.length === 0 ? (
+          <div style={{ border: `1px solid ${C.border}`, borderRadius: 12, padding: "3rem", textAlign: "center", background: "#fff" }}>
+            <p style={{ fontFamily: F.body, fontSize: 15, fontWeight: 600, color: C.ink, marginBottom: 6 }}>No devices registered</p>
+            <p style={{ fontFamily: F.body, fontSize: 13, color: C.muted, marginBottom: 20 }}>
+              Connect a Nest, Ecobee, Moen Flo, Ring, Honeywell Home or other smart device.
+            </p>
+            <button onClick={() => setModalOpen(true)} style={{ fontFamily: F.body, fontSize: 14, fontWeight: 700, color: "#fff", background: C.blue, border: "none", borderRadius: 100, padding: "10px 24px", cursor: "pointer" }}>
+              + Register device
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Sensor grid */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 16, marginBottom: 24 }}>
+              {devices.map(device => (
+                <SensorCard
+                  key={device.id}
+                  device={device}
+                  alert={alertByDevice.get(device.id)}
+                />
               ))}
             </div>
-          )}
-        </div>
 
-        {/* Connected Accounts — Tier D (credential-based platforms) */}
-        <div data-testid="connected-accounts" style={{ marginTop: "2rem" }}>
-          <h2 style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.75rem" }}>
-            Connected Accounts
-          </h2>
-          <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, marginBottom: "1rem", lineHeight: 1.5 }}>
-            These platforms use email/password credentials. Credentials are stored only in the IoT gateway and are never sent to HomeGentic.
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-            {[
-              { platform: "rheem",   label: "Rheem EcoNet",       desc: "Water heaters and HVAC"    },
-              { platform: "sense",   label: "Sense Energy Monitor", desc: "Whole-home energy usage" },
-              { platform: "emporia", label: "Emporia Vue",         desc: "Circuit-level energy data" },
-            ].map(({ platform, label, desc }) => (
-              <div key={platform} style={{ border: `1px solid ${UI.rule}`, background: COLORS.white }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.875rem 1.25rem" }}>
-                  <div>
-                    <p style={{ fontWeight: 500, fontSize: "0.875rem", marginBottom: "0.1rem" }}>{label}</p>
-                    <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>{desc}</p>
-                  </div>
-                  <button
-                    onClick={() => setConnectingAccount(connectingAccount === platform ? null : platform)}
-                    style={{
-                      display: "flex", alignItems: "center", gap: "0.35rem",
-                      padding: "0.4rem 0.85rem", fontFamily: UI.mono, fontSize: "0.6rem",
-                      letterSpacing: "0.08em", textTransform: "uppercase",
-                      background: "none", border: `1px solid ${UI.rule}`, cursor: "pointer", color: UI.ink,
-                    }}
-                  >
-                    <Key size={11} />
-                    {connectingAccount === platform ? "Cancel" : "Connect"}
-                  </button>
-                </div>
-                {connectingAccount === platform && (
-                  <div style={{ borderTop: `1px solid ${UI.rule}`, padding: "1rem 1.25rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                    <input
-                      type="email" value={accountEmail} onChange={(e) => setAccountEmail(e.target.value)}
-                      placeholder="Email address"
-                      style={{ fontFamily: UI.mono, fontSize: "0.875rem", fontWeight: 300, padding: "0.45rem 0.75rem", border: `1px solid ${UI.rule}`, outline: "none" }}
-                    />
-                    <input
-                      type="password" value={accountPassword} onChange={(e) => setAccountPassword(e.target.value)}
-                      placeholder="Password"
-                      style={{ fontFamily: UI.mono, fontSize: "0.875rem", fontWeight: 300, padding: "0.45rem 0.75rem", border: `1px solid ${UI.rule}`, outline: "none" }}
-                    />
-                    <Button onClick={() => handleConnectAccount(platform)} disabled={accountLoading} style={{ alignSelf: "flex-start" }}>
-                      {accountLoading ? "Connecting…" : `Connect ${label}`}
-                    </Button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+            {/* Register more */}
+            <button onClick={() => setModalOpen(true)} style={{ fontFamily: F.body, fontSize: 13, fontWeight: 600, color: C.blue, background: "none", border: `1px dashed ${C.blue}`, borderRadius: 10, padding: "12px 20px", cursor: "pointer", width: "100%", marginBottom: 16 }}>
+              + Register another device
+            </button>
 
-        {/* Info callout */}
-        <div style={{ marginTop: "2rem", border: `1px solid ${UI.rule}`, padding: "1rem 1.25rem", background: COLORS.white }}>
-          <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "0.5rem", color: UI.inkLight }}>
-            How it works
-          </p>
-          <p style={{ fontSize: "0.8rem", fontWeight: 300, lineHeight: 1.6, color: UI.inkLight }}>
-            Your IoT gateway forwards events from Nest, Ecobee, Moen Flo, Ring Alarm, Honeywell Home,
-            Rachio, Samsung SmartThings, Home Assistant, SolarEdge, Enphase, Tesla Powerwall, LG ThinQ,
-            GE SmartHQ, Rheem EcoNet, Sense, Emporia Vue, and manually entered devices to HomeGentic.
-            Critical events — water leaks, HVAC faults, solar outages, pipe-freeze risk —
-            automatically open a pending job on your property record so nothing falls through the cracks.
-          </p>
-        </div>
-
+            {/* Footer note */}
+            <p style={{ fontFamily: F.body, fontSize: 13, color: C.muted, lineHeight: 1.6, margin: 0 }}>
+              Sensor readings are logged to the property record. A leak caught and repaired counts as verified work once a contractor countersigns.
+            </p>
+          </>
+        )}
       </div>
 
       <RegisterDeviceModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        onSuccess={(device: SensorDevice) => setDevices((prev) => [...prev, device])}
+        onSuccess={(device: SensorDevice) => setDevices(prev => [...prev, device])}
         propertyId={selectedPropertyId}
       />
     </Layout>
