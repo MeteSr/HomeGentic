@@ -12,7 +12,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Bell, LogOut, Plus,
   LayoutDashboard, TrendingUp, Users, Wrench, Radio, Home as HomeIcon, PlusSquare,
-  PanelLeft, Menu, X, Briefcase,
+  PanelLeft, Menu, X, Briefcase, Users2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthStore } from "@/store/authStore";
@@ -171,6 +171,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         { to: "/jobs",           label: "Jobs",         Icon: Briefcase, badge: feedJobs.filter(j => !j.verified && j.status !== "rejected_by_homeowner").length || undefined },
         { to: "/contractors",    label: "Contractors",  Icon: Users },
         { to: "/sensors",        label: "Sensors",      Icon: Radio },
+        { to: "/people",         label: "People",       Icon: Users2 },
         ...(singlePropertyId && hasActiveListing
           ? [{ to: `/my-listing/${singlePropertyId}`, label: "My Listing", Icon: HomeIcon }]
           : []),
