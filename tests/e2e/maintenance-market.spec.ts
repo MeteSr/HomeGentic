@@ -33,11 +33,12 @@ test.describe("MM.2 — /maintenance (with property)", () => {
     await injectTestProperties(page);
     await injectSubscription(page, "Pro");
     await page.goto("/maintenance");
-    await expect(page.getByRole("heading", { name: /tasks due in the next 30 days/i })).toBeVisible();
+    // Heading now reads: "N recurring visits and M tasks due in 30 days"
+    await expect(page.getByRole("heading", { name: /tasks? due in.*30 days/i })).toBeVisible();
   });
 
   test("shows task count heading", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: /tasks due in the next 30 days/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /tasks? due in.*30 days/i })).toBeVisible();
   });
 
   test("shows 'Maintenance' eyebrow label", async ({ page }) => {
@@ -52,8 +53,12 @@ test.describe("MM.2 — /maintenance (with property)", () => {
     await expect(page.getByRole("button", { name: /back to dashboard/i })).toBeVisible();
   });
 
-  test("shows 'System ages' button", async ({ page }) => {
-    await expect(page.getByRole("button", { name: /system ages/i })).toBeVisible();
+  test("shows 'RECURRING SERVICES' section", async ({ page }) => {
+    await expect(page.getByText(/recurring services/i).first()).toBeVisible();
+  });
+
+  test("shows 'SCHEDULED TASKS' section", async ({ page }) => {
+    await expect(page.getByText(/scheduled tasks/i).first()).toBeVisible();
   });
 });
 
