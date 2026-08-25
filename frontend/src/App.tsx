@@ -65,6 +65,7 @@ const InsuranceDefensePage       = React.lazy(() => import("@/pages/InsuranceDef
 const ResaleReadyPage            = React.lazy(() => import("@/pages/ResaleReadyPage"));
 const RecurringServiceCreatePage = React.lazy(() => import("@/pages/RecurringServiceCreatePage"));
 const RecurringServiceDetailPage = React.lazy(() => import("@/pages/RecurringServiceDetailPage"));
+const PeoplePage                 = React.lazy(() => import("@/pages/PeoplePage"));
 // NeighborhoodHealthPage intentionally not routed — page kept for future re-enable
 // const NeighborhoodHealthPage  = React.lazy(() => import("@/pages/NeighborhoodHealthPage"));
 const ListingNewPage             = React.lazy(() => import("@/pages/ListingNewPage"));
@@ -191,6 +192,7 @@ export default function App() {
           <Route path="/resale-ready" element={<PaidHomeownerRoute><ResaleReadyPage /></PaidHomeownerRoute>} />
           <Route path="/recurring/new" element={<PaidHomeownerRoute><RecurringServiceCreatePage /></PaidHomeownerRoute>} />
           <Route path="/recurring/:id" element={<PaidHomeownerRoute><RecurringServiceDetailPage /></PaidHomeownerRoute>} />
+          <Route path="/people"        element={<PaidHomeownerRoute><PeoplePage /></PaidHomeownerRoute>} />
           <Route path="/listing/new"  element={<PaidHomeownerRoute><ListingNewPage /></PaidHomeownerRoute>} />
           <Route path="/listing/:id"  element={<PaidHomeownerRoute><ListingDetailPage /></PaidHomeownerRoute>} />
           <Route path="/agent/marketplace" element={<Navigate to="/dashboard" replace />} />
