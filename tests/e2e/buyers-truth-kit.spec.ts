@@ -65,14 +65,14 @@ test.describe("Buyer's Truth Kit — /buyers-truth-kit", () => {
   });
 
   // BTK.1 — page loads (no auth required)
-  test("BTK.1 page loads at /buyers-truth-kit", async ({ page }) => {
-    await page.goto("/buyers-truth-kit");
+  test("BTK.1 page loads at /truth-kit", async ({ page }) => {
+    await page.goto("/truth-kit");
     await expect(page.getByRole("heading", { name: /know what you're/i })).toBeVisible();
   });
 
   // BTK.2 — address form renders and accepts input
   test("BTK.2 address form renders and accepts input", async ({ page }) => {
-    await page.goto("/buyers-truth-kit");
+    await page.goto("/truth-kit");
 
     // Click through the landing CTA
     await page.getByRole("button", { name: /build my truth kit/i }).click();
@@ -93,7 +93,7 @@ test.describe("Buyer's Truth Kit — /buyers-truth-kit", () => {
 
   // BTK.3 — wizard steps advance with Next buttons
   test("BTK.3 Next buttons advance through wizard steps", async ({ page }) => {
-    await page.goto("/buyers-truth-kit");
+    await page.goto("/truth-kit");
 
     // Landing → Step 0
     await page.getByRole("button", { name: /build my truth kit/i }).click();
@@ -106,12 +106,12 @@ test.describe("Buyer's Truth Kit — /buyers-truth-kit", () => {
     // Advance to step 1
     await page.getByRole("button", { name: /next: seller claims/i }).click();
     await expect(page.getByText(/step 2 of 2/i)).toBeVisible();
-    await expect(page.getByText(/what has the seller claimed/i)).toBeVisible();
+    await expect(page.getByRole("heading", { name: /what has the seller claimed/i })).toBeVisible();
   });
 
   // BTK.4 — mocked API response renders results
   test("BTK.4 mocked API response renders overall risk, system cards, and red flags", async ({ page }) => {
-    await page.goto("/buyers-truth-kit");
+    await page.goto("/truth-kit");
 
     // Navigate through the wizard
     await page.getByRole("button", { name: /build my truth kit/i }).click();
@@ -123,7 +123,7 @@ test.describe("Buyer's Truth Kit — /buyers-truth-kit", () => {
     await page.getByRole("button", { name: /generate my truth kit/i }).click();
 
     // Should display results (loading then results)
-    await expect(page.getByText(/your buyer's truth kit/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole("heading", { name: /your buyer's truth kit/i })).toBeVisible({ timeout: 10000 });
 
     // Overall risk label (medium)
     await expect(page.getByText(/overall risk: medium/i)).toBeVisible();
@@ -138,7 +138,7 @@ test.describe("Buyer's Truth Kit — /buyers-truth-kit", () => {
 
   // BTK.5 — Print and Share buttons visible on results
   test("BTK.5 Print and Share buttons visible on results page", async ({ page }) => {
-    await page.goto("/buyers-truth-kit");
+    await page.goto("/truth-kit");
 
     // Navigate through the wizard
     await page.getByRole("button", { name: /build my truth kit/i }).click();
@@ -148,7 +148,7 @@ test.describe("Buyer's Truth Kit — /buyers-truth-kit", () => {
     await page.getByRole("button", { name: /generate my truth kit/i }).click();
 
     // Wait for results
-    await expect(page.getByText(/your buyer's truth kit/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole("heading", { name: /your buyer's truth kit/i })).toBeVisible({ timeout: 10000 });
 
     // Print and Share buttons
     await expect(page.getByRole("button", { name: /print kit/i })).toBeVisible();
