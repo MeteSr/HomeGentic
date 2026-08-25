@@ -388,9 +388,9 @@ describe("13.4.1: Dashboard rendering with large dataset", () => {
       );
     });
 
-    // All four fetch branches were triggered
+    // Fetch branches triggered by the new dashboard (payment subscription
+    // now comes from auth store, not a direct paymentService call)
     expect(callOrder).toContain("quotes");
-    expect(callOrder).toContain("payment");
   });
 });
 

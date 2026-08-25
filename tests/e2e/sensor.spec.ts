@@ -19,12 +19,13 @@ async function setup(page: Parameters<typeof injectTestAuth>[0]) {
   });
 }
 
-test.describe("SensorPage — /sensor", () => {
+test.describe("SensorPage — /sensors", () => {
   test.beforeEach(async ({ page }) => {
     await injectSensorDevices(page, { "1": [] });
     await setup(page);
     await page.goto("/sensors");
-    await expect(page.getByRole("heading", { name: /smart home sensors/i })).toBeVisible();
+    // "0 devices reporting" is the heading with no devices
+    await expect(page.getByRole("heading", { name: /devices reporting/i })).toBeVisible();
   });
 
   test.afterEach(async ({ page }) => {
@@ -33,16 +34,24 @@ test.describe("SensorPage — /sensor", () => {
 
   // ── Page structure ───────────────────────────────────────────────────────────
 
-  test("shows 'IoT Gateway' eyebrow label", async ({ page }) => {
-    await expect(page.getByText("IoT Gateway", { exact: true })).toBeVisible();
+  test("shows 'SENSORS' eyebrow label", async ({ page }) => {
+    await expect(page.getByText("SENSORS", { exact: true })).toBeVisible();
   });
 
-  test("shows 'Register Device' button", async ({ page }) => {
+  test("shows device count heading", async ({ page }) => {
+    await expect(page.getByRole("heading", { name: /devices reporting/i })).toBeVisible();
+  });
+
+  test("shows 'Register device' button", async ({ page }) => {
     await expect(page.getByRole("button", { name: /register device/i }).first()).toBeVisible();
   });
 
   test("shows empty state when no devices registered", async ({ page }) => {
     await expect(page.getByText(/no devices registered/i)).toBeVisible();
+  });
+
+  test("shows 'Back to dashboard' button", async ({ page }) => {
+    await expect(page.getByRole("button", { name: /back to dashboard/i })).toBeVisible();
   });
 
   // ── Register Device modal — source dropdown ──────────────────────────────────
@@ -137,33 +146,9 @@ test.describe("SensorPage — /sensor", () => {
     });
   });
 
-  // ── Connected Accounts section (Tier D — credential-based platforms) ─────────
+  // ── Pre-registered devices ───────────────────────────────────────────────────
 
-  test.describe("Connected Accounts section", () => {
-    test("shows 'Connected Accounts' heading", async ({ page }) => {
-      const section = page.locator("[data-testid='connected-accounts']");
-      await expect(section.getByText(/connected accounts/i)).toBeVisible();
-    });
-
-    test("shows Rheem EcoNet entry", async ({ page }) => {
-      const section = page.locator("[data-testid='connected-accounts']");
-      await expect(section.getByText(/rheem econet/i)).toBeVisible();
-    });
-
-    test("shows Sense Energy Monitor entry", async ({ page }) => {
-      const section = page.locator("[data-testid='connected-accounts']");
-      await expect(section.getByText(/sense energy monitor/i)).toBeVisible();
-    });
-
-    test("shows Emporia Vue entry", async ({ page }) => {
-      const section = page.locator("[data-testid='connected-accounts']");
-      await expect(section.getByText(/emporia vue/i)).toBeVisible();
-    });
-  });
-
-  // ── Pre-registered devices with new sources ──────────────────────────────────
-
-  test.describe("device list — new source labels", () => {
+  test.describe("device list — card grid", () => {
     test.beforeEach(async ({ page }) => {
       await injectSensorDevices(page, {
         "1": [
@@ -174,40 +159,43 @@ test.describe("SensorPage — /sensor", () => {
       });
       await setup(page);
       await page.goto("/sensors");
-      await expect(page.getByRole("heading", { name: /smart home sensors/i })).toBeVisible();
+      await expect(page.getByRole("heading", { name: /devices reporting/i })).toBeVisible();
+    });
+
+    test("shows '2 devices reporting' in heading", async ({ page }) => {
+      await expect(page.getByRole("heading", { name: /2 devices reporting/i })).toBeVisible();
     });
 
     test("shows device name for RingAlarm device", async ({ page }) => {
       await expect(page.getByText("Front Door Sensor")).toBeVisible();
     });
 
-    test("shows 'Ring Alarm' source label for RingAlarm device", async ({ page }) => {
-      // Source label rendered as "Ring Alarm · RING-001"
-      await expect(page.getByText(/ring alarm.*ring-001/i)).toBeVisible();
-    });
-
     test("shows device name for HoneywellHome device", async ({ page }) => {
       await expect(page.getByText("Thermostat")).toBeVisible();
-    });
-
-    test("shows 'Honeywell Home' source label for HoneywellHome device", async ({ page }) => {
-      await expect(page.getByText(/honeywell home.*hw-002/i)).toBeVisible();
     });
 
     test("shows device name for HomeAssistant device", async ({ page }) => {
       await expect(page.getByText("Hub")).toBeVisible();
     });
 
-    test("shows 'Home Assistant' source label for HomeAssistant device", async ({ page }) => {
-      await expect(page.getByText(/home assistant.*ha-003/i)).toBeVisible();
+    test("shows NORMAL status badge for devices with no alerts", async ({ page }) => {
+      await expect(page.getByText("NORMAL").first()).toBeVisible();
     });
 
-    test("shows Active badge for active devices", async ({ page }) => {
-      await expect(page.getByText("Active").first()).toBeVisible();
+    test("shows 'Online' reading for active devices", async ({ page }) => {
+      await expect(page.getByText("Online").first()).toBeVisible();
     });
 
-    test("shows Inactive badge for deactivated device", async ({ page }) => {
-      await expect(page.getByText("Inactive")).toBeVisible();
+    test("shows 'Offline' reading for inactive device", async ({ page }) => {
+      await expect(page.getByText("Offline")).toBeVisible();
+    });
+
+    test("shows BATTERY label on device cards", async ({ page }) => {
+      await expect(page.getByText("BATTERY").first()).toBeVisible();
+    });
+
+    test("shows '+ Register another device' button when devices exist", async ({ page }) => {
+      await expect(page.getByRole("button", { name: /register another device/i })).toBeVisible();
     });
   });
 });

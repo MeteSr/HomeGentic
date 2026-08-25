@@ -36,7 +36,8 @@ import { SettingsTab }  from "./PropertyDetail/SettingsTab";
 import { RoomsTab }     from "./PropertyDetail/RoomsTab";
 import { BillsTab }     from "./PropertyDetail/BillsTab";
 import { useState, useEffect } from "react";
-import { COLORS, FONTS } from "@/theme";
+import { COLORS, FONTS, V2_COLORS, V2_FONTS } from "@/theme";
+import { PropertyAddressBar } from "@/components/PropertyAddressBar";
 
 // ─── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -220,18 +221,43 @@ export default function PropertyDetailPage() {
       <div style={{ padding: "1.5rem 2rem", background: C.bg, minHeight: "100vh" }}>
 
         {/* ── Page header ────────────────────────────────────────────────────── */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem" }}>
-          <div>
-            <h1 style={{ fontFamily: FONTS.sans, fontWeight: 700, fontSize: "1.625rem", color: C.text, margin: 0 }}>
-              Property Overview
-            </h1>
-            <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: C.muted, marginTop: "0.25rem", marginBottom: 0 }}>
-              Stay on top of your home's health, maintenance, and value.
-            </p>
+        <div style={{ marginBottom: "1.5rem" }}>
+          <div style={{ fontFamily: V2_FONTS.mono, fontSize: 10, fontWeight: 700, color: V2_COLORS.muted, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>
+            PROPERTY
           </div>
-          <button style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 500, color: C.text, border: `1px solid ${C.border}`, background: "white", borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}>
-            + Add Widget
-          </button>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+            <div>
+              <h1 style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.875rem", color: V2_COLORS.ink, margin: "0 0 10px" }}>
+                Rooms and finishes at {property.address}
+              </h1>
+              <PropertyAddressBar
+                activeProperty={{
+                  id:       String(property.id),
+                  address:  property.address,
+                  city:     property.city,
+                  state:    property.state,
+                  zipCode:  property.zipCode ?? "",
+                  yearBuilt: String(property.yearBuilt ?? ""),
+                }}
+                properties={storeProperties.map((p, i) => ({
+                  id:       String(p.id),
+                  address:  p.address,
+                  city:     p.city,
+                  state:    p.state,
+                  zipCode:  p.zipCode ?? "",
+                  type:     i === 0 ? "Primary residence" : "Property",
+                  yearBuilt: String(p.yearBuilt ?? ""),
+                }))}
+                onSelect={(id) => navigate(`/properties/${id}`)}
+              />
+            </div>
+            <button
+              onClick={() => setModals(m => ({ ...m, logJob: true }))}
+              style={{ fontFamily: V2_FONTS.body, fontSize: 14, fontWeight: 700, color: "#fff", background: V2_COLORS.blue, border: "none", borderRadius: 100, padding: "10px 20px", cursor: "pointer" }}
+            >
+              + Add room
+            </button>
+          </div>
         </div>
 
         {/* ── Verification banners ───────────────────────────────────────────── */}

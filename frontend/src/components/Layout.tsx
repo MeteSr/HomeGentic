@@ -12,7 +12,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Bell, LogOut, Plus,
   LayoutDashboard, TrendingUp, Users, Wrench, Radio, Home as HomeIcon, PlusSquare,
-  PanelLeft, Menu, X,
+  PanelLeft, Menu, X, Briefcase,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthStore } from "@/store/authStore";
@@ -51,6 +51,7 @@ interface NavLink {
   to:    string;
   label: string;
   Icon:  React.ElementType;
+  badge?: number;
 }
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
@@ -162,9 +163,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
       ]
     : [
         { to: "/dashboard",      label: "Dashboard",    Icon: LayoutDashboard },
+        ...(singlePropertyId
+          ? [{ to: `/properties/${singlePropertyId}`, label: "Property", Icon: HomeIcon }]
+          : []),
         { to: "/market",         label: "Market",       Icon: TrendingUp },
         { to: "/maintenance",    label: "Maintenance",  Icon: Wrench },
-        { to: "/contractors", label: "Contractors", Icon: Users },
+        { to: "/jobs",           label: "Jobs",         Icon: Briefcase, badge: feedJobs.filter(j => !j.verified && j.status !== "rejected_by_homeowner").length || undefined },
+        { to: "/contractors",    label: "Contractors",  Icon: Users },
         { to: "/sensors",        label: "Sensors",      Icon: Radio },
         ...(singlePropertyId && hasActiveListing
           ? [{ to: `/my-listing/${singlePropertyId}`, label: "My Listing", Icon: HomeIcon }]
@@ -304,10 +309,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   if (!active) (e.currentTarget as HTMLElement).style.color = COLORS.navInactive;
                 }}
               >
-                <link.Icon size={17} style={{ flexShrink: 0 }} />
+                  <link.Icon size={17} style={{ flexShrink: 0 }} />
                 {sidebarOpen && (
-                  <span style={{ ...labelStyle, fontWeight: active ? 600 : 500 }}>
+                  <span style={{ ...labelStyle, fontWeight: active ? 600 : 500, flex: 1 }}>
                     {link.label}
+                  </span>
+                )}
+                {sidebarOpen && link.badge != null && link.badge > 0 && (
+                  <span style={{ fontFamily: "sans-serif", fontSize: 11, fontWeight: 700, color: "#fff", background: COLORS.navActive, borderRadius: "1rem", padding: "1px 6px", lineHeight: 1.4 }}>
+                    {link.badge}
                   </span>
                 )}
               </Link>
