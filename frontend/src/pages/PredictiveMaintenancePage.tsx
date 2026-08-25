@@ -425,7 +425,7 @@ function RecurringRow({ svc }: { svc: MockRecurring }) {
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 export default function PredictiveMaintenancePage() {
-  const { isMobile }   = useBreakpoint();
+  const { isMobile, isTablet } = useBreakpoint();
   const { properties } = usePropertyStore();
   const { jobs }       = useJobStore();
   const navigate       = useNavigate();
@@ -505,7 +505,7 @@ export default function PredictiveMaintenancePage() {
 
   return (
     <Layout>
-      <div style={{ background: V2_COLORS.paper, minHeight: "100%", padding: "28px 32px" }}>
+      <div style={{ background: V2_COLORS.paper, minHeight: "100%", padding: isTablet ? "20px 20px" : "28px 32px" }}>
 
         {/* Page header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28, flexWrap: "wrap", gap: 12 }}>
@@ -643,7 +643,7 @@ export default function PredictiveMaintenancePage() {
           <div style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: "#92400E", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 16 }}>
             SEASONAL · {climate.toUpperCase()} · {season.toUpperCase()}
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isTablet ? "1fr 1fr" : "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
             {SEASONAL_TIPS.map((tip, i) => (
               <div key={i}>
                 <div style={{ fontFamily: F.body, fontSize: 14, fontWeight: 700, color: C.ink, marginBottom: 4 }}>{tip.title}</div>

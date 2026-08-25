@@ -21,11 +21,45 @@ interface BidRowProps {
   detail:       string;
   earliest:     string;
   amount:       string;
+  isTablet:     boolean;
   onDecline:    () => void;
   onAccept:     () => void;
 }
 
-function BidRow({ initials, name, verified, verifiedLabel, detail, earliest, amount, onDecline, onAccept }: BidRowProps) {
+function BidRow({ initials, name, verified, verifiedLabel, detail, earliest, amount, isTablet, onDecline, onAccept }: BidRowProps) {
+  if (isTablet) {
+    return (
+      <div style={{ padding: "12px 24px", borderTop: `1px solid ${C.border}` }}>
+        {/* Row 1: avatar + name + amount */}
+        <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", alignItems: "center", gap: 14, marginBottom: 10 }}>
+          <div style={{ width: 34, height: 34, borderRadius: "50%", background: C.vbadge, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <span style={{ fontFamily: F.mono, fontSize: 12, fontWeight: 700, color: C.blue }}>{initials}</span>
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span style={{ fontFamily: F.body, fontSize: 14, fontWeight: 700, color: C.ink }}>{name}</span>
+              {verified && (
+                <span style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: C.blue, background: C.vbadge, borderRadius: 4, padding: "2px 6px" }}>
+                  {verifiedLabel ?? "VERIFIED PRO"}
+                </span>
+              )}
+              <span style={{ fontFamily: F.body, fontSize: 15, fontWeight: 700, color: C.ink, whiteSpace: "nowrap", marginLeft: "auto" }}>{amount}</span>
+            </div>
+            <div style={{ fontFamily: F.body, fontSize: 12, color: C.muted, marginTop: 1 }}>{detail} · {earliest}</div>
+          </div>
+        </div>
+        {/* Row 2: action buttons */}
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button onClick={onDecline} style={{ fontFamily: F.body, fontSize: 13, color: C.muted, background: "#fff", border: `1px solid ${C.border}`, borderRadius: 100, padding: "7px 14px", cursor: "pointer" }}>
+            Decline
+          </button>
+          <button onClick={onAccept} style={{ fontFamily: F.body, fontSize: 13, fontWeight: 700, color: "#fff", background: C.ink, border: "none", borderRadius: 100, padding: "7px 16px", cursor: "pointer" }}>
+            Accept bid
+          </button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto auto auto auto", alignItems: "center", gap: 14, padding: "12px 24px", borderTop: `1px solid ${C.border}` }}>
       {/* Avatar */}
@@ -61,11 +95,12 @@ function BidRow({ initials, name, verified, verifiedLabel, detail, earliest, amo
 
 // ── Job card ───────────────────────────────────────────────────────────────────
 
-function JobCard({ job, bids, quotes, propAddress, onAccept, onDecline }: {
+function JobCard({ job, bids, quotes, propAddress, isTablet, onAccept, onDecline }: {
   job:        Job;
   bids:       Quote[];
   quotes:     QuoteRequest[];
   propAddress: string;
+  isTablet:   boolean;
   onAccept:   (bidId: string) => void;
   onDecline:  (bidId: string) => void;
 }) {
@@ -116,11 +151,13 @@ function JobCard({ job, bids, quotes, propAddress, onAccept, onDecline }: {
       {/* Bid rows */}
       {bids.length > 0 && (
         <div>
-          <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto auto auto auto", gap: 14, padding: "8px 24px", background: C.paper }}>
-            {["CONTRACTOR", "", "EARLIEST", "BID", "", ""].map((h, i) => (
-              <span key={i} style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: "0.1em" }}>{h}</span>
-            ))}
-          </div>
+          {!isTablet && (
+            <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto auto auto auto", gap: 14, padding: "8px 24px", background: C.paper }}>
+              {["CONTRACTOR", "", "EARLIEST", "BID", "", ""].map((h, i) => (
+                <span key={i} style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: "0.1em" }}>{h}</span>
+              ))}
+            </div>
+          )}
           {bids.map((bid) => {
             const ctrName = bid.contractor ?? "Contractor";
             const initials = ctrName.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
@@ -134,6 +171,7 @@ function JobCard({ job, bids, quotes, propAddress, onAccept, onDecline }: {
                 detail={`${Math.floor(Math.random() * 60 + 10)} verified jobs`}
                 earliest={new Date(Date.now() + Math.floor(Math.random() * 10 + 3) * 86400000).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                 amount={`$${Math.round(bid.amount / 100).toLocaleString()}`}
+                isTablet={isTablet}
                 onDecline={() => onDecline(bid.id)}
                 onAccept={() => onAccept(bid.id)}
               />
@@ -149,7 +187,7 @@ function JobCard({ job, bids, quotes, propAddress, onAccept, onDecline }: {
 
 export default function JobsPage() {
   const navigate             = useNavigate();
-  const { isMobile }         = useBreakpoint();
+  const { isMobile, isTablet } = useBreakpoint();
   const { properties }       = usePropertyStore();
   const [jobs,        setJobs]       = useState<Job[]>([]);
   const [requests,    setRequests]   = useState<QuoteRequest[]>([]);
@@ -207,7 +245,7 @@ export default function JobsPage() {
 
   return (
     <Layout>
-      <div style={{ background: C.paper, minHeight: "100%", padding: "28px 32px" }}>
+      <div style={{ background: C.paper, minHeight: "100%", padding: isTablet ? "20px 20px" : "28px 32px" }}>
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
@@ -255,6 +293,7 @@ export default function JobsPage() {
                   bids={jobBids}
                   quotes={jobRequests}
                   propAddress={propMap[job.propertyId] ?? ""}
+                  isTablet={isTablet}
                   onAccept={handleAccept}
                   onDecline={handleDecline}
                 />
@@ -266,7 +305,7 @@ export default function JobsPage() {
               <div style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 16 }}>
                 HOW BIDDING WORKS
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isTablet ? "1fr 1fr" : "repeat(3, 1fr)", gap: 24 }}>
                 {[
                   { num: "01", title: "Post the work", desc: "Trade, room, description and photos. Your address stays hidden until you accept." },
                   { num: "02", title: "Compare bids",  desc: "Every pro shows their countersigned job count, so price sits next to a track record." },

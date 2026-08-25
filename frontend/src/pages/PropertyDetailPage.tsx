@@ -145,7 +145,7 @@ function maintenanceBadge(due: Date): { label: string; color: string } {
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function PropertyDetailPage() {
-  const { isMobile } = useBreakpoint();
+  const { isMobile, isTablet } = useBreakpoint();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -229,7 +229,7 @@ export default function PropertyDetailPage() {
 
   return (
     <Layout>
-      <div style={{ padding: "1.5rem 2rem", background: C.bg, minHeight: "100vh" }}>
+      <div style={{ padding: isTablet ? "1.25rem 1.25rem" : "1.5rem 2rem", background: C.bg, minHeight: "100vh" }}>
 
         {/* ── Page header ────────────────────────────────────────────────────── */}
         <div style={{ marginBottom: "1.5rem" }}>
@@ -414,7 +414,7 @@ export default function PropertyDetailPage() {
         </div>
 
         {/* ── KPI cards ───────────────────────────────────────────────────────── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "0.875rem", marginBottom: "1.25rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isTablet ? "repeat(3, 1fr)" : "repeat(5, 1fr)", gap: "0.875rem", marginBottom: "1.25rem" }}>
           {[
             {
               label: "Maintenance Due",
@@ -473,7 +473,7 @@ export default function PropertyDetailPage() {
         </div>
 
         {/* ── Three panels ────────────────────────────────────────────────────── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1.25rem", marginBottom: "1.25rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isTablet ? "1fr 1fr" : "1fr 1fr 1fr", gap: "1.25rem", marginBottom: "1.25rem" }}>
 
           {/* Upcoming Maintenance */}
           <Card style={{ display: "flex", flexDirection: "column" }}>
