@@ -12,7 +12,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Bell, LogOut, Plus,
   LayoutDashboard, TrendingUp, Users, Wrench, Radio, Home as HomeIcon, PlusSquare,
-  PanelLeft, Menu, X, Briefcase, Users2,
+  PanelLeft, Menu, X, Briefcase, Users2, User,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthStore } from "@/store/authStore";
@@ -459,50 +459,50 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </span>
             )}
           </button>
-
-          {/* Hamburger */}
-          <button
-            onClick={() => setMobileOpen((o) => !o)}
-            style={{ background: "none", border: "none", cursor: "pointer", padding: "0.5rem" }}
-            aria-label={mobileOpen ? "Close menu" : "Open menu"}
-          >
-            {mobileOpen
-              ? <X    size={20} color={COLORS.plum} />
-              : <Menu size={20} color={COLORS.plum} />
-            }
-          </button>
         </header>
 
-        {/* Mobile dropdown */}
-        {mobileOpen && (
-          <div className="rsp-mobile-menu open">
-            {navLinks.map((link) => {
-              const active = location.pathname === link.to;
-              return (
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  className={`rsp-mobile-link${active ? " active" : ""}`}
-                  onClick={() => setMobileOpen(false)}
-                >
-                  <link.Icon size={15} />
-                  {link.label}
-                </Link>
-              );
-            })}
-            <div className="rsp-mobile-divider" />
-            <button
-              className="rsp-mobile-link"
-              onClick={() => { logout(); setMobileOpen(false); }}
-              style={{ color: COLORS.plum, borderBottom: "none" }}
-            >
-              <LogOut size={15} />
-              Sign Out
-            </button>
-          </div>
-        )}
+        <main className="hf-main-content">{children}</main>
 
-        <main>{children}</main>
+        {/* ── Mobile bottom tab bar ────────────────────────────────────────── */}
+        {(() => {
+          const mobileTabLinks = isContractor ? [] : [
+            { to: "/dashboard",                                          label: "Home",        Icon: LayoutDashboard },
+            { to: singlePropertyId ? `/properties/${singlePropertyId}` : "/dashboard", label: "Property",    Icon: HomeIcon },
+            { to: "/jobs",                                               label: "Jobs",        Icon: Briefcase },
+            { to: "/maintenance",                                        label: "Maintenance", Icon: Wrench },
+            { to: "/settings",                                           label: "Account",     Icon: User },
+          ];
+          return (
+            <>
+              {/* FAB — log work */}
+              <button
+                className="hf-mobile-fab"
+                onClick={() => navigate("/jobs/new")}
+                aria-label="Log maintenance"
+              >
+                <Plus size={22} color="#FCFCFD" strokeWidth={2.5} />
+              </button>
+
+              {/* Bottom nav */}
+              <nav className="hf-bottom-nav" aria-label="Main navigation">
+                {mobileTabLinks.map(({ to, label, Icon }) => {
+                  const active = location.pathname === to || location.pathname.startsWith(to + "/");
+                  return (
+                    <Link
+                      key={to}
+                      to={to}
+                      className={`hf-bottom-tab${active ? " active" : ""}`}
+                      aria-label={label}
+                    >
+                      <Icon size={20} strokeWidth={active ? 2.2 : 1.8} />
+                      <span className="hf-bottom-tab-label">{label}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            </>
+          );
+        })()}
       </div>
 
       {/* Upgrade modal — triggered from user menu */}

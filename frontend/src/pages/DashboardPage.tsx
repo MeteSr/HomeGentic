@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CheckCircle, XCircle, AlertTriangle } from "lucide-react";
 import { Layout } from "@/components/Layout";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
+import { MobileHomeDashboard } from "@/pages/MobileHomeDashboard";
 import { LogJobModal } from "@/components/LogJobModal";
 import { RequestQuoteModal } from "@/components/RequestQuoteModal";
 import { useAuthStore } from "@/store/authStore";
@@ -143,6 +145,7 @@ function PointsRow({ label, value, max }: { label: string; value: number; max: n
 
 export default function DashboardPage() {
   const navigate                          = useNavigate();
+  const { isMobile }                      = useBreakpoint();
   const { profile }                       = useAuthStore();
   const { isOpen: isWizardOpen, open: openAddProp } = useAddPropertyStore();
 
@@ -231,7 +234,7 @@ export default function DashboardPage() {
 
   // ── Effects ───────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!propLoading && properties.length === 1 && !isWizardOpen) {
+    if (!isMobile && !propLoading && properties.length === 1 && !isWizardOpen) {
       navigate(`/properties/${properties[0].id}`, { replace: true });
     }
   }, [propLoading, properties.length, isWizardOpen]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -267,6 +270,14 @@ export default function DashboardPage() {
   const isCertified = homegenticScore >= 80 || propVerified;
 
   // ── Render ────────────────────────────────────────────────────────────────
+  if (isMobile) {
+    return (
+      <Layout>
+        <MobileHomeDashboard />
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div style={{ background: PAPER, minHeight: "100%" }}>
