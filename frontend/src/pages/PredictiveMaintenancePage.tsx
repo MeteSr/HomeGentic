@@ -531,23 +531,22 @@ export default function PredictiveMaintenancePage() {
           ))}
         </div>
 
-        {properties.length === 0 ? (
-          <div style={{ border: `1px solid ${C.border}`, padding: "3rem", textAlign: "center" }}>
-            <p style={{ fontFamily: F.body, fontSize: 14, color: C.muted }}>Add a property to see maintenance predictions.</p>
+        {/* ── Scheduled tasks (always shown; empty state when no property/predictions) ── */}
+        <div style={{ border: `1px solid ${C.border}`, background: "#fff", marginBottom: 24, overflow: "hidden" }}>
+          {/* Section header */}
+          <div style={{ padding: "14px 24px", borderBottom: `1px solid ${C.border}` }}>
+            <span style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: C.muted }}>
+              SCHEDULED TASKS
+            </span>
+            <span style={{ fontFamily: F.body, fontSize: 12, color: C.muted, marginLeft: 8 }}>
+              One-time and seasonal work, outside your recurring contracts.
+            </span>
           </div>
-        ) : (
-          <>
-            {/* ── Scheduled tasks ────────────────────────────────────────────── */}
-            <div style={{ border: `1px solid ${C.border}`, background: "#fff", marginBottom: 24, overflow: "hidden" }}>
-              {/* Section header */}
-              <div style={{ padding: "14px 24px", borderBottom: `1px solid ${C.border}` }}>
-                <span style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: C.muted }}>
-                  SCHEDULED TASKS
-                </span>
-                <span style={{ fontFamily: F.body, fontSize: 12, color: C.muted, marginLeft: 8 }}>
-                  One-time and seasonal work, outside your recurring contracts.
-                </span>
-              </div>
+          {properties.length === 0 ? (
+            <div style={{ padding: "2rem", textAlign: "center" }}>
+              <p style={{ fontFamily: F.body, fontSize: 14, color: C.muted }}>Add a property to see maintenance predictions.</p>
+            </div>
+          ) : (<>
 
               {upcomingTasksWithDates.length === 0 ? (
                 <div style={{ padding: "2rem", textAlign: "center" }}>
@@ -625,24 +624,23 @@ export default function PredictiveMaintenancePage() {
                   </button>
                 </div>
               ))}
-            </div>
+            </>) /* end properties guard */}
+        </div> {/* end scheduled tasks */}
 
-            {/* ── Seasonal tips ──────────────────────────────────────────────── */}
-            <div style={{ border: `1px solid #F5ECD7`, background: "#FFFBEB", padding: "18px 24px" }}>
-              <div style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: "#92400E", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 16 }}>
-                SEASONAL · {climate.toUpperCase()} · {season.toUpperCase()}
+        {/* ── Seasonal tips ──────────────────────────────────────────────── */}
+        <div style={{ border: `1px solid #F5ECD7`, background: "#FFFBEB", padding: "18px 24px" }}>
+          <div style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: "#92400E", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 16 }}>
+            SEASONAL · {climate.toUpperCase()} · {season.toUpperCase()}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+            {SEASONAL_TIPS.map((tip, i) => (
+              <div key={i}>
+                <div style={{ fontFamily: F.body, fontSize: 14, fontWeight: 700, color: C.ink, marginBottom: 4 }}>{tip.title}</div>
+                <div style={{ fontFamily: F.body, fontSize: 13, color: C.muted, lineHeight: 1.5 }}>{tip.desc}</div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
-                {SEASONAL_TIPS.map((tip, i) => (
-                  <div key={i}>
-                    <div style={{ fontFamily: F.body, fontSize: 14, fontWeight: 700, color: C.ink, marginBottom: 4 }}>{tip.title}</div>
-                    <div style={{ fontFamily: F.body, fontSize: 13, color: C.muted, lineHeight: 1.5 }}>{tip.desc}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
+            ))}
+          </div>
+        </div>
       </div>
 
       {scheduleTarget && property && (
