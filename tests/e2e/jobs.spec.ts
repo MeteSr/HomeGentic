@@ -93,7 +93,7 @@ test.describe("JP — /jobs page with open job", () => {
       ];
     });
     await page.goto("/jobs");
-    await expect(page.getByRole("heading", { name: /open jobs/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /open jobs?/i })).toBeVisible();
   });
 
   // JP.4

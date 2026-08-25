@@ -132,6 +132,7 @@ export function AIAssistantPanel() {
         }}>
           <input
             type="text"
+            aria-label="Ask about your home"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={(e) => {
