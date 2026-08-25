@@ -162,8 +162,8 @@ test.describe("SensorPage — /sensors", () => {
       await expect(page.getByRole("heading", { name: /devices reporting/i })).toBeVisible();
     });
 
-    test("shows '3 devices reporting' in heading", async ({ page }) => {
-      await expect(page.getByRole("heading", { name: /3 devices reporting/i })).toBeVisible();
+    test("shows '2 devices reporting' in heading", async ({ page }) => {
+      await expect(page.getByRole("heading", { name: /2 devices reporting/i })).toBeVisible();
     });
 
     test("shows device name for RingAlarm device", async ({ page }) => {

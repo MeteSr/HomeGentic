@@ -464,7 +464,7 @@ export default function DashboardPage() {
                 <div style={{ padding: "14px 16px", borderBottom: `1px solid ${BDR}`, display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontSize: 16 }}>✦</span>
                   <span style={{ fontFamily: FONTS.display, fontSize: 14, fontWeight: 700, color: INK }}>Ask about your home</span>
-                  <span style={{ marginLeft: "auto", fontFamily: FONTS.mono, fontSize: 10, color: "#16A34A", background: "#F0FDF4", borderRadius: 4, padding: "2px 6px", fontWeight: 700 }}>READY</span>
+                  <span style={{ marginLeft: "auto", fontFamily: FONTS.mono, fontSize: 10, color: "#166534", background: "#F0FDF4", borderRadius: 4, padding: "2px 6px", fontWeight: 700 }}>READY</span>
                 </div>
                 <div style={{ padding: 16 }}>
                   <p style={{ fontFamily: FONTS.body, fontSize: 12, color: MUTED, marginBottom: 14, lineHeight: 1.5 }}>
@@ -553,7 +553,7 @@ export default function DashboardPage() {
                     </span>
                     <span style={{ fontFamily: FONTS.body, fontSize: 13, color: INK, flex: 1 }}>{ev.label}</span>
                     {ev.pts !== 0 && (
-                      <span style={{ fontFamily: FONTS.mono, fontSize: 12, fontWeight: 700, color: ev.pts > 0 ? "#16A34A" : "#DC2626" }}>
+                      <span style={{ fontFamily: FONTS.mono, fontSize: 12, fontWeight: 700, color: ev.pts > 0 ? "#166534" : "#DC2626" }}>
                         {ev.pts > 0 ? `+${ev.pts}` : ev.pts} pts
                       </span>
                     )}

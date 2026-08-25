@@ -25,7 +25,7 @@ function SensorCard({ device, alert }: { device: SensorDevice; alert?: SensorEve
   const isNormal = !alert;
 
   const statusLabel = isAlert ? "ALERT" : isHigh ? "HIGH" : "NORMAL";
-  const statusColor = isAlert ? "#DC2626" : isHigh ? "#D97706" : "#16A34A";
+  const statusColor = isAlert ? "#991B1B" : isHigh ? "#92400E" : "#166534";
   const statusBg    = isAlert ? "#FEF2F2" : isHigh ? "#FFFBEB" : "#F0FDF4";
 
   const batteryPct = Math.floor(Math.random() * 60 + 35);
