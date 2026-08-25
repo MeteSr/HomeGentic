@@ -53,7 +53,7 @@ function StepIndicator({ step }: { step: number }) {
               }}>
                 {done
                   ? <CheckCircle size={13} color={COLORS.white} />
-                  : <span style={{ fontFamily: FONTS.sans, fontSize: "0.7rem", fontWeight: 700, color: active ? COLORS.white : COLORS.plumMid }}>{i + 1}</span>
+                  : <span style={{ fontFamily: FONTS.sans, fontSize: "0.7rem", fontWeight: 700, color: active ? COLORS.white : COLORS.plum }}>{i + 1}</span>
                 }
               </div>
               <span style={{ fontFamily: FONTS.sans, fontSize: "0.625rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: active ? COLORS.plum : COLORS.plumMid }}>
