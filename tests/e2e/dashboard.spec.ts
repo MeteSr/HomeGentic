@@ -105,11 +105,11 @@ test.describe("DashboardPage — /dashboard", () => {
   });
 
   test("shows SWITCH button in address bar", async ({ page }) => {
-    await expect(page.getByRole("button", { name: /switch/i })).toBeVisible();
+    await expect(page.getByText("SWITCH")).toBeVisible();
   });
 
   test("clicking SWITCH reveals property switcher dropdown", async ({ page }) => {
-    await page.getByRole("button", { name: /switch/i }).click();
+    await page.getByText("SWITCH").click();
     await expect(page.getByText("456 Oak Ave").first()).toBeVisible();
   });
 
@@ -158,7 +158,7 @@ test.describe("DashboardPage — /dashboard", () => {
   // ── Navigation ──────────────────────────────────────────────────────────────
 
   test("clicking SWITCH then a property switches the active property", async ({ page }) => {
-    await page.getByRole("button", { name: /switch/i }).click();
+    await page.getByText("SWITCH").click();
     // Second property listed in dropdown
     await page.getByText("456 Oak Ave").click();
     // Address bar now shows second property
@@ -167,6 +167,6 @@ test.describe("DashboardPage — /dashboard", () => {
 
   test("'+ Log maintenance' button opens Log Job modal", async ({ page }) => {
     await page.getByRole("button", { name: /log maintenance/i }).click();
-    await expect(page.getByRole("heading", { name: /log a job/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /what was done/i })).toBeVisible();
   });
 });
