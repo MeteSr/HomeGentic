@@ -516,29 +516,27 @@ export default function PredictiveMaintenancePage() {
           </div>
         </div>
 
+        {/* ── Recurring services (always shown — uses mock data, not property-specific) ── */}
+        <div style={{ border: `1px solid ${C.border}`, background: "#fff", marginBottom: 24, overflow: "hidden" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 24px", borderBottom: `1px solid ${C.border}` }}>
+            <span style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: C.muted }}>
+              RECURRING SERVICES · {recurringServices.length} contracts · {pausedCount} paused{nextVisitDaysMsg ? ` · ${nextVisitDaysMsg}` : ""}
+            </span>
+            <button onClick={() => navigate("/recurring/new")} style={{ fontFamily: F.body, fontSize: 13, fontWeight: 600, color: C.ink, background: "#fff", border: `1px solid ${C.border}`, padding: "7px 14px", cursor: "pointer" }}>
+              Add service
+            </button>
+          </div>
+          {recurringServices.map(svc => (
+            <RecurringRow key={svc.id} svc={svc} />
+          ))}
+        </div>
+
         {properties.length === 0 ? (
           <div style={{ border: `1px solid ${C.border}`, padding: "3rem", textAlign: "center" }}>
             <p style={{ fontFamily: F.body, fontSize: 14, color: C.muted }}>Add a property to see maintenance predictions.</p>
           </div>
         ) : (
           <>
-            {/* ── Recurring services ─────────────────────────────────────────── */}
-            <div style={{ border: `1px solid ${C.border}`, background: "#fff", marginBottom: 24, overflow: "hidden" }}>
-              {/* Section header */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 24px", borderBottom: `1px solid ${C.border}` }}>
-                <span style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: C.muted }}>
-                  RECURRING SERVICES · {recurringServices.length} contracts · {pausedCount} paused{nextVisitDaysMsg ? ` · ${nextVisitDaysMsg}` : ""}
-                </span>
-                <button onClick={() => navigate("/recurring/new")} style={{ fontFamily: F.body, fontSize: 13, fontWeight: 600, color: C.ink, background: "#fff", border: `1px solid ${C.border}`, padding: "7px 14px", cursor: "pointer" }}>
-                  Add service
-                </button>
-              </div>
-
-              {recurringServices.map(svc => (
-                <RecurringRow key={svc.id} svc={svc} />
-              ))}
-            </div>
-
             {/* ── Scheduled tasks ────────────────────────────────────────────── */}
             <div style={{ border: `1px solid ${C.border}`, background: "#fff", marginBottom: 24, overflow: "hidden" }}>
               {/* Section header */}
