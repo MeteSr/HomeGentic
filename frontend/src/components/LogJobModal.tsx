@@ -246,8 +246,8 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
                 {/* Property selector */}
                 {properties.length > 1 && (
                   <div>
-                    <label className="form-label">Property</label>
-                    <select className="form-input" value={form.propertyId} onChange={(e) => update("propertyId", e.target.value)}>
+                    <label htmlFor="lj-property" className="form-label">Property</label>
+                    <select id="lj-property" className="form-input" value={form.propertyId} onChange={(e) => update("propertyId", e.target.value)}>
                       {properties.map((p) => (
                         <option key={String(p.id)} value={String(p.id)}>{p.address}, {p.city}</option>
                       ))}
@@ -257,8 +257,8 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
 
                 {/* Service type */}
                 <div>
-                  <label className="form-label">Service Type</label>
-                  <select className="form-input" value={form.serviceType} onChange={(e) => update("serviceType", e.target.value)}>
+                  <label htmlFor="lj-service-type" className="form-label">Service Type</label>
+                  <select id="lj-service-type" className="form-input" value={form.serviceType} onChange={(e) => update("serviceType", e.target.value)}>
                     {SERVICE_TYPES.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
                   {isInsuranceRelevant(form.serviceType) && (
@@ -293,30 +293,30 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
             {/* Contractor name */}
             {!form.isDiy && (
               <div>
-                <label className="form-label">Contractor / Company Name</label>
-                <input className="form-input" placeholder="e.g. Cool Air Services LLC" value={form.contractorName} onChange={(e) => update("contractorName", e.target.value)} />
+                <label htmlFor="lj-contractor" className="form-label">Contractor / Company Name</label>
+                <input id="lj-contractor" className="form-input" placeholder="e.g. Cool Air Services LLC" value={form.contractorName} onChange={(e) => update("contractorName", e.target.value)} />
               </div>
             )}
 
             {/* Amount + Date */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
               <div>
-                <label className="form-label">{form.isDiy ? "Materials Cost" : "Amount Paid"}</label>
+                <label htmlFor="lj-amount" className="form-label">{form.isDiy ? "Materials Cost" : "Amount Paid"}</label>
                 <div style={{ position: "relative" }}>
                   <span style={{ position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)", color: COLORS.plumMid, fontSize: "0.875rem", pointerEvents: "none" }}>$</span>
-                  <input className="form-input" type="number" min="0" step="0.01" placeholder="0.00" value={form.amount} onChange={(e) => update("amount", e.target.value)} style={{ paddingLeft: "1.5rem" }} />
+                  <input id="lj-amount" className="form-input" type="number" min="0" step="0.01" placeholder="0.00" value={form.amount} onChange={(e) => update("amount", e.target.value)} style={{ paddingLeft: "1.5rem" }} />
                 </div>
               </div>
               <div>
-                <label className="form-label">Date Completed</label>
-                <input className="form-input" type="date" value={form.date} onChange={(e) => update("date", e.target.value)} />
+                <label htmlFor="lj-date" className="form-label">Date Completed</label>
+                <input id="lj-date" className="form-input" type="date" value={form.date} onChange={(e) => update("date", e.target.value)} />
               </div>
             </div>
 
             {/* Description */}
             <div>
-              <label className="form-label">Description <span style={{ color: COLORS.plumMid, fontWeight: 300 }}>(optional)</span></label>
-              <textarea className="form-input" rows={2} placeholder="Describe the work done, materials used…" value={form.description} onChange={(e) => update("description", e.target.value)} style={{ resize: "vertical" }} />
+              <label htmlFor="lj-description" className="form-label">Description <span style={{ color: COLORS.plumMid, fontWeight: 300 }}>(optional)</span></label>
+              <textarea id="lj-description" className="form-input" rows={2} placeholder="Describe the work done, materials used…" value={form.description} onChange={(e) => update("description", e.target.value)} style={{ resize: "vertical" }} />
             </div>
 
             {/* Permit — with explanation */}
@@ -329,8 +329,8 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
                   </p>
                 </div>
                 <div>
-                  <label className="form-label">Permit Number <span style={{ color: COLORS.plumMid, fontWeight: 300 }}>(optional)</span></label>
-                  <input className="form-input" placeholder="e.g. HVAC-2024-0412" value={form.permitNumber} onChange={(e) => update("permitNumber", e.target.value)} />
+                  <label htmlFor="lj-permit" className="form-label">Permit Number <span style={{ color: COLORS.plumMid, fontWeight: 300 }}>(optional)</span></label>
+                  <input id="lj-permit" className="form-input" placeholder="e.g. HVAC-2024-0412" value={form.permitNumber} onChange={(e) => update("permitNumber", e.target.value)} />
                 </div>
               </>
             )}
@@ -338,9 +338,9 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
             {/* Warranty */}
             {!form.isDiy && (
               <div>
-                <label className="form-label">Warranty <span style={{ color: COLORS.plumMid, fontWeight: 300 }}>(optional)</span></label>
+                <label htmlFor="lj-warranty" className="form-label">Warranty <span style={{ color: COLORS.plumMid, fontWeight: 300 }}>(optional)</span></label>
                 <div style={{ position: "relative" }}>
-                  <input className="form-input" type="number" min="0" placeholder="e.g. 12" value={form.warrantyMonths} onChange={(e) => update("warrantyMonths", e.target.value)} style={{ paddingRight: "4.5rem" }} />
+                  <input id="lj-warranty" className="form-input" type="number" min="0" placeholder="e.g. 12" value={form.warrantyMonths} onChange={(e) => update("warrantyMonths", e.target.value)} style={{ paddingRight: "4.5rem" }} />
                   <span style={{ position: "absolute", right: "0.75rem", top: "50%", transform: "translateY(-50%)", fontFamily: FONTS.sans, fontSize: "0.65rem", color: COLORS.plumMid, pointerEvents: "none" }}>months</span>
                 </div>
               </div>
