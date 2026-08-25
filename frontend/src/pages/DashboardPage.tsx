@@ -316,14 +316,14 @@ export default function DashboardPage() {
             <div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
                 <span style={{ fontFamily: FONTS.display, fontSize: 80, fontWeight: 900, color: "#fff", lineHeight: 1 }}>{homegenticScore}</span>
-                <span style={{ fontFamily: FONTS.display, fontSize: 36, fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>{scoreGrade}</span>
+                <span style={{ fontFamily: FONTS.display, fontSize: 36, fontWeight: 700, color: "rgba(255,255,255,0.9)" }}>{scoreGrade}</span>
               </div>
               {atRiskWarnings.length > 0 ? (
-                <p style={{ fontFamily: FONTS.body, fontSize: 13, color: "rgba(255,255,255,0.7)", marginTop: 4 }}>
+                <p style={{ fontFamily: FONTS.body, fontSize: 13, color: "rgba(255,255,255,0.9)", marginTop: 4 }}>
                   {atRiskWarnings.length} risk{atRiskWarnings.length !== 1 ? "s" : ""} affecting your score
                 </p>
               ) : (
-                <p style={{ fontFamily: FONTS.body, fontSize: 13, color: "rgba(255,255,255,0.7)", marginTop: 4 }}>
+                <p style={{ fontFamily: FONTS.body, fontSize: 13, color: "rgba(255,255,255,0.9)", marginTop: 4 }}>
                   {loading ? "Loading…" : verifiedJobCount > 0
                     ? `A buyer opening your report sees ${verifiedJobCount} verified repair${verifiedJobCount !== 1 ? "s" : ""} and every receipt behind them.`
                     : "Log your first job to start building your home record."}
@@ -338,25 +338,25 @@ export default function DashboardPage() {
             <div style={{ textAlign: "right" }}>
               {est ? (
                 <>
-                  <div style={{ fontFamily: FONTS.mono, fontSize: 10, color: "rgba(255,255,255,0.55)", letterSpacing: "0.1em", marginBottom: 4 }}>
+                  <div style={{ fontFamily: FONTS.mono, fontSize: 10, color: "rgba(255,255,255,0.9)", letterSpacing: "0.1em", marginBottom: 4 }}>
                     WHAT BUYERS PAY EXTRA · {activeProperty?.zipCode ?? ""}
                   </div>
                   <div style={{ fontFamily: FONTS.display, fontSize: 32, fontWeight: 900, color: "#fff", lineHeight: 1 }}>
                     ${est.low.toLocaleString()}–${est.high.toLocaleString()}
                   </div>
-                  <div style={{ fontFamily: FONTS.body, fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>
+                  <div style={{ fontFamily: FONTS.body, fontSize: 12, color: "rgba(255,255,255,0.9)", marginTop: 4 }}>
                     Above the $350,000 Nashville median at grade {scoreGrade}, on comparable sales.
                   </div>
                 </>
               ) : (
-                <div style={{ fontFamily: FONTS.body, fontSize: 13, color: "rgba(255,255,255,0.6)" }}>
+                <div style={{ fontFamily: FONTS.body, fontSize: 13, color: "rgba(255,255,255,0.9)" }}>
                   Log more jobs to unlock value insights.
                 </div>
               )}
 
               {scoreHistory.length > 1 && (
                 <div style={{ marginTop: 12 }}>
-                  <div style={{ fontFamily: FONTS.mono, fontSize: 10, color: "rgba(255,255,255,0.55)", letterSpacing: "0.1em", marginBottom: 6 }}>12-MONTH SCORE TREND</div>
+                  <div style={{ fontFamily: FONTS.mono, fontSize: 10, color: "rgba(255,255,255,0.9)", letterSpacing: "0.1em", marginBottom: 6 }}>12-MONTH SCORE TREND</div>
                   <ScoreTrendBars history={scoreHistory} />
                 </div>
               )}
@@ -569,13 +569,13 @@ export default function DashboardPage() {
             {/* Verification upsell */}
             {!propVerified && (
               <div style={{ background: BLUE, borderRadius: 12, padding: 20 }}>
-                <div style={{ fontFamily: FONTS.mono, fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.6)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>
+                <div style={{ fontFamily: FONTS.mono, fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.9)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>
                   NEXT POINTS AVAILABLE
                 </div>
                 <h3 style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 800, color: "#fff", lineHeight: 1.25, marginBottom: 8 }}>
                   Verify a second property for +10 pts
                 </h3>
-                <p style={{ fontFamily: FONTS.body, fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.5, marginBottom: 16 }}>
+                <p style={{ fontFamily: FONTS.body, fontSize: 13, color: "rgba(255,255,255,0.9)", lineHeight: 1.5, marginBottom: 16 }}>
                   Property verification sits at 10 of 20 — the largest gap left in your score.
                 </p>
                 <button onClick={() => navigate(`/properties/${activePropertyId}/verify`)} style={{ width: "100%", fontFamily: FONTS.body, fontSize: 13, fontWeight: 700, color: BLUE, background: "#FFD23F", border: "none", borderRadius: 100, padding: "10px", cursor: "pointer" }}>

@@ -88,9 +88,9 @@ test.describe("CB — /contractors browse page", () => {
   });
 
   // CB.1 — heading
-  test("shows 'pros with work on this record' heading", async ({ page }) => {
+  test("shows 'pro(s) with work on this record' heading", async ({ page }) => {
     await page.goto("/contractors");
-    await expect(page.getByRole("heading", { name: /pros with work on this record/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /pros? with work on this record/i })).toBeVisible();
   });
 
   // CB.2 — registry contractors appear
@@ -109,8 +109,9 @@ test.describe("CB — /contractors browse page", () => {
   // CB.4 — View jobs navigates to /contractor/:id for registry cards
   test("'View jobs' button on registry card navigates to /contractor/:id", async ({ page }) => {
     await page.goto("/contractors");
-    // First registry contractor card — the View jobs button calls navigate(`/contractor/${ctr.id}`)
-    await page.getByRole("button", { name: /view jobs/i }).first().click();
+    // The first card is the myContractors entry (Flow Masters → /jobs).
+    // Registry extras come after; click the last "View jobs" button to hit a registry card.
+    await page.getByRole("button", { name: /view jobs/i }).last().click();
     await expect(page).toHaveURL(/\/contractor\//);
   });
 
