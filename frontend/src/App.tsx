@@ -78,6 +78,7 @@ const CheckAddressPage           = React.lazy(() => import("@/pages/CheckAddress
 const PriceLookupPage            = React.lazy(() => import("@/pages/PriceLookupPage"));
 const InstantForecastPage        = React.lazy(() => import("@/pages/InstantForecastPage"));
 const CheckoutPage               = React.lazy(() => import("@/pages/CheckoutPage"));
+const MobilePlansPage            = React.lazy(() => import("@/pages/MobilePlansPage"));
 const PropertyTransferClaimPage  = React.lazy(() => import("@/pages/PropertyTransferClaimPage"));
 const PropertyManagerClaimPage   = React.lazy(() => import("@/pages/PropertyManagerClaimPage"));
 const DemoPage                   = React.lazy(() => import("@/pages/DemoPage"));
@@ -151,6 +152,7 @@ export default function App() {
           <Route path="/payment-success" element={<PaymentSuccessPage />} />
           <Route path="/payment-failure" element={<PaymentFailurePage />} />
           <Route path="/checkout"        element={<CheckoutPage />} />
+          <Route path="/plans"           element={<ProtectedRoute><MobilePlansPage /></ProtectedRoute>} />
           <Route path="/homes"                  element={<FsboSearchPage />} />
           <Route path="/my-listing/:propertyId" element={<ProtectedRoute><FsboListingManagerPage /></ProtectedRoute>} />
           <Route path="/for-sale/:propertyId"    element={<FsboListingPage />} />

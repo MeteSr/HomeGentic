@@ -136,7 +136,7 @@ export function MobileAccountPage() {
 
       {/* ── Current plan card ────────────────────────────────────────────── */}
       <div
-        onClick={() => navigate("/settings?tab=billing")}
+        onClick={() => navigate("/plans")}
         style={{
           cursor: "pointer", background: M.card, border: `1px solid ${M.cardBdr}`,
           borderRadius: M.radius, boxShadow: M.cardShadow,

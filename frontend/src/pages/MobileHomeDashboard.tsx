@@ -354,7 +354,7 @@ export function MobileHomeDashboard() {
 
       {/* ── Current plan ───────────────────────────────────────────────────── */}
       <button
-        onClick={() => navigate("/settings")}
+        onClick={() => navigate("/plans")}
         style={{
           width: "100%", background: "none", border: "none", cursor: "pointer",
           textAlign: "left", padding: 0, marginBottom: 14,
