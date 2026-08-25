@@ -5,6 +5,8 @@ import { jobService, type Job } from "@/services/job";
 import { quoteService, type QuoteRequest, type Quote } from "@/services/quote";
 import { usePropertyStore } from "@/store/propertyStore";
 import { V2_COLORS, V2_FONTS } from "@/theme";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
+import { MobileJobsPage } from "@/pages/MobileJobsPage";
 
 const C = V2_COLORS;
 const F = V2_FONTS;
@@ -147,6 +149,7 @@ function JobCard({ job, bids, quotes, propAddress, onAccept, onDecline }: {
 
 export default function JobsPage() {
   const navigate             = useNavigate();
+  const { isMobile }         = useBreakpoint();
   const { properties }       = usePropertyStore();
   const [jobs,        setJobs]       = useState<Job[]>([]);
   const [requests,    setRequests]   = useState<QuoteRequest[]>([]);
@@ -193,6 +196,14 @@ export default function JobsPage() {
       return next;
     });
   };
+
+  if (isMobile) {
+    return (
+      <Layout>
+        <MobileJobsPage />
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

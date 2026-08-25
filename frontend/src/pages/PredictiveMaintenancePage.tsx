@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Layout } from "@/components/Layout";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
+import { MobileMaintenancePage } from "@/pages/MobileMaintenancePage";
 import { usePropertyStore } from "@/store/propertyStore";
 import { useJobStore } from "@/store/jobStore";
 import {
@@ -423,6 +425,7 @@ function RecurringRow({ svc }: { svc: MockRecurring }) {
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 export default function PredictiveMaintenancePage() {
+  const { isMobile }   = useBreakpoint();
   const { properties } = usePropertyStore();
   const { jobs }       = useJobStore();
   const navigate       = useNavigate();
@@ -491,6 +494,14 @@ export default function PredictiveMaintenancePage() {
 
   // Next recurring visit in N days (rough: closest active service)
   const nextVisitDaysMsg = activeRecurring.length > 0 ? "next visit in 2 days" : "";
+
+  if (isMobile) {
+    return (
+      <Layout>
+        <MobileMaintenancePage />
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { MobileAccountPage } from "@/pages/MobileAccountPage";
 import { User, CreditCard, Bell, Lock, CheckCircle, Download } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
@@ -56,6 +57,14 @@ export default function SettingsPage() {
   const [tab, setTab] = useState<Tab>(TABS.some((t) => t.key === initialTab) ? initialTab : "account");
   const { profile, setProfile } = useAuthStore();
   const { isMobile } = useBreakpoint();
+
+  if (isMobile) {
+    return (
+      <Layout>
+        <MobileAccountPage />
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

@@ -1,5 +1,7 @@
 import React from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
+import { MobilePropertyPage } from "@/pages/MobilePropertyPage";
 import {
   Share2, Shield, Wrench, MessageSquare, AlertCircle,
   CalendarDays, Activity, Cpu, ArrowRight,
@@ -143,6 +145,7 @@ function maintenanceBadge(due: Date): { label: string; color: string } {
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function PropertyDetailPage() {
+  const { isMobile } = useBreakpoint();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -212,6 +215,14 @@ export default function PropertyDetailPage() {
             Back to Dashboard
           </Button>
         </div>
+      </Layout>
+    );
+  }
+
+  if (isMobile) {
+    return (
+      <Layout>
+        <MobilePropertyPage />
       </Layout>
     );
   }
