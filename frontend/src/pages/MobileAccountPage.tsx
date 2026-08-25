@@ -109,9 +109,9 @@ export function MobileAccountPage() {
   const { profile, tier, clearAuth } = useAuthStore();
   const { properties }       = usePropertyStore();
 
-  const firstName   = profile?.name?.split(" ")[0] ?? "Account";
-  const fullName    = profile?.name ?? "Account";
   const email       = profile?.email ?? "";
+  const firstName   = email ? email.split("@")[0] : "Account";
+  const fullName    = email || "Account";
   const planName    = TIER_LABELS[tier ?? "Basic"] ?? "Basic";
   const planUsage   = TIER_USAGE[tier ?? "Basic"] ?? "";
 

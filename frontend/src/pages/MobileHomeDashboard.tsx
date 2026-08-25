@@ -205,9 +205,9 @@ export function MobileHomeDashboard() {
   // Greeting
   const hour = new Date().getHours();
   const timeOfDay = hour < 12 ? "MORNING" : hour < 17 ? "AFTERNOON" : "EVENING";
-  const firstName  = (profile?.name ?? "").split(" ")[0].toUpperCase() || "THERE";
-  const initials   = (profile?.name ?? "?")
-    .split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
+  const emailLocal  = profile?.email?.split("@")[0] ?? "";
+  const firstName   = emailLocal.toUpperCase() || "THERE";
+  const initials    = emailLocal.slice(0, 2).toUpperCase() || "HG";
 
   const verifiedCount = propJobs.filter(j => j.verified).length;
   const scorePct      = Math.min(score, 100);

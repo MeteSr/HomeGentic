@@ -6,7 +6,12 @@ import { useJobStore } from "@/store/jobStore";
 import { useMaintenanceSchedule } from "@/hooks/useMaintenanceSchedule";
 import { getAtRiskWarnings } from "@/services/scoreDecayService";
 import { systemAgesService } from "@/services/systemAges";
+import { SERVICE_TYPE_LABELS, FREQUENCY_LABELS } from "@/services/recurringService";
 import { V2_FONTS } from "@/theme";
+
+const FREQ_DAYS: Record<string, number> = {
+  Weekly: 7, BiWeekly: 14, Monthly: 30, Quarterly: 90, SemiAnnually: 180, Annually: 365,
+};
 
 const F = V2_FONTS;
 
@@ -89,7 +94,7 @@ function ScoreAtRiskCard({ text }: { text: string }) {
 
 export function MobileMaintenancePage() {
   const navigate              = useNavigate();
-  const { properties, loading: propLoading } = usePropertyStore();
+  const { properties, isLoading: propLoading } = usePropertyStore();
   const { jobs }              = useJobStore();
   const [activePropertyId]    = useState<string | null>(
     properties.length > 0 ? String(properties[0].id) : null
@@ -101,21 +106,24 @@ export function MobileMaintenancePage() {
 
   // Build schedule rows from recurring services
   const scheduleRows = recurringServices.map(svc => {
-    const logs       = visitLogMap[svc.id] ?? [];
-    const lastVisit  = logs[0]?.date ?? null;
-    const nextDate   = lastVisit
-      ? new Date(new Date(lastVisit).getTime() + svc.intervalDays * 86400000)
-      : new Date();
-    const daysUntil  = Math.ceil((nextDate.getTime() - Date.now()) / 86400000);
-    const dateStr    = nextDate.toLocaleDateString(undefined, { month: "short", day: "numeric" }).toUpperCase();
-    const overdue    = daysUntil < 0;
-    const dueSoon    = daysUntil >= 0 && daysUntil <= 7;
+    const logs        = visitLogMap[svc.id] ?? [];
+    const lastVisit   = logs[0]?.visitDate ?? null;
+    const freqDays    = FREQ_DAYS[svc.frequency] ?? 30;
+    const nextDate    = lastVisit
+      ? new Date(new Date(lastVisit).getTime() + freqDays * 86400000)
+      : new Date(new Date(svc.startDate).getTime() + freqDays * 86400000);
+    const daysUntil   = Math.ceil((nextDate.getTime() - Date.now()) / 86400000);
+    const dateStr     = nextDate.toLocaleDateString(undefined, { month: "short", day: "numeric" }).toUpperCase();
+    const overdue     = daysUntil < 0;
+    const dueSoon     = daysUntil >= 0 && daysUntil <= 7;
+    const label       = SERVICE_TYPE_LABELS[svc.serviceType] ?? svc.serviceType;
+    const freqLabel   = FREQUENCY_LABELS[svc.frequency] ?? svc.frequency;
 
     return {
       id:       svc.id,
       date:     dateStr,
-      label:    svc.name,
-      meta:     svc.contractor ? `${svc.contractor} · every ${svc.intervalDays}d` : `Every ${svc.intervalDays} days`,
+      label,
+      meta:     svc.providerName ? `${svc.providerName} · ${freqLabel}` : freqLabel,
       due:      overdue ? "OVERDUE" : dueSoon ? "DUE SOON" : "UPCOMING",
       dueColor: overdue ? "#991B1B" : dueSoon ? "#92400E" : M.muted,
       dueBg:    overdue ? "#FEE2E2" : dueSoon ? "#FEF3C7" : "#F0F1F5",

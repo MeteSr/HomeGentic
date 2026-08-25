@@ -144,7 +144,6 @@ export function MobilePropertyPage() {
   const [selectedId, setSelectedId] = useState(paramId ?? String(properties[0]?.id ?? ""));
 
   const { property, loading }    = usePropertyDetail(selectedId);
-  const { jobs }                 = usePropertyJobs(selectedId);
   const { rooms }                = usePropertyRooms(selectedId);
 
   // Build room rows
