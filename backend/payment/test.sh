@@ -317,9 +317,11 @@ if [ -n "$PROPERTY_ID" ] && [ -n "$QUOTE_ID" ] && [ -n "$PHOTO_ID" ]; then
   # Wire payment as admin in property/quote/photo (may already be wired by deploy.sh)
   PAYMENT_ID=$(dfx canister id payment --network local 2>/dev/null || echo "")
   if [ -n "$PAYMENT_ID" ]; then
-    dfx canister call property addAdmin "(principal \"$PAYMENT_ID\")" 2>/dev/null || true
+    # property/photo use nonce-gated addAdmin(Principal, Text); pass "" — adminInitialized=true,
+    # deployer is already admin so nonce is accepted but ignored for subsequent calls.
+    dfx canister call property addAdmin "(principal \"$PAYMENT_ID\", \"\")" 2>/dev/null || true
     dfx canister call quote    addAdmin "(principal \"$PAYMENT_ID\")" 2>/dev/null || true
-    dfx canister call photo    addAdmin "(principal \"$PAYMENT_ID\")" 2>/dev/null || true
+    dfx canister call photo    addAdmin "(principal \"$PAYMENT_ID\", \"\")" 2>/dev/null || true
   fi
 
   # Grant Pro subscription — triggers propagateTier → property/quote/photo.setTier

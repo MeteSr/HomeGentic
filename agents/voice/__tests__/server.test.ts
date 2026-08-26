@@ -28,6 +28,17 @@
 // jest.mock calls are hoisted above all imports by babel-jest.
 // The factories run before server.ts is evaluated so every module-level
 // variable inside server.ts gets the mock at load time.
+
+// Mock the payment canister so tests never attempt a real ICP call.
+// getSubscriptionTier rejects so server.ts falls back to the x-subscription-tier header.
+// consumeAgentCredit rejects so no credit fallback fires (tests that need it can override).
+jest.mock("../paymentCanister", () => ({
+  getSubscriptionTier:  jest.fn().mockRejectedValue(new Error("no canister in test")),
+  consumeAgentCredit:   jest.fn().mockRejectedValue(new Error("no canister in test")),
+  activateInCanister:   jest.fn().mockResolvedValue(undefined),
+  grantAgentCredits:    jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.mock("../anthropicProvider", () => ({
   createAnthropicProvider: jest.fn().mockReturnValue({
     stream: jest.fn(),
