@@ -145,7 +145,7 @@ function PointsRow({ label, value, max }: { label: string; value: number; max: n
 
 export default function DashboardPage() {
   const navigate                          = useNavigate();
-  const { isMobile }                      = useBreakpoint();
+  const { isMobile, isTablet }             = useBreakpoint();
   const { profile }                       = useAuthStore();
   const { isOpen: isWizardOpen, open: openAddProp } = useAddPropertyStore();
 
@@ -283,7 +283,7 @@ export default function DashboardPage() {
       <div style={{ background: PAPER, minHeight: "100%" }}>
 
         {/* ── HERO ──────────────────────────────────────────────────────── */}
-        <div style={{ background: BLUE, padding: "24px 32px 28px" }}>
+        <div style={{ background: BLUE, padding: isTablet ? "20px 20px 24px" : "24px 32px 28px" }}>
           {/* Address bar row */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
             <PropertyAddressBar
@@ -377,7 +377,7 @@ export default function DashboardPage() {
 
         {/* ── ALERT CARDS ─────────────────────────────────────────────────── */}
         {atRiskWarnings.length > 0 && (
-          <div style={{ padding: "16px 32px", borderBottom: `1px solid ${BDR}` }}>
+          <div style={{ padding: isTablet ? "16px 20px" : "16px 32px", borderBottom: `1px solid ${BDR}` }}>
             <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 4 }}>
               {atRiskWarnings.slice(0, 5).map((w, i) => (
                 <AlertCard
@@ -394,10 +394,10 @@ export default function DashboardPage() {
         )}
 
         {/* ── MAIN BODY ────────────────────────────────────────────────────── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 0, alignItems: "start" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isTablet ? "1fr" : "1fr 320px", gap: 0, alignItems: "start" }}>
 
           {/* Left: main content */}
-          <div style={{ padding: "24px 32px", borderRight: `1px solid ${BDR}` }}>
+          <div style={{ padding: isTablet ? "20px 20px" : "24px 32px", borderRight: isTablet ? "none" : `1px solid ${BDR}` }}>
 
             {/* AWAITING YOU */}
             {pendingProposals.length > 0 && (
@@ -431,7 +431,7 @@ export default function DashboardPage() {
             )}
 
             {/* 3-col: HOME PULSE · POINTS · AI CHAT */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20, marginBottom: 32 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isTablet ? "1fr 1fr" : "1fr 1fr 1fr", gap: 20, marginBottom: 32 }}>
 
               {/* HOME PULSE */}
               <div style={{ border: `1px solid ${BDR}`, borderRadius: 12, padding: 20 }}>

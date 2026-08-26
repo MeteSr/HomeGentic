@@ -35,6 +35,7 @@ import { ActivityFeedDrawer } from "./ActivityFeedDrawer";
 import { UserMenuPopover } from "./UserMenuPopover";
 import { deriveEvents } from "@/services/activityFeed";
 import { COLORS, FONTS } from "@/theme";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
 
 // Re-export for consumers that imported these from Layout
 export type { ActivityEvent } from "@/services/activityFeed";
@@ -62,6 +63,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { properties }         = usePropertyStore();
   const location               = useLocation();
   const navigate               = useNavigate();
+  const { isTablet }           = useBreakpoint();
 
   const [sidebarOpen,  setSidebarOpen]  = useState(() =>
     localStorage.getItem("hf_sidebar") !== "closed"
@@ -188,17 +190,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
     return directMatch || singlePropMatch;
   };
 
-  const sidebarW = sidebarOpen ? W_OPEN : W_CLOSED;
+  // On tablet, force icon-only (collapsed) display regardless of localStorage state
+  const effectivelyCollapsed = isTablet || !sidebarOpen;
+  const sidebarW = isTablet ? W_CLOSED : (sidebarOpen ? W_OPEN : W_CLOSED);
 
   // ── Shared sidebar item style helpers ────────────────────────────────────────
 
   const itemBase = (active = false): React.CSSProperties => ({
     display:         "flex",
     alignItems:      "center",
-    gap:             sidebarOpen ? "0.75rem" : 0,
+    gap:             effectivelyCollapsed ? 0 : "0.75rem",
     height:          "2.75rem",
-    paddingLeft:     sidebarOpen ? "1.125rem" : 0,
-    justifyContent:  sidebarOpen ? "flex-start" : "center",
+    paddingLeft:     effectivelyCollapsed ? 0 : "1.125rem",
+    justifyContent:  effectivelyCollapsed ? "center" : "flex-start",
     overflow:        "hidden",
     whiteSpace:      "nowrap",
     color:           active ? COLORS.navActive : COLORS.navInactive,
@@ -230,12 +234,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
           height:        "3.5rem",
           display:       "flex",
           alignItems:    "center",
-          justifyContent: sidebarOpen ? "space-between" : "center",
-          paddingLeft:   sidebarOpen ? "1.25rem" : 0,
-          paddingRight:  sidebarOpen ? "0.75rem" : 0,
+          justifyContent: effectivelyCollapsed ? "center" : "space-between",
+          paddingLeft:   effectivelyCollapsed ? 0 : "1.25rem",
+          paddingRight:  effectivelyCollapsed ? 0 : "0.75rem",
           flexShrink:    0,
         }}>
-          {sidebarOpen && (
+          {!effectivelyCollapsed && (
             <Link
               to={dashboardPath}
               style={{
@@ -252,9 +256,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </Link>
           )}
           <button
-            onClick={toggleSidebar}
-            title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-            aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+            onClick={isTablet ? undefined : toggleSidebar}
+            title={effectivelyCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={effectivelyCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             style={{
               display:    "flex",
               alignItems: "center",
@@ -291,7 +295,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = COLORS.navInactive; }}
             >
               <Plus size={17} style={{ flexShrink: 0 }} />
-              {sidebarOpen && <span style={labelStyle}>Add property</span>}
+              {!effectivelyCollapsed && <span style={labelStyle}>Add property</span>}
             </button>
           )}
           {navLinks.map((link) => {
@@ -311,12 +315,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 }}
               >
                   <link.Icon size={17} style={{ flexShrink: 0 }} />
-                {sidebarOpen && (
+                {!effectivelyCollapsed && (
                   <span style={{ ...labelStyle, fontWeight: active ? 600 : 500, flex: 1 }}>
                     {link.label}
                   </span>
                 )}
-                {sidebarOpen && link.badge != null && link.badge > 0 && (
+                {!effectivelyCollapsed && link.badge != null && link.badge > 0 && (
                   <span style={{ fontFamily: "sans-serif", fontSize: 11, fontWeight: 700, color: "#fff", background: COLORS.navActive, borderRadius: "1rem", padding: "1px 6px", lineHeight: 1.4 }}>
                     {link.badge}
                   </span>
@@ -359,7 +363,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </span>
               )}
             </div>
-            {sidebarOpen && <span style={labelStyle}>Activity</span>}
+            {!effectivelyCollapsed && <span style={labelStyle}>Activity</span>}
           </button>
 
           {/* User menu anchor */}
@@ -382,7 +386,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 width:   "100%",
                 border:  "none",
                 cursor:  "pointer",
-                gap:     sidebarOpen ? "0.625rem" : 0,
+                gap:     effectivelyCollapsed ? 0 : "0.625rem",
               }}
             >
               {/* Avatar circle */}
@@ -403,7 +407,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               }}>
                 {initials}
               </div>
-              {sidebarOpen && (
+              {!effectivelyCollapsed && (
                 <span style={{ ...labelStyle, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, textAlign: "left" }}>
                   {displayName}
                 </span>
@@ -417,7 +421,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* ── Content column ──────────────────────────────────────────────────── */}
       <div
         className="hf-main"
-        style={{ marginLeft: sidebarW, flex: 1, minWidth: 0 }}
+        style={{ marginLeft: isTablet ? W_CLOSED : sidebarW, flex: 1, minWidth: 0 }}
         aria-hidden={addPropOpen || undefined}
       >
         {/* Mobile-only top header */}
