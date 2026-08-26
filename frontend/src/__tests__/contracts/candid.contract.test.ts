@@ -205,7 +205,7 @@ describe("job IDL factory", () => {
       "getJob",
       "getJobByInviteToken",
       "getJobSnapshotsForProperty",
-      "getJobsForProperty",
+      // getJobsForProperty is an update call (has inter-canister await for ownership check)
       "getJobsPendingMySignature",
       "getMetrics",
       "getPendingProposals",
