@@ -9,7 +9,7 @@ import {
   getUsageTrend, analyzeEfficiencyTrend, findRebates, negotiateTelecom,
   type RebateResult, type TelecomNegotiationResult,
 } from "@/services/billsIntelligence";
-import { COLORS, FONTS, RADIUS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 import toast from "react-hot-toast";
 
 const BILL_TYPE_LABELS: Record<BillType, string> = {
@@ -165,18 +165,18 @@ export function BillsTab({ propertyId }: { propertyId: string }) {
     }
   }
 
-  const ink      = COLORS.plum;
-  const rule     = COLORS.rule;
-  const inkLight = COLORS.plumMid;
+  const ink      = V2_COLORS.ink;
+  const rule     = V2_COLORS.border;
+  const inkLight = V2_COLORS.muted;
 
   return (
     <div style={{ padding: "2rem 0" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
         <div>
-          <h3 style={{ fontFamily: FONTS.serif, fontSize: "1.25rem", fontWeight: 700, color: ink, margin: 0 }}>
+          <h3 style={{ fontFamily: V2_FONTS.display, fontSize: "1.25rem", fontWeight: 700, color: ink, margin: 0 }}>
             Utility Bills
           </h3>
-          <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: inkLight, margin: "0.25rem 0 0" }}>
+          <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: inkLight, margin: "0.25rem 0 0" }}>
             Upload bills to track usage, detect anomalies, and surface savings opportunities.
           </p>
         </div>
@@ -194,22 +194,22 @@ export function BillsTab({ propertyId }: { propertyId: string }) {
       </div>
 
       {confirmArgs && (
-        <div style={{ border: `1px solid ${rule}`, background: COLORS.white, padding: "1.5rem", marginBottom: "1.5rem" }}>
-          <h4 style={{ fontFamily: FONTS.serif, fontSize: "1rem", fontWeight: 700, color: ink, margin: "0 0 0.25rem" }}>
+        <div style={{ border: `1px solid ${rule}`, background: V2_COLORS.paper, padding: "1.5rem", marginBottom: "1.5rem" }}>
+          <h4 style={{ fontFamily: V2_FONTS.display, fontSize: "1rem", fontWeight: 700, color: ink, margin: "0 0 0.25rem" }}>
             Confirm Bill Details
           </h4>
           {extraction && (
-            <p style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", color: inkLight, margin: "0 0 1rem" }}>
+            <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.8rem", color: inkLight, margin: "0 0 1rem" }}>
               {extraction.description} (confidence: {extraction.confidence})
             </p>
           )}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
             <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-              <span style={{ fontFamily: FONTS.sans, fontSize: "0.65rem", textTransform: "uppercase" as const, letterSpacing: "0.08em", color: inkLight }}>Bill Type</span>
+              <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.65rem", textTransform: "uppercase" as const, letterSpacing: "0.08em", color: inkLight }}>Bill Type</span>
               <select
                 value={confirmArgs.billType ?? "Other"}
                 onChange={(e) => setConfirmArgs((p) => ({ ...p!, billType: e.target.value as BillType }))}
-                style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", padding: "0.4rem 0.5rem", border: `1px solid ${rule}`, color: ink, background: COLORS.white }}
+                style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", padding: "0.4rem 0.5rem", border: `1px solid ${rule}`, color: ink, background: V2_COLORS.paper }}
               >
                 {(Object.keys(BILL_TYPE_LABELS) as BillType[]).map((t) => (
                   <option key={t} value={t}>{BILL_TYPE_LABELS[t]}</option>
@@ -217,35 +217,35 @@ export function BillsTab({ propertyId }: { propertyId: string }) {
               </select>
             </label>
             <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-              <span style={{ fontFamily: FONTS.sans, fontSize: "0.65rem", textTransform: "uppercase" as const, letterSpacing: "0.08em", color: inkLight }}>Provider</span>
+              <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.65rem", textTransform: "uppercase" as const, letterSpacing: "0.08em", color: inkLight }}>Provider</span>
               <input
                 type="text"
                 value={confirmArgs.provider ?? ""}
                 onChange={(e) => setConfirmArgs((p) => ({ ...p!, provider: e.target.value }))}
                 placeholder="e.g. FPL, TECO"
-                style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", padding: "0.4rem 0.5rem", border: `1px solid ${rule}`, color: ink, background: COLORS.white }}
+                style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", padding: "0.4rem 0.5rem", border: `1px solid ${rule}`, color: ink, background: V2_COLORS.paper }}
               />
             </label>
             <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-              <span style={{ fontFamily: FONTS.sans, fontSize: "0.65rem", textTransform: "uppercase" as const, letterSpacing: "0.08em", color: inkLight }}>Period Start</span>
+              <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.65rem", textTransform: "uppercase" as const, letterSpacing: "0.08em", color: inkLight }}>Period Start</span>
               <input
                 type="date"
                 value={confirmArgs.periodStart ?? ""}
                 onChange={(e) => setConfirmArgs((p) => ({ ...p!, periodStart: e.target.value }))}
-                style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", padding: "0.4rem 0.5rem", border: `1px solid ${rule}`, color: ink, background: COLORS.white }}
+                style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", padding: "0.4rem 0.5rem", border: `1px solid ${rule}`, color: ink, background: V2_COLORS.paper }}
               />
             </label>
             <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-              <span style={{ fontFamily: FONTS.sans, fontSize: "0.65rem", textTransform: "uppercase" as const, letterSpacing: "0.08em", color: inkLight }}>Period End</span>
+              <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.65rem", textTransform: "uppercase" as const, letterSpacing: "0.08em", color: inkLight }}>Period End</span>
               <input
                 type="date"
                 value={confirmArgs.periodEnd ?? ""}
                 onChange={(e) => setConfirmArgs((p) => ({ ...p!, periodEnd: e.target.value }))}
-                style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", padding: "0.4rem 0.5rem", border: `1px solid ${rule}`, color: ink, background: COLORS.white }}
+                style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", padding: "0.4rem 0.5rem", border: `1px solid ${rule}`, color: ink, background: V2_COLORS.paper }}
               />
             </label>
             <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-              <span style={{ fontFamily: FONTS.sans, fontSize: "0.65rem", textTransform: "uppercase" as const, letterSpacing: "0.08em", color: inkLight }}>Amount ($)</span>
+              <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.65rem", textTransform: "uppercase" as const, letterSpacing: "0.08em", color: inkLight }}>Amount ($)</span>
               <input
                 type="number"
                 min={0}
@@ -253,11 +253,11 @@ export function BillsTab({ propertyId }: { propertyId: string }) {
                 value={confirmArgs.amountCents != null ? (confirmArgs.amountCents / 100).toFixed(2) : ""}
                 onChange={(e) => setConfirmArgs((p) => ({ ...p!, amountCents: Math.round(parseFloat(e.target.value) * 100) || 0 }))}
                 placeholder="0.00"
-                style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", padding: "0.4rem 0.5rem", border: `1px solid ${rule}`, color: ink, background: COLORS.white }}
+                style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", padding: "0.4rem 0.5rem", border: `1px solid ${rule}`, color: ink, background: V2_COLORS.paper }}
               />
             </label>
             <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-              <span style={{ fontFamily: FONTS.sans, fontSize: "0.65rem", textTransform: "uppercase" as const, letterSpacing: "0.08em", color: inkLight }}>Usage (optional)</span>
+              <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.65rem", textTransform: "uppercase" as const, letterSpacing: "0.08em", color: inkLight }}>Usage (optional)</span>
               <div style={{ display: "flex", gap: "0.5rem" }}>
                 <input
                   type="number"
@@ -265,12 +265,12 @@ export function BillsTab({ propertyId }: { propertyId: string }) {
                   value={confirmArgs.usageAmount ?? ""}
                   onChange={(e) => setConfirmArgs((p) => ({ ...p!, usageAmount: e.target.value ? parseFloat(e.target.value) : undefined }))}
                   placeholder="842"
-                  style={{ flex: 1, fontFamily: FONTS.sans, fontSize: "0.875rem", padding: "0.4rem 0.5rem", border: `1px solid ${rule}`, color: ink, background: COLORS.white }}
+                  style={{ flex: 1, fontFamily: V2_FONTS.body, fontSize: "0.875rem", padding: "0.4rem 0.5rem", border: `1px solid ${rule}`, color: ink, background: V2_COLORS.paper }}
                 />
                 <select
                   value={confirmArgs.usageUnit ?? "kWh"}
                   onChange={(e) => setConfirmArgs((p) => ({ ...p!, usageUnit: e.target.value }))}
-                  style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", padding: "0.4rem 0.5rem", border: `1px solid ${rule}`, color: ink, background: COLORS.white }}
+                  style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", padding: "0.4rem 0.5rem", border: `1px solid ${rule}`, color: ink, background: V2_COLORS.paper }}
                 >
                   <option value="kWh">kWh</option>
                   <option value="gallons">gallons</option>
@@ -297,7 +297,7 @@ export function BillsTab({ propertyId }: { propertyId: string }) {
           <div className="spinner-lg" />
         </div>
       ) : bills.length === 0 && !confirmArgs ? (
-        <div style={{ textAlign: "center", padding: "3rem", color: inkLight, fontFamily: FONTS.sans, fontSize: "0.9rem" }}>
+        <div style={{ textAlign: "center", padding: "3rem", color: inkLight, fontFamily: V2_FONTS.body, fontSize: "0.9rem" }}>
           No bills uploaded yet. Upload a utility bill to start tracking.
         </div>
       ) : (
@@ -305,7 +305,7 @@ export function BillsTab({ propertyId }: { propertyId: string }) {
           <thead>
             <tr style={{ borderBottom: `1px solid ${rule}` }}>
               {["Type", "Provider", "Period", "Amount", "Usage", ""].map((h) => (
-                <th key={h} style={{ fontFamily: FONTS.sans, fontSize: "0.65rem", textTransform: "uppercase" as const, letterSpacing: "0.08em", color: inkLight, textAlign: "left", padding: "0.5rem 0.75rem", fontWeight: 500 }}>
+                <th key={h} style={{ fontFamily: V2_FONTS.body, fontSize: "0.65rem", textTransform: "uppercase" as const, letterSpacing: "0.08em", color: inkLight, textAlign: "left", padding: "0.5rem 0.75rem", fontWeight: 500 }}>
                   {h}
                 </th>
               ))}
@@ -314,19 +314,19 @@ export function BillsTab({ propertyId }: { propertyId: string }) {
           <tbody>
             {[...bills].sort((a, b) => b.uploadedAt - a.uploadedAt).map((bill) => (
               <tr key={bill.id} style={{ borderBottom: `1px solid ${rule}` }}>
-                <td style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: ink, padding: "0.75rem" }}>
+                <td style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: ink, padding: "0.75rem" }}>
                   {BILL_TYPE_LABELS[bill.billType]}
                 </td>
-                <td style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: ink, padding: "0.75rem" }}>
+                <td style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: ink, padding: "0.75rem" }}>
                   {bill.provider}
                 </td>
-                <td style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", color: inkLight, padding: "0.75rem", whiteSpace: "nowrap" as const }}>
+                <td style={{ fontFamily: V2_FONTS.body, fontSize: "0.8rem", color: inkLight, padding: "0.75rem", whiteSpace: "nowrap" as const }}>
                   {bill.periodStart} → {bill.periodEnd}
                 </td>
-                <td style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: ink, padding: "0.75rem", fontWeight: 600 }}>
+                <td style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: ink, padding: "0.75rem", fontWeight: 600 }}>
                   ${(bill.amountCents / 100).toFixed(2)}
                 </td>
-                <td style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", color: inkLight, padding: "0.75rem" }}>
+                <td style={{ fontFamily: V2_FONTS.body, fontSize: "0.8rem", color: inkLight, padding: "0.75rem" }}>
                   {bill.usageAmount != null && bill.usageUnit
                     ? `${bill.usageAmount.toLocaleString()} ${bill.usageUnit}`
                     : "—"}
@@ -335,7 +335,7 @@ export function BillsTab({ propertyId }: { propertyId: string }) {
                   {bill.anomalyFlag && (
                     <span
                       title={bill.anomalyReason}
-                      style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", fontFamily: FONTS.sans, fontSize: "0.7rem", color: "#C94C2E", marginRight: "0.75rem" }}
+                      style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", fontFamily: V2_FONTS.body, fontSize: "0.7rem", color: V2_COLORS.coralText, marginRight: "0.75rem" }}
                     >
                       <Zap size={12} /> Anomaly
                     </span>
@@ -345,7 +345,7 @@ export function BillsTab({ propertyId }: { propertyId: string }) {
                       onClick={() => handleNegotiateTelecom(bill)}
                       disabled={loadingTelecom && telecomBillId === bill.id}
                       title="Negotiate your bill"
-                      style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", background: "none", border: `1px solid ${COLORS.sage}`, borderRadius: "4px", cursor: "pointer", color: COLORS.sage, padding: "0.2rem 0.5rem", fontFamily: FONTS.sans, fontSize: "0.6rem", letterSpacing: "0.06em", marginRight: "0.5rem" }}
+                      style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", background: "none", border: `1px solid ${V2_COLORS.blue}`, borderRadius: "4px", cursor: "pointer", color: V2_COLORS.blue, padding: "0.2rem 0.5rem", fontFamily: V2_FONTS.body, fontSize: "0.6rem", letterSpacing: "0.06em", marginRight: "0.5rem" }}
                     >
                       <PhoneCall size={10} />
                       {loadingTelecom && telecomBillId === bill.id ? "…" : "Negotiate"}
@@ -366,13 +366,13 @@ export function BillsTab({ propertyId }: { propertyId: string }) {
       )}
 
       {efficiencyRec && (
-        <div style={{ marginTop: "1.5rem", padding: "1.25rem 1.5rem", background: COLORS.butter, border: `1px solid ${COLORS.rule}`, borderRadius: RADIUS.card, display: "flex", gap: "1rem", alignItems: "flex-start" }}>
-          <TrendingUp size={18} color={COLORS.plum} style={{ flexShrink: 0, marginTop: "0.15rem" }} />
+        <div style={{ marginTop: "1.5rem", padding: "1.25rem 1.5rem", background: V2_COLORS.attentionBg, border: `1px solid ${V2_COLORS.border}`, borderRadius: V2_RADIUS.card, display: "flex", gap: "1rem", alignItems: "flex-start" }}>
+          <TrendingUp size={18} color={V2_COLORS.ink} style={{ flexShrink: 0, marginTop: "0.15rem" }} />
           <div>
-            <p style={{ fontFamily: FONTS.serif, fontWeight: 700, fontSize: "1rem", color: COLORS.plum, margin: "0 0 0.375rem" }}>
+            <p style={{ fontFamily: V2_FONTS.display, fontWeight: 700, fontSize: "1rem", color: V2_COLORS.ink, margin: "0 0 0.375rem" }}>
               Usage trend detected
             </p>
-            <p style={{ fontFamily: FONTS.sans, fontSize: "0.85rem", fontWeight: 300, color: COLORS.plumMid, margin: 0, lineHeight: 1.6 }}>
+            <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.85rem", fontWeight: 300, color: V2_COLORS.muted, margin: 0, lineHeight: 1.6 }}>
               {efficiencyRec}
               {efficiencyWaste != null && (
                 <> Estimated annual waste: <strong>{efficiencyWaste.toLocaleString(undefined, { maximumFractionDigits: 0 })} units</strong>.</>
@@ -384,24 +384,24 @@ export function BillsTab({ propertyId }: { propertyId: string }) {
 
       {(loadingRebates || (rebates && rebates.length > 0)) && (
         <div style={{ marginTop: "1.5rem" }}>
-          <p style={{ fontFamily: FONTS.sans, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase" as const, color: COLORS.plumMid, marginBottom: "0.75rem" }}>
+          <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase" as const, color: V2_COLORS.muted, marginBottom: "0.75rem" }}>
             Available Rebates
           </p>
           {loadingRebates ? (
-            <p style={{ fontFamily: FONTS.sans, fontSize: "0.85rem", color: COLORS.plumMid }}>Loading rebate programs…</p>
+            <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.85rem", color: V2_COLORS.muted }}>Loading rebate programs…</p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
               {rebates!.map((r) => (
-                <div key={r.name} style={{ padding: "1rem 1.25rem", background: COLORS.sageLight, border: `1px solid ${COLORS.rule}`, borderRadius: RADIUS.sm, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem" }}>
+                <div key={r.name} style={{ padding: "1rem 1.25rem", background: V2_COLORS.lblue, border: `1px solid ${V2_COLORS.border}`, borderRadius: V2_RADIUS.sm, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem" }}>
                   <div>
-                    <p style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.875rem", color: COLORS.plum, margin: "0 0 0.25rem" }}>{r.name}</p>
-                    <p style={{ fontFamily: FONTS.sans, fontWeight: 300, fontSize: "0.8rem", color: COLORS.plumMid, margin: 0, lineHeight: 1.55 }}>{r.description}</p>
-                    <p style={{ fontFamily: FONTS.sans, fontSize: "0.6rem", letterSpacing: "0.06em", color: COLORS.plumMid, margin: "0.375rem 0 0" }}>{r.provider}</p>
+                    <p style={{ fontFamily: V2_FONTS.body, fontWeight: 600, fontSize: "0.875rem", color: V2_COLORS.ink, margin: "0 0 0.25rem" }}>{r.name}</p>
+                    <p style={{ fontFamily: V2_FONTS.body, fontWeight: 300, fontSize: "0.8rem", color: V2_COLORS.muted, margin: 0, lineHeight: 1.55 }}>{r.description}</p>
+                    <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.6rem", letterSpacing: "0.06em", color: V2_COLORS.muted, margin: "0.375rem 0 0" }}>{r.provider}</p>
                   </div>
                   <div style={{ flexShrink: 0, textAlign: "right" }}>
-                    <p style={{ fontFamily: FONTS.serif, fontWeight: 700, fontSize: "1rem", color: COLORS.sage, margin: "0 0 0.25rem" }}>{r.estimatedAmount}</p>
+                    <p style={{ fontFamily: V2_FONTS.display, fontWeight: 700, fontSize: "1rem", color: V2_COLORS.blue, margin: "0 0 0.25rem" }}>{r.estimatedAmount}</p>
                     {r.url && (
-                      <a href={r.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", fontFamily: FONTS.sans, fontSize: "0.6rem", color: COLORS.sage, textDecoration: "none" }}>
+                      <a href={r.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", fontFamily: V2_FONTS.body, fontSize: "0.6rem", color: V2_COLORS.blue, textDecoration: "none" }}>
                         Apply <ExternalLink size={10} />
                       </a>
                     )}
@@ -414,25 +414,25 @@ export function BillsTab({ propertyId }: { propertyId: string }) {
       )}
 
       {telecomResult && (
-        <div style={{ marginTop: "1.5rem", padding: "1.25rem 1.5rem", background: COLORS.white, border: `1px solid ${COLORS.sage}`, borderRadius: RADIUS.card }}>
+        <div style={{ marginTop: "1.5rem", padding: "1.25rem 1.5rem", background: V2_COLORS.paper, border: `1px solid ${V2_COLORS.blue}`, borderRadius: V2_RADIUS.card }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginBottom: "0.75rem" }}>
-            <PhoneCall size={16} color={COLORS.sage} />
-            <p style={{ fontFamily: FONTS.serif, fontWeight: 700, fontSize: "1rem", color: COLORS.plum, margin: 0 }}>
+            <PhoneCall size={16} color={V2_COLORS.blue} />
+            <p style={{ fontFamily: V2_FONTS.display, fontWeight: 700, fontSize: "1rem", color: V2_COLORS.ink, margin: 0 }}>
               Negotiation Script
             </p>
-            <span style={{ fontFamily: FONTS.sans, fontSize: "0.6rem", letterSpacing: "0.06em", padding: "2px 8px", borderRadius: "100px", background: telecomResult.verdict === "overpaying" ? "#FEE2E2" : COLORS.sageLight, color: telecomResult.verdict === "overpaying" ? "#C94C2E" : COLORS.sage }}>
+            <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.6rem", letterSpacing: "0.06em", padding: "2px 8px", borderRadius: "100px", background: telecomResult.verdict === "overpaying" ? V2_COLORS.attentionBg : V2_COLORS.lblue, color: telecomResult.verdict === "overpaying" ? V2_COLORS.coralText : V2_COLORS.blue }}>
               {telecomResult.verdict === "overpaying" ? "Overpaying" : telecomResult.verdict === "fair" ? "Fair rate" : "Good deal"}
             </span>
           </div>
           {telecomResult.savingsOpportunityCents > 0 && (
-            <p style={{ fontFamily: FONTS.sans, fontSize: "0.85rem", color: COLORS.plumMid, margin: "0 0 0.75rem" }}>
+            <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.85rem", color: V2_COLORS.muted, margin: "0 0 0.75rem" }}>
               You may be paying <strong>${(telecomResult.savingsOpportunityCents / 100).toFixed(0)}/mo</strong> above the median rate of <strong>${(telecomResult.medianCents / 100).toFixed(0)}/mo</strong> for your area.
             </p>
           )}
-          <div style={{ padding: "1rem", background: COLORS.sageLight, borderRadius: RADIUS.sm, fontFamily: FONTS.sans, fontSize: "0.875rem", color: COLORS.plum, lineHeight: 1.7, whiteSpace: "pre-wrap" as const }}>
+          <div style={{ padding: "1rem", background: V2_COLORS.lblue, borderRadius: V2_RADIUS.sm, fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.ink, lineHeight: 1.7, whiteSpace: "pre-wrap" as const }}>
             {telecomResult.negotiationScript}
           </div>
-          <button onClick={() => setTelecomResult(null)} style={{ marginTop: "0.75rem", background: "none", border: "none", cursor: "pointer", fontFamily: FONTS.sans, fontSize: "0.6rem", color: COLORS.plumMid, letterSpacing: "0.06em" }}>
+          <button onClick={() => setTelecomResult(null)} style={{ marginTop: "0.75rem", background: "none", border: "none", cursor: "pointer", fontFamily: V2_FONTS.body, fontSize: "0.6rem", color: V2_COLORS.muted, letterSpacing: "0.06em" }}>
             Dismiss
           </button>
         </div>
