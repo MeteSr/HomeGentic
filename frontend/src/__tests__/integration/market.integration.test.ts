@@ -161,16 +161,25 @@ describe.skipIf(!deployed)("computePropertyScore — on-chain FSBO score", () =>
     const { propertyService } = await import("@/services/property");
     const { jobService } = await import("@/services/job");
 
-    const prop = await propertyService.registerProperty({
-      address:      `${RUN_ID} Score Dr, Orlando FL 32801`,
-      city:         "Orlando",
-      state:        "FL",
-      zipCode:      "32801",
-      propertyType: "SingleFamily",
-      yearBuilt:    2000,
-      squareFeet:   1500,
-      tier:         "Basic",
-    });
+    let prop: Awaited<ReturnType<typeof propertyService.registerProperty>>;
+    try {
+      prop = await propertyService.registerProperty({
+        address:      `${RUN_ID} Score Dr, Orlando FL 32801`,
+        city:         "Orlando",
+        state:        "FL",
+        zipCode:      "32801",
+        propertyType: "SingleFamily",
+        yearBuilt:    2000,
+        squareFeet:   1500,
+        tier:         "Basic",
+      });
+    } catch (e: any) {
+      if (e.message?.includes("limit")) {
+        const existing = await propertyService.getMyProperties();
+        if (existing.length > 0) { prop = existing[0] as any; }
+        else throw e;
+      } else throw e;
+    }
 
     await jobService.create({
       propertyId:    prop.id,

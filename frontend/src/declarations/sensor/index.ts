@@ -74,7 +74,8 @@ export const idlFactory = ({ IDL }: any) => {
       []
     ),
     getDevicesForProperty: IDL.Func([IDL.Text], [IDL.Vec(SensorDevice)], ["query"]),
-    getEventsForProperty:  IDL.Func([IDL.Text, IDL.Nat], [IDL.Vec(SensorEvent)], ["query"]),
-    getPendingAlerts:      IDL.Func([IDL.Text], [IDL.Vec(SensorEvent)], ["query"]),
+    // M-07: both require msg.caller for ownership check → update calls
+    getEventsForProperty:  IDL.Func([IDL.Text, IDL.Nat], [IDL.Vec(SensorEvent)], []),
+    getPendingAlerts:      IDL.Func([IDL.Text], [IDL.Vec(SensorEvent)], []),
   });
 };

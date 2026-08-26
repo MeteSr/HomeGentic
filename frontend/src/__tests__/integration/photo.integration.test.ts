@@ -36,17 +36,26 @@ let PROPERTY_ID = `integ-photo-prop-${RUN_ID}`; // fallback for type inference o
 
 if (deployed) {
   beforeAll(async () => {
-    const prop = await propertyService.registerProperty({
-      address:      `${RUN_ID} Photo Lane`,
-      city:         "Austin",
-      state:        "TX",
-      zipCode:      "78701",
-      propertyType: "SingleFamily",
-      yearBuilt:    2005,
-      squareFeet:   2000,
-      tier:         "Basic",
-    });
-    PROPERTY_ID = prop.id;
+    try {
+      const prop = await propertyService.registerProperty({
+        address:      `${RUN_ID} Photo Lane`,
+        city:         "Austin",
+        state:        "TX",
+        zipCode:      "78701",
+        propertyType: "SingleFamily",
+        yearBuilt:    2005,
+        squareFeet:   2000,
+        tier:         "Basic",
+      });
+      PROPERTY_ID = prop.id;
+    } catch (e: any) {
+      // CI accumulates properties across runs — if the tier limit is hit, reuse an existing one.
+      if (e.message?.includes("limit")) {
+        const existing = await propertyService.getMyProperties();
+        if (existing.length > 0) { PROPERTY_ID = existing[0].id; return; }
+      }
+      throw e;
+    }
   });
 }
 

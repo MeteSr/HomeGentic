@@ -232,8 +232,8 @@ revokeShareLink(1) -> (1)"
 exports[`Candid contract snapshots — method arity > sensor 1`] = `
 "deactivateDevice(1) -> (1)
 getDevicesForProperty(1) -> (1) [query]
-getEventsForProperty(2) -> (1) [query]
-getPendingAlerts(1) -> (1) [query]
+getEventsForProperty(2) -> (1)
+getPendingAlerts(1) -> (1)
 recordEvent(5) -> (1)
 registerDevice(4) -> (1)"
 `;

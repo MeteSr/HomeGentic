@@ -1976,9 +1976,7 @@ exports[`sensor IDL factory > full signature snapshot 1`] = `
       "text",
       "nat",
     ],
-    "mode": [
-      "query",
-    ],
+    "mode": [],
     "rets": [
       "vec record {id:text; value:float64; unit:text; jobId:opt text; propertyId:text; deviceId:text; timestamp:int; severity:variant {Info; Critical; Warning}; homeowner:principal; rawPayload:text; eventType:variant {FloodRisk; GridOutage; LowProduction; WaterLeak; ApplianceFault; BatteryLow; HvacFilterDue; HighTemperature; LowTemperature; HvacAlert; ApplianceMaintenance; LeakDetected; HighHumidity; SolarFault}}",
     ],
@@ -1987,9 +1985,7 @@ exports[`sensor IDL factory > full signature snapshot 1`] = `
     "args": [
       "text",
     ],
-    "mode": [
-      "query",
-    ],
+    "mode": [],
     "rets": [
       "vec record {id:text; value:float64; unit:text; jobId:opt text; propertyId:text; deviceId:text; timestamp:int; severity:variant {Info; Critical; Warning}; homeowner:principal; rawPayload:text; eventType:variant {FloodRisk; GridOutage; LowProduction; WaterLeak; ApplianceFault; BatteryLow; HvacFilterDue; HighTemperature; LowTemperature; HvacAlert; ApplianceMaintenance; LeakDetected; HighHumidity; SolarFault}}",
     ],
