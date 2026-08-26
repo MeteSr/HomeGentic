@@ -1,6 +1,7 @@
 import { V2_COLORS, V2_FONTS } from "@/theme";
 
-export { V2_FONTS as FONTS };
+// FONTS.sans → V2_FONTS.body for backwards compat with AIAssistantPanel / panels
+export const FONTS = { ...V2_FONTS, sans: V2_FONTS.body };
 
 export const C = {
   bg:       V2_COLORS.paper,
@@ -11,9 +12,16 @@ export const C = {
   blue:     V2_COLORS.blue,
   blueBg:   V2_COLORS.lblue,
   blueBdr:  V2_COLORS.cobalTint,
-  yellow:   "#92640A",          // attention text — AA on attentionBg
+  yellow:   "#92640A",           // attention text — AA on attentionBg
   yellowBg: V2_COLORS.attentionBg,
   red:      V2_COLORS.coralText,
   redBg:    "#FFE8E3",
+  // green family → cobalt (no green in V2 palette; used for "verified/success" states)
+  green:    V2_COLORS.blue,
+  greenBg:  V2_COLORS.lblue,
+  greenBdr: V2_COLORS.cobalTint,
+  // orange family → yellow/attention
+  orange:   "#92640A",
+  orangeBg: V2_COLORS.attentionBg,
   shadow:   "0 1px 3px rgba(11,13,26,0.06), 0 1px 2px rgba(11,13,26,0.04)",
 };
