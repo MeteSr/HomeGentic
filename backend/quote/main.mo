@@ -603,15 +603,22 @@ persistent actor Quote {
     }
   };
 
-  /// Fetch all quotes for a given request (visible to anyone).
-  public query func getQuotesForRequest(requestId: Text) : async Result.Result<[Quote], Error> {
+  /// Fetch all quotes for a given request.
+  /// M-05: homeowner and admin see all quotes; contractors see only their own quote.
+  public shared(msg) func getQuotesForRequest(requestId: Text) : async Result.Result<[Quote], Error> {
     switch (Map.get(requests, Text.compare, requestId)) {
       case null { #err(#NotFound) };
-      case _ {
-        let matches = Iter.toArray(
+      case (?req) {
+        let allQuotes = Iter.toArray(
           Iter.filter(Map.values(quotes), func(q: Quote) : Bool { q.requestId == requestId })
         );
-        #ok(matches)
+        if (isAdmin(msg.caller) or req.homeowner == msg.caller) {
+          // Admin or homeowner sees all quotes
+          #ok(allQuotes)
+        } else {
+          // Contractor: return only their own quote
+          #ok(Array.filter<Quote>(allQuotes, func(q: Quote) : Bool { q.contractor == msg.caller }))
+        }
       };
     }
   };

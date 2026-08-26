@@ -87,6 +87,9 @@ persistent actor Photo {
   private var pauseExpiryNs: ?Int = null;
   private var adminListEntries: [Principal] = [];
   private var auditCanisterId : ?Principal  = null;
+  /// H-20: Bootstrap nonce — must be set via setBootstrapNonce() before the
+  /// first addAdmin() call when no admins exist yet.
+  private var bootstrapNonce: ?Text = null;
   /// Payment canister ID — set post-deploy via setPaymentCanisterId().
   /// When set, uploadPhoto() cross-calls getTierForPrincipal() instead of
   /// reading the local tierGrants map.
@@ -309,6 +312,12 @@ persistent actor Photo {
       return #err(#QuotaExceeded("Photo uploads require an active subscription. Subscribe to Basic ($10/mo) to get started."));
     };
 
+    // H-11: Verify caller is authorized for this property before storing the photo.
+    if (not isAdmin(msg.caller)) {
+      let authorized = await checkPropertyAuth(propertyId, effectivePrincipal, msg.caller, true);
+      if (not authorized) return #err(#NotAuthorized);
+    };
+
     if (quota.maxPerJob > 0 and countByJob(jobId) >= quota.maxPerJob) {
       return #err(#QuotaExceeded(
         "Job photo limit (" # Nat.toText(quota.maxPerJob) # ") reached for your plan." # upgradeHint
@@ -513,10 +522,28 @@ persistent actor Photo {
     #ok(())
   };
 
-  /// Add an admin. First call is open (bootstrap); subsequent calls require an existing admin.
-  public shared(msg) func addAdmin(newAdmin: Principal) : async Result.Result<(), Error> {
-    if (adminListEntries.size() > 0 and not isAdmin(msg.caller))
-      return #err(#NotAuthorized);
+  /// H-20: Set the one-time bootstrap nonce before calling addAdmin() the first time.
+  /// Ignored once an admin exists, and can only be set once.
+  public shared func setBootstrapNonce(nonce: Text) : async () {
+    if (adminListEntries.size() > 0) return;  // already bootstrapped — ignore
+    if (bootstrapNonce != null) return;  // nonce already set — can only be set once
+    bootstrapNonce := ?nonce;
+  };
+
+  /// Add an admin. When no admins exist yet (bootstrap), requires the pre-shared nonce.
+  /// Subsequent calls require an existing admin.
+  public shared(msg) func addAdmin(newAdmin: Principal, nonce: Text) : async Result.Result<(), Error> {
+    if (adminListEntries.size() > 0) {
+      // Normal path: require an existing admin to add new admins.
+      if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    } else {
+      // Bootstrap path: require the pre-shared nonce.
+      switch (bootstrapNonce) {
+        case null    { return #err(#NotAuthorized) }; // nonce not set — reject
+        case (?n)    { if (nonce != n) return #err(#NotAuthorized) };
+      };
+      bootstrapNonce := null; // consume the nonce — single use
+    };
     if (not isAdmin(newAdmin)) {
       adminListEntries := Array.concat(adminListEntries, [newAdmin]);
     };

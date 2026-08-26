@@ -42,8 +42,24 @@ export function buildApp() {
   });
   app.use("/api/", apiLimiter);
 
+  // ── Auth key startup check ──────────────────────────────────────────────────
+  const internalKey = process.env.INTERNAL_API_KEY;
+  if (!internalKey) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("INTERNAL_API_KEY must be set in production");
+    }
+    console.warn("[notifications] INTERNAL_API_KEY not set — /api/push/send will reject all requests in non-dev");
+  }
+
   // ── POST /api/push/register ─────────────────────────────────────────────────
   app.post("/api/push/register", (req: Request, res: Response): void => {
+    // Require internal API key — prevents unauthorized token registration
+    const internalKey = process.env.INTERNAL_API_KEY;
+    if (!internalKey || req.headers["x-internal-key"] !== internalKey) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
     const { principal, token, platform } = req.body as {
       principal?: string;
       token?:     string;
@@ -79,7 +95,8 @@ export function buildApp() {
   // ── POST /api/push/send ─────────────────────────────────────────────────────
   app.post("/api/push/send", async (req: Request, res: Response): Promise<void> => {
     const internalKey = process.env.INTERNAL_API_KEY;
-    if (internalKey && req.headers["x-internal-key"] !== internalKey) {
+    // Always require the key — remove the && short-circuit that bypassed auth when key was unset
+    if (!internalKey || req.headers["x-internal-key"] !== internalKey) {
       res.status(401).json({ error: "Unauthorized" });
       return;
     }

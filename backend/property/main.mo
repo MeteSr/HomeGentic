@@ -318,6 +318,9 @@ persistent actor Property {
   private var admins                   : [Principal] = [];
   private var adminInitialized         : Bool        = false;
   private var trustedCanisterEntries   : [Principal] = [];
+  /// H-20: Bootstrap nonce — must be set via setBootstrapNonce() before the
+  /// first addAdmin() call. Consumed on first successful use.
+  private var bootstrapNonce           : ?Text       = null;
   private var auditCanisterId          : ?Principal  = null;
   /// Payment canister ID — set post-deploy via setPaymentCanisterId().
   /// When set, registerProperty() cross-calls getTierForPrincipal() instead of
@@ -869,12 +872,16 @@ persistent actor Property {
   };
 
   /// Returns all properties currently awaiting admin verification review.
-  public query func getPendingVerifications() : async [Property] {
-    Iter.toArray(
+  /// H-12: Admin-only — these records contain legal names, Stripe session IDs,
+  /// and document hashes that must not be exposed to arbitrary callers.
+  public shared(msg) func getPendingVerifications() : async Result.Result<[Property], Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    let pending = Iter.toArray(
       Iter.filter(Map.values(properties), func(p: Property) : Bool {
         p.verificationLevel == #PendingReview and p.isActive
       })
-    )
+    );
+    #ok(pending)
   };
 
   /// Returns true if the given principal is an admin.
@@ -1396,8 +1403,26 @@ persistent actor Property {
     #ok(())
   };
 
-  public shared(msg) func addAdmin(newAdmin: Principal) : async Result.Result<(), Error> {
-    if (adminInitialized and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+  /// H-20: Set the one-time bootstrap nonce before calling addAdmin() the first time.
+  /// Ignored once adminInitialized = true, and can only be set once.
+  public shared func setBootstrapNonce(nonce: Text) : async () {
+    if (adminInitialized) return;  // already bootstrapped — ignore
+    if (bootstrapNonce != null) return;  // nonce already set — can only be set once
+    bootstrapNonce := ?nonce;
+  };
+
+  public shared(msg) func addAdmin(newAdmin: Principal, nonce: Text) : async Result.Result<(), Error> {
+    if (adminInitialized) {
+      // Normal path: require an existing admin to add new admins.
+      if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    } else {
+      // Bootstrap path: require the pre-shared nonce.
+      switch (bootstrapNonce) {
+        case null    { return #err(#NotAuthorized) }; // nonce not set — reject
+        case (?n)    { if (nonce != n) return #err(#NotAuthorized) };
+      };
+      bootstrapNonce := null; // consume the nonce — single use
+    };
     admins := Array.concat(admins, [newAdmin]);
     adminInitialized := true;
     try { ignore await auditLog("AdminAdded", ?newAdmin, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[property] fire-and-forget call failed") };

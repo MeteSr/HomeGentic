@@ -31,7 +31,8 @@ persistent actor Sensor {
   // Configured post-deploy via setJobCanisterId(). Kept as stable Text so it
   // survives upgrades without re-wiring.
 
-  private var jobCanisterId: Text = "";
+  private var jobCanisterId:  Text = "";
+  private var propCanisterId: Text = "";
 
   type JobServiceType = {
     #Roofing; #HVAC; #Plumbing; #Electrical;
@@ -323,6 +324,18 @@ persistent actor Sensor {
     if (Text.size(name)             == 0)  return #err(#InvalidInput("name required"));
     if (Text.size(name)             > 200) return #err(#InvalidInput("name exceeds 200 characters"));
 
+    // H-15: verify caller owns the property before registering a device
+    if (not isAdmin(msg.caller)) {
+      if (Text.size(propCanisterId) > 0) {
+        let propActor = actor(propCanisterId) : actor {
+          isAuthorized : (Text, Principal, Bool) -> async Bool;
+        };
+        let authorized = await propActor.isAuthorized(propertyId, msg.caller, true);
+        if (not authorized) return #err(#NotAuthorized);
+      };
+      // If propCanisterId is not set, allow (dev/local environment)
+    };
+
     switch (Map.get(externalIdIdx, Text.compare, externalDeviceId)) {
       case (?_) { return #err(#AlreadyExists) };
       case null {};
@@ -479,7 +492,16 @@ persistent actor Sensor {
     #ok(event)
   };
 
-  public query func getEventsForProperty(propertyId: Text, limit: Nat) : async [SensorEvent] {
+  // M-07: restrict getEventsForProperty to property owner, admin, or trusted canister
+  public shared(msg) func getEventsForProperty(propertyId: Text, limit: Nat) : async [SensorEvent] {
+    if (not isAdmin(msg.caller) and not isGateway(msg.caller)) {
+      // Verify caller owns at least one device on this property
+      let hasDevice = Option.isSome(Array.find<SensorDevice>(
+        Iter.toArray(Map.values(devices)),
+        func(d: SensorDevice) : Bool { d.propertyId == propertyId and d.homeowner == msg.caller }
+      ));
+      if (not hasDevice) return [];
+    };
     let all = Iter.toArray(
       Iter.filter(Map.values(events), func(e: SensorEvent) : Bool {
         e.propertyId == propertyId
@@ -492,7 +514,15 @@ persistent actor Sensor {
     }
   };
 
-  public query func getPendingAlerts(propertyId: Text) : async [SensorEvent] {
+  // M-07: restrict getPendingAlerts to property owner, admin, or trusted gateway
+  public shared(msg) func getPendingAlerts(propertyId: Text) : async [SensorEvent] {
+    if (not isAdmin(msg.caller) and not isGateway(msg.caller)) {
+      let hasDevice = Option.isSome(Array.find<SensorDevice>(
+        Iter.toArray(Map.values(devices)),
+        func(d: SensorDevice) : Bool { d.propertyId == propertyId and d.homeowner == msg.caller }
+      ));
+      if (not hasDevice) return [];
+    };
     Iter.toArray(
       Iter.filter(Map.values(events), func(e: SensorEvent) : Bool {
         e.propertyId == propertyId and isAlertworthy(e.severity)
@@ -507,6 +537,13 @@ persistent actor Sensor {
   public shared(msg) func setJobCanisterId(id: Text) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     jobCanisterId := id;
+    #ok(())
+  };
+
+  /// Wire the sensor canister to the property canister for ownership checks. Admin only.
+  public shared(msg) func setPropertyCanisterId(id: Text) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    propCanisterId := id;
     #ok(())
   };
 

@@ -398,9 +398,16 @@ persistent actor Report {
     // Cross-canister call to the property canister to fetch the authoritative
     // verification level — callers cannot spoof this by passing a fake level
     // in the PropertyInput.
+    // M-06: also verify the caller owns the property before generating the snapshot.
     if (Text.size(propCanisterId) > 0) {
       let propActor = actor(propCanisterId) : actor {
         getVerificationLevel : (Text) -> async ?Text;
+        isAuthorized         : (Text, Principal, Bool) -> async Bool;
+      };
+      // Ownership check — admins are always permitted
+      if (not isAdmin(msg.caller)) {
+        let authorized = await propActor.isAuthorized(propertyId, msg.caller, false);
+        if (not authorized) return #err(#NotAuthorized);
       };
       switch (await propActor.getVerificationLevel(propertyId)) {
         case (?level) {
@@ -410,6 +417,9 @@ persistent actor Report {
         };
         case null {};   // not found — proceed
       };
+    } else if (not isAdmin(msg.caller)) {
+      // propCanisterId not wired — fail closed for non-admins
+      return #err(#NotAuthorized);
     };
 
     let (snapshotId, token) = await nextIds();
@@ -756,6 +766,19 @@ persistent actor Report {
     if (Principal.isAnonymous(msg.caller)) return #err(#NotAuthorized);
     if (Text.size(propertyId) == 0) return #err(#InvalidInput("propertyId required"));
 
+    // H-14: require property ownership before cross-canister fetches
+    if (not isAdmin(msg.caller)) {
+      if (Text.size(propCanisterId) > 0) {
+        let propActor = actor(propCanisterId) : actor {
+          isAuthorized : (Text, Principal, Bool) -> async Bool;
+        };
+        let authorized = await propActor.isAuthorized(propertyId, msg.caller, false);
+        if (not authorized) return #err(#NotAuthorized);
+      } else {
+        return #err(#NotAuthorized);
+      };
+    };
+
     let now = Time.now();
     let NINETY_DAYS_NS : Int = 90 * 24 * 3600 * 1_000_000_000;
 
@@ -975,10 +998,21 @@ persistent actor Report {
   // ─── Score Certificate API (4.2.1) ───────────────────────────────────────────
 
   /// Issue an on-chain score certificate. Stores the payload (no personal data)
-  /// against a stable CERT-N id. The caller must be authenticated; the cert
-  /// itself is public and verifiable by anyone via verifyCert.
-  public shared(msg) func issueCert(propertyId: Text, payload: Text) : async Text {
-    ignore msg.caller;   // authenticated call; principal recorded implicitly
+  /// against a stable CERT-N id. The caller must be the property owner or admin.
+  public shared(msg) func issueCert(propertyId: Text, payload: Text) : async Result.Result<Text, Error> {
+    // H-13: require property ownership or admin; remove the insecure `ignore msg.caller`
+    if (not isAdmin(msg.caller)) {
+      if (Text.size(propCanisterId) > 0) {
+        let propActor = actor(propCanisterId) : actor {
+          isAuthorized : (Text, Principal, Bool) -> async Bool;
+        };
+        let authorized = await propActor.isAuthorized(propertyId, msg.caller, false);
+        if (not authorized) return #err(#NotAuthorized);
+      } else {
+        // propCanisterId not wired — fail closed
+        return #err(#NotAuthorized);
+      };
+    };
     certCounter += 1;
     let certId = "CERT-" # Nat.toText(certCounter);
     let record : CertRecord = {
@@ -988,7 +1022,7 @@ persistent actor Report {
       issuedAt   = Time.now();
     };
     Map.add(certs, Text.compare, certId, record);
-    certId
+    #ok(certId)
   };
 
   /// Verify a cert by id. Returns the stored payload (JSON) or null.

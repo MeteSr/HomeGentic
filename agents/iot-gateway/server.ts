@@ -55,7 +55,51 @@ import type {
 const app = express();
 const port = Number(process.env.IOT_GATEWAY_PORT) || 3002;
 
+// OAuth CSRF state store — maps state token → { platform, expiresAt }
+const oauthStateStore = new Map<string, { platform: string; expiresAt: number }>();
+const OAUTH_STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+function generateOAuthState(): string {
+  return crypto.randomBytes(32).toString("hex");
+}
+
+function storeOAuthState(state: string, platform: string): void {
+  // Clean expired entries
+  const now = Date.now();
+  for (const [k, v] of oauthStateStore) {
+    if (v.expiresAt < now) oauthStateStore.delete(k);
+  }
+  oauthStateStore.set(state, { platform, expiresAt: now + OAUTH_STATE_TTL_MS });
+}
+
+function consumeOAuthState(state: string, platform: string): boolean {
+  const entry = oauthStateStore.get(state);
+  if (!entry) return false;
+  oauthStateStore.delete(state);
+  return entry.platform === platform && entry.expiresAt > Date.now();
+}
+
 // Rate limiting for webhook endpoints
+// Strict limiter for admin OAuth endpoints — one-time setup flows, not user-facing.
+// 10 requests per 15 minutes per IP is more than enough for legitimate use.
+const adminOAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests — please wait before retrying." },
+});
+
+// Moderate limiter for user-initiated device picker OAuth flows.
+// Each homeowner may connect multiple devices, so allow up to 30 per 15 minutes.
+const deviceOAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests — please wait before retrying." },
+});
+
 const moenFloLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
@@ -472,14 +516,59 @@ app.post("/webhooks/smartthings", smartThingsLimiter, async (req: Request, res: 
   res.json({ status: "processed", count: processed });
 });
 
+// ── GET /oauth/start/honeywell ────────────────────────────────────────────────
+// Initiates the Honeywell OAuth flow with a CSRF state parameter.
+// Requires x-admin-token header.
+app.get("/oauth/start/honeywell", adminOAuthLimiter, (req: Request, res: Response): void => {
+  const adminToken = process.env.ADMIN_TOKEN;
+  if (!adminToken || req.headers["x-admin-token"] !== adminToken) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const clientId = process.env.HONEYWELL_CLIENT_ID;
+  if (!clientId) { res.status(500).send("HONEYWELL_CLIENT_ID not set"); return; }
+  const state = generateOAuthState();
+  storeOAuthState(state, "honeywell");
+  const redirectUri = `http://localhost:${port}/oauth/callback/honeywell`;
+  const url = honeywellOAuth.authUrl(clientId, redirectUri);
+  const sep = url.includes("?") ? "&" : "?";
+  res.redirect(`${url}${sep}state=${encodeURIComponent(state)}`);
+});
+
+// ── GET /oauth/start/ge ───────────────────────────────────────────────────────
+// Initiates the GE SmartHQ OAuth flow with a CSRF state parameter.
+// Requires x-admin-token header.
+app.get("/oauth/start/ge", adminOAuthLimiter, (req: Request, res: Response): void => {
+  const adminToken = process.env.ADMIN_TOKEN;
+  if (!adminToken || req.headers["x-admin-token"] !== adminToken) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const clientId = process.env.GE_CLIENT_ID;
+  if (!clientId) { res.status(500).send("GE_CLIENT_ID not set"); return; }
+  const state = generateOAuthState();
+  storeOAuthState(state, "ge");
+  const redirectUri = `http://localhost:${port}/oauth/callback/ge`;
+  const url = geSmartHQOAuth.authUrl(clientId, redirectUri);
+  const sep = url.includes("?") ? "&" : "?";
+  res.redirect(`${url}${sep}state=${encodeURIComponent(state)}`);
+});
+
 // ── GET /oauth/callback/honeywell ─────────────────────────────────────────────
 // One-time setup endpoint: exchanges the OAuth authorization code for tokens
 // and persists them so the polling loop can start on the next gateway restart.
-app.get("/oauth/callback/honeywell", async (req: Request, res: Response): Promise<void> => {
+app.get("/oauth/callback/honeywell", adminOAuthLimiter, async (req: Request, res: Response): Promise<void> => {
   const reqId = (req as RequestWithId).reqId;
   const code = req.query.code as string | undefined;
   if (!code) {
     res.status(400).send("Missing code parameter");
+    return;
+  }
+
+  const state = req.query.state as string | undefined;
+  if (!state || !consumeOAuthState(state, "honeywell")) {
+    logger.warn("honeywell", "OAuth callback rejected — invalid or missing state (CSRF protection)", { reqId });
+    res.status(400).send("Invalid or expired OAuth state. Please restart the authorization flow via /oauth/start/honeywell");
     return;
   }
 
@@ -581,11 +670,18 @@ app.post("/webhooks/lgthinq", lgThinQLimiter, async (req: Request, res: Response
 
 // ── GET /oauth/callback/ge ────────────────────────────────────────────────────
 // One-time setup: exchanges the GE SmartHQ OAuth authorization code for tokens.
-app.get("/oauth/callback/ge", async (req: Request, res: Response): Promise<void> => {
+app.get("/oauth/callback/ge", adminOAuthLimiter, async (req: Request, res: Response): Promise<void> => {
   const reqId = (req as RequestWithId).reqId;
   const code = req.query.code as string | undefined;
   if (!code) {
     res.status(400).send("Missing code parameter");
+    return;
+  }
+
+  const state = req.query.state as string | undefined;
+  if (!state || !consumeOAuthState(state, "ge")) {
+    logger.warn("ge", "OAuth callback rejected — invalid or missing state (CSRF protection)", { reqId });
+    res.status(400).send("Invalid or expired OAuth state. Please restart the authorization flow via /oauth/start/ge");
     return;
   }
 
@@ -646,9 +742,11 @@ app.get("/oauth/callback/ge", async (req: Request, res: Response): Promise<void>
 // ── GET /oauth/device/start/:platform ────────────────────────────────────────
 // Tier B device picker: redirect to platform's authorization URL.
 // The `redirect_uri` points back to /oauth/device/callback/:platform.
-app.get("/oauth/device/start/:platform", (req: Request, res: Response): void => {
+app.get("/oauth/device/start/:platform", deviceOAuthLimiter, (req: Request, res: Response): void => {
   const { platform } = req.params;
   const redirectUri  = `http://localhost:${port}/oauth/device/callback/${platform}`;
+  const state = generateOAuthState();
+  storeOAuthState(state, platform);
 
   try {
     let url: string;
@@ -669,7 +767,9 @@ app.get("/oauth/device/start/:platform", (req: Request, res: Response): void => 
         res.status(400).send("Unknown platform");
         return;
     }
-    res.redirect(url);
+    // Append state to authorization URL for CSRF protection
+    const sep = url.includes("?") ? "&" : "?";
+    res.redirect(`${url}${sep}state=${encodeURIComponent(state)}`);
   } catch (err) {
     logger.error("oauth-device", `start error (${platform})`, { error: String(err) });
     res.status(500).send("OAuth start error");
@@ -679,12 +779,23 @@ app.get("/oauth/device/start/:platform", (req: Request, res: Response): void => 
 // ── GET /oauth/device/callback/:platform ──────────────────────────────────────
 // Tier B device picker: exchanges the auth code, fetches device list, sends
 // postMessage to the opener popup, then closes itself.
-app.get("/oauth/device/callback/:platform", async (req: Request, res: Response): Promise<void> => {
+app.get("/oauth/device/callback/:platform", deviceOAuthLimiter, async (req: Request, res: Response): Promise<void> => {
   const { platform } = req.params;
-  const code         = req.query.code as string | undefined;
+  const code         = req.query.code  as string | undefined;
+  const state        = req.query.state as string | undefined;
 
   if (!code) {
     res.status(400).send("Missing code parameter");
+    return;
+  }
+
+  if (!state || !consumeOAuthState(state, platform)) {
+    const errMsg      = JSON.stringify({ type: "oauth-devices", error: "Invalid or expired OAuth state — CSRF protection rejected this callback" });
+    const targetOrigin = JSON.stringify(FRONTEND_ORIGIN);
+    res.send(`<!doctype html><html><body><script>
+      window.opener && window.opener.postMessage(${errMsg}, ${targetOrigin});
+      window.close();
+    </script><p>Authorization failed: invalid state.</p></body></html>`);
     return;
   }
 
@@ -756,8 +867,22 @@ app.get("/oauth/device/callback/:platform", async (req: Request, res: Response):
 // platforms (Rheem EcoNet, Sense, Emporia Vue), stores credentials in the
 // gateway process env, and returns the user's device list.
 // Credentials are NEVER forwarded to the ICP canister.
-app.post("/accounts/:platform", async (req: Request, res: Response): Promise<void> => {
+app.post("/accounts/:platform", adminOAuthLimiter, async (req: Request, res: Response): Promise<void> => {
   const reqId = (req as RequestWithId).reqId;
+
+  // Require admin token — this endpoint handles raw credentials
+  const adminToken = process.env.ADMIN_TOKEN;
+  if (!adminToken) {
+    logger.warn("accounts", "rejected — ADMIN_TOKEN not set, endpoint is disabled", { reqId });
+    res.status(503).json({ error: "Service unavailable — ADMIN_TOKEN not configured" });
+    return;
+  }
+  if (req.headers["x-admin-token"] !== adminToken) {
+    logger.warn("accounts", "rejected — missing or invalid admin token", { reqId });
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
   const { platform } = req.params;
   const { email, password } = req.body as { email?: string; password?: string };
 
@@ -853,6 +978,10 @@ app.get("/health", (_req: Request, res: Response) => {
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 app.listen(port, () => {
+  if (!process.env.ADMIN_TOKEN) {
+    logger.warn("gateway", "ADMIN_TOKEN not set — POST /accounts/:platform is disabled");
+  }
+
   logger.info("gateway", `listening on :${port}`, {
     gatewayPrincipal: getGatewayPrincipal(),
     sensorCanisterId: process.env.SENSOR_CANISTER_ID ?? "(set SENSOR_CANISTER_ID)",

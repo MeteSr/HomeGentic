@@ -98,12 +98,13 @@ persistent actor Job {
 
   /// Short-lived token that lets a contractor sign a job without having an account.
   public type InviteToken = {
-    token:           Text;     // "INV_<32 hex chars>" — unguessable
-    jobId:           Text;
-    propertyAddress: Text;     // denormalised at creation — avoids cross-canister call on verify page
-    createdAt:       Int;
-    expiresAt:       Int;      // createdAt + 48 hours
-    usedAt:          ?Int;     // null until redeemed
+    token:               Text;     // "INV_<32 hex chars>" — unguessable
+    jobId:               Text;
+    propertyAddress:     Text;     // denormalised at creation — avoids cross-canister call on verify page
+    createdAt:           Int;
+    expiresAt:           Int;      // createdAt + 48 hours
+    usedAt:              ?Int;     // null until redeemed
+    contractorPrincipal: ?Principal; // M-12: intended redeemer; null = legacy token (any bearer)
   };
 
   /// Subset of job data returned to the public verify page (no auth required).
@@ -129,6 +130,10 @@ persistent actor Job {
   private var adminInitialized:        Bool        = false;
   private var authorizedSensors:       [Principal] = [];
   private var trustedCanisterEntries:  [Principal] = [];
+  /// H-20: Bootstrap nonce — must be set via setBootstrapNonce() before the
+  /// first addAdmin() call. Consumed on first successful use. Prevents any
+  /// anonymous caller from claiming admin during initial deployment.
+  private var bootstrapNonce:          ?Text       = null;
   /// Contractor canister ID — set post-deploy via setContractorCanisterId().
   /// When set, verifyJob() notifies the contractor canister on full verification.
   private var contrCanisterId:    Text        = "";
@@ -345,7 +350,12 @@ persistent actor Job {
   };
 
   /// Fetch all jobs for a given property.
-  public query func getJobsForProperty(propertyId: Text) : async Result.Result<[Job], Error> {
+  /// Caller must be the property owner, an admin, or a trusted canister.
+  public shared(msg) func getJobsForProperty(propertyId: Text) : async Result.Result<[Job], Error> {
+    if (not isAdmin(msg.caller) and not isTrustedCanister(msg.caller)) {
+      let authorized = await checkPropertyAuth(propertyId, msg.caller, msg.caller, false);
+      if (not authorized) return #ok([]);  // return empty rather than error for UX
+    };
     let matches = Iter.toArray(
       Iter.filter(Map.values(jobs), func(j: Job) : Bool { j.propertyId == propertyId })
     );
@@ -685,8 +695,26 @@ persistent actor Job {
     #ok(())
   };
 
-  public shared(msg) func addAdmin(newAdmin: Principal) : async Result.Result<(), Error> {
-    if (adminInitialized and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+  /// H-20: Set the one-time bootstrap nonce before calling addAdmin() the first time.
+  /// Ignored once adminInitialized = true, and can only be set once.
+  public shared func setBootstrapNonce(nonce: Text) : async () {
+    if (adminInitialized) return;  // already bootstrapped — ignore
+    if (bootstrapNonce != null) return;  // nonce already set — can only be set once
+    bootstrapNonce := ?nonce;
+  };
+
+  public shared(msg) func addAdmin(newAdmin: Principal, nonce: Text) : async Result.Result<(), Error> {
+    if (adminInitialized) {
+      // Normal path: require an existing admin to add new admins.
+      if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    } else {
+      // Bootstrap path: require the pre-shared nonce.
+      switch (bootstrapNonce) {
+        case null    { return #err(#NotAuthorized) }; // nonce not set — reject
+        case (?n)    { if (nonce != n) return #err(#NotAuthorized) };
+      };
+      bootstrapNonce := null; // consume the nonce — single use
+    };
     if (not isAdmin(newAdmin)) {
       adminListEntries := Array.concat(adminListEntries, [newAdmin]);
     };
@@ -797,6 +825,12 @@ persistent actor Job {
   ) : async Result.Result<Job, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
+    // H-10: Verify property ownership before creating a pre-verified job.
+    if (not isAdmin(msg.caller)) {
+      let isOwner = await checkPropertyAuth(propertyId, msg.caller, msg.caller, true);
+      if (not isOwner) return #err(#NotAuthorized);
+    };
+
     if (Text.size(propertyId)    == 0) return #err(#InvalidInput("propertyId cannot be empty"));
     if (Text.size(contractorName) == 0) return #err(#InvalidInput("contractorName is required"));
     if (amount == 0)                   return #err(#InvalidInput("amount must be greater than 0"));
@@ -874,9 +908,10 @@ persistent actor Job {
       token;
       jobId;
       propertyAddress;
-      createdAt = now;
-      expiresAt = now + 48 * 60 * 60 * 1_000_000_000;
-      usedAt    = null;
+      createdAt           = now;
+      expiresAt           = now + 48 * 60 * 60 * 1_000_000_000;
+      usedAt              = null;
+      contractorPrincipal = null; // M-12: not locked to a specific contractor at creation
     };
     Map.add(inviteTokens, Text.compare, token, entry);
     #ok(token)
@@ -908,9 +943,11 @@ persistent actor Job {
   };
 
   /// Redeem an invite token: mark the contractor's signature on the job.
-  /// Caller identity is not checked — the token is the credential.
+  /// M-12: Caller is captured; if the token was locked to a specific contractor
+  /// principal, only that principal may redeem it. Legacy tokens (contractorPrincipal=null)
+  /// remain bearer-token accessible for backwards compatibility.
   /// Sets contractorSigned = true; if homeownerSigned is also true, auto-verifies.
-  public shared func redeemInviteToken(token: Text) : async Result.Result<Job, Error> {
+  public shared(msg) func redeemInviteToken(token: Text) : async Result.Result<Job, Error> {
     let invite = switch (Map.get(inviteTokens, Text.compare, token)) {
       case null    { return #err(#NotFound) };
       case (?i)    { i };
@@ -918,6 +955,14 @@ persistent actor Job {
 
     if (invite.usedAt != null)            return #err(#InvalidInput("This invite link has already been used"));
     if (Time.now() > invite.expiresAt)    return #err(#InvalidInput("This invite link has expired"));
+
+    // M-12: Validate caller against intended contractor principal (when set).
+    switch (invite.contractorPrincipal) {
+      case (?intended) {
+        if (msg.caller != intended) return #err(#NotAuthorized);
+      };
+      case null {}; // legacy tokens without contractorPrincipal — allow any bearer
+    };
 
     let job = switch (Map.get(jobs, Text.compare, invite.jobId)) {
       case null    { return #err(#NotFound) };
@@ -952,12 +997,13 @@ persistent actor Job {
 
     // Mark token as used
     let usedInvite : InviteToken = {
-      token           = invite.token;
-      jobId           = invite.jobId;
-      propertyAddress = invite.propertyAddress;
-      createdAt       = invite.createdAt;
-      expiresAt       = invite.expiresAt;
-      usedAt          = ?Time.now();
+      token               = invite.token;
+      jobId               = invite.jobId;
+      propertyAddress     = invite.propertyAddress;
+      createdAt           = invite.createdAt;
+      expiresAt           = invite.expiresAt;
+      usedAt              = ?Time.now();
+      contractorPrincipal = invite.contractorPrincipal;
     };
     Map.add(inviteTokens, Text.compare, token, usedInvite);
 
@@ -1123,8 +1169,9 @@ persistent actor Job {
   };
 
   /// Returns all jobs that were sourced via a HomeGentic quote request.
-  /// Used by the admin referral fee pipeline view.
-  public query func getReferralJobs() : async [Job] {
+  /// H-17: Admin-only — this view exposes quote IDs and referral attribution.
+  public shared(msg) func getReferralJobs() : async Result.Result<[Job], Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     let result = Array.filter<Job>(
       Iter.toArray(Map.values(jobs)),
       func(j: Job) : Bool {
@@ -1134,7 +1181,7 @@ persistent actor Job {
         }
       }
     );
-    result
+    #ok(result)
   };
 
   public query func getMetrics() : async Metrics {

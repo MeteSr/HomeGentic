@@ -74,6 +74,7 @@ calls and handles Stripe payments. It is deployed separately to
 | `STRIPE_PRICE_CREDITS_25` | Stripe price ID |
 | `STRIPE_PRICE_CREDITS_100` | Stripe price ID |
 | `DFX_IDENTITY_PEM` | Ed25519 PEM of the identity registered as admin in the payment canister — same value as the `DFX_IDENTITY_PEM` GitHub secret used for testnet deploys |
+| `RENTCAST_API_KEY` | Rentcast API key — kept server-side so it is never exposed in the browser bundle. The frontend calls `/api/rentcast/properties` on this server, which proxies to `api.rentcast.io`. Do **not** use `VITE_RENTCAST_API_KEY`. |
 
 `CANISTER_ID_PAYMENT` is optional; it defaults to the testnet canister
 `a3shm-xiaaa-aaaaj-a6moa-cai`. Override only when deploying against a different
@@ -123,11 +124,53 @@ Deploy it as a second Railway service in the same project, pointing to `agents/n
 
 VAPID keys are stable — regenerate only if the private key is compromised (invalidates all existing browser subscriptions).
 
+`INTERNAL_API_KEY` gates both `/api/push/send` and `/api/push/register`. It must be set in production — the server throws at startup if it is absent when `NODE_ENV=production`.
+
 ### Generate VAPID keys (first-time only)
 
 ```bash
 cd agents/notifications && node -e "const wp=require('web-push'); const k=wp.generateVAPIDKeys(); console.log(JSON.stringify(k,null,2))"
 ```
+
+---
+
+## IoT Gateway
+
+The IoT gateway (`agents/iot-gateway/`) is a Node/Express server that ingests
+sensor events, manages OAuth credentials for smart-home platforms, and writes
+events to the `sensor` ICP canister.
+
+### Required environment variables
+
+| Variable | Description |
+|---|---|
+| `NODE_ENV` | `production` |
+| `IOT_GATEWAY_PORT` | Port to listen on (default `3002`) |
+| `SENSOR_CANISTER_ID` | ICP principal of the `sensor` canister |
+| `ADMIN_TOKEN` | Strong random secret required in `x-admin-token` on `POST /accounts/:platform` (credential proxy) and `GET /oauth/start/*` (OAuth initiation). Server logs a warning and disables the credential proxy endpoint if unset. Generate with `openssl rand -hex 32`. |
+| `FRONTEND_ORIGIN` | Exact origin of the frontend — used in `postMessage` responses from the OAuth device picker |
+| `HONEYWELL_CLIENT_ID` | Honeywell Home OAuth app client ID |
+| `HONEYWELL_CLIENT_SECRET` | Honeywell Home OAuth app client secret |
+| `GE_CLIENT_ID` | GE SmartHQ OAuth app client ID |
+| `GE_CLIENT_SECRET` | GE SmartHQ OAuth app client secret |
+
+### OAuth setup (Honeywell / GE)
+
+OAuth credentials are obtained through admin-gated one-time flows — they are not
+user-initiated:
+
+```bash
+# Initiate the flow (requires x-admin-token header)
+curl -H "x-admin-token: $ADMIN_TOKEN" https://<gateway>/oauth/start/honeywell
+# → redirects to Honeywell authorization page
+
+# After approving, Honeywell redirects to /oauth/callback/honeywell?code=...&state=...
+# The gateway validates the CSRF state token and exchanges the code for tokens automatically.
+```
+
+The device-picker OAuth flow (for homeowner-linked devices) uses the same CSRF
+state pattern but is user-initiated via the frontend. See [SECURITY.md](SECURITY.md)
+for the full OAuth CSRF state store design.
 
 ---
 
