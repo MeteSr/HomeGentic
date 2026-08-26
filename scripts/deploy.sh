@@ -606,8 +606,17 @@ echo "============================================"
 DEPLOYER=$(icp identity principal)
 echo "  Deployer principal: $DEPLOYER"
 
-ADMIN_CANISTERS=(property job contractor quote photo report maintenance market sensor listing recurring bills monitoring audit referrals)
+# job/property/photo use a bootstrap-nonce pattern (H-20 fix):
+# setBootstrapNonce must be called before addAdmin on first deploy.
+BOOTSTRAP_NONCE=$(openssl rand -hex 16)
+for canister in property job photo; do
+  echo "  $canister: setting bootstrap nonce..."
+  icp canister call "$canister" setBootstrapNonce "(\"$BOOTSTRAP_NONCE\")" -e "$ENV" 2>/dev/null
+  echo "  $canister: adding deployer as admin (nonce-gated)..."
+  icp canister call "$canister" addAdmin "(principal \"$DEPLOYER\", \"$BOOTSTRAP_NONCE\")" -e "$ENV" 2>/dev/null
+done
 
+ADMIN_CANISTERS=(contractor quote report maintenance market sensor listing recurring bills monitoring audit referrals)
 for canister in "${ADMIN_CANISTERS[@]}"; do
   echo "  $canister: adding deployer as admin..."
   icp canister call "$canister" addAdmin "(principal \"$DEPLOYER\")" -e "$ENV" \
@@ -662,7 +671,8 @@ fi
 
 if [ -n "$PAYMENT_ID" ] && [ -n "$PROPERTY_ID" ]; then
   echo "  property: adding payment as admin (for tier propagation)..."
-  icp canister call property addAdmin "(principal \"$PAYMENT_ID\")" -e "$ENV" 2>/dev/null &
+  # property uses nonce-gated addAdmin; DEPLOYER is already admin so nonce param is ignored
+  icp canister call property addAdmin "(principal \"$PAYMENT_ID\", \"\")" -e "$ENV" 2>/dev/null &
 fi
 if [ -n "$PAYMENT_ID" ] && [ -n "$QUOTE_ID" ]; then
   echo "  quote: adding payment as admin (for tier propagation)..."
@@ -670,7 +680,8 @@ if [ -n "$PAYMENT_ID" ] && [ -n "$QUOTE_ID" ]; then
 fi
 if [ -n "$PAYMENT_ID" ] && [ -n "$PHOTO_ID" ]; then
   echo "  photo: adding payment as admin (for tier propagation)..."
-  icp canister call photo addAdmin "(principal \"$PAYMENT_ID\")" -e "$ENV" 2>/dev/null &
+  # photo uses nonce-gated addAdmin; DEPLOYER is already admin so nonce param is ignored
+  icp canister call photo addAdmin "(principal \"$PAYMENT_ID\", \"\")" -e "$ENV" 2>/dev/null &
 fi
 
 if [ -n "$PAYMENT_ID" ] && [ -n "$PROPERTY_ID" ] && [ -n "$QUOTE_ID" ] && [ -n "$PHOTO_ID" ]; then

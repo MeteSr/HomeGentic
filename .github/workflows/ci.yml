@@ -150,7 +150,14 @@ jobs:
           done
 
           # ── Bootstrap admin lists ────────────────────────────────────────────
-          for canister in property job contractor quote photo report maintenance market sensor listing recurring bills monitoring referrals; do
+          # job/property/photo use a bootstrap-nonce pattern (H-20 fix):
+          # setBootstrapNonce must be called first; addAdmin requires the nonce on first call.
+          BOOTSTRAP_NONCE=$(openssl rand -hex 16)
+          for canister in property job photo; do
+            dfx canister call "$canister" setBootstrapNonce "(\"$BOOTSTRAP_NONCE\")"
+            dfx canister call "$canister" addAdmin "(principal \"$DEPLOYER\", \"$BOOTSTRAP_NONCE\")"
+          done
+          for canister in contractor quote report maintenance market sensor listing recurring bills monitoring referrals; do
             dfx canister call "$canister" addAdmin "(principal \"$DEPLOYER\")"
           done
           dfx canister call payment initAdmins "(vec { principal \"$DEPLOYER\" })" || true
@@ -197,9 +204,11 @@ jobs:
           dfx canister call market      setJobCanisterId        "(\"$JOB_ID\")"
 
           # ── Tier propagation wiring ──────────────────────────────────────────
-          dfx canister call property addAdmin "(principal \"$PAYMENT_ID\")"
+          # property/photo use nonce-gated addAdmin; DEPLOYER is already admin so
+          # adminInitialized=true — nonce param is required by Candid but ignored.
+          dfx canister call property addAdmin "(principal \"$PAYMENT_ID\", \"\")"
           dfx canister call quote    addAdmin "(principal \"$PAYMENT_ID\")"
-          dfx canister call photo    addAdmin "(principal \"$PAYMENT_ID\")"
+          dfx canister call photo    addAdmin "(principal \"$PAYMENT_ID\", \"\")"
           dfx canister call payment  setTierCanisterIds \
             "(principal \"$PROPERTY_ID\", principal \"$QUOTE_ID\", principal \"$PHOTO_ID\")"
 
@@ -286,7 +295,12 @@ jobs:
             dfx deploy "$canister"
           done
 
-          for canister in property job contractor quote photo report maintenance market sensor listing recurring bills monitoring referrals; do
+          BOOTSTRAP_NONCE=$(openssl rand -hex 16)
+          for canister in property job photo; do
+            dfx canister call "$canister" setBootstrapNonce "(\"$BOOTSTRAP_NONCE\")"
+            dfx canister call "$canister" addAdmin "(principal \"$DEPLOYER\", \"$BOOTSTRAP_NONCE\")"
+          done
+          for canister in contractor quote report maintenance market sensor listing recurring bills monitoring referrals; do
             dfx canister call "$canister" addAdmin "(principal \"$DEPLOYER\")"
           done
           dfx canister call payment initAdmins "(vec { principal \"$DEPLOYER\" })" || true
@@ -333,9 +347,9 @@ jobs:
           dfx canister call market      setPropertyCanisterId   "(\"$PROPERTY_ID\")"
           dfx canister call market      setJobCanisterId        "(\"$JOB_ID\")"
 
-          dfx canister call property addAdmin "(principal \"$PAYMENT_ID\")"
+          dfx canister call property addAdmin "(principal \"$PAYMENT_ID\", \"\")"
           dfx canister call quote    addAdmin "(principal \"$PAYMENT_ID\")"
-          dfx canister call photo    addAdmin "(principal \"$PAYMENT_ID\")"
+          dfx canister call photo    addAdmin "(principal \"$PAYMENT_ID\", \"\")"
           dfx canister call payment  setTierCanisterIds \
             "(principal \"$PROPERTY_ID\", principal \"$QUOTE_ID\", principal \"$PHOTO_ID\")"
 
