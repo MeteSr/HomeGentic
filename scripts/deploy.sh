@@ -733,6 +733,10 @@ if [ -n "$SENSOR_ID" ]     && [ -n "$JOB_ID" ]; then
   echo "  Wiring job -> sensor..."
   icp canister call sensor     setJobCanisterId        "(\"$JOB_ID\")"               -e "$ENV" &
 fi
+if [ -n "$SENSOR_ID" ]     && [ -n "$PROPERTY_ID" ]; then
+  echo "  Wiring property -> sensor (H-15: ownership check on registerDevice)..."
+  icp canister call sensor     setPropertyCanisterId   "(\"$PROPERTY_ID\")"          -e "$ENV" &
+fi
 if [ -n "$REPORT_ID" ]     && [ -n "$PROPERTY_ID" ]; then
   echo "  Wiring property -> report..."
   icp canister call report     setPropertyCanisterId   "(\"$PROPERTY_ID\")"          -e "$ENV" &
