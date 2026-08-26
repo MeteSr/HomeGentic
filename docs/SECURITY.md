@@ -109,6 +109,170 @@ Set `BACKUP_CONTROLLER_PRINCIPAL` before deploying to add a second controller
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for controller rotation procedures.
 
+## Admin Bootstrap — Nonce Pattern (H-20)
+
+`job`, `property`, and `photo` canisters use a one-time bootstrap nonce to prevent
+the race condition where any principal calls `addAdmin()` before the deployer does.
+
+**How it works:**
+
+```motoko
+private var adminInitialized : Bool   = false;
+private var bootstrapNonce   : ?Text  = null;
+
+// Call this once, before addAdmin, on a fresh canister.
+// No-op once adminInitialized = true.
+public shared func setBootstrapNonce(nonce: Text) : async () { ... }
+
+public shared(msg) func addAdmin(newAdmin: Principal, nonce: Text)
+  : async Result.Result<(), Error> {
+  if (adminInitialized) {
+    // Normal path: caller must already be admin
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+  } else {
+    // Bootstrap path: verify one-time nonce, then consume it
+    switch (bootstrapNonce) {
+      case null    { return #err(#NotAuthorized) };
+      case (?n)    { if (nonce != n) return #err(#NotAuthorized) };
+    };
+    bootstrapNonce := null;
+  };
+  ...
+  adminInitialized := true;
+  #ok(())
+};
+```
+
+**Deploy sequence (handled automatically by `scripts/deploy.sh`):**
+```bash
+NONCE=$(openssl rand -hex 16)
+dfx canister call property setBootstrapNonce "($NONCE)"
+dfx canister call property addAdmin "(principal \"$DEPLOYER\", \"$NONCE\")"
+```
+
+**Upgrade behaviour:** On canister upgrade `adminInitialized` is preserved (stable
+variable). The nonce path is never taken again. Subsequent `addAdmin` calls only
+require the caller to be an existing admin — the `nonce: Text` argument is required
+by the Candid type but ignored.
+
+**Other canisters** (`contractor`, `quote`, `report`, etc.) take `addAdmin(Principal)`
+— the single-arg form. Only `job`, `property`, and `photo` have the nonce variant.
+
+---
+
+## Fail-Secure Auth Guards
+
+Two patterns were introduced to ensure authentication is enforced even when optional
+environment variables are absent.
+
+### `&&` → `||` in conditional key checks
+
+The prior pattern `if (key && header !== key)` skips auth when `key` is `undefined`
+— the condition is false so `next()` is called. The correct pattern:
+
+```typescript
+// Wrong — bypasses auth when key is unset
+if (internalKey && req.headers["x-internal-key"] !== internalKey) { ... }
+
+// Correct — rejects all requests when key is unset
+if (!internalKey || req.headers["x-internal-key"] !== internalKey) { ... }
+```
+
+This pattern is used in `agents/notifications/server.ts` (`/api/push/send` and
+`/api/push/register`) and `agents/iot-gateway/server.ts` (`/accounts/:platform`).
+Any new auth-gated endpoint must use the `||` form.
+
+### Startup key assertions
+
+Services that require a secret key to be functional in production throw at startup
+when the key is absent (rather than degrading silently):
+
+```typescript
+if (!process.env.INTERNAL_API_KEY) {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("INTERNAL_API_KEY must be set in production");
+  }
+  console.warn("[notifications] INTERNAL_API_KEY not set — running unprotected (dev only)");
+}
+```
+
+The voice agent uses the same pattern for `VOICE_AGENT_API_KEY` and
+`STRIPE_SECRET_KEY`: if Stripe is configured, the API key must be set or the
+process refuses to start.
+
+---
+
+## Subscription Tier Resolution
+
+Agent and chat rate limits are enforced using the subscription tier fetched
+**server-side** from the ICP payment canister — the client-supplied
+`x-subscription-tier` header is never the source of truth:
+
+```typescript
+// voice server — /api/agent and /api/chat
+let tier: SubscriptionTier;
+try {
+  tier = await getSubscriptionTier(principal); // cross-canister query
+} catch {
+  // Canister unreachable — fall back to header with logged warning
+  tier = req.headers["x-subscription-tier"] ?? "Free";
+  logger.warn("getSubscriptionTier failed — using header fallback");
+}
+```
+
+`getSubscriptionTier()` lives in `agents/voice/paymentCanister.ts` and fails safe
+to `"Free"` on any canister error.
+
+---
+
+## OAuth CSRF State Store (IoT Gateway)
+
+All OAuth flows in `agents/iot-gateway/server.ts` use a server-side state store
+to prevent CSRF token-injection attacks:
+
+```typescript
+const oauthStateStore = new Map<string, { platform: string; expiresAt: number }>();
+
+function generateOAuthState(): string {
+  return crypto.randomBytes(32).toString("hex");
+}
+// State expires after 10 minutes; stale entries are purged on each write.
+// consumeOAuthState() deletes the entry — each state is single-use.
+```
+
+**Flows covered:**
+- `GET /oauth/start/honeywell` → `/oauth/callback/honeywell`
+- `GET /oauth/start/ge` → `/oauth/callback/ge`
+- `GET /oauth/device/start/:platform` → `/oauth/device/callback/:platform`
+
+The `start` endpoints require `x-admin-token` (IoT gateway admin) and redirect to
+the upstream authorization URL with `?state=<token>` appended. Callbacks that
+arrive without a valid, unexpired, platform-matching state token are rejected with
+HTTP 400.
+
+---
+
+## Server-Side Secret Proxying
+
+API keys that need to reach a third-party service from browser-initiated requests
+must be proxied through the voice agent — never stored in `VITE_*` environment
+variables, which are baked into the browser bundle at build time.
+
+**Pattern:**
+1. Add a proxy route to `agents/voice/server.ts` that reads the key from `process.env`
+2. Call that route from the frontend instead of the third-party API directly
+3. Authenticate the proxy route with `x-api-key: VITE_VOICE_AGENT_API_KEY`
+
+**Current proxied secrets:**
+| Secret | Proxy route | Was previously |
+|---|---|---|
+| `RENTCAST_API_KEY` | `GET /api/rentcast/properties` | `VITE_RENTCAST_API_KEY` in bundle |
+
+Any new third-party API integration that requires a secret key must follow this
+pattern. Do not add new `VITE_*` keys for service credentials.
+
+---
+
 ## Best Practices
 
 - Never commit `.env` files — they contain canister IDs and identity PEMs
