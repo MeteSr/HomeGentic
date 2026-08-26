@@ -409,7 +409,8 @@ bidtolistRouter.post("/stripe/webhook", express.raw({ type: "*/*" }), async (req
     event = stripe.webhooks.constructEvent(req.body, sig, WEBHOOK_SECRET);
   } catch (err: any) {
     console.error("[bidtolist] Webhook signature verification failed:", err.message);
-    res.status(400).send(`Webhook Error: ${err.message}`); return;
+    // Return JSON (not raw text) so err.message is never interpolated into an HTML context.
+    res.status(400).json({ error: "Webhook signature verification failed" }); return;
   }
 
   if (event.type === "checkout.session.completed") {
