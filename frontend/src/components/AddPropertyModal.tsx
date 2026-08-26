@@ -301,7 +301,7 @@ function LeftRail({
             RECORD SCORE
           </div>
           <div style={{ font: `700 22px/1 ${F.display}`, color: T.blue }}>
-            {score} <span style={{ font: `400 13px/1 ${F.body}`, color: T.blueBdr }}>/ {maxScore}</span>
+            {score} <span style={{ font: `400 13px/1 ${F.body}`, color: T.blue }}>/ {maxScore}</span>
           </div>
           {/* Progress bar */}
           <div style={{ height: 4, background: T.blueBdr, borderRadius: 100, marginTop: 10 }}>

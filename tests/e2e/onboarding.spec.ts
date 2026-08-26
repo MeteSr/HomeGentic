@@ -276,7 +276,7 @@ test.describe("OnboardingWizard — modal auto-opens on /dashboard", () => {
       });
 
       test("shows progress count '0 / 6'", async ({ page }) => {
-        await expect(page.getByText("0 / 6")).toBeVisible();
+        await expect(page.getByText("0 / 6").first()).toBeVisible();
       });
 
       test("shows 'Add photo' button for each of the 6 systems", async ({ page }) => {
