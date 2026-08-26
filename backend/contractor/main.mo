@@ -317,6 +317,30 @@ persistent actor Contractor {
     if (Text.size(comment) > 2000)  return #err(#InvalidInput("comment exceeds 2000 characters"));
     if (Text.size(jobId)   == 0)    return #err(#InvalidInput("jobId cannot be empty"));
 
+    // M-09: if jobCanisterId is wired, cross-canister validate the jobId exists
+    // and that the caller was the homeowner and the reviewed contractor was on this job
+    if (Text.size(jobCanisterId) > 0) {
+      let jobActor = actor(jobCanisterId) : actor {
+        getJob : (Text) -> async ?{
+          homeowner:   Principal;
+          contractor:  ?Principal;
+        };
+      };
+      switch (await jobActor.getJob(jobId)) {
+        case null { return #err(#InvalidInput("jobId does not exist")) };
+        case (?job) {
+          if (job.homeowner != msg.caller) return #err(#NotAuthorized);
+          switch (job.contractor) {
+            case null  { return #err(#InvalidInput("job has no contractor")) };
+            case (?c)  {
+              if (c != contractorPrincipal) return #err(#InvalidInput("contractor mismatch"))
+            };
+          };
+        };
+      };
+    };
+    // If jobCanisterId is not set (dev/local), skip the cross-canister validation
+
     // Composite duplicate check: one review per reviewer+job
     let compositeKey = Principal.toText(msg.caller) # "|" # jobId;
     if (Map.get(reviewKeys, Text.compare, compositeKey) != null)

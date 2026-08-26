@@ -23,6 +23,7 @@
 
 import { Router } from "express";
 import express from "express";
+import { randomBytes } from "crypto";
 import { Resend } from "resend";
 import Stripe from "stripe";
 import { Actor, HttpAgent } from "@dfinity/agent";
@@ -157,9 +158,8 @@ async function fetchListing(requestId: string): Promise<{ homeownerEmail: string
 
 function generateDiscountCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code = "BIDTOLIST-";
-  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
-  return code;
+  const bytes = randomBytes(6);
+  return "BIDTOLIST-" + Array.from(bytes).map(b => chars[b % chars.length]).join("");
 }
 
 async function createHomegenticCode(code: string): Promise<void> {
@@ -247,16 +247,28 @@ bidtolistRouter.post("/email/proposal-result", async (req, res) => {
   };
   if (!agentEmail) { res.status(400).json({ error: "agentEmail required" }); return; }
 
+  // H-03: validate email format; sanitize text fields to prevent header injection
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (agentEmail && !emailRegex.test(agentEmail)) {
+    res.status(400).json({ error: "Invalid agentEmail format" });
+    return;
+  }
+  // Strip control characters from text fields
+  const safeAgentName = agentName ? agentName.replace(/[\r\n\t]/g, " ").slice(0, 200) : "";
+  const safeCity = city ? city.replace(/[\r\n\t]/g, " ").slice(0, 100) : "";
+  // NOTE: ideally agentEmail should be looked up from the ICP agent canister by agentId
+  // rather than accepted from the request body, to fully prevent phishing abuse.
+
   const subject = won
-    ? `Congratulations — you won the listing in ${city} — BidtoList`
-    : `Listing result for ${city} — BidtoList`;
+    ? `Congratulations — you won the listing in ${safeCity} — BidtoList`
+    : `Listing result for ${safeCity} — BidtoList`;
   const html = won
-    ? `<p>Hi ${agentName},</p>
-       <p>Congratulations! The homeowner has selected you as their agent for the <strong>${city}</strong> listing.</p>
+    ? `<p>Hi ${safeAgentName},</p>
+       <p>Congratulations! The homeowner has selected you as their agent for the <strong>${safeCity}</strong> listing.</p>
        <p>A platform fee of <strong>$295.00</strong> is due. You'll receive an invoice shortly.</p>
        <p><a href="https://bidtolist.com/agents/dashboard">View your dashboard →</a></p>`
-    : `<p>Hi ${agentName},</p>
-       <p>The homeowner for the <strong>${city}</strong> listing has selected another agent.</p>
+    : `<p>Hi ${safeAgentName},</p>
+       <p>The homeowner for the <strong>${safeCity}</strong> listing has selected another agent.</p>
        <p>Keep an eye on new listings — there are always more opportunities.</p>
        <p><a href="https://bidtolist.com/agents/browse">Browse open listings →</a></p>`;
 
@@ -275,13 +287,24 @@ bidtolistRouter.post("/email/agent-verified", async (req, res) => {
   const { agentEmail, agentName } = req.body as { agentEmail: string; agentName: string };
   if (!agentEmail) { res.status(400).json({ error: "agentEmail required" }); return; }
 
+  // H-03: validate email format; sanitize text fields to prevent header injection
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (agentEmail && !emailRegex.test(agentEmail)) {
+    res.status(400).json({ error: "Invalid agentEmail format" });
+    return;
+  }
+  // Strip control characters from text fields
+  const safeAgentName = agentName ? agentName.replace(/[\r\n\t]/g, " ").slice(0, 200) : "";
+  // NOTE: ideally agentEmail should be looked up from the ICP agent canister by agentId
+  // rather than accepted from the request body, to fully prevent phishing abuse.
+
   try {
     await resend.emails.send({
       from: FROM,
       to: agentEmail,
       subject: "Your BidtoList account is verified",
       html: `
-        <p>Hi ${agentName},</p>
+        <p>Hi ${safeAgentName},</p>
         <p>Your BidtoList agent account has been verified. You can now browse open listing requests and submit sealed proposals.</p>
         <p><a href="https://bidtolist.com/agents/browse">Browse listings →</a></p>
       `,

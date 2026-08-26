@@ -1,6 +1,6 @@
 import "dotenv/config";
 import express, { Request, Response } from "express";
-import { activateInCanister, consumeAgentCredit, grantAgentCredits } from "./paymentCanister";
+import { activateInCanister, consumeAgentCredit, grantAgentCredits, getSubscriptionTier } from "./paymentCanister";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { createHmac, timingSafeEqual } from "crypto";
@@ -82,15 +82,15 @@ async function flushErrorAggregations(): Promise<void> {
 // Flush every 5 minutes (fire-and-forget; voice server is stateless on restart)
 setInterval(() => { void flushErrorAggregations(); }, 5 * 60 * 1_000);
 
-// §49 — fail-secure: require VOICE_AGENT_API_KEY in production.
+// §49 — fail-secure: require VOICE_AGENT_API_KEY in production or when Stripe is configured.
 // All /api/ routes check the x-api-key header against this secret.
-// In dev, if unset, a warning is printed and requests are allowed through.
+// In dev with no Stripe, if unset, a warning is printed and requests are allowed through.
 const VOICE_API_KEY = process.env.VOICE_AGENT_API_KEY ?? "";
 if (!VOICE_API_KEY) {
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("VOICE_AGENT_API_KEY env var must be set in production");
+  if (process.env.NODE_ENV === "production" || process.env.STRIPE_SECRET_KEY) {
+    throw new Error("VOICE_AGENT_API_KEY must be set when STRIPE_SECRET_KEY is configured or in production");
   }
-  logger.warn("voice-agent", "VOICE_AGENT_API_KEY not set — API endpoints are unprotected (dev only)");
+  logger.warn("voice-agent", "VOICE_AGENT_API_KEY not set — API endpoints are unprotected (dev only, no Stripe)");
 }
 
 // 14.3.3 — fail-secure: require FRONTEND_ORIGIN in production
@@ -259,7 +259,9 @@ function contextMiddleware(req: Request, res: Response, next: express.NextFuncti
   // HMAC verification — skip in dev when key is absent
   if (VOICE_API_KEY) {
     const provided = (req.headers["x-context-hmac"] as string | undefined) ?? "";
-    const context  = req.body?.context ?? req.body?.message != null ? (req.body?.context ?? {}) : null;
+    // M-02: use explicit null/undefined check to avoid operator precedence bug;
+    // only verify HMAC when a context field was explicitly provided in the body.
+    const context  = req.body?.context !== undefined && req.body?.context !== null ? req.body.context : null;
     if (context !== null && !verifyHmac(VOICE_API_KEY, context, provided)) {
       res.status(403).json({ error: "Context integrity check failed." });
       return;
@@ -289,9 +291,19 @@ app.post("/api/chat", async (req: Request, res: Response): Promise<void> => {
   }
 
   // Per-tier chat rate limit: free tiers capped at 3/day, paid tiers unlimited.
+  // Tier is resolved server-side from the ICP payment canister — client header is not trusted.
   const chatPrincipal = (req.headers["x-icp-principal"] as string | undefined) ?? "anon";
-  const chatRawTier   = (req.headers["x-subscription-tier"] as string | undefined) ?? "Free";
-  const chatTier      = (chatRawTier in TIER_LIMITS ? chatRawTier : "Free") as SubscriptionTier;
+  let chatTier: SubscriptionTier;
+  try {
+    chatTier = (chatPrincipal !== "anon"
+      ? (await getSubscriptionTier(chatPrincipal)) as SubscriptionTier
+      : "Free") as SubscriptionTier;
+  } catch {
+    // Canister unreachable — fall back to client-supplied header with warning
+    const chatRawTier = (req.headers["x-subscription-tier"] as string | undefined) ?? "Free";
+    chatTier = (chatRawTier in TIER_LIMITS ? chatRawTier : "Free") as SubscriptionTier;
+    logger.warn("voice-agent", "getSubscriptionTier failed for chat — using header fallback", { chatPrincipal });
+  }
   const chatCheck     = checkAndRecordChat(chatPrincipal, chatTier);
   if (!chatCheck.allowed) {
     res.status(429).json({
@@ -347,9 +359,19 @@ app.post("/api/agent", async (req: Request, res: Response): Promise<void> => {
   }
 
   // ── rate limit check ──────────────────────────────────────────────────────
+  // Tier is resolved server-side from the ICP payment canister — client header is not trusted.
   const principal = (req.headers["x-icp-principal"] as string | undefined) ?? "anon";
-  const rawTier   = (req.headers["x-subscription-tier"] as string | undefined) ?? "Free";
-  const tier      = (rawTier in TIER_LIMITS ? rawTier : "Free") as SubscriptionTier;
+  let tier: SubscriptionTier;
+  try {
+    tier = (principal !== "anon"
+      ? (await getSubscriptionTier(principal)) as SubscriptionTier
+      : "Free") as SubscriptionTier;
+  } catch {
+    // Canister unreachable — fall back to client-supplied header with warning
+    const rawTier = (req.headers["x-subscription-tier"] as string | undefined) ?? "Free";
+    tier = (rawTier in TIER_LIMITS ? rawTier : "Free") as SubscriptionTier;
+    logger.warn("voice-agent", "getSubscriptionTier failed for agent — using header fallback", { principal });
+  }
 
   const { allowed, count, limit, resetsAt } = checkAndRecord(principal, tier);
 
@@ -946,6 +968,22 @@ Rules:
   }
 });
 
+// M-03: Strip sensitive key names from error breadcrumb data objects before logging.
+const SENSITIVE_KEY_RE = /pass|secret|token|card|ssn|dob|cvv|pin|credential/i;
+
+function sanitiseBreadcrumb(c: any): any {
+  if (!c || typeof c !== "object") return c;
+  const safe = { ...c };
+  if (safe.data && typeof safe.data === "object") {
+    const cleanData: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(safe.data)) {
+      if (!SENSITIVE_KEY_RE.test(k)) cleanData[k] = v;
+    }
+    safe.data = cleanData;
+  }
+  return safe;
+}
+
 // ── POST /api/errors ─────────────────────────────────────────────────────────
 // Receives structured error reports from the frontend errorTracker.
 // Enriched payload: level, errorType, stack, componentStack, breadcrumbs,
@@ -970,10 +1008,10 @@ app.post("/api/errors", (req: Request, res: Response): void => {
     ? b.tags as Record<string, string>
     : undefined;
 
-  // Sanitise breadcrumbs — cap count and individual field lengths.
+  // Sanitise breadcrumbs — cap count, sanitise sensitive keys, and bound individual field lengths.
   type RawCrumb = { type?: unknown; message?: unknown; data?: unknown; ts?: unknown };
   const breadcrumbs = Array.isArray(b.breadcrumbs)
-    ? (b.breadcrumbs as RawCrumb[]).slice(0, 25).map((c) => ({
+    ? (b.breadcrumbs as RawCrumb[]).slice(0, 25).map((c) => sanitiseBreadcrumb({
         type:    typeof c?.type    === "string" ? c.type.slice(0, 20) : "custom",
         message: typeof c?.message === "string" ? c.message.slice(0, 200) : "",
         data:    c?.data && typeof c.data === "object" && !Array.isArray(c.data) ? c.data : undefined,
@@ -1356,10 +1394,9 @@ app.post("/api/stripe/verify-subscription", async (req: Request, res: Response) 
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
   if (!stripeSecretKey) { res.status(500).json({ error: "STRIPE_SECRET_KEY not configured" }); return; }
 
-  const { subscriptionId, paymentIntentId, principal: bodyPrincipal } = req.body as {
+  const { subscriptionId, paymentIntentId } = req.body as {
     subscriptionId: string;
     paymentIntentId?: string;
-    principal?: string;       // passed when user paid before logging in
   };
   if (!subscriptionId) { res.status(400).json({ error: "subscriptionId required" }); return; }
 
@@ -1390,9 +1427,12 @@ app.post("/api/stripe/verify-subscription", async (req: Request, res: Response) 
 
     const tier      = subscription.metadata?.tier    ?? "Pro";
     const billing   = subscription.metadata?.billing ?? "Monthly";
-    // Use principal from request body when user paid before logging in (no principal
-    // in subscription metadata at payment time); fall back to metadata if present.
-    const principal = bodyPrincipal || subscription.metadata?.icp_principal || "";
+    // H-08: principal must come exclusively from Stripe subscription metadata — never from request body.
+    const principal = subscription.metadata?.icp_principal ?? subscription.metadata?.principal;
+    if (!principal) {
+      res.status(400).json({ error: "Subscription metadata missing icp_principal — cannot activate" });
+      return;
+    }
     const months    = billing === "Yearly" ? 12 : 1;
 
     if (principal) {
@@ -1493,6 +1533,36 @@ app.post("/api/stripe/verify-credit-purchase", async (req: Request, res: Respons
     res.json({ type: "agent_credits", packSize, principal });
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : "Stripe error" });
+  }
+});
+
+// ── GET /api/rentcast/properties ─────────────────────────────────────────────
+// Server-side proxy for Rentcast property lookups. The API key is held in the
+// server environment (RENTCAST_API_KEY) and never exposed in the browser bundle.
+// H-19 fix: VITE_RENTCAST_API_KEY was previously baked into the frontend bundle.
+app.get("/api/rentcast/properties", async (req: Request, res: Response): Promise<void> => {
+  const apiKey = process.env.RENTCAST_API_KEY;
+  if (!apiKey) { res.status(503).json({ error: "Rentcast not configured" }); return; }
+
+  // Forward only the expected query params — no passthrough of arbitrary params
+  const { address, city, state, zipCode } = req.query as Record<string, string>;
+  if (!address) { res.status(400).json({ error: "address is required" }); return; }
+
+  const params = new URLSearchParams();
+  if (address) params.set("address", address);
+  if (city)    params.set("city",    city);
+  if (state)   params.set("state",   state);
+  if (zipCode) params.set("zipCode", zipCode);
+
+  try {
+    const upstream = await fetch(`https://api.rentcast.io/v1/properties?${params}`, {
+      headers: { "X-Api-Key": apiKey },
+    });
+    if (!upstream.ok) { res.status(upstream.status).json({ error: "Rentcast lookup failed" }); return; }
+    const data = await upstream.json();
+    res.json(data);
+  } catch (err) {
+    res.status(502).json({ error: "Rentcast request failed" });
   }
 });
 

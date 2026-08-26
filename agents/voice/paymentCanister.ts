@@ -91,6 +91,11 @@ const idlFactory = ({ IDL }: { IDL: any }) => {
       [IDL.Variant({ ok: IDL.Nat, err: Err })],
       [],
     ),
+    getTierForPrincipal: IDL.Func(
+      [IDL.Principal],
+      [IDL.Variant({ Free: IDL.Null, Basic: IDL.Null, Pro: IDL.Null, Premium: IDL.Null, ContractorFree: IDL.Null, ContractorPro: IDL.Null, RealtorFree: IDL.Null, RealtorPro: IDL.Null })],
+      ["query"],
+    ),
   });
 };
 
@@ -107,6 +112,7 @@ type PaymentActor = {
     user: Principal,
     amount: bigint,
   ): Promise<{ ok: bigint } | { err: unknown }>;
+  getTierForPrincipal(user: Principal): Promise<Record<string, null>>;
 };
 
 async function getActor(): Promise<PaymentActor> {
@@ -153,4 +159,15 @@ export async function grantAgentCredits(
   );
   if ("err" in result)
     throw new Error(`Credit grant failed: ${JSON.stringify(result.err)}`);
+}
+
+export async function getSubscriptionTier(principal: string): Promise<string> {
+  if (!PRINCIPAL_RE.test(principal)) return "Free";
+  try {
+    const result = await (await getActor()).getTierForPrincipal(Principal.fromText(principal));
+    const tier = Object.keys(result)[0];
+    return VALID_TIERS.has(tier) ? tier : "Free";
+  } catch {
+    return "Free"; // fail-safe: downgrade to Free on canister error
+  }
 }

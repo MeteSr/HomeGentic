@@ -1,14 +1,15 @@
 /**
  * Property Lookup Service
  *
- * Fetches year built and square footage from the Rentcast API.
+ * Fetches year built and square footage via the voice agent's Rentcast proxy.
  * Free tier: 50 requests/month — https://rentcast.io
  *
- * Requires VITE_RENTCAST_API_KEY in .env.
- * Returns null (silently) when the key is absent or the lookup fails.
+ * Rentcast API key is held server-side in the voice agent (not VITE_RENTCAST_API_KEY which would be exposed in the browser bundle)
+ * Returns null (silently) when the lookup fails.
  */
 
-const API_KEY = (import.meta as any).env?.VITE_RENTCAST_API_KEY as string | undefined;
+// Rentcast API key is held server-side in the voice agent (not VITE_RENTCAST_API_KEY which would be exposed in the browser bundle)
+const VOICE_AGENT_URL = (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:3001";
 
 export interface PropertyLookupResult {
   yearBuilt?:     number;
@@ -21,8 +22,6 @@ export async function lookupPropertyDetails(
   state:    string,
   zipCode:  string,
 ): Promise<PropertyLookupResult | null> {
-  if (!API_KEY) return null;
-
   const params = new URLSearchParams({
     address: address,
     city:    city,
@@ -32,12 +31,12 @@ export async function lookupPropertyDetails(
   });
 
   try {
-    const res = await fetch(`https://api.rentcast.io/v1/properties?${params}`, {
-      headers: { "X-Api-Key": API_KEY },
+    const resp = await fetch(`${VOICE_AGENT_URL}/api/rentcast/properties?${params}`, {
+      headers: { "x-api-key": (import.meta as any).env?.VITE_VOICE_AGENT_API_KEY ?? "" },
     });
-    if (!res.ok) return null;
+    if (!resp.ok) return null;
 
-    const data = await res.json();
+    const data = await resp.json();
     const prop = Array.isArray(data) ? data[0] : null;
     if (!prop) return null;
 

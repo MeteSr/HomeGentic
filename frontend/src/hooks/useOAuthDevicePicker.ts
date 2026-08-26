@@ -45,9 +45,12 @@ export function useOAuthDevicePicker() {
     popupRef.current = popup;
 
     function onMessage(event: MessageEvent) {
-      const gatewayOrigin = new URL(GATEWAY_URL).origin;
-      // Gateway sends from its own origin; allow wildcard because popup may not
-      // share origin after auth-provider redirects.
+      // Validate the origin — only accept messages from the configured IoT gateway
+      const gatewayOrigin = new URL(
+        import.meta.env.VITE_IOT_GATEWAY_URL ?? "http://localhost:3002"
+      ).origin;
+      if (event.origin !== gatewayOrigin) return; // silently ignore messages from other origins
+
       const msg = event.data as OAuthMessage;
       if (msg?.type !== "oauth-devices") return;
 

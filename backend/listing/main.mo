@@ -327,14 +327,32 @@ persistent actor Listing {
   };
 
   /// All proposals for a given request.
-  /// The sealed-bid reveal gate (bidDeadline check) is enforced by the frontend service.
-  /// The canister returns all proposals so the homeowner can always access their own data.
-  public query func getProposalsForRequest(requestId: Text) : async [ListingProposal] {
-    Iter.toArray(
-      Iter.filter(Map.values(proposals), func(p: ListingProposal) : Bool {
-        p.requestId == requestId
-      })
-    )
+  /// H-16: bid deadline is now enforced on-chain. Before the deadline, each caller
+  /// can only see their own proposal. After the deadline or for admins, all proposals
+  /// are returned so the homeowner can compare and select a winner.
+  public shared(msg) func getProposalsForRequest(requestId: Text) : async Result.Result<[ListingProposal], Error> {
+    switch (Map.get(requests, Text.compare, requestId)) {
+      case null { return #err(#NotFound) };
+      case (?req) {
+        let allProposals = Iter.toArray(
+          Iter.filter(Map.values(proposals), func(p: ListingProposal) : Bool {
+            p.requestId == requestId
+          })
+        );
+        // Before deadline: only return the caller's own proposal (unless admin or homeowner)
+        if (Time.now() < req.bidDeadline and not isAdmin(msg.caller) and req.homeowner != msg.caller) {
+          let myProposal = Array.find<ListingProposal>(allProposals, func(p: ListingProposal) : Bool {
+            p.agentId == msg.caller
+          });
+          switch (myProposal) {
+            case null    { return #ok([]) };
+            case (?mine) { return #ok([mine]) };
+          };
+        };
+        // After deadline, or caller is admin or homeowner: return all proposals
+        #ok(allProposals)
+      };
+    }
   };
 
   /// All proposals submitted by the calling agent.
@@ -598,27 +616,29 @@ persistent actor Listing {
 
     // ── Authoritative trust-signal resolution ─────────────────────────────────
     // These values are fetched cross-canister and cannot be forged by the caller.
-    // When a canister is not yet wired the field defaults to its safe minimum.
+    // M-11: fail closed when propCanisterId is not wired — ownership cannot be
+    // verified without the property canister, so we must reject the call.
     var resolvedVerificationLevel : Text = "Unverified";
     var resolvedVerifiedJobCount  : Nat  = 0;
     var resolvedHasPublicReport   : Bool = false;
 
-    if (propCanisterId != "") {
-      let propActor = actor(propCanisterId) : actor {
-        getPropertyOwner     : query (Text) -> async ?Principal;
-        getVerificationLevel : query (Text) -> async ?Text;
+    if (Text.size(propCanisterId) == 0) {
+      return #err(#InvalidInput("Property canister not configured — cannot verify ownership"));
+    };
+    let propActor = actor(propCanisterId) : actor {
+      getPropertyOwner     : query (Text) -> async ?Principal;
+      getVerificationLevel : query (Text) -> async ?Text;
+    };
+    // Verify the caller actually owns this property.
+    switch (await propActor.getPropertyOwner(listing.propertyId)) {
+      case null    { return #err(#NotFound) };
+      case (?owner) {
+        if (owner != msg.caller) return #err(#NotAuthorized);
       };
-      // Verify the caller actually owns this property.
-      switch (await propActor.getPropertyOwner(listing.propertyId)) {
-        case null    { return #err(#NotFound) };
-        case (?owner) {
-          if (owner != msg.caller) return #err(#NotAuthorized);
-        };
-      };
-      switch (await propActor.getVerificationLevel(listing.propertyId)) {
-        case null        {};
-        case (?level)    { resolvedVerificationLevel := level };
-      };
+    };
+    switch (await propActor.getVerificationLevel(listing.propertyId)) {
+      case null        {};
+      case (?level)    { resolvedVerificationLevel := level };
     };
 
     if (jobCanisterId != "") {

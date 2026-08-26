@@ -317,6 +317,18 @@ persistent actor AiProxy {
     Text.replace(s, #char ' ', "%20")
   };
 
+  // M-08: escape caller-supplied strings for safe inclusion in ArcGIS SQL LIKE clauses
+  // and OpenPermit URL query parameters to prevent SQL and URL injection.
+  private func escapeArcGISLike(s: Text) : Text {
+    // Double single quotes (SQL escaping)
+    let escaped = Text.replace(s, #char '\'', "''");
+    // Remove % to prevent LIKE wildcard injection
+    let noPercent = Text.replace(escaped, #char '%', "");
+    // Remove & to prevent URL parameter injection
+    let noAmp = Text.replace(noPercent, #char '&', "");
+    noAmp
+  };
+
   // ── Email usage reset helpers ──────────────────────────────────────────────
 
   private func resetEmailCountersIfNeeded() {
@@ -526,7 +538,8 @@ persistent actor AiProxy {
         case null  { address };
         case (?s)  { s };
       };
-      let whereClause = "FOLDERDESCRIPTION LIKE '%" # urlEncodeSpaces(street) # "%'";
+      let safeStreet  = escapeArcGISLike(street);
+      let whereClause = "FOLDERDESCRIPTION LIKE '%" # urlEncodeSpaces(safeStreet) # "%'";
       let params      =
         "where="             # urlEncodeSpaces(whereClause) #
         "&outFields=FOLDERNAME,FOLDERTYPE,STATUSDESC,INDATE,FOLDERDESCRIPTION,FOLDERLINK" #
@@ -568,10 +581,10 @@ persistent actor AiProxy {
         return #err(#KeyNotConfigured);
       };
       let params =
-        "address=" # urlEncodeSpaces(address) #
-        "&city="   # urlEncodeSpaces(city) #
-        "&state="  # state #
-        "&zip="    # zip #
+        "address=" # urlEncodeSpaces(escapeArcGISLike(address)) #
+        "&city="   # urlEncodeSpaces(escapeArcGISLike(city)) #
+        "&state="  # urlEncodeSpaces(escapeArcGISLike(state)) #
+        "&zip="    # urlEncodeSpaces(escapeArcGISLike(zip)) #
         "&limit=20";
       let url = "https://api.openpermit.org/v1/permits?" # params;
 
