@@ -80,6 +80,17 @@ function consumeOAuthState(state: string, platform: string): boolean {
 }
 
 // Rate limiting for webhook endpoints
+// Strict limiter for admin OAuth endpoints — these are one-time setup flows,
+// not user-facing. 10 requests per 15 minutes per IP is more than enough for
+// legitimate use and prevents brute-force on the admin token.
+const adminOAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests — please wait before retrying." },
+});
+
 const moenFloLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
@@ -499,7 +510,7 @@ app.post("/webhooks/smartthings", smartThingsLimiter, async (req: Request, res: 
 // ── GET /oauth/start/honeywell ────────────────────────────────────────────────
 // Initiates the Honeywell OAuth flow with a CSRF state parameter.
 // Requires x-admin-token header.
-app.get("/oauth/start/honeywell", (req: Request, res: Response): void => {
+app.get("/oauth/start/honeywell", adminOAuthLimiter, (req: Request, res: Response): void => {
   const adminToken = process.env.ADMIN_TOKEN;
   if (!adminToken || req.headers["x-admin-token"] !== adminToken) {
     res.status(401).json({ error: "Unauthorized" });
@@ -518,7 +529,7 @@ app.get("/oauth/start/honeywell", (req: Request, res: Response): void => {
 // ── GET /oauth/start/ge ───────────────────────────────────────────────────────
 // Initiates the GE SmartHQ OAuth flow with a CSRF state parameter.
 // Requires x-admin-token header.
-app.get("/oauth/start/ge", (req: Request, res: Response): void => {
+app.get("/oauth/start/ge", adminOAuthLimiter, (req: Request, res: Response): void => {
   const adminToken = process.env.ADMIN_TOKEN;
   if (!adminToken || req.headers["x-admin-token"] !== adminToken) {
     res.status(401).json({ error: "Unauthorized" });
@@ -537,7 +548,7 @@ app.get("/oauth/start/ge", (req: Request, res: Response): void => {
 // ── GET /oauth/callback/honeywell ─────────────────────────────────────────────
 // One-time setup endpoint: exchanges the OAuth authorization code for tokens
 // and persists them so the polling loop can start on the next gateway restart.
-app.get("/oauth/callback/honeywell", async (req: Request, res: Response): Promise<void> => {
+app.get("/oauth/callback/honeywell", adminOAuthLimiter, async (req: Request, res: Response): Promise<void> => {
   const reqId = (req as RequestWithId).reqId;
   const code = req.query.code as string | undefined;
   if (!code) {
@@ -650,7 +661,7 @@ app.post("/webhooks/lgthinq", lgThinQLimiter, async (req: Request, res: Response
 
 // ── GET /oauth/callback/ge ────────────────────────────────────────────────────
 // One-time setup: exchanges the GE SmartHQ OAuth authorization code for tokens.
-app.get("/oauth/callback/ge", async (req: Request, res: Response): Promise<void> => {
+app.get("/oauth/callback/ge", adminOAuthLimiter, async (req: Request, res: Response): Promise<void> => {
   const reqId = (req as RequestWithId).reqId;
   const code = req.query.code as string | undefined;
   if (!code) {
@@ -847,7 +858,7 @@ app.get("/oauth/device/callback/:platform", async (req: Request, res: Response):
 // platforms (Rheem EcoNet, Sense, Emporia Vue), stores credentials in the
 // gateway process env, and returns the user's device list.
 // Credentials are NEVER forwarded to the ICP canister.
-app.post("/accounts/:platform", async (req: Request, res: Response): Promise<void> => {
+app.post("/accounts/:platform", adminOAuthLimiter, async (req: Request, res: Response): Promise<void> => {
   const reqId = (req as RequestWithId).reqId;
 
   // Require admin token — this endpoint handles raw credentials
