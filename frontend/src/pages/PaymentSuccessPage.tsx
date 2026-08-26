@@ -2,7 +2,7 @@ import React, { useEffect, useCallback, useState } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { CheckCircle, Gift } from "lucide-react";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 import { paymentService } from "@/services/payment";
 import { redeemQuorumCoupon } from "@/services/benefit";
 import { useAuthStore } from "@/store/authStore";
@@ -110,21 +110,21 @@ export default function PaymentSuccessPage() {
   }, [subscriptionId, sessionId, isAuthenticated, verifySubscription]);
 
   const UI = {
-    page:   { minHeight: "100vh", background: COLORS.sageLight, display: "flex", flexDirection: "column" as const, alignItems: "center", justifyContent: "center", padding: "3rem 1.5rem", fontFamily: FONTS.sans },
-    card:   { background: COLORS.white, border: `1px solid ${COLORS.rule}`, maxWidth: 520, width: "100%", padding: "3rem 2.5rem", textAlign: "center" as const },
+    page:   { minHeight: "100vh", background: V2_COLORS.lblue, display: "flex", flexDirection: "column" as const, alignItems: "center", justifyContent: "center", padding: "3rem 1.5rem", fontFamily: V2_FONTS.body },
+    card:   { background: V2_COLORS.paper, border: `1px solid ${V2_COLORS.border}`, maxWidth: 520, width: "100%", padding: "3rem 2.5rem", textAlign: "center" as const },
     icon:   { marginBottom: "1.5rem" },
-    h1:     { fontFamily: FONTS.serif, fontSize: "clamp(1.75rem, 4vw, 2.25rem)", fontWeight: 900, color: COLORS.plum, letterSpacing: "-0.5px", margin: "0 0 0.75rem" },
-    body:   { fontSize: "1rem", color: COLORS.plumMid, lineHeight: 1.7, margin: "0 0 2rem" },
-    token:  { fontFamily: FONTS.sans, fontSize: "0.75rem", background: COLORS.sageLight, color: COLORS.plum, padding: "0.75rem 1rem", margin: "0 0 2rem", wordBreak: "break-all" as const, textAlign: "left" as const },
-    cta:    { display: "inline-block", fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.9375rem", color: COLORS.white, background: COLORS.plum, textDecoration: "none", padding: "0.75rem 2rem" },
-    link:   { display: "block", marginTop: "1rem", fontFamily: FONTS.sans, fontSize: "0.875rem", color: COLORS.plumMid, textDecoration: "none" },
+    h1:     { fontFamily: V2_FONTS.display, fontSize: "clamp(1.75rem, 4vw, 2.25rem)", fontWeight: 900, color: V2_COLORS.ink, letterSpacing: "-0.5px", margin: "0 0 0.75rem" },
+    body:   { fontSize: "1rem", color: V2_COLORS.muted, lineHeight: 1.7, margin: "0 0 2rem" },
+    token:  { fontFamily: V2_FONTS.mono, fontSize: "0.75rem", background: V2_COLORS.lblue, color: V2_COLORS.ink, padding: "0.75rem 1rem", margin: "0 0 2rem", wordBreak: "break-all" as const, textAlign: "left" as const },
+    cta:    { display: "inline-block", fontFamily: V2_FONTS.body, fontWeight: 600, fontSize: "0.9375rem", color: V2_COLORS.paper, background: V2_COLORS.blue, textDecoration: "none", padding: "0.75rem 2rem" },
+    link:   { display: "block", marginTop: "1rem", fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted, textDecoration: "none" },
   };
 
   if (state === "verifying") {
     return (
       <div style={UI.page}>
         <div style={UI.card}>
-          <p style={{ fontFamily: FONTS.sans, color: COLORS.plumMid }}>Confirming your payment…</p>
+          <p style={{ fontFamily: V2_FONTS.body, color: V2_COLORS.muted }}>Confirming your payment…</p>
         </div>
       </div>
     );
@@ -136,7 +136,7 @@ export default function PaymentSuccessPage() {
         <Helmet><title>One Last Step — HomeGentic</title></Helmet>
         <div style={UI.page}>
           <div style={UI.card}>
-            <div style={UI.icon}><CheckCircle size={40} color={COLORS.sage} /></div>
+            <div style={UI.icon}><CheckCircle size={40} color={V2_COLORS.blue} /></div>
             <h1 style={UI.h1}>Payment confirmed</h1>
             <p style={UI.body}>
               Your payment went through. Now set up your secure passkey to activate
@@ -160,7 +160,7 @@ export default function PaymentSuccessPage() {
         <Helmet><title>Payment Error — HomeGentic</title></Helmet>
         <div style={UI.page}>
           <div style={UI.card}>
-            <h1 style={{ ...UI.h1, color: "#C94C2E" }}>Something went wrong</h1>
+            <h1 style={{ ...UI.h1, color: V2_COLORS.coralText }}>Something went wrong</h1>
             <p style={UI.body}>{errorMsg}</p>
             <Link to="/pricing" style={UI.cta}>Back to Pricing</Link>
             <Link to="/support" style={UI.link}>Contact support</Link>
@@ -176,7 +176,7 @@ export default function PaymentSuccessPage() {
         <Helmet><title>Gift Sent — HomeGentic</title></Helmet>
         <div style={UI.page}>
           <div style={UI.card}>
-            <div style={UI.icon}><Gift size={40} color={COLORS.sage} /></div>
+            <div style={UI.icon}><Gift size={40} color={V2_COLORS.blue} /></div>
             <h1 style={UI.h1}>Gift is on its way</h1>
             <p style={UI.body}>
               Payment confirmed. Share the gift token below with your recipient — they can redeem it
@@ -198,14 +198,14 @@ export default function PaymentSuccessPage() {
       <Helmet><title>Welcome to {tierName} — HomeGentic</title></Helmet>
       <div style={UI.page}>
         <div style={UI.card}>
-          <div style={UI.icon}><CheckCircle size={40} color={COLORS.sage} /></div>
+          <div style={UI.icon}><CheckCircle size={40} color={V2_COLORS.blue} /></div>
           <h1 style={UI.h1}>Welcome to {tierName}</h1>
           <p style={UI.body}>
             Your subscription is active. Your verified home record is now building toward a higher
             HomeGentic Score and a stronger resale position.
           </p>
           <Link to="/dashboard" style={UI.cta}>Go to Dashboard</Link>
-          <p style={{ ...UI.link, fontFamily: FONTS.sans, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase" as const, color: COLORS.plumMid, marginTop: "1rem" }}>
+          <p style={{ ...UI.link, fontFamily: V2_FONTS.body, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase" as const, color: V2_COLORS.muted, marginTop: "1rem" }}>
             Redirecting automatically…
           </p>
         </div>

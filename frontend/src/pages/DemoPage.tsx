@@ -2,22 +2,11 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 /* ─── Tokens ─────────────────────────────────────────────────────────────── */
-const BLUE   = "#2B34FF";
-const YELLOW = "#FFD23F";
-const CORAL  = "#FF5C39";
-const INK    = "#0B0D1A";
-const PAPER  = "#FCFCFD";
-const MUTED  = "#6B7080";
-const MUTED2 = "#9AA0B0";
-const BORDER = "#EDEEF2";
-const LBLUE  = "#F3F4FF";
-const VBADGE = "#E0E2FF";
-
-const DISPLAY = "'Bricolage Grotesque', system-ui, sans-serif";
-const BODY    = "'Hanken Grotesk', sans-serif";
-const MONO    = "'JetBrains Mono', monospace";
+const { blue: BLUE, yellow: YELLOW, coral: CORAL, ink: INK, paper: PAPER, muted: MUTED, muted2: MUTED2, page: BORDER, lblue: LBLUE, vbadge: VBADGE } = V2_COLORS;
+const { display: DISPLAY, body: BODY, mono: MONO } = V2_FONTS;
 
 type Persona = "homeowners" | "contractors" | "realtors" | "property-managers";
 const VALID_PERSONAS: Persona[] = ["homeowners", "contractors", "realtors", "property-managers"];

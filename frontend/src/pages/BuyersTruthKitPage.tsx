@@ -6,6 +6,7 @@ import {
   Printer, Share2, ArrowRight, Check, ExternalLink, Info,
   Home, Zap, Flame, Droplets, Wind, Square, Layers,
 } from "lucide-react";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 /* ─── Types (mirrors server types) ────────────────────────────────────────── */
 type SystemStatus = "replaced" | "original" | "unknown";
@@ -90,22 +91,8 @@ const DEFAULT_CLAIMS: Claims = {
 };
 
 /* ─── Design Tokens ──────────────────────────────────────────────────────── */
-const C = {
-  blue:   "#2B34FF",
-  yellow: "#FFD23F",
-  coral:  "#FF5C39",
-  ink:    "#0B0D1A",
-  paper:  "#FCFCFD",
-  muted:  "#6B7080",
-  border: "#EDEEF2",
-  white:  "#FFFFFF",
-  blueFg: "#F3F4FF",
-};
-const F = {
-  display: "'Bricolage Grotesque', 'Inter', sans-serif",
-  body:    "'Hanken Grotesk', 'Inter', sans-serif",
-  mono:    "'JetBrains Mono', monospace",
-};
+const C = V2_COLORS;
+const F = V2_FONTS;
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
 const SYSTEM_ICONS: Record<string, React.ReactNode> = {
@@ -144,11 +131,11 @@ function scoreColor(score: number) {
 
 function credLabelColor(label: string): { color: string; background: string } {
   switch (label) {
-    case "Verified":     return { color: C.blue,    background: C.blueFg };
-    case "Plausible":    return { color: C.muted,   background: C.border };
+    case "Verified":     return { color: C.blue,    background: C.lblue };
+    case "Plausible":    return { color: C.muted,   background: C.page };
     case "Questionable": return { color: "#FFB340", background: "#FFF8E6" };
     case "High Risk":    return { color: C.coral,   background: "#FFECEA" };
-    default:             return { color: C.muted,   background: C.border };
+    default:             return { color: C.muted,   background: C.page };
   }
 }
 
@@ -189,10 +176,10 @@ function Progress({ step }: { step: number }) {
               width:10, height:10, borderRadius:"50%", flexShrink:0, transition:"all .2s",
               ...(i < step  ? { background: C.blue }
                 : i === step ? { background: C.ink, transform:"scale(1.3)" }
-                : { background: C.border }),
+                : { background: C.page }),
             }}
           />
-          {i < steps.length - 1 && <div style={{ flex:1, height:1, background:C.border }} />}
+          {i < steps.length - 1 && <div style={{ flex:1, height:1, background:C.page }} />}
         </React.Fragment>
       ))}
     </div>
@@ -201,9 +188,9 @@ function Progress({ step }: { step: number }) {
 
 function StatusButtons({ value, onChange }: { value: SystemStatus; onChange: (v: SystemStatus) => void }) {
   const configs: Record<SystemStatus, { label:string; activeStyle: React.CSSProperties }> = {
-    replaced: { label:"Was Replaced",      activeStyle: { background:C.blue, color:C.white, borderColor:C.blue } },
-    original: { label:"Original to Home",  activeStyle: { background:"#FFB340", color:C.white, borderColor:"#FFB340" } },
-    unknown:  { label:"Don't Know",        activeStyle: { background:C.ink, color:C.white, borderColor:C.ink } },
+    replaced: { label:"Was Replaced",      activeStyle: { background:C.blue, color:C.paper, borderColor:C.blue } },
+    original: { label:"Original to Home",  activeStyle: { background:"#FFB340", color:C.paper, borderColor:"#FFB340" } },
+    unknown:  { label:"Don't Know",        activeStyle: { background:C.ink, color:C.paper, borderColor:C.ink } },
   };
   return (
     <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
@@ -214,7 +201,7 @@ function StatusButtons({ value, onChange }: { value: SystemStatus; onChange: (v:
           onClick={() => onChange(s)}
           style={{
             padding:"7px 16px", borderRadius:100, fontSize:13, fontWeight:600,
-            cursor:"pointer", border:`1.5px solid ${C.border}`, background:C.white,
+            cursor:"pointer", border:`1.5px solid ${C.border}`, background:C.paper,
             fontFamily:F.body, color:C.muted, transition:"all .15s",
             ...(value === s ? configs[s].activeStyle : {}),
           }}
@@ -229,13 +216,13 @@ function StatusButtons({ value, onChange }: { value: SystemStatus; onChange: (v:
 const inputStyle: React.CSSProperties = {
   width:"100%", padding:"9px 12px", border:`1.5px solid ${C.border}`,
   borderRadius:8, fontSize:13, fontFamily:F.body, color:C.ink,
-  background:C.white, outline:"none",
+  background:C.paper, outline:"none",
 };
 
 const selectStyle: React.CSSProperties = {
   width:"100%", padding:"8px 12px", border:`1.5px solid ${C.border}`,
   borderRadius:8, fontSize:13, fontFamily:F.body, color:C.ink,
-  background:C.white, cursor:"pointer", outline:"none",
+  background:C.paper, cursor:"pointer", outline:"none",
 };
 
 const inlineLabelStyle: React.CSSProperties = {
@@ -252,9 +239,9 @@ function SystemCard({
   const [open, setOpen] = useState(true);
 
   const statusColors: Record<SystemStatus, { bg:string; color:string }> = {
-    replaced: { bg:C.blueFg, color:C.blue },
+    replaced: { bg:C.lblue, color:C.blue },
     original: { bg:"#FFF8E6", color:"#FFB340" },
-    unknown:  { bg:C.border, color:C.muted },
+    unknown:  { bg:C.page, color:C.muted },
   };
   const sc = statusColors[claim.status];
 
@@ -264,7 +251,7 @@ function SystemCard({
         onClick={() => setOpen((o) => !o)}
         style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 18px", background:"rgba(11,13,26,0.02)", borderBottom:open ? `1px solid ${C.border}` : "none", cursor:"pointer" }}
       >
-        <div style={{ width:34, height:34, background:C.blueFg, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", color:C.blue, flexShrink:0 }}>
+        <div style={{ width:34, height:34, background:C.lblue, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", color:C.blue, flexShrink:0 }}>
           {INPUT_SYSTEM_ICONS[id]}
         </div>
         <div style={{ fontSize:14, fontWeight:700, color:C.ink, flex:1 }}>{SYSTEM_LABELS[id]}</div>
@@ -312,8 +299,8 @@ function SystemCard({
                       cursor:"pointer", border:`1.5px solid ${C.border}`, fontFamily:F.body,
                       transition:"all .15s",
                       ...(claim.present === v
-                        ? { background:C.blue, color:C.white, borderColor:C.blue }
-                        : { background:C.white, color:C.muted }),
+                        ? { background:C.blue, color:C.paper, borderColor:C.blue }
+                        : { background:C.paper, color:C.muted }),
                     }}
                   >
                     {v === true ? "Yes" : v === false ? "No" : "Not Sure"}
@@ -414,7 +401,7 @@ function CredibilityBar({ score, label }: { score: number; label: string }) {
       <span style={{ fontSize:10, fontWeight:700, padding:"3px 9px", borderRadius:100, whiteSpace:"nowrap", ...lc }}>
         {label}
       </span>
-      <div style={{ height:4, background:C.border, margin:"10px 16px 0", borderRadius:100, overflow:"hidden" }}>
+      <div style={{ height:4, background:C.page, margin:"10px 16px 0", borderRadius:100, overflow:"hidden" }}>
         <div style={{ width:`${score}%`, height:"100%", borderRadius:100, background:scoreColor(score), transition:"width .6s ease" }} />
       </div>
     </>
@@ -428,13 +415,13 @@ function SystemResultCard({ sys }: { sys: KitSystem }) {
   const riskChip: Record<string, React.CSSProperties> = {
     high:   { background:"#FFECEA", color:C.coral },
     medium: { background:"#FFF8E6", color:"#FFB340" },
-    low:    { background:C.blueFg,  color:C.blue },
+    low:    { background:C.lblue,  color:C.blue },
   };
 
   return (
     <div style={{ border:`1.5px solid ${C.border}`, borderRadius:14, overflow:"hidden" }}>
       <div style={{ padding:"14px 16px", display:"flex", alignItems:"center", gap:10, borderBottom:`1px solid ${C.border}` }}>
-        <div style={{ width:30, height:30, background:C.blueFg, borderRadius:7, display:"flex", alignItems:"center", justifyContent:"center", color:C.blue, flexShrink:0 }}>
+        <div style={{ width:30, height:30, background:C.lblue, borderRadius:7, display:"flex", alignItems:"center", justifyContent:"center", color:C.blue, flexShrink:0 }}>
           {icon}
         </div>
         <div style={{ fontSize:13, fontWeight:700, color:C.ink, flex:1 }}>{sys.name}</div>
@@ -443,10 +430,10 @@ function SystemResultCard({ sys }: { sys: KitSystem }) {
       <div style={{ padding:"12px 16px 14px" }}>
         <p style={{ fontSize:12, color:C.muted, lineHeight:1.55, marginBottom:10 }}>{sys.finding}</p>
         <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:10 }}>
-          <span style={{ fontSize:11, fontWeight:600, padding:"3px 9px", borderRadius:100, background:C.border, color:C.ink }}>
+          <span style={{ fontSize:11, fontWeight:600, padding:"3px 9px", borderRadius:100, background:C.page, color:C.ink }}>
             Age: {sys.estimatedAge}
           </span>
-          <span style={{ fontSize:11, fontWeight:600, padding:"3px 9px", borderRadius:100, background:C.border, color:C.ink }}>
+          <span style={{ fontSize:11, fontWeight:600, padding:"3px 9px", borderRadius:100, background:C.page, color:C.ink }}>
             Life left: {sys.remainingLifespan}
           </span>
           <span style={{ fontSize:11, fontWeight:600, padding:"3px 9px", borderRadius:100, ...riskChip[sys.financialRisk] }}>
@@ -467,7 +454,7 @@ function SystemResultCard({ sys }: { sys: KitSystem }) {
                 <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
                   {sys.questions.map((q, i) => (
                     <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:7, fontSize:12, color:C.muted, lineHeight:1.5 }}>
-                      <div style={{ flexShrink:0, width:14, height:14, borderRadius:"50%", background:C.blueFg, color:C.blue, display:"flex", alignItems:"center", justifyContent:"center", marginTop:1, fontSize:8, fontWeight:700 }}>{i+1}</div>
+                      <div style={{ flexShrink:0, width:14, height:14, borderRadius:"50%", background:C.lblue, color:C.blue, display:"flex", alignItems:"center", justifyContent:"center", marginTop:1, fontSize:8, fontWeight:700 }}>{i+1}</div>
                       {q}
                     </div>
                   ))}
@@ -480,7 +467,7 @@ function SystemResultCard({ sys }: { sys: KitSystem }) {
                 <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
                   {sys.documents.map((d, i) => (
                     <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:7, fontSize:12, color:C.muted, lineHeight:1.5 }}>
-                      <div style={{ flexShrink:0, width:14, height:14, borderRadius:"50%", background:C.blueFg, color:C.blue, display:"flex", alignItems:"center", justifyContent:"center", marginTop:1, fontSize:8, fontWeight:700 }}>✓</div>
+                      <div style={{ flexShrink:0, width:14, height:14, borderRadius:"50%", background:C.lblue, color:C.blue, display:"flex", alignItems:"center", justifyContent:"center", marginTop:1, fontSize:8, fontWeight:700 }}>✓</div>
                       {d}
                     </div>
                   ))}
@@ -493,7 +480,7 @@ function SystemResultCard({ sys }: { sys: KitSystem }) {
                 <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
                   {sys.inspectorChecks.map((c, i) => (
                     <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:7, fontSize:12, color:C.muted, lineHeight:1.5 }}>
-                      <div style={{ flexShrink:0, width:14, height:14, borderRadius:"50%", background:C.blueFg, color:C.blue, display:"flex", alignItems:"center", justifyContent:"center", marginTop:1, fontSize:8, fontWeight:700 }}>→</div>
+                      <div style={{ flexShrink:0, width:14, height:14, borderRadius:"50%", background:C.lblue, color:C.blue, display:"flex", alignItems:"center", justifyContent:"center", marginTop:1, fontSize:8, fontWeight:700 }}>→</div>
                       {c}
                     </div>
                   ))}
@@ -501,7 +488,7 @@ function SystemResultCard({ sys }: { sys: KitSystem }) {
               </div>
             )}
             {sys.permitNote && (
-              <div style={{ fontSize:11, background:C.border, borderRadius:7, padding:"8px 10px", color:C.muted, marginTop:6 }}>
+              <div style={{ fontSize:11, background:C.page, borderRadius:7, padding:"8px 10px", color:C.muted, marginTop:6 }}>
                 {sys.permitNote}
               </div>
             )}
@@ -603,14 +590,14 @@ export default function BuyersTruthKitPage() {
   const btnBack: React.CSSProperties = {
     display:"flex", alignItems:"center", gap:6, padding:"11px 22px",
     borderRadius:100, fontSize:14, fontWeight:600,
-    background:C.white, border:`2px solid ${C.border}`, color:C.muted,
+    background:C.paper, border:`2px solid ${C.border}`, color:C.muted,
     cursor:"pointer", fontFamily:F.body, transition:"all .15s",
   };
 
   const btnNext: React.CSSProperties = {
     display:"flex", alignItems:"center", gap:6, padding:"12px 28px",
     borderRadius:100, fontSize:14, fontWeight:700,
-    background:C.blue, color:C.white, border:"none",
+    background:C.blue, color:C.paper, border:"none",
     cursor:"pointer", fontFamily:F.body, transition:"transform .2s, box-shadow .2s",
     boxShadow:"0 4px 18px rgba(43,52,255,0.28)",
   };
@@ -618,7 +605,7 @@ export default function BuyersTruthKitPage() {
   const formInputStyle: React.CSSProperties = {
     width:"100%", padding:"12px 16px", border:`1.5px solid ${C.border}`,
     borderRadius:10, fontSize:15, fontFamily:F.body, color:C.ink,
-    background:C.white, outline:"none",
+    background:C.paper, outline:"none",
   };
 
   const sectionTitleStyle: React.CSSProperties = {
@@ -629,7 +616,7 @@ export default function BuyersTruthKitPage() {
   };
 
   const overallRiskStyles: Record<string, React.CSSProperties> = {
-    low:    { background:C.blueFg,  color:C.blue },
+    low:    { background:C.lblue,  color:C.blue },
     medium: { background:"#FFF8E6", color:"#FFB340" },
     high:   { background:"#FFECEA", color:C.coral },
   };
@@ -679,7 +666,7 @@ export default function BuyersTruthKitPage() {
         <Link to="/" style={{ display:"flex", alignItems:"center", gap:6, fontSize:14, fontWeight:500, color:C.muted, textDecoration:"none", padding:"8px 14px", borderRadius:8 }}>
           <ChevronLeft size={15} /> Back to Home
         </Link>
-        <Link to="/login" style={{ background:C.blue, color:C.white, padding:"10px 22px", borderRadius:100, fontSize:14, fontWeight:600, border:"none", cursor:"pointer", fontFamily:F.body, textDecoration:"none", display:"flex", alignItems:"center", gap:6, boxShadow:"0 4px 18px rgba(43,52,255,0.28)" }}>
+        <Link to="/login" style={{ background:C.blue, color:C.paper, padding:"10px 22px", borderRadius:100, fontSize:14, fontWeight:600, border:"none", cursor:"pointer", fontFamily:F.body, textDecoration:"none", display:"flex", alignItems:"center", gap:6, boxShadow:"0 4px 18px rgba(43,52,255,0.28)" }}>
           Get Started <ArrowRight size={14} />
         </Link>
       </nav>
@@ -687,7 +674,7 @@ export default function BuyersTruthKitPage() {
       {/* ── Landing ─────────────────────────────────────────────────────── */}
       {screen === "landing" && (
         <section className="btk-hero-sect" style={{ padding:"110px 56px 64px", maxWidth:800, margin:"0 auto", textAlign:"center" }}>
-          <div style={{ display:"inline-flex", alignItems:"center", gap:8, background:C.blueFg, color:C.blue, padding:"6px 16px", borderRadius:100, fontSize:13, fontWeight:600, marginBottom:24, border:`1px solid rgba(43,52,255,0.15)`, fontFamily:F.mono }}>
+          <div style={{ display:"inline-flex", alignItems:"center", gap:8, background:C.lblue, color:C.blue, padding:"6px 16px", borderRadius:100, fontSize:13, fontWeight:600, marginBottom:24, border:`1px solid rgba(43,52,255,0.15)`, fontFamily:F.mono }}>
             🔍 Free Tool — No Account Required
           </div>
           <h1 style={{ fontFamily:F.display, fontSize:"clamp(38px,5vw,62px)", fontWeight:800, lineHeight:1.05, letterSpacing:"-2px", marginBottom:18, color:C.ink }}>
@@ -707,7 +694,7 @@ export default function BuyersTruthKitPage() {
               "Inspector checklist included",
             ].map((b) => (
               <div key={b} style={{ display:"flex", alignItems:"center", gap:8, fontSize:14, color:C.muted, fontWeight:500 }}>
-                <div style={{ width:18, height:18, background:C.blueFg, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", color:C.blue, flexShrink:0 }}>
+                <div style={{ width:18, height:18, background:C.lblue, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", color:C.blue, flexShrink:0 }}>
                   <Check size={10} />
                 </div>
                 {b}
@@ -716,7 +703,7 @@ export default function BuyersTruthKitPage() {
           </div>
           <button
             onClick={() => setScreen(0)}
-            style={{ display:"inline-flex", alignItems:"center", gap:8, background:C.blue, color:C.white, padding:"16px 36px", borderRadius:100, fontSize:16, fontWeight:700, border:"none", cursor:"pointer", fontFamily:F.body, boxShadow:"0 4px 18px rgba(43,52,255,0.28)" }}
+            style={{ display:"inline-flex", alignItems:"center", gap:8, background:C.blue, color:C.paper, padding:"16px 36px", borderRadius:100, fontSize:16, fontWeight:700, border:"none", cursor:"pointer", fontFamily:F.body, boxShadow:"0 4px 18px rgba(43,52,255,0.28)" }}
           >
             Build My Truth Kit <ChevronRight size={18} />
           </button>
@@ -875,13 +862,13 @@ export default function BuyersTruthKitPage() {
                 { label:"Print Kit",       icon:<Printer size={14} />,  fn:handlePrint },
                 { label:"Copy Share Link", icon:<Share2 size={14} />,   fn:handleShare },
               ].map(({ label, icon, fn }) => (
-                <button key={label} onClick={fn} style={{ display:"flex", alignItems:"center", gap:7, padding:"10px 20px", borderRadius:100, fontSize:13, fontWeight:600, cursor:"pointer", border:`1.5px solid ${C.border}`, background:C.white, fontFamily:F.body, color:C.ink }}>
+                <button key={label} onClick={fn} style={{ display:"flex", alignItems:"center", gap:7, padding:"10px 20px", borderRadius:100, fontSize:13, fontWeight:600, cursor:"pointer", border:`1.5px solid ${C.border}`, background:C.paper, fontFamily:F.body, color:C.ink }}>
                   {icon} {label}
                 </button>
               ))}
               <button
                 onClick={() => { setScreen(1); setKit(null); setSearchParams({}); }}
-                style={{ display:"flex", alignItems:"center", gap:7, padding:"10px 20px", borderRadius:100, fontSize:13, fontWeight:600, cursor:"pointer", border:`1.5px solid ${C.border}`, background:C.white, fontFamily:F.body, color:C.ink }}
+                style={{ display:"flex", alignItems:"center", gap:7, padding:"10px 20px", borderRadius:100, fontSize:13, fontWeight:600, cursor:"pointer", border:`1.5px solid ${C.border}`, background:C.paper, fontFamily:F.body, color:C.ink }}
               >
                 ← Edit Claims
               </button>
@@ -955,7 +942,7 @@ export default function BuyersTruthKitPage() {
               <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                 {kit.kit.generalQuestions.map((q, i) => (
                   <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"11px 14px", background:`rgba(43,52,255,0.03)`, borderRadius:9, fontSize:13, color:C.ink, lineHeight:1.55 }}>
-                    <div style={{ flexShrink:0, width:22, height:22, background:C.blue, color:C.white, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:700, marginTop:1 }}>{i+1}</div>
+                    <div style={{ flexShrink:0, width:22, height:22, background:C.blue, color:C.paper, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:700, marginTop:1 }}>{i+1}</div>
                     {q}
                   </div>
                 ))}
@@ -970,7 +957,7 @@ export default function BuyersTruthKitPage() {
               <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                 {kit.kit.generalDocuments.map((d, i) => (
                   <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"11px 14px", background:`rgba(43,52,255,0.03)`, borderRadius:9, fontSize:13, color:C.ink, lineHeight:1.55 }}>
-                    <div style={{ flexShrink:0, width:22, height:22, background:C.blue, color:C.white, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:700, marginTop:1 }}>
+                    <div style={{ flexShrink:0, width:22, height:22, background:C.blue, color:C.paper, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:700, marginTop:1 }}>
                       <Check size={10} />
                     </div>
                     {d}
@@ -989,7 +976,7 @@ export default function BuyersTruthKitPage() {
               <div style={{ padding:"14px 18px", background:`rgba(11,13,26,0.03)`, borderBottom:`1px solid ${C.border}`, display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap" }}>
                 <span style={{ fontSize:14, fontWeight:700, color:C.ink }}>{kit.permits.portalName}</span>
                 {kit.permits.searched && kit.permits.found
-                  ? <span style={{ fontSize:12, fontWeight:700, color:C.blue, background:C.blueFg, padding:"3px 10px", borderRadius:100 }}>{kit.permits.count} records found</span>
+                  ? <span style={{ fontSize:12, fontWeight:700, color:C.blue, background:C.lblue, padding:"3px 10px", borderRadius:100 }}>{kit.permits.count} records found</span>
                   : <span style={{ fontSize:12, color:C.muted }}>Manual search required</span>}
               </div>
               <div style={{ padding:"16px 18px" }}>
@@ -999,7 +986,7 @@ export default function BuyersTruthKitPage() {
                 {kit.permits.records.length > 0 && (
                   <div style={{ display:"flex", flexDirection:"column", gap:7, marginBottom:14 }}>
                     {kit.permits.records.map((r, i) => (
-                      <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"9px 12px", background:C.blueFg, borderRadius:8, fontSize:12 }}>
+                      <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"9px 12px", background:C.lblue, borderRadius:8, fontSize:12 }}>
                         <div>
                           <div style={{ fontWeight:600, color:C.ink }}>{r.description}</div>
                           {(r.date || r.status) && (
@@ -1026,7 +1013,7 @@ export default function BuyersTruthKitPage() {
             <div style={{ fontFamily:F.mono, fontSize:"0.65rem", letterSpacing:"0.12em", textTransform:"uppercase", color:C.yellow, marginBottom:12 }}>
               Next Step
             </div>
-            <h3 style={{ fontFamily:F.display, fontSize:"clamp(22px,3vw,34px)", fontWeight:800, color:C.white, letterSpacing:"-0.8px", marginBottom:12 }}>
+            <h3 style={{ fontFamily:F.display, fontSize:"clamp(22px,3vw,34px)", fontWeight:800, color:C.paper, letterSpacing:"-0.8px", marginBottom:12 }}>
               Already made an offer?<br />
               <em style={{ fontStyle:"italic", color:C.yellow }}>Document everything from day one.</em>
             </h3>
@@ -1035,7 +1022,7 @@ export default function BuyersTruthKitPage() {
             </p>
             <Link
               to="/login"
-              style={{ display:"inline-flex", alignItems:"center", gap:7, background:C.blue, color:C.white, padding:"14px 30px", borderRadius:100, fontSize:15, fontWeight:700, border:"none", cursor:"pointer", fontFamily:F.body, textDecoration:"none", boxShadow:"0 4px 18px rgba(43,52,255,0.35)" }}
+              style={{ display:"inline-flex", alignItems:"center", gap:7, background:C.blue, color:C.paper, padding:"14px 30px", borderRadius:100, fontSize:15, fontWeight:700, border:"none", cursor:"pointer", fontFamily:F.body, textDecoration:"none", boxShadow:"0 4px 18px rgba(43,52,255,0.35)" }}
             >
               Start Documenting <ArrowRight size={15} />
             </Link>

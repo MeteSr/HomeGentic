@@ -4,7 +4,7 @@ import { Helmet } from "react-helmet-async";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { CreditCard, Coins } from "lucide-react";
-import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS, v2FocusRing } from "@/theme";
 import { useAuthStore } from "@/store/authStore";
 import { useAuth } from "@/contexts/AuthContext";
 import { paymentService, type PlanTier } from "@/services/payment";
@@ -31,54 +31,54 @@ const VOICE_AGENT_URL =
 const stripeAppearance = {
   theme: "flat" as const,
   variables: {
-    colorPrimary:        COLORS.plum,
-    colorBackground:     COLORS.white,
-    colorText:           COLORS.plum,
-    colorTextSecondary:  COLORS.plumMid,
-    colorDanger:         COLORS.rust,
-    fontFamily:          FONTS.sans,
+    colorPrimary:        V2_COLORS.blue,
+    colorBackground:     V2_COLORS.paper,
+    colorText:           V2_COLORS.ink,
+    colorTextSecondary:  V2_COLORS.muted,
+    colorDanger:         V2_COLORS.coral,
+    fontFamily:          V2_FONTS.body,
     fontSizeBase:        "15px",
-    borderRadius:        `${RADIUS.input}px`,
+    borderRadius:        "10px",
     spacingUnit:         "4px",
     focusBoxShadow:      "none",
-    focusOutline:        `2px solid ${COLORS.plum}`,
+    focusOutline:        v2FocusRing,
   },
   rules: {
     ".Input": {
-      border:          `1px solid ${COLORS.rule}`,
-      backgroundColor: COLORS.white,
+      border:          `1px solid ${V2_COLORS.border}`,
+      backgroundColor: V2_COLORS.paper,
       padding:         "12px 14px",
       boxShadow:       "none",
     },
     ".Input:focus": {
-      border:    `1px solid ${COLORS.plum}`,
+      border:    `1px solid ${V2_COLORS.blue}`,
       boxShadow: "none",
     },
     ".Label": {
-      fontFamily:    FONTS.sans,
+      fontFamily:    V2_FONTS.body,
       fontSize:      "0.65rem",
       fontWeight:    "500",
       textTransform: "uppercase",
       letterSpacing: "0.08em",
-      color:         COLORS.plumMid,
+      color:         V2_COLORS.muted,
       marginBottom:  "6px",
     },
     ".Error": {
-      color:      COLORS.rust,
-      fontFamily: FONTS.sans,
+      color:      V2_COLORS.coral,
+      fontFamily: V2_FONTS.body,
       fontSize:   "13px",
     },
     ".Tab": {
-      border:          `1px solid ${COLORS.rule}`,
-      backgroundColor: COLORS.white,
+      border:          `1px solid ${V2_COLORS.border}`,
+      backgroundColor: V2_COLORS.paper,
     },
     ".Tab--selected": {
-      border:          `1px solid ${COLORS.plum}`,
-      backgroundColor: COLORS.white,
+      border:          `1px solid ${V2_COLORS.blue}`,
+      backgroundColor: V2_COLORS.paper,
       boxShadow:       "none",
     },
-    ".Tab:hover": { color: COLORS.plum },
-    ".CheckboxInput": { border: `1px solid ${COLORS.rule}` },
+    ".Tab:hover": { color: V2_COLORS.blue },
+    ".CheckboxInput": { border: `1px solid ${V2_COLORS.border}` },
   },
 };
 
@@ -190,11 +190,11 @@ function PaymentForm({ tier, billing, subscriptionId, couponCode, onError }: Pay
         disabled={submitting || !stripe}
         style={{
           width: "100%", padding: "14px 24px", marginTop: "1.5rem",
-          backgroundColor: submitting ? COLORS.plumMid : COLORS.plum,
-          color: COLORS.white, border: "none",
-          borderRadius: RADIUS.input,
+          backgroundColor: submitting ? V2_COLORS.muted : V2_COLORS.blue,
+          color: V2_COLORS.paper, border: "none",
+          borderRadius: V2_RADIUS.input,
           cursor: submitting ? "not-allowed" : "pointer",
-          fontFamily: FONTS.sans, fontWeight: 700, fontSize: "1rem",
+          fontFamily: V2_FONTS.body, fontWeight: 700, fontSize: "1rem",
           transition: "background-color 0.15s",
         }}
       >
@@ -203,12 +203,12 @@ function PaymentForm({ tier, billing, subscriptionId, couponCode, onError }: Pay
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "center",
         gap: "6px", marginTop: "12px",
-        fontFamily: FONTS.sans, fontSize: "0.6rem", color: COLORS.plumMid,
+        fontFamily: V2_FONTS.body, fontSize: "0.6rem", color: V2_COLORS.muted,
         textTransform: "uppercase", letterSpacing: "0.08em",
       }}>
         <svg width="11" height="13" viewBox="0 0 11 13" fill="none">
-          <rect x="1" y="5" width="9" height="8" rx="1" stroke={COLORS.plumMid} strokeWidth="1.5"/>
-          <path d="M3.5 5V3.5a2 2 0 0 1 4 0V5" stroke={COLORS.plumMid} strokeWidth="1.5" strokeLinecap="round"/>
+          <rect x="1" y="5" width="9" height="8" rx="1" stroke={V2_COLORS.muted} strokeWidth="1.5"/>
+          <path d="M3.5 5V3.5a2 2 0 0 1 4 0V5" stroke={V2_COLORS.muted} strokeWidth="1.5" strokeLinecap="round"/>
         </svg>
         Secured by Stripe
       </div>
@@ -230,8 +230,8 @@ function LoginStep({ onLogin }: { onLogin: () => void }) {
     <div style={{ textAlign: "center", padding: "12px 0" }}>
       <div style={{
         width: 52, height: 52, borderRadius: "50%",
-        background: `linear-gradient(135deg, ${COLORS.sageLight}, ${COLORS.butter})`,
-        border: `1.5px solid ${COLORS.sageMid}`,
+        background: `linear-gradient(135deg, ${V2_COLORS.lblue}, ${V2_COLORS.attentionBg})`,
+        border: `1.5px solid ${V2_COLORS.cobalTint}`,
         display: "flex", alignItems: "center", justifyContent: "center",
         margin: "0 auto 20px",
         fontSize: "1.5rem",
@@ -239,14 +239,14 @@ function LoginStep({ onLogin }: { onLogin: () => void }) {
         🔐
       </div>
       <p style={{
-        fontFamily: FONTS.serif, fontWeight: 700, fontSize: "1.1rem",
-        color: COLORS.plum, margin: "0 0 8px",
+        fontFamily: V2_FONTS.display, fontWeight: 700, fontSize: "1.1rem",
+        color: V2_COLORS.ink, margin: "0 0 8px",
       }}>
         Verify your identity first
       </p>
       <p style={{
-        fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 300,
-        color: COLORS.plumMid, lineHeight: 1.6, margin: "0 0 28px",
+        fontFamily: V2_FONTS.body, fontSize: "0.875rem", fontWeight: 300,
+        color: V2_COLORS.muted, lineHeight: 1.6, margin: "0 0 28px",
         maxWidth: "300px", marginLeft: "auto", marginRight: "auto",
       }}>
         Sign in with Internet Identity so your subscription is linked to your account.
@@ -256,9 +256,9 @@ function LoginStep({ onLogin }: { onLogin: () => void }) {
         disabled={loading}
         style={{
           width: "100%", padding: "13px 24px",
-          backgroundColor: COLORS.plum, color: COLORS.white,
-          border: "none", borderRadius: RADIUS.input,
-          fontFamily: FONTS.sans, fontWeight: 700, fontSize: "0.95rem",
+          backgroundColor: V2_COLORS.blue, color: V2_COLORS.paper,
+          border: "none", borderRadius: V2_RADIUS.input,
+          fontFamily: V2_FONTS.body, fontWeight: 700, fontSize: "0.95rem",
           cursor: loading ? "not-allowed" : "pointer",
           opacity: loading ? 0.65 : 1,
           transition: "opacity 0.15s",
@@ -267,7 +267,7 @@ function LoginStep({ onLogin }: { onLogin: () => void }) {
         {loading ? "Opening Internet Identity…" : "Sign in to continue"}
       </button>
       <p style={{
-        fontFamily: FONTS.sans, fontSize: "0.6rem", color: COLORS.plumMid,
+        fontFamily: V2_FONTS.body, fontSize: "0.6rem", color: V2_COLORS.muted,
         textTransform: "uppercase", letterSpacing: "0.08em", marginTop: "14px",
       }}>
         Your payment details are entered after sign-in
@@ -330,11 +330,11 @@ function IcpPayButton({ tier, billing, couponCode, onError }: IcpPayButtonProps)
         disabled={step !== null}
         style={{
           width: "100%", padding: "14px 24px",
-          backgroundColor: step ? COLORS.plumMid : COLORS.plum,
-          color: COLORS.white, border: "none",
-          borderRadius: RADIUS.input,
+          backgroundColor: step ? V2_COLORS.muted : V2_COLORS.blue,
+          color: V2_COLORS.paper, border: "none",
+          borderRadius: V2_RADIUS.input,
           cursor: step ? "not-allowed" : "pointer",
-          fontFamily: FONTS.sans, fontWeight: 700, fontSize: "1rem",
+          fontFamily: V2_FONTS.body, fontWeight: 700, fontSize: "1rem",
           transition: "background-color 0.15s",
           display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
         }}
@@ -343,7 +343,7 @@ function IcpPayButton({ tier, billing, couponCode, onError }: IcpPayButtonProps)
         {step ? ICP_STEP_LABEL[step] : "Pay with ICP"}
       </button>
       <p style={{
-        fontFamily: FONTS.sans, fontSize: "0.6rem", color: COLORS.plumMid,
+        fontFamily: V2_FONTS.body, fontSize: "0.6rem", color: V2_COLORS.muted,
         textTransform: "uppercase", letterSpacing: "0.08em", textAlign: "center", margin: 0,
       }}>
         No processing fees · Requires ICP tokens in Internet Identity
@@ -409,8 +409,8 @@ export default function CheckoutPage() {
 
   if (!plan) {
     return (
-      <div style={{ minHeight: "100vh", background: COLORS.white, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <p style={{ fontFamily: FONTS.sans, color: COLORS.plumMid }}>
+      <div style={{ minHeight: "100vh", background: V2_COLORS.paper, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <p style={{ fontFamily: V2_FONTS.body, color: V2_COLORS.muted }}>
           Unknown plan. <Link to="/pricing">Back to pricing</Link>
         </p>
       </div>
@@ -420,24 +420,24 @@ export default function CheckoutPage() {
   return (
     <>
       <Helmet><title>Subscribe to {plan.label} — HomeGentic</title></Helmet>
-      <div style={{ minHeight: "100vh", background: COLORS.white, display: "flex", flexDirection: "column" }}>
+      <div style={{ minHeight: "100vh", background: V2_COLORS.paper, display: "flex", flexDirection: "column" }}>
 
         {/* Header */}
         <header style={{
           padding: "0 40px", height: 60,
-          borderBottom: `1px solid ${COLORS.rule}`,
+          borderBottom: `1px solid ${V2_COLORS.border}`,
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          background: COLORS.white,
+          background: V2_COLORS.paper,
         }}>
           <Link to="/" style={{
-            fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.2rem",
-            letterSpacing: "-0.5px", color: COLORS.plum, textDecoration: "none",
+            fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.2rem",
+            letterSpacing: "-0.5px", color: V2_COLORS.ink, textDecoration: "none",
           }}>
-            Home<span style={{ color: COLORS.sageText, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
+            Home<span style={{ color: V2_COLORS.blue, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
           </Link>
           <Link to="/pricing" style={{
-            fontFamily: FONTS.sans, fontSize: "0.65rem", letterSpacing: "0.08em",
-            textTransform: "uppercase", color: COLORS.plumMid, textDecoration: "none",
+            fontFamily: V2_FONTS.body, fontSize: "0.65rem", letterSpacing: "0.08em",
+            textTransform: "uppercase", color: V2_COLORS.muted, textDecoration: "none",
           }}>
             ← Change plan
           </Link>
@@ -452,23 +452,23 @@ export default function CheckoutPage() {
           {/* ── Left: plan summary card ── */}
           <div style={{
             width: "100%", maxWidth: "360px", flexShrink: 0,
-            background: COLORS.plum, borderRadius: RADIUS.card,
-            padding: "40px 36px", boxShadow: SHADOWS.hover,
+            background: V2_COLORS.ink, borderRadius: V2_RADIUS.card,
+            padding: "40px 36px", boxShadow: V2_SHADOWS.hover,
             display: "flex", flexDirection: "column",
           }}>
             <div style={{
-              fontFamily: FONTS.sans, fontSize: "0.6rem", fontWeight: 700,
+              fontFamily: V2_FONTS.body, fontSize: "0.6rem", fontWeight: 700,
               textTransform: "uppercase", letterSpacing: "0.12em",
-              color: COLORS.sageLight, marginBottom: "12px",
+              color: V2_COLORS.lblue, marginBottom: "12px",
             }}>
               You're subscribing to
             </div>
 
             <div style={{ display: "flex", alignItems: "baseline", gap: "6px", marginBottom: "4px" }}>
               <span style={{
-                fontFamily: FONTS.serif, fontWeight: 900,
+                fontFamily: V2_FONTS.display, fontWeight: 900,
                 fontSize: "clamp(2rem, 5vw, 2.75rem)",
-                color: COLORS.white, letterSpacing: "-1px", lineHeight: 1,
+                color: V2_COLORS.paper, letterSpacing: "-1px", lineHeight: 1,
               }}>
                 {plan.label}
               </span>
@@ -476,14 +476,14 @@ export default function CheckoutPage() {
 
             <div style={{ marginBottom: "32px" }}>
               <span style={{
-                fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.5rem",
-                color: COLORS.sageText,
+                fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.5rem",
+                color: V2_COLORS.blue,
               }}>
                 {price}
               </span>
               {billing === "Yearly" && (
                 <span style={{
-                  fontFamily: FONTS.sans, fontSize: "0.6rem", color: COLORS.sageLight,
+                  fontFamily: V2_FONTS.body, fontSize: "0.6rem", color: V2_COLORS.lblue,
                   marginLeft: "8px", letterSpacing: "0.06em",
                 }}>
                   2 months free
@@ -498,18 +498,18 @@ export default function CheckoutPage() {
                 <li key={f} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                   <span style={{
                     width: 20, height: 20, borderRadius: "50%",
-                    background: "rgba(122,175,118,0.2)",
-                    border: `1px solid ${COLORS.sage}`,
+                    background: "rgba(43,52,255,0.2)",
+                    border: `1px solid ${V2_COLORS.blue}`,
                     display: "flex", alignItems: "center", justifyContent: "center",
                     flexShrink: 0,
                   }}>
                     <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                      <path d="M1 4l2.5 2.5L9 1" stroke={COLORS.sage} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M1 4l2.5 2.5L9 1" stroke={V2_COLORS.blue} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </span>
                   <span style={{
-                    fontFamily: FONTS.sans, fontSize: "0.875rem",
-                    color: f.startsWith("Everything in") ? COLORS.sageLight : "rgba(253,252,250,0.75)",
+                    fontFamily: V2_FONTS.body, fontSize: "0.875rem",
+                    color: f.startsWith("Everything in") ? V2_COLORS.lblue : "rgba(252,252,253,0.75)",
                     fontWeight: f.startsWith("Everything in") ? 600 : 300,
                   }}>
                     {f}
@@ -526,10 +526,10 @@ export default function CheckoutPage() {
               {["Cancel anytime", "Blockchain-backed records stay yours", payMethod === "icp" ? "No processing fees" : "Secured by Stripe"].map((t) => (
                 <div key={t} style={{
                   display: "flex", alignItems: "center", gap: "8px",
-                  fontFamily: FONTS.sans, fontSize: "0.6rem", letterSpacing: "0.06em",
-                  color: "rgba(253,252,250,0.4)", textTransform: "uppercase",
+                  fontFamily: V2_FONTS.body, fontSize: "0.6rem", letterSpacing: "0.06em",
+                  color: "rgba(252,252,253,0.4)", textTransform: "uppercase",
                 }}>
-                  <span style={{ color: COLORS.sageText, fontSize: "0.5rem" }}>✦</span>
+                  <span style={{ color: V2_COLORS.blue, fontSize: "0.5rem" }}>✦</span>
                   {t}
                 </div>
               ))}
@@ -539,11 +539,11 @@ export default function CheckoutPage() {
           {/* ── Right: auth step or payment form ── */}
           <div style={{
             width: "100%", maxWidth: "440px",
-            background: COLORS.white,
-            border: `1px solid ${COLORS.rule}`,
-            borderRadius: RADIUS.card,
+            background: V2_COLORS.paper,
+            border: `1px solid ${V2_COLORS.border}`,
+            borderRadius: V2_RADIUS.card,
             padding: "36px",
-            boxShadow: SHADOWS.card,
+            boxShadow: V2_SHADOWS.card,
           }}>
             {!isAuthenticated ? (
               <LoginStep onLogin={handleLogin} />
@@ -553,22 +553,22 @@ export default function CheckoutPage() {
                 <div style={{
                   display: "flex", alignItems: "center", gap: "10px",
                   padding: "10px 14px", marginBottom: "28px",
-                  background: COLORS.sageLight, borderRadius: RADIUS.sm,
-                  border: `1px solid ${COLORS.sageMid}`,
+                  background: V2_COLORS.lblue, borderRadius: V2_RADIUS.sm,
+                  border: `1px solid ${V2_COLORS.cobalTint}`,
                 }}>
                   <span style={{ fontSize: "1rem" }}>✓</span>
                   <div>
                     <p style={{
-                      fontFamily: FONTS.sans, fontSize: "0.6rem", fontWeight: 700,
+                      fontFamily: V2_FONTS.body, fontSize: "0.6rem", fontWeight: 700,
                       textTransform: "uppercase", letterSpacing: "0.08em",
-                      color: COLORS.sageText, margin: 0,
+                      color: V2_COLORS.blue, margin: 0,
                     }}>
                       Identity verified
                     </p>
                     {profile?.email && (
                       <p style={{
-                        fontFamily: FONTS.sans, fontSize: "0.8rem",
-                        color: COLORS.plumMid, margin: 0, fontWeight: 300,
+                        fontFamily: V2_FONTS.body, fontSize: "0.8rem",
+                        color: V2_COLORS.muted, margin: 0, fontWeight: 300,
                       }}>
                         {profile.email}
                       </p>
@@ -587,12 +587,12 @@ export default function CheckoutPage() {
                         style={{
                           display: "flex", alignItems: "center", gap: "6px",
                           padding: "8px 16px",
-                          fontFamily: FONTS.sans, fontSize: "0.65rem", fontWeight: 700,
+                          fontFamily: V2_FONTS.body, fontSize: "0.65rem", fontWeight: 700,
                           textTransform: "uppercase", letterSpacing: "0.08em",
-                          border: `1.5px solid ${active ? COLORS.plum : COLORS.rule}`,
-                          background: active ? COLORS.plum : "transparent",
-                          color: active ? COLORS.white : COLORS.plumMid,
-                          borderRadius: RADIUS.sm, cursor: "pointer",
+                          border: `1.5px solid ${active ? V2_COLORS.blue : V2_COLORS.border}`,
+                          background: active ? V2_COLORS.blue : "transparent",
+                          color: active ? V2_COLORS.paper : V2_COLORS.muted,
+                          borderRadius: V2_RADIUS.sm, cursor: "pointer",
                           transition: "all .15s",
                         }}
                       >
@@ -605,9 +605,9 @@ export default function CheckoutPage() {
                 </div>
 
                 <p style={{
-                  fontFamily: FONTS.sans, fontSize: "0.65rem", fontWeight: 500,
+                  fontFamily: V2_FONTS.body, fontSize: "0.65rem", fontWeight: 500,
                   textTransform: "uppercase", letterSpacing: "0.08em",
-                  color: COLORS.plumMid, marginBottom: "20px",
+                  color: V2_COLORS.muted, marginBottom: "20px",
                 }}>
                   Payment details
                 </p>
@@ -615,9 +615,9 @@ export default function CheckoutPage() {
                 {/* Quorum member coupon */}
                 <div style={{ marginBottom: "20px" }}>
                   <label style={{
-                    display: "block", fontFamily: FONTS.sans, fontSize: "0.6rem", fontWeight: 700,
+                    display: "block", fontFamily: V2_FONTS.body, fontSize: "0.6rem", fontWeight: 700,
                     textTransform: "uppercase", letterSpacing: "0.08em",
-                    color: COLORS.plumMid, marginBottom: "6px",
+                    color: V2_COLORS.muted, marginBottom: "6px",
                   }}>
                     Quorum HOA member code (optional)
                   </label>
@@ -628,15 +628,15 @@ export default function CheckoutPage() {
                     placeholder="QUORUM-000000"
                     style={{
                       width: "100%", boxSizing: "border-box",
-                      padding: "10px 12px", border: `1px solid ${COLORS.rule}`,
-                      borderRadius: RADIUS.input, fontFamily: FONTS.mono,
+                      padding: "10px 12px", border: `1px solid ${V2_COLORS.border}`,
+                      borderRadius: V2_RADIUS.input, fontFamily: V2_FONTS.mono,
                       fontSize: "0.85rem", letterSpacing: "0.08em",
-                      color: COLORS.plum, background: COLORS.white,
+                      color: V2_COLORS.ink, background: V2_COLORS.paper,
                       outline: "none",
                     }}
                   />
                   <p style={{
-                    fontFamily: FONTS.sans, fontSize: "0.7rem", color: COLORS.plumMid,
+                    fontFamily: V2_FONTS.body, fontSize: "0.7rem", color: V2_COLORS.muted,
                     margin: "4px 0 0",
                   }}>
                     Quorum HOA members get 10% off. Enter your code from the Benefits page.
@@ -649,9 +649,9 @@ export default function CheckoutPage() {
                     {payError && (
                       <div style={{
                         marginTop: "12px", padding: "12px 14px",
-                        background: "#FEF2EF", border: `1px solid ${COLORS.rust}`,
-                        borderRadius: RADIUS.sm, color: COLORS.rust,
-                        fontFamily: FONTS.sans, fontSize: "0.85rem",
+                        background: "#FEF2EF", border: `1px solid ${V2_COLORS.coral}`,
+                        borderRadius: V2_RADIUS.sm, color: V2_COLORS.coralText,
+                        fontFamily: V2_FONTS.body, fontSize: "0.85rem",
                       }}>
                         {payError}
                       </div>
@@ -662,9 +662,9 @@ export default function CheckoutPage() {
                     {loadError && (
                       <div style={{
                         padding: "12px 14px", marginBottom: "16px",
-                        background: "#FEF2EF", border: `1px solid ${COLORS.rust}`,
-                        borderRadius: RADIUS.sm, color: COLORS.rust,
-                        fontFamily: FONTS.sans, fontSize: "0.85rem",
+                        background: "#FEF2EF", border: `1px solid ${V2_COLORS.coral}`,
+                        borderRadius: V2_RADIUS.sm, color: V2_COLORS.coralText,
+                        fontFamily: V2_FONTS.body, fontSize: "0.85rem",
                       }}>
                         {loadError}
                       </div>
@@ -672,8 +672,8 @@ export default function CheckoutPage() {
 
                     {!loadError && !clientSecret && (
                       <div style={{
-                        height: 180, background: COLORS.sageLight,
-                        borderRadius: RADIUS.input,
+                        height: 180, background: V2_COLORS.lblue,
+                        borderRadius: V2_RADIUS.input,
                         animation: "pulse 1.5s ease-in-out infinite",
                       }} />
                     )}
@@ -693,9 +693,9 @@ export default function CheckoutPage() {
                     {payError && (
                       <div style={{
                         marginTop: "12px", padding: "12px 14px",
-                        background: "#FEF2EF", border: `1px solid ${COLORS.rust}`,
-                        borderRadius: RADIUS.sm, color: COLORS.rust,
-                        fontFamily: FONTS.sans, fontSize: "0.85rem",
+                        background: "#FEF2EF", border: `1px solid ${V2_COLORS.coral}`,
+                        borderRadius: V2_RADIUS.sm, color: V2_COLORS.coralText,
+                        fontFamily: V2_FONTS.body, fontSize: "0.85rem",
                       }}>
                         {payError}
                       </div>

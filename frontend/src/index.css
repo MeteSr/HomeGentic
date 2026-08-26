@@ -1,28 +1,47 @@
 /* ─── Design tokens ──────────────────────────────────────────────────────────── */
 
 :root {
-  /* New palette */
+  /* ── V2 palette (cobalt) — canonical ──────────────────────────────────── */
+  --v2-blue:        #2B34FF;
+  --v2-yellow:      #FFD23F;
+  --v2-coral:       #FF5C39;
+  --v2-coral-text:  #C2341A;
+  --v2-ink:         #0B0D1A;
+  --v2-paper:       #FCFCFD;
+  --v2-muted:       #6B7080;
+  --v2-muted2:      #5A5F70;
+  --v2-page:        #EDEEF2;
+  --v2-surface:     #F7F8FB;
+  --v2-border:      #E6E7EE;
+  --v2-divider:     #D9DBE4;
+  --v2-lblue:       #F3F4FF;
+  --v2-vbadge:      #E0E2FF;
+  --v2-cobal-tint:  #B9BDF5;
+  --v2-attention:   #FFF6DB;
+  --v2-display:     'Bricolage Grotesque', system-ui, sans-serif;
+  --v2-body:        'Hanken Grotesk', sans-serif;
+  --v2-mono:        'JetBrains Mono', monospace;
+
+  /* ── Legacy palette (plum/sage) — do not use in new code ─────────────── */
   --plum:        #2E2540;
   --plum-mid:    #6B5B7B;
   --plum-dark:   #1E1928;
-  --sage:        #7AAF76;
-  --sage-text:   #3D7339;
-  --sage-mid:    #C4DCC2;
-  --sage-light:  #E5F0E4;
-  --blush:       #F0CDBA;
+  --sage:        #00CEC8;   /* corrected — was #7AAF76 (sage green), COLORS.sage is teal */
+  --sage-text:   #007B78;
+  --sage-mid:    #A0EDED;
+  --sage-light:  #E0FAFA;
+  --blush:       #FCEFC3;
   --sky:         #BAD5E8;
   --butter:      #F5E9BB;
   --white:       #FDFCFA;
   --canvas:      #FFFFFF;
   --rule:        #D4CFC8;
-
-  /* Legacy aliases — kept so old inline styles degrade gracefully during migration */
+  --rust:        #C94C2E;   /* corrected — was aliased to sage green, COLORS.rust is red */
   --ink:         #2E2540;
   --paper:       #FDFCFA;
-  --rust:        #7AAF76;
   --ink-mid:     #6B5B7B;
   --ink-light:   #6B5B7B;
-  --paper-dark:  #E5F0E4;
+  --paper-dark:  #E0FAFA;
 
   --serif: 'Fraunces', Georgia, serif;
   --mono:  'IBM Plex Mono', 'Courier New', monospace;
@@ -139,8 +158,8 @@ textarea.form-input {
   display: block;
   width: 3rem;
   height: 3rem;
-  border: 2px solid var(--rule);
-  border-top-color: var(--sage);
+  border: 2px solid var(--v2-border);
+  border-top-color: var(--v2-blue);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
   margin: 0 auto;
@@ -178,15 +197,15 @@ textarea.form-input {
 /* ─── Focus ──────────────────────────────────────────────────────────────────── */
 
 :focus-visible {
-  outline: 2px solid var(--sage);
+  outline: 2px solid var(--v2-blue);
   outline-offset: 2px;
 }
 
 /* ─── Selection ──────────────────────────────────────────────────────────────── */
 
 ::selection {
-  background-color: var(--sage-light);
-  color: var(--plum);
+  background-color: var(--v2-lblue);
+  color: var(--v2-ink);
 }
 
 /* ─── Table defaults ─────────────────────────────────────────────────────────── */
@@ -384,7 +403,7 @@ table { border-collapse: collapse; }
 
 .pac-item:hover,
 .pac-item-selected {
-  background: var(--sage-light);
+  background: var(--v2-lblue);
 }
 
 .pac-item-query {
@@ -396,7 +415,7 @@ table { border-collapse: collapse; }
 
 .pac-matched {
   font-weight: 700;
-  color: var(--sage);
+  color: var(--v2-blue);
 }
 
 .pac-icon {

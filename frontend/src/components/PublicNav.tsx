@@ -10,21 +10,10 @@
 
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
-const C = {
-  blue:   "#2B34FF",
-  yellow: "#FFD23F",
-  ink:    "#0B0D1A",
-  paper:  "#FCFCFD",
-  muted:  "#6B7080",
-  border: "#EDEEF2",
-  white:  "#FFFFFF",
-};
-const F = {
-  display: "'Bricolage Grotesque', 'Inter', sans-serif",
-  body:    "'Hanken Grotesk', 'Inter', sans-serif",
-  mono:    "'JetBrains Mono', monospace",
-};
+const C = V2_COLORS;
+const F = V2_FONTS;
 
 const NAV_LINKS = [
   { label: "Features",   href: "/#features" },
@@ -111,7 +100,7 @@ export function PublicNav() {
             alignItems:      "center",
             gap:             "6px",
             background:      C.blue,
-            color:           C.white,
+            color:           C.paper,
             border:          "none",
             borderRadius:    "100px",
             padding:         "9px 20px",
@@ -161,7 +150,7 @@ export function PublicNav() {
           left:       0,
           right:      0,
           zIndex:     99,
-          background: C.white,
+          background: C.paper,
           borderBottom: `1px solid ${C.border}`,
           padding:    "1rem 2rem",
           display:    "flex",
@@ -188,7 +177,7 @@ export function PublicNav() {
             onClick={() => { setMenuOpen(false); navigate("/login"); }}
             style={{
               background:   C.blue,
-              color:        C.white,
+              color:        C.paper,
               border:       "none",
               borderRadius: "100px",
               padding:      "10px 20px",

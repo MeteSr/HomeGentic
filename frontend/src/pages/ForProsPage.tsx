@@ -4,23 +4,10 @@ import { Helmet } from "react-helmet-async";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthStore } from "@/store/authStore";
 import { type PlanTier, type BillingCycle } from "@/services/planConstants";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
-const C = {
-  blue:   "#2B34FF",
-  yellow: "#FFD23F",
-  coral:  "#FF5C39",
-  ink:    "#0B0D1A",
-  paper:  "#FCFCFD",
-  muted:  "#6B7080",
-  border: "#EDEEF2",
-  white:  "#FFFFFF",
-  blueFg: "#F3F4FF",
-};
-const F = {
-  display: "'Bricolage Grotesque', 'Inter', sans-serif",
-  body:    "'Hanken Grotesk', 'Inter', sans-serif",
-  mono:    "'JetBrains Mono', monospace",
-};
+const C = V2_COLORS;
+const F = V2_FONTS;
 
 const CONTRACTOR_PLANS = [
   {
@@ -198,7 +185,7 @@ export default function ForProsPage() {
               onClick={() => navigate("/login")}
               style={{
                 fontFamily: F.body, fontSize: "0.9rem", fontWeight: 700,
-                color: C.white, background: C.blue, border: "none", cursor: "pointer",
+                color: C.paper, background: C.blue, border: "none", cursor: "pointer",
                 padding: "10px 22px", borderRadius: "100px",
                 boxShadow: "0 4px 18px rgba(43,52,255,0.28)",
               }}
@@ -240,7 +227,7 @@ export default function ForProsPage() {
               style={{
                 fontFamily: F.body, fontSize: "1rem", fontWeight: 700,
                 padding: "14px 32px", borderRadius: "100px",
-                background: C.blue, color: C.white, border: "none", cursor: "pointer",
+                background: C.blue, color: C.paper, border: "none", cursor: "pointer",
                 boxShadow: "0 4px 18px rgba(43,52,255,0.28)",
               }}
             >
@@ -266,7 +253,7 @@ export default function ForProsPage() {
           style={{ background: C.ink, padding: "72px 56px" }}
         >
           <div style={{ maxWidth: 960, margin: "0 auto" }}>
-            <h2 style={{ fontFamily: F.display, fontSize: "clamp(1.8rem, 3.5vw, 2.6rem)", fontWeight: 800, color: C.white, textAlign: "center", marginBottom: "0.75rem" }}>
+            <h2 style={{ fontFamily: F.display, fontSize: "clamp(1.8rem, 3.5vw, 2.6rem)", fontWeight: 800, color: C.paper, textAlign: "center", marginBottom: "0.75rem" }}>
               Why professionals choose HomeGentic
             </h2>
             <p style={{ fontFamily: F.body, fontSize: "1rem", color: "rgba(252,252,253,0.55)", textAlign: "center", marginBottom: "3rem", maxWidth: 520, margin: "0 auto 3rem" }}>
@@ -284,7 +271,7 @@ export default function ForProsPage() {
                   borderRadius: "22px", padding: "1.5rem",
                 }}>
                   <div style={{ fontSize: "1.75rem", marginBottom: "0.75rem" }}>{c.icon}</div>
-                  <div style={{ fontFamily: F.display, fontSize: "1rem", fontWeight: 700, color: C.white, marginBottom: "0.5rem" }}>{c.title}</div>
+                  <div style={{ fontFamily: F.display, fontSize: "1rem", fontWeight: 700, color: C.paper, marginBottom: "0.5rem" }}>{c.title}</div>
                   <div style={{ fontFamily: F.body, fontSize: "0.875rem", color: "rgba(252,252,253,0.5)", lineHeight: 1.6 }}>{c.body}</div>
                 </div>
               ))}
@@ -315,7 +302,7 @@ export default function ForProsPage() {
                     key={plan.tier}
                     style={{
                       padding: "2rem", borderRadius: "24px",
-                      background: C.white,
+                      background: C.paper,
                       border: `${isFeatured ? "2px" : "1.5px"} solid ${isFeatured ? C.blue : C.border}`,
                       boxShadow: isFeatured ? "0 8px 32px rgba(43,52,255,0.14)" : "0 2px 12px rgba(11,13,26,0.06)",
                       position: "relative",
@@ -324,7 +311,7 @@ export default function ForProsPage() {
                     {plan.tag && (
                       <div style={{
                         display: "inline-flex", alignItems: "center",
-                        background: C.blue, color: C.white,
+                        background: C.blue, color: C.paper,
                         padding: "3px 12px", borderRadius: 100,
                         fontSize: "0.65rem", fontWeight: 700,
                         marginBottom: "0.75rem", fontFamily: F.mono,
@@ -355,7 +342,7 @@ export default function ForProsPage() {
                         width: "100%", padding: "13px 0", borderRadius: "100px",
                         fontFamily: F.body, fontSize: "1rem", fontWeight: 700,
                         background: isFeatured ? C.blue : "transparent",
-                        color: isFeatured ? C.white : C.ink,
+                        color: isFeatured ? C.paper : C.ink,
                         border: isFeatured ? "none" : `1.5px solid ${C.border}`,
                         cursor: "pointer",
                         boxShadow: isFeatured ? "0 4px 18px rgba(43,52,255,0.28)" : "none",
@@ -387,7 +374,7 @@ export default function ForProsPage() {
             <div style={{ fontFamily: F.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(252,252,253,0.4)", marginBottom: "1rem" }}>
               🏡 Real Estate Agents
             </div>
-            <h2 style={{ fontFamily: F.display, fontSize: "clamp(1.8rem, 3.5vw, 2.6rem)", fontWeight: 800, color: C.white, marginBottom: "1rem" }}>
+            <h2 style={{ fontFamily: F.display, fontSize: "clamp(1.8rem, 3.5vw, 2.6rem)", fontWeight: 800, color: C.paper, marginBottom: "1rem" }}>
               Competing for listings?<br /><span style={{ fontWeight: 400, color: C.yellow }}>Try BidToList.</span>
             </h2>
             <p style={{ fontFamily: F.body, fontSize: "1rem", color: "rgba(252,252,253,0.55)", maxWidth: 520, margin: "0 auto 2rem", lineHeight: 1.7 }}>
@@ -412,7 +399,7 @@ export default function ForProsPage() {
         {/* ── Final CTA ───────────────────────────────────────────────────── */}
         <section style={{ background: C.blue, padding: "80px 56px", textAlign: "center" }}>
           <div style={{ maxWidth: 640, margin: "0 auto" }}>
-            <h2 style={{ fontFamily: F.display, fontSize: "clamp(2rem, 4vw, 3rem)", fontWeight: 800, color: C.white, marginBottom: "1rem", lineHeight: 1.1 }}>
+            <h2 style={{ fontFamily: F.display, fontSize: "clamp(2rem, 4vw, 3rem)", fontWeight: 800, color: C.paper, marginBottom: "1rem", lineHeight: 1.1 }}>
               Join 3,400+ homeowners<br />already on the network.
             </h2>
             <p style={{ fontFamily: F.body, fontSize: "1rem", color: "rgba(255,255,255,0.7)", marginBottom: "2rem", lineHeight: 1.7 }}>
@@ -442,7 +429,7 @@ export default function ForProsPage() {
             style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 1fr", gap: "48px", marginBottom: "52px" }}
           >
             <div>
-              <span style={{ fontFamily: F.display, fontSize: "24px", fontWeight: 800, color: C.white, marginBottom: "14px", display: "block" }}>
+              <span style={{ fontFamily: F.display, fontSize: "24px", fontWeight: 800, color: C.paper, marginBottom: "14px", display: "block" }}>
                 Home<span style={{ color: C.yellow }}>Gentic</span>
               </span>
               <p style={{ fontFamily: F.body, fontSize: "14px", color: "rgba(252,252,253,0.45)", lineHeight: 1.65, maxWidth: 220, margin: 0 }}>

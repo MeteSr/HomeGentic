@@ -5,23 +5,10 @@ import { Button } from "@/components/Button";
 import { PLANS, ANNUAL_PLANS, type Plan, type PlanTier, type BillingCycle } from "@/services/planConstants";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthStore } from "@/store/authStore";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
-const C = {
-  blue:   "#2B34FF",
-  yellow: "#FFD23F",
-  coral:  "#FF5C39",
-  ink:    "#0B0D1A",
-  paper:  "#FCFCFD",
-  muted:  "#6B7080",
-  border: "#EDEEF2",
-  white:  "#FFFFFF",
-  blueFg: "#F3F4FF",
-};
-const F = {
-  display: "'Bricolage Grotesque', 'Inter', sans-serif",
-  body:    "'Hanken Grotesk', 'Inter', sans-serif",
-  mono:    "'JetBrains Mono', monospace",
-};
+const C = V2_COLORS;
+const F = V2_FONTS;
 
 const BILLING_KEY = "homegentic_pricing_billing";
 
@@ -104,7 +91,7 @@ export default function PricingPage() {
                 padding: "0.5rem 1.25rem",
                 border: `1.5px solid ${active ? C.ink : C.border}`,
                 background: active ? C.ink : "transparent",
-                color: active ? C.white : C.muted,
+                color: active ? C.paper : C.muted,
                 fontFamily: F.mono, fontSize: "0.65rem", letterSpacing: "0.08em",
                 textTransform: "uppercase", cursor: href ? "pointer" : "default",
                 fontWeight: active ? 700 : 400, borderRadius: "100px",
@@ -134,7 +121,7 @@ export default function PricingPage() {
               position: "absolute", top: "3px",
               left: annual ? "calc(100% - 1.125rem)" : "3px",
               width: "1rem", height: "1rem",
-              borderRadius: "50%", background: C.white,
+              borderRadius: "50%", background: C.paper,
               transition: "left 0.2s",
               boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
             }} />
@@ -142,7 +129,7 @@ export default function PricingPage() {
           <span style={{ fontFamily: F.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: annual ? C.ink : C.muted, fontWeight: annual ? 700 : 400 }}>
             Annual
           </span>
-          <span style={{ background: annual ? C.blue : C.border, color: annual ? C.white : C.muted, padding: "2px 10px", borderRadius: 100, fontFamily: F.mono, fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.06em" }}>
+          <span style={{ background: annual ? C.blue : C.border, color: annual ? C.paper : C.muted, padding: "2px 10px", borderRadius: 100, fontFamily: F.mono, fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.06em" }}>
             {annual ? "2 months free" : "Save 2 months"}
           </span>
         </div>
@@ -163,7 +150,7 @@ export default function PricingPage() {
               <div key={plan.tier} style={{
                 padding: "2rem",
                 borderRadius: "24px",
-                background: isPopular ? C.blue : C.white,
+                background: isPopular ? C.blue : C.paper,
                 border: `${isPopular ? "2px" : "1.5px"} solid ${isPopular ? C.blue : C.border}`,
                 boxShadow: isPopular ? "0 8px 40px rgba(43,52,255,0.22)" : "0 2px 12px rgba(11,13,26,0.06)",
                 position: "relative",
@@ -184,7 +171,7 @@ export default function PricingPage() {
                   {plan.tier}
                 </div>
                 <div style={{ marginBottom: "1.5rem" }}>
-                  <span style={{ fontFamily: F.display, fontWeight: 800, fontSize: "2.5rem", lineHeight: 1, color: isPopular ? C.white : C.ink }}>
+                  <span style={{ fontFamily: F.display, fontWeight: 800, fontSize: "2.5rem", lineHeight: 1, color: isPopular ? C.paper : C.ink }}>
                     ${plan.price}
                   </span>
                   <span style={{ fontFamily: F.body, fontSize: "0.65rem", color: isPopular ? "rgba(255,255,255,0.55)" : C.muted }}>/{plan.period}</span>
@@ -202,7 +189,7 @@ export default function PricingPage() {
                     <div style={{
                       display: "flex", alignItems: "center", gap: "0.5rem",
                       padding: "0.5rem 0.75rem", marginBottom: "1rem",
-                      background: isPopular ? "rgba(255,255,255,0.12)" : C.blueFg,
+                      background: isPopular ? "rgba(255,255,255,0.12)" : C.lblue,
                       border: `1px solid ${isPopular ? "rgba(255,255,255,0.2)" : C.blue + "33"}`,
                       borderRadius: "12px",
                     }}>
@@ -232,8 +219,8 @@ export default function PricingPage() {
                     width: "100%",
                     borderRadius: "100px",
                     ...(isPopular && { backgroundColor: C.yellow, color: C.ink, borderColor: C.yellow, fontWeight: 700 }),
-                    ...(plan.tier === "Basic"   && { backgroundColor: C.blue, color: C.white, borderColor: C.blue, boxShadow: "0 4px 18px rgba(43,52,255,0.28)" }),
-                    ...(plan.tier === "Premium" && { backgroundColor: C.ink, color: C.white, borderColor: C.ink }),
+                    ...(plan.tier === "Basic"   && { backgroundColor: C.blue, color: C.paper, borderColor: C.blue, boxShadow: "0 4px 18px rgba(43,52,255,0.28)" }),
+                    ...(plan.tier === "Premium" && { backgroundColor: C.ink, color: C.paper, borderColor: C.ink }),
                   }}
                   onClick={() => handleUpgrade(plan.tier)}
                 >
@@ -250,7 +237,7 @@ export default function PricingPage() {
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
           flexWrap: "wrap", gap: 24,
-          background: C.blueFg,
+          background: C.lblue,
           border: `1.5px solid ${C.blue}22`,
           borderRadius: "24px", padding: "32px 40px", marginBottom: "2rem",
         }}>
@@ -264,7 +251,7 @@ export default function PricingPage() {
             style={{
               fontFamily: F.body, fontSize: 15, fontWeight: 700,
               padding: "13px 28px", borderRadius: "100px",
-              background: C.blue, color: C.white, textDecoration: "none",
+              background: C.blue, color: C.paper, textDecoration: "none",
               whiteSpace: "nowrap", boxShadow: "0 4px 18px rgba(43,52,255,0.28)",
             }}
           >

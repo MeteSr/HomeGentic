@@ -15,22 +15,10 @@ import { lookupReport, submitReportRequest, type BuyerLookupResult } from "@/ser
 import { PublicNav } from "@/components/PublicNav";
 import { PublicFooter } from "@/components/PublicFooter";
 import { isValidEmail } from "@/utils/validators";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
-const C = {
-  blue:   "#2B34FF",
-  coral:  "#FF5C39",
-  ink:    "#0B0D1A",
-  paper:  "#FCFCFD",
-  muted:  "#6B7080",
-  border: "#EDEEF2",
-  white:  "#FFFFFF",
-  blueFg: "#F3F4FF",
-};
-const F = {
-  display: "'Bricolage Grotesque', 'Inter', sans-serif",
-  body:    "'Hanken Grotesk', 'Inter', sans-serif",
-  mono:    "'JetBrains Mono', monospace",
-};
+const C = V2_COLORS;
+const F = V2_FONTS;
 
 // ── Address search form ───────────────────────────────────────────────────────
 
@@ -49,7 +37,7 @@ function SearchForm() {
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "3rem 1.5rem" }}>
         <div style={{ width: "100%", maxWidth: "36rem" }}>
           {/* Eyebrow */}
-          <div style={{ display: "inline-flex", alignItems: "center", background: C.blueFg, color: C.blue, padding: "5px 16px", borderRadius: "100px", fontSize: "0.75rem", fontWeight: 600, marginBottom: "1.25rem", fontFamily: F.mono, letterSpacing: "0.12em", textTransform: "uppercase" }}>
+          <div style={{ display: "inline-flex", alignItems: "center", background: C.lblue, color: C.blue, padding: "5px 16px", borderRadius: "100px", fontSize: "0.75rem", fontWeight: 600, marginBottom: "1.25rem", fontFamily: F.mono, letterSpacing: "0.12em", textTransform: "uppercase" }}>
             Buyer Tools
           </div>
 
@@ -60,7 +48,7 @@ function SearchForm() {
             Enter a property address to see if the seller has a verified HomeGentic report on file.
           </p>
 
-          <div style={{ background: C.white, border: `1.5px solid ${C.border}`, borderRadius: "24px", padding: "2rem", boxShadow: "0 4px 18px rgba(43,52,255,0.08)" }}>
+          <div style={{ background: C.paper, border: `1.5px solid ${C.border}`, borderRadius: "24px", padding: "2rem", boxShadow: "0 4px 18px rgba(43,52,255,0.08)" }}>
             <label style={{ display: "flex", flexDirection: "column", gap: "0.375rem", marginBottom: "1rem" }}>
               <span style={{ fontFamily: F.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: C.muted }}>
                 Property Address
@@ -74,7 +62,7 @@ function SearchForm() {
                 style={{
                   padding: "0.75rem 1rem", border: `1.5px solid ${C.border}`,
                   borderRadius: "10px", fontFamily: F.body, fontSize: "0.9375rem",
-                  outline: "none", background: C.white, color: C.ink,
+                  outline: "none", background: C.paper, color: C.ink,
                 }}
               />
             </label>
@@ -84,8 +72,8 @@ function SearchForm() {
               aria-label="check address"
               style={{
                 width: "100%", padding: "0.875rem",
-                background: address.trim() ? C.blue : C.border,
-                color: C.white, border: "none",
+                background: address.trim() ? C.blue : C.page,
+                color: C.paper, border: "none",
                 borderRadius: "100px",
                 cursor: address.trim() ? "pointer" : "not-allowed",
                 fontFamily: F.body, fontSize: "0.9375rem", fontWeight: 600,
@@ -119,7 +107,7 @@ function FoundResult({ result }: { result: BuyerLookupResult & { found: true } }
         {/* Verified badge */}
         <div style={{
           display: "inline-flex", alignItems: "center", gap: "0.5rem",
-          padding: "0.5rem 1rem", background: C.blueFg,
+          padding: "0.5rem 1rem", background: C.lblue,
           border: `1.5px solid ${C.border}`, borderRadius: "100px",
           marginBottom: "1.75rem",
         }}>
@@ -141,7 +129,7 @@ function FoundResult({ result }: { result: BuyerLookupResult & { found: true } }
           aria-label="view report"
           style={{
             display: "inline-flex", alignItems: "center", gap: "0.5rem",
-            padding: "0.875rem 2rem", background: C.blue, color: C.white,
+            padding: "0.875rem 2rem", background: C.blue, color: C.paper,
             textDecoration: "none", borderRadius: "100px",
             fontFamily: F.body, fontSize: "0.9375rem", fontWeight: 600,
             boxShadow: "0 4px 18px rgba(43,52,255,0.28)",
@@ -177,7 +165,7 @@ function NotFoundResult({ address }: { address: string }) {
       <PublicNav />
       <div style={{ flex: 1, maxWidth: "44rem", margin: "0 auto", padding: "3rem 1.5rem", width: "100%" }}>
         {/* Eyebrow */}
-        <div style={{ display: "inline-flex", alignItems: "center", background: C.blueFg, color: C.blue, padding: "5px 16px", borderRadius: "100px", fontSize: "0.75rem", fontWeight: 600, marginBottom: "1.25rem", fontFamily: F.mono, letterSpacing: "0.12em", textTransform: "uppercase" }}>
+        <div style={{ display: "inline-flex", alignItems: "center", background: C.lblue, color: C.blue, padding: "5px 16px", borderRadius: "100px", fontSize: "0.75rem", fontWeight: 600, marginBottom: "1.25rem", fontFamily: F.mono, letterSpacing: "0.12em", textTransform: "uppercase" }}>
           No Report Found
         </div>
 
@@ -202,7 +190,7 @@ function NotFoundResult({ address }: { address: string }) {
               aria-label="start your report"
               style={{
                 display: "inline-flex", alignItems: "center", gap: "0.5rem",
-                padding: "0.75rem 1.5rem", background: C.blue, color: C.white,
+                padding: "0.75rem 1.5rem", background: C.blue, color: C.paper,
                 textDecoration: "none", borderRadius: "100px",
                 fontFamily: F.body, fontSize: "0.875rem", fontWeight: 600,
                 boxShadow: "0 4px 18px rgba(43,52,255,0.28)",
@@ -213,7 +201,7 @@ function NotFoundResult({ address }: { address: string }) {
           </div>
 
           {/* §17.4.2 — Buyer request form */}
-          <div style={{ background: C.blueFg, border: `1.5px solid ${C.border}`, borderRadius: "24px", padding: "1.75rem" }}>
+          <div style={{ background: C.lblue, border: `1.5px solid ${C.border}`, borderRadius: "24px", padding: "1.75rem" }}>
             {submitted ? (
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                 <CheckCircle size={20} color={C.blue} />
@@ -242,7 +230,7 @@ function NotFoundResult({ address }: { address: string }) {
                         border: `1.5px solid ${email && !isValidEmail(email) ? C.coral : C.border}`,
                         borderRadius: "10px",
                         fontFamily: F.body, fontSize: "0.875rem", outline: "none",
-                        background: C.white, boxSizing: "border-box",
+                        background: C.paper, boxSizing: "border-box",
                         color: C.ink,
                       }}
                     />
@@ -256,7 +244,7 @@ function NotFoundResult({ address }: { address: string }) {
                     aria-label="notify me"
                     style={{
                       alignSelf: "flex-end", padding: "0.625rem 1.25rem",
-                      background: C.blue, color: C.white, border: "none",
+                      background: C.blue, color: C.paper, border: "none",
                       borderRadius: "100px",
                       cursor: email.trim() ? "pointer" : "not-allowed",
                       fontFamily: F.body, fontSize: "0.875rem", fontWeight: 600,

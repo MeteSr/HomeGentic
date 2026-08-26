@@ -1,23 +1,10 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
-const C = {
-  blue:   "#2B34FF",
-  yellow: "#FFD23F",
-  coral:  "#FF5C39",
-  ink:    "#0B0D1A",
-  paper:  "#FCFCFD",
-  muted:  "#6B7080",
-  border: "#EDEEF2",
-  white:  "#FFFFFF",
-  blueFg: "#F3F4FF",
-};
-const F = {
-  display: "'Bricolage Grotesque', 'Inter', sans-serif",
-  body:    "'Hanken Grotesk', 'Inter', sans-serif",
-  mono:    "'JetBrains Mono', monospace",
-};
+const C = V2_COLORS;
+const F = V2_FONTS;
 
 interface FaqItem { q: string; a: string; }
 
@@ -174,7 +161,7 @@ export default function FAQPage() {
             to="/login"
             style={{
               fontFamily: F.body, fontSize: 14, fontWeight: 600,
-              color: C.white, background: C.blue, textDecoration: "none",
+              color: C.paper, background: C.blue, textDecoration: "none",
               padding: "10px 22px", borderRadius: 100,
               boxShadow: "0 4px 18px rgba(43,52,255,0.28)",
             }}
@@ -222,7 +209,7 @@ export default function FAQPage() {
           {/* Still have questions */}
           <div style={{
             marginTop: 64, padding: "40px 48px",
-            background: C.blueFg,
+            background: C.lblue,
             border: `1px solid ${C.border}`,
             borderRadius: 24, textAlign: "center",
           }}>
@@ -243,7 +230,7 @@ export default function FAQPage() {
               style={{
                 display: "inline-block",
                 fontFamily: F.body, fontSize: 14, fontWeight: 600,
-                color: C.white, background: C.blue, textDecoration: "none",
+                color: C.paper, background: C.blue, textDecoration: "none",
                 padding: "10px 28px", borderRadius: 100,
                 boxShadow: "0 4px 18px rgba(43,52,255,0.28)",
               }}

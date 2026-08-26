@@ -1,53 +1,59 @@
 // ─── HomeGentic Design Tokens ─────────────────────────────────────────────────────
 // Single source of truth for inline-style components.
 // CSS classes (index.css) use the :root custom properties.
+//
+// ── Migration status ──────────────────────────────────────────────────────────
+// V2 (cobalt) is the target palette. All new pages must use V2_COLORS + V2_FONTS.
+// COLORS / FONTS / RADIUS / SHADOWS / focusRing are legacy — kept while the
+// ~25 remaining legacy pages migrate. Do not use in new code.
 
 import type React from "react";
 
+/** @deprecated Use V2_COLORS instead. */
 export const COLORS = {
-  plum:       "#2E2540",   // primary text / headings / CTA fill
-  plumMid:    "#6B5B7B",   // muted text, secondary labels
-  plumDark:   "#1E1928",   // deep emphasis
-  sage:       "#00CEC8",   // success / accent / active state (backgrounds + borders only)
-  sageText:   "#007B78",   // sage-family text — passes WCAG AA on white
-  sageMid:    "#A0EDED",   // borders on sage surfaces
-  sageLight:  "#E0FAFA",   // surface tint / background cards
-  blush:      "#FCEFC3",   // warm accent surface (quotes, offers)
-  sky:        "#BAD5E8",   // cool accent surface (sensors, IoT)
-  butter:     "#F5E9BB",   // highlight surface (warranties, milestones)
-  white:      "#FDFCFA",   // warm off-white (cards, popovers)
-  canvas:     "#FFFFFF",   // pure white — sidebar, main content area
-  rule:       "#D4CFC8",   // borders / dividers
-  rust:       "#C94C2E",   // error / destructive states — use as accent/border only
-  errorText:  "#AA3820",   // error text — 6.4:1 on white, passes WCAG AA at small sizes
-  // ── Nav / sidebar active state ────────────────────────────────────────────
-  navActive:     "#C83A00",   // active nav text, icon, border — 5.2:1 on white, 4.8:1 on navActiveBg
-  navActiveBg:   "#FFF3EE",   // active nav item background
-  navInactive:   "#6B7280",   // inactive nav text and icons
+  plum:       "#2E2540",
+  plumMid:    "#6B5B7B",
+  plumDark:   "#1E1928",
+  sage:       "#00CEC8",
+  sageText:   "#007B78",
+  sageMid:    "#A0EDED",
+  sageLight:  "#E0FAFA",
+  blush:      "#FCEFC3",
+  sky:        "#BAD5E8",
+  butter:     "#F5E9BB",
+  white:      "#FDFCFA",
+  canvas:     "#FFFFFF",
+  rule:       "#D4CFC8",
+  rust:       "#C94C2E",
+  errorText:  "#AA3820",
+  navActive:     "#C83A00",
+  navActiveBg:   "#FFF3EE",
+  navInactive:   "#6B7280",
 } as const;
 
+/** @deprecated Use V2_FONTS instead. */
 export const FONTS = {
-  serif: "'Fraunces', Georgia, serif",         // headings (700 / 900)
-  sans:  "'Plus Jakarta Sans', system-ui, sans-serif",  // body (300–700)
-  mono:  "'IBM Plex Mono', 'Courier New', monospace",   // labels / data values
+  serif: "'Fraunces', Georgia, serif",
+  sans:  "'Plus Jakarta Sans', system-ui, sans-serif",
+  mono:  "'IBM Plex Mono', 'Courier New', monospace",
 } as const;
 
+/** @deprecated Use V2_RADIUS instead. */
 export const RADIUS = {
-  pill: 100,   // buttons
-  card: 20,    // cards / panels
-  input: 10,   // form inputs
-  sm: 8,       // small elements
+  pill: 100,
+  card: 20,
+  input: 10,
+  sm: 8,
 } as const;
 
+/** @deprecated Use V2_SHADOWS instead. */
 export const SHADOWS = {
   card:   "0 2px 12px rgba(46,37,64,0.06)",
   hover:  "0 8px 24px rgba(46,37,64,0.14)",
   modal:  "0 16px 48px rgba(46,37,64,0.18)",
 } as const;
 
-// ── Accessibility ─────────────────────────────────────────────────────────────
-
-/** Visible focus ring — 4.5:1 contrast against all app backgrounds. */
+/** @deprecated Use v2FocusRing instead. */
 export const focusRing = "2px solid #C94C2E";
 
 /** Visually hidden but announced by screen readers (WCAG 1.3.1 / 4.1.2). */
@@ -63,19 +69,32 @@ export const srOnly: React.CSSProperties = {
   border:      0,
 };
 
-// ── Verify v2 / Landing design tokens ─────────────────────────────────────────
-// Used by PropertyVerify pages and the public landing page.
+// ── V2 Design System ──────────────────────────────────────────────────────────
+// All new pages and components must use these tokens exclusively.
+// Fonts: Bricolage Grotesque (headings) · Hanken Grotesk (body) · JetBrains Mono (labels/code)
+
 export const V2_COLORS = {
-  blue:   "#2B34FF",
-  yellow: "#FFD23F",
-  coral:  "#FF5C39",
-  ink:    "#0B0D1A",
-  paper:  "#FCFCFD",
-  muted:  "#6B7080",
-  muted2: "#5A5F70",
-  border: "#EDEEF2",
-  lblue:  "#F3F4FF",
-  vbadge: "#E0E2FF",
+  // ── Primary ──────────────────────────────────────────────────────────────
+  blue:        "#2B34FF",   // cobalt — primary CTA, active states, links
+  yellow:      "#FFD23F",   // attention / highlight
+  coral:       "#FF5C39",   // error / destructive (large surfaces only)
+  coralText:   "#C2341A",   // error copy — 5.1:1 on white, WCAG AA at all sizes
+  // ── Neutrals ─────────────────────────────────────────────────────────────
+  ink:         "#0B0D1A",   // primary text
+  paper:       "#FCFCFD",   // card / popover background
+  muted:       "#6B7080",   // secondary text
+  muted2:      "#5A5F70",   // tertiary / disabled text
+  // ── Surfaces & structure ─────────────────────────────────────────────────
+  page:        "#EDEEF2",   // page background (was "border" in v1 of this token set)
+  surface:     "#F7F8FB",   // subtle surface — table rows, input bg
+  border:      "#E6E7EE",   // standard border / divider line
+  divider:     "#D9DBE4",   // heavier divider / section break
+  // ── Cobalt tints ─────────────────────────────────────────────────────────
+  lblue:       "#F3F4FF",   // cobalt 4% tint — hover bg on ghost buttons
+  vbadge:      "#E0E2FF",   // cobalt 12% tint — verified badge background
+  cobalTint:   "#B9BDF5",   // cobalt 30% tint — badge border, focus ring glow
+  // ── Semantic surfaces ─────────────────────────────────────────────────────
+  attentionBg: "#FFF6DB",   // attention / info surface (yellow-family)
 } as const;
 
 export const V2_FONTS = {
@@ -83,3 +102,19 @@ export const V2_FONTS = {
   body:    "'Hanken Grotesk', sans-serif",
   mono:    "'JetBrains Mono', monospace",
 } as const;
+
+export const V2_RADIUS = {
+  pill:  100,   // buttons, pills
+  card:   16,   // cards / panels
+  input:  10,   // form inputs
+  sm:      6,   // tags, small elements
+} as const;
+
+export const V2_SHADOWS = {
+  card:  "0 2px 12px rgba(11,13,26,0.06)",
+  hover: "0 8px 24px rgba(11,13,26,0.12)",
+  modal: "0 16px 48px rgba(11,13,26,0.16)",
+} as const;
+
+/** Cobalt focus ring — 4.5:1 on V2_COLORS.page and V2_COLORS.paper. */
+export const v2FocusRing = "2px solid #2B34FF";

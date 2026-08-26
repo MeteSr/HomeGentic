@@ -14,7 +14,7 @@ import { usePropertyStore } from "@/store/propertyStore";
 import { useJobStore } from "@/store/jobStore";
 import toast from "react-hot-toast";
 import UpgradeModal from "@/components/UpgradeModal";
-import { COLORS, FONTS, RADIUS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { isValidEmail, isValidPhone, isValidHttpsUrl } from "@/utils/validators";
 
@@ -31,19 +31,19 @@ const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
-    <h3 style={{ fontFamily: FONTS.sans, fontWeight: 700, fontSize: "1rem", color: COLORS.plum, margin: "0 0 1rem" }}>
+    <h3 style={{ fontFamily: V2_FONTS.body, fontWeight: 700, fontSize: "1rem", color: V2_COLORS.ink, margin: "0 0 1rem" }}>
       {children}
     </h3>
   );
 }
 
 function SectionDivider() {
-  return <div style={{ borderTop: `1px solid ${COLORS.rule}`, margin: "1.75rem 0" }} />;
+  return <div style={{ borderTop: `1px solid ${V2_COLORS.border}`, margin: "1.75rem 0" }} />;
 }
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <label style={{ display: "block", fontFamily: FONTS.sans, fontWeight: 500, fontSize: "0.875rem", color: COLORS.plum, marginBottom: "0.375rem" }}>
+    <label style={{ display: "block", fontFamily: V2_FONTS.body, fontWeight: 500, fontSize: "0.875rem", color: V2_COLORS.ink, marginBottom: "0.375rem" }}>
       {children}
     </label>
   );
@@ -70,7 +70,7 @@ export default function SettingsPage() {
     <Layout>
       <div style={{ maxWidth: "56rem", margin: "0 auto", padding: "2.5rem 1.5rem" }}>
 
-        <h1 style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "2rem", color: COLORS.plum, marginBottom: "2rem" }}>
+        <h1 style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "2rem", color: V2_COLORS.ink, marginBottom: "2rem" }}>
           Settings
         </h1>
 
@@ -85,12 +85,12 @@ export default function SettingsPage() {
                 style={{
                   display: "flex", alignItems: "center", gap: "0.625rem",
                   width: "100%", padding: "0.5rem 0.75rem",
-                  fontFamily: FONTS.sans, fontSize: "0.9375rem",
+                  fontFamily: V2_FONTS.body, fontSize: "0.9375rem",
                   fontWeight: tab === t.key ? 600 : 400,
-                  color: tab === t.key ? COLORS.plum : COLORS.plumMid,
-                  background: tab === t.key ? COLORS.butter : "transparent",
+                  color: tab === t.key ? V2_COLORS.ink : V2_COLORS.muted,
+                  background: tab === t.key ? V2_COLORS.lblue : "transparent",
                   border: "none",
-                  borderRadius: RADIUS.sm,
+                  borderRadius: V2_RADIUS.sm,
                   cursor: "pointer", textAlign: "left",
                   marginBottom: "0.125rem",
                 }}
@@ -150,20 +150,20 @@ function AccountTab({ profile, setProfile }: { profile: any; setProfile: any }) 
           <FieldLabel>Email Address</FieldLabel>
           <input className="form-input" type="email" placeholder="you@example.com" value={email}
             onChange={(e) => setEmail(e.target.value)}
-            style={email && !isValidEmail(email) ? { borderColor: COLORS.rust } : undefined}
+            style={email && !isValidEmail(email) ? { borderColor: V2_COLORS.coral } : undefined}
           />
           {email && !isValidEmail(email) && (
-            <p style={{ color: COLORS.rust, fontSize: "0.75rem", marginTop: "0.25rem", fontFamily: FONTS.sans }}>Enter a valid email address</p>
+            <p style={{ color: V2_COLORS.coralText, fontSize: "0.75rem", marginTop: "0.25rem", fontFamily: V2_FONTS.body }}>Enter a valid email address</p>
           )}
         </div>
         <div>
           <FieldLabel>Phone Number</FieldLabel>
           <input className="form-input" type="tel" placeholder="+1 (555) 000-0000" value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            style={phone && !isValidPhone(phone) ? { borderColor: COLORS.rust } : undefined}
+            style={phone && !isValidPhone(phone) ? { borderColor: V2_COLORS.coral } : undefined}
           />
           {phone && !isValidPhone(phone) && (
-            <p style={{ color: COLORS.rust, fontSize: "0.75rem", marginTop: "0.25rem", fontFamily: FONTS.sans }}>Enter a valid phone number</p>
+            <p style={{ color: V2_COLORS.coralText, fontSize: "0.75rem", marginTop: "0.25rem", fontFamily: V2_FONTS.body }}>Enter a valid phone number</p>
           )}
         </div>
         <div>
@@ -241,17 +241,17 @@ function SubscriptionTab({ profile }: { profile: any }) {
         <div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap", marginBottom: "1rem" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-              <span style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.5rem", color: COLORS.plum }}>Free</span>
+              <span style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.5rem", color: V2_COLORS.ink }}>Free</span>
               <Badge variant="default" size="sm">Active</Badge>
             </div>
             <button
               onClick={() => setShowUpgradeModal(true)}
-              style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.875rem", padding: "0.55rem 1.25rem", border: "none", background: COLORS.plum, color: COLORS.white, cursor: "pointer", borderRadius: RADIUS.sm }}
+              style={{ fontFamily: V2_FONTS.body, fontWeight: 600, fontSize: "0.875rem", padding: "0.55rem 1.25rem", border: "none", background: V2_COLORS.blue, color: V2_COLORS.paper, cursor: "pointer", borderRadius: V2_RADIUS.sm }}
             >
               {profile?.role === "Contractor" ? "Upgrade to ContractorPro →" : "Upgrade to Pro →"}
             </button>
           </div>
-          <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: COLORS.plumMid, marginBottom: "0.75rem" }}>
+          <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted, marginBottom: "0.75rem" }}>
             Upgrade to unlock:
           </p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.375rem 1.5rem" }}>
@@ -259,7 +259,7 @@ function SubscriptionTab({ profile }: { profile: any }) {
               ? ["Contractor profile listing", "Lead notifications", "Job completion certificates", "Trust score display", "Customer reviews", "Earnings dashboard"]
               : ["Score Breakdown", "Warranty Wallet", "Recurring Services", "Market Intelligence", "Insurance Defense Mode", "5-Year Maintenance Calendar"]
             ).map((f) => (
-              <span key={f} style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: COLORS.plumMid, display: "flex", alignItems: "center", gap: "0.35rem" }}>
+              <span key={f} style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: V2_COLORS.muted, display: "flex", alignItems: "center", gap: "0.35rem" }}>
                 <Lock size={10} /> {f}
               </span>
             ))}
@@ -269,7 +269,7 @@ function SubscriptionTab({ profile }: { profile: any }) {
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.75rem" }}>
             <Badge variant="info" size="lg">{tier}</Badge>
-            <span style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: expiresAt && expiresAt < Date.now() ? COLORS.rust : cancelledAt ? COLORS.rust : COLORS.plumMid }}>
+            <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: expiresAt && expiresAt < Date.now() ? V2_COLORS.coral : cancelledAt ? V2_COLORS.coral : V2_COLORS.muted }}>
               {expiresAt && expiresAt < Date.now()
                 ? "Expired"
                 : cancelledAt
@@ -283,14 +283,14 @@ function SubscriptionTab({ profile }: { profile: any }) {
             <button
               onClick={() => setShowUpgradeModal(true)}
               aria-label={`Renew ${tier}`}
-              style={{ background: COLORS.rust, color: COLORS.white, border: "none", padding: "0.45rem 1rem", fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.875rem", cursor: "pointer", borderRadius: RADIUS.sm, marginBottom: "0.75rem" }}
+              style={{ background: V2_COLORS.coral, color: V2_COLORS.paper, border: "none", padding: "0.45rem 1rem", fontFamily: V2_FONTS.body, fontWeight: 600, fontSize: "0.875rem", cursor: "pointer", borderRadius: V2_RADIUS.sm, marginBottom: "0.75rem" }}
             >
               Renew →
             </button>
           )}
           <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem" }}>
             {currentPlan.features.map((f) => (
-              <span key={f} style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: COLORS.plumMid, background: COLORS.butter, padding: "0.2rem 0.625rem", borderRadius: RADIUS.sm }}>
+              <span key={f} style={{ fontFamily: V2_FONTS.body, fontSize: "0.75rem", color: V2_COLORS.muted, background: V2_COLORS.lblue, padding: "0.2rem 0.625rem", borderRadius: V2_RADIUS.sm }}>
                 {f}
               </span>
             ))}
@@ -313,17 +313,17 @@ function SubscriptionTab({ profile }: { profile: any }) {
               if (profile?.role === "Contractor") return p.tier === "ContractorPro";
               return p.tier !== "ContractorPro";
             }).map((plan) => (
-              <div key={plan.tier} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", padding: "1rem", background: plan.tier === "Pro" ? COLORS.butter : COLORS.white, borderRadius: RADIUS.sm }}>
+              <div key={plan.tier} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", padding: "1rem", background: plan.tier === "Pro" ? V2_COLORS.lblue : V2_COLORS.paper, borderRadius: V2_RADIUS.sm }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.2rem" }}>
-                    <span style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.9375rem", color: COLORS.plum }}>{plan.tier}</span>
+                    <span style={{ fontFamily: V2_FONTS.body, fontWeight: 600, fontSize: "0.9375rem", color: V2_COLORS.ink }}>{plan.tier}</span>
                     {plan.tier === "Pro" && <Badge variant="info" size="sm">Most Popular</Badge>}
                   </div>
-                  <p style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: COLORS.plumMid, fontWeight: 300 }}>{plan.features[0]}, {plan.features[1]}</p>
+                  <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: V2_COLORS.muted, fontWeight: 300 }}>{plan.features[0]}, {plan.features[1]}</p>
                 </div>
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <p style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.25rem", lineHeight: 1, marginBottom: "0.5rem", color: COLORS.plum }}>
-                    ${plan.price}<span style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", fontWeight: 400, color: COLORS.plumMid }}>/{plan.period}</span>
+                  <p style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.25rem", lineHeight: 1, marginBottom: "0.5rem", color: V2_COLORS.ink }}>
+                    ${plan.price}<span style={{ fontFamily: V2_FONTS.body, fontSize: "0.8rem", fontWeight: 400, color: V2_COLORS.muted }}>/{plan.period}</span>
                   </p>
                   <Button size="sm" variant={plan.tier === "Pro" ? "primary" : "outline"} onClick={() => setShowUpgradeModal(true)}>
                     {isPaid ? "Switch" : "Upgrade"}
@@ -341,12 +341,12 @@ function SubscriptionTab({ profile }: { profile: any }) {
           <SectionDivider />
           <SectionHeading>Subscription Paused</SectionHeading>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
-            <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: COLORS.plumMid }}>
+            <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted }}>
               {pauseState.daysLeft} day{pauseState.daysLeft !== 1 ? "s" : ""} remaining — resumes {new Date(pauseState.pausedUntil).toLocaleDateString()}
             </p>
             <button
               onClick={handleResume}
-              style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, padding: "0.4rem 1rem", border: `1px solid ${COLORS.rule}`, background: COLORS.white, color: COLORS.plumMid, cursor: "pointer", borderRadius: RADIUS.sm, whiteSpace: "nowrap" }}
+              style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", fontWeight: 600, padding: "0.4rem 1rem", border: `1px solid ${V2_COLORS.border}`, background: V2_COLORS.paper, color: V2_COLORS.muted, cursor: "pointer", borderRadius: V2_RADIUS.sm, whiteSpace: "nowrap" }}
             >
               Resume now
             </button>
@@ -362,7 +362,7 @@ function SubscriptionTab({ profile }: { profile: any }) {
 
           {cancelStep === "idle" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: COLORS.plumMid, fontWeight: 300, lineHeight: 1.6 }}>
+              <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted, fontWeight: 300, lineHeight: 1.6 }}>
                 Not ready to cancel? You can pause your subscription for up to 3 months — your records and score stay active, billing stops.
               </p>
               {!pauseState && (
@@ -371,20 +371,20 @@ function SubscriptionTab({ profile }: { profile: any }) {
                     <button
                       key={m}
                       onClick={() => handlePause(m)}
-                      style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", padding: "0.4rem 0.875rem", border: `1px solid ${COLORS.rule}`, background: COLORS.butter, color: COLORS.plumMid, cursor: "pointer", borderRadius: RADIUS.sm }}
+                      style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", padding: "0.4rem 0.875rem", border: `1px solid ${V2_COLORS.border}`, background: V2_COLORS.lblue, color: V2_COLORS.muted, cursor: "pointer", borderRadius: V2_RADIUS.sm }}
                     >
                       Pause {m} month{m > 1 ? "s" : ""}
                     </button>
                   ))}
                 </div>
               )}
-              <div style={{ borderTop: `1px solid ${COLORS.rule}`, paddingTop: "0.875rem" }}>
-                <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: COLORS.plumMid, fontWeight: 300, lineHeight: 1.6, marginBottom: "0.75rem" }}>
+              <div style={{ borderTop: `1px solid ${V2_COLORS.border}`, paddingTop: "0.875rem" }}>
+                <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted, fontWeight: 300, lineHeight: 1.6, marginBottom: "0.75rem" }}>
                   You keep full access until the end of your current billing period{expiresAt ? ` (${new Date(expiresAt).toLocaleDateString()})` : ""}. After that, access to the platform is removed.
                 </p>
                 <button
                   onClick={() => setCancelStep("confirm")}
-                  style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, padding: "0.5rem 1.25rem", border: `1px solid ${COLORS.rust}`, background: "none", color: COLORS.rust, cursor: "pointer", borderRadius: RADIUS.sm }}
+                  style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", fontWeight: 600, padding: "0.5rem 1.25rem", border: `1px solid ${V2_COLORS.coral}`, background: "none", color: V2_COLORS.coralText, cursor: "pointer", borderRadius: V2_RADIUS.sm }}
                 >
                   Cancel Plan
                 </button>
@@ -394,44 +394,44 @@ function SubscriptionTab({ profile }: { profile: any }) {
 
           {cancelStep === "confirm" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <div style={{ padding: "1rem", background: COLORS.blush, borderRadius: RADIUS.sm }}>
-                <p style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.875rem", color: COLORS.rust, marginBottom: "0.5rem" }}>
+              <div style={{ padding: "1rem", background: "#FEF2EF", borderRadius: V2_RADIUS.sm }}>
+                <p style={{ fontFamily: V2_FONTS.body, fontWeight: 600, fontSize: "0.875rem", color: V2_COLORS.coralText, marginBottom: "0.5rem" }}>
                   You will lose access to:
                 </p>
                 <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
                   {currentPlan.features.filter((f) => !PLANS[0].features.includes(f)).map((f) => (
-                    <li key={f} style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: COLORS.plumMid }}>
+                    <li key={f} style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: V2_COLORS.muted }}>
                       — {f}
                     </li>
                   ))}
                 </ul>
               </div>
-              <div style={{ padding: "0.875rem 1rem", background: COLORS.sageLight, borderRadius: RADIUS.sm }}>
-                <p style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: COLORS.sage, lineHeight: 1.6 }}>
+              <div style={{ padding: "0.875rem 1rem", background: V2_COLORS.lblue, borderRadius: V2_RADIUS.sm }}>
+                <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: V2_COLORS.blue, lineHeight: 1.6 }}>
                   <strong>Your ICP records are permanent.</strong> All your maintenance history, verified jobs, and blockchain records remain on the Internet Computer after cancellation.
                 </p>
               </div>
-              <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: COLORS.plumMid }}>
+              <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted }}>
                 Your access continues until{expiresAt ? ` ${new Date(expiresAt).toLocaleDateString()}` : " the end of your billing period"}, then your account is closed. Or pause instead — keeps your account active without billing.
               </p>
               <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
                 <button
                   onClick={handleCancel}
-                  style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, padding: "0.5rem 1.25rem", border: "none", background: COLORS.rust, color: COLORS.white, cursor: "pointer", borderRadius: RADIUS.sm }}
+                  style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", fontWeight: 600, padding: "0.5rem 1.25rem", border: "none", background: V2_COLORS.coral, color: V2_COLORS.paper, cursor: "pointer", borderRadius: V2_RADIUS.sm }}
                 >
                   Confirm Cancellation
                 </button>
                 {!pauseState && (
                   <button
                     onClick={() => { handlePause(1); setCancelStep("idle"); }}
-                    style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", padding: "0.5rem 1.25rem", border: `1px solid ${COLORS.rule}`, background: COLORS.butter, color: COLORS.plumMid, cursor: "pointer", borderRadius: RADIUS.sm }}
+                    style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", padding: "0.5rem 1.25rem", border: `1px solid ${V2_COLORS.border}`, background: V2_COLORS.lblue, color: V2_COLORS.muted, cursor: "pointer", borderRadius: V2_RADIUS.sm }}
                   >
                     Pause 1 month instead
                   </button>
                 )}
                 <button
                   onClick={() => setCancelStep("idle")}
-                  style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", padding: "0.5rem 1.25rem", border: `1px solid ${COLORS.rule}`, background: "none", color: COLORS.plumMid, cursor: "pointer", borderRadius: RADIUS.sm }}
+                  style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", padding: "0.5rem 1.25rem", border: `1px solid ${V2_COLORS.border}`, background: "none", color: V2_COLORS.muted, cursor: "pointer", borderRadius: V2_RADIUS.sm }}
                 >
                   Keep Plan
                 </button>
@@ -442,7 +442,7 @@ function SubscriptionTab({ profile }: { profile: any }) {
           {cancelStep === "loading" && (
             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
               <div className="spinner-lg" style={{ width: "1rem", height: "1rem" }} />
-              <span style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: COLORS.plumMid }}>Processing cancellation…</span>
+              <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted }}>Processing cancellation…</span>
             </div>
           )}
         </>
@@ -453,12 +453,12 @@ function SubscriptionTab({ profile }: { profile: any }) {
         <>
           <SectionDivider />
           <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", marginBottom: "1rem" }}>
-            <CheckCircle size={16} color={COLORS.sage} style={{ flexShrink: 0, marginTop: "0.125rem" }} />
+            <CheckCircle size={16} color={V2_COLORS.blue} style={{ flexShrink: 0, marginTop: "0.125rem" }} />
             <div>
-              <p style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.9375rem", color: COLORS.sage, marginBottom: "0.25rem" }}>
+              <p style={{ fontFamily: V2_FONTS.body, fontWeight: 600, fontSize: "0.9375rem", color: V2_COLORS.blue, marginBottom: "0.25rem" }}>
                 Subscription cancelled
               </p>
-              <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: COLORS.plumMid }}>
+              <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted }}>
                 {(cancelledAt ?? expiresAt) && expiresAt
                   ? `You have full access until ${new Date(expiresAt).toLocaleDateString()}. After that, your account will be closed.`
                   : "Your cancellation has been recorded. All your ICP records remain intact."}
@@ -477,16 +477,16 @@ function SubscriptionTab({ profile }: { profile: any }) {
 
 function ToggleRow({ label, desc, value, onChange, last = false }: { label: string; desc?: string; value: boolean; onChange: (v: boolean) => void; last?: boolean }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.875rem 0", borderBottom: last ? "none" : `1px solid ${COLORS.rule}` }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.875rem 0", borderBottom: last ? "none" : `1px solid ${V2_COLORS.border}` }}>
       <div>
-        <p style={{ fontFamily: FONTS.sans, fontSize: "0.9375rem", fontWeight: 500, color: COLORS.plum }}>{label}</p>
-        {desc && <p style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: COLORS.plumMid, marginTop: "0.125rem" }}>{desc}</p>}
+        <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.9375rem", fontWeight: 500, color: V2_COLORS.ink }}>{label}</p>
+        {desc && <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: V2_COLORS.muted, marginTop: "0.125rem" }}>{desc}</p>}
       </div>
       <div
         onClick={() => onChange(!value)}
-        style={{ width: "2.5rem", height: "1.25rem", background: value ? COLORS.sage : COLORS.rule, cursor: "pointer", position: "relative", flexShrink: 0, borderRadius: RADIUS.pill }}
+        style={{ width: "2.5rem", height: "1.25rem", background: value ? V2_COLORS.blue : V2_COLORS.border, cursor: "pointer", position: "relative", flexShrink: 0, borderRadius: V2_RADIUS.pill }}
       >
-        <div style={{ position: "absolute", top: "0.125rem", left: value ? "1.375rem" : "0.125rem", width: "1rem", height: "1rem", background: COLORS.white, transition: "left 0.15s", borderRadius: "50%" }} />
+        <div style={{ position: "absolute", top: "0.125rem", left: value ? "1.375rem" : "0.125rem", width: "1rem", height: "1rem", background: V2_COLORS.paper, transition: "left 0.15s", borderRadius: "50%" }} />
       </div>
     </div>
   );
@@ -601,7 +601,7 @@ function ContractorPrivacyTab() {
 
       <SectionDivider />
       <SectionHeading>Export Your Data</SectionHeading>
-      <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: COLORS.plumMid, fontWeight: 300, lineHeight: 1.6, marginBottom: "1rem" }}>
+      <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted, fontWeight: 300, lineHeight: 1.6, marginBottom: "1rem" }}>
         Download your contractor record as JSON. Your bids, job credentials, and reviews are also permanently stored on the Internet Computer blockchain — you own them regardless of your subscription status.
       </p>
       <Button loading={exporting} onClick={handleExport} icon={<Download size={13} />} variant="outline">
@@ -663,13 +663,13 @@ function PrivacyTab() {
 
       <SectionDivider />
       <SectionHeading>Export Your Data</SectionHeading>
-      <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: COLORS.plumMid, fontWeight: 300, lineHeight: 1.6, marginBottom: "1rem" }}>
+      <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted, fontWeight: 300, lineHeight: 1.6, marginBottom: "1rem" }}>
         Download all your property and job records as JSON. Your data is yours — no lock-in, no expiration. Records are also permanently stored on the Internet Computer blockchain.
       </p>
       <Button loading={exporting} onClick={handleExport} icon={<Download size={13} />} variant="outline">
         Download My Data (JSON)
       </Button>
-      <p style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: COLORS.plumMid, marginTop: "0.5rem" }}>
+      <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: V2_COLORS.muted, marginTop: "0.5rem" }}>
         Includes {properties.length} propert{properties.length !== 1 ? "ies" : "y"} and {jobs.length} job record{jobs.length !== 1 ? "s" : ""}.
       </p>
     </div>
