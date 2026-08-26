@@ -1,32 +1,32 @@
 /**
- * TDD — Issue #129 / #134: Onboarding Wizard
+ * TDD — AddPropertyModal V2 Wizard
  *
- * Steps:
- *   1 — Property address
- *   2 — Property details (type, year built, sq ft)
- *   3 — Capture baseline photos  (optional, NEW — issue #134)
- *   4 — Verify ownership  (legal name + ownership document — required)
- *   5 — Document import   (optional)
- *   6 — System ages       (optional, defaults to year built, + solar toggle)
+ * V2 flow:
+ *   address  → "STEP 1 OF 2 · REQUIRED" / "Where is the home?"
+ *   details  → "STEP 2 OF 2 · REQUIRED" / "Year built and size."
+ *   saved    → "SAVED · FREE TIER" / "Your property is saved." (hub + 4 optional task cards)
+ *   photos   → "OPTIONAL · BASELINE RECORD" (from saved card)
+ *   documents→ "OPTIONAL · DOCUMENTED VALUE" (from saved card)
+ *   ages     → "OPTIONAL · PREDICTIONS" (from saved card)
+ *   verify   → "OPTIONAL · +20 SCORE" (from saved card)
  *
  * Acceptance criteria:
- *   - Step indicator ("Step X of 6") visible throughout
- *   - No Back button on step 1; Back available on steps 2–6
- *   - Next advances; Back retreats
- *   - Step 6 shows "Finish" (not "Next")
- *   - Finishing closes the modal
- *   - Step 1 Next disabled until required address fields are filled
- *   - Step 2 Next disabled until type, year, and sq ft are filled
- *   - Step 3 (baseline photos) Next always enabled (optional step)
- *   - Step 4 Next disabled until legal name and document file are provided
- *   - Step 4 calls propertyService.submitVerification on advance
- *   - Step 6 system age inputs default to year built
- *   - Step 6 solar toggle hides/shows a "Year Installed" input
+ *   - Step badge visible on each step
+ *   - "Continue →" on address disabled until required fields filled
+ *   - "Continue →" advances address → details
+ *   - "Save property" on details disabled until year + sqft filled
+ *   - "Save property" calls registerProperty and advances to saved hub
+ *   - Saved hub shows 4 task cards
+ *   - "View property record →" calls onClose
+ *   - Each task card navigates to its optional step
+ *   - Optional steps have "Skip" (back to saved) and "Save & continue" (back to saved)
+ *   - Verify step calls submitVerification on submit
+ *   - Solar toggle shows/hides "Year installed" input
  */
 
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -57,12 +57,7 @@ vi.mock("@/services/property", () => ({
       squareFeet: BigInt(2000), verificationLevel: "Unverified", tier: "Free",
       createdAt: BigInt(0), updatedAt: BigInt(0), owner: "test",
     }),
-    submitVerification: vi.fn().mockResolvedValue({
-      id: "1", address: "123 Main St", city: "Austin", state: "TX",
-      zipCode: "78701", propertyType: "SingleFamily", yearBuilt: BigInt(1990),
-      squareFeet: BigInt(2000), verificationLevel: "PendingReview", tier: "Free",
-      createdAt: BigInt(0), updatedAt: BigInt(0), owner: "test",
-    }),
+    submitVerification: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
@@ -73,29 +68,20 @@ vi.mock("@/services/photo", () => ({
   },
 }));
 
-vi.mock("@/services/systemAges", () => ({
-  systemAgesService: { save: vi.fn(), load: vi.fn().mockReturnValue(null) },
-}));
-
-vi.mock("@/services/propertyLookup", () => ({
-  lookupPropertyDetails: vi.fn().mockResolvedValue(null),
-}));
-
-vi.mock("@/services/permitImport", () => ({
-  triggerPermitImport:   vi.fn().mockResolvedValue({ citySupported: false, permits: [] }),
-  createJobsFromPermits: vi.fn().mockResolvedValue(undefined),
+vi.mock("@/services/auth", () => ({
+  authService: { completeOnboarding: vi.fn().mockResolvedValue(undefined) },
 }));
 
 vi.mock("@/components/AddressAutocomplete", () => ({
-  AddressAutocomplete: ({ value, onChange, id, className }: any) => (
-    <input id={id} className={className} value={value}
-      onChange={(e) => onChange(e.target.value)} data-testid="address-autocomplete" />
+  AddressAutocomplete: ({ value, onChange, id, style }: any) => (
+    <input id={id} value={value} onChange={e => onChange(e.target.value)}
+      data-testid="address-autocomplete" style={style} />
   ),
 }));
 
-vi.mock("@/components/PermitCoverageIndicator",  () => ({ default: () => null }));
-vi.mock("@/components/PermitImportReviewPanel",  () => ({ default: () => null }));
-vi.mock("@/components/ConstructionPhotoUpload",  () => ({
+vi.mock("@/components/PermitCoverageIndicator", () => ({ default: () => null }));
+
+vi.mock("@/components/ConstructionPhotoUpload", () => ({
   ConstructionPhotoUpload: () => <div data-testid="doc-upload">Document upload area</div>,
 }));
 
@@ -103,16 +89,23 @@ vi.mock("react-hot-toast", () => ({
   default: { success: vi.fn(), error: vi.fn() },
 }));
 
-// Stub crypto.subtle.digest — jsdom doesn't guarantee SubtleCrypto availability
-// in all CI environments; the wizard uses it to hash ownership documents.
 Object.defineProperty(globalThis, "crypto", {
   value: {
-    subtle: {
-      digest: vi.fn().mockResolvedValue(new Uint8Array(32).buffer),
-    },
+    subtle: { digest: vi.fn().mockResolvedValue(new Uint8Array(32).buffer) },
   },
-  writable: true,
-  configurable: true,
+  writable: true, configurable: true,
+});
+
+// Mock matchMedia (jsdom doesn't implement it)
+beforeAll(() => {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true, configurable: true,
+    value: (query: string) => ({
+      matches: false, media: query,
+      addEventListener: vi.fn(), removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }),
+  });
 });
 
 // ─── Import under test ────────────────────────────────────────────────────────
@@ -132,228 +125,222 @@ function renderWizard() {
   );
 }
 
-function fillStep1() {
+function fillAddressStep() {
   fireEvent.change(screen.getByTestId("address-autocomplete"), { target: { value: "123 Main St" } });
-  fireEvent.change(screen.getByLabelText(/city/i),  { target: { value: "Austin" } });
-  fireEvent.change(screen.getByLabelText(/state/i), { target: { value: "TX" } });
-  fireEvent.change(screen.getByLabelText(/zip/i),   { target: { value: "78701" } });
+  fireEvent.change(screen.getByLabelText(/city/i),     { target: { value: "Austin" } });
+  fireEvent.change(screen.getByLabelText(/state/i),    { target: { value: "TX" } });
+  fireEvent.change(screen.getByLabelText(/zip code/i), { target: { value: "78701" } });
 }
 
-function fillStep2() {
+function fillDetailsStep() {
   fireEvent.change(screen.getByLabelText(/year built/i),  { target: { value: "1990" } });
   fireEvent.change(screen.getByLabelText(/square feet/i), { target: { value: "2000" } });
 }
 
-function fillStep4() {
-  fireEvent.change(screen.getByLabelText(/legal name/i), { target: { value: "John Doe" } });
-  const file = new File(["deed-content"], "deed.pdf", { type: "application/pdf" });
-  fireEvent.change(screen.getByLabelText(/ownership document/i), { target: { files: [file] } });
-}
-
-function clickNext() {
-  fireEvent.click(screen.getByRole("button", { name: /^next$/i }));
-}
-
-async function goToStep(n: 2 | 3 | 4 | 5 | 6) {
+async function goToDetails() {
   renderWizard();
-  fillStep1();
-  clickNext();
-  await waitFor(() => screen.getByText(/step 2 of 6/i));
-  if (n === 2) return;
-
-  fillStep2();
-  clickNext();
-  await waitFor(() => screen.getByText(/step 3 of 6/i));
-  if (n === 3) return;
-
-  // Step 3 (baseline photos) is optional — Next always enabled
-  clickNext();
-  await waitFor(() => screen.getByText(/step 4 of 6/i));
-  if (n === 4) return;
-
-  fillStep4();
-  clickNext();
-  await waitFor(() => screen.getByText(/step 5 of 6/i));
-  if (n === 5) return;
-
-  // Step 5 is optional document upload
-  clickNext();
-  await waitFor(() => screen.getByText(/step 6 of 6/i));
+  fillAddressStep();
+  fireEvent.click(screen.getByRole("button", { name: /continue/i }));
+  await waitFor(() => screen.getByText(/step 2 of 2/i));
 }
 
-// ─── Step indicator ───────────────────────────────────────────────────────────
+async function goToSaved() {
+  await goToDetails();
+  fillDetailsStep();
+  fireEvent.click(screen.getByRole("button", { name: /save property/i }));
+  await waitFor(() => screen.getByText(/your property is saved/i));
+}
 
-describe("OnboardingWizard — step indicator", () => {
+// ─── Step badges ──────────────────────────────────────────────────────────────
+
+describe("AddPropertyModal V2 — step badges", () => {
   beforeEach(() => { vi.clearAllMocks(); mockNavigate.mockReset(); });
 
-  it("shows 'Step 1 of 6' on initial render", () => {
+  it("shows 'STEP 1 OF 2' badge on address step", () => {
     renderWizard();
-    expect(screen.getByText(/step 1 of 6/i)).toBeInTheDocument();
+    expect(screen.getByText(/step 1 of 2/i)).toBeInTheDocument();
   });
 
-  it("shows 'Step 2 of 6' after advancing from step 1", async () => {
-    renderWizard();
-    fillStep1();
-    clickNext();
-    await waitFor(() => expect(screen.getByText(/step 2 of 6/i)).toBeInTheDocument());
+  it("shows 'STEP 2 OF 2' badge on details step", async () => {
+    await goToDetails();
+    expect(screen.getByText(/step 2 of 2/i)).toBeInTheDocument();
   });
 
-  it("shows 'Step 3 of 6' after advancing from step 2", async () => {
-    await goToStep(3);
-    expect(screen.getByText(/step 3 of 6/i)).toBeInTheDocument();
-  });
-
-  it("shows 'Step 4 of 6' after advancing from step 3", async () => {
-    await goToStep(4);
-    expect(screen.getByText(/step 4 of 6/i)).toBeInTheDocument();
-  });
-
-  it("shows 'Step 5 of 6' after advancing from step 4", async () => {
-    await goToStep(5);
-    expect(screen.getByText(/step 5 of 6/i)).toBeInTheDocument();
-  });
-
-  it("shows 'Step 6 of 6' after advancing from step 5", async () => {
-    await goToStep(6);
-    expect(screen.getByText(/step 6 of 6/i)).toBeInTheDocument();
+  it("shows 'SAVED' badge on saved step", async () => {
+    await goToSaved();
+    expect(screen.getByText(/saved · free tier/i)).toBeInTheDocument();
   });
 });
 
-// ─── Back button visibility ───────────────────────────────────────────────────
+// ─── Step headings ────────────────────────────────────────────────────────────
 
-describe("OnboardingWizard — Back button", () => {
+describe("AddPropertyModal V2 — step headings", () => {
   beforeEach(() => { vi.clearAllMocks(); mockNavigate.mockReset(); });
 
-  it("does NOT show Back button on step 1", () => {
+  it("shows address heading on step 1", () => {
     renderWizard();
-    expect(screen.queryByRole("button", { name: /^back$/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /where is the home/i })).toBeInTheDocument();
   });
 
-  it("shows Back button on step 2", async () => {
-    await goToStep(2);
-    expect(screen.getByRole("button", { name: /^back$/i })).toBeInTheDocument();
+  it("shows details heading on step 2", async () => {
+    await goToDetails();
+    expect(screen.getByRole("heading", { name: /year built and size/i })).toBeInTheDocument();
   });
 
-  it("shows Back button on step 3", async () => {
-    await goToStep(3);
-    expect(screen.getByRole("button", { name: /^back$/i })).toBeInTheDocument();
-  });
-
-  it("shows Back button on step 4", async () => {
-    await goToStep(4);
-    expect(screen.getByRole("button", { name: /^back$/i })).toBeInTheDocument();
-  });
-
-  it("shows Back button on step 5", async () => {
-    await goToStep(5);
-    expect(screen.getByRole("button", { name: /^back$/i })).toBeInTheDocument();
-  });
-
-  it("shows Back button on step 6", async () => {
-    await goToStep(6);
-    expect(screen.getByRole("button", { name: /^back$/i })).toBeInTheDocument();
-  });
-
-  it("clicking Back on step 2 returns to step 1", async () => {
-    await goToStep(2);
-    fireEvent.click(screen.getByRole("button", { name: /^back$/i }));
-    await waitFor(() => expect(screen.getByText(/step 1 of 6/i)).toBeInTheDocument());
-  });
-
-  it("clicking Back on step 3 returns to step 2", async () => {
-    await goToStep(3);
-    fireEvent.click(screen.getByRole("button", { name: /^back$/i }));
-    await waitFor(() => expect(screen.getByText(/step 2 of 6/i)).toBeInTheDocument());
-  });
-
-  it("clicking Back on step 4 returns to step 3", async () => {
-    await goToStep(4);
-    fireEvent.click(screen.getByRole("button", { name: /^back$/i }));
-    await waitFor(() => expect(screen.getByText(/step 3 of 6/i)).toBeInTheDocument());
-  });
-
-  it("clicking Back on step 5 returns to step 4", async () => {
-    await goToStep(5);
-    fireEvent.click(screen.getByRole("button", { name: /^back$/i }));
-    await waitFor(() => expect(screen.getByText(/step 4 of 6/i)).toBeInTheDocument());
-  });
-
-  it("clicking Back on step 6 returns to step 5", async () => {
-    await goToStep(6);
-    fireEvent.click(screen.getByRole("button", { name: /^back$/i }));
-    await waitFor(() => expect(screen.getByText(/step 5 of 6/i)).toBeInTheDocument());
+  it("shows saved heading on saved step", async () => {
+    await goToSaved();
+    expect(screen.getByRole("heading", { name: /your property is saved/i })).toBeInTheDocument();
   });
 });
 
-// ─── Step 1 validation ────────────────────────────────────────────────────────
+// ─── Address step validation ──────────────────────────────────────────────────
 
-describe("OnboardingWizard — step 1 validation", () => {
+describe("AddPropertyModal V2 — address step validation", () => {
   beforeEach(() => { vi.clearAllMocks(); mockNavigate.mockReset(); });
 
-  it("Next button is disabled when address fields are empty", () => {
+  it("Continue button disabled when fields are empty", () => {
     renderWizard();
-    expect(screen.getByRole("button", { name: /^next$/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /continue/i })).toBeDisabled();
   });
 
-  it("Next button is enabled when all step-1 fields are filled", () => {
+  it("Continue button enabled when all address fields are filled", () => {
     renderWizard();
-    fillStep1();
-    expect(screen.getByRole("button", { name: /^next$/i })).not.toBeDisabled();
+    fillAddressStep();
+    expect(screen.getByRole("button", { name: /continue/i })).not.toBeDisabled();
   });
 
-  it("Next button stays disabled with an invalid state abbreviation", () => {
+  it("Continue button disabled with invalid state abbreviation", () => {
     renderWizard();
     fireEvent.change(screen.getByTestId("address-autocomplete"), { target: { value: "123 Main St" } });
-    fireEvent.change(screen.getByLabelText(/city/i),  { target: { value: "Austin" } });
-    fireEvent.change(screen.getByLabelText(/state/i), { target: { value: "XX" } });
-    fireEvent.change(screen.getByLabelText(/zip/i),   { target: { value: "78701" } });
-    expect(screen.getByRole("button", { name: /^next$/i })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText(/city/i),     { target: { value: "Austin" } });
+    fireEvent.change(screen.getByLabelText(/state/i),    { target: { value: "XX" } });
+    fireEvent.change(screen.getByLabelText(/zip code/i), { target: { value: "78701" } });
+    expect(screen.getByRole("button", { name: /continue/i })).toBeDisabled();
   });
 
-  it("Next button stays disabled with an invalid ZIP code", () => {
+  it("Continue button disabled with invalid ZIP code", () => {
     renderWizard();
     fireEvent.change(screen.getByTestId("address-autocomplete"), { target: { value: "123 Main St" } });
-    fireEvent.change(screen.getByLabelText(/city/i),  { target: { value: "Austin" } });
-    fireEvent.change(screen.getByLabelText(/state/i), { target: { value: "TX" } });
-    fireEvent.change(screen.getByLabelText(/zip/i),   { target: { value: "1234" } });
-    expect(screen.getByRole("button", { name: /^next$/i })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText(/city/i),     { target: { value: "Austin" } });
+    fireEvent.change(screen.getByLabelText(/state/i),    { target: { value: "TX" } });
+    fireEvent.change(screen.getByLabelText(/zip code/i), { target: { value: "1234" } });
+    expect(screen.getByRole("button", { name: /continue/i })).toBeDisabled();
   });
 });
 
-// ─── Step 2 validation ────────────────────────────────────────────────────────
+// ─── Details step validation ──────────────────────────────────────────────────
 
-describe("OnboardingWizard — step 2 validation", () => {
+describe("AddPropertyModal V2 — details step validation", () => {
   beforeEach(async () => {
     vi.clearAllMocks(); mockNavigate.mockReset();
-    await goToStep(2);
+    await goToDetails();
   });
 
-  it("Next button is disabled when year built is empty", () => {
+  it("Save property button is disabled when year built is empty", () => {
     fireEvent.change(screen.getByLabelText(/square feet/i), { target: { value: "2000" } });
-    expect(screen.getByRole("button", { name: /^next$/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /save property/i })).toBeDisabled();
   });
 
-  it("Next button is disabled when square feet is empty", () => {
+  it("Save property button is disabled when square feet is empty", () => {
     fireEvent.change(screen.getByLabelText(/year built/i), { target: { value: "1990" } });
-    expect(screen.getByRole("button", { name: /^next$/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /save property/i })).toBeDisabled();
   });
 
-  it("Next button is enabled when year and sq ft are filled", () => {
-    fillStep2();
-    expect(screen.getByRole("button", { name: /^next$/i })).not.toBeDisabled();
+  it("Save property button is enabled when year and sqft are filled", () => {
+    fillDetailsStep();
+    expect(screen.getByRole("button", { name: /save property/i })).not.toBeDisabled();
+  });
+
+  it("Back button returns to address step", async () => {
+    fireEvent.click(screen.getByRole("button", { name: /back/i }));
+    await waitFor(() => expect(screen.getByText(/step 1 of 2/i)).toBeInTheDocument());
   });
 });
 
-// ─── Step 3: baseline photos ──────────────────────────────────────────────────
+// ─── Save property API call ───────────────────────────────────────────────────
 
-describe("OnboardingWizard — step 3 capture baseline photos", () => {
+describe("AddPropertyModal V2 — save property", () => {
+  beforeEach(() => { vi.clearAllMocks(); mockNavigate.mockReset(); });
+
+  it("calls registerProperty with correct data", async () => {
+    await goToSaved();
+    const { propertyService } = await import("@/services/property");
+    expect(propertyService.registerProperty).toHaveBeenCalledWith(
+      expect.objectContaining({
+        address: "123 Main St",
+        city: "Austin",
+        state: "TX",
+        zipCode: "78701",
+        yearBuilt: 1990,
+        squareFeet: 2000,
+      })
+    );
+  });
+});
+
+// ─── Saved hub ────────────────────────────────────────────────────────────────
+
+describe("AddPropertyModal V2 — saved hub", () => {
   beforeEach(async () => {
     vi.clearAllMocks(); mockNavigate.mockReset();
-    await goToStep(3);
+    await goToSaved();
   });
 
-  it("shows the Capture Baseline Photos heading", () => {
-    expect(screen.getByRole("heading", { name: /capture baseline photos/i })).toBeInTheDocument();
+  it("shows the record score", () => {
+    // The score section has a specific base score of 20 after saving
+    expect(screen.getAllByText(/record score/i).length).toBeGreaterThan(0);
+  });
+
+  it("shows 4 optional task cards", () => {
+    const cards = screen.getByTestId("task-cards");
+    expect(within(cards).getByText("Verify ownership")).toBeInTheDocument();
+    expect(within(cards).getByText("Baseline photos")).toBeInTheDocument();
+    expect(within(cards).getByText("Import documents")).toBeInTheDocument();
+    expect(within(cards).getByText("System ages")).toBeInTheDocument();
+  });
+
+  it("shows 'View property record' button", () => {
+    expect(screen.getByRole("button", { name: /view property record/i })).toBeInTheDocument();
+  });
+
+  it("'View property record' calls onClose", async () => {
+    fireEvent.click(screen.getByRole("button", { name: /view property record/i }));
+    await waitFor(() => expect(mockOnClose).toHaveBeenCalled());
+  });
+
+  it("'Baseline photos' task card navigates to photos step", async () => {
+    fireEvent.click(screen.getByText(/open camera guide/i));
+    await waitFor(() => expect(screen.getByRole("heading", { name: /capture baseline photos/i })).toBeInTheDocument());
+  });
+
+  it("'Import documents' task card navigates to documents step", async () => {
+    fireEvent.click(screen.getByText(/import files/i));
+    await waitFor(() => expect(screen.getByRole("heading", { name: /import documents/i })).toBeInTheDocument());
+  });
+
+  it("'System ages' task card navigates to ages step", async () => {
+    fireEvent.click(screen.getByText(/fill in ages/i));
+    await waitFor(() => expect(screen.getByRole("heading", { name: /how old are your systems/i })).toBeInTheDocument());
+  });
+
+  it("'Verify ownership' task card navigates to verify step", async () => {
+    fireEvent.click(screen.getByText(/start verification/i));
+    await waitFor(() => expect(screen.getByRole("heading", { name: /verify ownership/i })).toBeInTheDocument());
+  });
+});
+
+// ─── Photos optional step ─────────────────────────────────────────────────────
+
+describe("AddPropertyModal V2 — photos step", () => {
+  beforeEach(async () => {
+    vi.clearAllMocks(); mockNavigate.mockReset();
+    await goToSaved();
+    fireEvent.click(screen.getByText(/open camera guide/i));
+    await waitFor(() => screen.getByRole("heading", { name: /capture baseline photos/i }));
+  });
+
+  it("shows 'OPTIONAL · BASELINE RECORD' badge", () => {
+    expect(screen.getByText(/optional · baseline record/i)).toBeInTheDocument();
   });
 
   it("shows all 6 baseline system categories", () => {
@@ -365,243 +352,168 @@ describe("OnboardingWizard — step 3 capture baseline photos", () => {
     expect(screen.getAllByText(/Garage Door/i).length).toBeGreaterThan(0);
   });
 
-  it("shows '0 / 6' progress count", () => {
-    // The counter renders as two text nodes: the count + a "/ N" span
-    expect(screen.getByText(/\/\s*6/)).toBeInTheDocument();
+  it("shows 0 / 6 counter in the photos step header", () => {
+    // The header counter text (distinct from the left rail "0 / 6" nav sub-text)
+    expect(screen.getAllByText("0 / 6").length).toBeGreaterThan(0);
   });
 
-  it("Next button is enabled without uploading anything (optional step)", () => {
-    expect(screen.getByRole("button", { name: /^next$/i })).not.toBeDisabled();
-  });
-
-  it("shows an 'Add photo' button for each of the 6 systems", () => {
+  it("shows 6 'Add photo' buttons", () => {
     expect(screen.getAllByRole("button", { name: /add photo/i })).toHaveLength(6);
   });
-});
 
-// ─── Step 4: ownership verification ──────────────────────────────────────────
-
-describe("OnboardingWizard — step 4 ownership verification", () => {
-  beforeEach(async () => {
-    vi.clearAllMocks(); mockNavigate.mockReset();
-    await goToStep(4);
+  it("'Save & continue' returns to saved hub", async () => {
+    fireEvent.click(screen.getByRole("button", { name: /save & continue/i }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: /your property is saved/i })).toBeInTheDocument());
   });
 
-  it("shows the Verify Ownership heading", () => {
-    expect(screen.getByRole("heading", { name: /verify ownership/i })).toBeInTheDocument();
-  });
-
-  it("Next button is disabled when legal name is empty", () => {
-    const file = new File(["deed"], "deed.pdf", { type: "application/pdf" });
-    fireEvent.change(screen.getByLabelText(/ownership document/i), { target: { files: [file] } });
-    expect(screen.getByRole("button", { name: /^next$/i })).toBeDisabled();
-  });
-
-  it("Next button is disabled when no document is selected", () => {
-    fireEvent.change(screen.getByLabelText(/legal name/i), { target: { value: "John Doe" } });
-    expect(screen.getByRole("button", { name: /^next$/i })).toBeDisabled();
-  });
-
-  it("Next button is enabled when legal name and document are provided", () => {
-    fillStep4();
-    expect(screen.getByRole("button", { name: /^next$/i })).not.toBeDisabled();
-  });
-
-  it("advancing calls submitVerification with the registered property id", async () => {
-    const { propertyService } = await import("@/services/property");
-    fillStep4();
-    clickNext();
-    await waitFor(() => screen.getByText(/step 5 of 6/i));
-    expect(propertyService.submitVerification).toHaveBeenCalledWith(
-      "1",
-      expect.any(String), // docType
-      expect.any(String), // sha-256 hash
-    );
+  it("'Skip' returns to saved hub", async () => {
+    fireEvent.click(screen.getByRole("button", { name: /skip/i }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: /your property is saved/i })).toBeInTheDocument());
   });
 });
 
-// ─── Step 5: optional document upload ────────────────────────────────────────
+// ─── Documents optional step ──────────────────────────────────────────────────
 
-describe("OnboardingWizard — step 5 document upload", () => {
+describe("AddPropertyModal V2 — documents step", () => {
   beforeEach(async () => {
     vi.clearAllMocks(); mockNavigate.mockReset();
-    await goToStep(5);
+    await goToSaved();
+    fireEvent.click(screen.getByText(/import files/i));
+    await waitFor(() => screen.getByRole("heading", { name: /import documents/i }));
   });
 
   it("renders the document upload area", () => {
     expect(screen.getByTestId("doc-upload")).toBeInTheDocument();
   });
 
-  it("Next button is enabled on step 5 without any upload (optional)", () => {
-    expect(screen.getByRole("button", { name: /^next$/i })).not.toBeDisabled();
+  it("'Skip' returns to saved hub", async () => {
+    fireEvent.click(screen.getByRole("button", { name: /skip/i }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: /your property is saved/i })).toBeInTheDocument());
   });
 });
 
-// ─── Step 6: Finish button ────────────────────────────────────────────────────
+// ─── Ages optional step ───────────────────────────────────────────────────────
 
-describe("OnboardingWizard — step 6 Finish button", () => {
+describe("AddPropertyModal V2 — system ages step", () => {
   beforeEach(async () => {
     vi.clearAllMocks(); mockNavigate.mockReset();
-    await goToStep(6);
+    await goToSaved();
+    fireEvent.click(screen.getByText(/fill in ages/i));
+    await waitFor(() => screen.getByRole("heading", { name: /how old are your systems/i }));
   });
 
-  it("shows 'Finish' button on step 6 instead of 'Next'", () => {
-    expect(screen.getByRole("button", { name: /^finish$/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^next$/i })).not.toBeInTheDocument();
+  it("shows HVAC input", () => {
+    expect(screen.getByLabelText(/hvac/i)).toBeInTheDocument();
   });
 
-  it("clicking Finish closes the modal", async () => {
-    fireEvent.click(screen.getByRole("button", { name: /^finish$/i }));
-    await waitFor(() => expect(mockOnClose).toHaveBeenCalled());
-  });
-});
-
-// ─── Step 6: system ages default to year built ───────────────────────────────
-
-describe("OnboardingWizard — step 6 system ages default to year built", () => {
-  beforeEach(async () => {
-    vi.clearAllMocks(); mockNavigate.mockReset();
-    await goToStep(6);
+  it("shows Roof input", () => {
+    expect(screen.getByLabelText(/^roof$/i)).toBeInTheDocument();
   });
 
-  it("HVAC input defaults to year built (1990)", () => {
-    expect(screen.getByLabelText(/hvac/i)).toHaveValue(1990);
+  it("shows Water Heater input", () => {
+    expect(screen.getByLabelText(/water heater/i)).toBeInTheDocument();
   });
 
-  it("Roof input defaults to year built (1990)", () => {
-    expect(screen.getByLabelText(/^roof$/i)).toHaveValue(1990);
+  it("shows Electrical Panel input", () => {
+    expect(screen.getByLabelText(/electrical panel/i)).toBeInTheDocument();
   });
 
-  it("Water Heater input defaults to year built (1990)", () => {
-    expect(screen.getByLabelText(/water heater/i)).toHaveValue(1990);
+  it("shows Plumbing input", () => {
+    expect(screen.getByLabelText(/^plumbing$/i)).toBeInTheDocument();
   });
 
-  it("Electrical Panel input defaults to year built (1990)", () => {
-    expect(screen.getByLabelText(/electrical panel/i)).toHaveValue(1990);
-  });
-
-  it("Plumbing input defaults to year built (1990)", () => {
-    expect(screen.getByLabelText(/^plumbing$/i)).toHaveValue(1990);
-  });
-
-  it("user can override the default value", () => {
-    const hvacInput = screen.getByLabelText(/hvac/i);
-    fireEvent.change(hvacInput, { target: { value: "2015" } });
-    expect(hvacInput).toHaveValue(2015);
-  });
-});
-
-// ─── Step 6: solar panels toggle ─────────────────────────────────────────────
-
-describe("OnboardingWizard — step 6 solar panels", () => {
-  beforeEach(async () => {
-    vi.clearAllMocks(); mockNavigate.mockReset();
-    await goToStep(6);
-  });
-
-  it("solar panels checkbox is unchecked by default", () => {
+  it("solar checkbox is unchecked by default", () => {
     expect(screen.getByLabelText(/solar panels/i)).not.toBeChecked();
   });
 
-  it("year installed input is NOT shown when solar is unchecked", () => {
-    expect(screen.queryByLabelText(/year installed/i)).not.toBeInTheDocument();
+  it("year installed input is NOT visible when solar is unchecked", () => {
+    expect(screen.queryByPlaceholderText(/year installed/i)).not.toBeInTheDocument();
   });
 
   it("checking solar reveals the year installed input", () => {
     fireEvent.click(screen.getByLabelText(/solar panels/i));
-    expect(screen.getByLabelText(/year installed/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/year installed/i)).toBeInTheDocument();
   });
 
-  it("year installed input defaults to year built (1990) when revealed", () => {
-    fireEvent.click(screen.getByLabelText(/solar panels/i));
-    expect(screen.getByLabelText(/year installed/i)).toHaveValue(1990);
-  });
-
-  it("unchecking solar hides the year installed input", () => {
+  it("unchecking solar hides year installed input", () => {
     fireEvent.click(screen.getByLabelText(/solar panels/i)); // on
     fireEvent.click(screen.getByLabelText(/solar panels/i)); // off
-    expect(screen.queryByLabelText(/year installed/i)).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/year installed/i)).not.toBeInTheDocument();
   });
 
-  it("Finish button is enabled on step 6 without solar (optional)", () => {
-    expect(screen.getByRole("button", { name: /^finish$/i })).not.toBeDisabled();
-  });
-});
-
-
-// ─── Progress bar ─────────────────────────────────────────────────────────────
-
-describe("OnboardingWizard — progress bar", () => {
-  beforeEach(() => { vi.clearAllMocks(); mockNavigate.mockReset(); });
-
-  it("renders a progress bar element", () => {
-    renderWizard();
-    expect(screen.getByRole("progressbar")).toBeInTheDocument();
-  });
-
-  it("progress bar shows 17% on step 1", () => {
-    renderWizard();
-    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "17");
-  });
-
-  it("progress bar shows 33% on step 2", async () => {
-    await goToStep(2);
-    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "33");
-  });
-
-  it("progress bar shows 50% on step 3", async () => {
-    await goToStep(3);
-    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "50");
-  });
-
-  it("progress bar shows 67% on step 4", async () => {
-    await goToStep(4);
-    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "67");
-  });
-
-  it("progress bar shows 83% on step 5", async () => {
-    await goToStep(5);
-    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "83");
-  });
-
-  it("progress bar shows 100% on step 6", async () => {
-    await goToStep(6);
-    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "100");
+  it("'Skip' returns to saved hub", async () => {
+    fireEvent.click(screen.getByRole("button", { name: /skip/i }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: /your property is saved/i })).toBeInTheDocument());
   });
 });
 
-// ─── Step content headings ────────────────────────────────────────────────────
+// ─── Verify optional step ─────────────────────────────────────────────────────
 
-describe("OnboardingWizard — step content headings", () => {
-  beforeEach(() => { vi.clearAllMocks(); mockNavigate.mockReset(); });
-
-  it("step 1 shows property address heading", () => {
-    renderWizard();
-    expect(screen.getByRole("heading", { name: /property address/i })).toBeInTheDocument();
+describe("AddPropertyModal V2 — verify ownership step", () => {
+  beforeEach(async () => {
+    vi.clearAllMocks(); mockNavigate.mockReset();
+    await goToSaved();
+    fireEvent.click(screen.getByText(/start verification/i));
+    await waitFor(() => screen.getByRole("heading", { name: /verify ownership/i }));
   });
 
-  it("step 2 shows property details heading", async () => {
-    await goToStep(2);
-    expect(screen.getByRole("heading", { name: /property details/i })).toBeInTheDocument();
-  });
-
-  it("step 3 shows capture baseline photos heading", async () => {
-    await goToStep(3);
-    expect(screen.getByRole("heading", { name: /capture baseline photos/i })).toBeInTheDocument();
-  });
-
-  it("step 4 shows verify ownership heading", async () => {
-    await goToStep(4);
+  it("shows the verify heading", () => {
     expect(screen.getByRole("heading", { name: /verify ownership/i })).toBeInTheDocument();
   });
 
-  it("step 5 shows import documents heading", async () => {
-    await goToStep(5);
-    expect(screen.getByRole("heading", { name: /import documents/i })).toBeInTheDocument();
+  it("Submit button disabled when legal name is empty", () => {
+    const file = new File(["deed"], "deed.pdf", { type: "application/pdf" });
+    fireEvent.change(screen.getByLabelText(/ownership document/i), { target: { files: [file] } });
+    expect(screen.getByRole("button", { name: /submit for review/i })).toBeDisabled();
   });
 
-  it("step 6 shows system ages heading", async () => {
-    await goToStep(6);
-    expect(screen.getByRole("heading", { name: /system ages/i })).toBeInTheDocument();
+  it("Submit button disabled when no document selected", () => {
+    fireEvent.change(screen.getByLabelText(/legal name/i), { target: { value: "John Doe" } });
+    expect(screen.getByRole("button", { name: /submit for review/i })).toBeDisabled();
+  });
+
+  it("Submit button enabled when legal name and doc are provided", () => {
+    fireEvent.change(screen.getByLabelText(/legal name/i), { target: { value: "John Doe" } });
+    const file = new File(["deed"], "deed.pdf", { type: "application/pdf" });
+    fireEvent.change(screen.getByLabelText(/ownership document/i), { target: { files: [file] } });
+    expect(screen.getByRole("button", { name: /submit for review/i })).not.toBeDisabled();
+  });
+
+  it("submitting calls submitVerification and returns to saved hub", async () => {
+    const { propertyService } = await import("@/services/property");
+    fireEvent.change(screen.getByLabelText(/legal name/i), { target: { value: "John Doe" } });
+    const file = new File(["deed"], "deed.pdf", { type: "application/pdf" });
+    fireEvent.change(screen.getByLabelText(/ownership document/i), { target: { files: [file] } });
+    fireEvent.click(screen.getByRole("button", { name: /submit for review/i }));
+    await waitFor(() => expect(propertyService.submitVerification).toHaveBeenCalledWith(
+      "1", expect.any(String), expect.any(String)
+    ));
+    await waitFor(() => expect(screen.getByRole("heading", { name: /your property is saved/i })).toBeInTheDocument());
+  });
+
+  it("'← Back' returns to saved hub", async () => {
+    fireEvent.click(screen.getByRole("button", { name: /back/i }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: /your property is saved/i })).toBeInTheDocument());
+  });
+});
+
+// ─── Close button ─────────────────────────────────────────────────────────────
+
+describe("AddPropertyModal V2 — close button", () => {
+  beforeEach(() => { vi.clearAllMocks(); mockNavigate.mockReset(); });
+
+  it("X button calls onClose", () => {
+    renderWizard();
+    fireEvent.click(screen.getByRole("button", { name: /close/i }));
+    expect(mockOnClose).toHaveBeenCalled();
+  });
+
+  it("does not render when open=false", () => {
+    render(
+      <MemoryRouter>
+        <AddPropertyModal open={false} onClose={mockOnClose} />
+      </MemoryRouter>
+    );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });
