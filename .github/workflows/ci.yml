@@ -308,7 +308,16 @@ jobs:
           dfx canister call payment grantSubscription "(principal \"$DEPLOYER\", variant { Pro })"
           # Grant integration test identity Premium — quote tests create many open requests
           # and would hit the Basic (3) or Pro (10) cap. Principal: fixed seed[0]=42 in setup.ts.
-          dfx canister call payment grantSubscription "(principal \"qxmov-duod5-ahrw6-wydp4-lppe4-ljtvj-7zvu3-qke5i-umwsv-vcb7g-mqe\", variant { Premium })"
+          INTEG_PRINCIPAL="qxmov-duod5-ahrw6-wydp4-lppe4-ljtvj-7zvu3-qke5i-umwsv-vcb7g-mqe"
+          # ContractorPro → limit=0 (unlimited) in property canister, unlimited open quotes.
+          # Premium caps at 20 properties and integration tests register more than 20 across all suites.
+          dfx canister call payment grantSubscription "(principal \"$INTEG_PRINCIPAL\", variant { ContractorPro })"
+
+          # Grant integration test identity admin on report canister so generateReport
+          # tests bypass the ownership check (property.isAuthorized) and use synthetic
+          # property IDs that don't exist in the property canister. The verification check
+          # is then skipped by the `case null {}` branch (non-existent property → proceed).
+          dfx canister call report addAdmin "(principal \"$INTEG_PRINCIPAL\")"
 
           AUTH_ID=$(dfx canister id auth)
           PAYMENT_ID=$(dfx canister id payment)

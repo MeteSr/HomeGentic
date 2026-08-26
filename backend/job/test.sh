@@ -346,8 +346,10 @@ dfx canister call $CANISTER createInviteToken "(\"$JOB_ID\", \"123 Main St, Aust
 # ─── Rate Limit Tests ─────────────────────────────────────────────────────────
 echo ""
 echo "── [25] setUpdateRateLimit to 3 (admin) ────────────────────────────────"
-# Ensure we have admin rights first (first addAdmin call bootstraps)
-dfx canister call $CANISTER addAdmin "(principal \"$(dfx identity get-principal)\")"
+# Ensure we have admin rights first.
+# addAdmin(Principal, Text) — pass "" as nonce since deploy.sh already bootstrapped
+# adminInitialized=true; nonce is accepted but ignored for subsequent calls.
+dfx canister call $CANISTER addAdmin "(principal \"$(dfx identity get-principal)\", \"\")"
 dfx canister call $CANISTER setUpdateRateLimit "(3 : nat)"
 
 echo ""

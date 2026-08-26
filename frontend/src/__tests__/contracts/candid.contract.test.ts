@@ -205,7 +205,7 @@ describe("job IDL factory", () => {
       "getJob",
       "getJobByInviteToken",
       "getJobSnapshotsForProperty",
-      "getJobsForProperty",
+      // getJobsForProperty is an update call (has inter-canister await for ownership check)
       "getJobsPendingMySignature",
       "getMetrics",
       "getPendingProposals",
@@ -568,10 +568,10 @@ describe("sensor IDL factory", () => {
       .filter(([, sig]) => sig.mode.includes("query"))
       .map(([name]) => name)
       .sort();
+    // getEventsForProperty and getPendingAlerts use msg.caller (M-07 ownership check)
+    // so they are update calls, not queries.
     expect(queries).toEqual([
       "getDevicesForProperty",
-      "getEventsForProperty",
-      "getPendingAlerts",
     ]);
   });
 

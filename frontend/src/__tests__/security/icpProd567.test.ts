@@ -116,16 +116,24 @@ describe("PROD.7 — deploy.sh calls addAdmin for each non-payment canister", ()
 
   for (const canister of CANISTERS_WITH_ADMIN) {
     it(`deploy.sh calls addAdmin for ${canister}`, () => {
-      // Accept either: dfx canister call <canister> addAdmin  OR a loop variable
-      // that resolves to this canister name in an ADMIN_CANISTERS array.
+      // Accept any of three wiring patterns:
+      //   1. Literal call: dfx canister call <canister> addAdmin ...
+      //   2. ADMIN_CANISTERS array loop: ADMIN_CANISTERS=( ... canister ... )
+      //   3. Nonce-bootstrap loop (H-20): `for canister in property job photo` +
+      //      setBootstrapNonce — used for canisters with nonce-gated addAdmin signature.
       const src = deploy();
       const hasDirectCall = src.includes(`${canister} addAdmin`) ||
                             src.includes(`"${canister}" addAdmin`);
       const hasInArray    = src.match(
         new RegExp(`ADMIN_CANISTERS=\\([^)]*\\b${canister}\\b`)
       ) !== null;
+      // H-20 bootstrap loop: `for canister in property job photo; do ... setBootstrapNonce`
+      const hasNonceLoop  = src.includes("setBootstrapNonce") &&
+                            src.match(
+                              new RegExp(`for canister in[^\\n]*\\b${canister}\\b`)
+                            ) !== null;
       expect(
-        hasDirectCall || hasInArray,
+        hasDirectCall || hasInArray || hasNonceLoop,
         `deploy.sh must call addAdmin for ${canister}`
       ).toBe(true);
     });

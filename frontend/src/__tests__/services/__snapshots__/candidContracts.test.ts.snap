@@ -70,7 +70,7 @@ createJobProposal(9) -> (1)
 getCertificationData(1) -> (1) [query]
 getJob(1) -> (1) [query]
 getJobByInviteToken(1) -> (1) [query]
-getJobsForProperty(1) -> (1) [query]
+getJobsForProperty(1) -> (1)
 getJobSnapshotsForProperty(1) -> (1) [query]
 getJobsPendingMySignature(0) -> (1) [query]
 getMetrics(0) -> (1) [query]
@@ -232,8 +232,8 @@ revokeShareLink(1) -> (1)"
 exports[`Candid contract snapshots — method arity > sensor 1`] = `
 "deactivateDevice(1) -> (1)
 getDevicesForProperty(1) -> (1) [query]
-getEventsForProperty(2) -> (1) [query]
-getPendingAlerts(1) -> (1) [query]
+getEventsForProperty(2) -> (1)
+getPendingAlerts(1) -> (1)
 recordEvent(5) -> (1)
 registerDevice(4) -> (1)"
 `;

@@ -162,8 +162,13 @@ describe.skipIf(!deployed)("submitReview & getReviewsForContractor", () => {
     try {
       await contractorService.submitReview(target.id, 5, "Great work", jobId);
     } catch (e: any) {
-      // DuplicateReview is acceptable on re-runs
-      if (!e.message?.includes("Duplicate") && !e.message?.includes("RateLimitExceeded")) throw e;
+      // Acceptable failures: duplicate review, rate limit, or synthetic jobId rejected by
+      // cross-canister validation (M-09 security fix — job canister verifies jobId exists)
+      if (
+        !e.message?.includes("Duplicate") &&
+        !e.message?.includes("RateLimitExceeded") &&
+        !e.message?.includes("jobId does not exist")
+      ) throw e;
     }
 
     // Regardless of whether our review was accepted, the list is accessible

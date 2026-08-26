@@ -86,7 +86,7 @@ export const idlFactory = ({ IDL }: any) => {
     getJobsForProperty: IDL.Func(
       [IDL.Text],
       [IDL.Variant({ ok: IDL.Vec(Job), err: Error })],
-      ["query"]
+      [] // update call — has inter-canister await for ownership check
     ),
     updateJobStatus: IDL.Func(
       [IDL.Text, JobStatus],

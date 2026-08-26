@@ -400,15 +400,21 @@ export const marketService = {
     const propAge  = Math.max(0, year - profile.yearBuilt);
     const stateMult = stateMultiplier(profile.state);
 
+    // Precompute latest completed year per service type — O(J) once, then O(1) per template.
+    const latestJobYear = new Map<string, number>();
+    for (const j of currentJobs) {
+      const prev = latestJobYear.get(j.serviceType) ?? 0;
+      if (j.completedYear > prev) latestJobYear.set(j.serviceType, j.completedYear);
+    }
+
     const results: ProjectRecommendation[] = [];
 
     for (const tmpl of PROJECT_TEMPLATES) {
       if (propAge < tmpl.minPropertyAge) continue;
 
-      const lifespan = LIFESPANS[tmpl.category] ?? 999;
-      const alreadyDone = currentJobs.some(
-        (j) => j.serviceType === tmpl.category && j.completedYear + lifespan > year
-      );
+      const lifespan    = LIFESPANS[tmpl.category] ?? 999;
+      const lastDone    = latestJobYear.get(tmpl.category) ?? 0;
+      const alreadyDone = lastDone + lifespan > year;
       if (alreadyDone) continue;
 
       const adjustedCost = Math.round(tmpl.baseCostCents * stateMult / 100);

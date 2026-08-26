@@ -129,9 +129,29 @@ describe.skipIf(!deployed)("create — Candid serialization", () => {
 // ─── getByProperty — principal scoping ───────────────────────────────────────
 
 describe.skipIf(!deployed)("getByProperty — principal scoping & retrieval", () => {
-  const propId = pid("get-by-prop");
+  // getJobsForProperty calls property.isAuthorized (M-07) — must use a real, registered property.
+  let propId = pid("get-by-prop");
 
   beforeAll(async () => {
+    try {
+      const prop = await propertyService.registerProperty({
+        address:      `${RUN_ID} Get-By-Prop Rd`,
+        city:         "Orlando",
+        state:        "FL",
+        zipCode:      "32801",
+        propertyType: "SingleFamily" as const,
+        yearBuilt:    1995,
+        squareFeet:   1800,
+        tier:         "Free" as const,
+      });
+      propId = prop.id;
+    } catch (e: any) {
+      if (e.message?.includes("limit")) {
+        const existing = await propertyService.getMyProperties();
+        if (existing.length > 0) { propId = existing[0].id; }
+        else throw e;
+      } else throw e;
+    }
     await jobService.create({ ...BASE, propertyId: propId, serviceType: "HVAC" });
     await jobService.create({ ...BASE, propertyId: propId, serviceType: "Roofing" });
   });

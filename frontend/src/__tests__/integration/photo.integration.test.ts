@@ -17,6 +17,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { photoService } from "@/services/photo";
 import type { Photo } from "@/services/photo";
+import { propertyService } from "@/services/property";
 
 const CANISTER_ID = (process.env as any).PHOTO_CANISTER_ID || "";
 const deployed = !!CANISTER_ID;
@@ -27,8 +28,36 @@ function makeTestFile(content: string, name = "test.txt"): File {
   return new File([content], name, { type: "image/jpeg" });
 }
 
-const JOB_ID      = `integ-photo-job-${RUN_ID}`;
-const PROPERTY_ID = `integ-photo-prop-${RUN_ID}`;
+const JOB_ID = `integ-photo-job-${RUN_ID}`;
+
+// PROPERTY_ID is set in the global beforeAll by registering a real property so
+// that the photo canister's ownership check (via property.isAuthorized) passes.
+let PROPERTY_ID = `integ-photo-prop-${RUN_ID}`; // fallback for type inference only
+
+if (deployed) {
+  beforeAll(async () => {
+    try {
+      const prop = await propertyService.registerProperty({
+        address:      `${RUN_ID} Photo Lane`,
+        city:         "Austin",
+        state:        "TX",
+        zipCode:      "78701",
+        propertyType: "SingleFamily",
+        yearBuilt:    2005,
+        squareFeet:   2000,
+        tier:         "Basic",
+      });
+      PROPERTY_ID = prop.id;
+    } catch (e: any) {
+      // CI accumulates properties across runs — if the tier limit is hit, reuse an existing one.
+      if (e.message?.includes("limit")) {
+        const existing = await propertyService.getMyProperties();
+        if (existing.length > 0) { PROPERTY_ID = existing[0].id; return; }
+      }
+      throw e;
+    }
+  });
+}
 
 // ─── upload & retrieve ────────────────────────────────────────────────────────
 

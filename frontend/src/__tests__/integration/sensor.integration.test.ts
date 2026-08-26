@@ -19,13 +19,42 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { sensorService } from "@/services/sensor";
 import type { SensorDevice, SensorEvent, DeviceSource } from "@/services/sensor";
+import { propertyService } from "@/services/property";
 
 const CANISTER_ID = (process.env as any).SENSOR_CANISTER_ID || "";
 const deployed = !!CANISTER_ID;
 
-const RUN_ID      = Date.now();
-const PROPERTY_ID = `integ-sensor-prop-${RUN_ID}`;
-const EXT_ID      = `ext-device-${RUN_ID}`;
+const RUN_ID = Date.now();
+const EXT_ID = `ext-device-${RUN_ID}`;
+
+// PROPERTY_ID is set in the global beforeAll by registering a real property so
+// that the sensor canister's H-15 ownership check (via property.isAuthorized) passes.
+let PROPERTY_ID = `integ-sensor-prop-${RUN_ID}`; // fallback for type inference only
+
+if (deployed) {
+  beforeAll(async () => {
+    try {
+      const prop = await propertyService.registerProperty({
+        address:      `${RUN_ID} Sensor Ave`,
+        city:         "Austin",
+        state:        "TX",
+        zipCode:      "78701",
+        propertyType: "SingleFamily",
+        yearBuilt:    2000,
+        squareFeet:   1800,
+        tier:         "Basic",
+      });
+      PROPERTY_ID = prop.id;
+    } catch (e: any) {
+      // CI accumulates properties across runs — if the tier limit is hit, reuse an existing one.
+      if (e.message?.includes("limit")) {
+        const existing = await propertyService.getMyProperties();
+        if (existing.length > 0) { PROPERTY_ID = existing[0].id; return; }
+      }
+      throw e;
+    }
+  });
+}
 
 // ─── registerDevice ───────────────────────────────────────────────────────────
 

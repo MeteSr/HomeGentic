@@ -330,9 +330,9 @@ persistent actor Listing {
   /// H-16: bid deadline is now enforced on-chain. Before the deadline, each caller
   /// can only see their own proposal. After the deadline or for admins, all proposals
   /// are returned so the homeowner can compare and select a winner.
-  public shared(msg) func getProposalsForRequest(requestId: Text) : async Result.Result<[ListingProposal], Error> {
+  public query(msg) func getProposalsForRequest(requestId: Text) : async [ListingProposal] {
     switch (Map.get(requests, Text.compare, requestId)) {
-      case null { return #err(#NotFound) };
+      case null { [] };
       case (?req) {
         let allProposals = Iter.toArray(
           Iter.filter(Map.values(proposals), func(p: ListingProposal) : Bool {
@@ -345,12 +345,13 @@ persistent actor Listing {
             p.agentId == msg.caller
           });
           switch (myProposal) {
-            case null    { return #ok([]) };
-            case (?mine) { return #ok([mine]) };
+            case null    { [] };
+            case (?mine) { [mine] };
           };
-        };
-        // After deadline, or caller is admin or homeowner: return all proposals
-        #ok(allProposals)
+        } else {
+          // After deadline, or caller is admin or homeowner: return all proposals
+          allProposals
+        }
       };
     }
   };
