@@ -80,12 +80,21 @@ function consumeOAuthState(state: string, platform: string): boolean {
 }
 
 // Rate limiting for webhook endpoints
-// Strict limiter for admin OAuth endpoints — these are one-time setup flows,
-// not user-facing. 10 requests per 15 minutes per IP is more than enough for
-// legitimate use and prevents brute-force on the admin token.
+// Strict limiter for admin OAuth endpoints — one-time setup flows, not user-facing.
+// 10 requests per 15 minutes per IP is more than enough for legitimate use.
 const adminOAuthLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests — please wait before retrying." },
+});
+
+// Moderate limiter for user-initiated device picker OAuth flows.
+// Each homeowner may connect multiple devices, so allow up to 30 per 15 minutes.
+const deviceOAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many requests — please wait before retrying." },
@@ -733,7 +742,7 @@ app.get("/oauth/callback/ge", adminOAuthLimiter, async (req: Request, res: Respo
 // ── GET /oauth/device/start/:platform ────────────────────────────────────────
 // Tier B device picker: redirect to platform's authorization URL.
 // The `redirect_uri` points back to /oauth/device/callback/:platform.
-app.get("/oauth/device/start/:platform", (req: Request, res: Response): void => {
+app.get("/oauth/device/start/:platform", deviceOAuthLimiter, (req: Request, res: Response): void => {
   const { platform } = req.params;
   const redirectUri  = `http://localhost:${port}/oauth/device/callback/${platform}`;
   const state = generateOAuthState();
@@ -770,7 +779,7 @@ app.get("/oauth/device/start/:platform", (req: Request, res: Response): void => 
 // ── GET /oauth/device/callback/:platform ──────────────────────────────────────
 // Tier B device picker: exchanges the auth code, fetches device list, sends
 // postMessage to the opener popup, then closes itself.
-app.get("/oauth/device/callback/:platform", async (req: Request, res: Response): Promise<void> => {
+app.get("/oauth/device/callback/:platform", deviceOAuthLimiter, async (req: Request, res: Response): Promise<void> => {
   const { platform } = req.params;
   const code         = req.query.code  as string | undefined;
   const state        = req.query.state as string | undefined;

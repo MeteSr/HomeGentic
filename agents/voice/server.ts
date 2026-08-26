@@ -1536,20 +1536,20 @@ app.post("/api/stripe/verify-credit-purchase", async (req: Request, res: Respons
   }
 });
 
-// ── GET /api/rentcast/properties ─────────────────────────────────────────────
+// ── POST /api/rentcast/properties ────────────────────────────────────────────
 // Server-side proxy for Rentcast property lookups. The API key is held in the
 // server environment (RENTCAST_API_KEY) and never exposed in the browser bundle.
 // H-19 fix: VITE_RENTCAST_API_KEY was previously baked into the frontend bundle.
-app.get("/api/rentcast/properties", async (req: Request, res: Response): Promise<void> => {
+// POST (not GET) so address data is not logged in server access logs or referrer headers.
+app.post("/api/rentcast/properties", async (req: Request, res: Response): Promise<void> => {
   const apiKey = process.env.RENTCAST_API_KEY;
   if (!apiKey) { res.status(503).json({ error: "Rentcast not configured" }); return; }
 
-  // Forward only the expected query params — no passthrough of arbitrary params
-  const { address, city, state, zipCode } = req.query as Record<string, string>;
+  const { address, city, state, zipCode } = req.body as Record<string, string>;
   if (!address) { res.status(400).json({ error: "address is required" }); return; }
 
   const params = new URLSearchParams();
-  if (address) params.set("address", address);
+  params.set("address", address);
   if (city)    params.set("city",    city);
   if (state)   params.set("state",   state);
   if (zipCode) params.set("zipCode", zipCode);

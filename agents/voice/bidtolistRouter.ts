@@ -157,9 +157,11 @@ async function fetchListing(requestId: string): Promise<{ homeownerEmail: string
 }
 
 function generateDiscountCode(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // 32 chars = 2^5
   const bytes = randomBytes(6);
-  return "BIDTOLIST-" + Array.from(bytes).map(b => chars[b % chars.length]).join("");
+  // chars.length is 32 (a power of 2), so masking with 31 gives a perfectly
+  // uniform distribution — no modulo bias. Avoids CodeQL js/biased-cryptographic-random.
+  return "BIDTOLIST-" + Array.from(bytes).map(b => chars[b & 31]).join("");
 }
 
 async function createHomegenticCode(code: string): Promise<void> {
@@ -247,9 +249,10 @@ bidtolistRouter.post("/email/proposal-result", async (req, res) => {
   };
   if (!agentEmail) { res.status(400).json({ error: "agentEmail required" }); return; }
 
-  // H-03: validate email format; sanitize text fields to prevent header injection
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (agentEmail && !emailRegex.test(agentEmail)) {
+  // H-03: validate email format; sanitize text fields to prevent header injection.
+  // Bound length before regex to prevent polynomial backtracking on crafted input.
+  const emailRegex = /^[^\s@]{1,64}@[^\s@]{1,255}$/;
+  if (agentEmail && (agentEmail.length > 320 || !emailRegex.test(agentEmail))) {
     res.status(400).json({ error: "Invalid agentEmail format" });
     return;
   }
@@ -287,9 +290,10 @@ bidtolistRouter.post("/email/agent-verified", async (req, res) => {
   const { agentEmail, agentName } = req.body as { agentEmail: string; agentName: string };
   if (!agentEmail) { res.status(400).json({ error: "agentEmail required" }); return; }
 
-  // H-03: validate email format; sanitize text fields to prevent header injection
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (agentEmail && !emailRegex.test(agentEmail)) {
+  // H-03: validate email format; sanitize text fields to prevent header injection.
+  // Bound length before regex to prevent polynomial backtracking on crafted input.
+  const emailRegex = /^[^\s@]{1,64}@[^\s@]{1,255}$/;
+  if (agentEmail && (agentEmail.length > 320 || !emailRegex.test(agentEmail))) {
     res.status(400).json({ error: "Invalid agentEmail format" });
     return;
   }

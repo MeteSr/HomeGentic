@@ -22,17 +22,15 @@ export async function lookupPropertyDetails(
   state:    string,
   zipCode:  string,
 ): Promise<PropertyLookupResult | null> {
-  const params = new URLSearchParams({
-    address: address,
-    city:    city,
-    state:   state,
-    zipCode: zipCode,
-    limit:   "1",
-  });
-
   try {
-    const resp = await fetch(`${VOICE_AGENT_URL}/api/rentcast/properties?${params}`, {
-      headers: { "x-api-key": (import.meta as any).env?.VITE_VOICE_AGENT_API_KEY ?? "" },
+    // POST so address data stays out of server access logs and referrer headers
+    const resp = await fetch(`${VOICE_AGENT_URL}/api/rentcast/properties`, {
+      method:  "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key":    (import.meta as any).env?.VITE_VOICE_AGENT_API_KEY ?? "",
+      },
+      body: JSON.stringify({ address, city, state, zipCode }),
     });
     if (!resp.ok) return null;
 
