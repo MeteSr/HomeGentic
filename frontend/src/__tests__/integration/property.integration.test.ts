@@ -193,7 +193,7 @@ describe.skipIf(!deployed)("getPropertyYearBuilt — cross-canister query IDL", 
         const existing = await propertyService.getMyProperties();
         if (existing.length > 0) {
           registeredId = existing[0].id;
-          expectedYear  = existing[0].yearBuilt ?? expectedYear;
+          expectedYear  = Number(existing[0].yearBuilt) || expectedYear;
           return;
         }
       }
