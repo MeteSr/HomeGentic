@@ -14,17 +14,17 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { CheckCircle, AlertTriangle, Loader2, ExternalLink } from "lucide-react";
-import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 import { jobService, type InvitePreview } from "@/services/job";
 
 const UI = {
-  ink:   COLORS.plum,
-  muted: COLORS.plumMid,
-  rule:  COLORS.rule,
-  sage:  COLORS.sage,
-  serif: FONTS.serif,
-  sans:  FONTS.sans,
-  mono:  FONTS.sans,
+  ink:   V2_COLORS.ink,
+  muted: V2_COLORS.muted,
+  rule:  V2_COLORS.border,
+  sage:  V2_COLORS.blue,
+  serif: V2_FONTS.display,
+  sans:  V2_FONTS.body,
+  mono:  V2_FONTS.body,
 };
 
 type Stage = "loading" | "preview" | "signing" | "success" | "error";
@@ -75,7 +75,7 @@ export default function ContractorVerifyPage() {
   return (
     <div style={{
       minHeight: "100vh",
-      background: COLORS.white,
+      background: V2_COLORS.paper,
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
@@ -97,9 +97,9 @@ export default function ContractorVerifyPage() {
 
       <div style={{
         width: "100%", maxWidth: 440,
-        background: COLORS.white,
-        borderRadius: RADIUS.card,
-        boxShadow: SHADOWS.card,
+        background: V2_COLORS.paper,
+        borderRadius: V2_RADIUS.card,
+        boxShadow: V2_SHADOWS.card,
         border: `1px solid ${UI.rule}`,
         padding: "2rem",
       }}>
@@ -125,7 +125,7 @@ export default function ContractorVerifyPage() {
             {/* Job details */}
             <div style={{
               border: `1px solid ${UI.rule}`,
-              borderRadius: RADIUS.sm,
+              borderRadius: V2_RADIUS.sm,
               overflow: "hidden",
               marginBottom: "1.5rem",
             }}>
@@ -140,7 +140,7 @@ export default function ContractorVerifyPage() {
                 <div key={label} style={{
                   display: "flex", gap: "1rem",
                   padding: "0.625rem 1rem",
-                  background: i % 2 === 0 ? COLORS.sageLight : COLORS.white,
+                  background: i % 2 === 0 ? V2_COLORS.lblue : V2_COLORS.paper,
                   borderBottom: i < 5 ? `1px solid ${UI.rule}` : "none",
                 }}>
                   <span style={{
@@ -159,8 +159,8 @@ export default function ContractorVerifyPage() {
             {preview.alreadySigned ? (
               <div style={{
                 display: "flex", alignItems: "center", gap: "0.75rem",
-                padding: "1rem", background: COLORS.sageLight,
-                borderRadius: RADIUS.sm, border: `1px solid ${COLORS.sageMid}`,
+                padding: "1rem", background: V2_COLORS.lblue,
+                borderRadius: V2_RADIUS.sm, border: `1px solid ${V2_COLORS.cobalTint}`,
               }}>
                 <CheckCircle size={20} color={UI.sage} />
                 <p style={{ fontSize: "0.875rem", color: UI.ink }}>
@@ -178,7 +178,7 @@ export default function ContractorVerifyPage() {
                     background: UI.ink,
                     color: "#fff",
                     border: "none",
-                    borderRadius: RADIUS.pill,
+                    borderRadius: V2_RADIUS.pill,
                     fontFamily: UI.mono,
                     fontSize: "0.8rem",
                     letterSpacing: "0.08em",
@@ -209,7 +209,7 @@ export default function ContractorVerifyPage() {
           <div style={{ textAlign: "center" }}>
             <div style={{
               width: 64, height: 64,
-              background: COLORS.sageLight,
+              background: V2_COLORS.lblue,
               borderRadius: "50%",
               display: "flex", alignItems: "center", justifyContent: "center",
               margin: "0 auto 1.25rem",
@@ -228,7 +228,7 @@ export default function ContractorVerifyPage() {
             {/* Upsell — soft, no pressure */}
             <div style={{
               border: `1px solid ${UI.rule}`,
-              borderRadius: RADIUS.sm,
+              borderRadius: V2_RADIUS.sm,
               padding: "1.25rem",
               marginBottom: "1.25rem",
               textAlign: "left",
@@ -245,7 +245,7 @@ export default function ContractorVerifyPage() {
                   display: "inline-flex", alignItems: "center", gap: "0.375rem",
                   padding: "0.625rem 1.25rem",
                   background: UI.ink, color: "#fff",
-                  borderRadius: RADIUS.pill,
+                  borderRadius: V2_RADIUS.pill,
                   textDecoration: "none",
                   fontFamily: UI.mono, fontSize: "0.72rem",
                   letterSpacing: "0.06em", textTransform: "uppercase",

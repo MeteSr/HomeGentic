@@ -1,21 +1,27 @@
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
-export { FONTS };
+// FONTS.sans → V2_FONTS.body for backwards compat with AIAssistantPanel / panels
+export const FONTS = { ...V2_FONTS, sans: V2_FONTS.body };
 
 export const C = {
-  bg:       COLORS.canvas,
-  card:     "#FFFFFF",
-  border:   "#E5E7EB",
-  text:     COLORS.plum,
-  muted:    COLORS.plumMid,
-  green:    COLORS.sageText,
-  greenBg:  COLORS.sageLight,
-  greenBdr: COLORS.sageMid,
-  blue:     "#2563EB",
-  blueBg:   "#EFF6FF",
-  orange:   "#D97706",
-  orangeBg: "#FFFBEB",
-  red:      COLORS.errorText,
-  redBg:    "#FEF2F2",
-  shadow:   "0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
+  bg:       V2_COLORS.paper,
+  card:     V2_COLORS.paper,
+  border:   V2_COLORS.border,
+  text:     V2_COLORS.ink,
+  muted:    V2_COLORS.muted,
+  blue:     V2_COLORS.blue,
+  blueBg:   V2_COLORS.lblue,
+  blueBdr:  V2_COLORS.cobalTint,
+  yellow:   "#92640A",           // attention text — AA on attentionBg
+  yellowBg: V2_COLORS.attentionBg,
+  red:      V2_COLORS.coralText,
+  redBg:    "#FFE8E3",
+  // green family → cobalt (no green in V2 palette; used for "verified/success" states)
+  green:    V2_COLORS.blue,
+  greenBg:  V2_COLORS.lblue,
+  greenBdr: V2_COLORS.cobalTint,
+  // orange family → yellow/attention
+  orange:   "#92640A",
+  orangeBg: V2_COLORS.attentionBg,
+  shadow:   "0 1px 3px rgba(11,13,26,0.06), 0 1px 2px rgba(11,13,26,0.04)",
 };

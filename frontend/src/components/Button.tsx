@@ -1,8 +1,8 @@
 import React from "react";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "outline" | "ghost";
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "danger";
   size?: "sm" | "md" | "lg";
   loading?: boolean;
   icon?: React.ReactNode;
@@ -11,31 +11,36 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 const VARIANT_STYLES: Record<string, React.CSSProperties> = {
   primary: {
-    backgroundColor: COLORS.plum,
-    color: COLORS.white,
-    border: `1.5px solid ${COLORS.plum}`,
+    backgroundColor: V2_COLORS.blue,
+    color: V2_COLORS.paper,
+    border: `1.5px solid ${V2_COLORS.blue}`,
   },
   secondary: {
-    backgroundColor: COLORS.sageLight,
-    color: COLORS.plum,
-    border: `1.5px solid ${COLORS.sageMid}`,
+    backgroundColor: V2_COLORS.vbadge,
+    color: V2_COLORS.blue,
+    border: `1.5px solid ${V2_COLORS.cobalTint}`,
   },
   outline: {
     backgroundColor: "transparent",
-    color: COLORS.plum,
-    border: `1.5px solid ${COLORS.plum}`,
+    color: V2_COLORS.blue,
+    border: `1.5px solid ${V2_COLORS.blue}`,
   },
   ghost: {
     backgroundColor: "transparent",
-    color: COLORS.plumMid,
+    color: V2_COLORS.muted,
     border: "1.5px solid transparent",
+  },
+  danger: {
+    backgroundColor: V2_COLORS.coral,
+    color: V2_COLORS.paper,
+    border: `1.5px solid ${V2_COLORS.coral}`,
   },
 };
 
 const SIZE_STYLES: Record<string, React.CSSProperties> = {
-  sm: { padding: "0.4rem 1rem",   fontSize: "0.8rem"  },
+  sm: { padding: "0.4rem 1rem",    fontSize: "0.8rem"  },
   md: { padding: "0.55rem 1.4rem", fontSize: "0.875rem" },
-  lg: { padding: "0.75rem 2rem",  fontSize: "0.95rem"  },
+  lg: { padding: "0.75rem 2rem",   fontSize: "0.95rem"  },
 };
 
 export function Button({
@@ -57,13 +62,15 @@ export function Button({
     if (!hovered || isDisabled) return {};
     switch (variant) {
       case "primary":
-        return { transform: "translateY(-2px)", boxShadow: "0 8px 24px rgba(46,37,64,0.28)" };
+        return { transform: "translateY(-2px)", boxShadow: "0 8px 24px rgba(43,52,255,0.28)" };
       case "secondary":
-        return { borderColor: COLORS.sage, backgroundColor: COLORS.sageLight };
+        return { backgroundColor: V2_COLORS.lblue, borderColor: V2_COLORS.blue };
       case "outline":
-        return { backgroundColor: COLORS.sageLight, transform: "translateY(-1px)" };
+        return { backgroundColor: V2_COLORS.lblue, transform: "translateY(-1px)" };
       case "ghost":
-        return { backgroundColor: COLORS.sageLight, color: COLORS.plum };
+        return { backgroundColor: V2_COLORS.lblue, color: V2_COLORS.blue };
+      case "danger":
+        return { transform: "translateY(-2px)", boxShadow: "0 8px 24px rgba(255,92,57,0.28)" };
       default:
         return {};
     }
@@ -74,7 +81,7 @@ export function Button({
     alignItems: "center",
     justifyContent: "center",
     gap: "0.5rem",
-    fontFamily: FONTS.sans,
+    fontFamily: V2_FONTS.body,
     fontWeight: 600,
     borderRadius: 100,
     cursor: isDisabled ? "not-allowed" : "pointer",

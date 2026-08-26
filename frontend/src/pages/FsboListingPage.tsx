@@ -21,19 +21,19 @@ import { computeScore } from "@/services/scoreService";
 import { listingService, type PanoramaEntry } from "@/services/listing";
 import { showingRequestService } from "@/services/showingRequest";
 import { notificationService } from "@/services/notifications";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { isValidEmailOrPhone } from "@/utils/validators";
 
 const UI = {
-  ink:      COLORS.plum,
-  inkLight: COLORS.plumMid,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  sage:     COLORS.sage,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
-  sans:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  inkLight: V2_COLORS.muted,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  sage:     V2_COLORS.blue,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.body,
+  sans:     V2_FONTS.body,
 };
 
 function formatPrice(cents: number): string {
@@ -116,10 +116,10 @@ export function ShowingRequestForm({ propertyId }: { propertyId: string }) {
           onChange={(e) => setContact(e.target.value)}
           required
           style={{ width: "100%", padding: "0.5rem", fontFamily: UI.sans, fontSize: "0.875rem", boxSizing: "border-box",
-            border: `1px solid ${contact && !isValidEmailOrPhone(contact) ? COLORS.rust : UI.rule}` }}
+            border: `1px solid ${contact && !isValidEmailOrPhone(contact) ? V2_COLORS.coral : UI.rule}` }}
         />
         {contact && !isValidEmailOrPhone(contact) && (
-          <p style={{ color: COLORS.rust, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: FONTS.sans }}>Enter a valid email or phone number</p>
+          <p style={{ color: V2_COLORS.coral, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: V2_FONTS.body }}>Enter a valid email or phone number</p>
         )}
       </div>
 
@@ -145,7 +145,7 @@ export function ShowingRequestForm({ propertyId }: { propertyId: string }) {
         type="submit"
         style={{
           background:  UI.sage,
-          color:       COLORS.white,
+          color:       V2_COLORS.paper,
           border:      "none",
           padding:     "0.65rem 1.25rem",
           fontFamily:  UI.sans,
@@ -348,7 +348,7 @@ export default function FsboListingPage() {
       {/* ── HomeGentic score badge ─────────────────────────────────────────────── */}
       <section
         aria-label="HomeGentic Score"
-        style={{ border: `1.5px solid ${UI.sage}`, padding: "1rem 1.25rem", marginBottom: "1.5rem", background: COLORS.sageLight }}
+        style={{ border: `1.5px solid ${UI.sage}`, padding: "1rem 1.25rem", marginBottom: "1.5rem", background: V2_COLORS.lblue }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "0.5rem" }}>
           <div style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "2.5rem", color: UI.ink, lineHeight: 1 }}>

@@ -25,7 +25,7 @@ import {
   ChevronDown, ChevronUp,
 } from "lucide-react";
 
-import { COLORS, FONTS, RADIUS, SHADOWS }    from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS }    from "@/theme";
 import { useBreakpoint }                      from "@/hooks/useBreakpoint";
 import { fsboService, type FsboRecord }       from "@/services/fsbo";
 import { listingService, type PanoramaEntry } from "@/services/listing";
@@ -40,17 +40,17 @@ import ListingPhotoManager                    from "@/components/ListingPhotoMan
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
 const UI = {
-  ink:       COLORS.plum,
-  inkLight:  COLORS.plumMid,
-  paper:     COLORS.white,
-  rule:      COLORS.rule,
-  sage:      COLORS.sage,
-  sageLight: COLORS.sageLight,
-  rust:      COLORS.rust,
-  butter:    COLORS.butter,
-  serif:     FONTS.serif,
-  sans:      FONTS.sans,
-  mono:      FONTS.sans,
+  ink:       V2_COLORS.ink,
+  inkLight:  V2_COLORS.muted,
+  paper:     V2_COLORS.paper,
+  rule:      V2_COLORS.border,
+  sage:      V2_COLORS.blue,
+  sageLight: V2_COLORS.lblue,
+  rust:      V2_COLORS.coral,
+  butter:    V2_COLORS.attentionBg,
+  serif:     V2_FONTS.display,
+  sans:      V2_FONTS.body,
+  mono:      V2_FONTS.body,
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -79,8 +79,8 @@ function statusForRecord(rec: FsboRecord | null): ListingState {
 
 function StatusBadge({ state }: { state: ListingState }) {
   const cfg = {
-    live:          { label: "Live",          bg: COLORS.sageLight, border: COLORS.sageMid, color: "#1E6B1A" },
-    "in-progress": { label: "Activating — In Progress", bg: COLORS.butter,    border: "#D4B84A",    color: "#7A5C00" },
+    live:          { label: "Live",          bg: V2_COLORS.lblue,       border: V2_COLORS.cobalTint, color: "#1E6B1A" },
+    "in-progress": { label: "Activating — In Progress", bg: V2_COLORS.attentionBg, border: "#D4B84A",           color: "#7A5C00" },
     "not-activated": { label: "Not Listed",  bg: UI.rule + "80",   border: UI.rule,        color: UI.inkLight },
   }[state];
 
@@ -93,7 +93,7 @@ function StatusBadge({ state }: { state: ListingState }) {
         gap:           "0.35rem",
         background:    cfg.bg,
         border:        `1.5px solid ${cfg.border}`,
-        borderRadius:  RADIUS.pill,
+        borderRadius:  V2_RADIUS.pill,
         padding:       "0.3rem 0.85rem",
         fontFamily:    UI.mono,
         fontSize:      "0.72rem",
@@ -124,7 +124,7 @@ function StatCard({
     <div style={{
       background:   UI.paper,
       border:       `1px solid ${UI.rule}`,
-      borderRadius: RADIUS.card,
+      borderRadius: V2_RADIUS.card,
       padding:      "1rem 1.25rem",
       display:      "flex",
       flexDirection: "column" as const,
@@ -155,7 +155,7 @@ function Section({ testId, title, children }: { testId: string; title: string; c
       style={{
         background:   UI.paper,
         border:       `1px solid ${UI.rule}`,
-        borderRadius: RADIUS.card,
+        borderRadius: V2_RADIUS.card,
         overflow:     "hidden",
       }}
     >
@@ -245,8 +245,8 @@ export default function FsboListingManagerPage() {
             data-testid="activate-listing-cta"
             style={{
               background:   UI.sageLight,
-              border:       `1.5px solid ${COLORS.sageMid}`,
-              borderRadius: RADIUS.card,
+              border:       `1.5px solid ${V2_COLORS.cobalTint}`,
+              borderRadius: V2_RADIUS.card,
               padding:      "1.5rem",
               marginBottom: "1.5rem",
             }}
@@ -331,8 +331,8 @@ export default function FsboListingManagerPage() {
                 fontWeight:  600,
                 color:       UI.sage,
                 textDecoration: "none",
-                border:      `1px solid ${COLORS.sageMid}`,
-                borderRadius: RADIUS.pill,
+                border:      `1px solid ${V2_COLORS.cobalTint}`,
+                borderRadius: V2_RADIUS.pill,
                 padding:     "0.35rem 0.85rem",
               }}
             >
@@ -353,7 +353,7 @@ export default function FsboListingManagerPage() {
                 color:       UI.rust,
                 background:  "transparent",
                 border:      `1px solid ${UI.rust}60`,
-                borderRadius: RADIUS.pill,
+                borderRadius: V2_RADIUS.pill,
                 padding:     "0.35rem 0.85rem",
                 cursor:      "pointer",
               }}
@@ -371,7 +371,7 @@ export default function FsboListingManagerPage() {
             style={{
               background:   "#FFF5F5",
               border:       `1.5px solid ${UI.rust}60`,
-              borderRadius: RADIUS.card,
+              borderRadius: V2_RADIUS.card,
               padding:      "1.25rem",
               marginBottom: "1.5rem",
             }}
@@ -391,7 +391,7 @@ export default function FsboListingManagerPage() {
                   background:   UI.rust,
                   color:        "#fff",
                   border:       "none",
-                  borderRadius: RADIUS.pill,
+                  borderRadius: V2_RADIUS.pill,
                   padding:      "0.45rem 1.1rem",
                   fontFamily:   UI.mono,
                   fontSize:     "0.72rem",
@@ -408,7 +408,7 @@ export default function FsboListingManagerPage() {
                   background:   "transparent",
                   color:        UI.inkLight,
                   border:       `1px solid ${UI.rule}`,
-                  borderRadius: RADIUS.pill,
+                  borderRadius: V2_RADIUS.pill,
                   padding:      "0.45rem 1.1rem",
                   fontFamily:   UI.mono,
                   fontSize:     "0.72rem",
@@ -476,7 +476,7 @@ export default function FsboListingManagerPage() {
                 style={{
                   padding:      "0.55rem 0.75rem",
                   border:       `1px solid ${UI.rule}`,
-                  borderRadius: RADIUS.input,
+                  borderRadius: V2_RADIUS.input,
                   fontFamily:   UI.sans,
                   fontSize:     "1rem",
                   fontWeight:   600,
@@ -492,7 +492,7 @@ export default function FsboListingManagerPage() {
                 background:   UI.sage,
                 color:        "#fff",
                 border:       "none",
-                borderRadius: RADIUS.pill,
+                borderRadius: V2_RADIUS.pill,
                 padding:      "0.55rem 1.25rem",
                 fontFamily:   UI.mono,
                 fontSize:     "0.75rem",
@@ -545,7 +545,7 @@ export default function FsboListingManagerPage() {
           style={{
             background:   UI.paper,
             border:       `1px solid ${UI.rule}`,
-            borderRadius: RADIUS.card,
+            borderRadius: V2_RADIUS.card,
             overflow:     "hidden",
             marginBottom: "1.25rem",
           }}
@@ -587,7 +587,7 @@ export default function FsboListingManagerPage() {
                         background:   "transparent",
                         color:        UI.rust,
                         border:       `1px solid ${UI.rust}60`,
-                        borderRadius: RADIUS.pill,
+                        borderRadius: V2_RADIUS.pill,
                         padding:      "0.25rem 0.65rem",
                         fontFamily:   UI.mono,
                         fontSize:     "0.65rem",
@@ -613,7 +613,7 @@ export default function FsboListingManagerPage() {
                   id="panorama-room-label"
                   value={newRoomLabel}
                   onChange={(e) => setNewRoomLabel(e.target.value)}
-                  style={{ padding: "0.5rem 0.75rem", border: `1px solid ${UI.rule}`, borderRadius: RADIUS.input, fontFamily: UI.sans, fontSize: "0.875rem", width: "220px" }}
+                  style={{ padding: "0.5rem 0.75rem", border: `1px solid ${UI.rule}`, borderRadius: V2_RADIUS.input, fontFamily: UI.sans, fontSize: "0.875rem", width: "220px" }}
                 />
               </div>
               <div>
@@ -645,8 +645,8 @@ export default function FsboListingManagerPage() {
               alignItems:  "center",
               gap:         "0.5rem",
               background:  scoreOptIn ? UI.sageLight : "transparent",
-              border:      `1.5px solid ${scoreOptIn ? COLORS.sageMid : UI.rule}`,
-              borderRadius: RADIUS.pill,
+              border:      `1.5px solid ${scoreOptIn ? V2_COLORS.cobalTint : UI.rule}`,
+              borderRadius: V2_RADIUS.pill,
               padding:     "0.4rem 1rem",
               fontFamily:  UI.mono,
               fontSize:    "0.72rem",

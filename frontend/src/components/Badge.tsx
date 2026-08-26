@@ -1,19 +1,25 @@
 import React from "react";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 interface BadgeProps {
-  variant?: "success" | "warning" | "error" | "info" | "default";
+  variant?: "verified" | "attention" | "risk" | "neutral" | "success" | "warning" | "error" | "info" | "default";
   size?: "sm" | "md" | "lg";
   children: React.ReactNode;
   className?: string;
 }
 
 const VARIANT_STYLES: Record<string, React.CSSProperties> = {
-  success: { backgroundColor: COLORS.sageLight, color: COLORS.plum,    border: `1px solid ${COLORS.sageMid}` },
-  warning: { backgroundColor: COLORS.butter,    color: COLORS.plum,    border: `1px solid ${COLORS.sageMid}` },
-  error:   { backgroundColor: COLORS.blush,     color: COLORS.plum,    border: `1px solid ${COLORS.sageMid}` },
-  info:    { backgroundColor: COLORS.sky,       color: COLORS.plum,    border: `1px solid ${COLORS.sageMid}` },
-  default: { backgroundColor: COLORS.sageLight, color: COLORS.plumMid, border: `1px solid ${COLORS.sageMid}` },
+  // ── V2 semantic variants ──────────────────────────────────────────────────
+  verified:   { backgroundColor: V2_COLORS.vbadge,      color: V2_COLORS.blue,      border: `1px solid ${V2_COLORS.cobalTint}` },
+  attention:  { backgroundColor: V2_COLORS.attentionBg, color: "#92640A",            border: "1px solid #E8C84A" },
+  risk:       { backgroundColor: "#FFE8E3",              color: V2_COLORS.coralText,  border: "1px solid #FFBCAF" },
+  neutral:    { backgroundColor: V2_COLORS.surface,     color: V2_COLORS.muted,      border: `1px solid ${V2_COLORS.border}` },
+  // ── Legacy aliases (deprecated — migrate to V2 variants above) ───────────
+  success:    { backgroundColor: V2_COLORS.vbadge,      color: V2_COLORS.blue,       border: `1px solid ${V2_COLORS.cobalTint}` },
+  warning:    { backgroundColor: V2_COLORS.attentionBg, color: "#92640A",            border: "1px solid #E8C84A" },
+  error:      { backgroundColor: "#FFE8E3",              color: V2_COLORS.coralText,  border: "1px solid #FFBCAF" },
+  info:       { backgroundColor: V2_COLORS.lblue,       color: V2_COLORS.blue,       border: `1px solid ${V2_COLORS.cobalTint}` },
+  default:    { backgroundColor: V2_COLORS.surface,     color: V2_COLORS.muted,      border: `1px solid ${V2_COLORS.border}` },
 };
 
 const SIZE_STYLES: Record<string, React.CSSProperties> = {
@@ -32,7 +38,7 @@ export function Badge({
       style={{
         display: "inline-flex",
         alignItems: "center",
-        fontFamily: FONTS.sans,
+        fontFamily: V2_FONTS.mono,
         fontWeight: 500,
         letterSpacing: "0.06em",
         textTransform: "uppercase",

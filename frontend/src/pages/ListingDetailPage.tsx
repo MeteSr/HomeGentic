@@ -33,17 +33,17 @@ import {
 } from "@/services/listing";
 import { premiumEstimate } from "@/services/scoreService";
 import toast from "react-hot-toast";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  inkLight: COLORS.plumMid,
-  sage:     COLORS.sage,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
-  sans:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  inkLight: V2_COLORS.muted,
+  sage:     V2_COLORS.blue,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.body,
+  sans:     V2_FONTS.body,
 };
 
 const CLOSING_COST_BPS = 200;

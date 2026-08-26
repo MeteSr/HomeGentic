@@ -5,7 +5,7 @@ import { Badge } from "@/components/Badge";
 import { photoService, type Photo } from "@/services/photo";
 import { type Property } from "@/services/property";
 import { type Job } from "@/services/job";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 import toast from "react-hot-toast";
 
 // ─── SigPill ─────────────────────────────────────────────────────────────────
@@ -14,11 +14,11 @@ export function SigPill({ signed, label }: { signed: boolean; label: string }) {
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: "0.25rem",
-      fontFamily: FONTS.sans, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase",
+      fontFamily: V2_FONTS.body, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase",
       padding: "0.15rem 0.625rem", borderRadius: 100,
-      border: `1px solid ${signed ? COLORS.sageMid : COLORS.rule}`,
-      color: signed ? COLORS.sage : COLORS.plumMid,
-      background: signed ? COLORS.sageLight : COLORS.white,
+      border: `1px solid ${signed ? V2_COLORS.cobalTint : V2_COLORS.border}`,
+      color: signed ? V2_COLORS.blue : V2_COLORS.muted,
+      background: signed ? V2_COLORS.lblue : V2_COLORS.paper,
     }}>
       {signed ? "✓" : "○"} {label}
     </span>
@@ -60,17 +60,17 @@ export function PhotoStrip({ photos, jobId, onUpload }: { photos: Photo[]; jobId
         {photos.slice(0, 5).map((p, i) => (
           <img key={p.id} src={p.url} alt={p.description} title={p.description}
             onClick={() => openLightbox(i)}
-            style={{ width: 48, height: 48, objectFit: "cover", border: `1px solid ${COLORS.rule}`, cursor: "pointer" }}
+            style={{ width: 48, height: 48, objectFit: "cover", border: `1px solid ${V2_COLORS.border}`, cursor: "pointer" }}
           />
         ))}
         {photos.length > 5 && (
-          <button onClick={() => openLightbox(5)} style={{ fontFamily: FONTS.sans, fontSize: "0.6rem", color: COLORS.plumMid, background: "none", border: `1px solid ${COLORS.rule}`, padding: "0.2rem 0.5rem", cursor: "pointer" }}>
+          <button onClick={() => openLightbox(5)} style={{ fontFamily: V2_FONTS.body, fontSize: "0.6rem", color: V2_COLORS.muted, background: "none", border: `1px solid ${V2_COLORS.border}`, padding: "0.2rem 0.5rem", cursor: "pointer" }}>
             +{photos.length - 5} more
           </button>
         )}
         <button
           onClick={() => inputRef.current?.click()}
-          style={{ padding: "0.2rem 0.6rem", fontFamily: FONTS.sans, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.plumMid, background: "none", border: `1px solid ${COLORS.rule}`, cursor: "pointer" }}
+          style={{ padding: "0.2rem 0.6rem", fontFamily: V2_FONTS.body, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: V2_COLORS.muted, background: "none", border: `1px solid ${V2_COLORS.border}`, cursor: "pointer" }}
         >
           + Add Photo
         </button>
@@ -79,16 +79,16 @@ export function PhotoStrip({ photos, jobId, onUpload }: { photos: Photo[]; jobId
 
       {activePh && (
         <div onClick={closeLightbox} style={{ position: "fixed", inset: 0, background: "rgba(14,14,12,0.92)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: "2rem" }}>
-          <button onClick={prev} disabled={lightboxIdx === 0} style={{ position: "absolute", left: "1.5rem", top: "50%", transform: "translateY(-50%)", background: "none", border: `1px solid rgba(255,255,255,0.3)`, color: COLORS.white, padding: "0.75rem", cursor: lightboxIdx === 0 ? "default" : "pointer", opacity: lightboxIdx === 0 ? 0.3 : 1, fontSize: "1.25rem", lineHeight: 1 }}>‹</button>
+          <button onClick={prev} disabled={lightboxIdx === 0} style={{ position: "absolute", left: "1.5rem", top: "50%", transform: "translateY(-50%)", background: "none", border: `1px solid rgba(255,255,255,0.3)`, color: V2_COLORS.paper, padding: "0.75rem", cursor: lightboxIdx === 0 ? "default" : "pointer", opacity: lightboxIdx === 0 ? 0.3 : 1, fontSize: "1.25rem", lineHeight: 1 }}>‹</button>
           <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", flexDirection: "column", alignItems: "center", maxWidth: "80vw", maxHeight: "80vh" }}>
             <img src={activePh.url} alt={activePh.description} style={{ maxWidth: "100%", maxHeight: "70vh", objectFit: "contain", border: "1px solid rgba(255,255,255,0.2)" }} />
             <div style={{ marginTop: "0.75rem", display: "flex", alignItems: "center", gap: "1rem" }}>
-              <span style={{ fontFamily: FONTS.sans, fontSize: "0.6rem", letterSpacing: "0.08em", color: "rgba(255,255,255,0.6)" }}>{activePh.description || "No description"}</span>
-              <span style={{ fontFamily: FONTS.sans, fontSize: "0.55rem", color: "rgba(255,255,255,0.4)" }}>{(lightboxIdx ?? 0) + 1} / {photos.length}</span>
+              <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.6rem", letterSpacing: "0.08em", color: "rgba(255,255,255,0.6)" }}>{activePh.description || "No description"}</span>
+              <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.55rem", color: "rgba(255,255,255,0.4)" }}>{(lightboxIdx ?? 0) + 1} / {photos.length}</span>
             </div>
           </div>
-          <button onClick={next} disabled={lightboxIdx === photos.length - 1} style={{ position: "absolute", right: "1.5rem", top: "50%", transform: "translateY(-50%)", background: "none", border: `1px solid rgba(255,255,255,0.3)`, color: COLORS.white, padding: "0.75rem", cursor: lightboxIdx === photos.length - 1 ? "default" : "pointer", opacity: lightboxIdx === photos.length - 1 ? 0.3 : 1, fontSize: "1.25rem", lineHeight: 1 }}>›</button>
-          <button onClick={closeLightbox} style={{ position: "absolute", top: "1.25rem", right: "1.25rem", background: "none", border: `1px solid rgba(255,255,255,0.3)`, color: COLORS.white, padding: "0.375rem 0.75rem", fontFamily: FONTS.sans, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer" }}>Close</button>
+          <button onClick={next} disabled={lightboxIdx === photos.length - 1} style={{ position: "absolute", right: "1.5rem", top: "50%", transform: "translateY(-50%)", background: "none", border: `1px solid rgba(255,255,255,0.3)`, color: V2_COLORS.paper, padding: "0.75rem", cursor: lightboxIdx === photos.length - 1 ? "default" : "pointer", opacity: lightboxIdx === photos.length - 1 ? 0.3 : 1, fontSize: "1.25rem", lineHeight: 1 }}>›</button>
+          <button onClick={closeLightbox} style={{ position: "absolute", top: "1.25rem", right: "1.25rem", background: "none", border: `1px solid rgba(255,255,255,0.3)`, color: V2_COLORS.paper, padding: "0.375rem 0.75rem", fontFamily: V2_FONTS.body, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer" }}>Close</button>
         </div>
       )}
     </>
@@ -103,10 +103,10 @@ export function warrantyStatus(job: Job): { label: string; color: string; bg: st
   const expiryMs = jobDate + job.warrantyMonths * 30.44 * 24 * 60 * 60 * 1000;
   const now      = Date.now();
   const daysLeft = Math.round((expiryMs - now) / (24 * 60 * 60 * 1000));
-  if (daysLeft < 0)   return { label: "Warranty expired",          color: COLORS.plumMid, bg: COLORS.white };
-  if (daysLeft <= 90) return { label: `Warranty: ${daysLeft}d left`, color: COLORS.sage, bg: COLORS.blush };
+  if (daysLeft < 0)   return { label: "Warranty expired",          color: V2_COLORS.muted, bg: V2_COLORS.paper };
+  if (daysLeft <= 90) return { label: `Warranty: ${daysLeft}d left`, color: V2_COLORS.blue, bg: V2_COLORS.attentionBg };
   const monthsLeft = Math.round(daysLeft / 30);
-  return { label: `Warranty: ${monthsLeft}mo left`, color: COLORS.sage, bg: COLORS.sageLight };
+  return { label: `Warranty: ${monthsLeft}mo left`, color: V2_COLORS.blue, bg: V2_COLORS.lblue };
 }
 
 // ─── TimelineTab ─────────────────────────────────────────────────────────────
@@ -122,7 +122,7 @@ interface TimelineTabProps {
 }
 
 export function TimelineTab({ property, jobs, onVerify, currentPrincipal, photosByJob, onPhotoUpload, onInviteContractor }: TimelineTabProps) {
-  const TC = { ink: COLORS.plum, rule: COLORS.rule, rust: COLORS.sage, inkLight: COLORS.plumMid, sage: COLORS.sage, mono: FONTS.sans, serif: FONTS.serif };
+  const TC = { ink: V2_COLORS.ink, rule: V2_COLORS.border, rust: V2_COLORS.blue, inkLight: V2_COLORS.muted, sage: V2_COLORS.blue, mono: V2_FONTS.body, serif: V2_FONTS.display };
   const navigate = useNavigate();
   const [justVerified,        setJustVerified]        = React.useState<string | null>(null);
   const [reviewNudgeJob,      setReviewNudgeJob]      = React.useState<Job | null>(null);
@@ -172,7 +172,7 @@ export function TimelineTab({ property, jobs, onVerify, currentPrincipal, photos
   return (
     <>
       {verifiedCount >= 3 && (
-        <div style={{ border: `1px solid ${TC.sage}`, background: COLORS.sageLight, padding: "0.875rem 1.25rem", marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
+        <div style={{ border: `1px solid ${TC.sage}`, background: V2_COLORS.lblue, padding: "0.875rem 1.25rem", marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
           <span style={{ fontSize: "1.25rem" }}>🏅</span>
           <div>
             <p style={{ fontFamily: TC.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: TC.sage, marginBottom: "0.1rem" }}>Home History Taking Shape</p>
@@ -182,19 +182,19 @@ export function TimelineTab({ property, jobs, onVerify, currentPrincipal, photos
       )}
 
       {reviewNudgeJob && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", border: `1px solid ${COLORS.sageMid}`, padding: "0.875rem 1.25rem", marginBottom: "1rem", background: COLORS.butter, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", border: `1px solid ${V2_COLORS.cobalTint}`, padding: "0.875rem 1.25rem", marginBottom: "1rem", background: V2_COLORS.attentionBg, flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-            <Star size={14} color={COLORS.plum} style={{ flexShrink: 0 }} />
+            <Star size={14} color={V2_COLORS.ink} style={{ flexShrink: 0 }} />
             <div>
-              <p style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plum, marginBottom: "0.15rem" }}>Job verified — leave a review</p>
-              <p style={{ fontSize: "0.8rem", fontWeight: 300, color: COLORS.plumMid }}>Help other homeowners by reviewing {reviewNudgeJob.contractorName || "this contractor"}.</p>
+              <p style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: V2_COLORS.ink, marginBottom: "0.15rem" }}>Job verified — leave a review</p>
+              <p style={{ fontSize: "0.8rem", fontWeight: 300, color: V2_COLORS.muted }}>Help other homeowners by reviewing {reviewNudgeJob.contractorName || "this contractor"}.</p>
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
             {reviewNudgeJob.contractor && (
-              <button onClick={() => navigate(`/contractor/${reviewNudgeJob.contractor}`)} style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.375rem 0.875rem", border: `1px solid ${COLORS.sageMid}`, color: COLORS.plum, background: "none", cursor: "pointer" }}>Leave a Review</button>
+              <button onClick={() => navigate(`/contractor/${reviewNudgeJob.contractor}`)} style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.375rem 0.875rem", border: `1px solid ${V2_COLORS.cobalTint}`, color: V2_COLORS.ink, background: "none", cursor: "pointer" }}>Leave a Review</button>
             )}
-            <button onClick={() => setReviewNudgeJob(null)} style={{ background: "none", border: "none", cursor: "pointer", color: COLORS.plumMid, padding: "0.25rem" }}>×</button>
+            <button onClick={() => setReviewNudgeJob(null)} style={{ background: "none", border: "none", cursor: "pointer", color: V2_COLORS.muted, padding: "0.25rem" }}>×</button>
           </div>
         </div>
       )}
@@ -227,7 +227,7 @@ export function TimelineTab({ property, jobs, onVerify, currentPrincipal, photos
               )}
               <div style={{ position: "relative", marginBottom: "1px" }}>
                 <div style={{ position: "absolute", left: "-1.25rem", top: "1.375rem", width: "0.5rem", height: "0.5rem", background: job.verified ? TC.sage : TC.rule, border: `1px solid ${job.verified ? TC.sage : TC.inkLight}` }} />
-                <div data-testid={`job-${job.serviceType.toLowerCase().replace(/\s+/g, "-")}`} style={{ background: isFlashing ? COLORS.sageLight : COLORS.white, padding: "1.25rem", border: `1px solid ${TC.rule}`, transition: "background 0.6s ease" }}>
+                <div data-testid={`job-${job.serviceType.toLowerCase().replace(/\s+/g, "-")}`} style={{ background: isFlashing ? V2_COLORS.lblue : V2_COLORS.paper, padding: "1.25rem", border: `1px solid ${TC.rule}`, transition: "background 0.6s ease" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div>
                       <p style={{ fontWeight: 500, fontSize: "0.875rem", marginBottom: "0.125rem" }}>{job.serviceType}</p>
@@ -269,7 +269,7 @@ export function TimelineTab({ property, jobs, onVerify, currentPrincipal, photos
                     </button>
                   )}
                   {expandedJobId === job.id && (
-                    <div style={{ marginTop: "0.625rem", padding: "0.75rem", background: COLORS.white, border: `1px solid ${TC.rule}`, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                    <div style={{ marginTop: "0.625rem", padding: "0.75rem", background: V2_COLORS.paper, border: `1px solid ${TC.rule}`, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                       {job.permitNumber && (
                         <div style={{ display: "flex", gap: "0.75rem" }}>
                           <span style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: TC.inkLight, width: "6rem", flexShrink: 0 }}>Permit #</span>
@@ -299,7 +299,7 @@ export function TimelineTab({ property, jobs, onVerify, currentPrincipal, photos
                       )}
                       {job.warrantyMonths && job.warrantyMonths > 0 && (
                         <div style={{ marginTop: "0.25rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                          <button onClick={() => warrantyInputRefs.current[job.id]?.click()} disabled={warrantyUploading === job.id} style={{ fontFamily: TC.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.3rem 0.75rem", border: `1px solid ${COLORS.sage}`, background: COLORS.white, color: COLORS.sage, cursor: warrantyUploading === job.id ? "not-allowed" : "pointer", opacity: warrantyUploading === job.id ? 0.5 : 1, display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+                          <button onClick={() => warrantyInputRefs.current[job.id]?.click()} disabled={warrantyUploading === job.id} style={{ fontFamily: TC.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.3rem 0.75rem", border: `1px solid ${V2_COLORS.blue}`, background: V2_COLORS.paper, color: V2_COLORS.blue, cursor: warrantyUploading === job.id ? "not-allowed" : "pointer", opacity: warrantyUploading === job.id ? 0.5 : 1, display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
                             🛡 {warrantyUploading === job.id ? "Uploading…" : "Upload warranty doc"}
                           </button>
                           <input ref={(el) => { warrantyInputRefs.current[job.id] = el; }} type="file" accept="image/*,application/pdf" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleWarrantyUpload(job, f); e.target.value = ""; }} />

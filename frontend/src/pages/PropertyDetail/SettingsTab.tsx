@@ -1,19 +1,19 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { propertyService, type Property, type TransferRecord, type PropertyManager, type ManagerRole } from "@/services/property";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 import toast from "react-hot-toast";
 
 export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: { property: Property; currentPrincipal: string; onVerifyOwnership?: () => void }) {
   const TC = {
-    rule:     COLORS.rule,
-    inkLight: COLORS.plumMid,
-    ink:      COLORS.plum,
-    rust:     COLORS.sage,
-    sage:     COLORS.sage,
-    paper:    COLORS.white,
-    serif:    FONTS.serif,
-    mono:     FONTS.sans,
+    rule:     V2_COLORS.border,
+    inkLight: V2_COLORS.muted,
+    ink:      V2_COLORS.ink,
+    rust:     V2_COLORS.blue,
+    sage:     V2_COLORS.blue,
+    paper:    V2_COLORS.paper,
+    serif:    V2_FONTS.display,
+    mono:     V2_FONTS.body,
   };
   const navigate = useNavigate();
 
@@ -97,7 +97,7 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
         <div style={{ padding: "1.25rem", background: "#fff", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ fontFamily: TC.mono, fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "0.25rem",
-              color: property.verificationLevel === "Premium" ? TC.sage : property.verificationLevel === "Basic" ? COLORS.plum : property.verificationLevel === "PendingReview" ? COLORS.plumMid : TC.inkLight }}>
+              color: property.verificationLevel === "Premium" ? TC.sage : property.verificationLevel === "Basic" ? V2_COLORS.ink : property.verificationLevel === "PendingReview" ? V2_COLORS.muted : TC.inkLight }}>
               {property.verificationLevel}
             </p>
             <p style={{ fontSize: "0.8rem", color: TC.inkLight, fontWeight: 300, lineHeight: 1.5 }}>
@@ -197,7 +197,7 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
               <div style={{ display: "flex", gap: "0.5rem", alignItems: "stretch" }}>
                 <div style={{
                   flex: 1, padding: "0.6rem 0.75rem",
-                  border: `1px solid ${TC.rule}`, background: COLORS.sageLight,
+                  border: `1px solid ${TC.rule}`, background: V2_COLORS.lblue,
                   fontFamily: TC.mono, fontSize: "0.6rem", color: TC.ink,
                   wordBreak: "break-all", lineHeight: 1.5,
                 }}>
@@ -392,7 +392,7 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
                 Share this link with <strong>{inviteDisplayName}</strong>. They'll log in and accept the <strong>{inviteRole}</strong> role. The link expires in 90 days.
               </p>
               <div style={{ display: "flex", gap: "0.5rem", alignItems: "stretch" }}>
-                <div style={{ flex: 1, padding: "0.6rem 0.75rem", border: `1px solid ${TC.rule}`, background: COLORS.sageLight, fontFamily: TC.mono, fontSize: "0.6rem", color: TC.ink, wordBreak: "break-all", lineHeight: 1.5 }}>
+                <div style={{ flex: 1, padding: "0.6rem 0.75rem", border: `1px solid ${TC.rule}`, background: V2_COLORS.lblue, fontFamily: TC.mono, fontSize: "0.6rem", color: TC.ink, wordBreak: "break-all", lineHeight: 1.5 }}>
                   {inviteUrl}
                 </div>
                 <button

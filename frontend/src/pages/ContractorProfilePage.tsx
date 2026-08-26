@@ -5,19 +5,19 @@ import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { contractorService, ContractorProfile } from "@/services/contractor";
 import toast from "react-hot-toast";
-import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 import { isValidEmail, isValidPhone } from "@/utils/validators";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  rust:     COLORS.sage,
-  inkLight: COLORS.plumMid,
-  sage:     COLORS.sage,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  rust:     V2_COLORS.blue,
+  inkLight: V2_COLORS.muted,
+  sage:     V2_COLORS.blue,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.body,
 };
 
 export const ALL_TRADES = [
@@ -198,9 +198,9 @@ export default function ContractorProfilePage() {
           ];
           const doneCount = checks.filter((c) => c.done).length;
           const pct       = Math.round((doneCount / checks.length) * 100);
-          const barColor  = pct === 100 ? UI.sage : pct >= 67 ? COLORS.plumMid : UI.rust;
+          const barColor  = pct === 100 ? UI.sage : pct >= 67 ? V2_COLORS.muted : UI.rust;
           return (
-            <div style={{ marginBottom: "1.5rem", border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "1rem 1.25rem", borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
+            <div style={{ marginBottom: "1.5rem", border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, padding: "1rem 1.25rem", borderRadius: V2_RADIUS.card, boxShadow: V2_SHADOWS.card }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
                 <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>
                   Profile Completeness
@@ -221,7 +221,7 @@ export default function ContractorProfilePage() {
                       padding: "0.15rem 0.5rem",
                       border: `1px solid ${c.done ? UI.sage : UI.rule}`,
                       color: c.done ? UI.sage : UI.inkLight,
-                      background: c.done ? COLORS.sageLight : "transparent",
+                      background: c.done ? V2_COLORS.lblue : "transparent",
                     }}
                   >
                     {c.done ? "✓ " : ""}{c.label}
@@ -239,7 +239,7 @@ export default function ContractorProfilePage() {
 
         {/* Verification badge for existing verified contractors */}
         {existing?.isVerified && (
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.75rem 1rem", border: `1px solid ${UI.sage}`, background: COLORS.sageLight, marginBottom: "1.25rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.75rem 1rem", border: `1px solid ${UI.sage}`, background: V2_COLORS.lblue, marginBottom: "1.25rem" }}>
             <ShieldCheck size={14} color={UI.sage} />
             <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.sage }}>
               Verified contractor
@@ -247,7 +247,7 @@ export default function ContractorProfilePage() {
           </div>
         )}
 
-        <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1.25rem", borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
+        <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1.25rem", borderRadius: V2_RADIUS.card, boxShadow: V2_SHADOWS.card }}>
 
           {/* Section: Identity */}
           <div>
@@ -278,7 +278,7 @@ export default function ContractorProfilePage() {
                         style={{
                           padding: "0.3rem 0.625rem",
                           border: `1.5px solid ${active ? UI.sage : UI.rule}`,
-                          background: active ? COLORS.sageLight : COLORS.white,
+                          background: active ? V2_COLORS.lblue : V2_COLORS.paper,
                           color: active ? UI.sage : UI.inkLight,
                           fontFamily: UI.mono,
                           fontSize: "0.6rem",
@@ -308,10 +308,10 @@ export default function ContractorProfilePage() {
                     placeholder="you@example.com"
                     value={form.email}
                     onChange={(e) => update("email", e.target.value)}
-                    style={form.email && !isValidEmail(form.email) ? { borderColor: COLORS.rust } : undefined}
+                    style={form.email && !isValidEmail(form.email) ? { borderColor: V2_COLORS.coral } : undefined}
                   />
                   {form.email && !isValidEmail(form.email) && (
-                    <p style={{ color: COLORS.rust, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: FONTS.sans }}>Enter a valid email address</p>
+                    <p style={{ color: V2_COLORS.coralText, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: V2_FONTS.body }}>Enter a valid email address</p>
                   )}
                 </div>
                 <div>
@@ -322,10 +322,10 @@ export default function ContractorProfilePage() {
                     placeholder="(512) 555-0100"
                     value={form.phone}
                     onChange={(e) => update("phone", e.target.value)}
-                    style={form.phone && !isValidPhone(form.phone) ? { borderColor: COLORS.rust } : undefined}
+                    style={form.phone && !isValidPhone(form.phone) ? { borderColor: V2_COLORS.coral } : undefined}
                   />
                   {form.phone && !isValidPhone(form.phone) && (
-                    <p style={{ color: COLORS.rust, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: FONTS.sans }}>Enter a valid phone number</p>
+                    <p style={{ color: V2_COLORS.coralText, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: V2_FONTS.body }}>Enter a valid phone number</p>
                   )}
                 </div>
               </div>
@@ -366,7 +366,7 @@ export default function ContractorProfilePage() {
                     {form.serviceZips.map((zip) => (
                       <span
                         key={zip}
-                        style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", padding: "0.15rem 0.5rem", border: `1px solid ${UI.sage}`, background: COLORS.sageLight, fontFamily: UI.mono, fontSize: "0.6rem", color: UI.sage }}
+                        style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", padding: "0.15rem 0.5rem", border: `1px solid ${UI.sage}`, background: V2_COLORS.lblue, fontFamily: UI.mono, fontSize: "0.6rem", color: UI.sage }}
                       >
                         {zip}
                         <button
@@ -431,7 +431,7 @@ export default function ContractorProfilePage() {
 
         {/* Trust score preview for existing profiles */}
         {existing && (
-          <div style={{ marginTop: "1.25rem", border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "1.25rem", display: "flex", gap: "1.25rem", alignItems: "center", borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
+          <div style={{ marginTop: "1.25rem", border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, padding: "1.25rem", display: "flex", gap: "1.25rem", alignItems: "center", borderRadius: V2_RADIUS.card, boxShadow: V2_SHADOWS.card }}>
             <div style={{ width: "3.5rem", height: "3.5rem", border: `2px solid ${UI.rust}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.2rem", lineHeight: 1 }}>{existing.trustScore}</span>
               <span style={{ fontFamily: UI.mono, fontSize: "0.5rem", color: UI.inkLight }}>/100</span>

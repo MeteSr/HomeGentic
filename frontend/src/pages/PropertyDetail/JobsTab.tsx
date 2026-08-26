@@ -1,12 +1,12 @@
 import React from "react";
 import { Badge } from "@/components/Badge";
 import { type Job } from "@/services/job";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 export function JobsTab({ jobs }: { jobs: Job[] }) {
-  const mono     = FONTS.sans;
-  const rule     = COLORS.rule;
-  const inkLight = COLORS.plumMid;
+  const mono     = V2_FONTS.body;
+  const rule     = V2_COLORS.border;
+  const inkLight = V2_COLORS.muted;
 
   if (jobs.length === 0) {
     return (

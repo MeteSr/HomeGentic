@@ -11,25 +11,21 @@ import { ConstructionPhotoUpload } from "@/components/ConstructionPhotoUpload";
 import PermitCoverageIndicator from "@/components/PermitCoverageIndicator";
 import { isValidZip, isValidUsState } from "@/utils/validators";
 import toast from "react-hot-toast";
-import { V2_FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 import type { PropertyType } from "@/services/property";
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const T = {
-  blue:     "#2B34FF",
-  blueLight:"#E0E2FF",
-  blueBdr:  "#B9BDF5",
-  ink:      "#0B0D1A",
-  muted:    "#6B7080",
-  coral:    "#C23F1F",
-  rule:     "#D9DBE4",
-  bg:       "#F5F6FF",
-  card:     "#FFFFFF",
-  green:    "#166534",
-  greenBg:  "#F0FDF4",
-  amberBg:  "#FFFBEB",
-  amber:    "#B45309",
-  radius:   16,
+  ...V2_COLORS,
+  coral:   "#C23F1F",
+  rule:    "#D9DBE4",
+  bg:      "#F5F6FF",
+  card:    "#FFFFFF",
+  green:   "#166534",
+  greenBg: "#F0FDF4",
+  amberBg: "#FFFBEB",
+  amber:   "#B45309",
+  radius:  16,
 };
 const F = V2_FONTS;
 
@@ -94,8 +90,8 @@ function StepBadge({ label }: { label: string }) {
     <div style={{
       display: "inline-flex", alignItems: "center",
       font: `600 9.5px/1 ${F.mono}`, letterSpacing: ".14em",
-      color: T.blue, background: T.blueLight,
-      border: `1px solid ${T.blueBdr}`,
+      color: T.blue, background: T.vbadge,
+      border: `1px solid ${T.cobalTint}`,
       borderRadius: 100, padding: "5px 10px",
       marginBottom: 14,
     }}>
@@ -294,7 +290,7 @@ function LeftRail({
       {/* Score (only when past required steps) */}
       {requiredDone && (
         <div style={{
-          background: T.blueLight, border: `1px solid ${T.blueBdr}`,
+          background: T.vbadge, border: `1px solid ${T.cobalTint}`,
           borderRadius: T.radius, padding: "12px 14px", marginBottom: 22,
         }}>
           <div style={{ font: `500 9px/1 ${F.mono}`, letterSpacing: ".12em", color: T.blue, marginBottom: 6 }}>
@@ -304,7 +300,7 @@ function LeftRail({
             {score} <span style={{ font: `400 13px/1 ${F.body}`, color: T.blue }}>/ {maxScore}</span>
           </div>
           {/* Progress bar */}
-          <div style={{ height: 4, background: T.blueBdr, borderRadius: 100, marginTop: 10 }}>
+          <div style={{ height: 4, background: T.cobalTint, borderRadius: 100, marginTop: 10 }}>
             <div style={{
               height: 4, width: `${Math.min(100, (score / maxScore) * 100)}%`,
               background: T.blue, borderRadius: 100, transition: "width .4s",
@@ -388,10 +384,10 @@ function TaskCard({
 }) {
   return (
     <div style={{
-      border: `1px solid ${done ? T.blueBdr : T.rule}`,
+      border: `1px solid ${done ? T.cobalTint : T.rule}`,
       borderRadius: T.radius,
       padding: "16px 18px",
-      background: done ? T.blueLight : T.card,
+      background: done ? T.vbadge : T.card,
       display: "flex", flexDirection: "column", gap: 8,
     }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -399,8 +395,8 @@ function TaskCard({
         <div style={{
           font: `600 9px/1 ${F.mono}`, letterSpacing: ".1em",
           color: done ? T.green : T.blue,
-          background: done ? T.greenBg : T.blueLight,
-          border: `1px solid ${done ? "#BBF7D0" : T.blueBdr}`,
+          background: done ? T.greenBg : T.vbadge,
+          border: `1px solid ${done ? "#BBF7D0" : T.cobalTint}`,
           borderRadius: 100, padding: "4px 8px",
         }}>
           {done ? "DONE" : chip}
@@ -735,7 +731,7 @@ export default function AddPropertyModal({ open, onClose }: Props) {
                           padding: "11px 14px",
                           font: `${details.propertyType === pt ? 600 : 400} 13px/1 ${F.body}`,
                           color: details.propertyType === pt ? T.blue : T.muted,
-                          background: details.propertyType === pt ? T.blueLight : T.card,
+                          background: details.propertyType === pt ? T.vbadge : T.card,
                           border: `${details.propertyType === pt ? 2 : 1}px solid ${details.propertyType === pt ? T.blue : T.rule}`,
                           borderRadius: T.radius - 4,
                           cursor: "pointer", textAlign: "left",
@@ -774,7 +770,7 @@ export default function AddPropertyModal({ open, onClose }: Props) {
 
             {/* Score */}
             <div style={{
-              background: T.blueLight, border: `1px solid ${T.blueBdr}`,
+              background: T.vbadge, border: `1px solid ${T.cobalTint}`,
               borderRadius: T.radius, padding: "16px 18px", marginBottom: 24,
               display: "flex", alignItems: "center", gap: 16,
             }}>
@@ -790,7 +786,7 @@ export default function AddPropertyModal({ open, onClose }: Props) {
                 <div style={{ font: `400 12px/1.5 ${F.body}`, color: T.blue, marginBottom: 6 }}>
                   Complete optional steps to reach 54
                 </div>
-                <div style={{ height: 6, background: T.blueBdr, borderRadius: 100 }}>
+                <div style={{ height: 6, background: T.cobalTint, borderRadius: 100 }}>
                   <div style={{
                     height: 6, width: `${Math.min(100, (score / 54) * 100)}%`,
                     background: T.blue, borderRadius: 100, transition: "width .4s",
@@ -857,7 +853,7 @@ export default function AddPropertyModal({ open, onClose }: Props) {
               {/* Counter */}
               <div style={{
                 display: "flex", alignItems: "center", justifyContent: "space-between",
-                padding: "10px 14px", background: T.blueLight, border: `1px solid ${T.blueBdr}`,
+                padding: "10px 14px", background: T.vbadge, border: `1px solid ${T.cobalTint}`,
                 borderRadius: T.radius, marginBottom: 16,
               }}>
                 <span style={{ font: `500 11px/1 ${F.mono}`, letterSpacing: ".1em", color: T.blue }}>
@@ -875,9 +871,9 @@ export default function AddPropertyModal({ open, onClose }: Props) {
                   return (
                     <div key={key} style={{
                       display: "flex", alignItems: "center", gap: 12, padding: "12px 14px",
-                      border: `1px solid ${done ? T.blueBdr : T.rule}`,
+                      border: `1px solid ${done ? T.cobalTint : T.rule}`,
                       borderRadius: T.radius - 4,
-                      background: done ? T.blueLight : T.card,
+                      background: done ? T.vbadge : T.card,
                     }}>
                       <div style={{
                         width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
@@ -910,7 +906,7 @@ export default function AddPropertyModal({ open, onClose }: Props) {
                             style={{
                               flexShrink: 0, padding: "7px 14px",
                               font: `500 12px/1 ${F.body}`, color: T.blue,
-                              background: T.blueLight, border: `1px solid ${T.blueBdr}`,
+                              background: T.vbadge, border: `1px solid ${T.cobalTint}`,
                               borderRadius: 100, cursor: uploading ? "wait" : "pointer",
                               opacity: uploading ? 0.6 : 1,
                             }}

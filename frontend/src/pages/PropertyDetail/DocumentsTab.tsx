@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { photoService, type Photo } from "@/services/photo";
-import { COLORS, FONTS, RADIUS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import toast from "react-hot-toast";
 
 // ─── Document vault types & helpers ──────────────────────────────────────────
@@ -9,11 +9,11 @@ const DOC_TYPES = ["Receipt", "Permit", "Inspection", "Warranty", "Invoice"] as 
 type DocType = typeof DOC_TYPES[number];
 
 const DOC_TYPE_COLORS: Record<DocType, { color: string; bg: string }> = {
-  Receipt:    { color: COLORS.plumMid, bg: COLORS.white },
-  Permit:     { color: COLORS.plum,    bg: COLORS.sageLight },
-  Inspection: { color: COLORS.sage,    bg: COLORS.sageLight },
-  Warranty:   { color: COLORS.plum,    bg: COLORS.butter },
-  Invoice:    { color: COLORS.sage,    bg: COLORS.blush },
+  Receipt:    { color: V2_COLORS.muted,  bg: V2_COLORS.paper },
+  Permit:     { color: V2_COLORS.ink,    bg: V2_COLORS.lblue },
+  Inspection: { color: V2_COLORS.blue,   bg: V2_COLORS.lblue },
+  Warranty:   { color: V2_COLORS.ink,    bg: V2_COLORS.attentionBg },
+  Invoice:    { color: V2_COLORS.blue,   bg: V2_COLORS.attentionBg },
 };
 
 function encodeDoc(type: DocType, filename: string): string {
@@ -61,7 +61,7 @@ interface BatchFile { name: string; status: BatchFileStatus; error?: string }
 // ─── DocumentsTab ─────────────────────────────────────────────────────────────
 
 export function DocumentsTab({ propertyId }: { propertyId: string }) {
-  const TC = { ink: COLORS.plum, rule: COLORS.rule, inkLight: COLORS.plumMid, rust: COLORS.sage, serif: FONTS.serif, mono: FONTS.sans };
+  const TC = { ink: V2_COLORS.ink, rule: V2_COLORS.border, inkLight: V2_COLORS.muted, rust: V2_COLORS.blue, serif: V2_FONTS.display, mono: V2_FONTS.body };
   const DOCS_JOB = `docs_${propertyId}`;
   const inputRef      = React.useRef<HTMLInputElement>(null);
   const permitRef     = React.useRef<HTMLInputElement>(null);
@@ -147,24 +147,24 @@ export function DocumentsTab({ propertyId }: { propertyId: string }) {
   };
 
   const statusIcon = (s: BatchFileStatus) => {
-    if (s === "done")      return <span style={{ color: COLORS.sage }}>✓</span>;
-    if (s === "duplicate") return <span style={{ color: COLORS.plumMid }}>⊘</span>;
-    if (s === "error")     return <span style={{ color: COLORS.plum }}>✗</span>;
-    if (s === "uploading") return <span style={{ color: COLORS.plum }}>↑</span>;
-    return <span style={{ color: COLORS.rule }}>…</span>;
+    if (s === "done")      return <span style={{ color: V2_COLORS.blue }}>✓</span>;
+    if (s === "duplicate") return <span style={{ color: V2_COLORS.muted }}>⊘</span>;
+    if (s === "error")     return <span style={{ color: V2_COLORS.coral }}>✗</span>;
+    if (s === "uploading") return <span style={{ color: V2_COLORS.ink }}>↑</span>;
+    return <span style={{ color: V2_COLORS.border }}>…</span>;
   };
 
   return (
     <div>
       {/* Permits & Inspections */}
-      <div style={{ border: `1px solid ${COLORS.rule}`, borderRadius: RADIUS.sm, marginBottom: "1.25rem", overflow: "hidden" }}>
-        <div style={{ padding: "0.875rem 1.25rem", borderBottom: `1px solid ${COLORS.rule}`, background: COLORS.sageLight, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <p style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: COLORS.plum }}>Permits &amp; Inspections</p>
-          <p style={{ fontFamily: TC.mono, fontSize: "0.55rem", color: COLORS.plumMid }}>Upload with metadata — status tracked on-chain</p>
+      <div style={{ border: `1px solid ${V2_COLORS.border}`, borderRadius: V2_RADIUS.sm, marginBottom: "1.25rem", overflow: "hidden" }}>
+        <div style={{ padding: "0.875rem 1.25rem", borderBottom: `1px solid ${V2_COLORS.border}`, background: V2_COLORS.lblue, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <p style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: V2_COLORS.ink }}>Permits &amp; Inspections</p>
+          <p style={{ fontFamily: TC.mono, fontSize: "0.55rem", color: V2_COLORS.muted }}>Upload with metadata — status tracked on-chain</p>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", background: COLORS.white }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", background: V2_COLORS.paper }}>
           <div style={{ padding: "1rem 1.25rem", borderRight: `1px solid ${TC.rule}` }}>
-            <p style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plum, marginBottom: "0.75rem" }}>Permit</p>
+            <p style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: V2_COLORS.ink, marginBottom: "0.75rem" }}>Permit</p>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "0.75rem" }}>
               <input className="form-input" placeholder="Permit #" value={permitNumber} onChange={(e) => setPermitNumber(e.target.value)} style={{ fontSize: "0.8rem" }} />
               <input className="form-input" placeholder="Issuing authority (e.g. City of Austin)" value={permitAuthority} onChange={(e) => setPermitAuthority(e.target.value)} style={{ fontSize: "0.8rem" }} />
@@ -174,13 +174,13 @@ export function DocumentsTab({ propertyId }: { propertyId: string }) {
                 <option value="Expired">Expired</option>
               </select>
             </div>
-            <button disabled={permitUploading} onClick={() => permitRef.current?.click()} style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.375rem 0.875rem", border: `1px solid ${COLORS.plum}`, color: COLORS.plum, background: "none", cursor: permitUploading ? "not-allowed" : "pointer", opacity: permitUploading ? 0.5 : 1 }}>
+            <button disabled={permitUploading} onClick={() => permitRef.current?.click()} style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.375rem 0.875rem", border: `1px solid ${V2_COLORS.ink}`, color: V2_COLORS.ink, background: "none", cursor: permitUploading ? "not-allowed" : "pointer", opacity: permitUploading ? 0.5 : 1 }}>
               {permitUploading ? "Uploading…" : "+ Upload Permit"}
             </button>
             <input ref={permitRef} type="file" accept="image/*,application/pdf" style={{ display: "none" }} onChange={handlePermitUpload} />
           </div>
           <div style={{ padding: "1rem 1.25rem" }}>
-            <p style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.sage, marginBottom: "0.75rem" }}>Inspection Report</p>
+            <p style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: V2_COLORS.blue, marginBottom: "0.75rem" }}>Inspection Report</p>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "0.75rem" }}>
               <input className="form-input" placeholder="Inspector name or company" value={inspectorName} onChange={(e) => setInspectorName(e.target.value)} style={{ fontSize: "0.8rem" }} />
               <select className="form-input" value={inspectionStatus} onChange={(e) => setInspectionStatus(e.target.value as any)} style={{ fontSize: "0.8rem" }}>
@@ -189,7 +189,7 @@ export function DocumentsTab({ propertyId }: { propertyId: string }) {
                 <option value="Fail">Fail</option>
               </select>
             </div>
-            <button disabled={inspectionUploading} onClick={() => inspectionRef.current?.click()} style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.375rem 0.875rem", border: `1px solid ${COLORS.sage}`, color: COLORS.sage, background: "none", cursor: inspectionUploading ? "not-allowed" : "pointer", opacity: inspectionUploading ? 0.5 : 1 }}>
+            <button disabled={inspectionUploading} onClick={() => inspectionRef.current?.click()} style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.375rem 0.875rem", border: `1px solid ${V2_COLORS.blue}`, color: V2_COLORS.blue, background: "none", cursor: inspectionUploading ? "not-allowed" : "pointer", opacity: inspectionUploading ? 0.5 : 1 }}>
               {inspectionUploading ? "Uploading…" : "+ Upload Report"}
             </button>
             <input ref={inspectionRef} type="file" accept="image/*,application/pdf" style={{ display: "none" }} onChange={handleInspectionUpload} />
@@ -206,7 +206,7 @@ export function DocumentsTab({ propertyId }: { propertyId: string }) {
         <div style={{ padding: "1rem 1.25rem", display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
           <div style={{ display: "flex", gap: "1px", background: TC.rule }}>
             {DOC_TYPES.map((t) => (
-              <button key={t} onClick={() => setDocType(t)} style={{ padding: "0.35rem 0.75rem", fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", border: "none", cursor: "pointer", background: docType === t ? COLORS.plum : COLORS.white, color: docType === t ? COLORS.white : TC.inkLight }}>
+              <button key={t} onClick={() => setDocType(t)} style={{ padding: "0.35rem 0.75rem", fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", border: "none", cursor: "pointer", background: docType === t ? V2_COLORS.ink : V2_COLORS.paper, color: docType === t ? V2_COLORS.paper : TC.inkLight }}>
                 {t}
               </button>
             ))}
@@ -219,10 +219,10 @@ export function DocumentsTab({ propertyId }: { propertyId: string }) {
         {queue.length > 0 && (
           <div style={{ borderTop: `1px solid ${TC.rule}` }}>
             {queue.map((f, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.5rem 1.25rem", borderBottom: i < queue.length - 1 ? `1px solid ${TC.rule}` : "none", background: f.status === "error" ? COLORS.blush : f.status === "duplicate" ? COLORS.sageLight : COLORS.white }}>
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.5rem 1.25rem", borderBottom: i < queue.length - 1 ? `1px solid ${TC.rule}` : "none", background: f.status === "error" ? V2_COLORS.attentionBg : f.status === "duplicate" ? V2_COLORS.lblue : V2_COLORS.paper }}>
                 <span style={{ fontFamily: TC.mono, fontSize: "0.8rem", width: "1rem", textAlign: "center" }}>{statusIcon(f.status)}</span>
                 <span style={{ flex: 1, fontFamily: TC.mono, fontSize: "0.65rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
-                <span style={{ fontFamily: TC.mono, fontSize: "0.55rem", letterSpacing: "0.06em", textTransform: "uppercase", color: f.status === "error" ? TC.rust : f.status === "duplicate" ? TC.inkLight : f.status === "done" ? COLORS.sage : TC.inkLight }}>
+                <span style={{ fontFamily: TC.mono, fontSize: "0.55rem", letterSpacing: "0.06em", textTransform: "uppercase", color: f.status === "error" ? TC.rust : f.status === "duplicate" ? TC.inkLight : f.status === "done" ? V2_COLORS.blue : TC.inkLight }}>
                   {f.status === "error" ? (f.error ?? "Error") : f.status === "duplicate" ? "Duplicate — skipped" : f.status === "done" ? "Uploaded" : f.status === "uploading" ? "Uploading…" : "Queued"}
                 </span>
               </div>
@@ -253,13 +253,13 @@ export function DocumentsTab({ propertyId }: { propertyId: string }) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.125rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{parsed.filename}</p>
                   {parsed.type === "Permit" && parsed.permitNumber && (
-                    <p style={{ fontFamily: TC.mono, fontSize: "0.55rem", color: COLORS.plum, letterSpacing: "0.06em", marginBottom: "0.1rem" }}>
-                      {parsed.permitNumber} · {parsed.authority} · <span style={{ textTransform: "uppercase", fontWeight: 700, color: parsed.status === "Closed" ? COLORS.sage : parsed.status === "Expired" ? COLORS.plumMid : COLORS.plum }}>{parsed.status}</span>
+                    <p style={{ fontFamily: TC.mono, fontSize: "0.55rem", color: V2_COLORS.ink, letterSpacing: "0.06em", marginBottom: "0.1rem" }}>
+                      {parsed.permitNumber} · {parsed.authority} · <span style={{ textTransform: "uppercase", fontWeight: 700, color: parsed.status === "Closed" ? V2_COLORS.blue : parsed.status === "Expired" ? V2_COLORS.muted : V2_COLORS.ink }}>{parsed.status}</span>
                     </p>
                   )}
                   {parsed.type === "Inspection" && parsed.inspector && (
-                    <p style={{ fontFamily: TC.mono, fontSize: "0.55rem", color: COLORS.sage, letterSpacing: "0.06em", marginBottom: "0.1rem" }}>
-                      {parsed.inspector} · <span style={{ textTransform: "uppercase", fontWeight: 700, color: parsed.status === "Pass" ? COLORS.sage : parsed.status === "Fail" ? COLORS.plum : COLORS.plumMid }}>{parsed.status}</span>
+                    <p style={{ fontFamily: TC.mono, fontSize: "0.55rem", color: V2_COLORS.blue, letterSpacing: "0.06em", marginBottom: "0.1rem" }}>
+                      {parsed.inspector} · <span style={{ textTransform: "uppercase", fontWeight: 700, color: parsed.status === "Pass" ? V2_COLORS.blue : parsed.status === "Fail" ? V2_COLORS.ink : V2_COLORS.muted }}>{parsed.status}</span>
                     </p>
                   )}
                   <p style={{ fontFamily: TC.mono, fontSize: "0.6rem", color: TC.inkLight, letterSpacing: "0.06em" }}>

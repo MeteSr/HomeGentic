@@ -26,25 +26,12 @@ import {
   type FsboPublicListing,
   type PropertyType,
 } from "@/services/fsbo";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
-const C = {
-  blue:   "#2B34FF",
-  yellow: "#FFD23F",
-  coral:  "#FF5C39",
-  ink:    "#0B0D1A",
-  paper:  "#FCFCFD",
-  muted:  "#6B7080",
-  border: "#EDEEF2",
-  white:  "#FFFFFF",
-  blueFg: "#F3F4FF",
-};
-const F = {
-  display: "'Bricolage Grotesque', 'Inter', sans-serif",
-  body:    "'Hanken Grotesk', 'Inter', sans-serif",
-  mono:    "'JetBrains Mono', monospace",
-};
+const C = V2_COLORS;
+const F = V2_FONTS;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -185,7 +172,7 @@ function VerifiedBadge({ level }: { level: string }) {
         display:       "inline-flex",
         alignItems:    "center",
         gap:           "0.3rem",
-        background:    isPremium ? C.blueFg : "#EAF2FF",
+        background:    isPremium ? C.lblue : "#EAF2FF",
         border:        `1px solid ${isPremium ? "rgba(43,52,255,0.25)" : "#B3D0F5"}`,
         borderRadius:  100,
         padding:       "0.2rem 0.6rem",
@@ -214,7 +201,7 @@ function ListingCard({ listing }: { listing: FsboPublicListing }) {
     <article
       data-testid="fsbo-listing-card"
       style={{
-        background:    C.white,
+        background:    C.paper,
         border:        `1px solid ${C.border}`,
         borderRadius:  18,
         overflow:      "hidden",
@@ -248,7 +235,7 @@ function ListingCard({ listing }: { listing: FsboPublicListing }) {
             top:           "0.75rem",
             left:          "0.75rem",
             background:    C.blue,
-            color:         C.white,
+            color:         C.paper,
             fontFamily:    F.mono,
             fontSize:      "0.6rem",
             fontWeight:    700,
@@ -267,7 +254,7 @@ function ListingCard({ listing }: { listing: FsboPublicListing }) {
           top:            "0.75rem",
           right:          "0.75rem",
           background:     C.ink + "CC",
-          color:          C.white,
+          color:          C.paper,
           fontFamily:     F.mono,
           fontSize:       "0.6rem",
           fontWeight:     700,
@@ -347,7 +334,7 @@ function ListingCard({ listing }: { listing: FsboPublicListing }) {
               <span
                 key={h}
                 style={{
-                  background:    C.blueFg,
+                  background:    C.lblue,
                   border:        `1px solid rgba(43,52,255,0.15)`,
                   borderRadius:  100,
                   padding:       "0.15rem 0.5rem",
@@ -417,7 +404,7 @@ function TypeChip({
         border:        `1.5px solid ${active ? C.blue : C.border}`,
         borderRadius:  100,
         padding:       "0.35rem 0.9rem",
-        background:    active ? C.blueFg : "transparent",
+        background:    active ? C.lblue : "transparent",
         fontFamily:    F.mono,
         fontSize:      "0.72rem",
         fontWeight:    active ? 700 : 400,
@@ -567,7 +554,7 @@ export default function FsboSearchPage() {
               fontFamily: F.display,
               fontWeight: 800,
               fontSize:   isMobile ? "1.6rem" : "2.2rem",
-              color:      C.white,
+              color:      C.paper,
               margin:     "0 0 0.25rem",
               lineHeight: 1.15,
             }}>
@@ -611,7 +598,7 @@ export default function FsboSearchPage() {
                   fontFamily:   F.body,
                   fontSize:     "0.95rem",
                   color:        C.ink,
-                  background:   C.white,
+                  background:   C.paper,
                   boxSizing:    "border-box" as const,
                   outline:      "none",
                 }}
@@ -622,7 +609,7 @@ export default function FsboSearchPage() {
 
         {/* ── Filters bar ──────────────────────────────────────────────────── */}
         <div style={{
-          background:   C.white,
+          background:   C.paper,
           borderBottom: `1px solid ${C.border}`,
           padding:      isMobile ? "0.75rem 1rem" : "0.85rem 2rem",
           position:     "sticky",
@@ -695,7 +682,7 @@ export default function FsboSearchPage() {
                   border:        `1.5px solid ${filters.hasScore ? C.blue : C.border}`,
                   borderRadius:  100,
                   padding:       "0.35rem 0.9rem",
-                  background:    filters.hasScore ? C.blueFg : "transparent",
+                  background:    filters.hasScore ? C.lblue : "transparent",
                   fontFamily:    F.mono,
                   fontSize:      "0.72rem",
                   fontWeight:    filters.hasScore ? 700 : 400,
@@ -784,7 +771,7 @@ export default function FsboSearchPage() {
         {/* ── Value-prop footer strip ───────────────────────────────────────── */}
         <footer style={{
           borderTop:  `1px solid ${C.border}`,
-          background: C.white,
+          background: C.paper,
           padding:    isMobile ? "2rem 1rem" : "2.5rem 2rem",
         }}>
           <div style={{ maxWidth: "860px", margin: "0 auto" }}>

@@ -10,20 +10,20 @@ import { jobService, Job } from "@/services/job";
 import { useAuthStore } from "@/store/authStore";
 import { isNewSince, countNew } from "@/services/notifications";
 import toast from "react-hot-toast";
-import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { ResponsiveGrid } from "@/components/ResponsiveGrid";
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  rust:     COLORS.sage,
-  inkLight: COLORS.plumMid,
-  sage:     COLORS.sage,
-  amber:    COLORS.plumMid,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  rust:     V2_COLORS.blue,
+  inkLight: V2_COLORS.muted,
+  sage:     V2_COLORS.blue,
+  amber:    V2_COLORS.muted,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.body,
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -43,7 +43,7 @@ const URGENCY_COLOR: Record<string, string> = {
 };
 
 const URGENCY_BG: Record<string, string> = {
-  emergency: COLORS.blush, high: COLORS.butter, medium: UI.paper, low: COLORS.sageLight,
+  emergency: V2_COLORS.attentionBg, high: V2_COLORS.attentionBg, medium: UI.paper, low: V2_COLORS.lblue,
 };
 
 function urgencyVariant(u: string): "error" | "warning" | "default" | "success" {
@@ -90,7 +90,7 @@ function SubmitQuoteModal({ request, onSubmit, onClose }: SubmitModalProps) {
       onClick={onClose}
     >
       <div
-        style={{ background: COLORS.white, padding: "1.5rem", maxWidth: "28rem", width: "100%", border: `1px solid ${UI.rule}`, borderRadius: RADIUS.card, boxShadow: SHADOWS.modal }}
+        style={{ background: V2_COLORS.paper, padding: "1.5rem", maxWidth: "28rem", width: "100%", border: `1px solid ${UI.rule}`, borderRadius: V2_RADIUS.card, boxShadow: V2_SHADOWS.modal }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -143,7 +143,7 @@ function SubmitQuoteModal({ request, onSubmit, onClose }: SubmitModalProps) {
         <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.25rem" }}>
           <button
             onClick={onClose}
-            style={{ flex: 1, padding: "0.6rem", border: `1px solid ${UI.rule}`, background: COLORS.white, fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer", color: UI.inkLight }}
+            style={{ flex: 1, padding: "0.6rem", border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer", color: UI.inkLight }}
           >
             Cancel
           </button>
@@ -202,8 +202,8 @@ function LeadCard({ request, alreadyQuoted, isNew, onQuote, contractorStats }: L
   return (
     <div style={{
       border: `1px solid ${request.urgency === "emergency" ? UI.rust : UI.rule}`,
-      background: request.urgency === "emergency" ? COLORS.blush : COLORS.white,
-      borderRadius: RADIUS.sm, boxShadow: SHADOWS.card,
+      background: request.urgency === "emergency" ? V2_COLORS.attentionBg : V2_COLORS.paper,
+      borderRadius: V2_RADIUS.sm, boxShadow: V2_SHADOWS.card,
     }}>
       {/* Summary row */}
       <div
@@ -380,11 +380,11 @@ export default function ContractorDashboardPage() {
         <div style={{
           position: "fixed", inset: 0, zIndex: 9999,
           display: "flex", alignItems: "center", justifyContent: "center",
-          background: `rgba(46,37,64,0.45)`, pointerEvents: "none",
+          background: `rgba(11,13,26,0.45)`, pointerEvents: "none",
         }}>
           <div style={{
             background: UI.paper, border: `2px solid ${UI.sage}`, padding: "2.5rem 3rem",
-            textAlign: "center", maxWidth: "22rem", borderRadius: RADIUS.card, boxShadow: SHADOWS.modal,
+            textAlign: "center", maxWidth: "22rem", borderRadius: V2_RADIUS.card, boxShadow: V2_SHADOWS.modal,
           }}>
             <CheckCircle2 size={36} color={UI.sage} style={{ marginBottom: "0.75rem" }} />
             <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: UI.sage, marginBottom: "0.3rem" }}>
@@ -419,12 +419,12 @@ export default function ContractorDashboardPage() {
           <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
             <button
               onClick={() => navigate("/contractor/profile")}
-              style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.5rem 0.875rem", border: `1px solid ${UI.rule}`, background: COLORS.white, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, cursor: "pointer" }}
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.5rem 0.875rem", border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, cursor: "pointer" }}
             >
               <UserCog size={12} /> {profile ? "Edit Profile" : "Set Up Profile"}
             </button>
             {newLeadsCount > 0 && (
-              <div style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.5rem 1rem", border: `1px solid ${UI.rust}`, fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.rust, background: COLORS.blush }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.5rem 1rem", border: `1px solid ${UI.rust}`, fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.rust, background: V2_COLORS.lblue }}>
                 <Zap size={12} /> {newLeadsCount} open lead{newLeadsCount !== 1 ? "s" : ""}
               </div>
             )}
@@ -433,14 +433,14 @@ export default function ContractorDashboardPage() {
 
         {/* Profile setup banner */}
         {!loading && !profile && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", border: `1px solid ${UI.rust}`, background: COLORS.blush, padding: "1rem 1.25rem", marginBottom: "2rem", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", border: `1px solid ${UI.rust}`, background: V2_COLORS.lblue, padding: "1rem 1.25rem", marginBottom: "2rem", flexWrap: "wrap" }}>
             <div>
               <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.rust, marginBottom: "0.2rem" }}>Profile incomplete</p>
               <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>Set up your contractor profile to appear in homeowner searches and receive leads.</p>
             </div>
             <button
               onClick={() => navigate("/contractor/profile")}
-              style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.5rem 1rem", background: UI.rust, color: COLORS.white, border: "none", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", whiteSpace: "nowrap" }}
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.5rem 1rem", background: UI.rust, color: V2_COLORS.paper, border: "none", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", whiteSpace: "nowrap" }}
             >
               <UserCog size={12} /> Set up now
             </button>
@@ -467,9 +467,9 @@ export default function ContractorDashboardPage() {
             const isAlert     = !!(stat as any).alert;
             const isHighlight = !!(stat as any).highlight;
             const hint        = (stat as any).hint as string | undefined;
-            const bg    = isAccent ? UI.ink : isAlert ? COLORS.blush : isHighlight ? COLORS.sageLight : COLORS.white;
-            const color = isAccent ? COLORS.plumMid : isAlert ? UI.rust : isHighlight ? UI.sage : UI.inkLight;
-            const valColor = isAccent ? COLORS.white : isAlert ? UI.rust : isHighlight ? UI.sage : UI.ink;
+            const bg    = isAccent ? UI.ink : isAlert ? V2_COLORS.attentionBg : isHighlight ? V2_COLORS.lblue : V2_COLORS.paper;
+            const color = isAccent ? V2_COLORS.muted : isAlert ? UI.rust : isHighlight ? UI.sage : UI.inkLight;
+            const valColor = isAccent ? V2_COLORS.paper : isAlert ? UI.rust : isHighlight ? UI.sage : UI.ink;
             return (
               <div key={stat.label} style={{ padding: "1.5rem", borderRight: `1px solid ${UI.rule}`, borderBottom: `1px solid ${UI.rule}`, background: bg, position: "relative" }}>
                 <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color, marginBottom: "0.625rem", display: "flex", alignItems: "center", gap: "0.375rem" }}>
@@ -503,7 +503,7 @@ export default function ContractorDashboardPage() {
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
                   {pendingJobs.map((job) => (
-                    <div key={job.id} style={{ background: COLORS.white, padding: "1.25rem", borderLeft: `3px solid ${UI.rust}`, borderRadius: RADIUS.sm, boxShadow: SHADOWS.card }}>
+                    <div key={job.id} style={{ background: V2_COLORS.paper, padding: "1.25rem", borderLeft: `3px solid ${UI.rust}`, borderRadius: V2_RADIUS.sm, boxShadow: V2_SHADOWS.card }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                         <div>
                           <p style={{ fontWeight: 600, fontSize: "0.875rem", marginBottom: "0.125rem" }}>{job.serviceType}</p>
@@ -546,9 +546,9 @@ export default function ContractorDashboardPage() {
                       padding: "0.35rem 0.75rem",
                       fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase",
                       border: "none", cursor: "pointer",
-                      background: filterType === t ? UI.ink : COLORS.white,
-                      color:      filterType === t ? COLORS.white : UI.inkLight,
-                      borderRadius: RADIUS.sm,
+                      background: filterType === t ? UI.ink : V2_COLORS.paper,
+                      color:      filterType === t ? V2_COLORS.paper : UI.inkLight,
+                      borderRadius: V2_RADIUS.sm,
                     }}
                   >
                     {t}
@@ -602,7 +602,7 @@ export default function ContractorDashboardPage() {
                 {showBidHistory ? <ChevronUp size={13} color={UI.inkLight} /> : <ChevronDown size={13} color={UI.inkLight} />}
               </button>
               {showBidHistory && (
-                <div style={{ border: `1px solid ${UI.rule}`, overflow: "hidden", borderRadius: RADIUS.card }}>
+                <div style={{ border: `1px solid ${UI.rule}`, overflow: "hidden", borderRadius: V2_RADIUS.card }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: UI.mono, fontSize: "0.6rem" }}>
                     <thead>
                       <tr style={{ background: UI.paper }}>
@@ -616,9 +616,9 @@ export default function ContractorDashboardPage() {
                     <tbody>
                       {[...myBids].sort((a, b) => b.createdAt - a.createdAt).map((bid, i) => {
                         const statusColor = bid.status === "accepted" ? UI.sage : bid.status === "rejected" ? UI.rust : UI.inkLight;
-                        const statusBg    = bid.status === "accepted" ? COLORS.sageLight : bid.status === "rejected" ? COLORS.blush : COLORS.white;
+                        const statusBg    = bid.status === "accepted" ? V2_COLORS.lblue : bid.status === "rejected" ? V2_COLORS.attentionBg : V2_COLORS.paper;
                         return (
-                          <tr key={bid.id} style={{ background: i % 2 === 0 ? COLORS.white : UI.paper, borderBottom: `1px solid ${UI.rule}` }}>
+                          <tr key={bid.id} style={{ background: i % 2 === 0 ? V2_COLORS.paper : UI.paper, borderBottom: `1px solid ${UI.rule}` }}>
                             <td style={{ padding: "0.625rem 0.875rem", color: UI.ink }}>{bid.requestId}</td>
                             <td style={{ padding: "0.625rem 0.875rem", color: UI.ink, fontWeight: 600 }}>${(bid.amount / 100).toLocaleString()}</td>
                             <td style={{ padding: "0.625rem 0.875rem", color: UI.inkLight }}>{bid.timeline}d</td>
@@ -640,7 +640,7 @@ export default function ContractorDashboardPage() {
           </div>
 
           {/* Sidebar: Trust Score */}
-          <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
+          <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, borderRadius: V2_RADIUS.card, boxShadow: V2_SHADOWS.card }}>
             <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${UI.rule}` }}>
               <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
                 Trust Score
@@ -735,7 +735,7 @@ export default function ContractorDashboardPage() {
                     const url = `${window.location.origin}/contractor/${profile.id}`;
                     navigator.clipboard.writeText(url).then(() => toast.success("Profile link copied — send it to any homeowner"));
                   }}
-                  style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.5rem 0.875rem", border: `1px solid ${UI.rust}`, background: COLORS.blush, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.rust, cursor: "pointer", fontWeight: 700 }}
+                  style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.5rem 0.875rem", border: `1px solid ${UI.rust}`, background: V2_COLORS.lblue, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.rust, cursor: "pointer", fontWeight: 700 }}
                 >
                   Copy Profile Link
                 </button>
