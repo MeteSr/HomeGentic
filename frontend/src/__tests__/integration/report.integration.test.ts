@@ -22,8 +22,12 @@ import type { ShareLink, ReportSnapshot } from "@/services/report";
 const CANISTER_ID = (process.env as any).REPORT_CANISTER_ID || "";
 const deployed = !!CANISTER_ID;
 
-const RUN_ID   = Date.now();
-const PROP_ID  = `integ-report-prop-${RUN_ID}`;
+const RUN_ID  = Date.now();
+// Synthetic property ID — works because the test identity is granted admin access to
+// the report canister in CI (ci.yml), which bypasses the ownership check. The
+// verification check is then skipped because the property doesn't exist in the property
+// canister (getVerificationLevel returns null → `case null {}` → proceed).
+const PROP_ID = `integ-report-prop-${RUN_ID}`;
 
 const BASE_PROPERTY = {
   address:           `${RUN_ID} Report Ave`,

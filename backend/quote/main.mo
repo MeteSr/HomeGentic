@@ -605,7 +605,7 @@ persistent actor Quote {
 
   /// Fetch all quotes for a given request.
   /// M-05: homeowner and admin see all quotes; contractors see only their own quote.
-  public shared(msg) func getQuotesForRequest(requestId: Text) : async Result.Result<[Quote], Error> {
+  public query(msg) func getQuotesForRequest(requestId: Text) : async Result.Result<[Quote], Error> {
     switch (Map.get(requests, Text.compare, requestId)) {
       case null { #err(#NotFound) };
       case (?req) {
