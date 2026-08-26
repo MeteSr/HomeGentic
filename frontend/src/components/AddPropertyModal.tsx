@@ -787,7 +787,7 @@ export default function AddPropertyModal({ open, onClose }: Props) {
                 </div>
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ font: `400 12px/1.5 ${F.body}`, color: T.muted, marginBottom: 6 }}>
+                <div style={{ font: `400 12px/1.5 ${F.body}`, color: T.blue, marginBottom: 6 }}>
                   Complete optional steps to reach 54
                 </div>
                 <div style={{ height: 6, background: T.blueBdr, borderRadius: 100 }}>
