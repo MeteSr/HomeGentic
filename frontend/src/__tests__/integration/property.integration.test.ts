@@ -178,20 +178,32 @@ describe.skip("registerProperty — duplicate address detection", () => {
 
 describe.skipIf(!deployed)("getPropertyYearBuilt — cross-canister query IDL", () => {
   let registeredId: string;
-  const YEAR_BUILT = 1998;
+  let expectedYear = 1998; // updated to fallback property's year if limit is hit
 
   beforeAll(async () => {
-    const prop = await propertyService.registerProperty({
-      ...BASE,
-      address:   addr("year-built"),
-      yearBuilt: YEAR_BUILT,
-    });
-    registeredId = prop.id;
+    try {
+      const prop = await propertyService.registerProperty({
+        ...BASE,
+        address:   addr("year-built"),
+        yearBuilt: expectedYear,
+      });
+      registeredId = prop.id;
+    } catch (e: any) {
+      if (e.message?.includes("limit")) {
+        const existing = await propertyService.getMyProperties();
+        if (existing.length > 0) {
+          registeredId = existing[0].id;
+          expectedYear  = existing[0].yearBuilt ?? expectedYear;
+          return;
+        }
+      }
+      throw e;
+    }
   });
 
   it("returns the yearBuilt for a registered property", async () => {
     const year = await propertyService.getPropertyYearBuilt(registeredId);
-    expect(year).toBe(YEAR_BUILT);
+    expect(year).toBe(expectedYear);
   });
 
   it("returns null for an unknown property ID", async () => {
