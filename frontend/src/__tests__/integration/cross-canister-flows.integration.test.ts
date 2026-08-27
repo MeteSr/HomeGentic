@@ -12,10 +12,10 @@
  * ── Identities ────────────────────────────────────────────────────────────────
  * HOMEOWNER  seed[0]=42   Premium / ContractorPro (granted by scripts/test-integration.sh)
  *                         Uses the service layer (singleton agent from setup.ts).
- * CONTRACTOR seed[0]=99   ContractorFree (no subscription granted — acts as contractor signer)
+ * CONTRACTOR seed[0]=99   ContractorFree principal: no subscription granted
  *                         Uses direct Actor instances to bypass the service-layer actor cache.
- * TIER_USER  seed[0]=77   Basic tier (granted by scripts/test-integration.sh — exercises 1-property limit)
- * QUOTA_USER seed[0]=88   Basic tier (granted by scripts/test-integration.sh — exercises 3-open-quote limit)
+ * TIER_USER  seed[0]=77   principal lodek-... — Basic granted by test-integration.sh (1-property cap)
+ * QUOTA_USER seed[0]=88   principal fz27l-... — Basic granted by test-integration.sh (3-open-quote cap)
  *
  * Why direct actors for CONTRACTOR/TIER_USER/QUOTA_USER:
  *   Service files cache `_actor` on first call. Since the homeowner already
@@ -256,7 +256,7 @@ describe.skipIf(!deployed)("Flow 3: Basic-tier property registration limit (prop
   const registrationResults: Array<{ ok: boolean; propId?: string; errorKey?: string }> = [];
 
   beforeAll(async () => {
-    // seed[0]=77: Basic subscription granted by scripts/test-integration.sh (1-property limit)
+    // lodek-...: Basic subscription granted by scripts/test-integration.sh (1-property limit)
     const tierAgent = await makeAgent(77);
     tierPropertyActor = Actor.createActor(propertyIdl as any, {
       agent:      tierAgent,
@@ -316,7 +316,7 @@ describe.skipIf(!deployed)("Flow 4: Quote open-request limit enforcement (quote 
   const requestResults: Array<{ ok: boolean; reqId?: string; errorKey?: string }> = [];
 
   beforeAll(async () => {
-    // seed[0]=88: Basic subscription granted by scripts/test-integration.sh (3 open quotes limit)
+    // fz27l-...: Basic subscription granted by scripts/test-integration.sh (3 open quotes limit)
     const quoteTierAgent = await makeAgent(88);
 
     quotePropActor = Actor.createActor(propertyIdl as any, {
