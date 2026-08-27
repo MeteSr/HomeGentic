@@ -376,6 +376,9 @@ describe("quote IDL factory", () => {
       "cancelQuoteRequest",
       "closeQuoteRequest",
       "createQuoteRequest",
+      "createSealedBidRequest",
+      "getIbePublicKey",
+      "getMyBid",
       "getMyQuoteRequests",
       "getMyQuotes",
       "getOpenRequests",
@@ -383,8 +386,12 @@ describe("quote IDL factory", () => {
       "getOpenRequestsPage",
       "getQuoteRequest",
       "getQuotesForRequest",
+      "getRevealedBids",
+      "revealBids",
+      "revealBidsEncrypted",
       "setPropertyCanisterId",
       "submitQuote",
+      "submitSealedBid",
     ]);
   });
 
@@ -395,12 +402,14 @@ describe("quote IDL factory", () => {
       .map(([name]) => name)
       .sort();
     expect(queries).toEqual([
+      "getMyBid",
       "getMyQuoteRequests",
       "getMyQuotes",
       "getOpenRequests",
       "getOpenRequestsPage",
       "getQuoteRequest",
       "getQuotesForRequest",
+      "getRevealedBids",
     ]);
   });
 

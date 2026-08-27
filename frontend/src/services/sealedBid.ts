@@ -10,8 +10,10 @@
  *
  * Production (canister + @dfinity/vetkeys):
  *   - Contractor: IBE-encrypt amountCents with canister public key → Uint8Array ciphertext
- *   - Canister: stores ciphertext; calls vetkd_derive_key after closeAt to decrypt in-canister
- *   - Only the winner amount is returned to the homeowner; ciphertext stays encrypted otherwise.
+ *   - Canister: stores ciphertext; vetkd_derive_key derives homeowner's IBE key after closeAt
+ *   - Homeowner: receives encryptedKey + raw ciphertexts, decrypts locally with vetkeys SDK
+ *
+ * Real IBE context: "hg-bid-v1" — must match IBE_CONTEXT bytes in backend/quote/main.mo
  */
 
 export interface SealedBidRequest {
@@ -205,3 +207,96 @@ function createSealedBidService() {
 }
 
 export const sealedBidService = createSealedBidService();
+
+// ─── Real IBE crypto utilities (production) ───────────────────────────────────
+// These functions use @dfinity/vetkeys and are called by quoteService methods
+// when a real canister is available.  Unit tests use the mock service above.
+
+/** Encode amountCents as a 4-byte little-endian Uint8Array. */
+function encodeAmountCents(amountCents: number): Uint8Array {
+  const buf = new Uint8Array(4);
+  let n = amountCents >>> 0;   // treat as unsigned 32-bit
+  buf[0] = n & 0xff; n >>>= 8;
+  buf[1] = n & 0xff; n >>>= 8;
+  buf[2] = n & 0xff; n >>>= 8;
+  buf[3] = n & 0xff;
+  return buf;
+}
+
+/** Decode a 4-byte little-endian Uint8Array to amountCents. */
+function decodeAmountCents(bytes: Uint8Array): number {
+  return (bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24)) >>> 0;
+}
+
+/**
+ * IBE-encrypt an amountCents value to the homeowner's identity.
+ *
+ * @param pubKeyBytes  - Raw bytes from canister `getIbePublicKey()`.
+ * @param homeownerPrincipalBytes - `principal.toUint8Array()` of the homeowner.
+ * @param amountCents  - Bid amount in US cents.
+ * @returns Serialized IbeCiphertext bytes to store in the canister.
+ */
+export async function ibeEncryptAmount(
+  pubKeyBytes:             Uint8Array,
+  homeownerPrincipalBytes: Uint8Array,
+  amountCents:             number,
+): Promise<Uint8Array> {
+  const { DerivedPublicKey, IbeIdentity, IbeCiphertext, IbeSeed } =
+    await import("@dfinity/vetkeys");
+  const dpk      = DerivedPublicKey.deserialize(pubKeyBytes);
+  const identity = IbeIdentity.fromBytes(homeownerPrincipalBytes);
+  const plaintext = encodeAmountCents(amountCents);
+  const ciphertext = IbeCiphertext.encrypt(dpk, identity, plaintext, IbeSeed.random());
+  return ciphertext.serialize();
+}
+
+/**
+ * Decrypt sealed bids using the homeowner's vetKey.
+ *
+ * @param encryptedKeyBytes  - `encryptedKey` from `revealBidsEncrypted()` canister call.
+ * @param pubKeyBytes        - Raw bytes from `getIbePublicKey()`.
+ * @param myPrincipalBytes   - `principal.toUint8Array()` of the homeowner (must match canister input).
+ * @param tsk                - The TransportSecretKey whose public key was sent to the canister.
+ * @param rawBids            - SealedBid records from the canister.
+ * @returns Decrypted RevealedBid array with isWinner set for the lowest price.
+ */
+export async function ibeDecryptBids(
+  encryptedKeyBytes:  Uint8Array,
+  pubKeyBytes:        Uint8Array,
+  myPrincipalBytes:   Uint8Array,
+  tsk:                import("@dfinity/vetkeys").TransportSecretKey,
+  rawBids: Array<{
+    id:           string;
+    requestId:    string;
+    contractor:   string;   // principal text
+    ciphertext:   number[];
+    timelineDays: number;
+    submittedAt:  bigint;
+  }>,
+): Promise<RevealedBid[]> {
+  const { DerivedPublicKey, EncryptedVetKey, IbeCiphertext } =
+    await import("@dfinity/vetkeys");
+
+  const dpk         = DerivedPublicKey.deserialize(pubKeyBytes);
+  const encVetKey   = EncryptedVetKey.deserialize(encryptedKeyBytes);
+  const vetKey      = encVetKey.decryptAndVerify(tsk, dpk, myPrincipalBytes);
+
+  const decoded = rawBids.map((b) => {
+    const ct          = IbeCiphertext.deserialize(new Uint8Array(b.ciphertext));
+    const plaintext   = ct.decrypt(vetKey);
+    const amountCents = decodeAmountCents(plaintext);
+    return { bid: b, amountCents };
+  });
+
+  const minAmount = decoded.length > 0 ? Math.min(...decoded.map((d) => d.amountCents)) : 0;
+
+  return decoded.map(({ bid, amountCents }) => ({
+    id:           bid.id,
+    requestId:    bid.requestId,
+    contractor:   bid.contractor,
+    amountCents,
+    timelineDays: bid.timelineDays,
+    submittedAt:  Number(bid.submittedAt) / 1_000_000,
+    isWinner:     amountCents === minAmount,
+  }));
+}

@@ -1,6 +1,7 @@
 import { Actor } from "@icp-sdk/core/agent";
 import { getAgent } from "./actor";
 import { idlFactory } from "@/declarations/quote";
+import { ibeEncryptAmount, ibeDecryptBids, type RevealedBid as SealedRevealedBid } from "./sealedBid";
 export { idlFactory };
 
 const QUOTE_CANISTER_ID = (process.env as any).QUOTE_CANISTER_ID || "";
@@ -280,6 +281,95 @@ function createQuoteService() {
       const val = result.err[key];
       throw new Error(typeof val === "string" ? val : key);
     }
+  },
+
+  // ── vetKeys IBE sealed-bid methods ──────────────────────────────────────────
+
+  /**
+   * Returns the canister's BLS12-381 IBE public key for the sealed-bid context.
+   * Contractors call this before encrypting bid amounts.
+   */
+  async getIbePublicKey(): Promise<Uint8Array> {
+    const a = await getActor();
+    const bytes = await a.getIbePublicKey();
+    return new Uint8Array(bytes);
+  },
+
+  /**
+   * Encrypt amountCents with the canister's IBE public key and submit the sealed bid.
+   *
+   * @param requestId            - The sealed-bid request to bid on.
+   * @param amountCents          - Bid amount in US cents.
+   * @param timelineDays         - Projected completion time.
+   * @param homeownerPrincipalText - `QuoteRequest.homeowner` (principal text).
+   */
+  async submitSealedBidEncrypted(
+    requestId:              string,
+    amountCents:            number,
+    timelineDays:           number,
+    homeownerPrincipalText: string,
+  ): Promise<{ id: string; requestId: string; timelineDays: number; submittedAt: number }> {
+    const { Principal } = await import("@dfinity/principal");
+    const pubKeyBytes = await this.getIbePublicKey();
+    const homeownerBytes = Principal.fromText(homeownerPrincipalText).toUint8Array();
+    const ciphertextBytes = await ibeEncryptAmount(pubKeyBytes, homeownerBytes, amountCents);
+
+    const a = await getActor();
+    const result = await a.submitSealedBid(requestId, Array.from(ciphertextBytes), BigInt(timelineDays));
+    if ("err" in result) {
+      const key = Object.keys(result.err)[0];
+      const val = result.err[key];
+      throw new Error(typeof val === "string" ? val : key);
+    }
+    const b = result.ok;
+    return {
+      id:           b.id,
+      requestId:    b.requestId,
+      timelineDays: Number(b.timelineDays),
+      submittedAt:  Number(b.submittedAt) / 1_000_000,
+    };
+  },
+
+  /**
+   * Reveal all sealed bids after the bid window closes.
+   * Derives the homeowner's IBE key from the canister and decrypts each bid locally.
+   *
+   * @param requestId  - The sealed-bid request whose bids to reveal.
+   * @param myPrincipalText - The caller's principal text (must be the homeowner).
+   * @returns Decrypted bid amounts with isWinner set for the lowest price.
+   */
+  async revealBidsDecrypted(
+    requestId:      string,
+    myPrincipalText: string,
+  ): Promise<SealedRevealedBid[]> {
+    const { TransportSecretKey } = await import("@dfinity/vetkeys");
+    const { Principal }          = await import("@dfinity/principal");
+
+    const tsk = TransportSecretKey.random();
+    const tpk = tsk.publicKeyBytes();
+
+    const a = await getActor();
+    const result = await a.revealBidsEncrypted(requestId, Array.from(tpk));
+    if ("err" in result) {
+      const key = Object.keys(result.err)[0];
+      const val = result.err[key];
+      throw new Error(typeof val === "string" ? val : key);
+    }
+
+    const pubKeyBytes      = await this.getIbePublicKey();
+    const myPrincipalBytes = Principal.fromText(myPrincipalText).toUint8Array();
+    const encryptedKeyBytes = new Uint8Array(result.ok.encryptedKey);
+
+    const rawBids = (result.ok.bids as any[]).map((b: any) => ({
+      id:           b.id as string,
+      requestId:    b.requestId as string,
+      contractor:   b.contractor.toText() as string,
+      ciphertext:   Array.from(b.ciphertext as number[]),
+      timelineDays: Number(b.timelineDays),
+      submittedAt:  b.submittedAt as bigint,
+    }));
+
+    return ibeDecryptBids(encryptedKeyBytes, pubKeyBytes, myPrincipalBytes, tsk, rawBids);
   },
 
   getQuotaForTier(tier: string): number {

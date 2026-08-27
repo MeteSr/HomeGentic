@@ -1773,6 +1773,42 @@ exports[`quote IDL factory > full signature snapshot 1`] = `
       "variant {ok:record {id:text; status:variant {Quoted; Open; Closed; Accepted; Cancelled}; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; urgency:variant {Low; High; Medium; Emergency}; createdAt:int; minTrustScore:opt nat; description:text; propertyId:text; zipCode:opt text; closeAt:opt int; maxBids:opt nat; homeowner:principal; minReviews:opt nat; minJobsCompleted:opt nat}; err:variant {InvalidInput:text; NotFound; NotAuthorized}}",
     ],
   },
+  "createSealedBidRequest": {
+    "args": [
+      "text",
+      "variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}",
+      "text",
+      "variant {Low; High; Medium; Emergency}",
+      "int",
+      "opt text",
+      "opt nat",
+      "opt nat",
+      "opt nat",
+      "opt nat",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; status:variant {Quoted; Open; Closed; Accepted; Cancelled}; serviceType:variant {HVAC; Plumbing; Painting; Landscaping; Windows; Electrical; Flooring; Roofing}; urgency:variant {Low; High; Medium; Emergency}; createdAt:int; minTrustScore:opt nat; description:text; propertyId:text; zipCode:opt text; closeAt:opt int; maxBids:opt nat; homeowner:principal; minReviews:opt nat; minJobsCompleted:opt nat}; err:variant {InvalidInput:text; NotFound; NotAuthorized}}",
+    ],
+  },
+  "getIbePublicKey": {
+    "args": [],
+    "mode": [],
+    "rets": [
+      "vec nat8",
+    ],
+  },
+  "getMyBid": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:record {id:text; requestId:text; ciphertext:vec nat8; timelineDays:nat; submittedAt:int; contractor:principal}; err:variant {InvalidInput:text; NotFound; NotAuthorized}}",
+    ],
+  },
   "getMyQuoteRequests": {
     "args": [],
     "mode": [
@@ -1841,6 +1877,36 @@ exports[`quote IDL factory > full signature snapshot 1`] = `
       "variant {ok:vec record {id:text; status:variant {Rejected; Accepted; Expired; Pending}; requestId:text; createdAt:int; amount:nat; contractor:principal; validUntil:int; timeline:nat}; err:variant {InvalidInput:text; NotFound; NotAuthorized}}",
     ],
   },
+  "getRevealedBids": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "vec record {id:text; requestId:text; timelineDays:nat; submittedAt:int; amountCents:nat; isWinner:bool; contractor:principal}",
+    ],
+  },
+  "revealBids": {
+    "args": [
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:vec record {id:text; requestId:text; timelineDays:nat; submittedAt:int; amountCents:nat; isWinner:bool; contractor:principal}; err:variant {InvalidInput:text; NotFound; NotAuthorized}}",
+    ],
+  },
+  "revealBidsEncrypted": {
+    "args": [
+      "text",
+      "vec nat8",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {bids:vec record {id:text; requestId:text; ciphertext:vec nat8; timelineDays:nat; submittedAt:int; contractor:principal}; encryptedKey:vec nat8}; err:variant {InvalidInput:text; NotFound; NotAuthorized}}",
+    ],
+  },
   "setPropertyCanisterId": {
     "args": [
       "principal",
@@ -1860,6 +1926,17 @@ exports[`quote IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:record {id:text; status:variant {Rejected; Accepted; Expired; Pending}; requestId:text; createdAt:int; amount:nat; contractor:principal; validUntil:int; timeline:nat}; err:variant {InvalidInput:text; NotFound; NotAuthorized}}",
+    ],
+  },
+  "submitSealedBid": {
+    "args": [
+      "text",
+      "vec nat8",
+      "nat",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; requestId:text; ciphertext:vec nat8; timelineDays:nat; submittedAt:int; contractor:principal}; err:variant {InvalidInput:text; NotFound; NotAuthorized}}",
     ],
   },
 }
