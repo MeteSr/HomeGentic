@@ -1,83 +1,188 @@
+/**
+ * Contractor discovery page — /contractors           (issue #423)
+ *
+ * Homeowners search the contractor registry by zip code and service category.
+ * Cards show trust score, verified status, specialties, and jobs completed.
+ * "Request quote" navigates to /quotes/new pre-filled with the contractor's
+ * primary specialty and name.
+ *
+ * Data: all contractors are fetched via contractorService.search(), then filtered
+ * client-side by zip (serviceZips match) and specialty. The canister's getByZip
+ * and getBySpecialty queries are proxied through search() already.
+ */
+
 import React, { useEffect, useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { AlertTriangle } from "lucide-react";
-import { Layout } from "@/components/Layout";
+import { useNavigate }                          from "react-router-dom";
+import { Search, AlertTriangle, ShieldCheck, X } from "lucide-react";
+import { Layout }                               from "@/components/Layout";
 import { contractorService, ContractorProfile } from "@/services/contractor";
-import { jobService, Job } from "@/services/job";
-import { V2_COLORS, V2_FONTS } from "@/theme";
+import { jobService, Job }                      from "@/services/job";
+import { V2_COLORS, V2_FONTS }                  from "@/theme";
 
 const C = V2_COLORS;
 const F = V2_FONTS;
 
+// ── Constants ──────────────────────────────────────────────────────────────────
+
+const SERVICE_TYPES = [
+  "HVAC", "Roofing", "Plumbing", "Electrical", "Painting",
+  "Flooring", "Windows", "Landscaping", "Gutters", "GeneralHandyman",
+  "Pest", "Concrete", "Fencing", "Insulation", "Solar", "Pool",
+] as const;
+
+const AVATAR_COLORS = [
+  { bg: "#E0E2FF", fg: C.blue },
+  { bg: "#DCFCE7", fg: "#16A34A" },
+  { bg: "#FEF3C7", fg: "#D97706" },
+  { bg: "#FCE7F3", fg: "#DB2777" },
+  { bg: "#E0F2FE", fg: "#0891B2" },
+];
+
+// ── Trust score badge ──────────────────────────────────────────────────────────
+
+function TrustBadge({ score }: { score: number }) {
+  const { bg, color, label } =
+    score >= 75 ? { bg: "#DCFCE7", color: "#16A34A", label: "HIGH" }
+    : score >= 50 ? { bg: C.vbadge,   color: C.blue,    label: "MID"  }
+    :               { bg: "#FEF3C7",  color: "#D97706", label: "LOW"  };
+
+  return (
+    <div style={{
+      display:        "inline-flex",
+      alignItems:     "center",
+      gap:             4,
+      background:      bg,
+      borderRadius:    4,
+      padding:        "2px 7px",
+    }}>
+      <span style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700, color, lineHeight: 1 }}>
+        {score}
+      </span>
+      <span style={{ fontFamily: F.mono, fontSize: 8, fontWeight: 700, color, letterSpacing: "0.1em" }}>
+        /{label}
+      </span>
+    </div>
+  );
+}
+
 // ── Contractor card ────────────────────────────────────────────────────────────
 
 function ContractorCard({
-  name, specialty, city, jobs, lastJob, lastAmount, isVerified, isAwaiting, onRequestQuote, onViewJobs,
+  contractor,
+  isAwaiting,
+  onViewProfile,
+  onRequestQuote,
 }: {
-  name:          string;
-  specialty:     string;
-  city?:         string;
-  jobs:          number;
-  lastJob:       string;
-  lastAmount:    string;
-  isVerified:    boolean;
-  isAwaiting:    boolean;
-  onRequestQuote:() => void;
-  onViewJobs:    () => void;
+  contractor:     ContractorProfile;
+  isAwaiting:     boolean;
+  onViewProfile:  () => void;
+  onRequestQuote: () => void;
 }) {
-  const initials = name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
-  const colors   = [
-    { bg: "#E0E2FF", fg: C.blue },
-    { bg: "#DCFCE7", fg: "#16A34A" },
-    { bg: "#FEF3C7", fg: "#D97706" },
-    { bg: "#FCE7F3", fg: "#DB2777" },
-    { bg: "#E0F2FE", fg: "#0891B2" },
-  ];
-  const { bg, fg } = colors[name.charCodeAt(0) % colors.length];
+  const { bg, fg } = AVATAR_COLORS[contractor.name.charCodeAt(0) % AVATAR_COLORS.length];
+  const initials   = contractor.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 
   return (
-    <div style={{ border: `1px solid ${C.border}`, borderRadius: 12, background: "#fff", padding: "18px 20px" }}>
+    <div style={{
+      border:     `1px solid ${C.border}`,
+      borderRadius: 12,
+      background:  "#fff",
+      padding:    "18px 20px",
+      display:    "flex",
+      flexDirection: "column",
+      gap:         0,
+    }}>
       {/* Avatar + name row */}
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 14 }}>
-        <div style={{ width: 36, height: 36, borderRadius: "50%", background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
+        <div style={{
+          width: 38, height: 38, borderRadius: "50%",
+          background: bg, display: "flex", alignItems: "center",
+          justifyContent: "center", flexShrink: 0,
+        }}>
           <span style={{ fontFamily: F.mono, fontSize: 13, fontWeight: 700, color: fg }}>{initials}</span>
         </div>
+
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-            <span style={{ fontFamily: F.body, fontSize: 14, fontWeight: 700, color: C.ink }}>{name}</span>
-            {isVerified && (
-              <span style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: C.blue, background: C.vbadge, borderRadius: 4, padding: "2px 6px" }}>VERIFIED</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 2 }}>
+            <span style={{ fontFamily: F.body, fontSize: 14, fontWeight: 700, color: C.ink }}>
+              {contractor.name}
+            </span>
+            {contractor.isVerified && (
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 3,
+                fontFamily: F.mono, fontSize: 9, fontWeight: 700,
+                color: C.blue, background: C.vbadge, borderRadius: 4, padding: "2px 5px",
+              }}>
+                <ShieldCheck size={9} /> VERIFIED
+              </span>
             )}
             {isAwaiting && (
-              <span style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: "#D97706", background: "#FFFBEB", borderRadius: 4, padding: "2px 6px" }}>AWAITING</span>
+              <span style={{
+                fontFamily: F.mono, fontSize: 9, fontWeight: 700,
+                color: "#D97706", background: "#FFFBEB", borderRadius: 4, padding: "2px 6px",
+              }}>
+                AWAITING
+              </span>
             )}
           </div>
-          <div style={{ fontFamily: F.body, fontSize: 12, color: C.muted }}>
-            {specialty}{city ? ` · ${city}` : ""}
-          </div>
+
+          {/* Trust score */}
+          <TrustBadge score={contractor.trustScore} />
         </div>
       </div>
 
+      {/* Specialties */}
+      {contractor.specialties.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 12 }}>
+          {contractor.specialties.slice(0, 4).map((s) => (
+            <span key={s} style={{
+              fontFamily: F.mono, fontSize: 9, color: C.muted,
+              border: `1px solid ${C.border}`, borderRadius: 4, padding: "2px 6px",
+            }}>
+              {s}
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16, padding: "12px 0", borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }}>
+      <div style={{
+        display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10,
+        padding: "10px 0", marginBottom: 14,
+        borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`,
+      }}>
         <div>
           <div style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 2 }}>JOBS</div>
-          <div style={{ fontFamily: F.display, fontSize: 18, fontWeight: 900, color: C.ink }}>{jobs}</div>
+          <div style={{ fontFamily: F.display, fontSize: 18, fontWeight: 900, color: C.ink }}>{contractor.jobsCompleted}</div>
         </div>
         <div>
-          <div style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 2 }}>LAST JOB</div>
-          <div style={{ fontFamily: F.display, fontSize: 18, fontWeight: 900, color: C.ink }}>{lastAmount}</div>
-          <div style={{ fontFamily: F.mono, fontSize: 10, color: C.muted }}>{lastJob}</div>
+          <div style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 2 }}>SERVICE AREA</div>
+          <div style={{ fontFamily: F.body, fontSize: 12, color: C.ink, lineHeight: 1.3 }}>
+            {contractor.serviceArea ?? (contractor.serviceZips.length > 0 ? contractor.serviceZips.slice(0, 2).join(", ") : "—")}
+          </div>
         </div>
       </div>
 
       {/* Actions */}
       <div style={{ display: "flex", gap: 8 }}>
-        <button onClick={onRequestQuote} style={{ flex: 1, fontFamily: F.body, fontSize: 13, fontWeight: 600, color: C.ink, background: "#fff", border: `1px solid ${C.border}`, borderRadius: 100, padding: "8px", cursor: "pointer" }}>
+        <button
+          onClick={onRequestQuote}
+          style={{
+            flex: 1, fontFamily: F.body, fontSize: 13, fontWeight: 600,
+            color: "#fff", background: C.blue, border: "none",
+            borderRadius: 100, padding: "8px", cursor: "pointer",
+          }}
+        >
           Request quote
         </button>
-        <button onClick={onViewJobs} style={{ flex: 1, fontFamily: F.body, fontSize: 13, fontWeight: 600, color: C.blue, background: "none", border: "none", padding: "8px", cursor: "pointer" }}>
-          View jobs
+        <button
+          onClick={onViewProfile}
+          style={{
+            flex: 1, fontFamily: F.body, fontSize: 13, fontWeight: 600,
+            color: C.ink, background: "#fff", border: `1px solid ${C.border}`,
+            borderRadius: 100, padding: "8px", cursor: "pointer",
+          }}
+        >
+          View profile
         </button>
       </div>
     </div>
@@ -88,9 +193,14 @@ function ContractorCard({
 
 export default function ContractorBrowsePage() {
   const navigate = useNavigate();
+
   const [contractors, setContractors] = useState<ContractorProfile[]>([]);
   const [jobs,        setJobs]        = useState<Job[]>([]);
   const [loading,     setLoading]     = useState(true);
+
+  const [zipInput,       setZipInput]       = useState("");
+  const [activeZip,      setActiveZip]      = useState("");
+  const [activeSpecialty, setActiveSpecialty] = useState("");
 
   useEffect(() => {
     Promise.all([
@@ -99,122 +209,259 @@ export default function ContractorBrowsePage() {
     ]).then(([ctrs, js]) => {
       setContractors(ctrs);
       setJobs(js);
-    }).catch(e => console.error("[ContractorBrowsePage] load failed:", e))
+    }).catch((e) => console.error("[ContractorBrowsePage] load failed:", e))
       .finally(() => setLoading(false));
   }, []);
 
-  const myContractors = useMemo(() => {
-    const byName = new Map<string, { name: string; specialty: string; lastDate: string; lastAmount: number; count: number; isVerified: boolean }>();
-    for (const j of jobs) {
-      if (!j.contractorName) continue;
-      const existing = byName.get(j.contractorName);
-      if (!existing) {
-        byName.set(j.contractorName, { name: j.contractorName, specialty: j.serviceType, lastDate: j.date, lastAmount: j.amount, count: 1, isVerified: j.verified });
-      } else {
-        const newer = j.date > existing.lastDate;
-        byName.set(j.contractorName, { ...existing, lastDate: newer ? j.date : existing.lastDate, lastAmount: newer ? j.amount : existing.lastAmount, specialty: newer ? j.serviceType : existing.specialty, count: existing.count + 1, isVerified: existing.isVerified || j.verified });
-      }
-    }
-    return [...byName.values()].sort((a, b) => b.lastDate.localeCompare(a.lastDate));
+  // Contractors who have pending countersignatures on this homeowner's jobs
+  const awaitingSet = useMemo(() => {
+    const names = jobs
+      .filter((j) => j.homeownerSigned && !j.contractorSigned && j.contractorName)
+      .map((j) => j.contractorName!);
+    return new Set(names);
   }, [jobs]);
 
-  // Find contractors with unsigned/pending work
-  const awaitingSignature = useMemo(() =>
-    jobs.filter(j => j.homeownerSigned && !j.contractorSigned && j.contractorName).map(j => j.contractorName!),
-  [jobs]);
-  const awaitingSet = useMemo(() => new Set(awaitingSignature), [awaitingSignature]);
+  // Awaiting-signature alert: show the first pending contractor
+  const firstAwaiting = useMemo(() => {
+    for (const j of jobs) {
+      if (j.homeownerSigned && !j.contractorSigned && j.contractorName) return j;
+    }
+    return null;
+  }, [jobs]);
 
-  const totalJobs  = myContractors.length;
+  // Client-side filtering by zip + specialty
+  const filtered = useMemo(() => {
+    let list = contractors;
+    if (activeSpecialty) {
+      list = list.filter((c) => c.specialties.includes(activeSpecialty));
+    }
+    if (activeZip) {
+      const z = activeZip.trim();
+      list = list.filter(
+        (c) => c.serviceZips.includes(z) || c.serviceArea?.includes(z),
+      );
+    }
+    return list;
+  }, [contractors, activeZip, activeSpecialty]);
+
+  function handleSearch() {
+    setActiveZip(zipInput.trim());
+  }
+
+  function handleClear() {
+    setZipInput("");
+    setActiveZip("");
+    setActiveSpecialty("");
+  }
+
+  const hasFilter     = activeZip || activeSpecialty;
+  const resultLabel   = hasFilter
+    ? `${filtered.length} contractor${filtered.length !== 1 ? "s" : ""} found`
+    : `${contractors.length} contractor${contractors.length !== 1 ? "s" : ""} in the registry`;
 
   return (
     <Layout>
-      <div style={{ background: C.paper, minHeight: "100%", padding: "28px 32px" }}>
+      <div style={{ background: C.page, minHeight: "100%" }}>
+        <div style={{ maxWidth: 1024, margin: "0 auto", padding: "28px 24px" }}>
 
-        {/* Header */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
-          <div>
-            <div style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>
+          {/* Header */}
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>
               CONTRACTORS
             </div>
-            <h1 style={{ fontFamily: F.display, fontWeight: 900, fontSize: "1.875rem", color: C.ink, margin: 0 }}>
-              {totalJobs} pro{totalJobs !== 1 ? "s" : ""} with work on this record
+            <h1 style={{ fontFamily: F.display, fontWeight: 900, fontSize: "1.75rem", color: C.ink, margin: 0 }}>
+              Find a contractor
             </h1>
           </div>
-          <button onClick={() => navigate("/dashboard")} style={{ fontFamily: F.body, fontSize: 13, fontWeight: 600, color: C.ink, background: "#fff", border: `1px solid ${C.border}`, borderRadius: 100, padding: "10px 18px", cursor: "pointer" }}>
-            Back to dashboard
-          </button>
-        </div>
 
-        {/* Awaiting countersign alert */}
-        {awaitingSignature.length > 0 && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", border: `1px solid #FEF3C7`, borderRadius: 12, background: "#FFFBEB", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <AlertTriangle size={16} color="#D97706" />
-              <span style={{ fontFamily: F.body, fontSize: 14, fontWeight: 500, color: C.ink }}>
-                {awaitingSignature[0]} has not countersigned the {new Date(jobs.find(j => j.contractorName === awaitingSignature[0])?.date ?? Date.now()).toLocaleDateString(undefined, { month: "short", day: "numeric" })} work. Unverified after 14 days, it earns no points.
-              </span>
+          {/* Filter bar */}
+          <div style={{
+            display: "flex", gap: 10, flexWrap: "wrap",
+            marginBottom: 20, alignItems: "flex-end",
+          }}>
+            {/* Zip code */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: "0 0 180px" }}>
+              <label style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                ZIP CODE
+              </label>
+              <input
+                type="text"
+                maxLength={10}
+                placeholder="e.g. 78701"
+                value={zipInput}
+                onChange={(e) => setZipInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                style={{
+                  fontFamily: F.body, fontSize: 14, color: C.ink,
+                  border: `1px solid ${C.border}`, borderRadius: 8,
+                  padding: "9px 12px", background: "#fff", outline: "none",
+                }}
+              />
             </div>
-            <div style={{ display: "flex", gap: 10 }}>
-              <button style={{ fontFamily: F.body, fontSize: 13, fontWeight: 600, color: C.blue, background: "#fff", border: `1px solid ${C.border}`, borderRadius: 100, padding: "8px 16px", cursor: "pointer" }}>
-                Resend request
-              </button>
-              <button style={{ fontFamily: F.body, fontSize: 13, fontWeight: 600, color: "#fff", background: C.blue, border: "none", borderRadius: 100, padding: "8px 16px", cursor: "pointer" }}>
-                Attach receipt instead
-              </button>
-            </div>
-          </div>
-        )}
 
-        {loading ? (
-          <div style={{ display: "flex", justifyContent: "center", padding: "4rem" }}>
-            <div className="spinner-lg" />
-          </div>
-        ) : myContractors.length === 0 ? (
-          <div style={{ border: `1px solid ${C.border}`, borderRadius: 12, padding: "3rem", textAlign: "center", background: "#fff" }}>
-            <p style={{ fontFamily: F.body, fontSize: 15, fontWeight: 600, color: C.ink, marginBottom: 6 }}>No contractors yet</p>
-            <p style={{ fontFamily: F.body, fontSize: 13, color: C.muted, marginBottom: 20 }}>
-              Contractors who have completed work on your property will appear here.
-            </p>
-            <button onClick={() => navigate("/jobs/new")} style={{ fontFamily: F.body, fontSize: 14, fontWeight: 700, color: "#fff", background: C.blue, border: "none", borderRadius: 100, padding: "10px 24px", cursor: "pointer" }}>
-              Post a job
+            {/* Specialty */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: "0 0 200px" }}>
+              <label style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                SERVICE TYPE
+              </label>
+              <select
+                value={activeSpecialty}
+                onChange={(e) => setActiveSpecialty(e.target.value)}
+                style={{
+                  fontFamily: F.body, fontSize: 14, color: C.ink,
+                  border: `1px solid ${C.border}`, borderRadius: 8,
+                  padding: "9px 12px", background: "#fff", cursor: "pointer",
+                  appearance: "none",
+                }}
+              >
+                <option value="">All service types</option>
+                {SERVICE_TYPES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Search button */}
+            <button
+              onClick={handleSearch}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                fontFamily: F.body, fontSize: 14, fontWeight: 600,
+                color: "#fff", background: C.blue, border: "none",
+                borderRadius: 8, padding: "9px 20px", cursor: "pointer",
+                flexShrink: 0,
+              }}
+            >
+              <Search size={14} /> Search
             </button>
-          </div>
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16 }}>
-            {myContractors.map((ctr) => (
-              <ContractorCard
-                key={ctr.name}
-                name={ctr.name}
-                specialty={ctr.specialty}
-                city={undefined}
-                jobs={ctr.count}
-                lastJob={new Date(ctr.lastDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-                lastAmount={`$${Math.round(ctr.lastAmount / 100).toLocaleString()}`}
-                isVerified={ctr.isVerified}
-                isAwaiting={awaitingSet.has(ctr.name)}
-                onRequestQuote={() => navigate("/quotes/new")}
-                onViewJobs={() => navigate("/jobs")}
-              />
-            ))}
 
-            {/* Also show contractors from the registry that haven't worked on this property */}
-            {contractors.filter(c => !myContractors.find(m => m.name === c.name)).slice(0, 3).map((ctr) => (
-              <ContractorCard
-                key={ctr.id}
-                name={ctr.name}
-                specialty={ctr.specialties[0] ?? "General"}
-                city={ctr.serviceArea ?? undefined}
-                jobs={ctr.jobsCompleted}
-                lastJob="—"
-                lastAmount="—"
-                isVerified={ctr.isVerified}
-                isAwaiting={false}
-                onRequestQuote={() => navigate("/quotes/new")}
-                onViewJobs={() => navigate(`/contractor/${ctr.id}`)}
-              />
-            ))}
+            {/* Clear */}
+            {hasFilter && (
+              <button
+                onClick={handleClear}
+                style={{
+                  display: "flex", alignItems: "center", gap: 4,
+                  fontFamily: F.body, fontSize: 13, fontWeight: 500,
+                  color: C.muted, background: "none", border: `1px solid ${C.border}`,
+                  borderRadius: 8, padding: "9px 14px", cursor: "pointer",
+                  flexShrink: 0,
+                }}
+              >
+                <X size={12} /> Clear
+              </button>
+            )}
           </div>
-        )}
+
+          {/* Awaiting countersign alert */}
+          {firstAwaiting && (
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "14px 20px", border: `1px solid #FEF3C7`,
+              borderRadius: 12, background: "#FFFBEB", marginBottom: 20,
+              flexWrap: "wrap", gap: 12,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <AlertTriangle size={16} color="#D97706" />
+                <span style={{ fontFamily: F.body, fontSize: 14, fontWeight: 500, color: C.ink }}>
+                  {firstAwaiting.contractorName} has not countersigned the{" "}
+                  {new Date(firstAwaiting.date).toLocaleDateString(undefined, { month: "short", day: "numeric" })} work.
+                  Unverified after 14 days, it earns no points.
+                </span>
+              </div>
+              <button
+                onClick={() => navigate(`/contractor/${encodeURIComponent(firstAwaiting.contractorName ?? "")}`)}
+                style={{
+                  fontFamily: F.body, fontSize: 13, fontWeight: 600,
+                  color: C.blue, background: "#fff", border: `1px solid ${C.border}`,
+                  borderRadius: 100, padding: "8px 16px", cursor: "pointer",
+                }}
+              >
+                View contractor
+              </button>
+            </div>
+          )}
+
+          {/* Result summary */}
+          {!loading && (
+            <div style={{ fontFamily: F.mono, fontSize: 11, color: C.muted, marginBottom: 16, letterSpacing: "0.04em" }}>
+              {resultLabel}
+            </div>
+          )}
+
+          {/* Content */}
+          {loading ? (
+            <div style={{ display: "flex", justifyContent: "center", padding: "4rem" }}>
+              <div className="spinner-lg" />
+            </div>
+          ) : filtered.length === 0 ? (
+            <div style={{
+              border: `1px solid ${C.border}`, borderRadius: 12,
+              padding: "3rem", textAlign: "center", background: "#fff",
+            }}>
+              {hasFilter ? (
+                <>
+                  <p style={{ fontFamily: F.body, fontSize: 15, fontWeight: 600, color: C.ink, marginBottom: 6 }}>
+                    No contractors match your search
+                  </p>
+                  <p style={{ fontFamily: F.body, fontSize: 13, color: C.muted, marginBottom: 20 }}>
+                    Try a different zip code or service type.
+                  </p>
+                  <button
+                    onClick={handleClear}
+                    style={{
+                      fontFamily: F.body, fontSize: 14, fontWeight: 600,
+                      color: C.blue, background: C.lblue, border: `1px solid ${C.border}`,
+                      borderRadius: 100, padding: "10px 24px", cursor: "pointer",
+                    }}
+                  >
+                    Show all contractors
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p style={{ fontFamily: F.body, fontSize: 15, fontWeight: 600, color: C.ink, marginBottom: 6 }}>
+                    No contractors yet
+                  </p>
+                  <p style={{ fontFamily: F.body, fontSize: 13, color: C.muted, marginBottom: 20 }}>
+                    Contractors who register on HomeGentic will appear here.
+                  </p>
+                  <button
+                    onClick={() => navigate("/dashboard")}
+                    style={{
+                      fontFamily: F.body, fontSize: 14, fontWeight: 700,
+                      color: "#fff", background: C.blue, border: "none",
+                      borderRadius: 100, padding: "10px 24px", cursor: "pointer",
+                    }}
+                  >
+                    Back to dashboard
+                  </button>
+                </>
+              )}
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(270px, 1fr))", gap: 16 }}>
+              {filtered.map((ctr) => (
+                <ContractorCard
+                  key={ctr.id}
+                  contractor={ctr}
+                  isAwaiting={awaitingSet.has(ctr.name)}
+                  onViewProfile={() => navigate(`/contractor/${ctr.id}`)}
+                  onRequestQuote={() =>
+                    navigate("/quotes/new", {
+                      state: {
+                        prefill: {
+                          serviceType:    ctr.specialties[0] ?? "",
+                          contractorName: ctr.name,
+                          zipCode:        ctr.serviceZips[0] ?? "",
+                        },
+                      },
+                    })
+                  }
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </Layout>
   );

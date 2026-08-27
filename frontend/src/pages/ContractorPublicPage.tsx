@@ -53,6 +53,7 @@ export default function ContractorPublicPage() {
   const { isMobile } = useBreakpoint();
   const [contractor,   setContractor]   = useState<ContractorProfile | null>(null);
   const [credentials,  setCredentials]  = useState<JobCredential[]>([]);
+  const [reviews,      setReviews]      = useState<{ id: string; rating: number; comment: string; jobId: string; createdAt: number }[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [rating,       setRating]       = useState(0);
   const [comment,      setComment]      = useState("");
@@ -65,7 +66,14 @@ export default function ContractorPublicPage() {
     contractorService.getContractor(id)
       .then((c) => {
         setContractor(c);
-        if (c) contractorService.getCredentials(c.id).then(setCredentials).catch((e) => console.error("[ContractorPublicPage] credentials load failed:", e));
+        if (c) {
+          contractorService.getCredentials(c.id)
+            .then(setCredentials)
+            .catch((e) => console.error("[ContractorPublicPage] credentials load failed:", e));
+          contractorService.getReviewsForContractor(c.id)
+            .then((rs) => setReviews(rs.sort((a, b) => b.createdAt - a.createdAt)))
+            .catch((e) => console.error("[ContractorPublicPage] reviews load failed:", e));
+        }
       })
       .catch((e) => console.error("[ContractorPublicPage] contractor load failed:", e))
       .finally(() => setLoading(false));
@@ -286,6 +294,66 @@ export default function ContractorPublicPage() {
                     <ShieldCheck size={12} color={UI.sage} />
                     <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.06em", color: UI.sage }}>ICP Verified</span>
                   </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Reviews */}
+        <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, marginBottom: "1.5rem" }}>
+          <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${UI.rule}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
+              Homeowner Reviews
+            </p>
+            {reviews.length > 0 && (
+              <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", color: UI.inkLight }}>
+                {reviews.length} review{reviews.length !== 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
+
+          {reviews.length === 0 ? (
+            <div style={{ padding: "1.5rem 1.25rem", textAlign: "center" }}>
+              <Star size={20} color={UI.rule} style={{ margin: "0 auto 0.5rem" }} />
+              <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: UI.inkLight }}>
+                No reviews yet. Be the first to leave one below.
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              {reviews.map((r, i) => (
+                <div
+                  key={r.id}
+                  style={{
+                    padding: "1rem 1.25rem",
+                    borderBottom: i < reviews.length - 1 ? `1px solid ${UI.rule}` : "none",
+                  }}
+                >
+                  {/* Stars + date */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.375rem" }}>
+                    <div style={{ display: "flex", gap: "0.15rem" }}>
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <Star
+                          key={n}
+                          size={13}
+                          fill={n <= r.rating ? UI.inkLight : "none"}
+                          color={UI.inkLight}
+                        />
+                      ))}
+                    </div>
+                    <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.06em", color: UI.inkLight }}>
+                      {new Date(r.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    </span>
+                  </div>
+                  {/* Comment */}
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: UI.ink, lineHeight: 1.55, marginBottom: "0.25rem" }}>
+                    {r.comment}
+                  </p>
+                  {/* Job ref */}
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.04em", color: UI.inkLight }}>
+                    Job #{r.jobId}
+                  </p>
                 </div>
               ))}
             </div>
