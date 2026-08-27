@@ -274,6 +274,39 @@ export const propertyIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
   });
 };
 
+/** Monitoring canister — methods used in upgrade tests only. */
+export const monitoringIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
+  const AlertSeverity  = I.Variant({ Critical: I.Null, Warning: I.Null, Info: I.Null });
+  const AlertCategory  = I.Variant({
+    Cycles: I.Null, ErrorRate: I.Null, ResponseTime: I.Null,
+    Memory: I.Null, Milestone: I.Null, TopUp: I.Null, Stale: I.Null,
+  });
+  const Alert = I.Record({
+    id: I.Text, severity: AlertSeverity, category: AlertCategory,
+    canisterId: I.Opt(I.Principal), message: I.Text,
+    resolved: I.Bool, createdAt: I.Int, resolvedAt: I.Opt(I.Int),
+  });
+  const Error = I.Variant({
+    NotFound: I.Null, NotAuthorized: I.Null, InvalidInput: I.Text,
+  });
+  const Metrics = I.Record({
+    totalCanisters: I.Nat, activeAlerts: I.Nat, criticalAlerts: I.Nat, isPaused: I.Bool,
+    cyclesPerCall: I.Vec(I.Record({
+      method: I.Text, avgCycles: I.Nat, sampleCount: I.Nat, lastUpdatedAt: I.Int,
+    })),
+  });
+  return I.Service({
+    addAdmin:              I.Func([I.Principal], [I.Variant({ ok: I.Null, err: Error })], []),
+    recordCanisterMetrics: I.Func(
+      [I.Principal, I.Nat, I.Nat, I.Nat, I.Nat, I.Nat, I.Nat, I.Nat], [], []
+    ),
+    getActiveAlerts:          I.Func([], [I.Vec(Alert)], ["query"]),
+    getCriticalCycleAlerts:   I.Func([], [I.Vec(Alert)], ["query"]),
+    resolveAlert:             I.Func([I.Text], [I.Bool], []),
+    getMetrics:               I.Func([], [Metrics], ["query"]),
+  });
+};
+
 /** Contractor canister — methods used in upgrade tests only. */
 export const contractorIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
   const ServiceType = I.Variant({

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# HomeGentic — Cycle Top-Up Watchdog (issue #55)
+# HomeGentic — Cycle Top-Up Watchdog (issue #55 / #421)
 #
 # Calls checkCycleLevels() on the monitoring canister, then tops up any
 # canister whose balance is below TOP_UP_TRIGGER_T (2T cycles) to TOP_UP_TARGET_T
@@ -10,11 +10,15 @@
 #   bash scripts/top-up-canisters.sh --dry-run    # report only, no top-up
 #
 # Environment:
-#   CYCLES_WALLET        — identity whose wallet holds the cycles (required in prod)
 #   TOP_UP_TRIGGER_T     — top-up when balance falls below this many trillion cycles (default: 2)
-#   TOP_UP_TARGET_T      — top-up amount in trillion cycles (default: 5)
+#   TOP_UP_TARGET_T      — refill target in trillion cycles (default: 5)
+#   WARNING_MULTIPLIER   — warn (but don't top-up) when balance < TRIGGER × this factor (default: 2)
 #   DFX_NETWORK          — "local" or "ic" (default: local)
 #   MONITORING_CANISTER  — canister name or ID (default: monitoring)
+#
+# The active dfx identity must have controller rights on all target canisters so
+# that `dfx canister deposit-cycles` succeeds. Fund the identity's cycles wallet
+# before running — see docs/DEPLOYMENT.md § Cycle Wallet Funding.
 
 set -uo pipefail
 
@@ -27,15 +31,18 @@ DFX_NETWORK="${DFX_NETWORK:-local}"
 MONITORING_CANISTER="${MONITORING_CANISTER:-monitoring}"
 TOP_UP_TRIGGER_T="${TOP_UP_TRIGGER_T:-2}"
 TOP_UP_TARGET_T="${TOP_UP_TARGET_T:-5}"
+WARNING_MULTIPLIER="${WARNING_MULTIPLIER:-2}"
 
 TRIGGER_CYCLES=$(( TOP_UP_TRIGGER_T * 1000000000000 ))
+WARNING_CYCLES=$(( TRIGGER_CYCLES * WARNING_MULTIPLIER ))
 TOP_UP_AMOUNT=$(( TOP_UP_TARGET_T  * 1000000000000 ))
 
 echo "============================================"
 echo "  HomeGentic — Cycle Top-Up Watchdog"
 echo "  Network   : $DFX_NETWORK"
-echo "  Trigger   : ${TOP_UP_TRIGGER_T}T cycles"
-echo "  Top-up by : ${TOP_UP_TARGET_T}T cycles"
+echo "  Trigger   : ${TOP_UP_TRIGGER_T}T cycles  (top-up threshold)"
+echo "  Warning   : $(( TOP_UP_TRIGGER_T * WARNING_MULTIPLIER ))T cycles  (log-only)"
+echo "  Top-up to : ${TOP_UP_TARGET_T}T cycles"
 if $DRY_RUN; then
   echo "  Mode      : DRY RUN (no changes)"
 fi
@@ -91,7 +98,7 @@ for CANISTER in "${CANISTERS[@]}"; do
   CYCLES="$CYCLES_RAW"
 
   if [ "$CYCLES" -lt "$TRIGGER_CYCLES" ]; then
-    echo "  🔴  $CANISTER — $CYCLES cycles (below trigger) → topping up"
+    echo "  🔴  $CANISTER — $CYCLES cycles (below ${TOP_UP_TRIGGER_T}T trigger) → topping up"
     if $DRY_RUN; then
       echo "      [DRY RUN] would run: dfx canister deposit-cycles $TOP_UP_AMOUNT $CANISTER --network $DFX_NETWORK"
       TOPPED_UP+=("$CANISTER (dry-run)")
@@ -104,8 +111,8 @@ for CANISTER in "${CANISTERS[@]}"; do
         FAILED+=("$CANISTER")
       fi
     fi
-  elif [ "$CYCLES" -lt "$TRIGGER_CYCLES" ]; then
-    echo "  🟡  $CANISTER — $CYCLES cycles (low, above trigger)"
+  elif [ "$CYCLES" -lt "$WARNING_CYCLES" ]; then
+    echo "  🟡  $CANISTER — $CYCLES cycles (low, below $(( TOP_UP_TRIGGER_T * WARNING_MULTIPLIER ))T warning threshold)"
     WARNINGS+=("$CANISTER")
   else
     echo "  🟢  $CANISTER — $CYCLES cycles (OK)"

@@ -32,19 +32,20 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v7
-        with:
-          node-version: '20'
+      - name: Install dfx
+        run: |
+          curl -fsSL "https://github.com/dfinity/sdk/releases/download/0.24.3/dfx-x86_64-unknown-linux-gnu.tar.gz" \
+            | tar -xzC /tmp/dfx-install
+          DFX_BIN=$(find /tmp/dfx-install -name "dfx" -type f -perm /111 | head -1)
+          sudo install -m 755 "$DFX_BIN" /usr/local/bin/dfx
+          dfx --version
 
-      - name: Install icp-cli
-        run: npm install -g @icp-sdk/icp-cli
-
-      - name: Set ICP identity from secret
+      - name: Set dfx identity from secret
         run: |
           IDENTITY_FILE=$(mktemp /tmp/icp-identity-XXXXXX.pem)
           printf '%s' "$DFX_IDENTITY_PEM" > "$IDENTITY_FILE"
-          icp identity import ci-watchdog --from-pem "$IDENTITY_FILE" --storage plaintext
-          icp identity default ci-watchdog
+          dfx identity import --storage-mode plaintext ci-watchdog "$IDENTITY_FILE"
+          dfx identity use ci-watchdog
           rm -f "$IDENTITY_FILE"
         env:
           DFX_IDENTITY_PEM: ${{ secrets.MAINNET_IDENTITY_PEM }}
@@ -67,9 +68,11 @@ jobs:
           if [ "${{ inputs.dry_run }}" = "true" ]; then DRY_FLAG="--dry-run"; fi
           bash scripts/top-up-canisters.sh $DRY_FLAG 2>&1 | tee top-up.log
         env:
-          DFX_NETWORK:      ${{ inputs.network || 'ic' }}
-          TOP_UP_TRIGGER_T: '2'
-          TOP_UP_TARGET_T:  '5'
+          DFX_NETWORK:         ${{ inputs.network || 'ic' }}
+          TOP_UP_TRIGGER_T:    '2'
+          TOP_UP_TARGET_T:     '5'
+          WARNING_MULTIPLIER:  '2'
+          MONITORING_CANISTER: ${{ vars.MONITORING_CANISTER_ID || 'monitoring' }}
 
       - name: Upload cycle health report
         if: always()
