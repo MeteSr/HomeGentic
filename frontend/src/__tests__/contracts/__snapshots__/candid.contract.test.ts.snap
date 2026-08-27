@@ -46,7 +46,7 @@ exports[`ai_proxy IDL factory > full signature snapshot 1`] = `
       "query",
     ],
     "rets": [
-      "record {resendKeySet:bool; openPermitKeySet:bool}",
+      "record {resendKeySet:bool; attomKeySet:bool; openPermitKeySet:bool}",
     ],
   },
   "getMetrics": {
@@ -112,6 +112,18 @@ exports[`ai_proxy IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "variant {ok:text; err:text}",
+    ],
+  },
+  "lookupPropertyDetails": {
+    "args": [
+      "text",
+      "text",
+      "text",
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:text; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; RateLimited; KeyNotConfigured; HttpError:text}}",
     ],
   },
   "lookupYearBuilt": {
@@ -191,6 +203,15 @@ exports[`ai_proxy IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:text; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; RateLimited; KeyNotConfigured; HttpError:text}}",
+    ],
+  },
+  "setAttomApiKey": {
+    "args": [
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; RateLimited; KeyNotConfigured; HttpError:text}}",
     ],
   },
   "setOpenPermitApiKey": {

@@ -12,6 +12,7 @@ getTrustedCanisters(0) -> (1) [query]
 health(0) -> (1) [query]
 importPermits(4) -> (1)
 instantForecast(4) -> (1) [query]
+lookupPropertyDetails(4) -> (1)
 lookupYearBuilt(1) -> (1) [query]
 pause(1) -> (1)
 removeTrustedCanister(1) -> (1)
@@ -19,6 +20,7 @@ requestReport(2) -> (1)
 sendEmail(6) -> (1)
 sendInviteEmail(6) -> (1)
 sendJobMatchEmail(4) -> (1)
+setAttomApiKey(1) -> (1)
 setOpenPermitApiKey(1) -> (1)
 setResendApiKey(1) -> (1)
 setResendFromAddress(1) -> (1)
