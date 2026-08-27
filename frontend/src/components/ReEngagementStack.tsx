@@ -1,14 +1,14 @@
 import React, { useState } from "react";
 import { ShieldCheck, X } from "lucide-react";
-import { COLORS, FONTS, RADIUS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import type { ReEngagementPrompt } from "@/services/reEngagementService";
 
 const UI = {
-  ink:      COLORS.plum,
-  rule:     COLORS.rule,
-  inkLight: COLORS.plumMid,
-  sage:     COLORS.sageText,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  rule:     V2_COLORS.border,
+  inkLight: V2_COLORS.muted,
+  sage:     V2_COLORS.blue,
+  mono:     V2_FONTS.body,
 };
 
 export interface ReEngagementStackProps {
@@ -53,9 +53,9 @@ export function ReEngagementStack({
             border: `1px solid ${UI.rule}`,
             padding: "1rem 1.25rem",
             marginBottom: "1rem",
-            background: COLORS.white,
+            background: V2_COLORS.paper,
             flexWrap: "wrap",
-            borderRadius: RADIUS.sm,
+            borderRadius: V2_RADIUS.sm,
           }}
         >
           <div style={{ display: "flex", gap: "0.75rem", flex: 1 }}>
@@ -68,7 +68,7 @@ export function ReEngagementStack({
                 alignItems: "center",
                 justifyContent: "center",
                 flexShrink: 0,
-                borderRadius: RADIUS.sm,
+                borderRadius: V2_RADIUS.sm,
               }}
             >
               <ShieldCheck size={13} color={UI.sage} />
@@ -114,7 +114,7 @@ export function ReEngagementStack({
                     background: "none",
                     color: UI.sage,
                     cursor: "pointer",
-                    borderRadius: RADIUS.sm,
+                    borderRadius: V2_RADIUS.sm,
                   }}
                 >
                   Request Quote →
@@ -136,7 +136,7 @@ export function ReEngagementStack({
                     background: "none",
                     color: UI.inkLight,
                     cursor: "pointer",
-                    borderRadius: RADIUS.sm,
+                    borderRadius: V2_RADIUS.sm,
                   }}
                 >
                   Log Job

@@ -7,16 +7,16 @@ import { paymentService, type PlanTier } from "@/services/payment";
 import { usePropertyStore } from "@/store/propertyStore";
 import { isValidPhone } from "@/utils/validators";
 import toast from "react-hot-toast";
-import { COLORS, FONTS, RADIUS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  inkLight: COLORS.plumMid,
-  sage:     COLORS.sage,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  inkLight: V2_COLORS.muted,
+  sage:     V2_COLORS.blue,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.body,
 };
 
 const SERVICE_TYPES: RecurringServiceType[] = [
@@ -139,9 +139,9 @@ export default function RecurringServiceCreateModal({
       onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
     >
       <div style={{
-        background:   COLORS.white,
-        border:       `1px solid ${COLORS.rule}`,
-        borderRadius: RADIUS.card,
+        background:   V2_COLORS.paper,
+        border:       `1px solid ${V2_COLORS.border}`,
+        borderRadius: V2_RADIUS.card,
         padding:      "2rem",
         maxWidth:     "520px",
         width:        "100%",
@@ -154,7 +154,7 @@ export default function RecurringServiceCreateModal({
         <button
           onClick={handleClose}
           aria-label="Close"
-          style={{ position: "absolute", top: "1rem", right: "1rem", background: "none", border: "none", cursor: "pointer", color: COLORS.plumMid, padding: "0.25rem" }}
+          style={{ position: "absolute", top: "1rem", right: "1rem", background: "none", border: "none", cursor: "pointer", color: V2_COLORS.muted, padding: "0.25rem" }}
         >
           <X size={18} />
         </button>
@@ -171,7 +171,7 @@ export default function RecurringServiceCreateModal({
         ) : submitted ? (
           // ── Success ─────────────────────────────────────────────────────────
           <div style={{ textAlign: "center", padding: "1rem 0" }}>
-            <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "4rem", height: "4rem", border: `2px solid ${UI.sage}`, marginBottom: "1.25rem", borderRadius: RADIUS.card }}>
+            <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "4rem", height: "4rem", border: `2px solid ${UI.sage}`, marginBottom: "1.25rem", borderRadius: V2_RADIUS.card }}>
               <CheckCircle size={28} color={UI.sage} />
             </div>
             <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: UI.sage, marginBottom: "0.375rem" }}>
@@ -242,10 +242,10 @@ export default function RecurringServiceCreateModal({
                     className="form-input" type="tel" placeholder="e.g. (555) 000-0000"
                     value={form.providerPhone}
                     onChange={(e) => update("providerPhone", e.target.value)}
-                    style={form.providerPhone && !isValidPhone(form.providerPhone) ? { borderColor: COLORS.rust } : undefined}
+                    style={form.providerPhone && !isValidPhone(form.providerPhone) ? { borderColor: V2_COLORS.coral } : undefined}
                   />
                   {form.providerPhone && !isValidPhone(form.providerPhone) && (
-                    <p style={{ color: COLORS.rust, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: UI.mono }}>Enter a valid phone number</p>
+                    <p style={{ color: V2_COLORS.coralText, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: UI.mono }}>Enter a valid phone number</p>
                   )}
                 </div>
               </div>

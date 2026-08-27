@@ -1,15 +1,15 @@
 import React from "react";
-import { COLORS, FONTS, RADIUS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import type { RecurringService, VisitLog } from "@/services/recurringService";
 import type { PlanTier } from "@/services/payment";
 import { RecurringServiceCard } from "@/components/RecurringServiceCard";
 
 const UI = {
-  ink:      COLORS.plum,
-  rule:     COLORS.rule,
-  inkLight: COLORS.plumMid,
-  sage:     COLORS.sageText,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  rule:     V2_COLORS.border,
+  inkLight: V2_COLORS.muted,
+  sage:     V2_COLORS.blue,
+  mono:     V2_FONTS.body,
 };
 
 export interface RecurringServicesPanelProps {
@@ -61,7 +61,7 @@ export function RecurringServicesPanel({
             color: UI.sage,
             background: "none",
             cursor: "pointer",
-            borderRadius: RADIUS.sm,
+            borderRadius: V2_RADIUS.sm,
           }}
         >
           + Add
@@ -72,10 +72,10 @@ export function RecurringServicesPanel({
         <div
           style={{
             border: `1px solid ${UI.rule}`,
-            background: COLORS.white,
+            background: V2_COLORS.paper,
             padding: "1.5rem",
             textAlign: "center",
-            borderRadius: RADIUS.card,
+            borderRadius: V2_RADIUS.card,
           }}
         >
           <p
@@ -101,7 +101,7 @@ export function RecurringServicesPanel({
               background: "none",
               cursor: "pointer",
               color: UI.ink,
-              borderRadius: RADIUS.sm,
+              borderRadius: V2_RADIUS.sm,
             }}
           >
             Add first service →

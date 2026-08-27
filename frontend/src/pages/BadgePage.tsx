@@ -14,31 +14,31 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { Shield, AlertTriangle, Copy, CheckCircle, ExternalLink } from "lucide-react";
 import { reportService, ReportSnapshot, ShareLink } from "@/services/report";
 import { getScoreGrade } from "@/services/scoreService";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  rust:     COLORS.sage,
-  inkLight: COLORS.plumMid,
-  sage:     COLORS.sage,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  rust:     V2_COLORS.blue,
+  inkLight: V2_COLORS.muted,
+  sage:     V2_COLORS.blue,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.body,
 };
 
 type LoadState = "loading" | "loaded" | "error";
 
 function ScorePill({ score, grade }: { score: number; grade: string }) {
-  const color = score >= 88 ? COLORS.sage : score >= 75 ? COLORS.plumMid : score >= 50 ? COLORS.plumMid : COLORS.sage;
+  const color = score >= 88 ? V2_COLORS.blue : score >= 75 ? V2_COLORS.muted : score >= 50 ? V2_COLORS.muted : V2_COLORS.blue;
   return (
     <div style={{
       display: "inline-flex", alignItems: "center", gap: "0.5rem",
       padding: "0.375rem 0.875rem",
-      background: COLORS.plum,
+      background: V2_COLORS.ink,
       border: `1px solid ${color}40`,
     }}>
-      <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, color: COLORS.white }}>
+      <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, color: V2_COLORS.paper }}>
         {score}
       </span>
       <div>
@@ -55,10 +55,10 @@ function ScorePill({ score, grade }: { score: number; grade: string }) {
 
 function VerifiedBadge({ level }: { level: string }) {
   const cfg = level === "Premium"
-    ? { color: COLORS.sageText, label: "Premium Verified" }
+    ? { color: V2_COLORS.blue, label: "Premium Verified" }
     : level === "Basic"
-    ? { color: COLORS.plumMid, label: "Basic Verified" }
-    : { color: COLORS.plumMid, label: "Self-Reported" };
+    ? { color: V2_COLORS.muted, label: "Basic Verified" }
+    : { color: V2_COLORS.muted, label: "Self-Reported" };
   return (
     <div style={{
       display: "inline-flex", alignItems: "center", gap: "0.3rem",
@@ -76,7 +76,7 @@ function BadgeCard({ snapshot, score }: { snapshot: ReportSnapshot; score: numbe
   const grade = getScoreGrade(score);
   return (
     <div style={{
-      background: COLORS.plum,
+      background: V2_COLORS.ink,
       border: `1px solid rgba(255,255,255,0.08)`,
       padding: "1.25rem",
       maxWidth: "18rem",
@@ -84,17 +84,17 @@ function BadgeCard({ snapshot, score }: { snapshot: ReportSnapshot; score: numbe
     }}>
       {/* Brand */}
       <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", marginBottom: "0.875rem", opacity: 0.55 }}>
-        <Shield size={11} color={COLORS.white} />
-        <span style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.55rem", letterSpacing: "0.2em", textTransform: "uppercase", color: COLORS.white }}>
+        <Shield size={11} color={V2_COLORS.paper} />
+        <span style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.55rem", letterSpacing: "0.2em", textTransform: "uppercase", color: V2_COLORS.paper }}>
           HOMEGENTIC
         </span>
       </div>
 
       {/* Address */}
-      <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "0.9rem", color: COLORS.white, marginBottom: "0.125rem", lineHeight: 1.2 }}>
+      <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "0.9rem", color: V2_COLORS.paper, marginBottom: "0.125rem", lineHeight: 1.2 }}>
         {snapshot.address}
       </p>
-      <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: COLORS.plumMid, marginBottom: "1rem", letterSpacing: "0.04em" }}>
+      <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: V2_COLORS.muted, marginBottom: "1rem", letterSpacing: "0.04em" }}>
         {snapshot.city}, {snapshot.state}
       </p>
 
@@ -106,7 +106,7 @@ function BadgeCard({ snapshot, score }: { snapshot: ReportSnapshot; score: numbe
             <p style={{ fontFamily: UI.mono, fontSize: "0.45rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: "0.1rem" }}>
               Verified Jobs
             </p>
-            <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1rem", lineHeight: 1, color: COLORS.white }}>
+            <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1rem", lineHeight: 1, color: V2_COLORS.paper }}>
               {snapshot.verifiedJobCount}
             </p>
           </div>
@@ -114,7 +114,7 @@ function BadgeCard({ snapshot, score }: { snapshot: ReportSnapshot; score: numbe
             <p style={{ fontFamily: UI.mono, fontSize: "0.45rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: "0.1rem" }}>
               Total Records
             </p>
-            <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1rem", lineHeight: 1, color: COLORS.white }}>
+            <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1rem", lineHeight: 1, color: V2_COLORS.paper }}>
               {snapshot.jobs.length}
             </p>
           </div>
@@ -157,7 +157,7 @@ export default function BadgePage() {
 
   if (state === "loading") {
     return (
-      <div style={{ minHeight: isEmbed ? "auto" : "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: isEmbed ? COLORS.plum : UI.paper }}>
+      <div style={{ minHeight: isEmbed ? "auto" : "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: isEmbed ? V2_COLORS.ink : UI.paper }}>
         <div className="spinner-lg" />
       </div>
     );
@@ -203,7 +203,7 @@ export default function BadgePage() {
   // Embed mode: just the badge card, no chrome
   if (isEmbed) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "212px", background: COLORS.plum }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "212px", background: V2_COLORS.ink }}>
         <a href={reportUrl} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
           <BadgeCard snapshot={snapshot} score={score} />
         </a>
@@ -260,7 +260,7 @@ export default function BadgePage() {
             The badge updates automatically when you generate a new report.
           </p>
 
-          <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, overflow: "hidden" }}>
+          <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, overflow: "hidden" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem 0.875rem", borderBottom: `1px solid ${UI.rule}` }}>
               <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>
                 HTML embed code
@@ -271,8 +271,8 @@ export default function BadgePage() {
                   display: "inline-flex", alignItems: "center", gap: "0.3rem",
                   padding: "0.25rem 0.6rem",
                   fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase",
-                  border: `1px solid ${copied ? COLORS.sage : UI.rule}`,
-                  color: copied ? COLORS.sageText : UI.inkLight,
+                  border: `1px solid ${copied ? V2_COLORS.blue : UI.rule}`,
+                  color: copied ? V2_COLORS.blue : UI.inkLight,
                   background: "none", cursor: "pointer",
                 }}
               >

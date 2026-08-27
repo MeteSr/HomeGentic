@@ -9,17 +9,17 @@ import { usePropertyStore } from "@/store/propertyStore";
 import { UpgradeGate } from "@/components/UpgradeGate";
 import toast from "react-hot-toast";
 import { isValidPhone } from "@/utils/validators";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  rust:     COLORS.sage,
-  inkLight: COLORS.plumMid,
-  sage:     COLORS.sage,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  rust:     V2_COLORS.blue,
+  inkLight: V2_COLORS.muted,
+  sage:     V2_COLORS.blue,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.body,
 };
 
 const SERVICE_TYPES: RecurringServiceType[] = [
@@ -155,7 +155,7 @@ export default function RecurringServiceCreatePage() {
           Log an ongoing service contract. Attach the contract doc after saving.
         </p>
 
-        <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+        <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
 
           {/* Property selector */}
           {properties.length > 0 && (
@@ -196,10 +196,10 @@ export default function RecurringServiceCreatePage() {
                 className="form-input" type="tel" placeholder="e.g. (555) 000-0000"
                 value={form.providerPhone}
                 onChange={(e) => update("providerPhone", e.target.value)}
-                style={form.providerPhone && !isValidPhone(form.providerPhone) ? { borderColor: COLORS.rust } : undefined}
+                style={form.providerPhone && !isValidPhone(form.providerPhone) ? { borderColor: V2_COLORS.coral } : undefined}
               />
               {form.providerPhone && !isValidPhone(form.providerPhone) && (
-                <p style={{ color: COLORS.rust, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: UI.mono }}>Enter a valid phone number</p>
+                <p style={{ color: V2_COLORS.coralText, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: UI.mono }}>Enter a valid phone number</p>
               )}
             </div>
           </div>

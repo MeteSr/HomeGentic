@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { Loader2, Mic, MicOff, Volume2, X, History, ChevronDown, ChevronUp, AlertTriangle, CheckCircle, XCircle, Paperclip } from "lucide-react";
 import { useVoiceAgent } from "../hooks/useVoiceAgent";
-import { COLORS, FONTS, RADIUS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 
 /** Called by Layout's avatar menu to open the agent's file picker. */
 export const voiceAgentFileInputRef: { current: HTMLInputElement | null } = { current: null };
@@ -9,18 +9,18 @@ export const voiceAgentFileInputRef: { current: HTMLInputElement | null } = { cu
 function ProposalRow({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ display: "flex", gap: "0.5rem", alignItems: "baseline" }}>
-      <span style={{ fontFamily: FONTS.sans, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.plumMid, flexShrink: 0, width: "4.5rem" }}>{label}</span>
-      <span style={{ fontFamily: FONTS.sans, fontSize: "0.72rem", color: COLORS.white, lineHeight: 1.3 }}>{value}</span>
+      <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: V2_COLORS.muted, flexShrink: 0, width: "4.5rem" }}>{label}</span>
+      <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.72rem", color: V2_COLORS.paper, lineHeight: 1.3 }}>{value}</span>
     </div>
   );
 }
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  inkLight: COLORS.plumMid,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  inkLight: V2_COLORS.muted,
+  mono:     V2_FONTS.body,
 };
 
 export function VoiceAgent() {
@@ -59,29 +59,29 @@ export function VoiceAgent() {
           aria-atomic="false"
           style={{
             position: "relative", width: "20rem",
-            background: COLORS.plum, border: `1px solid ${COLORS.rule}`,
-            padding: "1rem 1.25rem", borderRadius: RADIUS.card,
+            background: V2_COLORS.ink, border: `1px solid ${V2_COLORS.border}`,
+            padding: "1rem 1.25rem", borderRadius: V2_RADIUS.card,
           }}
         >
           <button
             onClick={reset}
-            style={{ position: "absolute", top: "0.75rem", right: "0.75rem", background: "none", border: "none", cursor: "pointer", color: COLORS.plumMid, padding: 0, display: "flex" }}
+            style={{ position: "absolute", top: "0.75rem", right: "0.75rem", background: "none", border: "none", cursor: "pointer", color: V2_COLORS.muted, padding: 0, display: "flex" }}
             aria-label="Dismiss"
           >
             <X size={13} />
           </button>
 
           {transcript && (
-            <p style={{ marginBottom: "0.5rem", fontFamily: UI.mono, fontSize: "0.7rem", color: COLORS.plumMid, fontStyle: "italic", paddingRight: "1.25rem" }}>
+            <p style={{ marginBottom: "0.5rem", fontFamily: UI.mono, fontSize: "0.7rem", color: V2_COLORS.muted, fontStyle: "italic", paddingRight: "1.25rem" }}>
               "{transcript}"
             </p>
           )}
 
           {response && (
-            <p style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", color: COLORS.white, lineHeight: 1.55, paddingRight: "1.25rem" }}>
+            <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.8rem", color: V2_COLORS.paper, lineHeight: 1.55, paddingRight: "1.25rem" }}>
               {response}
               {isProcessing && (
-                <span style={{ display: "inline-block", width: "2px", height: "0.875rem", marginLeft: "2px", backgroundColor: COLORS.sage, animation: "spin 1s step-end infinite", verticalAlign: "middle" }} />
+                <span style={{ display: "inline-block", width: "2px", height: "0.875rem", marginLeft: "2px", backgroundColor: V2_COLORS.blue, animation: "spin 1s step-end infinite", verticalAlign: "middle" }} />
               )}
             </p>
           )}
@@ -93,7 +93,7 @@ export function VoiceAgent() {
               border: `1px solid rgba(212,207,200,0.2)`,
               padding: "0.75rem",
             }}>
-              <div style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.5rem" }}>
+              <div style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: V2_COLORS.muted, marginBottom: "0.5rem" }}>
                 Proposal to send
               </div>
 
@@ -103,8 +103,8 @@ export function VoiceAgent() {
                   background: "rgba(201,76,46,0.15)", border: "1px solid rgba(201,76,46,0.35)",
                   padding: "0.375rem 0.5rem", marginBottom: "0.5rem",
                 }}>
-                  <AlertTriangle size={10} color="#C94C2E" style={{ flexShrink: 0, marginTop: "0.1rem" }} />
-                  <span style={{ fontFamily: UI.mono, fontSize: "0.575rem", color: "#C94C2E", lineHeight: 1.4 }}>
+                  <AlertTriangle size={10} color={V2_COLORS.coralText} style={{ flexShrink: 0, marginTop: "0.1rem" }} />
+                  <span style={{ fontFamily: UI.mono, fontSize: "0.575rem", color: V2_COLORS.coralText, lineHeight: 1.4 }}>
                     Possible duplicate — a similar job already exists (#{pendingProposal.duplicateInfo.jobId.slice(-6)}). The homeowner will decide.
                   </span>
                 </div>
@@ -126,7 +126,7 @@ export function VoiceAgent() {
                   style={{
                     flex: 1, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em",
                     textTransform: "uppercase", padding: "0.375rem 0",
-                    background: COLORS.sage, border: "none", color: COLORS.white, cursor: "pointer",
+                    background: V2_COLORS.blue, border: "none", color: V2_COLORS.paper, cursor: "pointer",
                   }}
                 >
                   Confirm &amp; Send
@@ -136,7 +136,7 @@ export function VoiceAgent() {
                   style={{
                     flex: 1, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em",
                     textTransform: "uppercase", padding: "0.375rem 0",
-                    background: "none", border: `1px solid rgba(212,207,200,0.3)`, color: COLORS.plumMid, cursor: "pointer",
+                    background: "none", border: `1px solid rgba(212,207,200,0.3)`, color: V2_COLORS.muted, cursor: "pointer",
                   }}
                 >
                   Cancel
@@ -147,20 +147,20 @@ export function VoiceAgent() {
 
           {isProcessing && !response && (
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <Loader2 size={13} color={COLORS.plumMid} style={{ animation: "spin 1s linear infinite" }} />
-              <span style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: COLORS.plumMid }}>Thinking…</span>
+              <Loader2 size={13} color={V2_COLORS.muted} style={{ animation: "spin 1s linear infinite" }} />
+              <span style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: V2_COLORS.muted }}>Thinking…</span>
             </div>
           )}
 
           {error && (
-            <p style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: COLORS.sageText }}>{error}</p>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: V2_COLORS.blue }}>{error}</p>
           )}
         </div>
       )}
 
       {/* Action history panel */}
       {history.length > 0 && (
-        <div style={{ width: "20rem", background: COLORS.plum, border: `1px solid ${COLORS.rule}`, borderRadius: RADIUS.card, overflow: "hidden" }}>
+        <div style={{ width: "20rem", background: V2_COLORS.ink, border: `1px solid ${V2_COLORS.border}`, borderRadius: V2_RADIUS.card, overflow: "hidden" }}>
           <button
             onClick={() => setShowHistory((v) => !v)}
             style={{
@@ -169,8 +169,8 @@ export function VoiceAgent() {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
-              <History size={11} color={COLORS.plumMid} />
-              <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid }}>
+              <History size={11} color={V2_COLORS.muted} />
+              <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: V2_COLORS.muted }}>
                 Agent History ({history.length})
               </span>
             </div>
@@ -178,17 +178,17 @@ export function VoiceAgent() {
               {showHistory && (
                 <button
                   onClick={(e) => { e.stopPropagation(); clearHistory(); setShowHistory(false); }}
-                  style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.sageText, background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                  style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: V2_COLORS.blue, background: "none", border: "none", cursor: "pointer", padding: 0 }}
                 >
                   Clear
                 </button>
               )}
-              {showHistory ? <ChevronDown size={11} color={COLORS.plumMid} /> : <ChevronUp size={11} color={COLORS.plumMid} />}
+              {showHistory ? <ChevronDown size={11} color={V2_COLORS.muted} /> : <ChevronUp size={11} color={V2_COLORS.muted} />}
             </div>
           </button>
 
           {showHistory && (
-            <div style={{ borderTop: `1px solid ${COLORS.rule}`, maxHeight: "12rem", overflowY: "auto" }}>
+            <div style={{ borderTop: `1px solid ${V2_COLORS.border}`, maxHeight: "12rem", overflowY: "auto" }}>
               {history.slice(0, 20).map((action) => (
                 <div key={action.id} style={{
                   display: "flex", alignItems: "flex-start", gap: "0.5rem",
@@ -196,17 +196,17 @@ export function VoiceAgent() {
                   borderBottom: `1px solid rgba(212,207,200,0.15)`,
                 }}>
                   {action.success
-                    ? <CheckCircle size={11} color={COLORS.sage} style={{ flexShrink: 0, marginTop: "0.1rem" }} />
-                    : <XCircle    size={11} color={COLORS.sage}  style={{ flexShrink: 0, marginTop: "0.1rem" }} />
+                    ? <CheckCircle size={11} color={V2_COLORS.blue} style={{ flexShrink: 0, marginTop: "0.1rem" }} />
+                    : <XCircle    size={11} color={V2_COLORS.blue}  style={{ flexShrink: 0, marginTop: "0.1rem" }} />
                   }
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: action.success ? COLORS.sageText : COLORS.plumMid, marginBottom: "0.1rem" }}>
+                    <div style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: action.success ? V2_COLORS.blue : V2_COLORS.muted, marginBottom: "0.1rem" }}>
                       {action.label}
                     </div>
-                    <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: COLORS.plumMid, lineHeight: 1.4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: V2_COLORS.muted, lineHeight: 1.4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {action.summary}
                     </div>
-                    <div style={{ fontFamily: UI.mono, fontSize: "0.5rem", color: COLORS.plumMid, marginTop: "0.1rem" }}>
+                    <div style={{ fontFamily: UI.mono, fontSize: "0.5rem", color: V2_COLORS.muted, marginTop: "0.1rem" }}>
                       {new Date(action.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </div>
                   </div>
@@ -221,16 +221,16 @@ export function VoiceAgent() {
       {pendingImage && (
         <div style={{
           display: "flex", alignItems: "center", gap: "0.5rem",
-          background: COLORS.plum, border: `1px solid ${COLORS.rule}`,
-          padding: "0.35rem 0.75rem", borderRadius: RADIUS.sm,
+          background: V2_COLORS.ink, border: `1px solid ${V2_COLORS.border}`,
+          padding: "0.35rem 0.75rem", borderRadius: V2_RADIUS.sm,
         }}>
-          <Paperclip size={10} color={COLORS.sage} />
-          <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: COLORS.plumMid }}>
+          <Paperclip size={10} color={V2_COLORS.blue} />
+          <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: V2_COLORS.muted }}>
             Image attached — tap mic to describe it
           </span>
           <button
             onClick={clearImage}
-            style={{ background: "none", border: "none", cursor: "pointer", color: COLORS.plumMid, padding: 0, display: "flex" }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: V2_COLORS.muted, padding: 0, display: "flex" }}
             aria-label="Remove image"
           >
             <X size={10} />
@@ -246,19 +246,19 @@ export function VoiceAgent() {
           aria-label={isListening ? "Stop listening" : "Ask HomeGentic"}
           style={{
             width: "3.25rem", height: "3.25rem",
-            borderRadius: RADIUS.pill,
+            borderRadius: V2_RADIUS.pill,
             display: "flex", alignItems: "center", justifyContent: "center",
-            border: `1px solid ${isListening ? COLORS.sage : COLORS.plum}`,
-            backgroundColor: isListening ? COLORS.sage : isProcessing || isSpeaking ? COLORS.sageLight : COLORS.plum,
+            border: `1px solid ${isListening ? V2_COLORS.blue : V2_COLORS.ink}`,
+            backgroundColor: isListening ? V2_COLORS.blue : isProcessing || isSpeaking ? V2_COLORS.lblue : V2_COLORS.ink,
             cursor: isProcessing || isSpeaking ? "not-allowed" : "pointer",
             transition: "all 0.15s",
             boxShadow: isIdle ? "0 4px 16px rgba(46,37,64,0.2)" : "none",
           }}
         >
-          {isListening  && <MicOff  size={20} color={COLORS.white} />}
-          {isProcessing && <Loader2 size={20} color={COLORS.plumMid} style={{ animation: "spin 1s linear infinite" }} />}
-          {isSpeaking   && <Volume2 size={20} color={COLORS.plumMid} />}
-          {isIdle       && <Mic     size={20} color={COLORS.white} />}
+          {isListening  && <MicOff  size={20} color={V2_COLORS.paper} />}
+          {isProcessing && <Loader2 size={20} color={V2_COLORS.muted} style={{ animation: "spin 1s linear infinite" }} />}
+          {isSpeaking   && <Volume2 size={20} color={V2_COLORS.muted} />}
+          {isIdle       && <Mic     size={20} color={V2_COLORS.paper} />}
         </button>
 
         <span style={{

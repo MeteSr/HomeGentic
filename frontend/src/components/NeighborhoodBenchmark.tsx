@@ -13,7 +13,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapPin } from "lucide-react";
 import { neighborhoodService, getPercentileRank, type ZipCodeStats } from "@/services/neighborhood";
-import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 
 interface Props {
   zipCode: string;
@@ -37,10 +37,10 @@ export function NeighborhoodBenchmark({ zipCode, score }: Props) {
 
   // Colour the bar by quartile
   const barColor =
-    percentile >= 75 ? COLORS.sage :
-    percentile >= 50 ? COLORS.plum :
-    percentile >= 25 ? COLORS.plumMid :
-    COLORS.blush;
+    percentile >= 75 ? V2_COLORS.blue :
+    percentile >= 50 ? V2_COLORS.ink :
+    percentile >= 25 ? V2_COLORS.muted :
+    V2_COLORS.attentionBg;
 
   const label =
     topPct <= 10  ? "Top 10% in your zip" :
@@ -57,28 +57,28 @@ export function NeighborhoodBenchmark({ zipCode, score }: Props) {
   return (
     <div
       style={{
-        background: COLORS.white,
-        border: `1px solid ${COLORS.rule}`,
-        borderRadius: RADIUS.card,
+        background: V2_COLORS.paper,
+        border: `1px solid ${V2_COLORS.border}`,
+        borderRadius: V2_RADIUS.card,
         padding: "1.25rem 1.5rem",
-        boxShadow: SHADOWS.card,
+        boxShadow: V2_SHADOWS.card,
       }}
     >
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.875rem" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <MapPin size={14} color={COLORS.plumMid} />
-          <span style={{ fontFamily: FONTS.sans, fontSize: "0.7rem", fontWeight: 600, color: COLORS.plumMid }}>
+          <MapPin size={14} color={V2_COLORS.muted} />
+          <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.7rem", fontWeight: 600, color: V2_COLORS.muted }}>
             Neighborhood Rank · {zipCode}
           </span>
         </div>
         <button
           onClick={() => navigate(`/neighborhood/${zipCode}`)}
           style={{
-            fontFamily: FONTS.sans,
+            fontFamily: V2_FONTS.body,
             fontSize: "0.75rem",
             fontWeight: 500,
-            color: COLORS.sageText,
+            color: V2_COLORS.blue,
             background: "none",
             border: "none",
             cursor: "pointer",
@@ -94,7 +94,7 @@ export function NeighborhoodBenchmark({ zipCode, score }: Props) {
         <div
           style={{
             height: 6,
-            background: COLORS.rule,
+            background: V2_COLORS.border,
             borderRadius: 3,
             overflow: "hidden",
             marginBottom: "0.4rem",
@@ -111,8 +111,8 @@ export function NeighborhoodBenchmark({ zipCode, score }: Props) {
           />
         </div>
         <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <span style={{ fontFamily: FONTS.sans, fontSize: "0.55rem", color: COLORS.plumMid }}>0</span>
-          <span style={{ fontFamily: FONTS.sans, fontSize: "0.55rem", color: COLORS.plumMid }}>100</span>
+          <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.55rem", color: V2_COLORS.muted }}>0</span>
+          <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.55rem", color: V2_COLORS.muted }}>100</span>
         </div>
       </div>
 
@@ -120,10 +120,10 @@ export function NeighborhoodBenchmark({ zipCode, score }: Props) {
       <div style={{ marginBottom: "0.4rem" }}>
         <span
           style={{
-            fontFamily: FONTS.serif,
+            fontFamily: V2_FONTS.display,
             fontWeight: 700,
             fontSize: "1rem",
-            color: COLORS.plum,
+            color: V2_COLORS.ink,
           }}
         >
           {label}
@@ -132,10 +132,10 @@ export function NeighborhoodBenchmark({ zipCode, score }: Props) {
 
       {/* Sub-text */}
       <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-        <span style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", fontWeight: 300, color: COLORS.plumMid }}>
+        <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.75rem", fontWeight: 300, color: V2_COLORS.muted }}>
           Better than {percentile}% of {stats.sampleCount} homes
         </span>
-        <span style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", fontWeight: 300, color: COLORS.plumMid }}>
+        <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.75rem", fontWeight: 300, color: V2_COLORS.muted }}>
           {trendLabel}
         </span>
       </div>

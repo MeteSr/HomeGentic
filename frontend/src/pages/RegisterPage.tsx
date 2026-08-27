@@ -6,26 +6,26 @@ import { authService, UserRole } from "@/services/auth";
 import { neighborReferralService } from "@/services/neighborReferral";
 import { useAuthStore } from "@/store/authStore";
 import toast from "react-hot-toast";
-import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 import { isValidEmail, isValidPhone } from "@/utils/validators";
 
 const ROLES: { value: UserRole; label: string; icon: React.ReactNode; desc: string }[] = [
   {
     value: "Homeowner",
     label: "Homeowner",
-    icon: <Home size={26} color={COLORS.sage} />,
+    icon: <Home size={26} color={V2_COLORS.blue} />,
     desc: "Register properties, log maintenance jobs, and build your verified home history.",
   },
   {
     value: "Contractor",
     label: "Contractor",
-    icon: <HardHat size={26} color={COLORS.plum} />,
+    icon: <HardHat size={26} color={V2_COLORS.ink} />,
     desc: "Sign verified job completions, receive leads, and build your reputation on-chain.",
   },
   {
     value: "Realtor",
     label: "Realtor",
-    icon: <Building2 size={26} color={COLORS.plumMid} />,
+    icon: <Building2 size={26} color={V2_COLORS.muted} />,
     desc: "Access verified property histories to streamline transactions and build buyer trust.",
   },
 ];
@@ -80,29 +80,29 @@ export default function RegisterPage() {
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      background: COLORS.sageLight,
+      background: V2_COLORS.lblue,
       padding: "1.5rem",
-      fontFamily: FONTS.sans,
+      fontFamily: V2_FONTS.body,
     }}>
       <div style={{ width: "100%", maxWidth: "34rem" }}>
         {/* Logo */}
         <div style={{ marginBottom: "2rem", textAlign: "center" }}>
-          <div style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.5rem", letterSpacing: "-0.5px", color: COLORS.plum }}>
-            Home<span style={{ color: COLORS.sage, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
+          <div style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.5rem", letterSpacing: "-0.5px", color: V2_COLORS.ink }}>
+            Home<span style={{ color: V2_COLORS.blue, fontStyle: "italic", fontWeight: 300 }}>Gentic</span>
           </div>
         </div>
 
         <div style={{
-          borderRadius: RADIUS.card,
-          background: COLORS.white,
-          boxShadow: SHADOWS.modal,
-          border: `1px solid ${COLORS.rule}`,
+          borderRadius: V2_RADIUS.card,
+          background: V2_COLORS.paper,
+          boxShadow: V2_SHADOWS.modal,
+          border: `1px solid ${V2_COLORS.border}`,
           overflow: "hidden",
         }}>
           {/* Step indicator */}
           <div style={{
             display: "flex",
-            borderBottom: `1px solid ${COLORS.rule}`,
+            borderBottom: `1px solid ${V2_COLORS.border}`,
             padding: "0 1.5rem",
             gap: "0",
           }}>
@@ -115,12 +115,12 @@ export default function RegisterPage() {
                   flex: 1,
                   padding: "0.875rem 0",
                   textAlign: "center",
-                  fontFamily: FONTS.sans,
+                  fontFamily: V2_FONTS.body,
                   fontSize: "0.6rem",
                   letterSpacing: "0.12em",
                   textTransform: "uppercase",
-                  color: isActive ? COLORS.sage : isDone ? COLORS.plumMid : COLORS.rule,
-                  borderBottom: isActive ? `2px solid ${COLORS.sage}` : "2px solid transparent",
+                  color: isActive ? V2_COLORS.blue : isDone ? V2_COLORS.muted : V2_COLORS.border,
+                  borderBottom: isActive ? `2px solid ${V2_COLORS.blue}` : "2px solid transparent",
                   transition: "color 0.2s, border-color 0.2s",
                   marginBottom: "-1px",
                 }}>
@@ -136,15 +136,15 @@ export default function RegisterPage() {
               <>
                 <div style={{
                   display: "inline-flex", alignItems: "center", gap: "8px",
-                  background: COLORS.butter, color: COLORS.plum,
+                  background: V2_COLORS.attentionBg, color: V2_COLORS.ink,
                   padding: "5px 14px", borderRadius: 100,
                   fontSize: "0.75rem", fontWeight: 600, marginBottom: "1rem",
                   border: `1px solid rgba(46,37,64,0.1)`,
                 }}>
                   Step 1 of 3
                 </div>
-                <h2 style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.75rem", marginBottom: "0.5rem", color: COLORS.plum }}>I am a…</h2>
-                <p style={{ fontWeight: 300, fontSize: "0.9rem", color: COLORS.plumMid, marginBottom: "1.5rem" }}>
+                <h2 style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.75rem", marginBottom: "0.5rem", color: V2_COLORS.ink }}>I am a…</h2>
+                <p style={{ fontWeight: 300, fontSize: "0.9rem", color: V2_COLORS.muted, marginBottom: "1.5rem" }}>
                   Choose your role to get started with HomeGentic.
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem", marginBottom: "1.5rem" }}>
@@ -156,9 +156,9 @@ export default function RegisterPage() {
                         onClick={() => setRole(r.value)}
                         style={{
                           padding: "1rem 1.25rem",
-                          border: `1.5px solid ${selected ? COLORS.sage : COLORS.rule}`,
-                          borderRadius: RADIUS.sm,
-                          backgroundColor: selected ? COLORS.sageLight : COLORS.white,
+                          border: `1.5px solid ${selected ? V2_COLORS.blue : V2_COLORS.border}`,
+                          borderRadius: V2_RADIUS.sm,
+                          backgroundColor: selected ? V2_COLORS.lblue : V2_COLORS.paper,
                           cursor: "pointer",
                           display: "flex",
                           alignItems: "center",
@@ -168,12 +168,12 @@ export default function RegisterPage() {
                       >
                         {r.icon}
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, color: COLORS.plum, marginBottom: "0.2rem" }}>
+                          <div style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", fontWeight: 600, color: V2_COLORS.ink, marginBottom: "0.2rem" }}>
                             {r.label}
                           </div>
-                          <div style={{ fontSize: "0.8rem", color: COLORS.plumMid, fontWeight: 300 }}>{r.desc}</div>
+                          <div style={{ fontSize: "0.8rem", color: V2_COLORS.muted, fontWeight: 300 }}>{r.desc}</div>
                         </div>
-                        {selected && <CheckCircle size={18} color={COLORS.sage} />}
+                        {selected && <CheckCircle size={18} color={V2_COLORS.blue} />}
                       </div>
                     );
                   })}
@@ -189,15 +189,15 @@ export default function RegisterPage() {
               <>
                 <div style={{
                   display: "inline-flex", alignItems: "center", gap: "8px",
-                  background: COLORS.butter, color: COLORS.plum,
+                  background: V2_COLORS.attentionBg, color: V2_COLORS.ink,
                   padding: "5px 14px", borderRadius: 100,
                   fontSize: "0.75rem", fontWeight: 600, marginBottom: "1rem",
                   border: `1px solid rgba(46,37,64,0.1)`,
                 }}>
                   Step 2 of 3
                 </div>
-                <h2 style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.75rem", marginBottom: "0.5rem", color: COLORS.plum }}>Your details</h2>
-                <p style={{ fontWeight: 300, fontSize: "0.9rem", color: COLORS.plumMid, marginBottom: "1.5rem" }}>
+                <h2 style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.75rem", marginBottom: "0.5rem", color: V2_COLORS.ink }}>Your details</h2>
+                <p style={{ fontWeight: 300, fontSize: "0.9rem", color: V2_COLORS.muted, marginBottom: "1.5rem" }}>
                   Used for notifications and gift delivery. Never shared.
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginBottom: "1.5rem" }}>
@@ -208,9 +208,9 @@ export default function RegisterPage() {
                       value={email}
                       onChange={(e) => { setEmail(e.target.value); setEmailError(null); }}
                       onBlur={() => { if (!isValidEmail(email)) setEmailError(email ? "Enter a valid email address" : "Email is required"); }}
-                      style={emailError ? { borderColor: COLORS.rust } : undefined}
+                      style={emailError ? { borderColor: V2_COLORS.coral } : undefined}
                     />
-                    {emailError && <p style={{ color: COLORS.rust, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: FONTS.sans }}>{emailError}</p>}
+                    {emailError && <p style={{ color: V2_COLORS.coralText, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: V2_FONTS.body }}>{emailError}</p>}
                   </div>
                   <div>
                     <label className="form-label">Phone number (optional)</label>
@@ -219,9 +219,9 @@ export default function RegisterPage() {
                       value={phone}
                       onChange={(e) => { setPhone(e.target.value); setPhoneError(null); }}
                       onBlur={() => { if (phone && !isValidPhone(phone)) setPhoneError("Enter a valid phone number"); }}
-                      style={phoneError ? { borderColor: COLORS.rust } : undefined}
+                      style={phoneError ? { borderColor: V2_COLORS.coral } : undefined}
                     />
-                    {phoneError && <p style={{ color: COLORS.rust, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: FONTS.sans }}>{phoneError}</p>}
+                    {phoneError && <p style={{ color: V2_COLORS.coralText, fontSize: "0.7rem", marginTop: "0.25rem", fontFamily: V2_FONTS.body }}>{phoneError}</p>}
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: "0.75rem" }}>
@@ -241,20 +241,20 @@ export default function RegisterPage() {
               <>
                 <div style={{
                   display: "inline-flex", alignItems: "center", gap: "8px",
-                  background: COLORS.butter, color: COLORS.plum,
+                  background: V2_COLORS.attentionBg, color: V2_COLORS.ink,
                   padding: "5px 14px", borderRadius: 100,
                   fontSize: "0.75rem", fontWeight: 600, marginBottom: "1rem",
                   border: `1px solid rgba(46,37,64,0.1)`,
                 }}>
                   Step 3 of 3
                 </div>
-                <h2 style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.75rem", marginBottom: "0.5rem", color: COLORS.plum }}>Confirm</h2>
-                <p style={{ fontWeight: 300, fontSize: "0.9rem", color: COLORS.plumMid, marginBottom: "1.5rem" }}>
+                <h2 style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.75rem", marginBottom: "0.5rem", color: V2_COLORS.ink }}>Confirm</h2>
+                <p style={{ fontWeight: 300, fontSize: "0.9rem", color: V2_COLORS.muted, marginBottom: "1.5rem" }}>
                   Review and submit to create your HomeGentic account.
                 </p>
                 <div style={{
-                  border: `1.5px solid ${COLORS.rule}`,
-                  borderRadius: RADIUS.sm,
+                  border: `1.5px solid ${V2_COLORS.border}`,
+                  borderRadius: V2_RADIUS.sm,
                   overflow: "hidden",
                   marginBottom: "1.5rem",
                 }}>
@@ -268,13 +268,13 @@ export default function RegisterPage() {
                       justifyContent: "space-between",
                       alignItems: "center",
                       padding: "0.75rem 1rem",
-                      borderBottom: i < 2 ? `1px solid ${COLORS.rule}` : "none",
-                      background: i % 2 === 0 ? COLORS.white : COLORS.sageLight,
+                      borderBottom: i < 2 ? `1px solid ${V2_COLORS.border}` : "none",
+                      background: i % 2 === 0 ? V2_COLORS.paper : V2_COLORS.lblue,
                     }}>
-                      <span style={{ fontFamily: FONTS.sans, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid }}>
+                      <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: V2_COLORS.muted }}>
                         {row.label}
                       </span>
-                      <span style={{ fontSize: "0.875rem", fontWeight: 500, color: COLORS.plum }}>{row.value}</span>
+                      <span style={{ fontSize: "0.875rem", fontWeight: 500, color: V2_COLORS.ink }}>{row.value}</span>
                     </div>
                   ))}
                 </div>
@@ -283,13 +283,13 @@ export default function RegisterPage() {
                     type="checkbox"
                     checked={agreedToTerms}
                     onChange={(e) => setAgreedToTerms(e.target.checked)}
-                    style={{ marginTop: "2px", accentColor: COLORS.sage, width: "1rem", height: "1rem", flexShrink: 0 }}
+                    style={{ marginTop: "2px", accentColor: V2_COLORS.blue, width: "1rem", height: "1rem", flexShrink: 0 }}
                   />
-                  <span style={{ fontSize: "0.8rem", color: COLORS.plumMid, fontWeight: 300, lineHeight: 1.5 }}>
+                  <span style={{ fontSize: "0.8rem", color: V2_COLORS.muted, fontWeight: 300, lineHeight: 1.5 }}>
                     I agree to HomeGentic's{" "}
-                    <Link to="/terms" target="_blank" rel="noopener noreferrer" style={{ color: COLORS.sage }}>Terms of Service</Link>
+                    <Link to="/terms" target="_blank" rel="noopener noreferrer" style={{ color: V2_COLORS.blue }}>Terms of Service</Link>
                     {" "}and{" "}
-                    <Link to="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: COLORS.sage }}>Privacy Policy</Link>
+                    <Link to="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: V2_COLORS.blue }}>Privacy Policy</Link>
                   </span>
                 </label>
                 <div style={{ display: "flex", gap: "0.75rem" }}>

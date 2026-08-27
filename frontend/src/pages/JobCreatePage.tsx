@@ -13,18 +13,18 @@ import { usePropertyStore } from "@/store/propertyStore";
 import { JobValueDelta } from "@/components/JobValueDelta";
 import { computeScore } from "@/services/scoreService";
 import toast from "react-hot-toast";
-import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  rust:     COLORS.sage,
-  inkLight: COLORS.plumMid,
-  sage:     COLORS.sage,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  rust:     V2_COLORS.blue,
+  inkLight: V2_COLORS.muted,
+  sage:     V2_COLORS.blue,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.body,
 };
 
 const SERVICE_TYPES = [
@@ -158,7 +158,7 @@ export default function JobCreatePage() {
           <div className="job-success-icon" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "4rem", height: "4rem", border: `2px solid ${UI.sage}`, marginBottom: "1.25rem" }}>
             <CheckCircle size={28} color={UI.sage} />
           </div>
-          <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: COLORS.sageText, marginBottom: "0.375rem" }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: V2_COLORS.blue, marginBottom: "0.375rem" }}>
             Record Locked On-Chain
           </p>
           <h2 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, marginBottom: "0.5rem" }}>
@@ -172,7 +172,7 @@ export default function JobCreatePage() {
           <JobValueDelta serviceType={loggedServiceType} currentScore={scoreAtSubmit} />
 
           {/* Next-service suggestion */}
-          <div style={{ border: `1px solid ${UI.rule}`, padding: "1.25rem", background: COLORS.white, textAlign: "left", marginBottom: "1.5rem", borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
+          <div style={{ border: `1px solid ${UI.rule}`, padding: "1.25rem", background: V2_COLORS.paper, textAlign: "left", marginBottom: "1.5rem", borderRadius: V2_RADIUS.card, boxShadow: V2_SHADOWS.card }}>
             <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.5rem" }}>
               Next Step
             </p>
@@ -224,7 +224,7 @@ export default function JobCreatePage() {
           <ArrowLeft size={14} /> Back
         </button>
 
-        <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: COLORS.sageText, marginBottom: "0.5rem" }}>
+        <div style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.18em", textTransform: "uppercase", color: V2_COLORS.blue, marginBottom: "0.5rem" }}>
           Maintenance Record
         </div>
         <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, marginBottom: "0.375rem" }}>
@@ -234,7 +234,7 @@ export default function JobCreatePage() {
           {editJob ? `Editing record for ${editJob.serviceType} · ${editJob.date}` : "Record a completed maintenance job on the blockchain."}
         </p>
 
-        <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1.25rem", borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
+        <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1.25rem", borderRadius: V2_RADIUS.card, boxShadow: V2_SHADOWS.card }}>
 
           {!editJob && properties.length > 0 && (
             <div>
@@ -253,9 +253,9 @@ export default function JobCreatePage() {
               {SERVICE_TYPES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
             {isInsuranceRelevant(form.serviceType) && (
-              <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", marginTop: "0.4rem", padding: "0.35rem 0.6rem", background: COLORS.sageLight, border: `1px solid ${COLORS.sageMid}` }}>
-                <ShieldCheck size={11} color={COLORS.sage} />
-                <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.sageText }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", marginTop: "0.4rem", padding: "0.35rem 0.6rem", background: V2_COLORS.lblue, border: `1px solid ${V2_COLORS.cobalTint}` }}>
+                <ShieldCheck size={11} color={V2_COLORS.blue} />
+                <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: V2_COLORS.blue }}>
                   Insurance-relevant — this record may support a premium dispute or claim
                 </span>
               </div>
@@ -267,14 +267,14 @@ export default function JobCreatePage() {
             <div style={{
               display: "flex", alignItems: "flex-start", gap: "0.625rem",
               padding: "0.875rem 1rem",
-              border: `1px solid ${COLORS.plumMid}`, background: COLORS.butter,
+              border: `1px solid ${V2_COLORS.muted}`, background: V2_COLORS.attentionBg,
             }}>
-              <AlertTriangle size={14} color={COLORS.plumMid} style={{ flexShrink: 0, marginTop: "0.1rem" }} />
+              <AlertTriangle size={14} color={V2_COLORS.muted} style={{ flexShrink: 0, marginTop: "0.1rem" }} />
               <div>
-                <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.2rem" }}>
+                <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: V2_COLORS.muted, marginBottom: "0.2rem" }}>
                   Permit may be required
                 </p>
-                <p style={{ fontSize: "0.75rem", color: COLORS.plumMid, fontWeight: 300 }}>
+                <p style={{ fontSize: "0.75rem", color: V2_COLORS.muted, fontWeight: 300 }}>
                   {form.serviceType} work typically requires a building permit. If one was pulled, logging the permit number below
                   significantly strengthens your record — buyers and lenders look for this.
                 </p>
@@ -289,7 +289,7 @@ export default function JobCreatePage() {
               display: "flex", alignItems: "center", gap: "0.875rem",
               padding: "0.875rem 1rem", cursor: "pointer",
               border: `1px solid ${form.isDiy ? UI.rust : UI.rule}`,
-              background: form.isDiy ? COLORS.blush : COLORS.white,
+              background: form.isDiy ? V2_COLORS.attentionBg : V2_COLORS.paper,
             }}
           >
             <div style={{
@@ -301,7 +301,7 @@ export default function JobCreatePage() {
                 position: "absolute", top: "0.125rem",
                 left: form.isDiy ? "1.125rem" : "0.125rem",
                 width: "1rem", height: "1rem",
-                background: COLORS.white, transition: "left 0.15s",
+                background: V2_COLORS.paper, transition: "left 0.15s",
               }} />
             </div>
             <div>

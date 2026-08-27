@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { X } from "lucide-react";
 import { aiProxyService } from "@/services/aiProxy";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 import toast from "react-hot-toast";
 
 const DAYTONA_CITIES = new Set([
@@ -65,13 +65,13 @@ export default function LocalBrokerModal({ propertyAddress, onClose }: Props) {
   }
 
   const UI = {
-    ink:      COLORS.plum,
-    inkLight: COLORS.plumMid,
-    rule:     COLORS.rule,
-    sage:     COLORS.sageText,
-    serif:    FONTS.serif,
-    mono:     FONTS.sans,
-    sans:     FONTS.sans,
+    ink:      V2_COLORS.ink,
+    inkLight: V2_COLORS.muted,
+    rule:     V2_COLORS.border,
+    sage:     V2_COLORS.blue,
+    serif:    V2_FONTS.display,
+    mono:     V2_FONTS.body,
+    sans:     V2_FONTS.body,
   };
 
   const fieldStyle: React.CSSProperties = {
@@ -116,7 +116,7 @@ export default function LocalBrokerModal({ propertyAddress, onClose }: Props) {
               <p style={{ fontFamily: UI.sans, fontSize: "0.875rem", color: UI.inkLight, marginBottom: "1.5rem" }}>
                 Our local partner will be in touch for a free consultation.
               </p>
-              <button onClick={onClose} style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.5rem 1.25rem", background: COLORS.plum, color: "#fff", border: "none", cursor: "pointer" }}>
+              <button onClick={onClose} style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.5rem 1.25rem", background: V2_COLORS.ink, color: "#fff", border: "none", cursor: "pointer" }}>
                 Close
               </button>
             </div>
@@ -165,7 +165,7 @@ export default function LocalBrokerModal({ propertyAddress, onClose }: Props) {
                   <button
                     type="submit"
                     disabled={submitting}
-                    style={{ flex: 1, padding: "0.625rem", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", background: COLORS.plum, color: "#fff", border: "none", cursor: "pointer", opacity: submitting ? 0.7 : 1 }}
+                    style={{ flex: 1, padding: "0.625rem", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", background: V2_COLORS.ink, color: "#fff", border: "none", cursor: "pointer", opacity: submitting ? 0.7 : 1 }}
                   >
                     {submitting ? "Sending…" : "Yes, contact me"}
                   </button>

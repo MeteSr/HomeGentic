@@ -10,19 +10,19 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { builderService, type BuilderDevelopment } from "@/services/builderService";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  rust:     COLORS.rust,
-  inkLight: COLORS.plumMid,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
-  sans:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  rust:     V2_COLORS.blue,
+  inkLight: V2_COLORS.muted,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.body,
+  sans:     V2_FONTS.body,
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -195,7 +195,7 @@ const btnStyle: React.CSSProperties = {
   color:         "#F4F1EB",
   border:        "none",
   padding:       "8px 16px",
-  fontFamily:    FONTS.sans,
+  fontFamily:    V2_FONTS.body,
   fontSize:      "0.75rem",
   textTransform: "uppercase",
   letterSpacing: "0.06em",
@@ -203,7 +203,7 @@ const btnStyle: React.CSSProperties = {
 };
 
 const thStyle: React.CSSProperties = {
-  fontFamily:    FONTS.sans,
+  fontFamily:    V2_FONTS.body,
   fontSize:      "0.65rem",
   textTransform: "uppercase",
   letterSpacing: "0.08em",

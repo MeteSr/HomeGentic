@@ -11,7 +11,7 @@
  */
 
 import React from "react";
-import { COLORS, FONTS, RADIUS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import { errorTracker } from "@/services/errorTracker";
 
 interface Props {
@@ -28,13 +28,13 @@ interface State {
 }
 
 const UI = {
-  ink:    COLORS.plum,
-  muted:  COLORS.plumMid,
-  rule:   COLORS.rule,
-  rust:   "#C94C2E",
-  serif:  FONTS.serif,
-  mono:   FONTS.sans,
-  sans:   FONTS.sans,
+  ink:    V2_COLORS.ink,
+  muted:  V2_COLORS.muted,
+  rule:   V2_COLORS.border,
+  rust:   V2_COLORS.coralText,
+  serif:  V2_FONTS.display,
+  mono:   V2_FONTS.mono,
+  sans:   V2_FONTS.body,
 };
 
 export class ErrorBoundary extends React.Component<Props, State> {
@@ -74,7 +74,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
         <div
           style={{
             minHeight: "100vh",
-            background: COLORS.white,
+            background: V2_COLORS.paper,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -96,8 +96,8 @@ export class ErrorBoundary extends React.Component<Props, State> {
                 onClick={() => window.location.reload()}
                 style={{
                   padding: "0.75rem 1.5rem",
-                  background: UI.ink, color: COLORS.white,
-                  border: "none", borderRadius: RADIUS.pill,
+                  background: UI.ink, color: V2_COLORS.paper,
+                  border: "none", borderRadius: V2_RADIUS.pill,
                   fontFamily: UI.sans, fontSize: "0.875rem", fontWeight: 600,
                   cursor: "pointer",
                 }}
@@ -109,7 +109,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
                 style={{
                   padding: "0.75rem 1.5rem",
                   background: "none", color: UI.muted,
-                  border: `1px solid ${UI.rule}`, borderRadius: RADIUS.pill,
+                  border: `1px solid ${UI.rule}`, borderRadius: V2_RADIUS.pill,
                   fontFamily: UI.sans, fontSize: "0.875rem",
                   cursor: "pointer",
                 }}
@@ -121,7 +121,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
               <pre style={{
                 marginTop: "2rem", padding: "1rem",
                 background: "#FFF5F3", border: `1px solid #F5C6BD`,
-                borderRadius: RADIUS.sm, textAlign: "left",
+                borderRadius: V2_RADIUS.sm, textAlign: "left",
                 fontFamily: UI.mono, fontSize: "0.7rem", color: UI.rust,
                 overflow: "auto", maxHeight: 200,
               }}>
@@ -137,8 +137,8 @@ export class ErrorBoundary extends React.Component<Props, State> {
     return (
       <div style={{
         margin: "2rem auto", maxWidth: 560, padding: "2rem",
-        border: `1px solid ${UI.rule}`, borderRadius: RADIUS.card,
-        background: COLORS.white,
+        border: `1px solid ${UI.rule}`, borderRadius: V2_RADIUS.card,
+        background: V2_COLORS.paper,
       }}>
         <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.rust, marginBottom: "0.5rem" }}>
           {label}Error
@@ -150,8 +150,8 @@ export class ErrorBoundary extends React.Component<Props, State> {
           onClick={this.handleReset}
           style={{
             padding: "0.5rem 1.25rem",
-            background: UI.ink, color: COLORS.white,
-            border: "none", borderRadius: RADIUS.pill,
+            background: UI.ink, color: V2_COLORS.paper,
+            border: "none", borderRadius: V2_RADIUS.pill,
             fontFamily: UI.sans, fontSize: "0.875rem", fontWeight: 600,
             cursor: "pointer",
           }}
@@ -162,7 +162,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
           <pre style={{
             marginTop: "1rem", padding: "0.75rem",
             background: "#FFF5F3", border: `1px solid #F5C6BD`,
-            borderRadius: RADIUS.sm,
+            borderRadius: V2_RADIUS.sm,
             fontFamily: UI.mono, fontSize: "0.65rem", color: UI.rust,
             overflow: "auto", maxHeight: 160,
           }}>

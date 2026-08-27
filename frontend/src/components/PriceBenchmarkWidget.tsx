@@ -9,7 +9,7 @@ import {
   hasSufficientSamples,
   type PriceBenchmarkResult,
 } from "@/services/priceBenchmark";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 interface PriceBenchmarkWidgetProps {
   serviceType: string;
@@ -31,28 +31,28 @@ export function PriceBenchmarkWidget({ serviceType, zipCode }: PriceBenchmarkWid
   return (
     <div style={{
       padding:    "0.75rem 1rem",
-      background: COLORS.sageLight,
-      border:     `1px solid ${COLORS.sageMid}`,
+      background: V2_COLORS.lblue,
+      border:     `1px solid ${V2_COLORS.cobalTint}`,
       display:    "flex",
       flexDirection: "column",
       gap:        "0.25rem",
     }}>
-      <div style={{ fontFamily: FONTS.sans, fontSize: "0.7rem", fontWeight: 600, color: COLORS.plumMid }}>
+      <div style={{ fontFamily: V2_FONTS.body, fontSize: "0.7rem", fontWeight: 600, color: V2_COLORS.muted }}>
         Typical cost in {result.zipCode}
       </div>
       <div style={{ display: "flex", alignItems: "baseline", gap: "0.375rem" }}>
-        <span style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.1rem", color: COLORS.plum }}>
+        <span style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.1rem", color: V2_COLORS.ink }}>
           {fmt(result.low)}
         </span>
-        <span style={{ fontFamily: FONTS.sans, fontSize: "0.65rem", color: COLORS.plumMid }}>–</span>
-        <span style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.1rem", color: COLORS.plum }}>
+        <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.65rem", color: V2_COLORS.muted }}>–</span>
+        <span style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.1rem", color: V2_COLORS.ink }}>
           {fmt(result.high)}
         </span>
-        <span style={{ fontFamily: FONTS.sans, fontSize: "0.6rem", color: COLORS.plumMid, marginLeft: "0.25rem" }}>
+        <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.6rem", color: V2_COLORS.muted, marginLeft: "0.25rem" }}>
           median {fmt(result.median)}
         </span>
       </div>
-      <div style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", fontWeight: 300, color: COLORS.plumMid }}>
+      <div style={{ fontFamily: V2_FONTS.body, fontSize: "0.75rem", fontWeight: 300, color: V2_COLORS.muted }}>
         Based on {result.sampleSize} closed bids · {result.lastUpdated}
       </div>
     </div>

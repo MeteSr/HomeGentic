@@ -12,7 +12,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Lock } from "lucide-react";
-import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 
 interface UpgradeGateProps {
   /** Short feature name shown as the card heading */
@@ -42,16 +42,16 @@ export function UpgradeGate({
   return (
     <div
       style={{
-        background: COLORS.sageLight,
-        border: `1.5px solid ${COLORS.sageMid}`,
-        borderRadius: RADIUS.card,
+        background: V2_COLORS.lblue,
+        border: `1.5px solid ${V2_COLORS.cobalTint}`,
+        borderRadius: V2_RADIUS.card,
         padding: "2rem 1.75rem",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         textAlign: "center",
         gap: "1rem",
-        boxShadow: SHADOWS.card,
+        boxShadow: V2_SHADOWS.card,
         ...style,
       }}
     >
@@ -61,25 +61,25 @@ export function UpgradeGate({
           width: "3rem",
           height: "3rem",
           borderRadius: "50%",
-          background: COLORS.white,
-          border: `1.5px solid ${COLORS.sageMid}`,
+          background: V2_COLORS.paper,
+          border: `1.5px solid ${V2_COLORS.cobalTint}`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           fontSize: "1.5rem",
         }}
       >
-        {icon ?? <Lock size={20} color={COLORS.plumMid} />}
+        {icon ?? <Lock size={20} color={V2_COLORS.muted} />}
       </div>
 
       {/* Text */}
       <div>
         <p
           style={{
-            fontFamily: FONTS.serif,
+            fontFamily: V2_FONTS.display,
             fontWeight: 700,
             fontSize: "1.1rem",
-            color: COLORS.plum,
+            color: V2_COLORS.ink,
             marginBottom: "0.375rem",
           }}
         >
@@ -87,10 +87,10 @@ export function UpgradeGate({
         </p>
         <p
           style={{
-            fontFamily: FONTS.sans,
+            fontFamily: V2_FONTS.body,
             fontSize: "0.875rem",
             fontWeight: 400,
-            color: COLORS.plumMid,
+            color: V2_COLORS.muted,
             lineHeight: 1.5,
             maxWidth: "22rem",
           }}
@@ -106,12 +106,12 @@ export function UpgradeGate({
           display: "inline-flex",
           alignItems: "center",
           gap: "0.375rem",
-          background: COLORS.plum,
-          color: COLORS.white,
+          background: V2_COLORS.ink,
+          color: V2_COLORS.paper,
           border: "none",
-          borderRadius: RADIUS.pill,
+          borderRadius: V2_RADIUS.pill,
           padding: "0.55rem 1.4rem",
-          fontFamily: FONTS.sans,
+          fontFamily: V2_FONTS.body,
           fontWeight: 600,
           fontSize: "0.875rem",
           cursor: "pointer",

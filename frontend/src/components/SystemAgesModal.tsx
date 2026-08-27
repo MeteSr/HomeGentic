@@ -3,16 +3,16 @@ import { Save, X } from "lucide-react";
 import { Button } from "@/components/Button";
 import { systemAgesService, TRACKED_SYSTEMS, type SystemName, type SystemAges } from "@/services/systemAges";
 import toast from "react-hot-toast";
-import { COLORS, FONTS, RADIUS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  inkLight: COLORS.plumMid,
-  sage:     COLORS.sage,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  inkLight: V2_COLORS.muted,
+  sage:     V2_COLORS.blue,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.body,
 };
 
 const SYSTEM_DESCRIPTIONS: Record<SystemName, string> = {
@@ -107,9 +107,9 @@ export default function SystemAgesModal({ open, onClose, propertyId, yearBuilt, 
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div style={{
-        background:   COLORS.white,
-        border:       `1px solid ${COLORS.rule}`,
-        borderRadius: RADIUS.card,
+        background:   V2_COLORS.paper,
+        border:       `1px solid ${V2_COLORS.border}`,
+        borderRadius: V2_RADIUS.card,
         padding:      "2rem",
         maxWidth:     "560px",
         width:        "100%",
@@ -122,7 +122,7 @@ export default function SystemAgesModal({ open, onClose, propertyId, yearBuilt, 
         <button
           onClick={onClose}
           aria-label="Close"
-          style={{ position: "absolute", top: "1rem", right: "1rem", background: "none", border: "none", cursor: "pointer", color: COLORS.plumMid, padding: "0.25rem" }}
+          style={{ position: "absolute", top: "1rem", right: "1rem", background: "none", border: "none", cursor: "pointer", color: V2_COLORS.muted, padding: "0.25rem" }}
         >
           <X size={18} />
         </button>
@@ -139,7 +139,7 @@ export default function SystemAgesModal({ open, onClose, propertyId, yearBuilt, 
           Defaults to the house's build year ({yearBuilt}) when left unchanged.
         </p>
 
-        <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white }}>
+        <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper }}>
           {TRACKED_SYSTEMS.map((sys, i) => {
             const isTouched = touched.has(sys);
             const isCustom  = isTouched && ages[sys] !== String(yearBuilt);
@@ -169,7 +169,7 @@ export default function SystemAgesModal({ open, onClose, propertyId, yearBuilt, 
                         aria-label="Toggle solar panels"
                         style={{
                           width: "2.25rem", height: "1.25rem", borderRadius: 100, flexShrink: 0,
-                          background: hasSolar ? COLORS.sage : COLORS.rule,
+                          background: hasSolar ? V2_COLORS.blue : V2_COLORS.border,
                           border: "none", cursor: "pointer", position: "relative", padding: 0,
                           transition: "background 0.15s",
                         }}
@@ -178,7 +178,7 @@ export default function SystemAgesModal({ open, onClose, propertyId, yearBuilt, 
                           position: "absolute", top: "2px",
                           left: hasSolar ? "calc(100% - 17px)" : "2px",
                           width: "13px", height: "13px", borderRadius: "50%",
-                          background: COLORS.white,
+                          background: V2_COLORS.paper,
                           transition: "left 0.15s",
                         }} />
                       </button>
@@ -209,7 +209,7 @@ export default function SystemAgesModal({ open, onClose, propertyId, yearBuilt, 
                             border: `1px solid ${isCustom ? UI.sage : UI.rule}`,
                             fontFamily: UI.mono, fontSize: "0.8rem", textAlign: "center",
                             outline: "none",
-                            background: isCustom ? COLORS.sageLight : COLORS.white,
+                            background: isCustom ? V2_COLORS.lblue : V2_COLORS.paper,
                             color: isCustom ? UI.sage : UI.ink,
                           }}
                         />
@@ -264,7 +264,7 @@ export default function SystemAgesModal({ open, onClose, propertyId, yearBuilt, 
                         border: `1px solid ${isCustom ? UI.sage : UI.rule}`,
                         fontFamily: UI.mono, fontSize: "0.8rem", textAlign: "center",
                         outline: "none",
-                        background: isCustom ? COLORS.sageLight : COLORS.white,
+                        background: isCustom ? V2_COLORS.lblue : V2_COLORS.paper,
                         color: isCustom ? UI.sage : UI.ink,
                       }}
                     />

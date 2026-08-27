@@ -17,7 +17,7 @@ import { sensorService, type SensorDevice, type SensorEvent } from "@/services/s
 import { paymentService, type PlanTier } from "@/services/payment";
 import { billService, type BillRecord } from "@/services/billService";
 import { UpgradeGate } from "@/components/UpgradeGate";
-import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 import {
   estimateInsurerDiscount,
   type InsurerDiscountResult,
@@ -25,13 +25,13 @@ import {
 } from "@/services/insurerDiscountService";
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  inkLight: COLORS.plumMid,
-  sage:     COLORS.sage,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  inkLight: V2_COLORS.muted,
+  sage:     V2_COLORS.blue,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.body,
 };
 
 function fmtDate(iso: string): string {
@@ -161,7 +161,7 @@ export default function InsuranceDefensePage() {
             Print / Export PDF
           </Button>
         </div>
-        <div style={{ padding: "0.75rem 1rem", background: COLORS.sageLight, border: `1px solid ${COLORS.sageMid}`, marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.625rem" }}>
+        <div style={{ padding: "0.75rem 1rem", background: V2_COLORS.lblue, border: `1px solid ${V2_COLORS.cobalTint}`, marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.625rem" }}>
           <ShieldCheck size={14} color={UI.sage} />
           <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: UI.sage }}>
             This report is formatted for insurer submission. Use <strong>Print → Save as PDF</strong> to generate a file.
@@ -172,7 +172,7 @@ export default function InsuranceDefensePage() {
 
       {/* ── Smart Home Discount Estimator (screen-only) ─────────────────────── */}
       <div className="no-print" style={{ maxWidth: "56rem", margin: "0 auto", padding: "0 1.5rem 1.5rem" }}>
-        <div style={{ border: `1px solid ${COLORS.sky}`, background: "#EEF6FB" }}>
+        <div style={{ border: `1px solid ${V2_COLORS.lblue}`, background: "#EEF6FB" }}>
           {/* Header row */}
           <button
             onClick={() => setDiscountExpanded((x) => !x)}
@@ -182,38 +182,38 @@ export default function InsuranceDefensePage() {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-              <Zap size={15} color={COLORS.sky} />
-              <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plum, fontWeight: 600 }}>
+              <Zap size={15} color={V2_COLORS.lblue} />
+              <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: V2_COLORS.ink, fontWeight: 600 }}>
                 Smart Home Discount Estimator
               </span>
               {discountResult && (
-                <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", background: COLORS.sky, color: COLORS.plum, padding: "0.2rem 0.6rem" }}>
+                <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", background: V2_COLORS.lblue, color: V2_COLORS.ink, padding: "0.2rem 0.6rem" }}>
                   {discountResult.discountRangeMin}–{discountResult.discountRangeMax}% est. savings
                 </span>
               )}
             </div>
-            {discountExpanded ? <ChevronUp size={14} color={COLORS.plumMid} /> : <ChevronDown size={14} color={COLORS.plumMid} />}
+            {discountExpanded ? <ChevronUp size={14} color={V2_COLORS.muted} /> : <ChevronDown size={14} color={V2_COLORS.muted} />}
           </button>
 
           {discountExpanded && (
-            <div style={{ borderTop: `1px solid ${COLORS.sky}`, padding: "1.25rem" }}>
+            <div style={{ borderTop: `1px solid ${V2_COLORS.lblue}`, padding: "1.25rem" }}>
               {/* Device summary + CTA */}
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem", marginBottom: "1rem", flexWrap: "wrap" }}>
                 <div>
-                  <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.375rem" }}>
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: V2_COLORS.muted, marginBottom: "0.375rem" }}>
                     Connected devices detected
                   </p>
                   {sensorDevices.length === 0 ? (
-                    <p style={{ fontSize: "0.8rem", color: COLORS.plumMid, fontFamily: FONTS.sans }}>
+                    <p style={{ fontSize: "0.8rem", color: V2_COLORS.muted, fontFamily: V2_FONTS.body }}>
                       No smart devices registered.{" "}
-                      <button onClick={() => navigate("/sensors")} style={{ background: "none", border: "none", cursor: "pointer", color: COLORS.sageText, fontFamily: FONTS.sans, fontSize: "0.7rem", textDecoration: "underline" }}>
+                      <button onClick={() => navigate("/sensors")} style={{ background: "none", border: "none", cursor: "pointer", color: V2_COLORS.blue, fontFamily: V2_FONTS.body, fontSize: "0.7rem", textDecoration: "underline" }}>
                         Add sensors →
                       </button>
                     </p>
                   ) : (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem" }}>
                       {sensorDevices.map((d) => (
-                        <span key={d.id} style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", border: `1px solid ${COLORS.sky}`, background: "#D6EBF6", padding: "0.2rem 0.6rem", fontFamily: FONTS.sans, fontSize: "0.6rem", color: COLORS.plum }}>
+                        <span key={d.id} style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", border: `1px solid ${V2_COLORS.lblue}`, background: "#D6EBF6", padding: "0.2rem 0.6rem", fontFamily: V2_FONTS.body, fontSize: "0.6rem", color: V2_COLORS.ink }}>
                           <Wifi size={9} /> {d.name}
                         </span>
                       ))}
@@ -225,7 +225,7 @@ export default function InsuranceDefensePage() {
                   disabled={discountLoading || properties.length === 0}
                   style={{
                     display: "flex", alignItems: "center", gap: "0.4rem",
-                    background: COLORS.plum, color: COLORS.white, border: "none",
+                    background: V2_COLORS.ink, color: V2_COLORS.paper, border: "none",
                     fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em",
                     padding: "0.625rem 1.125rem", cursor: discountLoading ? "wait" : "pointer",
                     opacity: (discountLoading || properties.length === 0) ? 0.6 : 1,
@@ -238,7 +238,7 @@ export default function InsuranceDefensePage() {
               </div>
 
               {discountError && (
-                <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: COLORS.rust, marginBottom: "1rem" }}>
+                <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: V2_COLORS.coral, marginBottom: "1rem" }}>
                   {discountError}
                 </p>
               )}
@@ -246,43 +246,43 @@ export default function InsuranceDefensePage() {
               {discountResult && (
                 <>
                   {/* Discount range banner */}
-                  <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", padding: "1rem 1.25rem", background: COLORS.white, border: `1px solid ${COLORS.sky}`, marginBottom: "1rem", flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", padding: "1rem 1.25rem", background: V2_COLORS.paper, border: `1px solid ${V2_COLORS.lblue}`, marginBottom: "1rem", flexWrap: "wrap" }}>
                     <div style={{ textAlign: "center" }}>
-                      <p style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "2rem", lineHeight: 1, color: COLORS.plum }}>
+                      <p style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "2rem", lineHeight: 1, color: V2_COLORS.ink }}>
                         {discountResult.discountRangeMin}–{discountResult.discountRangeMax}%
                       </p>
-                      <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid }}>Estimated Annual Discount</p>
+                      <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: V2_COLORS.muted }}>Estimated Annual Discount</p>
                     </div>
                     <div style={{ flex: 1, minWidth: "200px" }}>
-                      <p style={{ fontSize: "0.8rem", fontFamily: FONTS.sans, color: COLORS.plum, lineHeight: 1.5 }}>
+                      <p style={{ fontSize: "0.8rem", fontFamily: V2_FONTS.body, color: V2_COLORS.ink, lineHeight: 1.5 }}>
                         Based on your {sensorDevices.length} connected device{sensorDevices.length !== 1 ? "s" : ""} and {insuranceJobs.filter((j) => j.status === "verified").length} blockchain-verified maintenance records.
                       </p>
                     </div>
                   </div>
 
                   {/* Qualifying categories */}
-                  <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.5rem" }}>
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: V2_COLORS.muted, marginBottom: "0.5rem" }}>
                     Discount Categories
                   </p>
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem", marginBottom: "1rem" }}>
                     {discountResult.qualifyingCategories.map((cat: DiscountCategory) => {
-                      const color = cat.status === "qualifying" ? COLORS.sage
+                      const color = cat.status === "qualifying" ? V2_COLORS.blue
                                   : cat.status === "potential"  ? "#D97706"
-                                  : COLORS.plumMid;
-                      const bg    = cat.status === "qualifying" ? COLORS.sageLight
+                                  : V2_COLORS.muted;
+                      const bg    = cat.status === "qualifying" ? V2_COLORS.lblue
                                   : cat.status === "potential"  ? "#FEF3C7"
-                                  : COLORS.white;
+                                  : V2_COLORS.paper;
                       return (
-                        <div key={cat.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.625rem 0.875rem", border: `1px solid ${cat.status === "qualifying" ? COLORS.sageMid : COLORS.rule}`, background: bg, flexWrap: "wrap", gap: "0.375rem" }}>
+                        <div key={cat.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.625rem 0.875rem", border: `1px solid ${cat.status === "qualifying" ? V2_COLORS.cobalTint : V2_COLORS.border}`, background: bg, flexWrap: "wrap", gap: "0.375rem" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flex: 1 }}>
                             {cat.status === "qualifying"
-                              ? <CheckCircle size={12} color={COLORS.sage} />
+                              ? <CheckCircle size={12} color={V2_COLORS.blue} />
                               : cat.status === "potential"
                               ? <Clock size={12} color="#D97706" />
-                              : <Clock size={12} color={COLORS.plumMid} />}
+                              : <Clock size={12} color={V2_COLORS.muted} />}
                             <div>
-                              <p style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", fontWeight: 500, color: COLORS.plum }}>{cat.name}</p>
-                              <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: COLORS.plumMid }}>{cat.basis}</p>
+                              <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.8rem", fontWeight: 500, color: V2_COLORS.ink }}>{cat.name}</p>
+                              <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: V2_COLORS.muted }}>{cat.basis}</p>
                             </div>
                           </div>
                           <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", fontWeight: 600, color, whiteSpace: "nowrap" }}>
@@ -294,33 +294,33 @@ export default function InsuranceDefensePage() {
                   </div>
 
                   {/* Insurer programs */}
-                  <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.5rem" }}>
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: V2_COLORS.muted, marginBottom: "0.5rem" }}>
                     Programs You May Qualify For
                   </p>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", gap: "0.625rem", marginBottom: "1rem" }}>
                     {discountResult.programs.map((prog) => (
-                      <div key={prog.insurer + prog.programName} style={{ border: `1px solid ${COLORS.rule}`, padding: "0.875rem", background: COLORS.white }}>
-                        <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.2rem" }}>{prog.insurer}</p>
-                        <p style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", fontWeight: 600, color: COLORS.plum, marginBottom: "0.2rem" }}>{prog.programName}</p>
-                        <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: COLORS.sageText, marginBottom: "0.375rem" }}>{prog.estimatedDiscount}</p>
-                        <p style={{ fontFamily: FONTS.sans, fontSize: "0.7rem", color: COLORS.plumMid, lineHeight: 1.4 }}>{prog.notes}</p>
+                      <div key={prog.insurer + prog.programName} style={{ border: `1px solid ${V2_COLORS.border}`, padding: "0.875rem", background: V2_COLORS.paper }}>
+                        <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: V2_COLORS.muted, marginBottom: "0.2rem" }}>{prog.insurer}</p>
+                        <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.8rem", fontWeight: 600, color: V2_COLORS.ink, marginBottom: "0.2rem" }}>{prog.programName}</p>
+                        <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: V2_COLORS.blue, marginBottom: "0.375rem" }}>{prog.estimatedDiscount}</p>
+                        <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.7rem", color: V2_COLORS.muted, lineHeight: 1.4 }}>{prog.notes}</p>
                       </div>
                     ))}
                   </div>
 
                   {/* Recommendations */}
-                  <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.5rem" }}>
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: V2_COLORS.muted, marginBottom: "0.5rem" }}>
                     Recommended Next Steps
                   </p>
                   <ol style={{ paddingLeft: "1.25rem", margin: 0 }}>
                     {discountResult.recommendations.map((rec, i) => (
-                      <li key={i} style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", color: COLORS.plum, lineHeight: 1.5, marginBottom: "0.375rem" }}>
+                      <li key={i} style={{ fontFamily: V2_FONTS.body, fontSize: "0.8rem", color: V2_COLORS.ink, lineHeight: 1.5, marginBottom: "0.375rem" }}>
                         {rec}
                       </li>
                     ))}
                   </ol>
 
-                  <p style={{ fontFamily: UI.mono, fontSize: "0.5rem", color: COLORS.plumMid, marginTop: "0.75rem" }}>
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.5rem", color: V2_COLORS.muted, marginTop: "0.75rem" }}>
                     Estimates generated by AI. Verify discount eligibility directly with your insurer. Generated {new Date(discountResult.generatedAt).toLocaleString()}.
                   </p>
                 </>
@@ -347,7 +347,7 @@ export default function InsuranceDefensePage() {
                 Generated {generatedAt} · Blockchain-verified records
               </p>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.75rem 1rem", border: `1px solid ${UI.sage}`, background: COLORS.sageLight }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.75rem 1rem", border: `1px solid ${UI.sage}`, background: V2_COLORS.lblue }}>
               <ShieldCheck size={18} color={UI.sage} />
               <div>
                 <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.sage }}>Insurance Defense</p>
@@ -378,7 +378,7 @@ export default function InsuranceDefensePage() {
                 { label: "Total Documented Value",     value: fmt(totalValue) },
                 { label: "Properties Covered",         value: String(byProperty.length) },
               ].map((stat, i, arr) => (
-                <div key={stat.label} style={{ flex: 1, padding: "1.25rem", borderRight: i < arr.length - 1 ? `1px solid ${UI.rule}` : "none", textAlign: "center", background: COLORS.white }}>
+                <div key={stat.label} style={{ flex: 1, padding: "1.25rem", borderRight: i < arr.length - 1 ? `1px solid ${UI.rule}` : "none", textAlign: "center", background: V2_COLORS.paper }}>
                   <p style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, marginBottom: "0.25rem" }}>{stat.value}</p>
                   <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>{stat.label}</p>
                 </div>
@@ -397,7 +397,7 @@ export default function InsuranceDefensePage() {
                     <div key={type} style={{
                       display: "flex", alignItems: "center", gap: "0.375rem",
                       padding: "0.3rem 0.75rem", border: `1px solid ${hasRecord ? UI.sage : UI.rule}`,
-                      background: hasRecord ? COLORS.sageLight : COLORS.white,
+                      background: hasRecord ? V2_COLORS.lblue : V2_COLORS.paper,
                     }}>
                       {hasRecord
                         ? <CheckCircle size={11} color={UI.sage} />
@@ -443,7 +443,7 @@ export default function InsuranceDefensePage() {
                         display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr",
                         padding: "0.875rem 1rem", alignItems: "center",
                         borderBottom: i < pJobs.length - 1 ? `1px solid ${UI.rule}` : "none",
-                        background: COLORS.white,
+                        background: V2_COLORS.paper,
                         borderLeft: `3px solid ${isVerified ? UI.sage : UI.rule}`,
                       }}>
                         <div>
@@ -475,7 +475,7 @@ export default function InsuranceDefensePage() {
                             <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: UI.inkLight }}>Self-reported</span>
                           )}
                           {job.warrantyMonths && job.warrantyMonths > 0 && (
-                            <p style={{ fontFamily: UI.mono, fontSize: "0.5rem", color: COLORS.plumMid, marginTop: "0.15rem" }}>
+                            <p style={{ fontFamily: UI.mono, fontSize: "0.5rem", color: V2_COLORS.muted, marginTop: "0.15rem" }}>
                               {job.warrantyMonths}mo warranty
                             </p>
                           )}
@@ -518,14 +518,14 @@ export default function InsuranceDefensePage() {
                   </p>
                 </div>
                 <div style={{ padding: "0.75rem 1.25rem", background: UI.paper }}>
-                  <p style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", color: UI.inkLight, marginBottom: "0.75rem", lineHeight: 1.6 }}>
+                  <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.8rem", color: UI.inkLight, marginBottom: "0.75rem", lineHeight: 1.6 }}>
                     The following water bills were flagged as significantly above baseline usage. Unusual water consumption may indicate a slow leak. These records are provided to support any related plumbing claim or preventive documentation.
                   </p>
                   {billAnomalies.map((b) => (
                     <div key={b.id} style={{ display: "flex", justifyContent: "space-between", padding: "0.625rem 0", borderTop: `1px solid ${UI.rule}` }}>
                       <div>
                         <p style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: UI.ink }}>{b.provider} · {b.periodStart} → {b.periodEnd}</p>
-                        <p style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", color: UI.inkLight, marginTop: "0.2rem" }}>{b.anomalyReason ?? "Bill above 3-month average"}</p>
+                        <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.8rem", color: UI.inkLight, marginTop: "0.2rem" }}>{b.anomalyReason ?? "Bill above 3-month average"}</p>
                       </div>
                       <p style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.875rem", color: UI.ink }}>${(b.amountCents / 100).toFixed(2)}</p>
                     </div>
@@ -553,7 +553,7 @@ export default function InsuranceDefensePage() {
       {/* 8.4.5 — Insurance success story prompt */}
       {showSuccessPrompt && !successSubmitted && (
         <div className="no-print" style={{ maxWidth: "56rem", margin: "1.5rem auto", padding: "0 1.5rem" }}>
-          <div style={{ border: `1px solid ${COLORS.sageMid}`, background: COLORS.sageLight, padding: "1.25rem 1.5rem" }}>
+          <div style={{ border: `1px solid ${V2_COLORS.cobalTint}`, background: V2_COLORS.lblue, padding: "1.25rem 1.5rem" }}>
             <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.sage, marginBottom: "0.5rem" }}>
               Did this help with your insurer?
             </p>
@@ -566,7 +566,7 @@ export default function InsuranceDefensePage() {
                 value={savingsInput}
                 onChange={(e) => setSavingsInput(e.target.value)}
                 placeholder="e.g. insurer accepted all records, saved $1,200/yr"
-                style={{ flex: 1, minWidth: "200px", padding: "0.5rem 0.75rem", fontFamily: UI.mono, fontSize: "0.7rem", border: `1px solid ${COLORS.sageMid}`, background: COLORS.white, outline: "none" }}
+                style={{ flex: 1, minWidth: "200px", padding: "0.5rem 0.75rem", fontFamily: UI.mono, fontSize: "0.7rem", border: `1px solid ${V2_COLORS.cobalTint}`, background: V2_COLORS.paper, outline: "none" }}
               />
               <button
                 onClick={() => {
@@ -575,7 +575,7 @@ export default function InsuranceDefensePage() {
                   }
                   setSuccessSubmitted(true);
                 }}
-                style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", background: UI.sage, color: COLORS.white, border: "none", cursor: "pointer", whiteSpace: "nowrap" }}
+                style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", background: UI.sage, color: V2_COLORS.paper, border: "none", cursor: "pointer", whiteSpace: "nowrap" }}
               >
                 Share Story
               </button>
@@ -591,7 +591,7 @@ export default function InsuranceDefensePage() {
       )}
       {showSuccessPrompt && successSubmitted && (
         <div className="no-print" style={{ maxWidth: "56rem", margin: "1.5rem auto", padding: "0 1.5rem" }}>
-          <div style={{ border: `1px solid ${COLORS.sageMid}`, background: COLORS.sageLight, padding: "1rem 1.5rem", display: "flex", alignItems: "center", gap: "0.625rem" }}>
+          <div style={{ border: `1px solid ${V2_COLORS.cobalTint}`, background: V2_COLORS.lblue, padding: "1rem 1.5rem", display: "flex", alignItems: "center", gap: "0.625rem" }}>
             <CheckCircle size={14} color={UI.sage} />
             <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.sage }}>Thank you — your story helps other HomeGentic users know what's possible.</p>
           </div>

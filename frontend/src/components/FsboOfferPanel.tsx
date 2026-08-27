@@ -19,16 +19,16 @@ import {
   type LogFsboOfferInput,
 } from "@/services/fsboOffer";
 import { fsboService } from "@/services/fsbo";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 const UI = {
-  ink:      COLORS.plum,
-  inkLight: COLORS.plumMid,
-  rule:     COLORS.rule,
-  sage:     COLORS.sage,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
-  sans:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  inkLight: V2_COLORS.muted,
+  rule:     V2_COLORS.border,
+  sage:     V2_COLORS.blue,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.body,
+  sans:     V2_FONTS.body,
 };
 
 function fmt(cents: number): string {

@@ -14,21 +14,21 @@ import {
   marketTimingService,
   type ListingRecommendation,
 } from "@/services/marketTimingService";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  rust:     COLORS.rust,
-  green:    COLORS.sage,
-  amber:    COLORS.plumMid,
-  inkLight: COLORS.plumMid,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
-  sans:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  rust:     V2_COLORS.coral,
+  green:    V2_COLORS.blue,
+  amber:    V2_COLORS.muted,
+  inkLight: V2_COLORS.muted,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.body,
+  sans:     V2_FONTS.body,
 };
 
 // ─── Sub-components ───────────────────────────────────────────────────────────

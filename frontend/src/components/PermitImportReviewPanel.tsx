@@ -7,17 +7,17 @@
  */
 
 import React, { useState } from "react";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 import type { ImportedPermit } from "@/services/permitImport";
 
 const UI = {
-  ink:      COLORS.plum,
-  inkLight: COLORS.plumMid,
-  rule:     COLORS.rule,
-  sage:     COLORS.sage,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
-  sans:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  inkLight: V2_COLORS.muted,
+  rule:     V2_COLORS.border,
+  sage:     V2_COLORS.blue,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.body,
+  sans:     V2_FONTS.body,
 };
 
 interface Props {
@@ -39,9 +39,9 @@ export default function PermitImportReviewPanel({ permits, onConfirm, onDismissA
   const confirmed = permits.filter((_, i) => !dismissed.has(i));
 
   return (
-    <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white }}>
+    <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper }}>
       {/* Header */}
-      <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${UI.rule}`, background: COLORS.sageLight }}>
+      <div style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${UI.rule}`, background: V2_COLORS.lblue }}>
         <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.sage, marginBottom: "0.25rem" }}>
           Permit Records Found
         </div>
@@ -122,7 +122,7 @@ export default function PermitImportReviewPanel({ permits, onConfirm, onDismissA
             flex:          1,
             padding:       "0.625rem 1.25rem",
             background:    confirmed.length === 0 ? UI.rule : UI.ink,
-            color:         COLORS.white,
+            color:         V2_COLORS.paper,
             border:        "none",
             cursor:        confirmed.length === 0 ? "not-allowed" : "pointer",
             fontFamily:    UI.mono,

@@ -13,21 +13,21 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, Trash2, GripVertical, AlertCircle, Upload } from "lucide-react";
-import { COLORS, FONTS, RADIUS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import { photoService, type Photo } from "@/services/photo";
 import { listingService } from "@/services/listing";
 
 const MAX_PHOTOS = 15;
 
 const UI = {
-  ink:      COLORS.plum,
-  inkLight: COLORS.plumMid,
-  rule:     COLORS.rule,
-  sage:     COLORS.sage,
-  rust:     COLORS.rust,
-  paper:    COLORS.white,
-  sans:     FONTS.sans,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  inkLight: V2_COLORS.muted,
+  rule:     V2_COLORS.border,
+  sage:     V2_COLORS.blue,
+  rust:     V2_COLORS.coral,
+  paper:    V2_COLORS.paper,
+  sans:     V2_FONTS.body,
+  mono:     V2_FONTS.body,
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -170,7 +170,7 @@ export default function ListingPhotoManager({
                 background:   atCap ? UI.rule : UI.sage,
                 color:        atCap ? UI.inkLight : "#fff",
                 border:       "none",
-                borderRadius: RADIUS.pill,
+                borderRadius: V2_RADIUS.pill,
                 padding:      "0.5rem 1.1rem",
                 fontFamily:   UI.mono,
                 fontSize:     "0.75rem",
@@ -213,7 +213,7 @@ export default function ListingPhotoManager({
             gap:          "0.4rem",
             background:   "#FFF5F5",
             border:       `1px solid ${UI.rust}60`,
-            borderRadius: RADIUS.card,
+            borderRadius: V2_RADIUS.card,
             padding:      "0.6rem 0.85rem",
             marginBottom: "0.75rem",
             fontFamily:   UI.sans,
@@ -233,7 +233,7 @@ export default function ListingPhotoManager({
           style={{
             background:   UI.rule + "50",
             border:       `1px dashed ${UI.rule}`,
-            borderRadius: RADIUS.card,
+            borderRadius: V2_RADIUS.card,
             padding:      "2rem",
             textAlign:    "center",
             color:        UI.inkLight,
@@ -266,7 +266,7 @@ export default function ListingPhotoManager({
               style={{
                 position:     "relative",
                 border:       index === 0 ? `2px solid ${UI.sage}` : `1px solid ${UI.rule}`,
-                borderRadius: RADIUS.card,
+                borderRadius: V2_RADIUS.card,
                 overflow:     "hidden",
                 cursor:       isOwner ? "grab" : "default",
                 background:   "#f5f5f0",

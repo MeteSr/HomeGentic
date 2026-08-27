@@ -17,19 +17,19 @@ import { Button } from "@/components/Button";
 import { fsboService } from "@/services/fsbo";
 import type { Property } from "@/services/property";
 import type { Job } from "@/services/job";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
 const UI = {
-  ink:      COLORS.plum,
-  inkLight: COLORS.plumMid,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  sage:     COLORS.sage,
-  serif:    FONTS.serif,
-  sans:     FONTS.sans,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  inkLight: V2_COLORS.muted,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  sage:     V2_COLORS.blue,
+  serif:    V2_FONTS.display,
+  sans:     V2_FONTS.body,
+  mono:     V2_FONTS.body,
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -77,11 +77,11 @@ const labelStyle: React.CSSProperties = {
 const inputStyle: React.CSSProperties = {
   width:      "100%",
   padding:    "0.55rem 0.75rem",
-  border:     `1px solid ${COLORS.rule}`,
+  border:     `1px solid ${V2_COLORS.border}`,
   fontFamily: UI.sans,
   fontSize:   "0.875rem",
-  color:      COLORS.plum,
-  background: COLORS.white,
+  color:      V2_COLORS.ink,
+  background: V2_COLORS.paper,
   boxSizing:  "border-box",
   outline:    "none",
 };
@@ -135,7 +135,7 @@ export default function InitListingModal({ open, onClose, property, jobs, score 
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div style={{
-        background: COLORS.white,
+        background: V2_COLORS.paper,
         width:      "100%",
         maxWidth:   "520px",
         padding:    "2rem",
@@ -175,7 +175,7 @@ export default function InitListingModal({ open, onClose, property, jobs, score 
             <input
               style={{
                 ...inputStyle,
-                borderColor: priceError ? COLORS.rust : COLORS.rule,
+                borderColor: priceError ? V2_COLORS.coral : V2_COLORS.border,
               }}
               type="text"
               placeholder="e.g. 425000"
@@ -183,7 +183,7 @@ export default function InitListingModal({ open, onClose, property, jobs, score 
               onChange={(e) => { setPriceInput(e.target.value); setPriceError(""); }}
             />
             {priceError && (
-              <p style={{ fontFamily: UI.sans, fontSize: "0.7rem", color: COLORS.rust, marginTop: "0.25rem" }}>
+              <p style={{ fontFamily: UI.sans, fontSize: "0.7rem", color: V2_COLORS.coralText, marginTop: "0.25rem" }}>
                 {priceError}
               </p>
             )}
@@ -200,7 +200,7 @@ export default function InitListingModal({ open, onClose, property, jobs, score 
                 style={{
                   display:    "inline-flex", alignItems: "center", gap: "0.3rem",
                   fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em",
-                  color:      generating ? UI.inkLight : COLORS.sageText,
+                  color:      generating ? UI.inkLight : V2_COLORS.blue,
                   background: "none", border: "none", cursor: generating ? "default" : "pointer",
                   padding:    "0.2rem 0",
                 }}
@@ -226,7 +226,7 @@ export default function InitListingModal({ open, onClose, property, jobs, score 
           </div>
 
           {/* Actions */}
-          <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", paddingTop: "0.5rem", borderTop: `1px solid ${COLORS.rule}` }}>
+          <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", paddingTop: "0.5rem", borderTop: `1px solid ${V2_COLORS.border}` }}>
             <Button type="button" variant="ghost" onClick={onClose}>
               Cancel
             </Button>

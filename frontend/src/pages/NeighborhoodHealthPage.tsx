@@ -14,14 +14,14 @@ import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { MapPin, TrendingUp, TrendingDown, Minus, ArrowLeft } from "lucide-react";
 import { neighborhoodService, type ZipCodeStats } from "@/services/neighborhood";
-import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 
 const UI = {
-  ink:      COLORS.plum,
-  inkLight: COLORS.plumMid,
-  rule:     COLORS.rule,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  inkLight: V2_COLORS.muted,
+  rule:     V2_COLORS.border,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.body,
 };
 
 export default function NeighborhoodHealthPage() {
@@ -43,14 +43,14 @@ export default function NeighborhoodHealthPage() {
     : 1;
 
   const trendIcon =
-    stats?.trend.direction === "up"   ? <TrendingUp  size={16} color={COLORS.sage} /> :
-    stats?.trend.direction === "down" ? <TrendingDown size={16} color={COLORS.blush} /> :
-    <Minus size={16} color={COLORS.plumMid} />;
+    stats?.trend.direction === "up"   ? <TrendingUp  size={16} color={V2_COLORS.blue} /> :
+    stats?.trend.direction === "down" ? <TrendingDown size={16} color={V2_COLORS.attentionBg} /> :
+    <Minus size={16} color={V2_COLORS.muted} />;
 
   const trendColor =
-    stats?.trend.direction === "up"   ? COLORS.sage :
-    stats?.trend.direction === "down" ? COLORS.blush :
-    COLORS.plumMid;
+    stats?.trend.direction === "up"   ? V2_COLORS.blue :
+    stats?.trend.direction === "down" ? V2_COLORS.attentionBg :
+    V2_COLORS.muted;
 
   const trendText =
     stats?.trend.direction === "up"   ? `↑ Avg score up ${stats.trend.changePoints} pts this year` :
@@ -58,7 +58,7 @@ export default function NeighborhoodHealthPage() {
     "Avg score stable this year";
 
   return (
-    <div style={{ minHeight: "100vh", background: COLORS.white, fontFamily: UI.mono }}>
+    <div style={{ minHeight: "100vh", background: V2_COLORS.paper, fontFamily: UI.mono }}>
       {/* Top bar */}
       <div
         style={{
@@ -67,7 +67,7 @@ export default function NeighborhoodHealthPage() {
           display: "flex",
           alignItems: "center",
           gap: "1rem",
-          background: COLORS.white,
+          background: V2_COLORS.paper,
         }}
       >
         <Link
@@ -79,7 +79,7 @@ export default function NeighborhoodHealthPage() {
         </Link>
         <span style={{ color: UI.rule }}>·</span>
         <div style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
-          <MapPin size={12} color={COLORS.plumMid} />
+          <MapPin size={12} color={V2_COLORS.muted} />
           <span style={{ fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>
             Neighborhood Health · {zipCode}
           </span>
@@ -121,10 +121,10 @@ export default function NeighborhoodHealthPage() {
                 gap: "1px",
                 background: UI.rule,
                 border: `1px solid ${UI.rule}`,
-                borderRadius: RADIUS.card,
+                borderRadius: V2_RADIUS.card,
                 overflow: "hidden",
                 marginBottom: "2rem",
-                boxShadow: SHADOWS.card,
+                boxShadow: V2_SHADOWS.card,
               }}
             >
               {[
@@ -134,7 +134,7 @@ export default function NeighborhoodHealthPage() {
               ].map((item) => (
                 <div
                   key={item.label}
-                  style={{ background: COLORS.white, padding: "1.25rem 1.5rem" }}
+                  style={{ background: V2_COLORS.paper, padding: "1.25rem 1.5rem" }}
                 >
                   <div style={{ fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.5rem" }}>
                     {item.label}
@@ -157,10 +157,10 @@ export default function NeighborhoodHealthPage() {
                 gap: "0.5rem",
                 padding: "0.875rem 1.25rem",
                 border: `1px solid ${UI.rule}`,
-                borderRadius: RADIUS.card,
+                borderRadius: V2_RADIUS.card,
                 marginBottom: "2rem",
-                background: COLORS.white,
-                boxShadow: SHADOWS.card,
+                background: V2_COLORS.paper,
+                boxShadow: V2_SHADOWS.card,
               }}
             >
               {trendIcon}
@@ -173,24 +173,24 @@ export default function NeighborhoodHealthPage() {
             <div
               style={{
                 border: `1px solid ${UI.rule}`,
-                borderRadius: RADIUS.card,
+                borderRadius: V2_RADIUS.card,
                 overflow: "hidden",
                 marginBottom: "2rem",
-                boxShadow: SHADOWS.card,
+                boxShadow: V2_SHADOWS.card,
               }}
             >
               <div
                 style={{
                   padding: "0.875rem 1.25rem",
                   borderBottom: `1px solid ${UI.rule}`,
-                  background: COLORS.white,
+                  background: V2_COLORS.paper,
                 }}
               >
                 <span style={{ fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.inkLight }}>
                   Score Distribution
                 </span>
               </div>
-              <div style={{ padding: "1.25rem 1.5rem", background: COLORS.white }}>
+              <div style={{ padding: "1.25rem 1.5rem", background: V2_COLORS.paper }}>
                 {stats.percentileBuckets.map((bucket) => {
                   const barPct = (bucket.count / maxBucketCount) * 100;
                   const isMedianBucket =
@@ -225,7 +225,7 @@ export default function NeighborhoodHealthPage() {
                           style={{
                             height: "100%",
                             width: `${barPct}%`,
-                            background: isMedianBucket ? COLORS.plum : COLORS.plumMid,
+                            background: isMedianBucket ? V2_COLORS.ink : V2_COLORS.muted,
                             borderRadius: 4,
                             transition: "width 0.5s ease",
                           }}
@@ -256,24 +256,24 @@ export default function NeighborhoodHealthPage() {
             <div
               style={{
                 border: `1px solid ${UI.rule}`,
-                borderRadius: RADIUS.card,
+                borderRadius: V2_RADIUS.card,
                 overflow: "hidden",
                 marginBottom: "2rem",
-                boxShadow: SHADOWS.card,
+                boxShadow: V2_SHADOWS.card,
               }}
             >
               <div
                 style={{
                   padding: "0.875rem 1.25rem",
                   borderBottom: `1px solid ${UI.rule}`,
-                  background: COLORS.white,
+                  background: V2_COLORS.paper,
                 }}
               >
                 <span style={{ fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.inkLight }}>
                   Top Maintenance Categories
                 </span>
               </div>
-              <div style={{ background: COLORS.white }}>
+              <div style={{ background: V2_COLORS.paper }}>
                 {stats.topMaintenanceSystems.map((sys, i) => (
                   <div
                     key={sys}

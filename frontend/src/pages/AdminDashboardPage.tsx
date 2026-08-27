@@ -9,17 +9,17 @@ import { contractorService, ContractorProfile } from "@/services/contractor";
 import { useAuthStore } from "@/store/authStore";
 import { Shield, CheckCircle, XCircle, RefreshCw, AlertTriangle, DollarSign } from "lucide-react";
 import toast from "react-hot-toast";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  rust:     COLORS.sage,
-  inkLight: COLORS.plumMid,
-  sage:     COLORS.sage,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  rust:     V2_COLORS.blue,
+  inkLight: V2_COLORS.muted,
+  sage:     V2_COLORS.blue,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.body,
 };
 
 type Tab = "verifications" | "contractors" | "tiers" | "cycles" | "referrals";
@@ -124,9 +124,9 @@ function CyclesDashboard() {
           { label: "Min Runway",        value: isFinite(minRunway) ? `${Math.floor(minRunway)}d` : "—", sub: minRunway < RUNWAY_WARN_DAYS ? "⚠ Top-up needed" : "Safe" },
           { label: "Critical Alerts",   value: String(critCount),                       sub: critCount > 0 ? "Review alerts" : "All clear" },
         ].map((c) => (
-          <div key={c.label} style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "0.875rem 1.25rem" }}>
+          <div key={c.label} style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, padding: "0.875rem 1.25rem" }}>
             <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.25rem" }}>{c.label}</p>
-            <p style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.4rem", lineHeight: 1, color: UI.ink }}>{c.value}</p>
+            <p style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.4rem", lineHeight: 1, color: UI.ink }}>{c.value}</p>
             <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, marginTop: "0.25rem" }}>{c.sub}</p>
           </div>
         ))}
@@ -143,7 +143,7 @@ function CyclesDashboard() {
       )}
 
       {/* ── Cycle Health Panel (issue #55) ── */}
-      <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white }}>
+      <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper }}>
         <div style={{ padding: "0.875rem 1.25rem", borderBottom: `1px solid ${UI.rule}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
@@ -160,7 +160,7 @@ function CyclesDashboard() {
           <button
             onClick={pollCycleLevels}
             disabled={polling}
-            style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.375rem 0.875rem", border: `1px solid ${UI.rule}`, background: COLORS.white, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", color: UI.inkLight }}
+            style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.375rem 0.875rem", border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", color: UI.inkLight }}
           >
             <RefreshCw size={11} />
             {polling ? "Polling…" : "Poll Now"}
@@ -214,7 +214,7 @@ function CyclesDashboard() {
       </div>
 
       {/* Per-canister table */}
-      <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white }}>
+      <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper }}>
         <div style={{ padding: "0.875rem 1.25rem", borderBottom: `1px solid ${UI.rule}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
             Per-Canister Metrics
@@ -222,7 +222,7 @@ function CyclesDashboard() {
           <button
             onClick={load}
             disabled={loading}
-            style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.375rem 0.875rem", border: `1px solid ${UI.rule}`, background: COLORS.white, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", color: UI.inkLight }}
+            style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.375rem 0.875rem", border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", color: UI.inkLight }}
           >
             <RefreshCw size={11} />
             Refresh
@@ -306,7 +306,7 @@ function VerificationCard({
   };
 
   return (
-    <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+    <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
       <div>
         <p style={{ fontWeight: 700, fontSize: "0.95rem", color: UI.ink, marginBottom: "0.25rem" }}>
           {property.address}, {property.city}, {property.state} {property.zipCode}
@@ -325,7 +325,7 @@ function VerificationCard({
             value={level}
             onChange={(e) => setLevel(e.target.value as "Basic" | "Premium")}
             disabled={loading}
-            style={{ padding: "0.375rem 0.625rem", border: `1px solid ${UI.rule}`, fontSize: "0.8rem", background: COLORS.white, cursor: "pointer" }}
+            style={{ padding: "0.375rem 0.625rem", border: `1px solid ${UI.rule}`, fontSize: "0.8rem", background: V2_COLORS.paper, cursor: "pointer" }}
           >
             <option value="Basic">Basic (Utility Bill)</option>
             <option value="Premium">Premium (Deed / Tax Record)</option>
@@ -334,14 +334,14 @@ function VerificationCard({
         <button
           onClick={() => act(() => onApprove(property.id, level))}
           disabled={loading}
-          style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.5rem 1rem", border: `1px solid ${UI.sage}`, background: COLORS.white, color: UI.sage, fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}
+          style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.5rem 1rem", border: `1px solid ${UI.sage}`, background: V2_COLORS.paper, color: UI.sage, fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}
         >
           <CheckCircle size={12} /> Approve
         </button>
         <button
           onClick={() => act(() => onReject(property.id))}
           disabled={loading}
-          style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.5rem 1rem", border: `1px solid ${UI.rust}`, background: COLORS.white, color: UI.rust, fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}
+          style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.5rem 1rem", border: `1px solid ${UI.rust}`, background: V2_COLORS.paper, color: UI.rust, fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", textTransform: "uppercase", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}
         >
           <XCircle size={12} /> Reject
         </button>
@@ -370,7 +370,7 @@ function TierManager() {
   };
 
   return (
-    <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "1.5rem" }}>
+    <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, padding: "1.5rem" }}>
       <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "1.25rem" }}>
         Set Subscription Tier
       </p>
@@ -399,8 +399,8 @@ function TierManager() {
                   fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase",
                   cursor: "pointer",
                   border: `1px solid ${UI.rule}`,
-                  background: tier === t ? UI.ink : COLORS.white,
-                  color: tier === t ? COLORS.white : UI.inkLight,
+                  background: tier === t ? UI.ink : V2_COLORS.paper,
+                  color: tier === t ? V2_COLORS.paper : UI.inkLight,
                 }}
               >
                 {t}
@@ -412,7 +412,7 @@ function TierManager() {
         <button
           onClick={handleSet}
           disabled={loading || !principal.trim()}
-          style={{ padding: "0.625rem 1.5rem", border: `1px solid ${UI.ink}`, background: UI.ink, color: COLORS.white, fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: loading || !principal.trim() ? "not-allowed" : "pointer", opacity: loading || !principal.trim() ? 0.6 : 1, alignSelf: "flex-start" }}
+          style={{ padding: "0.625rem 1.5rem", border: `1px solid ${UI.ink}`, background: UI.ink, color: V2_COLORS.paper, fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: loading || !principal.trim() ? "not-allowed" : "pointer", opacity: loading || !principal.trim() ? 0.6 : 1, alignSelf: "flex-start" }}
         >
           {loading ? "Saving…" : "Set Tier"}
         </button>
@@ -427,7 +427,7 @@ function TierManager() {
             { tier: "Premium",       props: "20 properties",   quotes: "10 open requests" },
             { tier: "ContractorPro", props: "Unlimited",       quotes: "Unlimited" },
           ].map((r) => (
-            <div key={r.tier} style={{ background: COLORS.white, padding: "0.625rem 0.875rem", border: `1px solid ${UI.rule}` }}>
+            <div key={r.tier} style={{ background: V2_COLORS.paper, padding: "0.625rem 0.875rem", border: `1px solid ${UI.rule}` }}>
               <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.ink, fontWeight: 700 }}>{r.tier}</p>
               <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>{r.props} · {r.quotes}</p>
             </div>
@@ -464,13 +464,13 @@ function ReferralPipeline() {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.25rem", flexWrap: "wrap", gap: "0.75rem" }}>
-        <p style={{ fontFamily: FONTS.sans, fontSize: "0.65rem", letterSpacing: "0.06em", color: COLORS.plumMid }}>
+        <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.65rem", letterSpacing: "0.06em", color: V2_COLORS.muted }}>
           Jobs sourced via HomeGentic quote requests. $15 flat fee applies on dual-signature verification.
         </p>
         <button
           onClick={load}
           disabled={loading}
-          style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.375rem 0.875rem", border: `1px solid ${COLORS.rule}`, background: COLORS.white, fontFamily: FONTS.sans, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", color: COLORS.plumMid }}
+          style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.375rem 0.875rem", border: `1px solid ${V2_COLORS.border}`, background: V2_COLORS.paper, fontFamily: V2_FONTS.body, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", color: V2_COLORS.muted }}
         >
           <RefreshCw size={11} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} />
           Refresh
@@ -484,14 +484,14 @@ function ReferralPipeline() {
           { label: "Collected fees", value: `$${totalEarned.toFixed(2)}`, count: collected.length, note: "verified jobs" },
           { label: "Fee per job",    value: `$${(referralService.REFERRAL_FEE_CENTS / 100).toFixed(2)}`, count: null, note: "flat rate" },
         ].map((card) => (
-          <div key={card.label} style={{ background: COLORS.white, border: `1px solid ${COLORS.rule}`, padding: "1rem 1.25rem" }}>
-            <p style={{ fontFamily: FONTS.sans, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.375rem" }}>{card.label}</p>
-            <p style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, color: COLORS.plum, marginBottom: "0.25rem" }}>{card.value}</p>
+          <div key={card.label} style={{ background: V2_COLORS.paper, border: `1px solid ${V2_COLORS.border}`, padding: "1rem 1.25rem" }}>
+            <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: V2_COLORS.muted, marginBottom: "0.375rem" }}>{card.label}</p>
+            <p style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, color: V2_COLORS.ink, marginBottom: "0.25rem" }}>{card.value}</p>
             {card.count !== null && (
-              <p style={{ fontFamily: FONTS.sans, fontSize: "0.6rem", color: COLORS.plumMid }}>{card.count} {card.note}</p>
+              <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.6rem", color: V2_COLORS.muted }}>{card.count} {card.note}</p>
             )}
             {card.count === null && (
-              <p style={{ fontFamily: FONTS.sans, fontSize: "0.6rem", color: COLORS.plumMid }}>{card.note}</p>
+              <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.6rem", color: V2_COLORS.muted }}>{card.note}</p>
             )}
           </div>
         ))}
@@ -502,35 +502,35 @@ function ReferralPipeline() {
           <div className="spinner-lg" />
         </div>
       ) : jobs === null || jobs.length === 0 ? (
-        <div style={{ border: `1px dashed ${COLORS.rule}`, padding: "3rem", textAlign: "center" }}>
-          <DollarSign size={32} color={COLORS.rule} style={{ margin: "0 auto 0.75rem" }} />
-          <p style={{ fontFamily: FONTS.sans, fontSize: "0.65rem", letterSpacing: "0.06em", color: COLORS.plumMid }}>
+        <div style={{ border: `1px dashed ${V2_COLORS.border}`, padding: "3rem", textAlign: "center" }}>
+          <DollarSign size={32} color={V2_COLORS.border} style={{ margin: "0 auto 0.75rem" }} />
+          <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.65rem", letterSpacing: "0.06em", color: V2_COLORS.muted }}>
             No referral jobs yet. Jobs sourced via quote requests will appear here once contractors receive their first HomeGentic lead.
           </p>
         </div>
       ) : (
-        <div style={{ border: `1px solid ${COLORS.rule}`, borderRadius: 0, overflow: "hidden" }}>
+        <div style={{ border: `1px solid ${V2_COLORS.border}`, borderRadius: 0, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ background: COLORS.sageLight }}>
+              <tr style={{ background: V2_COLORS.lblue }}>
                 {["Job ID", "Quote ID", "Service", "Amount", "Status", "Fee"].map((h) => (
-                  <th key={h} style={{ textAlign: "left", padding: "0.625rem 1rem", fontFamily: FONTS.sans, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, borderBottom: `1px solid ${COLORS.rule}` }}>{h}</th>
+                  <th key={h} style={{ textAlign: "left", padding: "0.625rem 1rem", fontFamily: V2_FONTS.body, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: V2_COLORS.muted, borderBottom: `1px solid ${V2_COLORS.border}` }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {jobs.map((j, i) => (
-                <tr key={j.id} style={{ borderBottom: i < jobs.length - 1 ? `1px solid ${COLORS.rule}` : "none", background: i % 2 === 0 ? COLORS.white : COLORS.sageLight }}>
-                  <td style={{ padding: "0.625rem 1rem", fontFamily: FONTS.sans, fontSize: "0.65rem", color: COLORS.plum, fontWeight: 600 }}>{j.id}</td>
-                  <td style={{ padding: "0.625rem 1rem", fontFamily: FONTS.sans, fontSize: "0.65rem", color: COLORS.plumMid }}>{j.sourceQuoteId ?? "—"}</td>
-                  <td style={{ padding: "0.625rem 1rem", fontFamily: FONTS.sans, fontSize: "0.65rem", color: COLORS.plumMid }}>{j.serviceType}</td>
-                  <td style={{ padding: "0.625rem 1rem", fontFamily: FONTS.sans, fontSize: "0.65rem", color: COLORS.plumMid }}>${(j.amount / 100).toFixed(2)}</td>
+                <tr key={j.id} style={{ borderBottom: i < jobs.length - 1 ? `1px solid ${V2_COLORS.border}` : "none", background: i % 2 === 0 ? V2_COLORS.paper : V2_COLORS.lblue }}>
+                  <td style={{ padding: "0.625rem 1rem", fontFamily: V2_FONTS.body, fontSize: "0.65rem", color: V2_COLORS.ink, fontWeight: 600 }}>{j.id}</td>
+                  <td style={{ padding: "0.625rem 1rem", fontFamily: V2_FONTS.body, fontSize: "0.65rem", color: V2_COLORS.muted }}>{j.sourceQuoteId ?? "—"}</td>
+                  <td style={{ padding: "0.625rem 1rem", fontFamily: V2_FONTS.body, fontSize: "0.65rem", color: V2_COLORS.muted }}>{j.serviceType}</td>
+                  <td style={{ padding: "0.625rem 1rem", fontFamily: V2_FONTS.body, fontSize: "0.65rem", color: V2_COLORS.muted }}>${(j.amount / 100).toFixed(2)}</td>
                   <td style={{ padding: "0.625rem 1rem" }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", fontFamily: FONTS.sans, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "2px 8px", background: j.verified ? "#dcfce7" : COLORS.butter, color: j.verified ? "#16a34a" : COLORS.plum }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", fontFamily: V2_FONTS.body, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "2px 8px", background: j.verified ? "#dcfce7" : V2_COLORS.attentionBg, color: j.verified ? "#16a34a" : V2_COLORS.ink }}>
                       {j.verified ? "Verified" : j.status}
                     </span>
                   </td>
-                  <td style={{ padding: "0.625rem 1rem", fontFamily: FONTS.sans, fontSize: "0.65rem", color: j.verified ? "#16a34a" : COLORS.plumMid, fontWeight: j.verified ? 700 : 400 }}>
+                  <td style={{ padding: "0.625rem 1rem", fontFamily: V2_FONTS.body, fontSize: "0.65rem", color: j.verified ? "#16a34a" : V2_COLORS.muted, fontWeight: j.verified ? 700 : 400 }}>
                     {j.verified ? `$${(referralService.REFERRAL_FEE_CENTS / 100).toFixed(2)}` : "Pending"}
                   </td>
                 </tr>
@@ -596,7 +596,7 @@ function ContractorVerificationTab() {
         </p>
         <button
           onClick={load}
-          style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.375rem 0.875rem", border: `1px solid ${UI.rule}`, background: COLORS.white, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", color: UI.inkLight }}
+          style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.375rem 0.875rem", border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", color: UI.inkLight }}
         >
           <RefreshCw size={11} /> Refresh
         </button>
@@ -608,7 +608,7 @@ function ContractorVerificationTab() {
           <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight }}>All contractors are verified.</p>
         </div>
       ) : (
-        <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white }}>
+        <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: UI.mono, fontSize: "0.7rem" }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${UI.rule}` }}>
@@ -628,7 +628,7 @@ function ContractorVerificationTab() {
                     <button
                       onClick={() => handleVerify(c.id)}
                       disabled={verifying === c.id}
-                      style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", padding: "0.375rem 0.875rem", border: `1px solid ${UI.sage}`, background: COLORS.white, color: UI.sage, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", cursor: verifying === c.id ? "not-allowed" : "pointer", opacity: verifying === c.id ? 0.6 : 1 }}
+                      style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", padding: "0.375rem 0.875rem", border: `1px solid ${UI.sage}`, background: V2_COLORS.paper, color: UI.sage, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", cursor: verifying === c.id ? "not-allowed" : "pointer", opacity: verifying === c.id ? 0.6 : 1 }}
                     >
                       <Shield size={11} /> {verifying === c.id ? "Verifying…" : "Verify"}
                     </button>
@@ -718,30 +718,30 @@ export default function AdminDashboardPage() {
 
         {/* Metrics bar */}
         <div style={{ display: "flex", gap: "1rem", marginBottom: "1.5rem" }}>
-          <div style={{ flex: 1, background: COLORS.white, padding: "0.875rem 1.25rem", display: "flex", alignItems: "center", gap: "0.75rem", border: `1px solid ${UI.rule}` }}>
+          <div style={{ flex: 1, background: V2_COLORS.paper, padding: "0.875rem 1.25rem", display: "flex", alignItems: "center", gap: "0.75rem", border: `1px solid ${UI.rule}` }}>
             <div style={{ flex: 1 }}>
               <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.25rem" }}>Pending Verifications</p>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <span style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, color: pending.length > 0 ? UI.rust : UI.ink }}>{pending.length}</span>
+                <span style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, color: pending.length > 0 ? UI.rust : UI.ink }}>{pending.length}</span>
                 {pending.length > 0 && (
-                  <span style={{ display: "inline-flex", alignItems: "center", padding: "0.15rem 0.5rem", background: UI.rust, color: COLORS.white, fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", padding: "0.15rem 0.5rem", background: UI.rust, color: V2_COLORS.paper, fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase" }}>
                     Action needed
                   </span>
                 )}
               </div>
             </div>
           </div>
-          <div style={{ flex: 1, background: COLORS.white, padding: "0.875rem 1.25rem", border: `1px solid ${UI.rule}` }}>
+          <div style={{ flex: 1, background: V2_COLORS.paper, padding: "0.875rem 1.25rem", border: `1px solid ${UI.rule}` }}>
             <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.25rem" }}>Last Refreshed</p>
             <p style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: UI.ink }}>
               {lastRefreshed ? lastRefreshed.toLocaleTimeString() : "—"}
             </p>
           </div>
-          <div style={{ background: COLORS.white, padding: "0.875rem 1.25rem", display: "flex", alignItems: "center", border: `1px solid ${UI.rule}` }}>
+          <div style={{ background: V2_COLORS.paper, padding: "0.875rem 1.25rem", display: "flex", alignItems: "center", border: `1px solid ${UI.rule}` }}>
             <button
               onClick={loadPending}
               disabled={loadingPending}
-              style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.5rem 1rem", border: `1px solid ${UI.rule}`, background: loadingPending ? UI.paper : COLORS.white, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: loadingPending ? "not-allowed" : "pointer", color: UI.inkLight, opacity: loadingPending ? 0.7 : 1 }}
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.5rem 1rem", border: `1px solid ${UI.rule}`, background: loadingPending ? UI.paper : V2_COLORS.paper, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: loadingPending ? "not-allowed" : "pointer", color: UI.inkLight, opacity: loadingPending ? 0.7 : 1 }}
             >
               <RefreshCw size={11} style={{ animation: loadingPending ? "spin 1s linear infinite" : "none" }} />
               {loadingPending ? "Refreshing…" : "Refresh"}
@@ -784,7 +784,7 @@ export default function AdminDashboardPage() {
               <button
                 onClick={loadPending}
                 disabled={loadingPending}
-                style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.375rem 0.875rem", border: `1px solid ${UI.rule}`, background: COLORS.white, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", color: UI.inkLight }}
+                style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", padding: "0.375rem 0.875rem", border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", color: UI.inkLight }}
               >
                 <RefreshCw size={11} style={{ animation: loadingPending ? "spin 1s linear infinite" : "none" }} />
                 Refresh

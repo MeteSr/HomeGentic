@@ -11,22 +11,22 @@ import { Shield, CheckCircle, Wrench, FileText, Printer, AlertTriangle, XCircle 
 import { reportService, ReportSnapshot, ShareLink, JobInput, disclosureFromParams } from "@/services/report";
 import { premiumEstimate, getScoreGrade } from "@/services/scoreService";
 import { DocumentedValueSection } from "@/components/DocumentedValueSection";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  rust:     COLORS.sage,
-  inkLight: COLORS.plumMid,
-  sage:     COLORS.sage,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  rust:     V2_COLORS.blue,
+  inkLight: V2_COLORS.muted,
+  sage:     V2_COLORS.blue,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.body,
 };
 
 const VERIFICATION_CONFIG: Record<string, { color: string; bg: string; label: string; description: string }> = {
-  Premium:    { color: UI.sage,      bg: COLORS.sageLight, label: "HomeGentic Premium Verified", description: "Comprehensive blockchain-verified maintenance history" },
-  Basic:      { color: COLORS.plum, bg: COLORS.sky,       label: "HomeGentic Basic Verified",   description: "Key maintenance records blockchain-verified" },
+  Premium:    { color: UI.sage,        bg: V2_COLORS.lblue, label: "HomeGentic Premium Verified", description: "Comprehensive blockchain-verified maintenance history" },
+  Basic:      { color: V2_COLORS.ink, bg: V2_COLORS.lblue, label: "HomeGentic Basic Verified",   description: "Key maintenance records blockchain-verified" },
   Unverified: { color: UI.inkLight,  bg: UI.paper,          label: "Unverified",               description: "Maintenance history self-reported by homeowner" },
 };
 
@@ -65,7 +65,7 @@ function ScoreArc({ score }: { score: number }) {
   const C = 2 * Math.PI * r;
   const arc = C * 0.75;
   const filled = arc * (score / 100);
-  const color = score >= 88 ? COLORS.plumMid : score >= 75 ? COLORS.sage : score >= 50 ? COLORS.plumMid : COLORS.sage;
+  const color = score >= 88 ? V2_COLORS.muted : score >= 75 ? V2_COLORS.blue : score >= 50 ? V2_COLORS.muted : V2_COLORS.blue;
   const grade = score >= 88 ? "CERTIFIED" : score >= 75 ? "GREAT" : score >= 50 ? "GOOD" : "FAIR";
   return (
     <svg viewBox="0 0 120 112" style={{ width: "6.5rem", height: "auto", flexShrink: 0 }}>
@@ -73,11 +73,11 @@ function ScoreArc({ score }: { score: number }) {
         strokeDasharray={`${arc} ${C}`} strokeLinecap="butt" transform={`rotate(-225, ${cx}, ${cy})`} />
       <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={8}
         strokeDasharray={`${filled.toFixed(2)} ${C}`} strokeLinecap="butt" transform={`rotate(-225, ${cx}, ${cy})`} />
-      <text x={cx} y={cy - 3} textAnchor="middle" fontFamily={FONTS.serif}
-        fontWeight="900" fontSize="26" fill={COLORS.white}>{score}</text>
-      <text x={cx} y={cy + 13} textAnchor="middle" fontFamily={FONTS.sans}
+      <text x={cx} y={cy - 3} textAnchor="middle" fontFamily={V2_FONTS.display}
+        fontWeight="900" fontSize="26" fill={V2_COLORS.paper}>{score}</text>
+      <text x={cx} y={cy + 13} textAnchor="middle" fontFamily={V2_FONTS.body}
         fontSize="8" fill="rgba(244,241,235,0.40)" letterSpacing="1">/100</text>
-      <text x={cx} y={cy + 26} textAnchor="middle" fontFamily={FONTS.sans}
+      <text x={cx} y={cy + 26} textAnchor="middle" fontFamily={V2_FONTS.body}
         fontSize="7" fill={color} letterSpacing="2">{grade}</text>
     </svg>
   );
@@ -190,29 +190,29 @@ export default function ReportPage() {
       <div className="no-print" style={{ position: "fixed", top: "1rem", right: "1rem", zIndex: 50, display: "flex", gap: "0.5rem" }}>
         <button
           onClick={() => window.print()}
-          style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: UI.ink, color: COLORS.white, border: "none", padding: "0.625rem 1rem", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer" }}
+          style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: UI.ink, color: V2_COLORS.paper, border: "none", padding: "0.625rem 1rem", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer" }}
         >
           <Printer size={14} /> Save as PDF
         </button>
       </div>
 
       {/* Report document */}
-      <div id="homegentic-report" style={{ maxWidth: "52rem", margin: "0 auto", padding: "2rem 1.5rem 4rem", background: COLORS.white, minHeight: "100vh", fontFamily: UI.mono }}>
+      <div id="homegentic-report" style={{ maxWidth: "52rem", margin: "0 auto", padding: "2rem 1.5rem 4rem", background: V2_COLORS.paper, minHeight: "100vh", fontFamily: UI.mono }}>
 
         {/* Cover */}
-        <div style={{ background: UI.ink, padding: "2.5rem", color: COLORS.white, marginBottom: "2rem" }}>
+        <div style={{ background: UI.ink, padding: "2.5rem", color: V2_COLORS.paper, marginBottom: "2rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginBottom: "2rem", opacity: 0.7 }}>
             <Shield size={16} />
             <span style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.7rem", letterSpacing: "0.2em", textTransform: "uppercase" }}>HOMEGENTIC</span>
-            <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: COLORS.plumMid }}>Property History Report</span>
+            <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: V2_COLORS.muted }}>Property History Report</span>
           </div>
 
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1.5rem", marginBottom: "1.75rem" }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "2rem", lineHeight: 1.1, color: COLORS.white, marginBottom: "0.375rem" }}>
+              <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "2rem", lineHeight: 1.1, color: V2_COLORS.paper, marginBottom: "0.375rem" }}>
                 {snapshot.address}
               </h1>
-              <p style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: COLORS.plumMid, marginBottom: "1.25rem", letterSpacing: "0.06em" }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: V2_COLORS.muted, marginBottom: "1.25rem", letterSpacing: "0.06em" }}>
                 {snapshot.city}, {snapshot.state} {snapshot.zipCode}
               </p>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, auto)", justifyContent: "start", gap: "0.25rem 2rem" }}>
@@ -223,7 +223,7 @@ export default function ReportPage() {
                 ] as { label: string; value: string }[]).map(({ label, value }) => (
                   <div key={label}>
                     <p style={{ fontFamily: UI.mono, fontSize: "0.5rem", letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.30)", marginBottom: "0.1rem" }}>{label}</p>
-                    <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: COLORS.sageMid }}>{value}</p>
+                    <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: V2_COLORS.cobalTint }}>{value}</p>
                   </div>
                 ))}
               </div>
@@ -236,13 +236,13 @@ export default function ReportPage() {
               <Shield size={12} />{cfg.label}
             </div>
             {certified && (
-              <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", border: `1px solid ${COLORS.plumMid}`, padding: "0.5rem 1.25rem", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.butter, background: "rgba(201,168,76,0.12)" }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", border: `1px solid ${V2_COLORS.muted}`, padding: "0.5rem 1.25rem", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: V2_COLORS.attentionBg, background: "rgba(201,168,76,0.12)" }}>
                 ★ HomeGentic Certified™
               </div>
             )}
           </div>
 
-          <div style={{ marginTop: "1.75rem", paddingTop: "1.25rem", borderTop: "1px solid rgba(255,255,255,0.1)", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem", fontFamily: UI.mono, fontSize: "0.6rem", color: COLORS.plumMid }}>
+          <div style={{ marginTop: "1.75rem", paddingTop: "1.25rem", borderTop: "1px solid rgba(255,255,255,0.1)", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem", fontFamily: UI.mono, fontSize: "0.6rem", color: V2_COLORS.muted }}>
             <span>Report ID: {snapshot.snapshotId}</span>
             <span>Generated: {new Date(snapshot.generatedAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</span>
           </div>
@@ -254,7 +254,7 @@ export default function ReportPage() {
             <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.04em", color: UI.ink }}>
               ⚠ This report link expires {new Date(link.expiresAt).toLocaleDateString()}. Upgrade to Pro for a permanent link.
             </p>
-            <a href="/pricing" style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 0.875rem", border: `1px solid ${COLORS.plum}`, background: COLORS.plum, color: COLORS.white, cursor: "pointer", textDecoration: "none", whiteSpace: "nowrap" }}>
+            <a href="/pricing" style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 0.875rem", border: `1px solid ${V2_COLORS.ink}`, background: V2_COLORS.ink, color: V2_COLORS.paper, cursor: "pointer", textDecoration: "none", whiteSpace: "nowrap" }}>
               Upgrade to Pro →
             </a>
           </div>
@@ -262,14 +262,14 @@ export default function ReportPage() {
 
         {/* Free plan banner (15.3.2 / 15.3.3) — shown only for Free-tier snapshots */}
         {snapshot.planTier === "Free" && (
-          <div className="no-print" style={{ border: `1.5px solid ${COLORS.sageMid}`, background: COLORS.sageLight, padding: "0.875rem 1.25rem", marginBottom: "1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+          <div className="no-print" style={{ border: `1.5px solid ${V2_COLORS.cobalTint}`, background: V2_COLORS.lblue, padding: "0.875rem 1.25rem", marginBottom: "1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
             <div>
-              <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: COLORS.sage }}>Generated with HomeGentic Free</span>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: V2_COLORS.blue }}>Generated with HomeGentic Free</span>
               <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, marginTop: "0.2rem" }}>
                 Upgrade to remove this banner and unlock permanent sharing.
               </p>
             </div>
-            <a href="/pricing" style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 0.875rem", border: `1px solid ${COLORS.plum}`, background: COLORS.plum, color: COLORS.white, cursor: "pointer", textDecoration: "none", whiteSpace: "nowrap" }}>
+            <a href="/pricing" style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.4rem 0.875rem", border: `1px solid ${V2_COLORS.ink}`, background: V2_COLORS.ink, color: V2_COLORS.paper, cursor: "pointer", textDecoration: "none", whiteSpace: "nowrap" }}>
               Upgrade →
             </a>
           </div>
@@ -277,9 +277,9 @@ export default function ReportPage() {
 
         {/* Pro+ trust badge (15.3.3) — shown for Pro and Premium reports */}
         {(snapshot.planTier === "Pro" || snapshot.planTier === "Premium" || snapshot.planTier === "ContractorPro") && (
-          <div className="no-print" style={{ border: `1.5px solid ${COLORS.sageMid}`, background: COLORS.sageLight, padding: "0.75rem 1.25rem", marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.625rem" }}>
-            <CheckCircle size={14} color={COLORS.sage} />
-            <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: COLORS.sage, fontWeight: 700 }}>Verified by HomeGentic</span>
+          <div className="no-print" style={{ border: `1.5px solid ${V2_COLORS.cobalTint}`, background: V2_COLORS.lblue, padding: "0.75rem 1.25rem", marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.625rem" }}>
+            <CheckCircle size={14} color={V2_COLORS.blue} />
+            <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: V2_COLORS.blue, fontWeight: 700 }}>Verified by HomeGentic</span>
             <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>— This report is powered by a HomeGentic Pro subscription.</span>
           </div>
         )}
@@ -332,8 +332,8 @@ export default function ReportPage() {
               <div style={{ position: "absolute", left: "0.875rem", top: 0, bottom: 0, width: "1px", background: UI.rule }} />
               {visibleJobs.map((job, i) => (
                 <div key={i} style={{ display: "flex", gap: "1.5rem", marginBottom: "1rem", paddingLeft: "0.25rem" }}>
-                  <div style={{ width: "1.5rem", height: "1.5rem", background: job.isVerified ? UI.sage : UI.rule, flexShrink: 0, marginTop: "0.25rem", zIndex: 1, display: "flex", alignItems: "center", justifyContent: "center", border: `2px solid ${COLORS.white}` }}>
-                    {job.isVerified && <CheckCircle size={9} color={COLORS.white} />}
+                  <div style={{ width: "1.5rem", height: "1.5rem", background: job.isVerified ? UI.sage : UI.rule, flexShrink: 0, marginTop: "0.25rem", zIndex: 1, display: "flex", alignItems: "center", justifyContent: "center", border: `2px solid ${V2_COLORS.paper}` }}>
+                    {job.isVerified && <CheckCircle size={9} color={V2_COLORS.paper} />}
                   </div>
                   <div style={{ flex: 1, border: `1px solid ${UI.rule}`, padding: "1rem 1.25rem" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem", marginBottom: "0.375rem" }}>
@@ -346,7 +346,7 @@ export default function ReportPage() {
                           </span>
                         )}
                         {job.isDiy && (
-                          <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 700, color: COLORS.plum, border: `1px solid ${COLORS.sageMid}`, padding: "0.1rem 0.4rem" }}>
+                          <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 700, color: V2_COLORS.ink, border: `1px solid ${V2_COLORS.cobalTint}`, padding: "0.1rem 0.4rem" }}>
                             DIY
                           </span>
                         )}
@@ -384,10 +384,10 @@ export default function ReportPage() {
                   const lastYear  = latestJob ? parseInt(latestJob.date.split("-")[0]) : snapshot.yearBuilt;
                   const age       = Math.max(0, year - lastYear);
                   const pctLife   = Math.min(100, Math.round(age / sys.lifespan * 100));
-                  const health    = pctLife < 40 ? UI.sage : pctLife < 70 ? COLORS.plumMid : UI.rust;
+                  const health    = pctLife < 40 ? UI.sage : pctLife < 70 ? V2_COLORS.muted : UI.rust;
                   const healthLabel = pctLife < 40 ? "Good" : pctLife < 70 ? "Fair" : "Aging";
                   return (
-                    <div key={sys.name} style={{ background: COLORS.white, padding: "0.875rem", textAlign: "center", border: `1px solid ${UI.rule}` }}>
+                    <div key={sys.name} style={{ background: V2_COLORS.paper, padding: "0.875rem", textAlign: "center", border: `1px solid ${UI.rule}` }}>
                       <div style={{ fontSize: "1.5rem", marginBottom: "0.375rem" }}>{sys.icon}</div>
                       <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.08em", fontWeight: 700, color: UI.ink }}>{sys.name}</p>
                       <div style={{ height: "3px", background: UI.rule, margin: "0.375rem 0" }}>
@@ -411,7 +411,7 @@ export default function ReportPage() {
             <SectionHeader title="Ongoing Services" icon={<CheckCircle size={14} color={UI.sage} />} />
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               {snapshot.recurringServices.map((svc, i) => (
-                <div key={i} style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", padding: "0.875rem 1.25rem", background: COLORS.white, gap: "0.75rem", border: `1px solid ${UI.rule}` }}>
+                <div key={i} style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", padding: "0.875rem 1.25rem", background: V2_COLORS.paper, gap: "0.75rem", border: `1px solid ${UI.rule}` }}>
                   <div>
                     <p style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.7rem", letterSpacing: "0.04em", color: UI.ink, marginBottom: "0.2rem" }}>
                       {svc.serviceType}
@@ -433,7 +433,7 @@ export default function ReportPage() {
                       fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em",
                       textTransform: "uppercase", padding: "0.15rem 0.5rem",
                       color: svc.status === "Active" ? UI.sage : UI.inkLight,
-                      background: svc.status === "Active" ? COLORS.sageLight : UI.paper,
+                      background: svc.status === "Active" ? V2_COLORS.lblue : UI.paper,
                       border: `1px solid ${svc.status === "Active" ? UI.sage + "44" : UI.rule}`,
                     }}>
                       {svc.status}
@@ -451,7 +451,7 @@ export default function ReportPage() {
             <SectionHeader title="Room Inventory" icon={<FileText size={14} color={UI.inkLight} />} />
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(13rem, 1fr))", gap: "1rem" }}>
               {snapshot.rooms.map((room, i) => (
-                <div key={i} style={{ border: `1px solid ${UI.rule}`, padding: "1rem 1.25rem", background: COLORS.white }}>
+                <div key={i} style={{ border: `1px solid ${UI.rule}`, padding: "1rem 1.25rem", background: V2_COLORS.paper }}>
                   <p style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.7rem", letterSpacing: "0.08em", color: UI.ink, marginBottom: "0.625rem" }}>
                     {room.name}
                   </p>
@@ -509,12 +509,12 @@ export default function ReportPage() {
 
           return (
             <div style={{ marginBottom: "2.5rem" }}>
-              <SectionHeader title="Warranties" icon={<Shield size={14} color={COLORS.plum} />} />
+              <SectionHeader title="Warranties" icon={<Shield size={14} color={V2_COLORS.ink} />} />
               <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
                 {active.map(({ job, daysLeft, yearsLeft }, i) => {
                   const nearExpiry = daysLeft <= 90;
                   return (
-                    <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.875rem 1.25rem", background: nearExpiry ? COLORS.butter : COLORS.white, gap: "0.75rem", flexWrap: "wrap", border: `1px solid ${UI.rule}` }}>
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.875rem 1.25rem", background: nearExpiry ? V2_COLORS.attentionBg : V2_COLORS.paper, gap: "0.75rem", flexWrap: "wrap", border: `1px solid ${UI.rule}` }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
                         <span style={{ fontSize: "1rem" }}>{SERVICE_ICONS[job.serviceType] ?? "🔩"}</span>
                         <div>
@@ -524,12 +524,12 @@ export default function ReportPage() {
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
                         {nearExpiry && (
-                          <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, border: `1px solid ${COLORS.plumMid}44`, padding: "0.15rem 0.5rem" }}>
+                          <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: V2_COLORS.muted, border: `1px solid ${V2_COLORS.muted}44`, padding: "0.15rem 0.5rem" }}>
                             Expiring soon
                           </span>
                         )}
                         <div style={{ textAlign: "right" }}>
-                          <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "0.875rem", color: nearExpiry ? COLORS.plumMid : UI.sage }}>
+                          <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "0.875rem", color: nearExpiry ? V2_COLORS.muted : UI.sage }}>
                             {daysLeft < 365 ? `${daysLeft} days` : `${yearsLeft} yrs`} remaining
                           </p>
                           <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", color: UI.inkLight }}>
@@ -570,7 +570,7 @@ export default function ReportPage() {
               {uniqueContractors.map((name) => {
                 const contractorJobs = sortedJobs.filter((j) => j.contractorName === name);
                 return (
-                  <div key={name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.75rem 1rem", background: COLORS.white, border: `1px solid ${UI.rule}` }}>
+                  <div key={name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.75rem 1rem", background: V2_COLORS.paper, border: `1px solid ${UI.rule}` }}>
                     <span style={{ fontFamily: UI.mono, fontWeight: 600, fontSize: "0.65rem", color: UI.ink }}>{name}</span>
                     <div style={{ display: "flex", gap: "1rem", fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>
                       <span>{contractorJobs.map((j) => j.serviceType).join(", ")}</span>
@@ -589,7 +589,7 @@ export default function ReportPage() {
             <SectionHeader title="Permits on Record" icon={<FileText size={14} color={UI.inkLight} />} />
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               {jobsWithPermit.map((job, i) => (
-                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.75rem 1rem", background: COLORS.white, border: `1px solid ${UI.rule}` }}>
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.75rem 1rem", background: V2_COLORS.paper, border: `1px solid ${UI.rule}` }}>
                   <div>
                     <span style={{ fontFamily: UI.mono, fontWeight: 600, fontSize: "0.65rem", color: UI.ink }}>{job.serviceType}</span>
                     <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, marginLeft: "0.75rem" }}>{fmtDate(job.date)}</span>
