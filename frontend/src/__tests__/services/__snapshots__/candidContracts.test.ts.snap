@@ -197,6 +197,9 @@ exports[`Candid contract snapshots — method arity > quote 1`] = `
 cancelQuoteRequest(1) -> (1)
 closeQuoteRequest(1) -> (1)
 createQuoteRequest(9) -> (1)
+createSealedBidRequest(10) -> (1)
+getIbePublicKey(0) -> (1)
+getMyBid(1) -> (1) [query]
 getMyQuoteRequests(0) -> (1) [query]
 getMyQuotes(0) -> (1) [query]
 getOpenRequests(0) -> (1) [query]
@@ -204,8 +207,12 @@ getOpenRequestsForMe(0) -> (1)
 getOpenRequestsPage(2) -> (1) [query]
 getQuoteRequest(1) -> (1) [query]
 getQuotesForRequest(1) -> (1) [query]
+getRevealedBids(1) -> (1) [query]
+revealBids(1) -> (1)
+revealBidsEncrypted(2) -> (1)
 setPropertyCanisterId(1) -> (1)
-submitQuote(4) -> (1)"
+submitQuote(4) -> (1)
+submitSealedBid(3) -> (1)"
 `;
 
 exports[`Candid contract snapshots — method arity > recurring 1`] = `

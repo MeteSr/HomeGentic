@@ -5,6 +5,7 @@
  */
 
 import Array    "mo:core/Array";
+import Blob     "mo:core/Blob";
 import Map      "mo:core/Map";
 import Int      "mo:core/Int";
 import Iter     "mo:core/Iter";
@@ -119,6 +120,14 @@ persistent actor Quote {
     #InvalidInput: Text;
   };
 
+  /// Returned by revealBidsEncrypted — homeowner's IBE private key (encrypted to
+  /// their transport public key) plus the raw sealed bids.
+  /// The frontend uses @dfinity/vetkeys to decrypt each ciphertext locally.
+  public type SealedBidReveal = {
+    encryptedKey: Blob;   // vetkd_derive_key response, encrypted to transportPublicKey
+    bids:         [SealedBid];
+  };
+
   public type Metrics = {
     totalRequests: Nat;
     openRequests: Nat;
@@ -158,6 +167,34 @@ persistent actor Quote {
   private let sealedBidsByRequest    = Map.empty<Text, [Text]>();
   private let sealedBidsByContractor = Map.empty<Text, Text>();
   private let revealedBids           = Map.empty<Text, [RevealedBid]>();
+
+  // ─── vetKeys IBE (sealed-bid confidentiality) ─────────────────────────────────
+  // Domain separator "hg-bid-v1" — must match the context used by @dfinity/vetkeys
+  // on the frontend.  Changing this invalidates all existing ciphertexts.
+  private let IBE_CONTEXT : Blob = Blob.fromArray([
+    0x68, 0x67, 0x2D, 0x62, 0x69, 0x64, 0x2D, 0x76, 0x31   // "hg-bid-v1"
+  ]);
+  // "test_key_1" for local/testnet (~10B cycles per derive call).
+  // Switch to "key_1" before mainnet launch (~26B cycles per derive call).
+  private let VETKD_KEY_NAME   : Text = "test_key_1";
+  private let VETKD_KEY_CYCLES : Nat  = 10_000_000_000;
+
+  type VetKdCurve              = { #bls12_381_g2 };
+  type VetKdKeyId              = { curve: VetKdCurve; name: Text };
+  type VetKdPublicKeyRequest   = { canister_id: ?Principal; context: Blob; key_id: VetKdKeyId };
+  type VetKdPublicKeyResponse  = { public_key: Blob };
+  type VetKdDeriveKeyRequest   = {
+    input:                Blob;
+    context:              Blob;
+    transport_public_key: Blob;
+    key_id:               VetKdKeyId;
+  };
+  type VetKdDeriveKeyResponse  = { encrypted_key: Blob };
+
+  let managementCanister : actor {
+    vetkd_public_key : VetKdPublicKeyRequest -> async VetKdPublicKeyResponse;
+    vetkd_derive_key : VetKdDeriveKeyRequest -> async VetKdDeriveKeyResponse;
+  } = actor "aaaaa-aa";
 
   // ─── Private Helpers ─────────────────────────────────────────────────────────
 
@@ -1009,6 +1046,84 @@ persistent actor Quote {
     switch (Map.get(revealedBids, Text.compare, requestId)) {
       case null  { [] };
       case (?rb) { rb };
+    }
+  };
+
+  // ─── vetKeys Public Methods ───────────────────────────────────────────────────
+
+  /// Returns the canister's BLS12-381 IBE public key for the sealed-bid context.
+  /// Contractors call this before encrypting bid amounts with @dfinity/vetkeys.
+  /// vetkd_public_key requires no cycles.
+  public func getIbePublicKey() : async Blob {
+    let response = await managementCanister.vetkd_public_key({
+      canister_id = null;
+      context     = IBE_CONTEXT;
+      key_id      = { curve = #bls12_381_g2; name = VETKD_KEY_NAME };
+    });
+    response.public_key
+  };
+
+  /// Derive the homeowner's IBE private key (encrypted to their transport public key)
+  /// and return it together with all sealed bids for a request.
+  ///
+  /// Only the request's homeowner may call this; the bid window must have closed.
+  /// The frontend decrypts `encryptedKey` using the transport secret key → VetKey,
+  /// then decrypts each bid's ciphertext with IbeCiphertext.deserialize().decrypt(vetKey).
+  ///
+  /// Costs VETKD_KEY_CYCLES per call.
+  public shared(msg) func revealBidsEncrypted(
+    requestId:          Text,
+    transportPublicKey: Blob
+  ) : async Result.Result<SealedBidReveal, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    // Capture caller before any await — required for vetKeys security.
+    let caller = msg.caller;
+
+    switch (Map.get(requests, Text.compare, requestId)) {
+      case null { return #err(#NotFound) };
+      case (?req) {
+        let authOk = await checkPropertyAuth(req.propertyId, req.homeowner, caller, true);
+        if (not authOk) return #err(#NotAuthorized);
+
+        // Bid window must be closed before reveal
+        switch (req.closeAt) {
+          case (?closeAt) {
+            if (Time.now() < closeAt)
+              return #err(#InvalidInput("Bid window has not yet closed"));
+          };
+          case null {
+            return #err(#InvalidInput("This request does not use sealed bids"));
+          };
+        };
+
+        // Derive the homeowner's IBE private key encrypted to their transport key.
+        // The identity used for IBE encryption is Principal.toBlob(homeowner),
+        // which the frontend reconstructs via myPrincipal.toUint8Array().
+        let deriveResponse = await (with cycles = VETKD_KEY_CYCLES) managementCanister.vetkd_derive_key({
+          input                = Principal.toBlob(caller);
+          context              = IBE_CONTEXT;
+          transport_public_key = transportPublicKey;
+          key_id               = { curve = #bls12_381_g2; name = VETKD_KEY_NAME };
+        });
+
+        // Collect all sealed bids for this request
+        let bidIds = switch (Map.get(sealedBidsByRequest, Text.compare, requestId)) {
+          case null  { [] };
+          case (?xs) { xs };
+        };
+        var bidList: [SealedBid] = [];
+        for (bidId in bidIds.vals()) {
+          switch (Map.get(sealedBids, Text.compare, bidId)) {
+            case null {};
+            case (?b) { bidList := Array.concat(bidList, [b]) };
+          };
+        };
+
+        #ok({
+          encryptedKey = deriveResponse.encrypted_key;
+          bids         = bidList;
+        })
+      };
     }
   };
 

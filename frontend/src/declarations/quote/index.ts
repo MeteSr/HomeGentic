@@ -39,6 +39,28 @@ export const idlFactory = ({ IDL }: any) => {
     status:     QuoteStatus,
     createdAt:  IDL.Int,
   });
+  // Sealed-bid types
+  const SealedBid = IDL.Record({
+    id:           IDL.Text,
+    requestId:    IDL.Text,
+    contractor:   IDL.Principal,
+    ciphertext:   IDL.Vec(IDL.Nat8),
+    timelineDays: IDL.Nat,
+    submittedAt:  IDL.Int,
+  });
+  const RevealedBid = IDL.Record({
+    id:           IDL.Text,
+    requestId:    IDL.Text,
+    contractor:   IDL.Principal,
+    amountCents:  IDL.Nat,
+    timelineDays: IDL.Nat,
+    submittedAt:  IDL.Int,
+    isWinner:     IDL.Bool,
+  });
+  const SealedBidReveal = IDL.Record({
+    encryptedKey: IDL.Vec(IDL.Nat8),
+    bids:         IDL.Vec(SealedBid),
+  });
   const Error = IDL.Variant({
     NotFound:     IDL.Null,
     NotAuthorized: IDL.Null,
@@ -84,6 +106,40 @@ export const idlFactory = ({ IDL }: any) => {
     cancelQuoteRequest: IDL.Func(
       [IDL.Text],
       [IDL.Variant({ ok: IDL.Vec(IDL.Principal), err: Error })],
+      []
+    ),
+    // Sealed-bid methods
+    createSealedBidRequest: IDL.Func(
+      [IDL.Text, ServiceType, IDL.Text, UrgencyLevel, IDL.Int,
+       IDL.Opt(IDL.Text), IDL.Opt(IDL.Nat), IDL.Opt(IDL.Nat), IDL.Opt(IDL.Nat), IDL.Opt(IDL.Nat)],
+      [IDL.Variant({ ok: QuoteRequest, err: Error })],
+      []
+    ),
+    submitSealedBid: IDL.Func(
+      [IDL.Text, IDL.Vec(IDL.Nat8), IDL.Nat],
+      [IDL.Variant({ ok: SealedBid, err: Error })],
+      []
+    ),
+    getMyBid: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: SealedBid, err: Error })],
+      ["query"]
+    ),
+    revealBids: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: IDL.Vec(RevealedBid), err: Error })],
+      []
+    ),
+    getRevealedBids: IDL.Func(
+      [IDL.Text],
+      [IDL.Vec(RevealedBid)],
+      ["query"]
+    ),
+    // vetKeys IBE methods
+    getIbePublicKey: IDL.Func([], [IDL.Vec(IDL.Nat8)], []),
+    revealBidsEncrypted: IDL.Func(
+      [IDL.Text, IDL.Vec(IDL.Nat8)],
+      [IDL.Variant({ ok: SealedBidReveal, err: Error })],
       []
     ),
     setPropertyCanisterId: IDL.Func(
