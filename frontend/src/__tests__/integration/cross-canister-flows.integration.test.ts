@@ -12,10 +12,10 @@
  * ── Identities ────────────────────────────────────────────────────────────────
  * HOMEOWNER  seed[0]=42   Premium / ContractorPro (granted by scripts/test-integration.sh)
  *                         Uses the service layer (singleton agent from setup.ts).
- * CONTRACTOR seed[0]=99   Free tier (no subscription granted — acts as contractor signer)
+ * CONTRACTOR seed[0]=99   ContractorFree (no subscription granted — acts as contractor signer)
  *                         Uses direct Actor instances to bypass the service-layer actor cache.
- * TIER_USER  seed[0]=77   Free tier (no subscription granted — exercises property limit)
- * QUOTA_USER seed[0]=88   Free tier (no subscription granted — exercises quote limit)
+ * TIER_USER  seed[0]=77   Basic tier (granted by scripts/test-integration.sh — exercises 1-property limit)
+ * QUOTA_USER seed[0]=88   Basic tier (granted by scripts/test-integration.sh — exercises 3-open-quote limit)
  *
  * Why direct actors for CONTRACTOR/TIER_USER/QUOTA_USER:
  *   Service files cache `_actor` on first call. Since the homeowner already
@@ -27,7 +27,7 @@
  * 1. DIY full workflow: property → job → homeowner verifies → getCertificationData reflects it
  * 2. Contractor dual-signature: property → job → invite token → contractor signs →
  *    homeowner countersigns → both signatures confirmed, job fully verified
- * 3. Free-tier property registration limit: enforces cap via property → payment cross-call
+ * 3. Basic-tier property registration limit: enforces 1-property cap via property → payment cross-call
  * 4. Quote open-request limit: enforces cap via quote → payment cross-call
  * 5. Property verification state machine: Unverified → PendingReview (admin promotion documented)
  */
@@ -95,7 +95,6 @@ const PROP_ARGS = {
   propertyType: { SingleFamily: null },
   yearBuilt:    BigInt(1995),
   squareFeet:   BigInt(1800),
-  tier:         { Free: null },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -118,7 +117,7 @@ describe.skipIf(!deployed)("Flow 1: DIY full workflow", () => {
       propertyType: "SingleFamily",
       yearBuilt:    1995,
       squareFeet:   1800,
-      tier:         "Free",
+      tier:         "Basic",
     });
     propId = prop.id;
   });
@@ -185,7 +184,7 @@ describe.skipIf(!deployed)("Flow 2: Contractor dual-signature workflow", () => {
       propertyType: "SingleFamily",
       yearBuilt:    2001,
       squareFeet:   2100,
-      tier:         "Free",
+      tier:         "Basic",
     });
     propId = prop.id;
   });
@@ -215,7 +214,10 @@ describe.skipIf(!deployed)("Flow 2: Contractor dual-signature workflow", () => {
 
   it("step 3 — contractor redeems invite token → contractorSigned: true, homeownerSigned still false", async () => {
     const result = await contractorJobActor.redeemInviteToken(inviteToken);
-    const raw = unwrap(result, "contractor redeemInviteToken");
+    const raw = unwrap<{ contractorSigned: boolean; homeownerSigned: boolean; verified: boolean }>(
+      result as any,
+      "contractor redeemInviteToken",
+    );
     expect(raw.contractorSigned).toBe(true);
     expect(raw.homeownerSigned).toBe(false);
     expect(raw.verified).toBe(false);
@@ -237,17 +239,18 @@ describe.skipIf(!deployed)("Flow 2: Contractor dual-signature workflow", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Flow 3 — Free-tier property registration limit
+// Flow 3 — Basic-tier property registration limit
 // Tests that the property canister cross-calls payment to enforce tier limits.
-// A fresh identity (no subscription granted) gets Free tier → limited properties.
+// Basic is the lowest homeowner tier: 1 property. TIER_USER has a Basic subscription
+// granted by scripts/test-integration.sh, so the second registration must fail.
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe.skipIf(!deployed)("Flow 3: Free-tier property registration limit (property → payment cross-call)", () => {
+describe.skipIf(!deployed)("Flow 3: Basic-tier property registration limit (property → payment cross-call)", () => {
   let tierPropertyActor: any;
   const registrationResults: Array<{ ok: boolean; propId?: string; errorKey?: string }> = [];
 
   beforeAll(async () => {
-    // seed[0]=77: no subscription granted by CI — stays at default Free tier
+    // seed[0]=77: Basic subscription granted by scripts/test-integration.sh (1-property limit)
     const tierAgent = await makeAgent(77);
     tierPropertyActor = Actor.createActor(propertyIdl as any, {
       agent:      tierAgent,
@@ -255,9 +258,8 @@ describe.skipIf(!deployed)("Flow 3: Free-tier property registration limit (prope
     });
   });
 
-  it("registers properties until the tier limit is hit — at least one must be rejected", async () => {
-    // Try to register up to 3 properties. Free tier should cap at 1 (Basic) or 0.
-    // We assert: the canister rejects at least one, proving the limit is enforced.
+  it("registers properties until the tier limit is hit — second registration must be rejected", async () => {
+    // Basic tier = 1 property. Try 3: only the first should succeed.
     for (let i = 0; i < 3; i++) {
       const result = await tierPropertyActor.registerProperty({
         ...PROP_ARGS,
@@ -274,10 +276,10 @@ describe.skipIf(!deployed)("Flow 3: Free-tier property registration limit (prope
     const successes = registrationResults.filter((r) => r.ok);
     const failures  = registrationResults.filter((r) => !r.ok);
 
-    // At least one must succeed (Free tier allows >= 1 property for homeowners)
-    expect(successes.length).toBeGreaterThanOrEqual(1);
-    // At least one must fail (Free tier < 3 properties)
-    expect(failures.length).toBeGreaterThanOrEqual(1);
+    // Basic tier = 1 property: exactly one must succeed
+    expect(successes.length).toBe(1);
+    // The remaining two must fail
+    expect(failures.length).toBe(2);
   });
 
   it("the rejection error is LimitReached (not Unauthorized or a network error)", () => {
@@ -297,7 +299,8 @@ describe.skipIf(!deployed)("Flow 3: Free-tier property registration limit (prope
 // ─────────────────────────────────────────────────────────────────────────────
 // Flow 4 — Quote open-request limit enforcement
 // quote canister cross-calls payment to enforce open-request caps per tier.
-// A fresh identity (Free tier) should hit the cap before 10 open requests.
+// Basic tier = 3 open requests. QUOTA_USER has a Basic subscription granted by
+// scripts/test-integration.sh, so the fourth request must fail.
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe.skipIf(!deployed)("Flow 4: Quote open-request limit enforcement (quote → payment cross-call)", () => {
@@ -307,7 +310,7 @@ describe.skipIf(!deployed)("Flow 4: Quote open-request limit enforcement (quote 
   const requestResults: Array<{ ok: boolean; reqId?: string; errorKey?: string }> = [];
 
   beforeAll(async () => {
-    // seed[0]=88: no subscription granted — stays at Free/Basic tier
+    // seed[0]=88: Basic subscription granted by scripts/test-integration.sh (3 open quotes limit)
     const quoteTierAgent = await makeAgent(88);
 
     quotePropActor = Actor.createActor(propertyIdl as any, {
@@ -324,14 +327,13 @@ describe.skipIf(!deployed)("Flow 4: Quote open-request limit enforcement (quote 
       ...PROP_ARGS,
       address: addr("quote-limit"),
     });
-    quotePropId = unwrap(propResult, "quote-limit property registration").id;
+    quotePropId = unwrap<{ id: string }>(propResult as any, "quote-limit property registration").id;
   });
 
-  it("submitting open quote requests hits the tier limit before 10 (quote → payment cross-call)", async () => {
-    // Attempt up to 10 open requests. Free/Basic tier caps at 3.
-    // We stop as soon as we see 2 consecutive failures (limit definitely hit).
+  it("submitting open quote requests hits Basic-tier limit of 3 (quote → payment cross-call)", async () => {
+    // Basic tier caps at 3 open requests. Attempt 5; the 4th and 5th must fail.
     let consecutiveFailures = 0;
-    for (let i = 0; i < 10 && consecutiveFailures < 2; i++) {
+    for (let i = 0; i < 5 && consecutiveFailures < 2; i++) {
       const result = await quoteActor.createQuoteRequest(
         quotePropId,
         { HVAC: null },          // ServiceType variant
@@ -356,12 +358,9 @@ describe.skipIf(!deployed)("Flow 4: Quote open-request limit enforcement (quote 
     const successes = requestResults.filter((r) => r.ok);
     const failures  = requestResults.filter((r) => !r.ok);
 
-    // Free/Basic tier must allow at least 1 open request (otherwise the canister is misconfigured)
-    expect(successes.length).toBeGreaterThanOrEqual(1);
-    // The tier limit must prevent unbounded open requests
+    // Basic tier = exactly 3 open requests
+    expect(successes.length).toBe(3);
     expect(failures.length).toBeGreaterThanOrEqual(1);
-    // Must not reach 10 (that would mean effectively unlimited, which is only Premium)
-    expect(successes.length).toBeLessThan(10);
   });
 
   it("the rejection error names a limit (TierLimitReached / LimitReached / Limit)", () => {
@@ -390,7 +389,7 @@ describe.skipIf(!deployed)("Flow 5: Property verification state machine", () => 
       propertyType: "SingleFamily",
       yearBuilt:    1990,
       squareFeet:   1600,
-      tier:         "Free",
+      tier:         "Basic",
     });
   });
 
