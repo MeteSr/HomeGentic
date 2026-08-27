@@ -39,12 +39,28 @@ jobs:
       - name: Install icp-cli
         run: npm install -g @icp-sdk/icp-cli
 
+      # dfx is still required for `dfx canister status` (cycle balance parsing)
+      # and `dfx canister deposit-cycles` — icp-cli does not yet expose these
+      # subcommands. See deploy.sh:889 for the same note on update-settings.
+      - name: Install dfx
+        run: |
+          curl -fsSL "https://github.com/dfinity/sdk/releases/download/0.24.3/dfx-x86_64-unknown-linux-gnu.tar.gz" \
+            | tar -xzC /tmp/dfx-install
+          DFX_BIN=$(find /tmp/dfx-install -name "dfx" -type f -perm /111 | head -1)
+          sudo install -m 755 "$DFX_BIN" /usr/local/bin/dfx
+          dfx --version
+
       - name: Set ICP identity from secret
+        # Use icp-cli for identity management (project standard — see deploy.sh).
+        # dfx reads from the same ~/.config/dfx/identity/ store, so canister ops
+        # in check-cycle-health.sh and top-up-canisters.sh will use this identity.
         run: |
           IDENTITY_FILE=$(mktemp /tmp/icp-identity-XXXXXX.pem)
           printf '%s' "$DFX_IDENTITY_PEM" > "$IDENTITY_FILE"
           icp identity import ci-watchdog --from-pem "$IDENTITY_FILE" --storage plaintext
           icp identity default ci-watchdog
+          # Also set dfx active identity in case the two CLIs use separate stores.
+          dfx identity use ci-watchdog 2>/dev/null || true
           rm -f "$IDENTITY_FILE"
         env:
           DFX_IDENTITY_PEM: ${{ secrets.MAINNET_IDENTITY_PEM }}
@@ -67,9 +83,11 @@ jobs:
           if [ "${{ inputs.dry_run }}" = "true" ]; then DRY_FLAG="--dry-run"; fi
           bash scripts/top-up-canisters.sh $DRY_FLAG 2>&1 | tee top-up.log
         env:
-          DFX_NETWORK:      ${{ inputs.network || 'ic' }}
-          TOP_UP_TRIGGER_T: '2'
-          TOP_UP_TARGET_T:  '5'
+          DFX_NETWORK:         ${{ inputs.network || 'ic' }}
+          TOP_UP_TRIGGER_T:    '2'
+          TOP_UP_TARGET_T:     '5'
+          WARNING_MULTIPLIER:  '2'
+          MONITORING_CANISTER: ${{ vars.MONITORING_CANISTER_ID || 'monitoring' }}
 
       - name: Upload cycle health report
         if: always()

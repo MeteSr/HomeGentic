@@ -302,6 +302,84 @@ The verify endpoint therefore checks `paymentIntent.status === 'succeeded'`
 
 See [docs/EXTERNAL_APIS.md](EXTERNAL_APIS.md#0-stripe) for the full flow.
 
+---
+
+## Cycle Wallet Funding and Automated Top-Up
+
+All 17 canisters burn cycles continuously. The `cycle-watchdog` workflow (runs every 6 hours)
+checks balances and tops up any canister below 2T cycles. For this to work the CI identity
+must hold enough cycles.
+
+### Thresholds (configured in `cycle-watchdog.yml`)
+
+| Label | Threshold | Action |
+|---|---|---|
+| **Warning** | < 4T cycles (2× trigger) | Logged in summary; no topup |
+| **Trigger** | < 2T cycles | Automatic topup to 5T |
+| **Critical** | < 5T (monitoring canister alert) | Email sent to `OPS_ALERT_EMAIL` |
+
+The monitoring canister fires a `#Critical` alert at < 5T and a `#Warning` at < 10T via
+`recordCanisterMetrics()` / `checkCycleLevels()`. These thresholds are defined as constants
+in `backend/monitoring/main.mo` (`criticalCyclesT` / `warningCyclesT`).
+
+### One-time setup: fund the CI cycles wallet
+
+The `MAINNET_IDENTITY_PEM` identity needs a funded cycles wallet on mainnet. Do this once:
+
+```bash
+# 1. Get the principal for the CI identity
+dfx identity import --storage-mode plaintext ci-watchdog /path/to/mainnet-identity.pem
+dfx identity use ci-watchdog
+dfx identity get-principal
+# → e.g. abc12-defgh-...
+
+# 2. On ICP mainnet: send ICP to that principal from the NNS dapp or exchange
+#    Recommended initial funding: 5 ICP (~$25 at time of writing) ≈ 6.5T cycles
+
+# 3. Convert ICP to cycles and create the wallet
+dfx ledger create-canister $(dfx identity get-principal) --amount 5.0 --network ic
+# → Canister ID printed; note it as your cycles wallet
+
+# 4. Install the cycles wallet Wasm
+dfx identity --network ic deploy-wallet <wallet-canister-id>
+
+# 5. Verify
+dfx wallet --network ic balance
+```
+
+### Topping up manually (ad-hoc)
+
+```bash
+# Check current balances
+bash scripts/check-cycle-health.sh
+
+# Dry run — see what would be topped up without spending cycles
+DFX_NETWORK=ic bash scripts/top-up-canisters.sh --dry-run
+
+# Live top-up (requires funded CI identity to be active)
+DFX_NETWORK=ic bash scripts/top-up-canisters.sh
+```
+
+### Required GitHub Actions secrets / variables
+
+| Name | Type | Description |
+|---|---|---|
+| `MAINNET_IDENTITY_PEM` | Secret | Ed25519 PEM of the funded CI identity |
+| `RESEND_API_KEY` | Secret | Used to send critical-cycle alert emails |
+| `OPS_ALERT_EMAIL` | Variable | Email address for cycle alert notifications |
+| `MONITORING_CANISTER_ID` | Variable | Optional — overrides `monitoring` if using canister ID directly |
+
+### Ongoing maintenance
+
+- **Refill the CI wallet** when `dfx wallet --network ic balance` falls below 10T cycles.
+  At typical burn rates (~200B cycles/day across 17 canisters) this is roughly monthly.
+- **Adjust thresholds** by updating `TOP_UP_TRIGGER_T` / `TOP_UP_TARGET_T` in
+  `cycle-watchdog.yml` and `criticalCyclesT` / `warningCyclesT` in `backend/monitoring/main.mo`.
+- The cycle watchdog workflow can be triggered manually via **Actions → Cycle Watchdog → Run workflow**
+  with `dry_run: true` to audit balances without spending cycles.
+
+---
+
 ## Cleanup
 
 ```bash
