@@ -32,6 +32,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+
+      - name: Install icp-cli
+        run: npm install -g @icp-sdk/icp-cli
+
+      # dfx is still required for `dfx canister status` (cycle balance parsing)
+      # and `dfx canister deposit-cycles` — icp-cli does not yet expose these
+      # subcommands. See deploy.sh:889 for the same note on update-settings.
       - name: Install dfx
         run: |
           curl -fsSL "https://github.com/dfinity/sdk/releases/download/0.24.3/dfx-x86_64-unknown-linux-gnu.tar.gz" \
@@ -40,12 +50,17 @@ jobs:
           sudo install -m 755 "$DFX_BIN" /usr/local/bin/dfx
           dfx --version
 
-      - name: Set dfx identity from secret
+      - name: Set ICP identity from secret
+        # Use icp-cli for identity management (project standard — see deploy.sh).
+        # dfx reads from the same ~/.config/dfx/identity/ store, so canister ops
+        # in check-cycle-health.sh and top-up-canisters.sh will use this identity.
         run: |
           IDENTITY_FILE=$(mktemp /tmp/icp-identity-XXXXXX.pem)
           printf '%s' "$DFX_IDENTITY_PEM" > "$IDENTITY_FILE"
-          dfx identity import --storage-mode plaintext ci-watchdog "$IDENTITY_FILE"
-          dfx identity use ci-watchdog
+          icp identity import ci-watchdog --from-pem "$IDENTITY_FILE" --storage plaintext
+          icp identity default ci-watchdog
+          # Also set dfx active identity in case the two CLIs use separate stores.
+          dfx identity use ci-watchdog 2>/dev/null || true
           rm -f "$IDENTITY_FILE"
         env:
           DFX_IDENTITY_PEM: ${{ secrets.MAINNET_IDENTITY_PEM }}
