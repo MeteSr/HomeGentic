@@ -92,11 +92,15 @@ env | grep "CANISTER_ID_" | sort | while IFS='=' read -r k v; do
 done
 
 # ── 3. Grant test identities subscriptions ───────────────────────────────────
-# Fixed Ed25519 principals derived from seeded keys in setup.ts:
-#   HOMEOWNER  seed[0]=42  →  qxmov-...  (Premium — exercises full paid features)
-#   TIER_USER  seed[0]=77  →  lodek-...  (Basic  — exercises 1-property limit)
-#   QUOTA_USER seed[0]=88  →  fz27l-...  (Basic  — exercises 3-open-quote limit)
-# CONTRACTOR seed[0]=99 stays at ContractorFree (no properties, unlimited quotes).
+# Fixed Ed25519 principals derived from seeded keys (computed offline):
+#   HOMEOWNER     seed[0]=42  qxmov-...  Premium — exercises full paid features
+#   WORKFLOW_USER seed[0]=55  zcku7-...  Premium — Flows 1 & 2 (isolated from homeowner)
+#   TIER_USER     seed[0]=77  lodek-...  Basic   — exercises 1-property limit
+#   QUOTA_USER    seed[0]=88  fz27l-...  Basic   — exercises 3-open-quote limit
+# CONTRACTOR seed[0]=99 stays at ContractorFree (no grant needed).
+#
+# WORKFLOW_USER is separate from HOMEOWNER so cross-canister flows don't accumulate
+# properties on the shared seed=42 identity (Premium cap = 20 properties).
 
 echo ""
 echo "▶ Granting test identity subscriptions…"
@@ -104,19 +108,25 @@ if command -v dfx >/dev/null 2>&1 && [ -n "${CANISTER_ID_PAYMENT:-}" ]; then
   dfx canister call payment grantSubscription \
     "(principal \"qxmov-duod5-ahrw6-wydp4-lppe4-ljtvj-7zvu3-qke5i-umwsv-vcb7g-mqe\", variant { Premium })" \
     2>/dev/null \
-    && echo "  ✓ Premium → HOMEOWNER (seed=42)" \
+    && echo "  ✓ Premium → HOMEOWNER     (seed=42)" \
     || echo "  ⚠  Could not grant Premium to HOMEOWNER"
+
+  dfx canister call payment grantSubscription \
+    "(principal \"zcku7-cgbhv-44pdq-d2as6-7hidi-qiuwm-nk4tt-uoqqw-lguim-hwozi-tqe\", variant { Premium })" \
+    2>/dev/null \
+    && echo "  ✓ Premium → WORKFLOW_USER (seed=55)" \
+    || echo "  ⚠  Could not grant Premium to WORKFLOW_USER"
 
   dfx canister call payment grantSubscription \
     "(principal \"lodek-xkcn2-ylhrl-ianfq-xzlz4-kexxd-2hc33-rutxg-tvyxb-hpypf-zqe\", variant { Basic })" \
     2>/dev/null \
-    && echo "  ✓ Basic   → TIER_USER  (seed=77)" \
+    && echo "  ✓ Basic   → TIER_USER     (seed=77)" \
     || echo "  ⚠  Could not grant Basic to TIER_USER"
 
   dfx canister call payment grantSubscription \
     "(principal \"fz27l-323vu-kqihx-wpazo-5xly5-vkrbv-zz4ee-2eppx-n56of-6qtd6-mqe\", variant { Basic })" \
     2>/dev/null \
-    && echo "  ✓ Basic   → QUOTA_USER (seed=88)" \
+    && echo "  ✓ Basic   → QUOTA_USER    (seed=88)" \
     || echo "  ⚠  Could not grant Basic to QUOTA_USER"
 else
   echo "  ⚠  dfx not found or payment canister not deployed — skipping grants"
