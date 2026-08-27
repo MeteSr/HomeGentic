@@ -439,6 +439,8 @@ export default function AddPropertyModal({ open, onClose }: Props) {
 
   const [registeredId, setRegisteredId] = useState<string | null>(null);
   const [registering,  setRegistering]  = useState(false);
+  const [attomLoading,    setAttomLoading]    = useState(false);
+  const [attomAutoFilled, setAttomAutoFilled] = useState(false);
 
   const [baselineCompleted, setBaselineCompleted] = useState<Set<string>>(new Set());
   const [uploadingBaseline, setUploadingBaseline] = useState<string | null>(null);
@@ -489,6 +491,8 @@ export default function AddPropertyModal({ open, onClose }: Props) {
     setVerify({ legalName: "", docType: "DeedRecord", docFile: null });
     setVerifySubmitted(false);
     setSubmittingVerify(false);
+    setAttomLoading(false);
+    setAttomAutoFilled(false);
   }, [open]);
 
   // Auto-skip baseline step in E2E
@@ -578,6 +582,30 @@ export default function AddPropertyModal({ open, onClose }: Props) {
       toast.error(err.message || "Verification failed");
     } finally {
       setSubmittingVerify(false);
+    }
+  };
+
+  const handleContinueToDetails = () => {
+    setStep("details");
+    // Fire ATTOM lookup in background — pre-fill details when it resolves
+    if (addr.address && addr.city && addr.state && addr.zipCode) {
+      setAttomLoading(true);
+      import("@/services/aiProxy").then(({ aiProxyService }) =>
+        aiProxyService.lookupPropertyDetails(addr.address, addr.city, addr.state, addr.zipCode)
+      ).then(data => {
+        setAttomLoading(false);
+        const filled: Partial<DetailsForm> = {};
+        if (data.yearBuilt)  filled.yearBuilt  = String(data.yearBuilt);
+        if (data.grossSqFt)  filled.squareFeet = String(Math.round(data.grossSqFt));
+        if (data.propertyType && (["SingleFamily","Condo","Townhouse","MultiFamily"] as string[]).includes(data.propertyType)) {
+          filled.propertyType = data.propertyType as PropertyType;
+        }
+        const anyFilled = Object.keys(filled).length > 0;
+        if (anyFilled) {
+          setDetails(d => ({ ...d, ...filled }));
+          setAttomAutoFilled(true);
+        }
+      }).catch(() => { setAttomLoading(false); });
     }
   };
 
@@ -674,7 +702,7 @@ export default function AddPropertyModal({ open, onClose }: Props) {
             </div>
 
             <div style={{ paddingTop: 28, borderTop: `1px solid ${T.rule}`, marginTop: 28 }}>
-              <PrimaryBtn onClick={() => setStep("details")} disabled={!addrValid} fullWidth>
+              <PrimaryBtn onClick={handleContinueToDetails} disabled={!addrValid} fullWidth>
                 Continue →
               </PrimaryBtn>
             </div>
@@ -693,6 +721,22 @@ export default function AddPropertyModal({ open, onClose }: Props) {
               <p style={{ font: `400 13.5px/1.6 ${F.body}`, color: T.muted, margin: "0 0 28px" }}>
                 We use this to estimate system ages and flag era-specific risks.
               </p>
+
+              {(attomLoading || attomAutoFilled) && (
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "8px 12px", marginBottom: 4,
+                  background: attomAutoFilled ? T.greenBg : T.amberBg,
+                  border: `1px solid ${attomAutoFilled ? "#BBF7D0" : "#FCD34D"}`,
+                  borderRadius: T.radius - 4,
+                  font: `400 11.5px/1.4 ${F.mono}`,
+                  color: attomAutoFilled ? T.green : T.amber,
+                }}>
+                  {attomLoading
+                    ? "Looking up public records…"
+                    : "Fields pre-filled from public records — review and edit as needed"}
+                </div>
+              )}
 
               <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
                 <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>

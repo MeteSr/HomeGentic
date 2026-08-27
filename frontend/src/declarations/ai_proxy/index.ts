@@ -21,6 +21,7 @@ export const idlFactory = ({ IDL }: any) => {
   const KeyStatus = IDL.Record({
     resendKeySet     : IDL.Bool,
     openPermitKeySet : IDL.Bool,
+    attomKeySet      : IDL.Bool,
   });
   return IDL.Service({
     // ── Pure query functions ─────────────────────────────────────────────────
@@ -35,6 +36,11 @@ export const idlFactory = ({ IDL }: any) => {
     getMetrics         : IDL.Func([], [Metrics], ["query"]),
 
     // ── Update functions (HTTP outcalls / state changes) ─────────────────────
+    lookupPropertyDetails: IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [ResultTextError],
+      []
+    ),
     requestReport      : IDL.Func([IDL.Text, IDL.Text], [ResultOkError], []),
     importPermits      : IDL.Func([IDL.Text, IDL.Text, IDL.Text, IDL.Text], [ResultTextError], []),
     sendEmail          : IDL.Func(
@@ -57,6 +63,7 @@ export const idlFactory = ({ IDL }: any) => {
     addAdmin            : IDL.Func([IDL.Principal], [ResultOkError], []),
     setResendApiKey     : IDL.Func([IDL.Text], [ResultOkError], []),
     setOpenPermitApiKey : IDL.Func([IDL.Text], [ResultOkError], []),
+    setAttomApiKey      : IDL.Func([IDL.Text], [ResultOkError], []),
     setResendFromAddress: IDL.Func([IDL.Text], [ResultOkError], []),
     addTrustedCanister  : IDL.Func([IDL.Principal], [ResultOkError], []),
     removeTrustedCanister:IDL.Func([IDL.Principal], [ResultOkError], []),

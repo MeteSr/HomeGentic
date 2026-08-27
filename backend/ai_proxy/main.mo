@@ -86,6 +86,7 @@ persistent actor AiProxy {
   // API keys (set by admin post-deploy; never exposed via query)
   private var resendApiKey           : Text = "";
   private var openPermitApiKey       : Text = "";
+  private var attomApiKey            : Text = "";
   private var resendFromAddress      : Text = "HomeGentic <noreply@homegentic.app>";
 
   // Email usage counters
@@ -102,6 +103,7 @@ persistent actor AiProxy {
   private var emailDayWindowStart    : Int = 0;
   private var emailMonthWindowStart  : Int = 0;
   private var permitsFetched         : Nat = 0;
+  private var attomLookupCount       : Nat = 0;
 
   // Rate limiting
   private let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
@@ -481,6 +483,59 @@ persistent actor AiProxy {
     "{" # jsonStr("address", address) # "," # jsonNull("yearBuilt") # "}"
   };
 
+  /**
+   * Fetch property details from ATTOM Data API.
+   * Returns raw ATTOM JSON on success; frontend parses yearBuilt, grossSqFt, beds,
+   * baths, lotSizeAcres, and proptype.
+   *
+   * Requires attomApiKey set via setAttomApiKey().
+   * Endpoint: GET https://api.gateway.attomdata.com/propertyapi/v1.0.0/property/basicprofile
+   */
+  public shared(msg) func lookupPropertyDetails(
+    address : Text,
+    city    : Text,
+    state   : Text,
+    zip     : Text,
+  ) : async Result.Result<Text, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (Text.size(attomApiKey) == 0) return #err(#KeyNotConfigured);
+
+    let address2 = urlEncodeSpaces(escapeArcGISLike(city)) # "+" #
+                   urlEncodeSpaces(escapeArcGISLike(state)) # "+" #
+                   urlEncodeSpaces(escapeArcGISLike(zip));
+    let url = "https://api.gateway.attomdata.com/propertyapi/v1.0.0/property/basicprofile" #
+              "?address1=" # urlEncodeSpaces(escapeArcGISLike(address)) #
+              "&address2=" # address2;
+
+    try {
+      let response = await (with cycles = 3_000_000_000) ic.http_request({
+        url               = url;
+        max_response_bytes = ?Nat64.fromNat(65536);
+        headers           = [
+          { name = "Accept";  value = "application/json" },
+          { name = "apikey";  value = attomApiKey },
+        ];
+        body              = null;
+        method            = #get;
+        transform         = ?{ function = transformResponse; context = Blob.fromArray([]) };
+      });
+
+      switch (Text.decodeUtf8(response.body)) {
+        case null {
+          countError("lookupPropertyDetails");
+          #err(#HttpError("Failed to decode ATTOM response"))
+        };
+        case (?rawJson) {
+          attomLookupCount += 1;
+          #ok(rawJson)
+        };
+      }
+    } catch (_e) {
+      countError("lookupPropertyDetails");
+      #err(#HttpError("ATTOM request failed"))
+    }
+  };
+
   public shared(msg) func requestReport(
     address    : Text,
     _buyerEmail : Text,
@@ -838,17 +893,24 @@ persistent actor AiProxy {
     #ok(())
   };
 
+  public shared(msg) func setAttomApiKey(key: Text) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    attomApiKey := key;
+    #ok(())
+  };
+
   public shared(msg) func setResendFromAddress(addr: Text) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     resendFromAddress := addr;
     #ok(())
   };
 
-  public query(msg) func getKeyStatus() : async { resendKeySet: Bool; openPermitKeySet: Bool } {
+  public query(msg) func getKeyStatus() : async { resendKeySet: Bool; openPermitKeySet: Bool; attomKeySet: Bool } {
     ignore msg;
     {
       resendKeySet     = Text.size(resendApiKey) > 0;
       openPermitKeySet = Text.size(openPermitApiKey) > 0;
+      attomKeySet      = Text.size(attomApiKey) > 0;
     }
   };
 
