@@ -88,6 +88,10 @@ function addr(label: string) { return `${RUN_ID} ${label} St, Orlando FL 32801`;
 
 // ─── Common Candid argument shapes (for direct actor calls) ───────────────────
 
+// PROP_ARGS is used for direct-actor registerProperty calls (Flows 3 & 4).
+// `tier` is a required Candid field in RegisterArgs — it is the canister-side
+// SubscriptionTier enum, not a billing plan. `Free` is the default for an
+// identity that has no subscription granted yet.
 const PROP_ARGS = {
   city:         "Orlando",
   state:        "FL",
@@ -95,6 +99,7 @@ const PROP_ARGS = {
   propertyType: { SingleFamily: null },
   yearBuilt:    BigInt(1995),
   squareFeet:   BigInt(1800),
+  tier:         { Basic: null },   // QUOTA/TIER_USER have Basic granted by test-integration.sh
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -134,7 +139,8 @@ describe.skipIf(!deployed)("Flow 1: DIY full workflow", () => {
     jobId = job.id;
     expect(job.isDiy).toBe(true);
     expect(job.homeownerSigned).toBe(false);
-    expect(job.contractorSigned).toBe(false);
+    // DIY jobs auto-set contractorSigned=true on creation (main.mo:335: contractorSigned = isDiy)
+    expect(job.contractorSigned).toBe(true);
     expect(job.verified).toBe(false);
     expect(job.status).toBe("pending");
   });
