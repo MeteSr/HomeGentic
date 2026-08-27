@@ -1,12 +1,15 @@
 /**
- * Contractor flow E2E tests                                           (#72)
+ * Contractor flow E2E tests                              (#72, updated #423)
  *
- * CB.1  /contractors — heading shows "pros with work on this record"
+ * CB.1  /contractors — heading shows "Find a contractor"
  * CB.2  /contractors — registry contractors appear as cards
  * CB.3  /contractors — "Request quote" button visible on contractor cards
- * CB.4  /contractors — "View jobs" button navigates to /contractor/:id for registry cards
- * CB.5  /contractors — empty state shown when no jobs and no registry
- * CB.6  /contractors — awaiting signature banner when job is homeowner-signed but not contractor-signed
+ * CB.4  /contractors — "View profile" navigates to /contractor/:id
+ * CB.5  /contractors — empty state shown when no registry
+ * CB.6  /contractors — awaiting-signature banner when job is homeowner-signed but not contractor-signed
+ * CB.7  /contractors — trust score badge is visible on contractor cards
+ * CB.8  /contractors — specialty filter hides non-matching contractors
+ * CB.9  /contractors — zip filter shows only contractors whose serviceZips include the entered zip
  * CD.1  /contractor-dashboard — "Contractor Dashboard" heading
  * CD.2  /contractor-dashboard (no profile) — "Profile incomplete" banner shown
  * CD.3  /contractor-dashboard (with profile) — profile name shown in header
@@ -59,38 +62,16 @@ test.describe("CB — /contractors browse page", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
     await injectContractors(page, CONTRACTORS);
-    // One verified job with a contractor NOT in the registry → myContractors
-    // becomes non-empty, which makes the grid render; registry contractors
-    // ("Cool Air Services", "Top Roof Co") then appear as the extra cards.
     await page.addInitScript(() => {
       (window as any).__e2e_subscription = { tier: "Pro", expiresAt: null };
-      (window as any).__e2e_properties = [
-        {
-          id: 1, owner: "test-e2e-principal",
-          address: "123 Maple Street", city: "Austin", state: "TX", zipCode: "78701",
-          propertyType: "SingleFamily", yearBuilt: 2001, squareFeet: 2400,
-          verificationLevel: "Unverified", tier: "Free",
-          createdAt: 0, updatedAt: 0, isActive: true,
-        },
-      ];
-      (window as any).__e2e_jobs = [
-        {
-          id: "j0", propertyId: "1", homeowner: "test-e2e-principal",
-          serviceType: "Plumbing", contractorName: "Flow Masters",
-          amount: 65_000, date: "2024-03-01",
-          description: "Fixed leaking pipes.",
-          isDiy: false, status: "verified", verified: true,
-          homeownerSigned: true, contractorSigned: true,
-          photos: [], createdAt: Date.now() - 86_400_000 * 30,
-        },
-      ];
+      (window as any).__e2e_jobs = [];
     });
   });
 
   // CB.1 — heading
-  test("shows 'pro(s) with work on this record' heading", async ({ page }) => {
+  test("shows 'Find a contractor' heading", async ({ page }) => {
     await page.goto("/contractors");
-    await expect(page.getByRole("heading", { name: /pros? with work on this record/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /find a contractor/i })).toBeVisible();
   });
 
   // CB.2 — registry contractors appear
@@ -106,21 +87,17 @@ test.describe("CB — /contractors browse page", () => {
     await expect(page.getByRole("button", { name: /request quote/i }).first()).toBeVisible();
   });
 
-  // CB.4 — View jobs navigates to /contractor/:id for registry cards
-  test("'View jobs' button on registry card navigates to /contractor/:id", async ({ page }) => {
+  // CB.4 — View profile navigates to /contractor/:id
+  test("'View profile' button navigates to /contractor/:id", async ({ page }) => {
     await page.goto("/contractors");
-    // The first card is the myContractors entry (Flow Masters → /jobs).
-    // Registry extras come after; click the last "View jobs" button to hit a registry card.
-    await page.getByRole("button", { name: /view jobs/i }).last().click();
+    await page.getByRole("button", { name: /view profile/i }).first().click();
     await expect(page).toHaveURL(/\/contractor\//);
   });
 
   // CB.5 — empty state
-  test("shows 'No contractors yet' empty state when no jobs and no registry", async ({ page }) => {
-    // Override both: empty registry AND no jobs → myContractors empty → empty state
+  test("shows 'No contractors yet' empty state when registry is empty", async ({ page }) => {
     await page.addInitScript(() => {
       (window as any).__e2e_contractors = [];
-      (window as any).__e2e_jobs = [];
     });
     await page.goto("/contractors");
     await expect(page.getByText(/no contractors yet/i)).toBeVisible();
@@ -143,6 +120,35 @@ test.describe("CB — /contractors browse page", () => {
     });
     await page.goto("/contractors");
     await expect(page.getByText(/has not countersigned/i)).toBeVisible();
+  });
+
+  // CB.7 — trust score badge visible
+  test("trust score badge is visible on contractor cards", async ({ page }) => {
+    await page.goto("/contractors");
+    // Cool Air Services has trustScore=85 — badge shows "85"
+    await expect(page.getByText("85").first()).toBeVisible();
+    // Top Roof Co has trustScore=92
+    await expect(page.getByText("92").first()).toBeVisible();
+  });
+
+  // CB.8 — specialty filter
+  test("specialty filter hides contractors that do not match", async ({ page }) => {
+    await page.goto("/contractors");
+    // Select HVAC → only Cool Air Services should show
+    await page.selectOption("select", "HVAC");
+    await page.getByRole("button", { name: /search/i }).click();
+    await expect(page.getByText("Cool Air Services")).toBeVisible();
+    await expect(page.getByText("Top Roof Co")).not.toBeVisible();
+  });
+
+  // CB.9 — zip filter
+  test("zip filter shows only contractors whose serviceZips include the entered zip", async ({ page }) => {
+    await page.goto("/contractors");
+    // Cool Air Services has serviceZips=["78701","78702"], Top Roof Co has []
+    await page.getByPlaceholder(/78701/i).fill("78701");
+    await page.getByRole("button", { name: /search/i }).click();
+    await expect(page.getByText("Cool Air Services")).toBeVisible();
+    await expect(page.getByText("Top Roof Co")).not.toBeVisible();
   });
 });
 
