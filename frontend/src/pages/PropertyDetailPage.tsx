@@ -38,24 +38,24 @@ import { SettingsTab }  from "./PropertyDetail/SettingsTab";
 import { RoomsTab }     from "./PropertyDetail/RoomsTab";
 import { BillsTab }     from "./PropertyDetail/BillsTab";
 import { useState, useEffect } from "react";
-import { COLORS, FONTS, V2_COLORS, V2_FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 import { PropertyAddressBar } from "@/components/PropertyAddressBar";
 
 // ─── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
-  bg:       COLORS.canvas,
+  bg:       V2_COLORS.paper,
   card:     "#FFFFFF",
   border:   "#E5E7EB",
-  text:     COLORS.plum,
-  muted:    COLORS.plumMid,
-  green:    COLORS.sageText,
-  greenBg:  COLORS.sageLight,
-  greenBdr: COLORS.sageMid,
+  text:     V2_COLORS.ink,
+  muted:    V2_COLORS.muted,
+  green:    V2_COLORS.blue,
+  greenBg:  V2_COLORS.lblue,
+  greenBdr: V2_COLORS.cobalTint,
   blue:     "#2563EB",
   blueBg:   "#EFF6FF",
   orange:   "#D97706",
   orangeBg: "#FFFBEB",
-  red:      COLORS.errorText,
+  red:      V2_COLORS.coralText,
   redBg:    "#FEF2F2",
   shadow:   "0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
 };
@@ -104,8 +104,8 @@ function HealthGauge({ score, grade }: { score: number; grade: string }) {
           strokeDasharray={`${Math.min(score / 100, 1) * circ} ${circ}`} strokeLinecap="round" />
       </svg>
       <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ fontFamily: FONTS.sans, fontWeight: 700, fontSize: "1.5rem", color: C.text, lineHeight: 1 }}>{score}</div>
-        <div style={{ fontFamily: FONTS.sans, fontSize: "0.6875rem", color, fontWeight: 600 }}>{grade}</div>
+        <div style={{ fontFamily: V2_FONTS.body, fontWeight: 700, fontSize: "1.5rem", color: C.text, lineHeight: 1 }}>{score}</div>
+        <div style={{ fontFamily: V2_FONTS.body, fontSize: "0.6875rem", color, fontWeight: 600 }}>{grade}</div>
       </div>
     </div>
   );
@@ -210,7 +210,7 @@ export default function PropertyDetailPage() {
       <Layout>
         <div style={{ maxWidth: "40rem", margin: "4rem auto", padding: "0 1.5rem", textAlign: "center" }}>
           <AlertCircle size={48} color={C.muted} style={{ margin: "0 auto 1rem" }} />
-          <h2 style={{ fontFamily: FONTS.sans, fontWeight: 700, color: C.text }}>Property not found</h2>
+          <h2 style={{ fontFamily: V2_FONTS.body, fontWeight: 700, color: C.text }}>Property not found</h2>
           <Button onClick={() => navigate("/dashboard")} style={{ marginTop: "1rem" }}>
             Back to Dashboard
           </Button>
@@ -273,11 +273,11 @@ export default function PropertyDetailPage() {
 
         {/* ── Verification banners ───────────────────────────────────────────── */}
         {property.verificationLevel === "Unverified" && (
-          <div style={{ border: `1px solid ${COLORS.sageMid}`, padding: "1rem 1.25rem", marginBottom: "1.25rem", background: COLORS.sageLight, display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap", borderRadius: "0.75rem" }}>
+          <div style={{ border: `1px solid ${V2_COLORS.cobalTint}`, padding: "1rem 1.25rem", marginBottom: "1.25rem", background: V2_COLORS.lblue, display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap", borderRadius: "0.75rem" }}>
             <Shield size={16} color={C.orange} style={{ flexShrink: 0 }} />
             <div style={{ flex: 1 }}>
-              <p style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.875rem", color: C.text, marginBottom: "0.25rem" }}>Ownership not verified</p>
-              <p style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: C.muted, marginBottom: 0 }}>
+              <p style={{ fontFamily: V2_FONTS.body, fontWeight: 600, fontSize: "0.875rem", color: C.text, marginBottom: "0.25rem" }}>Ownership not verified</p>
+              <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: C.muted, marginBottom: 0 }}>
                 Upload a utility bill, deed, or tax record to confirm ownership.
               </p>
             </div>
@@ -288,8 +288,8 @@ export default function PropertyDetailPage() {
           <div style={{ border: `1px solid ${C.border}`, padding: "1rem 1.25rem", marginBottom: "1.25rem", background: "#FFFBEB", display: "flex", alignItems: "center", gap: "1rem", borderRadius: "0.75rem" }}>
             <Shield size={16} color={C.orange} style={{ flexShrink: 0 }} />
             <div>
-              <p style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.875rem", color: C.text, marginBottom: "0.25rem" }}>Under review</p>
-              <p style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: C.muted, marginBottom: 0 }}>
+              <p style={{ fontFamily: V2_FONTS.body, fontWeight: 600, fontSize: "0.875rem", color: C.text, marginBottom: "0.25rem" }}>Under review</p>
+              <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: C.muted, marginBottom: 0 }}>
                 Documents are awaiting review (typically 1–2 business days).
               </p>
             </div>
@@ -307,7 +307,7 @@ export default function PropertyDetailPage() {
             <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.72) 100%)" }} />
             <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "1.5rem 1.75rem", color: "white" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", flexWrap: "wrap", marginBottom: "0.375rem" }}>
-                <h2 style={{ fontFamily: FONTS.sans, fontWeight: 700, fontSize: "1.375rem", margin: 0, lineHeight: 1.2 }}>
+                <h2 style={{ fontFamily: V2_FONTS.body, fontWeight: 700, fontSize: "1.375rem", margin: 0, lineHeight: 1.2 }}>
                   {property.address}
                 </h2>
                 {property.verificationLevel !== "Unverified" && (
@@ -316,10 +316,10 @@ export default function PropertyDetailPage() {
                   </span>
                 )}
               </div>
-              <p style={{ margin: "0 0 0.75rem", opacity: 0.9, fontSize: "0.875rem", fontFamily: FONTS.sans }}>
+              <p style={{ margin: "0 0 0.75rem", opacity: 0.9, fontSize: "0.875rem", fontFamily: V2_FONTS.body }}>
                 {property.city}, {property.state} {property.zipCode}
               </p>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "1.25rem", fontSize: "0.8125rem", opacity: 0.85, marginBottom: "1.25rem", fontFamily: FONTS.sans }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "1.25rem", fontSize: "0.8125rem", opacity: 0.85, marginBottom: "1.25rem", fontFamily: V2_FONTS.body }}>
                 <span>🏠 {property.propertyType}</span>
                 <span>📅 Built {String(property.yearBuilt)}</span>
                 {Number(property.squareFeet) > 0 && (
@@ -328,7 +328,7 @@ export default function PropertyDetailPage() {
               </div>
               <button
                 onClick={() => document.getElementById("property-tabs")?.scrollIntoView({ behavior: "smooth" })}
-                style={{ background: "transparent", border: "2px solid rgba(255,255,255,0.75)", color: "white", padding: "0.5rem 1.25rem", borderRadius: "0.5rem", fontFamily: FONTS.sans, fontWeight: 600, cursor: "pointer", fontSize: "0.875rem" }}
+                style={{ background: "transparent", border: "2px solid rgba(255,255,255,0.75)", color: "white", padding: "0.5rem 1.25rem", borderRadius: "0.5rem", fontFamily: V2_FONTS.body, fontWeight: 600, cursor: "pointer", fontSize: "0.875rem" }}
               >
                 View Property Details
               </button>
@@ -337,21 +337,21 @@ export default function PropertyDetailPage() {
 
           {/* Health Score */}
           <Card style={{ padding: "1.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
-            <h3 style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.9375rem", color: C.text, margin: 0, alignSelf: "flex-start", width: "100%" }}>
+            <h3 style={{ fontFamily: V2_FONTS.body, fontWeight: 600, fontSize: "0.9375rem", color: C.text, margin: 0, alignSelf: "flex-start", width: "100%" }}>
               Property Health Score
             </h3>
             <HealthGauge score={homegenticScore} grade={scoreGrade} />
             {delta !== 0 && (
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: delta > 0 ? C.green : C.red, fontWeight: 600 }}>
+                <div style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: delta > 0 ? C.green : C.red, fontWeight: 600 }}>
                   {delta > 0 ? "↑" : "↓"} {Math.abs(delta)} pts
                 </div>
-                <div style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.muted }}>vs last month</div>
+                <div style={{ fontFamily: V2_FONTS.body, fontSize: "0.75rem", color: C.muted }}>vs last month</div>
               </div>
             )}
             <button
               onClick={() => setModals(m => ({ ...m, report: true }))}
-              style={{ width: "100%", fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, color: C.blue, border: `1px solid ${C.border}`, background: "white", borderRadius: "0.5rem", padding: "0.5rem", cursor: "pointer" }}
+              style={{ width: "100%", fontFamily: V2_FONTS.body, fontSize: "0.875rem", fontWeight: 600, color: C.blue, border: `1px solid ${C.border}`, background: "white", borderRadius: "0.5rem", padding: "0.5rem", cursor: "pointer" }}
             >
               View Full Report
             </button>
@@ -362,13 +362,13 @@ export default function PropertyDetailPage() {
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "1.25rem" }}>
           <button
             onClick={() => setModals(m => ({ ...m, logJob: true }))}
-            style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, color: "white", background: C.blue, border: "none", borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}
+            style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: V2_FONTS.body, fontSize: "0.875rem", fontWeight: 600, color: "white", background: C.blue, border: "none", borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}
           >
             <Wrench size={15} /> Log Job
           </button>
           <button
             onClick={() => setModals(m => ({ ...m, quote: true }))}
-            style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, color: C.blue, background: C.blueBg, border: `1px solid ${C.blue}`, borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}
+            style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: V2_FONTS.body, fontSize: "0.875rem", fontWeight: 600, color: C.blue, background: C.blueBg, border: `1px solid ${C.blue}`, borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}
           >
             <MessageSquare size={15} /> Request Quote
           </button>
@@ -377,7 +377,7 @@ export default function PropertyDetailPage() {
               <div style={{ position: "relative" }}>
                 <button
                   onClick={() => setShowReportMenu(v => !v)}
-                  style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 500, color: C.text, background: "white", border: `1px solid ${C.border}`, borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}
+                  style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: V2_FONTS.body, fontSize: "0.875rem", fontWeight: 500, color: C.text, background: "white", border: `1px solid ${C.border}`, borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}
                 >
                   <Share2 size={15} /> Reports ▾
                 </button>
@@ -388,14 +388,14 @@ export default function PropertyDetailPage() {
                       <button onClick={() => { setShowReportMenu(false); setModals(m => ({ ...m, report: true })); }} style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", width: "100%", padding: "0.75rem 1rem", background: "none", border: "none", cursor: "pointer", borderBottom: `1px solid ${C.border}` }}
                         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#F9FAFB"; }}
                         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "none"; }}>
-                        <span style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, color: C.text }}><Share2 size={14} /> Share Report</span>
-                        <span style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.muted, marginTop: "0.1rem" }}>Share with buyers, agents, or tenants</span>
+                        <span style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: V2_FONTS.body, fontSize: "0.875rem", fontWeight: 600, color: C.text }}><Share2 size={14} /> Share Report</span>
+                        <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.75rem", color: C.muted, marginTop: "0.1rem" }}>Share with buyers, agents, or tenants</span>
                       </button>
                       <button onClick={() => { setShowReportMenu(false); setModals(m => ({ ...m, insurance: true })); }} style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", width: "100%", padding: "0.75rem 1rem", background: "none", border: "none", cursor: "pointer" }}
                         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#F9FAFB"; }}
                         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "none"; }}>
-                        <span style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, color: C.text }}><Shield size={14} /> Insurance Report</span>
-                        <span style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.muted, marginTop: "0.1rem" }}>For claims, renewals, or coverage review</span>
+                        <span style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: V2_FONTS.body, fontSize: "0.875rem", fontWeight: 600, color: C.text }}><Shield size={14} /> Insurance Report</span>
+                        <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.75rem", color: C.muted, marginTop: "0.1rem" }}>For claims, renewals, or coverage review</span>
                       </button>
                     </div>
                   </>
@@ -404,7 +404,7 @@ export default function PropertyDetailPage() {
               {!fsboRecord?.isFsbo && (
                 <button
                   onClick={() => setModals(m => ({ ...m, listing: true }))}
-                  style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 500, color: C.green, background: "white", border: `1px solid ${COLORS.sageMid}`, borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}
+                  style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", fontWeight: 500, color: C.green, background: "white", border: `1px solid ${V2_COLORS.cobalTint}`, borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}
                 >
                   List Your Home
                 </button>
@@ -446,7 +446,7 @@ export default function PropertyDetailPage() {
             },
             {
               label: "Market Value",
-              icon:  <span style={{ fontFamily: FONTS.sans, fontSize: "0.9rem", color: C.blue, fontWeight: 700 }}>$</span>,
+              icon:  <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.9rem", color: C.blue, fontWeight: 700 }}>$</span>,
               value: estimatedHomeDollars ? `$${Math.round(estimatedHomeDollars / 1_000)}K` : "—",
               sub:   "Estimated",
               badge: null,
@@ -454,17 +454,17 @@ export default function PropertyDetailPage() {
           ].map(stat => (
             <Card key={stat.label} style={{ padding: "1rem" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
-                <span style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.muted, lineHeight: 1.3 }}>{stat.label}</span>
+                <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.75rem", color: C.muted, lineHeight: 1.3 }}>{stat.label}</span>
                 <div style={{ width: 28, height: 28, borderRadius: "50%", background: C.blueBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   {stat.icon}
                 </div>
               </div>
-              <div style={{ fontFamily: FONTS.sans, fontWeight: 700, fontSize: "1.625rem", color: C.text, lineHeight: 1 }}>
+              <div style={{ fontFamily: V2_FONTS.body, fontWeight: 700, fontSize: "1.625rem", color: C.text, lineHeight: 1 }}>
                 {stat.value}
               </div>
-              <div style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.muted, marginTop: "0.25rem" }}>{stat.sub}</div>
+              <div style={{ fontFamily: V2_FONTS.body, fontSize: "0.75rem", color: C.muted, marginTop: "0.25rem" }}>{stat.sub}</div>
               {stat.badge && (
-                <div style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: stat.badge.color, fontWeight: 600, marginTop: "0.375rem" }}>
+                <div style={{ fontFamily: V2_FONTS.body, fontSize: "0.75rem", color: stat.badge.color, fontWeight: 600, marginTop: "0.375rem" }}>
                   {stat.badge.label}
                 </div>
               )}
@@ -478,18 +478,18 @@ export default function PropertyDetailPage() {
           {/* Upcoming Maintenance */}
           <Card style={{ display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem 1.25rem", borderBottom: `1px solid ${C.border}` }}>
-              <h3 style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.9375rem", color: C.text, margin: 0 }}>Upcoming Maintenance</h3>
-              <button onClick={() => navigate("/maintenance")} style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: C.blue, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.25rem" }}>
+              <h3 style={{ fontFamily: V2_FONTS.body, fontWeight: 600, fontSize: "0.9375rem", color: C.text, margin: 0 }}>Upcoming Maintenance</h3>
+              <button onClick={() => navigate("/maintenance")} style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: C.blue, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.25rem" }}>
                 View All <ArrowRight size={13} />
               </button>
             </div>
             <div style={{ flex: 1 }}>
               {recurringServices.length === 0 ? (
                 <div style={{ padding: "1.5rem 1.25rem", textAlign: "center" }}>
-                  <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: C.muted, marginBottom: "0.5rem" }}>No scheduled services yet.</p>
+                  <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: C.muted, marginBottom: "0.5rem" }}>No scheduled services yet.</p>
                   <button
                     onClick={() => setModals(m => ({ ...m, addService: true }))}
-                    style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", fontWeight: 600, color: C.blue, background: "none", border: "none", cursor: "pointer" }}
+                    style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", fontWeight: 600, color: C.blue, background: "none", border: "none", cursor: "pointer" }}
                   >
                     + Add recurring service
                   </button>
@@ -504,14 +504,14 @@ export default function PropertyDetailPage() {
                     <div key={svc.id} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.75rem 1.25rem", borderBottom: `1px solid ${C.border}` }}>
                       <div style={{ width: 8, height: 8, borderRadius: "50%", background: badge.color, flexShrink: 0 }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: C.text, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        <div style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: C.text, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                           {SERVICE_TYPE_LABELS[svc.serviceType] ?? svc.serviceType}
                         </div>
-                        <div style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.muted }}>
+                        <div style={{ fontFamily: V2_FONTS.body, fontSize: "0.75rem", color: C.muted }}>
                           Due {due.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                         </div>
                       </div>
-                      <span style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", fontWeight: 600, color: badge.color, flexShrink: 0 }}>
+                      <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.75rem", fontWeight: 600, color: badge.color, flexShrink: 0 }}>
                         {badge.label}
                       </span>
                     </div>
@@ -522,7 +522,7 @@ export default function PropertyDetailPage() {
             <div style={{ padding: "1rem 1.25rem", borderTop: `1px solid ${C.border}` }}>
               <button
                 onClick={() => navigate("/maintenance")}
-                style={{ width: "100%", fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, color: C.blue, border: `1px solid ${C.border}`, background: "white", borderRadius: "0.5rem", padding: "0.625rem", cursor: "pointer" }}
+                style={{ width: "100%", fontFamily: V2_FONTS.body, fontSize: "0.875rem", fontWeight: 600, color: C.blue, border: `1px solid ${C.border}`, background: "white", borderRadius: "0.5rem", padding: "0.625rem", cursor: "pointer" }}
               >
                 View Maintenance Plan
               </button>
@@ -532,10 +532,10 @@ export default function PropertyDetailPage() {
           {/* Recent Activity */}
           <Card style={{ display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem 1.25rem", borderBottom: `1px solid ${C.border}` }}>
-              <h3 style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.9375rem", color: C.text, margin: 0 }}>Recent Activity</h3>
+              <h3 style={{ fontFamily: V2_FONTS.body, fontWeight: 600, fontSize: "0.9375rem", color: C.text, margin: 0 }}>Recent Activity</h3>
               <button
                 onClick={() => { setTab("jobs"); document.getElementById("property-tabs")?.scrollIntoView({ behavior: "smooth" }); }}
-                style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: C.blue, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.25rem" }}
+                style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: C.blue, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.25rem" }}
               >
                 View All <ArrowRight size={13} />
               </button>
@@ -543,10 +543,10 @@ export default function PropertyDetailPage() {
             <div style={{ flex: 1 }}>
               {recentActivity.length === 0 ? (
                 <div style={{ padding: "1.5rem 1.25rem", textAlign: "center" }}>
-                  <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: C.muted, marginBottom: "0.5rem" }}>No activity yet. Log your first job!</p>
+                  <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: C.muted, marginBottom: "0.5rem" }}>No activity yet. Log your first job!</p>
                   <button
                     onClick={() => setModals(m => ({ ...m, logJob: true }))}
-                    style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", fontWeight: 600, color: C.blue, background: "none", border: "none", cursor: "pointer" }}
+                    style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", fontWeight: 600, color: C.blue, background: "none", border: "none", cursor: "pointer" }}
                   >
                     + Log a job
                   </button>
@@ -558,12 +558,12 @@ export default function PropertyDetailPage() {
                       <Wrench size={13} color={job.status === "verified" ? C.green : C.blue} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: C.text, fontWeight: 500 }}>{job.serviceType}</div>
-                      <div style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.muted }}>
+                      <div style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: C.text, fontWeight: 500 }}>{job.serviceType}</div>
+                      <div style={{ fontFamily: V2_FONTS.body, fontSize: "0.75rem", color: C.muted }}>
                         {job.isDiy ? "DIY" : (job.contractorName ?? "Unknown contractor")}
                       </div>
                     </div>
-                    <span style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: C.muted, flexShrink: 0 }}>
+                    <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.75rem", color: C.muted, flexShrink: 0 }}>
                       {relativeTime(Number(job.createdAt))}
                     </span>
                   </div>
@@ -575,22 +575,22 @@ export default function PropertyDetailPage() {
           {/* Connected Devices */}
           <Card style={{ display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem 1.25rem", borderBottom: `1px solid ${C.border}` }}>
-              <h3 style={{ fontFamily: FONTS.sans, fontWeight: 600, fontSize: "0.9375rem", color: C.text, margin: 0 }}>Connected Devices</h3>
+              <h3 style={{ fontFamily: V2_FONTS.body, fontWeight: 600, fontSize: "0.9375rem", color: C.text, margin: 0 }}>Connected Devices</h3>
               <button
                 onClick={() => navigate("/sensors")}
-                style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", color: C.blue, background: "none", border: "none", cursor: "pointer" }}
+                style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: C.blue, background: "none", border: "none", cursor: "pointer" }}
               >
                 Manage
               </button>
             </div>
             <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "2rem 1.25rem", gap: "0.75rem" }}>
               <Cpu size={32} color={C.muted} />
-              <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: C.muted, textAlign: "center", margin: 0 }}>
+              <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: C.muted, textAlign: "center", margin: 0 }}>
                 No devices connected yet.
               </p>
               <button
                 onClick={() => navigate("/sensors")}
-                style={{ fontFamily: FONTS.sans, fontSize: "0.8125rem", fontWeight: 600, color: C.blue, border: `1px solid ${C.border}`, background: "white", borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}
+                style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", fontWeight: 600, color: C.blue, border: `1px solid ${C.border}`, background: "white", borderRadius: "0.5rem", padding: "0.5rem 1rem", cursor: "pointer" }}
               >
                 View All Devices
               </button>
@@ -602,23 +602,23 @@ export default function PropertyDetailPage() {
         <div style={{ background: "#F0F9FF", border: "1px solid #BAE6FD", borderRadius: "0.75rem", padding: "1.5rem 2rem", display: "flex", alignItems: "center", gap: "1.5rem", flexWrap: "wrap", marginBottom: "2rem" }}>
           <span style={{ fontSize: "2.25rem", lineHeight: 1 }}>🪖</span>
           <div style={{ flex: 1, minWidth: "200px" }}>
-            <div style={{ fontFamily: FONTS.sans, fontWeight: 700, fontSize: "1.0625rem", color: C.text, marginBottom: "0.25rem" }}>
+            <div style={{ fontFamily: V2_FONTS.body, fontWeight: 700, fontSize: "1.0625rem", color: C.text, marginBottom: "0.25rem" }}>
               Need help with your home?
             </div>
-            <div style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: C.muted }}>
+            <div style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: C.muted }}>
               Get matched with trusted local pros or request a quote.
             </div>
           </div>
           <div style={{ display: "flex", gap: "0.75rem", flexShrink: 0 }}>
             <button
               onClick={() => navigate("/contractors")}
-              style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, color: "white", background: C.blue, border: "none", borderRadius: "0.5rem", padding: "0.625rem 1.25rem", cursor: "pointer" }}
+              style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", fontWeight: 600, color: "white", background: C.blue, border: "none", borderRadius: "0.5rem", padding: "0.625rem 1.25rem", cursor: "pointer" }}
             >
               Find Contractors
             </button>
             <button
               onClick={() => setModals(m => ({ ...m, quote: true }))}
-              style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, color: C.blue, background: "white", border: `1px solid ${C.border}`, borderRadius: "0.5rem", padding: "0.625rem 1.25rem", cursor: "pointer" }}
+              style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", fontWeight: 600, color: C.blue, background: "white", border: `1px solid ${C.border}`, borderRadius: "0.5rem", padding: "0.625rem 1.25rem", cursor: "pointer" }}
             >
               Request a Quote
             </button>
@@ -627,7 +627,7 @@ export default function PropertyDetailPage() {
 
         {/* ── Property details tabs ────────────────────────────────────────────── */}
         <div id="property-tabs">
-          <h2 style={{ fontFamily: FONTS.sans, fontWeight: 700, fontSize: "1.125rem", color: C.text, marginBottom: "1rem" }}>
+          <h2 style={{ fontFamily: V2_FONTS.body, fontWeight: 700, fontSize: "1.125rem", color: C.text, marginBottom: "1rem" }}>
             Property Details
           </h2>
           <div style={{ display: "flex", borderBottom: `1px solid ${C.border}`, marginBottom: "1.5rem" }}>
@@ -635,7 +635,7 @@ export default function PropertyDetailPage() {
               <button
                 key={t.key}
                 onClick={() => setTab(t.key)}
-                style={{ padding: "0.625rem 1.25rem", fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: tab === t.key ? 600 : 400, color: tab === t.key ? C.blue : C.muted, background: "none", border: "none", borderBottom: tab === t.key ? `2px solid ${C.blue}` : "2px solid transparent", marginBottom: "-1px", cursor: "pointer", transition: "color 0.15s" }}
+                style={{ padding: "0.625rem 1.25rem", fontFamily: V2_FONTS.body, fontSize: "0.875rem", fontWeight: tab === t.key ? 600 : 400, color: tab === t.key ? C.blue : C.muted, background: "none", border: "none", borderBottom: tab === t.key ? `2px solid ${C.blue}` : "2px solid transparent", marginBottom: "-1px", cursor: "pointer", transition: "color 0.15s" }}
               >
                 {t.label}
               </button>

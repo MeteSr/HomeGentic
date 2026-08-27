@@ -16,18 +16,18 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { propertyService, type PendingTransfer, type Property } from "../services/property";
 import { useAuthStore } from "@/store/authStore";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  sage:     COLORS.sage,
-  inkLight: COLORS.plumMid,
-  rust:     COLORS.sage,    // primary action colour follows sage in this design
-  mono:     FONTS.sans,
-  serif:    FONTS.serif,
-  sans:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  sage:     V2_COLORS.blue,
+  inkLight: V2_COLORS.muted,
+  rust:     V2_COLORS.blue,    // primary action colour follows blue in this design
+  mono:     V2_FONTS.body,
+  serif:    V2_FONTS.display,
+  sans:     V2_FONTS.body,
 };
 
 type PageState =
@@ -189,7 +189,7 @@ export default function PropertyTransferClaimPage() {
   if (page.status === "claimed") {
     return (
       <Shell>
-        <div style={{ padding: "1.5rem 1.75rem", borderBottom: `1px solid ${UI.rule}`, background: COLORS.sageLight }}>
+        <div style={{ padding: "1.5rem 1.75rem", borderBottom: `1px solid ${UI.rule}`, background: V2_COLORS.lblue }}>
           <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.sage, marginBottom: "0.5rem" }}>Transfer complete</p>
           <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", color: UI.ink, lineHeight: 1.2 }}>
             You're the new owner
@@ -274,7 +274,7 @@ export default function PropertyTransferClaimPage() {
       </div>
 
       {/* What transfers */}
-      <div style={{ padding: "1rem 1.75rem", borderBottom: `1px solid ${UI.rule}`, background: COLORS.sageLight }}>
+      <div style={{ padding: "1rem 1.75rem", borderBottom: `1px solid ${UI.rule}`, background: V2_COLORS.lblue }}>
         <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.sage, marginBottom: "0.5rem" }}>
           What you'll receive
         </p>

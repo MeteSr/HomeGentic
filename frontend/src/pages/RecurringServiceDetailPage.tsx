@@ -5,23 +5,23 @@ import { Layout } from "@/components/Layout";
 import { recurringService, RecurringService, VisitLog, ServiceStatus, SERVICE_TYPE_LABELS, FREQUENCY_LABELS } from "@/services/recurringService";
 import { photoService } from "@/services/photo";
 import toast from "react-hot-toast";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  rust:     COLORS.sage,
-  inkLight: COLORS.plumMid,
-  sage:     COLORS.sage,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  rust:     V2_COLORS.blue,
+  inkLight: V2_COLORS.muted,
+  sage:     V2_COLORS.blue,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.body,
 };
 
 const STATUS_STYLE: Record<string, { color: string; bg: string }> = {
-  Active:    { color: UI.sage,         bg: COLORS.sageLight },
-  Paused:    { color: COLORS.plumMid, bg: COLORS.butter    },
-  Cancelled: { color: UI.inkLight,     bg: UI.paper          },
+  Active:    { color: UI.sage,          bg: V2_COLORS.lblue      },
+  Paused:    { color: V2_COLORS.muted,  bg: V2_COLORS.attentionBg },
+  Cancelled: { color: UI.inkLight,      bg: UI.paper              },
 };
 
 function fmtDate(iso: string): string {
@@ -160,7 +160,7 @@ export default function RecurringServiceDetailPage() {
             </div>
 
             {/* ── Service details ────────────────────────────────────────────── */}
-            <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "1.5rem", marginBottom: "1.25rem" }}>
+            <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, padding: "1.5rem", marginBottom: "1.25rem" }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem 2rem" }}>
                 <div>
                   <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.25rem" }}>Provider</p>
@@ -201,7 +201,7 @@ export default function RecurringServiceDetailPage() {
             </div>
 
             {/* ── Contract document ──────────────────────────────────────────── */}
-            <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "1.25rem", marginBottom: "1.25rem" }}>
+            <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, padding: "1.25rem", marginBottom: "1.25rem" }}>
               <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.75rem" }}>
                 Contract Document
               </p>
@@ -253,7 +253,7 @@ export default function RecurringServiceDetailPage() {
                   <button
                     onClick={() => handleStatusChange("Active")}
                     disabled={statusLoading}
-                    style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", border: `1px solid ${UI.sage}`, background: COLORS.sageLight, cursor: "pointer", color: UI.sage }}
+                    style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", border: `1px solid ${UI.sage}`, background: V2_COLORS.lblue, cursor: "pointer", color: UI.sage }}
                   >
                     Resume Service
                   </button>
@@ -269,7 +269,7 @@ export default function RecurringServiceDetailPage() {
             )}
 
             {/* ── Visit log ──────────────────────────────────────────────────── */}
-            <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "1.5rem" }}>
+            <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, padding: "1.5rem" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
                 <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.inkLight }}>
                   Visit Log · {visits.length} {visits.length === 1 ? "entry" : "entries"}

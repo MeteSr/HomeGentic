@@ -1,5 +1,5 @@
 import React from "react";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 interface PhotoQuotaDisplayProps {
   used: number;
@@ -15,17 +15,17 @@ export function PhotoQuotaDisplay({
   onUpgrade,
 }: PhotoQuotaDisplayProps) {
   const pct = Math.min((used / limit) * 100, 100);
-  const barColor = pct > 80 ? COLORS.plum : COLORS.sage;
+  const barColor = pct > 80 ? V2_COLORS.ink : V2_COLORS.blue;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem" }}>
-        <span style={{ fontFamily: FONTS.sans, fontSize: "0.65rem", color: COLORS.plumMid }}>Photos Used</span>
-        <span style={{ fontFamily: FONTS.sans, fontSize: "0.65rem", fontWeight: 600, color: pct > 80 ? COLORS.plum : COLORS.sageText }}>
+        <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.65rem", color: V2_COLORS.muted }}>Photos Used</span>
+        <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.65rem", fontWeight: 600, color: pct > 80 ? V2_COLORS.ink : V2_COLORS.blue }}>
           {used}/{limit}
         </span>
       </div>
-      <div style={{ width: "100%", backgroundColor: COLORS.rule, borderRadius: 100, height: "6px" }}>
+      <div style={{ width: "100%", backgroundColor: V2_COLORS.border, borderRadius: 100, height: "6px" }}>
         <div
           style={{
             width: `${pct}%`,
@@ -37,18 +37,18 @@ export function PhotoQuotaDisplay({
         />
       </div>
       {pct > 80 && onUpgrade && (
-        <p style={{ fontFamily: FONTS.sans, fontSize: "0.6rem", color: COLORS.plumMid }}>
+        <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.6rem", color: V2_COLORS.muted }}>
           Running low on photo quota.{" "}
           <button
             onClick={onUpgrade}
             style={{
-              color: COLORS.sageText,
+              color: V2_COLORS.blue,
               textDecoration: "underline",
               background: "none",
               border: "none",
               cursor: "pointer",
               padding: 0,
-              fontFamily: FONTS.sans,
+              fontFamily: V2_FONTS.body,
               fontSize: "0.6rem",
             }}
           >

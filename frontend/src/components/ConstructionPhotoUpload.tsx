@@ -1,14 +1,14 @@
 import React, { useState, useRef } from "react";
 import { PhotoQuotaDisplay } from "./PhotoQuotaDisplay";
-import { COLORS, FONTS, RADIUS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  rust:     COLORS.sage,
-  inkLight: COLORS.plumMid,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  rust:     V2_COLORS.blue,
+  inkLight: V2_COLORS.muted,
+  mono:     V2_FONTS.body,
 };
 
 export const DOC_TYPES = [
@@ -86,7 +86,7 @@ export function ConstructionPhotoUpload({
           padding: "2rem",
           textAlign: "center",
           cursor: "pointer",
-          background: dragging ? COLORS.blush : UI.paper,
+          background: dragging ? V2_COLORS.attentionBg : UI.paper,
           transition: "border-color 0.15s, background 0.15s",
         }}
       >
@@ -118,7 +118,7 @@ export function ConstructionPhotoUpload({
               <span style={{
                 position: "absolute", bottom: 0, left: 0, right: 0,
                 background: "rgba(46,37,64,0.65)",
-                color: COLORS.white,
+                color: V2_COLORS.paper,
                 fontFamily: UI.mono,
                 fontSize: "0.55rem",
                 letterSpacing: "0.06em",

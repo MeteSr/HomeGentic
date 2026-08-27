@@ -1,14 +1,14 @@
 import React from "react";
-import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 import type { ProjectRecommendation } from "@/services/market";
 
 const UI = {
-  ink:      COLORS.plum,
-  rule:     COLORS.rule,
-  inkLight: COLORS.plumMid,
-  sage:     COLORS.sageText,
-  mono:     FONTS.sans,
-  serif:    FONTS.serif,
+  ink:      V2_COLORS.ink,
+  rule:     V2_COLORS.border,
+  inkLight: V2_COLORS.muted,
+  sage:     V2_COLORS.blue,
+  mono:     V2_FONTS.body,
+  serif:    V2_FONTS.display,
 };
 
 export interface MarketIntelPanelProps {
@@ -26,7 +26,7 @@ export function MarketIntelPanel({
 
   function priorityColor(p: string) {
     if (p === "High")   return UI.sage;
-    if (p === "Medium") return COLORS.plumMid;
+    if (p === "Medium") return V2_COLORS.muted;
     return UI.inkLight;
   }
 
@@ -80,11 +80,11 @@ export function MarketIntelPanel({
           <div
             key={rec.name}
             style={{
-              background: COLORS.white,
+              background: V2_COLORS.paper,
               padding: "1.25rem",
-              borderRadius: RADIUS.card,
-              border: `1px solid ${COLORS.rule}`,
-              boxShadow: SHADOWS.card,
+              borderRadius: V2_RADIUS.card,
+              border: `1px solid ${V2_COLORS.border}`,
+              boxShadow: V2_SHADOWS.card,
               display: "flex",
               flexDirection: "column",
               gap: "0.625rem",
@@ -118,7 +118,7 @@ export function MarketIntelPanel({
                   border: `1px solid ${priorityColor(rec.priority)}`,
                   padding: "0.1rem 0.4rem",
                   flexShrink: 0,
-                  borderRadius: RADIUS.pill,
+                  borderRadius: V2_RADIUS.pill,
                 }}
               >
                 {rec.priority}
@@ -205,7 +205,7 @@ export function MarketIntelPanel({
                 color: UI.sage,
                 cursor: "pointer",
                 alignSelf: "flex-start",
-                borderRadius: RADIUS.sm,
+                borderRadius: V2_RADIUS.sm,
               }}
             >
               Request Quote →

@@ -15,7 +15,7 @@
 import React, { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { X, Copy, Check, Mail, Loader2 } from "lucide-react";
-import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 import { jobService } from "@/services/job";
 import type { Job } from "@/services/job";
 import { isValidEmail } from "@/utils/validators";
@@ -27,13 +27,13 @@ interface Props {
 }
 
 const UI = {
-  ink:   COLORS.plum,
-  muted: COLORS.plumMid,
-  rule:  COLORS.rule,
-  sage:  COLORS.sage,
-  serif: FONTS.serif,
-  mono:  FONTS.sans,
-  sans:  FONTS.sans,
+  ink:   V2_COLORS.ink,
+  muted: V2_COLORS.muted,
+  rule:  V2_COLORS.border,
+  sage:  V2_COLORS.blue,
+  serif: V2_FONTS.display,
+  mono:  V2_FONTS.body,
+  sans:  V2_FONTS.body,
 };
 
 export function InviteContractorModal({ job, propertyAddress, onClose }: Props) {
@@ -98,9 +98,9 @@ export function InviteContractorModal({ job, propertyAddress, onClose }: Props) 
       }}
     >
       <div style={{
-        background: COLORS.white,
-        borderRadius: RADIUS.card,
-        boxShadow: SHADOWS.modal,
+        background: V2_COLORS.paper,
+        borderRadius: V2_RADIUS.card,
+        boxShadow: V2_SHADOWS.modal,
         width: "100%", maxWidth: 460,
         padding: "2rem",
         position: "relative",
@@ -128,7 +128,7 @@ export function InviteContractorModal({ job, propertyAddress, onClose }: Props) 
 
         {/* Job summary */}
         <div style={{
-          background: COLORS.sageLight, borderRadius: RADIUS.sm,
+          background: V2_COLORS.lblue, borderRadius: V2_RADIUS.sm,
           padding: "0.75rem 1rem", marginBottom: "1.5rem",
           fontSize: "0.8rem", fontFamily: UI.sans, color: UI.ink,
         }}>
@@ -149,11 +149,11 @@ export function InviteContractorModal({ job, propertyAddress, onClose }: Props) 
           <>
             {/* QR code */}
             <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.25rem" }}>
-              <div style={{ padding: "1rem", border: `1px solid ${UI.rule}`, borderRadius: RADIUS.sm, background: "#fff" }}>
+              <div style={{ padding: "1rem", border: `1px solid ${UI.rule}`, borderRadius: V2_RADIUS.sm, background: "#fff" }}>
                 <QRCodeSVG
                   value={verifyUrl}
                   size={180}
-                  fgColor={COLORS.plum}
+                  fgColor={V2_COLORS.ink}
                   bgColor="#ffffff"
                   level="M"
                 />
@@ -170,8 +170,8 @@ export function InviteContractorModal({ job, propertyAddress, onClose }: Props) 
                 style={{
                   flex: 1, padding: "0.5rem 0.75rem",
                   fontFamily: UI.mono, fontSize: "0.7rem", color: UI.muted,
-                  border: `1px solid ${UI.rule}`, borderRadius: RADIUS.input,
-                  background: COLORS.sageLight, outline: "none",
+                  border: `1px solid ${UI.rule}`, borderRadius: V2_RADIUS.input,
+                  background: V2_COLORS.lblue, outline: "none",
                   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                 }}
               />
@@ -180,9 +180,9 @@ export function InviteContractorModal({ job, propertyAddress, onClose }: Props) 
                 style={{
                   display: "flex", alignItems: "center", gap: "0.375rem",
                   padding: "0.5rem 1rem",
-                  background: copied ? COLORS.sage : COLORS.plum,
+                  background: copied ? V2_COLORS.blue : V2_COLORS.ink,
                   color: "#fff", border: "none",
-                  borderRadius: RADIUS.input, cursor: "pointer",
+                  borderRadius: V2_RADIUS.input, cursor: "pointer",
                   fontFamily: UI.mono, fontSize: "0.7rem",
                   transition: "background 0.2s",
                 }}
@@ -208,13 +208,13 @@ export function InviteContractorModal({ job, propertyAddress, onClose }: Props) 
                     style={{
                       padding: "0.5rem 0.75rem",
                       fontFamily: UI.sans, fontSize: "0.8rem",
-                      border: `1px solid ${email && !isValidEmail(email) ? COLORS.rust : UI.rule}`,
-                      borderRadius: RADIUS.input,
-                      background: COLORS.white, outline: "none",
+                      border: `1px solid ${email && !isValidEmail(email) ? V2_COLORS.coral : UI.rule}`,
+                      borderRadius: V2_RADIUS.input,
+                      background: V2_COLORS.paper, outline: "none",
                     }}
                   />
                   {email && !isValidEmail(email) && (
-                    <span style={{ color: COLORS.rust, fontSize: "0.65rem", marginTop: "0.2rem", fontFamily: UI.mono }}>
+                    <span style={{ color: V2_COLORS.coralText, fontSize: "0.65rem", marginTop: "0.2rem", fontFamily: UI.mono }}>
                       Enter a valid email address
                     </span>
                   )}
@@ -225,9 +225,9 @@ export function InviteContractorModal({ job, propertyAddress, onClose }: Props) 
                   style={{
                     display: "flex", alignItems: "center", gap: "0.375rem",
                     padding: "0.5rem 1rem",
-                    background: sent ? COLORS.sage : COLORS.plum,
+                    background: sent ? V2_COLORS.blue : V2_COLORS.ink,
                     color: "#fff", border: "none",
-                    borderRadius: RADIUS.input,
+                    borderRadius: V2_RADIUS.input,
                     cursor: sending || sent || !isValidEmail(email) ? "not-allowed" : "pointer",
                     fontFamily: UI.mono, fontSize: "0.7rem",
                     opacity: !isValidEmail(email) ? 0.5 : 1,

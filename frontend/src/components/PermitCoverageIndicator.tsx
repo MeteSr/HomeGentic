@@ -7,7 +7,7 @@
 
 import React from "react";
 import { isPermitDataAvailable } from "@/services/permitImport";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 interface Props {
   city:  string;
@@ -27,12 +27,12 @@ export default function PermitCoverageIndicator({ city, state }: Props) {
         alignItems:    "center",
         gap:           "0.375rem",
         padding:       "0.3rem 0.625rem",
-        border:        `1px solid ${available ? COLORS.sageMid : COLORS.rule}`,
-        background:    available ? COLORS.sageLight : COLORS.white,
-        fontFamily:    FONTS.sans,
+        border:        `1px solid ${available ? V2_COLORS.cobalTint : V2_COLORS.border}`,
+        background:    available ? V2_COLORS.lblue : V2_COLORS.paper,
+        fontFamily:    V2_FONTS.body,
         fontSize:      "0.6rem",
         letterSpacing: "0.08em",
-        color:         available ? COLORS.sageText : COLORS.plumMid,
+        color:         available ? V2_COLORS.blue : V2_COLORS.muted,
         marginTop:     "0.5rem",
       }}
     >

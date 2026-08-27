@@ -1,16 +1,16 @@
 import React, { useState } from "react";
 import { Sparkles, ArrowRight, X } from "lucide-react";
-import { COLORS, FONTS, RADIUS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import type { AtRiskWarning } from "@/services/scoreDecayService";
 import type { PlanTier } from "@/services/payment";
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  inkLight: COLORS.plumMid,
-  sage:     COLORS.sageText,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  inkLight: V2_COLORS.muted,
+  sage:     V2_COLORS.blue,
+  mono:     V2_FONTS.body,
 };
 
 export interface AlertStackProps {
@@ -52,7 +52,7 @@ export function AlertStack({
             padding: "1rem 1.25rem",
             marginBottom: "1.5rem",
             background: "#fffbeb",
-            borderRadius: RADIUS.sm,
+            borderRadius: V2_RADIUS.sm,
           }}
         >
           <div
@@ -65,7 +65,7 @@ export function AlertStack({
               alignItems: "center",
               justifyContent: "center",
               flexShrink: 0,
-              borderRadius: RADIUS.sm,
+              borderRadius: V2_RADIUS.sm,
             }}
           >
             <span
@@ -123,7 +123,7 @@ export function AlertStack({
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "0.3rem",
-                borderRadius: RADIUS.pill,
+                borderRadius: V2_RADIUS.pill,
               }}
             >
               Log a Job <ArrowRight size={11} />
@@ -145,7 +145,7 @@ export function AlertStack({
             marginBottom: "1.5rem",
             background: "#fff",
             flexWrap: "wrap",
-            borderRadius: RADIUS.sm,
+            borderRadius: V2_RADIUS.sm,
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
@@ -158,7 +158,7 @@ export function AlertStack({
                 alignItems: "center",
                 justifyContent: "center",
                 flexShrink: 0,
-                borderRadius: RADIUS.sm,
+                borderRadius: V2_RADIUS.sm,
               }}
             >
               <Sparkles size={13} color={UI.inkLight} />
@@ -197,7 +197,7 @@ export function AlertStack({
               alignItems: "center",
               gap: "0.375rem",
               flexShrink: 0,
-              borderRadius: RADIUS.pill,
+              borderRadius: V2_RADIUS.pill,
             }}
           >
             Log a Job <ArrowRight size={12} />
@@ -218,7 +218,7 @@ export function AlertStack({
             marginBottom: "1.5rem",
             background: "#fff",
             flexWrap: "wrap",
-            borderRadius: RADIUS.sm,
+            borderRadius: V2_RADIUS.sm,
           }}
         >
           <div style={{ display: "flex", gap: "0.875rem", flex: 1 }}>
@@ -232,7 +232,7 @@ export function AlertStack({
                 justifyContent: "center",
                 flexShrink: 0,
                 marginTop: "0.125rem",
-                borderRadius: RADIUS.sm,
+                borderRadius: V2_RADIUS.sm,
               }}
             >
               <Sparkles size={13} color={UI.sage} />
@@ -266,7 +266,7 @@ export function AlertStack({
                     color: UI.inkLight,
                     border: `1px solid ${UI.rule}`,
                     padding: "0.05rem 0.375rem",
-                    borderRadius: RADIUS.pill,
+                    borderRadius: V2_RADIUS.pill,
                   }}
                 >
                   {pulseTip.category}

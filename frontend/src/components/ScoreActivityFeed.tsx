@@ -1,5 +1,5 @@
 import React from "react";
-import { COLORS, FONTS, RADIUS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import {
   categoryColor,
   categoryBg,
@@ -12,10 +12,10 @@ import {
 } from "@/services/scoreDecayService";
 
 const UI = {
-  ink:      COLORS.plum,
-  rule:     COLORS.rule,
-  inkLight: COLORS.plumMid,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  rule:     V2_COLORS.border,
+  inkLight: V2_COLORS.muted,
+  mono:     V2_FONTS.body,
 };
 
 export interface ScoreActivityFeedProps {
@@ -43,7 +43,7 @@ export function ScoreActivityFeed({ scoreEvents, decayEvents }: ScoreActivityFee
       <div
         style={{
           border: `1px solid ${UI.rule}`,
-          borderRadius: RADIUS.card,
+          borderRadius: V2_RADIUS.card,
           overflow: "hidden",
         }}
       >
@@ -57,7 +57,7 @@ export function ScoreActivityFeed({ scoreEvents, decayEvents }: ScoreActivityFee
               gap: "0.875rem",
               padding: "0.75rem 1rem",
               borderBottom: `1px solid ${UI.rule}`,
-              background: COLORS.white,
+              background: V2_COLORS.paper,
             }}
           >
             <div
@@ -70,7 +70,7 @@ export function ScoreActivityFeed({ scoreEvents, decayEvents }: ScoreActivityFee
                 alignItems: "center",
                 justifyContent: "center",
                 flexShrink: 0,
-                borderRadius: RADIUS.sm,
+                borderRadius: V2_RADIUS.sm,
               }}
             >
               <span
@@ -100,7 +100,7 @@ export function ScoreActivityFeed({ scoreEvents, decayEvents }: ScoreActivityFee
                 border: `1px solid ${categoryColor(ev.category)}40`,
                 color: categoryColor(ev.category),
                 flexShrink: 0,
-                borderRadius: RADIUS.pill,
+                borderRadius: V2_RADIUS.pill,
               }}
             >
               {ev.category}
@@ -131,7 +131,7 @@ export function ScoreActivityFeed({ scoreEvents, decayEvents }: ScoreActivityFee
                 alignItems: "center",
                 justifyContent: "center",
                 flexShrink: 0,
-                borderRadius: RADIUS.sm,
+                borderRadius: V2_RADIUS.sm,
               }}
             >
               <span
@@ -182,7 +182,7 @@ export function ScoreActivityFeed({ scoreEvents, decayEvents }: ScoreActivityFee
                 border: `1px solid ${decayCategoryColor(ev.category)}40`,
                 color: decayCategoryColor(ev.category),
                 flexShrink: 0,
-                borderRadius: RADIUS.pill,
+                borderRadius: V2_RADIUS.pill,
               }}
             >
               {ev.category}

@@ -3,7 +3,7 @@ import { X, Home } from "lucide-react";
 import { Button } from "./Button";
 import { roomService, type Room, type CreateRoomArgs } from "@/services/room";
 import toast from "react-hot-toast";
-import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 
 const FLOOR_TYPES = [
   "Hardwood", "Tile", "Carpet", "Laminate", "Vinyl", "Concrete", "Stone", "Other",
@@ -28,17 +28,17 @@ interface AddRoomModalProps {
 
 const inputStyle: React.CSSProperties = {
   width: "100%", padding: "0.5rem 0.625rem",
-  fontFamily: FONTS.sans, fontSize: "0.8rem",
-  border: `1px solid ${COLORS.rule}`,
-  background: COLORS.white, color: COLORS.plum, outline: "none",
+  fontFamily: V2_FONTS.body, fontSize: "0.8rem",
+  border: `1px solid ${V2_COLORS.border}`,
+  background: V2_COLORS.paper, color: V2_COLORS.ink, outline: "none",
   borderRadius: 0,
 };
 
 const labelStyle: React.CSSProperties = {
   display: "block",
-  fontFamily: FONTS.sans, fontSize: "0.75rem",
+  fontFamily: V2_FONTS.body, fontSize: "0.75rem",
   fontWeight: 600,
-  color: COLORS.plumMid, marginBottom: "0.25rem",
+  color: V2_COLORS.muted, marginBottom: "0.25rem",
 };
 
 export function AddRoomModal({ isOpen, onClose, onSuccess, propertyId }: AddRoomModalProps) {
@@ -96,9 +96,9 @@ export function AddRoomModal({ isOpen, onClose, onSuccess, propertyId }: AddRoom
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: COLORS.white,
-          borderRadius: RADIUS.card,
-          boxShadow: SHADOWS.modal,
+          background: V2_COLORS.paper,
+          borderRadius: V2_RADIUS.card,
+          boxShadow: V2_SHADOWS.modal,
           width: "100%",
           maxWidth: "32rem",
           maxHeight: "90vh",
@@ -111,23 +111,23 @@ export function AddRoomModal({ isOpen, onClose, onSuccess, propertyId }: AddRoom
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: "1.25rem 1.5rem",
-          borderBottom: `1px solid ${COLORS.rule}`,
+          borderBottom: `1px solid ${V2_COLORS.border}`,
           flexShrink: 0,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-            <Home size={15} color={COLORS.sage} />
+            <Home size={15} color={V2_COLORS.blue} />
             <div>
-              <p style={{ fontFamily: FONTS.sans, fontSize: "0.7rem", fontWeight: 600, color: COLORS.sageText, marginBottom: "0.2rem" }}>
+              <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.7rem", fontWeight: 600, color: V2_COLORS.blue, marginBottom: "0.2rem" }}>
                 Room Digital Twin
               </p>
-              <h2 style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.25rem", lineHeight: 1, color: COLORS.plum }}>
+              <h2 style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.25rem", lineHeight: 1, color: V2_COLORS.ink }}>
                 Add Room
               </h2>
             </div>
           </div>
           <button
             onClick={onClose}
-            style={{ background: "none", border: "none", cursor: "pointer", color: COLORS.plumMid, padding: "0.25rem" }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: V2_COLORS.muted, padding: "0.25rem" }}
             aria-label="Close"
           >
             <X size={18} />
@@ -218,7 +218,7 @@ export function AddRoomModal({ isOpen, onClose, onSuccess, propertyId }: AddRoom
         <div style={{
           display: "flex", gap: "0.625rem", justifyContent: "flex-end",
           padding: "1rem 1.5rem",
-          borderTop: `1px solid ${COLORS.rule}`,
+          borderTop: `1px solid ${V2_COLORS.border}`,
           flexShrink: 0,
         }}>
           <Button variant="outline" onClick={onClose}>Cancel</Button>

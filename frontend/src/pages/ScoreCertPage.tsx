@@ -14,27 +14,27 @@ import { Helmet } from "react-helmet-async";
 import { Shield, AlertTriangle, CheckCircle } from "lucide-react";
 import { parseCertToken } from "@/services/scoreService";
 import { certService } from "@/services/cert";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  rust:     COLORS.sage,
-  inkLight: COLORS.plumMid,
-  sage:     COLORS.sage,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  rust:     V2_COLORS.blue,
+  inkLight: V2_COLORS.muted,
+  sage:     V2_COLORS.blue,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.body,
 };
 
 const GRADE_CONFIG: Record<string, { color: string; bg: string }> = {
-  "A+": { color: UI.sage,        bg: COLORS.sageLight },
-  "A":  { color: UI.sage,        bg: COLORS.sageLight },
-  "B":  { color: COLORS.plum,   bg: COLORS.sky },
-  "C":  { color: COLORS.plumMid, bg: COLORS.butter },
-  "D":  { color: UI.rust,        bg: COLORS.blush },
-  "F":  { color: UI.rust,        bg: COLORS.blush },
+  "A+": { color: UI.sage,         bg: V2_COLORS.lblue       },
+  "A":  { color: UI.sage,         bg: V2_COLORS.lblue       },
+  "B":  { color: V2_COLORS.ink,   bg: V2_COLORS.lblue       },
+  "C":  { color: V2_COLORS.muted, bg: V2_COLORS.attentionBg },
+  "D":  { color: UI.rust,         bg: "#FFE8E3"              },
+  "F":  { color: UI.rust,         bg: "#FFE8E3"              },
 };
 
 export default function ScoreCertPage() {
@@ -112,21 +112,21 @@ export default function ScoreCertPage() {
         })}</script>
       </Helmet>
     <div style={{ minHeight: "100vh", background: UI.paper, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: outerPad }}>
-      <div style={{ width: "100%", maxWidth: "32rem", background: COLORS.white, border: `1px solid ${UI.rule}` }}>
+      <div style={{ width: "100%", maxWidth: "32rem", background: V2_COLORS.paper, border: `1px solid ${UI.rule}` }}>
 
         {/* Header */}
         <div style={{ background: UI.ink, padding: innerPad }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.5rem", opacity: 0.7 }}>
-            <Shield size={14} color={COLORS.white} />
-            <span style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.2em", textTransform: "uppercase", color: COLORS.white }}>
+            <Shield size={14} color={V2_COLORS.paper} />
+            <span style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.2em", textTransform: "uppercase", color: V2_COLORS.paper }}>
               HOMEGENTIC
             </span>
-            <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: COLORS.plumMid }}>Score Certificate</span>
+            <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: V2_COLORS.muted }}>Score Certificate</span>
           </div>
-          <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1.2, color: COLORS.white, marginBottom: "0.375rem" }}>
+          <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1.2, color: V2_COLORS.paper, marginBottom: "0.375rem" }}>
             {payload.address}
           </h1>
-          <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: COLORS.plumMid }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: V2_COLORS.muted }}>
             Issued {generatedDate}
           </p>
         </div>
@@ -162,7 +162,7 @@ export default function ScoreCertPage() {
 
           {/* Certified badge */}
           {payload.certified ? (
-            <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", border: `1px solid ${COLORS.plumMid}`, padding: "0.625rem 1.25rem", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, background: COLORS.butter }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", border: `1px solid ${V2_COLORS.muted}`, padding: "0.625rem 1.25rem", fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: V2_COLORS.muted, background: V2_COLORS.attentionBg }}>
               ★ HomeGentic Certified™ — Pre-Inspection Ready
             </div>
           ) : (
@@ -173,7 +173,7 @@ export default function ScoreCertPage() {
         </div>
 
         {/* On-chain verification status */}
-        <div style={{ padding: isMobile ? "0.875rem 1rem" : "0.875rem 2.5rem", borderBottom: `1px solid ${UI.rule}`, background: onChain === true ? COLORS.sageLight : onChain === false ? COLORS.butter : COLORS.white }}>
+        <div style={{ padding: isMobile ? "0.875rem 1rem" : "0.875rem 2.5rem", borderBottom: `1px solid ${UI.rule}`, background: onChain === true ? V2_COLORS.lblue : onChain === false ? V2_COLORS.attentionBg : V2_COLORS.paper }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
             {onChain === null && (
               <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: UI.inkLight }}>
@@ -182,16 +182,16 @@ export default function ScoreCertPage() {
             )}
             {onChain === true && (
               <>
-                <CheckCircle size={13} color={COLORS.sage} />
-                <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: COLORS.sage, fontWeight: 700 }}>
+                <CheckCircle size={13} color={V2_COLORS.blue} />
+                <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: V2_COLORS.blue, fontWeight: 700 }}>
                   On-chain verified · {certId}
                 </span>
               </>
             )}
             {onChain === false && (
               <>
-                <AlertTriangle size={13} color={COLORS.plumMid} />
-                <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: COLORS.plumMid }}>
+                <AlertTriangle size={13} color={V2_COLORS.muted} />
+                <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: V2_COLORS.muted }}>
                   {certId ? `Cert ${certId} not found on-chain — may be from a local session` : "Client-generated certificate — not stored on-chain"}
                 </span>
               </>
@@ -213,7 +213,7 @@ export default function ScoreCertPage() {
           ];
 
           return (
-            <div style={{ padding: innerPad, borderBottom: `1px solid ${UI.rule}`, background: COLORS.white }}>
+            <div style={{ padding: innerPad, borderBottom: `1px solid ${UI.rule}`, background: V2_COLORS.paper }}>
               <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.875rem" }}>
                 Score Breakdown
               </p>
@@ -248,7 +248,7 @@ export default function ScoreCertPage() {
                     <p style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.6rem", letterSpacing: "0.08em", color: UI.ink, marginBottom: "0.375rem" }}>
                       Upgrade to Pro to see breakdown
                     </p>
-                    <a href="/pricing" style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.35rem 0.75rem", border: `1px solid ${COLORS.plum}`, background: COLORS.plum, color: COLORS.white, textDecoration: "none" }}>
+                    <a href="/pricing" style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.35rem 0.75rem", border: `1px solid ${V2_COLORS.ink}`, background: V2_COLORS.ink, color: V2_COLORS.paper, textDecoration: "none" }}>
                       Upgrade to Pro →
                     </a>
                   </div>
@@ -259,7 +259,7 @@ export default function ScoreCertPage() {
         })()}
 
         {/* What this means */}
-        <div style={{ padding: innerPad, borderBottom: `1px solid ${UI.rule}`, background: COLORS.white }}>
+        <div style={{ padding: innerPad, borderBottom: `1px solid ${UI.rule}`, background: V2_COLORS.paper }}>
           <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.875rem" }}>
             What this means
           </p>

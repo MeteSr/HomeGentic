@@ -4,16 +4,16 @@ import { Button } from "@/components/Button";
 import { sensorService, type SensorDevice, type DeviceSource } from "@/services/sensor";
 import { useOAuthDevicePicker, type OAuthPickedDevice } from "@/hooks/useOAuthDevicePicker";
 import toast from "react-hot-toast";
-import { COLORS, FONTS, RADIUS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  inkLight: COLORS.plumMid,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
-  sans:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  inkLight: V2_COLORS.muted,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.body,
+  sans:     V2_FONTS.body,
 };
 
 // ─── Tier classification ──────────────────────────────────────────────────────
@@ -167,7 +167,7 @@ export function RegisterDeviceModal({ isOpen, onClose, onSuccess, propertyId }: 
     width: "100%", boxSizing: "border-box",
     fontFamily: UI.sans, fontSize: "0.875rem", fontWeight: 300,
     padding: "0.5rem 0.75rem", border: `1px solid ${UI.rule}`,
-    background: COLORS.white, color: UI.ink, outline: "none",
+    background: V2_COLORS.paper, color: UI.ink, outline: "none",
   };
 
   return (
@@ -181,8 +181,8 @@ export function RegisterDeviceModal({ isOpen, onClose, onSuccess, propertyId }: 
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div role="dialog" aria-modal="true" aria-label="Register device" style={{
-        background: COLORS.white, width: "100%", maxWidth: "30rem",
-        borderRadius: RADIUS.card, padding: "1.75rem",
+        background: V2_COLORS.paper, width: "100%", maxWidth: "30rem",
+        borderRadius: V2_RADIUS.card, padding: "1.75rem",
         boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
         maxHeight: "90vh", overflowY: "auto",
       }}>
@@ -231,14 +231,14 @@ export function RegisterDeviceModal({ isOpen, onClose, onSuccess, propertyId }: 
                       display: "flex", alignItems: "center", gap: "0.5rem",
                       padding: "0.5rem 1rem", fontFamily: UI.mono, fontSize: "0.72rem",
                       letterSpacing: "0.08em", textTransform: "uppercase",
-                      background: UI.ink, color: COLORS.white, border: "none", cursor: "pointer",
+                      background: UI.ink, color: V2_COLORS.paper, border: "none", cursor: "pointer",
                     }}
                   >
                     <ExternalLink size={13} />
                     {oAuth.loading ? "Connecting…" : `Connect ${SOURCES.find((s) => s.value === source)?.label} Account`}
                   </button>
                   {oAuth.error && (
-                    <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: "#c94c2e", marginTop: "0.4rem" }}>
+                    <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: V2_COLORS.coralText, marginTop: "0.4rem" }}>
                       {oAuth.error}
                     </p>
                   )}

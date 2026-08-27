@@ -9,15 +9,15 @@
 import React, { useState, useEffect } from "react";
 import { showingRequestService, type ShowingRequest } from "@/services/showingRequest";
 import { showingFeedbackService, type FeedbackRequest } from "@/services/showingFeedback";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 const UI = {
-  ink:      COLORS.plum,
-  inkLight: COLORS.plumMid,
-  rule:     COLORS.rule,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
-  sans:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  inkLight: V2_COLORS.muted,
+  rule:     V2_COLORS.border,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.mono,
+  sans:     V2_FONTS.body,
 };
 
 const STATUS_BADGE: Record<string, { label: string; color: string }> = {

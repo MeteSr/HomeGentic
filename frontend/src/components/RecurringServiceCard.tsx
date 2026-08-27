@@ -2,20 +2,20 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { RecurringService, VisitLog, SERVICE_TYPE_LABELS, FREQUENCY_LABELS } from "@/services/recurringService";
-import { COLORS, FONTS, RADIUS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  inkLight: COLORS.plumMid,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  inkLight: V2_COLORS.muted,
+  mono:     V2_FONTS.body,
 };
 
 const STATUS_STYLE: Record<string, { color: string; bg: string }> = {
-  Active:    { color: COLORS.sageText, bg: COLORS.sageLight },
-  Paused:    { color: COLORS.plumMid,  bg: COLORS.butter    },
-  Cancelled: { color: COLORS.plumMid,  bg: COLORS.white     },
+  Active:    { color: V2_COLORS.blue,  bg: V2_COLORS.lblue       },
+  Paused:    { color: V2_COLORS.muted, bg: V2_COLORS.attentionBg },
+  Cancelled: { color: V2_COLORS.muted, bg: V2_COLORS.paper       },
 };
 
 const SERVICE_ICONS: Record<string, string> = {
@@ -50,8 +50,8 @@ export function RecurringServiceCard({ service, visitLogs }: Props) {
     <div
       onClick={() => navigate(`/recurring/${service.id}`)}
       style={{
-        border: `1px solid ${UI.rule}`, background: COLORS.white,
-        borderRadius: RADIUS.card, padding: "1rem 1.25rem", cursor: "pointer",
+        border: `1px solid ${UI.rule}`, background: V2_COLORS.paper,
+        borderRadius: V2_RADIUS.card, padding: "1rem 1.25rem", cursor: "pointer",
         display: "flex", alignItems: "center", gap: "1rem",
         transition: "border-color 0.15s",
       }}

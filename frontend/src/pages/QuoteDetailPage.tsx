@@ -9,17 +9,17 @@ import { contractorService } from "@/services/contractor";
 import { NegotiationPanel } from "@/components/NegotiationPanel";
 import { useAuthStore } from "@/store/authStore";
 import toast from "react-hot-toast";
-import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  rust:     COLORS.sage,
-  inkLight: COLORS.plumMid,
-  sage:     COLORS.sage,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  rust:     V2_COLORS.blue,
+  inkLight: V2_COLORS.muted,
+  sage:     V2_COLORS.blue,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.body,
 };
 
 export default function QuoteDetailPage() {
@@ -142,7 +142,7 @@ export default function QuoteDetailPage() {
 
         {/* Request summary */}
         {request && (
-          <div style={{ border: `1px solid ${request.status === "cancelled" ? "#C94C2E" : UI.rule}`, background: COLORS.white, padding: "1.25rem", marginBottom: "1.5rem", borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
+          <div style={{ border: `1px solid ${request.status === "cancelled" ? "#C94C2E" : UI.rule}`, background: V2_COLORS.paper, padding: "1.25rem", marginBottom: "1.5rem", borderRadius: V2_RADIUS.card, boxShadow: V2_SHADOWS.card }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem" }}>
               <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginBottom: "0.25rem", flexWrap: "wrap" }}>
@@ -185,7 +185,7 @@ export default function QuoteDetailPage() {
 
         {/* Post-accept success banner */}
         {acceptedQuote && (
-          <div style={{ border: `1px solid ${UI.sage}`, background: COLORS.sageLight, padding: "1.25rem 1.5rem", marginBottom: "1.5rem" }}>
+          <div style={{ border: `1px solid ${UI.sage}`, background: V2_COLORS.lblue, padding: "1.25rem 1.5rem", marginBottom: "1.5rem" }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
@@ -215,7 +215,7 @@ export default function QuoteDetailPage() {
 
         {/* Quotes */}
         {quotes.length === 0 ? (
-          <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white }}>
+          <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper }}>
             <div style={{ padding: "2rem", textAlign: "center", borderBottom: `1px solid ${UI.rule}` }}>
               <Clock size={32} color={UI.rule} style={{ margin: "0 auto 0.75rem" }} />
               <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.125rem", marginBottom: "0.375rem" }}>Waiting for quotes</p>
@@ -231,7 +231,7 @@ export default function QuoteDetailPage() {
               ].map((s, i) => (
                 <div key={i} style={{ padding: "1rem", borderRight: i < 2 ? `1px solid ${UI.rule}` : undefined, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.375rem", textAlign: "center" }}>
                   <div style={{ width: 28, height: 28, borderRadius: "50%", background: s.done ? UI.sage : UI.rule, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    {s.done ? <CheckCircle size={15} color="#fff" /> : <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: COLORS.white }}>{s.step}</span>}
+                    {s.done ? <CheckCircle size={15} color="#fff" /> : <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: V2_COLORS.paper }}>{s.step}</span>}
                   </div>
                   <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", fontWeight: 600, color: s.done ? UI.ink : UI.inkLight, letterSpacing: "0.04em" }}>{s.label}</p>
                   <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight }}>{s.detail}</p>
@@ -254,7 +254,7 @@ export default function QuoteDetailPage() {
                 { label: "Bid Range",      value: lowestAmount === highestAmount ? `$${lowestAmount.toLocaleString()}` : `$${lowestAmount.toLocaleString()} – $${highestAmount.toLocaleString()}` },
                 { label: "Spread",         value: lowestAmount === highestAmount ? "—" : `$${(highestAmount - lowestAmount).toLocaleString()}` },
               ].map((s) => (
-                <div key={s.label} style={{ padding: "0.875rem 1rem", borderRight: `1px solid ${UI.rule}`, borderBottom: `1px solid ${UI.rule}`, background: COLORS.white }}>
+                <div key={s.label} style={{ padding: "0.875rem 1rem", borderRight: `1px solid ${UI.rule}`, borderBottom: `1px solid ${UI.rule}`, background: V2_COLORS.paper }}>
                   <div style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.375rem" }}>{s.label}</div>
                   <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.125rem", lineHeight: 1 }}>{s.value}</div>
                 </div>
@@ -269,15 +269,15 @@ export default function QuoteDetailPage() {
                 const trustScore  = contractorScores[quote.contractor] ?? 0;
                 const isVerified  = contractorVerified[quote.contractor] ?? false;
                 const label       = isBestValue ? "Best Value" : isLowest ? "Lowest Quote" : null;
-                const labelColor  = isBestValue ? COLORS.plum : UI.sage;
-                const borderColor = isBestValue ? COLORS.plum : isLowest ? UI.sage : UI.rule;
+                const labelColor  = isBestValue ? V2_COLORS.ink : UI.sage;
+                const borderColor = isBestValue ? V2_COLORS.ink : isLowest ? UI.sage : UI.rule;
 
                 return (
-                  <div key={quote.id} style={{ border: `1px solid ${borderColor}`, background: COLORS.white, padding: "1.25rem", position: "relative", borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
+                  <div key={quote.id} style={{ border: `1px solid ${borderColor}`, background: V2_COLORS.paper, padding: "1.25rem", position: "relative", borderRadius: V2_RADIUS.card, boxShadow: V2_SHADOWS.card }}>
                     {label && (
                       <div style={{ position: "absolute", top: "-1px", left: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
                         <div style={{
-                          background: labelColor, color: COLORS.white,
+                          background: labelColor, color: V2_COLORS.paper,
                           fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase",
                           padding: "0.2rem 0.625rem",
                         }}>
@@ -313,7 +313,7 @@ export default function QuoteDetailPage() {
                         )}
                       </div>
                       <div style={{ textAlign: "right" }}>
-                        <p style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, color: isBestValue ? COLORS.plum : isLowest ? UI.sage : UI.ink }}>
+                        <p style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1, color: isBestValue ? V2_COLORS.ink : isLowest ? UI.sage : UI.ink }}>
                           ${quote.amount.toLocaleString()}
                         </p>
                       </div>
@@ -356,7 +356,7 @@ export default function QuoteDetailPage() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ background: COLORS.white, border: `1px solid #C94C2E40`, maxWidth: "28rem", width: "100%", padding: "0", borderRadius: RADIUS.card, boxShadow: SHADOWS.modal }}
+            style={{ background: V2_COLORS.paper, border: `1px solid #C94C2E40`, maxWidth: "28rem", width: "100%", padding: "0", borderRadius: V2_RADIUS.card, boxShadow: V2_SHADOWS.modal }}
           >
             <div style={{ padding: "1.25rem 1.5rem", borderBottom: `1px solid ${UI.rule}`, background: UI.paper }}>
               <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "#C94C2E", fontWeight: 600 }}>
@@ -396,7 +396,7 @@ export default function QuoteDetailPage() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ background: COLORS.white, border: `1px solid ${UI.rule}`, maxWidth: "28rem", width: "100%", padding: "0", borderRadius: RADIUS.card, boxShadow: SHADOWS.modal }}
+            style={{ background: V2_COLORS.paper, border: `1px solid ${UI.rule}`, maxWidth: "28rem", width: "100%", padding: "0", borderRadius: V2_RADIUS.card, boxShadow: V2_SHADOWS.modal }}
           >
             <div style={{ padding: "1.25rem 1.5rem", borderBottom: `1px solid ${UI.rule}`, background: UI.paper }}>
               <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.ink, fontWeight: 600 }}>

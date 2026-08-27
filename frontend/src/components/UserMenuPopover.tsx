@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Settings, ArrowUpCircle, CreditCard, Paperclip, LogOut, Gift } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { voiceAgentFileInputRef } from "./VoiceAgent";
-import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 
 interface UserMenuPopoverProps {
   displayName: string;
@@ -24,13 +24,13 @@ export function UserMenuPopover({ displayName, onClose, onUpgrade }: UserMenuPop
     background:  "none",
     border:      "none",
     cursor:      "pointer",
-    fontFamily:  FONTS.sans,
+    fontFamily:  V2_FONTS.body,
     fontSize:    "0.9375rem",
-    color:       COLORS.plum,
+    color:       V2_COLORS.ink,
     textAlign:   "left",
   };
 
-  const hoverOn  = (e: React.MouseEvent) => { (e.currentTarget as HTMLElement).style.background = COLORS.sageLight; };
+  const hoverOn  = (e: React.MouseEvent) => { (e.currentTarget as HTMLElement).style.background = V2_COLORS.lblue; };
   const hoverOff = (e: React.MouseEvent) => { (e.currentTarget as HTMLElement).style.background = "none"; };
 
   return (
@@ -47,10 +47,10 @@ export function UserMenuPopover({ displayName, onClose, onUpgrade }: UserMenuPop
         bottom:        "1rem",
         left:          "1rem",
         width:         "280px",
-        background:    COLORS.white,
-        border:        `1px solid ${COLORS.rule}`,
-        borderRadius:  RADIUS.card,
-        boxShadow:     SHADOWS.modal,
+        background:    V2_COLORS.paper,
+        border:        `1px solid ${V2_COLORS.border}`,
+        borderRadius:  V2_RADIUS.card,
+        boxShadow:     V2_SHADOWS.modal,
         zIndex:        9999,
         paddingTop:    "0.375rem",
         paddingBottom: "0.375rem",
@@ -59,25 +59,25 @@ export function UserMenuPopover({ displayName, onClose, onUpgrade }: UserMenuPop
         {/* User header */}
         <div style={{
           padding:      "0.875rem 1.125rem 0.75rem",
-          borderBottom: `1px solid ${COLORS.rule}`,
+          borderBottom: `1px solid ${V2_COLORS.border}`,
         }}>
-          <p style={{ fontFamily: FONTS.sans, fontSize: "0.9375rem", fontWeight: 600, color: COLORS.plum, marginBottom: "0.2rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.9375rem", fontWeight: 600, color: V2_COLORS.ink, marginBottom: "0.2rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {displayName}
           </p>
         </div>
 
         <button onClick={() => { onClose(); navigate("/settings"); }} style={menuItemStyle} onMouseEnter={hoverOn} onMouseLeave={hoverOff}>
-          <Settings size={16} style={{ flexShrink: 0, color: COLORS.plumMid }} />
+          <Settings size={16} style={{ flexShrink: 0, color: V2_COLORS.muted }} />
           Settings
         </button>
 
         <button onClick={() => { onClose(); navigate("/settings?tab=subscription"); }} style={menuItemStyle} onMouseEnter={hoverOn} onMouseLeave={hoverOff}>
-          <CreditCard size={16} style={{ flexShrink: 0, color: COLORS.plumMid }} />
+          <CreditCard size={16} style={{ flexShrink: 0, color: V2_COLORS.muted }} />
           Billing & Plan
         </button>
 
         <button onClick={() => { onClose(); navigate("/refer"); }} style={menuItemStyle} onMouseEnter={hoverOn} onMouseLeave={hoverOff}>
-          <Gift size={16} style={{ flexShrink: 0, color: COLORS.sageText }} />
+          <Gift size={16} style={{ flexShrink: 0, color: V2_COLORS.blue }} />
           Invite a neighbor
         </button>
 
@@ -87,21 +87,21 @@ export function UserMenuPopover({ displayName, onClose, onUpgrade }: UserMenuPop
           onMouseEnter={hoverOn}
           onMouseLeave={hoverOff}
         >
-          <Paperclip size={16} style={{ flexShrink: 0, color: COLORS.plumMid }} />
+          <Paperclip size={16} style={{ flexShrink: 0, color: V2_COLORS.muted }} />
           Attach receipt or photo
         </button>
 
-        <div style={{ height: "1px", background: COLORS.rule, margin: "0.3rem 0" }} />
+        <div style={{ height: "1px", background: V2_COLORS.border, margin: "0.3rem 0" }} />
 
         <button onClick={() => { onClose(); onUpgrade(); }} style={menuItemStyle} onMouseEnter={hoverOn} onMouseLeave={hoverOff}>
-          <ArrowUpCircle size={16} style={{ flexShrink: 0, color: COLORS.sageText }} />
+          <ArrowUpCircle size={16} style={{ flexShrink: 0, color: V2_COLORS.blue }} />
           Upgrade plan
         </button>
 
-        <div style={{ height: "1px", background: COLORS.rule, margin: "0.3rem 0" }} />
+        <div style={{ height: "1px", background: V2_COLORS.border, margin: "0.3rem 0" }} />
 
         <button onClick={() => { onClose(); logout(); }} style={menuItemStyle} onMouseEnter={hoverOn} onMouseLeave={hoverOff}>
-          <LogOut size={16} style={{ flexShrink: 0, color: COLORS.plumMid }} />
+          <LogOut size={16} style={{ flexShrink: 0, color: V2_COLORS.muted }} />
           Sign out
         </button>
       </div>

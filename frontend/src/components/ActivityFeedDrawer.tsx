@@ -4,7 +4,7 @@ import {
   Bell, Wrench, ShieldAlert, ShieldCheck, Clock, CheckCircle2,
   AlertTriangle, MessageSquare, X, Zap,
 } from "lucide-react";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 import type { ActivityEvent } from "@/services/activityFeed";
 
 interface ActivityFeedDrawerProps {
@@ -18,13 +18,13 @@ export function ActivityFeedDrawer({ events, feedLoaded, lastReadAt, onClose }: 
   const navigate = useNavigate();
 
   const icons: Record<ActivityEvent["type"], React.ReactNode> = {
-    pending_verification: <ShieldAlert size={14} color={COLORS.plumMid} />,
-    warranty_expiring:    <AlertTriangle size={14} color={COLORS.sage} />,
-    job_pending_sig:      <Clock size={14} color={COLORS.sage} />,
-    recent_job:           <Wrench size={14} color={COLORS.plumMid} />,
-    open_quote:           <MessageSquare size={14} color={COLORS.sage} />,
+    pending_verification: <ShieldAlert size={14} color={V2_COLORS.muted} />,
+    warranty_expiring:    <AlertTriangle size={14} color={V2_COLORS.blue} />,
+    job_pending_sig:      <Clock size={14} color={V2_COLORS.blue} />,
+    recent_job:           <Wrench size={14} color={V2_COLORS.muted} />,
+    open_quote:           <MessageSquare size={14} color={V2_COLORS.blue} />,
     bill_anomaly:         <Zap size={14} color="#C94C2E" />,
-    insurance_trigger:    <ShieldCheck size={14} color={COLORS.sage} />,
+    insurance_trigger:    <ShieldCheck size={14} color={V2_COLORS.blue} />,
   };
 
   return (
@@ -43,8 +43,8 @@ export function ActivityFeedDrawer({ events, feedLoaded, lastReadAt, onClose }: 
         bottom:        0,
         width:         "22rem",
         maxWidth:      "100vw",
-        background:    COLORS.white,
-        borderLeft:    `1px solid ${COLORS.rule}`,
+        background:    V2_COLORS.paper,
+        borderLeft:    `1px solid ${V2_COLORS.border}`,
         zIndex:        201,
         display:       "flex",
         flexDirection: "column",
@@ -56,17 +56,17 @@ export function ActivityFeedDrawer({ events, feedLoaded, lastReadAt, onClose }: 
           alignItems:     "center",
           justifyContent: "space-between",
           padding:        "1rem 1.25rem",
-          borderBottom:   `1px solid ${COLORS.rule}`,
-          background:     COLORS.white,
+          borderBottom:   `1px solid ${V2_COLORS.border}`,
+          background:     V2_COLORS.paper,
           flexShrink:     0,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <Bell size={14} color={COLORS.sage} />
-            <span style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 600, color: COLORS.plum }}>
+            <Bell size={14} color={V2_COLORS.blue} />
+            <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", fontWeight: 600, color: V2_COLORS.ink }}>
               Activity
             </span>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: COLORS.plumMid }}>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: V2_COLORS.muted }}>
             <X size={16} />
           </button>
         </div>
@@ -78,8 +78,8 @@ export function ActivityFeedDrawer({ events, feedLoaded, lastReadAt, onClose }: 
           </div>
         ) : events.length === 0 ? (
           <div style={{ padding: "3rem 1.5rem", textAlign: "center" }}>
-            <CheckCircle2 size={32} color={COLORS.sageMid} style={{ margin: "0 auto 0.75rem" }} />
-            <p style={{ fontFamily: FONTS.sans, fontSize: "0.65rem", letterSpacing: "0.08em", color: COLORS.plumMid }}>
+            <CheckCircle2 size={32} color={V2_COLORS.cobalTint} style={{ margin: "0 auto 0.75rem" }} />
+            <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.65rem", letterSpacing: "0.08em", color: V2_COLORS.muted }}>
               Nothing to catch up on.
             </p>
           </div>
@@ -96,25 +96,25 @@ export function ActivityFeedDrawer({ events, feedLoaded, lastReadAt, onClose }: 
                     alignItems:   "flex-start",
                     gap:          "0.875rem",
                     padding:      "0.875rem 1.25rem",
-                    borderBottom: `1px solid ${COLORS.rule}`,
-                    background:   isUnread ? COLORS.sageLight : "transparent",
+                    borderBottom: `1px solid ${V2_COLORS.border}`,
+                    background:   isUnread ? V2_COLORS.lblue : "transparent",
                     cursor:       "pointer",
                     transition:   "background 0.15s",
                   }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = COLORS.sageLight; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = isUnread ? COLORS.sageLight : "transparent"; }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = V2_COLORS.lblue; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = isUnread ? V2_COLORS.lblue : "transparent"; }}
                 >
                   <div style={{ flexShrink: 0, marginTop: "0.1rem" }}>{icons[event.type]}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", marginBottom: "0.125rem" }}>
-                      <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 500, color: COLORS.plum, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", fontWeight: 500, color: V2_COLORS.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {event.title}
                       </p>
                       {isUnread && (
-                        <span style={{ width: "6px", height: "6px", background: COLORS.sage, borderRadius: "50%", flexShrink: 0 }} />
+                        <span style={{ width: "6px", height: "6px", background: V2_COLORS.blue, borderRadius: "50%", flexShrink: 0 }} />
                       )}
                     </div>
-                    <p style={{ fontFamily: FONTS.sans, fontSize: "0.6rem", letterSpacing: "0.04em", color: COLORS.plumMid, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.6rem", letterSpacing: "0.04em", color: V2_COLORS.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {event.detail}
                     </p>
                   </div>

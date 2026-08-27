@@ -14,24 +14,24 @@ import {
 import { paymentService, type PlanTier } from "@/services/payment";
 import { usePropertyStore } from "@/store/propertyStore";
 import { UpgradeGate } from "@/components/UpgradeGate";
-import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 
 type Tab = "competitive" | "projects";
 type SortBy = "roi" | "cost" | "payback";
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  rust:     COLORS.sage,
-  inkLight: COLORS.plumMid,
-  sage:     COLORS.sage,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  rust:     V2_COLORS.blue,
+  inkLight: V2_COLORS.muted,
+  sage:     V2_COLORS.blue,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.body,
 };
 
 const GRADE_COLOR: Record<string, string> = {
-  A: UI.sage, B: COLORS.plum, C: COLORS.plumMid, D: COLORS.plumMid, F: UI.rust,
+  A: UI.sage, B: V2_COLORS.ink, C: V2_COLORS.muted, D: V2_COLORS.muted, F: UI.rust,
 };
 
 const PRIORITY_VARIANT: Record<string, "error" | "warning" | "default"> = {
@@ -40,7 +40,7 @@ const PRIORITY_VARIANT: Record<string, "error" | "warning" | "default"> = {
 
 function ScoreCard({ label, dim }: { label: string; dim: { score: number; grade: string; detail: string } }) {
   return (
-    <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "1.25rem" }}>
+    <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, padding: "1.25rem" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
         <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight }}>
           {label}
@@ -132,7 +132,7 @@ export default function MarketIntelligencePage() {
         </div>
 
         {/* Controls */}
-        <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "1.25rem", marginBottom: "1.5rem", display: "flex", flexWrap: "wrap", gap: "1rem", alignItems: "flex-end" }}>
+        <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, padding: "1.25rem", marginBottom: "1.5rem", display: "flex", flexWrap: "wrap", gap: "1rem", alignItems: "flex-end" }}>
           <div style={{ flex: "1 1 12rem" }}>
             <label style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, display: "block", marginBottom: "0.375rem" }}>
               Property
@@ -190,23 +190,23 @@ export default function MarketIntelligencePage() {
             {tab === "competitive" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
                 {/* Overall score banner */}
-                <div style={{ background: UI.ink, padding: "2rem", color: COLORS.white, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
+                <div style={{ background: UI.ink, padding: "2rem", color: V2_COLORS.paper, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
                   <div>
-                    <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.5rem" }}>
+                    <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.14em", textTransform: "uppercase", color: V2_COLORS.muted, marginBottom: "0.5rem" }}>
                       Overall HomeGentic Score
                     </p>
                     <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem" }}>
                       <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "3rem", lineHeight: 1 }}>{analysis.overallScore}</span>
-                      <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: COLORS.plumMid }}>/100</span>
-                      <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", marginLeft: "0.5rem", color: GRADE_COLOR[analysis.overallGrade] ?? COLORS.white }}>
+                      <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: V2_COLORS.muted }}>/100</span>
+                      <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", marginLeft: "0.5rem", color: GRADE_COLOR[analysis.overallGrade] ?? V2_COLORS.paper }}>
                         {analysis.overallGrade}
                       </span>
                     </div>
                   </div>
                   <div style={{ textAlign: "right" }}>
-                    <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.375rem" }}>Competitive rank</p>
+                    <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: V2_COLORS.muted, marginBottom: "0.375rem" }}>Competitive rank</p>
                     <p style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", lineHeight: 1 }}>
-                      #{analysis.rankOutOf} <span style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: COLORS.plumMid }}>of {analysis.totalCompared}</span>
+                      #{analysis.rankOutOf} <span style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: V2_COLORS.muted }}>of {analysis.totalCompared}</span>
                     </p>
                   </div>
                 </div>
@@ -220,7 +220,7 @@ export default function MarketIntelligencePage() {
 
                 {/* Strengths */}
                 {analysis.strengths.length > 0 && (
-                  <div style={{ border: `1px solid ${UI.sage}`, background: COLORS.white, padding: "1.25rem" }}>
+                  <div style={{ border: `1px solid ${UI.sage}`, background: V2_COLORS.paper, padding: "1.25rem" }}>
                     <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.sage, marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
                       <Star size={12} /> Strengths
                     </p>
@@ -232,7 +232,7 @@ export default function MarketIntelligencePage() {
 
                 {/* Improvements */}
                 {analysis.improvements.length > 0 && (
-                  <div style={{ border: `1px solid ${UI.rust}`, background: COLORS.blush, padding: "1.25rem" }}>
+                  <div style={{ border: `1px solid ${UI.rust}`, background: V2_COLORS.attentionBg, padding: "1.25rem" }}>
                     <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.rust, marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
                       <AlertCircle size={12} /> Improvement Opportunities
                     </p>
@@ -265,7 +265,7 @@ export default function MarketIntelligencePage() {
                           fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase",
                           padding: "0.25rem 0.75rem",
                           background: sortBy === s ? UI.ink : "none",
-                          color: sortBy === s ? COLORS.white : UI.inkLight,
+                          color: sortBy === s ? V2_COLORS.paper : UI.inkLight,
                           border: `1px solid ${sortBy === s ? UI.ink : UI.rule}`,
                           cursor: "pointer",
                         }}
@@ -290,7 +290,7 @@ export default function MarketIntelligencePage() {
                       : a.paybackMonths    - b.paybackMonths
                     )
                     .map((p, i) => (
-                    <div key={i} style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, padding: "1.25rem" }}>
+                    <div key={i} style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, padding: "1.25rem" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem", flexWrap: "wrap", gap: "0.5rem" }}>
                         <div>
                           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
@@ -313,7 +313,7 @@ export default function MarketIntelligencePage() {
                           { label: "Value Added", value: marketService.formatCost(p.estimatedGainCents) },
                           { label: "Payback", value: `${p.paybackMonths} mo` },
                         ].map((m) => (
-                          <div key={m.label} style={{ background: COLORS.white, padding: "0.75rem", textAlign: "center", borderRadius: RADIUS.card, boxShadow: SHADOWS.card }}>
+                          <div key={m.label} style={{ background: V2_COLORS.paper, padding: "0.75rem", textAlign: "center", borderRadius: V2_RADIUS.card, boxShadow: V2_SHADOWS.card }}>
                             <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1rem", color: UI.ink }}>{m.value}</p>
                             <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>{m.label}</p>
                           </div>

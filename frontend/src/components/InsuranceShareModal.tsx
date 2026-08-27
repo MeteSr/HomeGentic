@@ -4,16 +4,16 @@ import { Button } from "@/components/Button";
 import { reportService, type RiskProfile } from "@/services/report";
 import type { Property } from "@/services/property";
 import toast from "react-hot-toast";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  rust:     COLORS.sage,
-  inkLight: COLORS.plumMid,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  rust:     V2_COLORS.blue,
+  inkLight: V2_COLORS.muted,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.body,
 };
 
 const EXPIRY_OPTIONS = [

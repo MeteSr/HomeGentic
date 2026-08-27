@@ -1,15 +1,15 @@
 import React, { useState } from "react";
 import { X } from "lucide-react";
-import { COLORS, FONTS, RADIUS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  inkLight: COLORS.plumMid,
-  sage:     COLORS.sageText,
-  mono:     FONTS.sans,
-  serif:    FONTS.serif,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  inkLight: V2_COLORS.muted,
+  sage:     V2_COLORS.blue,
+  mono:     V2_FONTS.body,
+  serif:    V2_FONTS.display,
 };
 
 const MILESTONE_KEY  = "homegentic_milestone_dismissed";
@@ -62,7 +62,7 @@ export function MilestoneStack({
             marginBottom: "1.5rem",
             background: UI.ink,
             flexWrap: "wrap",
-            borderRadius: RADIUS.sm,
+            borderRadius: V2_RADIUS.sm,
           }}
         >
           <div>
@@ -80,7 +80,7 @@ export function MilestoneStack({
             </p>
             <p
               style={{
-                fontFamily: FONTS.sans,
+                fontFamily: V2_FONTS.body,
                 fontSize: "0.875rem",
                 color: UI.paper,
                 fontWeight: 300,
@@ -101,7 +101,7 @@ export function MilestoneStack({
                 background: "none",
                 color: UI.sage,
                 cursor: "pointer",
-                borderRadius: RADIUS.sm,
+                borderRadius: V2_RADIUS.sm,
               }}
             >
               View Resale Summary →
@@ -116,7 +116,7 @@ export function MilestoneStack({
               background: "none",
               border: "none",
               cursor: "pointer",
-              color: COLORS.plumMid,
+              color: V2_COLORS.muted,
               flexShrink: 0,
             }}
             aria-label="Dismiss annual milestone"
@@ -137,9 +137,9 @@ export function MilestoneStack({
             border: `1px solid ${UI.sage}`,
             padding: "1rem 1.25rem",
             marginBottom: "1.5rem",
-            background: COLORS.sageLight,
+            background: V2_COLORS.lblue,
             flexWrap: "wrap",
-            borderRadius: RADIUS.sm,
+            borderRadius: V2_RADIUS.sm,
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
@@ -153,7 +153,7 @@ export function MilestoneStack({
                 justifyContent: "center",
                 flexShrink: 0,
                 color: UI.sage,
-                borderRadius: RADIUS.sm,
+                borderRadius: V2_RADIUS.sm,
               }}
             >
               <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "0.875rem" }}>
@@ -206,12 +206,12 @@ export function MilestoneStack({
             alignItems: "center",
             justifyContent: "space-between",
             gap: "1rem",
-            border: `1px solid ${COLORS.sage}`,
+            border: `1px solid ${V2_COLORS.blue}`,
             padding: "1rem 1.25rem",
             marginBottom: "1.5rem",
-            background: COLORS.sageLight,
+            background: V2_COLORS.lblue,
             flexWrap: "wrap",
-            borderRadius: RADIUS.sm,
+            borderRadius: V2_RADIUS.sm,
           }}
         >
           <div>
@@ -221,7 +221,7 @@ export function MilestoneStack({
                 fontSize: "0.6rem",
                 letterSpacing: "0.14em",
                 textTransform: "uppercase",
-                color: COLORS.sageText,
+                color: V2_COLORS.blue,
                 marginBottom: "0.2rem",
               }}
             >

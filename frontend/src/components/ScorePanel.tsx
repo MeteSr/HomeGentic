@@ -1,15 +1,15 @@
 import React from "react";
 import { ShieldCheck } from "lucide-react";
-import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  inkLight: COLORS.plumMid,
-  sage:     COLORS.sage,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  inkLight: V2_COLORS.muted,
+  sage:     V2_COLORS.blue,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.body,
 };
 
 export interface ScorePanelProps {
@@ -36,11 +36,11 @@ export function ScorePanel({
   return (
     <div
       style={{
-        background: COLORS.plum,
-        borderRadius: RADIUS.card,
+        background: V2_COLORS.ink,
+        borderRadius: V2_RADIUS.card,
         padding: "1.5rem",
         marginBottom: "1.5rem",
-        boxShadow: SHADOWS.card,
+        boxShadow: V2_SHADOWS.card,
       }}
     >
       {/* Score + grade */}
@@ -52,7 +52,7 @@ export function ScorePanel({
             fontWeight: 900,
             fontSize: "3rem",
             lineHeight: 1,
-            color: COLORS.white,
+            color: V2_COLORS.paper,
           }}
         >
           {score}
@@ -77,10 +77,10 @@ export function ScorePanel({
             fontFamily: UI.mono,
             fontSize: "0.65rem",
             fontWeight: 700,
-            color: delta > 0 ? COLORS.sageText : COLORS.blush,
+            color: delta > 0 ? V2_COLORS.blue : V2_COLORS.attentionBg,
             background: "rgba(255,255,255,0.1)",
             padding: "0.2rem 0.6rem",
-            borderRadius: RADIUS.pill,
+            borderRadius: V2_RADIUS.pill,
             marginBottom: "1rem",
             letterSpacing: "0.06em",
           }}
@@ -101,10 +101,10 @@ export function ScorePanel({
             fontSize: "0.6rem",
             letterSpacing: "0.1em",
             textTransform: "uppercase",
-            color: COLORS.sageText,
-            border: `1px solid ${COLORS.sage}60`,
+            color: V2_COLORS.blue,
+            border: `1px solid ${V2_COLORS.blue}60`,
             padding: "0.25rem 0.625rem",
-            borderRadius: RADIUS.pill,
+            borderRadius: V2_RADIUS.pill,
             marginBottom: "1rem",
             marginLeft: delta !== 0 ? "0.5rem" : "0",
           }}
@@ -121,7 +121,7 @@ export function ScorePanel({
           style={{
             background: "rgba(255,255,255,0.08)",
             border: "1px solid rgba(255,255,255,0.15)",
-            borderRadius: RADIUS.sm,
+            borderRadius: V2_RADIUS.sm,
             padding: "0.875rem 1rem",
             marginBottom: "1.25rem",
           }}
@@ -132,7 +132,7 @@ export function ScorePanel({
               fontSize: "0.55rem",
               letterSpacing: "0.14em",
               textTransform: "uppercase",
-              color: COLORS.sageText,
+              color: V2_COLORS.blue,
               marginBottom: "0.3rem",
             }}
           >
@@ -144,7 +144,7 @@ export function ScorePanel({
               fontWeight: 900,
               fontSize: "1.5rem",
               lineHeight: 1,
-              color: COLORS.white,
+              color: V2_COLORS.paper,
             }}
           >
             ${premium.low.toLocaleString()} – ${premium.high.toLocaleString()}
@@ -162,11 +162,11 @@ export function ScorePanel({
             letterSpacing: "0.1em",
             textTransform: "uppercase",
             padding: "0.4rem 0.875rem",
-            border: `1px solid ${COLORS.sage}`,
+            border: `1px solid ${V2_COLORS.blue}`,
             background: "none",
-            color: COLORS.sage,
+            color: V2_COLORS.blue,
             cursor: "pointer",
-            borderRadius: RADIUS.sm,
+            borderRadius: V2_RADIUS.sm,
           }}
         >
           View Resale Report
@@ -184,7 +184,7 @@ export function ScorePanel({
               background: "none",
               color: "rgba(255,255,255,0.7)",
               cursor: "pointer",
-              borderRadius: RADIUS.sm,
+              borderRadius: V2_RADIUS.sm,
             }}
           >
             Copy Cert Link

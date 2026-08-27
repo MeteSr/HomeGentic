@@ -7,20 +7,20 @@ import { propertyService, Property } from "@/services/property";
 import { paymentService, type PlanTier } from "@/services/payment";
 import { warrantyStatus, warrantyExpiry, daysRemaining, type WarrantyStatus } from "@/services/warranty";
 import { extractDocument, fileToBase64, type DocumentExtraction } from "@/services/documentOcr";
-import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  rust:     COLORS.sage,
-  inkLight: COLORS.plumMid,
-  sage:     COLORS.sage,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  rust:     V2_COLORS.blue,
+  inkLight: V2_COLORS.muted,
+  sage:     V2_COLORS.blue,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.body,
 };
 
-const amber = COLORS.plumMid;
+const amber = V2_COLORS.muted;
 
 interface WarrantyJob {
   job:      Job;
@@ -32,8 +32,8 @@ interface WarrantyJob {
 
 function StatusBadge({ status }: { status: WarrantyStatus }) {
   const cfg = {
-    active:   { label: "Active",        color: UI.sage,     bg: COLORS.sageLight, border: `${UI.sage}40` },
-    expiring: { label: "Expiring Soon", color: amber,      bg: COLORS.butter,    border: `${amber}40`  },
+    active:   { label: "Active",        color: UI.sage,           bg: V2_COLORS.lblue,       border: `${UI.sage}40` },
+    expiring: { label: "Expiring Soon", color: amber,             bg: V2_COLORS.attentionBg, border: `${amber}40`  },
     expired:  { label: "Expired",       color: UI.inkLight, bg: UI.paper,          border: UI.rule        },
   }[status];
   return (
@@ -61,7 +61,7 @@ function WarrantyRow({ item, isLast }: { item: WarrantyJob; isLast: boolean }) {
       display: "flex", alignItems: "flex-start", gap: "1rem",
       padding: "1rem 1.25rem",
       borderBottom: isLast ? "none" : `1px solid ${UI.rule}`,
-      background: COLORS.white,
+      background: V2_COLORS.paper,
     }}>
       <div style={{ marginTop: "0.1rem", flexShrink: 0 }}>{icon}</div>
 
@@ -119,7 +119,7 @@ function Section({ title, items, emptyText }: { title: string; items: WarrantyJo
         {title} <span style={{ color: UI.rust }}>({items.length})</span>
       </div>
       {items.length === 0 ? (
-        <div style={{ padding: "1.25rem", border: `1px solid ${UI.rule}`, background: COLORS.white, fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight }}>
+        <div style={{ padding: "1.25rem", border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight }}>
           {emptyText}
         </div>
       ) : (
@@ -247,7 +247,7 @@ function ScanDocumentPanel() {
               <input
                 value={form[field]}
                 onChange={(e) => handleChange(field, e.target.value)}
-                style={{ width: "100%", fontFamily: UI.mono, fontSize: "0.8rem", padding: "0.4rem 0.5rem", border: `1px solid ${UI.rule}`, background: COLORS.white, color: UI.ink, outline: "none", boxSizing: "border-box" }}
+                style={{ width: "100%", fontFamily: UI.mono, fontSize: "0.8rem", padding: "0.4rem 0.5rem", border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, color: UI.ink, outline: "none", boxSizing: "border-box" }}
               />
             </div>
           ))}
@@ -327,7 +327,7 @@ export default function WarrantyWalletPage() {
             <div className="spinner-lg" />
           </div>
         ) : warrantyJobs.length === 0 ? (
-          <div style={{ padding: "2rem", border: `1px solid ${UI.rule}`, background: COLORS.white, textAlign: "center" }}>
+          <div style={{ padding: "2rem", border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, textAlign: "center" }}>
             <p style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1rem", marginBottom: "0.5rem" }}>No warranties logged yet</p>
             <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, marginBottom: "1.25rem" }}>
               When you log a job with a warranty duration, it will appear here.

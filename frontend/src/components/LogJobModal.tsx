@@ -4,7 +4,7 @@ import { Button } from "./Button";
 import { jobService, isInsuranceRelevant } from "@/services/job";
 import { type Property } from "@/services/property";
 import toast from "react-hot-toast";
-import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 
 const SERVICE_TYPES = [
   "HVAC", "Roofing", "Plumbing", "Electrical", "Flooring", "Painting",
@@ -47,21 +47,21 @@ function StepIndicator({ step }: { step: number }) {
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.25rem" }}>
               <div style={{
                 width: "1.75rem", height: "1.75rem", borderRadius: "50%",
-                background: done ? COLORS.sage : active ? COLORS.plum : COLORS.rule,
+                background: done ? V2_COLORS.blue : active ? V2_COLORS.ink : V2_COLORS.border,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 transition: "background 0.2s",
               }}>
                 {done
-                  ? <CheckCircle size={13} color={COLORS.white} />
-                  : <span style={{ fontFamily: FONTS.sans, fontSize: "0.7rem", fontWeight: 700, color: active ? COLORS.white : COLORS.plum }}>{i + 1}</span>
+                  ? <CheckCircle size={13} color={V2_COLORS.paper} />
+                  : <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.7rem", fontWeight: 700, color: active ? V2_COLORS.paper : V2_COLORS.ink }}>{i + 1}</span>
                 }
               </div>
-              <span style={{ fontFamily: FONTS.sans, fontSize: "0.625rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: active ? COLORS.plum : COLORS.plumMid }}>
+              <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.625rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: active ? V2_COLORS.ink : V2_COLORS.muted }}>
                 {label}
               </span>
             </div>
             {!isLast && (
-              <div style={{ width: "3rem", height: "2px", background: done ? COLORS.sage : COLORS.rule, marginBottom: "1rem", transition: "background 0.2s" }} />
+              <div style={{ width: "3rem", height: "2px", background: done ? V2_COLORS.blue : V2_COLORS.border, marginBottom: "1rem", transition: "background 0.2s" }} />
             )}
           </React.Fragment>
         );
@@ -149,9 +149,9 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: COLORS.white,
-          borderRadius: RADIUS.card,
-          boxShadow: SHADOWS.modal,
+          background: V2_COLORS.paper,
+          borderRadius: V2_RADIUS.card,
+          boxShadow: V2_SHADOWS.modal,
           width: "100%",
           maxWidth: "34rem",
           maxHeight: "90vh",
@@ -164,20 +164,20 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: "1.25rem 1.5rem 1rem",
-          borderBottom: `1px solid ${COLORS.rule}`,
+          borderBottom: `1px solid ${V2_COLORS.border}`,
           flexShrink: 0,
         }}>
           <div>
-            <p style={{ fontFamily: FONTS.sans, fontSize: "0.7rem", fontWeight: 600, color: COLORS.sageText, marginBottom: "0.2rem" }}>
+            <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.7rem", fontWeight: 600, color: V2_COLORS.blue, marginBottom: "0.2rem" }}>
               Maintenance Record
             </p>
-            <h2 style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.25rem", lineHeight: 1, color: COLORS.plum }}>
+            <h2 style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.25rem", lineHeight: 1, color: V2_COLORS.ink }}>
               {stepTitle}
             </h2>
           </div>
           <button
             onClick={onClose}
-            style={{ background: "none", border: "none", cursor: "pointer", color: COLORS.plumMid, padding: "0.25rem" }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: V2_COLORS.muted, padding: "0.25rem" }}
             aria-label="Close"
           >
             <X size={18} />
@@ -186,7 +186,7 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
 
         {/* Step indicator */}
         {step < 2 && (
-          <div style={{ padding: "1rem 1.5rem 0", borderBottom: `1px solid ${COLORS.rule}` }}>
+          <div style={{ padding: "1rem 1.5rem 0", borderBottom: `1px solid ${V2_COLORS.border}` }}>
             <StepIndicator step={step} />
           </div>
         )}
@@ -195,14 +195,14 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
         {step === 0 && (
           <div style={{ padding: "1.25rem 1.5rem", display: "flex", flexDirection: "column", gap: "1.125rem" }}>
             {properties.length === 0 ? (
-              <p style={{ textAlign: "center", padding: "1.5rem 0", color: COLORS.plumMid, fontFamily: FONTS.sans, fontSize: "0.85rem", fontWeight: 300 }}>
+              <p style={{ textAlign: "center", padding: "1.5rem 0", color: V2_COLORS.muted, fontFamily: V2_FONTS.body, fontSize: "0.85rem", fontWeight: 300 }}>
                 Add a property before logging jobs.
               </p>
             ) : (
               <>
                 {/* DIY / Contractor — prominent split at the top */}
                 <div>
-                  <p style={{ fontFamily: FONTS.sans, fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.625rem" }}>
+                  <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: V2_COLORS.muted, marginBottom: "0.625rem" }}>
                     Who did the work?
                   </p>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
@@ -210,35 +210,35 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
                     <button
                       onClick={() => update("isDiy", true)}
                       style={{
-                        padding: "1rem", border: `2px solid ${form.isDiy ? COLORS.sage : COLORS.rule}`,
-                        background: form.isDiy ? COLORS.sageLight : COLORS.white,
-                        borderRadius: RADIUS.sm, cursor: "pointer",
+                        padding: "1rem", border: `2px solid ${form.isDiy ? V2_COLORS.blue : V2_COLORS.border}`,
+                        background: form.isDiy ? V2_COLORS.lblue : V2_COLORS.paper,
+                        borderRadius: V2_RADIUS.sm, cursor: "pointer",
                         display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem",
                         transition: "border-color 0.15s, background 0.15s",
                       }}
                     >
-                      <Wrench size={20} color={form.isDiy ? COLORS.sage : COLORS.plumMid} />
-                      <span style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 700, color: form.isDiy ? COLORS.sageText : COLORS.plum }}>
+                      <Wrench size={20} color={form.isDiy ? V2_COLORS.blue : V2_COLORS.muted} />
+                      <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", fontWeight: 700, color: form.isDiy ? V2_COLORS.blue : V2_COLORS.ink }}>
                         I did it myself
                       </span>
-                      <span style={{ fontFamily: FONTS.sans, fontSize: "0.7rem", color: COLORS.plumMid }}>DIY</span>
+                      <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.7rem", color: V2_COLORS.muted }}>DIY</span>
                     </button>
                     {/* Hired */}
                     <button
                       onClick={() => update("isDiy", false)}
                       style={{
-                        padding: "1rem", border: `2px solid ${!form.isDiy ? COLORS.plum : COLORS.rule}`,
-                        background: !form.isDiy ? "#F5F3FF" : COLORS.white,
-                        borderRadius: RADIUS.sm, cursor: "pointer",
+                        padding: "1rem", border: `2px solid ${!form.isDiy ? V2_COLORS.ink : V2_COLORS.border}`,
+                        background: !form.isDiy ? "#F5F3FF" : V2_COLORS.paper,
+                        borderRadius: V2_RADIUS.sm, cursor: "pointer",
                         display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem",
                         transition: "border-color 0.15s, background 0.15s",
                       }}
                     >
-                      <HardHat size={20} color={!form.isDiy ? COLORS.plum : COLORS.plumMid} />
-                      <span style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", fontWeight: 700, color: !form.isDiy ? COLORS.plum : COLORS.plum }}>
+                      <HardHat size={20} color={!form.isDiy ? V2_COLORS.ink : V2_COLORS.muted} />
+                      <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", fontWeight: 700, color: !form.isDiy ? V2_COLORS.ink : V2_COLORS.ink }}>
                         I hired a pro
                       </span>
-                      <span style={{ fontFamily: FONTS.sans, fontSize: "0.7rem", color: COLORS.plumMid }}>Contractor</span>
+                      <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.7rem", color: V2_COLORS.muted }}>Contractor</span>
                     </button>
                   </div>
                 </div>
@@ -262,18 +262,18 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
                     {SERVICE_TYPES.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
                   {isInsuranceRelevant(form.serviceType) && (
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", marginTop: "0.4rem", padding: "0.35rem 0.6rem", background: COLORS.sageLight, border: `1px solid ${COLORS.sageMid}`, borderRadius: RADIUS.sm }}>
-                      <ShieldCheck size={11} color={COLORS.sage} />
-                      <span style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", fontWeight: 500, color: COLORS.sageText }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", marginTop: "0.4rem", padding: "0.35rem 0.6rem", background: V2_COLORS.lblue, border: `1px solid ${V2_COLORS.cobalTint}`, borderRadius: V2_RADIUS.sm }}>
+                      <ShieldCheck size={11} color={V2_COLORS.blue} />
+                      <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.75rem", fontWeight: 500, color: V2_COLORS.blue }}>
                         Insurance-relevant record
                       </span>
                     </div>
                   )}
                 </div>
 
-                <div style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", padding: "0.625rem 0.875rem", background: COLORS.sageLight, border: `1px solid ${COLORS.sageMid}`, borderRadius: RADIUS.sm }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", padding: "0.625rem 0.875rem", background: V2_COLORS.lblue, border: `1px solid ${V2_COLORS.cobalTint}`, borderRadius: V2_RADIUS.sm }}>
                   <span style={{ fontSize: "0.85rem", flexShrink: 0 }}>📸</span>
-                  <p style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", fontWeight: 300, color: COLORS.sageText, lineHeight: 1.5, margin: 0 }}>
+                  <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.75rem", fontWeight: 300, color: V2_COLORS.blue, lineHeight: 1.5, margin: 0 }}>
                     You'll be able to attach <strong>Before, During, and After</strong> photos in the next step.
                   </p>
                 </div>
@@ -303,7 +303,7 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
               <div>
                 <label htmlFor="lj-amount" className="form-label">{form.isDiy ? "Materials Cost" : "Amount Paid"}</label>
                 <div style={{ position: "relative" }}>
-                  <span style={{ position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)", color: COLORS.plumMid, fontSize: "0.875rem", pointerEvents: "none" }}>$</span>
+                  <span style={{ position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)", color: V2_COLORS.muted, fontSize: "0.875rem", pointerEvents: "none" }}>$</span>
                   <input id="lj-amount" className="form-input" type="number" min="0" step="0.01" placeholder="0.00" value={form.amount} onChange={(e) => update("amount", e.target.value)} style={{ paddingLeft: "1.5rem" }} />
                 </div>
               </div>
@@ -315,21 +315,21 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
 
             {/* Description */}
             <div>
-              <label htmlFor="lj-description" className="form-label">Description <span style={{ color: COLORS.plumMid, fontWeight: 300 }}>(optional)</span></label>
+              <label htmlFor="lj-description" className="form-label">Description <span style={{ color: V2_COLORS.muted, fontWeight: 300 }}>(optional)</span></label>
               <textarea id="lj-description" className="form-input" rows={2} placeholder="Describe the work done, materials used…" value={form.description} onChange={(e) => update("description", e.target.value)} style={{ resize: "vertical" }} />
             </div>
 
             {/* Permit — with explanation */}
             {showPermit && (
               <>
-                <div style={{ display: "flex", alignItems: "flex-start", gap: "0.625rem", padding: "0.75rem 1rem", border: `1px solid ${COLORS.plumMid}`, background: COLORS.butter, borderRadius: RADIUS.sm }}>
-                  <AlertTriangle size={13} color={COLORS.plumMid} style={{ flexShrink: 0, marginTop: "0.1rem" }} />
-                  <p style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", fontWeight: 300, color: COLORS.plumMid, lineHeight: 1.5 }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: "0.625rem", padding: "0.75rem 1rem", border: `1px solid ${V2_COLORS.muted}`, background: V2_COLORS.attentionBg, borderRadius: V2_RADIUS.sm }}>
+                  <AlertTriangle size={13} color={V2_COLORS.muted} style={{ flexShrink: 0, marginTop: "0.1rem" }} />
+                  <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.8rem", fontWeight: 300, color: V2_COLORS.muted, lineHeight: 1.5 }}>
                     {form.serviceType} work typically requires a permit. Logging the permit number adds legal weight to this record and increases your property score.
                   </p>
                 </div>
                 <div>
-                  <label htmlFor="lj-permit" className="form-label">Permit Number <span style={{ color: COLORS.plumMid, fontWeight: 300 }}>(optional)</span></label>
+                  <label htmlFor="lj-permit" className="form-label">Permit Number <span style={{ color: V2_COLORS.muted, fontWeight: 300 }}>(optional)</span></label>
                   <input id="lj-permit" className="form-input" placeholder="e.g. HVAC-2024-0412" value={form.permitNumber} onChange={(e) => update("permitNumber", e.target.value)} />
                 </div>
               </>
@@ -338,10 +338,10 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
             {/* Warranty */}
             {!form.isDiy && (
               <div>
-                <label htmlFor="lj-warranty" className="form-label">Warranty <span style={{ color: COLORS.plumMid, fontWeight: 300 }}>(optional)</span></label>
+                <label htmlFor="lj-warranty" className="form-label">Warranty <span style={{ color: V2_COLORS.muted, fontWeight: 300 }}>(optional)</span></label>
                 <div style={{ position: "relative" }}>
                   <input id="lj-warranty" className="form-input" type="number" min="0" placeholder="e.g. 12" value={form.warrantyMonths} onChange={(e) => update("warrantyMonths", e.target.value)} style={{ paddingRight: "4.5rem" }} />
-                  <span style={{ position: "absolute", right: "0.75rem", top: "50%", transform: "translateY(-50%)", fontFamily: FONTS.sans, fontSize: "0.65rem", color: COLORS.plumMid, pointerEvents: "none" }}>months</span>
+                  <span style={{ position: "absolute", right: "0.75rem", top: "50%", transform: "translateY(-50%)", fontFamily: V2_FONTS.body, fontSize: "0.65rem", color: V2_COLORS.muted, pointerEvents: "none" }}>months</span>
                 </div>
               </div>
             )}
@@ -350,10 +350,10 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
               <button
                 onClick={() => setStep(0)}
                 style={{
-                  fontFamily: FONTS.sans, fontSize: "0.8rem", fontWeight: 500,
-                  padding: "0.5rem 1.25rem", border: `1px solid ${COLORS.rule}`,
-                  background: "none", cursor: "pointer", color: COLORS.plumMid,
-                  borderRadius: RADIUS.pill,
+                  fontFamily: V2_FONTS.body, fontSize: "0.8rem", fontWeight: 500,
+                  padding: "0.5rem 1.25rem", border: `1px solid ${V2_COLORS.border}`,
+                  background: "none", cursor: "pointer", color: V2_COLORS.muted,
+                  borderRadius: V2_RADIUS.pill,
                 }}
               >
                 ← Back
@@ -363,9 +363,9 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
               </Button>
             </div>
 
-            <p style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", fontWeight: 300, color: COLORS.plumMid, textAlign: "center" }}>
+            <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.8rem", fontWeight: 300, color: V2_COLORS.muted, textAlign: "center" }}>
               Need to attach photos?{" "}
-              <a href="/jobs/new" style={{ color: COLORS.sageText, textDecoration: "underline" }}>
+              <a href="/jobs/new" style={{ color: V2_COLORS.blue, textDecoration: "underline" }}>
                 Open full form →
               </a>
             </p>
@@ -378,16 +378,16 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
             <div style={{
               display: "inline-flex", alignItems: "center", justifyContent: "center",
               width: "3.5rem", height: "3.5rem",
-              border: `2px solid ${COLORS.sage}`,
-              borderRadius: RADIUS.card,
+              border: `2px solid ${V2_COLORS.blue}`,
+              borderRadius: V2_RADIUS.card,
               marginBottom: "1rem",
             }}>
-              <CheckCircle size={24} color={COLORS.sage} />
+              <CheckCircle size={24} color={V2_COLORS.blue} />
             </div>
-            <p style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", fontWeight: 600, color: COLORS.sageText, marginBottom: "0.375rem" }}>
+            <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.75rem", fontWeight: 600, color: V2_COLORS.blue, marginBottom: "0.375rem" }}>
               Record Saved
             </p>
-            <p style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: COLORS.plumMid, marginBottom: "1.5rem" }}>
+            <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted, marginBottom: "1.5rem" }}>
               Your maintenance record has been added to your HomeGentic report.
             </p>
             <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}>
@@ -397,10 +397,10 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
                   setForm({ ...EMPTY_FORM, propertyId: form.propertyId, date: new Date().toISOString().split("T")[0] });
                 }}
                 style={{
-                  fontFamily: FONTS.sans, fontSize: "0.8rem", fontWeight: 500,
-                  padding: "0.5rem 1.25rem", border: `1px solid ${COLORS.rule}`,
-                  background: "none", cursor: "pointer", color: COLORS.plumMid,
-                  borderRadius: RADIUS.pill,
+                  fontFamily: V2_FONTS.body, fontSize: "0.8rem", fontWeight: 500,
+                  padding: "0.5rem 1.25rem", border: `1px solid ${V2_COLORS.border}`,
+                  background: "none", cursor: "pointer", color: V2_COLORS.muted,
+                  borderRadius: V2_RADIUS.pill,
                 }}
               >
                 Log another
@@ -408,10 +408,10 @@ export function LogJobModal({ isOpen, onClose, onSuccess, properties, prefill }:
               <button
                 onClick={onClose}
                 style={{
-                  fontFamily: FONTS.sans, fontSize: "0.8rem", fontWeight: 500,
-                  padding: "0.5rem 1.25rem", background: COLORS.plum, color: COLORS.white,
+                  fontFamily: V2_FONTS.body, fontSize: "0.8rem", fontWeight: 500,
+                  padding: "0.5rem 1.25rem", background: V2_COLORS.ink, color: V2_COLORS.paper,
                   border: "none", cursor: "pointer",
-                  borderRadius: RADIUS.pill,
+                  borderRadius: V2_RADIUS.pill,
                 }}
               >
                 Done

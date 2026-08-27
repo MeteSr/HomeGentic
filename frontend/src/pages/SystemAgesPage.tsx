@@ -6,16 +6,16 @@ import { Button } from "@/components/Button";
 import { usePropertyStore } from "@/store/propertyStore";
 import { systemAgesService, TRACKED_SYSTEMS, SystemName, SystemAges } from "@/services/systemAges";
 import toast from "react-hot-toast";
-import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  rust:     COLORS.sage,
-  inkLight: COLORS.plumMid,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  rust:     V2_COLORS.blue,
+  inkLight: V2_COLORS.muted,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.body,
 };
 
 const SYSTEM_DESCRIPTIONS: Record<SystemName, string> = {
@@ -108,7 +108,7 @@ export default function SystemAgesPage() {
           Defaults to the house's build year ({yearBuilt}) when left unchanged.
         </p>
 
-        <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white }}>
+        <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper }}>
           {TRACKED_SYSTEMS.map((sys, i) => {
             const isTouched = touched.has(sys);
             const isCustom = isTouched && ages[sys] !== String(yearBuilt);
@@ -122,7 +122,7 @@ export default function SystemAgesPage() {
                   gap: "1rem",
                   padding: "1rem 1.25rem",
                   borderBottom: i < TRACKED_SYSTEMS.length - 1 ? `1px solid ${UI.rule}` : "none",
-                  background: isCustom ? COLORS.white : COLORS.white,
+                  background: isCustom ? V2_COLORS.paper : V2_COLORS.paper,
                 }}
               >
                 <div>
@@ -159,7 +159,7 @@ export default function SystemAgesPage() {
                         fontSize: "0.8rem",
                         textAlign: "center",
                         outline: "none",
-                        background: isCustom ? COLORS.sageLight : COLORS.white,
+                        background: isCustom ? V2_COLORS.lblue : V2_COLORS.paper,
                         color: isCustom ? UI.rust : UI.ink,
                       }}
                     />

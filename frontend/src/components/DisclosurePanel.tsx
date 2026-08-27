@@ -17,16 +17,16 @@ import {
   inspectionWaiverReady,
 } from "@/services/disclosureService";
 import { getTemplates, legalDocService, type LegalDoc } from "@/services/legalDocService";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 const UI = {
-  ink:      COLORS.plum,
-  inkLight: COLORS.plumMid,
-  rule:     COLORS.rule,
-  sage:     COLORS.sage,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
-  sans:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  inkLight: V2_COLORS.muted,
+  rule:     V2_COLORS.border,
+  sage:     V2_COLORS.blue,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.body,
+  sans:     V2_FONTS.body,
 };
 
 export interface DisclosurePanelProps {
@@ -68,8 +68,8 @@ export default function DisclosurePanel({ property, jobs, score = 0 }: Disclosur
             style={{
               fontFamily: UI.mono, fontSize: "0.6rem", fontWeight: 700,
               textTransform: "uppercase", letterSpacing: "0.1em",
-              background: COLORS.sageLight, color: UI.sage,
-              border: `1px solid ${COLORS.sageMid}`, padding: "0.2rem 0.55rem",
+              background: V2_COLORS.lblue, color: UI.sage,
+              border: `1px solid ${V2_COLORS.cobalTint}`, padding: "0.2rem 0.55rem",
             }}
           >
             Inspection Waiver Ready
@@ -91,7 +91,7 @@ export default function DisclosurePanel({ property, jobs, score = 0 }: Disclosur
           </span>
           <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight }}>/100</span>
         </div>
-        <div style={{ height: 6, background: COLORS.rule, position: "relative" }}>
+        <div style={{ height: 6, background: V2_COLORS.border, position: "relative" }}>
           <div
             style={{
               position: "absolute", top: 0, left: 0,

@@ -34,7 +34,7 @@ import UpgradeModal from "./UpgradeModal";
 import { ActivityFeedDrawer } from "./ActivityFeedDrawer";
 import { UserMenuPopover } from "./UserMenuPopover";
 import { deriveEvents } from "@/services/activityFeed";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 
 // Re-export for consumers that imported these from Layout
@@ -205,14 +205,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
     justifyContent:  effectivelyCollapsed ? "center" : "flex-start",
     overflow:        "hidden",
     whiteSpace:      "nowrap",
-    color:           active ? COLORS.navActive : COLORS.navInactive,
-    background:      active ? COLORS.navActiveBg : "transparent",
-    borderLeft:      active ? `3px solid ${COLORS.navActive}` : "3px solid transparent",
+    color:           active ? V2_COLORS.blue : V2_COLORS.muted,
+    background:      active ? V2_COLORS.lblue : "transparent",
+    borderLeft:      active ? `3px solid ${V2_COLORS.blue}` : "3px solid transparent",
     transition:      "color 0.15s, background 0.15s",
   });
 
   const labelStyle: React.CSSProperties = {
-    fontFamily: FONTS.sans,
+    fontFamily: V2_FONTS.body,
     fontSize:   "0.875rem",
     fontWeight: 500,
   };
@@ -220,7 +220,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // ─── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", backgroundColor: COLORS.canvas }}>
+    <div style={{ display: "flex", minHeight: "100vh", backgroundColor: V2_COLORS.paper }}>
 
       {/* ── Left sidebar (desktop) ──────────────────────────────────────────── */}
       <nav
@@ -244,15 +244,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
               to={dashboardPath}
               style={{
                 textDecoration: "none",
-                fontFamily:     FONTS.serif,
+                fontFamily:     V2_FONTS.display,
                 fontWeight:     900,
                 fontSize:       "1.1rem",
                 letterSpacing:  "-0.5px",
-                color:          COLORS.plum,
+                color:          V2_COLORS.ink,
                 whiteSpace:     "nowrap",
               }}
             >
-              Home<span style={{ color: COLORS.navActive, fontStyle: "normal", fontWeight: 700 }}>Gentic™</span>
+              Home<span style={{ color: V2_COLORS.blue, fontStyle: "normal", fontWeight: 700 }}>Gentic™</span>
             </Link>
           )}
           <button
@@ -266,7 +266,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               background: "none",
               border:     "none",
               cursor:     "pointer",
-              color:      COLORS.navInactive,
+              color:      V2_COLORS.muted,
               padding:    "0.375rem",
               borderRadius: "0.25rem",
               flexShrink: 0,
@@ -291,8 +291,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 }
               }}
               style={{ ...itemBase(), width: "100%", border: "none", cursor: "pointer" }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = COLORS.navActive; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = COLORS.navInactive; }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = V2_COLORS.blue; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = V2_COLORS.muted; }}
             >
               <Plus size={17} style={{ flexShrink: 0 }} />
               {!effectivelyCollapsed && <span style={labelStyle}>Add property</span>}
@@ -308,10 +308,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 aria-current={active ? "page" : undefined}
                 style={{ ...itemBase(active), textDecoration: "none" }}
                 onMouseEnter={(e: React.MouseEvent) => {
-                  if (!active) (e.currentTarget as HTMLElement).style.color = COLORS.navActive;
+                  if (!active) (e.currentTarget as HTMLElement).style.color = V2_COLORS.blue;
                 }}
                 onMouseLeave={(e: React.MouseEvent) => {
-                  if (!active) (e.currentTarget as HTMLElement).style.color = COLORS.navInactive;
+                  if (!active) (e.currentTarget as HTMLElement).style.color = V2_COLORS.muted;
                 }}
               >
                   <link.Icon size={17} style={{ flexShrink: 0 }} />
@@ -321,7 +321,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   </span>
                 )}
                 {!effectivelyCollapsed && link.badge != null && link.badge > 0 && (
-                  <span style={{ fontFamily: "sans-serif", fontSize: 11, fontWeight: 700, color: "#fff", background: COLORS.navActive, borderRadius: "1rem", padding: "1px 6px", lineHeight: 1.4 }}>
+                  <span style={{ fontFamily: "sans-serif", fontSize: 11, fontWeight: 700, color: "#fff", background: V2_COLORS.blue, borderRadius: "1rem", padding: "1px 6px", lineHeight: 1.4 }}>
                     {link.badge}
                   </span>
                 )}
@@ -331,7 +331,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Bottom: activity bell + user menu button */}
-        <div style={{ borderTop: `1px solid ${COLORS.rule}`, flexShrink: 0 }}>
+        <div style={{ borderTop: `1px solid ${V2_COLORS.border}`, flexShrink: 0 }}>
 
           {/* Activity bell */}
           <button
@@ -349,14 +349,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   right:          "-5px",
                   width:          "14px",
                   height:         "14px",
-                  background:     COLORS.sageText,
+                  background:     V2_COLORS.blue,
                   borderRadius:   "50%",
                   display:        "flex",
                   alignItems:     "center",
                   justifyContent: "center",
-                  fontFamily:     FONTS.sans,
+                  fontFamily:     V2_FONTS.body,
                   fontSize:       "0.45rem",
-                  color:          COLORS.white,
+                  color:          V2_COLORS.paper,
                   fontWeight:     700,
                 }}>
                   {unread > 9 ? "9+" : unread}
@@ -394,12 +394,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 width:          "26px",
                 height:         "26px",
                 borderRadius:   "50%",
-                background:     COLORS.plum,
-                color:          COLORS.white,
+                background:     V2_COLORS.ink,
+                color:          V2_COLORS.paper,
                 display:        "flex",
                 alignItems:     "center",
                 justifyContent: "center",
-                fontFamily:     FONTS.sans,
+                fontFamily:     V2_FONTS.body,
                 fontSize:       "0.6rem",
                 fontWeight:     700,
                 flexShrink:     0,
@@ -427,21 +427,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {/* Mobile-only top header */}
         <header
           className="hf-mobile-header"
-          style={{ borderBottom: `1px solid ${COLORS.rule}` }}
+          style={{ borderBottom: `1px solid ${V2_COLORS.border}` }}
         >
           <Link
             to={dashboardPath}
             style={{
               textDecoration: "none",
-              fontFamily:     FONTS.serif,
+              fontFamily:     V2_FONTS.display,
               fontWeight:     900,
               fontSize:       "1.1rem",
               letterSpacing:  "-0.5px",
-              color:          COLORS.plum,
+              color:          V2_COLORS.ink,
               flex:           1,
             }}
           >
-            Home<span style={{ color: COLORS.navActive, fontStyle: "normal", fontWeight: 700 }}>Gentic™</span>
+            Home<span style={{ color: V2_COLORS.blue, fontStyle: "normal", fontWeight: 700 }}>Gentic™</span>
           </Link>
 
           {/* Bell */}
@@ -450,14 +450,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
             style={{ position: "relative", background: "none", border: "none", cursor: "pointer", padding: "0.5rem" }}
             aria-label="Activity feed"
           >
-            <Bell size={18} color={COLORS.plumMid} />
+            <Bell size={18} color={V2_COLORS.muted} />
             {unread > 0 && (
               <span style={{
                 position: "absolute", top: "4px", right: "4px",
                 width: "14px", height: "14px",
-                background: COLORS.sageText, borderRadius: "50%",
+                background: V2_COLORS.blue, borderRadius: "50%",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                fontFamily: FONTS.sans, fontSize: "0.45rem", color: COLORS.white, fontWeight: 700,
+                fontFamily: V2_FONTS.body, fontSize: "0.45rem", color: V2_COLORS.paper, fontWeight: 700,
               }}>
                 {unread > 9 ? "9+" : unread}
               </span>

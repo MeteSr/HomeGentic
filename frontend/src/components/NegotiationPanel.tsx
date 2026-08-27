@@ -10,15 +10,15 @@ import React, { useEffect, useState } from "react";
 import { TrendingDown, TrendingUp, Minus, Sparkles } from "lucide-react";
 import { createNegotiationAgentService, type NegotiationAnalysis } from "@/services/negotiationAgentService";
 import type { Quote, QuoteRequest } from "@/services/quote";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 const UI = {
-  mono:     FONTS.sans,
-  serif:    FONTS.serif,
-  inkLight: COLORS.plumMid,
-  rule:     COLORS.rule,
-  sage:     COLORS.sage,
-  plum:     COLORS.plum,
+  mono:     V2_FONTS.body,
+  serif:    V2_FONTS.display,
+  inkLight: V2_COLORS.muted,
+  rule:     V2_COLORS.border,
+  sage:     V2_COLORS.blue,
+  plum:     V2_COLORS.ink,
 };
 
 interface Props {
@@ -71,7 +71,7 @@ export function NegotiationPanel({ request, quotes, zip }: Props) {
   if (pendingCount === 0) return null;
 
   return (
-    <div style={{ border: `1px solid ${UI.rule}`, background: COLORS.white, marginBottom: "1.5rem" }}>
+    <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, marginBottom: "1.5rem" }}>
       {/* Header row */}
       <label
         style={{
@@ -140,7 +140,7 @@ function QuoteAnalysisRow({
       style={{
         borderTop:  `1px solid ${UI.rule}`,
         padding:    "0.875rem 1.25rem",
-        background: COLORS.white,
+        background: V2_COLORS.paper,
       }}
     >
       <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.5rem" }}>
@@ -169,9 +169,9 @@ function AnalysisDetail({ analysis }: { analysis: NegotiationAnalysis }) {
   const { verdict, percentile, rationale, benchmarkUsed, suggestedCounterCents } = analysis;
 
   const verdictColor =
-    verdict === "fair"  ? COLORS.sage :
-    verdict === "high"  ? "#C94C2E" :
-    COLORS.plumMid;
+    verdict === "fair"  ? V2_COLORS.blue :
+    verdict === "high"  ? V2_COLORS.coralText :
+    V2_COLORS.muted;
 
   const VerdictIcon =
     verdict === "high" ? TrendingUp :
@@ -202,7 +202,7 @@ function AnalysisDetail({ analysis }: { analysis: NegotiationAnalysis }) {
           { label: "Median",      value: fmtK(benchmarkUsed.median) },
           { label: "Market p75",  value: fmtK(benchmarkUsed.p75) },
         ].map((c) => (
-          <div key={c.label} style={{ padding: "0.5rem 0.75rem", borderRight: `1px solid ${UI.rule}`, borderBottom: `1px solid ${UI.rule}`, background: COLORS.white }}>
+          <div key={c.label} style={{ padding: "0.5rem 0.75rem", borderRight: `1px solid ${UI.rule}`, borderBottom: `1px solid ${UI.rule}`, background: V2_COLORS.paper }}>
             <div style={{ fontFamily: UI.mono, fontSize: "0.5rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.2rem" }}>{c.label}</div>
             <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "0.875rem", lineHeight: 1 }}>{c.value}</div>
           </div>

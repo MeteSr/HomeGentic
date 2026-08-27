@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 interface PropertyEstimatedValueInputProps {
   propertyId:    string;
@@ -37,12 +37,12 @@ export function PropertyEstimatedValueInput({ propertyId, onValueChange }: Prope
     <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
       <label
         htmlFor={`est-val-${propertyId}`}
-        style={{ fontFamily: FONTS.sans, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: COLORS.plumMid }}
+        style={{ fontFamily: V2_FONTS.body, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: V2_COLORS.muted }}
       >
         Estimated Home Value
       </label>
       <div style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
-        <span style={{ fontFamily: FONTS.sans, fontSize: "0.875rem", color: COLORS.plumMid }}>$</span>
+        <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: V2_COLORS.muted }}>$</span>
         <input
           id={`est-val-${propertyId}`}
           aria-label="estimated home value"
@@ -53,15 +53,15 @@ export function PropertyEstimatedValueInput({ propertyId, onValueChange }: Prope
           placeholder="400000"
           style={{
             padding:    "0.5rem 0.75rem",
-            border:     `1px solid ${COLORS.rule}`,
-            fontFamily: FONTS.sans,
+            border:     `1px solid ${V2_COLORS.border}`,
+            fontFamily: V2_FONTS.body,
             fontSize:   "0.875rem",
             outline:    "none",
             width:      "10rem",
           }}
         />
       </div>
-      <div style={{ fontFamily: FONTS.sans, fontSize: "0.55rem", color: COLORS.plumMid }}>
+      <div style={{ fontFamily: V2_FONTS.body, fontSize: "0.55rem", color: V2_COLORS.muted }}>
         Used to personalize your score-to-value estimate
       </div>
     </div>

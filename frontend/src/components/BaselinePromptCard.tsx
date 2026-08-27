@@ -3,7 +3,7 @@ import { Camera, CheckCircle, X } from "lucide-react";
 import { photoService, type Photo } from "@/services/photo";
 import type { Property } from "@/services/property";
 import toast from "react-hot-toast";
-import { COLORS, FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS } from "@/theme";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -71,12 +71,12 @@ export function BaselinePromptCard({ property, dismissed, onDismiss }: Props) {
         style={{
           display: "flex", alignItems: "center", gap: "0.5rem",
           padding: "0.5rem 0.875rem",
-          border: `1px solid ${COLORS.sage}`,
+          border: `1px solid ${V2_COLORS.blue}`,
           background: "#F2FAF4",
         }}
       >
-        <CheckCircle size={14} color={COLORS.sage} />
-        <span style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", fontWeight: 500, color: COLORS.sageText }}>
+        <CheckCircle size={14} color={V2_COLORS.blue} />
+        <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.75rem", fontWeight: 500, color: V2_COLORS.blue }}>
           Baseline photos complete — {property.address}
         </span>
       </div>
@@ -88,31 +88,31 @@ export function BaselinePromptCard({ property, dismissed, onDismiss }: Props) {
   return (
     <div
       data-testid={`baseline-prompt-${propertyId}`}
-      style={{ border: `1px solid ${COLORS.rule}`, background: COLORS.white }}
+      style={{ border: `1px solid ${V2_COLORS.border}`, background: V2_COLORS.paper }}
     >
       {/* Header */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "0.875rem 1.125rem",
-        borderBottom: `1px solid ${COLORS.rule}`,
+        borderBottom: `1px solid ${V2_COLORS.border}`,
       }}>
         <div>
-          <span style={{ fontFamily: FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.plumMid }}>
+          <span style={{ fontFamily: V2_FONTS.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: V2_COLORS.muted }}>
             {property.address}
           </span>
-          <h3 style={{ fontFamily: FONTS.serif, fontWeight: 700, fontSize: "1rem", color: COLORS.plum, margin: "0.1rem 0 0" }}>
+          <h3 style={{ fontFamily: V2_FONTS.display, fontWeight: 700, fontSize: "1rem", color: V2_COLORS.ink, margin: "0.1rem 0 0" }}>
             Complete your property baseline
           </h3>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
-          <span style={{ fontFamily: FONTS.serif, fontWeight: 700, fontSize: "0.9rem", color: COLORS.plum }}>
+          <span style={{ fontFamily: V2_FONTS.display, fontWeight: 700, fontSize: "0.9rem", color: V2_COLORS.ink }}>
             {completedCount}{" "}
-            <span style={{ fontWeight: 300, color: COLORS.plumMid, fontSize: "0.8rem" }}>/ {BASELINE_SYSTEMS.length}</span>
+            <span style={{ fontWeight: 300, color: V2_COLORS.muted, fontSize: "0.8rem" }}>/ {BASELINE_SYSTEMS.length}</span>
           </span>
           <button
             onClick={onDismiss}
             aria-label="Dismiss baseline prompt"
-            style={{ background: "none", border: "none", cursor: "pointer", color: COLORS.plumMid, padding: "0.25rem", display: "flex" }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: V2_COLORS.muted, padding: "0.25rem", display: "flex" }}
           >
             <X size={15} />
           </button>
@@ -130,17 +130,17 @@ export function BaselinePromptCard({ property, dismissed, onDismiss }: Props) {
               style={{
                 display: "flex", alignItems: "center", gap: "0.75rem",
                 padding: "0.5rem 0.75rem",
-                background: done ? "#F2FAF4" : COLORS.white,
-                border: `1px solid ${done ? COLORS.sage : COLORS.rule}`,
+                background: done ? "#F2FAF4" : V2_COLORS.paper,
+                border: `1px solid ${done ? V2_COLORS.blue : V2_COLORS.border}`,
               }}
             >
               {done
-                ? <CheckCircle size={14} color={COLORS.sage} style={{ flexShrink: 0 }} />
-                : <Camera      size={14} color={COLORS.plumMid} style={{ flexShrink: 0 }} />
+                ? <CheckCircle size={14} color={V2_COLORS.blue} style={{ flexShrink: 0 }} />
+                : <Camera      size={14} color={V2_COLORS.muted} style={{ flexShrink: 0 }} />
               }
               <span style={{
-                flex: 1, fontFamily: FONTS.sans, fontSize: "0.8rem",
-                fontWeight: done ? 400 : 500, color: done ? COLORS.plumMid : COLORS.plum,
+                flex: 1, fontFamily: V2_FONTS.body, fontSize: "0.8rem",
+                fontWeight: done ? 400 : 500, color: done ? V2_COLORS.muted : V2_COLORS.ink,
                 textDecoration: done ? "line-through" : "none",
               }}>
                 {label}
@@ -163,9 +163,9 @@ export function BaselinePromptCard({ property, dismissed, onDismiss }: Props) {
                     onClick={() => inputRefs.current[key]?.click()}
                     style={{
                       padding: "0.25rem 0.625rem",
-                      fontFamily: FONTS.sans, fontSize: "0.65rem", fontWeight: 600,
-                      background: "none", color: COLORS.plum,
-                      border: `1px solid ${COLORS.rule}`,
+                      fontFamily: V2_FONTS.body, fontSize: "0.65rem", fontWeight: 600,
+                      background: "none", color: V2_COLORS.ink,
+                      border: `1px solid ${V2_COLORS.border}`,
                       cursor: isUploading ? "wait" : "pointer",
                       opacity: isUploading ? 0.6 : 1, flexShrink: 0,
                     }}

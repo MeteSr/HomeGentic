@@ -10,16 +10,16 @@ import { paymentService, type PlanTier } from "@/services/payment";
 import { notificationService } from "@/services/notifications";
 import type { Property } from "@/services/property";
 import toast from "react-hot-toast";
-import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 
 const UI = {
-  ink:      COLORS.plum,
-  paper:    COLORS.white,
-  rule:     COLORS.rule,
-  rust:     COLORS.sage,
-  inkLight: COLORS.plumMid,
-  serif:    FONTS.serif,
-  mono:     FONTS.sans,
+  ink:      V2_COLORS.ink,
+  paper:    V2_COLORS.paper,
+  rule:     V2_COLORS.border,
+  rust:     V2_COLORS.blue,
+  inkLight: V2_COLORS.muted,
+  serif:    V2_FONTS.display,
+  mono:     V2_FONTS.body,
 };
 
 interface GenerateReportModalProps {
@@ -145,11 +145,11 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div style={{
-        background: COLORS.white, width: "100%", maxWidth: "30rem",
+        background: V2_COLORS.paper, width: "100%", maxWidth: "30rem",
         maxHeight: "90vh", overflow: "auto",
         border: `1px solid ${UI.rule}`,
-        borderRadius: RADIUS.card,
-        boxShadow: SHADOWS.modal,
+        borderRadius: V2_RADIUS.card,
+        boxShadow: V2_SHADOWS.modal,
       }}>
 
         {/* Header */}
@@ -157,23 +157,23 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
           display: "flex", justifyContent: "space-between", alignItems: "flex-start",
           padding: "1.5rem 1.5rem 1.25rem",
           borderBottom: `1px solid ${UI.rule}`,
-          background: COLORS.plum,
-          borderRadius: `${RADIUS.card}px ${RADIUS.card}px 0 0`,
+          background: V2_COLORS.ink,
+          borderRadius: `${V2_RADIUS.card}px ${V2_RADIUS.card}px 0 0`,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-            <Shield size={16} color={COLORS.sage} />
+            <Shield size={16} color={V2_COLORS.blue} />
             <div>
-              <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: COLORS.plumMid, marginBottom: "0.2rem" }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: V2_COLORS.muted, marginBottom: "0.2rem" }}>
                 HomeGentic Report™
               </p>
-              <h2 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.1rem", lineHeight: 1, color: COLORS.white }}>
+              <h2 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.1rem", lineHeight: 1, color: V2_COLORS.paper }}>
                 {property.address}
               </h2>
             </div>
           </div>
           <button
             onClick={onClose}
-            style={{ background: "none", border: "none", cursor: "pointer", color: COLORS.plumMid, padding: "0.25rem", flexShrink: 0, marginLeft: "0.75rem" }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: V2_COLORS.muted, padding: "0.25rem", flexShrink: 0, marginLeft: "0.75rem" }}
           >
             <X size={16} />
           </button>
@@ -199,11 +199,11 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
                     style={{
                       flex: 1, padding: "0.45rem 0",
                       fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase",
-                      border: `1px solid ${locked ? UI.rule : expiryDays === opt.value ? COLORS.plum : UI.rule}`,
-                      borderRadius: RADIUS.sm,
+                      border: `1px solid ${locked ? UI.rule : expiryDays === opt.value ? V2_COLORS.ink : UI.rule}`,
+                      borderRadius: V2_RADIUS.sm,
                       cursor: locked ? "not-allowed" : "pointer",
-                      background: locked ? UI.paper : expiryDays === opt.value ? COLORS.plum : COLORS.white,
-                      color: locked ? `${UI.inkLight}60` : expiryDays === opt.value ? COLORS.white : UI.inkLight,
+                      background: locked ? UI.paper : expiryDays === opt.value ? V2_COLORS.ink : V2_COLORS.paper,
+                      color: locked ? `${UI.inkLight}60` : expiryDays === opt.value ? V2_COLORS.paper : UI.inkLight,
                       opacity: locked ? 0.5 : 1,
                     }}
                   >
@@ -214,12 +214,12 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
             </div>
             {userTier === "Free" && (
               <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.06em", color: UI.inkLight, marginBottom: "1rem" }}>
-                Free plan links expire after 7 days. <a href="/pricing" style={{ color: COLORS.plum, textDecoration: "underline" }}>Upgrade to Pro</a> for longer or permanent links.
+                Free plan links expire after 7 days. <a href="/pricing" style={{ color: V2_COLORS.ink, textDecoration: "underline" }}>Upgrade to Pro</a> for longer or permanent links.
               </p>
             )}
 
             {/* Disclosure toggles */}
-            <div style={{ border: `1px solid ${UI.rule}`, borderRadius: RADIUS.sm, marginBottom: "1rem", overflow: "hidden" }}>
+            <div style={{ border: `1px solid ${UI.rule}`, borderRadius: V2_RADIUS.sm, marginBottom: "1rem", overflow: "hidden" }}>
               <div style={{ padding: "0.5rem 0.875rem", borderBottom: `1px solid ${UI.rule}`, display: "flex", alignItems: "center", gap: "0.375rem" }}>
                 <EyeOff size={11} color={UI.inkLight} />
                 <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>
@@ -243,7 +243,7 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
                     type="checkbox"
                     checked={disclosure[key]}
                     onChange={(e) => setDisclosure((d) => ({ ...d, [key]: e.target.checked }))}
-                    style={{ accentColor: COLORS.sage, width: "0.875rem", height: "0.875rem" }}
+                    style={{ accentColor: V2_COLORS.blue, width: "0.875rem", height: "0.875rem" }}
                   />
                 </label>
               ))}
@@ -268,14 +268,14 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
 
           {/* Share preview — shown immediately after generation */}
           {freshLink && previewStats && (
-            <div style={{ border: `1px solid ${COLORS.sage}`, background: COLORS.sageLight, borderRadius: RADIUS.sm, overflow: "hidden" }}>
-              <div style={{ padding: "0.75rem 1rem", borderBottom: `1px solid ${COLORS.sageMid}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: COLORS.sageText }}>
+            <div style={{ border: `1px solid ${V2_COLORS.blue}`, background: V2_COLORS.lblue, borderRadius: V2_RADIUS.sm, overflow: "hidden" }}>
+              <div style={{ padding: "0.75rem 1rem", borderBottom: `1px solid ${V2_COLORS.cobalTint}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: V2_COLORS.blue }}>
                   Link ready to share
                 </span>
                 <button
                   onClick={() => setFreshLink(null)}
-                  style={{ background: "none", border: "none", cursor: "pointer", color: COLORS.sageText, padding: 0 }}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: V2_COLORS.blue, padding: 0 }}
                 >
                   ×
                 </button>
@@ -304,9 +304,9 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
                   onClick={() => { handleCopy(freshLink.token); setFreshLink(null); }}
                   style={{
                     width: "100%", padding: "0.6rem",
-                    background: COLORS.plum, color: COLORS.white,
+                    background: V2_COLORS.ink, color: V2_COLORS.paper,
                     fontFamily: UI.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase",
-                    border: "none", cursor: "pointer", borderRadius: RADIUS.sm,
+                    border: "none", cursor: "pointer", borderRadius: V2_RADIUS.sm,
                     display: "flex", alignItems: "center", justifyContent: "center", gap: "0.375rem",
                   }}
                 >
@@ -315,17 +315,17 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
 
                 {/* Expiry status row (15.2.3) */}
                 {userTier === "Free" ? (
-                  <div style={{ marginTop: "0.75rem", padding: "0.5rem 0.75rem", background: "#fff8e6", border: "1px solid #e8c84a", borderRadius: RADIUS.sm, display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
+                  <div style={{ marginTop: "0.75rem", padding: "0.5rem 0.75rem", background: "#fff8e6", border: "1px solid #e8c84a", borderRadius: V2_RADIUS.sm, display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
                     <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: "#7a5c00" }}>
                       ⚠ This link expires in 7 days
                     </span>
-                    <a href="/pricing" style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: COLORS.plum, textDecoration: "underline", whiteSpace: "nowrap" }}>
+                    <a href="/pricing" style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: V2_COLORS.ink, textDecoration: "underline", whiteSpace: "nowrap" }}>
                       Upgrade to Pro →
                     </a>
                   </div>
                 ) : (
-                  <div style={{ marginTop: "0.75rem", padding: "0.5rem 0.75rem", background: COLORS.sageLight, border: `1px solid ${COLORS.sageMid}`, borderRadius: RADIUS.sm, display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: COLORS.sageText }}>
+                  <div style={{ marginTop: "0.75rem", padding: "0.5rem 0.75rem", background: V2_COLORS.lblue, border: `1px solid ${V2_COLORS.cobalTint}`, borderRadius: V2_RADIUS.sm, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: V2_COLORS.blue }}>
                       ✓ This link never expires
                     </span>
                   </div>
@@ -350,7 +350,7 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
                   const hiddenCount = Object.values(ld).filter(Boolean).length;
                   const isExpanded = expandedToken === link.token;
                   return (
-                    <div key={link.token} style={{ background: COLORS.white, border: `1px solid ${UI.rule}`, borderRadius: RADIUS.sm, overflow: "hidden" }}>
+                    <div key={link.token} style={{ background: V2_COLORS.paper, border: `1px solid ${UI.rule}`, borderRadius: V2_RADIUS.sm, overflow: "hidden" }}>
                       <div style={{ padding: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.5rem" }}>
                         <div>
                           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
@@ -365,7 +365,7 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
                               {link.viewCount} view{link.viewCount !== 1 ? "s" : ""}
                             </span>
                             {hiddenCount > 0 && (
-                              <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.06em", color: COLORS.sageText, background: COLORS.sageLight, padding: "0.1rem 0.35rem", border: `1px solid ${COLORS.sageMid}`, borderRadius: RADIUS.sm }}>
+                              <span style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.06em", color: V2_COLORS.blue, background: V2_COLORS.lblue, padding: "0.1rem 0.35rem", border: `1px solid ${V2_COLORS.cobalTint}`, borderRadius: V2_RADIUS.sm }}>
                                 {hiddenCount} field{hiddenCount > 1 ? "s" : ""} hidden
                               </span>
                             )}
@@ -378,9 +378,9 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
                             style={{
                               display: "inline-flex", alignItems: "center",
                               padding: "0.35rem 0.5rem",
-                              border: `1px solid ${isExpanded ? COLORS.plum : UI.rule}`,
-                              borderRadius: RADIUS.sm,
-                              color: isExpanded ? COLORS.plum : UI.inkLight,
+                              border: `1px solid ${isExpanded ? V2_COLORS.ink : UI.rule}`,
+                              borderRadius: V2_RADIUS.sm,
+                              color: isExpanded ? V2_COLORS.ink : UI.inkLight,
                               background: "none", cursor: "pointer",
                             }}
                           >
@@ -393,9 +393,9 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
                               display: "inline-flex", alignItems: "center", gap: "0.3rem",
                               padding: "0.35rem 0.75rem",
                               fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase",
-                              border: `1px solid ${copiedToken === link.token ? COLORS.sage : UI.rule}`,
-                              borderRadius: RADIUS.sm,
-                              color:  copiedToken === link.token ? COLORS.sageText : UI.inkLight,
+                              border: `1px solid ${copiedToken === link.token ? V2_COLORS.blue : UI.rule}`,
+                              borderRadius: V2_RADIUS.sm,
+                              color:  copiedToken === link.token ? V2_COLORS.blue : UI.inkLight,
                               background: "none", cursor: "pointer",
                             }}
                           >
@@ -409,7 +409,7 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
                               display: "inline-flex", alignItems: "center",
                               padding: "0.35rem 0.5rem",
                               border: `1px solid ${UI.rule}`, color: UI.rust,
-                              borderRadius: RADIUS.sm,
+                              borderRadius: V2_RADIUS.sm,
                               background: "none", cursor: "pointer",
                             }}
                           >
@@ -419,7 +419,7 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
                       </div>
                       {/* Per-link disclosure toggles */}
                       {isExpanded && (
-                        <div style={{ borderTop: `1px solid ${UI.rule}`, background: COLORS.sageLight, padding: "0.75rem 1rem" }}>
+                        <div style={{ borderTop: `1px solid ${UI.rule}`, background: V2_COLORS.lblue, padding: "0.75rem 1rem" }}>
                           <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.5rem" }}>
                             Hide from viewer for this link
                           </p>
@@ -437,7 +437,7 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
                                   type="checkbox"
                                   checked={ld[key]}
                                   onChange={(e) => setLinkField(link.token, key, e.target.checked)}
-                                  style={{ accentColor: COLORS.sage, width: "0.75rem", height: "0.75rem" }}
+                                  style={{ accentColor: V2_COLORS.blue, width: "0.75rem", height: "0.75rem" }}
                                 />
                                 <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.ink }}>{label}</span>
                               </label>

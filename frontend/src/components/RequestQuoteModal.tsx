@@ -4,7 +4,7 @@ import { Button } from "./Button";
 import { quoteService, Urgency } from "@/services/quote";
 import { type Property } from "@/services/property";
 import toast from "react-hot-toast";
-import { COLORS, FONTS, RADIUS, SHADOWS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 
 const SERVICE_TYPES = [
   "HVAC", "Roofing", "Plumbing", "Electrical", "Flooring", "Painting",
@@ -100,9 +100,9 @@ export function RequestQuoteModal({ isOpen, onClose, onSuccess, properties, pref
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: COLORS.white,
-          borderRadius: RADIUS.card,
-          boxShadow: SHADOWS.modal,
+          background: V2_COLORS.paper,
+          borderRadius: V2_RADIUS.card,
+          boxShadow: V2_SHADOWS.modal,
           width: "100%",
           maxWidth: "32rem",
           maxHeight: "90vh",
@@ -115,20 +115,20 @@ export function RequestQuoteModal({ isOpen, onClose, onSuccess, properties, pref
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: "1.25rem 1.5rem",
-          borderBottom: `1px solid ${COLORS.rule}`,
+          borderBottom: `1px solid ${V2_COLORS.border}`,
           flexShrink: 0,
         }}>
           <div>
-            <p style={{ fontFamily: FONTS.sans, fontSize: "0.7rem", fontWeight: 600, color: COLORS.sageText, marginBottom: "0.2rem" }}>
+            <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.7rem", fontWeight: 600, color: V2_COLORS.blue, marginBottom: "0.2rem" }}>
               Contractor Network
             </p>
-            <h2 style={{ fontFamily: FONTS.serif, fontWeight: 900, fontSize: "1.25rem", lineHeight: 1, color: COLORS.plum }}>
+            <h2 style={{ fontFamily: V2_FONTS.display, fontWeight: 900, fontSize: "1.25rem", lineHeight: 1, color: V2_COLORS.ink }}>
               Request a Quote
             </h2>
           </div>
           <button
             onClick={onClose}
-            style={{ background: "none", border: "none", cursor: "pointer", color: COLORS.plumMid, padding: "0.25rem" }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: V2_COLORS.muted, padding: "0.25rem" }}
             aria-label="Close"
           >
             <X size={18} />
@@ -139,7 +139,7 @@ export function RequestQuoteModal({ isOpen, onClose, onSuccess, properties, pref
         <div style={{ padding: "1.25rem 1.5rem", display: "flex", flexDirection: "column", gap: "1.125rem" }}>
 
           {properties.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "1.5rem 0", color: COLORS.plumMid, fontFamily: FONTS.sans, fontSize: "0.85rem", fontWeight: 300 }}>
+            <div style={{ textAlign: "center", padding: "1.5rem 0", color: V2_COLORS.muted, fontFamily: V2_FONTS.body, fontSize: "0.85rem", fontWeight: 300 }}>
               Add a property before requesting quotes.
             </div>
           ) : (
@@ -174,17 +174,17 @@ export function RequestQuoteModal({ isOpen, onClose, onSuccess, properties, pref
                       onClick={() => update("urgency", opt.value)}
                       style={{
                         padding: "0.625rem 0.875rem", cursor: "pointer",
-                        background: form.urgency === opt.value ? COLORS.sageLight : COLORS.white,
-                        border: `1.5px solid ${form.urgency === opt.value ? COLORS.sage : COLORS.rule}`,
-                        borderRadius: RADIUS.sm,
+                        background: form.urgency === opt.value ? V2_COLORS.lblue : V2_COLORS.paper,
+                        border: `1.5px solid ${form.urgency === opt.value ? V2_COLORS.blue : V2_COLORS.border}`,
+                        borderRadius: V2_RADIUS.sm,
                         transition: "border-color 0.15s, background 0.15s",
                       }}
                     >
-                      <div style={{ fontFamily: FONTS.sans, fontSize: "0.8rem", fontWeight: 600, color: form.urgency === opt.value ? COLORS.sageText : COLORS.plum, marginBottom: "0.15rem", display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                      <div style={{ fontFamily: V2_FONTS.body, fontSize: "0.8rem", fontWeight: 600, color: form.urgency === opt.value ? V2_COLORS.blue : V2_COLORS.ink, marginBottom: "0.15rem", display: "flex", alignItems: "center", gap: "0.3rem" }}>
                         {opt.value === "emergency" && <Zap size={10} />}
                         {opt.label}
                       </div>
-                      <div style={{ fontFamily: FONTS.sans, fontSize: "0.75rem", color: COLORS.plumMid, fontWeight: 300 }}>{opt.desc}</div>
+                      <div style={{ fontFamily: V2_FONTS.body, fontSize: "0.75rem", color: V2_COLORS.muted, fontWeight: 300 }}>{opt.desc}</div>
                     </div>
                   ))}
                 </div>
