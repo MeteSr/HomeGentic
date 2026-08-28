@@ -159,8 +159,8 @@ describe.skipIf(!deployed)("WF.A — Full homeowner onboarding chain", () => {
       0x01, 0x00, 0x3b,
     ]);
 
-    // photo canister upload: (jobId, propertyId, bytes, phase, description)
-    const result = await onboardPhotoActor.upload(
+    // photo canister uploadPhoto: (jobId, propertyId, bytes, phase, description)
+    const result = await onboardPhotoActor.uploadPhoto(
       `baseline_${propId}`,           // jobId — baseline key convention
       propId,                          // propertyId
       Array.from(mockBytes),           // bytes as Nat8[]
@@ -173,8 +173,7 @@ describe.skipIf(!deployed)("WF.A — Full homeowner onboarding chain", () => {
   });
 
   it("step A.3 — generates a report snapshot for the property", async () => {
-    const reportInput = {
-      propertyId:        propId,
+    const propertyInput = {
       address:           addr("onboarding"),
       city:              "Austin",
       state:             "TX",
@@ -182,15 +181,20 @@ describe.skipIf(!deployed)("WF.A — Full homeowner onboarding chain", () => {
       propertyType:      "SingleFamily",
       yearBuilt:         BigInt(1998),
       squareFeet:        BigInt(2100),
-      verificationLevel: { Basic: null },
-      planTier:          { Pro: null },
-      jobs:              [],
-      recurringServices: [],
-      rooms:             [],
+      verificationLevel: "Basic",
     };
     const result = await onboardReportActor.generateReport(
-      reportInput,
+      propId,              // propertyId : Text
+      propertyInput,       // property   : PropertyInput
+      [],                  // jobs       : [JobInput]
+      [],                  // recurringServices : [RecurringServiceInput]
+      [],                  // expiryDays : ?Nat  (empty = no expiry)
       { Public: null },    // visibility
+      [],                  // rooms      : ?[RoomInput]
+      [],                  // hideAmounts : ?Bool
+      [],                  // hideContractors : ?Bool
+      [],                  // hidePermits : ?Bool
+      [],                  // hideDescriptions : ?Bool
     );
     const link = unwrap<{ token: string }>(result as any, "WF.A generateReport");
     shareToken = link.token;

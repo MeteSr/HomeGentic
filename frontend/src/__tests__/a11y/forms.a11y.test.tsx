@@ -21,13 +21,12 @@ import { describe, it, expect } from "vitest";
 import { axe } from "vitest-axe";
 import * as axeMatchers from "vitest-axe/matchers";
 import { MemoryRouter } from "react-router-dom";
-
-// Register axe matchers at runtime; tsconfig types ensure TS recognises them.
-expect.extend(axeMatchers as any);
-
 import { Button } from "@/components/Button";
 import { UpgradeGate } from "@/components/UpgradeGate";
 import PermitCoverageIndicator from "@/components/PermitCoverageIndicator";
+
+// Register axe matchers at runtime; type augmentation lives in src/types/vitest-axe.d.ts.
+expect.extend(axeMatchers as any);
 
 // ── Helper: wrap in MemoryRouter for components that use useNavigate ──────────
 
