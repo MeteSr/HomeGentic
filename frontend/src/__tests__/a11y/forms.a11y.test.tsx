@@ -22,8 +22,8 @@ import { axe } from "vitest-axe";
 import * as axeMatchers from "vitest-axe/matchers";
 import { MemoryRouter } from "react-router-dom";
 
-// Extend Vitest expect with axe matchers — must pass the full matchers object
-expect.extend(axeMatchers);
+// Register axe matchers at runtime; tsconfig types ensure TS recognises them.
+expect.extend(axeMatchers as any);
 
 import { Button } from "@/components/Button";
 import { UpgradeGate } from "@/components/UpgradeGate";

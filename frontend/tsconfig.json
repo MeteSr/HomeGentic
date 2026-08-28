@@ -19,7 +19,7 @@
       "@/*": ["./src/*"],
       "react-helmet-async": ["./src/types/react-helmet-async-shim"]
     },
-    "types": ["vite/client", "node", "vitest/globals"]
+    "types": ["vite/client", "node", "vitest/globals", "vitest-axe/extend-expect"]
   },
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
