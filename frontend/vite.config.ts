@@ -96,19 +96,7 @@ export default defineConfig(({ mode }) => {
     test: {
       environment: "jsdom",
       globals: true,
-      pool: "forks",
-      poolOptions: {
-        forks: {
-          // GitHub Actions 2-core runners default to maxForks=1, causing a single
-          // fork to process all ~181 files and accumulate ~4 GB of V8 coverage data
-          // (≈22 MB/file) — hitting the fork's inherited 4 GB NODE_OPTIONS limit.
-          // Spread across 3 forks so each handles ~60 files (~1.3 GB); execArgv
-          // overrides the inherited NODE_OPTIONS=4096 so forks stay at 2 GB max
-          // while the main process keeps 4 GB for coverage aggregation.
-          maxForks: 3,
-          execArgv: ["--max-old-space-size=2048"],
-        },
-      },
+      pool: "threads",
       testTimeout: 30000,
       hookTimeout: 30000,
       setupFiles: ["./src/__tests__/setup.ts", "./src/__tests__/helmet-mock-setup.ts"],
