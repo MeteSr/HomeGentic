@@ -164,13 +164,16 @@ describe.skipIf(!integrationReady)("WF.A — Full homeowner onboarding chain", (
       0x01, 0x00, 0x3b,
     ]);
 
-    // photo canister uploadPhoto: (jobId, propertyId, bytes, phase, description)
+    // photo canister uploadPhoto: (jobId, propertyId, phase, description, hash, bytes)
+    // SHA-256 hash is a 64-char hex string; use a unique placeholder for tests.
+    const testHash = `a${"0".repeat(62)}1`;  // 64-char placeholder, unique per run
     const result = await onboardPhotoActor.uploadPhoto(
       `baseline_${propId}`,           // jobId — baseline key convention
       propId,                          // propertyId
-      Array.from(mockBytes),           // bytes as Nat8[]
       { PostConstruction: null },      // phase Variant
       "HVAC unit — integration test",  // description
+      testHash,                        // hash (64-char SHA-256 hex placeholder)
+      Array.from(mockBytes),           // bytes as Nat8[]
     );
     const photo = unwrap<{ id: string }>(result as any, "WF.A photo upload");
     expect(typeof photo.id).toBe("string");
