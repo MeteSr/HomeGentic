@@ -99,7 +99,8 @@ export default defineConfig(({ mode }) => {
       pool: "forks",
       poolOptions: {
         forks: {
-          maxForks: 3,  // cap concurrent jsdom processes in CI to avoid OOM
+          maxForks: 2,                                // cap concurrent jsdom processes in CI
+          execArgv: ["--max-old-space-size=1536"],    // cap per-fork heap; main process heap set via NODE_OPTIONS
         },
       },
       testTimeout: 30000,
