@@ -106,7 +106,7 @@ export default defineConfig(({ mode }) => {
         "@": path.resolve(__dirname, "./src"),
       },
       coverage: {
-        provider: "v8",
+        provider: "istanbul",
         // Only measure coverage for service-layer files that have unit tests
         include: ["src/services/**/*.ts"],
         exclude: [
