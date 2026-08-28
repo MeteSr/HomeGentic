@@ -97,6 +97,11 @@ export default defineConfig(({ mode }) => {
       environment: "jsdom",
       globals: true,
       pool: "forks",
+      poolOptions: {
+        forks: {
+          maxForks: 3,  // cap concurrent jsdom processes in CI to avoid OOM
+        },
+      },
       testTimeout: 30000,
       hookTimeout: 30000,
       setupFiles: ["./src/__tests__/setup.ts", "./src/__tests__/helmet-mock-setup.ts"],
