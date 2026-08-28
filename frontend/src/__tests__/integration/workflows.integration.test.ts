@@ -52,6 +52,11 @@ const deployed = !!(
   PAYMENT_CANISTER_ID
 );
 
+// Only run when explicitly enabled by the integration test harness.
+// `npm run test:unit` must never trigger these — even when canisters are deployed —
+// because test identities 201-204 require specific tiers granted by test-integration.sh.
+const integrationReady = deployed && !!(process.env as any).INTEGRATION_READY;
+
 // ─── Replica config ───────────────────────────────────────────────────────────
 
 const REPLICA_HOST = "http://localhost:4943";
@@ -114,7 +119,7 @@ const BASE_PROP_ARGS = {
 // generates a report → fetches the report and verifies address is present.
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe.skipIf(!deployed)("WF.A — Full homeowner onboarding chain", () => {
+describe.skipIf(!integrationReady)("WF.A — Full homeowner onboarding chain", () => {
   let propId: string;
   let shareToken: string;
   let onboardPropertyActor: any;
@@ -221,7 +226,7 @@ describe.skipIf(!deployed)("WF.A — Full homeowner onboarding chain", () => {
 // WF_HO accepts the bid → final status should be "Accepted".
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe.skipIf(!deployed)("WF.B — Quote request → bid → accept", () => {
+describe.skipIf(!integrationReady)("WF.B — Quote request → bid → accept", () => {
   let realPropId: string;
   let requestId: string;
   let quoteId: string;
@@ -308,7 +313,7 @@ describe.skipIf(!deployed)("WF.B — Quote request → bid → accept", () => {
 // "limit", "quota", or a tier-related message.
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe.skipIf(!deployed)("WF.C — Subscription tier-quota enforcement", () => {
+describe.skipIf(!integrationReady)("WF.C — Subscription tier-quota enforcement", () => {
   let quotaPropId: string;
   let quotaQuoteActor: any;
   let quotaPaymentActor: any;

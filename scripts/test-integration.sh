@@ -128,6 +128,31 @@ if command -v dfx >/dev/null 2>&1 && [ -n "${CANISTER_ID_PAYMENT:-}" ]; then
     2>/dev/null \
     && echo "  ✓ Basic   → QUOTA_USER    (seed=88)" \
     || echo "  ⚠  Could not grant Basic to QUOTA_USER"
+
+  # Workflow test identities (seeds 201-204) used by workflows.integration.test.ts
+  dfx canister call payment grantSubscription \
+    "(principal \"$(node -e "const{Ed25519KeyIdentity}=require('@dfinity/identity');const b=new Uint8Array(32);b[0]=201;console.log(Ed25519KeyIdentity.generate(b).getPrincipal().toText())"  2>/dev/null)\", variant { Premium })" \
+    2>/dev/null \
+    && echo "  ✓ Premium → WF_ONBOARD    (seed=201)" \
+    || echo "  ⚠  Could not grant Premium to WF_ONBOARD"
+
+  dfx canister call payment grantSubscription \
+    "(principal \"$(node -e "const{Ed25519KeyIdentity}=require('@dfinity/identity');const b=new Uint8Array(32);b[0]=202;console.log(Ed25519KeyIdentity.generate(b).getPrincipal().toText())"  2>/dev/null)\", variant { Basic })" \
+    2>/dev/null \
+    && echo "  ✓ Basic   → WF_HO         (seed=202)" \
+    || echo "  ⚠  Could not grant Basic to WF_HO"
+
+  dfx canister call payment grantSubscription \
+    "(principal \"$(node -e "const{Ed25519KeyIdentity}=require('@dfinity/identity');const b=new Uint8Array(32);b[0]=203;console.log(Ed25519KeyIdentity.generate(b).getPrincipal().toText())"  2>/dev/null)\", variant { ContractorFree })" \
+    2>/dev/null \
+    && echo "  ✓ ContractorFree → WF_CONTRACTOR (seed=203)" \
+    || echo "  ⚠  Could not grant ContractorFree to WF_CONTRACTOR"
+
+  dfx canister call payment grantSubscription \
+    "(principal \"$(node -e "const{Ed25519KeyIdentity}=require('@dfinity/identity');const b=new Uint8Array(32);b[0]=204;console.log(Ed25519KeyIdentity.generate(b).getPrincipal().toText())"  2>/dev/null)\", variant { Basic })" \
+    2>/dev/null \
+    && echo "  ✓ Basic   → WF_QUOTA      (seed=204)" \
+    || echo "  ⚠  Could not grant Basic to WF_QUOTA"
 else
   echo "  ⚠  dfx not found or payment canister not deployed — skipping grants"
 fi
@@ -143,6 +168,12 @@ echo "▶ Running integration tests…"
 echo ""
 
 cd "$FRONTEND_DIR"
+
+# Signal to the test suite that identities have been provisioned with the correct
+# tiers. describe.skipIf(!integrationReady) guards in *.integration.test.ts check
+# for this flag so that `npm run test:unit` never runs them even when canisters
+# are deployed.
+export INTEGRATION_READY=1
 
 # Pass any extra args (e.g. test file filter) through to vitest
 npx vitest run \
