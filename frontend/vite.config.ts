@@ -96,7 +96,7 @@ export default defineConfig(({ mode }) => {
     test: {
       environment: "jsdom",
       globals: true,
-      pool: "threads",
+      pool: "forks",
       testTimeout: 30000,
       hookTimeout: 30000,
       setupFiles: ["./src/__tests__/setup.ts", "./src/__tests__/helmet-mock-setup.ts"],
