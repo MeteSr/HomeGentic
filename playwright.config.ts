@@ -2,6 +2,9 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests/e2e",
+  // Visual snapshot specs run separately (playwright.visual.config.ts, #432) —
+  // they need pixel baselines and a fixed clock, not this config's flow.
+  testIgnore: "**/*.visual.spec.ts",
   fullyParallel: true,
   retries: 0,
   workers: process.env.CI ? 2 : undefined,

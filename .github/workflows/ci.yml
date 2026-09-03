@@ -549,3 +549,35 @@ jobs:
           name: playwright-report
           path: test-results/
           retention-days: 7
+
+  test-visual:
+    name: test-visual
+    runs-on: ubuntu-latest
+    # Same mock-mode reasoning as test-e2e. Baselines are committed in
+    # tests/e2e/__snapshots__/ — this job only compares, it never updates
+    # them (see .github/workflows/visual-baseline-update.yml for that).
+    needs: [test-frontend]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - run: npm install
+
+      - name: Install Playwright browsers
+        run: cd frontend && npx @playwright/test install --with-deps chromium
+
+      - name: Run visual regression tests
+        run: npm run test:visual
+
+      - name: Upload diff artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: visual-diff-report
+          path: test-results/
+          retention-days: 7

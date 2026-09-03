@@ -255,6 +255,10 @@ cd frontend && npm run test:unit -- src/__tests__/contracts/
 npm run test:e2e
 npm run test:e2e:ui
 
+# Visual regression tests (Playwright pixel-diff snapshots — mock mode, no replica)
+npm run test:visual
+npm run test:visual:update      # after an intentional design change
+
 # Backend canister tests (bash — requires running replica + deployed canisters)
 npm run test:canister           # all canister test suites
 bash scripts/test-cross-canister.sh  # cross-canister integration scenarios
