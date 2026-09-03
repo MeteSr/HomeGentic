@@ -15,15 +15,87 @@
  *   - Homeowner scoping: getMyBidRequests returns only the caller's requests
  *   - acceptProposal returns a feeId string and does NOT itself award the
  *     request or unmask identities — that's markListingFeePaid, webhook-only
+ *   - submitProposal requires a verified agent (invariant 05) and enforces
+ *     one proposal per agent per request — exercised with distinct identities
  */
 
 import { describe, it, expect, beforeAll } from "vitest";
+import { HttpAgent } from "@icp-sdk/core/agent";
+import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 import { listingService } from "@/services/listing";
 import type { ListingBidRequest, ListingProposal } from "@/services/listing";
-import { TEST_PRINCIPAL } from "./setup";
+import { agentService } from "@/services/agent";
+import { setAgentForTesting } from "@/services/actor";
+import { TEST_PRINCIPAL, testIdentity } from "./setup";
 
 const CANISTER_ID = process.env.LISTING_CANISTER_ID || "";
-const deployed = !!CANISTER_ID;
+const AGENT_CANISTER_ID = process.env.AGENT_CANISTER_ID || "";
+const deployed = !!CANISTER_ID && !!AGENT_CANISTER_ID;
+
+// ─── Co-bidder identities ──────────────────────────────────────────────────
+// submitProposal enforces one proposal per agent per request (invariant:
+// "up to five agents" implies five distinct bidders), so simulating three
+// sealed bids on the same listing needs three distinct verified-agent
+// principals, not three calls from the homeowner's own identity.
+// Seeds 151-153 are unused elsewhere in the integration suite (cross-canister-
+// flows.integration.test.ts uses 42, 55, 77, 88, 99).
+
+const REPLICA_HOST = "http://localhost:4943";
+const v2Fetch: typeof globalThis.fetch = (input, init) => {
+  const url = typeof input === "string" ? input
+    : input instanceof URL ? input.toString()
+    : (input as Request).url;
+  return globalThis.fetch(url.replace(/\/api\/v[34]\//, "/api/v2/"), init);
+};
+
+/** Rebinds listingService/agentService to a freshly-created agent for `seed`. */
+async function switchToSeed(seed: number): Promise<string> {
+  const buf = new Uint8Array(32);
+  buf[0] = seed;
+  const identity = Ed25519KeyIdentity.generate(buf);
+  const agent = await HttpAgent.create({
+    identity, host: REPLICA_HOST, shouldFetchRootKey: true, fetch: v2Fetch,
+  });
+  setAgentForTesting(agent);
+  listingService.reset();
+  agentService.reset();
+  return identity.getPrincipal().toText();
+}
+
+/** Restores the default session identity (TEST_PRINCIPAL, admin on `agent`). */
+async function switchToTestPrincipal(): Promise<void> {
+  const agent = await HttpAgent.create({
+    identity: testIdentity,
+    host: REPLICA_HOST,
+    shouldFetchRootKey: true,
+    fetch: v2Fetch,
+  });
+  setAgentForTesting(agent);
+  listingService.reset();
+  agentService.reset();
+}
+
+const COBIDDER_SEEDS = [151, 152, 153];
+/** Populated by beforeAll: three distinct, verified agent principals. */
+let coBidderPrincipals: string[] = [];
+
+/** Registers (idempotent) + admin-verifies one seed as an agent. Returns its principal. */
+async function setUpCoBidder(seed: number, label: string): Promise<string> {
+  const principal = await switchToSeed(seed);
+  try {
+    await agentService.register({
+      name: `Co-Bidder ${label}`, brokerage: "Integration Test Realty",
+      licenseNumber: `SL-INTEG-${label}`, licenseState: "FL", county: "Hillsborough",
+      serviceCities: ["tampa"], bio: "", phone: "", email: `agent-${label.toLowerCase()}@example.com`,
+    });
+  } catch {
+    // Already registered from a prior run against a non-clean replica — fine,
+    // registration is a one-time setup step, not part of what this suite asserts.
+  }
+  await switchToTestPrincipal(); // admin, per ci.yml's `agent addAdmin $INTEG_PRINCIPAL`
+  await agentService.verifyAgent(principal);
+  return principal;
+}
 
 const RUN_ID = Date.now();
 function pid(label: string) { return `integ-listing-${label}-${RUN_ID}`; }
@@ -56,17 +128,46 @@ const BASE_PROPOSAL = {
   coverLetter:           "I have 10+ years experience in this market.",
 };
 
-/** Submit 3 proposals so the sealed-bid gate opens (invariant 02: 3 bids OR deadline). */
+/**
+ * Submit 3 proposals so the sealed-bid gate opens (invariant 02: 3 bids OR
+ * deadline) — one per pre-registered co-bidder, since submitProposal caps
+ * one proposal per agent per request. Restores the TEST_PRINCIPAL identity
+ * (homeowner) before returning so callers can immediately act as the seller.
+ */
 async function submitThreeProposals(requestId: string) {
   const proposals: ListingProposal[] = [];
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < coBidderPrincipals.length; i++) {
+    await switchToSeed(COBIDDER_SEEDS[i]);
     proposals.push(await listingService.submitProposal(requestId, {
       ...BASE_PROPOSAL,
       coverLetter: `${BASE_PROPOSAL.coverLetter} (agent ${i})`,
     }));
   }
+  await switchToTestPrincipal();
   return proposals;
 }
+
+// Module-level setup: register + admin-verify TEST_PRINCIPAL itself as an
+// agent (several describe blocks below submit a single proposal directly as
+// TEST_PRINCIPAL), plus the three distinct co-bidder identities that
+// submitThreeProposals uses.
+beforeAll(async () => {
+  if (!deployed) return;
+  try {
+    await agentService.register({
+      name: "Test Principal Agent", brokerage: "Integration Test Realty",
+      licenseNumber: "SL-INTEG-SELF", licenseState: "FL", county: "Hillsborough",
+      serviceCities: ["tampa"], bio: "", phone: "", email: "integ-self-agent@example.com",
+    });
+  } catch {
+    // Already registered from a prior run against a non-clean replica — fine.
+  }
+  await agentService.verifyAgent(TEST_PRINCIPAL); // TEST_PRINCIPAL is its own admin here
+  coBidderPrincipals = [];
+  for (let i = 0; i < COBIDDER_SEEDS.length; i++) {
+    coBidderPrincipals.push(await setUpCoBidder(COBIDDER_SEEDS[i], String.fromCharCode(65 + i)));
+  }
+});
 
 // ─── createBidRequest — Candid serialization ──────────────────────────────────
 
@@ -194,13 +295,14 @@ describe.skipIf(!deployed)("getOpenBidRequests — masked BidRequestSummary feed
 // ─── submitProposal — BigInt field round-trips ────────────────────────────────
 
 describe.skipIf(!deployed)("submitProposal — Candid serialization", () => {
-  let request: ListingBidRequest;
-
-  beforeAll(async () => {
-    request = await listingService.createBidRequest({ ...BASE_REQUEST, propertyId: pid("submit-prop") });
-  });
+  // One proposal per agent per request is enforced server-side, so each test
+  // below submits to its own fresh request rather than sharing one.
+  async function freshRequest(label: string): Promise<ListingBidRequest> {
+    return listingService.createBidRequest({ ...BASE_REQUEST, propertyId: pid(`submit-prop-${label}`) });
+  }
 
   it("returns a proposal with a non-empty id and letter", async () => {
+    const request = await freshRequest("id-letter");
     const prop = await listingService.submitProposal(request.id, BASE_PROPOSAL);
     expect(prop.id).toBeTruthy();
     expect(typeof prop.letter).toBe("string");
@@ -208,37 +310,44 @@ describe.skipIf(!deployed)("submitProposal — Candid serialization", () => {
   });
 
   it("commissionBps (Nat) survives BigInt round-trip", async () => {
+    const request = await freshRequest("commission");
     const prop = await listingService.submitProposal(request.id, { ...BASE_PROPOSAL, commissionBps: 300 });
     expect(prop.commissionBps).toBe(300);
   });
 
   it("suggestedListCents (Nat) survives BigInt round-trip", async () => {
+    const request = await freshRequest("suggested-list");
     const prop = await listingService.submitProposal(request.id, { ...BASE_PROPOSAL, suggestedListCents: 472_500_00 });
     expect(prop.suggestedListCents).toBe(472_500_00);
   });
 
   it("estimatedDaysOnMarket (Nat) survives BigInt round-trip", async () => {
+    const request = await freshRequest("dom");
     const prop = await listingService.submitProposal(request.id, { ...BASE_PROPOSAL, estimatedDaysOnMarket: 28 });
     expect(prop.estimatedDaysOnMarket).toBe(28);
   });
 
   it("marketingCommitments Vec(Text) is preserved and required non-empty", async () => {
+    const request = await freshRequest("commitments");
     const commitments = ["Professional photography", "Virtual tour", "Two open houses"];
     const prop = await listingService.submitProposal(request.id, { ...BASE_PROPOSAL, marketingCommitments: commitments });
     expect(prop.marketingCommitments).toEqual(expect.arrayContaining(commitments));
 
+    const request2 = await freshRequest("commitments-empty");
     await expect(
-      listingService.submitProposal(request.id, { ...BASE_PROPOSAL, marketingCommitments: [] })
+      listingService.submitProposal(request2.id, { ...BASE_PROPOSAL, marketingCommitments: [] })
     ).rejects.toThrow();
   });
 
   it("includedServices Vec(Text) is preserved", async () => {
+    const request = await freshRequest("services");
     const services = ["Professional Photography", "MLS Listing", "Virtual Tour"];
     const prop = await listingService.submitProposal(request.id, { ...BASE_PROPOSAL, includedServices: services });
     expect(prop.includedServices).toEqual(expect.arrayContaining(services));
   });
 
   it("proposal starts with status 'Pending', carries derived signals and an agent record", async () => {
+    const request = await freshRequest("status");
     const prop = await listingService.submitProposal(request.id, BASE_PROPOSAL);
     expect(prop.status).toBe("Pending");
     expect(prop.derived).toBeDefined();
@@ -246,6 +355,7 @@ describe.skipIf(!deployed)("submitProposal — Candid serialization", () => {
   });
 
   it("agentId matches the test identity principal", async () => {
+    const request = await freshRequest("agent-id");
     const prop = await listingService.submitProposal(request.id, BASE_PROPOSAL);
     expect(prop.agentId).toBe(TEST_PRINCIPAL);
   });

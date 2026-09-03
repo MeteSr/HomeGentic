@@ -330,6 +330,11 @@ jobs:
           # is then skipped by the `case null {}` branch (non-existent property → proceed).
           dfx canister call report addAdmin "(principal \"$INTEG_PRINCIPAL\")"
 
+          # Grant integration test identity admin on agent so listing.integration.test.ts
+          # can self-verify a test agent profile (submitProposal requires isVerified=true —
+          # invariant 05, licence re-check gate) without a real DBPR check in CI.
+          dfx canister call agent addAdmin "(principal \"$INTEG_PRINCIPAL\")"
+
           AUTH_ID=$(dfx canister id auth)
           PAYMENT_ID=$(dfx canister id payment)
           PROPERTY_ID=$(dfx canister id property)

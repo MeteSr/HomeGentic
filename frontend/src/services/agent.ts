@@ -127,6 +127,15 @@ function createAgentService() {
       if ("err" in result) throw new Error(JSON.stringify(result.err));
     },
 
+    /** Admin only. */
+    async verifyAgent(agentId: string): Promise<AgentProfile> {
+      const { Principal } = await import("@icp-sdk/core/principal");
+      const actor = await getActor();
+      const result = await actor.verifyAgent(Principal.fromText(agentId));
+      if ("err" in result) throw new Error(JSON.stringify(result.err));
+      return fromRawProfile(result.ok);
+    },
+
     async isVerifiedAgent(principal: string): Promise<boolean> {
       const { Principal } = await import("@icp-sdk/core/principal");
       const actor = await getActor();
