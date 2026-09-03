@@ -76,6 +76,7 @@ getJobsForProperty(1) -> (1)
 getJobSnapshotsForProperty(1) -> (1) [query]
 getJobsPendingMySignature(0) -> (1) [query]
 getMetrics(0) -> (1) [query]
+getMyReferralJobs(0) -> (1) [query]
 getPendingProposals(0) -> (1) [query]
 getReferralJobs(0) -> (1) [query]
 linkContractor(2) -> (1)

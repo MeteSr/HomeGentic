@@ -476,7 +476,7 @@ Multi-tab page — the main workspace for a property.
 | Insurance Defense Mode | ✓ | ✓ | ✓ |
 | Resale Ready | ✓ | ✓ | ✓ |
 
-Contractor tiers: **ContractorFree** (profile + view leads, $15/verified job) · **ContractorPro** ($30/mo, quote submissions + earnings dashboard + reviews)
+Contractor tiers: **ContractorFree** (profile + view leads, 3% referral fee per winning bid, $20 minimum) · **ContractorPro** ($40/mo, quote submissions + earnings dashboard + reviews)
 
 Realtor tiers: **RealtorFree** (profile + bid on listing requests, $100/won bid) · **RealtorPro** ($30/mo, unlimited bids + priority placement + verified badge + 10 AI calls/day)
 
