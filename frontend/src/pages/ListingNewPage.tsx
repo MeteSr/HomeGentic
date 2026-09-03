@@ -11,6 +11,7 @@ import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import ListingPhotoManager from "@/components/ListingPhotoManager";
 import { listingService, type WindowDays } from "@/services/listing";
+import { propertyService } from "@/services/property";
 import { usePropertyStore } from "@/store/propertyStore";
 import { useAuthStore } from "@/store/authStore";
 import toast from "react-hot-toast";
@@ -40,8 +41,15 @@ const WINDOW_OPTIONS: { value: WindowDays; label: string }[] = [
 export default function ListingNewPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { properties } = usePropertyStore();
+  const { properties, setProperties } = usePropertyStore();
   const profile = useAuthStore((s) => s.profile);
+
+  // Populate the property store if the user navigated here directly (bypassing Dashboard)
+  useEffect(() => {
+    if (properties.length === 0) {
+      propertyService.getMyProperties().then((list) => { if (list.length > 0) setProperties(list); }).catch((e) => console.error("[ListingNew] property load failed:", e));
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const propertyIdParam = searchParams.get("propertyId");
   const property = useMemo(
@@ -210,7 +218,7 @@ export default function ListingNewPage() {
             {/* Right column */}
             <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
               <div style={{ background: UI.neutralSurface, borderRadius: V2_RADIUS.card + 2, padding: 20 }}>
-                <div style={{ ...labelStyle, marginBottom: 12 }}>What agents will see</div>
+                <div style={{ ...labelStyle, color: UI.muted2, marginBottom: 12 }}>What agents will see</div>
                 <div style={{ fontFamily: V2_FONTS.display, fontWeight: 700, fontSize: "1.05rem", color: UI.ink }}>
                   {property ? `${property.city} · ${property.zipCode}` : "—"}
                 </div>

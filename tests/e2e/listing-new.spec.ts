@@ -35,7 +35,7 @@ test.describe("LN — /listing/new", () => {
 
   test("LN.1 never shows the exact address in the agent preview panel", async ({ page }) => {
     await expect(page.getByText(/what agents will see/i)).toBeVisible();
-    await expect(page.getByText(/exact address/i)).toBeVisible();
+    await expect(page.getByText(/exact address/i).first()).toBeVisible();
   });
 
   test("LN.2 shows the 3/7/14-day bidding window selector, 7 days default", async ({ page }) => {
