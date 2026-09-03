@@ -9,6 +9,9 @@ name: Update visual regression baselines
 on:
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
 jobs:
   update-baselines:
     name: update-visual-baselines
