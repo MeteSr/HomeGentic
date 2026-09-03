@@ -1,283 +1,277 @@
 /**
- * ListingNewPage — Epic 9.2
- * Homeowner creates a sealed-bid listing request.
+ * ListingNewPage — Bid to List H1 · /listing/new
+ * Homeowner starts a sealed-bid listing request. Three fields and a photo
+ * drop; the property record already exists so nothing here re-asks for it.
  */
 
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Send } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
-import { listingService, BidVisibility } from "@/services/listing";
+import ListingPhotoManager from "@/components/ListingPhotoManager";
+import { listingService, type WindowDays } from "@/services/listing";
 import { usePropertyStore } from "@/store/propertyStore";
-import { useJobStore } from "@/store/jobStore";
-import { computeScore } from "@/services/scoreService";
-import { paymentService, type PlanTier } from "@/services/payment";
-import { UpgradeGate } from "@/components/UpgradeGate";
+import { useAuthStore } from "@/store/authStore";
 import toast from "react-hot-toast";
-import { V2_COLORS, V2_FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 
-const UI = {
-  ink:      V2_COLORS.ink,
-  paper:    V2_COLORS.paper,
-  rule:     V2_COLORS.border,
-  inkLight: V2_COLORS.muted,
-  sage:     V2_COLORS.blue,
-  serif:    V2_FONTS.display,
-  mono:     V2_FONTS.body,
-  sans:     V2_FONTS.body,
-};
-
-const fieldStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "0.625rem 0.75rem",
-  fontFamily: UI.sans,
-  fontSize: "0.9375rem",
-  color: UI.ink,
-  border: `1px solid ${UI.rule}`,
-  background: UI.paper,
-  outline: "none",
-  boxSizing: "border-box",
-};
+const UI = V2_COLORS;
+const CARD_SHADOW = "0 1px 3px rgba(11,13,26,0.05)";
 
 const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontFamily: UI.mono,
-  fontSize: "0.65rem",
-  letterSpacing: "0.08em",
-  textTransform: "uppercase",
-  color: UI.inkLight,
-  marginBottom: "0.35rem",
+  fontFamily: V2_FONTS.mono, fontSize: "0.72rem", fontWeight: 600,
+  letterSpacing: "0.08em", color: UI.muted, textTransform: "uppercase",
 };
+
+const inputBase: React.CSSProperties = {
+  marginTop: 9, border: `1.5px solid ${UI.border}`, background: UI.paper,
+  borderRadius: V2_RADIUS.input + 4, padding: "14px 16px", boxSizing: "border-box",
+  minHeight: 50, width: "100%", fontFamily: V2_FONTS.body, fontSize: "0.95rem",
+  color: UI.ink, outline: "none",
+};
+
+const WINDOW_OPTIONS: { value: WindowDays; label: string }[] = [
+  { value: "Three", label: "3 days" },
+  { value: "Seven", label: "7 days" },
+  { value: "Fourteen", label: "14 days" },
+];
 
 export default function ListingNewPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { properties } = usePropertyStore();
-  const { jobs } = useJobStore();
-  const [userTier,   setUserTier]   = useState<PlanTier>("Basic");
-  const [loading,    setLoading]    = useState(false);
-  const [visibility, setVisibility] = useState<BidVisibility>("open");
-  const [form, setForm] = useState({
-    propertyId:       "",
-    targetListDate:   "",
-    desiredSalePrice: "",
-    notes:            "",
-    bidDeadline:      "",
-  });
+  const profile = useAuthStore((s) => s.profile);
 
+  const propertyIdParam = searchParams.get("propertyId");
+  const property = useMemo(
+    () => properties.find((p) => String(p.id) === propertyIdParam) ?? properties[0] ?? null,
+    [properties, propertyIdParam]
+  );
+
+  const [timeframe, setTimeframe] = useState("Within 60 days");
+  const [notes, setNotes] = useState("");
+  const [windowDays, setWindowDays] = useState<WindowDays>("Seven");
+  const [photoCount, setPhotoCount] = useState(0);
+  const [flaggedUnreviewed, setFlaggedUnreviewed] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  const propertyId = property ? String(property.id) : "";
+
+  // Re-check flagged/unreviewed photo count whenever the photo list changes —
+  // publish is blocked until every flagged tile has been reviewed (H1 spec).
   useEffect(() => {
-    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch((e) => console.error("[ListingNewPage] subscription load failed:", e));
-  }, []);
+    if (!propertyId) return;
+    let cancelled = false;
+    (async () => {
+      const ids = await listingService.getListingPhotos(propertyId);
+      const states = await Promise.all(ids.map((id) => listingService.getPhotoReviewState(id)));
+      if (cancelled) return;
+      setFlaggedUnreviewed(states.filter((s) => s?.flagged && !s.reviewed).length);
+    })();
+    return () => { cancelled = true; };
+  }, [propertyId, photoCount]);
 
-  useEffect(() => {
-    if (properties[0]) setForm((f) => ({ ...f, propertyId: String(properties[0].id) }));
-  }, [properties]);
-
-  function set(field: string, value: string) {
-    setForm((f) => ({ ...f, [field]: value }));
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!form.propertyId) { toast.error("Select a property"); return; }
-    if (!form.bidDeadline) { toast.error("Set a bid deadline"); return; }
-    const deadlineMs = new Date(form.bidDeadline).getTime();
-    if (deadlineMs <= Date.now()) { toast.error("Bid deadline must be in the future"); return; }
-
-    // 9.2.3 — snapshot current score + verified job count
-    const score            = computeScore(jobs, properties);
-    const verifiedJobCount = jobs.filter((j) => j.verified).length;
-    const propertySnapshot = { score, verifiedJobCount, systemNotes: "" };
+  async function handlePublish() {
+    if (!property) { toast.error("No property on file to list"); return; }
+    if (!timeframe.trim()) { toast.error("When do you want to list is required"); return; }
+    if (flaggedUnreviewed > 0) { toast.error("Review the flagged photos before publishing"); return; }
 
     setLoading(true);
     try {
       const req = await listingService.createBidRequest({
-        propertyId:       form.propertyId,
-        targetListDate:   form.targetListDate ? new Date(form.targetListDate).getTime() : Date.now() + 60 * 86_400_000,
-        desiredSalePrice: form.desiredSalePrice ? Math.round(parseFloat(form.desiredSalePrice) * 100) : null,
-        notes:            form.notes,
-        bidDeadline:      deadlineMs,
-        propertySnapshot,
-        visibility,
+        propertyId,
+        address: property.address,
+        city: property.city,
+        county: "",
+        zipCode: property.zipCode,
+        homeownerEmail: profile?.email ?? "",
+        sqft: property.squareFeet != null ? Number(property.squareFeet) : null,
+        targetListDate: Date.now() + 60 * 86_400_000,
+        desiredSalePrice: null,
+        notes: `${timeframe} — ${notes}`.trim(),
+        windowDays,
       });
-      toast.success("Listing request created — agents can now submit proposals.");
+      toast.success("Published to licensed agents.");
       navigate(`/listing/${req.id}`);
     } catch (err: any) {
-      toast.error(err?.message ?? "Failed to create listing request");
+      toast.error(err?.message ?? "Failed to publish listing request");
     } finally {
       setLoading(false);
     }
   }
 
+  const checkRow = (ok: boolean, text: string) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: V2_FONTS.body, fontSize: "0.85rem", color: UI.ink }}>
+      <span style={{
+        width: 18, height: 18, borderRadius: "50%", flexShrink: 0,
+        background: ok ? UI.greenBg : UI.orangeBg, color: ok ? UI.green : UI.orange,
+        display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", fontWeight: 700,
+      }}>{ok ? "✓" : "✕"}</span>
+      {text}
+    </div>
+  );
+
   return (
     <Layout>
-      <div style={{ maxWidth: 680, margin: "0 auto", padding: "2rem 1.5rem" }}>
-        {/* Back */}
+      <div style={{ maxWidth: 1180, margin: "0 auto", padding: "2rem 1.5rem 4rem" }}>
         <button
           onClick={() => navigate(-1)}
-          style={{
-            display: "flex", alignItems: "center", gap: "0.4rem",
-            background: "none", border: "none", cursor: "pointer",
-            fontFamily: UI.mono, fontSize: "0.72rem", color: UI.inkLight,
-            letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "2rem",
-          }}
+          style={{ display: "flex", alignItems: "center", gap: "0.4rem", background: "none", border: "none", cursor: "pointer",
+            fontFamily: V2_FONTS.mono, fontSize: "0.72rem", color: UI.muted, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "1.5rem" }}
         >
           <ArrowLeft size={13} /> Back
         </button>
 
-        {/* Heading */}
-        <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", color: UI.ink, margin: "0 0 0.4rem" }}>
-          List Your Home
-        </h1>
-        <p style={{ fontFamily: UI.sans, fontSize: "0.9rem", color: UI.inkLight, margin: "0 0 1.5rem" }}>
-          Invite licensed agents to compete for your listing with sealed proposals. You choose after the deadline.
-        </p>
+        <div style={{
+          background: UI.paper, border: `1px solid ${UI.cardBorder}`, borderRadius: V2_RADIUS.card + 6,
+          overflow: "hidden", boxShadow: CARD_SHADOW,
+        }}>
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.35fr) minmax(0,1fr)", gap: "clamp(24px,3vw,40px)", padding: "clamp(24px,3vw,36px)" }}>
+            {/* Left column */}
+            <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 22 }}>
+              <div>
+                <h1 style={{ fontFamily: V2_FONTS.display, fontWeight: 800, fontSize: "clamp(22px,2.4vw,26px)", letterSpacing: "-0.03em", color: UI.ink, margin: 0 }}>
+                  Let agents compete for your listing
+                </h1>
+                <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.9375rem", color: UI.muted2, marginTop: 9 }}>
+                  Up to five licensed agents bid on your home without knowing whose it is. You pay nothing, ever.
+                  The agent you choose pays the platform fee — never you.
+                </p>
+              </div>
 
-        {/* BidToList cross-sell banner */}
-        <div style={{ border: `1px solid ${UI.rule}`, background: "#F0F7FF", padding: "1rem 1.25rem", marginBottom: "2rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
-          <div>
-            <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.2rem" }}>
-              Want more agent competition?
-            </p>
-            <p style={{ fontFamily: UI.sans, fontSize: "0.875rem", fontWeight: 500, color: UI.ink }}>
-              BidToList lets agents bid for your listing — you pick the best offer.
-            </p>
+              <div>
+                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
+                  <div style={labelStyle}>Property</div>
+                  <div style={{ fontSize: "0.75rem", color: UI.muted, fontFamily: V2_FONTS.body }}>from your record</div>
+                </div>
+                <div style={{ ...inputBase, background: UI.surface, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                  <div style={{ minWidth: 0 }}>
+                    {property ? `${property.address}, ${property.city} ${property.zipCode}` : "No property on file"}
+                  </div>
+                  {property && (
+                    <span style={{ fontFamily: V2_FONTS.mono, fontSize: "0.68rem", letterSpacing: "0.06em", color: UI.green, background: UI.greenBg, borderRadius: 100, padding: "6px 10px", whiteSpace: "nowrap" }}>
+                      VERIFIED RECORD
+                    </span>
+                  )}
+                </div>
+                <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: UI.muted, marginTop: 7 }}>
+                  Exact address is never shown to agents. They see the neighbourhood and zip only.
+                </p>
+              </div>
+
+              <div>
+                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
+                  <div style={labelStyle}>When do you want to list</div>
+                  <div style={{ fontSize: "0.75rem", color: UI.muted, fontFamily: V2_FONTS.body }}>required</div>
+                </div>
+                <input
+                  value={timeframe}
+                  onChange={(e) => setTimeframe(e.target.value)}
+                  placeholder="Within 60 days"
+                  style={{ ...inputBase, borderColor: UI.blue }}
+                />
+              </div>
+
+              <div>
+                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
+                  <div style={labelStyle}>Anything agents should know</div>
+                  <div style={{ fontSize: "0.75rem", color: UI.muted, fontFamily: V2_FONTS.body }}>optional · {180 - notes.length} left</div>
+                </div>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value.slice(0, 180))}
+                  maxLength={180}
+                  rows={3}
+                  placeholder="Roof and HVAC both replaced in the last three years. Permits are clean."
+                  style={{ ...inputBase, resize: "vertical", minHeight: 80 }}
+                />
+                <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: UI.muted, marginTop: 7 }}>
+                  Scanned for contact details and address hints before it goes out.
+                </p>
+              </div>
+
+              {property && (
+                <div>
+                  <div style={labelStyle}>Photos</div>
+                  <div style={{ marginTop: 9 }}>
+                    <ListingPhotoManager propertyId={propertyId} isOwner onPhotoCountChange={setPhotoCount} />
+                  </div>
+                  <div style={{ marginTop: 12, background: UI.amberBg, border: `1px solid ${UI.amberBorder}`, borderRadius: V2_RADIUS.card - 4, padding: "12px 14px" }}>
+                    <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: UI.amberText, margin: 0 }}>
+                      Photos are scanned for house numbers, street signs and mail before agents see them.
+                      Anything identifying gets blurred automatically — review any flagged tile before you publish.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Right column */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
+              <div style={{ background: UI.neutralSurface, borderRadius: V2_RADIUS.card + 2, padding: 20 }}>
+                <div style={{ ...labelStyle, marginBottom: 12 }}>What agents will see</div>
+                <div style={{ fontFamily: V2_FONTS.display, fontWeight: 700, fontSize: "1.05rem", color: UI.ink }}>
+                  {property ? `${property.city} · ${property.zipCode}` : "—"}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 14 }}>
+                  {checkRow(true, "Neighbourhood, zip, size and year built")}
+                  {checkRow(true, "That a verified maintenance record exists")}
+                  {checkRow(false, "Exact address")}
+                  {checkRow(false, "Your name, photo or contact details")}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ ...labelStyle, marginBottom: 10 }}>Bidding window</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {WINDOW_OPTIONS.map((opt) => {
+                    const active = windowDays === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        onClick={() => setWindowDays(opt.value)}
+                        style={{
+                          flex: 1, padding: "12px 8px", borderRadius: V2_RADIUS.input,
+                          border: `1.5px solid ${active ? UI.blue : UI.border}`,
+                          background: active ? UI.blueTintBg : UI.paper,
+                          color: active ? UI.blue : UI.muted,
+                          fontFamily: V2_FONTS.mono, fontSize: "0.8rem", fontWeight: 600, cursor: "pointer",
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div style={{ background: UI.ink, borderRadius: V2_RADIUS.card + 2, padding: 22 }}>
+                <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.68rem", letterSpacing: "0.08em", color: "rgba(252,252,253,0.6)", textTransform: "uppercase" }}>
+                  Your cost
+                </div>
+                <div style={{ fontFamily: V2_FONTS.display, fontWeight: 800, fontSize: "2.1rem", color: UI.paper, margin: "6px 0 16px" }}>
+                  $0
+                </div>
+                <Button
+                  variant="primary"
+                  style={{ width: "100%", minHeight: 48 }}
+                  disabled={!property || flaggedUnreviewed > 0}
+                  loading={loading}
+                  onClick={handlePublish}
+                  icon={!loading ? <Send size={15} /> : undefined}
+                >
+                  Publish to licensed agents
+                </Button>
+                {flaggedUnreviewed > 0 && (
+                  <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.78rem", color: UI.greenBright, marginTop: 10, marginBottom: 0 }}>
+                    {flaggedUnreviewed} photo{flaggedUnreviewed > 1 ? "s" : ""} need review before publishing.
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
-          <a
-            href="https://bidtolist.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.45rem 1rem", background: "#1B3266", color: "#fff", textDecoration: "none", flexShrink: 0 }}
-          >
-            Go to BidToList →
-          </a>
         </div>
-
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-          {/* Property selector */}
-          <div>
-            <label htmlFor="listing-property" style={labelStyle}>Property</label>
-            <select
-              id="listing-property"
-              aria-label="Property"
-              value={form.propertyId}
-              onChange={(e) => set("propertyId", e.target.value)}
-              style={{ ...fieldStyle, appearance: "none" }}
-              required
-            >
-              {properties.map((p) => (
-                <option key={String(p.id)} value={String(p.id)}>
-                  {(p as any).address ?? String(p.id)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Target list date */}
-          <div>
-            <label htmlFor="listing-target-date" style={labelStyle}>Target List Date</label>
-            <input
-              id="listing-target-date"
-              type="date"
-              value={form.targetListDate}
-              onChange={(e) => set("targetListDate", e.target.value)}
-              style={fieldStyle}
-            />
-          </div>
-
-          {/* Desired sale price */}
-          <div>
-            <label htmlFor="listing-price" style={labelStyle}>Desired Sale Price (optional)</label>
-            <div style={{ position: "relative" }}>
-              <span style={{
-                position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)",
-                fontFamily: UI.mono, fontSize: "0.875rem", color: UI.inkLight,
-              }}>$</span>
-              <input
-                id="listing-price"
-                type="number"
-                min="0"
-                step="1000"
-                placeholder="e.g. 550000"
-                value={form.desiredSalePrice}
-                onChange={(e) => set("desiredSalePrice", e.target.value)}
-                style={{ ...fieldStyle, paddingLeft: "1.75rem" }}
-              />
-            </div>
-            <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, margin: "0.3rem 0 0", letterSpacing: "0.04em" }}>
-              Visible to agents — helps them benchmark their CMA
-            </p>
-          </div>
-
-          {/* Bid deadline */}
-          <div>
-            <label htmlFor="listing-deadline" style={labelStyle}>Bid Deadline</label>
-            <input
-              id="listing-deadline"
-              type="datetime-local"
-              value={form.bidDeadline}
-              onChange={(e) => set("bidDeadline", e.target.value)}
-              style={fieldStyle}
-              required
-            />
-            <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, margin: "0.3rem 0 0", letterSpacing: "0.04em" }}>
-              Proposals are sealed until this date — agents cannot see each other's bids
-            </p>
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label htmlFor="listing-notes" style={labelStyle}>Notes</label>
-            <textarea
-              id="listing-notes"
-              rows={4}
-              placeholder="Any preferences, timeline constraints, or notes for agents..."
-              value={form.notes}
-              onChange={(e) => set("notes", e.target.value)}
-              maxLength={5000}
-              style={{ ...fieldStyle, resize: "vertical" }}
-            />
-          </div>
-
-          {/* Visibility — 9.2.4 */}
-          <div>
-            <span style={labelStyle}>Proposal Visibility</span>
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.35rem" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem",
-                fontFamily: UI.sans, fontSize: "0.9rem", color: UI.ink, cursor: "pointer" }}>
-                <input
-                  type="radio"
-                  name="visibility"
-                  value="open"
-                  checked={visibility === "open"}
-                  onChange={() => setVisibility("open")}
-                  aria-label="Open to all agents"
-                />
-                Open to all agents
-              </label>
-              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem",
-                fontFamily: UI.sans, fontSize: "0.9rem", color: UI.ink, cursor: "pointer" }}>
-                <input
-                  type="radio"
-                  name="visibility"
-                  value="inviteOnly"
-                  checked={visibility === "inviteOnly"}
-                  onChange={() => setVisibility("inviteOnly")}
-                  aria-label="Invite-only"
-                />
-                Invite-only (share link with specific agents)
-              </label>
-            </div>
-          </div>
-
-          {/* Submit */}
-          <div style={{ paddingTop: "0.5rem" }}>
-            <Button type="submit" disabled={loading} style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <Send size={14} />
-              {loading ? "Creating…" : "Create Listing Request"}
-            </Button>
-          </div>
-        </form>
       </div>
     </Layout>
   );
