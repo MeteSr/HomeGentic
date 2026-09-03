@@ -29,9 +29,9 @@
 import { Router } from "express";
 import express from "express";
 import Stripe from "stripe";
-import { Actor, HttpAgent } from "@dfinity/agent";
-import { Ed25519KeyIdentity } from "@dfinity/identity";
-import { IDL } from "@dfinity/candid";
+import { Actor, HttpAgent } from "@icp-sdk/core/agent";
+import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
+import { IDL } from "@icp-sdk/core/candid";
 
 const LISTING_CANISTER_ID = process.env.LISTING_CANISTER_ID       || "";
 const AGENT_CANISTER_ID   = process.env.AGENT_CANISTER_ID         || "";
@@ -84,7 +84,7 @@ const feeIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
 
 function makeIdentity() {
   const seed = Buffer.from(IDENTITY_SEED, "hex");
-  return Ed25519KeyIdentity.fromSecretKey(seed.buffer as ArrayBuffer);
+  return Ed25519KeyIdentity.fromSecretKey(seed);
 }
 
 async function createActor<T>(canisterId: string, idlFactory: any): Promise<T | null> {
