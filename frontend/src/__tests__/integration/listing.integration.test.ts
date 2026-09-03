@@ -5,14 +5,16 @@
  * Run:      npm run test:integration  (from repo root)
  *
  * What these tests prove that unit tests cannot:
- *   - Candid IDL: targetListDate/bidDeadline/validUntil (Int bigint), desiredSalePrice
- *     (Opt Nat), commissionBps/estimatedDaysOnMarket/estimatedSalePrice (Nat/bigint)
+ *   - Candid IDL: targetListDate/validUntil (Int bigint), desiredSalePrice/beds/baths/sqft
+ *     (Opt Nat), commissionBps/estimatedDaysOnMarket/suggestedListCents (Nat/bigint)
  *   - BidRequestStatus Variant: Open → Cancelled (cancelBidRequest)
- *   - ProposalStatus Variant: Pending → Accepted (acceptProposal) + others → Rejected
- *   - Deadline enforcement: submitProposal after bidDeadline throws DeadlinePassed
- *   - Sealed-bid: getProposalsForRequest returns empty before deadline, proposals after
+ *   - windowDays Variant round-trips and the canister derives bidDeadline from it
+ *   - ProposalStatus Variant: Pending → Accepted (acceptProposal)
+ *   - Sealed-bid gate: getProposalsForRequest / getBidProgress stay sealed until
+ *     3 bids land or the window closes
  *   - Homeowner scoping: getMyBidRequests returns only the caller's requests
- *   - Award cascade: accepting one proposal marks the request as Awarded
+ *   - acceptProposal returns a feeId string and does NOT itself award the
+ *     request or unmask identities — that's markListingFeePaid, webhook-only
  */
 
 import { describe, it, expect, beforeAll } from "vitest";
@@ -28,29 +30,43 @@ function pid(label: string) { return `integ-listing-${label}-${RUN_ID}`; }
 
 // Future timestamps (ms)
 const TARGET_LIST = Date.now() + 30 * 24 * 60 * 60 * 1000;   // 30 days from now
-const DEADLINE_FUTURE = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days from now
-const DEADLINE_PAST   = Date.now() - 1_000;                    // already passed
 
 const BASE_REQUEST = {
   propertyId:       pid("base"),
+  address:          "100 Integration Way",
+  city:             "Tampa",
+  county:           "Hillsborough",
+  zipCode:          "33602",
+  homeownerEmail:   "integration-owner@example.com",
   targetListDate:   TARGET_LIST,
   desiredSalePrice: 450_000_00, // $450,000 in cents
   notes:            "Integration test listing bid request",
-  bidDeadline:      DEADLINE_FUTURE,
+  windowDays:       "Fourteen" as const,
 };
 
 const BASE_PROPOSAL = {
-  agentName:             "Jane Smith",
-  agentBrokerage:        "HomeGentic Realty",
   commissionBps:         275,   // 2.75%
+  suggestedListCents:    450_000_00,
   cmaSummary:            "3 comparable sales in the last 90 days support pricing at $450k.",
   marketingPlan:         "MLS listing, professional photos, 2 open houses.",
+  marketingCommitments:  ["Professional photography", "Two open houses in the first 30 days"],
   estimatedDaysOnMarket: 21,
-  estimatedSalePrice:    450_000_00,
   includedServices:      ["Professional Photography", "MLS Listing"],
   validUntil:            Date.now() + 14 * 24 * 60 * 60 * 1000, // 14 days
   coverLetter:           "I have 10+ years experience in this market.",
 };
+
+/** Submit 3 proposals so the sealed-bid gate opens (invariant 02: 3 bids OR deadline). */
+async function submitThreeProposals(requestId: string) {
+  const proposals: ListingProposal[] = [];
+  for (let i = 0; i < 3; i++) {
+    proposals.push(await listingService.submitProposal(requestId, {
+      ...BASE_PROPOSAL,
+      coverLetter: `${BASE_PROPOSAL.coverLetter} (agent ${i})`,
+    }));
+  }
+  return proposals;
+}
 
 // ─── createBidRequest — Candid serialization ──────────────────────────────────
 
@@ -72,9 +88,16 @@ describe.skipIf(!deployed)("createBidRequest — Candid serialization", () => {
     expect(req.homeowner).toBe(TEST_PRINCIPAL);
   });
 
-  it("status starts as 'Open'", async () => {
+  it("status starts as 'Open' and feePaid starts false", async () => {
     const req = await listingService.createBidRequest({ ...BASE_REQUEST, propertyId: pid("initial-status") });
     expect(req.status).toBe("Open");
+    expect(req.feePaid).toBe(false);
+  });
+
+  it("windowDays is preserved and the canister derives a future bidDeadline from it", async () => {
+    const req = await listingService.createBidRequest({ ...BASE_REQUEST, propertyId: pid("window"), windowDays: "Three" });
+    expect(req.windowDays).toBe("Three");
+    expect(req.bidDeadline).toBeGreaterThan(Date.now());
   });
 
   it("desiredSalePrice (Opt Nat) is preserved when provided", async () => {
@@ -153,6 +176,21 @@ describe.skipIf(!deployed)("cancelBidRequest — BidRequestStatus Open → Cance
   });
 });
 
+// ─── getOpenBidRequests — masked summary feed ─────────────────────────────────
+
+describe.skipIf(!deployed)("getOpenBidRequests — masked BidRequestSummary feed", () => {
+  it("returns summaries without address or homeownerEmail", async () => {
+    const req = await listingService.createBidRequest({ ...BASE_REQUEST, propertyId: pid("summary") });
+    const open = await listingService.getOpenBidRequests();
+    const found = open.find((r) => r.id === req.id);
+    expect(found).toBeDefined();
+    expect(found).not.toHaveProperty("address");
+    expect(found).not.toHaveProperty("homeownerEmail");
+    expect(typeof found!.proposalCount).toBe("number");
+    expect(typeof found!.openSlots).toBe("number");
+  });
+});
+
 // ─── submitProposal — BigInt field round-trips ────────────────────────────────
 
 describe.skipIf(!deployed)("submitProposal — Candid serialization", () => {
@@ -162,9 +200,11 @@ describe.skipIf(!deployed)("submitProposal — Candid serialization", () => {
     request = await listingService.createBidRequest({ ...BASE_REQUEST, propertyId: pid("submit-prop") });
   });
 
-  it("returns a proposal with a non-empty id", async () => {
+  it("returns a proposal with a non-empty id and letter", async () => {
     const prop = await listingService.submitProposal(request.id, BASE_PROPOSAL);
     expect(prop.id).toBeTruthy();
+    expect(typeof prop.letter).toBe("string");
+    expect(prop.letter.length).toBe(1);
   });
 
   it("commissionBps (Nat) survives BigInt round-trip", async () => {
@@ -172,14 +212,24 @@ describe.skipIf(!deployed)("submitProposal — Candid serialization", () => {
     expect(prop.commissionBps).toBe(300);
   });
 
-  it("estimatedSalePrice (Nat) survives BigInt round-trip", async () => {
-    const prop = await listingService.submitProposal(request.id, { ...BASE_PROPOSAL, estimatedSalePrice: 472_500_00 });
-    expect(prop.estimatedSalePrice).toBe(472_500_00);
+  it("suggestedListCents (Nat) survives BigInt round-trip", async () => {
+    const prop = await listingService.submitProposal(request.id, { ...BASE_PROPOSAL, suggestedListCents: 472_500_00 });
+    expect(prop.suggestedListCents).toBe(472_500_00);
   });
 
   it("estimatedDaysOnMarket (Nat) survives BigInt round-trip", async () => {
     const prop = await listingService.submitProposal(request.id, { ...BASE_PROPOSAL, estimatedDaysOnMarket: 28 });
     expect(prop.estimatedDaysOnMarket).toBe(28);
+  });
+
+  it("marketingCommitments Vec(Text) is preserved and required non-empty", async () => {
+    const commitments = ["Professional photography", "Virtual tour", "Two open houses"];
+    const prop = await listingService.submitProposal(request.id, { ...BASE_PROPOSAL, marketingCommitments: commitments });
+    expect(prop.marketingCommitments).toEqual(expect.arrayContaining(commitments));
+
+    await expect(
+      listingService.submitProposal(request.id, { ...BASE_PROPOSAL, marketingCommitments: [] })
+    ).rejects.toThrow();
   });
 
   it("includedServices Vec(Text) is preserved", async () => {
@@ -188,15 +238,11 @@ describe.skipIf(!deployed)("submitProposal — Candid serialization", () => {
     expect(prop.includedServices).toEqual(expect.arrayContaining(services));
   });
 
-  it("agentName and agentBrokerage are preserved", async () => {
-    const prop = await listingService.submitProposal(request.id, BASE_PROPOSAL);
-    expect(prop.agentName).toBe("Jane Smith");
-    expect(prop.agentBrokerage).toBe("HomeGentic Realty");
-  });
-
-  it("proposal starts with status 'Pending'", async () => {
+  it("proposal starts with status 'Pending', carries derived signals and an agent record", async () => {
     const prop = await listingService.submitProposal(request.id, BASE_PROPOSAL);
     expect(prop.status).toBe("Pending");
+    expect(prop.derived).toBeDefined();
+    expect(prop.agentRecord).toBeDefined();
   });
 
   it("agentId matches the test identity principal", async () => {
@@ -205,65 +251,53 @@ describe.skipIf(!deployed)("submitProposal — Candid serialization", () => {
   });
 });
 
-// ─── Deadline enforcement ─────────────────────────────────────────────────────
+// ─── Sealed-bid gate: 3 bids OR deadline ──────────────────────────────────────
 
-describe.skipIf(!deployed)("deadline enforcement — DeadlinePassed", () => {
-  it("submitProposal after bidDeadline throws DeadlinePassed", async () => {
-    // The canister rejects createBidRequest with a past bidDeadline, so we must
-    // create with a short future window and wait for it to expire.
-    const req = await listingService.createBidRequest({
-      ...BASE_REQUEST,
-      propertyId: pid("deadline-wait"),
-      bidDeadline: Date.now() + 2_000,
-    });
-    await new Promise((resolve) => setTimeout(resolve, 3_000));
-    await expect(
-      listingService.submitProposal(req.id, BASE_PROPOSAL)
-    ).rejects.toThrow(/DeadlinePassed|deadline/i);
+describe.skipIf(!deployed)("sealed-bid gate — getBidProgress / getProposalsForRequest", () => {
+  it("stays sealed with fewer than 3 bids in and the window still open", async () => {
+    const req = await listingService.createBidRequest({ ...BASE_REQUEST, propertyId: pid("sealed") });
+    await listingService.submitProposal(req.id, BASE_PROPOSAL);
+
+    const progress = await listingService.getBidProgress(req.id);
+    expect(progress.sealed).toBe(true);
+    expect(progress.count).toBe(1);
+    expect(await listingService.getProposalsForRequest(req.id)).toHaveLength(0);
+  });
+
+  it("unseals once the 3rd bid lands", async () => {
+    const req = await listingService.createBidRequest({ ...BASE_REQUEST, propertyId: pid("unseal") });
+    await submitThreeProposals(req.id);
+
+    const progress = await listingService.getBidProgress(req.id);
+    expect(progress.sealed).toBe(false);
+    expect(progress.count).toBe(3);
+    const props = await listingService.getProposalsForRequest(req.id);
+    expect(props).toHaveLength(3);
+    expect(props.every((p) => p.requestId === req.id)).toBe(true);
   });
 });
 
-// ─── getProposalsForRequest ───────────────────────────────────────────────────
+// ─── acceptProposal — selection without award/unmask ──────────────────────────
 
-describe.skipIf(!deployed)("getProposalsForRequest — retrieval", () => {
-  let request: ListingBidRequest;
-  let submitted: ListingProposal;
-
-  beforeAll(async () => {
-    request = await listingService.createBidRequest({ ...BASE_REQUEST, propertyId: pid("get-props") });
-    submitted = await listingService.submitProposal(request.id, BASE_PROPOSAL);
-  });
-
-  it("getProposalsForRequest returns the submitted proposal", async () => {
-    const props = await listingService.getProposalsForRequest(request.id);
-    const found = props.find((p) => p.id === submitted.id);
-    expect(found).toBeDefined();
-  });
-
-  it("all returned proposals have the correct requestId", async () => {
-    const props = await listingService.getProposalsForRequest(request.id);
-    expect(props.every((p) => p.requestId === request.id)).toBe(true);
-  });
-});
-
-// ─── acceptProposal — award cascade ──────────────────────────────────────────
-
-describe.skipIf(!deployed)("acceptProposal — BidRequest becomes Awarded", () => {
+describe.skipIf(!deployed)("acceptProposal — selects a winner without awarding or unmasking", () => {
   let request: ListingBidRequest;
   let winner: ListingProposal;
 
   beforeAll(async () => {
     request = await listingService.createBidRequest({ ...BASE_REQUEST, propertyId: pid("award") });
-    winner  = await listingService.submitProposal(request.id, BASE_PROPOSAL);
+    [winner] = await submitThreeProposals(request.id);
   });
 
-  it("acceptProposal resolves without error", async () => {
-    await expect(listingService.acceptProposal(winner.id)).resolves.toBeUndefined();
+  it("acceptProposal resolves to a non-empty feeId string", async () => {
+    const feeId = await listingService.acceptProposal(winner.id);
+    expect(typeof feeId).toBe("string");
+    expect(feeId.length).toBeGreaterThan(0);
   });
 
-  it("the bid request transitions to Awarded after accepting a proposal", async () => {
+  it("the bid request is NOT awarded or unmasked by acceptProposal alone — that's markListingFeePaid, webhook-only", async () => {
     const req = await listingService.getBidRequest(request.id);
-    expect(req!.status).toBe("Awarded");
+    expect(req!.status).toBe("Open");
+    expect(req!.feePaid).toBe(false);
   });
 });
 

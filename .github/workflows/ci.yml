@@ -145,7 +145,7 @@ jobs:
           # fails on dfx 0.24.x with "dfx metadata not found" for the II canister.
           dfx deploy auth --argument "(principal \"$DEPLOYER\")"
           for canister in ai_proxy property job contractor quote payment photo \
-            monitoring market report maintenance sensor listing bills recurring audit referrals; do
+            monitoring market report maintenance sensor listing agent fee bills recurring audit referrals; do
             dfx deploy "$canister"
           done
 
@@ -161,6 +161,8 @@ jobs:
             dfx canister call "$canister" addAdmin "(principal \"$DEPLOYER\")"
           done
           dfx canister call payment initAdmins "(vec { principal \"$DEPLOYER\" })" || true
+          dfx canister call agent   initAdmins "(vec { principal \"$DEPLOYER\" })" || true
+          dfx canister call fee     initAdmins "(vec { principal \"$DEPLOYER\" })" || true
           dfx canister call payment grantSubscription "(principal \"$DEPLOYER\", variant { Pro })"
 
           # ── Wire inter-canister IDs ──────────────────────────────────────────
@@ -177,6 +179,9 @@ jobs:
           MAINTENANCE_ID=$(dfx canister id maintenance)
           AUDIT_ID=$(dfx canister id audit)
           REFERRALS_ID=$(dfx canister id referrals)
+          LISTING_ID=$(dfx canister id listing)
+          AGENT_ID=$(dfx canister id agent)
+          FEE_ID=$(dfx canister id fee)
 
           dfx canister call job         setPaymentCanisterId    "(\"$PAYMENT_ID\")"
           dfx canister call property    setPaymentCanisterId    "(principal \"$PAYMENT_ID\")"
@@ -201,6 +206,10 @@ jobs:
           dfx canister call listing     setJobCanisterId        "(\"$JOB_ID\")"
           dfx canister call listing     setReportCanisterId     "(\"$REPORT_ID\")"
           dfx canister call listing     setMarketCanisterId     "(\"$MARKET_ID\")"
+          dfx canister call listing     setAgentCanisterId      "(\"$AGENT_ID\")"
+          dfx canister call listing     setFeeCanisterId        "(\"$FEE_ID\")"
+          dfx canister call agent       setListingCanisterId    "(\"$LISTING_ID\")"
+          dfx canister call fee         setListingCanisterId    "(\"$LISTING_ID\")"
           dfx canister call market      setPropertyCanisterId   "(\"$PROPERTY_ID\")"
           dfx canister call market      setJobCanisterId        "(\"$JOB_ID\")"
 
@@ -292,7 +301,7 @@ jobs:
 
           dfx deploy auth --argument "(principal \"$DEPLOYER\")"
           for canister in ai_proxy property job contractor quote payment photo \
-            monitoring market report maintenance sensor listing bills recurring audit referrals; do
+            monitoring market report maintenance sensor listing agent fee bills recurring audit referrals; do
             dfx deploy "$canister"
           done
 
@@ -305,6 +314,8 @@ jobs:
             dfx canister call "$canister" addAdmin "(principal \"$DEPLOYER\")"
           done
           dfx canister call payment initAdmins "(vec { principal \"$DEPLOYER\" })" || true
+          dfx canister call agent   initAdmins "(vec { principal \"$DEPLOYER\" })" || true
+          dfx canister call fee     initAdmins "(vec { principal \"$DEPLOYER\" })" || true
           dfx canister call payment grantSubscription "(principal \"$DEPLOYER\", variant { Pro })"
           # Grant integration test identity Premium — quote tests create many open requests
           # and would hit the Basic (3) or Pro (10) cap. Principal: fixed seed[0]=42 in setup.ts.
@@ -331,6 +342,9 @@ jobs:
           MAINTENANCE_ID=$(dfx canister id maintenance)
           AUDIT_ID=$(dfx canister id audit)
           REFERRALS_ID=$(dfx canister id referrals)
+          LISTING_ID=$(dfx canister id listing)
+          AGENT_ID=$(dfx canister id agent)
+          FEE_ID=$(dfx canister id fee)
 
           dfx canister call job         setPaymentCanisterId    "(\"$PAYMENT_ID\")"
           dfx canister call property    setPaymentCanisterId    "(principal \"$PAYMENT_ID\")"
@@ -355,6 +369,10 @@ jobs:
           dfx canister call listing     setJobCanisterId        "(\"$JOB_ID\")"
           dfx canister call listing     setReportCanisterId     "(\"$REPORT_ID\")"
           dfx canister call listing     setMarketCanisterId     "(\"$MARKET_ID\")"
+          dfx canister call listing     setAgentCanisterId      "(\"$AGENT_ID\")"
+          dfx canister call listing     setFeeCanisterId        "(\"$FEE_ID\")"
+          dfx canister call agent       setListingCanisterId    "(\"$LISTING_ID\")"
+          dfx canister call fee         setListingCanisterId    "(\"$LISTING_ID\")"
           dfx canister call market      setPropertyCanisterId   "(\"$PROPERTY_ID\")"
           dfx canister call market      setJobCanisterId        "(\"$JOB_ID\")"
 

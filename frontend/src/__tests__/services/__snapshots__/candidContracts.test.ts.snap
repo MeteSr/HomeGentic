@@ -92,24 +92,38 @@ activateFsboListing(1) -> (1)
 addListingPhoto(2) -> (1)
 addPanorama(3) -> (1)
 cancelBidRequest(1) -> (1)
-createBidRequest(5) -> (1)
+createBidRequest(13) -> (1)
 deactivateFsboListing(1) -> (1)
+flagPhotoForReview(1) -> (1)
+getBidProgress(1) -> (1) [query]
 getBidRequest(1) -> (1) [query]
+getCompsMedian(1) -> (1) [query]
 getListingPhotos(1) -> (1) [query]
 getMyBidRequests(0) -> (1) [query]
 getMyProposals(0) -> (1) [query]
 getOpenBidRequests(0) -> (1) [query]
 getPanoramas(1) -> (1) [query]
+getPhotoReviewState(1) -> (1) [query]
+getPlatformFee(0) -> (1) [query]
 getProposalsForRequest(1) -> (1) [query]
+getThread(1) -> (1) [query]
 listActiveFsboListings(0) -> (1) [query]
+markListingFeePaid(2) -> (1)
+postMessage(3) -> (1)
 removeListingPhoto(2) -> (1)
 removePanorama(2) -> (1)
 reorderListingPhotos(2) -> (1)
+reviewPhoto(1) -> (1)
+setAgentCanisterId(1) -> (1)
+setCompsMedian(3) -> (1)
+setFeeCanisterId(1) -> (1)
 setJobCanisterId(1) -> (1)
 setMarketCanisterId(1) -> (1)
+setPlatformFeeCents(1) -> (1)
 setPropertyCanisterId(1) -> (1)
 setReportCanisterId(1) -> (1)
-submitProposal(11) -> (1)"
+submitProposal(10) -> (1)
+withdrawProposal(1) -> (1)"
 `;
 
 exports[`Candid contract snapshots — method arity > maintenance 1`] = `

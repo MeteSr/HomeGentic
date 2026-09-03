@@ -68,11 +68,13 @@ vi.mock("@/services/listing", () => ({
     createBidRequest:       vi.fn().mockResolvedValue({}),
     getMyBidRequests:       vi.fn().mockResolvedValue([]),
     getOpenBidRequests:     vi.fn().mockResolvedValue([]),
-    getMyCounters:          vi.fn().mockResolvedValue([]),
+    getListingPhotos:       vi.fn().mockResolvedValue([]),
+    getPhotoReviewState:    vi.fn().mockResolvedValue(null),
   },
-  formatCommission: vi.fn().mockReturnValue("2.50%"),
-  isDeadlinePassed: vi.fn().mockReturnValue(false),
-  computeNetProceeds: vi.fn().mockReturnValue(0),
+}));
+
+vi.mock("@/components/ListingPhotoManager", () => ({
+  default: () => null,
 }));
 
 vi.mock("@/services/fsbo", async (importOriginal) => {
@@ -147,7 +149,7 @@ describe("ListingNewPage — accessible to all paying tiers (15.6.4)", () => {
     mockTier = "Basic";
     renderListing();
     await waitFor(() =>
-      expect(screen.getByText(/list your home/i)).toBeInTheDocument()
+      expect(screen.getByText(/let agents compete for your listing/i)).toBeInTheDocument()
     );
   });
 
@@ -155,7 +157,7 @@ describe("ListingNewPage — accessible to all paying tiers (15.6.4)", () => {
     mockTier = "Pro";
     renderListing();
     await waitFor(() =>
-      expect(screen.getByText(/list your home/i)).toBeInTheDocument()
+      expect(screen.getByText(/let agents compete for your listing/i)).toBeInTheDocument()
     );
   });
 
@@ -163,7 +165,7 @@ describe("ListingNewPage — accessible to all paying tiers (15.6.4)", () => {
     mockTier = "Premium";
     renderListing();
     await waitFor(() =>
-      expect(screen.getByText(/list your home/i)).toBeInTheDocument()
+      expect(screen.getByText(/let agents compete for your listing/i)).toBeInTheDocument()
     );
   });
 });
