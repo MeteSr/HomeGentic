@@ -666,7 +666,7 @@ persistent actor Property {
       let upgradeMsg = switch (callerTier) {
         case (#Free)  " Subscribe to Basic ($10/mo) for 1 property, or Pro ($20/mo) for 5.";
         case (#Basic) " Upgrade to Pro ($20/mo) for 5, or Premium ($35/mo) for 20.";
-        case (#Pro)   " Upgrade to Premium ($35/mo) for 20, or ContractorPro ($30/mo) for unlimited.";
+        case (#Pro)   " Upgrade to Premium ($35/mo) for 20, or ContractorPro ($40/mo) for unlimited.";
         case _        "";
       };
       Map.remove(inFlightRegistrations, Text.compare, callerKey);

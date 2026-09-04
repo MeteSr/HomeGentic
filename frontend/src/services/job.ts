@@ -303,6 +303,13 @@ function createJobService() {
     return raw.map(fromJob);
   },
 
+  /** The caller's own jobs sourced via a HomeGentic quote request — bids this contractor won. */
+  async getMyReferralJobs(): Promise<Job[]> {
+    const a = await getActor();
+    const raw: any[] = await a.getMyReferralJobs();
+    return raw.map(fromJob);
+  },
+
   // ── Contractor-initiated job proposals ──────────────────────────────────────
 
   async createJobProposal(input: {

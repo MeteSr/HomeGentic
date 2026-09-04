@@ -24,6 +24,7 @@ import { logger } from "./logger";
 // and lookup-year-built are handled by the ai_proxy Motoko canister.
 // This relay handles only the 6 Claude AI endpoints.
 import { bidtolistRouter } from "./bidtolistRouter";
+import { listingFeeRouter } from "./listingFeeRouter";
 
 const app = express();
 const port = Number(process.env.VOICE_AGENT_PORT) || Number(process.env.PORT) || 3001;
@@ -121,6 +122,9 @@ app.use((req, res, next) => {
     express.raw({ type: "*/*" })(req, res, next);
   } else if (req.originalUrl === "/api/bidtolist/stripe/webhook") {
     // BidtoList webhook — raw body handled at route level in bidtolistRouter.
+    next();
+  } else if (req.originalUrl === "/api/listing-fee/stripe/webhook") {
+    // Bid to List fee webhook — raw body handled at route level in listingFeeRouter.
     next();
   } else if (req.path === "/api/classify") {
     express.json({ limit: "5mb" })(req, res, next);
@@ -1191,6 +1195,7 @@ Rules:
 
 // ── BidtoList sub-router ──────────────────────────────────────────────────────
 app.use("/api/bidtolist", bidtolistRouter);
+app.use("/api/listing-fee", listingFeeRouter);
 
 // ── POST /api/stripe/create-checkout (dev only) ───────────────────────────────
 // Local dfx replica doesn't forward custom HTTP headers in outcalls correctly.

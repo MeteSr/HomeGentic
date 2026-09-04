@@ -147,6 +147,10 @@ const mockJobActor = {
 
   getReferralJobs: vi.fn(async () => []),
 
+  getMyReferralJobs: vi.fn(async () => {
+    return _mockJobs.filter((j) => Array.isArray(j.sourceQuoteId) && j.sourceQuoteId.length > 0);
+  }),
+
   createJobProposal: vi.fn(async (propertyId: string, title: string, serviceType: any, description: string,
     contractorName: any[], amount: bigint, completedDate: bigint,
     permitNumber: any[], warrantyMonths: any[]) => {
@@ -642,6 +646,44 @@ describe("jobService.redeemInviteToken", () => {
 describe("jobService.getReferralJobs", () => {
   it("returns empty array in mock mode (no canister ID)", async () => {
     const result = await jobService.getReferralJobs();
+    expect(result).toEqual([]);
+  });
+});
+
+// ─── getMyReferralJobs ────────────────────────────────────────────────────────
+
+describe("jobService.getMyReferralJobs", () => {
+  beforeEach(() => jobService.reset());
+
+  it("returns empty array when no jobs exist", async () => {
+    const result = await jobService.getMyReferralJobs();
+    expect(result).toEqual([]);
+  });
+
+  it("returns only jobs sourced via a HomeGentic quote request", async () => {
+    await jobService.create({
+      propertyId: "mrj-prop-1", serviceType: "HVAC", amount: 100_000,
+      date: "2024-01-01", description: "Referred job", isDiy: false,
+      sourceQuoteId: "QUOTE-1",
+    });
+    await jobService.create({
+      propertyId: "mrj-prop-1", serviceType: "Roofing", amount: 50_000,
+      date: "2024-01-02", description: "Direct job, not sourced via a quote", isDiy: false,
+    });
+
+    const result = await jobService.getMyReferralJobs();
+    expect(result).toHaveLength(1);
+    expect(result[0].sourceQuoteId).toBe("QUOTE-1");
+    expect(result[0].description).toBe("Referred job");
+  });
+
+  it("does not include a job with an empty sourceQuoteId", async () => {
+    await jobService.create({
+      propertyId: "mrj-prop-2", serviceType: "Plumbing", amount: 20_000,
+      date: "2024-01-01", description: "Edge case", isDiy: false,
+      sourceQuoteId: "",
+    });
+    const result = await jobService.getMyReferralJobs();
     expect(result).toEqual([]);
   });
 });
