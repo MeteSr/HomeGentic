@@ -9,7 +9,7 @@ Getting started with HomeGentic as a licensed contractor.
 1. Go to `homegentic.app` and click **Get Started**.
 2. Sign in with **Internet Identity** — passkey-based, no password required.
 3. Select **Contractor** as your role.
-4. You start on **ContractorFree** — free forever for quoting and accepting jobs.
+4. You start on **ContractorFree** — free forever for quoting and accepting jobs, with a 3% referral fee ($20 minimum) on the awarded value of each winning bid.
 
 ---
 
@@ -39,7 +39,7 @@ Homeowners post quote requests for specific jobs. You'll be notified when one ma
 3. Click **Submit Bid** to respond with your price and estimated start date.
 4. The homeowner selects a contractor — you'll be notified if chosen.
 
-**ContractorFree** allows unlimited quote requests. **ContractorPro** ($30/mo) adds 50 photos per job and priority placement.
+**ContractorFree** allows unlimited quote requests. **ContractorPro** ($40/mo) adds 50 photos per job and priority placement, and drops the 3% referral fee.
 
 ---
 
@@ -75,7 +75,8 @@ A higher trust score increases your ranking in homeowner search results.
 | Quote requests | Unlimited | Unlimited |
 | Photos per job | 5 | 50 |
 | Profile placement | Standard | Priority |
-| Price | Free | $30 / mo |
+| Referral fee | 3% per winning bid, $20 min | None |
+| Price | Free | $40 / mo |
 
 Upgrade from **Settings → Subscription**.
 

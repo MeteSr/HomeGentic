@@ -216,6 +216,58 @@ echo ""
 echo "── [15] getJobsPendingMySignature (contractor identity) ─────────────────"
 dfx canister call $CANISTER getJobsPendingMySignature --identity contractor-test
 
+# ─── getMyReferralJobs — caller-scoped counterpart to getReferralJobs ─────────
+# Backs the Contractor Plan & Billing fee ledger: a contractor's own bids won
+# via a HomeGentic quote request (sourceQuoteId set), not every contractor's.
+echo ""
+echo "── [15a-setup] Create + fully sign a referral job for the contractor ────"
+REFERRAL_JOB_OUT=$(dfx canister call $CANISTER createJob "(
+  \"$TEST_PROP_ID\",
+  \"Water heater replacement\",
+  variant { Plumbing },
+  \"Referred via HomeGentic quote request.\",
+  opt \"Referral Test Plumbing\",
+  184000,
+  1718409600000000000,
+  null,
+  null,
+  false,
+  opt \"QUOTE_REFERRAL_1\"
+)")
+echo "$REFERRAL_JOB_OUT"
+REFERRAL_JOB_ID=$(echo "$REFERRAL_JOB_OUT" | grep -oP '"JOB_[0-9]+"' | head -1 | tr -d '"')
+echo "  → Referral job ID: $REFERRAL_JOB_ID"
+dfx canister call $CANISTER linkContractor "(\"$REFERRAL_JOB_ID\", principal \"$CONTRACTOR_PRINCIPAL\")"
+dfx canister call $CANISTER verifyJob "(\"$REFERRAL_JOB_ID\")" > /dev/null
+dfx canister call $CANISTER verifyJob "(\"$REFERRAL_JOB_ID\")" --identity contractor-test > /dev/null
+
+echo ""
+echo "── [15b] getMyReferralJobs (contractor identity) — expect the referral job ─"
+CONTRACTOR_REFERRALS=$(dfx canister call $CANISTER getMyReferralJobs --identity contractor-test)
+echo "$CONTRACTOR_REFERRALS"
+if echo "$CONTRACTOR_REFERRALS" | grep -q "$REFERRAL_JOB_ID"; then
+  echo "  ✓ Contractor sees their own referral-sourced job"
+else
+  echo "  ↳ ❌ Expected referral job in getMyReferralJobs — FAIL"
+fi
+if echo "$CONTRACTOR_REFERRALS" | grep -q "$JOB_ID"; then
+  echo "  ↳ ❌ getMyReferralJobs returned job $JOB_ID, which has no sourceQuoteId — FAIL"
+else
+  echo "  ✓ Job without a sourceQuoteId is correctly excluded"
+fi
+
+echo ""
+echo "── [15c] getMyReferralJobs (homeowner identity) — expect it NOT to appear ─"
+# The caller-scoping check: the referral job belongs to contractor-test, not
+# the default (homeowner) identity, even though the homeowner owns the property.
+HOMEOWNER_REFERRALS=$(dfx canister call $CANISTER getMyReferralJobs)
+echo "$HOMEOWNER_REFERRALS"
+if echo "$HOMEOWNER_REFERRALS" | grep -q "$REFERRAL_JOB_ID"; then
+  echo "  ↳ ❌ Homeowner should not see the contractor's referral job via getMyReferralJobs — FAIL"
+else
+  echo "  ✓ getMyReferralJobs is scoped to the calling contractor, not the property owner"
+fi
+
 # ─── Attempt to link contractor on a DIY job → error ─────────────────────────
 echo ""
 echo "── [16] linkContractor on DIY job → expect InvalidInput ─────────────────"

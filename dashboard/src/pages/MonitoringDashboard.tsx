@@ -496,7 +496,7 @@ export default function MonitoringDashboard() {
                 <StatCard label="Active Paid"   value={fmt(data.subs.activePaid)}    sub="non-free, not expired" />
                 <StatCard label="Pro"           value={fmt(data.subs.pro)}           sub="$10/mo" />
                 <StatCard label="Premium"       value={fmt(data.subs.premium)}       sub="$20/mo" />
-                <StatCard label="ContractorPro" value={fmt(data.subs.contractorPro)} sub="$30/mo" />
+                <StatCard label="ContractorPro" value={fmt(data.subs.contractorPro)} sub="$40/mo" />
                 <StatCard label="Free Tier"     value={fmt(data.subs.free)}          color={C.muted} />
               </div>
             </div>
