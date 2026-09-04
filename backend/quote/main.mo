@@ -408,7 +408,7 @@ persistent actor Quote {
           " Upgrade to Pro ($20/mo) for 10 concurrent requests, or Premium ($35/mo)."
         };
         case (#Pro or #Premium) {
-          " Upgrade to ContractorPro ($30/mo) for unlimited requests."
+          " Upgrade to ContractorPro ($40/mo) for unlimited requests."
         };
         case _ { "" };
       };

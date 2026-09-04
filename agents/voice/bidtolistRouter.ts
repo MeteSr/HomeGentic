@@ -26,9 +26,9 @@ import express from "express";
 import { randomBytes } from "crypto";
 import { Resend } from "resend";
 import Stripe from "stripe";
-import { Actor, HttpAgent } from "@dfinity/agent";
-import { Ed25519KeyIdentity } from "@dfinity/identity";
-import { IDL } from "@dfinity/candid";
+import { Actor, HttpAgent } from "@icp-sdk/core/agent";
+import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
+import { IDL } from "@icp-sdk/core/candid";
 
 const FROM                   = process.env.BIDTOLIST_RESEND_FROM          || "noreply@bidtolist.com";
 const BIDTOLIST_ORIGIN       = process.env.BIDTOLIST_FRONTEND_ORIGIN      || "http://localhost:3000";
@@ -107,7 +107,7 @@ const homegenticIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
 
 function makeIdentity() {
   const seed = Buffer.from(IDENTITY_SEED, "hex");
-  return Ed25519KeyIdentity.fromSecretKey(seed.buffer as ArrayBuffer);
+  return Ed25519KeyIdentity.fromSecretKey(seed);
 }
 
 async function createListingActor() {
@@ -127,7 +127,7 @@ async function createAgentActor() {
 function createFeeActor() {
   if (!FEE_CANISTER_ID || !IDENTITY_SEED) return null;
   const seed     = Buffer.from(IDENTITY_SEED, "hex");
-  const identity = Ed25519KeyIdentity.fromSecretKey(seed.buffer as ArrayBuffer);
+  const identity = Ed25519KeyIdentity.fromSecretKey(seed);
   const agent    = new HttpAgent({ identity, host: ICP_HOST });
   if (ICP_HOST.includes("localhost")) agent.fetchRootKey().catch(() => {});
   return Actor.createActor(feeIdlFactory, { agent, canisterId: FEE_CANISTER_ID });
@@ -136,7 +136,7 @@ function createFeeActor() {
 function createHomegenticActor() {
   if (!HOMEGENTIC_CANISTER_ID || !IDENTITY_SEED) return null;
   const seed     = Buffer.from(IDENTITY_SEED, "hex");
-  const identity = Ed25519KeyIdentity.fromSecretKey(seed.buffer as ArrayBuffer);
+  const identity = Ed25519KeyIdentity.fromSecretKey(seed);
   const agent    = new HttpAgent({ identity, host: HOMEGENTIC_ICP_HOST });
   if (HOMEGENTIC_ICP_HOST.includes("localhost")) agent.fetchRootKey().catch(() => {});
   return Actor.createActor(homegenticIdlFactory, { agent, canisterId: HOMEGENTIC_CANISTER_ID });

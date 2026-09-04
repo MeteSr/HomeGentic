@@ -25,6 +25,7 @@ import { listingService } from "@/services/listing";
 import { fsboOfferService } from "@/services/fsboOffer";
 import { paymentService, type PlanTier } from "@/services/payment";
 import type { Property } from "@/services/property";
+import { useAuthStore } from "@/store/authStore";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 
 const UI = {
@@ -78,6 +79,7 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
   const [mlsLoading,     setMlsLoading]     = useState(false);
   const [agentRequested, setAgentRequested] = useState(false);
   const [userTier,       setUserTier]       = useState<PlanTier>("Basic");
+  const profile = useAuthStore((s) => s.profile);
 
   useEffect(() => {
     paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch((e) => console.error("[FsboPanel] subscription load failed:", e));
@@ -132,10 +134,16 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
     const now = Date.now();
     await listingService.createBidRequest({
       propertyId,
-      targetListDate:   now + 30 * 86_400_000,
-      desiredSalePrice: record.listPriceCents,
+      address:          property?.address ?? "",
+      city:              property?.city ?? "",
+      county:            "",
+      zipCode:           property?.zipCode ?? "",
+      homeownerEmail:    profile?.email ?? "",
+      sqft:              property?.squareFeet != null ? Number(property.squareFeet) : null,
+      targetListDate:    now + 30 * 86_400_000,
+      desiredSalePrice:  record.listPriceCents,
       notes,
-      bidDeadline:      now + 7 * 86_400_000,
+      windowDays:        "Seven",
     });
     setAgentRequested(true);
   }
