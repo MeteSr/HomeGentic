@@ -20,6 +20,8 @@
     "test:integration": "bash scripts/test-integration.sh",
     "test:canister": "bash scripts/test-backend.sh",
     "test:smoke": "playwright test --config playwright.smoke.config.ts",
+    "test:visual": "playwright test --config playwright.visual.config.ts",
+    "test:visual:update": "playwright test --config playwright.visual.config.ts --update-snapshots",
     "test:upgrade": "cd tests/upgrade && npm test",
     "setup:pocketic": "bash scripts/setup-pocketic.sh",
     "frontend": "cd frontend && npm run dev",
