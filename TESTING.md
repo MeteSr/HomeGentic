@@ -6,6 +6,7 @@
 |---|---|---|---|
 | Unit + contract tests | Vitest | No | `frontend/src/__tests__/` |
 | E2E tests | Playwright | Yes | `tests/e2e/` |
+| Visual regression tests | Playwright | No (mock mode) | `tests/e2e/*.visual.spec.ts` |
 | Backend canister tests | Bash + dfx | Yes | `backend/*/test.sh` |
 | Cross-canister integration | Bash + dfx | Yes | `scripts/test-cross-canister.sh` |
 | Canister upgrade tests | PocketIC (WSL) | No | `tests/upgrade/` |
@@ -74,6 +75,31 @@ npm run test:e2e:ui     # open Playwright UI
 ```
 
 Specs live in `tests/e2e/`. Mock data injection uses `window.__e2e_*` globals — see `tests/e2e/helpers/testData.ts`.
+
+---
+
+## Visual regression tests (Playwright)
+
+Pixel-diff snapshots of key pages, run against `window.__e2e_*` mock data — no replica needed. A separate config (`playwright.visual.config.ts`) from the functional E2E suite, so `npm run test:e2e` never touches these baselines and vice versa. Specs are named `*.visual.spec.ts` and live alongside the functional specs in `tests/e2e/`; the two configs' `testMatch`/`testIgnore` keep them from double-running each other.
+
+```bash
+make start && make frontend     # replica isn't required, but the dev server is
+
+npm run test:visual             # compare against the committed baselines
+npm run test:visual:update      # regenerate baselines after an intentional design change
+```
+
+Covered so far: landing page, pricing page, dashboard, property detail, and the AddPropertyModal onboarding wizard (address / details / saved-hub steps) — each at both the desktop (1280×800) and mobile (375×812) projects. A failure over 0.1% pixel diff (`maxDiffPixelRatio` in the config) fails the run; diffs are uploaded as a `visual-diff-report` artifact on CI failure.
+
+**Two sources of non-determinism are handled explicitly, don't reintroduce them in a new spec:**
+- **The clock.** Several pages render relative time ("3d ago") or `toLocaleDateString()` output from mock data timestamped `Date.now() - N`. Every visual spec calls `freezeClock(page)` (`tests/e2e/helpers/visual.ts`) *before* `page.goto()` so those strings are identical on the day a baseline is captured and every day after. It uses `page.clock.setFixedTime()`, not `pauseAt()`/`install()`, so real timers (toasts, the actor's `fetchRootKey` retry) keep running — only the reported wall clock is pinned.
+- **CSS animations.** `animations: "disabled"` is set globally in `playwright.visual.config.ts`'s `expect.toHaveScreenshot`, so transitions/infinite animations don't produce a mid-animation frame.
+
+**Updating baselines after an intentional design change:**
+1. Locally: `npm run test:visual:update`, review the diff in `git diff tests/e2e/__snapshots__/`, commit.
+2. From CI (recommended — matches the exact browser build `test-visual` compares against): run the **"Update visual regression baselines"** workflow (`.github/workflows/visual-baseline-update.yml`, Actions tab → Run workflow). It's `workflow_dispatch`-only and never commits by itself — it uploads the regenerated PNGs as a `visual-snapshots-updated` build artifact for a maintainer to download, review, and commit.
+
+**Deferred, not forgotten:** the public `ReportPage` (`/report/:token`) isn't baselined yet — it has no `window.__e2e_*` mock path today (see `frontend/src/services/report.ts`), so exercising it visually would mean adding new mock infrastructure rather than reusing what exists. Same for the AddPropertyModal's four optional post-save steps (photos, documents, ages, verify). Both are reasonable fast-follows against this same issue's pattern, not blockers.
 
 ---
 
@@ -150,7 +176,7 @@ Runs metric query load against auth and property canisters. Requires a running r
 
 Open items tracked at [MeteSr/HomeGentic#33](https://github.com/MeteSr/HomeGentic/issues/33):
 
-- [ ] Visual regression tests (Playwright `toHaveScreenshot()`)
+- [x] Visual regression tests (Playwright `toHaveScreenshot()`) — [#432](https://github.com/MeteSr/HomeGentic/issues/432)
 - [ ] Accessibility (a11y) tests (`@axe-core/playwright`)
 - [ ] Resend integration test (non-mocked, CI-only)
 - [ ] Canister upgrade tests — additional canisters beyond auth/payment (low priority; EOP covers the main risk)
