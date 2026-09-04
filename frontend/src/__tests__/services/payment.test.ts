@@ -122,9 +122,9 @@ describe("PLANS", () => {
     expect(cf.features.some((f) => /referral|lead fee|per.job/i.test(f))).toBe(true);
   });
 
-  it("ContractorPro tier is $30/month", () => {
+  it("ContractorPro tier is $40/month", () => {
     const cp = PLANS.find((p) => p.tier === "ContractorPro")!;
-    expect(cp.price).toBe(30);
+    expect(cp.price).toBe(40);
     expect(cp.period).toBe("month");
     expect(cp.photosPerJob).toBe(50);
     expect(cp.quoteRequests).toBe(Infinity);
