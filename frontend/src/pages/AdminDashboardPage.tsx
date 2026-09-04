@@ -458,14 +458,16 @@ function ReferralPipeline() {
 
   const pending   = jobs?.filter((j) => !j.verified) ?? [];
   const collected = jobs?.filter((j) => j.verified)  ?? [];
-  const totalOwed = pending.length   * referralService.REFERRAL_FEE_CENTS / 100;
-  const totalEarned = collected.length * referralService.REFERRAL_FEE_CENTS / 100;
+  const totalOwed   = pending.reduce((sum, j) => sum + referralService.calculateFee(j.amount), 0) / 100;
+  const totalEarned = collected.reduce((sum, j) => sum + referralService.calculateFee(j.amount), 0) / 100;
+  const allFees      = jobs?.reduce((sum, j) => sum + referralService.calculateFee(j.amount), 0) ?? 0;
+  const avgFee       = jobs && jobs.length > 0 ? allFees / jobs.length / 100 : 0;
 
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.25rem", flexWrap: "wrap", gap: "0.75rem" }}>
         <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.65rem", letterSpacing: "0.06em", color: V2_COLORS.muted }}>
-          Jobs sourced via HomeGentic quote requests. $15 flat fee applies on dual-signature verification.
+          Jobs sourced via HomeGentic quote requests. {referralService.REFERRAL_FEE_RATE * 100}% of awarded value applies on dual-signature verification, ${referralService.REFERRAL_FEE_FLOOR_CENTS / 100} minimum on small jobs.
         </p>
         <button
           onClick={load}
@@ -482,7 +484,7 @@ function ReferralPipeline() {
         {[
           { label: "Pending fees",   value: `$${totalOwed.toFixed(2)}`,   count: pending.length,   note: "awaiting verification" },
           { label: "Collected fees", value: `$${totalEarned.toFixed(2)}`, count: collected.length, note: "verified jobs" },
-          { label: "Fee per job",    value: `$${(referralService.REFERRAL_FEE_CENTS / 100).toFixed(2)}`, count: null, note: "flat rate" },
+          { label: "Avg fee/job",    value: `$${avgFee.toFixed(2)}`, count: null, note: `${referralService.REFERRAL_FEE_RATE * 100}% · $${referralService.REFERRAL_FEE_FLOOR_CENTS / 100} min` },
         ].map((card) => (
           <div key={card.label} style={{ background: V2_COLORS.paper, border: `1px solid ${V2_COLORS.border}`, padding: "1rem 1.25rem" }}>
             <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: V2_COLORS.muted, marginBottom: "0.375rem" }}>{card.label}</p>
@@ -531,7 +533,16 @@ function ReferralPipeline() {
                     </span>
                   </td>
                   <td style={{ padding: "0.625rem 1rem", fontFamily: V2_FONTS.body, fontSize: "0.65rem", color: j.verified ? "#16a34a" : V2_COLORS.muted, fontWeight: j.verified ? 700 : 400 }}>
-                    {j.verified ? `$${(referralService.REFERRAL_FEE_CENTS / 100).toFixed(2)}` : "Pending"}
+                    {j.verified
+                      ? <>
+                          {`$${(referralService.calculateFee(j.amount) / 100).toFixed(2)}`}
+                          {referralService.isFloored(j.amount) && (
+                            <span style={{ marginLeft: "0.375rem", fontFamily: V2_FONTS.body, fontSize: "0.5rem", letterSpacing: "0.06em", color: V2_COLORS.amberText, background: V2_COLORS.amberBg, border: `1px solid ${V2_COLORS.amberBorder}`, borderRadius: 3, padding: "1px 4px" }}>
+                              MIN
+                            </span>
+                          )}
+                        </>
+                      : "Pending"}
                   </td>
                 </tr>
               ))}

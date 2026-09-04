@@ -3,11 +3,16 @@ import { useNavigate, Link, useLocation } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthStore } from "@/store/authStore";
-import { type PlanTier, type BillingCycle } from "@/services/planConstants";
+import { type PlanTier, type BillingCycle, PLANS } from "@/services/planConstants";
+import { referralService } from "@/services/referralService";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 
 const C = V2_COLORS;
 const F = V2_FONTS;
+
+const CONTRACTOR_FEE_LABEL  = `${referralService.REFERRAL_FEE_RATE * 100}%`;
+const CONTRACTOR_FLOOR_LABEL = `$${referralService.REFERRAL_FEE_FLOOR_CENTS / 100}`;
+const CONTRACTOR_PRO_PRICE  = `$${PLANS.find((p) => p.tier === "ContractorPro")?.price ?? 40}/mo`;
 
 const CONTRACTOR_PLANS = [
   {
@@ -15,7 +20,7 @@ const CONTRACTOR_PLANS = [
     planTier: "ContractorFree" as PlanTier,
     price: "$0",
     tag: null as string | null,
-    fee: "+ $15 referral fee per verified job",
+    fee: `+ ${CONTRACTOR_FEE_LABEL} of each winning bid, ${CONTRACTOR_FLOOR_LABEL} minimum`,
     features: [
       "Contractor profile listing",
       "5 photos per job",
@@ -28,9 +33,9 @@ const CONTRACTOR_PLANS = [
   {
     tier: "Contractor Pro",
     planTier: "ContractorPro" as PlanTier,
-    price: "$30/mo",
+    price: CONTRACTOR_PRO_PRICE,
     tag: "Most Popular",
-    fee: "No referral fees",
+    fee: `No ${CONTRACTOR_FEE_LABEL} fee on any bid`,
     features: [
       "Everything in Contractor Free",
       "Lead notifications",
@@ -287,7 +292,7 @@ export default function ForProsPage() {
                 Start free.<br /><span style={{ fontWeight: 400, color: C.blue }}>Scale when you're ready.</span>
               </h2>
               <p style={{ fontFamily: F.body, fontSize: "1rem", color: C.muted, maxWidth: 520, margin: "0 auto" }}>
-                Join the network at no cost and pay a small referral fee per job — or upgrade to Pro and keep everything you earn.
+                Join the network at no cost and pay {CONTRACTOR_FEE_LABEL} of each winning bid, {CONTRACTOR_FLOOR_LABEL} minimum — or upgrade to Pro and keep everything you earn.
               </p>
             </div>
 
@@ -360,7 +365,7 @@ export default function ForProsPage() {
               color: C.muted, marginTop: "1.75rem", lineHeight: 1.7,
               maxWidth: 680, margin: "1.75rem auto 0",
             }}>
-              * Plans billed monthly. Cancel anytime — access ends at the close of your current billing period. Referral fees are charged per verified completed job and are non-refundable.
+              * Plans billed monthly. Cancel anytime — access ends at the close of your current billing period. The {CONTRACTOR_FEE_LABEL} fee is charged on the awarded value of each winning bid, with a {CONTRACTOR_FLOOR_LABEL} minimum on small jobs, and is non-refundable.
             </p>
           </div>
         </section>
