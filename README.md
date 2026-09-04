@@ -233,8 +233,8 @@ homegentic/
 | Basic | 1 | 5 | 3 | $10/mo |
 | Pro | 5 | 10 | 10 | $20/mo |
 | Premium | 20 | 30 | Unlimited | $40/mo |
-| ContractorFree | 0 | 5 | Unlimited | $0 |
-| ContractorPro | Unlimited | 50 | Unlimited | $30/mo |
+| ContractorFree | 0 | 5 | Unlimited | $0 + 3% referral fee per winning bid, $20 min |
+| ContractorPro | Unlimited | 50 | Unlimited | $40/mo |
 | RealtorFree | 0 | 5 | Unlimited | $0 |
 | RealtorPro | 0 | 50 | Unlimited | $30/mo |
 
@@ -254,6 +254,10 @@ cd frontend && npm run test:unit -- src/__tests__/contracts/
 # End-to-end tests (Playwright — requires running replica + frontend)
 npm run test:e2e
 npm run test:e2e:ui
+
+# Visual regression tests (Playwright pixel-diff snapshots — mock mode, no replica)
+npm run test:visual
+npm run test:visual:update      # after an intentional design change
 
 # Backend canister tests (bash — requires running replica + deployed canisters)
 npm run test:canister           # all canister test suites
