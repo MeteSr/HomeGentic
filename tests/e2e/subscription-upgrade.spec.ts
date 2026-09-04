@@ -71,8 +71,11 @@ test.describe("SettingsPage — Subscription tab tier-gated UI", () => {
       await goToSubscriptionTab(page);
     });
 
-    test("shows 'Upgrade to ContractorPro →' button for Contractor role", async ({ page }) => {
-      await expect(page.getByRole("button", { name: /upgrade to contractorpro/i })).toBeVisible();
+    test("shows the ContractorBillingPanel's 'Upgrade to Pro' CTA for Contractor role", async ({ page }) => {
+      // Settings > Subscription now renders ContractorBillingPanel for Contractor
+      // role instead of the generic tier-upgrade button.
+      await expect(page.getByText("Contractor Free")).toBeVisible();
+      await expect(page.getByRole("button", { name: /upgrade to pro/i })).toBeVisible();
     });
   });
 });

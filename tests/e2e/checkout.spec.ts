@@ -140,8 +140,8 @@ test.describe("CheckoutPage — /checkout", () => {
     await expect(page.getByText("$35/mo")).toBeVisible();
   });
 
-  test("ContractorPro plan shows $30/mo", async ({ page }) => {
+  test("ContractorPro plan shows $40/mo", async ({ page }) => {
     await page.goto("/checkout?tier=ContractorPro&billing=Monthly");
-    await expect(page.getByText("$30/mo")).toBeVisible();
+    await expect(page.getByText("$40/mo")).toBeVisible();
   });
 });

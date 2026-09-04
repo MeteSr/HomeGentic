@@ -83,6 +83,11 @@ const PropertyTransferClaimPage  = React.lazy(() => import("@/pages/PropertyTran
 const PropertyManagerClaimPage   = React.lazy(() => import("@/pages/PropertyManagerClaimPage"));
 const DemoPage                   = React.lazy(() => import("@/pages/DemoPage"));
 const BuyersTruthKitPage         = React.lazy(() => import("@/pages/BuyersTruthKitPage"));
+const AgentVerifyPage            = React.lazy(() => import("@/pages/AgentVerifyPage"));
+const AgentListingsPage          = React.lazy(() => import("@/pages/AgentListingsPage"));
+const AgentBidFormPage           = React.lazy(() => import("@/pages/AgentBidFormPage"));
+const AgentBidsPage              = React.lazy(() => import("@/pages/AgentBidsPage"));
+const AgentAwardPage             = React.lazy(() => import("@/pages/AgentAwardPage"));
 
 const PageLoader = () => (
   <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#F4F1EB" }}>
@@ -123,6 +128,19 @@ function PaidHomeownerRoute({ children }: { children: React.ReactNode }) {
   if (tier === "Free" && profile?.role === "Homeowner") {
     return <Navigate to="/pricing" replace />;
   }
+  return <>{children}</>;
+}
+
+// Bid to List agent side — requires the Realtor role. A1 (verify) is reachable
+// once authenticated as a Realtor; the individual A2-A5 pages check
+// isVerifiedAgent() themselves and redirect to /agents/verify when it's false,
+// since verification status is fetched async and shouldn't block routing here.
+function RealtorRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading, profile } = useAuthStore();
+
+  if (isLoading) return <PageLoader />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (profile?.role !== "Realtor") return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 }
 
@@ -197,10 +215,17 @@ export default function App() {
           <Route path="/people"        element={<PaidHomeownerRoute><PeoplePage /></PaidHomeownerRoute>} />
           <Route path="/listing/new"  element={<PaidHomeownerRoute><ListingNewPage /></PaidHomeownerRoute>} />
           <Route path="/listing/:id"  element={<PaidHomeownerRoute><ListingDetailPage /></PaidHomeownerRoute>} />
-          <Route path="/agent/marketplace" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/agent/profile" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/agent/marketplace" element={<Navigate to="/agents/browse" replace />} />
+          <Route path="/agent/profile" element={<Navigate to="/agents/verify" replace />} />
           <Route path="/agent/:id"    element={<Navigate to="/dashboard" replace />} />
-          <Route path="/agents"       element={<Navigate to="/dashboard" replace />} />
+          <Route path="/agents"       element={<Navigate to="/agents/browse" replace />} />
+
+          {/* Bid to List — agent side (A1-A5) */}
+          <Route path="/agents/verify"            element={<RealtorRoute><AgentVerifyPage /></RealtorRoute>} />
+          <Route path="/agents/browse"             element={<RealtorRoute><AgentListingsPage /></RealtorRoute>} />
+          <Route path="/agents/listings/:id/bid"   element={<RealtorRoute><AgentBidFormPage /></RealtorRoute>} />
+          <Route path="/agents/bids"               element={<RealtorRoute><AgentBidsPage /></RealtorRoute>} />
+          <Route path="/agents/bids/:id"           element={<RealtorRoute><AgentAwardPage /></RealtorRoute>} />
 
           {/* Demo — public, no auth required */}
           <Route path="/demo"          element={<DemoPage />} />

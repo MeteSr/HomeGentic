@@ -183,6 +183,7 @@ describe("job IDL factory", () => {
       "getJobsForProperty",
       "getJobsPendingMySignature",
       "getMetrics",
+      "getMyReferralJobs",
       "getPendingProposals",
       "getReferralJobs",
       "linkContractor",
@@ -208,6 +209,7 @@ describe("job IDL factory", () => {
       // getJobsForProperty is an update call (has inter-canister await for ownership check)
       "getJobsPendingMySignature",
       "getMetrics",
+      "getMyReferralJobs",
       "getPendingProposals",
       "getReferralJobs",
     ]);
@@ -304,22 +306,36 @@ describe("listing IDL factory", () => {
       "cancelBidRequest",
       "createBidRequest",
       "deactivateFsboListing",
+      "flagPhotoForReview",
+      "getBidProgress",
       "getBidRequest",
+      "getCompsMedian",
       "getListingPhotos",
       "getMyBidRequests",
       "getMyProposals",
       "getOpenBidRequests",
       "getPanoramas",
+      "getPhotoReviewState",
+      "getPlatformFee",
       "getProposalsForRequest",
+      "getThread",
       "listActiveFsboListings",
+      "markListingFeePaid",
+      "postMessage",
       "removeListingPhoto",
       "removePanorama",
       "reorderListingPhotos",
+      "reviewPhoto",
+      "setAgentCanisterId",
+      "setCompsMedian",
+      "setFeeCanisterId",
       "setJobCanisterId",
       "setMarketCanisterId",
+      "setPlatformFeeCents",
       "setPropertyCanisterId",
       "setReportCanisterId",
       "submitProposal",
+      "withdrawProposal",
     ]);
   });
 
@@ -330,35 +346,51 @@ describe("listing IDL factory", () => {
       .map(([name]) => name)
       .sort();
     expect(queries).toEqual([
+      "getBidProgress",
       "getBidRequest",
+      "getCompsMedian",
       "getListingPhotos",
       "getMyBidRequests",
       "getMyProposals",
       "getOpenBidRequests",
       "getPanoramas",
+      "getPhotoReviewState",
+      "getPlatformFee",
       "getProposalsForRequest",
+      "getThread",
       "listActiveFsboListings",
     ]);
   });
 
-  it("createBidRequest uses IDL.Int for date fields (not IDL.Nat — dates are signed)", () => {
-    // targetListDate and bidDeadline are Motoko Time.Time (Int, signed nanoseconds)
-    // A type drift to IDL.Nat would silently break date serialization for past dates.
+  it("createBidRequest uses IDL.Int for targetListDate (not IDL.Nat — dates are signed); bidDeadline is now server-derived, not an input", () => {
+    // targetListDate is Motoko Time.Time (Int, signed nanoseconds). A type drift
+    // to IDL.Nat would silently break date serialization for past dates.
+    // bidDeadline is no longer a createBidRequest input at all — the canister
+    // derives it from windowDays — so there's nothing to assert about it here.
     const svc = extractService(listingIdlFactory);
-    expect(svc.createBidRequest.args[1]).toContain("int");  // targetListDate
-    expect(svc.createBidRequest.args[4]).toContain("int");  // bidDeadline
+    expect(svc.createBidRequest.args[9]).toContain("int"); // targetListDate
   });
 
   it("createBidRequest desiredSalePrice is opt nat (nullable)", () => {
     const svc = extractService(listingIdlFactory);
-    expect(svc.createBidRequest.args[2]).toMatch(/opt\s+nat/i);
+    expect(svc.createBidRequest.args[10]).toMatch(/opt\s+nat/i);
   });
 
   it("submitProposal commissionBps is nat (positive basis points, not signed)", () => {
     const svc = extractService(listingIdlFactory);
-    // commissionBps is the 4th arg (index 3), validUntil (Int) is the 10th arg (index 9)
-    expect(svc.submitProposal.args[3]).toContain("nat");
-    expect(svc.submitProposal.args[9]).toContain("int"); // validUntil
+    // commissionBps is the 2nd arg (index 1), validUntil (Int) is the 9th arg (index 8)
+    expect(svc.submitProposal.args[1]).toContain("nat");
+    expect(svc.submitProposal.args[8]).toContain("int"); // validUntil
+  });
+
+  it("submitProposal requires marketingCommitments as a vec text arg", () => {
+    const svc = extractService(listingIdlFactory);
+    expect(svc.submitProposal.args[5]).toMatch(/vec\s+text/i);
+  });
+
+  it("acceptProposal returns a feeId (text), not just an ok/err unit", () => {
+    const svc = extractService(listingIdlFactory);
+    expect(svc.acceptProposal.rets[0]).toMatch(/text/i);
   });
 
   it("full signature snapshot", () => {

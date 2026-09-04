@@ -123,8 +123,8 @@ const PLAN_META: Record<string, { label: string; monthly: number; yearly: number
   },
   ContractorPro: {
     label: "Contractor Pro",
-    monthly: 30,
-    yearly:  288,
+    monthly: 40,
+    yearly:  400,
     features: [
       "Unlimited properties",
       "50 photos per job",

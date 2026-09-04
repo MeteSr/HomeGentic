@@ -27,6 +27,10 @@ export interface Plan {
   quoteRequests:  number;
 }
 
+// Contractor referral fee rate/floor live in services/referralService.ts
+// (referralService.calculateFee / isFloored) — the single source of truth,
+// shared by the admin referral pipeline and the Contractor Plan billing UI.
+
 export const PLANS: Plan[] = [
   {
     tier: "Free",
@@ -105,7 +109,7 @@ export const PLANS: Plan[] = [
       "Contractor profile listing",
       "5 photos per job",
       "Receive leads from HomeGentic homeowners",
-      "$15 referral fee per verified job",
+      "3% referral fee per winning bid, $20 minimum",
       "Basic trust score",
       "Job completion certificates",
     ],
@@ -115,7 +119,7 @@ export const PLANS: Plan[] = [
   },
   {
     tier: "ContractorPro",
-    price: 30,
+    price: 40,
     period: "month",
     features: [
       "Contractor profile listing",
