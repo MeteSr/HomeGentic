@@ -14,6 +14,7 @@ import { usePropertyStore } from "@/store/propertyStore";
 import { useJobStore } from "@/store/jobStore";
 import toast from "react-hot-toast";
 import UpgradeModal from "@/components/UpgradeModal";
+import ContractorBillingPanel from "@/components/ContractorBillingPanel";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { isValidEmail, isValidPhone, isValidHttpsUrl } from "@/utils/validators";
@@ -213,7 +214,7 @@ function SubscriptionTab({ profile }: { profile: any }) {
   };
 
   const currentPlan = PLANS.find((p) => p.tier === tier) ?? PLANS[0];
-  const isPaid      = tier !== "Free";
+  const isPaid      = tier !== "Free" && tier !== "ContractorFree";
 
   const handleCancel = async () => {
     setCancelStep("loading");
@@ -237,7 +238,14 @@ function SubscriptionTab({ profile }: { profile: any }) {
     <div>
       <SectionHeading>Current Plan</SectionHeading>
 
-      {!isPaid ? (
+      {profile?.role === "Contractor" ? (
+        <ContractorBillingPanel
+          tier={tier === "ContractorPro" ? "ContractorPro" : "ContractorFree"}
+          renewDate={expiresAt ? new Date(expiresAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : null}
+          onUpgradeClick={() => setShowUpgradeModal(true)}
+          onCancelClick={() => setCancelStep("confirm")}
+        />
+      ) : !isPaid ? (
         <div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap", marginBottom: "1rem" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
@@ -298,10 +306,9 @@ function SubscriptionTab({ profile }: { profile: any }) {
         </div>
       )}
 
-      {/* Upgrade options */}
-      {PLANS.filter((p) => {
+      {/* Upgrade options — Contractor upgrade/cancel CTAs live inside ContractorBillingPanel above */}
+      {profile?.role !== "Contractor" && PLANS.filter((p) => {
         if (p.tier === "Free" || p.tier === tier) return false;
-        if (profile?.role === "Contractor") return p.tier === "ContractorPro";
         return p.tier !== "ContractorPro" && p.tier !== "ContractorFree";
       }).length > 0 && (
         <>
@@ -310,8 +317,7 @@ function SubscriptionTab({ profile }: { profile: any }) {
           <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
             {PLANS.filter((p) => {
               if (p.tier === "Free" || p.tier === tier) return false;
-              if (profile?.role === "Contractor") return p.tier === "ContractorPro";
-              return p.tier !== "ContractorPro";
+              return p.tier !== "ContractorPro" && p.tier !== "ContractorFree";
             }).map((plan) => (
               <div key={plan.tier} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", padding: "1rem", background: plan.tier === "Pro" ? V2_COLORS.lblue : V2_COLORS.paper, borderRadius: V2_RADIUS.sm }}>
                 <div style={{ flex: 1 }}>

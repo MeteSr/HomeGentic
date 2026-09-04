@@ -408,6 +408,23 @@ persistent actor Job {
     }))
   };
 
+  /// Fetch the caller's own jobs sourced via a HomeGentic quote request — the
+  /// bids they won. Contractor-scoped counterpart to getReferralJobs (which is
+  /// admin-only and returns every contractor's jobs). Backs the Contractor Plan
+  /// & Billing fee ledger.
+  public query(msg) func getMyReferralJobs() : async [Job] {
+    Iter.toArray(Iter.filter(Map.values(jobs), func(j: Job) : Bool {
+      let ownsJob = switch (j.contractor) {
+        case (?con) { con == msg.caller };
+        case null   { false };
+      };
+      ownsJob and (switch (j.sourceQuoteId) {
+        case (?qid) { Text.size(qid) > 0 };
+        case null   { false };
+      })
+    }))
+  };
+
   /// Update a job's status. Only the homeowner (or admin) can do this on unverified jobs.
   public shared(msg) func updateJobStatus(jobId: Text, status: JobStatus) : async Result.Result<Job, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };

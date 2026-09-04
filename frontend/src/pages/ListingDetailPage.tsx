@@ -1,786 +1,386 @@
 /**
- * ListingDetailPage — Epic 9.4 / 9.5
- * Homeowner views submitted proposals, compares side-by-side, and accepts one.
- * 9.4.3 — HomeGentic score context per proposal
- * 9.4.5 — Post-selection contract upload
- * 9.4.6 — Counter-proposal flow
- * 9.5.1 — Listing milestone timeline
- * 9.5.2 — Offer log
- * 9.5.3 — Final sale price logging
- * 9.5.4 — Agent performance logging (homeowner side)
+ * ListingDetailPage — Bid to List H2 / H3 / H6 · /listing/:id
+ * One route, three states of the same auction:
+ *   H2 — waiting (sealed, <3 bids and window open)
+ *   H3 — the bid board (revealed: >=3 bids or window closed)
+ *   H6 — introduced (fee paid, winner unmasked, other four closed)
  */
 
-import React, { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { useBreakpoint } from "@/hooks/useBreakpoint";
-import { ArrowLeft, Lock, CheckCircle2, Clock, Upload, RefreshCw } from "lucide-react";
+import React, { useEffect, useState, useCallback } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
+import { Star, Lock } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
+import { BidDetailDrawer } from "@/components/BidDetailDrawer";
+import { ConfirmSelectionModal } from "@/components/ConfirmSelectionModal";
 import {
   listingService,
-  computeNetProceeds,
-  formatCommission,
-  isDeadlinePassed,
-  initMilestones,
-  MILESTONE_STEPS,
   type ListingBidRequest,
-  type ListingProposal,
-  type CounterProposal,
-  type Milestone,
-  type OfferEntry,
-  type TransactionClose,
-  type AgentPerformanceRecord,
+  type MaskedProposal,
 } from "@/services/listing";
-import { premiumEstimate } from "@/services/scoreService";
+import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import toast from "react-hot-toast";
-import { V2_COLORS, V2_FONTS } from "@/theme";
 
-const UI = {
-  ink:      V2_COLORS.ink,
-  paper:    V2_COLORS.paper,
-  rule:     V2_COLORS.border,
-  inkLight: V2_COLORS.muted,
-  sage:     V2_COLORS.blue,
-  serif:    V2_FONTS.display,
-  mono:     V2_FONTS.body,
-  sans:     V2_FONTS.body,
-};
+const UI = V2_COLORS;
 
-const CLOSING_COST_BPS = 200;
-
-function formatPrice(cents: number): string {
-  return "$" + (cents / 100).toLocaleString("en-US", { maximumFractionDigits: 0 });
+function money(cents: number): string {
+  return "$" + Math.round(cents / 100).toLocaleString("en-US");
+}
+function commissionPct(bps: number): string {
+  return (bps / 100).toFixed(2).replace(/0$/, "") + "%";
 }
 
-function formatDate(ms: number): string {
-  return new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
-
-/** 9.4.3 — Compare agent's price to homeowner's target. */
-function priceContextBadge(estimatedSalePrice: number, desiredSalePrice: number | null): {
-  label: string; color: string;
-} {
-  if (!desiredSalePrice) return { label: "No target set", color: UI.inkLight };
-  if (estimatedSalePrice >= desiredSalePrice) {
-    return { label: "Meets or exceeds target", color: "#188038" };
-  }
-  if (estimatedSalePrice >= desiredSalePrice * 0.97) {
-    return { label: "Near target price", color: "#e37400" };
-  }
-  return { label: "Below target — underpriced", color: "#c0392b" };
-}
+type SortKey = "net" | "commission" | "dom";
 
 export default function ListingDetailPage() {
-  const navigate = useNavigate();
-  const { id }   = useParams<{ id: string }>();
-  const { isMobile } = useBreakpoint();
+  const { id } = useParams<{ id: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [request, setRequest] = useState<ListingBidRequest | null>(null);
+  const [progress, setProgress] = useState<{ count: number; sealed: boolean } | null>(null);
+  const [proposals, setProposals] = useState<MaskedProposal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [shortlist, setShortlist] = useState<Set<string>>(new Set());
+  const [sortKey, setSortKey] = useState<SortKey>("net");
+  const [drawerProposal, setDrawerProposal] = useState<MaskedProposal | null>(null);
+  const [confirmProposal, setConfirmProposal] = useState<MaskedProposal | null>(null);
+  const [feeCents, setFeeCents] = useState(39900);
 
-  const [request,        setRequest]       = useState<ListingBidRequest | null>(null);
-  const [proposals,      setProposals]     = useState<ListingProposal[]>([]);
-  const [countersMap,    setCountersMap]   = useState<Record<string, CounterProposal[]>>({});
-  const [loading,        setLoading]       = useState(true);
-  const [accepting,      setAccepting]     = useState<string | null>(null);
-  const [counteringId,   setCounteringId]  = useState<string | null>(null);
-  const [counterBps,     setCounterBps]    = useState("225");
-  const [counterNotes,   setCounterNotes]  = useState("");
-  const [uploading,      setUploading]     = useState(false);
-  const [uploadDone,     setUploadDone]    = useState(false);
-  // 9.5
-  const [milestones,     setMilestones]    = useState<Milestone[]>([]);
-  const [offers,         setOffers]        = useState<OfferEntry[]>([]);
-  const [closeData,      setCloseData]     = useState<TransactionClose | null>(null);
-  const [perfRecord,     setPerfRecord]    = useState<AgentPerformanceRecord | null>(null);
-  // 9.5.2 — offer form
-  const [offerAmount,    setOfferAmount]   = useState("");
-  const [offerDate,      setOfferDate]     = useState("");
-  const [offerConts,     setOfferConts]    = useState<string[]>([]);
-  // 9.5.3 — final sale form
-  const [finalPrice,     setFinalPrice]    = useState("");
-  const [finalDate,      setFinalDate]     = useState("");
-  // 9.5.4 — performance form
-  const [chargedBps,     setChargedBps]    = useState("");
-
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!id) return;
-    Promise.all([
-      listingService.getBidRequest(id),
-      listingService.getProposalsForRequest(id),
-    ]).then(async ([req, props]) => {
+    try {
+      const req = await listingService.getBidRequest(id);
+      if (!req) { setNotFound(true); setLoading(false); return; }
       setRequest(req);
-      setProposals(props);
-      // 9.5 — initialize transaction state from request
-      if (req) {
-        setMilestones(req.milestones ?? initMilestones());
-        setOffers(req.offers ?? []);
-        setCloseData(req.closedData ?? null);
-        setPerfRecord(req.agentPerformance ?? null);
-        const accepted = props.find((p) => p.status === "Accepted");
-        if (accepted) setChargedBps(String(accepted.commissionBps));
+
+      if (req.status === "Awarded") {
+        const props = await listingService.getProposalsForRequest(id);
+        setProposals(props);
+      } else {
+        const prog = await listingService.getBidProgress(id);
+        setProgress(prog);
+        if (!prog.sealed) {
+          const props = await listingService.getProposalsForRequest(id);
+          setProposals(props);
+        }
       }
-      // 9.4.6 — load counters for each proposal
-      const map: Record<string, CounterProposal[]> = {};
-      await Promise.all(props.map(async (p) => {
-        try {
-          map[p.id] = await listingService.getCountersForProposal(p.id);
-        } catch { map[p.id] = []; }
-      }));
-      setCountersMap(map);
-    }).catch(() => {
-      toast.error("Failed to load listing request");
-    }).finally(() => setLoading(false));
+      listingService.getPlatformFee().then(setFeeCents).catch(() => {});
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to load listing");
+    } finally {
+      setLoading(false);
+    }
   }, [id]);
 
-  async function handleAccept(proposalId: string) {
-    if (!window.confirm("Accept this agent's proposal? All other proposals will be declined.")) return;
-    setAccepting(proposalId);
-    try {
-      await listingService.acceptProposal(proposalId);
-      toast.success("Proposal accepted — the agent has been notified.");
-      const [req, props] = await Promise.all([
-        listingService.getBidRequest(id!),
-        listingService.getProposalsForRequest(id!),
-      ]);
-      setRequest(req);
-      setProposals(props);
-    } catch (err: any) {
-      toast.error(err?.message ?? "Failed to accept proposal");
-    } finally {
-      setAccepting(null);
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (searchParams.get("fee_paid")) {
+      toast.success("Payment cleared — identities released.");
+      searchParams.delete("fee_paid");
+      setSearchParams(searchParams, { replace: true });
+      load();
+    } else if (searchParams.get("fee_cancelled")) {
+      toast("Payment cancelled — nothing changed, the auction is still live.");
+      searchParams.delete("fee_cancelled");
+      setSearchParams(searchParams, { replace: true });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function toggleShortlist(proposalId: string) {
+    setShortlist((s) => {
+      const next = new Set(s);
+      if (next.has(proposalId)) next.delete(proposalId); else next.add(proposalId);
+      return next;
+    });
   }
 
-  // 9.4.5 — contract upload (mock: no real file, just confirm)
-  async function handleUploadContract() {
-    setUploading(true);
-    try {
-      await listingService.uploadContract(id!, "listing-agreement.pdf");
-      setUploadDone(true);
-      toast.success("Listing agreement uploaded.");
-    } catch (err: any) {
-      toast.error(err?.message ?? "Upload failed");
-    } finally {
-      setUploading(false);
-    }
-  }
+  const sorted = [...proposals].sort((a, b) => {
+    if (sortKey === "net") return b.derived.estNetToSellerCents - a.derived.estNetToSellerCents;
+    if (sortKey === "commission") return a.commissionBps - b.commissionBps;
+    return a.estimatedDaysOnMarket - b.estimatedDaysOnMarket;
+  });
 
-  // 9.4.6 — submit counter
-  async function handleCounter(proposalId: string, e: React.FormEvent) {
-    e.preventDefault();
-    const bps = parseInt(counterBps, 10);
-    if (!bps || bps <= 0) { toast.error("Enter a valid commission rate"); return; }
-    try {
-      const counter = await listingService.counterProposal(proposalId, {
-        commissionBps: bps,
-        notes:         counterNotes,
-      });
-      setCountersMap((m) => ({ ...m, [proposalId]: [...(m[proposalId] ?? []), counter] }));
-      setCounteringId(null);
-      toast.success("Counter offer sent to agent.");
-    } catch (err: any) {
-      toast.error(err?.message ?? "Failed to send counter");
-    }
-  }
-
-  // 9.5.1 — mark milestone complete
-  async function handleMarkMilestone(key: string) {
-    try {
-      const updated = await listingService.updateMilestone(id!, key as any, "homeowner");
-      setMilestones(updated.milestones ?? milestones);
-    } catch (err: any) {
-      toast.error(err?.message ?? "Failed to update milestone");
-    }
-  }
-
-  // 9.5.2 — log an offer
-  async function handleLogOffer(e: React.FormEvent) {
-    e.preventDefault();
-    const cents = Math.round(parseFloat(offerAmount) * 100);
-    if (!cents || cents <= 0) { toast.error("Enter a valid offer amount"); return; }
-    try {
-      const entry = await listingService.logOffer(id!, {
-        offerAmountCents: cents,
-        contingencies:    offerConts,
-        closeDate:        offerDate,
-      });
-      setOffers((prev) => [...prev, entry]);
-      setOfferAmount(""); setOfferDate(""); setOfferConts([]);
-      toast.success("Offer logged.");
-    } catch (err: any) {
-      toast.error(err?.message ?? "Failed to log offer");
-    }
-  }
-
-  function toggleContingency(val: string) {
-    setOfferConts((prev) => prev.includes(val) ? prev.filter((v) => v !== val) : [...prev, val]);
-  }
-
-  // 9.5.3 — record final sale
-  async function handleLogClose(e: React.FormEvent) {
-    e.preventDefault();
-    const cents = Math.round(parseFloat(finalPrice) * 100);
-    if (!cents || cents <= 0) { toast.error("Enter a valid sale price"); return; }
-    const ms = finalDate ? new Date(finalDate).getTime() : Date.now();
-    try {
-      const close = await listingService.logClose(id!, { finalSalePriceCents: cents, actualCloseDateMs: ms });
-      setCloseData(close);
-      toast.success("Final sale price recorded.");
-    } catch (err: any) {
-      toast.error(err?.message ?? "Failed to record sale");
-    }
-  }
-
-  // 9.5.4 — log agent performance
-  async function handleLogPerformance(e: React.FormEvent) {
-    e.preventDefault();
-    const bps = parseInt(chargedBps, 10);
-    if (!bps || bps <= 0) { toast.error("Enter a valid commission rate"); return; }
-    try {
-      const rec = await listingService.logAgentPerformance(id!, { chargedCommBps: bps });
-      setPerfRecord(rec);
-      toast.success("Agent performance recorded — thank you.");
-    } catch (err: any) {
-      toast.error(err?.message ?? "Failed to log performance");
-    }
-  }
-
-  const sealed = request ? !isDeadlinePassed(request.bidDeadline) : false;
-
-  // 9.4.3 — HomeGentic premium potential from snapshot
-  const premiumRange = request?.propertySnapshot
-    ? premiumEstimate(request.propertySnapshot.score)
+  const bestNetId = proposals.length
+    ? [...proposals].sort((a, b) => b.derived.estNetToSellerCents - a.derived.estNetToSellerCents)[0].id
     : null;
 
-  return (
-    <Layout>
-      <div style={{ maxWidth: 900, margin: "0 auto", padding: "2rem 1.5rem" }}>
-        {/* Back */}
-        <button
-          onClick={() => navigate(-1)}
-          style={{
-            display: "flex", alignItems: "center", gap: "0.4rem",
-            background: "none", border: "none", cursor: "pointer",
-            fontFamily: UI.mono, fontSize: "0.72rem", color: UI.inkLight,
-            letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "2rem",
-          }}
-        >
-          <ArrowLeft size={13} /> Back
-        </button>
+  if (loading) {
+    return <Layout><div style={{ padding: "4rem", textAlign: "center", color: UI.muted, fontFamily: V2_FONTS.body }}>Loading…</div></Layout>;
+  }
+  if (notFound || !request) {
+    return <Layout><div style={{ padding: "4rem", textAlign: "center", color: UI.muted, fontFamily: V2_FONTS.body }}>Listing request not found.</div></Layout>;
+  }
 
-        {loading && (
-          <p style={{ fontFamily: UI.mono, color: UI.inkLight }}>Loading…</p>
-        )}
+  // ── H6: Introduced ──────────────────────────────────────────────────────────
+  if (request.status === "Awarded" && request.feePaid) {
+    const winner = proposals.find((p) => p.status === "Accepted");
+    const others = proposals.filter((p) => p.status !== "Accepted");
+    return (
+      <Layout>
+        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "0 1.5rem 4rem" }}>
+          <div style={{ background: UI.green, color: UI.paper, borderRadius: V2_RADIUS.card, padding: "16px 22px", margin: "1.5rem 0", fontFamily: V2_FONTS.body, fontWeight: 600 }}>
+            ✓ Payment cleared. Your record, address and contact details have been released to{" "}
+            {winner?.agentName ?? "your agent"} — and theirs to you.
+          </div>
 
-        {!loading && !request && (
-          <p style={{ fontFamily: UI.sans, color: UI.inkLight }}>Listing request not found.</p>
-        )}
-
-        {!loading && request && (
-          <>
-            {/* Heading */}
-            <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.75rem", color: UI.ink, margin: "0 0 0.3rem" }}>
-              Listing Request
-            </h1>
-            <p style={{ fontFamily: UI.mono, fontSize: "0.72rem", color: UI.inkLight, letterSpacing: "0.06em", textTransform: "uppercase", margin: "0 0 2rem" }}>
-              {request.propertyId} · Status: {request.status} · Deadline: {formatDate(request.bidDeadline)}
-            </p>
-
-            {/* Request summary */}
-            <div style={{ border: `1px solid ${UI.rule}`, padding: "1.25rem 1.5rem", marginBottom: "1.5rem", display: "flex", gap: "2rem", flexWrap: "wrap" }}>
-              {request.desiredSalePrice && (
+          {winner && (
+            <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.25fr) minmax(0,1fr)", gap: "clamp(24px,3vw,40px)" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                  <div style={{ width: 64, height: 64, borderRadius: V2_RADIUS.card, background: UI.blue, color: UI.paper, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: V2_FONTS.display, fontWeight: 800, fontSize: "1.5rem" }}>
+                    {winner.agentName?.[0] ?? "A"}
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: V2_FONTS.display, fontWeight: 800, fontSize: "1.5rem", color: UI.ink }}>{winner.agentName}</div>
+                    <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.72rem", color: UI.muted }}>{winner.agentBrokerage}</div>
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,180px),1fr))", gap: 10 }}>
+                  <div style={{ background: UI.neutralSurface2, borderRadius: V2_RADIUS.input + 4, padding: 12 }}>
+                    <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.65rem", color: UI.muted, textTransform: "uppercase" }}>Email</div>
+                    <div style={{ fontFamily: V2_FONTS.body, fontSize: "0.85rem", color: UI.ink, marginTop: 4 }}>{winner.agentEmail}</div>
+                  </div>
+                </div>
                 <div>
-                  <div style={{ fontFamily: UI.mono, fontSize: "0.62rem", color: UI.inkLight, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "0.2rem" }}>Desired Price</div>
-                  <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.25rem", color: UI.ink }}>{formatPrice(request.desiredSalePrice)}</div>
-                </div>
-              )}
-              {request.notes && (
-                <div style={{ flex: 1, minWidth: 200 }}>
-                  <div style={{ fontFamily: UI.mono, fontSize: "0.62rem", color: UI.inkLight, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "0.2rem" }}>Notes</div>
-                  <div style={{ fontFamily: UI.sans, fontSize: "0.875rem", color: UI.ink }}>{request.notes}</div>
-                </div>
-              )}
-            </div>
-
-            {/* Property snapshot — 9.2.3 */}
-            {request.propertySnapshot && (
-              <div style={{ border: `1px solid ${UI.rule}`, padding: "1rem 1.5rem", marginBottom: "1.5rem", background: "#fafafa" }}>
-                <div style={{ fontFamily: UI.mono, fontSize: "0.62rem", color: UI.inkLight, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "0.75rem" }}>
-                  HomeGentic Snapshot (at request creation)
-                </div>
-                <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap" }}>
-                  <div>
-                    <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, textTransform: "uppercase", marginBottom: "0.2rem" }}>Score</div>
-                    <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.25rem", color: UI.ink }}>{request.propertySnapshot.score}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, textTransform: "uppercase", marginBottom: "0.2rem" }}>Verified Jobs</div>
-                    <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.25rem", color: UI.ink }}>{request.propertySnapshot.verifiedJobCount}</div>
-                  </div>
-                  {/* 9.4.3 — premium potential */}
-                  {premiumRange && (
-                    <div>
-                      <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, textTransform: "uppercase", marginBottom: "0.2rem" }}>Estimated Premium Potential</div>
-                      <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.1rem", color: UI.sage }}>
-                        ${premiumRange.low.toLocaleString()} – ${premiumRange.high.toLocaleString()}
-                      </div>
+                  <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.68rem", letterSpacing: "0.08em", color: UI.muted, textTransform: "uppercase", marginBottom: 10 }}>What happens next</div>
+                  {["She has your record and 48 hours to make contact", "Walkthrough and listing agreement", "Buyer's Truth Kit generated for the listing", "Request closes when the agreement is signed"].map((step, i) => (
+                    <div key={i} style={{ display: "flex", gap: 12, padding: "10px 0", borderTop: i > 0 ? `1px solid ${UI.border}` : "none" }}>
+                      <div style={{
+                        width: 22, height: 22, borderRadius: "50%", flexShrink: 0, fontSize: "0.7rem", fontWeight: 700,
+                        display: "flex", alignItems: "center", justifyContent: "center", fontFamily: V2_FONTS.mono,
+                        background: i === 0 ? UI.blueTintSurface : UI.neutralSurface, color: i === 0 ? UI.blue : UI.muted,
+                      }}>{i + 1}</div>
+                      <div style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: UI.ink }}>{step}</div>
                     </div>
-                  )}
+                  ))}
                 </div>
               </div>
-            )}
 
-            {/* 9.4.5 — Contract upload (only after Awarded) */}
-            {request.status === "Awarded" && (
-              <div style={{ border: `1px solid ${UI.rule}`, padding: "1.25rem 1.5rem", marginBottom: "1.5rem" }}>
-                <div style={{ fontFamily: UI.mono, fontSize: "0.62rem", color: UI.inkLight, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "0.5rem" }}>
-                  Signed Agreement
-                </div>
-                {request.contractFile || uploadDone ? (
-                  <p style={{ fontFamily: UI.mono, fontSize: "0.8rem", color: "#188038" }}>
-                    ✓ Contract uploaded: {request.contractFile?.name ?? "listing-agreement.pdf"}
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div style={{ background: UI.ink, borderRadius: V2_RADIUS.card + 2, padding: 20 }}>
+                  <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.65rem", letterSpacing: "0.08em", color: "rgba(252,252,253,0.6)", textTransform: "uppercase" }}>Her bid, now binding as terms</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", color: UI.paper, fontFamily: V2_FONTS.body, fontSize: "0.875rem" }}>
+                      <span>Commission</span><span>{commissionPct(winner.commissionBps)}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", color: UI.paper, fontFamily: V2_FONTS.body, fontSize: "0.875rem" }}>
+                      <span>Suggested list</span><span>{money(winner.suggestedListCents)}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", color: UI.greenBright, fontFamily: V2_FONTS.body, fontSize: "0.875rem" }}>
+                      <span>Fee she paid</span><span>{money(feeCents)}</span>
+                    </div>
+                  </div>
+                  <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.75rem", color: "rgba(252,252,253,0.55)", marginTop: 12 }}>
+                    These were her bid terms. They are not a signed listing agreement — that is between the two of you,
+                    and we keep a copy of what she promised here.
                   </p>
-                ) : (
-                  <Button
-                    onClick={handleUploadContract}
-                    disabled={uploading}
-                    aria-label="Upload Contract"
-                    style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
-                  >
-                    <Upload size={13} />
-                    {uploading ? "Uploading…" : "Attach File"}
-                  </Button>
-                )}
-              </div>
-            )}
-
-            {/* 9.5.1 — Transaction Timeline (Awarded requests) */}
-            {request.status === "Awarded" && (
-              <div
-                role="region"
-                aria-label="Transaction Timeline"
-                style={{ border: `1px solid ${UI.rule}`, padding: "1.25rem 1.5rem", marginBottom: "1.5rem" }}
-              >
-                <h2 style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.1rem", color: UI.ink, margin: "0 0 1rem" }}>
-                  Transaction Timeline
-                </h2>
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                  {MILESTONE_STEPS.map((step) => {
-                    const ms = milestones.find((m) => m.key === step.key);
-                    const done = !!ms?.completedAt;
-                    return (
-                      <div key={step.key} style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.5rem 0", borderBottom: `1px solid ${UI.rule}` }}>
-                        <div style={{ width: 16, height: 16, border: `2px solid ${done ? UI.sage : UI.rule}`, background: done ? UI.sage : "transparent", flexShrink: 0 }} />
-                        <div style={{ flex: 1 }}>
-                          <span style={{ fontFamily: UI.sans, fontSize: "0.875rem", color: done ? UI.inkLight : UI.ink }}>
-                            {step.label}
-                          </span>
-                          {done && ms?.completedAt && (
-                            <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, marginLeft: "0.5rem" }}>
-                              {new Date(ms.completedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                            </span>
-                          )}
-                        </div>
-                        {!done && (
-                          <button
-                            onClick={() => handleMarkMilestone(step.key)}
-                            aria-label={`Mark ${step.label} complete`}
-                            style={{ background: "none", border: `1px solid ${UI.rule}`, cursor: "pointer", fontFamily: UI.mono, fontSize: "0.65rem", color: UI.ink, padding: "0.25rem 0.6rem", letterSpacing: "0.04em", textTransform: "uppercase" }}
-                          >
-                            Mark Done
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
                 </div>
-              </div>
-            )}
 
-            {/* 9.5.2 — Offer Log */}
-            {request.status === "Awarded" && (
-              <div style={{ border: `1px solid ${UI.rule}`, padding: "1.25rem 1.5rem", marginBottom: "1.5rem" }}>
-                <h2 style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.1rem", color: UI.ink, margin: "0 0 1rem" }}>
-                  Offers Received
-                </h2>
-                {/* Existing offers */}
-                {offers.length > 0 && (
-                  <div style={{ marginBottom: "1rem" }}>
-                    {offers.map((offer) => (
-                      <div key={offer.id} style={{ border: `1px solid ${UI.rule}`, padding: "0.75rem 1rem", marginBottom: "0.5rem", display: "flex", gap: "2rem", flexWrap: "wrap" }}>
-                        <div>
-                          <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, textTransform: "uppercase", marginBottom: "0.2rem" }}>Offer Amount</div>
-                          <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1rem", color: UI.ink }}>{formatPrice(offer.offerAmountCents)}</div>
-                        </div>
-                        {offer.deltaFromListingPriceCents !== null && (
-                          <div>
-                            <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, textTransform: "uppercase", marginBottom: "0.2rem" }}>vs. List Price</div>
-                            <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1rem", color: offer.deltaFromListingPriceCents >= 0 ? "#188038" : "#c0392b" }}>
-                              {offer.deltaFromListingPriceCents >= 0 ? "+" : ""}{formatPrice(offer.deltaFromListingPriceCents)}
-                            </div>
-                          </div>
-                        )}
-                        <div>
-                          <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, textTransform: "uppercase", marginBottom: "0.2rem" }}>Close Date</div>
-                          <div style={{ fontFamily: UI.sans, fontSize: "0.875rem", color: UI.ink }}>{offer.closeDate}</div>
-                        </div>
-                        {offer.contingencies.length > 0 && (
-                          <div>
-                            <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, textTransform: "uppercase", marginBottom: "0.2rem" }}>Contingencies</div>
-                            <div style={{ fontFamily: UI.sans, fontSize: "0.8rem", color: UI.ink }}>{offer.contingencies.join(", ")}</div>
-                          </div>
-                        )}
+                <div>
+                  <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.65rem", letterSpacing: "0.08em", color: UI.muted, textTransform: "uppercase", marginBottom: 10 }}>The other four</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {others.map((p) => (
+                      <div key={p.id} style={{ background: UI.neutralSurface, borderRadius: V2_RADIUS.input, padding: "10px 14px", display: "flex", justifyContent: "space-between", fontFamily: V2_FONTS.body, fontSize: "0.85rem", color: UI.muted }}>
+                        <span>Bid {p.letter}</span><span style={{ fontFamily: V2_FONTS.mono, fontSize: "0.68rem" }}>CLOSED</span>
                       </div>
                     ))}
                   </div>
-                )}
-                {/* Log offer form */}
-                <form aria-label="Log offer" onSubmit={handleLogOffer} style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "0.75rem" }}>
-                    <div>
-                      <label htmlFor="offer-amount" style={{ display: "block", fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.25rem" }}>
-                        Offer Amount ($)
-                      </label>
-                      <input
-                        id="offer-amount"
-                        aria-label="Offer Amount"
-                        type="number"
-                        min="1"
-                        step="1000"
-                        placeholder="e.g. 505000"
-                        value={offerAmount}
-                        onChange={(e) => setOfferAmount(e.target.value)}
-                        style={{ width: "100%", padding: "0.5rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, boxSizing: "border-box" }}
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="offer-close-date" style={{ display: "block", fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.25rem" }}>
-                        Close Date
-                      </label>
-                      <input
-                        id="offer-close-date"
-                        aria-label="Close Date"
-                        type="date"
-                        value={offerDate}
-                        onChange={(e) => setOfferDate(e.target.value)}
-                        style={{ width: "100%", padding: "0.5rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, boxSizing: "border-box" }}
-                      />
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
-                    <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontFamily: UI.sans, fontSize: "0.875rem", cursor: "pointer" }}>
-                      <input type="checkbox" checked={offerConts.includes("financing")} onChange={() => toggleContingency("financing")} aria-label="Financing contingency" />
-                      Financing
-                    </label>
-                    <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontFamily: UI.sans, fontSize: "0.875rem", cursor: "pointer" }}>
-                      <input type="checkbox" checked={offerConts.includes("inspection")} onChange={() => toggleContingency("inspection")} aria-label="Inspection contingency" />
-                      Inspection
-                    </label>
-                    <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontFamily: UI.sans, fontSize: "0.875rem", cursor: "pointer" }}>
-                      <input type="checkbox" checked={offerConts.includes("sale_of_home")} onChange={() => toggleContingency("sale_of_home")} aria-label="Sale of home contingency" />
-                      Sale of Home
-                    </label>
-                  </div>
-                  <Button type="submit" style={{ alignSelf: "flex-start" }}>Log Offer</Button>
-                </form>
-              </div>
-            )}
-
-            {/* 9.5.3 — Final Sale Price */}
-            {request.status === "Awarded" && !closeData && (
-              <div style={{ border: `1px solid ${UI.rule}`, padding: "1.25rem 1.5rem", marginBottom: "1.5rem" }}>
-                <h2 style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.1rem", color: UI.ink, margin: "0 0 1rem" }}>
-                  Record Final Sale
-                </h2>
-                <form aria-label="Record final sale" onSubmit={handleLogClose} style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "0.75rem" }}>
-                    <div>
-                      <label htmlFor="final-sale-price" style={{ display: "block", fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.25rem" }}>
-                        Final Sale Price ($)
-                      </label>
-                      <input
-                        id="final-sale-price"
-                        aria-label="Final Sale Price"
-                        type="number"
-                        min="1"
-                        step="1000"
-                        placeholder="e.g. 518000"
-                        value={finalPrice}
-                        onChange={(e) => setFinalPrice(e.target.value)}
-                        style={{ width: "100%", padding: "0.5rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, boxSizing: "border-box" }}
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="actual-close-date" style={{ display: "block", fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.25rem" }}>
-                        Actual Close Date
-                      </label>
-                      <input
-                        id="actual-close-date"
-                        aria-label="Actual Close Date"
-                        type="date"
-                        value={finalDate}
-                        onChange={(e) => setFinalDate(e.target.value)}
-                        style={{ width: "100%", padding: "0.5rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, boxSizing: "border-box" }}
-                      />
-                    </div>
-                  </div>
-                  <Button type="submit" style={{ alignSelf: "flex-start" }}>Save Close</Button>
-                </form>
-              </div>
-            )}
-
-            {/* 9.5.3 — Closed summary */}
-            {closeData && (
-              <div style={{ border: `1px solid ${UI.rule}`, padding: "1.25rem 1.5rem", marginBottom: "1.5rem" }}>
-                <div style={{ fontFamily: UI.mono, fontSize: "0.62rem", color: UI.inkLight, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "0.75rem" }}>
-                  Transaction Closed
+                  <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.78rem", color: UI.muted, marginTop: 8 }}>
+                    Notified that the listing went elsewhere. None was charged, none learned your address, and none can contact you.
+                  </p>
                 </div>
-                <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap" }}>
-                  <div>
-                    <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, textTransform: "uppercase", marginBottom: "0.2rem" }}>Final Sale Price</div>
-                    <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.25rem", color: UI.ink }}>{formatPrice(closeData.finalSalePriceCents)}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, textTransform: "uppercase", marginBottom: "0.2rem" }}>Actual HomeGentic Premium</div>
-                    <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.25rem", color: UI.sage }}>{formatPrice(closeData.actualPremiumCents)}</div>
-                  </div>
+
+                <div style={{ background: UI.neutralSurface, borderRadius: V2_RADIUS.card, padding: 18 }}>
+                  <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.68rem", letterSpacing: "0.08em", color: UI.muted, textTransform: "uppercase", marginBottom: 8 }}>If this does not work out</div>
+                  <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.85rem", color: UI.ink, marginBottom: 12 }}>
+                    You are not committed. Tell us within 30 days that you did not sign with her and we refund her{" "}
+                    {money(feeCents)} and reopen your request to the other agents.
+                  </p>
+                  <Button variant="outline" size="sm" onClick={() => toast("Report submitted — our team will follow up.")}>
+                    Report that we did not sign
+                  </Button>
                 </div>
               </div>
-            )}
+            </div>
+          )}
+        </div>
+      </Layout>
+    );
+  }
 
-            {/* 9.5.4 — Agent performance logging (after close, before rating submitted) */}
-            {closeData && !perfRecord && proposals.some((p) => p.status === "Accepted") && (
-              <div style={{ border: `1px solid ${UI.rule}`, padding: "1.25rem 1.5rem", marginBottom: "1.5rem" }}>
-                <h2 style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.1rem", color: UI.ink, margin: "0 0 0.5rem" }}>
-                  Rate This Transaction
-                </h2>
-                <form aria-label="Agent performance" onSubmit={handleLogPerformance} style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+  // ── H2: Waiting ──────────────────────────────────────────────────────────────
+  if (progress?.sealed) {
+    const slots = ["A", "B", "C", "D", "E"];
+    return (
+      <Layout>
+        <div style={{ maxWidth: 800, margin: "0 auto", padding: "2rem 1.5rem 4rem" }}>
+          <h1 style={{ fontFamily: V2_FONTS.display, fontWeight: 800, fontSize: "clamp(22px,2.4vw,28px)", color: UI.ink }}>
+            {progress.count === 0 ? "Your request is live to verified agents in your county" : `${progress.count} of 5 bids in. Comparing now is premature.`}
+          </h1>
+          <div style={{ display: "flex", gap: 10, margin: "20px 0" }}>
+            {slots.map((letter, i) => {
+              const filled = i < progress.count;
+              return (
+                <div key={letter} style={{
+                  flex: 1, height: 64, borderRadius: V2_RADIUS.card - 2, display: "flex", flexDirection: "column",
+                  alignItems: "center", justifyContent: "center", gap: 2,
+                  border: filled ? `1.5px solid ${UI.blueTintBorder}` : `1.5px dashed ${UI.divider}`,
+                  background: filled ? UI.blueTintBg : UI.neutralSurface2,
+                }}>
+                  <span style={{ fontFamily: V2_FONTS.mono, fontWeight: 700, color: filled ? UI.blue : UI.faint }}>{letter}</span>
+                  {filled && <span style={{ fontFamily: V2_FONTS.mono, fontSize: "0.6rem", color: UI.blue }}>SEALED</span>}
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ background: UI.blueTintBg, border: `1px solid ${UI.blueTintBorder}`, borderRadius: V2_RADIUS.card, padding: 18 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <Lock size={14} color={UI.blueDeepText} />
+              <span style={{ fontFamily: V2_FONTS.mono, fontSize: "0.68rem", letterSpacing: "0.08em", color: UI.blueDeepText, textTransform: "uppercase" }}>Why the delay is deliberate</span>
+            </div>
+            <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: UI.blueDeepText, margin: 0 }}>
+              If a seller could watch bids land one at a time, the last agent to bid would always know what to beat.
+              Sealed until three keeps it a blind auction. Terms stay hidden until three bids are in or the window closes.
+            </p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // ── H3: The bid board ─────────────────────────────────────────────────────
+  return (
+    <Layout>
+      <div style={{ maxWidth: 1180, margin: "0 auto", padding: "2rem 1.5rem 4rem" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 16, marginBottom: 18 }}>
+          <h1 style={{ fontFamily: V2_FONTS.display, fontWeight: 800, fontSize: "clamp(24px,2.6vw,32px)", color: UI.ink, margin: 0 }}>
+            {proposals.length} agent{proposals.length === 1 ? "" : "s"} want your listing
+          </h1>
+          <div style={{ display: "flex", border: `1.5px solid ${UI.border}`, borderRadius: 100, overflow: "hidden" }}>
+            {([["net", "Net to you"], ["commission", "Commission"], ["dom", "Days on market"]] as [SortKey, string][]).map(([key, label]) => (
+              <button key={key} onClick={() => setSortKey(key)} style={{
+                padding: "8px 16px", border: "none", cursor: "pointer", fontFamily: V2_FONTS.mono, fontSize: "0.72rem",
+                background: sortKey === key ? UI.ink : "transparent", color: sortKey === key ? UI.paper : UI.muted,
+              }}>{label}</button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ background: UI.blueTintBg, border: `1px solid ${UI.blueTintBorder}`, borderRadius: V2_RADIUS.card, padding: 16, marginBottom: 18 }}>
+          <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.85rem", color: UI.blueDeepText, margin: 0 }}>
+            <strong>The highest suggested price is not the best bid.</strong> An agent who wins a listing on an
+            optimistic number and cuts it twice costs you more than one who priced it right. Bids more than 4% above
+            local closed comps are flagged below.
+          </p>
+        </div>
+
+        <div style={{ border: `1px solid ${UI.border}`, borderRadius: V2_RADIUS.card + 2, overflow: "hidden" }}>
+          <div style={{
+            display: "grid", gridTemplateColumns: "minmax(0,1.15fr) 96px 118px 130px 82px 78px auto", gap: 12,
+            padding: "12px 18px", background: UI.neutralSurface, fontFamily: V2_FONTS.mono, fontSize: "0.62rem",
+            fontWeight: 700, letterSpacing: "0.1em", color: UI.muted, textTransform: "uppercase",
+          }}>
+            <span>Bidder</span><span>Commission</span><span>Suggested list</span><span>Est. net to you</span><span>Avg DOM</span><span>Comps</span><span />
+          </div>
+          {sorted.map((p) => {
+            const isBest = p.id === bestNetId;
+            const shortlisted = shortlist.has(p.id);
+            return (
+              <div key={p.id}>
+                <div
+                  onClick={() => setDrawerProposal(p)}
+                  style={{
+                    display: "grid", gridTemplateColumns: "minmax(0,1.15fr) 96px 118px 130px 82px 78px auto", gap: 12,
+                    padding: "18px", alignItems: "center", cursor: "pointer",
+                    background: shortlisted ? UI.neutralRowTint : UI.paper,
+                    borderTop: `1px solid ${UI.border}`,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: V2_RADIUS.input + 1, flexShrink: 0,
+                      display: "flex", alignItems: "center", justifyContent: "center", fontFamily: V2_FONTS.mono, fontWeight: 700, fontSize: "0.875rem",
+                      background: shortlisted ? UI.vbadge : UI.neutralSurface3, color: shortlisted ? UI.blue : UI.muted,
+                    }}>{p.letter}</div>
+                    <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.875rem", color: UI.ink }}>Bid {p.letter}</span>
+                  </div>
+                  <div style={{ fontFamily: V2_FONTS.display, fontWeight: 700, fontSize: "1.05rem", color: UI.ink }}>{commissionPct(p.commissionBps)}</div>
                   <div>
-                    <label htmlFor="charged-commission" style={{ display: "block", fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.25rem" }}>
-                      Bps Charged
-                    </label>
-                    <input
-                      id="charged-commission"
-                      aria-label="Commission Charged"
-                      type="number"
-                      min="1"
-                      max="1000"
-                      value={chargedBps}
-                      onChange={(e) => setChargedBps(e.target.value)}
-                      style={{ width: "12rem", padding: "0.5rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono }}
-                    />
+                    <div style={{ fontFamily: V2_FONTS.mono, fontWeight: 600, fontSize: "0.9375rem", color: UI.ink }}>{money(p.suggestedListCents)}</div>
+                    {p.derived.overCompFlag && (
+                      <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.6rem", fontWeight: 600, color: UI.orange, marginTop: 2 }}>
+                        +{(p.derived.pctVsCompsBps / 100).toFixed(1)}% OVER COMPS
+                      </div>
+                    )}
                   </div>
-                  <Button type="submit" style={{ alignSelf: "flex-start" }}>Submit Rating</Button>
-                </form>
-              </div>
-            )}
-
-            {/* Sealed state */}
-            {sealed && (
-              <div style={{ border: `1px solid ${UI.rule}`, padding: "1.5rem", display: "flex", alignItems: "center", gap: "1rem", marginBottom: "2rem" }}>
-                <Lock size={20} color={UI.inkLight} />
-                <div>
-                  <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1rem", color: UI.ink }}>
-                    Proposals are sealed until the deadline passes
+                  <div>
+                    <div style={{ fontFamily: V2_FONTS.display, fontWeight: 700, fontSize: "1.05rem", color: isBest ? UI.green : UI.ink }}>{money(p.derived.estNetToSellerCents)}</div>
+                    <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.6rem", fontWeight: 600, color: isBest ? UI.green : UI.muted, marginTop: 2 }}>
+                      {isBest ? "HIGHEST NET" : "AFTER COMMISSION"}
+                    </div>
                   </div>
-                  <div style={{ fontFamily: UI.sans, fontSize: "0.875rem", color: UI.inkLight, marginTop: "0.2rem" }}>
-                    Deadline: {formatDate(request.bidDeadline)} — proposals hidden until then to ensure fair bidding
+                  <div style={{ fontFamily: V2_FONTS.body, fontSize: "0.85rem", color: UI.ink }}>{p.estimatedDaysOnMarket}d</div>
+                  <div>
+                    <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.85rem", color: p.derived.thinCompsFlag ? UI.orange : UI.ink }}>{p.agentRecord.closedInZip}</span>
+                    {p.derived.thinCompsFlag && <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.58rem", color: UI.orange }}>THIN</div>}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }} onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={() => toggleShortlist(p.id)}
+                      style={{
+                        width: 38, height: 38, borderRadius: "50%", flexShrink: 0, cursor: "pointer",
+                        border: shortlisted ? "none" : `1.5px solid ${UI.border}`,
+                        background: shortlisted ? UI.blue : UI.paper,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                      }}
+                    >
+                      <Star size={16} fill={shortlisted ? UI.yellow : "none"} color={shortlisted ? UI.yellow : UI.muted} />
+                    </button>
+                    <Button
+                      variant={shortlisted ? "primary" : "outline"}
+                      size="sm"
+                      onClick={() => shortlisted ? setConfirmProposal(p) : toggleShortlist(p.id)}
+                    >
+                      {shortlisted ? "Choose" : "Shortlist"}
+                    </Button>
                   </div>
                 </div>
               </div>
-            )}
+            );
+          })}
+        </div>
 
-            {/* Proposals */}
-            {!sealed && (
-              <>
-                <h2 style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.125rem", color: UI.ink, margin: "0 0 1rem" }}>
-                  {proposals.length === 0 ? "No proposals yet" : `${proposals.length} Proposal${proposals.length !== 1 ? "s" : ""} Received`}
-                </h2>
-
-                {proposals.map((p) => {
-                  const netProceeds = request.desiredSalePrice
-                    ? computeNetProceeds(request.desiredSalePrice, p.commissionBps, CLOSING_COST_BPS)
-                    : computeNetProceeds(p.estimatedSalePrice, p.commissionBps, CLOSING_COST_BPS);
-
-                  // 9.4.3
-                  const priceBadge  = priceContextBadge(p.estimatedSalePrice, request.desiredSalePrice);
-                  const proposalCounters = countersMap[p.id] ?? [];
-                  const latestCounter   = proposalCounters[proposalCounters.length - 1];
-
-                  return (
-                    <div key={p.id} style={{ border: `1px solid ${p.status === "Accepted" ? UI.sage : UI.rule}`, padding: "1.25rem 1.5rem", marginBottom: "1rem", position: "relative" }}>
-                      {p.status === "Accepted" && (
-                        <div style={{ position: "absolute", top: "0.75rem", right: "0.75rem", display: "flex", alignItems: "center", gap: "0.3rem", fontFamily: UI.mono, fontSize: "0.65rem", color: UI.sage, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                          <CheckCircle2 size={12} /> Accepted
-                        </div>
-                      )}
-
-                      <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.1rem", color: UI.ink, marginBottom: "0.15rem" }}>{p.agentName}</div>
-                      <div style={{ fontFamily: UI.mono, fontSize: "0.72rem", color: UI.inkLight, letterSpacing: "0.04em", marginBottom: "0.75rem" }}>{p.agentBrokerage}</div>
-
-                      {/* Key metrics */}
-                      <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap", marginBottom: "0.75rem" }}>
-                        <div>
-                          <div style={{ fontFamily: UI.mono, fontSize: "0.62rem", color: UI.inkLight, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "0.2rem" }}>Commission</div>
-                          <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.1rem", color: UI.ink }}>{formatCommission(p.commissionBps)}</div>
-                        </div>
-                        <div>
-                          <div style={{ fontFamily: UI.mono, fontSize: "0.62rem", color: UI.inkLight, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "0.2rem" }}>Est. Net Proceeds</div>
-                          <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.1rem", color: UI.ink }}>{formatPrice(netProceeds)}</div>
-                        </div>
-                        <div>
-                          <div style={{ fontFamily: UI.mono, fontSize: "0.62rem", color: UI.inkLight, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "0.2rem" }}>Est. Sale Price</div>
-                          <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.1rem", color: UI.ink }}>{formatPrice(p.estimatedSalePrice)}</div>
-                        </div>
-                        <div>
-                          <div style={{ fontFamily: UI.mono, fontSize: "0.62rem", color: UI.inkLight, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "0.2rem" }}>Est. Days on Market</div>
-                          <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.1rem", color: UI.ink, display: "flex", alignItems: "center", gap: "0.3rem" }}>
-                            <Clock size={13} /> {p.estimatedDaysOnMarket}d
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 9.4.3 — Price context badge */}
-                      <div style={{ marginBottom: "0.75rem" }}>
-                        <span style={{ fontFamily: UI.mono, fontSize: "0.68rem", color: priceBadge.color, letterSpacing: "0.04em" }}>
-                          {priceBadge.label}
-                        </span>
-                      </div>
-
-                      {/* CMA summary shown only via structured comps table below */}
-                      {p.marketingPlan && (
-                        <div style={{ marginBottom: "0.75rem" }}>
-                          <div style={{ fontFamily: UI.mono, fontSize: "0.62rem", color: UI.inkLight, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "0.2rem" }}>Marketing Plan</div>
-                          <div style={{ fontFamily: UI.sans, fontSize: "0.875rem", color: UI.ink }}>{p.marketingPlan}</div>
-                        </div>
-                      )}
-                      {p.includedServices.length > 0 && (
-                        <div style={{ marginBottom: "0.75rem" }}>
-                          <div style={{ fontFamily: UI.mono, fontSize: "0.62rem", color: UI.inkLight, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "0.2rem" }}>Included Services</div>
-                          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                            {p.includedServices.map((svc) => (
-                              <span key={svc} style={{ fontFamily: UI.mono, fontSize: "0.68rem", color: UI.ink, border: `1px solid ${UI.rule}`, padding: "0.2rem 0.5rem", textTransform: "uppercase", letterSpacing: "0.04em" }}>{svc}</span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 9.3.4 — CMA comps table */}
-                      {p.cmaComps && p.cmaComps.length > 0 && (
-                        <div style={{ marginBottom: "0.75rem" }}>
-                          <div style={{ fontFamily: UI.mono, fontSize: "0.62rem", color: UI.inkLight, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "0.4rem" }}>Comparable Sales</div>
-                          <div style={{ overflowX: "auto" }}>
-                            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: UI.mono, fontSize: "0.72rem" }}>
-                              <thead>
-                                <tr style={{ borderBottom: `1px solid ${UI.rule}` }}>
-                                  {["Address", "Sale Price", "Bed", "Bath", "Sqft", "Sold"].map((h) => (
-                                    <th key={h} style={{ textAlign: "left", padding: "0.3rem 0.5rem", color: UI.inkLight, fontWeight: 500 }}>{h}</th>
-                                  ))}
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {p.cmaComps.map((c, i) => (
-                                  <tr key={i} style={{ borderBottom: `1px solid ${UI.rule}` }}>
-                                    <td style={{ padding: "0.3rem 0.5rem", color: UI.ink }}>{c.address}</td>
-                                    <td style={{ padding: "0.3rem 0.5rem", color: UI.ink }}>{formatPrice(c.salePriceCents)}</td>
-                                    <td style={{ padding: "0.3rem 0.5rem", color: UI.ink }}>{c.bedrooms}</td>
-                                    <td style={{ padding: "0.3rem 0.5rem", color: UI.ink }}>{c.bathrooms}</td>
-                                    <td style={{ padding: "0.3rem 0.5rem", color: UI.ink }}>{c.sqft.toLocaleString()}</td>
-                                    <td style={{ padding: "0.3rem 0.5rem", color: UI.ink }}>{c.soldDate}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      )}
-
-                      {p.coverLetter && (
-                        <div style={{ marginBottom: "0.75rem" }}>
-                          <div style={{ fontFamily: UI.mono, fontSize: "0.62rem", color: UI.inkLight, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "0.2rem" }}>Cover Letter</div>
-                          <div style={{ fontFamily: UI.sans, fontSize: "0.875rem", color: UI.ink, fontStyle: "italic" }}>{p.coverLetter}</div>
-                        </div>
-                      )}
-
-                      {/* 9.4.6 — Counter display */}
-                      {latestCounter && (
-                        <div style={{ border: `1px solid ${UI.rule}`, padding: "0.75rem 1rem", marginBottom: "0.75rem", background: "#fffbf0", fontFamily: UI.mono, fontSize: "0.875rem", color: UI.ink }}>
-                          {`Counter Offer — ${latestCounter.status}: ${formatCommission(latestCounter.commissionBps)}${latestCounter.notes ? ` · "${latestCounter.notes}"` : ""}`}
-                        </div>
-                      )}
-
-                      {/* Action buttons */}
-                      <div style={{ display: "flex", gap: "0.75rem", marginTop: "1rem", flexWrap: "wrap" }}>
-                        {request.status === "Open" && p.status === "Pending" && (
-                          <>
-                            <Button onClick={() => handleAccept(p.id)} disabled={accepting === p.id}>
-                              {accepting === p.id ? "Accepting…" : "Accept This Agent"}
-                            </Button>
-
-                            {/* 9.4.6 — Counter button */}
-                            {!latestCounter && counteringId !== p.id && (
-                              <button
-                                onClick={() => { setCounteringId(p.id); setCounterBps(String(Math.round(p.commissionBps * 0.9))); setCounterNotes(""); }}
-                                style={{ background: "none", border: `1px solid ${UI.rule}`, cursor: "pointer", fontFamily: UI.mono, fontSize: "0.72rem", color: UI.ink, letterSpacing: "0.06em", textTransform: "uppercase", padding: "0.5rem 1rem" }}
-                              >
-                                Counter
-                              </button>
-                            )}
-                          </>
-                        )}
-                      </div>
-
-                      {/* 9.4.6 — Counter form */}
-                      {counteringId === p.id && (
-                        <form
-                          aria-label="Counter offer"
-                          onSubmit={(e) => handleCounter(p.id, e)}
-                          style={{ marginTop: "1rem", borderTop: `1px solid ${UI.rule}`, paddingTop: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}
-                        >
-                          <div style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "0.9rem", color: UI.ink }}>
-                            Counter Offer
-                          </div>
-                          <label htmlFor={`counter-bps-${p.id}`} style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight }}>
-                            Counter Commission (basis points)
-                            <input
-                              id={`counter-bps-${p.id}`}
-                              aria-label="Counter commission"
-                              type="number"
-                              min="1"
-                              max="1000"
-                              value={counterBps}
-                              onChange={(e) => setCounterBps(e.target.value)}
-                              style={{ display: "block", width: "100%", padding: "0.5rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, marginTop: 4 }}
-                            />
-                          </label>
-                          <label htmlFor={`counter-notes-${p.id}`} style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.inkLight }}>
-                            Message (optional)
-                            <input
-                              id={`counter-notes-${p.id}`}
-                              type="text"
-                              value={counterNotes}
-                              onChange={(e) => setCounterNotes(e.target.value)}
-                              placeholder="e.g. Can you match 2.25%?"
-                              style={{ display: "block", width: "100%", padding: "0.5rem", border: `1px solid ${UI.rule}`, fontFamily: UI.mono, marginTop: 4 }}
-                            />
-                          </label>
-                          <div style={{ display: "flex", gap: "0.5rem" }}>
-                            <Button type="submit">
-                              <RefreshCw size={12} style={{ marginRight: 4 }} />
-                              Send Counter
-                            </Button>
-                            <button type="button" onClick={() => setCounteringId(null)} style={{ background: "none", border: `1px solid ${UI.rule}`, cursor: "pointer", fontFamily: UI.mono, fontSize: "0.72rem", color: UI.inkLight, padding: "0.5rem 1rem" }}>
-                              Cancel
-                            </button>
-                          </div>
-                        </form>
-                      )}
-                    </div>
-                  );
-                })}
-              </>
-            )}
-          </>
-        )}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,280px),1fr))", gap: 16, marginTop: 20 }}>
+          {[
+            ["EST. NET TO YOU", "Suggested list minus commission. It reorders the board: the lowest commission is not the highest net, and the highest price rarely is either."],
+            ["OVER-COMP FLAG", "Any suggested list more than 4% above the local closed median. Winning a listing on an inflated number and cutting it later is the oldest move in the business."],
+            ["THIN LOCAL RECORD", "Fewer than eight closed comps in this zip. Not disqualifying, but it means the pricing confidence is borrowed from elsewhere."],
+          ].map(([label, body]) => (
+            <div key={label} style={{ background: UI.neutralSurface, borderRadius: V2_RADIUS.card, padding: 16 }}>
+              <div style={{ fontFamily: V2_FONTS.mono, fontSize: "0.65rem", letterSpacing: "0.08em", color: UI.muted, marginBottom: 6 }}>{label}</div>
+              <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: UI.ink, margin: 0 }}>{body}</p>
+            </div>
+          ))}
+        </div>
       </div>
+
+      {drawerProposal && (
+        <BidDetailDrawer
+          proposal={drawerProposal}
+          onClose={() => setDrawerProposal(null)}
+          onChoose={(p) => { setDrawerProposal(null); setConfirmProposal(p); }}
+        />
+      )}
+      {confirmProposal && id && (
+        <ConfirmSelectionModal
+          proposal={confirmProposal}
+          requestId={id}
+          feeCents={feeCents}
+          onClose={() => setConfirmProposal(null)}
+        />
+      )}
     </Layout>
   );
 }
