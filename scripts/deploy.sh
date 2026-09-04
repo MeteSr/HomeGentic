@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEPLOY_SCRIPT_VERSION="1.9.2"
+DEPLOY_SCRIPT_VERSION="1.10.0"
 ENV=${1:-local}
 
 echo "============================================"
@@ -215,7 +215,7 @@ fi
 #   non-local — three-phase: create (sequential) → build (sequential) → install
 #               (sequential). Sequential builds avoid concurrent writes to local.ids.json.
 
-CANISTERS=(auth property job contractor quote payment photo report maintenance market sensor monitoring listing recurring bills ai_proxy audit referrals)
+CANISTERS=(auth property job contractor quote payment photo report maintenance market sensor monitoring listing agent fee recurring bills ai_proxy audit referrals)
 LOG_DIR=$(mktemp -d /tmp/icp-deploy-XXXXXX)
 trap 'rm -rf "$LOG_DIR"' EXIT
 DEPLOY_PRINCIPAL=$(icp identity principal)
@@ -628,6 +628,14 @@ echo "  payment: initializing admin list..."
 icp canister call payment initAdmins "(vec { principal \"$DEPLOYER\" })" -e "$ENV" \
   2>/dev/null || echo "  ⚠️  payment initAdmins failed (may already be initialized)"
 
+echo "  agent: initializing admin list..."
+icp canister call agent initAdmins "(vec { principal \"$DEPLOYER\" })" -e "$ENV" \
+  2>/dev/null || echo "  ⚠️  agent initAdmins failed (may already be initialized)"
+
+echo "  fee: initializing admin list..."
+icp canister call fee initAdmins "(vec { principal \"$DEPLOYER\" })" -e "$ENV" \
+  2>/dev/null || echo "  ⚠️  fee initAdmins failed (may already be initialized)"
+
 echo "  payment: granting deployer Pro subscription for test compatibility..."
 icp canister call payment grantSubscription "(principal \"$DEPLOYER\", variant { Pro })" -e "$ENV" \
   2>/dev/null || echo "  ⚠️  grantSubscription failed"
@@ -646,6 +654,8 @@ QUOTE_ID=$(icp canister status quote -e "$ENV" --id-only 2>/dev/null || echo "")
 SENSOR_ID=$(icp canister status sensor -e "$ENV" --id-only 2>/dev/null || echo "")
 REPORT_ID=$(icp canister status report -e "$ENV" --id-only 2>/dev/null || echo "")
 LISTING_ID=$(icp canister status listing -e "$ENV" --id-only 2>/dev/null || echo "")
+AGENT_ID=$(icp canister status agent -e "$ENV" --id-only 2>/dev/null || echo "")
+FEE_ID=$(icp canister status fee -e "$ENV" --id-only 2>/dev/null || echo "")
 MARKET_ID=$(icp canister status market -e "$ENV" --id-only 2>/dev/null || echo "")
 BILLS_ID=$(icp canister status bills -e "$ENV" --id-only 2>/dev/null || echo "")
 AUTH_ID=$(icp canister status auth -e "$ENV" --id-only 2>/dev/null || echo "")
@@ -764,6 +774,22 @@ fi
 if [ -n "$LISTING_ID" ]    && [ -n "$MARKET_ID" ]; then
   echo "  Wiring market -> listing (on-chain score)..."
   icp canister call listing    setMarketCanisterId     "(\"$MARKET_ID\")"           -e "$ENV" &
+fi
+if [ -n "$LISTING_ID" ]    && [ -n "$AGENT_ID" ]; then
+  echo "  Wiring agent -> listing (bid-to-list licence check)..."
+  icp canister call listing    setAgentCanisterId      "(\"$AGENT_ID\")"            -e "$ENV" &
+fi
+if [ -n "$LISTING_ID" ]    && [ -n "$FEE_ID" ]; then
+  echo "  Wiring fee -> listing (bid-to-list fee record)..."
+  icp canister call listing    setFeeCanisterId        "(\"$FEE_ID\")"              -e "$ENV" &
+fi
+if [ -n "$AGENT_ID" ]      && [ -n "$LISTING_ID" ]; then
+  echo "  Wiring listing -> agent (recordListingClose trust)..."
+  icp canister call agent      setListingCanisterId    "(\"$LISTING_ID\")"          -e "$ENV" &
+fi
+if [ -n "$FEE_ID" ]        && [ -n "$LISTING_ID" ]; then
+  echo "  Wiring listing -> fee (recordFeeOwed trust)..."
+  icp canister call fee        setListingCanisterId    "(\"$LISTING_ID\")"          -e "$ENV" &
 fi
 if [ -n "$MARKET_ID" ]     && [ -n "$PROPERTY_ID" ]; then
   echo "  Wiring property -> market (score computation)..."
@@ -913,7 +939,7 @@ echo "============================================"
 FREEZE_CANISTERS=(
   auth property job contractor quote payment photo
   report maintenance market sensor monitoring listing
-  recurring bills ai_proxy audit referrals
+  agent fee recurring bills ai_proxy audit referrals
 )
 FREEZE_THRESHOLD=7776000  # 90 days in seconds
 FREEZE_OK=0

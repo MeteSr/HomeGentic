@@ -82,6 +82,10 @@ service : {
   /// Jobs awaiting the caller's signature.
   getJobsPendingMySignature : () -> (vec Job) query;
 
+  /// The caller's own jobs sourced via a HomeGentic quote request (bids won).
+  /// Contractor-scoped counterpart to getReferralJobs.
+  getMyReferralJobs   : () -> (vec Job) query;
+
   /// Certification data for a property.
   /// Returns how many verified jobs exist, which key systems (HVAC/Roofing/Plumbing/Electrical)
   /// are covered, and whether structural requirements (≥3 verified, ≥2 key systems) are met.

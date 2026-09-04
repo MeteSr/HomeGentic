@@ -558,7 +558,7 @@ The subscription tier authority. All other canisters ultimately defer to this ca
 | Pro | $20 | 5 | 10 | 10 |
 | Premium | $40 | 20 | 30 | Unlimited |
 | ContractorFree | $0 | 0 | 5 | Unlimited |
-| ContractorPro | $30 | 0 | 50 | Unlimited |
+| ContractorPro | $40 | 0 | 50 | Unlimited |
 | RealtorFree | $0 | 0 | 5 | Unlimited |
 | RealtorPro | $30 | 0 | 50 | Unlimited |
 
