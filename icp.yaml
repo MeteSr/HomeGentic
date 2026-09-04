@@ -97,6 +97,20 @@ canisters:
         main: backend/listing/main.mo
         args: "--actor-idl did/"
 
+  - name: agent
+    recipe:
+      type: "@dfinity/motoko@v4.0.0"
+      configuration:
+        main: backend/agent/main.mo
+        args: "--actor-idl did/"
+
+  - name: fee
+    recipe:
+      type: "@dfinity/motoko@v4.0.0"
+      configuration:
+        main: backend/fee/main.mo
+        args: "--actor-idl did/"
+
   - name: bills
     recipe:
       type: "@dfinity/motoko@v4.0.0"

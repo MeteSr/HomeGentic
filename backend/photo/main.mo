@@ -303,7 +303,7 @@ persistent actor Photo {
         " Upgrade to Pro ($20/mo) for 10 photos/job, or Premium ($35/mo) for unlimited."
       };
       case (#Pro) {
-        " Upgrade to Premium ($35/mo) for 30 photos/job, or ContractorPro ($30/mo) for 50."
+        " Upgrade to Premium ($35/mo) for 30 photos/job, or ContractorPro ($40/mo) for 50."
       };
       case _ { "" };
     };

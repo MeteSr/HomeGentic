@@ -205,7 +205,7 @@ persistent actor Payment {
       case (#Pro)           { 20 };
       case (#Premium)       { 40 };
       case (#ContractorFree){ 0  };
-      case (#ContractorPro) { 30 };
+      case (#ContractorPro) { 40 };
     }
   };
 
@@ -978,7 +978,7 @@ persistent actor Payment {
       case (#Pro)            { { tier = #Pro;            priceUSD = 20; periodDays = 30; propertyLimit = 5;  photosPerJob = 10; quoteRequestsPerMonth = 10 } };
       case (#Premium)        { { tier = #Premium;        priceUSD = 40; periodDays = 30; propertyLimit = 20; photosPerJob = 30; quoteRequestsPerMonth = 0  } };
       case (#ContractorFree) { { tier = #ContractorFree; priceUSD = 0;  periodDays = 0;  propertyLimit = 0;  photosPerJob = 5;  quoteRequestsPerMonth = 0  } };
-      case (#ContractorPro)  { { tier = #ContractorPro;  priceUSD = 30; periodDays = 30; propertyLimit = 0;  photosPerJob = 50; quoteRequestsPerMonth = 0  } };
+      case (#ContractorPro)  { { tier = #ContractorPro;  priceUSD = 40; periodDays = 30; propertyLimit = 0;  photosPerJob = 50; quoteRequestsPerMonth = 0  } };
     }
   };
 
@@ -988,7 +988,7 @@ persistent actor Payment {
       { tier = #Pro;            priceUSD = 20; periodDays = 30; propertyLimit = 5;  photosPerJob = 10; quoteRequestsPerMonth = 10 },
       { tier = #Premium;        priceUSD = 40; periodDays = 30; propertyLimit = 20; photosPerJob = 30; quoteRequestsPerMonth = 0  },
       { tier = #ContractorFree; priceUSD = 0;  periodDays = 0;  propertyLimit = 0;  photosPerJob = 5;  quoteRequestsPerMonth = 0  },
-      { tier = #ContractorPro;  priceUSD = 30; periodDays = 30; propertyLimit = 0;  photosPerJob = 50; quoteRequestsPerMonth = 0  },
+      { tier = #ContractorPro;  priceUSD = 40; periodDays = 30; propertyLimit = 0;  photosPerJob = 50; quoteRequestsPerMonth = 0  },
     ]
   };
 

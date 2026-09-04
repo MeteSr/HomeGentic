@@ -12,160 +12,65 @@ export interface PanoramaEntry {
   photoId:   string;
 }
 
-export type BidRequestStatus  = "Open" | "Awarded" | "Cancelled";
-export type ProposalStatus    = "Pending" | "Accepted" | "Rejected" | "Withdrawn";
-export type BidVisibility     = "open" | "inviteOnly";
-export type CounterStatus     = "Pending" | "Accepted" | "Rejected";
+export type BidRequestStatus = "Open" | "Awarded" | "Cancelled";
+export type ProposalStatus   = "Pending" | "Accepted" | "Rejected" | "Withdrawn";
+export type WindowDays       = "Three" | "Seven" | "Fourteen";
+export type MessageRole      = "seller" | "agent";
 
-/** Snapshot of the property's HomeGentic score at the time the bid request was created. */
-export interface PropertySnapshot {
-  score:             number;
-  verifiedJobCount:  number;
-  systemNotes:       string;  // e.g. "Roof: 8 yrs, HVAC: 5 yrs"
+export interface DerivedSignals {
+  estNetToSellerCents: number;
+  pctVsCompsBps:       number;
+  overCompFlag:        boolean;
+  thinCompsFlag:       boolean;
 }
 
-/** A single comparable sale entry for a CMA. */
-export interface CMAComp {
-  address:        string;
-  salePriceCents: number;
-  bedrooms:       number;
-  bathrooms:      number;
-  sqft:           number;
-  soldDate:       string;  // ISO date string
-}
-
-/** Uploaded listing agreement, stored after agent acceptance. */
-export interface ContractFile {
-  name:       string;
-  uploadedAt: number;
-}
-
-/** A homeowner's counter-offer on a submitted proposal. */
-export interface CounterProposal {
-  id:            string;
-  proposalId:    string;
-  requestId:     string;
-  fromRole:      "homeowner" | "agent";
-  commissionBps: number;
-  notes:         string;
-  status:        CounterStatus;
-  createdAt:     number;
-}
-
-export interface CounterProposalInput {
-  commissionBps: number;
-  notes:         string;
-}
-
-// ─── 9.5.1 Milestone types ────────────────────────────────────────────────────
-
-export type MilestoneKey =
-  | "agreement_signed"
-  | "listed_on_mls"
-  | "first_showing"
-  | "offer_received"
-  | "under_contract"
-  | "inspection"
-  | "appraisal"
-  | "closed";
-
-export interface Milestone {
-  key:          MilestoneKey;
-  label:        string;
-  completedAt:  number | null;
-  completedBy:  "homeowner" | "agent" | null;
-}
-
-export const MILESTONE_STEPS: { key: MilestoneKey; label: string }[] = [
-  { key: "agreement_signed", label: "Agreement Signed" },
-  { key: "listed_on_mls",    label: "Listed on MLS" },
-  { key: "first_showing",    label: "First Showing" },
-  { key: "offer_received",   label: "Offer Received" },
-  { key: "under_contract",   label: "In Escrow" },
-  { key: "inspection",       label: "Inspection Complete" },
-  { key: "appraisal",        label: "Appraisal Complete" },
-  { key: "closed",           label: "Sale Closed" },
-];
-
-// ─── 9.5.2 Offer types ────────────────────────────────────────────────────────
-
-export interface OfferEntry {
-  id:                            string;
-  requestId:                     string;
-  offerAmountCents:              number;
-  contingencies:                 string[];
-  closeDate:                     string;
-  loggedAt:                      number;
-  deltaFromListingPriceCents:    number | null;
-  deltaFromHomeGenticEstimateCents: number | null;
-}
-
-export interface LogOfferInput {
-  offerAmountCents: number;
-  contingencies:    string[];
-  closeDate:        string;
-}
-
-// ─── 9.5.3 Transaction close types ───────────────────────────────────────────
-
-export interface TransactionClose {
-  requestId:           string;
-  finalSalePriceCents: number;
-  actualCloseDateMs:   number;
-  homeGenticBaselineCents: number;
-  actualPremiumCents:  number;
-  recordedAt:          number;
-}
-
-export interface LogCloseInput {
-  finalSalePriceCents: number;
-  actualCloseDateMs:   number;
-}
-
-// ─── 9.5.4 Agent performance types ───────────────────────────────────────────
-
-export interface AgentPerformanceRecord {
-  requestId:              string;
-  agentId:                string;
-  estimatedDOM:           number;
-  actualDOM:              number;
-  estimatedSalePrice:     number;
-  actualSalePrice:        number;
-  promisedCommBps:        number;
-  chargedCommBps:         number;
-  domAccuracyScore:       number;
-  priceAccuracyScore:     number;
-  commissionHonestyScore: number;
-  overallScore:           number;
-  recordedAt:             number;
-}
-
-export interface LogAgentPerformanceInput {
-  chargedCommBps: number;
+export interface AgentRecordSnapshot {
+  closedInZip:        number;
+  avgDom:              number;
+  saleToListRatioBps: number;
+  withdrawnUnsold:     number;
+  commitmentsUnmet:    number;
 }
 
 export interface ListingBidRequest {
   id:               string;
   propertyId:       string;
   homeowner:        string;
+  address:          string;   // "" when redacted (invariant 01)
+  city:             string;
+  county:           string;
+  zipCode:          string;
+  homeownerEmail:   string;   // "" when redacted
+  beds:             number | null;
+  baths:            number | null;
+  sqft:             number | null;
+  targetListDate:   number;   // ms epoch
+  desiredSalePrice: number | null;
+  notes:            string;
+  windowDays:       WindowDays;
+  bidDeadline:      number;   // ms epoch
+  status:           BidRequestStatus;
+  feePaid:          boolean;
+  createdAt:        number;
+}
+
+export interface BidRequestSummary {
+  id:               string;
+  city:             string;
+  county:           string;
+  zipCode:          string;
+  beds:             number | null;
+  baths:            number | null;
+  sqft:             number | null;
   targetListDate:   number;
   desiredSalePrice: number | null;
   notes:            string;
+  windowDays:       WindowDays;
   bidDeadline:      number;
   status:           BidRequestStatus;
+  proposalCount:    number;
+  openSlots:        number;
   createdAt:        number;
-  // 9.2.3
-  propertySnapshot?: PropertySnapshot;
-  // 9.2.4
-  visibility:       BidVisibility;
-  invitedAgentIds:  string[];
-  // 9.4.5
-  contractFile?:    ContractFile;
-  // 9.5
-  milestones?:      Milestone[];
-  offers?:          OfferEntry[];
-  closedData?:      TransactionClose;
-  agentPerformance?: AgentPerformanceRecord;
 }
 
 export interface ListingProposal {
@@ -173,171 +78,225 @@ export interface ListingProposal {
   requestId:             string;
   agentId:               string;
   agentName:             string;
+  agentEmail:            string;
   agentBrokerage:        string;
+  letter:                string;
   commissionBps:         number;
+  suggestedListCents:    number;
   cmaSummary:            string;
   marketingPlan:         string;
+  marketingCommitments:  string[];
   estimatedDaysOnMarket: number;
-  estimatedSalePrice:    number;
   includedServices:      string[];
   validUntil:            number;
   coverLetter:           string;
   status:                ProposalStatus;
+  derived:               DerivedSignals;
+  agentRecord:           AgentRecordSnapshot;
   createdAt:             number;
-  // 9.3.4
-  cmaComps:              CMAComp[];
 }
 
-export interface SubmitProposalInput {
-  agentName:             string;
-  agentBrokerage:        string;
+/** Board view — masked (letter, no name) until feePaid or the caller's own bid. */
+export interface MaskedProposal {
+  id:                    string;
+  requestId:             string;
+  letter:                string;
   commissionBps:         number;
+  suggestedListCents:    number;
   cmaSummary:            string;
   marketingPlan:         string;
+  marketingCommitments:  string[];
   estimatedDaysOnMarket: number;
-  estimatedSalePrice:    number;
-  includedServices:      string[];
-  validUntil:            number;
-  coverLetter:           string;
-  // 9.3.4
-  cmaComps?:             CMAComp[];
+  status:                ProposalStatus;
+  derived:               DerivedSignals;
+  agentRecord:           AgentRecordSnapshot;
+  isMine:                boolean;
+  agentName:             string | null;
+  agentEmail:            string | null;
+  agentBrokerage:        string | null;
+  createdAt:             number;
+}
+
+export interface ThreadMessage {
+  id:           string;
+  proposalId:   string;
+  authorRole:   MessageRole;
+  scrubbedBody: string;
+  redactions:   string[];
+  sentAt:       number;
+}
+
+export interface CompsConfig {
+  medianCents: number;
+  saleCount:   number;
 }
 
 export interface CreateBidRequestInput {
   propertyId:       string;
-  targetListDate:   number;
-  desiredSalePrice: number | null;
+  address:          string;
+  city:             string;
+  county:           string;
+  zipCode:          string;
+  homeownerEmail:   string;
+  beds?:            number | null;
+  baths?:           number | null;
+  sqft?:            number | null;
+  targetListDate:   number;   // ms epoch
+  desiredSalePrice?: number | null;
   notes:            string;
-  bidDeadline:      number;
-  // 9.2.3
-  propertySnapshot?: PropertySnapshot;
-  // 9.2.4
-  visibility?:      BidVisibility;
-  invitedAgentIds?: string[];
+  windowDays:       WindowDays;
 }
 
-// ─── Pure helpers ─────────────────────────────────────────────────────────────
-
-/**
- * Compute seller's net proceeds in cents.
- * @param salePrice    - sale price in cents
- * @param commissionBps - commission in basis points (e.g. 250 = 2.5%)
- * @param closingCostBps - closing costs in basis points (e.g. 200 = 2%)
- */
-export function computeNetProceeds(
-  salePrice: number,
-  commissionBps: number,
-  closingCostBps: number
-): number {
-  const commission   = Math.round(salePrice * commissionBps   / 10_000);
-  const closingCosts = Math.round(salePrice * closingCostBps  / 10_000);
-  return salePrice - commission - closingCosts;
+export interface SubmitProposalInput {
+  commissionBps:         number;
+  suggestedListCents:    number;
+  cmaSummary:            string;
+  marketingPlan:         string;
+  marketingCommitments:  string[];
+  estimatedDaysOnMarket: number;
+  includedServices:      string[];
+  validUntil:            number;  // ms epoch
+  coverLetter:           string;
 }
 
-/** Format basis points as a percentage string: 250 → "2.50%" */
-export function formatCommission(bps: number): string {
-  return (bps / 100).toFixed(2) + "%";
+function toWindowDaysVariant(w: WindowDays) {
+  return { [w]: null };
 }
 
-/** Returns true if the given deadline timestamp (ms) is in the past. */
-export function isDeadlinePassed(deadlineMs: number): boolean {
-  return deadlineMs <= Date.now();
+function fromWindowDays(raw: any): WindowDays {
+  return Object.keys(raw)[0] as WindowDays;
 }
 
-/** Initialize a fresh milestone checklist with all steps pending. */
-export function initMilestones(): Milestone[] {
-  return MILESTONE_STEPS.map(({ key, label }) => ({
-    key, label, completedAt: null, completedBy: null,
-  }));
+function optToNullableNumber(opt: any[]): number | null {
+  return opt.length > 0 ? Number(opt[0]) : null;
 }
-
-/** Compute delta between an offer and listing/HomeGentic price points. */
-export function computeOfferDeltas(
-  offerAmountCents: number,
-  desiredSalePrice: number | null,
-  homeGenticEstimateMidCents: number | null,
-): { deltaFromListingPriceCents: number | null; deltaFromHomeGenticEstimateCents: number | null } {
-  return {
-    deltaFromListingPriceCents:    desiredSalePrice       !== null ? offerAmountCents - desiredSalePrice       : null,
-    deltaFromHomeGenticEstimateCents: homeGenticEstimateMidCents !== null ? offerAmountCents - homeGenticEstimateMidCents : null,
-  };
-}
-
-/** Compute agent accuracy scores (all 0–100) post-close. */
-export function computeAgentPerformanceScore(
-  estimatedDOM: number, actualDOM: number,
-  estimatedSalePrice: number, actualSalePrice: number,
-  promisedCommBps: number, chargedCommBps: number,
-): { domAccuracyScore: number; priceAccuracyScore: number; commissionHonestyScore: number; overallScore: number } {
-  const clamp = (v: number) => Math.max(0, Math.min(100, v));
-  const domAccuracyScore       = clamp(100 - Math.abs(actualDOM - estimatedDOM) / estimatedDOM * 100);
-  const priceAccuracyScore     = clamp(100 - Math.abs(actualSalePrice - estimatedSalePrice) / estimatedSalePrice * 100);
-  const extraBps               = Math.max(0, chargedCommBps - promisedCommBps);
-  const commissionHonestyScore = clamp(100 - Math.floor(extraBps / 25) * 10);
-  const overallScore           = Math.round(domAccuracyScore * 0.35 + priceAccuracyScore * 0.40 + commissionHonestyScore * 0.25);
-  return { domAccuracyScore: Math.round(domAccuracyScore), priceAccuracyScore: Math.round(priceAccuracyScore), commissionHonestyScore, overallScore };
-}
-
-// ─── Canister type converters ─────────────────────────────────────────────────
 
 function fromRawRequest(raw: any): ListingBidRequest {
-  const statusKey = Object.keys(raw.status)[0] as BidRequestStatus;
   return {
     id:               raw.id,
     propertyId:       raw.propertyId,
     homeowner:        raw.homeowner.toText(),
+    address:          raw.address,
+    city:             raw.city,
+    county:           raw.county,
+    zipCode:          raw.zipCode,
+    homeownerEmail:   raw.homeownerEmail,
+    beds:             optToNullableNumber(raw.beds),
+    baths:            optToNullableNumber(raw.baths),
+    sqft:             optToNullableNumber(raw.sqft),
     targetListDate:   Number(raw.targetListDate / 1_000_000n),
-    desiredSalePrice: raw.desiredSalePrice.length > 0 ? Number(raw.desiredSalePrice[0]) : null,
+    desiredSalePrice: optToNullableNumber(raw.desiredSalePrice),
     notes:            raw.notes,
+    windowDays:       fromWindowDays(raw.windowDays),
     bidDeadline:      Number(raw.bidDeadline / 1_000_000n),
-    status:           statusKey,
+    status:           Object.keys(raw.status)[0] as BidRequestStatus,
+    feePaid:          raw.feePaid,
     createdAt:        Number(raw.createdAt / 1_000_000n),
-    visibility:       "open",
-    invitedAgentIds:  [],
+  };
+}
+
+function fromRawSummary(raw: any): BidRequestSummary {
+  return {
+    id:               raw.id,
+    city:             raw.city,
+    county:           raw.county,
+    zipCode:          raw.zipCode,
+    beds:             optToNullableNumber(raw.beds),
+    baths:            optToNullableNumber(raw.baths),
+    sqft:             optToNullableNumber(raw.sqft),
+    targetListDate:   Number(raw.targetListDate / 1_000_000n),
+    desiredSalePrice: optToNullableNumber(raw.desiredSalePrice),
+    notes:            raw.notes,
+    windowDays:       fromWindowDays(raw.windowDays),
+    bidDeadline:      Number(raw.bidDeadline / 1_000_000n),
+    status:           Object.keys(raw.status)[0] as BidRequestStatus,
+    proposalCount:    Number(raw.proposalCount),
+    openSlots:        Number(raw.openSlots),
+    createdAt:        Number(raw.createdAt / 1_000_000n),
+  };
+}
+
+function fromRawDerived(raw: any): DerivedSignals {
+  return {
+    estNetToSellerCents: Number(raw.estNetToSellerCents),
+    pctVsCompsBps:       Number(raw.pctVsCompsBps),
+    overCompFlag:        raw.overCompFlag,
+    thinCompsFlag:       raw.thinCompsFlag,
+  };
+}
+
+function fromRawAgentRecord(raw: any): AgentRecordSnapshot {
+  return {
+    closedInZip:        Number(raw.closedInZip),
+    avgDom:              Number(raw.avgDom),
+    saleToListRatioBps: Number(raw.saleToListRatioBps),
+    withdrawnUnsold:     Number(raw.withdrawnUnsold),
+    commitmentsUnmet:    Number(raw.commitmentsUnmet),
   };
 }
 
 function fromRawProposal(raw: any): ListingProposal {
-  const statusKey = Object.keys(raw.status)[0] as ProposalStatus;
   return {
     id:                    raw.id,
     requestId:             raw.requestId,
     agentId:               raw.agentId.toText(),
     agentName:             raw.agentName,
+    agentEmail:            raw.agentEmail,
     agentBrokerage:        raw.agentBrokerage,
+    letter:                raw.letter,
     commissionBps:         Number(raw.commissionBps),
+    suggestedListCents:    Number(raw.suggestedListCents),
     cmaSummary:            raw.cmaSummary,
     marketingPlan:         raw.marketingPlan,
+    marketingCommitments:  raw.marketingCommitments,
     estimatedDaysOnMarket: Number(raw.estimatedDaysOnMarket),
-    estimatedSalePrice:    Number(raw.estimatedSalePrice),
     includedServices:      raw.includedServices,
     validUntil:            Number(raw.validUntil / 1_000_000n),
     coverLetter:           raw.coverLetter,
-    status:                statusKey,
+    status:                Object.keys(raw.status)[0] as ProposalStatus,
+    derived:               fromRawDerived(raw.derived),
+    agentRecord:           fromRawAgentRecord(raw.agentRecord),
     createdAt:             Number(raw.createdAt / 1_000_000n),
-    cmaComps:              [],
+  };
+}
+
+function fromRawMasked(raw: any): MaskedProposal {
+  return {
+    id:                    raw.id,
+    requestId:             raw.requestId,
+    letter:                raw.letter,
+    commissionBps:         Number(raw.commissionBps),
+    suggestedListCents:    Number(raw.suggestedListCents),
+    cmaSummary:            raw.cmaSummary,
+    marketingPlan:         raw.marketingPlan,
+    marketingCommitments:  raw.marketingCommitments,
+    estimatedDaysOnMarket: Number(raw.estimatedDaysOnMarket),
+    status:                Object.keys(raw.status)[0] as ProposalStatus,
+    derived:               fromRawDerived(raw.derived),
+    agentRecord:           fromRawAgentRecord(raw.agentRecord),
+    isMine:                raw.isMine,
+    agentName:             raw.agentName.length > 0 ? raw.agentName[0] : null,
+    agentEmail:            raw.agentEmail.length > 0 ? raw.agentEmail[0] : null,
+    agentBrokerage:        raw.agentBrokerage.length > 0 ? raw.agentBrokerage[0] : null,
+    createdAt:             Number(raw.createdAt / 1_000_000n),
+  };
+}
+
+function fromRawMessage(raw: any): ThreadMessage {
+  return {
+    id:           raw.id,
+    proposalId:   raw.proposalId,
+    authorRole:   Object.keys(raw.authorRole)[0] as MessageRole,
+    scrubbedBody: raw.scrubbedBody,
+    redactions:   raw.redactions,
+    sentAt:       Number(raw.sentAt / 1_000_000n),
   };
 }
 
 // ─── Service factory ──────────────────────────────────────────────────────────
 
-const MAX_LISTING_PHOTOS = 15;
-
 function createListingService() {
   let _actor: any = null;
-  let requests:     ListingBidRequest[]      = [];
-  let proposals:    ListingProposal[]        = [];
-  let counters:     CounterProposal[]        = [];
-  let perfRecords:  AgentPerformanceRecord[] = [];
-  let _reqSeq     = 0;
-  let _propSeq    = 0;
-  let _counterSeq = 0;
-  let _offerSeq   = 0;
-  // propertyId → ordered photo IDs (mock path only)
-  const listingPhotoMap:    Map<string, string[]>        = new Map();
-  const listingPhotoOwners: Map<string, string>          = new Map();
-  // propertyId → ordered panorama entries (mock path only)
-  const panoramaMap:        Map<string, PanoramaEntry[]> = new Map();
 
   async function getActor() {
     if (_actor) return _actor;
@@ -347,43 +306,33 @@ function createListingService() {
   }
 
   return {
-  reset() {
-    _actor      = null;
-    requests    = [];
-    proposals   = [];
-    counters    = [];
-    perfRecords = [];
-    _reqSeq     = 0;
-    _propSeq    = 0;
-    _counterSeq = 0;
-    _offerSeq   = 0;
-    listingPhotoMap.clear();
-    listingPhotoOwners.clear();
-    panoramaMap.clear();
-  },
+  reset() { _actor = null; },
 
-  // ── createBidRequest ────────────────────────────────────────────────────────
+  // ── Homeowner: bid request lifecycle ────────────────────────────────────────
+
   async createBidRequest(input: CreateBidRequestInput): Promise<ListingBidRequest> {
     const actor = await getActor();
     const result = await actor.createBidRequest(
-      input.propertyId,
+      input.propertyId, input.address, input.city, input.county, input.zipCode,
+      input.homeownerEmail,
+      input.beds != null ? [BigInt(input.beds)] : [],
+      input.baths != null ? [BigInt(input.baths)] : [],
+      input.sqft != null ? [BigInt(input.sqft)] : [],
       BigInt(input.targetListDate) * 1_000_000n,
-      input.desiredSalePrice !== null ? [BigInt(input.desiredSalePrice)] : [],
+      input.desiredSalePrice != null ? [BigInt(input.desiredSalePrice)] : [],
       input.notes,
-      BigInt(input.bidDeadline) * 1_000_000n
+      toWindowDaysVariant(input.windowDays),
     );
     if ("err" in result) throw new Error(JSON.stringify(result.err));
     return fromRawRequest(result.ok);
   },
 
-  // ── getMyBidRequests ────────────────────────────────────────────────────────
   async getMyBidRequests(): Promise<ListingBidRequest[]> {
     const actor = await getActor();
     const raw = await actor.getMyBidRequests();
     return raw.map(fromRawRequest);
   },
 
-  // ── getBidRequest ───────────────────────────────────────────────────────────
   async getBidRequest(id: string): Promise<ListingBidRequest | null> {
     const actor = await getActor();
     const result = await actor.getBidRequest(id);
@@ -391,119 +340,131 @@ function createListingService() {
     return fromRawRequest(result.ok);
   },
 
-  // ── cancelBidRequest ────────────────────────────────────────────────────────
   async cancelBidRequest(id: string): Promise<void> {
     const actor = await getActor();
     const result = await actor.cancelBidRequest(id);
     if ("err" in result) throw new Error(JSON.stringify(result.err));
   },
 
-  // ── getOpenBidRequests (agent view) ─────────────────────────────────────────
-  // 9.2.4: inviteOnly requests are hidden from the general marketplace.
-  async getOpenBidRequests(callerAgentId = "local"): Promise<ListingBidRequest[]> {
+  /** Masked opportunity feed for the agent browse screen (A2). Slot count only — invariant 03. */
+  async getOpenBidRequests(): Promise<BidRequestSummary[]> {
     const actor = await getActor();
     const raw = await actor.getOpenBidRequests();
-    return raw.map(fromRawRequest);
+    return raw.map(fromRawSummary);
   },
 
-  // ── submitProposal ──────────────────────────────────────────────────────────
+  // ── H1 photo review gate (v1 manual-flag stand-in for a real scan) ─────────
+
+  async flagPhotoForReview(photoId: string): Promise<void> {
+    const actor = await getActor();
+    const result = await actor.flagPhotoForReview(photoId);
+    if ("err" in result) throw new Error(JSON.stringify(result.err));
+  },
+
+  async reviewPhoto(photoId: string): Promise<void> {
+    const actor = await getActor();
+    const result = await actor.reviewPhoto(photoId);
+    if ("err" in result) throw new Error(JSON.stringify(result.err));
+  },
+
+  async getPhotoReviewState(photoId: string): Promise<{ flagged: boolean; reviewed: boolean } | null> {
+    const actor = await getActor();
+    const raw = await actor.getPhotoReviewState(photoId);
+    return raw.length > 0 ? raw[0] : null;
+  },
+
+  // ── Agent: proposal lifecycle ───────────────────────────────────────────────
+
   async submitProposal(requestId: string, input: SubmitProposalInput): Promise<ListingProposal> {
     const actor = await getActor();
     const result = await actor.submitProposal(
-      /* requestId            */ requestId,
-      /* agentName            */ input.agentName,
-      /* agentBrokerage       */ input.agentBrokerage,
-      /* commissionBps        */ BigInt(input.commissionBps),
-      /* cmaSummary           */ input.cmaSummary,
-      /* marketingPlan        */ input.marketingPlan,
-      /* estimatedDaysOnMarket*/ BigInt(input.estimatedDaysOnMarket),
-      /* estimatedSalePrice   */ BigInt(input.estimatedSalePrice),
-      /* includedServices     */ input.includedServices,
-      /* validUntil           */ BigInt(input.validUntil) * 1_000_000n,
-      /* coverLetter          */ input.coverLetter,
+      requestId,
+      BigInt(input.commissionBps),
+      BigInt(input.suggestedListCents),
+      input.cmaSummary,
+      input.marketingPlan,
+      input.marketingCommitments,
+      BigInt(input.estimatedDaysOnMarket),
+      input.includedServices,
+      BigInt(input.validUntil) * 1_000_000n,
+      input.coverLetter,
     );
     if ("err" in result) throw new Error(JSON.stringify(result.err));
     return fromRawProposal(result.ok);
   },
 
-  // ── getProposalsForRequest ───────────────────────────────────────────────────
-  // Sealed-bid: proposals are hidden until the request's bidDeadline has passed.
-  async getProposalsForRequest(requestId: string): Promise<ListingProposal[]> {
+  async withdrawProposal(proposalId: string): Promise<void> {
     const actor = await getActor();
-    const raw = await actor.getProposalsForRequest(requestId);
-    return raw.map(fromRawProposal);
+    const result = await actor.withdrawProposal(proposalId);
+    if ("err" in result) throw new Error(JSON.stringify(result.err));
   },
 
-  // ── getMyProposals (agent view) ──────────────────────────────────────────────
+  /** Sealed until three bids or the window closes (invariant 02); masked until feePaid (invariant 04). */
+  async getProposalsForRequest(requestId: string): Promise<MaskedProposal[]> {
+    const actor = await getActor();
+    const raw = await actor.getProposalsForRequest(requestId);
+    return raw.map(fromRawMasked);
+  },
+
+  async getBidProgress(requestId: string): Promise<{ count: number; sealed: boolean }> {
+    const actor = await getActor();
+    const result = await actor.getBidProgress(requestId);
+    if ("err" in result) throw new Error(JSON.stringify(result.err));
+    return { count: Number(result.ok.count), sealed: result.ok.sealed };
+  },
+
   async getMyProposals(): Promise<ListingProposal[]> {
     const actor = await getActor();
     const raw = await actor.getMyProposals();
     return raw.map(fromRawProposal);
   },
 
-  // ── acceptProposal ───────────────────────────────────────────────────────────
-  async acceptProposal(proposalId: string): Promise<void> {
+  // ── Homeowner: selection & payment-gated award ──────────────────────────────
+
+  /**
+   * Selects a winner without revealing identity or closing other bids.
+   * Returns the fee canister's feeId — the caller starts a Stripe Checkout
+   * session with it. Nothing unmasks until that payment settles — see
+   * markListingFeePaid, driven only by the webhook (invariant 04).
+   */
+  async acceptProposal(proposalId: string): Promise<string> {
     const actor = await getActor();
     const result = await actor.acceptProposal(proposalId);
     if ("err" in result) throw new Error(JSON.stringify(result.err));
+    return result.ok;
   },
 
-  // ── uploadContract (9.4.5) ───────────────────────────────────────────────────
-  async uploadContract(requestId: string, fileName: string): Promise<void> {
-    // On-chain: would upload to photo canister and store hash here
-    throw new Error("uploadContract requires deployed canister");
+  // ── Anonymous message thread (H4) ───────────────────────────────────────────
+
+  async postMessage(proposalId: string, rawBody: string, authorRole: MessageRole): Promise<ThreadMessage> {
+    const actor = await getActor();
+    const result = await actor.postMessage(proposalId, rawBody, { [authorRole]: null });
+    if ("err" in result) throw new Error(JSON.stringify(result.err));
+    return fromRawMessage(result.ok);
   },
 
-  // ── counterProposal (9.4.6) ──────────────────────────────────────────────────
-  async counterProposal(proposalId: string, input: CounterProposalInput): Promise<CounterProposal> {
-    throw new Error("counterProposal requires deployed canister");
+  async getThread(proposalId: string): Promise<ThreadMessage[]> {
+    const actor = await getActor();
+    const result = await actor.getThread(proposalId);
+    if ("err" in result) throw new Error(JSON.stringify(result.err));
+    return result.ok.map(fromRawMessage);
   },
 
-  // ── respondToCounter (9.4.6) — agent accepts/rejects ────────────────────────
-  async respondToCounter(counterId: string, response: "accept" | "reject"): Promise<void> {
-    throw new Error("respondToCounter requires deployed canister");
+  // ── Comps & platform fee (admin-configured, read by everyone) ──────────────
+
+  async getCompsMedian(zipCode: string): Promise<CompsConfig | null> {
+    const actor = await getActor();
+    const raw = await actor.getCompsMedian(zipCode);
+    if (raw.length === 0) return null;
+    return { medianCents: Number(raw[0].medianCents), saleCount: Number(raw[0].saleCount) };
   },
 
-  // ── getCountersForProposal (9.4.6) ───────────────────────────────────────────
-  async getCountersForProposal(proposalId: string): Promise<CounterProposal[]> {
-    throw new Error("getCountersForProposal requires deployed canister");
+  async getPlatformFee(): Promise<number> {
+    const actor = await getActor();
+    return Number(await actor.getPlatformFee());
   },
 
-  // ── getMyCounters (9.4.6) — agent views counters on their proposals ──────────
-  async getMyCounters(): Promise<CounterProposal[]> {
-    throw new Error("getMyCounters requires deployed canister");
-  },
-
-  // ── updateMilestone (9.5.1) ──────────────────────────────────────────────────
-  async updateMilestone(
-    requestId: string,
-    key: MilestoneKey,
-    completedBy: "homeowner" | "agent",
-  ): Promise<ListingBidRequest> {
-    throw new Error("updateMilestone requires deployed canister");
-  },
-
-  // ── logOffer (9.5.2) ─────────────────────────────────────────────────────────
-  async logOffer(requestId: string, input: LogOfferInput): Promise<OfferEntry> {
-    throw new Error("logOffer requires deployed canister");
-  },
-
-  // ── logClose (9.5.3) ─────────────────────────────────────────────────────────
-  async logClose(requestId: string, input: LogCloseInput): Promise<TransactionClose> {
-    throw new Error("logClose requires deployed canister");
-  },
-
-  // ── logAgentPerformance (9.5.4) ───────────────────────────────────────────────
-  async logAgentPerformance(requestId: string, input: LogAgentPerformanceInput): Promise<AgentPerformanceRecord> {
-    throw new Error("logAgentPerformance requires deployed canister");
-  },
-
-  // ── getAgentPerformanceRecords (9.5.4) — for AgentPublicPage ─────────────────
-  async getAgentPerformanceRecords(agentId: string): Promise<AgentPerformanceRecord[]> {
-    throw new Error("getAgentPerformanceRecords requires deployed canister");
-  },
-
-  // ── Listing photos (11.4) ────────────────────────────────────────────────────
+  // ── Listing photos (FSBO feature — shared with the agent-marketplace H1 photo grid) ─
 
   /**
    * Associate a photo (already uploaded to the photo canister) with a FSBO
@@ -567,11 +528,6 @@ function createListingService() {
     const actor = await getActor();
     const result = await actor.removePanorama(propertyId, roomLabel);
     if ("err" in result) throw new Error(JSON.stringify(result.err));
-  },
-
-  // ── createDirectInvite (9.6.2) — homeowner invites specific agent ─────────────
-  async createDirectInvite(agentId: string, propertyId: string): Promise<ListingBidRequest> {
-    throw new Error("createDirectInvite requires deployed canister");
   },
 
   // ── Public FSBO search index ─────────────────────────────────────────────────
