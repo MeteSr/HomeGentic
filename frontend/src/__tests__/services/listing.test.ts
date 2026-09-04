@@ -1,6 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
-// ─── Stateful mock actor for listing canister ─────────────────────────────────
+// ─── Stateful mock actor for listing canister (v2 — Bid to List) ──────────────
+//
+// Mirrors the Candid interface in frontend/src/declarations/listing/index.ts.
+// A single fixed caller ("local") plays both homeowner and agent, mirroring
+// the dev-identity pattern used elsewhere in this repo's mocks. To exercise
+// masking (isMine === false) a couple of test-only escape hatches are exposed
+// on the mock actor itself (__setProposalAgent / __markFeePaid) — these are
+// not part of the real canister interface, just mock plumbing.
+
+const WINDOW_DAYS_MS: Record<string, number> = { Three: 3, Seven: 7, Fourteen: 14 };
+const LETTERS = ["A", "B", "C", "D", "E"];
 
 let _reqSeq  = 0;
 let _propSeq = 0;
@@ -18,101 +28,181 @@ function resetListingMock() {
   _listingPhotos.clear();
 }
 
+function ok<T>(value: T) { return { ok: value }; }
+function err(e: any) { return { err: e }; }
+
+function proposalsFor(requestId: string) {
+  return [..._proposals.values()].filter((p) => p.requestId === requestId);
+}
+
+function deadlinePassed(req: any) {
+  return Number(req.bidDeadline) / 1_000_000 <= Date.now();
+}
+
+function isSealed(req: any) {
+  return proposalsFor(req.id).length < 3 && !deadlinePassed(req);
+}
+
 const mockListingActor = {
+  // ── Bid requests ────────────────────────────────────────────────────────
   createBidRequest: vi.fn(async (
-    propertyId: string, targetListDate: bigint, desiredSalePrice: bigint[],
-    notes: string, bidDeadline: bigint,
+    propertyId: string, address: string, city: string, county: string, zipCode: string,
+    homeownerEmail: string, beds: bigint[], baths: bigint[], sqft: bigint[],
+    targetListDate: bigint, desiredSalePrice: bigint[], notes: string, windowDays: any,
   ) => {
     _reqSeq++;
     const id = `BID_${_reqSeq}`;
+    const windowKey = Object.keys(windowDays)[0];
+    const days = WINDOW_DAYS_MS[windowKey] ?? 7;
+    const createdAt = BigInt(Date.now()) * 1_000_000n;
     const raw = {
-      id, propertyId,
-      homeowner: { toText: () => "local" },
-      targetListDate, desiredSalePrice, notes, bidDeadline,
+      id, propertyId, homeowner: { toText: () => "local" },
+      address, city, county, zipCode, homeownerEmail,
+      beds, baths, sqft, targetListDate, desiredSalePrice, notes, windowDays,
+      bidDeadline: createdAt + BigInt(days) * 86_400_000n * 1_000_000n,
       status: { Open: null },
-      createdAt: BigInt(Date.now()) * 1_000_000n,
+      feePaid: false,
+      createdAt,
     };
     _bidRequests.set(id, raw);
-    return { ok: raw };
+    return ok(raw);
   }),
 
   getMyBidRequests: vi.fn(async () => [..._bidRequests.values()]),
 
   getBidRequest: vi.fn(async (id: string) => {
     const req = _bidRequests.get(id);
-    return req ? { ok: req } : { err: { NotFound: null } };
+    return req ? ok(req) : err({ NotFound: null });
   }),
 
   cancelBidRequest: vi.fn(async (id: string) => {
     const req = _bidRequests.get(id);
-    if (!req) return { err: { NotFound: null } };
-    if (Object.keys(req.status)[0] === "Cancelled") return { err: { AlreadyCancelled: null } };
+    if (!req) return err({ NotFound: null });
+    if (Object.keys(req.status)[0] === "Cancelled") return err({ AlreadyCancelled: null });
     req.status = { Cancelled: null };
-    return { ok: null };
+    return ok(null);
   }),
 
   getOpenBidRequests: vi.fn(async () =>
-    [..._bidRequests.values()].filter(
-      (r) => Object.keys(r.status)[0] === "Open" && Number(r.bidDeadline) / 1_000_000 > Date.now(),
-    )
+    [..._bidRequests.values()]
+      .filter((r) => Object.keys(r.status)[0] === "Open")
+      .map((r) => ({
+        id: r.id, city: r.city, county: r.county, zipCode: r.zipCode,
+        beds: r.beds, baths: r.baths, sqft: r.sqft,
+        targetListDate: r.targetListDate, desiredSalePrice: r.desiredSalePrice,
+        notes: r.notes, windowDays: r.windowDays, bidDeadline: r.bidDeadline,
+        status: r.status, proposalCount: BigInt(proposalsFor(r.id).length),
+        openSlots: BigInt(Math.max(0, 5 - proposalsFor(r.id).length)),
+        createdAt: r.createdAt,
+      }))
   ),
 
+  // ── Photo review gate (not exercised in these tests, kept for shape parity) ─
+  flagPhotoForReview: vi.fn(async () => ok(null)),
+  reviewPhoto:        vi.fn(async () => ok(null)),
+  getPhotoReviewState: vi.fn(async () => []),
+
+  // ── Proposals ────────────────────────────────────────────────────────────
   submitProposal: vi.fn(async (
-    requestId: string, agentName: string, agentBrokerage: string,
-    commissionBps: bigint, cmaSummary: string, marketingPlan: string,
-    estimatedDaysOnMarket: bigint, estimatedSalePrice: bigint,
-    includedServices: string[], validUntil: bigint, coverLetter: string,
+    requestId: string, commissionBps: bigint, suggestedListCents: bigint,
+    cmaSummary: string, marketingPlan: string, marketingCommitments: string[],
+    estimatedDaysOnMarket: bigint, includedServices: string[], validUntil: bigint,
+    coverLetter: string,
   ) => {
     const req = _bidRequests.get(requestId);
-    if (!req) return { err: { NotFound: null } };
-    if (Object.keys(req.status)[0] !== "Open") return { err: { InvalidInput: "Request not open" } };
+    if (!req) return err({ NotFound: null });
+    if (Object.keys(req.status)[0] !== "Open") return err({ InvalidInput: "Request not open" });
+    if (marketingCommitments.length === 0) return err({ InvalidInput: "At least one marketing commitment required" });
+
     _propSeq++;
     const id = `PROP_${_propSeq}`;
+    const letter = LETTERS[proposalsFor(requestId).length] ?? "?";
     const raw = {
       id, requestId,
       agentId: { toText: () => "local" },
-      agentName, agentBrokerage, commissionBps, cmaSummary, marketingPlan,
-      estimatedDaysOnMarket, estimatedSalePrice, includedServices, validUntil, coverLetter,
+      agentName: "Mock Agent", agentEmail: "agent@example.com", agentBrokerage: "Mock Realty",
+      letter, commissionBps, suggestedListCents, cmaSummary, marketingPlan, marketingCommitments,
+      estimatedDaysOnMarket, includedServices, validUntil, coverLetter,
       status: { Pending: null },
+      derived: {
+        estNetToSellerCents: suggestedListCents - (suggestedListCents * commissionBps) / 10_000n,
+        pctVsCompsBps: 0n, overCompFlag: false, thinCompsFlag: false,
+      },
+      agentRecord: { closedInZip: 10n, avgDom: 25n, saleToListRatioBps: 9800n, withdrawnUnsold: 0n, commitmentsUnmet: 0n },
       createdAt: BigInt(Date.now()) * 1_000_000n,
     };
     _proposals.set(id, raw);
-    return { ok: raw };
+    return ok(raw);
   }),
 
+  withdrawProposal: vi.fn(async (proposalId: string) => {
+    const p = _proposals.get(proposalId);
+    if (!p) return err({ NotFound: null });
+    p.status = { Withdrawn: null };
+    return ok(null);
+  }),
+
+  /** Sealed until 3 bids or deadline (invariant 02); masked until feePaid or isMine (invariant 04). */
   getProposalsForRequest: vi.fn(async (requestId: string) => {
     const req = _bidRequests.get(requestId);
     if (!req) return [];
-    // Sealed-bid: proposals hidden until deadline passes
-    if (Number(req.bidDeadline) / 1_000_000 > Date.now()) return [];
-    return [..._proposals.values()].filter((p) => p.requestId === requestId);
+    if (isSealed(req)) return [];
+    return proposalsFor(requestId).map((p) => {
+      const isMine = p.agentId.toText() === "local";
+      const revealed = isMine || req.feePaid;
+      return {
+        id: p.id, requestId: p.requestId, letter: p.letter,
+        commissionBps: p.commissionBps, suggestedListCents: p.suggestedListCents,
+        cmaSummary: p.cmaSummary, marketingPlan: p.marketingPlan,
+        marketingCommitments: p.marketingCommitments,
+        estimatedDaysOnMarket: p.estimatedDaysOnMarket, status: p.status,
+        derived: p.derived, agentRecord: p.agentRecord,
+        isMine,
+        agentName:      revealed ? [p.agentName]      : [],
+        agentEmail:     revealed ? [p.agentEmail]     : [],
+        agentBrokerage: revealed ? [p.agentBrokerage] : [],
+        createdAt: p.createdAt,
+      };
+    });
+  }),
+
+  getBidProgress: vi.fn(async (requestId: string) => {
+    const req = _bidRequests.get(requestId);
+    if (!req) return err({ NotFound: null });
+    return ok({ count: BigInt(proposalsFor(requestId).length), sealed: isSealed(req) });
   }),
 
   getMyProposals: vi.fn(async () => [..._proposals.values()]),
 
   acceptProposal: vi.fn(async (proposalId: string) => {
     const proposal = _proposals.get(proposalId);
-    if (!proposal) return { err: { NotFound: null } };
+    if (!proposal) return err({ NotFound: null });
     proposal.status = { Accepted: null };
-    const req = _bidRequests.get(proposal.requestId);
-    if (req) req.status = { Awarded: null };
-    for (const p of _proposals.values()) {
-      if (p.requestId === proposal.requestId && p.id !== proposalId) {
-        p.status = { Rejected: null };
-      }
-    }
-    return { ok: null };
+    // v2: does NOT award the request or reveal identity — that's gated behind
+    // markListingFeePaid, driven only by the payment webhook.
+    return ok(`FEE_${proposalId}`);
   }),
 
+  // ── Test-only escape hatches (not part of the real canister interface) ────
+  __setProposalAgent: (proposalId: string, agentIdText: string) => {
+    const p = _proposals.get(proposalId);
+    if (p) p.agentId = { toText: () => agentIdText };
+  },
+  __markFeePaid: (requestId: string) => {
+    const req = _bidRequests.get(requestId);
+    if (req) req.feePaid = true;
+  },
+
+  // ── Listing photos (unchanged FSBO feature) ────────────────────────────────
   addListingPhoto: vi.fn(async (propertyId: string, photoId: string) => {
     const photos = _listingPhotos.get(propertyId) ?? [];
     if (photos.length >= MAX_MOCK_PHOTOS)
-      return { err: { InvalidInput: "Listing photo limit (15) reached" } };
+      return err({ InvalidInput: "Listing photo limit (15) reached" });
     if (photos.includes(photoId))
-      return { err: { InvalidInput: `Photo ${photoId} already added` } };
+      return err({ InvalidInput: `Photo ${photoId} already added` });
     photos.push(photoId);
     _listingPhotos.set(propertyId, photos);
-    return { ok: null };
+    return ok(null);
   }),
 
   getListingPhotos: vi.fn(async (propertyId: string) =>
@@ -122,14 +212,14 @@ const mockListingActor = {
   removeListingPhoto: vi.fn(async (propertyId: string, photoId: string) => {
     const photos = _listingPhotos.get(propertyId) ?? [];
     const idx = photos.indexOf(photoId);
-    if (idx === -1) return { err: { NotFound: null } };
+    if (idx === -1) return err({ NotFound: null });
     photos.splice(idx, 1);
-    return { ok: null };
+    return ok(null);
   }),
 
   reorderListingPhotos: vi.fn(async (propertyId: string, photoIds: string[]) => {
     _listingPhotos.set(propertyId, [...photoIds]);
-    return { ok: null };
+    return ok(null);
   }),
 };
 
@@ -142,392 +232,191 @@ vi.mock("@icp-sdk/core/agent", () => ({
 let _now = 3_000_000_000_000;
 vi.spyOn(Date, "now").mockImplementation(() => ++_now);
 
-import {
-  listingService,
-  computeNetProceeds,
-  formatCommission,
-  isDeadlinePassed,
-} from "@/services/listing";
-
-// ─── computeNetProceeds (pure) ────────────────────────────────────────────────
-
-describe("computeNetProceeds", () => {
-  it("deducts commission and closing costs from sale price", () => {
-    const net = computeNetProceeds(50_000_000, 250, 200);
-    expect(net).toBe(47_750_000);
-  });
-
-  it("returns the full sale price when commission and closing costs are 0", () => {
-    expect(computeNetProceeds(40_000_000, 0, 0)).toBe(40_000_000);
-  });
-
-  it("handles high commission (e.g. 600 bps = 6%)", () => {
-    const net = computeNetProceeds(30_000_000, 600, 0);
-    expect(net).toBe(28_200_000);
-  });
-
-  it("returns a number (not NaN)", () => {
-    expect(computeNetProceeds(20_000_000, 250, 200)).not.toBeNaN();
-  });
-
-  it("two proposals on same price: lower commission yields higher net", () => {
-    const low  = computeNetProceeds(50_000_000, 200, 200);
-    const high = computeNetProceeds(50_000_000, 300, 200);
-    expect(low).toBeGreaterThan(high);
-  });
-});
-
-// ─── formatCommission (pure) ──────────────────────────────────────────────────
-
-describe("formatCommission", () => {
-  it("formats 250 bps as '2.50%'", () => { expect(formatCommission(250)).toBe("2.50%"); });
-  it("formats 300 bps as '3.00%'", () => { expect(formatCommission(300)).toBe("3.00%"); });
-  it("formats 275 bps as '2.75%'", () => { expect(formatCommission(275)).toBe("2.75%"); });
-  it("formats 0 bps as '0.00%'",   () => { expect(formatCommission(0)).toBe("0.00%"); });
-  it("formats 600 bps as '6.00%'", () => { expect(formatCommission(600)).toBe("6.00%"); });
-});
-
-// ─── isDeadlinePassed (pure) ──────────────────────────────────────────────────
-
-describe("isDeadlinePassed", () => {
-  it("returns true when deadline is in the past",    () => { expect(isDeadlinePassed(Date.now() - 1000)).toBe(true); });
-  it("returns false when deadline is in the future", () => { expect(isDeadlinePassed(Date.now() + 60_000)).toBe(false); });
-  it("returns true for deadline of exactly 0",       () => { expect(isDeadlinePassed(0)).toBe(true); });
-});
+import { listingService } from "@/services/listing";
 
 // ─── createBidRequest ─────────────────────────────────────────────────────────
 
 describe("listingService.createBidRequest", () => {
   beforeEach(() => { resetListingMock(); listingService.reset(); });
 
-  it("returns a ListingBidRequest with the supplied fields", async () => {
-    const deadline = Date.now() + 7 * 86_400_000;
+  it("round-trips the new field shape", async () => {
+    const targetListDate = Date.now() + 30 * 86_400_000;
     const req = await listingService.createBidRequest({
-      propertyId: "prop-1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: 55_000_000, notes: "Prefer agents with condo experience",
-      bidDeadline: deadline,
+      propertyId: "prop-1", address: "123 Main St", city: "Tampa", county: "Hillsborough",
+      zipCode: "33602", homeownerEmail: "owner@example.com",
+      beds: 3, baths: 2, sqft: 1500,
+      targetListDate, desiredSalePrice: 55_000_000,
+      notes: "Prefer agents with condo experience", windowDays: "Seven",
     });
     expect(req.propertyId).toBe("prop-1");
+    expect(req.address).toBe("123 Main St");
+    expect(req.city).toBe("Tampa");
+    expect(req.county).toBe("Hillsborough");
+    expect(req.zipCode).toBe("33602");
+    expect(req.homeownerEmail).toBe("owner@example.com");
+    expect(req.beds).toBe(3);
+    expect(req.baths).toBe(2);
+    expect(req.sqft).toBe(1500);
+    expect(req.targetListDate).toBe(targetListDate);
     expect(req.desiredSalePrice).toBe(55_000_000);
     expect(req.notes).toBe("Prefer agents with condo experience");
-    expect(req.bidDeadline).toBe(deadline);
-  });
-
-  it("assigns status 'Open'", async () => {
-    const req = await listingService.createBidRequest({
-      propertyId: "prop-1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 86_400_000,
-    });
+    expect(req.windowDays).toBe("Seven");
     expect(req.status).toBe("Open");
-  });
-
-  it("assigns homeowner 'local' in mock mode", async () => {
-    const req = await listingService.createBidRequest({
-      propertyId: "prop-2", targetListDate: Date.now() + 14 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 86_400_000,
-    });
+    expect(req.feePaid).toBe(false);
     expect(req.homeowner).toBe("local");
   });
 
-  it("assigns a non-empty string id", async () => {
-    const req = await listingService.createBidRequest({
-      propertyId: "prop-1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 86_400_000,
-    });
-    expect(typeof req.id).toBe("string");
-    expect(req.id.length).toBeGreaterThan(0);
+  it("computes bidDeadline from windowDays server-side (no raw bidDeadline input)", async () => {
+    const req3  = await listingService.createBidRequest(baseInput({ windowDays: "Three" }));
+    const req14 = await listingService.createBidRequest(baseInput({ windowDays: "Fourteen" }));
+    expect(req14.bidDeadline - req14.createdAt).toBeGreaterThan(req3.bidDeadline - req3.createdAt);
   });
 
-  it("two calls produce distinct ids", async () => {
-    const a = await listingService.createBidRequest({
-      propertyId: "prop-1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 86_400_000,
-    });
-    const b = await listingService.createBidRequest({
-      propertyId: "prop-2", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 86_400_000,
-    });
-    expect(a.id).not.toBe(b.id);
-  });
-
-  it("accepts null desiredSalePrice", async () => {
-    const req = await listingService.createBidRequest({
-      propertyId: "prop-1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 86_400_000,
-    });
+  it("accepts null/omitted optional numeric fields", async () => {
+    const req = await listingService.createBidRequest(baseInput({ beds: null, baths: null, sqft: null, desiredSalePrice: null }));
+    expect(req.beds).toBeNull();
+    expect(req.baths).toBeNull();
+    expect(req.sqft).toBeNull();
     expect(req.desiredSalePrice).toBeNull();
   });
 
-  it("assigns createdAt close to now", async () => {
-    const before = Date.now();
-    const req = await listingService.createBidRequest({
-      propertyId: "prop-1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 86_400_000,
-    });
-    expect(req.createdAt).toBeGreaterThanOrEqual(before);
-    expect(req.createdAt).toBeLessThanOrEqual(Date.now());
+  it("assigns a non-empty, distinct id per call", async () => {
+    const a = await listingService.createBidRequest(baseInput());
+    const b = await listingService.createBidRequest(baseInput());
+    expect(a.id).not.toBe(b.id);
+    expect(a.id.length).toBeGreaterThan(0);
   });
 });
 
-// ─── getMyBidRequests ─────────────────────────────────────────────────────────
+function baseInput(overrides: Partial<Parameters<typeof listingService.createBidRequest>[0]> = {}) {
+  return {
+    propertyId: "prop-1", address: "123 Main St", city: "Tampa", county: "Hillsborough",
+    zipCode: "33602", homeownerEmail: "owner@example.com",
+    targetListDate: Date.now() + 30 * 86_400_000, desiredSalePrice: null,
+    notes: "", windowDays: "Seven" as const,
+    ...overrides,
+  };
+}
 
-describe("listingService.getMyBidRequests", () => {
+// ─── getMyBidRequests / getBidRequest / cancelBidRequest ───────────────────────
+
+describe("listingService.getMyBidRequests / getBidRequest / cancelBidRequest", () => {
   beforeEach(() => { resetListingMock(); listingService.reset(); });
 
-  it("starts empty in a fresh module instance", async () => {
-    expect(await listingService.getMyBidRequests()).toHaveLength(0);
-  });
-
-  it("returns all created requests", async () => {
-    await listingService.createBidRequest({
-      propertyId: "p1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 86_400_000,
-    });
-    await listingService.createBidRequest({
-      propertyId: "p2", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 86_400_000,
-    });
+  it("getMyBidRequests returns all created requests", async () => {
+    await listingService.createBidRequest(baseInput({ propertyId: "p1" }));
+    await listingService.createBidRequest(baseInput({ propertyId: "p2" }));
     expect(await listingService.getMyBidRequests()).toHaveLength(2);
   });
 
-  it("returns a copy — mutating the array does not affect internal state", async () => {
-    await listingService.createBidRequest({
-      propertyId: "p1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 86_400_000,
-    });
-    const first = await listingService.getMyBidRequests();
-    first.pop();
-    expect(await listingService.getMyBidRequests()).toHaveLength(1);
-  });
-
-  it("all returned requests have status 'Open' initially", async () => {
-    await listingService.createBidRequest({
-      propertyId: "p1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 86_400_000,
-    });
-    const reqs = await listingService.getMyBidRequests();
-    expect(reqs.every(r => r.status === "Open")).toBe(true);
-  });
-});
-
-// ─── getBidRequest ────────────────────────────────────────────────────────────
-
-describe("listingService.getBidRequest", () => {
-  beforeEach(() => { resetListingMock(); listingService.reset(); });
-
-  it("finds a request by id", async () => {
-    const created = await listingService.createBidRequest({
-      propertyId: "prop-99", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: 42_000_000, notes: "ocean view unit",
-      bidDeadline: Date.now() + 86_400_000,
-    });
+  it("getBidRequest finds a request by id, returns null for unknown", async () => {
+    const created = await listingService.createBidRequest(baseInput({ propertyId: "prop-99" }));
     const found = await listingService.getBidRequest(created.id);
-    expect(found).toBeDefined();
-    expect(found!.id).toBe(created.id);
-    expect(found!.propertyId).toBe("prop-99");
-    expect(found!.desiredSalePrice).toBe(42_000_000);
-  });
-
-  it("returns null for an unknown id", async () => {
+    expect(found?.propertyId).toBe("prop-99");
     expect(await listingService.getBidRequest("does-not-exist")).toBeNull();
   });
 
-  it("returns null on fresh mock with no requests", async () => {
-    expect(await listingService.getBidRequest("BID_1")).toBeNull();
-  });
-});
-
-// ─── cancelBidRequest ─────────────────────────────────────────────────────────
-
-describe("listingService.cancelBidRequest", () => {
-  beforeEach(() => { resetListingMock(); listingService.reset(); });
-
-  it("changes status from Open to Cancelled", async () => {
-    const req = await listingService.createBidRequest({
-      propertyId: "p1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 86_400_000,
-    });
+  it("cancelBidRequest moves status to Cancelled and rejects a double cancel", async () => {
+    const req = await listingService.createBidRequest(baseInput());
     await listingService.cancelBidRequest(req.id);
-    const updated = await listingService.getBidRequest(req.id);
-    expect(updated!.status).toBe("Cancelled");
-  });
-
-  it("cancelled request is still returned by getMyBidRequests", async () => {
-    const req = await listingService.createBidRequest({
-      propertyId: "p1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 86_400_000,
-    });
-    await listingService.cancelBidRequest(req.id);
-    const all = await listingService.getMyBidRequests();
-    expect(all.some(r => r.id === req.id && r.status === "Cancelled")).toBe(true);
-  });
-
-  it("throws when cancelling a non-existent request", async () => {
-    await expect(listingService.cancelBidRequest("ghost-id")).rejects.toThrow();
-  });
-
-  it("cancelling an already-Cancelled request throws", async () => {
-    const req = await listingService.createBidRequest({
-      propertyId: "p1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 86_400_000,
-    });
-    await listingService.cancelBidRequest(req.id);
+    expect((await listingService.getBidRequest(req.id))!.status).toBe("Cancelled");
     await expect(listingService.cancelBidRequest(req.id)).rejects.toThrow();
   });
 });
 
-// ─── getOpenBidRequests ───────────────────────────────────────────────────────
+// ─── getOpenBidRequests — returns summaries ────────────────────────────────────
 
 describe("listingService.getOpenBidRequests", () => {
   beforeEach(() => { resetListingMock(); listingService.reset(); });
 
-  it("returns only Open requests (not Cancelled or Awarded)", async () => {
-    const open = await listingService.createBidRequest({
-      propertyId: "p1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 86_400_000,
-    });
-    const toCancel = await listingService.createBidRequest({
-      propertyId: "p2", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 86_400_000,
-    });
+  it("returns BidRequestSummary objects (masked — no address/email) for Open requests only", async () => {
+    const open = await listingService.createBidRequest(baseInput({ propertyId: "p1", city: "Tampa" }));
+    const toCancel = await listingService.createBidRequest(baseInput({ propertyId: "p2" }));
     await listingService.cancelBidRequest(toCancel.id);
 
     const results = await listingService.getOpenBidRequests();
-    expect(results.every(r => r.status === "Open")).toBe(true);
-    expect(results.some(r => r.id === open.id)).toBe(true);
-    expect(results.some(r => r.id === toCancel.id)).toBe(false);
+    expect(results).toHaveLength(1);
+    const summary = results[0];
+    expect(summary.id).toBe(open.id);
+    expect(summary.city).toBe("Tampa");
+    expect(summary).not.toHaveProperty("address");
+    expect(summary).not.toHaveProperty("homeownerEmail");
+    expect(typeof summary.proposalCount).toBe("number");
+    expect(typeof summary.openSlots).toBe("number");
+  });
+
+  it("proposalCount / openSlots reflect submitted proposals", async () => {
+    const req = await listingService.createBidRequest(baseInput());
+    await listingService.submitProposal(req.id, proposalInput());
+    const [summary] = await listingService.getOpenBidRequests();
+    expect(summary.proposalCount).toBe(1);
+    expect(summary.openSlots).toBe(4);
   });
 
   it("returns empty array when no Open requests exist", async () => {
     expect(await listingService.getOpenBidRequests()).toHaveLength(0);
   });
-
-  it("excludes requests whose bidDeadline has passed", async () => {
-    // Use a timestamp definitely in the past (not relative to mocked Date.now)
-    await listingService.createBidRequest({
-      propertyId: "p1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "",
-      bidDeadline: 1_000, // epoch + 1s — definitely expired
-    });
-    expect(await listingService.getOpenBidRequests()).toHaveLength(0);
-  });
 });
 
-// ─── submitProposal ───────────────────────────────────────────────────────────
+function proposalInput(overrides: Partial<Parameters<typeof listingService.submitProposal>[1]> = {}) {
+  return {
+    commissionBps: 250, suggestedListCents: 52_000_000,
+    cmaSummary: "Comps suggest $520k-$540k", marketingPlan: "MLS + social + open house",
+    marketingCommitments: ["Professional photography", "Open house within 14 days"],
+    estimatedDaysOnMarket: 21, includedServices: ["staging", "professional photos"],
+    validUntil: Date.now() + 14 * 86_400_000, coverLetter: "I specialize in this zip code",
+    ...overrides,
+  };
+}
+
+// ─── submitProposal ─────────────────────────────────────────────────────────────
 
 describe("listingService.submitProposal", () => {
   beforeEach(() => { resetListingMock(); listingService.reset(); });
 
-  it("returns a ListingProposal with the supplied fields", async () => {
-    const req = await listingService.createBidRequest({
-      propertyId: "p1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 86_400_000,
-    });
-    const proposal = await listingService.submitProposal(req.id, {
-      agentName: "Jane Smith", agentBrokerage: "Premier Realty",
-      commissionBps: 250, cmaSummary: "Comps suggest $520k–$540k",
-      marketingPlan: "MLS + social + open house", estimatedDaysOnMarket: 21,
-      estimatedSalePrice: 52_000_000, includedServices: ["staging", "professional photos"],
-      validUntil: Date.now() + 14 * 86_400_000, coverLetter: "I specialize in this zip code",
-    });
+  it("returns a ListingProposal carrying marketingCommitments and the renamed suggestedListCents field", async () => {
+    const req = await listingService.createBidRequest(baseInput());
+    const proposal = await listingService.submitProposal(req.id, proposalInput());
     expect(proposal.requestId).toBe(req.id);
-    expect(proposal.agentName).toBe("Jane Smith");
-    expect(proposal.agentBrokerage).toBe("Premier Realty");
     expect(proposal.commissionBps).toBe(250);
-    expect(proposal.estimatedSalePrice).toBe(52_000_000);
-    expect(proposal.includedServices).toEqual(["staging", "professional photos"]);
+    expect(proposal.suggestedListCents).toBe(52_000_000);
+    expect(proposal.marketingCommitments).toEqual(["Professional photography", "Open house within 14 days"]);
+    expect(proposal.status).toBe("Pending");
+    expect(proposal.agentId).toBe("local");
+    expect(typeof proposal.letter).toBe("string");
+    expect(proposal.derived).toBeDefined();
+    expect(proposal.agentRecord).toBeDefined();
   });
 
-  it("assigns status 'Pending'", async () => {
-    const req = await listingService.createBidRequest({
-      propertyId: "p1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 86_400_000,
-    });
-    const p = await listingService.submitProposal(req.id, {
-      agentName: "Bob", agentBrokerage: "Acme", commissionBps: 300,
-      cmaSummary: "Good", marketingPlan: "MLS", estimatedDaysOnMarket: 30,
-      estimatedSalePrice: 40_000_000, includedServices: [],
-      validUntil: Date.now() + 86_400_000, coverLetter: "",
-    });
-    expect(p.status).toBe("Pending");
-  });
-
-  it("assigns agentId 'local' in mock mode", async () => {
-    const req = await listingService.createBidRequest({
-      propertyId: "p1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 86_400_000,
-    });
-    const p = await listingService.submitProposal(req.id, {
-      agentName: "Bob", agentBrokerage: "Acme", commissionBps: 300,
-      cmaSummary: "Good", marketingPlan: "MLS", estimatedDaysOnMarket: 30,
-      estimatedSalePrice: 40_000_000, includedServices: [],
-      validUntil: Date.now() + 86_400_000, coverLetter: "",
-    });
-    expect(p.agentId).toBe("local");
-  });
-
-  it("assigns a non-empty string id", async () => {
-    const req = await listingService.createBidRequest({
-      propertyId: "p1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 86_400_000,
-    });
-    const p = await listingService.submitProposal(req.id, {
-      agentName: "Bob", agentBrokerage: "Acme", commissionBps: 300,
-      cmaSummary: "Good", marketingPlan: "MLS", estimatedDaysOnMarket: 30,
-      estimatedSalePrice: 40_000_000, includedServices: [],
-      validUntil: Date.now() + 86_400_000, coverLetter: "",
-    });
-    expect(typeof p.id).toBe("string");
-    expect(p.id.length).toBeGreaterThan(0);
-  });
-
-  it("two proposals have distinct ids", async () => {
-    const req = await listingService.createBidRequest({
-      propertyId: "p1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 86_400_000,
-    });
-    const base = {
-      agentName: "Bob", agentBrokerage: "Acme", commissionBps: 300,
-      cmaSummary: "Good", marketingPlan: "MLS", estimatedDaysOnMarket: 30,
-      estimatedSalePrice: 40_000_000, includedServices: [],
-      validUntil: Date.now() + 86_400_000, coverLetter: "",
-    };
-    const a = await listingService.submitProposal(req.id, base);
-    const b = await listingService.submitProposal(req.id, { ...base, agentName: "Alice" });
-    expect(a.id).not.toBe(b.id);
-  });
-
-  it("throws when submitting to a non-existent request", async () => {
+  it("rejects a proposal with no marketingCommitments", async () => {
+    const req = await listingService.createBidRequest(baseInput());
     await expect(
-      listingService.submitProposal("ghost-request-id", {
-        agentName: "Bob", agentBrokerage: "Acme", commissionBps: 300,
-        cmaSummary: "Good", marketingPlan: "MLS", estimatedDaysOnMarket: 30,
-        estimatedSalePrice: 40_000_000, includedServices: [],
-        validUntil: Date.now() + 86_400_000, coverLetter: "",
-      })
+      listingService.submitProposal(req.id, proposalInput({ marketingCommitments: [] }))
     ).rejects.toThrow();
   });
 
-  it("throws when submitting to a Cancelled request", async () => {
-    const req = await listingService.createBidRequest({
-      propertyId: "p1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 86_400_000,
-    });
+  it("throws when submitting to a non-existent or cancelled request", async () => {
+    await expect(
+      listingService.submitProposal("ghost-request-id", proposalInput())
+    ).rejects.toThrow();
+
+    const req = await listingService.createBidRequest(baseInput());
     await listingService.cancelBidRequest(req.id);
-    await expect(
-      listingService.submitProposal(req.id, {
-        agentName: "Bob", agentBrokerage: "Acme", commissionBps: 300,
-        cmaSummary: "Good", marketingPlan: "MLS", estimatedDaysOnMarket: 30,
-        estimatedSalePrice: 40_000_000, includedServices: [],
-        validUntil: Date.now() + 86_400_000, coverLetter: "",
-      })
-    ).rejects.toThrow();
+    await expect(listingService.submitProposal(req.id, proposalInput())).rejects.toThrow();
+  });
+
+  it("assigns sequential letters as proposals come in", async () => {
+    const req = await listingService.createBidRequest(baseInput());
+    const a = await listingService.submitProposal(req.id, proposalInput());
+    const b = await listingService.submitProposal(req.id, proposalInput());
+    expect(a.letter).toBe("A");
+    expect(b.letter).toBe("B");
   });
 });
 
-// ─── getProposalsForRequest — sealed-bid logic ────────────────────────────────
+// ─── getProposalsForRequest — sealing + masking ────────────────────────────────
 
-describe("listingService.getProposalsForRequest — sealed until deadline", () => {
+describe("listingService.getProposalsForRequest — sealed until 3 bids or deadline", () => {
   beforeEach(() => {
     resetListingMock();
     vi.useFakeTimers({ toFake: ["Date"] });
@@ -537,50 +426,71 @@ describe("listingService.getProposalsForRequest — sealed until deadline", () =
 
   afterEach(() => { vi.useRealTimers(); });
 
-  it("returns proposals after the deadline has passed", async () => {
-    const req = await listingService.createBidRequest({
-      propertyId: "p1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 5_000,
-    });
-    await listingService.submitProposal(req.id, {
-      agentName: "Jane", agentBrokerage: "Realty", commissionBps: 250,
-      cmaSummary: "comps", marketingPlan: "MLS", estimatedDaysOnMarket: 21,
-      estimatedSalePrice: 50_000_000, includedServices: [],
-      validUntil: Date.now() + 86_400_000, coverLetter: "",
-    });
-    vi.setSystemTime(new Date("2024-01-02T12:00:00Z"));
+  it("stays sealed with fewer than 3 bids and the window still open", async () => {
+    const req = await listingService.createBidRequest(baseInput({ windowDays: "Fourteen" }));
+    await listingService.submitProposal(req.id, proposalInput());
+    await listingService.submitProposal(req.id, proposalInput());
+    expect(await listingService.getProposalsForRequest(req.id)).toHaveLength(0);
+    expect((await listingService.getBidProgress(req.id)).sealed).toBe(true);
+  });
+
+  it("unseals as soon as a 3rd bid lands, even before the deadline", async () => {
+    const req = await listingService.createBidRequest(baseInput({ windowDays: "Fourteen" }));
+    await listingService.submitProposal(req.id, proposalInput());
+    await listingService.submitProposal(req.id, proposalInput());
+    await listingService.submitProposal(req.id, proposalInput());
+    const progress = await listingService.getBidProgress(req.id);
+    expect(progress.sealed).toBe(false);
+    expect(progress.count).toBe(3);
+    expect(await listingService.getProposalsForRequest(req.id)).toHaveLength(3);
+  });
+
+  it("unseals once the deadline passes even with fewer than 3 bids", async () => {
+    const req = await listingService.createBidRequest(baseInput({ windowDays: "Three" }));
+    await listingService.submitProposal(req.id, proposalInput());
+    vi.setSystemTime(new Date("2024-01-10T12:00:00Z"));
     expect(await listingService.getProposalsForRequest(req.id)).toHaveLength(1);
   });
 
-  it("returns empty array before the deadline (sealed)", async () => {
-    const req = await listingService.createBidRequest({
-      propertyId: "p1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 99_999_999,
-    });
-    await listingService.submitProposal(req.id, {
-      agentName: "Jane", agentBrokerage: "Realty", commissionBps: 250,
-      cmaSummary: "comps", marketingPlan: "MLS", estimatedDaysOnMarket: 21,
-      estimatedSalePrice: 50_000_000, includedServices: [],
-      validUntil: Date.now() + 86_400_000, coverLetter: "",
-    });
-    expect(await listingService.getProposalsForRequest(req.id)).toHaveLength(0);
+  it("masks agent identity for a bid that isn't the caller's own and the request hasn't had its fee paid", async () => {
+    const req = await listingService.createBidRequest(baseInput({ windowDays: "Three" }));
+    const a = await listingService.submitProposal(req.id, proposalInput());
+    const b = await listingService.submitProposal(req.id, proposalInput());
+    await listingService.submitProposal(req.id, proposalInput());
+    mockListingActor.__setProposalAgent(b.id, "some-other-agent");
+
+    const masked = await listingService.getProposalsForRequest(req.id);
+    const bMasked = masked.find((p) => p.id === b.id)!;
+    expect(bMasked.isMine).toBe(false);
+    expect(bMasked.agentName).toBeNull();
+    expect(bMasked.agentEmail).toBeNull();
+    expect(bMasked.agentBrokerage).toBeNull();
+    // letter is still visible — that's the point of the sealed-bid board
+    expect(typeof bMasked.letter).toBe("string");
+
+    const aRevealed = masked.find((p) => p.id === a.id)!;
+    expect(aRevealed.isMine).toBe(true);
+    expect(aRevealed.agentName).toBe("Mock Agent");
   });
 
-  it("multiple proposals all returned after deadline", async () => {
-    const req = await listingService.createBidRequest({
-      propertyId: "p1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 5_000,
-    });
-    const base = {
-      agentBrokerage: "Realty", commissionBps: 250, cmaSummary: "comps",
-      marketingPlan: "MLS", estimatedDaysOnMarket: 21, estimatedSalePrice: 50_000_000,
-      includedServices: [], validUntil: Date.now() + 86_400_000, coverLetter: "",
-    };
-    await listingService.submitProposal(req.id, { ...base, agentName: "Jane" });
-    await listingService.submitProposal(req.id, { ...base, agentName: "Bob" });
-    await listingService.submitProposal(req.id, { ...base, agentName: "Alice" });
-    vi.setSystemTime(new Date("2024-01-02T12:00:00Z"));
-    expect(await listingService.getProposalsForRequest(req.id)).toHaveLength(3);
+  it("reveals a masked bid once the request's fee is marked paid", async () => {
+    const req = await listingService.createBidRequest(baseInput({ windowDays: "Three" }));
+    const a = await listingService.submitProposal(req.id, proposalInput());
+    await listingService.submitProposal(req.id, proposalInput());
+    await listingService.submitProposal(req.id, proposalInput());
+
+    mockListingActor.__setProposalAgent(a.id, "some-other-agent");
+
+    let masked = await listingService.getProposalsForRequest(req.id);
+    expect(masked.find((p) => p.id === a.id)!.agentName).toBeNull();
+
+    mockListingActor.__markFeePaid(req.id);
+    masked = await listingService.getProposalsForRequest(req.id);
+    const revealed = masked.find((p) => p.id === a.id)!;
+    expect(revealed.isMine).toBe(false);
+    expect(revealed.agentName).toBe("Mock Agent");
+    expect(revealed.agentEmail).toBe("agent@example.com");
+    expect(revealed.agentBrokerage).toBe("Mock Realty");
   });
 
   it("returns empty array for an unknown requestId", async () => {
@@ -593,23 +503,13 @@ describe("listingService.getProposalsForRequest — sealed until deadline", () =
 describe("listingService.getMyProposals", () => {
   beforeEach(() => { resetListingMock(); listingService.reset(); });
 
-  it("starts empty on fresh mock", async () => {
-    expect(await listingService.getMyProposals()).toHaveLength(0);
-  });
-
-  it("returns all proposals submitted in this session", async () => {
-    const req = await listingService.createBidRequest({
-      propertyId: "p1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 86_400_000,
-    });
-    const base = {
-      agentBrokerage: "Realty", commissionBps: 250, cmaSummary: "comps",
-      marketingPlan: "MLS", estimatedDaysOnMarket: 21, estimatedSalePrice: 50_000_000,
-      includedServices: [], validUntil: Date.now() + 86_400_000, coverLetter: "",
-    };
-    await listingService.submitProposal(req.id, { ...base, agentName: "Jane" });
-    await listingService.submitProposal(req.id, { ...base, agentName: "Bob" });
-    expect(await listingService.getMyProposals()).toHaveLength(2);
+  it("returns all proposals submitted in this session, full (unmasked) view", async () => {
+    const req = await listingService.createBidRequest(baseInput());
+    await listingService.submitProposal(req.id, proposalInput());
+    await listingService.submitProposal(req.id, proposalInput());
+    const mine = await listingService.getMyProposals();
+    expect(mine).toHaveLength(2);
+    expect(mine[0].agentName).toBe("Mock Agent");
   });
 });
 
@@ -625,83 +525,35 @@ describe("listingService.acceptProposal", () => {
 
   afterEach(() => { vi.useRealTimers(); });
 
-  it("changes proposal status from Pending to Accepted", async () => {
-    const req = await listingService.createBidRequest({
-      propertyId: "p1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 5_000,
-    });
-    const proposal = await listingService.submitProposal(req.id, {
-      agentName: "Jane", agentBrokerage: "Realty", commissionBps: 250,
-      cmaSummary: "comps", marketingPlan: "MLS", estimatedDaysOnMarket: 21,
-      estimatedSalePrice: 50_000_000, includedServices: [],
-      validUntil: Date.now() + 86_400_000, coverLetter: "",
-    });
-    await listingService.acceptProposal(proposal.id);
-    const all = await listingService.getMyProposals();
-    expect(all.find(p => p.id === proposal.id)!.status).toBe("Accepted");
+  it("returns a string feeId (not void)", async () => {
+    const req = await listingService.createBidRequest(baseInput());
+    const proposal = await listingService.submitProposal(req.id, proposalInput());
+    const feeId = await listingService.acceptProposal(proposal.id);
+    expect(typeof feeId).toBe("string");
+    expect(feeId.length).toBeGreaterThan(0);
   });
 
-  it("marks the parent BidRequest as Awarded", async () => {
-    const req = await listingService.createBidRequest({
-      propertyId: "p1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 5_000,
-    });
-    const proposal = await listingService.submitProposal(req.id, {
-      agentName: "Jane", agentBrokerage: "Realty", commissionBps: 250,
-      cmaSummary: "comps", marketingPlan: "MLS", estimatedDaysOnMarket: 21,
-      estimatedSalePrice: 50_000_000, includedServices: [],
-      validUntil: Date.now() + 86_400_000, coverLetter: "",
-    });
+  it("marks the proposal Accepted without awarding the request or revealing identity", async () => {
+    const req = await listingService.createBidRequest(baseInput());
+    const proposal = await listingService.submitProposal(req.id, proposalInput());
     await listingService.acceptProposal(proposal.id);
-    const updatedReq = await listingService.getBidRequest(req.id);
-    expect(updatedReq!.status).toBe("Awarded");
-  });
 
-  it("all other proposals on the same request become Rejected", async () => {
-    const req = await listingService.createBidRequest({
-      propertyId: "p1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 5_000,
-    });
-    const base = {
-      agentBrokerage: "Realty", commissionBps: 250, cmaSummary: "comps",
-      marketingPlan: "MLS", estimatedDaysOnMarket: 21, estimatedSalePrice: 50_000_000,
-      includedServices: [], validUntil: Date.now() + 86_400_000, coverLetter: "",
-    };
-    const winner = await listingService.submitProposal(req.id, { ...base, agentName: "Jane" });
-    const loser1 = await listingService.submitProposal(req.id, { ...base, agentName: "Bob" });
-    const loser2 = await listingService.submitProposal(req.id, { ...base, agentName: "Alice" });
+    const mine = await listingService.getMyProposals();
+    expect(mine.find((p) => p.id === proposal.id)!.status).toBe("Accepted");
 
-    await listingService.acceptProposal(winner.id);
-
-    const all = await listingService.getMyProposals();
-    const find = (id: string) => all.find(p => p.id === id)!;
-    expect(find(winner.id).status).toBe("Accepted");
-    expect(find(loser1.id).status).toBe("Rejected");
-    expect(find(loser2.id).status).toBe("Rejected");
+    // Awarding + unmasking happens only via markListingFeePaid (webhook-only,
+    // not exposed on listingService at all) — the request itself is untouched.
+    const stillOpen = await listingService.getBidRequest(req.id);
+    expect(stillOpen!.status).toBe("Open");
+    expect(stillOpen!.feePaid).toBe(false);
   });
 
   it("throws when accepting a non-existent proposal", async () => {
     await expect(listingService.acceptProposal("ghost-id")).rejects.toThrow();
   });
-
-  it("awarded request no longer appears in getOpenBidRequests", async () => {
-    const req = await listingService.createBidRequest({
-      propertyId: "p1", targetListDate: Date.now() + 30 * 86_400_000,
-      desiredSalePrice: null, notes: "", bidDeadline: Date.now() + 99_999_999,
-    });
-    const proposal = await listingService.submitProposal(req.id, {
-      agentName: "Jane", agentBrokerage: "Realty", commissionBps: 250,
-      cmaSummary: "comps", marketingPlan: "MLS", estimatedDaysOnMarket: 21,
-      estimatedSalePrice: 50_000_000, includedServices: [],
-      validUntil: Date.now() + 86_400_000, coverLetter: "",
-    });
-    await listingService.acceptProposal(proposal.id);
-    const open = await listingService.getOpenBidRequests();
-    expect(open.some(r => r.id === req.id)).toBe(false);
-  });
 });
 
-// ─── Listing photos (issue #114) ──────────────────────────────────────────────
+// ─── Listing photos (issue #114 — unchanged) ───────────────────────────────────
 
 describe("listing photo management", () => {
   beforeEach(() => { resetListingMock(); listingService.reset(); });
