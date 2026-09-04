@@ -56,6 +56,11 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Vec(Job)],
       ["query"]
     ),
+    getMyReferralJobs: IDL.Func(
+      [],
+      [IDL.Vec(Job)],
+      ["query"]
+    ),
     createJob: IDL.Func(
       [
         IDL.Text,         // propertyId
