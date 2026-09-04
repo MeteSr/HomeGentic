@@ -28,17 +28,34 @@ describe("referralService.calculateFee", () => {
     expect(fee).toBeGreaterThan(0);
   });
 
-  it("returns REFERRAL_FEE_CENTS flat fee (not a percentage)", () => {
-    // Business model: flat fee per verified referral job
-    const fee1 = referralService.calculateFee(10000);  // $100 job
-    const fee2 = referralService.calculateFee(100000); // $1000 job
-    expect(fee1).toBe(fee2); // flat, not percentage
+  it("scales with job amount (percentage, not flat)", () => {
+    // Business model: 3% of awarded value per winning bid
+    const fee1 = referralService.calculateFee(100000); // $1,000 job
+    const fee2 = referralService.calculateFee(200000); // $2,000 job
+    expect(fee2).toBe(fee1 * 2);
+    expect(fee1).toBe(3000); // 3% of $1,000 = $30
   });
 
-  it("flat fee is between $10 and $50 (competitive with Angi)", () => {
-    const fee = referralService.calculateFee(50000);
-    expect(fee).toBeGreaterThanOrEqual(1000); // $10 in cents
-    expect(fee).toBeLessThanOrEqual(5000);    // $50 in cents
+  it("applies the $20 floor on small jobs", () => {
+    const fee = referralService.calculateFee(18500); // $185 job — 3% would be $5.55
+    expect(fee).toBe(2000); // $20 floor instead
+  });
+
+  it("switches from floor to percentage above the crossover ($667 awarded)", () => {
+    const belowCrossover = referralService.calculateFee(66600); // $666
+    const aboveCrossover = referralService.calculateFee(70000); // $700
+    expect(belowCrossover).toBe(2000);      // floor
+    expect(aboveCrossover).toBe(2100);      // 3% of $700
+  });
+});
+
+describe("referralService.isFloored", () => {
+  it("is true when 3% of the job amount is under the $20 floor", () => {
+    expect(referralService.isFloored(18500)).toBe(true); // $185 job
+  });
+
+  it("is false once 3% of the job amount clears the $20 floor", () => {
+    expect(referralService.isFloored(100000)).toBe(false); // $1,000 job
   });
 });
 
@@ -53,12 +70,14 @@ describe("referralService.getPendingFees (mock)", () => {
   });
 });
 
-describe("referralService.REFERRAL_FEE_CENTS", () => {
-  it("is exported as a constant", () => {
-    expect(typeof referralService.REFERRAL_FEE_CENTS).toBe("number");
+describe("referralService.REFERRAL_FEE_RATE / REFERRAL_FEE_FLOOR_CENTS", () => {
+  it("rate is exported as 3%", () => {
+    expect(referralService.REFERRAL_FEE_RATE).toBe(0.03);
   });
 
-  it("is a round dollar amount in cents", () => {
-    expect(referralService.REFERRAL_FEE_CENTS % 100).toBe(0);
+  it("floor is exported as a round dollar amount in cents", () => {
+    expect(typeof referralService.REFERRAL_FEE_FLOOR_CENTS).toBe("number");
+    expect(referralService.REFERRAL_FEE_FLOOR_CENTS % 100).toBe(0);
+    expect(referralService.REFERRAL_FEE_FLOOR_CENTS).toBe(2000); // $20
   });
 });

@@ -95,6 +95,29 @@ export const V2_COLORS = {
   cobalTint:   "#B9BDF5",   // cobalt 30% tint — badge border, focus ring glow
   // ── Semantic surfaces ─────────────────────────────────────────────────────
   attentionBg: "#FFF6DB",   // attention / info surface (yellow-family)
+  // ── Bid to List additions — success/caution semantics the base V2 set lacks ─
+  faint:        "#C3C7D4",   // faint text / empty state
+  blueTintBg:   "#F2F3FF",   // blue tint background (advisory strips, sealed slots)
+  blueTintBorder: "#C7CBFF", // blue tint border
+  blueTintSurface: "#E0E2FF", // blue tint surface (shortlisted rows)
+  blueDeepText: "#1F2794",   // blue deep text (on blue tint bg)
+  neutralRowTint: "#FAFAFF", // shortlisted row tint
+  green:        "#0F7A48",   // success — highest net, verified, checks
+  greenBg:      "#E4F6EC",   // green background
+  greenBright:  "#7BE3A8",   // green, bright (on dark surfaces)
+  greenRowTint: "#F7FDF9",   // green row tint
+  orange:       "#C4552F",   // caution — over-comp flag, thin comps, open permit
+  orangeBg:     "#FBE7DF",   // orange background
+  orangeBorder: "#E8B49B",   // orange border
+  orangeRowTint: "#FFFBF9",  // orange row tint
+  amberBg:      "#FFF9EC",   // amber warning background (disclosure, photo scan notice)
+  amberBorder:  "#F0DFA8",   // amber warning border
+  amberText:    "#5F4A0C",   // amber warning text
+  neutralSurface: "#F2F3F9", // neutral card surface
+  neutralSurface2: "#F7F8FB", // neutral card surface, lighter
+  neutralSurface3: "#EDEEF4", // neutral card surface, filled tile
+  cardBorder:   "#D6D9E4",   // card border
+  buttonBorder: "#D9DBE4",   // outline button border
 } as const;
 
 export const V2_FONTS = {

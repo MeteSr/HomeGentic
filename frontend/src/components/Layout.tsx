@@ -140,10 +140,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const initials    = (profile?.email || "U")[0].toUpperCase();
 
   const isContractor = profile?.role === "Contractor";
-  const isHomeowner  = !isContractor;
+  const isRealtor     = profile?.role === "Realtor";
+  const isHomeowner  = !isContractor && !isRealtor;
 
   const atPropertyLimit  = properties.length >= (TIER_PROPERTY_LIMIT[userTier] ?? Infinity);
-  const dashboardPath = isContractor ? "/contractor-dashboard" : "/dashboard";
+  const dashboardPath = isContractor ? "/contractor-dashboard" : isRealtor ? "/agents/browse" : "/dashboard";
 
   const singlePropertyId =
     isHomeowner && properties.length === 1 ? String(properties[0].id) : null;
@@ -162,6 +163,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const navLinks: NavLink[] = isContractor
     ? [
         { to: "/contractor-dashboard", label: "Dashboard", Icon: LayoutDashboard },
+      ]
+    : isRealtor
+    ? [
+        { to: "/agents/browse",  label: "Browse listings", Icon: Briefcase },
+        { to: "/agents/bids",    label: "My bids",          Icon: LayoutDashboard },
+        { to: "/agents/verify",  label: "Verification",     Icon: User },
       ]
     : [
         { to: "/dashboard",      label: "Dashboard",    Icon: LayoutDashboard },

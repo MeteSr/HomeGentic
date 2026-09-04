@@ -150,16 +150,25 @@ describe("pulseService.generateDigest — topic weight influence (8.1.6)", () =>
   it("higher-weighted topics appear earlier in the items list", async () => {
     const digest = await svc.generateDigest(
       makeContext({
-        systemAges: { HVAC: 5, Roof: 5 }, // both equally minor
+        // Both ages must clear their *own* "medium" threshold (HVAC: 8,
+        // Roof: 15) so each produces a real HVAC/Roofing-category item —
+        // below that, buildMockDigest() drops the item entirely (priority
+        // "low" items are filtered out) and any /roof/i or /hvac/i match
+        // instead comes from an undifferentiated "Seasonal" item, whose
+        // order depends on the current month's seasonal task list rather
+        // than userTopicWeights, making the assertion depend on today's
+        // date instead of the weighting logic it's meant to test.
+        systemAges: { HVAC: 9, Roof: 16 }, // both "medium" priority, same tier
         userTopicWeights: { Roofing: 10, HVAC: 0 },
       })
     );
-    const roofIdx = digest.items.findIndex((i) => /roof/i.test(i.title + i.body));
-    const hvacIdx = digest.items.findIndex((i) => /hvac|air.?condition/i.test(i.title + i.body));
-    // If both appear, roofing should come first due to higher weight
-    if (roofIdx !== -1 && hvacIdx !== -1) {
-      expect(roofIdx).toBeLessThan(hvacIdx);
-    }
+    const roofIdx = digest.items.findIndex((i) => i.category === "Roofing");
+    const hvacIdx = digest.items.findIndex((i) => i.category === "HVAC");
+    expect(roofIdx).not.toBe(-1);
+    expect(hvacIdx).not.toBe(-1);
+    // Same priority tier ("medium" for both) — weight breaks the tie, so
+    // Roofing (10) must sort before HVAC (0) regardless of season/date.
+    expect(roofIdx).toBeLessThan(hvacIdx);
   });
 });
 
