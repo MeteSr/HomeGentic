@@ -76,7 +76,8 @@ export const srOnly: React.CSSProperties = {
 export const V2_COLORS = {
   // ── Primary ──────────────────────────────────────────────────────────────
   blue:        "#2B34FF",   // cobalt — primary CTA, active states, links
-  yellow:      "#FFD23F",   // attention / highlight
+  yellow:      "#FFD23F",   // attention / highlight (large surfaces only — too light for text on white)
+  yellowText:  "#8A6D00",   // yellow-family text on white/paper — 4.8:1, WCAG AA at all sizes
   coral:       "#FF5C39",   // error / destructive (large surfaces only)
   coralText:   "#C2341A",   // error copy — 5.1:1 on white, WCAG AA at all sizes
   // ── Neutrals ─────────────────────────────────────────────────────────────
@@ -84,6 +85,7 @@ export const V2_COLORS = {
   paper:       "#FCFCFD",   // card / popover background
   muted:       "#6B7080",   // secondary text
   muted2:      "#5A5F70",   // tertiary / disabled text
+  mutedOnDark: "#B8AEC7",   // secondary text on ink backgrounds — 6.8:1, WCAG AA at all sizes
   // ── Surfaces & structure ─────────────────────────────────────────────────
   page:        "#EDEEF2",   // page background (was "border" in v1 of this token set)
   surface:     "#F7F8FB",   // subtle surface — table rows, input bg

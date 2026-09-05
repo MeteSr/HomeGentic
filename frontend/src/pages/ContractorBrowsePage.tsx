@@ -32,19 +32,19 @@ const SERVICE_TYPES = [
 
 const AVATAR_COLORS = [
   { bg: "#E0E2FF", fg: C.blue },
-  { bg: "#DCFCE7", fg: "#16A34A" },
-  { bg: "#FEF3C7", fg: "#D97706" },
-  { bg: "#FCE7F3", fg: "#DB2777" },
-  { bg: "#E0F2FE", fg: "#0891B2" },
+  { bg: "#DCFCE7", fg: "#0F7A32" },
+  { bg: "#FEF3C7", fg: "#8A5200" },
+  { bg: "#FCE7F3", fg: "#A01D5C" },
+  { bg: "#E0F2FE", fg: "#0A6478" },
 ];
 
 // ── Trust score badge ──────────────────────────────────────────────────────────
 
 function TrustBadge({ score }: { score: number }) {
   const { bg, color, label } =
-    score >= 75 ? { bg: "#DCFCE7", color: "#16A34A", label: "HIGH" }
+    score >= 75 ? { bg: "#DCFCE7", color: "#0F7A32", label: "HIGH" }
     : score >= 50 ? { bg: C.vbadge,   color: C.blue,    label: "MID"  }
-    :               { bg: "#FEF3C7",  color: "#D97706", label: "LOW"  };
+    :               { bg: "#FEF3C7",  color: "#8A5200", label: "LOW"  };
 
   return (
     <div style={{
@@ -266,7 +266,7 @@ export default function ContractorBrowsePage() {
 
           {/* Header */}
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>
+            <div style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 700, color: C.muted2, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>
               CONTRACTORS
             </div>
             <h1 style={{ fontFamily: F.display, fontWeight: 900, fontSize: "1.75rem", color: C.ink, margin: 0 }}>
@@ -281,10 +281,11 @@ export default function ContractorBrowsePage() {
           }}>
             {/* Zip code */}
             <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: "0 0 180px" }}>
-              <label style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+              <label htmlFor="contractor-zip" style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: C.muted2, letterSpacing: "0.1em", textTransform: "uppercase" }}>
                 ZIP CODE
               </label>
               <input
+                id="contractor-zip"
                 type="text"
                 maxLength={10}
                 placeholder="e.g. 78701"
@@ -301,10 +302,11 @@ export default function ContractorBrowsePage() {
 
             {/* Specialty */}
             <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: "0 0 200px" }}>
-              <label style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+              <label htmlFor="contractor-specialty" style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: C.muted2, letterSpacing: "0.1em", textTransform: "uppercase" }}>
                 SERVICE TYPE
               </label>
               <select
+                id="contractor-specialty"
                 value={activeSpecialty}
                 onChange={(e) => setActiveSpecialty(e.target.value)}
                 style={{
@@ -383,7 +385,7 @@ export default function ContractorBrowsePage() {
 
           {/* Result summary */}
           {!loading && (
-            <div style={{ fontFamily: F.mono, fontSize: 11, color: C.muted, marginBottom: 16, letterSpacing: "0.04em" }}>
+            <div style={{ fontFamily: F.mono, fontSize: 11, color: C.muted2, marginBottom: 16, letterSpacing: "0.04em" }}>
               {resultLabel}
             </div>
           )}

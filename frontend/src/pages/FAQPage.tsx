@@ -155,7 +155,7 @@ export default function FAQPage() {
               color: C.ink, textDecoration: "none", letterSpacing: "-0.5px",
             }}
           >
-            Home<span style={{ color: C.yellow }}>Gentic</span>
+            Home<span style={{ color: C.yellowText }}>Gentic</span>
           </Link>
           <Link
             to="/login"
@@ -246,12 +246,12 @@ export default function FAQPage() {
             display: "flex", alignItems: "center", justifyContent: "space-between",
             flexWrap: "wrap", gap: 16,
           }}>
-            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.35)" }}>
+            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
               © 2025 HomeGentic
             </span>
             <div style={{ display: "flex", gap: 24 }}>
               {[["Security", "/privacy#security"], ["Privacy", "/privacy"], ["Terms", "/terms"], ["Contact", "/support"]].map(([label, href]) => (
-                <Link key={label} to={href} style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", textDecoration: "none" }}>
+                <Link key={label} to={href} style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", textDecoration: "none" }}>
                   {label}
                 </Link>
               ))}

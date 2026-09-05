@@ -47,10 +47,12 @@ async function injectProProperty(page: Parameters<typeof injectTestAuth>[0]) {
 
 test.describe("EP.1 — Register: invalid email format", () => {
   test("shows validation error for non-email input", async ({ page }) => {
+    // /register is behind ProtectedRoute — without auth it redirects to /login
+    await injectTestAuth(page);
     await page.goto("/register");
 
     // Advance past role selection (step 1)
-    await page.getByText("Homeowner").click();
+    await page.getByText("Homeowner", { exact: true }).click();
     await page.getByRole("button", { name: /continue/i }).click();
 
     // Fill invalid email in step 2
@@ -71,6 +73,8 @@ test.describe("EP.1 — Register: invalid email format", () => {
 
 test.describe("EP.2 — Register: duplicate/taken username error", () => {
   test("shows error when register_error is USERNAME_TAKEN", async ({ page }) => {
+    // /register is behind ProtectedRoute — without auth it redirects to /login
+    await injectTestAuth(page);
     // Inject the error signal before React boots
     await page.addInitScript(() => {
       (window as any).__e2e_register_error = "USERNAME_TAKEN";
@@ -79,22 +83,22 @@ test.describe("EP.2 — Register: duplicate/taken username error", () => {
     await page.goto("/register");
 
     // Navigate to step 2 by selecting a role
-    await page.getByText("Homeowner").click();
+    await page.getByText("Homeowner", { exact: true }).click();
     await page.getByRole("button", { name: /continue/i }).click();
 
     // Fill valid-looking email and submit
     await page.getByPlaceholder(/you@example\.com/i).fill("test@example.com");
 
-    // Agree to terms if visible
+    // Advance to step 3 (confirm/submit) — the step 2 → 3 button reads "Review"
+    const nextBtn = page.getByRole("button", { name: /continue|review/i });
+    if (await nextBtn.isVisible()) {
+      await nextBtn.click();
+    }
+
+    // Agree to terms — the checkbox only exists on step 3
     const termsCheckbox = page.getByLabel(/terms/i);
     if (await termsCheckbox.isVisible()) {
       await termsCheckbox.check();
-    }
-
-    // Advance to step 3 (confirm/submit)
-    const nextBtn = page.getByRole("button", { name: /continue/i });
-    if (await nextBtn.isVisible()) {
-      await nextBtn.click();
     }
 
     // Submit the final form
@@ -165,7 +169,9 @@ test.describe("EP.3 — Add property: Continue button gating", () => {
     await page.getByLabel(/zip/i).fill("78701");
 
     const continueBtn = page.getByRole("button", { name: /continue/i });
-    await expect(continueBtn).toBeEnabled();
+    // Generous timeout: under the full suite's parallel load, the last fill's
+    // React state update can occasionally take longer than the 5s default.
+    await expect(continueBtn).toBeEnabled({ timeout: 10_000 });
   });
 });
 
@@ -207,11 +213,13 @@ test.describe("EP.4 — Job create: Save button gating", () => {
     await page.goto("/jobs/new");
 
     // Fill all required fields: serviceType is pre-selected, need contractor + amount
-    // Make it a DIY job so no contractor name required
+    // Make it a DIY job so no contractor name required.
+    // (Not gated behind an isVisible() check: that resolves immediately without
+    // waiting for the initial render, so on a slow render it silently no-ops —
+    // leaving isDiy false and the rest of the test filling in required fields
+    // for a job that still fails the "has a contractor name" check.)
     const diyToggle = page.getByLabel(/diy|myself/i).or(page.getByText(/diy/i).first());
-    if (await diyToggle.isVisible()) {
-      await diyToggle.click();
-    }
+    await diyToggle.click();
 
     const amountField = page.getByLabel(/amount|cost/i).or(page.getByPlaceholder(/0\.00|amount/i));
     await amountField.fill("1500");
@@ -305,6 +313,10 @@ test.describe("EP.6 — Quote bid with zero amount validation", () => {
 test.describe("EP.7 — Expired conflict window shows appropriate state", () => {
   test("shows expired state when conflict window has passed", async ({ page }) => {
     await injectTestAuth(page);
+    // /properties/:id/verify is behind PaidHomeownerRoute, which blocks on
+    // tier resolution (a real canister call) without a subscription fixture.
+    await injectSubscription(page, "Pro");
+    await injectProProperty(page);
 
     // Inject verify status with expired conflict window
     await injectVerifyStatus(page, {
@@ -316,16 +328,23 @@ test.describe("EP.7 — Expired conflict window shows appropriate state", () => 
       claimStartedAt:      Date.now() - 86_400_000 * 14,  // 14 days ago
       claimWindowEndsAt:   Date.now() - 86_400_000 * 7,   // ended 7 days ago
       identityVerified:    true,
-      currentStep:         "conflict",
+      currentStep:         "contested",
       conflictWindowEndsAt: Date.now() - 86_400_000 * 2,  // expired 2 days ago
     });
 
-    await page.goto("/properties/1/verify");
+    // The contested-claim UI lives at the /contested sub-route, not the
+    // /verify index (which always renders the "claim" step regardless of
+    // currentStep — each verify step is a distinct URL, not client-routed
+    // off currentStep).
+    await page.goto("/properties/1/verify/contested");
 
-    // Expect text indicating the conflict window has expired or closed
+    // Expect text indicating the conflict window has expired or closed.
+    // .first() wraps the combined locator — the page shows multiple lines
+    // matching this OR, so it needs to apply after combining, not before.
     await expect(
-      page.getByText(/expired|closed|window.*closed|conflict.*ended/i).first()
+      page.getByText(/expired|closed|window.*closed|conflict.*ended/i)
         .or(page.getByText(/no longer active/i))
+        .first()
     ).toBeVisible({ timeout: 5000 });
 
     await assertNoA11yViolations(page);

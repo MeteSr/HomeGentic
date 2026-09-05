@@ -11,6 +11,7 @@ const C = {
   ink:    "#0B0D1A",
   paper:  "#FCFCFD",
   muted:  "#6B7080",
+  muted2: "#5A5F70",
   border: "#EDEEF2",
   white:  "#FFFFFF",
   blueFg: "#F3F4FF",
@@ -104,7 +105,7 @@ function NavBar() {
         fontFamily: F.display, fontSize: 20, fontWeight: 800,
         color: C.ink, textDecoration: "none", letterSpacing: "-0.5px",
       }}>
-        Home<span style={{ color: C.yellow }}>Gentic</span>
+        Home<span style={{ color: C.yellowText }}>Gentic</span>
       </Link>
       <Link to="/login" style={{
         fontFamily: F.body, fontSize: 14, fontWeight: 700,
@@ -134,14 +135,14 @@ function StepIndicator({ step }: { step: GiftStep }) {
                 background: done || active ? C.blue : "transparent",
                 border: `2px solid ${done || active ? C.blue : C.border}`,
                 display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 12, fontWeight: 700, color: done || active ? C.white : C.border,
+                fontSize: 12, fontWeight: 700, color: done || active ? C.white : C.muted2,
                 fontFamily: F.body, transition: "all .2s",
               }}>
                 {done ? "✓" : i + 1}
               </div>
               <span style={{
                 fontFamily: F.body, fontSize: 12,
-                color: active ? C.ink : done ? C.blue : C.border,
+                color: active ? C.ink : done ? C.blue : C.muted2,
                 fontWeight: active ? 700 : 400, whiteSpace: "nowrap",
               }}>
                 {s.label}
@@ -257,10 +258,10 @@ function StepSelect({ data, setData, onNext }: {
                 </div>
               )}
 
-              <div style={{ fontFamily: F.body, fontWeight: 600, fontSize: "0.875rem", color: isPopular ? "rgba(255,255,255,0.7)" : C.muted, marginBottom: "0.5rem" }}>
+              <div style={{ fontFamily: F.body, fontWeight: 600, fontSize: "0.875rem", color: isPopular ? "rgba(255,255,255,0.85)" : C.muted, marginBottom: "0.5rem" }}>
                 {tier}
               </div>
-              <div style={{ fontFamily: F.body, fontSize: 13, color: isPopular ? "rgba(255,255,255,0.55)" : C.muted, marginBottom: 20, lineHeight: 1.4 }}>
+              <div style={{ fontFamily: F.body, fontSize: 13, color: isPopular ? "rgba(255,255,255,0.85)" : C.muted, marginBottom: 20, lineHeight: 1.4 }}>
                 {plan.tagline}
               </div>
 
@@ -268,7 +269,7 @@ function StepSelect({ data, setData, onNext }: {
                 <span style={{ fontFamily: F.display, fontWeight: 800, fontSize: "2.5rem", lineHeight: 1, color: isPopular ? C.white : C.ink }}>
                   ${price}
                 </span>
-                <span style={{ fontFamily: F.body, fontSize: "0.65rem", color: isPopular ? "rgba(255,255,255,0.5)" : C.muted }}>
+                <span style={{ fontFamily: F.body, fontSize: "0.65rem", color: isPopular ? "rgba(255,255,255,0.85)" : C.muted }}>
                   {period}
                 </span>
                 {data.billing === "annual" && (
@@ -458,10 +459,10 @@ function StepReview({ data, onSubmit, onBack, loading, error }: {
         <div style={{ background: C.ink, padding: "20px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <span style={{ fontFamily: F.display, fontSize: 22, fontWeight: 800, color: C.white }}>{data.tier}</span>
-            <span style={{ fontFamily: F.body, fontSize: 13, color: "rgba(252,252,253,0.45)", marginLeft: 12 }}>{data.billing}</span>
+            <span style={{ fontFamily: F.body, fontSize: 13, color: "rgba(252,252,253,0.5)", marginLeft: 12 }}>{data.billing}</span>
           </div>
           <span style={{ fontFamily: F.display, fontSize: 28, fontWeight: 800, color: C.white }}>
-            ${price}<span style={{ fontFamily: F.body, fontSize: 14, color: "rgba(252,252,253,0.45)" }}>{period}</span>
+            ${price}<span style={{ fontFamily: F.body, fontSize: 14, color: "rgba(252,252,253,0.5)" }}>{period}</span>
           </span>
         </div>
         <div style={{ padding: "20px 28px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, background: C.white }}>
@@ -583,12 +584,12 @@ function Footer() {
           <span style={{ fontFamily: F.display, fontSize: 24, fontWeight: 800, color: C.white, marginBottom: 14, display: "block" }}>
             Home<span style={{ color: C.yellow }}>Gentic</span>
           </span>
-          <p style={{ fontFamily: F.body, fontSize: 14, color: "rgba(252,252,253,0.45)", lineHeight: 1.65, maxWidth: 220, margin: "0 0 24px" }}>
+          <p style={{ fontFamily: F.body, fontSize: 14, color: "rgba(252,252,253,0.5)", lineHeight: 1.65, maxWidth: 220, margin: "0 0 24px" }}>
             The verified maintenance record that makes your home worth more and easier to sell.
           </p>
         </div>
         <div>
-          <div style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase" as const, color: "rgba(252,252,253,0.35)", marginBottom: 20 }}>Product</div>
+          <div style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase" as const, color: "rgba(252,252,253,0.5)", marginBottom: 20 }}>Product</div>
           <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column" as const, gap: 12 }}>
             {[["Pricing", "/pricing"], ["Gift a Sub", "/gift"], ["FAQ", "/faq"]].map(([label, href]) => (
               <li key={label}><Link to={href} style={{ fontFamily: F.body, fontSize: 14, color: "rgba(252,252,253,0.6)", textDecoration: "none" }}>{label}</Link></li>
@@ -596,7 +597,7 @@ function Footer() {
           </ul>
         </div>
         <div>
-          <div style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase" as const, color: "rgba(252,252,253,0.35)", marginBottom: 20 }}>Free Tools</div>
+          <div style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase" as const, color: "rgba(252,252,253,0.5)", marginBottom: 20 }}>Free Tools</div>
           <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column" as const, gap: 12 }}>
             {[["Report Lookup", "/check"], ["System Forecast", "/instant-forecast"], ["Price Lookup", "/prices"], ["Systems Estimator", "/home-systems"]].map(([label, href]) => (
               <li key={label}><Link to={href} style={{ fontFamily: F.body, fontSize: 14, color: "rgba(252,252,253,0.6)", textDecoration: "none" }}>{label}</Link></li>
@@ -604,7 +605,7 @@ function Footer() {
           </ul>
         </div>
         <div>
-          <div style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase" as const, color: "rgba(252,252,253,0.35)", marginBottom: 20 }}>Company</div>
+          <div style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase" as const, color: "rgba(252,252,253,0.5)", marginBottom: 20 }}>Company</div>
           <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column" as const, gap: 12 }}>
             {[["Privacy Policy", "/privacy"], ["Terms of Service", "/terms"], ["Support", "/support"]].map(([label, href]) => (
               <li key={label}><Link to={href} style={{ fontFamily: F.body, fontSize: 14, color: "rgba(252,252,253,0.6)", textDecoration: "none" }}>{label}</Link></li>
@@ -612,12 +613,12 @@ function Footer() {
           </ul>
         </div>
       </div>
-      <div style={{ borderTop: "1px solid rgba(252,252,253,0.08)", paddingTop: 24, display: "flex", alignItems: "center", justifyContent: "space-between", fontFamily: F.body, fontSize: 13, color: "rgba(252,252,253,0.35)" }}>
+      <div style={{ borderTop: "1px solid rgba(252,252,253,0.08)", paddingTop: 24, display: "flex", alignItems: "center", justifyContent: "space-between", fontFamily: F.body, fontSize: 13, color: "rgba(252,252,253,0.5)" }}>
         <span>© 2026 HomeGentic Inc.</span>
         <div style={{ display: "flex", gap: 24 }}>
-          <Link to="/privacy" style={{ color: "rgba(252,252,253,0.35)", textDecoration: "none" }}>Privacy</Link>
-          <Link to="/terms"   style={{ color: "rgba(252,252,253,0.35)", textDecoration: "none" }}>Terms</Link>
-          <Link to="/support" style={{ color: "rgba(252,252,253,0.35)", textDecoration: "none" }}>Support</Link>
+          <Link to="/privacy" style={{ color: "rgba(252,252,253,0.5)", textDecoration: "none" }}>Privacy</Link>
+          <Link to="/terms"   style={{ color: "rgba(252,252,253,0.5)", textDecoration: "none" }}>Terms</Link>
+          <Link to="/support" style={{ color: "rgba(252,252,253,0.5)", textDecoration: "none" }}>Support</Link>
         </div>
       </div>
     </footer>
@@ -702,7 +703,7 @@ export default function GiftPage() {
                 lineHeight: 1.7, maxWidth: 560, margin: "0 auto 10px",
               }}>
                 Close more confidently. Gift your buyer a{" "}
-                <span style={{ fontFamily: F.display, fontWeight: 800, color: C.ink }}>Home</span><span style={{ color: C.yellow, fontFamily: F.display, fontWeight: 800 }}>Gentic</span>
+                <span style={{ fontFamily: F.display, fontWeight: 800, color: C.ink }}>Home</span><span style={{ color: C.yellowText, fontFamily: F.display, fontWeight: 800 }}>Gentic</span>
                 {" "}Pro or Premium subscription at closing — so they start building a verified maintenance record from day one.
               </p>
               <p style={{ fontFamily: F.body, fontSize: 14, color: C.muted, margin: 0 }}>

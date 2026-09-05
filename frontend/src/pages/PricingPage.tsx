@@ -61,7 +61,7 @@ export default function PricingPage() {
       <header style={{ borderBottom: `1px solid ${C.border}`, position: "sticky", top: 0, background: C.paper, zIndex: 50 }}>
         <div style={{ maxWidth: "80rem", margin: "0 auto", padding: "0 56px", display: "flex", alignItems: "center", justifyContent: "space-between", height: "70px" }}>
           <Link to="/" style={{ textDecoration: "none", fontFamily: F.display, fontWeight: 800, fontSize: "22px", letterSpacing: "-0.5px", color: C.ink }}>
-            Home<span style={{ color: C.yellow }}>Gentic</span>
+            Home<span style={{ color: C.yellowText }}>Gentic</span>
           </Link>
         </div>
       </header>
@@ -129,7 +129,7 @@ export default function PricingPage() {
           <span style={{ fontFamily: F.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: annual ? C.ink : C.muted, fontWeight: annual ? 700 : 400 }}>
             Annual
           </span>
-          <span style={{ background: annual ? C.blue : C.border, color: annual ? C.paper : C.muted, padding: "2px 10px", borderRadius: 100, fontFamily: F.mono, fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.06em" }}>
+          <span style={{ background: annual ? C.blue : C.border, color: annual ? C.paper : C.muted2, padding: "2px 10px", borderRadius: 100, fontFamily: F.mono, fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.06em" }}>
             {annual ? "2 months free" : "Save 2 months"}
           </span>
         </div>
@@ -167,16 +167,16 @@ export default function PricingPage() {
                     Most Popular
                   </div>
                 )}
-                <div style={{ fontFamily: F.body, fontWeight: 600, fontSize: "0.875rem", color: isPopular ? "rgba(255,255,255,0.7)" : C.muted, marginBottom: "0.5rem" }}>
+                <div style={{ fontFamily: F.body, fontWeight: 600, fontSize: "0.875rem", color: isPopular ? "rgba(255,255,255,0.85)" : C.muted, marginBottom: "0.5rem" }}>
                   {plan.tier}
                 </div>
                 <div style={{ marginBottom: "1.5rem" }}>
                   <span style={{ fontFamily: F.display, fontWeight: 800, fontSize: "2.5rem", lineHeight: 1, color: isPopular ? C.paper : C.ink }}>
                     ${plan.price}
                   </span>
-                  <span style={{ fontFamily: F.body, fontSize: "0.65rem", color: isPopular ? "rgba(255,255,255,0.55)" : C.muted }}>/{plan.period}</span>
+                  <span style={{ fontFamily: F.body, fontSize: "0.65rem", color: isPopular ? "rgba(255,255,255,0.85)" : C.muted }}>/{plan.period}</span>
                   {plan.period === "year" && (
-                    <div style={{ fontFamily: F.body, fontSize: "0.6rem", color: isPopular ? "rgba(255,255,255,0.55)" : C.muted, marginTop: "0.25rem", letterSpacing: "0.04em" }}>
+                    <div style={{ fontFamily: F.body, fontSize: "0.6rem", color: isPopular ? "rgba(255,255,255,0.85)" : C.muted, marginTop: "0.25rem", letterSpacing: "0.04em" }}>
                       ${(plan.price / 12).toFixed(2)}/mo billed annually
                     </div>
                   )}

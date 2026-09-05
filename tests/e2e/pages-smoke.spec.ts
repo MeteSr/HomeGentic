@@ -153,9 +153,11 @@ test("PS.4 — /contractors shows contractor browse heading", async ({ page }) =
 
   // ContractorBrowsePage has a search area; check that main content loads
   await expect(page.getByRole("main").or(page.locator("main")).or(page.locator("[data-testid='layout']"))).toBeVisible();
-  // Check for any visible heading or contractor-related text
+  // Check for any visible heading or contractor-related text.
+  // .first() wraps the combined locator — both alternatives can match
+  // multiple elements on this page, so it must apply after combining.
   await expect(
-    page.getByRole("heading").first().or(page.getByText(/contractor|find|search/i).first())
+    page.getByRole("heading").or(page.getByText(/contractor|find|search/i)).first()
   ).toBeVisible();
 
   await assertNoA11yViolations(page);
@@ -186,9 +188,11 @@ test("PS.5 — /contractor/:id shows contractor profile", async ({ page }) => {
 
   await page.goto("/contractor/contractor-abc");
 
-  // ContractorPublicPage loads contractor details — look for name or loading state
+  // ContractorPublicPage loads contractor details — look for name or loading state.
+  // .first() wraps the combined locator — the name appears in both the heading
+  // and body copy on this page, so it must apply after combining.
   await expect(
-    page.getByText(/Jane's Plumbing/i).or(page.getByRole("heading").first())
+    page.getByText(/Jane's Plumbing/i).or(page.getByRole("heading")).first()
   ).toBeVisible({ timeout: 5000 });
 
   await assertNoA11yViolations(page);
@@ -243,9 +247,11 @@ test("PS.8 — /resale-ready shows resale ready page", async ({ page }) => {
 // ── PS.9 — /cert/:token (public score cert) ───────────────────────────────────
 
 test("PS.9 — /cert/:token shows score certificate or error state", async ({ page }) => {
-  // Generate a base64-encoded token the parser expects
-  // parseCertToken() decodes base64 JSON; we inject a valid-looking one
-  const certPayload = { score: 87, grade: "A", propertyId: "1", address: "123 Maple St", certId: "cert-001", issuedAt: Date.now() };
+  // Generate a base64-encoded token the parser expects.
+  // parseCertToken() decodes base64 JSON into a CertPayload — field names
+  // must match that interface exactly (generatedAt, not issuedAt; certified
+  // is required) or the page renders with "Invalid Date" and other gaps.
+  const certPayload = { score: 87, grade: "A", certified: true, address: "123 Maple St", certId: "cert-001", generatedAt: Date.now() };
   const token = btoa(JSON.stringify(certPayload));
 
   await page.goto(`/cert/${token}`);

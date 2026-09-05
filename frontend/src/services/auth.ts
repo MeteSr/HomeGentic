@@ -64,6 +64,10 @@ function unwrap(result: any): UserProfile {
 
 export const authService = {
   async register(args: RegisterArgs): Promise<UserProfile> {
+    if (typeof window !== "undefined" && (window as any).__e2e_register_error) {
+      const code = (window as any).__e2e_register_error as string;
+      throw new Error(code === "USERNAME_TAKEN" ? "This email is already taken." : code);
+    }
     const a = await getActor();
     const result = await a.register({
       role: { [args.role]: null },
