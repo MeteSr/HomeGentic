@@ -5,6 +5,7 @@ import { Helmet } from "react-helmet-async";
 const C = {
   blue:   "#2B34FF",
   yellow: "#FFD23F",
+  yellowText: "#8A6D00",
   coral:  "#FF5C39",
   ink:    "#0B0D1A",
   paper:  "#FCFCFD",
