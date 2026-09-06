@@ -128,6 +128,51 @@ if command -v dfx >/dev/null 2>&1 && [ -n "${CANISTER_ID_PAYMENT:-}" ]; then
     2>/dev/null \
     && echo "  ✓ Basic   → QUOTA_USER    (seed=88)" \
     || echo "  ⚠  Could not grant Basic to QUOTA_USER"
+
+  # Workflow test identities (seeds 201-204) used by workflows.integration.test.ts.
+  # Compute principals using the same SDK as the tests (@icp-sdk/core/identity),
+  # run from the frontend directory so Node.js resolves frontend/node_modules.
+  echo ""
+  echo "▶ Computing workflow identity principals…"
+  _WF_PRINCIPALS=$(cd "$FRONTEND_DIR" && node --input-type=module 2>/dev/null <<'__JSEOF__'
+import { Ed25519KeyIdentity } from '@icp-sdk/core/identity';
+for (const s of [201, 202, 203, 204]) {
+  const b = new Uint8Array(32);
+  b[0] = s;
+  process.stdout.write('SEED_' + s + '=' + Ed25519KeyIdentity.generate(b).getPrincipal().toText() + '\n');
+}
+__JSEOF__
+  )
+
+  if [ -z "$_WF_PRINCIPALS" ]; then
+    echo "  ⚠  Could not compute workflow principals — skipping seeds 201-204 grants"
+  else
+    eval "$_WF_PRINCIPALS"
+    echo "  seed=201 → ${SEED_201:-<empty>}"
+    echo "  seed=202 → ${SEED_202:-<empty>}"
+    echo "  seed=203 → ${SEED_203:-<empty>}"
+    echo "  seed=204 → ${SEED_204:-<empty>}"
+
+    [ -n "${SEED_201:-}" ] && \
+      dfx canister call payment grantSubscription "(principal \"$SEED_201\", variant { Premium })" 2>/dev/null \
+        && echo "  ✓ Premium      → WF_ONBOARD    (seed=201)" \
+        || echo "  ⚠  Could not grant Premium to WF_ONBOARD"
+
+    [ -n "${SEED_202:-}" ] && \
+      dfx canister call payment grantSubscription "(principal \"$SEED_202\", variant { Basic })" 2>/dev/null \
+        && echo "  ✓ Basic        → WF_HO         (seed=202)" \
+        || echo "  ⚠  Could not grant Basic to WF_HO"
+
+    [ -n "${SEED_203:-}" ] && \
+      dfx canister call payment grantSubscription "(principal \"$SEED_203\", variant { ContractorFree })" 2>/dev/null \
+        && echo "  ✓ ContractorFree → WF_CONTRACTOR (seed=203)" \
+        || echo "  ⚠  Could not grant ContractorFree to WF_CONTRACTOR"
+
+    [ -n "${SEED_204:-}" ] && \
+      dfx canister call payment grantSubscription "(principal \"$SEED_204\", variant { Basic })" 2>/dev/null \
+        && echo "  ✓ Basic        → WF_QUOTA      (seed=204)" \
+        || echo "  ⚠  Could not grant Basic to WF_QUOTA"
+  fi
 else
   echo "  ⚠  dfx not found or payment canister not deployed — skipping grants"
 fi
@@ -143,6 +188,12 @@ echo "▶ Running integration tests…"
 echo ""
 
 cd "$FRONTEND_DIR"
+
+# Signal to the test suite that identities have been provisioned with the correct
+# tiers. describe.skipIf(!integrationReady) guards in *.integration.test.ts check
+# for this flag so that `npm run test:unit` never runs them even when canisters
+# are deployed.
+export INTEGRATION_READY=1
 
 # Pass any extra args (e.g. test file filter) through to vitest
 npx vitest run \

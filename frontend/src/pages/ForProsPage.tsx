@@ -146,7 +146,7 @@ export default function ForProsPage() {
             onClick={(e) => { e.preventDefault(); navigate("/"); }}
             style={{ textDecoration: "none", fontFamily: F.display, fontWeight: 800, fontSize: "22px", letterSpacing: "-0.5px", color: C.ink }}
           >
-            Home<span style={{ color: C.yellow }}>Gentic</span>
+            Home<span style={{ color: C.yellowText }}>Gentic</span>
           </a>
 
           <ul
@@ -376,7 +376,7 @@ export default function ForProsPage() {
           style={{ padding: "72px 56px", background: C.ink }}
         >
           <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
-            <div style={{ fontFamily: F.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(252,252,253,0.4)", marginBottom: "1rem" }}>
+            <div style={{ fontFamily: F.mono, fontSize: "0.65rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(252,252,253,0.5)", marginBottom: "1rem" }}>
               🏡 Real Estate Agents
             </div>
             <h2 style={{ fontFamily: F.display, fontSize: "clamp(1.8rem, 3.5vw, 2.6rem)", fontWeight: 800, color: C.paper, marginBottom: "1rem" }}>
@@ -407,7 +407,7 @@ export default function ForProsPage() {
             <h2 style={{ fontFamily: F.display, fontSize: "clamp(2rem, 4vw, 3rem)", fontWeight: 800, color: C.paper, marginBottom: "1rem", lineHeight: 1.1 }}>
               Join 3,400+ homeowners<br />already on the network.
             </h2>
-            <p style={{ fontFamily: F.body, fontSize: "1rem", color: "rgba(255,255,255,0.7)", marginBottom: "2rem", lineHeight: 1.7 }}>
+            <p style={{ fontFamily: F.body, fontSize: "1rem", color: "rgba(255,255,255,0.85)", marginBottom: "2rem", lineHeight: 1.7 }}>
               Set up your profile in minutes. Leads start flowing as soon as you're verified.
             </p>
             <button
@@ -421,7 +421,7 @@ export default function ForProsPage() {
             >
               Create your profile
             </button>
-            <div style={{ fontFamily: F.body, fontSize: "0.8rem", color: "rgba(255,255,255,0.5)" }}>
+            <div style={{ fontFamily: F.body, fontSize: "0.8rem", color: "rgba(255,255,255,0.85)" }}>
               Free to join · No credit card required · Cancel anytime
             </div>
           </div>
@@ -437,12 +437,12 @@ export default function ForProsPage() {
               <span style={{ fontFamily: F.display, fontSize: "24px", fontWeight: 800, color: C.paper, marginBottom: "14px", display: "block" }}>
                 Home<span style={{ color: C.yellow }}>Gentic</span>
               </span>
-              <p style={{ fontFamily: F.body, fontSize: "14px", color: "rgba(252,252,253,0.45)", lineHeight: 1.65, maxWidth: 220, margin: 0 }}>
+              <p style={{ fontFamily: F.body, fontSize: "14px", color: "rgba(252,252,253,0.5)", lineHeight: 1.65, maxWidth: 220, margin: 0 }}>
                 The verified maintenance record that makes your home worth more and easier to sell.
               </p>
             </div>
             <div>
-              <div style={{ fontFamily: F.mono, fontSize: "11px", fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: "rgba(252,252,253,0.35)", marginBottom: "20px" }}>
+              <div style={{ fontFamily: F.mono, fontSize: "11px", fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: "rgba(252,252,253,0.5)", marginBottom: "20px" }}>
                 For Pros
               </div>
               <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -469,7 +469,7 @@ export default function ForProsPage() {
               </ul>
             </div>
             <div>
-              <div style={{ fontFamily: F.mono, fontSize: "11px", fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: "rgba(252,252,253,0.35)", marginBottom: "20px" }}>
+              <div style={{ fontFamily: F.mono, fontSize: "11px", fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: "rgba(252,252,253,0.5)", marginBottom: "20px" }}>
                 Company
               </div>
               <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -481,12 +481,12 @@ export default function ForProsPage() {
               </ul>
             </div>
           </div>
-          <div style={{ borderTop: "1px solid rgba(252,252,253,0.08)", paddingTop: "24px", display: "flex", alignItems: "center", justifyContent: "space-between", fontFamily: F.body, fontSize: "13px", color: "rgba(252,252,253,0.35)" }}>
+          <div style={{ borderTop: "1px solid rgba(252,252,253,0.08)", paddingTop: "24px", display: "flex", alignItems: "center", justifyContent: "space-between", fontFamily: F.body, fontSize: "13px", color: "rgba(252,252,253,0.5)" }}>
             <span>© 2026 HomeGentic Inc.</span>
             <div style={{ display: "flex", gap: "24px" }}>
-              <Link to="/privacy" style={{ color: "rgba(252,252,253,0.35)", textDecoration: "none" }}>Privacy</Link>
-              <Link to="/terms"   style={{ color: "rgba(252,252,253,0.35)", textDecoration: "none" }}>Terms</Link>
-              <Link to="/support" style={{ color: "rgba(252,252,253,0.35)", textDecoration: "none" }}>Support</Link>
+              <Link to="/privacy" style={{ color: "rgba(252,252,253,0.5)", textDecoration: "none" }}>Privacy</Link>
+              <Link to="/terms"   style={{ color: "rgba(252,252,253,0.5)", textDecoration: "none" }}>Terms</Link>
+              <Link to="/support" style={{ color: "rgba(252,252,253,0.5)", textDecoration: "none" }}>Support</Link>
             </div>
           </div>
         </footer>

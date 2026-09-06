@@ -35,6 +35,7 @@ function StarRating({ value, onChange }: { value: number; onChange: (v: number) 
         <button
           key={n}
           type="button"
+          aria-label={`Rate ${n} star${n === 1 ? "" : "s"}`}
           onClick={() => onChange(n)}
           onMouseEnter={() => setHover(n)}
           onMouseLeave={() => setHover(0)}
@@ -173,14 +174,14 @@ export default function ContractorPublicPage() {
           <div style={{ background: UI.ink, padding: "1.5rem" }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem" }}>
               <div>
-                <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.15em", textTransform: "uppercase", color: V2_COLORS.muted, marginBottom: "0.375rem" }}>
+                <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.15em", textTransform: "uppercase", color: V2_COLORS.mutedOnDark, marginBottom: "0.375rem" }}>
                   {contractor.specialties.join(" · ") || "—"}
                 </p>
                 <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1, color: UI.paper, marginBottom: "0.375rem" }}>
                   {contractor.name}
                 </h1>
                 {contractor.serviceArea && (
-                  <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: V2_COLORS.muted }}>
+                  <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.06em", color: V2_COLORS.mutedOnDark }}>
                     {contractor.serviceArea}
                   </p>
                 )}
@@ -188,7 +189,7 @@ export default function ContractorPublicPage() {
               <div style={{ textAlign: "right", flexShrink: 0 }}>
                 <div style={{ width: "3rem", height: "3rem", border: `2px solid ${UI.rust}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
                   <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.1rem", lineHeight: 1, color: UI.paper }}>{contractor.trustScore}</span>
-                  <span style={{ fontFamily: UI.mono, fontSize: "0.45rem", color: V2_COLORS.muted }}>/100</span>
+                  <span style={{ fontFamily: UI.mono, fontSize: "0.45rem", color: V2_COLORS.mutedOnDark }}>/100</span>
                 </div>
               </div>
             </div>

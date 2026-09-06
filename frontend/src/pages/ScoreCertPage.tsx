@@ -90,13 +90,13 @@ export default function ScoreCertPage() {
     year: "numeric", month: "long", day: "numeric",
   });
 
-  const certTitle = `HomeGentic Score Certificate — Grade ${payload.grade}`;
+  const certTitle = `HomeGentic Score Certificate — Grade ${payload.grade} | HomeGentic™`;
   const certDesc = `HomeGentic Score ${payload.score}/100, Grade ${payload.grade}. Certified on ${generatedDate}.`;
 
   return (
     <>
       <Helmet>
-        <title>{certTitle} | HomeGentic™</title>
+        <title>{certTitle}</title>
         <meta name="description" content={certDesc} />
         <meta property="og:title" content={certTitle} />
         <meta property="og:description" content={certDesc} />
@@ -116,17 +116,17 @@ export default function ScoreCertPage() {
 
         {/* Header */}
         <div style={{ background: UI.ink, padding: innerPad }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.5rem", opacity: 0.7 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.5rem" }}>
             <Shield size={14} color={V2_COLORS.paper} />
             <span style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.2em", textTransform: "uppercase", color: V2_COLORS.paper }}>
               HOMEGENTIC
             </span>
-            <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: V2_COLORS.muted }}>Score Certificate</span>
+            <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: V2_COLORS.mutedOnDark }}>Score Certificate</span>
           </div>
           <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.5rem", lineHeight: 1.2, color: V2_COLORS.paper, marginBottom: "0.375rem" }}>
             {payload.address}
           </h1>
-          <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: V2_COLORS.muted }}>
+          <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", color: V2_COLORS.mutedOnDark }}>
             Issued {generatedDate}
           </p>
         </div>

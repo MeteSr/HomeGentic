@@ -5,6 +5,7 @@ import { Helmet } from "react-helmet-async";
 const C = {
   blue:   "#2B34FF",
   yellow: "#FFD23F",
+  yellowText: "#8A6D00",
   coral:  "#FF5C39",
   ink:    "#0B0D1A",
   paper:  "#FCFCFD",
@@ -187,7 +188,7 @@ export default function PrivacyPolicyPage() {
         <header style={{ borderBottom: `1px solid ${C.border}`, position: "sticky", top: 0, background: C.paper, zIndex: 50 }}>
           <div style={{ maxWidth: "80rem", margin: "0 auto", padding: "0 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", height: "3.5rem" }}>
             <Link to="/" style={{ textDecoration: "none", fontFamily: F.display, fontWeight: 800, fontSize: "1.1rem", letterSpacing: "-0.5px", color: C.ink }}>
-              Home<span style={{ color: C.yellow }}>Gentic</span>
+              Home<span style={{ color: C.yellowText }}>Gentic</span>
             </Link>
             <nav style={{ display: "flex", gap: "1.5rem", alignItems: "center" }}>
               <Link to="/pricing" style={{ textDecoration: "none", fontFamily: F.mono, fontSize: "0.7rem", letterSpacing: "0.12em", textTransform: "uppercase" as const, color: C.muted }}>PRICING</Link>
@@ -252,12 +253,12 @@ export default function PrivacyPolicyPage() {
         {/* Footer */}
         <footer style={{ background: C.ink, padding: "32px 1.5rem", fontFamily: F.body }}>
           <div style={{ maxWidth: "52rem", margin: "0 auto", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
-            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.35)" }}>
+            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
               © 2025 HomeGentic
             </span>
             <div style={{ display: "flex", gap: 24 }}>
               {[["Security", "/privacy#security"], ["Privacy", "/privacy"], ["Terms", "/terms"], ["Contact", "/support"]].map(([label, href]) => (
-                <Link key={label} to={href} style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", textDecoration: "none" }}>
+                <Link key={label} to={href} style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", textDecoration: "none" }}>
                   {label}
                 </Link>
               ))}

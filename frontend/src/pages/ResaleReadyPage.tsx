@@ -141,8 +141,8 @@ export default function ResaleReadyPage() {
         <div style={{ background: UI.ink, padding: "2.5rem", marginBottom: "2rem", display: "flex", alignItems: "center", gap: "2rem", flexWrap: "wrap" }}>
           <div style={{ flex: 1 }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
-              <Trophy size={14} color={UI.gold} />
-              <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: UI.gold }}>
+              <Trophy size={14} color={V2_COLORS.mutedOnDark} />
+              <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: V2_COLORS.mutedOnDark }}>
                 Resale-Ready
               </p>
             </div>

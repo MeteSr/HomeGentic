@@ -11,9 +11,12 @@ configure({ asyncUtilTimeout: 10000 });
 
 // Vitest global setup — runs before each test file.
 // Provides a minimal window.location.origin for services that reference it.
+// configurable: true so this can safely run more than once against the same
+// global (e.g. under a pool that reuses a worker's environment across files).
 Object.defineProperty(window, "location", {
   value: { origin: "http://localhost:3000", href: "http://localhost:3000/" },
   writable: true,
+  configurable: true,
 });
 
 // Default matchMedia stub — jsdom doesn't implement matchMedia.

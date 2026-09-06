@@ -286,9 +286,9 @@ export function MobileJobsPage() {
       <div style={{ padding: "10px 2px 16px", display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
         <div>
           <div style={{ font: `500 9px/1 ${F.mono}`, letterSpacing: ".14em", color: M.muted }}>JOBS</div>
-          <div style={{ font: `800 27px/1.12 ${F.display}`, color: M.ink, letterSpacing: "-0.03em", marginTop: 9 }}>
+          <h1 style={{ font: `800 27px/1.12 ${F.display}`, color: M.ink, letterSpacing: "-0.03em", margin: "9px 0 0" }}>
             {openJobs.length} open, {totalLogged} logged
-          </div>
+          </h1>
         </div>
         <button
           onClick={() => navigate("/jobs/new")}

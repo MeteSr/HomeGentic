@@ -153,9 +153,9 @@ export function MobileMaintenancePage() {
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <div style={{ padding: "10px 2px 16px" }}>
         <div style={{ font: `500 9px/1 ${F.mono}`, letterSpacing: ".14em", color: M.muted }}>MAINTENANCE</div>
-        <div style={{ font: `800 27px/1.12 ${F.display}`, color: M.ink, letterSpacing: "-0.03em", marginTop: 9 }}>
+        <h1 style={{ font: `800 27px/1.12 ${F.display}`, color: M.ink, letterSpacing: "-0.03em", margin: "9px 0 0" }}>
           What's coming up
-        </div>
+        </h1>
       </div>
 
       {/* ── Schedule card ─────────────────────────────────────────────────── */}

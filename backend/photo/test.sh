@@ -30,10 +30,70 @@ dfx canister call photo getPhotosByJob '("JOB_1")'
 echo "▶ Get photos by property (PROP_1)..."
 dfx canister call photo getPhotosByProperty '("PROP_1")'
 
+echo "▶ Get photos by job (JOB_1) — expect 2 photos..."
+PHOTOS_BY_JOB=$(dfx canister call photo getPhotosByJob '("JOB_1")')
+echo "$PHOTOS_BY_JOB"
+PHOTO_COUNT=$(echo "$PHOTOS_BY_JOB" | grep -c "id = " || true)
+if [ "$PHOTO_COUNT" -ge "2" ]; then
+  echo "  ✓ Both photos present in getPhotosByJob"
+fi
+
 echo "▶ Get metrics..."
 dfx canister call photo getMetrics
 
 echo "✅ Photo tests passed!"
+
+# ─── §NEG Photo negative cases ───────────────────────────────────────────────
+echo ""
+echo "=== Photo — Negative / Edge-Case Tests ==="
+
+echo ""
+echo "── [N1] uploadPhoto — empty bytes → expect InvalidInput ─────────────────"
+EMPTY_BYTES=$(dfx canister call photo uploadPhoto '(
+  "JOB_NEG",
+  "PROP_NEG",
+  variant { PreConstruction },
+  "Empty payload — probe call",
+  "eee555fff666eee555fff666eee555fff666eee555fff666eee555fff666eee5",
+  vec {}
+)' 2>&1 || true)
+echo "$EMPTY_BYTES"
+if echo "$EMPTY_BYTES" | grep -qiE "InvalidInput|err"; then
+  echo "  ✓ empty byte payload correctly rejected"
+else
+  echo "  ↳ ❌ Expected InvalidInput for empty bytes"
+fi
+
+echo ""
+echo "── [N2] uploadPhoto — duplicate hash → expect InvalidInput ──────────────"
+# Same hash as the first upload above (abc123…) — should be deduplicated
+DUP_HASH=$(dfx canister call photo uploadPhoto '(
+  "JOB_DUP",
+  "PROP_DUP",
+  variant { PostConstruction },
+  "Duplicate photo — same hash as JOB_1 PreConstruction",
+  "abc123def456abc123def456abc123def456abc123def456abc123def456abc1",
+  vec { 255 : nat8; 216 : nat8; 255 : nat8 }
+)' 2>&1 || true)
+echo "$DUP_HASH"
+if echo "$DUP_HASH" | grep -qiE "InvalidInput|AlreadyExists|err"; then
+  echo "  ✓ duplicate hash correctly rejected"
+else
+  echo "  ↳ ❌ Expected error for duplicate SHA-256 hash"
+fi
+
+echo ""
+echo "── [N3] getPhotosByJob — unknown job returns empty list ─────────────────"
+EMPTY_JOB=$(dfx canister call photo getPhotosByJob '("JOB_DOES_NOT_EXIST")')
+echo "$EMPTY_JOB"
+if echo "$EMPTY_JOB" | grep -qE "vec \{\}|record \{\}"; then
+  echo "  ✓ unknown jobId returns empty list"
+else
+  echo "  ↳ ❌ Expected empty list for unknown jobId (got: $EMPTY_JOB)"
+fi
+
+echo ""
+echo "✅ Photo negative case tests complete!"
 
 # ─── §EXP Payment-wired tier enforcement ─────────────────────────────────────
 # After setPaymentCanisterId is called, photo upload quotas must consult the

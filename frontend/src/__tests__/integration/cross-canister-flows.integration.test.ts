@@ -48,6 +48,9 @@ const QUOTE_CANISTER_ID    = (process.env as any).QUOTE_CANISTER_ID    || "";
 
 const deployed = !!(JOB_CANISTER_ID && PROPERTY_CANISTER_ID && QUOTE_CANISTER_ID);
 
+// Only run when explicitly enabled by the integration test harness.
+const integrationReady = deployed && !!(process.env as any).INTEGRATION_READY;
+
 // Seed → principal mapping (computed offline, used in test-integration.sh grants):
 //   seed=55  zcku7-...  WORKFLOW_USER  Premium
 //   seed=77  lodek-...  TIER_USER      Basic
@@ -117,7 +120,7 @@ const PROP_ARGS = {
 // the shared seed=42 homeowner identity across runs.
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe.skipIf(!deployed)("Flow 1: DIY full workflow", () => {
+describe.skipIf(!integrationReady)("Flow 1: DIY full workflow", () => {
   let propId: string;
   let jobId: string;
   let workflowPropertyActor: any;
@@ -194,7 +197,7 @@ describe.skipIf(!deployed)("Flow 1: DIY full workflow", () => {
 // both signatures confirmed, job fully verified.
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe.skipIf(!deployed)("Flow 2: Contractor dual-signature workflow", () => {
+describe.skipIf(!integrationReady)("Flow 2: Contractor dual-signature workflow", () => {
   let propId: string;
   let jobId: string;
   let inviteToken: string;
@@ -292,7 +295,7 @@ describe.skipIf(!deployed)("Flow 2: Contractor dual-signature workflow", () => {
 // granted by scripts/test-integration.sh, so the second registration must fail.
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe.skipIf(!deployed)("Flow 3: Basic-tier property registration limit (property → payment cross-call)", () => {
+describe.skipIf(!integrationReady)("Flow 3: Basic-tier property registration limit (property → payment cross-call)", () => {
   let tierPropertyActor: any;
   const registrationResults: Array<{ ok: boolean; propId?: string; errorKey?: string; errorMsg?: string }> = [];
 
@@ -357,7 +360,7 @@ describe.skipIf(!deployed)("Flow 3: Basic-tier property registration limit (prop
 // scripts/test-integration.sh, so the fourth request must fail.
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe.skipIf(!deployed)("Flow 4: Quote open-request limit enforcement (quote → payment cross-call)", () => {
+describe.skipIf(!integrationReady)("Flow 4: Quote open-request limit enforcement (quote → payment cross-call)", () => {
   let quotePropActor: any;
   let quoteActor: any;
   let quotePropId: string;
@@ -445,7 +448,7 @@ describe.skipIf(!deployed)("Flow 4: Quote open-request limit enforcement (quote 
 // PendingReview → Basic (admin verifyProperty — documented but not automated here)
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe.skipIf(!deployed)("Flow 5: Property verification state machine", () => {
+describe.skipIf(!integrationReady)("Flow 5: Property verification state machine", () => {
   let propId: string;
   let workflowPropertyActor5: any;
 
