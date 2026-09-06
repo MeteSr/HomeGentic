@@ -8,7 +8,10 @@ export default defineConfig({
   fullyParallel: true,
   retries: 0,
   workers: process.env.CI ? 2 : undefined,
-  reporter: "list",
+  // The "github" reporter turns each failure into a GitHub Actions check
+  // annotation — without it a CI failure only surfaces "exit code 1" with
+  // no indication of which test failed short of downloading the artifact.
+  reporter: process.env.CI ? [["list"], ["github"]] : "list",
 
   use: {
     baseURL: "http://localhost:3000",
