@@ -94,12 +94,13 @@ export default function JobCreatePage() {
 
   const update = (key: string, value: string | boolean) => setForm((f) => ({ ...f, [key]: value }));
 
-  // Mirrors handleSubmit's own validation so the button can't be clicked
-  // into a toast error for a field that's visibly still empty.
+  // Disabled only while the form is essentially untouched (neither of the
+  // two required inputs has anything in it) — once the user has started
+  // on one of them, the button is clickable and handleSubmit's own
+  // per-field toasts guard whichever one is still missing.
   const canSubmit =
     !!form.propertyId &&
-    (form.isDiy || form.contractorName.trim().length > 0) &&
-    !!form.amount;
+    (form.isDiy || form.contractorName.trim().length > 0 || !!form.amount);
 
   const handleSubmit = async () => {
     if (!form.propertyId) { toast.error("Please select a property"); return; }
