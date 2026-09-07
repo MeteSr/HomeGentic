@@ -33,15 +33,17 @@ const SYSTEM_NAME_TO_URL_KEY: Record<string, string> = Object.fromEntries(
 );
 
 const C = {
-  blue:   "#2B34FF",
-  yellow: "#FFD23F",
-  coral:  "#FF5C39",
-  ink:    "#0B0D1A",
-  paper:  "#FCFCFD",
-  muted:  "#6B7080",
-  border: "#EDEEF2",
-  white:  "#FFFFFF",
-  blueFg: "#F3F4FF",
+  blue:      "#2B34FF",
+  yellow:    "#FFD23F",
+  coral:     "#FF5C39",
+  coralText: "#C2341A",
+  amberText: "#8F5500",
+  ink:       "#0B0D1A",
+  paper:     "#FCFCFD",
+  muted:     "#6B7080",
+  border:    "#EDEEF2",
+  white:     "#FFFFFF",
+  blueFg:    "#F3F4FF",
 };
 const F = {
   display: "'Bricolage Grotesque', 'Inter', sans-serif",
@@ -50,8 +52,8 @@ const F = {
 };
 
 const URGENCY_COLOR: Record<string, string> = {
-  Critical: C.coral,
-  Soon:     "#FFB340",
+  Critical: C.coralText,
+  Soon:     C.amberText,
   Watch:    C.muted,
   Good:     C.blue,
 };
@@ -193,7 +195,7 @@ function ForecastView({ input }: { input: ForecastInput }) {
         <div style={{ fontFamily: F.mono, fontSize: "0.62rem", letterSpacing: "0.12em", textTransform: "uppercase", color: C.muted }}>
           10-year budget
         </div>
-        <div style={{ fontFamily: F.display, fontWeight: 800, fontSize: "1.75rem", color: tenYearBudget > 0 ? C.coral : C.ink }}>
+        <div style={{ fontFamily: F.display, fontWeight: 800, fontSize: "1.75rem", color: tenYearBudget > 0 ? C.coralText : C.ink }}>
           ${tenYearBudget.toLocaleString()}
         </div>
       </div>

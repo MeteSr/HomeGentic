@@ -94,6 +94,14 @@ export default function JobCreatePage() {
 
   const update = (key: string, value: string | boolean) => setForm((f) => ({ ...f, [key]: value }));
 
+  // Disabled only while the form is essentially untouched (neither of the
+  // two required inputs has anything in it) — once the user has started
+  // on one of them, the button is clickable and handleSubmit's own
+  // per-field toasts guard whichever one is still missing.
+  const canSubmit =
+    !!form.propertyId &&
+    (form.isDiy || form.contractorName.trim().length > 0 || !!form.amount);
+
   const handleSubmit = async () => {
     if (!form.propertyId) { toast.error("Please select a property"); return; }
     if (!form.isDiy && !form.contractorName.trim()) { toast.error("Please enter the contractor name"); return; }
@@ -370,7 +378,7 @@ export default function JobCreatePage() {
             </div>
           )}
 
-          <Button loading={loading} onClick={handleSubmit} icon={<CheckCircle size={14} />} size="lg" style={{ width: "100%" }}>
+          <Button disabled={!canSubmit} loading={loading} onClick={handleSubmit} icon={<CheckCircle size={14} />} size="lg" style={{ width: "100%" }}>
             {editJob ? "Save Changes" : "Log Job to Blockchain"}
           </Button>
         </div>

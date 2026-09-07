@@ -201,10 +201,10 @@ export default function ReportPage() {
 
         {/* Cover */}
         <div style={{ background: UI.ink, padding: "2.5rem", color: V2_COLORS.paper, marginBottom: "2rem" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginBottom: "2rem", opacity: 0.7 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginBottom: "2rem" }}>
             <Shield size={16} />
             <span style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.7rem", letterSpacing: "0.2em", textTransform: "uppercase" }}>HOMEGENTIC</span>
-            <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: V2_COLORS.muted }}>Property History Report</span>
+            <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: V2_COLORS.mutedOnDark }}>Property History Report</span>
           </div>
 
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1.5rem", marginBottom: "1.75rem" }}>
@@ -212,7 +212,7 @@ export default function ReportPage() {
               <h1 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "2rem", lineHeight: 1.1, color: V2_COLORS.paper, marginBottom: "0.375rem" }}>
                 {snapshot.address}
               </h1>
-              <p style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: V2_COLORS.muted, marginBottom: "1.25rem", letterSpacing: "0.06em" }}>
+              <p style={{ fontFamily: UI.mono, fontSize: "0.75rem", color: V2_COLORS.mutedOnDark, marginBottom: "1.25rem", letterSpacing: "0.06em" }}>
                 {snapshot.city}, {snapshot.state} {snapshot.zipCode}
               </p>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, auto)", justifyContent: "start", gap: "0.25rem 2rem" }}>
@@ -222,7 +222,7 @@ export default function ReportPage() {
                   { label: "Size",  value: `${Number(snapshot.squareFeet).toLocaleString()} sq ft` },
                 ] as { label: string; value: string }[]).map(({ label, value }) => (
                   <div key={label}>
-                    <p style={{ fontFamily: UI.mono, fontSize: "0.5rem", letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.30)", marginBottom: "0.1rem" }}>{label}</p>
+                    <p style={{ fontFamily: UI.mono, fontSize: "0.5rem", letterSpacing: "0.14em", textTransform: "uppercase", color: V2_COLORS.mutedOnDark, marginBottom: "0.1rem" }}>{label}</p>
                     <p style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: V2_COLORS.cobalTint }}>{value}</p>
                   </div>
                 ))}
@@ -242,7 +242,7 @@ export default function ReportPage() {
             )}
           </div>
 
-          <div style={{ marginTop: "1.75rem", paddingTop: "1.25rem", borderTop: "1px solid rgba(255,255,255,0.1)", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem", fontFamily: UI.mono, fontSize: "0.6rem", color: V2_COLORS.muted }}>
+          <div style={{ marginTop: "1.75rem", paddingTop: "1.25rem", borderTop: "1px solid rgba(255,255,255,0.1)", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem", fontFamily: UI.mono, fontSize: "0.6rem", color: V2_COLORS.mutedOnDark }}>
             <span>Report ID: {snapshot.snapshotId}</span>
             <span>Generated: {new Date(snapshot.generatedAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</span>
           </div>

@@ -291,10 +291,16 @@ describe.skipIf(!deployed)("getOpenRequestsForMe — returns open requests visib
   it("caller with no serviceZips registered sees all open requests (opt-in-to-all default)", async () => {
     // The test identity is not a registered contractor → contrActor.getContractor()
     // returns #err(#NotFound) → quote canister falls back to showing all requests.
+    //
+    // getRequests() calls getOpenRequests (Open only).
+    // getOpenRequestsForMe() returns Open + Quoted (still biddable).
+    // So forMe.length >= openCount is the correct invariant — exact equality
+    // is not guaranteed because Quoted requests may also be included, and canister
+    // state accumulates across integration runs.
     const all    = await quoteService.getRequests();
     const forMe  = await quoteService.getOpenRequestsForMe();
     const openCount = all.filter((r) => r.status === "open" || r.status === "quoted").length;
-    expect(forMe.length).toBe(openCount);
+    expect(forMe.length).toBeGreaterThanOrEqual(openCount);
   });
 });
 

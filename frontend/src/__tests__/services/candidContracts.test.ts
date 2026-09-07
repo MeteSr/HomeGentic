@@ -102,21 +102,26 @@ function extractServiceDef(idlFactory: (opts: { IDL: ReturnType<typeof mockIDL> 
 
 // ── Tests — one describe block per canister ───────────────────────────────────
 
-import { idlFactory as authIdl }        from "@/services/auth";
-import { idlFactory as propertyIdl }    from "@/services/property";
-import { idlFactory as jobIdl }         from "@/services/job";
-import { idlFactory as contractorIdl }  from "@/services/contractor";
-import { idlFactory as quoteIdl }       from "@/services/quote";
-import { idlFactory as paymentIdl }     from "@/services/payment";
-import { idlFactory as photoIdl }       from "@/services/photo";
-import { idlFactory as reportIdl }      from "@/services/report";
-import { idlFactory as maintenanceIdl } from "@/services/maintenance";
-import { idlFactory as sensorIdl }      from "@/services/sensor";
-import { idlFactory as listingIdl }     from "@/services/listing";
-import { idlFactory as recurringIdl }   from "@/services/recurringService";
-import { idlFactory as aiProxyIdl }     from "@/services/aiProxy";
-import { idlFactory as monitoringIdl }  from "@/services/monitoringService";
-import { idlFactory as billsIdl }       from "@/services/billService";
+// Imported straight from declarations/ rather than through services/ — the
+// service modules are widely `vi.mock()`-ed elsewhere in the suite (often
+// without `importOriginal`, replacing every export including `idlFactory`),
+// so importing through them here makes this contract test hostage to
+// whatever mock last touched the same module in the same worker.
+import { idlFactory as authIdl }        from "@/declarations/auth";
+import { idlFactory as propertyIdl }    from "@/declarations/property";
+import { idlFactory as jobIdl }         from "@/declarations/job";
+import { idlFactory as contractorIdl }  from "@/declarations/contractor";
+import { idlFactory as quoteIdl }       from "@/declarations/quote";
+import { idlFactory as paymentIdl }     from "@/declarations/payment";
+import { idlFactory as photoIdl }       from "@/declarations/photo";
+import { idlFactory as reportIdl }      from "@/declarations/report";
+import { idlFactory as maintenanceIdl } from "@/declarations/maintenance";
+import { idlFactory as sensorIdl }      from "@/declarations/sensor";
+import { idlFactory as listingIdl }     from "@/declarations/listing";
+import { idlFactory as recurringIdl }   from "@/declarations/recurring";
+import { idlFactory as aiProxyIdl }     from "@/declarations/ai_proxy";
+import { idlFactory as monitoringIdl }  from "@/declarations/monitoring";
+import { idlFactory as billsIdl }       from "@/declarations/bills";
 
 describe("Candid contract snapshots — method arity", () => {
   it("auth", ()         => { expect(extractServiceDef(authIdl as any)).toMatchSnapshot(); });

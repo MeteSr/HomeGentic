@@ -661,7 +661,7 @@ export default function BuyersTruthKitPage() {
       {/* Nav */}
       <nav style={navStyle} className="btk-nav-bar">
         <Link to="/" style={{ fontFamily:F.display, fontSize:22, fontWeight:800, color:C.ink, textDecoration:"none", letterSpacing:"-0.5px" }}>
-          Home<span style={{ color:C.yellow }}>Gentic</span>
+          Home<span style={{ color:C.yellowText }}>Gentic</span>
         </Link>
         <Link to="/" style={{ display:"flex", alignItems:"center", gap:6, fontSize:14, fontWeight:500, color:C.muted, textDecoration:"none", padding:"8px 14px", borderRadius:8 }}>
           <ChevronLeft size={15} /> Back to Home

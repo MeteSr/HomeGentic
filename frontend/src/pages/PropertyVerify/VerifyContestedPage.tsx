@@ -27,12 +27,31 @@ export default function VerifyContestedPage() {
   const { id }    = useParams<{ id: string }>();
   const { claim } = useVerifyContext();
 
+  const windowExpired = !!claim.conflictWindowEndsAt && Date.now() > claim.conflictWindowEndsAt;
+
   const myChecks = [
     { label: "Identity verified",  ok: claim.identityVerified },
     { label: "Warranty deed",      ok: claim.verificationMethod === "DeedRecord" },
     { label: "Name match",         ok: !claim.nameOnDocument || !claim.nameOnId || claim.nameOnDocument === claim.nameOnId },
     { label: "Prior history",      ok: true },
   ];
+
+  if (windowExpired) {
+    return (
+      <Layout>
+        <div style={{ maxWidth: 480, margin: "4rem auto", padding: "0 24px", textAlign: "center" }}>
+          <div style={{ fontSize: 40, marginBottom: 16 }}>⏳</div>
+          <h1 style={{ fontFamily: V2_FONTS.display, fontSize: 22, fontWeight: 700, color: V2_COLORS.ink, marginBottom: 8 }}>
+            Review window closed
+          </h1>
+          <p style={{ fontFamily: V2_FONTS.body, color: V2_COLORS.muted, fontSize: 14, lineHeight: 1.6 }}>
+            The evidence window for this dispute over {claim.address} has expired — it's no longer active for new
+            submissions. A HomeGentic reviewer will finalize ownership based on the evidence already on file.
+          </p>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

@@ -134,22 +134,22 @@ export default function MarketIntelligencePage() {
         {/* Controls */}
         <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper, padding: "1.25rem", marginBottom: "1.5rem", display: "flex", flexWrap: "wrap", gap: "1rem", alignItems: "flex-end" }}>
           <div style={{ flex: "1 1 12rem" }}>
-            <label style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, display: "block", marginBottom: "0.375rem" }}>
+            <label htmlFor="market-property" style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, display: "block", marginBottom: "0.375rem" }}>
               Property
             </label>
-            <select className="form-input" value={selectedId} onChange={(e) => setSelectedId(e.target.value)}>
+            <select id="market-property" className="form-input" value={selectedId} onChange={(e) => setSelectedId(e.target.value)}>
               {properties.map((p) => (
                 <option key={String(p.id)} value={String(p.id)}>{p.address}, {p.city}</option>
               ))}
             </select>
           </div>
           <div style={{ flex: "1 1 10rem" }}>
-            <label style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, display: "block", marginBottom: "0.375rem" }}>
+            <label htmlFor="market-max-budget" style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, display: "block", marginBottom: "0.375rem" }}>
               Max Budget
             </label>
             <div style={{ position: "relative" }}>
               <span style={{ position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)", color: UI.inkLight, fontSize: "0.875rem", pointerEvents: "none" }}>$</span>
-              <input className="form-input" type="number" min="0" step="1000" value={budget} onChange={(e) => setBudget(e.target.value)} style={{ paddingLeft: "1.5rem" }} />
+              <input id="market-max-budget" className="form-input" type="number" min="0" step="1000" value={budget} onChange={(e) => setBudget(e.target.value)} style={{ paddingLeft: "1.5rem" }} />
             </div>
           </div>
           <Button loading={loading} onClick={runAnalysis} icon={<BarChart2 size={14} />}>

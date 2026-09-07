@@ -25,19 +25,24 @@
 
 import { describe, it, expect } from "vitest";
 import { IDL } from "@icp-sdk/core/candid";
-import { idlFactory as authIdlFactory }        from "../../services/auth";
-import { idlFactory as paymentIdlFactory }     from "../../services/payment";
-import { idlFactory as jobIdlFactory }         from "../../services/job";
-import { idlFactory as propertyIdlFactory }    from "../../services/property";
-import { idlFactory as listingIdlFactory }     from "../../services/listing";
-import { idlFactory as quoteIdlFactory }       from "../../services/quote";
-import { idlFactory as contractorIdlFactory }  from "../../services/contractor";
-import { idlFactory as photoIdlFactory }       from "../../services/photo";
-import { idlFactory as reportIdlFactory }      from "../../services/report";
-import { idlFactory as sensorIdlFactory }      from "../../services/sensor";
-import { idlFactory as maintenanceIdlFactory } from "../../services/maintenance";
-import { idlFactory as billsIdlFactory }       from "../../services/billService";
-import { idlFactory as aiProxyIdlFactory }     from "../../services/aiProxy";
+// Imported straight from declarations/ rather than through services/ — the
+// service modules are widely `vi.mock()`-ed elsewhere in the suite (often
+// without `importOriginal`, replacing every export including `idlFactory`),
+// so importing through them here makes this contract test hostage to
+// whatever mock last touched the same module in the same worker.
+import { idlFactory as authIdlFactory }        from "../../declarations/auth";
+import { idlFactory as paymentIdlFactory }     from "../../declarations/payment";
+import { idlFactory as jobIdlFactory }         from "../../declarations/job";
+import { idlFactory as propertyIdlFactory }    from "../../declarations/property";
+import { idlFactory as listingIdlFactory }     from "../../declarations/listing";
+import { idlFactory as quoteIdlFactory }       from "../../declarations/quote";
+import { idlFactory as contractorIdlFactory }  from "../../declarations/contractor";
+import { idlFactory as photoIdlFactory }       from "../../declarations/photo";
+import { idlFactory as reportIdlFactory }      from "../../declarations/report";
+import { idlFactory as sensorIdlFactory }      from "../../declarations/sensor";
+import { idlFactory as maintenanceIdlFactory } from "../../declarations/maintenance";
+import { idlFactory as billsIdlFactory }       from "../../declarations/bills";
+import { idlFactory as aiProxyIdlFactory }     from "../../declarations/ai_proxy";
 
 // ── Helper ─���──────────────────────────────────────────────────────────────────
 

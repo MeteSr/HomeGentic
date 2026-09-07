@@ -108,3 +108,68 @@ echo "$TRUSTED_AFTER" | grep -q "$CALLER_TEST_PRINCIPAL" \
 
 echo ""
 echo "✅ Contractor trusted canister tests complete!"
+
+# ─── §R submitReview negative cases ─────────────────────────────────────────
+echo ""
+echo "=== Contractor — submitReview Negative Cases ==="
+
+MY_PRINCIPAL=$(dfx identity get-principal)
+
+echo ""
+echo "── [R1] submitReview — non-existent contractor → expect NotFound ─────────"
+FAKE_PRINCIPAL="aaaaa-aa"
+REVIEW_NOTFOUND=$(dfx canister call contractor submitReview \
+  "(principal \"$FAKE_PRINCIPAL\", 4, \"Great work\", \"JOB_X\")" 2>&1 || true)
+echo "$REVIEW_NOTFOUND"
+if echo "$REVIEW_NOTFOUND" | grep -qiE "NotFound|err"; then
+  echo "  ✓ submitReview correctly returns NotFound for unknown contractor"
+else
+  echo "  ↳ ❌ Expected NotFound for non-existent contractor"
+fi
+
+echo ""
+echo "── [R2] submitReview — rating = 0 → expect InvalidInput ─────────────────"
+REVIEW_BADRATING=$(dfx canister call contractor submitReview \
+  "(principal \"$MY_PRINCIPAL\", 0, \"No stars\", \"JOB_X\")" 2>&1 || true)
+echo "$REVIEW_BADRATING"
+if echo "$REVIEW_BADRATING" | grep -qiE "InvalidInput|err"; then
+  echo "  ✓ rating 0 correctly rejected"
+else
+  echo "  ↳ ❌ Expected InvalidInput for rating = 0"
+fi
+
+echo ""
+echo "── [R3] submitReview — rating = 6 → expect InvalidInput ─────────────────"
+REVIEW_HIGHRATING=$(dfx canister call contractor submitReview \
+  "(principal \"$MY_PRINCIPAL\", 6, \"Six stars\", \"JOB_X\")" 2>&1 || true)
+echo "$REVIEW_HIGHRATING"
+if echo "$REVIEW_HIGHRATING" | grep -qiE "InvalidInput|err"; then
+  echo "  ✓ rating 6 correctly rejected"
+else
+  echo "  ↳ ❌ Expected InvalidInput for rating = 6"
+fi
+
+echo ""
+echo "── [R4] submitReview — empty comment → expect InvalidInput ──────────────"
+REVIEW_EMPTY=$(dfx canister call contractor submitReview \
+  "(principal \"$MY_PRINCIPAL\", 4, \"\", \"JOB_X\")" 2>&1 || true)
+echo "$REVIEW_EMPTY"
+if echo "$REVIEW_EMPTY" | grep -qiE "InvalidInput|err"; then
+  echo "  ✓ empty comment correctly rejected"
+else
+  echo "  ↳ ❌ Expected InvalidInput for empty comment"
+fi
+
+echo ""
+echo "── [R5] submitReview — empty jobId → expect InvalidInput ────────────────"
+REVIEW_NOJOB=$(dfx canister call contractor submitReview \
+  "(principal \"$MY_PRINCIPAL\", 4, \"Good job\", \"\")" 2>&1 || true)
+echo "$REVIEW_NOJOB"
+if echo "$REVIEW_NOJOB" | grep -qiE "InvalidInput|err"; then
+  echo "  ✓ empty jobId correctly rejected"
+else
+  echo "  ↳ ❌ Expected InvalidInput for empty jobId"
+fi
+
+echo ""
+echo "✅ Contractor submitReview negative case tests complete!"

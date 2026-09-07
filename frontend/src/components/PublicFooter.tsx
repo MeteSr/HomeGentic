@@ -35,7 +35,7 @@ export function PublicFooter() {
         fontFamily: F.body,
         fontSize:   "0.8125rem",
         fontWeight: 400,
-        color:      "rgba(255,255,255,0.35)",
+        color:      "rgba(255,255,255,0.5)",
         margin:     0,
       }}>
         © {new Date().getFullYear()} HomeGentic. All rights reserved.
@@ -51,11 +51,11 @@ export function PublicFooter() {
               fontFamily:     F.body,
               fontSize:       "0.8125rem",
               fontWeight:     400,
-              color:          "rgba(255,255,255,0.35)",
+              color:          "rgba(255,255,255,0.5)",
               transition:     "color 0.15s",
             }}
             onMouseEnter={(e: React.MouseEvent) => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.7)"; }}
-            onMouseLeave={(e: React.MouseEvent) => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.35)"; }}
+            onMouseLeave={(e: React.MouseEvent) => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.5)"; }}
           >
             {label}
           </Link>

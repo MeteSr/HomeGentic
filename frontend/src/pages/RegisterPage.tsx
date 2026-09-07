@@ -119,7 +119,7 @@ export default function RegisterPage() {
                   fontSize: "0.6rem",
                   letterSpacing: "0.12em",
                   textTransform: "uppercase",
-                  color: isActive ? V2_COLORS.blue : isDone ? V2_COLORS.muted : V2_COLORS.border,
+                  color: isActive ? V2_COLORS.blue : isDone ? V2_COLORS.muted : V2_COLORS.muted2,
                   borderBottom: isActive ? `2px solid ${V2_COLORS.blue}` : "2px solid transparent",
                   transition: "color 0.2s, border-color 0.2s",
                   marginBottom: "-1px",
