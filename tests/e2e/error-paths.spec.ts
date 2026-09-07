@@ -162,15 +162,30 @@ test.describe("EP.3 — Add property: Continue button gating", () => {
     const addPropBtn = page.getByRole("button", { name: /add property/i });
     await addPropBtn.click();
 
-    // Fill all required address fields
-    await page.getByLabel(/street address|address/i).first().fill("123 Elm St");
-    await page.getByLabel(/city/i).fill("Austin");
-    await page.getByLabel(/state/i).fill("TX");
-    await page.getByLabel(/zip/i).fill("78701");
+    // Fill all required address fields, confirming each value actually landed
+    // before moving on. This turned one big generous wait on the final button
+    // state into per-field checkpoints — under the full suite's parallel
+    // load, React's state update for a given field can lag Playwright's fill()
+    // (which only waits for the input's own value, not for a render to flush),
+    // so back-to-back fills without confirming each one risks the next fill
+    // firing before the prior field's change has been committed.
+    const streetInput = page.getByLabel(/street address|address/i).first();
+    await streetInput.fill("123 Elm St");
+    await expect(streetInput).toHaveValue("123 Elm St");
+
+    const cityInput = page.getByLabel(/city/i);
+    await cityInput.fill("Austin");
+    await expect(cityInput).toHaveValue("Austin");
+
+    const stateInput = page.getByLabel(/state/i);
+    await stateInput.fill("TX");
+    await expect(stateInput).toHaveValue("TX");
+
+    const zipInput = page.getByLabel(/zip/i);
+    await zipInput.fill("78701");
+    await expect(zipInput).toHaveValue("78701");
 
     const continueBtn = page.getByRole("button", { name: /continue/i });
-    // Generous timeout: under the full suite's parallel load, the last fill's
-    // React state update can occasionally take longer than the 5s default.
     await expect(continueBtn).toBeEnabled({ timeout: 10_000 });
   });
 });
