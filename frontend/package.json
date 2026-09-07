@@ -21,7 +21,7 @@
     "@icp-sdk/auth": "^7.0.0",
     "@icp-sdk/core": "^5.2.1",
     "@stripe/react-stripe-js": "^6.8.2",
-    "@stripe/stripe-js": "^9.12.1",
+    "@stripe/stripe-js": "^9.15.0",
     "lucide-react": "^1.35.0",
     "playcanvas": "^2.21.3",
     "qrcode.react": "^4.2.0",
