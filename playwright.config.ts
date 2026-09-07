@@ -20,6 +20,13 @@ export default defineConfig({
     // by the app's Content-Security-Policy meta tag. bypassCSP lets the test
     // runner inject scripts without relaxing the production CSP.
     bypassCSP: true,
+    // Chromium makes scrollIntoView({behavior:"smooth"}) instant under
+    // reduced motion, and disables CSS transitions gated by the matching
+    // media query. Without this, a click that triggers a smooth scroll (e.g.
+    // landing.spec.ts's Pricing nav link) races an immediately-following a11y
+    // scan against an in-flight scroll/hover-color animation — a source of
+    // timing-dependent flaky color-contrast violations.
+    reducedMotion: "reduce",
   },
 
   projects: [
