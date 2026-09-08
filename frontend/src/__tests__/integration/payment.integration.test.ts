@@ -62,7 +62,7 @@ describe.skipIf(!deployed)("getPricing — PricingInfo Nat field round-trips", (
     expect(info!.priceUSD).toBe(0);
   });
 
-  it("getPricing('Pro') returns priceUSD: 20 (matching PLANS)", async () => {
+  it("getPricing('Pro') returns priceUSD matching PLANS ($59/yr)", async () => {
     const info = await paymentService.getPricing("Pro");
     const plan = PLANS.find((p) => p.tier === "Pro")!;
     expect(info!.priceUSD).toBe(plan.price);
@@ -73,14 +73,14 @@ describe.skipIf(!deployed)("getPricing — PricingInfo Nat field round-trips", (
     expect(info!.priceUSD).toBe(40);
   });
 
-  it("getPricing('Pro') propertyLimit is 5", async () => {
+  it("getPricing('Pro') propertyLimit is 20", async () => {
     const info = await paymentService.getPricing("Pro");
-    expect(info!.propertyLimit).toBe(5);
+    expect(info!.propertyLimit).toBe(20);
   });
 
-  it("getPricing('Free') propertyLimit is 0", async () => {
+  it("getPricing('Free') propertyLimit is 1", async () => {
     const info = await paymentService.getPricing("Free");
-    expect(info!.propertyLimit).toBe(0);
+    expect(info!.propertyLimit).toBe(1);
   });
 
   it("getPricing('Premium') photosPerJob is 30", async () => {
@@ -97,9 +97,13 @@ describe.skipIf(!deployed)("getPricing — PricingInfo Nat field round-trips", (
 // ─── getAllPricing — full table vs PLANS ──────────────────────────────────────
 
 describe.skipIf(!deployed)("getAllPricing — Motoko pricing table matches frontend PLANS", () => {
-  it("returns at least 5 entries (one per paid tier)", async () => {
+  it("returns the 3 currently-offered tiers (Pro, ContractorFree, ContractorPro)", async () => {
+    // Basic and Premium are retired as purchase options and deliberately
+    // omitted from getAllPricing (see the comment above it in main.mo) —
+    // grandfathered subscribers still resolve their tier via getPricing
+    // directly, just not through this "what can I buy" listing.
     const all = await paymentService.getAllPricing();
-    expect(all.length).toBeGreaterThanOrEqual(5);
+    expect(all.length).toBe(3);
   });
 
   it("every entry has a valid PlanTier string", async () => {
@@ -132,18 +136,23 @@ describe.skipIf(!deployed)("getAllPricing — Motoko pricing table matches front
     expect(canisterPro!.photosPerJob).toBe(frontendPro.photosPerJob);
   });
 
-  it("canister Basic tier is present in getAllPricing", async () => {
+  it("canister Basic tier is retired — absent from getAllPricing", async () => {
     const all = await paymentService.getAllPricing();
     const canisterBasic = all.find((e) => e.tier === "Basic");
-    expect(canisterBasic).toBeDefined();
-    expect(canisterBasic!.priceUSD).toBe(10);
-    expect(canisterBasic!.propertyLimit).toBe(1);
+    expect(canisterBasic).toBeUndefined();
+    // Still resolvable directly for grandfathered subscribers.
+    const direct = await paymentService.getPricing("Basic");
+    expect(direct!.priceUSD).toBe(10);
+    expect(direct!.propertyLimit).toBe(1);
   });
 
-  it("canister Premium tier has photosPerJob 30 matching frontend", async () => {
+  it("canister Premium tier is retired — absent from getAllPricing", async () => {
     const all = await paymentService.getAllPricing();
     const canisterPremium = all.find((e) => e.tier === "Premium");
-    expect(canisterPremium!.photosPerJob).toBe(30);
+    expect(canisterPremium).toBeUndefined();
+    // Still resolvable directly for grandfathered subscribers.
+    const direct = await paymentService.getPricing("Premium");
+    expect(direct!.photosPerJob).toBe(30);
   });
 
   it("canister ContractorPro tier has photosPerJob 50", async () => {

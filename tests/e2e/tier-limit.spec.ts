@@ -6,7 +6,8 @@
  *
  * Coverage:
  *  - Free homeowner can reach /dashboard and /properties/new (1-property access)
- *  - Free homeowner is still blocked from Pro-only pages (e.g. /market)
+ *  - Free homeowner can reach the AI/intelligence pages (e.g. /market) — no longer Pro-only
+ *  - Free homeowner is still blocked from the two remaining Pro-only pages (/insurance-defense, /resale-ready)
  *  - Free homeowner at their 1-property cap gets the upgrade modal, not the add-property form
  *  - Subscription upgrade click navigates to /checkout with correct tier param
  *  - Subscription downgrade click navigates to /checkout with correct tier param
@@ -36,13 +37,39 @@ test.describe("Tier limit — Free homeowner gets 1-property access", () => {
     await expect(page).not.toHaveURL(/\/pricing/);
   });
 
-  test("Free homeowner is still blocked from Pro-only /market", async ({ page }) => {
+  test("Free homeowner can reach /market (no longer Pro-only)", async ({ page }) => {
     await injectTestAuth(page);
     await injectTestProperties(page);
     await injectSubscription(page, "Free");
     await page.goto("/market");
+    await expect(page).toHaveURL("/market");
+  });
+
+  test("Free homeowner is still blocked from Pro-only /insurance-defense", async ({ page }) => {
+    await injectTestAuth(page);
+    await injectTestProperties(page);
+    await injectSubscription(page, "Free");
+    await page.goto("/insurance-defense");
     await expect(page).toHaveURL(/\/pricing/);
   });
+
+  test("Free homeowner is still blocked from Pro-only /resale-ready", async ({ page }) => {
+    await injectTestAuth(page);
+    await injectTestProperties(page);
+    await injectSubscription(page, "Free");
+    await page.goto("/resale-ready");
+    await expect(page).toHaveURL(/\/pricing/);
+  });
+
+  for (const path of ["/maintenance", "/warranties", "/recurring/new", "/sensors", "/people"]) {
+    test(`Free homeowner can reach ${path} (no longer Pro-only)`, async ({ page }) => {
+      await injectTestAuth(page);
+      await injectTestProperties(page);
+      await injectSubscription(page, "Free");
+      await page.goto(path);
+      await expect(page).toHaveURL(path);
+    });
+  }
 
   test("Free homeowner at their 1-property limit sees the upgrade modal, not the add-property form", async ({ page }) => {
     await injectTestAuth(page);

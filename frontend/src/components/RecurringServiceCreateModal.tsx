@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { CheckCircle, X } from "lucide-react";
 import { Button } from "@/components/Button";
-import { UpgradeGate } from "@/components/UpgradeGate";
 import { recurringService, type RecurringServiceType, type Frequency, SERVICE_TYPE_LABELS, FREQUENCY_LABELS } from "@/services/recurringService";
-import { paymentService, type PlanTier } from "@/services/payment";
 import { usePropertyStore } from "@/store/propertyStore";
 import { isValidPhone } from "@/utils/validators";
 import toast from "react-hot-toast";
@@ -60,13 +58,7 @@ export default function RecurringServiceCreateModal({
   const [submitted,   setSubmitted]   = useState(false);
   const [createdName, setCreatedName] = useState("");
   const [createdId,   setCreatedId]   = useState("");
-  const [userTier,    setUserTier]    = useState<PlanTier>("Free");
   const [form,        setForm]        = useState(() => BLANK_FORM(defaultPropertyId ?? ""));
-
-  useEffect(() => {
-    if (!open) return;
-    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch((e) => console.error("[RecurringServiceCreateModal] subscription load failed:", e));
-  }, [open]);
 
   // Sync default property when store or prop changes
   useEffect(() => {
@@ -159,16 +151,8 @@ export default function RecurringServiceCreateModal({
           <X size={18} />
         </button>
 
-        {/* ── Upgrade gate ──────────────────────────────────────────────────── */}
-        {userTier === "Free" ? (
-          <div style={{ paddingTop: "0.5rem" }}>
-            <UpgradeGate
-              feature="Recurring Services"
-              description="Track lawn care, pest control, pool maintenance, and more — and show buyers your complete service history."
-              icon="🔄"
-            />
-          </div>
-        ) : submitted ? (
+        {/* Recurring Services is open to Free too — no tier gate here. */}
+        {submitted ? (
           // ── Success ─────────────────────────────────────────────────────────
           <div style={{ textAlign: "center", padding: "1rem 0" }}>
             <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "4rem", height: "4rem", border: `2px solid ${UI.sage}`, marginBottom: "1.25rem", borderRadius: V2_RADIUS.card }}>
