@@ -608,9 +608,16 @@ jobs:
     permissions:
       contents: write
     steps:
+      # main requires the motoko-compile-check status check even on direct
+      # pushes, and the default GITHUB_TOKEN has no bypass for that rule —
+      # only identities with admin/maintain-level bypass rights on the
+      # branch protection rule can push straight to main. CI_PUSH_TOKEN is
+      # a fine-grained PAT scoped to this repo (Contents: Read and write)
+      # issued from such an account, used only for this push.
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.head_ref || github.ref }}
+          token: ${{ secrets.CI_PUSH_TOKEN }}
 
       - uses: actions/setup-node@v7
         with:
