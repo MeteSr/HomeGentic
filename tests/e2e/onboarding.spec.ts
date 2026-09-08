@@ -41,7 +41,7 @@ async function goToPhotosStep(page: Page) {
 test.describe("OnboardingWizard — modal auto-opens on /dashboard", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
-    await injectSubscription(page, "Basic");
+    await injectSubscription(page, "Pro");
     // No properties injected + onboardingComplete defaults to false → modal auto-opens
     await page.goto("/dashboard");
     await waitForWizard(page);
@@ -187,7 +187,7 @@ test.describe("OnboardingWizard — modal auto-opens on /dashboard", () => {
   test.describe("saved hub — after registering property", () => {
     test.beforeEach(async ({ page }) => {
       await injectTestAuth(page);
-      await injectSubscription(page, "Basic");
+      await injectSubscription(page, "Pro");
       await injectRegisterProperty(page);
       await page.goto("/dashboard");
       await waitForWizard(page);

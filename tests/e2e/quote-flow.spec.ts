@@ -6,8 +6,9 @@
  * QF.3  /quotes/:id — injected bids appear with "Bids Received" count and amounts
  * QF.4  /quotes/:id — "Best Value" and "Lowest Quote" badges appear with multiple bids
  * QF.5  Accept bid — confirmation modal → Confirm Accept → "Quote Accepted" banner
- * QF.6  Tier limit (Basic = 3): button disabled and shows "Quote limit reached" at 3 open requests
- * QF.7  Tier limit (Pro = 10): 9 open requests still allow submission (button enabled)
+ * QF.6  Tier limit (Basic = 3, grandfathered): button disabled and shows "Quote limit reached" at 3 open requests
+ * QF.7  Tier limit (Pro = unlimited): many open requests still allow submission (button enabled)
+ * QF.8  Tier limit (Premium = 10, grandfathered): button disabled at 10 open requests
  *
  * All tests use window.__e2e_* injection — no canister required.
  */
@@ -258,8 +259,8 @@ test.describe("QF — open-quote tier limit", () => {
     await injectTestProperties(page);
   });
 
-  // QF.6 — Basic tier: 3 open requests → button disabled
-  test("Basic tier: submit button disabled and shows 'Quote limit reached' at 3 open requests", async ({ page }) => {
+  // QF.6 — Basic tier (grandfathered): 3 open requests → button disabled
+  test("Basic tier (grandfathered): submit button disabled and shows 'Quote limit reached' at 3 open requests", async ({ page }) => {
     await injectSubscription(page, "Basic");
     const threeOpen = Array.from({ length: 3 }, (_, i) => ({
       id:          `E2E_BASIC_${i}`,
@@ -278,8 +279,8 @@ test.describe("QF — open-quote tier limit", () => {
     await expect(page.getByRole("button", { name: /quote limit reached/i })).toBeDisabled();
   });
 
-  // QF.6 — Basic tier: 2 open requests → button still enabled
-  test("Basic tier: submit button enabled with 2 open requests (below limit of 3)", async ({ page }) => {
+  // QF.6 — Basic tier (grandfathered): 2 open requests → button still enabled
+  test("Basic tier (grandfathered): submit button enabled with 2 open requests (below limit of 3)", async ({ page }) => {
     await injectSubscription(page, "Basic");
     const twoOpen = Array.from({ length: 2 }, (_, i) => ({
       id:          `E2E_BASIC_${i}`,
@@ -296,11 +297,29 @@ test.describe("QF — open-quote tier limit", () => {
     await expect(page.getByRole("button", { name: /send quote request/i })).toBeEnabled();
   });
 
-  // QF.7 — Pro tier: 9 open requests → button still enabled (limit = 10)
-  test("Pro tier: 9 open requests still allow submission (limit = 10)", async ({ page }) => {
+  // QF.7 — Pro tier (current, unlimited): many open requests → button still enabled
+  test("Pro tier: 50 open requests still allow submission (unlimited)", async ({ page }) => {
     await injectSubscription(page, "Pro");
-    const nineOpen = Array.from({ length: 9 }, (_, i) => ({
+    const fiftyOpen = Array.from({ length: 50 }, (_, i) => ({
       id:          `E2E_PRO_${i}`,
+      propertyId:  "1",
+      homeowner:   "test-e2e-principal",
+      serviceType: "Plumbing",
+      urgency:     "low" as const,
+      description: `Request ${i}`,
+      status:      "open" as const,
+      createdAt:   NOW - 86_400_000 * i,
+    }));
+    await injectQuoteRequests(page, fiftyOpen);
+    await page.goto("/quotes/new");
+    await expect(page.getByRole("button", { name: /send quote request/i })).toBeEnabled();
+  });
+
+  // QF.8 — Premium tier (grandfathered): 9 open requests → button still enabled (limit = 10)
+  test("Premium tier (grandfathered): 9 open requests still allow submission (limit = 10)", async ({ page }) => {
+    await injectSubscription(page, "Premium");
+    const nineOpen = Array.from({ length: 9 }, (_, i) => ({
+      id:          `E2E_PREM_${i}`,
       propertyId:  "1",
       homeowner:   "test-e2e-principal",
       serviceType: "Plumbing",
@@ -315,11 +334,11 @@ test.describe("QF — open-quote tier limit", () => {
     await expect(page.getByRole("button", { name: /send quote request/i })).toBeEnabled();
   });
 
-  // QF.7 — Pro tier: 10 open requests → limit reached
-  test("Pro tier: submit button disabled at 10 open requests", async ({ page }) => {
-    await injectSubscription(page, "Pro");
+  // QF.8 — Premium tier (grandfathered): 10 open requests → limit reached
+  test("Premium tier (grandfathered): submit button disabled at 10 open requests", async ({ page }) => {
+    await injectSubscription(page, "Premium");
     const tenOpen = Array.from({ length: 10 }, (_, i) => ({
-      id:          `E2E_PRO10_${i}`,
+      id:          `E2E_PREM10_${i}`,
       propertyId:  "1",
       homeowner:   "test-e2e-principal",
       serviceType: "Plumbing",

@@ -1,7 +1,7 @@
 /**
  * Bid to List — H1 (/listing/new) and H2/H3/H6 (/listing/:id) E2E    (#180)
  *
- * LN.1  /listing/new with Basic tier → H1 heading + prefilled property
+ * LN.1  /listing/new with Pro tier → H1 heading + prefilled property
  * LN.2  /listing/new shows the bidding-window selector and publish CTA
  * LN.3  /listing/:id with no canister → "Listing request not found"
  */
@@ -15,7 +15,7 @@ test.describe("LN — /listing/new", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
     await injectTestProperties(page);
-    await injectSubscription(page, "Basic");
+    await injectSubscription(page, "Pro");
     await page.goto("/listing/new");
     await expect(page.getByRole("heading", { name: /let agents compete for your listing/i })).toBeVisible();
   });
@@ -54,7 +54,7 @@ test.describe("LN — /listing/new", () => {
 test.describe("LN — /listing/:id (no canister)", () => {
   test("LN.3 shows 'not found' when listing does not exist", async ({ page }) => {
     await injectTestAuth(page);
-    await injectSubscription(page, "Basic");
+    await injectSubscription(page, "Pro");
     await page.goto("/listing/NONEXISTENT_LISTING_ID");
     await expect(page.getByText(/listing request not found/i)).toBeVisible();
   });

@@ -122,10 +122,10 @@ test.describe("PaymentSuccessPage — new PaymentElement flow", () => {
   test("success state shows 'Redirecting automatically' note", async ({ page }) => {
     await injectTestAuth(page);
     await page.addInitScript(() => {
-      (window as any).__e2e_verifySubscription = { tier: "Premium" };
+      (window as any).__e2e_verifySubscription = { tier: "Pro" };
     });
     await page.goto(
-      "/payment-success?subscription_id=sub_test_prem&tier=Premium&billing=Monthly"
+      "/payment-success?subscription_id=sub_test_pro&tier=Pro&billing=Yearly"
     );
     await expect(page.getByText(/redirecting automatically/i)).toBeVisible();
   });

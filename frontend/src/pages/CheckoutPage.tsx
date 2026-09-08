@@ -460,7 +460,7 @@ export default function CheckoutPage() {
               }}>
                 {price}
               </span>
-              {billing === "Yearly" && (
+              {billing === "Yearly" && plan.yearly !== plan.monthly && (
                 <span style={{
                   fontFamily: V2_FONTS.body, fontSize: "0.6rem", color: V2_COLORS.lblue,
                   marginLeft: "8px", letterSpacing: "0.06em",

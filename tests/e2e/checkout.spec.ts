@@ -34,7 +34,7 @@ test.describe("CheckoutPage — /checkout", () => {
     });
 
     test("shows monthly price in summary card", async ({ page }) => {
-      await expect(page.getByText("$20/mo")).toBeVisible();
+      await expect(page.getByText("$59/mo")).toBeVisible();
     });
 
     test("shows 'Change plan' back link to /pricing", async ({ page }) => {
@@ -105,7 +105,7 @@ test.describe("CheckoutPage — /checkout", () => {
     });
 
     test("shows plan features in summary card", async ({ page }) => {
-      await expect(page.getByText(/5 properties/i)).toBeVisible();
+      await expect(page.getByText(/20 properties/i)).toBeVisible();
       await expect(page.getByText(/verified badge/i)).toBeVisible();
     });
 
@@ -120,28 +120,30 @@ test.describe("CheckoutPage — /checkout", () => {
 
   // ── Yearly billing ─────────────────────────────────────────────────────────
 
-  test("yearly billing shows /yr price and '2 months free' note", async ({ page }) => {
+  test("yearly billing shows /yr price (Pro is annual-only, no monthly discount to advertise)", async ({ page }) => {
     await injectTestAuth(page);
     await mockStripeIntent(page);
     await page.goto("/checkout?tier=Pro&billing=Yearly");
-    await expect(page.getByText("$200/yr")).toBeVisible();
-    await expect(page.getByText(/2 months free/i)).toBeVisible();
+    await expect(page.getByText("$59/yr")).toBeVisible();
+    await expect(page.getByText(/2 months free/i)).not.toBeVisible();
   });
 
   // ── Plan metadata ──────────────────────────────────────────────────────────
 
-  test("Basic plan shows $10/mo", async ({ page }) => {
+  test("Basic and Premium are retired — checkout shows 'Unknown plan'", async ({ page }) => {
     await page.goto("/checkout?tier=Basic&billing=Monthly");
-    await expect(page.getByText("$10/mo")).toBeVisible();
-  });
+    await expect(page.getByText(/Unknown plan/i)).toBeVisible();
 
-  test("Premium plan shows $35/mo", async ({ page }) => {
     await page.goto("/checkout?tier=Premium&billing=Monthly");
-    await expect(page.getByText("$35/mo")).toBeVisible();
+    await expect(page.getByText(/Unknown plan/i)).toBeVisible();
   });
 
-  test("ContractorPro plan shows $40/mo", async ({ page }) => {
+  test("ContractorPro plan shows $40/mo and $400/yr (2 months free)", async ({ page }) => {
     await page.goto("/checkout?tier=ContractorPro&billing=Monthly");
     await expect(page.getByText("$40/mo")).toBeVisible();
+
+    await page.goto("/checkout?tier=ContractorPro&billing=Yearly");
+    await expect(page.getByText("$400/yr")).toBeVisible();
+    await expect(page.getByText(/2 months free/i)).toBeVisible();
   });
 });

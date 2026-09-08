@@ -9,9 +9,9 @@ async function goToSubscriptionTab(page: Parameters<typeof injectTestAuth>[0]) {
 }
 
 test.describe("SettingsPage — Subscription tab tier-gated UI", () => {
-  // ── Paid tier (Basic) ──────────────────────────────────────────────────────
+  // ── Paid tier (Basic, grandfathered) ─────────────────────────────────────────
 
-  test.describe("Basic tier (paid)", () => {
+  test.describe("Basic tier (paid, grandfathered)", () => {
     test.beforeEach(async ({ page }) => {
       await injectTestAuth(page);
       await injectSubscription(page, "Basic");
@@ -28,24 +28,21 @@ test.describe("SettingsPage — Subscription tab tier-gated UI", () => {
     });
   });
 
-  // ── Pro tier ───────────────────────────────────────────────────────────────
+  // ── Pro tier — the only purchasable plan, so nothing to switch to ────────────
 
-  test.describe("Pro tier (current plan)", () => {
+  test.describe("Pro tier (current plan, only purchasable plan)", () => {
     test.beforeEach(async ({ page }) => {
       await injectTestAuth(page);
       await injectSubscription(page, "Pro");
       await goToSubscriptionTab(page);
     });
 
-    test("shows 'Switch Plan' section heading", async ({ page }) => {
-      await expect(page.getByText("Switch Plan")).toBeVisible();
+    test("shows no 'Switch Plan' section (Pro is the only homeowner plan)", async ({ page }) => {
+      await expect(page.getByText("Switch Plan")).toHaveCount(0);
     });
 
-    test("Pro is not shown as an option in the switch grid (it's the current plan)", async ({ page }) => {
-      // The switch grid filters out the current tier — Pro button should not appear
-      const switchButtons = page.getByRole("button", { name: /^switch$/i });
-      // There should be switch buttons for other plans (Basic, Premium) but not Pro itself
-      await expect(switchButtons.first()).toBeVisible();
+    test("shows no 'Switch' buttons in the subscription tab", async ({ page }) => {
+      await expect(page.getByRole("button", { name: /^switch$/i })).toHaveCount(0);
     });
   });
 

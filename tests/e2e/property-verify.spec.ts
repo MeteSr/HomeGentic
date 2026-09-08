@@ -52,7 +52,7 @@ const MOCK_CLAIM: VerifyClaimData = {
 test.describe("State 1 — Claim opened", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
-    await injectSubscription(page, "Basic");
+    await injectSubscription(page, "Pro");
     await injectTestProperties(page);
     await page.addInitScript((s) => { (window as any).__e2e_verify_status = s; }, MOCK_CLAIM);
     await page.goto("/properties/1/verify");
@@ -88,7 +88,7 @@ test.describe("State 1 — Claim opened", () => {
 test.describe("State 2 — Identity check", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
-    await injectSubscription(page, "Basic");
+    await injectSubscription(page, "Pro");
     await injectTestProperties(page);
     const status: VerifyClaimData = { ...MOCK_CLAIM, currentStep: "identity" };
     await page.addInitScript((s) => { (window as any).__e2e_verify_status = s; }, status);
@@ -122,7 +122,7 @@ test.describe("State 2 — Identity check", () => {
 test.describe("State 3 — Document upload", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
-    await injectSubscription(page, "Basic");
+    await injectSubscription(page, "Pro");
     await injectTestProperties(page);
     const status: VerifyClaimData = {
       ...MOCK_CLAIM,
@@ -160,7 +160,7 @@ test.describe("State 3 — Document upload", () => {
 test.describe("State 5 — Pending review", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
-    await injectSubscription(page, "Basic");
+    await injectSubscription(page, "Pro");
     await injectTestProperties(page);
     const status: VerifyClaimData = {
       ...MOCK_CLAIM,
@@ -197,7 +197,7 @@ test.describe("State 5 — Pending review", () => {
 test.describe("State 6 — Expired", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
-    await injectSubscription(page, "Basic");
+    await injectSubscription(page, "Pro");
     await injectTestProperties(page);
     const status: VerifyClaimData = {
       ...MOCK_CLAIM,
@@ -231,7 +231,7 @@ test.describe("State 6 — Expired", () => {
 test.describe("State 7 — Contested", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
-    await injectSubscription(page, "Basic");
+    await injectSubscription(page, "Pro");
     await injectTestProperties(page);
     const status: VerifyClaimData = {
       ...MOCK_CLAIM,

@@ -22,30 +22,14 @@ test.describe("PricingPage — /pricing", () => {
     await expect(page.getByText(/Upgrade when you're ready/)).toBeVisible();
   });
 
-  // ── Plan cards (homeowner view) ───────────────────────────────────────────
-
-  test("shows Basic plan card", async ({ page }) => {
-    await expect(page.getByText("Basic").first()).toBeVisible();
-  });
+  // ── Plan card (homeowner view — single Pro plan) ──────────────────────────
 
   test("shows Pro plan card", async ({ page }) => {
     await expect(page.getByText("Pro").first()).toBeVisible();
   });
 
-  test("shows Premium plan card", async ({ page }) => {
-    await expect(page.getByText("Premium").first()).toBeVisible();
-  });
-
-  test("shows $10 price for Basic tier", async ({ page }) => {
-    await expect(page.getByText(/\$10/)).toBeVisible();
-  });
-
-  test("shows $20 price for Pro tier", async ({ page }) => {
-    await expect(page.getByText(/\$20/)).toBeVisible();
-  });
-
-  test("shows $40 price for Premium tier", async ({ page }) => {
-    await expect(page.getByText(/\$40/)).toBeVisible();
+  test("shows $59/year price for Pro", async ({ page }) => {
+    await expect(page.getByText(/\$59/)).toBeVisible();
   });
 
   test("shows 'See plans for pros' link pointing to /for-pros", async ({ page }) => {
@@ -56,9 +40,9 @@ test.describe("PricingPage — /pricing", () => {
 
   // ── Plan features (rendered in plan cards) ───────────────────────────────
 
-  test("shows property count feature in plan cards", async ({ page }) => {
-    // Feature comparison table removed; features now listed in plan cards
-    await expect(page.getByText("1 property").first()).toBeVisible();
+  test("shows property count feature in plan card", async ({ page }) => {
+    // Feature comparison table removed; features now listed in the plan card
+    await expect(page.getByText(/20 properties/i).first()).toBeVisible();
   });
 
   test("shows Warranty Wallet feature row", async ({ page }) => {
@@ -93,12 +77,12 @@ test.describe("PricingPage — /pricing", () => {
 
   // ── CTA navigation ────────────────────────────────────────────────────────
 
-  test("'Start with Basic' CTA navigates to checkout or login", async ({ page }) => {
+  test("'Get Pro' CTA navigates to checkout or login", async ({ page }) => {
     // Inject auth so the click navigates directly to /checkout instead of
     // stamping the intent into the URL and waiting for Internet Identity.
     await injectTestAuth(page);
     await page.goto("/pricing");
-    await page.getByRole("button", { name: /Start with Basic/i }).click();
+    await page.getByRole("button", { name: /Get Pro/i }).click();
     await expect(page).toHaveURL(/\/(checkout|dashboard|login)/);
   });
 });

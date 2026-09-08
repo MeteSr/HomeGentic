@@ -1,7 +1,7 @@
 /**
  * Recurring Service E2E — /recurring/new, /recurring/:id    (#180)
  *
- * RS.1  /recurring/new with Basic tier → "Add a Service" heading + form fields
+ * RS.1  /recurring/new with Pro tier → "Add a Service" heading + form fields
  * RS.2  /recurring/new form has Save Service button
  * RS.3  /recurring/:id with injected data → service name as heading
  * RS.4  /recurring/:id service details are visible
@@ -17,7 +17,7 @@ test.describe("RS — /recurring/new", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
     await injectTestProperties(page);
-    await injectSubscription(page, "Basic");
+    await injectSubscription(page, "Pro");
     await page.goto("/recurring/new");
     await expect(page.getByRole("heading", { name: /add a service/i })).toBeVisible();
   });

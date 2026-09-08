@@ -3,9 +3,9 @@
  *
  * MM.1  /maintenance with no properties → "Add a property" prompt
  * MM.2  /maintenance with properties → "Predictive Maintenance" heading
- * MM.3  /market with Basic tier + properties → "Market Intelligence" heading
+ * MM.3  /market with Pro tier + properties → "Market Intelligence" heading
  * MM.4  /resale-ready with properties → page renders (hero heading)
- * MM.5  /insurance-defense with Basic tier + properties → defense content
+ * MM.5  /insurance-defense with Pro tier + properties → defense content
  */
 
 import { test, expect } from "@playwright/test";
@@ -64,11 +64,11 @@ test.describe("MM.2 — /maintenance (with property)", () => {
 
 // ── MM.3 — Market Intelligence ────────────────────────────────────────────────
 
-test.describe("MM.3 — /market (Basic tier)", () => {
+test.describe("MM.3 — /market (Pro tier)", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
     await injectTestProperties(page);
-    await injectSubscription(page, "Basic");
+    await injectSubscription(page, "Pro");
     await page.goto("/market");
     await expect(page.getByRole("heading", { name: /market intelligence/i })).toBeVisible();
   });
@@ -92,7 +92,7 @@ test.describe("MM.4 — /resale-ready", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
     await injectTestProperties(page);
-    await injectSubscription(page, "Basic");
+    await injectSubscription(page, "Pro");
     await page.goto("/resale-ready");
   });
 
@@ -107,11 +107,11 @@ test.describe("MM.4 — /resale-ready", () => {
 
 // ── MM.5 — Insurance Defense ──────────────────────────────────────────────────
 
-test.describe("MM.5 — /insurance-defense (Basic tier)", () => {
+test.describe("MM.5 — /insurance-defense (Pro tier)", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
     await injectTestProperties(page);
-    await injectSubscription(page, "Basic");
+    await injectSubscription(page, "Pro");
     await page.goto("/insurance-defense");
     // Page renders (may show loading briefly)
     await page.waitForLoadState("domcontentloaded");

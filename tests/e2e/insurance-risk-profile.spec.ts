@@ -27,7 +27,7 @@ async function injectVerifiedProperty(page: any) {
         id: 1, owner: "test-e2e-principal",
         address: "123 Maple Street", city: "Austin", state: "TX", zipCode: "78701",
         propertyType: "SingleFamily", yearBuilt: 2001, squareFeet: 2400,
-        verificationLevel: "Basic", tier: "Basic",
+        verificationLevel: "Basic", tier: "Pro",
         createdAt: 0, updatedAt: 0, isActive: true,
       },
     ];
@@ -42,7 +42,7 @@ async function injectUnverifiedProperty(page: any) {
         id: 1, owner: "test-e2e-principal",
         address: "123 Maple Street", city: "Austin", state: "TX", zipCode: "78701",
         propertyType: "SingleFamily", yearBuilt: 2001, squareFeet: 2400,
-        verificationLevel: "Unverified", tier: "Basic",
+        verificationLevel: "Unverified", tier: "Pro",
         createdAt: 0, updatedAt: 0, isActive: true,
       },
     ];
@@ -63,7 +63,7 @@ async function openInsuranceModal(page: any) {
 test.describe("IR.1 — Insurance Report button visibility", () => {
   test("Reports dropdown is visible for a verified (Basic) property", async ({ page }) => {
     await injectTestAuth(page);
-    await injectSubscription(page, "Basic");
+    await injectSubscription(page, "Pro");
     await injectVerifiedProperty(page);
     await page.goto("/properties/1");
     // The "Reports ▾" dropdown trigger is shown for verified properties
@@ -75,7 +75,7 @@ test.describe("IR.1 — Insurance Report button visibility", () => {
 
   test("Reports dropdown is NOT visible for an unverified property", async ({ page }) => {
     await injectTestAuth(page);
-    await injectSubscription(page, "Basic");
+    await injectSubscription(page, "Pro");
     await injectUnverifiedProperty(page);
     await page.goto("/properties/1");
     await expect(page.getByRole("button", { name: /reports/i })).not.toBeVisible();
@@ -87,7 +87,7 @@ test.describe("IR.1 — Insurance Report button visibility", () => {
 test.describe("IR.2 — InsuranceShareModal opens", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
-    await injectSubscription(page, "Basic");
+    await injectSubscription(page, "Pro");
     await injectVerifiedProperty(page);
     await page.goto("/properties/1");
     await openInsuranceModal(page);
@@ -109,7 +109,7 @@ test.describe("IR.2 — InsuranceShareModal opens", () => {
 test.describe("IR.3 — Modal form content", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
-    await injectSubscription(page, "Basic");
+    await injectSubscription(page, "Pro");
     await injectVerifiedProperty(page);
     await page.goto("/properties/1");
     await openInsuranceModal(page);
@@ -146,7 +146,7 @@ test.describe("IR.3 — Modal form content", () => {
 test.describe("IR.4 — Score and grade after generating", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
-    await injectSubscription(page, "Basic");
+    await injectSubscription(page, "Pro");
     await injectVerifiedProperty(page);
     await page.goto("/properties/1");
     await openInsuranceModal(page);
@@ -196,7 +196,7 @@ test.describe("IR.4 — Score and grade after generating", () => {
 test.describe("IR.5 — Verification link section", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
-    await injectSubscription(page, "Basic");
+    await injectSubscription(page, "Pro");
     await injectVerifiedProperty(page);
     await page.goto("/properties/1");
     await openInsuranceModal(page);
@@ -221,7 +221,7 @@ test.describe("IR.5 — Verification link section", () => {
 test.describe("IR.6 — Download JSON button", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
-    await injectSubscription(page, "Basic");
+    await injectSubscription(page, "Pro");
     await injectVerifiedProperty(page);
     await page.goto("/properties/1");
     await openInsuranceModal(page);
@@ -241,7 +241,7 @@ test.describe("IR.6 — Download JSON button", () => {
 test.describe("IR.7 — Generate new resets modal", () => {
   test("'Generate new' button returns to the generation form", async ({ page }) => {
     await injectTestAuth(page);
-    await injectSubscription(page, "Basic");
+    await injectSubscription(page, "Pro");
     await injectVerifiedProperty(page);
     await page.goto("/properties/1");
     await openInsuranceModal(page);

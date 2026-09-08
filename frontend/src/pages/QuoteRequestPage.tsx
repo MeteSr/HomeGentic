@@ -35,10 +35,13 @@ const URGENCY_OPTIONS: { value: Urgency; label: string; desc: string }[] = [
   { value: "emergency", label: "Emergency", desc: "ASAP" },
 ];
 
-// Tier → open request limit (Infinity = no limit)
+// Tier → open request limit (Infinity = no limit). Mirrors
+// backend/quote/main.mo's tierOpenLimit(). Pro is the only purchasable
+// homeowner tier and is genuinely unlimited; Basic/Premium remain here
+// only for grandfathered subscribers.
 const TIER_LIMITS: Record<string, number> = {
-  Free: 3, Basic: 3, Pro: 10,
-  Premium: Infinity, ContractorFree: Infinity, ContractorPro: Infinity,
+  Free: 0, Basic: 3, Pro: Infinity,
+  Premium: 10, ContractorFree: Infinity, ContractorPro: Infinity,
 };
 
 export default function QuoteRequestPage() {
@@ -88,7 +91,7 @@ export default function QuoteRequestPage() {
           setOpenCount(open);
         }
         const tier = subResult.status === "fulfilled" ? subResult.value.tier : "Free";
-        setTierLimit(TIER_LIMITS[tier] ?? 3);
+        setTierLimit(TIER_LIMITS[tier] ?? 0);
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
