@@ -11,7 +11,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Bell, LogOut, Plus,
-  LayoutDashboard, TrendingUp, Users, Wrench, Radio, Home as HomeIcon, PlusSquare,
+  LayoutDashboard, TrendingUp, HardHat, Wrench, Radio, Home as HomeIcon, PlusSquare,
   PanelLeft, Menu, X, Briefcase, Users2, User,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -181,7 +181,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         { to: "/market",         label: "Market",       Icon: TrendingUp },
         { to: "/maintenance",    label: "Maintenance",  Icon: Wrench },
         { to: "/jobs",           label: "Jobs",         Icon: Briefcase, badge: feedJobs.filter(j => !j.verified && j.status !== "rejected_by_homeowner").length || undefined },
-        { to: "/contractors",    label: "Contractors",  Icon: Users },
+        { to: "/contractors",    label: "Contractors",  Icon: HardHat },
         { to: "/sensors",        label: "Sensors",      Icon: Radio },
         { to: "/people",         label: "People",       Icon: Users2 },
         ...(singlePropertyId && hasActiveListing

@@ -11,6 +11,7 @@ import { Button } from "@/components/Button";
 import { GenerateReportModal }       from "@/components/GenerateReportModal";
 import { InsuranceShareModal }       from "@/components/InsuranceShareModal";
 import { LogJobModal }               from "@/components/LogJobModal";
+import { AddRoomModal }              from "@/components/AddRoomModal";
 import { RequestQuoteModal }         from "@/components/RequestQuoteModal";
 import { InviteContractorModal }     from "@/components/InviteContractorModal";
 import PropertyVerifyModal           from "@/components/PropertyVerifyModal";
@@ -67,6 +68,7 @@ interface ModalState {
   report:        boolean;
   insurance:     boolean;
   logJob:        boolean;
+  addRoom:       boolean;
   quote:         boolean;
   verify:        boolean;
   systemAges:    boolean;
@@ -78,7 +80,7 @@ interface ModalState {
 }
 
 const MODALS_CLOSED: ModalState = {
-  report: false, insurance: false, logJob: false, quote: false,
+  report: false, insurance: false, logJob: false, addRoom: false, quote: false,
   verify: false, systemAges: false, addService: false, listing: false,
   inviteJob: null, logJobPrefill: undefined, quotePrefill: undefined,
 };
@@ -263,7 +265,7 @@ export default function PropertyDetailPage() {
               />
             </div>
             <button
-              onClick={() => setModals(m => ({ ...m, logJob: true }))}
+              onClick={() => setModals(m => ({ ...m, addRoom: true }))}
               style={{ fontFamily: V2_FONTS.body, fontSize: 14, fontWeight: 700, color: "#fff", background: V2_COLORS.blue, border: "none", borderRadius: 100, padding: "10px 20px", cursor: "pointer" }}
             >
               + Add room
@@ -664,6 +666,12 @@ export default function PropertyDetailPage() {
         onSuccess={reloadJobs}
         properties={storeProperties.length > 0 ? storeProperties : (property ? [property] : [])}
         prefill={modals.logJobPrefill}
+      />
+      <AddRoomModal
+        isOpen={modals.addRoom}
+        onClose={() => setModals(m => ({ ...m, addRoom: false }))}
+        propertyId={id!}
+        onSuccess={(room) => setRooms(r => [...r, room])}
       />
       <RequestQuoteModal
         isOpen={modals.quote}

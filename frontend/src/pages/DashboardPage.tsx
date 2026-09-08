@@ -234,12 +234,6 @@ export default function DashboardPage() {
 
   // ── Effects ───────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!isMobile && !propLoading && properties.length === 1 && !isWizardOpen) {
-      navigate(`/properties/${properties[0].id}`, { replace: true });
-    }
-  }, [propLoading, properties.length, isWizardOpen]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
     if (!propLoading && properties.length > 0 && !propertyInitialized.current) {
       propertyInitialized.current = true;
       setSelectedPropertyId(String(properties[0].id));

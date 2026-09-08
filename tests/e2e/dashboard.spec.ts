@@ -1,10 +1,12 @@
 import { test, expect } from "@playwright/test";
 import { injectTestAuth } from "./helpers/auth";
-import { injectBaselinePhotos } from "./helpers/testData";
+import { injectBaselinePhotos, injectTestProperties } from "./helpers/testData";
 import { assertNoA11yViolations } from "./helpers/a11y";
 
-// Dashboard requires 2+ properties — a single property triggers an immediate
-// redirect to the property detail page (DashboardPage redirect effect).
+// Most tests below seed 2 properties so the "SWITCH" property-picker UI has
+// something to switch between — the dashboard itself is shown regardless of
+// property count (a single-property user no longer gets redirected away
+// from /dashboard, see "DashboardPage — /dashboard (single property)" below).
 async function setup(page: Parameters<typeof injectTestAuth>[0]) {
   await injectTestAuth(page);
   await page.addInitScript(() => {
@@ -168,5 +170,15 @@ test.describe("DashboardPage — /dashboard", () => {
   test("'+ Log maintenance' button opens Log Job modal", async ({ page }) => {
     await page.getByRole("button", { name: /log maintenance/i }).click();
     await expect(page.getByRole("heading", { name: /what was done/i })).toBeVisible();
+  });
+});
+
+test.describe("DashboardPage — /dashboard (single property)", () => {
+  test("stays on /dashboard and shows dashboard content — no redirect to the property page", async ({ page }) => {
+    await injectTestAuth(page);
+    await injectTestProperties(page); // seeds exactly 1 property
+    await page.goto("/dashboard");
+    await expect(page.getByRole("button", { name: /log maintenance/i })).toBeVisible();
+    await expect(page).toHaveURL("/dashboard");
   });
 });

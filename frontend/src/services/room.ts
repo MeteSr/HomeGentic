@@ -1,7 +1,7 @@
 import { Actor } from "@icp-sdk/core/agent";
 import { getAgent } from "./actor";
 
-const ROOM_CANISTER_ID = (process.env as any).CANISTER_ID_PROPERTY || "";
+const ROOM_CANISTER_ID = (process.env as any).PROPERTY_CANISTER_ID || "";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
