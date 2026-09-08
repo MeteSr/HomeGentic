@@ -140,14 +140,24 @@ canisters:
         args: "--actor-idl did/"
 
   # Frontend asset canister
+  #
+  # This recipe's build.script runs from the repo root, not `frontend/` —
+  # a `workdir: frontend` key was here before but icp-cli 1.4.0's
+  # asset-canister recipe doesn't honor it (confirmed by inspecting the
+  # npm debug log: cwd was the repo root, not frontend/). Since root's
+  # package.json has no "build" script of its own (only frontend/'s
+  # workspace does), a plain `npm run build` here always failed with
+  # "Missing script: build" the moment this canister was first deployed.
+  # --workspace frontend targets frontend's own build script explicitly,
+  # which works regardless of which directory the recipe actually runs
+  # the command from.
   - name: frontend
     recipe:
       type: "@dfinity/asset-canister@v2.2.1"
       configuration:
         dir: frontend/dist
         build:
-          script: npm run build
-          workdir: frontend
+          script: npm run build --workspace frontend
 
 networks:
   - name: local
