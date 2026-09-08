@@ -587,9 +587,12 @@ jobs:
   # Auto-heals a test-visual failure caused by an intentional layout change:
   # regenerates screenshots with this runner's own Chromium build (the same
   # one test-visual compares against, so the result is trustworthy) and
-  # pushes the update straight back to the branch. Deliberately NOT tagged
-  # [skip ci] — the push must re-trigger a full CI run so a genuinely green
-  # run exists for deploy-testnet.yml's workflow_run trigger to fire on.
+  # pushes the update straight back to the branch. The commit below must
+  # NOT carry a skip-CI marker in its message (GitHub matches that
+  # substring literally, even inside prose explaining you didn't mean to
+  # use it) — the push has to re-trigger a full CI run so a genuinely
+  # green run exists for deploy-testnet.yml's workflow_run trigger to
+  # fire on.
   #
   # Trade-off, accepted deliberately: this bakes in whatever the page now
   # renders as the new "correct" screenshot with no human review before it
