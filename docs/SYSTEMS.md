@@ -176,7 +176,7 @@ Manager activity (write ops) pushes `OwnerNotification` records to the owner's q
 
 | Tier | Max Properties |
 |------|----------------|
-| Free | 0 (blocked) |
+| Free | 1 |
 | Pro | 20 |
 | ContractorFree | 0 |
 | ContractorPro | Unlimited |
@@ -184,10 +184,13 @@ Manager activity (write ops) pushes `OwnerNotification` records to the owner's q
 | Premium *(grandfathered)* | 20 |
 
 Pro ($59/yr) is the only purchasable homeowner tier and carries the old
-Premium tier's 20-property limit. Basic and Premium are retired as
-purchase options and only apply to subscribers grandfathered in before
-this change. Limits are checked at registration time only. Existing
-properties are not revoked if the user downgrades.
+Premium tier's 20-property limit. Free is no longer blocked — it gets
+the same 1-property allowance as grandfathered Basic, so homeowners can
+register and use a property (including Bid to List) before paying
+anything. Basic and Premium are retired as purchase options and only
+apply to subscribers grandfathered in before this change. Limits are
+checked at registration time only. Existing properties are not revoked
+if the user downgrades.
 
 ### Role-Based Access
 
@@ -291,7 +294,7 @@ Sensor-triggered: createSensorJob()→ #Pending, isDiy=false, amount=0
 
 | Function | Who |
 |----------|-----|
-| `createJob()` | Any authenticated; Free tier blocked |
+| `createJob()` | Any authenticated property owner or manager |
 | `updateJobStatus()`, `linkContractor()`, `createInviteToken()`, `approveJobProposal()`, `rejectJobProposal()` | Property owner or manager |
 | `verifyJob()` | Property owner OR linked contractor |
 | `redeemInviteToken()` | Any caller (token is credential) |
@@ -303,7 +306,7 @@ Sensor-triggered: createSensorJob()→ #Pending, isDiy=false, amount=0
 
 ### Tier Enforcement
 
-- Free tier: `createJob()` blocked ("Job creation requires an active subscription. Subscribe to Pro ($59/year) to get started.")
+- `createJob()` has no tier gate — Free, grandfathered Basic/Premium, and Pro can all log jobs on a property they own or manage. There is no per-job-count cap; the practical limit is the property canister's property-count cap.
 - If caller is a delegated manager, tier is looked up for the property owner, not the manager
 
 ### Cross-Canister Dependencies
@@ -352,16 +355,17 @@ Stores raw image bytes on-chain with SHA-256 deduplication and tier-based upload
 
 | Tier | Max per Job | Max per Property |
 |------|-------------|-----------------|
-| Free | 0 (blocked) | 0 (blocked) |
+| Free | 5 | 25 |
 | Pro | 30 | Unlimited |
 | ContractorPro | 50 | Unlimited |
 | ContractorFree / Basic *(grandfathered)* | 5 | 25 |
 | Premium *(grandfathered)* | 30 | Unlimited |
 
 Pro ($59/yr) is the only purchasable homeowner tier and carries the old
-Premium tier's photo limits. Basic and Premium are retired as purchase
-options and only apply to subscribers grandfathered in before this
-change.
+Premium tier's photo limits. Free is no longer blocked from photo
+uploads — it gets the same 5/job, 25/property cap as grandfathered
+Basic. Basic and Premium are retired as purchase options and only apply
+to subscribers grandfathered in before this change.
 
 **Additional rate limit:** 10 photo uploads per minute per principal (hardcoded, independent of tier).
 
@@ -447,6 +451,7 @@ In production, ciphertexts are IBE-encrypted via vetKeys. In local dev, the ciph
 |------|--------------------------|
 | Pro | Unlimited (999,999) |
 | ContractorFree / ContractorPro | Unlimited (999,999) |
+| Free | 3 |
 | Basic *(grandfathered)* | 3 |
 | Premium *(grandfathered)* | 10 |
 
@@ -570,6 +575,7 @@ The subscription tier authority. All other canisters ultimately defer to this ca
 
 | Tier | Price | Properties | Photos/Job | Open Quotes |
 |------|-------|------------|------------|-------------|
+| Free | $0 | 1 | 5 | 3 |
 | Pro | $59/yr | 20 | 30 | Unlimited |
 | ContractorFree | $0 | 0 | 5 | Unlimited |
 | ContractorPro | $40/mo | 0 | 50 | Unlimited |

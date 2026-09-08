@@ -131,21 +131,27 @@ Enforced server-side inside `payment`, `quote`, `photo`, and `property`.
 The frontend reflects tier state but never gates logic unilaterally.
 
 Homeowner pricing is a single paid plan — **Pro at $59/year** — carrying
-the old Premium tier's property/photo/quote limits. Basic and Premium are
-retired as purchase options; they remain valid `Tier` variant values and
-keep enforcing their original limits below purely so subscribers
+the old Premium tier's property/photo/quote limits. Free is not fully
+blocked: it gets the same property/photo/quote allowance the old retired
+Basic tier offered for free (1 property, 5 photos/job, 3 open quote
+requests), plus job logging and Bid to List access — only the
+AI/intelligence features (Market Intelligence, Maintenance, Warranty
+Wallet, Insurance Defense, Resale Ready, Recurring Services) and the AI
+agent-call quota stay Pro-only. Basic and Premium are retired as
+purchase options; they remain valid `Tier` variant values and keep
+enforcing their original limits below purely so subscribers
 grandfathered in before this change keep their existing plan until they
 renew, at which point they move to Pro.
 
 ```
-┌──────────────────┬──────────┬───────────────┬───────────────┬─────────────┬────────────┐
-│                  │   Pro    │ContractorFree │ ContractorPro │ RealtorFree │ RealtorPro │
-├──────────────────┼──────────┼───────────────┼───────────────┼─────────────┼────────────┤
-│ Price            │ $59 / yr │ $0            │ $30 / mo      │ $0          │ $30 / mo   │
-│ Properties       │ 20       │ 0             │ unlimited     │ 0           │ 0          │
-│ Photos / job     │ 30       │ 5             │ 50            │ 5           │ 50         │
-│ Open quote reqs  │ unlimited│ unlimited     │ unlimited     │ unlimited   │ unlimited  │
-└──────────────────┴──────────┴───────────────┴───────────────┴─────────────┴────────────┘
+┌──────────────────┬──────────┬──────────┬───────────────┬───────────────┬─────────────┬────────────┐
+│                  │   Free   │   Pro    │ContractorFree │ ContractorPro │ RealtorFree │ RealtorPro │
+├──────────────────┼──────────┼──────────┼───────────────┼───────────────┼─────────────┼────────────┤
+│ Price            │ $0       │ $59 / yr │ $0            │ $30 / mo      │ $0          │ $30 / mo   │
+│ Properties       │ 1        │ 20       │ 0             │ unlimited     │ 0           │ 0          │
+│ Photos / job     │ 5        │ 30       │ 5             │ 50            │ 5           │ 50         │
+│ Open quote reqs  │ 3        │ unlimited│ unlimited     │ unlimited     │ unlimited   │ unlimited  │
+└──────────────────┴──────────┴──────────┴───────────────┴───────────────┴─────────────┴────────────┘
 ```
 
 Grandfathered legacy tiers (no longer purchasable):

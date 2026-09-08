@@ -182,7 +182,7 @@ persistent actor Photo {
   // arms stay here so grandfathered subscribers keep their existing quota.
   private func quotaFor(tier: SubscriptionTier) : PhotoQuota {
     switch (tier) {
-      case (#Free)          { { tier; maxPerJob = 0;   maxPerProperty = 0   } };  // blocked
+      case (#Free)          { { tier; maxPerJob = 5;   maxPerProperty = 25  } };
       case (#ContractorFree){ { tier; maxPerJob = 5;   maxPerProperty = 25  } };
       case (#Basic)         { { tier; maxPerJob = 5;   maxPerProperty = 25  } };
       case (#Pro)           { { tier; maxPerJob = 30;  maxPerProperty = 0   } };  // 0 = unlimited
@@ -298,21 +298,15 @@ persistent actor Photo {
     let quota = quotaFor(callerTierRaw);
 
     let callerTier = quota.tier;
-    // #Basic is grandfathered-only — its upgrade path now points to the
-    // single $59/year Pro plan. #Pro is already the top homeowner tier
-    // (unlimited photos/job), so there's nowhere further to suggest.
+    // Free and #Basic (grandfathered) share the same 5-photo/job cap and the
+    // same upgrade path, to the single $59/year Pro plan. #Pro is already
+    // the top homeowner tier (unlimited photos/job), so there's nowhere
+    // further to suggest.
     let upgradeHint = switch (callerTier) {
-      case (#Free) {
-        " Subscribe to Pro ($59/year) to start uploading photos."
-      };
-      case (#Basic) {
+      case (#Free or #Basic) {
         " Upgrade to Pro ($59/year) for 30 photos/job."
       };
       case _ { "" };
-    };
-
-    if (callerTier == #Free) {
-      return #err(#QuotaExceeded("Photo uploads require an active subscription. Subscribe to Pro ($59/year) to get started."));
     };
 
     // H-11: Verify caller is authorized for this property before storing the photo.

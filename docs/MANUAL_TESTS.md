@@ -115,8 +115,13 @@ and has never been tested across two real sessions.
 verifies the real `payment` canister writes the new tier, that the UI reflects
 it on next load, and that tier-gated features unlock immediately.
 
-**Note:** Free is the entry tier (0 properties allowed) — homeowner
-pricing is a single paid plan, **Pro at $59/year**. Basic and Premium are
+**Note:** Free is not a fully-blocked tier — it gets 1 property, 5
+photos/job, and 3 open quote requests (same as the old retired Basic
+tier), plus job logging and Bid to List access. Homeowner paid pricing
+is a single plan, **Pro at $59/year**, which raises those caps to 20
+properties / 30 photos / unlimited quotes and unlocks the AI/intelligence
+features (Market Intelligence, Maintenance, Warranty Wallet, Insurance
+Defense, Resale Ready, Recurring Services). Basic and Premium are
 retired as purchase options and only exist for subscribers grandfathered
 in before this change.
 
@@ -130,19 +135,23 @@ in before this change.
 | # | Action | Expected Result |
 |---|--------|-----------------|
 | 1 | Log in and navigate to `/settings` | Subscription tab shows **Free** plan |
-| 2 | Confirm the property limit: navigate to `/properties/new` and register a property | Should be blocked — Free allows 0 properties |
-| 3 | Return to `/settings`, click **Subscription** tab | Free plan + upgrade-to-Pro option visible |
-| 4 | Click **Upgrade** / **Get Pro** | Redirects to checkout or loading spinner on button |
-| 5 | Complete Stripe checkout with test card | Redirected to `/payment-success`; toast "Upgraded to Pro!" |
-| 6 | Confirm the Subscription tab now shows **Pro** | Plan card updated in current session |
-| 7 | Hard-refresh the page | Still shows **Pro** — tier persisted to canister |
-| 8 | Open a new tab, navigate to `/settings` → Subscription | Still Pro |
-| 9 | Navigate to `/properties/new` and register up to 20 properties | Succeeds — Pro allows up to 20 properties; the 21st is blocked |
+| 2 | Confirm the property limit: navigate to `/properties/new` and register a property | Succeeds — Free allows 1 property |
+| 3 | Attempt to register a second property | Blocked — upgrade modal appears instead of the add-property form |
+| 4 | Confirm Free-tier access on the registered property: log a DIY job, upload up to 5 photos, submit up to 3 open quote requests | All succeed; a 6th photo or 4th open quote request is blocked with an upgrade hint |
+| 5 | Confirm `/market`, `/maintenance`, `/warranties`, `/insurance-defense`, `/resale-ready`, `/recurring/new` all redirect to `/pricing` | Still Pro-only on Free |
+| 6 | Return to `/settings`, click **Subscription** tab | Free plan + upgrade-to-Pro option visible |
+| 7 | Click **Upgrade** / **Get Pro** | Redirects to checkout or loading spinner on button |
+| 8 | Complete Stripe checkout with test card | Redirected to `/payment-success`; toast "Upgraded to Pro!" |
+| 9 | Confirm the Subscription tab now shows **Pro** | Plan card updated in current session |
+| 10 | Hard-refresh the page | Still shows **Pro** — tier persisted to canister |
+| 11 | Open a new tab, navigate to `/settings` → Subscription | Still Pro |
+| 12 | Register up to 20 properties total (19 more, on top of the 1 from Free) | Succeeds up to 20; the 21st is blocked |
 
 **Watch for**
 - UI showing Pro but canister still returning Free on next session (optimistic update bug)
-- Tier-gated property limit not relaxing without a full reload
+- Tier-gated property/photo/quote limits not relaxing without a full reload
 - Checkout offering Monthly billing or any tier other than Pro (Pro is annual-only; there should be no billing-cycle choice)
+- Free tier able to reach Pro-only pages (Market Intelligence, Maintenance, etc.) via direct URL navigation
 
 ---
 
@@ -187,7 +196,7 @@ real file; no test verifies that a hash stored under job A is rejected
 (or acknowledged as duplicate) under job B.
 
 **Prerequisites**
-- A user account on the **Pro** tier (Free allows 0 photos/job, so uploads require Pro)
+- A user account on the **Pro** tier (needed to test the 30-photo/job cap in step 8 below; Free is capped lower, at 5/job)
 - A property with at least one verified job
 - A test image file saved locally (any JPEG or PNG, e.g. a screenshot)
 - `photo` canister deployed

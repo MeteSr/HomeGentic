@@ -462,14 +462,19 @@ Multi-tab page — the main workspace for a property.
 
 ## Subscription Tier Gates
 
-Homeowner pricing is a single paid plan — **Pro, $59/year** — every paid
-feature below is included:
+Homeowner pricing is a single paid plan — **Pro, $59/year**. Free is not
+fully blocked: it gets real (if capped) access to core record-keeping —
+registering a property, logging jobs, uploading photos, requesting
+quotes, and using Bid to List — at the same limits the old retired Basic
+tier offered. The AI/intelligence features stay Pro-only.
 
 | Feature | Free | Pro ($59/yr) |
 |---|---|---|
-| Properties | 0 | 20 |
-| Photos per job | 0 | 30 |
-| Open quote requests | 0 | Unlimited |
+| Properties | 1 | 20 |
+| Photos per job | 5 | 30 |
+| Open quote requests | 3 | Unlimited |
+| Job logging (DIY + contractor) | ✓ | ✓ |
+| Bid to List access | ✓ | ✓ |
 | AI agent calls/day | 0 | 10 |
 | Score breakdown | – | ✓ |
 | Warranty Wallet | – | ✓ |

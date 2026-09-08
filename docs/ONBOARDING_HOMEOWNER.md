@@ -9,7 +9,7 @@ Getting started with HomeGentic — your blockchain-verified home maintenance re
 1. Go to `homegentic.app` and click **Get Started**.
 2. Sign in with **Internet Identity** — a passkey-based, passwordless system built on ICP.
 3. On first sign-in you'll be prompted to choose your role: select **Homeowner**.
-4. You start on the **Free** tier, which lets you explore the app before subscribing.
+4. You start on the **Free** tier, which lets you register and manage 1 property before subscribing.
 
 ---
 
@@ -76,7 +76,7 @@ Homeowner pricing is a single paid plan:
 
 | Tier | Properties | Price |
 |---|---|---|
-| Free | 0 | $0 |
+| Free | 1 | $0 |
 | Pro | 20 | $59 / yr |
 
 Upgrade anytime from **Settings → Subscription**.

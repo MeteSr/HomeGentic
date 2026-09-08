@@ -5,6 +5,11 @@
  * never accidentally suppress these constants (they're not part of the
  * mock surface).
  *
+ * Free is no longer a fully-blocked tier: homeowners get 1 property, 5
+ * photos/job, and 3 open quote requests for free (matching what the old
+ * retired Basic tier offered), plus job logging and Bid to List access.
+ * AI agent calls stay Pro-only (0/day on Free).
+ *
  * Homeowner pricing is a single paid plan: Pro at $59/year (annual-only),
  * carrying the old Premium tier's property/photo/quote limits. Its AI
  * agent-call limit is the exception — it keeps its own original 10/day
@@ -47,10 +52,16 @@ export const PLANS: Plan[] = [
     tier: "Free",
     price: 0,
     period: "free",
-    features: [],
-    propertyLimit: 0,
-    photosPerJob: 0,
-    quoteRequests: 0,
+    features: [
+      "1 property",
+      "5 photos per job",
+      "Up to 3 open quote requests",
+      "Job logging (DIY + contractor)",
+      "Bid to List access",
+    ],
+    propertyLimit: 1,
+    photosPerJob: 5,
+    quoteRequests: 3,
   },
   {
     tier: "Pro",

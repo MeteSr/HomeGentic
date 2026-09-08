@@ -286,31 +286,6 @@ persistent actor Job {
       };
     };
 
-    // ── Tier job cap ─────────────────────────────────────────────────────────
-    // When the caller is a delegated manager, use the property owner's tier
-    // so the manager doesn't need their own paid subscription.
-    if (payCanisterId != "") {
-      let payActor = actor(payCanisterId) : actor {
-        getTierForPrincipal : (Principal) -> async { #Free; #Basic; #Pro; #Premium; #ContractorFree; #ContractorPro };
-      };
-      let effectivePrincipal : Principal = if (propCanisterId != "") {
-        let propActor = actor(propCanisterId) : actor {
-          getPropertyOwner : (Text) -> async ?Principal;
-        };
-        switch (await propActor.getPropertyOwner(propertyId)) {
-          case (?owner) { if (owner != msg.caller) { owner } else { msg.caller } };
-          case null     { msg.caller };
-        }
-      } else { msg.caller };
-      let tier = await payActor.getTierForPrincipal(effectivePrincipal);
-      switch (tier) {
-        case (#Free) {
-          return #err(#TierLimitReached("Job creation requires an active subscription. Subscribe to Pro ($59/year) to get started."));
-        };
-        case _ {};
-      };
-    };
-
     let id  = nextJobId();
     let now = Time.now();
 

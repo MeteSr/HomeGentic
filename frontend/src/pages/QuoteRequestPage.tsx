@@ -37,10 +37,11 @@ const URGENCY_OPTIONS: { value: Urgency; label: string; desc: string }[] = [
 
 // Tier → open request limit (Infinity = no limit). Mirrors
 // backend/quote/main.mo's tierOpenLimit(). Pro is the only purchasable
-// homeowner tier and is genuinely unlimited; Basic/Premium remain here
-// only for grandfathered subscribers.
+// homeowner tier and is genuinely unlimited; Free gets the same 3-request
+// cap as grandfathered Basic; Premium remains here only for grandfathered
+// subscribers.
 const TIER_LIMITS: Record<string, number> = {
-  Free: 0, Basic: 3, Pro: Infinity,
+  Free: 3, Basic: 3, Pro: Infinity,
   Premium: 10, ContractorFree: Infinity, ContractorPro: Infinity,
 };
 

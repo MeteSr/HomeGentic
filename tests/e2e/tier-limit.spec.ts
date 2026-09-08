@@ -5,7 +5,9 @@
  * Uses window.__e2e_* injection so no canister is required.
  *
  * Coverage:
- *  - Free homeowner accessing /dashboard is redirected to /pricing
+ *  - Free homeowner can reach /dashboard and /properties/new (1-property access)
+ *  - Free homeowner is still blocked from Pro-only pages (e.g. /market)
+ *  - Free homeowner at their 1-property cap gets the upgrade modal, not the add-property form
  *  - Subscription upgrade click navigates to /checkout with correct tier param
  *  - Subscription downgrade click navigates to /checkout with correct tier param
  */
@@ -14,21 +16,41 @@ import { test, expect } from "@playwright/test";
 import { injectTestAuth } from "./helpers/auth";
 import { injectTestProperties, injectSubscription } from "./helpers/testData";
 
-// ── Free homeowner redirect ───────────────────────────────────────────────────
+// ── Free homeowner: 1-property access, not a blanket redirect ────────────────
 
-test.describe("Tier limit — Free homeowner redirect", () => {
-  test("Free homeowner visiting /dashboard is redirected to /pricing", async ({ page }) => {
+test.describe("Tier limit — Free homeowner gets 1-property access", () => {
+  test("Free homeowner visiting /dashboard is not redirected to /pricing", async ({ page }) => {
     await injectTestAuth(page);
     await injectSubscription(page, "Free");
     await page.goto("/dashboard");
-    await expect(page).toHaveURL(/\/pricing/);
+    await expect(page).toHaveURL("/dashboard");
   });
 
-  test("Free homeowner visiting /properties/new is redirected to /pricing", async ({ page }) => {
+  test("Free homeowner visiting /properties/new is not redirected to /pricing", async ({ page }) => {
     await injectTestAuth(page);
     await injectSubscription(page, "Free");
     await page.goto("/properties/new");
+    // /properties/new unconditionally forwards to /dashboard, where the
+    // add-property modal lives — the point of this test is that neither
+    // hop lands on /pricing.
+    await expect(page).not.toHaveURL(/\/pricing/);
+  });
+
+  test("Free homeowner is still blocked from Pro-only /market", async ({ page }) => {
+    await injectTestAuth(page);
+    await injectTestProperties(page);
+    await injectSubscription(page, "Free");
+    await page.goto("/market");
     await expect(page).toHaveURL(/\/pricing/);
+  });
+
+  test("Free homeowner at their 1-property limit sees the upgrade modal, not the add-property form", async ({ page }) => {
+    await injectTestAuth(page);
+    await injectTestProperties(page); // seeds exactly 1 property
+    await injectSubscription(page, "Free");
+    await page.goto("/dashboard");
+    await page.getByRole("button", { name: /add property/i }).click();
+    await expect(page.getByRole("dialog", { name: /upgrade your plan/i })).toBeVisible();
   });
 });
 

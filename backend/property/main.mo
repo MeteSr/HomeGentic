@@ -531,7 +531,7 @@ persistent actor Property {
   // arms stay here so grandfathered subscribers keep their existing limits.
   public query func getPropertyLimitForTier(tier: SubscriptionTier) : async Nat {
     switch tier {
-      case (#Free)             { 0  };  // blocked — unsubscribed
+      case (#Free)             { 1  };
       case (#Basic)            { 1  };
       case (#Pro)              { 20 };
       case (#Premium)          { 20 };
@@ -650,14 +650,14 @@ persistent actor Property {
       tierFor(caller)
     };
     let limit = switch (callerTier) {
-      case (#Free)             { 0  };  // blocked — unsubscribed
+      case (#Free)             { 1  };
       case (#Basic)            { 1  };
       case (#Pro)              { 20 };
       case (#Premium)          { 20 };
       case (#ContractorFree)   { 0  };  // contractors don't own properties
       case (#ContractorPro)    { 0  };  // 0 = unlimited (ContractorPro)
     };
-    if (callerTier == #Free or callerTier == #ContractorFree or (limit > 0 and countOwnerProperties(caller) >= limit)) {
+    if (callerTier == #ContractorFree or (limit > 0 and countOwnerProperties(caller) >= limit)) {
       let tierName = switch (callerTier) {
         case (#Free)             "Free";
         case (#Basic)            "Basic";

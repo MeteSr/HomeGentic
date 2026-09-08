@@ -66,13 +66,13 @@ describe("PLANS", () => {
     expect(PLANS.map((p) => p.tier)).toEqual(["Free", "Pro", "ContractorFree", "ContractorPro"]);
   });
 
-  it("Free tier is $0 unsubscribed sentinel with no limits", () => {
+  it("Free tier is $0 with 1 property, 5 photos/job, 3 open quote requests", () => {
     const free = PLANS.find((p) => p.tier === "Free")!;
     expect(free.price).toBe(0);
     expect(free.period).toBe("free");
-    expect(free.propertyLimit).toBe(0);
-    expect(free.photosPerJob).toBe(0);
-    expect(free.quoteRequests).toBe(0);
+    expect(free.propertyLimit).toBe(1);
+    expect(free.photosPerJob).toBe(5);
+    expect(free.quoteRequests).toBe(3);
   });
 
   it("Pro tier is $59/year with 20 property limit (single homeowner plan)", () => {

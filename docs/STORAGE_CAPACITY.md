@@ -48,7 +48,7 @@ Every other canister comfortably handles tens of millions of records. Photos are
 
 Practical mitigation strategies within the on-chain constraint:
 - Enforce client-side compression before upload (target ≤200 KB per photo)
-- Apply tier quotas strictly (Pro: 30/job; grandfathered Basic: 5/job, Premium: 30/job)
+- Apply tier quotas strictly (Free: 5/job; Pro: 30/job; grandfathered Basic: 5/job, Premium: 30/job)
 - Add a per-property photo cap in addition to per-job cap
 - Shard the photo canister horizontally (one canister per property range or zip code) once a single instance approaches ~300 GiB
 

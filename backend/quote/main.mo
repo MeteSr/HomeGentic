@@ -316,7 +316,7 @@ persistent actor Quote {
   /// tier — previously enforced here as only 10, the same as old #Pro).
   private func tierOpenLimit(tier: SubscriptionTier) : Nat {
     switch tier {
-      case (#Free)             { 0       };  // blocked — unsubscribed
+      case (#Free)             { 3       };
       case (#Basic)            { 3       };
       case (#Pro)              { 999_999 };  // effectively unlimited
       case (#Premium)          { 10      };
@@ -402,17 +402,15 @@ persistent actor Quote {
     } else {
       tierFor(effectivePrincipal)
     };
-    if (callerTier == #Free) {
-      return #err(#InvalidInput("Quote requests require an active subscription. Subscribe to Pro ($59/year) to get started."));
-    };
     let limit = tierOpenLimit(callerTier);
     if (countOpenRequests(msg.caller) >= limit) {
-      // #Basic is grandfathered-only — points to the single $59/year Pro
-      // plan. #Pro itself has no further homeowner tier to suggest (it was
-      // previously pointed at ContractorPro, a different persona's plan —
-      // that never made sense and is dropped here).
+      // Free and #Basic (grandfathered) share the same 3-request cap and
+      // upgrade path, to the single $59/year Pro plan. #Pro itself has no
+      // further homeowner tier to suggest (it was previously pointed at
+      // ContractorPro, a different persona's plan — that never made sense
+      // and is dropped here).
       let upgradeHint = switch (callerTier) {
-        case (#Basic) {
+        case (#Free or #Basic) {
           " Upgrade to Pro ($59/year) for unlimited concurrent requests."
         };
         case _ { "" };
@@ -420,7 +418,8 @@ persistent actor Quote {
       return #err(#InvalidInput(
         "Open request limit reached for your " # (switch callerTier {
           case (#Free) "Free"; case (#Basic) "Basic"; case (#Pro) "Pro";
-          case (#Premium) "Premium"; case (#ContractorPro) "ContractorPro";
+          case (#Premium) "Premium"; case (#ContractorFree) "ContractorFree";
+          case (#ContractorPro) "ContractorPro";
         }) # " plan (" # Nat.toText(limit) # " max)." # upgradeHint
       ));
     };

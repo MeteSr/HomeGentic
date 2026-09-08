@@ -37,6 +37,7 @@ const TIER_LABELS: Record<string, string> = {
 };
 
 const TIER_USAGE: Record<string, string> = {
+  Free:           "1 property · 5 photos/job",
   Basic:          "1 property · 5 photos/job",
   Pro:            "20 properties · 30 photos/job",
   Premium:        "20 properties · 30 photos/job",

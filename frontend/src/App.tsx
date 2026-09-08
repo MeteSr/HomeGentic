@@ -116,7 +116,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Blocks authenticated homeowners with no active paid subscription.
+// Blocks Free-tier homeowners from Pro-only features: Market Intelligence,
+// Predictive Maintenance, Sensors, Warranty Wallet, Insurance Defense,
+// Resale Ready, Recurring Services, and delegated People management. Free
+// now has its own real (if capped) property/job/quote/photo access via
+// plain ProtectedRoute — see /dashboard, /properties/:id, /jobs, /quotes/*
+// below — so this guard is narrower than its name once implied.
 // ContractorFree passes through — only plain "Free" on a Homeowner role is rejected. tier===null means still loading; hold here
 // to avoid a flash redirect before the subscription fetch resolves.
 function PaidHomeownerRoute({ children }: { children: React.ReactNode }) {
@@ -178,14 +183,16 @@ export default function App() {
           <Route path="/manage/claim/:token"   element={<PropertyManagerClaimPage />} />
 
           <Route path="/register"     element={<ProtectedRoute><RegisterPage /></ProtectedRoute>} />
-          <Route path="/dashboard"    element={<PaidHomeownerRoute><DashboardPage /></PaidHomeownerRoute>} />
+          {/* Free tier now gets 1 property + job/photo/quote access on it, so */}
+          {/* dashboard/properties/jobs/quotes are auth-only, not Pro-gated. */}
+          <Route path="/dashboard"    element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
           <Route path="/contractor-dashboard" element={<ProtectedRoute><ContractorDashboardPage /></ProtectedRoute>} />
           <Route path="/contractors"  element={<ProtectedRoute><ContractorBrowsePage /></ProtectedRoute>} />
           <Route path="/contractor/:id" element={<ProtectedRoute><ContractorPublicPage /></ProtectedRoute>} />
           <Route path="/contractor/profile" element={<ProtectedRoute><ContractorProfilePage /></ProtectedRoute>} />
           <Route path="/properties/new" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/properties/:id" element={<PaidHomeownerRoute><PropertyDetailPage /></PaidHomeownerRoute>} />
-          <Route path="/properties/:id/verify" element={<PaidHomeownerRoute><VerifyLayout /></PaidHomeownerRoute>}>
+          <Route path="/properties/:id" element={<ProtectedRoute><PropertyDetailPage /></ProtectedRoute>} />
+          <Route path="/properties/:id/verify" element={<ProtectedRoute><VerifyLayout /></ProtectedRoute>}>
             <Route index                  element={<VerifyClaimPage />} />
             <Route path="identity"        element={<VerifyIdentityPage />} />
             <Route path="document"        element={<VerifyDocumentPage />} />
@@ -195,10 +202,10 @@ export default function App() {
             <Route path="contested"       element={<VerifyContestedPage />} />
           </Route>
           <Route path="/properties/:id/systems" element={<PaidHomeownerRoute><SystemAgesPage /></PaidHomeownerRoute>} />
-          <Route path="/jobs"         element={<PaidHomeownerRoute><JobsPage /></PaidHomeownerRoute>} />
-          <Route path="/jobs/new"     element={<PaidHomeownerRoute><JobCreatePage /></PaidHomeownerRoute>} />
-          <Route path="/quotes/new"   element={<PaidHomeownerRoute><QuoteRequestPage /></PaidHomeownerRoute>} />
-          <Route path="/quotes/:id"   element={<PaidHomeownerRoute><QuoteDetailPage /></PaidHomeownerRoute>} />
+          <Route path="/jobs"         element={<ProtectedRoute><JobsPage /></ProtectedRoute>} />
+          <Route path="/jobs/new"     element={<ProtectedRoute><JobCreatePage /></ProtectedRoute>} />
+          <Route path="/quotes/new"   element={<ProtectedRoute><QuoteRequestPage /></ProtectedRoute>} />
+          <Route path="/quotes/:id"   element={<ProtectedRoute><QuoteDetailPage /></ProtectedRoute>} />
           <Route path="/settings"     element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
           <Route path="/refer"        element={<ProtectedRoute><ReferralPage /></ProtectedRoute>} />
           <Route path="/market"       element={<PaidHomeownerRoute><MarketIntelligencePage /></PaidHomeownerRoute>} />

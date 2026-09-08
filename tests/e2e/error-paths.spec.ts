@@ -15,7 +15,7 @@
 
 import { test, expect } from "@playwright/test";
 import { injectTestAuth } from "./helpers/auth";
-import { injectSubscription, injectQuoteRequests, injectVerifyStatus } from "./helpers/testData";
+import { injectSubscription, injectQuoteRequests, injectVerifyStatus, injectTestProperties } from "./helpers/testData";
 import { assertNoA11yViolations } from "./helpers/a11y";
 
 // ── Common property fixture ───────────────────────────────────────────────────
@@ -247,10 +247,12 @@ test.describe("EP.4 — Job create: Save button gating", () => {
 // ── EP.5 — Tier limit: Free user sees upgrade gate on quote request ────────────
 
 test.describe("EP.5 — Free user upgrade gate on quote request", () => {
-  test("shows upgrade gate when Free user visits /quotes/new", async ({ page }) => {
+  test("shows upgrade gate when Free user is at their 3-open-request limit", async ({ page }) => {
     await injectTestAuth(page);
+    await injectTestProperties(page); // Free needs a property to reach the quote-request form at all
     await injectSubscription(page, "Free");
-    // Inject enough open requests to trigger the limit
+    // Free gets the same 3-open-request cap as grandfathered Basic —
+    // inject exactly 3 to sit right at the limit.
     await injectQuoteRequests(page, [
       { id: "q1", propertyId: "1", homeowner: "test-e2e-principal", serviceType: "HVAC", urgency: "medium", description: "Test", status: "open", createdAt: Date.now() - 1000 },
       { id: "q2", propertyId: "1", homeowner: "test-e2e-principal", serviceType: "Plumbing", urgency: "low", description: "Test 2", status: "open", createdAt: Date.now() - 2000 },
@@ -267,11 +269,11 @@ test.describe("EP.5 — Free user upgrade gate on quote request", () => {
     await assertNoA11yViolations(page);
   });
 
-  test("Free user redirected to /pricing when visiting /dashboard", async ({ page }) => {
+  test("Free user is NOT redirected to /pricing when visiting /dashboard", async ({ page }) => {
     await injectTestAuth(page);
     await injectSubscription(page, "Free");
     await page.goto("/dashboard");
-    await expect(page).toHaveURL(/\/pricing/);
+    await expect(page).toHaveURL("/dashboard");
   });
 });
 

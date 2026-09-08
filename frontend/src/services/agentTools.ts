@@ -18,9 +18,10 @@ import { paymentService, type PlanTier } from "./payment";
 
 // Inline tier→property limit to avoid PLANS import breaking payment mocks in tests
 // Basic/Premium are grandfathered-only (no longer purchasable) — Pro is the
-// single homeowner plan now, at the old Premium's limit.
+// single homeowner plan now, at the old Premium's limit. Free gets 1
+// property (same as grandfathered Basic) rather than being blocked.
 const TIER_PROPERTY_LIMIT: Partial<Record<PlanTier, number>> = {
-  Basic: 1, Pro: 20, Premium: 20,
+  Free: 1, Basic: 1, Pro: 20, Premium: 20,
 };
 import { buildMaintenanceForecast } from "./maintenanceForecast";
 import { reportService, jobToInput, propertyToInput } from "./report";

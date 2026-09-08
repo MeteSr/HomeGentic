@@ -28,9 +28,10 @@ import { fsboService } from "@/services/fsbo";
 // Inline tier→property limit so Layout never imports PLANS from payment,
 // keeping the payment mock surface small in tests.
 // Basic/Premium are grandfathered-only (no longer purchasable) — Pro is the
-// single homeowner plan now, at the old Premium's limit.
+// single homeowner plan now, at the old Premium's limit. Free gets 1
+// property (same as grandfathered Basic) rather than being blocked.
 const TIER_PROPERTY_LIMIT: Partial<Record<PlanTier, number>> = {
-  Basic: 1, Pro: 20, Premium: 20,
+  Free: 1, Basic: 1, Pro: 20, Premium: 20,
 };
 import UpgradeModal from "./UpgradeModal";
 import { ActivityFeedDrawer } from "./ActivityFeedDrawer";

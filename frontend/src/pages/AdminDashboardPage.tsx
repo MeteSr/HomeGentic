@@ -424,7 +424,7 @@ function TierManager() {
         <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.5rem" }}>Tier limits</p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "1rem" }}>
           {[
-            { tier: "Free",          props: "0 (blocked)",     quotes: "0 (blocked)" },
+            { tier: "Free",          props: "1 property",      quotes: "3 open requests" },
             { tier: "Pro",           props: "20 properties",   quotes: "Unlimited" },
             { tier: "Premium",       props: "20 properties",   quotes: "10 open requests (grandfathered)" },
             { tier: "ContractorPro", props: "Unlimited",       quotes: "Unlimited" },
