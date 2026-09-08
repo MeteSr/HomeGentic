@@ -389,10 +389,20 @@ const FEATURES = [
   },
 ];
 
-// Pro ($59/year) is the single homeowner plan.
+// Free (real, capped access — not a trial) sits next to the single paid
+// Pro ($59/year) homeowner plan.
 const PLANS = [
   {
-    tier: "Pro", sub: "For every homeowner", price: "$59",
+    tier: "Free", sub: "For getting your first record started", price: "Free", period: "",
+    features: ["1 property", "5 photos per job", "10 AI agent calls/week", "Warranty Wallet & Market Intelligence", "Bid to List access"],
+    tag: null as string | null, tagBg: YELLOW,
+    bg: PAPER, border: BORDER, shadow: "none",
+    titleColor: INK, subColor: MUTED,
+    ctaBg: "transparent", ctaBorder: BLUE, ctaColor: BLUE, cta: "Get Started for Free",
+    checkBg: LBLUE, checkColor: BLUE,
+  },
+  {
+    tier: "Pro", sub: "For every homeowner", price: "$59", period: "/year",
     features: ["Up to 20 properties", "30 photos per job", "Unlimited quote requests", "Voice AI assistant", "Priority support"],
     tag: null as string | null, tagBg: YELLOW,
     bg: BLUE, border: BLUE, shadow: "0 20px 60px rgba(43,52,255,0.4)",
@@ -698,7 +708,7 @@ export default function LandingPage() {
               Every plan keeps your records permanently and includes shareable reports. Contractors have their own free plan.
             </p>
           </div>
-          <div className="hg-grid-plans" style={{ display: "grid", gridTemplateColumns: "1fr", maxWidth: 420, margin: "48px auto 0", alignItems: "stretch" }}>
+          <div className="hg-grid-plans" style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 20, maxWidth: 860, margin: "48px auto 0", alignItems: "stretch" }}>
             {PLANS.map((pl) => (
               <PlanCard key={pl.tier} plan={pl} onStart={() => navigate("/login")} />
             ))}
@@ -1141,7 +1151,7 @@ function PlanCard({ plan: pl, onStart }: { plan: typeof PLANS[number]; onStart: 
       <div style={{ font: `400 14px/1.5 ${BODY}`, color: pl.subColor, marginTop: 10 }}>{pl.sub}</div>
       <div style={{ display: "flex", alignItems: "baseline", gap: 7, marginTop: 24 }}>
         <div style={{ font: `800 46px/1 ${DISPLAY}`, color: pl.titleColor, letterSpacing: "-.045em" }}>{pl.price}</div>
-        <div style={{ font: `400 14px/1 ${BODY}`, color: pl.subColor }}>/year</div>
+        {pl.period && <div style={{ font: `400 14px/1 ${BODY}`, color: pl.subColor }}>{pl.period}</div>}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 26 }}>
         {pl.features.map((pf) => (
