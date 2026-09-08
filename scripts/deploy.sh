@@ -183,12 +183,21 @@ if [ "$ENV" != "local" ]; then
   fi
 
   # PROD.8 — Network must be reachable
-  echo -n "  Checking network reachability ($ENV)... "
-  if icp network ping "$ENV" >/dev/null 2>&1; then
+  # icp network ping operates on network names, not icp.yaml environment
+  # names. testnet and ic are both environments that resolve to the same
+  # built-in "ic" network (see icp.yaml's environments: block) — there is
+  # no network literally named "testnet", so pinging $ENV directly always
+  # fails for a testnet deploy even though the real network is reachable.
+  case "$ENV" in
+    testnet|ic) PING_NETWORK="ic" ;;
+    *)          PING_NETWORK="$ENV" ;;
+  esac
+  echo -n "  Checking network reachability ($ENV -> $PING_NETWORK)... "
+  if icp network ping "$PING_NETWORK" >/dev/null 2>&1; then
     echo "✓"
   else
     echo "✗"
-    echo "  ✗ ICP network '$ENV' is not reachable — check your connection or icp.yaml"
+    echo "  ✗ ICP network '$PING_NETWORK' is not reachable — check your connection or icp.yaml"
     PREFLIGHT_FAILED=1
   fi
 
