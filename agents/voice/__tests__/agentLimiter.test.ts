@@ -2,7 +2,8 @@
  * agentLimiter tests
  *
  * Core behaviour
- *   - Free / ContractorFree tier: first call blocked (limit = 0)
+ *   - Free: 10 calls/week allowed, 11th blocked (weekly reset, not daily)
+ *   - ContractorFree tier: first call blocked (limit = 0)
  *   - Basic: 5 calls allowed, 6th blocked (grandfathered tier)
  *   - Pro / ContractorPro: 10 calls allowed, 11th blocked
  *   - Premium: 20 calls allowed, 21st blocked (grandfathered tier)
@@ -10,7 +11,7 @@
  *
  * Isolation
  *   - Different principals have independent counters
- *   - Unknown tier strings fall through to 0 (Free)
+ *   - Unknown tier strings fall through to a 0 limit (blocked)
  *
  * getCount
  *   - returns 0 for an unseen principal
@@ -21,7 +22,7 @@
  *   - log fields: ts, event, principal, tier, count, limit, allowed
  */
 
-import { checkAndRecord, getCount, TIER_LIMITS } from "../agentLimiter";
+import { checkAndRecord, getCount, TIER_LIMITS, TIER_PERIOD } from "../agentLimiter";
 import type { SubscriptionTier } from "../agentLimiter";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -40,7 +41,7 @@ function callN(n: number, principal: string, tier: SubscriptionTier) {
 // ── Core behaviour ────────────────────────────────────────────────────────────
 
 describe("TIER_LIMITS constants", () => {
-  it("Free = 0", ()            => expect(TIER_LIMITS.Free).toBe(0));
+  it("Free = 10", ()           => expect(TIER_LIMITS.Free).toBe(10));
   it("Basic = 5", ()           => expect(TIER_LIMITS.Basic).toBe(5));
   it("Pro = 10", ()            => expect(TIER_LIMITS.Pro).toBe(10));
   it("Premium = 20", ()        => expect(TIER_LIMITS.Premium).toBe(20));
@@ -48,19 +49,41 @@ describe("TIER_LIMITS constants", () => {
   it("ContractorPro = 10", ()  => expect(TIER_LIMITS.ContractorPro).toBe(10));
 });
 
-describe("Free tier — no agent access", () => {
-  it("blocks the first call", () => {
+describe("TIER_PERIOD constants", () => {
+  it("Free resets weekly", ()  => expect(TIER_PERIOD.Free).toBe("week"));
+  it("every other tier resets daily", () => {
+    expect(TIER_PERIOD.Basic).toBe("day");
+    expect(TIER_PERIOD.Pro).toBe("day");
+    expect(TIER_PERIOD.Premium).toBe("day");
+    expect(TIER_PERIOD.ContractorFree).toBe("day");
+    expect(TIER_PERIOD.ContractorPro).toBe("day");
+  });
+});
+
+describe("Free tier — 10 calls/week", () => {
+  it("allows exactly 10 calls", () => {
     const p = uid();
-    const result = checkAndRecord(p, "Free");
-    expect(result.allowed).toBe(false);
-    expect(result.limit).toBe(0);
-    expect(result.count).toBe(0);
+    callN(10, p, "Free");
+    expect(getCount(p, "Free")).toBe(10);
   });
 
-  it("ContractorFree also blocked", () => {
+  it("blocks the 11th call", () => {
+    const p = uid();
+    callN(10, p, "Free");
+    const r = checkAndRecord(p, "Free");
+    expect(r.allowed).toBe(false);
+    expect(r.count).toBe(10); // count does not increment when blocked
+    expect(r.limit).toBe(10);
+  });
+});
+
+describe("ContractorFree tier — no agent access", () => {
+  it("blocks the first call", () => {
     const p = uid();
     const result = checkAndRecord(p, "ContractorFree");
     expect(result.allowed).toBe(false);
+    expect(result.limit).toBe(0);
+    expect(result.count).toBe(0);
   });
 });
 
@@ -88,7 +111,7 @@ describe("Basic tier — 5 calls/day", () => {
     callN(5, p, "Basic");
     checkAndRecord(p, "Basic"); // blocked
     checkAndRecord(p, "Basic"); // blocked again
-    expect(getCount(p)).toBe(5);
+    expect(getCount(p, "Basic")).toBe(5);
   });
 });
 
@@ -96,7 +119,7 @@ describe("Pro tier — 10 calls/day", () => {
   it("allows exactly 10 calls", () => {
     const p = uid();
     callN(10, p, "Pro");
-    expect(getCount(p)).toBe(10);
+    expect(getCount(p, "Pro")).toBe(10);
   });
 
   it("blocks the 11th call", () => {
@@ -122,7 +145,7 @@ describe("Premium tier — 20 calls/day", () => {
   it("allows exactly 20 calls", () => {
     const p = uid();
     callN(20, p, "Premium");
-    expect(getCount(p)).toBe(20);
+    expect(getCount(p, "Premium")).toBe(20);
   });
 
   it("blocks the 21st call", () => {
@@ -149,7 +172,7 @@ describe("Principal isolation", () => {
 });
 
 describe("Unknown tier", () => {
-  it("treats an unrecognised tier string as Free (blocked)", () => {
+  it("treats an unrecognised tier string as a 0 limit (blocked)", () => {
     const p = uid();
     const r = checkAndRecord(p, "Enterprise" as SubscriptionTier);
     expect(r.allowed).toBe(false);
@@ -161,13 +184,13 @@ describe("Unknown tier", () => {
 
 describe("getCount", () => {
   it("returns 0 for an unseen principal", () => {
-    expect(getCount(uid())).toBe(0);
+    expect(getCount(uid(), "Pro")).toBe(0);
   });
 
   it("returns the current recorded count", () => {
     const p = uid();
     callN(3, p, "Pro");
-    expect(getCount(p)).toBe(3);
+    expect(getCount(p, "Pro")).toBe(3);
   });
 });
 
@@ -185,6 +208,15 @@ describe("resetsAt field", () => {
     const p = uid();
     const { resetsAt } = checkAndRecord(p, "Basic");
     expect(resetsAt).toMatch(/T00:00:00\.000Z$/);
+  });
+
+  it("Free's resetsAt lands on a Monday, not just the next midnight", () => {
+    const p = uid();
+    const { resetsAt } = checkAndRecord(p, "Free");
+    const d = new Date(resetsAt);
+    expect(resetsAt).toMatch(/T00:00:00\.000Z$/);
+    expect(d.getUTCDay()).toBe(1); // 1 = Monday
+    expect(d.getTime()).toBeGreaterThan(Date.now());
   });
 });
 
@@ -239,9 +271,17 @@ describe("stdout JSON-lines logging", () => {
     expect(entry.limit).toBe(5);
   });
 
-  it("Free tier call: allowed=false with limit=0", () => {
+  it("Free tier call: allowed=true with limit=10", () => {
     const p = uid();
     checkAndRecord(p, "Free");
+    const entry = JSON.parse(writtenLines[0]);
+    expect(entry.allowed).toBe(true);
+    expect(entry.limit).toBe(10);
+  });
+
+  it("ContractorFree tier call: allowed=false with limit=0", () => {
+    const p = uid();
+    checkAndRecord(p, "ContractorFree");
     const entry = JSON.parse(writtenLines[0]);
     expect(entry.allowed).toBe(false);
     expect(entry.limit).toBe(0);

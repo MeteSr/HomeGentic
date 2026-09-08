@@ -134,14 +134,17 @@ Homeowner pricing is a single paid plan — **Pro at $59/year** — carrying
 the old Premium tier's property/photo/quote limits. Free is not fully
 blocked: it gets the same property/photo/quote allowance the old retired
 Basic tier offered for free (1 property, 5 photos/job, 3 open quote
-requests), plus job logging and Bid to List access — only the
-AI/intelligence features (Market Intelligence, Maintenance, Warranty
-Wallet, Insurance Defense, Resale Ready, Recurring Services) and the AI
-agent-call quota stay Pro-only. Basic and Premium are retired as
-purchase options; they remain valid `Tier` variant values and keep
-enforcing their original limits below purely so subscribers
-grandfathered in before this change keep their existing plan until they
-renew, at which point they move to Pro.
+requests), plus job logging, Bid to List access, and the
+AI/intelligence feature set (Market Intelligence, Predictive
+Maintenance, Warranty Wallet, Recurring Services, Sensors, People) —
+only Insurance Defense and Resale Ready stay Pro-only. Free also gets
+its own AI agent-call quota (10/week, resetting weekly rather than
+daily — see `TIER_PERIOD` in `agents/voice/agentLimiter.ts`), smaller
+and differently paced than every paid tier's 10-20/day. Basic and
+Premium are retired as purchase options; they remain valid `Tier`
+variant values and keep enforcing their original limits below purely so
+subscribers grandfathered in before this change keep their existing
+plan until they renew, at which point they move to Pro.
 
 ```
 ┌──────────────────┬──────────┬──────────┬───────────────┬───────────────┬─────────────┬────────────┐

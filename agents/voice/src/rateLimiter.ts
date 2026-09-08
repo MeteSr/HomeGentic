@@ -3,7 +3,8 @@
  *
  * Replaces two Express middlewares:
  *   - express-rate-limit  → checkGlobalRateLimit (30 req/min per IP)
- *   - agentLimiter.ts     → checkAgentRateLimit  (daily per-principal quota)
+ *   - agentLimiter.ts     → checkAgentRateLimit  (per-principal quota,
+ *     reset daily or weekly depending on tier — see TIER_PERIOD)
  *
  * Both use the RATE_LIMIT KV namespace.  KV has eventual consistency across
  * Workers instances, which is fine for these soft limits — the odd extra
@@ -11,7 +12,7 @@
  * of the single-process in-memory Map (which reset on every Railway restart).
  */
 
-import { TIER_LIMITS, type SubscriptionTier } from "../agentLimiter";
+import { TIER_LIMITS, TIER_PERIOD, agentPeriodKey, nextResetUtc, type SubscriptionTier } from "../agentLimiter";
 
 export interface KVEnv {
   RATE_LIMIT: KVNamespace;
@@ -30,7 +31,7 @@ export async function checkGlobalRateLimit(ip: string, env: KVEnv): Promise<bool
   return true;
 }
 
-// ── Agent daily limit per principal ─────────────────────────────────────────
+// ── Agent limit per principal (daily or weekly, per tier) ───────────────────
 
 export interface AgentLimitResult {
   allowed:  boolean;
@@ -44,15 +45,16 @@ export async function checkAgentRateLimit(
   tier: string,
   env: KVEnv,
 ): Promise<AgentLimitResult> {
-  const limit    = TIER_LIMITS[tier as SubscriptionTier] ?? 0;
-  const resetsAt = nextMidnightUtc();
+  const t        = tier as SubscriptionTier;
+  const limit    = TIER_LIMITS[t] ?? 0;
+  const period   = TIER_PERIOD[t] ?? "day";
+  const resetsAt = nextResetUtc(period);
 
   if (limit === 0) {
     return { allowed: false, count: 0, limit, resetsAt };
   }
 
-  const today = new Date().toISOString().slice(0, 10);
-  const key   = `agent:${principal}:${today}`;
+  const key   = `agent:${principal}:${agentPeriodKey(t)}`;
   const raw   = await env.RATE_LIMIT.get(key);
   const count = raw ? Number(raw) : 0;
 
@@ -60,12 +62,9 @@ export async function checkAgentRateLimit(
     return { allowed: false, count, limit, resetsAt };
   }
 
-  await env.RATE_LIMIT.put(key, String(count + 1), { expirationTtl: 86_400 });
+  // TTL just needs to outlive the current period so the key naturally
+  // expires once superseded; a day's slop past the period length is fine.
+  const ttlSeconds = period === "week" ? 8 * 86_400 : 2 * 86_400;
+  await env.RATE_LIMIT.put(key, String(count + 1), { expirationTtl: ttlSeconds });
   return { allowed: true, count: count + 1, limit, resetsAt };
-}
-
-function nextMidnightUtc(): string {
-  const d = new Date();
-  d.setUTCHours(24, 0, 0, 0);
-  return d.toISOString();
 }

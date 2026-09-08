@@ -6,11 +6,11 @@
  * CHAT.3  POST /api/chat — writes SSE error event when provider throws
  *
  * AGENT.1  POST /api/agent — rejects empty messages array with 400
- * AGENT.2  POST /api/agent — Free tier returns 429 daily_agent_limit_reached
+ * AGENT.2  POST /api/agent — ContractorFree tier returns 429 daily_agent_limit_reached; Free gets 10/week and is allowed
  * AGENT.3  POST /api/agent — Pro tier returns 200 answer with quota headers
  * AGENT.4  POST /api/agent — Pro tier returns 200 tool_calls response
- * AGENT.5  POST /api/agent — unknown tier falls back to Free (blocked)
- * AGENT.6  POST /api/agent — daily limit is enforced at tier cap (Pro=10, Premium=20)
+ * AGENT.5  POST /api/agent — unknown tier falls back to Free (10/week, allowed)
+ * AGENT.6  POST /api/agent — limit is enforced at tier cap (Pro=10/day, Premium=20/day, Free=10/week)
  *
  * HEALTH.1  GET /health — returns { ok: true }
  *
@@ -228,17 +228,17 @@ describe("AGENT.1 — empty messages rejected", () => {
   });
 });
 
-describe("AGENT.2 — Free tier blocked", () => {
-  it("returns 429 with limit=0 for Free tier", async () => {
+describe("AGENT.2 — Free gets a real weekly allowance; ContractorFree stays blocked", () => {
+  it("Free tier is allowed (10/week, not blocked)", async () => {
+    mockProvider.completeWithTools.mockResolvedValue({ type: "answer", text: "ok" });
     const res = await supertest(app)
       .post("/api/agent")
       .set("x-icp-principal", uid())
       .set("x-subscription-tier", "Free")
       .send({ messages: [{ role: "user", content: "hello" }] });
 
-    expect(res.status).toBe(429);
-    expect(res.body.error).toBe("daily_agent_limit_reached");
-    expect(res.body.limit).toBe(0);
+    expect(res.status).toBe(200);
+    expect(res.headers["x-agent-calls-limit"]).toBe("10");
   });
 
   it("returns 429 with limit=0 for ContractorFree tier", async () => {
@@ -296,15 +296,16 @@ describe("AGENT.4 — tool_calls response", () => {
 });
 
 describe("AGENT.5 — unknown tier falls back to Free", () => {
-  it("blocks a request with an unrecognised tier string", async () => {
+  it("an unrecognised tier string is treated as Free (10/week, allowed)", async () => {
+    mockProvider.completeWithTools.mockResolvedValue({ type: "answer", text: "ok" });
     const res = await supertest(app)
       .post("/api/agent")
       .set("x-icp-principal", uid())
       .set("x-subscription-tier", "Enterprise")
       .send({ messages: [{ role: "user", content: "hello" }] });
 
-    expect(res.status).toBe(429);
-    expect(res.body.limit).toBe(0);
+    expect(res.status).toBe(200);
+    expect(res.headers["x-agent-calls-limit"]).toBe("10");
   });
 });
 
@@ -353,5 +354,29 @@ describe("AGENT.6 — daily limit enforced at tier cap", () => {
     expect(res.status).toBe(429);
     expect(res.body.error).toBe("daily_agent_limit_reached");
     expect(res.body.limit).toBe(20);
+  });
+
+  it("Free: blocks the 11th call (limit = 10/week, not 10/day)", async () => {
+    mockProvider.completeWithTools.mockResolvedValue({ type: "answer", text: "ok" });
+    const principal = uid();
+
+    for (let i = 0; i < 10; i++) {
+      await supertest(app)
+        .post("/api/agent")
+        .set("x-icp-principal", principal)
+        .set("x-subscription-tier", "Free")
+        .send({ messages: [{ role: "user", content: "ping" }] });
+    }
+
+    const res = await supertest(app)
+      .post("/api/agent")
+      .set("x-icp-principal", principal)
+      .set("x-subscription-tier", "Free")
+      .send({ messages: [{ role: "user", content: "ping" }] });
+
+    expect(res.status).toBe(429);
+    expect(res.body.limit).toBe(10);
+    // resetsAt should be a Monday (weekly reset), not just tomorrow.
+    expect(new Date(res.body.resetsAt).getUTCDay()).toBe(1);
   });
 });

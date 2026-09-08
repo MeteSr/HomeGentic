@@ -466,7 +466,9 @@ Homeowner pricing is a single paid plan — **Pro, $59/year**. Free is not
 fully blocked: it gets real (if capped) access to core record-keeping —
 registering a property, logging jobs, uploading photos, requesting
 quotes, and using Bid to List — at the same limits the old retired Basic
-tier offered. The AI/intelligence features stay Pro-only.
+tier offered, plus the AI/intelligence feature set (Market Intelligence,
+Predictive Maintenance, Warranty Wallet, Recurring Services, Sensors,
+People). Only Insurance Defense and Resale Ready stay Pro-only.
 
 | Feature | Free | Pro ($59/yr) |
 |---|---|---|
@@ -475,20 +477,29 @@ tier offered. The AI/intelligence features stay Pro-only.
 | Open quote requests | 3 | Unlimited |
 | Job logging (DIY + contractor) | ✓ | ✓ |
 | Bid to List access | ✓ | ✓ |
-| AI agent calls/day | 0 | 10 |
+| AI agent calls | 10/week | 10/day |
 | Score breakdown | – | ✓ |
-| Warranty Wallet | – | ✓ |
-| Recurring Services | – | ✓ |
-| Market Intelligence | – | ✓ |
-| 5-Year Maintenance Calendar | – | ✓ |
+| Warranty Wallet | ✓ | ✓ |
+| Recurring Services | ✓ | ✓ |
+| Market Intelligence | ✓ | ✓ |
+| Predictive Maintenance | ✓ | ✓ |
+| 5-Year Maintenance Calendar | ✓ | ✓ |
+| Sensors | ✓ | ✓ |
+| People | ✓ | ✓ |
 | Insurance Defense Mode | – | ✓ |
 | Resale Ready | – | ✓ |
 
+Free's AI agent-call allowance resets weekly (Monday 00:00 UTC) rather
+than daily like every other tier — see `TIER_PERIOD` in
+`agents/voice/agentLimiter.ts` and `docs/AI_RATE_LIMITS.md` for the
+cost rationale (Free carries $0 revenue to offset the cost, so its
+allowance is both smaller and paced weekly).
+
 Basic and Premium are retired as purchase options; subscribers
 grandfathered in before this change keep their original Basic
-(1 property / 5 photos / 3 quote reqs / 5 AI calls) or Premium
-(20 properties / 30 photos / unlimited quote reqs / 20 AI calls) limits
-until they renew, then move to Pro.
+(1 property / 5 photos / 3 quote reqs / 5 AI calls/day) or Premium
+(20 properties / 30 photos / unlimited quote reqs / 20 AI calls/day)
+limits until they renew, then move to Pro.
 
 Contractor tiers: **ContractorFree** (profile + view leads, 3% referral fee per winning bid, $20 minimum) · **ContractorPro** ($40/mo, quote submissions + earnings dashboard + reviews)
 

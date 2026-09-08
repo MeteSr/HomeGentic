@@ -116,12 +116,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Blocks Free-tier homeowners from Pro-only features: Market Intelligence,
-// Predictive Maintenance, Sensors, Warranty Wallet, Insurance Defense,
-// Resale Ready, Recurring Services, and delegated People management. Free
-// now has its own real (if capped) property/job/quote/photo access via
-// plain ProtectedRoute — see /dashboard, /properties/:id, /jobs, /quotes/*
-// below — so this guard is narrower than its name once implied.
+// Blocks Free-tier homeowners from the two remaining Pro-only pages:
+// Insurance Defense and Resale Ready. Every other homeowner page (Market
+// Intelligence, Predictive Maintenance, Sensors, Warranty Wallet,
+// Recurring Services, People, and the core property/job/quote/photo flow)
+// is open to Free via plain ProtectedRoute — this guard's name is now
+// broader than what it actually gates.
 // ContractorFree passes through — only plain "Free" on a Homeowner role is rejected. tier===null means still loading; hold here
 // to avoid a flash redirect before the subscription fetch resolves.
 function PaidHomeownerRoute({ children }: { children: React.ReactNode }) {
@@ -201,25 +201,26 @@ export default function App() {
             <Route path="expired"         element={<VerifyExpiredPage />} />
             <Route path="contested"       element={<VerifyContestedPage />} />
           </Route>
-          <Route path="/properties/:id/systems" element={<PaidHomeownerRoute><SystemAgesPage /></PaidHomeownerRoute>} />
+          <Route path="/properties/:id/systems" element={<ProtectedRoute><SystemAgesPage /></ProtectedRoute>} />
           <Route path="/jobs"         element={<ProtectedRoute><JobsPage /></ProtectedRoute>} />
           <Route path="/jobs/new"     element={<ProtectedRoute><JobCreatePage /></ProtectedRoute>} />
           <Route path="/quotes/new"   element={<ProtectedRoute><QuoteRequestPage /></ProtectedRoute>} />
           <Route path="/quotes/:id"   element={<ProtectedRoute><QuoteDetailPage /></ProtectedRoute>} />
           <Route path="/settings"     element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
           <Route path="/refer"        element={<ProtectedRoute><ReferralPage /></ProtectedRoute>} />
-          <Route path="/market"       element={<PaidHomeownerRoute><MarketIntelligencePage /></PaidHomeownerRoute>} />
-          <Route path="/maintenance"  element={<PaidHomeownerRoute><PredictiveMaintenancePage /></PaidHomeownerRoute>} />
+          <Route path="/market"       element={<ProtectedRoute><MarketIntelligencePage /></ProtectedRoute>} />
+          <Route path="/maintenance"  element={<ProtectedRoute><PredictiveMaintenancePage /></ProtectedRoute>} />
           <Route path="/admin"        element={<ProtectedRoute><AdminDashboardPage /></ProtectedRoute>} />
           <Route path="/onboarding"   element={<Navigate to="/dashboard" replace />} />
           <Route path="/agent-dashboard" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/sensors"      element={<PaidHomeownerRoute><SensorPage /></PaidHomeownerRoute>} />
-          <Route path="/warranties"   element={<PaidHomeownerRoute><WarrantyWalletPage /></PaidHomeownerRoute>} />
+          <Route path="/sensors"      element={<ProtectedRoute><SensorPage /></ProtectedRoute>} />
+          <Route path="/warranties"   element={<ProtectedRoute><WarrantyWalletPage /></ProtectedRoute>} />
+          {/* Insurance Defense and Resale Ready are the only remaining Pro-only pages. */}
           <Route path="/insurance-defense" element={<PaidHomeownerRoute><InsuranceDefensePage /></PaidHomeownerRoute>} />
           <Route path="/resale-ready" element={<PaidHomeownerRoute><ResaleReadyPage /></PaidHomeownerRoute>} />
-          <Route path="/recurring/new" element={<PaidHomeownerRoute><RecurringServiceCreatePage /></PaidHomeownerRoute>} />
-          <Route path="/recurring/:id" element={<PaidHomeownerRoute><RecurringServiceDetailPage /></PaidHomeownerRoute>} />
-          <Route path="/people"        element={<PaidHomeownerRoute><PeoplePage /></PaidHomeownerRoute>} />
+          <Route path="/recurring/new" element={<ProtectedRoute><RecurringServiceCreatePage /></ProtectedRoute>} />
+          <Route path="/recurring/:id" element={<ProtectedRoute><RecurringServiceDetailPage /></ProtectedRoute>} />
+          <Route path="/people"        element={<ProtectedRoute><PeoplePage /></ProtectedRoute>} />
           {/* Bid to List is open to Free-tier homeowners too — it's a $0-to-list, */}
           {/* agent-pays-the-fee flow, so it isn't gated behind a Pro subscription. */}
           <Route path="/listing/new"  element={<ProtectedRoute><ListingNewPage /></ProtectedRoute>} />

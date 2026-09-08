@@ -7,8 +7,14 @@
  *
  * Free is no longer a fully-blocked tier: homeowners get 1 property, 5
  * photos/job, and 3 open quote requests for free (matching what the old
- * retired Basic tier offered), plus job logging and Bid to List access.
- * AI agent calls stay Pro-only (0/day on Free).
+ * retired Basic tier offered), plus job logging, Bid to List access, and
+ * the AI/intelligence feature set — Market Intelligence, Predictive
+ * Maintenance, Warranty Wallet, Recurring Services, Sensors, and
+ * delegated People management. Only Insurance Defense and Resale Ready
+ * stay Pro-only. Free also gets its own AI agent-call allowance: 10/week
+ * (not 10/day like Pro) — see agents/voice/agentLimiter.ts's TIER_PERIOD;
+ * every call is pure cost against $0 revenue, so it's deliberately a much
+ * smaller, weekly-paced allowance rather than Pro's daily one.
  *
  * Homeowner pricing is a single paid plan: Pro at $59/year (annual-only),
  * carrying the old Premium tier's property/photo/quote limits. Its AI
@@ -58,6 +64,12 @@ export const PLANS: Plan[] = [
       "Up to 3 open quote requests",
       "Job logging (DIY + contractor)",
       "Bid to List access",
+      "10 AI agent calls/week",
+      "Warranty Wallet",
+      "Recurring Services",
+      "Market Intelligence",
+      "5-Year Maintenance Calendar",
+      "Sensors",
     ],
     propertyLimit: 1,
     photosPerJob: 5,
