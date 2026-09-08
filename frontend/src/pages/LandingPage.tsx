@@ -389,33 +389,16 @@ const FEATURES = [
   },
 ];
 
+// Pro ($59/year) is the single homeowner plan.
 const PLANS = [
   {
-    tier: "Basic", sub: "For homeowners getting started", price: "$10",
-    features: ["1 property", "Maintenance tracking", "Verified job records", "Shareable reports"],
+    tier: "Pro", sub: "For every homeowner", price: "$59",
+    features: ["Up to 20 properties", "30 photos per job", "Unlimited quote requests", "Voice AI assistant", "Priority support"],
     tag: null as string | null, tagBg: YELLOW,
-    bg: PAPER, border: BORDER, shadow: "none",
-    titleColor: INK, subColor: MUTED,
-    ctaBg: "transparent", ctaBorder: BLUE, ctaColor: BLUE, cta: "Get started",
-    checkBg: LBLUE, checkColor: BLUE,
-  },
-  {
-    tier: "Pro", sub: "For growing homeowners", price: "$20",
-    features: ["Up to 5 properties", "All Basic features", "Voice AI assistant", "Priority support"],
-    tag: "MOST POPULAR", tagBg: YELLOW,
     bg: BLUE, border: BLUE, shadow: "0 20px 60px rgba(43,52,255,0.4)",
     titleColor: PAPER, subColor: PAPER,
     ctaBg: YELLOW, ctaBorder: YELLOW, ctaColor: INK, cta: "Get Pro",
     checkBg: "rgba(252,252,253,0.2)", checkColor: PAPER,
-  },
-  {
-    tier: "Premium", sub: "For power users", price: "$40",
-    features: ["Up to 20 properties", "All Pro features", "20 AI calls/day", "White-glove support"],
-    tag: null, tagBg: YELLOW,
-    bg: INK, border: INK, shadow: "0 20px 60px rgba(11,13,26,0.4)",
-    titleColor: PAPER, subColor: PAPER,
-    ctaBg: YELLOW, ctaBorder: YELLOW, ctaColor: INK, cta: "Get Premium",
-    checkBg: "rgba(252,252,253,0.15)", checkColor: PAPER,
   },
 ];
 
@@ -715,7 +698,7 @@ export default function LandingPage() {
               Every plan keeps your records permanently and includes shareable reports. Contractors have their own free plan.
             </p>
           </div>
-          <div className="hg-grid-plans" style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 20, marginTop: 48, alignItems: "stretch" }}>
+          <div className="hg-grid-plans" style={{ display: "grid", gridTemplateColumns: "1fr", maxWidth: 420, margin: "48px auto 0", alignItems: "stretch" }}>
             {PLANS.map((pl) => (
               <PlanCard key={pl.tier} plan={pl} onStart={() => navigate("/login")} />
             ))}
@@ -1158,7 +1141,7 @@ function PlanCard({ plan: pl, onStart }: { plan: typeof PLANS[number]; onStart: 
       <div style={{ font: `400 14px/1.5 ${BODY}`, color: pl.subColor, marginTop: 10 }}>{pl.sub}</div>
       <div style={{ display: "flex", alignItems: "baseline", gap: 7, marginTop: 24 }}>
         <div style={{ font: `800 46px/1 ${DISPLAY}`, color: pl.titleColor, letterSpacing: "-.045em" }}>{pl.price}</div>
-        <div style={{ font: `400 14px/1 ${BODY}`, color: pl.subColor }}>/month</div>
+        <div style={{ font: `400 14px/1 ${BODY}`, color: pl.subColor }}>/year</div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 26 }}>
         {pl.features.map((pf) => (

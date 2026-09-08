@@ -38,7 +38,7 @@ const TIER_LABELS: Record<string, string> = {
 
 const TIER_USAGE: Record<string, string> = {
   Basic:          "1 property · 5 photos/job",
-  Pro:            "5 properties · 10 photos/job",
+  Pro:            "20 properties · 30 photos/job",
   Premium:        "20 properties · 30 photos/job",
   ContractorFree: "Unlimited quotes · 5 photos",
   ContractorPro:  "Unlimited quotes · 50 photos",

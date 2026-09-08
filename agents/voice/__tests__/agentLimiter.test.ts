@@ -3,9 +3,9 @@
  *
  * Core behaviour
  *   - Free / ContractorFree tier: first call blocked (limit = 0)
- *   - Basic: 5 calls allowed, 6th blocked
+ *   - Basic: 5 calls allowed, 6th blocked (grandfathered tier)
  *   - Pro / ContractorPro: 10 calls allowed, 11th blocked
- *   - Premium: 20 calls allowed, 21st blocked
+ *   - Premium: 20 calls allowed, 21st blocked (grandfathered tier)
  *   - count only increments on allowed calls
  *
  * Isolation

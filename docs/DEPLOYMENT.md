@@ -264,20 +264,25 @@ icp canister status <canister-name> -e ic
 ### Local development
 
 1. Create a Stripe account and switch to **Test mode**.
-2. Create four products in the Stripe dashboard — Pro, Premium, ContractorPro —
-   each with a Monthly and Yearly recurring price.
-3. Copy the six `price_xxx` IDs and the test key pair into `.env`:
+2. Create a **Pro** product at $59/year (annual only — this is the only
+   homeowner plan offered for new purchases) and a **ContractorPro**
+   product with Monthly and Yearly recurring prices.
+3. Copy the `price_xxx` IDs and the test key pair into `.env`:
 
 ```env
 STRIPE_SECRET_KEY=sk_test_...
 VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
-STRIPE_PRICE_PRO_MONTHLY=price_...
 STRIPE_PRICE_PRO_YEARLY=price_...
-STRIPE_PRICE_PREMIUM_MONTHLY=price_...
-STRIPE_PRICE_PREMIUM_YEARLY=price_...
 STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY=price_...
 STRIPE_PRICE_CONTRACTOR_PRO_YEARLY=price_...
 ```
+
+`STRIPE_PRICE_PRO_MONTHLY`, `STRIPE_PRICE_PREMIUM_MONTHLY`,
+`STRIPE_PRICE_PREMIUM_YEARLY`, `STRIPE_PRICE_BASIC_MONTHLY`, and
+`STRIPE_PRICE_BASIC_YEARLY` are legacy env vars — only needed if you have
+subscribers grandfathered onto Basic or Premium from before Pro became
+the single $59/year homeowner plan. `priceIdFor(#Pro, #Monthly)` always
+returns `null` regardless of whether `STRIPE_PRICE_PRO_MONTHLY` is set.
 
 4. Start the voice agent: `cd agents/voice && npm run dev`
 5. Test with card `4242 4242 4242 4242`, any future expiry, any CVC.

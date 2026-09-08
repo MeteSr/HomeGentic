@@ -198,11 +198,16 @@ persistent actor Payment {
   // ─── Price helpers ───────────────────────────────────────────────────────────
 
   /// USD price for each tier (whole dollars).
+  /// #Basic and #Premium are retired as purchasable tiers — #Pro is now the
+  /// single homeowner plan at $59/year (annual-only; see priceIdFor and the
+  /// #Pro-specific duration handling in subscribe/grantSubscription below).
+  /// Basic/Premium prices are kept only so grandfathered subscribers' records
+  /// keep decoding and their existing limits keep enforcing until they expire.
   private func priceUsd(tier: Tier) : Nat {
     switch tier {
       case (#Free)          { 0  };
       case (#Basic)         { 10 };
-      case (#Pro)           { 20 };
+      case (#Pro)           { 59 };
       case (#Premium)       { 40 };
       case (#ContractorFree){ 0  };
       case (#ContractorPro) { 40 };
@@ -498,11 +503,15 @@ persistent actor Payment {
     result
   };
 
+  // #Basic and #Premium price IDs are no longer offered for new purchases —
+  // #Pro is the single homeowner plan, annual-only ($59/year via proYearly;
+  // proMonthly is intentionally unmapped so a monthly Pro checkout can't be
+  // created at the old $20/mo rate).
   private func priceIdFor(cfg: StripeConfig, tier: Tier, billing: BillingPeriod) : ?Text {
     switch (tier, billing) {
       case (#Basic,         #Monthly) { ?cfg.priceIds.basicMonthly };
       case (#Basic,         #Yearly)  { ?cfg.priceIds.basicYearly };
-      case (#Pro,           #Monthly) { ?cfg.priceIds.proMonthly };
+      case (#Pro,           #Monthly) { null };
       case (#Pro,           #Yearly)  { ?cfg.priceIds.proYearly };
       case (#Premium,       #Monthly) { ?cfg.priceIds.premiumMonthly };
       case (#Premium,       #Yearly)  { ?cfg.priceIds.premiumYearly };
@@ -870,6 +879,7 @@ persistent actor Payment {
 
     let durationNs : Int = switch (tier) {
       case (#Free or #ContractorFree) { 0 };
+      case (#Pro)                     { 365 * 24 * 60 * 60 * 1_000_000_000 };  // Pro is annual-only, $59/year
       case (_)                        { 30 * 24 * 60 * 60 * 1_000_000_000 };
     };
     let now = Time.now();
@@ -918,6 +928,7 @@ persistent actor Payment {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     let durationNs : Int = switch (tier) {
       case (#Free or #ContractorFree) { 0 };
+      case (#Pro)                     { 365 * 24 * 60 * 60 * 1_000_000_000 };  // Pro is annual-only, $59/year
       case (_)                        { 30 * 24 * 60 * 60 * 1_000_000_000 };
     };
     let now = Time.now();
@@ -974,21 +985,22 @@ persistent actor Payment {
   public query func getPricing(tier: Tier) : async PricingInfo {
     switch (tier) {
       case (#Free)           { { tier = #Free;           priceUSD = 0;  periodDays = 0;  propertyLimit = 0;  photosPerJob = 0;  quoteRequestsPerMonth = 0  } };
-      case (#Basic)          { { tier = #Basic;          priceUSD = 10; periodDays = 30; propertyLimit = 1;  photosPerJob = 5;  quoteRequestsPerMonth = 3  } };
-      case (#Pro)            { { tier = #Pro;            priceUSD = 20; periodDays = 30; propertyLimit = 5;  photosPerJob = 10; quoteRequestsPerMonth = 10 } };
-      case (#Premium)        { { tier = #Premium;        priceUSD = 40; periodDays = 30; propertyLimit = 20; photosPerJob = 30; quoteRequestsPerMonth = 0  } };
-      case (#ContractorFree) { { tier = #ContractorFree; priceUSD = 0;  periodDays = 0;  propertyLimit = 0;  photosPerJob = 5;  quoteRequestsPerMonth = 0  } };
-      case (#ContractorPro)  { { tier = #ContractorPro;  priceUSD = 40; periodDays = 30; propertyLimit = 0;  photosPerJob = 50; quoteRequestsPerMonth = 0  } };
+      case (#Basic)          { { tier = #Basic;          priceUSD = 10; periodDays = 30;  propertyLimit = 1;  photosPerJob = 5;  quoteRequestsPerMonth = 3  } };
+      case (#Pro)            { { tier = #Pro;            priceUSD = 59; periodDays = 365; propertyLimit = 20; photosPerJob = 30; quoteRequestsPerMonth = 0  } };
+      case (#Premium)        { { tier = #Premium;        priceUSD = 40; periodDays = 30;  propertyLimit = 20; photosPerJob = 30; quoteRequestsPerMonth = 0  } };
+      case (#ContractorFree) { { tier = #ContractorFree; priceUSD = 0;  periodDays = 0;   propertyLimit = 0;  photosPerJob = 5;  quoteRequestsPerMonth = 0  } };
+      case (#ContractorPro)  { { tier = #ContractorPro;  priceUSD = 40; periodDays = 30;  propertyLimit = 0;  photosPerJob = 50; quoteRequestsPerMonth = 0  } };
     }
   };
 
+  // #Basic and #Premium are omitted — no longer offered for new purchases.
+  // Existing subscribers on those tiers keep working via getPricing(tier)
+  // directly (called with their own stored tier), just not listed here.
   public query func getAllPricing() : async [PricingInfo] {
     [
-      { tier = #Basic;          priceUSD = 10; periodDays = 30; propertyLimit = 1;  photosPerJob = 5;  quoteRequestsPerMonth = 3  },
-      { tier = #Pro;            priceUSD = 20; periodDays = 30; propertyLimit = 5;  photosPerJob = 10; quoteRequestsPerMonth = 10 },
-      { tier = #Premium;        priceUSD = 40; periodDays = 30; propertyLimit = 20; photosPerJob = 30; quoteRequestsPerMonth = 0  },
-      { tier = #ContractorFree; priceUSD = 0;  periodDays = 0;  propertyLimit = 0;  photosPerJob = 5;  quoteRequestsPerMonth = 0  },
-      { tier = #ContractorPro;  priceUSD = 40; periodDays = 30; propertyLimit = 0;  photosPerJob = 50; quoteRequestsPerMonth = 0  },
+      { tier = #Pro;            priceUSD = 59; periodDays = 365; propertyLimit = 20; photosPerJob = 30; quoteRequestsPerMonth = 0  },
+      { tier = #ContractorFree; priceUSD = 0;  periodDays = 0;   propertyLimit = 0;  photosPerJob = 5;  quoteRequestsPerMonth = 0  },
+      { tier = #ContractorPro;  priceUSD = 40; periodDays = 30;  propertyLimit = 0;  photosPerJob = 50; quoteRequestsPerMonth = 0  },
     ]
   };
 

@@ -27,7 +27,10 @@ and where in the codebase each integration lives.
 
 ## 0. Stripe
 
-**Purpose:** Subscription billing for Pro, Premium, and ContractorPro tiers.
+**Purpose:** Subscription billing for Pro (the single $59/year homeowner
+plan) and ContractorPro. Premium is retired as a purchase option and only
+appears in billing for subscribers grandfathered in before the pricing
+consolidation.
 Handles payment collection via Stripe Elements (`PaymentElement`) embedded
 directly in the app's checkout page — no redirect to Stripe-hosted pages.
 

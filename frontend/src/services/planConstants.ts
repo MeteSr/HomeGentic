@@ -4,6 +4,17 @@
  * Kept in a separate file so that tests which mock @/services/payment
  * never accidentally suppress these constants (they're not part of the
  * mock surface).
+ *
+ * Homeowner pricing is a single paid plan: Pro at $59/year (annual-only),
+ * carrying the old Premium tier's property/photo/quote limits. Its AI
+ * agent-call limit is the exception — it keeps its own original 10/day
+ * cap rather than Premium's 20/day, since 20/day would run this tier at
+ * a negative margin at the $59/year price (see docs/AI_RATE_LIMITS.md).
+ * "Basic" and "Premium" remain valid PlanTier values and stay in the
+ * backend's Tier variant purely so grandfathered subscribers from before
+ * this change keep decoding and keep their existing limits until their
+ * subscription expires — they are no longer offered anywhere as a
+ * purchase option, so they're absent from PLANS below.
  */
 
 export type PlanTier     = "Free" | "Basic" | "Pro" | "Premium" | "ContractorFree" | "ContractorPro";
@@ -42,14 +53,14 @@ export const PLANS: Plan[] = [
     quoteRequests: 0,
   },
   {
-    tier: "Basic",
-    price: 10,
-    period: "month",
+    tier: "Pro",
+    price: 59,
+    period: "year",
     features: [
-      "1 property",
-      "5 photos per job",
-      "3 quote requests/month",
-      "5 AI agent calls/day",
+      "20 properties",
+      "30 photos per job",
+      "Unlimited quote requests",
+      "10 AI agent calls/day",
       "Blockchain-backed maintenance record",
       "Public HomeGentic report",
       "Warranty Wallet",
@@ -58,44 +69,11 @@ export const PLANS: Plan[] = [
       "Insurance Defense Mode",
       "5-Year Maintenance Calendar",
       "Contractor marketplace access",
+      "Verified badge",
+      "Value analytics dashboard",
+      "Priority verification & support",
       "Score breakdown",
       "PDF export",
-    ],
-    propertyLimit: 1,
-    photosPerJob: 5,
-    quoteRequests: 3,
-  },
-  {
-    tier: "Pro",
-    price: 20,
-    period: "month",
-    features: [
-      "Everything in Basic",
-      "5 properties",
-      "10 photos per job",
-      "10 quote requests/month",
-      "10 AI agent calls/day",
-      "Verified badge",
-      "Priority support",
-      "Export PDF report",
-    ],
-    propertyLimit: 5,
-    photosPerJob: 10,
-    quoteRequests: 10,
-  },
-  {
-    tier: "Premium",
-    price: 40,
-    period: "month",
-    features: [
-      "Everything in Pro",
-      "20 properties",
-      "30 photos per job",
-      "Unlimited quote requests",
-      "20 AI agent calls/day",
-      "Premium verified badge",
-      "Value analytics dashboard",
-      "Priority verification",
     ],
     propertyLimit: 20,
     photosPerJob: 30,
@@ -135,7 +113,8 @@ export const PLANS: Plan[] = [
   },
 ];
 
-// Annual plans: same features as monthly, price = 10 months (2 months free).
-export const ANNUAL_PLANS: Plan[] = PLANS
-  .filter((p) => p.tier === "Basic" || p.tier === "Pro" || p.tier === "Premium")
-  .map((p) => ({ ...p, price: p.price * 10, period: "year" as const }));
+// Pro is the only homeowner plan and it's natively annual ($59/year) — there
+// is no monthly variant to derive an annual price from anymore. Kept as an
+// alias (rather than removed) so any remaining monthly/annual toggle in the
+// UI can be retired without also having to chase down every import site.
+export const ANNUAL_PLANS: Plan[] = PLANS;

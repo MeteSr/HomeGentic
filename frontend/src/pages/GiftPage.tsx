@@ -25,8 +25,9 @@ const F = {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type GiftTier    = "Basic" | "Pro" | "Premium";
-type GiftBilling = "monthly" | "annual";
+// Pro ($59/year) is the only homeowner plan — gifts are always Pro, annual.
+type GiftTier    = "Pro";
+type GiftBilling = "annual";
 type GiftStep    = "select" | "recipient" | "message" | "review" | "done";
 
 interface GiftFormData {
@@ -43,37 +44,15 @@ interface GiftFormData {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const GIFT_PLANS: Record<GiftTier, { monthlyPrice: number; annualPrice: number; tagline: string; bullets: string[] }> = {
-  Basic: {
-    monthlyPrice: 10,
-    annualPrice:  100,
-    tagline: "Perfect for first-time buyers",
-    bullets: [
-      "1 property, blockchain-backed record",
-      "Public HomeGentic report",
-      "Warranty Wallet + Recurring Services",
-      "3 contractor quote requests/month",
-    ],
-  },
   Pro: {
-    monthlyPrice: 20,
-    annualPrice:  200,
+    monthlyPrice: 59,
+    annualPrice:  59,
     tagline: "For active homeowners and growing portfolios",
     bullets: [
-      "Everything in Basic",
-      "5 properties, 10 photos per job",
-      "10 quote requests/month",
-      "Verified badge + Priority support",
-    ],
-  },
-  Premium: {
-    monthlyPrice: 40,
-    annualPrice:  400,
-    tagline: "For multiple properties or serious sellers",
-    bullets: [
-      "Everything in Pro",
       "20 properties, 30 photos per job",
       "Unlimited quote requests",
-      "Premium verified badge + Priority verification",
+      "Verified badge + Priority support",
+      "Blockchain-backed maintenance record",
     ],
   },
 };
@@ -205,106 +184,65 @@ function StepSelect({ data, setData, onNext }: {
   setData: React.Dispatch<React.SetStateAction<GiftFormData>>;
   onNext: () => void;
 }) {
+  // Pro ($59/year) is the only homeowner plan — no billing choice, no tier
+  // comparison. Single confirm card.
+  const plan  = GIFT_PLANS.Pro;
+  const price = plan.annualPrice;
+
   return (
     <div>
-      {/* Billing toggle */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 40 }}>
-        {(["monthly", "annual"] as GiftBilling[]).map((b) => (
+      <div style={{ display: "grid", gridTemplateColumns: "1fr", maxWidth: "22rem", margin: "0 auto" }}>
+        <div
+          onClick={() => setData((d) => ({ ...d, tier: "Pro" }))}
+          style={{
+            padding: "2rem", borderRadius: "24px", cursor: "pointer",
+            background: C.blue,
+            border: `2px solid ${C.blue}`,
+            boxShadow: "0 8px 40px rgba(43,52,255,0.22)",
+            transition: "all .2s", position: "relative",
+          }}
+        >
+          <div style={{ fontFamily: F.body, fontWeight: 600, fontSize: "0.875rem", color: "rgba(255,255,255,0.85)", marginBottom: "0.5rem" }}>
+            Pro
+          </div>
+          <div style={{ fontFamily: F.body, fontSize: 13, color: "rgba(255,255,255,0.85)", marginBottom: 20, lineHeight: 1.4 }}>
+            {plan.tagline}
+          </div>
+
+          <div style={{ marginBottom: "1.5rem" }}>
+            <span style={{ fontFamily: F.display, fontWeight: 800, fontSize: "2.5rem", lineHeight: 1, color: C.white }}>
+              ${price}
+            </span>
+            <span style={{ fontFamily: F.body, fontSize: "0.65rem", color: "rgba(255,255,255,0.85)" }}>
+              /yr
+            </span>
+            <div style={{ fontFamily: F.body, fontSize: "0.6rem", color: C.yellow, marginTop: "0.25rem" }}>
+              ${(price / 12).toFixed(2)}/mo billed annually
+            </div>
+          </div>
+
+          <ul style={{ listStyle: "none", padding: 0, margin: "0 0 1.5rem", display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+            {plan.bullets.map((b) => (
+              <li key={b} style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", fontFamily: F.body, fontSize: "0.85rem", color: "rgba(255,255,255,0.85)", fontWeight: 300 }}>
+                <CheckCircle size={14} color={C.yellow} style={{ flexShrink: 0, marginTop: "0.1rem" }} />
+                {b}
+              </li>
+            ))}
+          </ul>
+
           <button
-            key={b}
-            onClick={() => setData((d) => ({ ...d, billing: b }))}
+            onClick={(e) => { e.stopPropagation(); setData((d) => ({ ...d, tier: "Pro" })); onNext(); }}
             style={{
-              fontFamily: F.body, fontSize: 13, fontWeight: 600,
-              padding: "8px 20px", borderRadius: "100px",
-              border: `1.5px solid ${data.billing === b ? C.blue : C.border}`,
-              background: data.billing === b ? C.blue : "transparent",
-              color: data.billing === b ? C.white : C.muted,
-              cursor: "pointer", transition: "all .2s",
+              width: "100%", padding: "13px 0", borderRadius: "100px",
+              fontFamily: F.body, fontSize: 15, fontWeight: 700,
+              background: C.yellow,
+              color: C.ink,
+              border: "none", cursor: "pointer", transition: "opacity .2s",
             }}
           >
-            {b === "monthly" ? "Monthly" : "Annual"}
-            {b === "annual" && (
-              <span style={{ marginLeft: 8, background: C.yellow, color: C.ink, padding: "2px 8px", borderRadius: "100px", fontSize: 10, fontWeight: 700 }}>
-                Save 2mo
-              </span>
-            )}
+            Gift Pro
           </button>
-        ))}
-      </div>
-
-      {/* Tier cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 24 }}>
-        {(["Basic", "Pro", "Premium"] as GiftTier[]).map((tier) => {
-          const plan      = GIFT_PLANS[tier];
-          const price     = data.billing === "monthly" ? plan.monthlyPrice : plan.annualPrice;
-          const period    = data.billing === "monthly" ? "/mo" : "/yr";
-          const isPopular = tier === "Pro";
-          const active    = data.tier === tier;
-
-          return (
-            <div
-              key={tier}
-              onClick={() => setData((d) => ({ ...d, tier }))}
-              style={{
-                padding: "2rem", borderRadius: "24px", cursor: "pointer",
-                background: isPopular ? C.blue : C.white,
-                border: `${isPopular ? "2px" : "1.5px"} solid ${isPopular ? C.blue : active ? C.blue : C.border}`,
-                boxShadow: isPopular ? "0 8px 40px rgba(43,52,255,0.22)" : active ? `0 0 0 3px ${C.blue}22` : "0 2px 12px rgba(11,13,26,0.06)",
-                transition: "all .2s", position: "relative",
-              }}
-            >
-              {isPopular && (
-                <div style={{ display: "inline-flex", alignItems: "center", background: C.yellow, color: C.ink, padding: "3px 12px", borderRadius: 100, fontSize: "0.65rem", fontWeight: 700, marginBottom: "0.75rem", fontFamily: F.mono, letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                  Most Popular
-                </div>
-              )}
-
-              <div style={{ fontFamily: F.body, fontWeight: 600, fontSize: "0.875rem", color: isPopular ? "rgba(255,255,255,0.85)" : C.muted, marginBottom: "0.5rem" }}>
-                {tier}
-              </div>
-              <div style={{ fontFamily: F.body, fontSize: 13, color: isPopular ? "rgba(255,255,255,0.85)" : C.muted, marginBottom: 20, lineHeight: 1.4 }}>
-                {plan.tagline}
-              </div>
-
-              <div style={{ marginBottom: "1.5rem" }}>
-                <span style={{ fontFamily: F.display, fontWeight: 800, fontSize: "2.5rem", lineHeight: 1, color: isPopular ? C.white : C.ink }}>
-                  ${price}
-                </span>
-                <span style={{ fontFamily: F.body, fontSize: "0.65rem", color: isPopular ? "rgba(255,255,255,0.85)" : C.muted }}>
-                  {period}
-                </span>
-                {data.billing === "annual" && (
-                  <div style={{ fontFamily: F.body, fontSize: "0.6rem", color: isPopular ? C.yellow : C.blue, marginTop: "0.25rem" }}>
-                    ${(price / 12).toFixed(2)}/mo billed annually
-                  </div>
-                )}
-              </div>
-
-              <ul style={{ listStyle: "none", padding: 0, margin: "0 0 1.5rem", display: "flex", flexDirection: "column", gap: "0.625rem" }}>
-                {plan.bullets.map((b) => (
-                  <li key={b} style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", fontFamily: F.body, fontSize: "0.85rem", color: isPopular ? "rgba(255,255,255,0.85)" : C.muted, fontWeight: 300 }}>
-                    <CheckCircle size={14} color={isPopular ? C.yellow : C.blue} style={{ flexShrink: 0, marginTop: "0.1rem" }} />
-                    {b}
-                  </li>
-                ))}
-              </ul>
-
-              <button
-                onClick={(e) => { e.stopPropagation(); setData((d) => ({ ...d, tier })); onNext(); }}
-                style={{
-                  width: "100%", padding: "13px 0", borderRadius: "100px",
-                  fontFamily: F.body, fontSize: 15, fontWeight: 700,
-                  background: isPopular ? C.yellow : tier === "Basic" ? C.blue : C.ink,
-                  color: isPopular ? C.ink : C.white,
-                  border: "none", cursor: "pointer", transition: "opacity .2s",
-                  boxShadow: tier === "Basic" ? "0 4px 18px rgba(43,52,255,0.28)" : "none",
-                }}
-              >
-                Gift {tier}
-              </button>
-            </div>
-          );
-        })}
+        </div>
       </div>
     </div>
   );
@@ -450,8 +388,8 @@ function StepReview({ data, onSubmit, onBack, loading, error }: {
   error?:    string | null;
 }) {
   const plan   = GIFT_PLANS[data.tier];
-  const price  = data.billing === "monthly" ? plan.monthlyPrice : plan.annualPrice;
-  const period = data.billing === "monthly" ? "/mo" : "/yr";
+  const price  = plan.annualPrice;  // Pro is annual-only
+  const period = "/yr";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
@@ -629,8 +567,8 @@ function Footer() {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 const DEFAULT_FORM: GiftFormData = {
-  tier:           "Basic",
-  billing:        "monthly",
+  tier:           "Pro",
+  billing:        "annual",
   recipientName:  "",
   recipientEmail: "",
   senderName:     "",
@@ -651,7 +589,7 @@ export default function GiftPage() {
     try {
       await paymentService.startStripeCheckout(
         form.tier,
-        form.billing === "annual" ? "Yearly" : "Monthly",
+        "Yearly",  // Pro is annual-only
         {
           recipientEmail: form.recipientEmail,
           recipientName:  form.recipientName,
@@ -680,7 +618,7 @@ export default function GiftPage() {
     <>
       <Helmet>
         <title>Gift a HomeGentic Subscription</title>
-        <meta name="description" content="Give the gift of a verified home. Gift a HomeGentic Pro or Premium subscription to a buyer, client, or homeowner you care about." />
+        <meta name="description" content="Give the gift of a verified home. Gift a HomeGentic Pro subscription to a buyer, client, or homeowner you care about." />
       </Helmet>
 
       <div style={{ background: C.paper, minHeight: "100vh", fontFamily: F.body }}>
@@ -705,7 +643,7 @@ export default function GiftPage() {
               }}>
                 Close more confidently. Gift your buyer a{" "}
                 <span style={{ fontFamily: F.display, fontWeight: 800, color: C.ink }}>Home</span><span style={{ color: C.yellowText, fontFamily: F.display, fontWeight: 800 }}>Gentic</span>
-                {" "}Pro or Premium subscription at closing — so they start building a verified maintenance record from day one.
+                {" "}Pro subscription at closing — so they start building a verified maintenance record from day one.
               </p>
               <p style={{ fontFamily: F.body, fontSize: 14, color: C.muted, margin: 0 }}>
                 Works for anyone: family, friends, clients, neighbors.

@@ -44,9 +44,9 @@ Each finding below carries a ✅ with the file and the nature of the fix. The pa
 **File:** `agents/voice/server.ts` ~L350  
 **Confidence:** 9/10
 
-The AI rate-limit tier used by `agentLimiter` is taken directly from the `x-subscription-tier` request header. The server never verifies the claimed tier against the ICP payment canister. Because `VOICE_AGENT_API_KEY` is a static shared secret visible in every browser request, any authenticated user can set `x-subscription-tier: Premium` to receive 20 agent calls/day regardless of what they paid for.
+The AI rate-limit tier used by `agentLimiter` is taken directly from the `x-subscription-tier` request header. The server never verifies the claimed tier against the ICP payment canister. Because `VOICE_AGENT_API_KEY` is a static shared secret visible in every browser request, any authenticated user can set `x-subscription-tier: Premium` to receive 20 agent calls/day (or `Pro` for 10/day) regardless of what they paid for.
 
-**Exploit:** A Basic subscriber opens DevTools, copies the `x-api-key` value, and crafts requests with `x-subscription-tier: Premium`. The limiter grants them 20 Anthropic API calls/day they did not purchase.
+**Exploit:** A Free-tier user opens DevTools, copies the `x-api-key` value, and crafts requests with `x-subscription-tier: Premium`. The limiter grants them 20 Anthropic API calls/day they did not purchase — more than even the current $59/year Pro plan legitimately includes.
 
 **Fix:** Remove `x-subscription-tier`. Resolve the tier server-side by calling `payment.getTier(principal)` on the ICP canister, using the principal derived from the request's ICP delegation chain.
 

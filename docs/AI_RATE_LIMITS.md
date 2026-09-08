@@ -20,39 +20,69 @@ Limits reset at midnight UTC.
 | Tier | Agent calls/day | Chat calls/day | Notes |
 |---|---|---|---|
 | **Free** | 0 | 3 | Chat only — no agentic access |
-| **Basic** ($10/mo) | 5 | Unlimited | |
-| **Pro** ($20/mo) | 10 | Unlimited | |
-| **Premium** ($40/mo) | 20 | Unlimited | |
+| **Pro** ($59/yr) | 10 | Unlimited | The only purchasable homeowner plan |
 | **ContractorFree** | 0 | 3 | Same as Free |
-| **ContractorPro** ($40/mo) | 10 | Unlimited | Same as Pro |
+| **ContractorPro** ($40/mo) | 10 | Unlimited | |
 | **RealtorFree** | 0 | 3 | Same as Free |
 | **RealtorPro** ($30/mo) | 10 | Unlimited | Same as ContractorPro |
+
+Homeowner pricing collapsed from three tiers (Basic/Pro/Premium) to a single
+$59/year Pro plan carrying the old Premium tier's property (20), photo
+(30/job), and quote-request (unlimited) limits. Its agent-call limit is the
+exception: it keeps the old Pro tier's 10/day cap rather than Premium's
+20/day — at $59/year, 20/day would run the tier at a steep loss (see
+"Financial basis" below). Basic ($10/mo, 5/day) and old Premium ($40/mo,
+20/day) are retired as purchase options; they remain valid tier values
+purely so subscribers grandfathered in before the change keep their
+original limits enforced until they renew, at which point they move to
+the new Pro tier and price.
 
 ## Financial basis
 
 Model: `claude-sonnet-4-6` at $3.00/1M input tokens, $15.00/1M output tokens.
 
-### Worst case (every user maxes their limit every day, 30-day month)
+**Note:** the tables below mix a legacy monthly-billed tier structure
+(Basic/Pro/Premium, kept only for grandfathered subscribers — see above)
+with the current $59/**year** Pro plan. Pro's costs are computed over a
+full year, then divided by 12 for a monthly-equivalent figure so it's
+comparable to the legacy rows. Its Stripe fee is a single annual charge
+(2.9% + $0.30 on $59 ≈ $2.01/yr), not a recurring monthly one.
 
-| Tier | Agent AI cost | Chat AI cost (est.) | Stripe fee | ICP cycles | **Variable cost** | **Gross margin** |
-|---|---|---|---|---|---|---|
-| Basic $10 | $4.50 | $1.05 | $0.59 | $0.10 | $6.24 | **37.6%** |
-| Pro $20 | $9.00 | $1.05 | $0.88 | $0.20 | $11.13 | **44.4%** |
-| Premium $40 | $18.00 | $1.05 | $1.47 | $0.30 | $20.82 | **47.9%** |
+### Worst case (every user maxes their limit every day)
 
-Chat cost estimated at 5 calls/day average across all tiers.
+| Tier | Agent AI cost | Chat AI cost (est.) | Stripe fee | ICP cycles | **Variable cost** | **Revenue** | **Gross margin** |
+|---|---|---|---|---|---|---|---|
+| Basic $10/mo (legacy) | $4.50 | $1.05 | $0.59 | $0.10 | $6.24 | $10.00 | **37.6%** |
+| Premium $40/mo (legacy) | $18.00 | $1.05 | $1.47 | $0.30 | $20.82 | $40.00 | **47.9%** |
+| **Pro $59/yr (current)** | $9.00/mo | $1.05/mo | $0.17/mo | $0.30/mo | $10.52/mo | $4.92/mo | **‑114%** |
 
-### Realistic (~45–55% active days, 65% of agent limit used, 3 chat/day avg)
+Chat cost estimated at 5 calls/day average across all tiers. Pro's ICP
+cycles figure uses Premium's $0.30/mo (it carries Premium's storage
+limits — 20 properties, 30 photos/job).
 
-| Tier | Agent AI cost | Chat AI cost | Stripe fee | ICP cycles | **Variable cost** | **Gross margin** |
-|---|---|---|---|---|---|---|
-| Basic $10 | $1.32 | $0.63 | $0.59 | $0.10 | $2.64 | **73.6%** |
-| Pro $20 | $2.97 | $0.63 | $0.88 | $0.20 | $4.68 | **76.6%** |
-| Premium $40 | $5.94 | $0.63 | $1.47 | $0.30 | $8.34 | **79.2%** |
+### Realistic (~45–55% active days, ~33% of the worst-case agent cost, 3 chat/day avg)
+
+| Tier | Agent AI cost | Chat AI cost | Stripe fee | ICP cycles | **Variable cost** | **Revenue** | **Gross margin** |
+|---|---|---|---|---|---|---|---|
+| Basic $10/mo (legacy) | $1.32 | $0.63 | $0.59 | $0.10 | $2.64 | $10.00 | **73.6%** |
+| Premium $40/mo (legacy) | $5.94 | $0.63 | $1.47 | $0.30 | $8.34 | $40.00 | **79.2%** |
+| **Pro $59/yr (current)** | $2.97/mo | $0.63/mo | $0.17/mo | $0.30/mo | $4.07/mo | $4.92/mo | **17.3%** |
 
 ### Risk flag
 
-Basic worst case margin (37.6%) is the tightest. If a cohort of Basic users consistently maxes their 5 agent calls every day, margin compresses quickly. Monitor agent call utilization per tier once live data is available and consider reducing Basic agent limit or raising price before scaling.
+**Pro runs at a loss in the worst case (‑114%) and a thin 17.3% margin
+even under the realistic-usage assumption.** This is a direct consequence
+of the $59/year price point (~$4.92/mo-equivalent) sitting well below
+what the old monthly tiers charged, while agent/chat/infra costs per
+active user are largely unchanged. Lowering Pro's agent-call limit from
+Premium's 20/day to 10/day (done as part of this pricing consolidation)
+avoids the worse ‑302%/‑45% outcome that 20/day would produce, but does
+not fully solve the underlying gap — at this price, margin is
+usage-sensitive in a way none of the legacy tiers were. Monitor real
+Pro agent-call utilization closely post-launch; if realized usage tracks
+closer to the worst case than the realistic estimate, this tier will
+need either a lower agent-call limit, a higher price, or both before
+scaling meaningfully.
 
 ## UX behaviour when limit is reached
 

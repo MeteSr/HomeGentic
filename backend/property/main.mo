@@ -526,11 +526,14 @@ persistent actor Property {
 
   // ─── Tier Limits ──────────────────────────────────────────────────────────
 
+  // #Basic and #Premium are retired as purchasable tiers — #Pro is now the
+  // single homeowner plan ($59/year) with the old Premium limits. Their
+  // arms stay here so grandfathered subscribers keep their existing limits.
   public query func getPropertyLimitForTier(tier: SubscriptionTier) : async Nat {
     switch tier {
       case (#Free)             { 0  };  // blocked — unsubscribed
       case (#Basic)            { 1  };
-      case (#Pro)              { 5  };
+      case (#Pro)              { 20 };
       case (#Premium)          { 20 };
       case (#ContractorFree)   { 0  };  // contractors don't own properties
       case (#ContractorPro)    { 0  };  // 0 = unlimited (ContractorPro)
@@ -649,7 +652,7 @@ persistent actor Property {
     let limit = switch (callerTier) {
       case (#Free)             { 0  };  // blocked — unsubscribed
       case (#Basic)            { 1  };
-      case (#Pro)              { 5  };
+      case (#Pro)              { 20 };
       case (#Premium)          { 20 };
       case (#ContractorFree)   { 0  };  // contractors don't own properties
       case (#ContractorPro)    { 0  };  // 0 = unlimited (ContractorPro)
@@ -663,10 +666,13 @@ persistent actor Property {
         case (#ContractorFree)   "ContractorFree";
         case (#ContractorPro)    "ContractorPro";
       };
+      // #Basic is grandfathered-only (no longer purchasable) — its upgrade
+      // path now points to the single $59/year Pro plan. #Pro/#Premium are
+      // already at the top homeowner tier, so there's nowhere further to
+      // suggest.
       let upgradeMsg = switch (callerTier) {
-        case (#Free)  " Subscribe to Basic ($10/mo) for 1 property, or Pro ($20/mo) for 5.";
-        case (#Basic) " Upgrade to Pro ($20/mo) for 5, or Premium ($35/mo) for 20.";
-        case (#Pro)   " Upgrade to Premium ($35/mo) for 20, or ContractorPro ($40/mo) for unlimited.";
+        case (#Free)  " Subscribe to Pro ($59/year) for 20 properties.";
+        case (#Basic) " Upgrade to Pro ($59/year) for 20.";
         case _        "";
       };
       Map.remove(inFlightRegistrations, Text.compare, callerKey);

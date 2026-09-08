@@ -253,7 +253,7 @@ persistent actor Bills {
 
     if (callerTier == #Free) {
       return #err(#TierLimitReached(
-        "Bill uploads require an active subscription. Subscribe to Basic ($10/mo) to get started."
+        "Bill uploads require an active subscription. Subscribe to Pro ($59/year) to get started."
       ));
     };
 
@@ -262,7 +262,7 @@ persistent actor Bills {
 
     if (limit > 0 and countUploadsThisMonth(msg.caller, now) >= limit) {
       return #err(#TierLimitReached(
-        "Monthly upload limit reached. Upgrade to Pro ($20/mo) for unlimited bill uploads."
+        "Monthly upload limit reached. Upgrade to Pro ($59/year) for unlimited bill uploads."
       ));
     };
 

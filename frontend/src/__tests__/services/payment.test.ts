@@ -58,12 +58,12 @@ vi.mock("@icp-sdk/core/agent", () => ({
 // ─── PLANS data integrity ─────────────────────────────────────────────────────
 
 describe("PLANS", () => {
-  it("contains exactly 6 tiers (Free, Basic, Pro, Premium, ContractorFree, ContractorPro)", () => {
-    expect(PLANS).toHaveLength(6);
+  it("contains exactly 4 tiers (Free, Pro, ContractorFree, ContractorPro)", () => {
+    expect(PLANS).toHaveLength(4);
   });
 
   it("contains all expected tiers in order", () => {
-    expect(PLANS.map((p) => p.tier)).toEqual(["Free", "Basic", "Pro", "Premium", "ContractorFree", "ContractorPro"]);
+    expect(PLANS.map((p) => p.tier)).toEqual(["Free", "Pro", "ContractorFree", "ContractorPro"]);
   });
 
   it("Free tier is $0 unsubscribed sentinel with no limits", () => {
@@ -75,32 +75,13 @@ describe("PLANS", () => {
     expect(free.quoteRequests).toBe(0);
   });
 
-  it("Basic tier is $10/month with 1 property limit and all services", () => {
-    const basic = PLANS.find((p) => p.tier === "Basic")!;
-    expect(basic.price).toBe(10);
-    expect(basic.period).toBe("month");
-    expect(basic.propertyLimit).toBe(1);
-    expect(basic.photosPerJob).toBe(5);
-    expect(basic.quoteRequests).toBe(3);
-    expect(basic.features.some((f) => /contractor/i.test(f))).toBe(true);
-  });
-
-  it("Pro tier is $20/month with 5 property limit", () => {
+  it("Pro tier is $59/year with 20 property limit (single homeowner plan)", () => {
     const pro = PLANS.find((p) => p.tier === "Pro")!;
-    expect(pro.price).toBe(20);
-    expect(pro.period).toBe("month");
-    expect(pro.propertyLimit).toBe(5);
-    expect(pro.photosPerJob).toBe(10);
-    expect(pro.quoteRequests).toBe(10);
-  });
-
-  it("Premium tier is $40/month with 20 property limit", () => {
-    const premium = PLANS.find((p) => p.tier === "Premium")!;
-    expect(premium.price).toBe(40);
-    expect(premium.period).toBe("month");
-    expect(premium.propertyLimit).toBe(20);
-    expect(premium.photosPerJob).toBe(30);
-    expect(premium.quoteRequests).toBe(Infinity);
+    expect(pro.price).toBe(59);
+    expect(pro.period).toBe("year");
+    expect(pro.propertyLimit).toBe(20);
+    expect(pro.photosPerJob).toBe(30);
+    expect(pro.quoteRequests).toBe(Infinity);
   });
 
   it("ContractorFree tier is $0 with basic contractor features", () => {
@@ -137,12 +118,10 @@ describe("PLANS", () => {
     });
   });
 
-  it("homeowner paid tiers have higher property limits than Basic", () => {
-    const basic = PLANS.find((p) => p.tier === "Basic")!;
-    const homeownerAboveBasic = PLANS.filter((p) => (p.tier === "Pro" || p.tier === "Premium"));
-    homeownerAboveBasic.forEach((p) => {
-      expect(p.propertyLimit).toBeGreaterThan(basic.propertyLimit);
-    });
+  it("Pro has a higher property limit than Free", () => {
+    const free = PLANS.find((p) => p.tier === "Free")!;
+    const pro = PLANS.find((p) => p.tier === "Pro")!;
+    expect(pro.propertyLimit).toBeGreaterThan(free.propertyLimit);
   });
 });
 
@@ -153,53 +132,21 @@ describe("ANNUAL_PLANS", () => {
     expect(Array.isArray(ANNUAL_PLANS)).toBe(true);
   });
 
-  it("contains Basic, Pro, and Premium annual variants (no Free or Contractor annual)", () => {
-    const tiers = ANNUAL_PLANS.map((p) => p.tier);
-    expect(tiers).toContain("Basic");
-    expect(tiers).toContain("Pro");
-    expect(tiers).toContain("Premium");
-    expect(tiers).not.toContain("Free");
-    expect(tiers).not.toContain("ContractorFree");
+  it("is the same array as PLANS (Pro is natively annual, no monthly variant to derive from)", () => {
+    expect(ANNUAL_PLANS).toBe(PLANS);
   });
 
-  it("annual Basic costs 10x monthly Basic", () => {
-    const monthlyBasic = PLANS.find((p) => p.tier === "Basic")!;
-    const annualBasic  = ANNUAL_PLANS.find((p) => p.tier === "Basic")!;
-    expect(annualBasic.price).toBeLessThan(monthlyBasic.price * 12);
-    // Exactly 10 months: $10 * 10 = $100
-    expect(annualBasic.price).toBe(monthlyBasic.price * 10);
-  });
-
-  it("annual Pro costs less than 12x monthly Pro (2 months free = ~17% discount)", () => {
-    const monthlyPro = PLANS.find((p) => p.tier === "Pro")!;
-    const annualPro  = ANNUAL_PLANS.find((p) => p.tier === "Pro")!;
-    expect(annualPro.price).toBeLessThan(monthlyPro.price * 12);
-    // Exactly 10 months: $20 * 10 = $200
-    expect(annualPro.price).toBe(monthlyPro.price * 10);
-  });
-
-  it("annual Premium costs 10x monthly Premium", () => {
-    const monthlyPremium = PLANS.find((p) => p.tier === "Premium")!;
-    const annualPremium  = ANNUAL_PLANS.find((p) => p.tier === "Premium")!;
-    expect(annualPremium.price).toBe(monthlyPremium.price * 10);
-  });
-
-  it("annual plans have period = 'year'", () => {
-    ANNUAL_PLANS.forEach((p) => expect(p.period).toBe("year"));
-  });
-
-  it("annual plans preserve the same features as their monthly counterpart", () => {
-    ANNUAL_PLANS.forEach((annual) => {
-      const monthly = PLANS.find((p) => p.tier === annual.tier)!;
-      expect(annual.features).toEqual(monthly.features);
-    });
+  it("Pro's price is $59/year", () => {
+    const pro = ANNUAL_PLANS.find((p) => p.tier === "Pro")!;
+    expect(pro.price).toBe(59);
+    expect(pro.period).toBe("year");
   });
 });
 
 // ─── getPlan ──────────────────────────────────────────────────────────────────
 
 describe("paymentService.getPlan", () => {
-  const tiers: PlanTier[] = ["Free", "Basic", "Pro", "Premium", "ContractorFree", "ContractorPro"];
+  const tiers: PlanTier[] = ["Free", "Pro", "ContractorFree", "ContractorPro"];
 
   it.each(tiers)("returns the correct plan for '%s'", (tier) => {
     const plan = paymentService.getPlan(tier);
@@ -209,6 +156,11 @@ describe("paymentService.getPlan", () => {
   it("falls back to Free for an unknown tier", () => {
     const plan = paymentService.getPlan("unknown" as PlanTier);
     expect(plan.tier).toBe("Free");
+  });
+
+  it("falls back to Free for grandfathered Basic/Premium tiers (retired, no longer in PLANS)", () => {
+    expect(paymentService.getPlan("Basic" as PlanTier).tier).toBe("Free");
+    expect(paymentService.getPlan("Premium" as PlanTier).tier).toBe("Free");
   });
 
   it("returns the same object as in PLANS", () => {

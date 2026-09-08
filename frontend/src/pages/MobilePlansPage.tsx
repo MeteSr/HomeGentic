@@ -35,35 +35,21 @@ interface PlanDef {
   recommended?: boolean;
 }
 
+// Pro is the single homeowner plan — $59/year, annual-only (both fields
+// hold the same value so nothing breaks if a stale `cycle` value slips in).
 const PLAN_DEFS: PlanDef[] = [
-  {
-    tier:    "Basic",
-    label:   "Basic",
-    sub:     "One property, full records and reports.",
-    monthly: 10,
-    yearly:  100,
-  },
   {
     tier:        "Pro",
     label:       "Pro",
-    sub:         "Five properties, sensors, advanced reports.",
-    monthly:     20,
-    yearly:      200,
+    sub:         "Twenty properties, sensors, advanced reports, unlimited quotes.",
+    monthly:     59,
+    yearly:      59,
     recommended: true,
-  },
-  {
-    tier:    "Premium",
-    label:   "Premium",
-    sub:     "Twenty properties, shared access seats, and unlimited quotes.",
-    monthly: 35,
-    yearly:  350,
   },
 ];
 
 const PLAN_FEATURES: Record<string, string[]> = {
-  Basic:   ["1 property", "5 photos per job", "3 quote requests/month", "Blockchain-backed records", "PDF export"],
-  Pro:     ["Everything in Basic", "5 properties", "10 photos per job", "10 quote requests/month", "Verified badge"],
-  Premium: ["Everything in Pro", "20 properties", "30 photos per job", "Unlimited quotes", "Premium verified badge"],
+  Pro: ["20 properties", "30 photos per job", "Unlimited quote requests", "Verified badge", "Blockchain-backed records", "PDF export"],
 };
 
 // ── Back link ─────────────────────────────────────────────────────────────────
@@ -179,31 +165,6 @@ function PlansStep({
         </div>
         <div style={{ font: `400 13.5px/1.6 ${F.body}`, color: M.muted, marginTop: 9 }}>
           Every plan keeps your records permanently. Change or cancel any time.
-        </div>
-
-        {/* Billing cycle toggle */}
-        <div style={{
-          display: "flex", background: "#E1E3EA", borderRadius: 100, padding: 4, gap: 4, marginTop: 18,
-        }}>
-          {(["Monthly", "Yearly"] as BillingCycle[]).map(c => {
-            const active = cycle === c;
-            return (
-              <button
-                key={c}
-                onClick={() => onCycle(c)}
-                style={{
-                  flex: 1, minHeight: 40, display: "flex", alignItems: "center", justifyContent: "center",
-                  borderRadius: 100, border: "none", cursor: "pointer",
-                  background: active ? M.card : "transparent",
-                  font: `600 12.5px/1 ${F.body}`,
-                  color: active ? M.ink : M.muted,
-                  transition: "background 0.15s",
-                }}
-              >
-                {c === "Yearly" ? "Yearly · 2 months free" : "Monthly"}
-              </button>
-            );
-          })}
         </div>
 
         {/* Plan cards */}
@@ -384,7 +345,7 @@ export default function MobilePlansPage() {
   const [selected, setSelected] = useState<PlanTier>(
     PLAN_DEFS.some(p => p.tier === preselect) ? preselect : "Pro"
   );
-  const [cycle, setCycle] = useState<BillingCycle>("Monthly");
+  const [cycle, setCycle] = useState<BillingCycle>("Yearly");  // Pro is annual-only
 
   const handleBack = () => {
     if (step === "confirm") { setStep("plans"); return; }

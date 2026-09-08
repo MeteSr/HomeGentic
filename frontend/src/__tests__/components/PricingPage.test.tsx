@@ -2,13 +2,11 @@
  * PricingPage tests
  *
  * Plan display
- *   - renders Basic, Pro, Premium homeowner plans by default
- *   - shows monthly prices
- *   - annual toggle switches to yearly prices
+ *   - renders the single Pro homeowner plan by default
+ *   - shows the $59/year price
  *
  * Upgrade flow — authenticated user
- *   - navigates directly to /checkout with tier and Monthly billing
- *   - annual billing passes Yearly to checkout URL
+ *   - navigates directly to /checkout with tier and Yearly billing
  *
  * Upgrade flow — unauthenticated user
  *   - calls handleLogin
@@ -91,26 +89,14 @@ describe("PricingPage — plan display", () => {
     localStorage.clear();
   });
 
-  it("renders Basic, Pro and Premium plan headings by default", () => {
+  it("renders the single Pro plan heading by default", () => {
     renderPricing();
-    expect(screen.getAllByText("Basic").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Pro").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Premium").length).toBeGreaterThan(0);
   });
 
-  it("shows monthly prices by default", () => {
+  it("shows the $59/year price", () => {
     renderPricing();
-    expect(screen.getAllByText(/\$10/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/\$20/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/\$40/).length).toBeGreaterThan(0);
-  });
-
-  it("annual toggle switches to yearly prices (10× monthly)", () => {
-    renderPricing();
-    fireEvent.click(screen.getByRole("button", { name: /annual/i }));
-    expect(screen.getAllByText(/\$100/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/\$200/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/\$400/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/\$59/).length).toBeGreaterThan(0);
   });
 });
 
@@ -123,20 +109,11 @@ describe("PricingPage — authenticated upgrade", () => {
     localStorage.clear();
   });
 
-  it("navigates to /checkout with Monthly billing", async () => {
+  it("navigates to /checkout with Yearly billing", async () => {
     renderPricing(true);
-    fireEvent.click(screen.getByRole("button", { name: /start with basic/i }));
+    fireEvent.click(screen.getByRole("button", { name: /get pro/i }));
     await waitFor(() =>
-      expect(mockNavigate).toHaveBeenCalledWith("/checkout?tier=Basic&billing=Monthly")
-    );
-  });
-
-  it("navigates with Yearly billing when annual toggle is active", async () => {
-    renderPricing(true);
-    fireEvent.click(screen.getByRole("button", { name: /annual/i }));
-    fireEvent.click(screen.getByRole("button", { name: /start with basic/i }));
-    await waitFor(() =>
-      expect(mockNavigate).toHaveBeenCalledWith("/checkout?tier=Basic&billing=Yearly")
+      expect(mockNavigate).toHaveBeenCalledWith("/checkout?tier=Pro&billing=Yearly")
     );
   });
 
@@ -163,14 +140,14 @@ describe("PricingPage — unauthenticated upgrade", () => {
 
   it("calls handleLogin when an unauthenticated user clicks a plan", async () => {
     renderPricing(false);
-    fireEvent.click(screen.getByRole("button", { name: /start with basic/i }));
+    fireEvent.click(screen.getByRole("button", { name: /get pro/i }));
     await waitFor(() => expect(mockDevLogin).toHaveBeenCalledTimes(1));
   });
 
   it("does not navigate to /checkout directly (waits for login)", async () => {
     mockDevLogin.mockImplementation(() => new Promise(() => {})); // never resolves
     renderPricing(false);
-    fireEvent.click(screen.getByRole("button", { name: /start with basic/i }));
+    fireEvent.click(screen.getByRole("button", { name: /get pro/i }));
     await new Promise((r) => setTimeout(r, 50));
     expect(mockNavigate).not.toHaveBeenCalledWith(
       expect.stringContaining("/checkout")

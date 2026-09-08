@@ -51,7 +51,7 @@ const FAQS: FaqItem[] = [
   },
   {
     q: "What subscription tier do I need?",
-    a: "Basic ($10/mo) covers one property with up to 5 photos per job and 3 open quote requests — enough to get started. Pro ($20/mo) supports 5 properties and 10 photos per job. Premium ($35/mo) scales to 20 properties. See the full comparison on our Pricing page.",
+    a: "HomeGentic has one paid plan: Pro, $59/year. It covers up to 20 properties, 30 photos per job, and unlimited quote requests. See the full feature list on our Pricing page.",
   },
 ];
 

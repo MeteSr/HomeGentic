@@ -169,6 +169,12 @@ Owns subscription management and pricing table (merged from old `price` canister
 
 **Tier:** `#Basic | #Pro | #Premium | #ContractorFree | #ContractorPro | #RealtorFree | #RealtorPro`
 
+`#Pro` ($59/year) is the only purchasable homeowner tier. `#Basic` and
+`#Premium` remain valid variant values only so subscribers grandfathered
+in before the pricing consolidation keep decoding and keep their original
+limits enforced until they renew — `subscribe`/`getPricing` no longer
+offer them as purchase options.
+
 **Admin / Lifecycle:** `setUpdateRateLimit(Nat)` · `addTrustedCanister(Principal)` · `removeTrustedCanister(Principal)`
 
 ---

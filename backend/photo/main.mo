@@ -177,12 +177,15 @@ persistent actor Photo {
     "PHOTO_" # Nat.toText(photoCounter)
   };
 
+  // #Basic and #Premium are retired as purchasable tiers — #Pro is now the
+  // single homeowner plan ($59/year) carrying the old Premium quota. Their
+  // arms stay here so grandfathered subscribers keep their existing quota.
   private func quotaFor(tier: SubscriptionTier) : PhotoQuota {
     switch (tier) {
       case (#Free)          { { tier; maxPerJob = 0;   maxPerProperty = 0   } };  // blocked
       case (#ContractorFree){ { tier; maxPerJob = 5;   maxPerProperty = 25  } };
       case (#Basic)         { { tier; maxPerJob = 5;   maxPerProperty = 25  } };
-      case (#Pro)           { { tier; maxPerJob = 10;  maxPerProperty = 100 } };
+      case (#Pro)           { { tier; maxPerJob = 30;  maxPerProperty = 0   } };  // 0 = unlimited
       case (#Premium)       { { tier; maxPerJob = 30;  maxPerProperty = 0   } };
       case (#ContractorPro) { { tier; maxPerJob = 50;  maxPerProperty = 0   } };
     }
@@ -295,21 +298,21 @@ persistent actor Photo {
     let quota = quotaFor(callerTierRaw);
 
     let callerTier = quota.tier;
+    // #Basic is grandfathered-only — its upgrade path now points to the
+    // single $59/year Pro plan. #Pro is already the top homeowner tier
+    // (unlimited photos/job), so there's nowhere further to suggest.
     let upgradeHint = switch (callerTier) {
       case (#Free) {
-        " Subscribe to Basic ($10/mo) to start uploading photos."
+        " Subscribe to Pro ($59/year) to start uploading photos."
       };
       case (#Basic) {
-        " Upgrade to Pro ($20/mo) for 10 photos/job, or Premium ($35/mo) for unlimited."
-      };
-      case (#Pro) {
-        " Upgrade to Premium ($35/mo) for 30 photos/job, or ContractorPro ($40/mo) for 50."
+        " Upgrade to Pro ($59/year) for 30 photos/job."
       };
       case _ { "" };
     };
 
     if (callerTier == #Free) {
-      return #err(#QuotaExceeded("Photo uploads require an active subscription. Subscribe to Basic ($10/mo) to get started."));
+      return #err(#QuotaExceeded("Photo uploads require an active subscription. Subscribe to Pro ($59/year) to get started."));
     };
 
     // H-11: Verify caller is authorized for this property before storing the photo.

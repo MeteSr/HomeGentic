@@ -305,7 +305,7 @@ persistent actor Job {
       let tier = await payActor.getTierForPrincipal(effectivePrincipal);
       switch (tier) {
         case (#Free) {
-          return #err(#TierLimitReached("Job creation requires an active subscription. Subscribe to Basic ($10/mo) to get started."));
+          return #err(#TierLimitReached("Job creation requires an active subscription. Subscribe to Pro ($59/year) to get started."));
         };
         case _ {};
       };

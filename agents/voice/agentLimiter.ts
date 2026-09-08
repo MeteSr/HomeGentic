@@ -22,7 +22,16 @@ export type SubscriptionTier =
   | "ContractorFree"
   | "ContractorPro";
 
-/** Daily agent-call limits per tier (0 = no agentic access). */
+/**
+ * Daily agent-call limits per tier (0 = no agentic access).
+ *
+ * Pro is now the single purchasable homeowner plan. It keeps its own
+ * original 10/day limit (not Premium's 20/day) — at the $59/year price,
+ * 20/day would run the tier at a negative margin under the cost model in
+ * docs/AI_RATE_LIMITS.md. Basic and Premium keep their original values
+ * here purely so grandfathered subscribers from before the pricing
+ * consolidation keep their existing limits enforced until they renew.
+ */
 export const TIER_LIMITS: Record<SubscriptionTier, number> = {
   Free:            0,
   Basic:           5,

@@ -1,16 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { CheckCircle, Sparkles } from "lucide-react";
 import { Button } from "@/components/Button";
-import { PLANS, ANNUAL_PLANS, type Plan, type PlanTier, type BillingCycle } from "@/services/planConstants";
+import { PLANS, type PlanTier, type BillingCycle } from "@/services/planConstants";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthStore } from "@/store/authStore";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 
 const C = V2_COLORS;
 const F = V2_FONTS;
-
-const BILLING_KEY = "homegentic_pricing_billing";
 
 export default function PricingPage() {
   const { login, devLogin } = useAuth();
@@ -19,24 +17,15 @@ export default function PricingPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [annual, setAnnual] = useState<boolean>(() => {
-    try { return localStorage.getItem(BILLING_KEY) === "annual"; } catch { return false; }
-  });
-
-  useEffect(() => {
-    try { localStorage.setItem(BILLING_KEY, annual ? "annual" : "monthly"); } catch {}
-  }, [annual]);
-
-  const displayPlans: Plan[] = annual
-    ? ANNUAL_PLANS
-    : PLANS.filter((p) => p.tier === "Basic" || p.tier === "Pro" || p.tier === "Premium");
+  // Pro ($59/year) is the only homeowner plan — billing is always Yearly.
+  const displayPlans = PLANS.filter((p) => p.tier === "Pro");
 
   const handleUpgrade = async (tier: PlanTier) => {
     if (tier === "ContractorFree") {
       await handleLogin();
       return;
     }
-    const billing: BillingCycle = annual ? "Yearly" : "Monthly";
+    const billing: BillingCycle = "Yearly";
     if (!isAuthenticated) {
       // Stamp the intent into the URL so the effect below can navigate after II resolves.
       setSearchParams({ checkout: tier, billing }, { replace: true });
@@ -102,135 +91,66 @@ export default function PricingPage() {
           ))}
         </div>
 
-        {/* Monthly/Annual toggle */}
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "0.75rem", marginBottom: !annual ? "0.75rem" : "2.5rem" }}>
-          <span style={{ fontFamily: F.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: annual ? C.muted : C.ink, fontWeight: annual ? 400 : 700 }}>
-            Monthly
-          </span>
-          <button
-            onClick={() => setAnnual((v) => !v)}
-            aria-label="Toggle annual billing"
-            style={{
-              width: "2.5rem", height: "1.375rem",
-              borderRadius: 100, border: "none", cursor: "pointer",
-              background: annual ? C.blue : C.border,
-              position: "relative", transition: "background 0.2s",
-            }}
-          >
-            <span style={{
-              position: "absolute", top: "3px",
-              left: annual ? "calc(100% - 1.125rem)" : "3px",
-              width: "1rem", height: "1rem",
-              borderRadius: "50%", background: C.paper,
-              transition: "left 0.2s",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-            }} />
-          </button>
-          <span style={{ fontFamily: F.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: annual ? C.ink : C.muted, fontWeight: annual ? 700 : 400 }}>
-            Annual
-          </span>
-          <span style={{ background: annual ? C.blue : C.border, color: annual ? C.paper : C.muted2, padding: "2px 10px", borderRadius: 100, fontFamily: F.mono, fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.06em" }}>
-            {annual ? "2 months free" : "Save 2 months"}
-          </span>
-        </div>
-        {!annual && (
-          <p style={{ textAlign: "center", fontFamily: F.body, fontSize: "0.8rem", color: C.muted, marginBottom: "2.5rem" }}>
-            Switch to annual and get 2 months free —{" "}
-            <button onClick={() => setAnnual(true)} style={{ background: "none", border: "none", color: C.blue, fontWeight: 700, cursor: "pointer", textDecoration: "underline", fontSize: "inherit", fontFamily: "inherit" }}>
-              switch now
-            </button>
-          </p>
-        )}
-
-        {/* Plan cards */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1.25rem", marginBottom: "4rem" }}>
-          {displayPlans.map((plan) => {
-            const isPopular = plan.tier === "Pro";
-            return (
-              <div key={plan.tier} style={{
-                padding: "2rem",
-                borderRadius: "24px",
-                background: isPopular ? C.blue : C.paper,
-                border: `${isPopular ? "2px" : "1.5px"} solid ${isPopular ? C.blue : C.border}`,
-                boxShadow: isPopular ? "0 8px 40px rgba(43,52,255,0.22)" : "0 2px 12px rgba(11,13,26,0.06)",
-                position: "relative",
-              }}>
-                {isPopular && (
-                  <div style={{
-                    display: "inline-flex", alignItems: "center",
-                    background: C.yellow, color: C.ink,
-                    padding: "3px 12px", borderRadius: 100,
-                    fontSize: "0.65rem", fontWeight: 700,
-                    marginBottom: "0.75rem", fontFamily: F.mono,
-                    letterSpacing: "0.08em", textTransform: "uppercase",
-                  }}>
-                    Most Popular
-                  </div>
-                )}
-                <div style={{ fontFamily: F.body, fontWeight: 600, fontSize: "0.875rem", color: isPopular ? "rgba(255,255,255,0.85)" : C.muted, marginBottom: "0.5rem" }}>
-                  {plan.tier}
-                </div>
-                <div style={{ marginBottom: "1.5rem" }}>
-                  <span style={{ fontFamily: F.display, fontWeight: 800, fontSize: "2.5rem", lineHeight: 1, color: isPopular ? C.paper : C.ink }}>
-                    ${plan.price}
-                  </span>
-                  <span style={{ fontFamily: F.body, fontSize: "0.65rem", color: isPopular ? "rgba(255,255,255,0.85)" : C.muted }}>/{plan.period}</span>
-                  {plan.period === "year" && (
-                    <div style={{ fontFamily: F.body, fontSize: "0.6rem", color: isPopular ? "rgba(255,255,255,0.85)" : C.muted, marginTop: "0.25rem", letterSpacing: "0.04em" }}>
-                      ${(plan.price / 12).toFixed(2)}/mo billed annually
-                    </div>
-                  )}
-                </div>
-
-                {/* AI agent call badge */}
-                {(() => {
-                  const agentCalls = plan.tier === "Basic" ? 5 : plan.tier === "Pro" ? 10 : 20;
-                  return (
-                    <div style={{
-                      display: "flex", alignItems: "center", gap: "0.5rem",
-                      padding: "0.5rem 0.75rem", marginBottom: "1rem",
-                      background: isPopular ? "rgba(255,255,255,0.12)" : C.lblue,
-                      border: `1px solid ${isPopular ? "rgba(255,255,255,0.2)" : C.blue + "33"}`,
-                      borderRadius: "12px",
-                    }}>
-                      <Sparkles size={12} color={isPopular ? C.yellow : C.blue} style={{ flexShrink: 0 }} />
-                      <span style={{ fontFamily: F.body, fontSize: "0.65rem", letterSpacing: "0.04em", color: isPopular ? "rgba(255,255,255,0.85)" : C.blue, fontWeight: 600 }}>
-                        {agentCalls} AI agent calls/day · unlimited chat
-                      </span>
-                    </div>
-                  );
-                })()}
-
-                <ul style={{ listStyle: "none", padding: 0, margin: "0 0 1.5rem", display: "flex", flexDirection: "column", gap: "0.625rem" }}>
-                  {plan.features.filter((f) => !f.includes("AI agent calls")).map((f) => {
-                    const isIncludes = f.startsWith("Everything in ");
-                    return (
-                      <li key={f} style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", fontFamily: F.body, fontSize: "0.85rem", color: isPopular ? "rgba(255,255,255,0.85)" : C.muted, fontWeight: isIncludes ? 600 : 300 }}>
-                        <CheckCircle size={14} color={isPopular ? C.yellow : C.blue} style={{ flexShrink: 0, marginTop: "0.1rem" }} />
-                        {f}
-                      </li>
-                    );
-                  })}
-                </ul>
-
-                <Button
-                  variant={isPopular ? "secondary" : "outline"}
-                  style={{
-                    width: "100%",
-                    borderRadius: "100px",
-                    ...(isPopular && { backgroundColor: C.yellow, color: C.ink, borderColor: C.yellow, fontWeight: 700 }),
-                    ...(plan.tier === "Basic"   && { backgroundColor: C.blue, color: C.paper, borderColor: C.blue, boxShadow: "0 4px 18px rgba(43,52,255,0.28)" }),
-                    ...(plan.tier === "Premium" && { backgroundColor: C.ink, color: C.paper, borderColor: C.ink }),
-                  }}
-                  onClick={() => handleUpgrade(plan.tier)}
-                >
-                  {plan.tier === "Basic"   ? "Start with Basic"
-                    : plan.tier === "Premium" ? "Unlock Premium"
-                    : `Get ${plan.tier}`}
-                </Button>
+        {/* Plan card — single homeowner plan, annual only */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", maxWidth: "22rem", margin: "0 auto 4rem" }}>
+          {displayPlans.map((plan) => (
+            <div key={plan.tier} style={{
+              padding: "2rem",
+              borderRadius: "24px",
+              background: C.blue,
+              border: `2px solid ${C.blue}`,
+              boxShadow: "0 8px 40px rgba(43,52,255,0.22)",
+              position: "relative",
+            }}>
+              <div style={{ fontFamily: F.body, fontWeight: 600, fontSize: "0.875rem", color: "rgba(255,255,255,0.85)", marginBottom: "0.5rem" }}>
+                {plan.tier}
               </div>
-            );
-          })}
+              <div style={{ marginBottom: "1.5rem" }}>
+                <span style={{ fontFamily: F.display, fontWeight: 800, fontSize: "2.5rem", lineHeight: 1, color: C.paper }}>
+                  ${plan.price}
+                </span>
+                <span style={{ fontFamily: F.body, fontSize: "0.65rem", color: "rgba(255,255,255,0.85)" }}>/{plan.period}</span>
+                <div style={{ fontFamily: F.body, fontSize: "0.6rem", color: "rgba(255,255,255,0.85)", marginTop: "0.25rem", letterSpacing: "0.04em" }}>
+                  ${(plan.price / 12).toFixed(2)}/mo billed annually
+                </div>
+              </div>
+
+              {/* AI agent call badge */}
+              <div style={{
+                display: "flex", alignItems: "center", gap: "0.5rem",
+                padding: "0.5rem 0.75rem", marginBottom: "1rem",
+                background: "rgba(255,255,255,0.12)",
+                border: "1px solid rgba(255,255,255,0.2)",
+                borderRadius: "12px",
+              }}>
+                <Sparkles size={12} color={C.yellow} style={{ flexShrink: 0 }} />
+                <span style={{ fontFamily: F.body, fontSize: "0.65rem", letterSpacing: "0.04em", color: "rgba(255,255,255,0.85)", fontWeight: 600 }}>
+                  10 AI agent calls/day · unlimited chat
+                </span>
+              </div>
+
+              <ul style={{ listStyle: "none", padding: 0, margin: "0 0 1.5rem", display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+                {plan.features.filter((f) => !f.includes("AI agent calls")).map((f) => (
+                  <li key={f} style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", fontFamily: F.body, fontSize: "0.85rem", color: "rgba(255,255,255,0.85)", fontWeight: 300 }}>
+                    <CheckCircle size={14} color={C.yellow} style={{ flexShrink: 0, marginTop: "0.1rem" }} />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+
+              <Button
+                variant="secondary"
+                style={{
+                  width: "100%",
+                  borderRadius: "100px",
+                  backgroundColor: C.yellow, color: C.ink, borderColor: C.yellow, fontWeight: 700,
+                }}
+                onClick={() => handleUpgrade(plan.tier)}
+              >
+                Get {plan.tier}
+              </Button>
+            </div>
+          ))}
         </div>
 
         {/* Gift callout */}

@@ -1,7 +1,8 @@
 /**
  * UpgradeModal — in-app plan selection dialog
  *
- * Shows Pro and Premium plan cards with a payment method toggle:
+ * Shows the Pro plan card ($59/year, the single homeowner plan) with a
+ * payment method toggle:
  *   Card (default) → Stripe checkout redirect (no ICP required)
  *   ICP            → on-chain subscribe via Internet Identity (no Stripe fees)
  */
@@ -26,7 +27,7 @@ const ICP_STEP_LABEL: Record<IcpStep, string> = {
   confirming: "Confirming…",
 };
 
-const SHOWN_TIERS: PlanTier[] = ["Pro", "Premium"];
+const SHOWN_TIERS: PlanTier[] = ["Pro"];
 
 export default function UpgradeModal({ open, onClose }: UpgradeModalProps) {
   const [method, setMethod]       = useState<PaymentMethod>("card");
@@ -44,7 +45,7 @@ export default function UpgradeModal({ open, onClose }: UpgradeModalProps) {
     setError(null);
     try {
       if (method === "card") {
-        await paymentService.startStripeCheckout(tier, "Monthly");
+        await paymentService.startStripeCheckout(tier, "Yearly");  // Pro is annual-only
         // startStripeCheckout redirects the browser; onClose only reached if redirect fails
         onClose();
       } else {
@@ -143,19 +144,19 @@ export default function UpgradeModal({ open, onClose }: UpgradeModalProps) {
           )}
         </div>
 
-        {/* Plan cards */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+        {/* Plan card */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr", maxWidth: "20rem", margin: "0 auto" }}>
           {plans.map((plan) => (
             <div
               key={plan.tier}
               style={{
-                border:        `1.5px solid ${plan.tier === "Premium" ? V2_COLORS.blue : V2_COLORS.border}`,
+                border:        `1.5px solid ${V2_COLORS.blue}`,
                 borderRadius:  V2_RADIUS.card,
                 padding:       "1.25rem",
                 display:       "flex",
                 flexDirection: "column",
                 gap:           "0.75rem",
-                background:    plan.tier === "Premium" ? V2_COLORS.lblue : V2_COLORS.paper,
+                background:    V2_COLORS.lblue,
               }}
             >
               <div>
@@ -185,7 +186,7 @@ export default function UpgradeModal({ open, onClose }: UpgradeModalProps) {
                 aria-label={`Select ${plan.tier}`}
                 style={{
                   marginTop:  "auto",
-                  background: plan.tier === "Premium" ? V2_COLORS.blue : V2_COLORS.ink,
+                  background: V2_COLORS.blue,
                   color:      V2_COLORS.paper,
                   border:     "none",
                   padding:    "0.6rem 1rem",

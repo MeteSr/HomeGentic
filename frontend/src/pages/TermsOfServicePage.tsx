@@ -80,9 +80,7 @@ const SECTIONS: Section[] = [
       <>
         <p>HomeGentic offers the following subscription tiers:</p>
         <ul>
-          <li><strong>Basic</strong> — 1 property, 5 photos per job, 3 open quote requests. $10/month.</li>
-          <li><strong>Pro</strong> — 5 properties, 10 photos per job, 10 open quote requests. $20/month.</li>
-          <li><strong>Premium</strong> — 20 properties, 30 photos per job, unlimited quote requests. $35/month.</li>
+          <li><strong>Pro</strong> — 20 properties, 30 photos per job, unlimited quote requests. $59/year.</li>
           <li><strong>ContractorPro</strong> — Unlimited properties, 50 photos per job, unlimited quote requests. $40/month.</li>
         </ul>
         <p><strong>Auto-renewal.</strong> Paid subscriptions renew automatically at the end of each billing period (monthly or annual, depending on plan) unless cancelled before the renewal date.</p>

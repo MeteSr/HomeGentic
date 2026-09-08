@@ -115,11 +115,13 @@ and has never been tested across two real sessions.
 verifies the real `payment` canister writes the new tier, that the UI reflects
 it on next load, and that tier-gated features unlock immediately.
 
-**Note:** Basic ($10/mo) is the entry tier — there is no Free tier. A newly
-registered user must complete checkout before accessing the dashboard.
+**Note:** Free is the entry tier (0 properties allowed) — homeowner
+pricing is a single paid plan, **Pro at $59/year**. Basic and Premium are
+retired as purchase options and only exist for subscribers grandfathered
+in before this change.
 
 **Prerequisites**
-- A user account currently on the **Basic** tier (newly registered or downgraded)
+- A newly registered user account (defaults to **Free** tier)
 - Local replica or testnet running with `payment` canister deployed
 - Stripe test card `4242 4242 4242 4242` available for checkout steps
 
@@ -127,21 +129,20 @@ registered user must complete checkout before accessing the dashboard.
 
 | # | Action | Expected Result |
 |---|--------|-----------------|
-| 1 | Log in and navigate to `/settings` | Subscription tab shows **Basic** plan |
-| 2 | Confirm the property limit: navigate to `/properties/new` and register a second property | Should be blocked — Basic allows 1 property |
-| 3 | Return to `/settings`, click **Subscription** tab | Basic plan card + upgrade options visible |
-| 4 | Click **Upgrade** on the **Pro** plan | Redirects to checkout or loading spinner on button |
+| 1 | Log in and navigate to `/settings` | Subscription tab shows **Free** plan |
+| 2 | Confirm the property limit: navigate to `/properties/new` and register a property | Should be blocked — Free allows 0 properties |
+| 3 | Return to `/settings`, click **Subscription** tab | Free plan + upgrade-to-Pro option visible |
+| 4 | Click **Upgrade** / **Get Pro** | Redirects to checkout or loading spinner on button |
 | 5 | Complete Stripe checkout with test card | Redirected to `/payment-success`; toast "Upgraded to Pro!" |
 | 6 | Confirm the Subscription tab now shows **Pro** | Plan card updated in current session |
 | 7 | Hard-refresh the page | Still shows **Pro** — tier persisted to canister |
 | 8 | Open a new tab, navigate to `/settings` → Subscription | Still Pro |
-| 9 | Navigate to `/properties/new` and register a second property | Succeeds — Pro allows up to 5 properties |
-| 10 | Return to `/settings` → Subscription → click **Upgrade** to Premium | Confirm switch succeeds and persists after hard refresh |
+| 9 | Navigate to `/properties/new` and register up to 20 properties | Succeeds — Pro allows up to 20 properties; the 21st is blocked |
 
 **Watch for**
-- UI showing Pro but canister still returning Basic on next session (optimistic update bug)
+- UI showing Pro but canister still returning Free on next session (optimistic update bug)
 - Tier-gated property limit not relaxing without a full reload
-- "Switch" button still showing upgrade options for the current tier
+- Checkout offering Monthly billing or any tier other than Pro (Pro is annual-only; there should be no billing-cycle choice)
 
 ---
 
@@ -186,6 +187,7 @@ real file; no test verifies that a hash stored under job A is rejected
 (or acknowledged as duplicate) under job B.
 
 **Prerequisites**
+- A user account on the **Pro** tier (Free allows 0 photos/job, so uploads require Pro)
 - A property with at least one verified job
 - A test image file saved locally (any JPEG or PNG, e.g. a screenshot)
 - `photo` canister deployed
@@ -201,13 +203,13 @@ real file; no test verifies that a hash stored under job A is rejected
 | 5 | Upload the same test image to Job B | Note the behavior: duplicate flagged? Accepted? Photo count? |
 | 6 | Check photo counts across both jobs | Each job shows its own photo reference; canister stores 1 hash |
 | 7 | Upload a **different** image to Job B | Photo count increments normally |
-| 8 | Verify the **Basic** tier photo cap: attempt to upload 6 photos to one job | 6th upload blocked with tier message (Basic = 5 photos/job) |
+| 8 | Verify the **Pro** tier photo cap: attempt to upload 31 photos to one job | 31st upload blocked with tier message (Pro = 30 photos/job) |
 
 **Watch for**
 - Duplicate upload silently succeeding (dedup not firing)
 - Dedup error shown to user without a friendly message
 - Photo count in job detail not matching actual stored photos
-- Tier cap not enforced (6th photo accepted on Basic tier)
+- Tier cap not enforced (31st photo accepted on Pro tier)
 
 ---
 
@@ -297,7 +299,7 @@ cannot be exercised in jsdom — only a real browser confirms the 360° tour loa
 the sphere renders correctly, and room navigation works.
 
 **Prerequisites**
-- A Pro or Premium homeowner account (FSBO requires at least one verified job for
+- A Pro homeowner account (FSBO requires at least one verified job for
   the trust score to be non-zero)
 - A 360° equirectangular photo (JPG/PNG, ~4000×2000px) — a test file works
 - Two browsers: homeowner (authenticated) + buyer (incognito)

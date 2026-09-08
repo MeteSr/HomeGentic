@@ -310,11 +310,15 @@ persistent actor Quote {
   };
 
   /// Max concurrent open requests for a tier. 0 = blocked/unlimited sentinel — see callers.
+  /// #Basic and #Premium are retired as purchasable tiers — #Pro is now the
+  /// single homeowner plan ($59/year) with genuinely unlimited requests
+  /// (matching what planConstants.ts has always advertised for the top
+  /// tier — previously enforced here as only 10, the same as old #Pro).
   private func tierOpenLimit(tier: SubscriptionTier) : Nat {
     switch tier {
       case (#Free)             { 0       };  // blocked — unsubscribed
       case (#Basic)            { 3       };
-      case (#Pro)              { 10      };
+      case (#Pro)              { 999_999 };  // effectively unlimited
       case (#Premium)          { 10      };
       case (#ContractorFree)   { 999_999 };  // effectively unlimited for contractors
       case (#ContractorPro)    { 999_999 };  // effectively unlimited
@@ -399,16 +403,17 @@ persistent actor Quote {
       tierFor(effectivePrincipal)
     };
     if (callerTier == #Free) {
-      return #err(#InvalidInput("Quote requests require an active subscription. Subscribe to Basic ($10/mo) to get started."));
+      return #err(#InvalidInput("Quote requests require an active subscription. Subscribe to Pro ($59/year) to get started."));
     };
     let limit = tierOpenLimit(callerTier);
     if (countOpenRequests(msg.caller) >= limit) {
+      // #Basic is grandfathered-only — points to the single $59/year Pro
+      // plan. #Pro itself has no further homeowner tier to suggest (it was
+      // previously pointed at ContractorPro, a different persona's plan —
+      // that never made sense and is dropped here).
       let upgradeHint = switch (callerTier) {
         case (#Basic) {
-          " Upgrade to Pro ($20/mo) for 10 concurrent requests, or Premium ($35/mo)."
-        };
-        case (#Pro or #Premium) {
-          " Upgrade to ContractorPro ($40/mo) for unlimited requests."
+          " Upgrade to Pro ($59/year) for unlimited concurrent requests."
         };
         case _ { "" };
       };

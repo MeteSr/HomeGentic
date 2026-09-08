@@ -27,8 +27,10 @@ import { fsboService } from "@/services/fsbo";
 
 // Inline tier→property limit so Layout never imports PLANS from payment,
 // keeping the payment mock surface small in tests.
+// Basic/Premium are grandfathered-only (no longer purchasable) — Pro is the
+// single homeowner plan now, at the old Premium's limit.
 const TIER_PROPERTY_LIMIT: Partial<Record<PlanTier, number>> = {
-  Basic: 1, Pro: 5, Premium: 20,
+  Basic: 1, Pro: 20, Premium: 20,
 };
 import UpgradeModal from "./UpgradeModal";
 import { ActivityFeedDrawer } from "./ActivityFeedDrawer";
@@ -291,7 +293,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
               aria-label="Add property"
               title={!sidebarOpen ? "Add property" : undefined}
               onClick={() => {
-                if (atPropertyLimit && userTier !== "Premium") {
+                // Pro (the only purchasable homeowner tier) and Premium
+                // (grandfathered) share the same top property limit — there's
+                // no higher tier to offer, so let the add-property flow
+                // surface its own at-capacity message instead of the modal.
+                if (atPropertyLimit && userTier !== "Premium" && userTier !== "Pro") {
                   setUpgradeOpen(true);
                 } else {
                   openAddProp();

@@ -40,13 +40,12 @@ describe("GiftPage", () => {
     renderPage();
     expect(screen.getByText(/Give the gift of a/i)).toBeTruthy();
     expect(screen.getAllByText(/Pro/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Premium/i).length).toBeGreaterThan(0);
   });
 
   it("advances to recipient step on Continue", async () => {
     renderPage();
-    // Step 1 uses "Gift Basic/Pro/Premium" buttons — click any to advance
-    fireEvent.click(screen.getByRole("button", { name: /gift basic/i }));
+    // Step 1 is the single "Gift Pro" card — click it to advance
+    fireEvent.click(screen.getByRole("button", { name: /gift pro/i }));
     await waitFor(() => {
       expect(screen.getByPlaceholderText(/Alex Johnson/i)).toBeTruthy();
     });
@@ -54,8 +53,8 @@ describe("GiftPage", () => {
 
   it("shows validation error when recipient email is empty", async () => {
     renderPage();
-    // step 1 → step 2: click a tier button
-    fireEvent.click(screen.getByRole("button", { name: /gift basic/i }));
+    // step 1 → step 2: click the tier card
+    fireEvent.click(screen.getByRole("button", { name: /gift pro/i }));
     await waitFor(() => screen.getByPlaceholderText(/Alex Johnson/i));
     // try to advance without filling required fields (NavButtons "Continue")
     fireEvent.click(screen.getAllByText(/Continue/i)[0]);
@@ -91,7 +90,7 @@ describe("GiftPage", () => {
       expect(mockStartCheckout).toHaveBeenCalledOnce();
       const [tier, billing, gift] = mockStartCheckout.mock.calls[0];
       expect(tier).toBe("Pro");
-      expect(billing).toBe("Monthly");
+      expect(billing).toBe("Yearly");
       expect(gift?.recipientEmail).toBe("jane@example.com");
       expect(gift?.recipientName).toBe("Jane Doe");
     });
@@ -101,8 +100,8 @@ describe("GiftPage", () => {
     mockStartCheckout.mockRejectedValue(new Error("Stripe not configured"));
     renderPage();
 
-    // Navigate to review step — click "Gift Basic" to advance from step 1
-    fireEvent.click(screen.getByRole("button", { name: /gift basic/i }));
+    // Navigate to review step — click "Gift Pro" to advance from step 1
+    fireEvent.click(screen.getByRole("button", { name: /gift pro/i }));
     await waitFor(() => screen.getByPlaceholderText(/Alex Johnson/i));
     fireEvent.change(screen.getByPlaceholderText(/Alex Johnson/i), { target: { value: "Jane" } });
     fireEvent.change(screen.getByPlaceholderText(/alex@email\.com/i), { target: { value: "j@j.com" } });

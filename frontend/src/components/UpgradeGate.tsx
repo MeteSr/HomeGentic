@@ -19,7 +19,9 @@ interface UpgradeGateProps {
   feature: string;
   /** One-line value prop explaining what the user unlocks */
   description: string;
-  /** Minimum tier required — defaults to "Basic" */
+  /** Minimum tier required — Pro is the only purchasable homeowner tier now;
+   *  "Basic"/"Premium" remain valid only for copy referring to grandfathered
+   *  subscribers, not as an upgrade target. Defaults to "Pro". */
   tier?: "Basic" | "Pro" | "Premium";
   /** Optional: replace the default lock icon with an emoji or element */
   icon?: React.ReactNode;
@@ -32,7 +34,7 @@ interface UpgradeGateProps {
 export function UpgradeGate({
   feature,
   description,
-  tier = "Basic",
+  tier = "Pro",
   icon,
   style,
   onUpgrade,

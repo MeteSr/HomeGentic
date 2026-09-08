@@ -23,7 +23,9 @@ const UI = {
 };
 
 type Tab = "verifications" | "contractors" | "tiers" | "cycles" | "referrals";
-const TIERS: SubscriptionTier[] = ["Basic", "Pro", "Premium", "ContractorFree", "ContractorPro"];
+// Basic/Premium are grandfathered-only — not offered here so admin grants
+// don't create new holders of a retired tier. Pro is the single homeowner plan.
+const TIERS: SubscriptionTier[] = ["Pro", "ContractorFree", "ContractorPro"];
 
 // ─── 13.6.3: Cycles burn rate dashboard ──────────────────────────────────────
 
@@ -422,9 +424,9 @@ function TierManager() {
         <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.5rem" }}>Tier limits</p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "1rem" }}>
           {[
-            { tier: "Free",          props: "1 property",      quotes: "3 open requests" },
-            { tier: "Pro",           props: "5 properties",    quotes: "10 open requests" },
-            { tier: "Premium",       props: "20 properties",   quotes: "10 open requests" },
+            { tier: "Free",          props: "0 (blocked)",     quotes: "0 (blocked)" },
+            { tier: "Pro",           props: "20 properties",   quotes: "Unlimited" },
+            { tier: "Premium",       props: "20 properties",   quotes: "10 open requests (grandfathered)" },
             { tier: "ContractorPro", props: "Unlimited",       quotes: "Unlimited" },
           ].map((r) => (
             <div key={r.tier} style={{ background: V2_COLORS.paper, padding: "0.625rem 0.875rem", border: `1px solid ${UI.rule}` }}>

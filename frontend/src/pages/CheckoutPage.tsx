@@ -84,41 +84,20 @@ const stripeAppearance = {
 
 // ── Plan metadata ─────────────────────────────────────────────────────────────
 
+// Pro ($59/year) is the only homeowner plan — annual-only, so monthly and
+// yearly hold the same value (kept both fields for shape compatibility).
 const PLAN_META: Record<string, { label: string; monthly: number; yearly: number; features: string[] }> = {
-  Basic: {
-    label: "Basic",
-    monthly: 10,
-    yearly:  100,
-    features: [
-      "1 property",
-      "5 photos per job",
-      "3 quote requests/month",
-      "All services included",
-      "Contractor marketplace access",
-    ],
-  },
   Pro: {
     label: "Pro",
-    monthly: 20,
-    yearly:  200,
+    monthly: 59,
+    yearly:  59,
     features: [
-      "Everything in Basic",
-      "5 properties",
-      "10 photos per job",
-      "10 open quote requests",
-      "Verified badge",
-    ],
-  },
-  Premium: {
-    label: "Premium",
-    monthly: 35,
-    yearly:  350,
-    features: [
-      "Everything in Pro",
       "20 properties",
       "30 photos per job",
       "Unlimited quote requests",
-      "Premium verified badge",
+      "All services included",
+      "Contractor marketplace access",
+      "Verified badge",
     ],
   },
   ContractorPro: {

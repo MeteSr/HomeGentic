@@ -25,7 +25,7 @@ rewiring screens.
 |---|---|---|
 | `/` | LandingPage | Marketing homepage |
 | `/login` | LoginPage | Internet Identity auth |
-| `/pricing` | PricingPage | Homeowner plan selector (Basic / Pro / Premium); links to `/for-pros` |
+| `/pricing` | PricingPage | Homeowner plan page (single Pro plan, $59/year); links to `/for-pros` |
 | `/for-pros` | ForProsPage | Contractor and Realtor plan selector (ContractorPro / RealtorPro) |
 | `/privacy` | PrivacyPolicyPage | Privacy policy |
 | `/terms` | TermsOfServicePage | Terms of service |
@@ -243,7 +243,7 @@ Multi-tab page — the main workspace for a property.
 - Urgency (Low / Medium / High / Emergency)
 - Description + optional budget range
 - Price benchmark widget (shows typical range for service in this zip)
-- Tier limit on open requests: Basic=3, Pro=10, Premium=Unlimited
+- Tier limit on open requests: Pro=Unlimited (grandfathered: Basic=3, Premium=Unlimited)
 
 **View bids (`/quotes/:id`)**
 - Request details
@@ -462,19 +462,28 @@ Multi-tab page — the main workspace for a property.
 
 ## Subscription Tier Gates
 
-| Feature | Basic | Pro | Premium |
-|---|---|---|---|
-| Properties | 1 | 5 | 20 |
-| Photos per job | 5 | 10 | 30 |
-| Open quote requests | 3 | 10 | Unlimited |
-| AI agent calls/day | 5 | 10 | 20 |
-| Score breakdown | ✓ | ✓ | ✓ |
-| Warranty Wallet | ✓ | ✓ | ✓ |
-| Recurring Services | ✓ | ✓ | ✓ |
-| Market Intelligence | ✓ | ✓ | ✓ |
-| 5-Year Maintenance Calendar | ✓ | ✓ | ✓ |
-| Insurance Defense Mode | ✓ | ✓ | ✓ |
-| Resale Ready | ✓ | ✓ | ✓ |
+Homeowner pricing is a single paid plan — **Pro, $59/year** — every paid
+feature below is included:
+
+| Feature | Free | Pro ($59/yr) |
+|---|---|---|
+| Properties | 0 | 20 |
+| Photos per job | 0 | 30 |
+| Open quote requests | 0 | Unlimited |
+| AI agent calls/day | 0 | 10 |
+| Score breakdown | – | ✓ |
+| Warranty Wallet | – | ✓ |
+| Recurring Services | – | ✓ |
+| Market Intelligence | – | ✓ |
+| 5-Year Maintenance Calendar | – | ✓ |
+| Insurance Defense Mode | – | ✓ |
+| Resale Ready | – | ✓ |
+
+Basic and Premium are retired as purchase options; subscribers
+grandfathered in before this change keep their original Basic
+(1 property / 5 photos / 3 quote reqs / 5 AI calls) or Premium
+(20 properties / 30 photos / unlimited quote reqs / 20 AI calls) limits
+until they renew, then move to Pro.
 
 Contractor tiers: **ContractorFree** (profile + view leads, 3% referral fee per winning bid, $20 minimum) · **ContractorPro** ($40/mo, quote submissions + earnings dashboard + reviews)
 

@@ -72,13 +72,14 @@ Insurance carriers can receive a risk report via **Reports ▾** → **Insurance
 
 ## 7. Subscription Tiers
 
+Homeowner pricing is a single paid plan:
+
 | Tier | Properties | Price |
 |---|---|---|
-| Basic | 1 | $10 / mo |
-| Pro | 5 | $20 / mo |
-| Premium | 20 | $40 / mo |
+| Free | 0 | $0 |
+| Pro | 20 | $59 / yr |
 
-Upgrade anytime from **Settings → Subscription**. Downgrade takes effect at the end of the billing period.
+Upgrade anytime from **Settings → Subscription**.
 
 ---
 

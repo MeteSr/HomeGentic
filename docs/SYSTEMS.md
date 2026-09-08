@@ -135,7 +135,7 @@ Manages property registration, ownership verification, ownership transfers, dele
 |------|-----------------|
 | `PropertyType` | `#SingleFamily \| #Condo \| #Townhouse \| #MultiFamily` |
 | `VerificationLevel` | `#Unverified \| #PendingReview \| #Basic \| #Premium` |
-| `SubscriptionTier` | `#Free \| #Basic \| #Pro \| #Premium \| #ContractorFree \| #ContractorPro` |
+| `SubscriptionTier` | `#Free \| #Basic \| #Pro \| #Premium \| #ContractorFree \| #ContractorPro` — `#Pro` ($59/yr) is the only purchasable homeowner tier; `#Basic`/`#Premium` are retired purchase options kept only for grandfathered subscribers |
 | `Property` | `id, owner, address, city, state, zipCode, propertyType, yearBuilt, squareFeet, verificationLevel, verificationDate?, verificationMethod?, verificationDocHash?, tier, createdAt, updatedAt, isActive` |
 | `PropertyManager` | `principal, role (#Viewer \| #Manager), displayName, addedAt` |
 | `ManagerInvite` | `token, propertyId, role, displayName, invitedBy, createdAt, expiresAt` |
@@ -177,13 +177,17 @@ Manager activity (write ops) pushes `OwnerNotification` records to the owner's q
 | Tier | Max Properties |
 |------|----------------|
 | Free | 0 (blocked) |
-| Basic | 1 |
-| Pro | 5 |
-| Premium | 20 |
+| Pro | 20 |
 | ContractorFree | 0 |
 | ContractorPro | Unlimited |
+| Basic *(grandfathered)* | 1 |
+| Premium *(grandfathered)* | 20 |
 
-Limits are checked at registration time only. Existing properties are not revoked if the user downgrades.
+Pro ($59/yr) is the only purchasable homeowner tier and carries the old
+Premium tier's 20-property limit. Basic and Premium are retired as
+purchase options and only apply to subscribers grandfathered in before
+this change. Limits are checked at registration time only. Existing
+properties are not revoked if the user downgrades.
 
 ### Role-Based Access
 
@@ -299,7 +303,7 @@ Sensor-triggered: createSensorJob()→ #Pending, isDiy=false, amount=0
 
 ### Tier Enforcement
 
-- Free tier: `createJob()` blocked ("Job creation requires an active subscription. Subscribe to Basic ($10/mo)")
+- Free tier: `createJob()` blocked ("Job creation requires an active subscription. Subscribe to Pro ($59/year) to get started.")
 - If caller is a delegated manager, tier is looked up for the property owner, not the manager
 
 ### Cross-Canister Dependencies
@@ -349,10 +353,15 @@ Stores raw image bytes on-chain with SHA-256 deduplication and tier-based upload
 | Tier | Max per Job | Max per Property |
 |------|-------------|-----------------|
 | Free | 0 (blocked) | 0 (blocked) |
-| ContractorFree / Basic | 5 | 25 |
-| Pro | 10 | 100 |
-| Premium | 30 | Unlimited |
+| Pro | 30 | Unlimited |
 | ContractorPro | 50 | Unlimited |
+| ContractorFree / Basic *(grandfathered)* | 5 | 25 |
+| Premium *(grandfathered)* | 30 | Unlimited |
+
+Pro ($59/yr) is the only purchasable homeowner tier and carries the old
+Premium tier's photo limits. Basic and Premium are retired as purchase
+options and only apply to subscribers grandfathered in before this
+change.
 
 **Additional rate limit:** 10 photo uploads per minute per principal (hardcoded, independent of tier).
 
@@ -436,10 +445,17 @@ In production, ciphertexts are IBE-encrypted via vetKeys. In local dev, the ciph
 
 | Tier | Concurrent Open Requests |
 |------|--------------------------|
-| Basic | 3 |
-| Pro | 10 |
-| Premium | 10 |
+| Pro | Unlimited (999,999) |
 | ContractorFree / ContractorPro | Unlimited (999,999) |
+| Basic *(grandfathered)* | 3 |
+| Premium *(grandfathered)* | 10 |
+
+Pro is genuinely unlimited — fixing a pre-existing bug where Premium was
+advertised as "Unlimited quote requests" but only ever enforced 10.
+Premium's grandfathered enforcement is left at its original (buggy) 10 so
+existing subscribers' behavior doesn't change out from under them; Pro,
+which inherits Premium's advertised feature set going forward, honors the
+promise properly.
 
 **Manager bypass:** If the caller is a delegated manager, the property owner's tier is used.
 
@@ -552,17 +568,25 @@ The subscription tier authority. All other canisters ultimately defer to this ca
 
 ### Tier Pricing
 
-| Tier | Monthly Price | Properties | Photos/Job | Open Quotes |
-|------|---------------|------------|------------|-------------|
-| Basic | $10 | 1 | 5 | 3 |
-| Pro | $20 | 5 | 10 | 10 |
-| Premium | $40 | 20 | 30 | Unlimited |
+| Tier | Price | Properties | Photos/Job | Open Quotes |
+|------|-------|------------|------------|-------------|
+| Pro | $59/yr | 20 | 30 | Unlimited |
 | ContractorFree | $0 | 0 | 5 | Unlimited |
-| ContractorPro | $40 | 0 | 50 | Unlimited |
+| ContractorPro | $40/mo | 0 | 50 | Unlimited |
 | RealtorFree | $0 | 0 | 5 | Unlimited |
-| RealtorPro | $30 | 0 | 50 | Unlimited |
+| RealtorPro | $30/mo | 0 | 50 | Unlimited |
+| Basic *(grandfathered)* | $10/mo | 1 | 5 | 3 |
+| Premium *(grandfathered)* | $40/mo | 20 | 30 | Unlimited |
 
-Annual billing: 365-day expiry (equivalent to 2 free months vs. monthly).
+Pro is the single purchasable homeowner plan, annual-only (no monthly
+option), carrying the old Premium tier's property/photo/quote limits.
+Basic and Premium are retired as purchase options and only apply to
+subscribers grandfathered in before this change — they keep their
+original monthly pricing and limits until they renew, then move to Pro.
+
+ContractorPro and RealtorPro still support both Monthly and Yearly
+billing (365-day expiry for Yearly, equivalent to 2 free months vs.
+paying monthly 12 times).
 
 ### Subscription Lifecycle
 
@@ -1172,9 +1196,13 @@ HMAC verification is skipped in development when `VOICE_API_KEY` is absent.
 | Tier | Agent Calls/Day | Chat Calls/Day |
 |------|-----------------|----------------|
 | Free / ContractorFree / RealtorFree | 0 | 3 |
-| Basic | 5 | Unlimited |
 | Pro / ContractorPro / RealtorPro | 10 | Unlimited |
-| Premium | 20 | Unlimited |
+| Basic *(grandfathered)* | 5 | Unlimited |
+| Premium *(grandfathered)* | 20 | Unlimited |
+
+Pro ($59/yr) deliberately keeps its own 10/day limit rather than
+Premium's 20/day — see `docs/AI_RATE_LIMITS.md` for the margin math
+behind that call.
 
 If the tier quota is exhausted, the server attempts to consume an `agent_credit` from the payment canister. Returns 429 with `{ error: "daily_agent_limit_reached", creditsAvailable: bool }` if both are exhausted.
 

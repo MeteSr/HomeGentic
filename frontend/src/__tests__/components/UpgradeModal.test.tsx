@@ -1,7 +1,7 @@
 /**
  * TDD tests for the in-app UpgradeModal and related entry points.
  *
- *   - UpgradeModal renders plan cards (Pro + Premium) with prices and features
+ *   - UpgradeModal renders the single Pro plan card with price and features
  *   - Selecting a plan calls paymentService.subscribe
  *   - Modal can be dismissed
  *   - UpgradeGate calls onUpgrade prop instead of navigating
@@ -115,20 +115,12 @@ describe("UpgradeModal", () => {
   it("shows Pro plan card with price", () => {
     renderModal();
     expect(screen.getByRole("button", { name: /select pro/i })).toBeInTheDocument();
-    // Pro is $20/month
-    expect(screen.getAllByText(/\$20/).length).toBeGreaterThan(0);
+    // Pro is $59/year
+    expect(screen.getAllByText(/\$59/).length).toBeGreaterThan(0);
   });
 
-  it("shows Premium plan card with price", () => {
+  it("shows at least one feature for the plan", () => {
     renderModal();
-    expect(screen.getByRole("button", { name: /select premium/i })).toBeInTheDocument();
-    // Premium is $40/month
-    expect(screen.getAllByText(/\$40/).length).toBeGreaterThan(0);
-  });
-
-  it("shows at least one feature for each plan", () => {
-    renderModal();
-    expect(screen.getByText(/5 properties/i)).toBeInTheDocument();
     expect(screen.getByText(/20 properties/i)).toBeInTheDocument();
   });
 
@@ -144,15 +136,7 @@ describe("UpgradeModal", () => {
     renderModal();
     fireEvent.click(screen.getByRole("button", { name: /select pro/i }));
     await waitFor(() => {
-      expect(paymentService.startStripeCheckout).toHaveBeenCalledWith("Pro", "Monthly");
-    });
-  });
-
-  it("calls startStripeCheckout('Premium') when Premium is selected on card", async () => {
-    renderModal();
-    fireEvent.click(screen.getByRole("button", { name: /select premium/i }));
-    await waitFor(() => {
-      expect(paymentService.startStripeCheckout).toHaveBeenCalledWith("Premium", "Monthly");
+      expect(paymentService.startStripeCheckout).toHaveBeenCalledWith("Pro", "Yearly");
     });
   });
 
@@ -182,15 +166,6 @@ describe("UpgradeModal", () => {
     fireEvent.click(screen.getByRole("button", { name: /select pro/i }));
     await waitFor(() => {
       expect(paymentService.subscribe).toHaveBeenCalledWith("Pro", expect.any(Function));
-    });
-  });
-
-  it("calls paymentService.subscribe('Premium') when ICP is selected and Premium clicked", async () => {
-    renderModal();
-    fireEvent.click(screen.getByRole("button", { name: /pay with icp/i }));
-    fireEvent.click(screen.getByRole("button", { name: /select premium/i }));
-    await waitFor(() => {
-      expect(paymentService.subscribe).toHaveBeenCalledWith("Premium", expect.any(Function));
     });
   });
 
@@ -244,7 +219,7 @@ describe("UpgradeModal", () => {
     );
   });
 
-  it("disables the unselected plan button while one plan is loading (ICP)", async () => {
+  it("disables the plan button while it is loading (ICP)", async () => {
     let resolveSubscribe!: () => void;
     (paymentService.subscribe as any).mockImplementationOnce(
       () => new Promise<void>((res) => { resolveSubscribe = res; })
@@ -252,7 +227,7 @@ describe("UpgradeModal", () => {
     renderModal();
     fireEvent.click(screen.getByRole("button", { name: /pay with icp/i }));
     fireEvent.click(screen.getByRole("button", { name: /select pro/i }));
-    expect(screen.getByRole("button", { name: /select premium/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /select pro/i })).toBeDisabled();
     resolveSubscribe();
   });
 
@@ -274,7 +249,7 @@ describe("UpgradeGate with onUpgrade prop", () => {
         <UpgradeGate feature="Score Breakdown" description="See details." onUpgrade={onUpgrade} />
       </MemoryRouter>
     );
-    fireEvent.click(screen.getByRole("button", { name: /upgrade to basic/i }));
+    fireEvent.click(screen.getByRole("button", { name: /upgrade to pro/i }));
     expect(onUpgrade).toHaveBeenCalledTimes(1);
   });
 
@@ -285,6 +260,6 @@ describe("UpgradeGate with onUpgrade prop", () => {
       </MemoryRouter>
     );
     // Should render without error
-    expect(screen.getByRole("button", { name: /upgrade to basic/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /upgrade to pro/i })).toBeInTheDocument();
   });
 });
