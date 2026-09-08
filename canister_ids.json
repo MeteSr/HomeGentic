@@ -3,5 +3,20 @@
   "property": { "testnet": "b6moc-qiaaa-aaaaj-qsbyq-cai" },
   "job": { "testnet": "bxpf6-gaaaa-aaaaj-qsbza-cai" },
   "contractor": { "testnet": "bqodk-lyaaa-aaaaj-qsbzq-cai" },
-  "quote": { "testnet": "bfjsh-kqaaa-aaaaj-qsb2a-cai" }
+  "quote": { "testnet": "bfjsh-kqaaa-aaaaj-qsb2a-cai" },
+  "payment": { "testnet": "hnx5s-iyaaa-aaaaj-qsgqa-cai" },
+  "photo": { "testnet": "hkw3g-faaaa-aaaaj-qsgqq-cai" },
+  "report": { "testnet": "hdvq2-tiaaa-aaaaj-qsgra-cai" },
+  "maintenance": { "testnet": "heuwo-6qaaa-aaaaj-qsgrq-cai" },
+  "market": { "testnet": "hrthd-7yaaa-aaaaj-qsgsa-cai" },
+  "sensor": { "testnet": "hwsbx-saaaa-aaaaj-qsgsq-cai" },
+  "monitoring": { "testnet": "h7rkl-eiaaa-aaaaj-qsgta-cai" },
+  "listing": { "testnet": "hyqm7-jqaaa-aaaaj-qsgtq-cai" },
+  "agent": { "testnet": "gv6ir-gyaaa-aaaaj-qsgua-cai" },
+  "fee": { "testnet": "gs7of-laaaa-aaaaj-qsguq-cai" },
+  "recurring": { "testnet": "g34fz-5iaaa-aaaaj-qsgva-cai" },
+  "bills": { "testnet": "g45dn-qqaaa-aaaaj-qsgvq-cai" },
+  "ai_proxy": { "testnet": "gj2sa-ryaaa-aaaaj-qsgwa-cai" },
+  "audit": { "testnet": "go3uu-4aaaa-aaaaj-qsgwq-cai" },
+  "referrals": { "testnet": "ghy7i-kiaaa-aaaaj-qsgxa-cai" }
 }
