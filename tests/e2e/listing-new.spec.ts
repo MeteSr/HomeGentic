@@ -4,6 +4,7 @@
  * LN.1  /listing/new with Pro tier → H1 heading + prefilled property
  * LN.2  /listing/new shows the bidding-window selector and publish CTA
  * LN.3  /listing/:id with no canister → "Listing request not found"
+ * LN.4  /listing/new is open to Free-tier homeowners — not gated behind Pro
  */
 
 import { test, expect } from "@playwright/test";
@@ -57,5 +58,16 @@ test.describe("LN — /listing/:id (no canister)", () => {
     await injectSubscription(page, "Pro");
     await page.goto("/listing/NONEXISTENT_LISTING_ID");
     await expect(page.getByText(/listing request not found/i)).toBeVisible();
+  });
+});
+
+test.describe("LN — /listing/new is open to Free-tier homeowners", () => {
+  test("LN.4 Free tier is not redirected to /pricing and sees the listing form", async ({ page }) => {
+    await injectTestAuth(page);
+    await injectTestProperties(page);
+    await injectSubscription(page, "Free");
+    await page.goto("/listing/new");
+    await expect(page).toHaveURL("/listing/new");
+    await expect(page.getByRole("heading", { name: /let agents compete for your listing/i })).toBeVisible();
   });
 });

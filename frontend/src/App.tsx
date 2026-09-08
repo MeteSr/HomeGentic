@@ -213,8 +213,10 @@ export default function App() {
           <Route path="/recurring/new" element={<PaidHomeownerRoute><RecurringServiceCreatePage /></PaidHomeownerRoute>} />
           <Route path="/recurring/:id" element={<PaidHomeownerRoute><RecurringServiceDetailPage /></PaidHomeownerRoute>} />
           <Route path="/people"        element={<PaidHomeownerRoute><PeoplePage /></PaidHomeownerRoute>} />
-          <Route path="/listing/new"  element={<PaidHomeownerRoute><ListingNewPage /></PaidHomeownerRoute>} />
-          <Route path="/listing/:id"  element={<PaidHomeownerRoute><ListingDetailPage /></PaidHomeownerRoute>} />
+          {/* Bid to List is open to Free-tier homeowners too — it's a $0-to-list, */}
+          {/* agent-pays-the-fee flow, so it isn't gated behind a Pro subscription. */}
+          <Route path="/listing/new"  element={<ProtectedRoute><ListingNewPage /></ProtectedRoute>} />
+          <Route path="/listing/:id"  element={<ProtectedRoute><ListingDetailPage /></ProtectedRoute>} />
           <Route path="/agent/marketplace" element={<Navigate to="/agents/browse" replace />} />
           <Route path="/agent/profile" element={<Navigate to="/agents/verify" replace />} />
           <Route path="/agent/:id"    element={<Navigate to="/dashboard" replace />} />
