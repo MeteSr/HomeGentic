@@ -15,7 +15,14 @@ jobs:
     environment: testnet
     if: github.event.workflow_run.conclusion == 'success'
     steps:
+      # main requires the motoko-compile-check status check even on direct
+      # pushes, and the default GITHUB_TOKEN has no bypass for that rule.
+      # CI_PUSH_TOKEN is a fine-grained PAT scoped to this repo (Contents:
+      # Read and write) issued from an account that does have that bypass
+      # — same fix as test-visual-heal in ci.yml.
       - uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.CI_PUSH_TOKEN }}
 
       - uses: actions/setup-node@v7
         with:
@@ -67,6 +74,13 @@ jobs:
           VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.VITE_STRIPE_PUBLISHABLE_KEY }}
 
       - name: Commit canister IDs
+        # Must run even when the deploy step above fails partway through:
+        # canister creation is real and paid for the moment it happens,
+        # regardless of whether a later step (e.g. the frontend build)
+        # fails — losing these IDs here means the next run can't tell
+        # those canisters already exist and will try to create them
+        # again, wasting cycles on duplicates or failing outright.
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
