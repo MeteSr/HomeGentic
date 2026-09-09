@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { X, Link2, Copy, CheckCircle, Trash2, Shield, Eye, Clock, EyeOff } from "lucide-react";
+import { X, Link2, Copy, CheckCircle, Trash2, Eye, Clock, EyeOff } from "lucide-react";
 import { Button } from "@/components/Button";
+import { Checkbox } from "@/components/Checkbox";
+import { ChoicePill } from "@/components/ChoicePill";
 import { reportService, ShareLink, propertyToInput, jobToInput, roomToInput, DisclosureOptions } from "@/services/report";
 import { roomService } from "@/services/room";
 import { jobService } from "@/services/job";
@@ -10,7 +12,7 @@ import { paymentService, type PlanTier } from "@/services/payment";
 import { notificationService } from "@/services/notifications";
 import type { Property } from "@/services/property";
 import toast from "react-hot-toast";
-import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -145,37 +147,44 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div style={{
-        background: V2_COLORS.paper, width: "100%", maxWidth: "30rem",
+        background: "#FFFFFF", width: "100%", maxWidth: "32.5rem",
         maxHeight: "90vh", overflow: "auto",
-        border: `1px solid ${UI.rule}`,
-        borderRadius: V2_RADIUS.card,
-        boxShadow: V2_SHADOWS.modal,
+        borderRadius: 22,
+        boxShadow: "0 24px 64px rgba(11,13,26,0.18), 0 2px 8px rgba(11,13,26,0.08)",
       }}>
 
         {/* Header */}
         <div style={{
           display: "flex", justifyContent: "space-between", alignItems: "flex-start",
-          padding: "1.5rem 1.5rem 1.25rem",
-          borderBottom: `1px solid ${UI.rule}`,
+          gap: "0.875rem", padding: "1.375rem 1.5rem",
           background: V2_COLORS.ink,
-          borderRadius: `${V2_RADIUS.card}px ${V2_RADIUS.card}px 0 0`,
+          borderRadius: "22px 22px 0 0",
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-            <Shield size={16} color={V2_COLORS.blue} />
-            <div>
-              <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: V2_COLORS.muted, marginBottom: "0.2rem" }}>
-                HomeGentic Report™
-              </p>
-              <h2 style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.1rem", lineHeight: 1, color: V2_COLORS.paper }}>
-                {property.address}
-              </h2>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5625rem" }}>
+              <span style={{ fontFamily: UI.serif, fontWeight: 800, fontSize: "0.9375rem", lineHeight: 1, color: V2_COLORS.paper, letterSpacing: "-0.02em" }}>
+                HomeGentic
+              </span>
+              <span style={{ fontFamily: UI.mono, fontSize: "0.5625rem", lineHeight: 1, letterSpacing: "0.14em", color: "#8E93A8" }}>
+                REPORT™
+              </span>
             </div>
+            <h2 style={{ fontFamily: UI.serif, fontWeight: 700, fontSize: "1.375rem", lineHeight: 1.15, color: V2_COLORS.paper, letterSpacing: "-0.02em", marginTop: "0.5625rem" }}>
+              {property.address}
+            </h2>
           </div>
           <button
             onClick={onClose}
-            style={{ background: "none", border: "none", cursor: "pointer", color: V2_COLORS.muted, padding: "0.25rem", flexShrink: 0, marginLeft: "0.75rem" }}
+            aria-label="Close"
+            style={{
+              flexShrink: 0, width: 32, height: 32, borderRadius: V2_RADIUS.pill,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              background: "none", border: "none", cursor: "pointer", transition: "background-color .18s",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(252,252,253,0.12)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
           >
-            <X size={16} />
+            <X size={15} color="#C6C9D4" strokeWidth={2.4} />
           </button>
         </div>
 
@@ -183,49 +192,42 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
 
           {/* Generate section */}
           <div>
-            <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.875rem" }}>
+            <p style={{ fontFamily: UI.mono, fontSize: "9px", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.inkLight, marginBottom: "0.875rem" }}>
               Generate new link
             </p>
 
             {/* Expiry picker */}
-            <div style={{ display: "flex", gap: "0.5rem", marginBottom: userTier === "Free" ? "0.5rem" : "1rem" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.5625rem", marginBottom: "0.8125rem" }}>
               {EXPIRY_OPTIONS.map((opt) => {
                 const locked = userTier === "Free" && (opt.value === null || (opt.value !== null && opt.value > 7));
                 return (
-                  <button
+                  <ChoicePill
                     key={String(opt.value)}
-                    onClick={() => !locked && setExpiryDays(opt.value)}
-                    title={locked ? "Upgrade to Pro for longer expiry" : undefined}
-                    style={{
-                      flex: 1, padding: "0.45rem 0",
-                      fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase",
-                      border: `1px solid ${locked ? UI.rule : expiryDays === opt.value ? V2_COLORS.ink : UI.rule}`,
-                      borderRadius: V2_RADIUS.sm,
-                      cursor: locked ? "not-allowed" : "pointer",
-                      background: locked ? UI.paper : expiryDays === opt.value ? V2_COLORS.ink : V2_COLORS.paper,
-                      color: locked ? `${UI.inkLight}60` : expiryDays === opt.value ? V2_COLORS.paper : UI.inkLight,
-                      opacity: locked ? 0.5 : 1,
-                    }}
-                  >
-                    {opt.label}
-                  </button>
+                    label={opt.label}
+                    selected={!locked && expiryDays === opt.value}
+                    locked={locked}
+                    lockedTitle="Upgrade to Pro for longer expiry"
+                    onClick={() => setExpiryDays(opt.value)}
+                  />
                 );
               })}
             </div>
             {userTier === "Free" && (
-              <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.06em", color: UI.inkLight, marginBottom: "1rem" }}>
-                Free plan links expire after 7 days. <a href="/pricing" style={{ color: V2_COLORS.ink, textDecoration: "underline" }}>Upgrade to Pro</a> for longer or permanent links.
+              <p style={{ fontFamily: V2_FONTS.body, fontSize: "13px", lineHeight: 1.5, color: UI.inkLight, marginBottom: "1rem" }}>
+                Free plan links expire after 7 days. <a href="/pricing" style={{ color: V2_COLORS.blue }}>Upgrade to Pro</a> for longer or permanent links.
               </p>
             )}
 
+            <div style={{ height: 1, background: "#F0F1F5", margin: "0.375rem 0" }} />
+
             {/* Disclosure toggles */}
-            <div style={{ border: `1px solid ${UI.rule}`, borderRadius: V2_RADIUS.sm, marginBottom: "1rem", overflow: "hidden" }}>
-              <div style={{ padding: "0.5rem 0.875rem", borderBottom: `1px solid ${UI.rule}`, display: "flex", alignItems: "center", gap: "0.375rem" }}>
-                <EyeOff size={11} color={UI.inkLight} />
-                <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>
-                  Hide from viewer
-                </span>
-              </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "1.125rem 0 0.75rem" }}>
+              <EyeOff size={15} color={UI.inkLight} strokeWidth={2} />
+              <span style={{ fontFamily: UI.mono, fontSize: "9px", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.inkLight }}>
+                Hide from viewer
+              </span>
+            </div>
+            <div style={{ borderTop: "1px solid #F0F1F5" }}>
               {(
                 [
                   { key: "hideAmounts"      as const, label: "Job amounts"       },
@@ -234,27 +236,32 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
                   { key: "hideDescriptions" as const, label: "Job descriptions"  },
                 ] as const
               ).map(({ key, label }) => (
-                <label
+                <div
                   key={key}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.5rem 0.875rem", cursor: "pointer", borderBottom: `1px solid ${UI.rule}` }}
+                  onClick={() => setDisclosure((d) => ({ ...d, [key]: !d[key] }))}
+                  style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.875rem 0.125rem", borderBottom: "1px solid #F0F1F5", cursor: "pointer" }}
                 >
-                  <span style={{ fontFamily: UI.mono, fontSize: "0.65rem", color: UI.ink }}>{label}</span>
-                  <input
-                    type="checkbox"
-                    checked={disclosure[key]}
-                    onChange={(e) => setDisclosure((d) => ({ ...d, [key]: e.target.checked }))}
-                    style={{ accentColor: V2_COLORS.blue, width: "0.875rem", height: "0.875rem" }}
-                  />
-                </label>
+                  <span style={{ flex: 1, minWidth: 0, fontFamily: V2_FONTS.body, fontWeight: 600, fontSize: "14.5px", lineHeight: 1.3, color: UI.ink }}>{label}</span>
+                  <Checkbox checked={disclosure[key]} onChange={(v) => setDisclosure((d) => ({ ...d, [key]: v }))} aria-label={label} />
+                </div>
               ))}
             </div>
+            <p style={{ fontFamily: V2_FONTS.body, fontSize: "12.5px", lineHeight: 1.5, color: UI.inkLight, marginTop: "0.875rem" }}>
+              {(() => {
+                const hiddenCount = (["hideAmounts", "hideContractors", "hidePermits", "hideDescriptions"] as const).filter((k) => disclosure[k]).length;
+                return hiddenCount === 0
+                  ? "Nothing hidden — the viewer sees the full record."
+                  : `${hiddenCount} ${hiddenCount === 1 ? "field is" : "fields are"} stripped from the shared report.`;
+              })()}
+            </p>
 
             <Button
+              size="lg"
               loading={generating}
               disabled={subscriptionLoading}
               onClick={handleGenerate}
-              icon={<Link2 size={14} />}
-              style={{ width: "100%" }}
+              icon={<Link2 size={16} />}
+              style={{ width: "100%", marginTop: "1.375rem" }}
             >
               Generate Report Link
             </Button>
