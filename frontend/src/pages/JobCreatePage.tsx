@@ -7,7 +7,6 @@ import { Button } from "@/components/Button";
 import { ConstructionPhotoUpload } from "@/components/ConstructionPhotoUpload";
 import { jobService } from "@/services/job";
 import { photoService, PhotoQuota } from "@/services/photo";
-import { paymentService, type PlanTier } from "@/services/payment";
 import { propertyService } from "@/services/property";
 import { usePropertyStore } from "@/store/propertyStore";
 import { JobValueDelta } from "@/components/JobValueDelta";
@@ -54,7 +53,6 @@ export default function JobCreatePage() {
   const { properties, setProperties } = usePropertyStore();
   const [loading, setLoading] = useState(false);
   const [quota, setQuota] = useState<PhotoQuota>({ used: 0, limit: 10, tier: "Free" });
-  const [userTier, setUserTier] = useState<PlanTier>("Free");
   const [uploadedFiles, setUploadedFiles] = useState<{ file: File; phase: string }[]>([]);
   const [submitted, setSubmitted] = useState(false);
   const [loggedServiceType, setLoggedServiceType] = useState("");
@@ -81,7 +79,6 @@ export default function JobCreatePage() {
 
   useEffect(() => {
     photoService.getQuota().then(setQuota);
-    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch((e) => console.error("[JobCreate] subscription load failed:", e));
     if (!editJob && properties.length > 0) setForm((f) => ({ ...f, propertyId: String(properties[0].id) }));
   }, [properties]); // eslint-disable-line react-hooks/exhaustive-deps
 

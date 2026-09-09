@@ -17,17 +17,14 @@ const defaultProps = {
   scoreStagnant:   false,
   pulseTip:        null,
   pulseEnabled:    true,
-  userTier:        "Basic" as const,
   onLogJob:        vi.fn(),
-  onNavigate:      vi.fn(),
 };
 
 describe("AlertStack", () => {
   it("renders nothing when all conditions are false", () => {
-    const { container } = render(
+    render(
       <AlertStack
         {...defaultProps}
-        userTier="Pro"
         atRiskWarnings={[]}
         scoreStagnant={false}
         pulseTip={null}
@@ -85,7 +82,7 @@ describe("AlertStack", () => {
   });
 
   it("never shows upgrade banner (no free tier)", () => {
-    render(<AlertStack {...defaultProps} userTier="Basic" />);
+    render(<AlertStack {...defaultProps} />);
     expect(screen.queryByText(/Upgrade to Pro/)).not.toBeInTheDocument();
   });
 });

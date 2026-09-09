@@ -10,7 +10,7 @@
  *   10.1.4 — FSBO readiness label + missing-items guidance
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { CheckCircle2, AlertTriangle, Star } from "lucide-react";
 import { Button } from "@/components/Button";
 import {
@@ -23,7 +23,6 @@ import {
 import { mlsService, type MlsSubmitResult } from "@/services/mlsService";
 import { listingService } from "@/services/listing";
 import { fsboOfferService } from "@/services/fsboOffer";
-import { paymentService, type PlanTier } from "@/services/payment";
 import type { Property } from "@/services/property";
 import { useAuthStore } from "@/store/authStore";
 import { V2_COLORS, V2_FONTS } from "@/theme";
@@ -78,12 +77,7 @@ export default function FsboPanel({ propertyId, score, verifiedJobCount, hasRepo
   const [mlsError,       setMlsError]       = useState<string | null>(null);
   const [mlsLoading,     setMlsLoading]     = useState(false);
   const [agentRequested, setAgentRequested] = useState(false);
-  const [userTier,       setUserTier]       = useState<PlanTier>("Basic");
   const profile = useAuthStore((s) => s.profile);
-
-  useEffect(() => {
-    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch((e) => console.error("[FsboPanel] subscription load failed:", e));
-  }, []);
 
   const { readiness, missing } = computeFsboReadiness(score, verifiedJobCount, hasReport);
   const readinessLabel = READINESS_LABEL[readiness];
