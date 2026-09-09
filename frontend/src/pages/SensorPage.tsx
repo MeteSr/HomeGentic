@@ -6,13 +6,14 @@ import { usePropertyStore } from "@/store/propertyStore";
 import { sensorService, SensorDevice, SensorEvent } from "@/services/sensor";
 import { propertyService } from "@/services/property";
 import { V2_COLORS, V2_FONTS } from "@/theme";
+import toast from "react-hot-toast";
 
 const C = V2_COLORS;
 const F = V2_FONTS;
 
 // ── Sensor card ────────────────────────────────────────────────────────────────
 
-function SensorCard({ device, alert }: { device: SensorDevice; alert?: SensorEvent }) {
+function SensorCard({ device, alert, onRemove, removing }: { device: SensorDevice; alert?: SensorEvent; onRemove: (deviceId: string) => void; removing: boolean }) {
   const isAlert  = !!alert && alert.severity === "Critical";
   const isHigh   = !!alert && alert.severity === "Warning";
 
@@ -64,9 +65,18 @@ function SensorCard({ device, alert }: { device: SensorDevice; alert?: SensorEve
         </div>
       </div>
 
-      {/* Last updated */}
-      <div style={{ fontFamily: F.body, fontSize: 12, color: C.muted }}>
-        Updated {alert ? new Date(alert.timestamp).toLocaleString() : "just now"}
+      {/* Last updated + remove */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <div style={{ fontFamily: F.body, fontSize: 12, color: C.muted }}>
+          Updated {alert ? new Date(alert.timestamp).toLocaleString() : "just now"}
+        </div>
+        <button
+          onClick={() => onRemove(device.id)}
+          disabled={removing}
+          style={{ fontFamily: F.body, fontSize: 12, fontWeight: 600, color: "#DC2626", background: "none", border: "none", cursor: removing ? "not-allowed" : "pointer", opacity: removing ? 0.5 : 1, padding: 0 }}
+        >
+          {removing ? "Removing…" : "Remove"}
+        </button>
       </div>
     </div>
   );
@@ -82,6 +92,7 @@ export default function SensorPage() {
   const [alerts,    setAlerts]    = useState<SensorEvent[]>([]);
   const [loading,   setLoading]   = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (properties.length === 0) {
@@ -108,6 +119,19 @@ export default function SensorPage() {
       setAlerts(alts);
     }).catch(e => console.error("[SensorPage] load failed:", e)).finally(() => setLoading(false));
   }, [selectedPropertyId]);
+
+  const handleDeactivate = async (deviceId: string) => {
+    setRemovingId(deviceId);
+    try {
+      await sensorService.deactivateDevice(deviceId);
+      setDevices(prev => prev.filter(d => d.id !== deviceId));
+      toast.success("Device removed");
+    } catch {
+      toast.error("Could not remove device");
+    } finally {
+      setRemovingId(null);
+    }
+  };
 
   const criticalAlert   = alerts.find(a => a.severity === "Critical");
   const activeCount     = devices.filter(d => d.isActive).length;
@@ -183,6 +207,8 @@ export default function SensorPage() {
                   key={device.id}
                   device={device}
                   alert={alertByDevice.get(device.id)}
+                  onRemove={handleDeactivate}
+                  removing={removingId === device.id}
                 />
               ))}
             </div>
