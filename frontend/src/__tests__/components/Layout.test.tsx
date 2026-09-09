@@ -162,6 +162,56 @@ describe("Layout nav — Dashboard vs. Property active state (16.3.2)", () => {
   });
 });
 
+// ─── Mobile bottom tab bar ──────────────────────────────────────────────────────
+//
+// The Property tab used to fall back to "/dashboard" when there was no single
+// property to link to, duplicating the Home tab's key ("Encountered two
+// children with the same key" React warning) and both tabs showing active
+// on /dashboard at once — the same underlying bug as the sidebar fix above.
+
+describe("Layout mobile bottom tab bar", () => {
+  beforeEach(() => {
+    mockProfile = { role: "Homeowner" };
+  });
+
+  function getBottomTabLink(container: HTMLElement, name: RegExp) {
+    const bottomNav = container.querySelector(".hf-bottom-nav") as HTMLElement;
+    return within(bottomNav).getByRole("link", { name });
+  }
+
+  it("omits the Property tab (rather than duplicating /dashboard) when there is no single property", () => {
+    mockProperties = [
+      { id: "42", address: "123 Maple St" },
+      { id: "99", address: "456 Oak Ave" },
+    ];
+    const { container } = renderNav("/dashboard");
+    const bottomNav = container.querySelector(".hf-bottom-nav") as HTMLElement;
+    expect(within(bottomNav).queryByRole("link", { name: /^property$/i })).not.toBeInTheDocument();
+    expect(within(bottomNav).getByRole("link", { name: /^home$/i })).toBeInTheDocument();
+  });
+
+  it("shows a distinct Property tab pointing at the property when there is exactly one", () => {
+    mockProperties = [{ id: "42", address: "123 Maple St" }];
+    const { container } = renderNav("/properties/42");
+    const propTab = getBottomTabLink(container, /^property$/i);
+    expect(propTab).toHaveAttribute("href", "/properties/42");
+  });
+
+  it("never logs a duplicate-key warning, regardless of property count", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockProperties = [
+      { id: "42", address: "123 Maple St" },
+      { id: "99", address: "456 Oak Ave" },
+    ];
+    renderNav("/dashboard");
+    const dupKeyWarning = errorSpy.mock.calls.some((args) =>
+      args.some((a) => typeof a === "string" && a.includes("same key"))
+    );
+    expect(dupKeyWarning).toBe(false);
+    errorSpy.mockRestore();
+  });
+});
+
 // ─── User menu ────────────────────────────────────────────────────────────────
 
 describe("Layout user menu", () => {

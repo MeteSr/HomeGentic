@@ -476,11 +476,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {/* ── Mobile bottom tab bar ────────────────────────────────────────── */}
         {(() => {
           const mobileTabLinks = isContractor ? [] : [
-            { to: "/dashboard",                                          label: "Home",        Icon: LayoutDashboard },
-            { to: singlePropertyId ? `/properties/${singlePropertyId}` : "/dashboard", label: "Property",    Icon: HomeIcon },
-            { to: "/jobs",                                               label: "Jobs",        Icon: Briefcase },
-            { to: "/maintenance",                                        label: "Maintenance", Icon: Wrench },
-            { to: "/settings",                                           label: "Account",     Icon: User },
+            { to: "/dashboard", label: "Home", Icon: LayoutDashboard },
+            // Only shown when there's a single property to point at — otherwise
+            // this tab had no real destination of its own and fell back to
+            // "/dashboard", colliding with the Home tab above (duplicate React
+            // key, and both tabs showing active at once on /dashboard).
+            ...(singlePropertyId
+              ? [{ to: `/properties/${singlePropertyId}`, label: "Property", Icon: HomeIcon }]
+              : []),
+            { to: "/jobs",        label: "Jobs",        Icon: Briefcase },
+            { to: "/maintenance", label: "Maintenance", Icon: Wrench },
+            { to: "/settings",    label: "Account",     Icon: User },
           ];
           return (
             <>
