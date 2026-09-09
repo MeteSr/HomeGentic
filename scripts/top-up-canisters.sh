@@ -80,7 +80,7 @@ echo "── Checking each deployed canister directly ────────�
 CANISTERS=(
   auth property job contractor quote payment photo
   report maintenance market sensor monitoring listing
-  agent recurring bills ai_proxy
+  agent fee recurring bills ai_proxy audit referrals
 )
 
 for CANISTER in "${CANISTERS[@]}"; do
