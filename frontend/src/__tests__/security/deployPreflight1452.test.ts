@@ -70,7 +70,8 @@ describe("PROD.3 — deploy.sh has cycles balance check for non-local deploys", 
     const deploy = read("scripts/deploy.sh");
     // The cycles section must be guarded — local network uses managed system cycles.
     // Use lastIndexOf to target the actual command (not the TODO comment that also
-    // contains the string).  The ENV guard sits ~823 chars before the call.
+    // contains the string). The ENV guard sits ~958 chars before the call — leave
+    // headroom under the 1000-char window when editing text between them.
     const transferIdx = deploy.lastIndexOf("icp cycles transfer");
     expect(transferIdx).toBeGreaterThan(-1);
     const window = deploy.slice(Math.max(0, transferIdx - 1000), transferIdx + 100);

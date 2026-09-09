@@ -584,8 +584,7 @@ if [ "$ENV" != "local" ]; then
       continue
     }
 
-    # icp canister status indents every field two spaces (e.g. "  Cycles: N") —
-    # an anchor without the leading whitespace never matches.
+    # Field lines are indented two spaces — anchor must allow for that.
     BALANCE_RAW=$(echo "$STATUS_OUT" | grep -iE "^[[:space:]]*Cycles:" | head -1 | awk '{print $2}' | tr -d '_,') || BALANCE_RAW=""
 
     if [ -z "$BALANCE_RAW" ] || ! [[ "$BALANCE_RAW" =~ ^[0-9]+$ ]]; then
