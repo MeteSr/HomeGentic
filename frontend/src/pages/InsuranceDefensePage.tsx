@@ -14,9 +14,7 @@ import { Button } from "@/components/Button";
 import { propertyService, Property } from "@/services/property";
 import { jobService, Job, INSURANCE_SERVICE_TYPES } from "@/services/job";
 import { sensorService, type SensorDevice, type SensorEvent } from "@/services/sensor";
-import { paymentService, type PlanTier } from "@/services/payment";
 import { billService, type BillRecord } from "@/services/billService";
-import { UpgradeGate } from "@/components/UpgradeGate";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 import {
   estimateInsurerDiscount,
@@ -61,7 +59,6 @@ export default function InsuranceDefensePage() {
   const [showSuccessPrompt, setShowSuccessPrompt] = useState(false);
   const [successSubmitted,  setSuccessSubmitted]  = useState(false);
   const [savingsInput,      setSavingsInput]       = useState("");
-  const [userTier, setUserTier] = useState<PlanTier>("Basic");
 
   // ── Sensor discount estimator state ──────────────────────────────────────
   const [sensorDevices,    setSensorDevices]    = useState<SensorDevice[]>([]);
@@ -73,7 +70,6 @@ export default function InsuranceDefensePage() {
   const [billAnomalies,    setBillAnomalies]    = useState<BillRecord[]>([]);
 
   useEffect(() => {
-    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch((e) => console.error("[InsuranceDefensePage] subscription load failed:", e));
     Promise.all([
       propertyService.getMyProperties(),
       jobService.getAll(),
