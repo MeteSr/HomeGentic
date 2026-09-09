@@ -15,10 +15,11 @@ import { Send, X, ChevronDown, ChevronUp } from "lucide-react";
 import { systemAgesService } from "@/services/systemAges";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import SystemAgesModal from "@/components/SystemAgesModal";
-import { V2_COLORS, V2_FONTS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 
 const C = V2_COLORS;
 const F = V2_FONTS;
+const R = V2_RADIUS;
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -153,29 +154,38 @@ function daysUntil(due: Date): number {
   return Math.round((due.getTime() - Date.now()) / 86400000);
 }
 
+/** No per-task "assigned pro" field exists on AnnualTask — infer it from real job
+ *  history instead of guessing off keywords in the task name. */
+function hasKnownPro(taskName: string, jobs: { serviceType: string; contractorName?: string }[]): boolean {
+  const key = taskName.toLowerCase();
+  return jobs.some(j => j.contractorName && (key.includes(j.serviceType.toLowerCase()) || j.serviceType.toLowerCase().includes(key)));
+}
+
+// Matches HomeGentic Maintenance.dc.html's three-tier chip: <=30d coral, 31-90d amber, else muted.
+// "Overdue" (negative days) reuses the coral tier — the design never models a lapsed date.
 function DaysChip({ days }: { days: number }) {
-  const label  = `IN ${Math.abs(days)} DAYS`;
   const overdue = days < 0;
-  const urgent  = days >= 0 && days <= 7;
-  const soon    = days > 7 && days <= 30;
-  const color   = overdue ? "#991B1B" : urgent ? "#991B1B" : soon ? "#92400E" : C.muted;
-  const bg      = overdue ? "#FEF2F2" : urgent ? "#FEF2F2" : soon ? "#FFFBEB" : C.border;
+  const soon    = overdue || days <= 30;
+  const later   = !soon && days <= 90;
+  const color   = soon ? C.coralText : later ? C.amberText : C.muted;
+  const bg      = soon ? C.orangeBg  : later ? C.amberBg   : C.neutralSurface;
+  const border  = soon ? C.orangeBorder : later ? C.amberBorder : "#DDDFE6";
   return (
-    <span style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 700, color, background: bg, padding: "4px 8px", whiteSpace: "nowrap" }}>
-      {overdue ? "OVERDUE" : label}
+    <span style={{ fontFamily: F.mono, fontSize: 9.5, fontWeight: 700, letterSpacing: "0.09em", color, background: bg, border: `1px solid ${border}`, borderRadius: R.pill, padding: "6px 11px", whiteSpace: "nowrap" }}>
+      {overdue ? "OVERDUE" : `IN ${days} DAYS`}
     </span>
   );
 }
 
 function StatusBadge({ status }: { status: MockRecurring["status"] }) {
   const map = {
-    "active":   { label: "ACTIVE",   color: "#166534", bg: "#F0FDF4", border: "#BBF7D0" },
-    "due-soon": { label: "DUE SOON", color: "#92400E", bg: "#FFFBEB", border: "#FDE68A" },
-    "paused":   { label: "PAUSED",   color: "#464B56", bg: "#F0F1F5", border: "#DDDFE6" },
+    "active":   { label: "ACTIVE",   color: C.green, bg: C.greenBg, border: "#BFE3CE" },
+    "due-soon": { label: "DUE SOON", color: C.amberText, bg: C.amberBg, border: C.amberBorder },
+    "paused":   { label: "PAUSED",   color: C.muted, bg: C.neutralSurface, border: "#DDDFE6" },
   };
   const s = map[status];
   return (
-    <span style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", color: s.color, background: s.bg, border: `1px solid ${s.border}`, padding: "2px 7px" }}>
+    <span style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, letterSpacing: "0.09em", color: s.color, background: s.bg, border: `1px solid ${s.border}`, borderRadius: R.pill, padding: "5px 9px" }}>
       {s.label}
     </span>
   );
@@ -183,9 +193,9 @@ function StatusBadge({ status }: { status: MockRecurring["status"] }) {
 
 function IntervalPill({ label, active }: { label: string; active: boolean }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: 46, height: 46, flexShrink: 0, background: active ? C.ink : "#E8E5DF", }}>
-      <span style={{ fontFamily: F.mono, fontSize: 8, fontWeight: 700, letterSpacing: "0.08em", color: active ? "rgba(255,255,255,0.55)" : C.muted, lineHeight: 1 }}>EVERY</span>
-      <span style={{ fontFamily: F.mono, fontSize: 13, fontWeight: 700, color: active ? "#fff" : C.ink, lineHeight: 1.2, marginTop: 2 }}>{label}</span>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: 48, height: 48, flexShrink: 0, borderRadius: 13, background: active ? C.blue : C.neutralSurface3 }}>
+      <span style={{ fontFamily: F.mono, fontSize: 7.5, fontWeight: 700, letterSpacing: "0.1em", color: active ? "rgba(252,252,253,0.62)" : C.muted, lineHeight: 1 }}>EVERY</span>
+      <span style={{ fontFamily: F.mono, fontSize: 13, fontWeight: 700, color: active ? C.paper : C.ink, lineHeight: 1, marginTop: 3 }}>{label}</span>
     </div>
   );
 }
@@ -338,7 +348,7 @@ function RecurringRow({ svc }: { svc: MockRecurring }) {
         {/* Next visit */}
         <div style={{ textAlign: "right", flexShrink: 0 }}>
           <div style={colLabel}>NEXT VISIT</div>
-          <div style={{ ...colValue, color: svc.status === "due-soon" ? "#92400E" : C.ink }}>
+          <div style={{ ...colValue, color: svc.status === "due-soon" ? C.amberText : C.ink }}>
             {svc.nextVisitLabel}
           </div>
         </div>
@@ -352,7 +362,12 @@ function RecurringRow({ svc }: { svc: MockRecurring }) {
         {/* Toggle */}
         <button
           onClick={() => setExpanded(v => !v)}
-          style={{ display: "flex", alignItems: "center", gap: 5, fontFamily: F.body, fontSize: 13, fontWeight: 600, color: C.ink, background: "#fff", border: `1px solid ${C.border}`, padding: "7px 14px", cursor: "pointer", flexShrink: 0 }}
+          style={{
+            display: "flex", alignItems: "center", gap: 7, fontFamily: F.body, fontSize: 12.5, fontWeight: 600,
+            color: expanded ? C.blue : C.ink, background: expanded ? C.lblue : C.paper,
+            border: `1.5px solid ${expanded ? C.cobalTint : C.divider}`, borderRadius: R.pill,
+            padding: "9px 16px", cursor: "pointer", flexShrink: 0,
+          }}
         >
           {expanded ? "Hide" : "History"} {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
         </button>
@@ -360,59 +375,57 @@ function RecurringRow({ svc }: { svc: MockRecurring }) {
 
       {/* Expanded: visit log + actions */}
       {expanded && (
-        <div style={{ background: "#FAFAF8", borderTop: `1px solid ${C.border}` }}>
+        <div style={{ background: C.surface, borderTop: `1px solid ${C.border}` }}>
           {svc.visits.length > 0 ? (
             <div>
               {/* Visit log header */}
-              <div style={{ display: "grid", gridTemplateColumns: "80px 1fr 60px 90px", gap: 12, padding: "8px 24px 6px 24px", borderBottom: `1px solid ${C.border}` }}>
-                {["DATE", "NOTES", "PRICE", ""].map(h => (
-                  <span key={h} style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", color: C.muted }}>{h}</span>
+              <div style={{ display: "grid", gridTemplateColumns: "78px minmax(0,1fr) 68px 96px", gap: 14, padding: "11px 24px 9px", borderBottom: `1px solid ${C.border}` }}>
+                {["DATE", "NOTES", "PRICE", "RECORD"].map(h => (
+                  <span key={h} style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, letterSpacing: "0.09em", color: C.muted }}>{h}</span>
                 ))}
               </div>
               {svc.visits.map((v, i) => (
-                <div key={i} style={{ display: "grid", gridTemplateColumns: "80px 1fr 60px 90px", gap: 12, alignItems: "center", padding: "10px 24px", borderBottom: `1px solid ${C.border}` }}>
+                <div key={i} style={{ display: "grid", gridTemplateColumns: "78px minmax(0,1fr) 68px 96px", gap: 14, alignItems: "center", padding: "12px 24px", borderBottom: `1px solid ${C.border}` }}>
                   <span style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700, color: C.ink }}>{v.dateLabel}</span>
                   <span style={{ fontFamily: F.body, fontSize: 13, color: C.ink }}>{v.note}</span>
-                  <span style={{ fontFamily: F.body, fontSize: 13, color: C.ink }}>${v.amount}</span>
+                  <span style={{ fontFamily: F.mono, fontSize: 12.5, fontWeight: 500, color: C.ink }}>${v.amount}</span>
                   <span style={{
-                    fontFamily: F.mono, fontSize: 9, fontWeight: 700, letterSpacing: "0.06em",
-                    color: v.verified ? "#166534" : "#92400E",
-                    background: v.verified ? "#F0FDF4" : "#FFFBEB",
-                    border: `1px solid ${v.verified ? "#BBF7D0" : "#FDE68A"}`,
-                    padding: "2px 7px", display: "inline-block",
+                    justifySelf: "start", fontFamily: F.mono, fontSize: 9, fontWeight: 700, letterSpacing: "0.09em",
+                    color: C.blue, background: C.vbadge, border: `1px solid ${C.cobalTint}`,
+                    borderRadius: R.pill, padding: "5px 9px", whiteSpace: "nowrap",
                   }}>
-                    {v.verified ? "VERIFIED" : "PENDING"}
+                    {v.verified ? "SIGNED" : "AWAITING PRO"}
                   </span>
                 </div>
               ))}
             </div>
           ) : (
             <div style={{ padding: "16px 24px" }}>
-              <p style={{ fontFamily: F.body, fontSize: 13, color: C.muted, margin: 0 }}>No visit history recorded yet.</p>
+              <p style={{ fontFamily: F.body, fontSize: 13, color: C.muted, margin: 0 }}>No visits logged yet. The first countersigned visit starts the history.</p>
             </div>
           )}
 
           {/* Action buttons */}
-          <div style={{ display: "flex", gap: 10, padding: "14px 24px", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 9, padding: "14px 24px", flexWrap: "wrap" }}>
             {svc.nextVisitDate && svc.status !== "paused" && (
-              <button style={{ fontFamily: F.body, fontSize: 13, fontWeight: 600, color: C.ink, background: "#fff", border: `1px solid ${C.border}`, padding: "8px 16px", cursor: "pointer" }}>
+              <button style={{ fontFamily: F.body, fontSize: 12.5, fontWeight: 600, color: C.ink, background: C.paper, border: `1.5px solid ${C.divider}`, borderRadius: R.pill, padding: "10px 17px", cursor: "pointer" }}>
                 Skip {svc.nextVisitDate}
               </button>
             )}
             {svc.status !== "paused" && (
-              <button style={{ fontFamily: F.body, fontSize: 13, fontWeight: 600, color: C.ink, background: "#fff", border: `1px solid ${C.border}`, padding: "8px 16px", cursor: "pointer" }}>
+              <button style={{ fontFamily: F.body, fontSize: 12.5, fontWeight: 600, color: C.ink, background: C.paper, border: `1.5px solid ${C.divider}`, borderRadius: R.pill, padding: "10px 17px", cursor: "pointer" }}>
                 Pause for the season
               </button>
             )}
             {svc.status === "paused" && (
-              <button style={{ fontFamily: F.body, fontSize: 13, fontWeight: 600, color: "#166534", background: "#F0FDF4", border: `1px solid #BBF7D0`, padding: "8px 16px", cursor: "pointer" }}>
+              <button style={{ fontFamily: F.body, fontSize: 12.5, fontWeight: 600, color: C.green, background: C.greenBg, border: `1.5px solid #BFE3CE`, borderRadius: R.pill, padding: "10px 17px", cursor: "pointer" }}>
                 Resume service
               </button>
             )}
-            <button style={{ fontFamily: F.body, fontSize: 13, fontWeight: 600, color: C.ink, background: "#fff", border: `1px solid ${C.border}`, padding: "8px 16px", cursor: "pointer" }}>
+            <button style={{ fontFamily: F.body, fontSize: 12.5, fontWeight: 600, color: C.ink, background: C.paper, border: `1.5px solid ${C.divider}`, borderRadius: R.pill, padding: "10px 17px", cursor: "pointer" }}>
               Change cadence
             </button>
-            <button style={{ fontFamily: F.body, fontSize: 13, fontWeight: 600, color: "#991B1B", background: "#fff", border: `1px solid #FECACA`, padding: "8px 16px", cursor: "pointer" }}>
+            <button style={{ fontFamily: F.body, fontSize: 12.5, fontWeight: 600, color: C.coralText, background: C.paper, border: `1.5px solid ${C.orangeBorder}`, borderRadius: R.pill, padding: "10px 17px", cursor: "pointer" }}>
               End contract
             </button>
           </div>
@@ -459,9 +472,13 @@ export default function PredictiveMaintenancePage() {
   // ── Derived ────────────────────────────────────────────────────────────────
   const allTasks      = report?.annualTasks ?? [];
   const criticalPreds = report?.systemPredictions.filter(p => p.urgency === "Critical") ?? [];
-  const dueSoonCount  = allTasks.filter((t, i) => daysUntil(taskDueDate(t, i)) <= 30).length + criticalPreds.length;
 
-  const upcomingTasksWithDates = allTasks.map((t, i) => ({ task: t, due: taskDueDate(t, i) }));
+  // Sorted chronologically so the headline count always matches what's actually
+  // rendered below — an unsorted list let due-soon tasks fall past the slice(0, 8) cutoff.
+  const upcomingTasksWithDates = allTasks
+    .map((t, i) => ({ task: t, due: taskDueDate(t, i) }))
+    .sort((a, b) => a.due.getTime() - b.due.getTime());
+  const dueSoonCount = upcomingTasksWithDates.filter(({ due }) => daysUntil(due) <= 30).length + criticalPreds.length;
 
   // Recurring service counts
   const recurringServices = MOCK_RECURRING;
@@ -505,35 +522,35 @@ export default function PredictiveMaintenancePage() {
 
   return (
     <Layout>
-      <div style={{ background: V2_COLORS.paper, minHeight: "100%", padding: isTablet ? "20px 20px" : "28px 32px" }}>
+      <div style={{ background: C.page, minHeight: "100%", padding: isTablet ? "20px 20px" : "28px 32px" }}>
 
         {/* Page header */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28, flexWrap: "wrap", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 22, flexWrap: "wrap", gap: 12 }}>
           <div>
-            <div style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>
+            <div style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>
               MAINTENANCE
             </div>
-            <h1 style={{ fontFamily: F.display, fontWeight: 900, fontSize: "clamp(1.375rem, 3vw, 1.875rem)", color: C.ink, margin: 0 }}>
+            <h1 style={{ fontFamily: F.display, fontWeight: 900, fontSize: "clamp(1.375rem, 3vw, 1.875rem)", color: C.ink, letterSpacing: "-0.025em", margin: 0 }}>
               {recurringVisitsDue30} recurring visit{recurringVisitsDue30 !== 1 ? "s" : ""} and {dueSoonCount} task{dueSoonCount !== 1 ? "s" : ""} due in 30 days
             </h1>
           </div>
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <button onClick={() => navigate("/jobs/new")} style={{ fontFamily: F.body, fontSize: 13, fontWeight: 700, color: "#fff", background: C.ink, border: "none", padding: "10px 20px", cursor: "pointer" }}>
+          <div style={{ display: "flex", gap: 9, alignItems: "center" }}>
+            <button onClick={() => navigate("/jobs/new")} style={{ fontFamily: F.body, fontSize: 13.5, fontWeight: 600, color: C.paper, background: C.blue, border: "none", borderRadius: R.pill, padding: "12px 22px", cursor: "pointer" }}>
               Log work
             </button>
-            <button onClick={() => navigate("/dashboard")} style={{ fontFamily: F.body, fontSize: 13, fontWeight: 600, color: C.ink, background: "#fff", border: `1px solid ${C.border}`, padding: "10px 20px", cursor: "pointer" }}>
+            <button onClick={() => navigate("/dashboard")} style={{ fontFamily: F.body, fontSize: 13.5, fontWeight: 600, color: C.ink, background: C.paper, border: `1.5px solid ${C.divider}`, borderRadius: R.pill, padding: "12px 20px", cursor: "pointer" }}>
               Back to dashboard
             </button>
           </div>
         </div>
 
         {/* ── Recurring services (always shown — uses mock data, not property-specific) ── */}
-        <div style={{ border: `1px solid ${C.border}`, background: "#fff", marginBottom: 24, overflow: "hidden" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 24px", borderBottom: `1px solid ${C.border}` }}>
-            <span style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: C.muted }}>
+        <div style={{ border: `1px solid ${C.border}`, background: "#fff", borderRadius: R.card, boxShadow: V2_SHADOWS.card, marginBottom: 18, overflow: "hidden" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "15px 24px", borderBottom: `1px solid ${C.border}`, flexWrap: "wrap", gap: 16 }}>
+            <span style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 700, letterSpacing: "0.11em", color: C.muted }}>
               RECURRING SERVICES · {recurringServices.length} contracts · {pausedCount} paused{nextVisitDaysMsg ? ` · ${nextVisitDaysMsg}` : ""}
             </span>
-            <button onClick={() => navigate("/recurring/new")} style={{ fontFamily: F.body, fontSize: 13, fontWeight: 600, color: C.ink, background: "#fff", border: `1px solid ${C.border}`, padding: "7px 14px", cursor: "pointer" }}>
+            <button onClick={() => navigate("/recurring/new")} style={{ fontFamily: F.body, fontSize: 12.5, fontWeight: 600, color: C.ink, background: C.paper, border: `1.5px solid ${C.divider}`, borderRadius: R.pill, padding: "9px 17px", cursor: "pointer" }}>
               Add service
             </button>
           </div>
@@ -543,7 +560,7 @@ export default function PredictiveMaintenancePage() {
         </div>
 
         {/* ── Scheduled tasks (always shown; empty state when no property/predictions) ── */}
-        <div style={{ border: `1px solid ${C.border}`, background: "#fff", marginBottom: 24, overflow: "hidden" }}>
+        <div style={{ border: `1px solid ${C.border}`, background: "#fff", borderRadius: R.card, boxShadow: V2_SHADOWS.card, marginBottom: 18, overflow: "hidden" }}>
           {/* Section header */}
           <div style={{ padding: "14px 24px", borderBottom: `1px solid ${C.border}` }}>
             <span style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: C.muted }}>
@@ -568,21 +585,21 @@ export default function PredictiveMaintenancePage() {
                 </div>
               ) : (
                 upcomingTasksWithDates.slice(0, 8).map(({ task, due }, i) => {
-                  const days     = daysUntil(due);
-                  const isUrgent = days <= 7 || days < 0;
-                  const hasPro   = task.task.toLowerCase().includes("hvac") || task.task.toLowerCase().includes("chimney") || task.task.toLowerCase().includes("furnace");
+                  const days   = daysUntil(due);
+                  const soon   = days <= 30;
+                  const hasPro = hasKnownPro(task.task, propJobs);
                   const matchedPred = report?.systemPredictions.find(p =>
                     task.task.toLowerCase().includes(p.systemName.toLowerCase())
                   );
 
                   return (
-                    <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 20, padding: "18px 24px", borderBottom: `1px solid ${C.border}` }}>
+                    <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 20, padding: "18px 24px", borderBottom: `1px solid ${C.border}`, background: soon ? C.orangeRowTint : "#fff" }}>
                       {/* Date bubble */}
-                      <div style={{ width: 42, flexShrink: 0, textAlign: "center" }}>
-                        <div style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.06em" }}>
+                      <div style={{ width: 44, flexShrink: 0, textAlign: "center" }}>
+                        <div style={{ fontFamily: F.mono, fontSize: 9.5, fontWeight: 700, color: C.muted, letterSpacing: "0.08em" }}>
                           {due.toLocaleDateString(undefined, { month: "short" }).toUpperCase()}
                         </div>
-                        <div style={{ fontFamily: F.display, fontSize: 20, fontWeight: 900, color: isUrgent ? "#991B1B" : C.ink, lineHeight: 1.1 }}>
+                        <div style={{ fontFamily: F.display, fontSize: 21, fontWeight: 900, color: soon ? C.coralText : C.ink, lineHeight: 1.05, letterSpacing: "-0.02em", marginTop: 4 }}>
                           {due.getDate()}
                         </div>
                       </div>
@@ -592,21 +609,21 @@ export default function PredictiveMaintenancePage() {
                         <div style={{ fontFamily: F.body, fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 2 }}>
                           {task.task}
                         </div>
-                        <div style={{ fontFamily: F.body, fontSize: 12, color: C.muted, marginBottom: 4 }}>
+                        <div style={{ fontFamily: F.body, fontSize: 12.5, color: C.muted, marginBottom: 4, lineHeight: 1.55 }}>
                           {task.frequency}
-                          {matchedPred ? ` · ${matchedPred.recommendation.slice(0, 60)}` : ""}
+                          {matchedPred ? ` · ${matchedPred.recommendation}` : ""}
                         </div>
                       </div>
 
                       <DaysChip days={days} />
 
                       {hasPro ? (
-                        <button onClick={() => navigate("/contractors")} style={{ fontFamily: F.body, fontSize: 13, fontWeight: 600, color: C.ink, background: "#fff", border: `1px solid ${C.border}`, padding: "8px 16px", cursor: "pointer", whiteSpace: "nowrap" }}>
-                          Find pro
+                        <button onClick={() => navigate("/quotes/new")} style={{ fontFamily: F.body, fontSize: 12.5, fontWeight: 600, color: soon ? C.paper : C.ink, background: soon ? C.blue : C.paper, border: `1.5px solid ${soon ? C.blue : C.divider}`, borderRadius: R.pill, padding: "10px 18px", cursor: "pointer", whiteSpace: "nowrap" }}>
+                          Book
                         </button>
                       ) : (
-                        <button onClick={() => navigate("/quotes/new")} style={{ fontFamily: F.body, fontSize: 13, fontWeight: 600, color: C.ink, background: "#fff", border: `1px solid ${C.border}`, padding: "8px 16px", cursor: "pointer", whiteSpace: "nowrap" }}>
-                          Book
+                        <button onClick={() => navigate("/contractors")} style={{ fontFamily: F.body, fontSize: 12.5, fontWeight: 600, color: soon ? C.paper : C.ink, background: soon ? C.blue : C.paper, border: `1.5px solid ${soon ? C.blue : C.divider}`, borderRadius: R.pill, padding: "10px 18px", cursor: "pointer", whiteSpace: "nowrap" }}>
+                          Find pro
                         </button>
                       )}
                     </div>
@@ -616,21 +633,21 @@ export default function PredictiveMaintenancePage() {
 
               {/* Critical predictions */}
               {criticalPreds.map((pred, i) => (
-                <div key={`crit-${i}`} style={{ display: "flex", alignItems: "flex-start", gap: 20, padding: "18px 24px", borderBottom: `1px solid ${C.border}`, background: "#FEF2F2" }}>
-                  <div style={{ width: 42, flexShrink: 0, textAlign: "center" }}>
-                    <div style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 700, color: "#991B1B" }}>NOW</div>
-                    <div style={{ fontFamily: F.display, fontSize: 20, fontWeight: 900, color: "#991B1B", lineHeight: 1.1 }}>!</div>
+                <div key={`crit-${i}`} style={{ display: "flex", alignItems: "flex-start", gap: 20, padding: "18px 24px", borderBottom: `1px solid ${C.border}`, background: C.orangeRowTint }}>
+                  <div style={{ width: 44, flexShrink: 0, textAlign: "center" }}>
+                    <div style={{ fontFamily: F.mono, fontSize: 9.5, fontWeight: 700, color: C.coralText }}>NOW</div>
+                    <div style={{ fontFamily: F.display, fontSize: 21, fontWeight: 900, color: C.coralText, lineHeight: 1.05 }}>!</div>
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontFamily: F.body, fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 2 }}>
                       {pred.systemName} replacement needed
                     </div>
-                    <div style={{ fontFamily: F.body, fontSize: 12, color: C.muted }}>
+                    <div style={{ fontFamily: F.body, fontSize: 12.5, color: C.muted }}>
                       {Math.abs(pred.yearsRemaining)} year{Math.abs(pred.yearsRemaining) !== 1 ? "s" : ""} past rated life · {maintenanceService.formatCents(pred.estimatedCostLowCents)}–{maintenanceService.formatCents(pred.estimatedCostHighCents)} estimated
                     </div>
                   </div>
-                  <span style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 700, color: "#991B1B", background: "#FEF2F2", border: "1px solid #FECACA", padding: "4px 8px" }}>OVERDUE</span>
-                  <button onClick={() => navigate("/quotes/new")} style={{ fontFamily: F.body, fontSize: 13, fontWeight: 600, color: "#fff", background: "#991B1B", border: "none", padding: "8px 16px", cursor: "pointer", whiteSpace: "nowrap" }}>
+                  <span style={{ fontFamily: F.mono, fontSize: 9.5, fontWeight: 700, letterSpacing: "0.09em", color: C.coralText, background: C.orangeBg, border: `1px solid ${C.orangeBorder}`, borderRadius: R.pill, padding: "6px 11px" }}>OVERDUE</span>
+                  <button onClick={() => navigate("/quotes/new")} style={{ fontFamily: F.body, fontSize: 12.5, fontWeight: 600, color: C.paper, background: C.coralText, border: "none", borderRadius: R.pill, padding: "10px 18px", cursor: "pointer", whiteSpace: "nowrap" }}>
                     Get quotes
                   </button>
                 </div>
@@ -639,8 +656,8 @@ export default function PredictiveMaintenancePage() {
         </div> {/* end scheduled tasks */}
 
         {/* ── Seasonal tips ──────────────────────────────────────────────── */}
-        <div style={{ border: `1px solid #F5ECD7`, background: "#FFFBEB", padding: "18px 24px" }}>
-          <div style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: "#92400E", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 16 }}>
+        <div style={{ border: `1px solid ${C.amberBorder}`, background: C.attentionBg, borderRadius: R.card, padding: "20px 24px" }}>
+          <div style={{ fontFamily: F.mono, fontSize: 9.5, fontWeight: 700, color: C.amberText, letterSpacing: "0.13em", textTransform: "uppercase", marginBottom: 17 }}>
             SEASONAL · {climate.toUpperCase()} · {season.toUpperCase()}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: isTablet ? "1fr 1fr" : "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>

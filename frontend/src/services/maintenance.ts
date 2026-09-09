@@ -295,13 +295,13 @@ function recommendationFor(
   const high = `$${Math.round(sys.costHighCents / 100).toLocaleString()}`;
   switch (urgency) {
     case "Critical":
-      return `⚠️ ${sys.name} is past expected lifespan. Budget ${low}–${high} and plan replacement immediately.`;
+      return `${sys.name} is past expected lifespan. Budget ${low}–${high} and plan replacement immediately.`;
     case "Soon":
-      return `📅 ${sys.name} has roughly ${yearsRemaining} year(s) remaining. Start saving now — typical cost ${low}–${high}.`;
+      return `${sys.name} has roughly ${yearsRemaining} year(s) remaining. Start saving now — typical cost ${low}–${high}.`;
     case "Watch":
-      return `👁 ${sys.name} is in good shape but worth monitoring. Schedule routine inspection every 2–3 years.`;
+      return `${sys.name} is in good shape but worth monitoring. Schedule routine inspection every 2–3 years.`;
     default:
-      return `✅ ${sys.name} is well within expected lifespan. No action needed.`;
+      return `${sys.name} is well within expected lifespan. No action needed.`;
   }
 }
 
