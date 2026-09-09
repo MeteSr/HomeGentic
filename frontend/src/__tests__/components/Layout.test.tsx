@@ -1,12 +1,15 @@
 /**
  * Layout tests:
  *
- * - Nav active state (16.3.2): single-property homeowner Dashboard highlight
+ * - Nav active state: Dashboard vs. Property highlighting for single-property
+ *   homeowners (16.3.2 originally highlighted Dashboard here too, which
+ *   duplicated the dedicated Property tab added later — see the bug report
+ *   that corrected this: Dashboard and Property must never both be active).
  * - User menu: avatar button opens popover with Settings / Upgrade / Sign out
  */
 
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 
@@ -63,6 +66,14 @@ function renderNav(path: string) {
   );
 }
 
+// The mobile bottom tab bar renders alongside the desktop sidebar (hidden via
+// CSS media queries, not conditional rendering) and shares some labels (e.g.
+// "Property"), so queries must be scoped to the desktop sidebar to be unique.
+function getSidebarLink(container: HTMLElement, name: RegExp) {
+  const sidebar = container.querySelector(".hf-sidebar") as HTMLElement;
+  return within(sidebar).getByRole("link", { name });
+}
+
 function openUserMenu(path = "/dashboard") {
   renderNav(path);
   fireEvent.click(screen.getByRole("button", { name: /test@example\.com/i }));
@@ -70,27 +81,29 @@ function openUserMenu(path = "/dashboard") {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-describe("Layout nav — Dashboard active state (16.3.2)", () => {
+describe("Layout nav — Dashboard vs. Property active state (16.3.2)", () => {
   beforeEach(() => {
     mockProfile = { role: "Homeowner" };
   });
 
   // ── Single-property user ───────────────────────────────────────────────────
 
-  it("highlights Dashboard when single-property user is on /properties/:id", () => {
+  it("highlights only Property (not Dashboard) when single-property user is on /properties/:id", () => {
     mockProperties = [{ id: "42", address: "123 Maple St" }];
-    renderNav("/properties/42");
-    const dashLink = screen.getByRole("link", { name: /^dashboard$/i });
-    // active link has borderBottom with sage colour (not transparent)
-    expect(dashLink).toHaveStyle({ borderBottom: expect.stringContaining("solid") });
-    expect(dashLink.getAttribute("style")).not.toMatch(/transparent/);
+    const { container } = renderNav("/properties/42");
+    const dashLink = getSidebarLink(container, /^dashboard$/i);
+    const propLink = getSidebarLink(container, /^property$/i);
+    expect(dashLink.getAttribute("style")).toMatch(/transparent/);
+    expect(propLink.getAttribute("style")).not.toMatch(/transparent/);
   });
 
-  it("highlights Dashboard when single-property user is on a sub-path of their property", () => {
+  it("highlights only Property (not Dashboard) on a sub-path of their property", () => {
     mockProperties = [{ id: "42", address: "123 Maple St" }];
-    renderNav("/properties/42/jobs");
-    const dashLink = screen.getByRole("link", { name: /^dashboard$/i });
-    expect(dashLink.getAttribute("style")).not.toMatch(/transparent/);
+    const { container } = renderNav("/properties/42/jobs");
+    const dashLink = getSidebarLink(container, /^dashboard$/i);
+    const propLink = getSidebarLink(container, /^property$/i);
+    expect(dashLink.getAttribute("style")).toMatch(/transparent/);
+    expect(propLink.getAttribute("style")).not.toMatch(/transparent/);
   });
 
   it("does NOT highlight Dashboard on /dashboard itself for single-property user", () => {
