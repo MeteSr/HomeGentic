@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   test:
@@ -17,7 +17,14 @@ jobs:
     environment: production
     needs: [test]
     steps:
+      # main requires the motoko-compile-check status check even on direct
+      # pushes, and the default GITHUB_TOKEN has no bypass for that rule.
+      # CI_PUSH_TOKEN is a fine-grained PAT scoped to this repo (Contents:
+      # Read and write) issued from an account that does have that bypass
+      # — same fix as deploy-testnet.yml's "Commit canister IDs" step.
       - uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.CI_PUSH_TOKEN }}
       - name: Install Node.js
         uses: actions/setup-node@v7
         with:
@@ -30,11 +37,29 @@ jobs:
         run: npm install -g ic-mops
       - name: Install Node dependencies
         run: npm ci
+
+      - name: Install dfx
+        run: |
+          curl -fsSL "https://github.com/dfinity/sdk/releases/download/0.24.3/dfx-x86_64-unknown-linux-gnu.tar.gz" \
+            | tar -xz
+          DFX_BIN=$(find . -name "dfx*" -type f -perm /111 | head -1)
+          sudo install -m 755 "$DFX_BIN" /usr/local/bin/dfx
+          dfx --version
+
+      - name: Wallet cycles pre-flight
+        run: bash scripts/check-wallet-balance.sh
+        env:
+          DFX_IDENTITY_PEM: ${{ secrets.MAINNET_IDENTITY_PEM }}
+          DFX_WALLET_ID: ${{ secrets.MAINNET_WALLET_ID }}
+          DFX_NETWORK: ic
+          ICP_ENV: ic
+
       - name: Deploy to mainnet
         # Environment is a positional arg ($1). Must be: bash scripts/deploy.sh ic
         run: bash scripts/deploy.sh ic
         env:
           DFX_IDENTITY_PEM: ${{ secrets.MAINNET_IDENTITY_PEM }}
+          DFX_WALLET_ID: ${{ secrets.MAINNET_WALLET_ID }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           VOICE_AGENT_API_KEY: ${{ secrets.VOICE_AGENT_API_KEY }}
           VITE_VOICE_AGENT_API_KEY: ${{ secrets.VITE_VOICE_AGENT_API_KEY }}
@@ -43,6 +68,25 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RESEND_FROM_ADDRESS: ${{ secrets.RESEND_FROM_ADDRESS }}
           OPEN_PERMIT_API_KEY: ${{ secrets.OPEN_PERMIT_API_KEY }}
+
+      - name: Commit canister IDs
+        # Must run even when the deploy step above fails partway through:
+        # canister creation is real and paid for the moment it happens,
+        # regardless of whether a later step fails — losing these IDs here
+        # means the next run can't tell those canisters already exist and
+        # will try to create them again, wasting cycles on duplicates or
+        # failing outright. Same fix as deploy-testnet.yml.
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add canister_ids.json .icp/data/mappings/
+          if git diff --staged --quiet; then
+            echo "canister IDs unchanged, nothing to commit"
+          else
+            git commit -m "ops: update canister IDs after mainnet deploy [skip ci]"
+            git push || echo "⚠️  Push blocked by branch protection — commit canister_ids.json manually from the deploy log above"
+          fi
 
       - name: Post-deploy cycle health gate
         # Fail the deploy if any canister is critically low on cycles (< 500M).
