@@ -9,6 +9,7 @@
 #   bash scripts/check-cycle-health.sh
 #
 # Environment:
+#   DFX_NETWORK      — network to check (default: local)
 #   CRITICAL_CYCLES  — fail threshold in cycles (default: 500_000_000 = 500M)
 #   WARNING_CYCLES   — warn threshold in cycles  (default: 1_000_000_000_000 = 1T)
 
@@ -16,22 +17,24 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+DFX_NETWORK="${DFX_NETWORK:-local}"
 CRITICAL_CYCLES="${CRITICAL_CYCLES:-500000000}"       # 500M
 WARNING_CYCLES="${WARNING_CYCLES:-1000000000000}"     # 1T
 
 CANISTERS=(
   auth property job contractor quote payment photo
   report maintenance market sensor monitoring listing
-  agent recurring bills ai_proxy
+  agent fee recurring bills ai_proxy audit referrals
 )
 
-if ! dfx ping 2>/dev/null; then
-  echo "❌  dfx is not running — cannot check cycle health"
+if ! dfx ping "$DFX_NETWORK" 2>/dev/null; then
+  echo "❌  dfx cannot reach network '$DFX_NETWORK' — cannot check cycle health"
   exit 1
 fi
 
 echo "============================================"
 echo "  HomeGentic — Cycle Health Check"
+echo "  Network             : $DFX_NETWORK"
 echo "  Critical threshold : $(numfmt --grouping $CRITICAL_CYCLES) cycles"
 echo "  Warning  threshold : $(numfmt --grouping $WARNING_CYCLES) cycles"
 echo "============================================"
@@ -41,7 +44,7 @@ WARNING_LIST=()
 UNKNOWN_LIST=()
 
 for CANISTER in "${CANISTERS[@]}"; do
-  CANISTER_ID=$(dfx canister id "$CANISTER" 2>/dev/null || echo "")
+  CANISTER_ID=$(dfx canister id "$CANISTER" --network "$DFX_NETWORK" 2>/dev/null || echo "")
   if [ -z "$CANISTER_ID" ]; then
     echo "  ⬜  $CANISTER — not deployed, skipping"
     continue
@@ -49,7 +52,7 @@ for CANISTER in "${CANISTERS[@]}"; do
 
   # Parse cycle balance from dfx canister status output.
   # The line looks like:  Cycles: 10_000_000_000_000
-  STATUS_OUT=$(dfx canister status "$CANISTER" 2>&1 || echo "")
+  STATUS_OUT=$(dfx canister status "$CANISTER" --network "$DFX_NETWORK" 2>&1 || echo "")
   CYCLES_RAW=$(echo "$STATUS_OUT" | grep -i "^Cycles:" | head -1 | awk '{print $2}' | tr -d '_,')
 
   if [ -z "$CYCLES_RAW" ] || ! [[ "$CYCLES_RAW" =~ ^[0-9]+$ ]]; then
