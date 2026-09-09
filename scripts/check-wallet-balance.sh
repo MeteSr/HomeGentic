@@ -115,7 +115,9 @@ for _c in "${CANISTERS[@]}" frontend; do
     echo "  ❓  $_c — could not read status"
     continue
   }
-  CYCLES_RAW=$(echo "$STATUS_OUT" | grep -i "^Cycles:" | head -1 | awk '{print $2}' | tr -d '_,')
+  # icp canister status indents every field two spaces (e.g. "  Cycles: N") —
+  # an anchor without the leading whitespace never matches.
+  CYCLES_RAW=$(echo "$STATUS_OUT" | grep -iE "^[[:space:]]*Cycles:" | head -1 | awk '{print $2}' | tr -d '_,')
   if [ -z "$CYCLES_RAW" ] || ! [[ "$CYCLES_RAW" =~ ^[0-9]+$ ]]; then
     echo "  ❓  $_c — could not parse cycle balance"
   else
