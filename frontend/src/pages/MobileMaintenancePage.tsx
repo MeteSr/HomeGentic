@@ -130,16 +130,6 @@ export function MobileMaintenancePage() {
     };
   });
 
-  // Fall back to mock data if no recurring services loaded yet
-  const MOCK_SCHEDULE = [
-    { id: "m1", date: "AUG 28", label: "Gutter cleaning",         meta: "Bell & Sons · every 6mo",        due: "DUE SOON", dueColor: "#92400E", dueBg: "#FEF3C7" },
-    { id: "m2", date: "SEP 3",  label: "HVAC filter swap",        meta: "DIY · every 3mo",                due: "UPCOMING", dueColor: M.muted,   dueBg: "#F0F1F5" },
-    { id: "m3", date: "SEP 15", label: "Lawn fertilisation",      meta: "GreenPro Lawn · every 6 weeks",  due: "UPCOMING", dueColor: M.muted,   dueBg: "#F0F1F5" },
-    { id: "m4", date: "OCT 1",  label: "Pest control inspection", meta: "SafeGuard Pest · annual",        due: "UPCOMING", dueColor: M.muted,   dueBg: "#F0F1F5" },
-  ];
-
-  const rows = scheduleRows.length > 0 ? scheduleRows : MOCK_SCHEDULE;
-
   // At-risk warnings
   const systemAges  = activePropertyId ? systemAgesService.get(activePropertyId) : {};
   const warnings    = getAtRiskWarnings(jobs, systemAges, Date.now(), 30);
@@ -163,18 +153,27 @@ export function MobileMaintenancePage() {
         background: M.card, border: `1px solid ${M.cardBdr}`,
         borderRadius: M.radius, boxShadow: M.cardShadow, overflow: "hidden",
       }}>
-        {rows.map((row, i) => (
-          <ScheduleRow
-            key={row.id}
-            date={row.date}
-            label={row.label}
-            meta={row.meta}
-            due={row.due}
-            dueColor={row.dueColor}
-            dueBg={row.dueBg}
-            isLast={i === rows.length - 1}
-          />
-        ))}
+        {scheduleRows.length === 0 ? (
+          <div style={{ padding: "24px 18px" }}>
+            <div style={{ font: `500 13.5px/1.3 ${F.body}`, color: M.ink, marginBottom: 6 }}>Nothing scheduled yet</div>
+            <div style={{ font: `400 12px/1.5 ${F.body}`, color: M.muted }}>
+              Add a recurring service to see its next visit here.
+            </div>
+          </div>
+        ) : (
+          scheduleRows.map((row, i) => (
+            <ScheduleRow
+              key={row.id}
+              date={row.date}
+              label={row.label}
+              meta={row.meta}
+              due={row.due}
+              dueColor={row.dueColor}
+              dueBg={row.dueBg}
+              isLast={i === scheduleRows.length - 1}
+            />
+          ))
+        )}
 
         {/* Add recurring service row */}
         <div

@@ -27,9 +27,14 @@ const mockActor = {
   getMyManagedProperties:    vi.fn(),
   getPropertyManagers:       vi.fn(),
   getManagerInviteByToken:   vi.fn(),
+  cancelManagerInvite:       vi.fn(),
+  getPendingInvitesForProperty: vi.fn(),
   recordManagerActivity:     vi.fn(),
   getOwnerNotifications:     vi.fn(),
   dismissNotifications:      vi.fn(),
+  requestApproval:           vi.fn(),
+  respondToApproval:         vi.fn(),
+  getApprovals:              vi.fn(),
   isAuthorized:              vi.fn(),
   getPropertyYearBuilt:      vi.fn(),
 };
@@ -432,6 +437,7 @@ describe("propertyService", () => {
         invitedBy:   { toText: () => "owner-principal" },
         createdAt:   BigInt(1_735_689_600_000_000_000),
         expiresAt:   BigInt(1_735_689_600_000_000_000 + 7 * 24 * 3600 * 1_000_000_000),
+        spendLimitCents: [] as bigint[],
         ...overrides,
       };
     }
@@ -550,6 +556,7 @@ describe("propertyService", () => {
             role:        { Viewer: null },
             displayName: "Alice",
             addedAt:     BigInt(1_735_689_600_000_000_000),
+            spendLimitCents: [] as bigint[],
           },
         ],
       });
@@ -589,12 +596,106 @@ describe("propertyService", () => {
           invitedBy:   { toText: () => "owner-p" },
           createdAt:   BigInt(1_735_689_600_000_000_000),
           expiresAt:   BigInt(1_735_689_600_000_000_000 + 7 * 24 * 3600 * 1_000_000_000),
+          spendLimitCents: [] as bigint[],
         },
       ]);
       const invite = await propertyService.getManagerInviteByToken("abc-token");
       expect(invite).not.toBeNull();
       expect(invite!.token).toBe("abc-token");
       expect(invite!.role).toBe("Viewer");
+    });
+  });
+
+  // ── cancelManagerInvite ───────────────────────────────────────────────────────
+  describe("cancelManagerInvite", () => {
+    it("resolves without error on success", async () => {
+      mockActor.cancelManagerInvite.mockResolvedValue({ ok: null });
+      await expect(propertyService.cancelManagerInvite("1", "abc-token")).resolves.toBeUndefined();
+    });
+
+    it("throws on canister error", async () => {
+      mockActor.cancelManagerInvite.mockResolvedValue({ err: { NotFound: null } });
+      await expect(propertyService.cancelManagerInvite("1", "bad-token")).rejects.toThrow("NotFound");
+    });
+  });
+
+  // ── getPendingInvitesForProperty ──────────────────────────────────────────────
+  describe("getPendingInvitesForProperty", () => {
+    it("returns mapped invites on success", async () => {
+      mockActor.getPendingInvitesForProperty.mockResolvedValue({
+        ok: [
+          {
+            propertyId:  "1",
+            token:       "abc-token",
+            role:        { Manager: null },
+            displayName: "Alex",
+            invitedBy:   { toText: () => "owner-p" },
+            createdAt:   BigInt(1_735_689_600_000_000_000),
+            expiresAt:   BigInt(1_735_689_600_000_000_000 + 90 * 24 * 3600 * 1_000_000_000),
+            spendLimitCents: [BigInt(50000)],
+          },
+        ],
+      });
+      const [invite] = await propertyService.getPendingInvitesForProperty("1");
+      expect(invite.token).toBe("abc-token");
+      expect(invite.role).toBe("Manager");
+      expect(invite.spendLimitCents).toBe(50000);
+    });
+
+    it("throws on canister error", async () => {
+      mockActor.getPendingInvitesForProperty.mockResolvedValue({ err: { NotAuthorized: null } });
+      await expect(propertyService.getPendingInvitesForProperty("1")).rejects.toThrow("NotAuthorized");
+    });
+  });
+
+  // ── requestApproval / respondToApproval / getApprovals ────────────────────────
+  describe("approval queue", () => {
+    it("requestApproval returns the new approval id", async () => {
+      mockActor.requestApproval.mockResolvedValue({ ok: BigInt(7) });
+      const id = await propertyService.requestApproval("1", "Water heater replacement", 234000);
+      expect(id).toBe(7);
+    });
+
+    it("requestApproval throws on canister error", async () => {
+      mockActor.requestApproval.mockResolvedValue({ err: { NotAuthorized: null } });
+      await expect(propertyService.requestApproval("1", "x", 100)).rejects.toThrow("NotAuthorized");
+    });
+
+    it("respondToApproval resolves without error on success", async () => {
+      mockActor.respondToApproval.mockResolvedValue({ ok: null });
+      await expect(propertyService.respondToApproval("1", 7, true)).resolves.toBeUndefined();
+    });
+
+    it("respondToApproval throws on canister error", async () => {
+      mockActor.respondToApproval.mockResolvedValue({ err: { NotFound: null } });
+      await expect(propertyService.respondToApproval("1", 999, false)).rejects.toThrow("NotFound");
+    });
+
+    it("getApprovals returns mapped approval requests", async () => {
+      mockActor.getApprovals.mockResolvedValue({
+        ok: [
+          {
+            id: BigInt(7),
+            propertyId: "1",
+            requestedBy: { toText: () => "manager-p" },
+            requesterName: "Alex",
+            description: "Water heater replacement",
+            amountCents: BigInt(234000),
+            createdAt: BigInt(1_735_689_600_000_000_000),
+            status: { Pending: null },
+          },
+        ],
+      });
+      const [req] = await propertyService.getApprovals("1");
+      expect(req.id).toBe(7);
+      expect(req.requestedBy).toBe("manager-p");
+      expect(req.amountCents).toBe(234000);
+      expect(req.status).toBe("Pending");
+    });
+
+    it("getApprovals throws on canister error", async () => {
+      mockActor.getApprovals.mockResolvedValue({ err: { NotAuthorized: null } });
+      await expect(propertyService.getApprovals("1")).rejects.toThrow("NotAuthorized");
     });
   });
 

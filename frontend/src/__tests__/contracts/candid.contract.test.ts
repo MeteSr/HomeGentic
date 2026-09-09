@@ -231,15 +231,18 @@ describe("property IDL factory", () => {
   it("exposes the expected methods", () => {
     const svc = extractService(propertyIdlFactory);
     expect(Object.keys(svc).sort()).toEqual([
+      "cancelManagerInvite",
       "cancelTransfer",
       "claimManagerRole",
       "claimTransfer",
       "dismissNotifications",
+      "getApprovals",
       "getManagerInviteByToken",
       "getMyManagedProperties",
       "getMyProperties",
       "getOwnerNotifications",
       "getOwnershipHistory",
+      "getPendingInvitesForProperty",
       "getPendingTransfer",
       "getPendingTransferByToken",
       "getPendingVerifications",
@@ -258,7 +261,9 @@ describe("property IDL factory", () => {
       "recordManagerActivity",
       "registerProperty",
       "removeManager",
+      "requestApproval",
       "resignAsManager",
+      "respondToApproval",
       "setTier",
       "submitVerification",
       "updateManagerRole",
@@ -273,11 +278,13 @@ describe("property IDL factory", () => {
       .map(([name]) => name)
       .sort();
     expect(queries).toEqual([
+      "getApprovals",
       "getManagerInviteByToken",
       "getMyManagedProperties",
       "getMyProperties",
       "getOwnerNotifications",
       "getOwnershipHistory",
+      "getPendingInvitesForProperty",
       "getPendingTransfer",
       "getPendingTransferByToken",
       "getPendingVerifications",

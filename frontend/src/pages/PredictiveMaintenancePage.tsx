@@ -11,6 +11,13 @@ import {
   type AnnualTask,
   type ScheduleEntry,
 } from "@/services/maintenance";
+import {
+  recurringService,
+  SERVICE_TYPE_LABELS,
+  FREQUENCY_LABELS,
+  type RecurringService,
+  type VisitLog,
+} from "@/services/recurringService";
 import { Send, X, ChevronDown, ChevronUp } from "lucide-react";
 import { systemAgesService } from "@/services/systemAges";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -23,104 +30,71 @@ const R = V2_RADIUS;
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-interface MockVisit {
+type RecurringStatus = "active" | "due-soon" | "paused";
+
+interface RecurringVisitDisplay {
   dateLabel: string;   // "AUG 26"
   note: string;
-  amount: number;      // dollars
-  verified: boolean;
 }
 
-interface MockRecurring {
+interface RecurringDisplay {
   id: string;
   name: string;
   intervalPill: string;   // "7d" | "3mo" | "6mo"
-  frequencyLabel: string; // "Weekly" | "Quarterly" | "Semiannual"
-  schedule: string;       // "Mon–Nov" or "" for month-based
+  frequencyLabel: string; // "Weekly" | "Quarterly" | "Semi-Annually"
   contractor: string;
-  amountPerVisit: number;
   startDate: string;      // "Mar 2025"
-  status: "active" | "due-soon" | "paused";
-  pausedSince?: string;
+  status: RecurringStatus;
   nextVisitLabel: string; // "Thu, Aug 27" | "Not scheduled"
-  nextVisitDate?: string; // for skip button label "Aug 27"
-  periodLabel: string;    // "THIS SEASON" | "LAST 12 MO"
-  periodTotal: number;
-  visits: MockVisit[];
+  nextVisitShort?: string; // for skip button label "Aug 27"
+  daysUntilNext: number;  // Infinity when paused
+  visits: RecurringVisitDisplay[];
 }
 
-// ── Mock recurring data ────────────────────────────────────────────────────────
+// Days between visits per frequency — mirrors MobileMaintenancePage's FREQ_DAYS.
+const FREQ_DAYS: Record<string, number> = {
+  Weekly: 7, BiWeekly: 14, Monthly: 30, Quarterly: 90, SemiAnnually: 180, Annually: 365,
+};
 
-const MOCK_RECURRING: MockRecurring[] = [
-  {
-    id: "r1",
-    name: "Lawn Maintenance",
-    intervalPill: "7d",
-    frequencyLabel: "Weekly",
-    schedule: "Mon–Nov",
-    contractor: "Greenway Lawn Co",
-    amountPerVisit: 35,
-    startDate: "Mar 2025",
-    status: "active",
-    nextVisitLabel: "Thu, Aug 27",
-    nextVisitDate: "Aug 27",
-    periodLabel: "THIS SEASON",
-    periodTotal: 1045,
-    visits: [
-      { dateLabel: "AUG 26", note: "Mow, trim, edge. Front bed re-mulched at no charge.", amount: 35, verified: true },
-      { dateLabel: "AUG 19", note: "Mow, trim, edge.", amount: 35, verified: true },
-      { dateLabel: "AUG 12", note: "Mow, trim, edge. Noted grub damage near the rear fence.", amount: 35, verified: true },
-      { dateLabel: "JUL 29", note: "Mow, trim, edge.", amount: 35, verified: true },
-    ],
-  },
-  {
-    id: "r2",
-    name: "HVAC Filter Service",
-    intervalPill: "3mo",
-    frequencyLabel: "Quarterly",
-    schedule: "",
-    contractor: "Ridgeline HVAC",
-    amountPerVisit: 95,
-    startDate: "Jun 2024",
-    status: "active",
-    nextVisitLabel: "Wed, Sep 2",
-    nextVisitDate: "Sep 2",
-    periodLabel: "LAST 12 MO",
-    periodTotal: 380,
-    visits: [],
-  },
-  {
-    id: "r3",
-    name: "Gutter Cleaning Service",
-    intervalPill: "6mo",
-    frequencyLabel: "Semiannual",
-    schedule: "",
-    contractor: "Bell & Sons",
-    amountPerVisit: 180,
-    startDate: "Apr 2024",
-    status: "due-soon",
-    nextVisitLabel: "Fri, Aug 21",
-    nextVisitDate: "Aug 21",
-    periodLabel: "LAST 12 MO",
-    periodTotal: 360,
-    visits: [],
-  },
-  {
-    id: "r4",
-    name: "Pest Control",
-    intervalPill: "3mo",
-    frequencyLabel: "Quarterly",
-    schedule: "",
-    contractor: "Volunteer Pest",
-    amountPerVisit: 110,
-    startDate: "Apr 2021",
-    status: "paused",
-    pausedSince: "Jun 2026",
-    nextVisitLabel: "Not scheduled",
-    periodLabel: "LAST 12 MO",
-    periodTotal: 220,
-    visits: [],
-  },
-];
+const INTERVAL_PILL: Record<string, string> = {
+  Weekly: "7d", BiWeekly: "14d", Monthly: "1mo", Quarterly: "3mo", SemiAnnually: "6mo", Annually: "1yr",
+};
+
+function monthYearLabel(isoDate: string): string {
+  const d = new Date(isoDate);
+  if (isNaN(d.getTime())) return isoDate;
+  return d.toLocaleDateString(undefined, { month: "short", year: "numeric" });
+}
+
+/** Real recurring-service + visit-log data mapped to the row shape. No dollar
+ *  amounts or verification flags exist in the backend, so those columns are
+ *  dropped rather than faked. */
+function toRecurringDisplay(svc: RecurringService, visits: VisitLog[]): RecurringDisplay {
+  const sortedVisits = [...visits].sort((a, b) => b.visitDate.localeCompare(a.visitDate));
+  const lastVisit    = sortedVisits[0]?.visitDate ?? null;
+  const freqDays     = FREQ_DAYS[svc.frequency] ?? 30;
+  const nextDate     = new Date(new Date(lastVisit ?? svc.startDate).getTime() + freqDays * 86400000);
+  const daysUntilNext = Math.ceil((nextDate.getTime() - Date.now()) / 86400000);
+  const paused       = svc.status === "Paused";
+  const status: RecurringStatus = paused ? "paused" : daysUntilNext <= 7 ? "due-soon" : "active";
+
+  return {
+    id:             svc.id,
+    name:           SERVICE_TYPE_LABELS[svc.serviceType] ?? svc.serviceType,
+    intervalPill:   INTERVAL_PILL[svc.frequency] ?? svc.frequency,
+    frequencyLabel: FREQUENCY_LABELS[svc.frequency] ?? svc.frequency,
+    contractor:     svc.providerName,
+    startDate:      monthYearLabel(svc.startDate),
+    status,
+    nextVisitLabel: paused ? "Not scheduled" : nextDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }),
+    nextVisitShort: paused ? undefined : nextDate.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+    daysUntilNext:  paused ? Infinity : daysUntilNext,
+    visits: sortedVisits.map(v => ({
+      dateLabel: new Date(v.visitDate).toLocaleDateString(undefined, { month: "short", day: "numeric" }).toUpperCase(),
+      note:      v.note ?? "Service visit logged.",
+    })),
+  };
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -177,7 +151,7 @@ function DaysChip({ days }: { days: number }) {
   );
 }
 
-function StatusBadge({ status }: { status: MockRecurring["status"] }) {
+function StatusBadge({ status }: { status: RecurringStatus }) {
   const map = {
     "active":   { label: "ACTIVE",   color: C.green, bg: C.greenBg, border: "#BFE3CE" },
     "due-soon": { label: "DUE SOON", color: C.amberText, bg: C.amberBg, border: C.amberBorder },
@@ -312,7 +286,7 @@ function AddToScheduleModal({ pred, propertyId, onSave, onClose }: { pred: Syste
 
 // ── Recurring service row ──────────────────────────────────────────────────────
 
-function RecurringRow({ svc }: { svc: MockRecurring }) {
+function RecurringRow({ svc }: { svc: RecurringDisplay }) {
   const [expanded, setExpanded] = useState(false);
 
   const colLabel: React.CSSProperties = {
@@ -337,11 +311,8 @@ function RecurringRow({ svc }: { svc: MockRecurring }) {
           </div>
           <div style={{ fontFamily: F.body, fontSize: 12, color: C.muted }}>
             {svc.frequencyLabel}
-            {svc.schedule ? ` · ${svc.schedule}` : ""}
             {" · "}{svc.contractor}
-            {" · "}${svc.amountPerVisit} per visit
             {" · "}started {svc.startDate}
-            {svc.status === "paused" && svc.pausedSince ? ` · paused since ${svc.pausedSince}` : ""}
           </div>
         </div>
 
@@ -351,12 +322,6 @@ function RecurringRow({ svc }: { svc: MockRecurring }) {
           <div style={{ ...colValue, color: svc.status === "due-soon" ? C.amberText : C.ink }}>
             {svc.nextVisitLabel}
           </div>
-        </div>
-
-        {/* Period total */}
-        <div style={{ textAlign: "right", flexShrink: 0, minWidth: 72 }}>
-          <div style={colLabel}>{svc.periodLabel}</div>
-          <div style={colValue}>${svc.periodTotal.toLocaleString()}</div>
         </div>
 
         {/* Toggle */}
@@ -379,37 +344,29 @@ function RecurringRow({ svc }: { svc: MockRecurring }) {
           {svc.visits.length > 0 ? (
             <div>
               {/* Visit log header */}
-              <div style={{ display: "grid", gridTemplateColumns: "78px minmax(0,1fr) 68px 96px", gap: 14, padding: "11px 24px 9px", borderBottom: `1px solid ${C.border}` }}>
-                {["DATE", "NOTES", "PRICE", "RECORD"].map(h => (
+              <div style={{ display: "grid", gridTemplateColumns: "78px minmax(0,1fr)", gap: 14, padding: "11px 24px 9px", borderBottom: `1px solid ${C.border}` }}>
+                {["DATE", "NOTES"].map(h => (
                   <span key={h} style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, letterSpacing: "0.09em", color: C.muted }}>{h}</span>
                 ))}
               </div>
               {svc.visits.map((v, i) => (
-                <div key={i} style={{ display: "grid", gridTemplateColumns: "78px minmax(0,1fr) 68px 96px", gap: 14, alignItems: "center", padding: "12px 24px", borderBottom: `1px solid ${C.border}` }}>
+                <div key={i} style={{ display: "grid", gridTemplateColumns: "78px minmax(0,1fr)", gap: 14, alignItems: "center", padding: "12px 24px", borderBottom: `1px solid ${C.border}` }}>
                   <span style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700, color: C.ink }}>{v.dateLabel}</span>
                   <span style={{ fontFamily: F.body, fontSize: 13, color: C.ink }}>{v.note}</span>
-                  <span style={{ fontFamily: F.mono, fontSize: 12.5, fontWeight: 500, color: C.ink }}>${v.amount}</span>
-                  <span style={{
-                    justifySelf: "start", fontFamily: F.mono, fontSize: 9, fontWeight: 700, letterSpacing: "0.09em",
-                    color: C.blue, background: C.vbadge, border: `1px solid ${C.cobalTint}`,
-                    borderRadius: R.pill, padding: "5px 9px", whiteSpace: "nowrap",
-                  }}>
-                    {v.verified ? "SIGNED" : "AWAITING PRO"}
-                  </span>
                 </div>
               ))}
             </div>
           ) : (
             <div style={{ padding: "16px 24px" }}>
-              <p style={{ fontFamily: F.body, fontSize: 13, color: C.muted, margin: 0 }}>No visits logged yet. The first countersigned visit starts the history.</p>
+              <p style={{ fontFamily: F.body, fontSize: 13, color: C.muted, margin: 0 }}>No visits logged yet.</p>
             </div>
           )}
 
           {/* Action buttons */}
           <div style={{ display: "flex", gap: 9, padding: "14px 24px", flexWrap: "wrap" }}>
-            {svc.nextVisitDate && svc.status !== "paused" && (
+            {svc.nextVisitShort && svc.status !== "paused" && (
               <button style={{ fontFamily: F.body, fontSize: 12.5, fontWeight: 600, color: C.ink, background: C.paper, border: `1.5px solid ${C.divider}`, borderRadius: R.pill, padding: "10px 17px", cursor: "pointer" }}>
-                Skip {svc.nextVisitDate}
+                Skip {svc.nextVisitShort}
               </button>
             )}
             {svc.status !== "paused" && (
@@ -450,6 +407,8 @@ export default function PredictiveMaintenancePage() {
   const [report,         setReport]         = useState<MaintenanceReport | null>(null);
   const [scheduleEntries, setScheduleEntries] = useState<ScheduleEntry[]>([]);
   const [scheduleTarget,  setScheduleTarget]  = useState<SystemPrediction | null>(null);
+  const [recurring,       setRecurring]       = useState<RecurringService[]>([]);
+  const [visitLogMap,     setVisitLogMap]     = useState<Record<string, VisitLog[]>>({});
 
   const property = properties.find(p => String(p.id) === selectedId);
   const propJobs = jobs.filter(j => j.propertyId === selectedId);
@@ -460,6 +419,20 @@ export default function PredictiveMaintenancePage() {
     setReport(maintenanceService.predict(Number(property.yearBuilt), propJobs, systemAges, String(property.state)));
     maintenanceService.getScheduleByProperty(String(property.id)).then(setScheduleEntries);
   }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!selectedId) return;
+    let cancelled = false;
+    recurringService.getByProperty(selectedId).then(async (svcs) => {
+      if (cancelled) return;
+      setRecurring(svcs);
+      const entries = await Promise.all(
+        svcs.map(async (s) => [s.id, await recurringService.getVisitLogs(s.id).catch(() => [])] as [string, VisitLog[]])
+      );
+      if (!cancelled) setVisitLogMap(Object.fromEntries(entries));
+    }).catch(() => { if (!cancelled) { setRecurring([]); setVisitLogMap({}); } });
+    return () => { cancelled = true; };
+  }, [selectedId]);
 
   React.useEffect(() => {
     if (!deepLinkSystem || !report) return;
@@ -481,10 +454,12 @@ export default function PredictiveMaintenancePage() {
   const dueSoonCount = upcomingTasksWithDates.filter(({ due }) => daysUntil(due) <= 30).length + criticalPreds.length;
 
   // Recurring service counts
-  const recurringServices = MOCK_RECURRING;
-  const activeRecurring   = recurringServices.filter(s => s.status === "active");
+  const recurringServices = recurring
+    .filter(s => s.status !== "Cancelled")
+    .map(s => toRecurringDisplay(s, visitLogMap[s.id] ?? []));
+  const activeRecurring   = recurringServices.filter(s => s.status === "active" || s.status === "due-soon");
   const pausedCount       = recurringServices.filter(s => s.status === "paused").length;
-  const recurringVisitsDue30 = activeRecurring.length; // simplified: each active contract has a visit in 30 days
+  const recurringVisitsDue30 = recurringServices.filter(s => s.daysUntilNext <= 30).length;
 
   // Seasonal tips
   const month  = new Date().getMonth();
@@ -509,8 +484,11 @@ export default function PredictiveMaintenancePage() {
         { title: "Flush water heater sediment",             desc: "Annual flush extends tank life by 3–5 years." },
       ];
 
-  // Next recurring visit in N days (rough: closest active service)
-  const nextVisitDaysMsg = activeRecurring.length > 0 ? "next visit in 2 days" : "";
+  // Next recurring visit — soonest active/due-soon service's real due date
+  const soonestDays = activeRecurring.reduce((min, s) => Math.min(min, s.daysUntilNext), Infinity);
+  const nextVisitDaysMsg = Number.isFinite(soonestDays)
+    ? `next visit in ${Math.max(soonestDays, 0)} day${Math.max(soonestDays, 0) !== 1 ? "s" : ""}`
+    : "";
 
   if (isMobile) {
     return (
@@ -544,7 +522,7 @@ export default function PredictiveMaintenancePage() {
           </div>
         </div>
 
-        {/* ── Recurring services (always shown — uses mock data, not property-specific) ── */}
+        {/* ── Recurring services ─────────────────────────────────────────────── */}
         <div style={{ border: `1px solid ${C.border}`, background: "#fff", borderRadius: R.card, boxShadow: V2_SHADOWS.card, marginBottom: 18, overflow: "hidden" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "15px 24px", borderBottom: `1px solid ${C.border}`, flexWrap: "wrap", gap: 16 }}>
             <span style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 700, letterSpacing: "0.11em", color: C.muted }}>
@@ -554,9 +532,15 @@ export default function PredictiveMaintenancePage() {
               Add service
             </button>
           </div>
-          {recurringServices.map(svc => (
-            <RecurringRow key={svc.id} svc={svc} />
-          ))}
+          {recurringServices.length === 0 ? (
+            <div style={{ padding: "2rem", textAlign: "center" }}>
+              <p style={{ fontFamily: F.body, fontSize: 14, color: C.muted }}>No recurring services yet.</p>
+            </div>
+          ) : (
+            recurringServices.map(svc => (
+              <RecurringRow key={svc.id} svc={svc} />
+            ))
+          )}
         </div>
 
         {/* ── Scheduled tasks (always shown; empty state when no property/predictions) ── */}

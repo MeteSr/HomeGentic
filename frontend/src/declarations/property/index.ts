@@ -96,21 +96,23 @@ export const idlFactory = ({ IDL }: any) => {
   });
 
   // Delegated management IDL types
-  const ManagerRole = IDL.Variant({ Viewer: IDL.Null, Manager: IDL.Null });
+  const ManagerRole = IDL.Variant({ Viewer: IDL.Null, Manager: IDL.Null, CoOwner: IDL.Null });
   const PropertyManager = IDL.Record({
-    principal   : IDL.Principal,
-    role        : ManagerRole,
-    displayName : IDL.Text,
-    addedAt     : IDL.Int,
+    principal       : IDL.Principal,
+    role            : ManagerRole,
+    displayName     : IDL.Text,
+    addedAt         : IDL.Int,
+    spendLimitCents : IDL.Opt(IDL.Nat),
   });
   const ManagerInvite = IDL.Record({
-    propertyId  : IDL.Text,
-    token       : IDL.Text,
-    role        : ManagerRole,
-    displayName : IDL.Text,
-    invitedBy   : IDL.Principal,
-    createdAt   : IDL.Int,
-    expiresAt   : IDL.Int,
+    propertyId      : IDL.Text,
+    token           : IDL.Text,
+    role            : ManagerRole,
+    displayName     : IDL.Text,
+    invitedBy       : IDL.Principal,
+    createdAt       : IDL.Int,
+    expiresAt       : IDL.Int,
+    spendLimitCents : IDL.Opt(IDL.Nat),
   });
   const OwnerNotification = IDL.Record({
     id               : IDL.Nat,
@@ -121,6 +123,17 @@ export const idlFactory = ({ IDL }: any) => {
     seen             : IDL.Bool,
   });
   const ManagedProperty = IDL.Record({ property: Property, role: ManagerRole });
+  const ApprovalStatus = IDL.Variant({ Pending: IDL.Null, Approved: IDL.Null, Declined: IDL.Null });
+  const PendingApprovalRequest = IDL.Record({
+    id            : IDL.Nat,
+    propertyId    : IDL.Text,
+    requestedBy   : IDL.Principal,
+    requesterName : IDL.Text,
+    description   : IDL.Text,
+    amountCents   : IDL.Nat,
+    createdAt     : IDL.Int,
+    status        : ApprovalStatus,
+  });
 
   return IDL.Service({
     registerProperty: IDL.Func([RegisterArgs], [IDL.Variant({ ok: Property, err: Error })], []),
@@ -165,7 +178,7 @@ export const idlFactory = ({ IDL }: any) => {
     getPropertyOwner: IDL.Func([IDL.Text], [IDL.Opt(IDL.Principal)], ["query"]),
     // Delegated management
     inviteManager: IDL.Func(
-      [IDL.Text, ManagerRole, IDL.Text],
+      [IDL.Text, ManagerRole, IDL.Text, IDL.Opt(IDL.Nat)],
       [IDL.Variant({ ok: ManagerInvite, err: Error })],
       []
     ),
@@ -174,8 +187,10 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: IDL.Record({ propertyId: IDL.Text, role: ManagerRole }), err: Error })],
       []
     ),
+    cancelManagerInvite: IDL.Func([IDL.Text, IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    getPendingInvitesForProperty: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Vec(ManagerInvite), err: Error })], ["query"]),
     updateManagerRole: IDL.Func(
-      [IDL.Text, IDL.Principal, ManagerRole],
+      [IDL.Text, IDL.Principal, ManagerRole, IDL.Opt(IDL.Nat)],
       [IDL.Variant({ ok: IDL.Null, err: Error })],
       []
     ),
@@ -187,6 +202,17 @@ export const idlFactory = ({ IDL }: any) => {
     recordManagerActivity: IDL.Func([IDL.Text, IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     getOwnerNotifications: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Vec(OwnerNotification), err: Error })], ["query"]),
     dismissNotifications: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
+    requestApproval: IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Nat],
+      [IDL.Variant({ ok: IDL.Nat, err: Error })],
+      []
+    ),
+    respondToApproval: IDL.Func(
+      [IDL.Text, IDL.Nat, IDL.Bool],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
+    getApprovals: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Vec(PendingApprovalRequest), err: Error })], ["query"]),
     isAuthorized: IDL.Func([IDL.Text, IDL.Principal, IDL.Bool], [IDL.Bool], ["query"]),
     getPropertyYearBuilt: IDL.Func([IDL.Text], [IDL.Opt(IDL.Nat)], ["query"]),
   });

@@ -175,15 +175,18 @@ uploadPhoto(6) -> (1)"
 `;
 
 exports[`Candid contract snapshots — method arity > property 1`] = `
-"cancelTransfer(1) -> (1)
+"cancelManagerInvite(2) -> (1)
+cancelTransfer(1) -> (1)
 claimManagerRole(1) -> (1)
 claimTransfer(1) -> (1)
 dismissNotifications(1) -> (1)
+getApprovals(1) -> (1) [query]
 getManagerInviteByToken(1) -> (1) [query]
 getMyManagedProperties(0) -> (1) [query]
 getMyProperties(0) -> (1) [query]
 getOwnerNotifications(1) -> (1) [query]
 getOwnershipHistory(1) -> (1) [query]
+getPendingInvitesForProperty(1) -> (1) [query]
 getPendingTransfer(1) -> (1) [query]
 getPendingTransferByToken(1) -> (1) [query]
 getPendingVerifications(0) -> (1) [query]
@@ -195,17 +198,19 @@ getPropertyYearBuilt(1) -> (1) [query]
 getVerificationLevel(1) -> (1) [query]
 getVerifyStatus(1) -> (1) [query]
 initiateTransfer(1) -> (1)
-inviteManager(3) -> (1)
+inviteManager(4) -> (1)
 isAdminPrincipal(1) -> (1) [query]
 isAuthorized(3) -> (1) [query]
 markIdentityCleared(3) -> (1)
 recordManagerActivity(2) -> (1)
 registerProperty(1) -> (1)
 removeManager(2) -> (1)
+requestApproval(3) -> (1)
 resignAsManager(1) -> (1)
+respondToApproval(3) -> (1)
 setTier(2) -> (1)
 submitVerification(4) -> (1)
-updateManagerRole(3) -> (1)
+updateManagerRole(4) -> (1)
 verifyProperty(3) -> (1)"
 `;
 
