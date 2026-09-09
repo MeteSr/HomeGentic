@@ -449,8 +449,6 @@ describe("13.4.2: ReportPage rendering with 200-job snapshot", () => {
       expect(screen.queryByText(/200 Perf Ave/i)).toBeTruthy();
     }, { timeout: 3000 });
 
-    // All jobs should be in the DOM (report renders full history for buyers)
-    const jobDescriptions = document.querySelectorAll('[data-testid="job-row"], tr, li');
     // At minimum the snapshot loaded — the address proves it
     expect(screen.getByText(/200 Perf Ave/i)).toBeTruthy();
   });

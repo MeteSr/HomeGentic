@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { readFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from "fs";
+import { readFileSync, existsSync, mkdirSync, rmSync } from "fs";
 import { resolve } from "path";
 import { execSync } from "child_process";
 import os from "os";
@@ -84,30 +84,6 @@ describe("ICP.3 — generator fails fast when VITE_VOICE_AGENT_URL unset in prod
 // ── ICP.4 ─────────────────────────────────────────────────────────────────────
 
 describe("ICP.4 — generated .ic-assets.json5 contains required security headers", () => {
-  // Run the generator against a real temp dist/ and inspect the output
-  let output: Array<{ match: string; headers: Record<string, string> }>;
-
-  function runGenerator(voiceUrl: string): string {
-    const tmpDist = resolve(os.tmpdir(), `ic-assets-test-${Date.now()}`);
-    mkdirSync(tmpDist, { recursive: true });
-    // Patch the dist path by temporarily symlinking — simpler: just read stdout
-    // Instead: run the script with a small wrapper that intercepts writeFileSync.
-    // Simplest approach: point __dirname substitute via DIST env override not
-    // possible without modifying the script, so we write to a tmpDist and check.
-    //
-    // The generator resolves dist as __dirname/../dist (relative to the script).
-    // For the test we verify the real dist/.ic-assets.json5 if it exists,
-    // otherwise we verify the generator source statically.
-    rmSync(tmpDist, { recursive: true, force: true });
-    const script = resolve(SCRIPTS, "gen-ic-assets.mjs");
-    execSync(`node "${script}"`, {
-      env: { ...process.env, VITE_VOICE_AGENT_URL: voiceUrl, DFX_NETWORK: "local" },
-      stdio: "pipe",
-    });
-    // Read from the real dist path the script writes to
-    return readFileSync(resolve(ROOT, "frontend/dist/.ic-assets.json5"), "utf-8");
-  }
-
   it("HSTS header is present with max-age ≥ 1 year", () => {
     // Static check — verify the source emits HSTS rather than running a full build
     const src = read("frontend/scripts/gen-ic-assets.mjs");

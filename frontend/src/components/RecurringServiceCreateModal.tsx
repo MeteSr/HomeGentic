@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { CheckCircle, X } from "lucide-react";
 import { Button } from "@/components/Button";
 import { recurringService, type RecurringServiceType, type Frequency, SERVICE_TYPE_LABELS, FREQUENCY_LABELS } from "@/services/recurringService";
@@ -57,7 +57,6 @@ export default function RecurringServiceCreateModal({
   const [loading,     setLoading]     = useState(false);
   const [submitted,   setSubmitted]   = useState(false);
   const [createdName, setCreatedName] = useState("");
-  const [createdId,   setCreatedId]   = useState("");
   const [form,        setForm]        = useState(() => BLANK_FORM(defaultPropertyId ?? ""));
 
   // Sync default property when store or prop changes
@@ -96,7 +95,6 @@ export default function RecurringServiceCreateModal({
         notes:           form.notes.trim()            || undefined,
       });
       setCreatedName(SERVICE_TYPE_LABELS[form.serviceType]);
-      setCreatedId(svc.id);
       setSubmitted(true);
       onSuccess?.(svc.id);
     } catch (err: any) {

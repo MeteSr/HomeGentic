@@ -5,7 +5,7 @@
  * Shows record depth, HomeGentic score, and what a buyer would see.
  */
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Share2, ExternalLink, Trophy, TrendingUp, Shield } from "lucide-react";
 import { Layout } from "@/components/Layout";
@@ -79,7 +79,6 @@ export default function ResaleReadyPage() {
   const uniqueTypes = new Set(verifiedJobs.map((j) => j.serviceType)).size;
   const premium     = premiumEstimate(score);
   const history     = loadHistory();
-  const oldest      = history[0];
   const scoreGain   = history.length >= 2
     ? score - history[0].score
     : 0;

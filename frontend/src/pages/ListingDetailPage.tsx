@@ -6,7 +6,7 @@
  *   H6 — introduced (fee paid, winner unmasked, other four closed)
  */
 
-import React, { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Star, Lock } from "lucide-react";
 import { Layout } from "@/components/Layout";

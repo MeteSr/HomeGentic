@@ -3,7 +3,7 @@
  * Mirror of H6. Charge receipt, seller identity, and record access.
  */
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";

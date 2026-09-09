@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { paymentService } from "@/services/payment";
 import { Helmet } from "react-helmet-async";
 import { CheckCircle } from "lucide-react";
@@ -179,7 +179,7 @@ function InputField({
 
 // ─── Step Panels ──────────────────────────────────────────────────────────────
 
-function StepSelect({ data, setData, onNext }: {
+function StepSelect({ setData, onNext }: {
   data: GiftFormData;
   setData: React.Dispatch<React.SetStateAction<GiftFormData>>;
   onNext: () => void;

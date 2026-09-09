@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { ShieldCheck, X } from "lucide-react";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import type { ReEngagementPrompt } from "@/services/reEngagementService";

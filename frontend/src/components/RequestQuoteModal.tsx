@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { X, Send, Zap } from "lucide-react";
 import { Button } from "./Button";
 import { quoteService, Urgency } from "@/services/quote";

@@ -1,6 +1,5 @@
-import React from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, LogOut } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { usePropertyStore } from "@/store/propertyStore";
 import { V2_FONTS } from "@/theme";
@@ -111,7 +110,6 @@ export function MobileAccountPage() {
   const { properties }       = usePropertyStore();
 
   const email       = profile?.email ?? "";
-  const firstName   = email ? email.split("@")[0] : "Account";
   const fullName    = email || "Account";
   const planName    = TIER_LABELS[tier ?? "Basic"] ?? "Basic";
   const planUsage   = TIER_USAGE[tier ?? "Basic"] ?? "";
@@ -178,7 +176,7 @@ export function MobileAccountPage() {
         background: M.card, border: `1px solid ${M.cardBdr}`,
         borderRadius: M.radius, overflow: "hidden",
       }}>
-        {people.map((pe, i) => (
+        {people.map((pe) => (
           <PersonRow
             key={pe.abbr}
             abbr={pe.abbr}

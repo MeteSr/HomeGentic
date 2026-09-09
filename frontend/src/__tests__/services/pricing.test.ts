@@ -7,7 +7,7 @@
  * 10.2.4  DOM estimator — estimateDaysOnMarket()
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 
 // ─── 10.2.2 ───────────────────────────────────────────────────────────────────
 import { computePriceRecommendation } from "@/services/pricingService";

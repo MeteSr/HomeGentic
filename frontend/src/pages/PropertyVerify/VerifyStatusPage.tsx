@@ -1,4 +1,3 @@
-import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { V2_COLORS, V2_FONTS } from "@/theme";

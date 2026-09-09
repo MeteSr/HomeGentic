@@ -3,7 +3,6 @@
  * Uses best available estimate: homeValue > zip > flat bands.
  */
 
-import React from "react";
 import { getDocumentedValueEstimate, formatValueRange } from "@/services/scoreToValue";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 

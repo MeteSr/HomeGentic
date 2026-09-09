@@ -196,9 +196,6 @@ function unwrap<T>(result: any): T {
 // ─── Service factory ──────────────────────────────────────────────────────────
 
 function createRoomService() {
-  let mockRooms: Room[] = [];
-  let mockFixtureCounter = 0;
-
   return {
   async getRoomsByProperty(propertyId: string): Promise<Room[]> {
     const actor = await getActor();
@@ -231,11 +228,8 @@ function createRoomService() {
     return mapRoom(unwrap(await (actor as any).updateFixture(roomId, fixtureId, args)));
   },
 
-  /** Reset in-memory mock state — for use in tests only. */
-  reset() {
-    mockRooms = [];
-    mockFixtureCounter = 0;
-  },
+  /** No-op — this service has no in-memory mock state to reset. */
+  reset() {},
 
   async removeFixture(roomId: string, fixtureId: string): Promise<Room> {
     const actor = await getActor();

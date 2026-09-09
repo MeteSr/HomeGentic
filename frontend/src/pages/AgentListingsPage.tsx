@@ -4,7 +4,7 @@
  * permitted — invariant 03. Never bid count, bid contents, or competitor identity.
  */
 
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";

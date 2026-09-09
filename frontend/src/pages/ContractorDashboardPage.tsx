@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Briefcase, Star, Zap, Clock, ChevronDown, ChevronUp, X, Send, UserCog, PenLine, CheckCircle2, Lock } from "lucide-react";
 import { Layout } from "@/components/Layout";

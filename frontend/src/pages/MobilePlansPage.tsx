@@ -1,8 +1,7 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Check } from "lucide-react";
 import { paymentService } from "@/services/payment";
-import { useAuthStore } from "@/store/authStore";
 import { V2_FONTS } from "@/theme";
 import type { PlanTier, BillingCycle } from "@/services/planConstants";
 
@@ -140,7 +139,7 @@ function PlanCard({ plan, selected, cycle, onSelect }: {
 // ── Step 1: Plan picker ───────────────────────────────────────────────────────
 
 function PlansStep({
-  selected, onSelect, cycle, onCycle, onContinue, onBack,
+  selected, onSelect, cycle, onContinue, onBack,
 }: {
   selected:   PlanTier;
   onSelect:   (t: PlanTier) => void;
@@ -337,7 +336,6 @@ function ConfirmStep({
 export default function MobilePlansPage() {
   const navigate         = useNavigate();
   const [searchParams]   = useSearchParams();
-  const { tier: currentTier } = useAuthStore();
 
   // Pre-select from query param or default to Pro
   const preselect   = (searchParams.get("tier") as PlanTier | null) ?? "Pro";

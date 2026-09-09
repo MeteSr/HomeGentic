@@ -6,7 +6,7 @@
  * then clicks "Add to History" — or "Skip" to dismiss all.
  */
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 import type { ImportedPermit } from "@/services/permitImport";
 

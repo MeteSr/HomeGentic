@@ -90,7 +90,7 @@ vi.mock("@icp-sdk/core/agent", () => ({
   Actor: { createActor: vi.fn(() => mockRoomActor) },
 }));
 
-import { roomService, type Room, type CreateRoomArgs } from "@/services/room";
+import { roomService, type CreateRoomArgs } from "@/services/room";
 
 // Wrap reset() so it also clears the mock actor store — mirrors canister state reset.
 const _originalReset = roomService.reset.bind(roomService);

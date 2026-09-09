@@ -3,15 +3,6 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 // ─── Stateful mock actor for the job canister ─────────────────────────────────
 // Mirrors the in-memory mock that used to live inside job.ts.
 
-const STATUS_FWD: Record<string, object> = {
-  pending:                    { Pending: null },
-  in_progress:                { InProgress: null },
-  completed:                  { Completed: null },
-  verified:                   { Verified: null },
-  pending_homeowner_approval: { PendingHomeownerApproval: null },
-  rejected_by_homeowner:      { RejectedByHomeowner: null },
-};
-
 let _mockJobs: any[] = [];
 let _jobCounter = 0;
 
@@ -43,7 +34,7 @@ function makeRawJob(overrides: any = {}): any {
 }
 
 const mockJobActor = {
-  createJob: vi.fn(async (propertyId: string, title: string, serviceType: any, description: string,
+  createJob: vi.fn(async (propertyId: string, _title: string, serviceType: any, description: string,
     contractorName: any[], amount: bigint, completedDate: bigint,
     permitNumber: any[], warrantyMonths: any[], isDiy: boolean, sourceQuoteId: any[]) => {
     const raw = makeRawJob({
@@ -151,7 +142,7 @@ const mockJobActor = {
     return _mockJobs.filter((j) => Array.isArray(j.sourceQuoteId) && j.sourceQuoteId.length > 0);
   }),
 
-  createJobProposal: vi.fn(async (propertyId: string, title: string, serviceType: any, description: string,
+  createJobProposal: vi.fn(async (propertyId: string, _title: string, serviceType: any, description: string,
     contractorName: any[], amount: bigint, completedDate: bigint,
     permitNumber: any[], warrantyMonths: any[]) => {
     const raw = makeRawJob({

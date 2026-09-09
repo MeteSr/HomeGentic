@@ -6,7 +6,7 @@
  * §17.1.5 — "Not enough data" message when sampleSize < 5.
  */
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   getPriceBenchmark,

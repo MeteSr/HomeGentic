@@ -5,7 +5,7 @@
  * (p25, median, p75) derived from network-wide quote data and national baselines.
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { createPricingHistoryService } from "@/services/pricingHistoryService";
 
 describe("pricingHistoryService.getBenchmark (5.2.1)", () => {

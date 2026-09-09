@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { jobService, type Job } from "@/services/job";
 import { referralService } from "@/services/referralService";
 import { PLANS } from "@/services/planConstants";

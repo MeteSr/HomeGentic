@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { MobileAccountPage } from "@/pages/MobileAccountPage";
 import { User, CreditCard, Bell, Lock, CheckCircle, Download } from "lucide-react";
 import { Layout } from "@/components/Layout";
@@ -17,7 +17,7 @@ import UpgradeModal from "@/components/UpgradeModal";
 import ContractorBillingPanel from "@/components/ContractorBillingPanel";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
-import { isValidEmail, isValidPhone, isValidHttpsUrl } from "@/utils/validators";
+import { isValidEmail, isValidPhone } from "@/utils/validators";
 
 type Tab = "account" | "subscription" | "notifications" | "privacy";
 
@@ -179,7 +179,6 @@ function AccountTab({ profile, setProfile }: { profile: any; setProfile: any }) 
 // ── Subscription tab ──────────────────────────────────────────────────────────
 
 function SubscriptionTab({ profile }: { profile: any }) {
-  const navigate = useNavigate();
   const { tier: cachedTier, setTier: setStoreTier } = useAuthStore();
   const [tier,             setTier]             = useState<PlanTier>(cachedTier ?? (profile?.role === "Contractor" ? "ContractorPro" : "Free"));
   const [expiresAt,        setExpiresAt]        = useState<number | null>(null);

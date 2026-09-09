@@ -22,7 +22,6 @@ import { Helmet }                                  from "react-helmet-async";
 import {
   Eye, TrendingDown, CalendarDays, MessageSquare,
   Tag, Award, AlertTriangle, CheckCircle2, ExternalLink,
-  ChevronDown, ChevronUp,
 } from "lucide-react";
 
 import { V2_COLORS, V2_FONTS, V2_RADIUS }    from "@/theme";
@@ -193,7 +192,7 @@ export default function FsboListingManagerPage() {
   const [priceHistory,  setPriceHistory]  = useState(() => fsboService.getPriceHistory(propertyId));
   const [panoramas,     setPanoramas]     = useState<PanoramaEntry[]>([]);
   const [newRoomLabel,  setNewRoomLabel]  = useState("");
-  const [newPhotoFile,  setNewPhotoFile]  = useState<File | null>(null);
+  const [, setNewPhotoFile]  = useState<File | null>(null);
 
   const listingState = statusForRecord(record);
 

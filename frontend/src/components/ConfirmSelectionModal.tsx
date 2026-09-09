@@ -4,7 +4,7 @@
  * checkbox are compliance surface, not decoration — kept verbatim.
  */
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/Button";
 import { listingService, type MaskedProposal } from "@/services/listing";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";

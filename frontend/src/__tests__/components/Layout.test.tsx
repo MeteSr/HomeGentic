@@ -8,7 +8,6 @@
  * - User menu: avatar button opens popover with Settings / Upgrade / Sign out
  */
 
-import React from "react";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";

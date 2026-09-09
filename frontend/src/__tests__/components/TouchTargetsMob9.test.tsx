@@ -3,7 +3,6 @@
  * Apple HIG / WCAG 2.5.5: all interactive elements must be at least 44px tall.
  */
 import { render } from "@testing-library/react";
-import React from "react";
 import { Button } from "@/components/Button";
 
 // ── matchMedia mock (needed for any component using useBreakpoint) ─────────────
@@ -14,11 +13,6 @@ Object.defineProperty(window, "matchMedia", {
     addEventListener: () => {}, removeEventListener: () => {}, dispatchEvent: () => false,
   }),
 });
-
-// ── Helper ────────────────────────────────────────────────────────────────────
-function getComputedMinHeight(el: HTMLElement): string {
-  return el.style.minHeight || "";
-}
 
 // ── Button component ─────────────────────────────────────────────────────────
 

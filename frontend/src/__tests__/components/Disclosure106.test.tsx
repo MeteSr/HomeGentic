@@ -8,8 +8,7 @@
  *  10.6.5 — Inspection waiver readiness
  */
 
-import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, it, expect, beforeEach } from "vitest";
 import type { Job } from "@/services/job";
 import type { Property } from "@/services/property";

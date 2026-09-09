@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { RegisterDeviceModal } from "@/components/RegisterDeviceModal";
@@ -6,23 +6,15 @@ import { usePropertyStore } from "@/store/propertyStore";
 import { sensorService, SensorDevice, SensorEvent } from "@/services/sensor";
 import { propertyService } from "@/services/property";
 import { V2_COLORS, V2_FONTS } from "@/theme";
-import toast from "react-hot-toast";
 
 const C = V2_COLORS;
 const F = V2_FONTS;
-
-function inferServiceType(eventType: string): string {
-  if (/water|leak|flood/i.test(eventType)) return "Plumbing";
-  if (/hvac|filter|temperature|humidity/i.test(eventType)) return "HVAC";
-  return "Other";
-}
 
 // ── Sensor card ────────────────────────────────────────────────────────────────
 
 function SensorCard({ device, alert }: { device: SensorDevice; alert?: SensorEvent }) {
   const isAlert  = !!alert && alert.severity === "Critical";
   const isHigh   = !!alert && alert.severity === "Warning";
-  const isNormal = !alert;
 
   const statusLabel = isAlert ? "ALERT" : isHigh ? "HIGH" : "NORMAL";
   const statusColor = isAlert ? "#991B1B" : isHigh ? "#92400E" : "#166534";
@@ -116,16 +108,6 @@ export default function SensorPage() {
       setAlerts(alts);
     }).catch(e => console.error("[SensorPage] load failed:", e)).finally(() => setLoading(false));
   }, [selectedPropertyId]);
-
-  const handleDeactivate = async (deviceId: string) => {
-    try {
-      await sensorService.deactivateDevice(deviceId);
-      setDevices(prev => prev.filter(d => d.id !== deviceId));
-      toast.success("Device removed");
-    } catch {
-      toast.error("Could not remove device");
-    }
-  };
 
   const criticalAlert   = alerts.find(a => a.severity === "Critical");
   const activeCount     = devices.filter(d => d.isActive).length;

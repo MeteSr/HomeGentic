@@ -5,7 +5,7 @@
  * Separate from /contractor/profile (which is the contractor's own edit page).
  */
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { ArrowLeft, Star, ShieldCheck, Wrench, MessageSquare, Mail, Phone, Award } from "lucide-react";

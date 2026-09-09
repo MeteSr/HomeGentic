@@ -2,7 +2,6 @@
  * Unit tests for PermitCoverageIndicator component
  */
 
-import React from "react";
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 import PermitCoverageIndicator from "@/components/PermitCoverageIndicator";

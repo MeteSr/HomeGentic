@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { MobileMaintenancePage } from "@/pages/MobileMaintenancePage";
@@ -18,7 +18,7 @@ import {
   type RecurringService,
   type VisitLog,
 } from "@/services/recurringService";
-import { Send, X, ChevronDown, ChevronUp } from "lucide-react";
+import { X, ChevronDown, ChevronUp } from "lucide-react";
 import { systemAgesService } from "@/services/systemAges";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import SystemAgesModal from "@/components/SystemAgesModal";
@@ -98,11 +98,6 @@ function toRecurringDisplay(svc: RecurringService, visits: VisitLog[]): Recurrin
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function entryDate(e: ScheduleEntry): Date {
-  const month = e.plannedMonth !== undefined ? e.plannedMonth - 1 : 0;
-  return new Date(e.plannedYear, month, 1);
-}
-
 const SEASON_MONTHS: Record<string, number[]> = {
   Spring: [2, 3, 4], Summer: [5, 6, 7], Fall: [8, 9, 10], Winter: [11, 0, 1],
 };
@@ -170,57 +165,6 @@ function IntervalPill({ label, active }: { label: string; active: boolean }) {
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: 48, height: 48, flexShrink: 0, borderRadius: 13, background: active ? C.blue : C.neutralSurface3 }}>
       <span style={{ fontFamily: F.mono, fontSize: 7.5, fontWeight: 700, letterSpacing: "0.1em", color: active ? "rgba(252,252,253,0.62)" : C.muted, lineHeight: 1 }}>EVERY</span>
       <span style={{ fontFamily: F.mono, fontSize: 13, fontWeight: 700, color: active ? C.paper : C.ink, lineHeight: 1, marginTop: 3 }}>{label}</span>
-    </div>
-  );
-}
-
-// ── Maintenance chat ───────────────────────────────────────────────────────────
-
-function MaintenanceChatPanel({ yearBuilt, propertyAddress, report }: { yearBuilt: number; propertyAddress: string; report: MaintenanceReport | null }) {
-  interface Msg { role: "user" | "assistant"; text: string }
-  const [messages, setMessages] = useState<Msg[]>([
-    { role: "assistant", text: "Hi! I'm your HomeGentic Maintenance Advisor. Ask me anything about your home systems." },
-  ]);
-  const [input, setInput]     = useState("");
-  const [loading, setLoading] = useState(false);
-  const bottomRef             = useRef<HTMLDivElement>(null);
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
-
-  const send = async () => {
-    const msg = input.trim();
-    if (!msg || loading) return;
-    setInput("");
-    setMessages(m => [...m, { role: "user", text: msg }]);
-    setLoading(true);
-    try {
-      let reply = "";
-      setMessages(m => [...m, { role: "assistant", text: "…" }]);
-      for await (const chunk of maintenanceService.chat(msg, { yearBuilt, propertyAddress, report: report ?? undefined })) {
-        reply += chunk;
-        setMessages(m => { const copy = [...m]; copy[copy.length - 1] = { role: "assistant", text: reply }; return copy; });
-      }
-    } catch {
-      setMessages(m => { const copy = [...m]; copy[copy.length - 1] = { role: "assistant", text: "Sorry, couldn't reach the advisor." }; return copy; });
-    } finally {
-      setLoading(false); }
-  };
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-      <div style={{ flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-        {messages.map((m, i) => (
-          <div key={i} style={{ maxWidth: "85%", alignSelf: m.role === "user" ? "flex-end" : "flex-start", padding: "0.625rem 0.875rem", background: m.role === "user" ? C.ink : "#fff", color: m.role === "user" ? "#fff" : C.ink, fontFamily: F.body, fontSize: "0.8125rem", lineHeight: 1.5, border: m.role === "assistant" ? `1px solid ${C.border}` : "none" }}>
-            {m.text}
-          </div>
-        ))}
-        <div ref={bottomRef} />
-      </div>
-      <div style={{ borderTop: `1px solid ${C.border}`, padding: "0.75rem 1rem", display: "flex", gap: "0.5rem" }}>
-        <input aria-label="Ask about your home systems" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && !e.shiftKey && send()} placeholder="Ask about your home systems…" disabled={loading} style={{ flex: 1, padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, fontFamily: F.body, fontSize: "0.8125rem", outline: "none", background: "white" }} />
-        <button onClick={send} disabled={loading || !input.trim()} style={{ padding: "0.5rem 0.875rem", border: "none", background: C.blue, color: "white", cursor: loading || !input.trim() ? "not-allowed" : "pointer", opacity: loading || !input.trim() ? 0.6 : 1 }}>
-          <Send size={14} />
-        </button>
-      </div>
     </div>
   );
 }
@@ -402,10 +346,10 @@ export default function PredictiveMaintenancePage() {
   const [searchParams] = useSearchParams();
   const deepLinkSystem = searchParams.get("system");
 
-  const [selectedId,     setSelectedId]     = useState(String(properties[0]?.id ?? ""));
+  const [selectedId]     = useState(String(properties[0]?.id ?? ""));
   const [showSystemAges, setShowSystemAges] = useState(false);
   const [report,         setReport]         = useState<MaintenanceReport | null>(null);
-  const [scheduleEntries, setScheduleEntries] = useState<ScheduleEntry[]>([]);
+  const [, setScheduleEntries] = useState<ScheduleEntry[]>([]);
   const [scheduleTarget,  setScheduleTarget]  = useState<SystemPrediction | null>(null);
   const [recurring,       setRecurring]       = useState<RecurringService[]>([]);
   const [visitLogMap,     setVisitLogMap]     = useState<Record<string, VisitLog[]>>({});

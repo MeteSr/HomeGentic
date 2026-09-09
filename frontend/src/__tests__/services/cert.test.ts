@@ -27,7 +27,7 @@ vi.mock("@icp-sdk/core/agent", () => ({
   Actor: { createActor: vi.fn(() => mockCertActor) },
 }));
 
-import { certService, type IssuedCert } from "@/services/cert";
+import { certService } from "@/services/cert";
 import type { CertPayload } from "@/services/scoreService";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

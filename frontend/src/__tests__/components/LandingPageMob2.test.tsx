@@ -6,7 +6,6 @@
  */
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import React from "react";
 import LandingPage from "@/pages/LandingPage";
 
 function renderLanding() {

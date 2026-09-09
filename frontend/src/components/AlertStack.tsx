@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Sparkles, ArrowRight, X } from "lucide-react";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import type { AtRiskWarning } from "@/services/scoreDecayService";

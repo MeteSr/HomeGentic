@@ -189,15 +189,12 @@ describe.skipIf(!deployed)("getEventsForProperty — limit is respected", () => 
 // ─── getPendingAlerts — Critical severity ─────────────────────────────────────
 
 describe.skipIf(!deployed)("getPendingAlerts — returns Critical/Warning events", () => {
-  let criticalDeviceId: string;
-
   let alertIngested = false;
 
   beforeAll(async () => {
     const d = await sensorService.registerDevice(
       PROPERTY_ID, `${EXT_ID}-alert`, "Manual", "Alert test device"
     );
-    criticalDeviceId = d.id;
     try {
       await sensorService.ingestReading(PROPERTY_ID, d.id, "WaterLeak", 1, "bool", "raw");
       alertIngested = true;

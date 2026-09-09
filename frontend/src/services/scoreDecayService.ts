@@ -228,7 +228,7 @@ export function getTotalDecay(events: DecayEvent[]): number {
  */
 export function getAtRiskWarnings(
   jobs: Job[],
-  systemAges: SystemAges,
+  _systemAges: SystemAges,
   now: number,
   lookaheadDays = 30,
 ): AtRiskWarning[] {

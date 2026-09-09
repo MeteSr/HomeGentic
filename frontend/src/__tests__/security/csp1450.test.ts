@@ -35,12 +35,6 @@ function scriptSrc(): string {
   return m ? m[1] : "";
 }
 
-function connectSrc(): string {
-  const csp = cspContent();
-  const m = csp.match(/(?:^|;)\s*connect-src\s+([^;]*)/);
-  return m ? m[1] : "";
-}
-
 describe("CSP.1 — script-src must not contain 'unsafe-inline'", () => {
   it("'unsafe-inline' is absent from script-src", () => {
     // 'unsafe-inline' makes CSP useless against XSS — any injected script runs.

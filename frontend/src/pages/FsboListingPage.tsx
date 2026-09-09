@@ -12,7 +12,6 @@ import { Helmet } from "react-helmet-async";
 import { ShieldCheck } from "lucide-react";
 import { propertyService, type Property } from "@/services/property";
 import { jobService, type Job } from "@/services/job";
-import { photoService } from "@/services/photo";
 import { fsboService, type FsboRecord } from "@/services/fsbo";
 import { reportService, type ShareLink } from "@/services/report";
 import ListingPhotoManager from "@/components/ListingPhotoManager";

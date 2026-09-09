@@ -60,17 +60,6 @@ function makeRawPendingTransfer(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function makeRawTransferRecord(overrides: Record<string, unknown> = {}) {
-  return {
-    propertyId: "1",
-    from:       { toText: () => "from-principal" },
-    to:         { toText: () => "to-principal" },
-    timestamp:  BigInt(1_735_689_600_000_000_000),
-    txHash:     "abc123",
-    ...overrides,
-  };
-}
-
 function makeRawProperty(overrides: Record<string, unknown> = {}) {
   return {
     id:                "1",

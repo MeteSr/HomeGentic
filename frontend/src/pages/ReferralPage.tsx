@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Gift, Copy, Check, Users, DollarSign } from "lucide-react";
 import { neighborReferralService, type NeighborReferral } from "@/services/neighborReferral";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
@@ -36,7 +36,6 @@ export default function ReferralPage() {
   };
 
   const converted  = referrals.filter((r) => r.convertedAt !== null).length;
-  const pending    = referrals.length - converted;
   const creditsDollars = (credits / 100).toFixed(2);
 
   return (

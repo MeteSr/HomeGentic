@@ -9,7 +9,7 @@
  *  • Days on market + reasoning points
  */
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   marketTimingService,
   type ListingRecommendation,

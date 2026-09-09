@@ -10,11 +10,10 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  Bell, LogOut, Plus,
-  LayoutDashboard, TrendingUp, HardHat, Wrench, Radio, Home as HomeIcon, PlusSquare,
-  PanelLeft, Menu, X, Briefcase, Users2, User,
+  Bell, Plus,
+  LayoutDashboard, TrendingUp, HardHat, Wrench, Radio, Home as HomeIcon,
+  PanelLeft, Briefcase, Users2, User,
 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
 import { useAuthStore } from "@/store/authStore";
 import { usePropertyStore } from "@/store/propertyStore";
 import { useAddPropertyStore } from "@/store/addPropertyStore";
@@ -61,7 +60,6 @@ interface NavLink {
 // ─── Layout ───────────────────────────────────────────────────────────────────
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const { logout }             = useAuth();
   const { principal, profile } = useAuthStore();
   const { properties }         = usePropertyStore();
   const location               = useLocation();
@@ -71,7 +69,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen,  setSidebarOpen]  = useState(() =>
     localStorage.getItem("hf_sidebar") !== "closed"
   );
-  const [mobileOpen,   setMobileOpen]   = useState(false);
   const [feedOpen,     setFeedOpen]     = useState(false);
   const [feedJobs,     setFeedJobs]     = useState<Job[]>([]);
   const [feedQuotes,   setFeedQuotes]   = useState<QuoteRequest[]>([]);

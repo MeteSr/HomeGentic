@@ -31,7 +31,6 @@ vi.mock("@/services/actor", () => ({
 // ─── Import after mocks are set up ────────────────────────────────────────────
 
 import { authService } from "@/services/auth";
-import type { UserProfile } from "@/services/auth";
 
 // ─── Raw canister response builder ───────────────────────────────────────────
 

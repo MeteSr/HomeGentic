@@ -46,13 +46,11 @@ function buildToken(payload: CertPayload, certId: string): string {
 // ─── Service factory ─────────────────────────────────────────────────────────
 
 function createCertService() {
-  let counter = 0;
   const store = new Map<string, CertPayload>();
 
   return {
     /** Reset mock store — used in tests and dev hot-reload. */
     reset() {
-      counter = 0;
       store.clear();
     },
 

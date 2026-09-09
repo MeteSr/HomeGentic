@@ -6,7 +6,7 @@
  * Use browser Print → Save as PDF to export.
  */
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Printer, ShieldCheck, CheckCircle, Clock, Zap, ChevronDown, ChevronUp, Sparkles, Wifi } from "lucide-react";
 import { Layout } from "@/components/Layout";
@@ -492,7 +492,7 @@ export default function InsuranceDefensePage() {
                   </p>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 0, background: UI.paper }}>
-                  {sensorDevices.map((d, i) => (
+                  {sensorDevices.map((d) => (
                     <div key={d.id} style={{ padding: "0.75rem 1rem", borderRight: "1px solid #e5e5e5", borderBottom: "1px solid #e5e5e5" }}>
                       <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight }}>{d.source}</p>
                       <p style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: UI.ink }}>{d.name}</p>

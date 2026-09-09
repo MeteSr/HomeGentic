@@ -5,7 +5,6 @@
  * and costs money.  All tests verify that Basic+ users see the real content.
  */
 
-import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
@@ -122,7 +121,7 @@ function renderListing() {
   );
 }
 
-function renderFsboPanel(tier = "Pro") {
+function renderFsboPanel() {
   return render(
     <MemoryRouter>
       <FsboPanel

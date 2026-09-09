@@ -6,7 +6,6 @@
  *   15.2.4 — Expired free report shows upgrade prompt, not generic error
  */
 
-import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter, Routes, Route } from "react-router-dom";

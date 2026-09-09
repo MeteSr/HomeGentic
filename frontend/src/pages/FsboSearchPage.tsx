@@ -16,7 +16,7 @@
  *   - Individual listing URLs at /for-sale/:id already have their own schemas
  */
 
-import React, { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { Search, SlidersHorizontal, ShieldCheck, Award, TrendingUp, Clock, Wrench, ChevronRight } from "lucide-react";

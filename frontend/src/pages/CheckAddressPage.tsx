@@ -7,7 +7,7 @@
  * Route: /check?address=... (public, no login required)
  */
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { Shield, ArrowRight, CheckCircle } from "lucide-react";

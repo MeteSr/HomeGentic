@@ -15,7 +15,6 @@ import {
   isPermitDataAvailable,
   importPermitsForProperty,
   type OpenPermitRecord,
-  type PermitImportResult,
 } from "@/services/permitImport";
 
 vi.mock("@/services/aiProxy", () => ({

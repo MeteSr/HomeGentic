@@ -6,7 +6,6 @@
  * §17.4.5 — "No report found" seller CTA
  */
 
-import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";

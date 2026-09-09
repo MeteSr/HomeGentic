@@ -6,7 +6,7 @@
  * HomeGentic never contacts contractors — analysis is for the homeowner only.
  */
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { TrendingDown, TrendingUp, Minus, Sparkles } from "lucide-react";
 import { createNegotiationAgentService, type NegotiationAnalysis } from "@/services/negotiationAgentService";
 import type { Quote, QuoteRequest } from "@/services/quote";

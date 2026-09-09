@@ -23,7 +23,7 @@
  *  - Score opt-in toggle: controls whether score is shown on public listing
  */
 
-import { render, act, screen, fireEvent, within } from "@testing-library/react";
+import { render, act, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import React from "react";
 

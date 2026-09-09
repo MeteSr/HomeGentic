@@ -9,7 +9,7 @@
  *   score    – current computed HomeGentic score (0–100)
  */
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapPin } from "lucide-react";
 import { neighborhoodService, getPercentileRank, type ZipCodeStats } from "@/services/neighborhood";

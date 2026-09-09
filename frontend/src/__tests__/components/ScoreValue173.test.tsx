@@ -8,7 +8,6 @@
  *   17.3.5 — DocumentedValueSection: shown in report (buyer-facing)
  */
 
-import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";

@@ -1,4 +1,3 @@
-import React from "react";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import {
   categoryColor,

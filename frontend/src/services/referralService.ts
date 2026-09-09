@@ -1,5 +1,3 @@
-const JOB_CANISTER_ID = (process.env as any).JOB_CANISTER_ID || "";
-
 // Referral fee charged to a ContractorFree contractor on the awarded value of
 // each winning bid sourced via a HomeGentic quote request, with a flat-dollar
 // floor on small jobs. ContractorPro pays neither.

@@ -7,8 +7,7 @@
  * 17.7.5 — estimator → registration migration (yearBuilt in CTA href)
  */
 
-import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, it, expect, vi } from "vitest";
 

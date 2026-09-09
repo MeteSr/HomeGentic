@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { jobService, type Job } from "@/services/job";
@@ -95,7 +95,7 @@ function BidRow({ initials, name, verified, verifiedLabel, detail, earliest, amo
 
 // ── Job card ───────────────────────────────────────────────────────────────────
 
-function JobCard({ job, bids, quotes, propAddress, isTablet, onAccept, onDecline }: {
+function JobCard({ job, bids, isTablet, onAccept, onDecline }: {
   job:        Job;
   bids:       Quote[];
   quotes:     QuoteRequest[];

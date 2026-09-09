@@ -6,7 +6,7 @@
  * based on year built alone. Shareable URL + sign-up CTA.
  */
 
-import React, { useState, useRef } from "react";
+import { useState, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Share2, Copy, ArrowRight } from "lucide-react";
 import {

@@ -12,7 +12,6 @@ import {
   normalizeAddress,
   lookupReport,
   submitReportRequest,
-  type BuyerLookupResult,
 } from "@/services/buyerLookup";
 
 vi.mock("@/services/aiProxy", () => ({
