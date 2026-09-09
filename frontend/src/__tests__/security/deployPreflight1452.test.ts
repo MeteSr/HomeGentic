@@ -4,19 +4,88 @@
  *
  * PROD.1  deploy.sh validates ANTHROPIC_API_KEY is set for non-local deploys
  * PROD.2  deploy.sh validates VOICE_AGENT_API_KEY is set for non-local deploys
- * PROD.3  deploy.sh has a cycles balance check + top-up step for non-local deploys
+ * PROD.3  the cycles balance check + top-up step is skipped on local and
+ *         fires on non-local networks — exercised by actually running
+ *         scripts/lib/cycles-balance-check.sh with a stubbed `icp` on PATH,
+ *         not by measuring character distance in the source text (that
+ *         approach broke on an unrelated comment edit and couldn't actually
+ *         prove the guard wraps the call — see git history on this file).
  * PROD.8  monitoring canister has a heartbeat that fires staleness alerts
  * PROD.11 vite.config.ts does not define the dead PRICE_CANISTER_ID env var
  */
 
-import { describe, it, expect } from "vitest";
-import { readFileSync } from "fs";
-import { resolve } from "path";
+import { describe, it, expect, afterEach } from "vitest";
+import { readFileSync, mkdtempSync, writeFileSync, chmodSync, rmSync } from "fs";
+import { resolve, join } from "path";
+import { tmpdir } from "os";
+import { spawnSync } from "child_process";
 
 const ROOT = resolve(__dirname, "../../../../");
 
 function read(rel: string): string {
   return readFileSync(resolve(ROOT, rel), "utf-8");
+}
+
+// ── PROD.3 test harness ───────────────────────────────────────────────────────
+//
+// Runs the real scripts/lib/cycles-balance-check.sh in a fresh bash process
+// with a stubbed `icp` binary on PATH, so the test exercises actual behavior
+// (was the top-up call made?) rather than the shape of the source text.
+
+let scratchDirs: string[] = [];
+
+afterEach(() => {
+  for (const dir of scratchDirs) rmSync(dir, { recursive: true, force: true });
+  scratchDirs = [];
+});
+
+/**
+ * @param env value for $ENV ("local" skips the check entirely)
+ * @param cyclesBalance the fake cycle balance the stubbed `icp canister status` reports
+ */
+function runCyclesCheck(env: string, cyclesBalance: number) {
+  const scratch = mkdtempSync(join(tmpdir(), "cycles-check-test-"));
+  scratchDirs.push(scratch);
+
+  const transferLog = join(scratch, "transfer-calls.log");
+  const icpStubPath = join(scratch, "icp");
+  writeFileSync(
+    icpStubPath,
+    `#!/usr/bin/env bash
+if [ "$1 $2" = "canister status" ]; then
+  cat <<STATUS
+Canister Status Report:
+  Status: Running
+  Cycles: ${cyclesBalance}
+  Reserved cycles: 0
+STATUS
+  exit 0
+fi
+if [ "$1 $2" = "cycles transfer" ]; then
+  echo "$@" >> "${transferLog}"
+  exit 0
+fi
+exit 1
+`
+  );
+  chmodSync(icpStubPath, 0o755);
+
+  const libPath = resolve(ROOT, "scripts/lib/cycles-balance-check.sh");
+  const result = spawnSync(
+    "bash",
+    ["-c", `CANISTERS=(auth); ENV="$1"; source "$2"`, "_", env, libPath],
+    { env: { ...process.env, PATH: `${scratch}:${process.env.PATH}` }, encoding: "utf-8" }
+  );
+
+  const transferCalled = (() => {
+    try {
+      return readFileSync(transferLog, "utf-8").trim().length > 0;
+    } catch {
+      return false;
+    }
+  })();
+
+  return { ...result, transferCalled };
 }
 
 // ── PROD.1 — ANTHROPIC_API_KEY pre-flight in deploy.sh ───────────────────────
@@ -58,23 +127,34 @@ describe("PROD.2 — deploy.sh validates VOICE_AGENT_API_KEY for non-local deplo
 // ── PROD.3 — cycles check in deploy.sh ───────────────────────────────────────
 
 describe("PROD.3 — deploy.sh has cycles balance check for non-local deploys", () => {
-  it("deploy.sh calls icp canister status to read cycles balance", () => {
-    expect(read("scripts/deploy.sh")).toMatch(/icp canister status/);
+  it("deploy.sh sources the cycles balance check", () => {
+    expect(read("scripts/deploy.sh")).toMatch(/source .*cycles-balance-check\.sh/);
   });
 
-  it("deploy.sh references deposit-cycles for top-up", () => {
-    expect(read("scripts/deploy.sh")).toMatch(/deposit-cycles/);
+  it("the cycles balance check calls icp canister status to read cycles balance", () => {
+    expect(read("scripts/lib/cycles-balance-check.sh")).toMatch(/icp canister status/);
   });
 
-  it("cycles check is skipped for local network", () => {
-    const deploy = read("scripts/deploy.sh");
-    // The cycles section must be guarded — local network uses managed system cycles.
-    // Use lastIndexOf to target the actual command (not the TODO comment that also
-    // contains the string).  The ENV guard sits ~823 chars before the call.
-    const transferIdx = deploy.lastIndexOf("icp cycles transfer");
-    expect(transferIdx).toBeGreaterThan(-1);
-    const window = deploy.slice(Math.max(0, transferIdx - 1000), transferIdx + 100);
-    expect(window).toMatch(/NETWORK.*!=.*local|!=.*local.*NETWORK|ENV.*!=.*local|!=.*local.*ENV|\[.*"\$ENV".*!=.*"local"\]/);
+  it("the cycles balance check calls icp cycles transfer for top-up", () => {
+    expect(read("scripts/lib/cycles-balance-check.sh")).toMatch(/icp cycles transfer/);
+  });
+
+  it("does NOT call icp cycles transfer on the local network, even with a low balance", () => {
+    const { transferCalled, stdout } = runCyclesCheck("local", 100);
+    expect(transferCalled).toBe(false);
+    expect(stdout).toMatch(/skipped.*local managed network/);
+  });
+
+  it("calls icp cycles transfer on a non-local network when the balance is below the warning threshold", () => {
+    // WARNING_CYCLES is 500B in cycles-balance-check.sh; 100 cycles is well under it.
+    const { transferCalled } = runCyclesCheck("testnet", 100);
+    expect(transferCalled).toBe(true);
+  });
+
+  it("does NOT call icp cycles transfer on a non-local network when the balance is healthy", () => {
+    // 5T is comfortably above the 500B warning threshold.
+    const { transferCalled } = runCyclesCheck("testnet", 5_000_000_000_000);
+    expect(transferCalled).toBe(false);
   });
 });
 
