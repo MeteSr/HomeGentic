@@ -151,7 +151,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const singlePropertyId =
     isHomeowner && properties.length === 1 ? String(properties[0].id) : null;
-  const singlePropertyPath = singlePropertyId ? `/properties/${singlePropertyId}` : null;
 
   // Re-check FSBO state on every navigation so "My Listing" appears as soon as a listing is created.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -190,14 +189,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       ];
 
   const isActive = (link: NavLink) => {
-    const directMatch =
-      location.pathname === link.to || location.pathname.startsWith(link.to + "/");
-    const singlePropMatch =
-      link.to === "/dashboard" &&
-      singlePropertyPath !== null &&
-      (location.pathname === singlePropertyPath ||
-        location.pathname.startsWith(singlePropertyPath + "/"));
-    return directMatch || singlePropMatch;
+    return location.pathname === link.to || location.pathname.startsWith(link.to + "/");
   };
 
   // On tablet, force icon-only (collapsed) display regardless of localStorage state
@@ -484,11 +476,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {/* ── Mobile bottom tab bar ────────────────────────────────────────── */}
         {(() => {
           const mobileTabLinks = isContractor ? [] : [
-            { to: "/dashboard",                                          label: "Home",        Icon: LayoutDashboard },
-            { to: singlePropertyId ? `/properties/${singlePropertyId}` : "/dashboard", label: "Property",    Icon: HomeIcon },
-            { to: "/jobs",                                               label: "Jobs",        Icon: Briefcase },
-            { to: "/maintenance",                                        label: "Maintenance", Icon: Wrench },
-            { to: "/settings",                                           label: "Account",     Icon: User },
+            { to: "/dashboard", label: "Home", Icon: LayoutDashboard },
+            // Only shown when there's a single property to point at — otherwise
+            // this tab had no real destination of its own and fell back to
+            // "/dashboard", colliding with the Home tab above (duplicate React
+            // key, and both tabs showing active at once on /dashboard).
+            ...(singlePropertyId
+              ? [{ to: `/properties/${singlePropertyId}`, label: "Property", Icon: HomeIcon }]
+              : []),
+            { to: "/jobs",        label: "Jobs",        Icon: Briefcase },
+            { to: "/maintenance", label: "Maintenance", Icon: Wrench },
+            { to: "/settings",    label: "Account",     Icon: User },
           ];
           return (
             <>
