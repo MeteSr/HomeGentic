@@ -88,7 +88,9 @@ for CANISTER in "${CANISTERS[@]}"; do
   [ -z "$CANISTER_ID" ] && continue
 
   STATUS_OUT=$(dfx canister status "$CANISTER" --network "$DFX_NETWORK" 2>&1 || echo "")
-  CYCLES_RAW=$(echo "$STATUS_OUT" | grep -i "^Cycles:" | head -1 | awk '{print $2}' | tr -d '_,')
+  # The line is indented two spaces, e.g. "  Cycles: 10_000_000_000_000" — an
+  # anchor without the leading whitespace never matches.
+  CYCLES_RAW=$(echo "$STATUS_OUT" | grep -iE "^[[:space:]]*Cycles:" | head -1 | awk '{print $2}' | tr -d '_,')
 
   if [ -z "$CYCLES_RAW" ] || ! [[ "$CYCLES_RAW" =~ ^[0-9]+$ ]]; then
     echo "  ❓  $CANISTER — balance unknown (not a controller)"

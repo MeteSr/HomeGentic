@@ -571,8 +571,8 @@ echo "============================================"
 echo "  Cycles Balance Check"
 echo "============================================"
 # On non-local networks, verify each canister has enough cycles.
-# TODO: icp-cli equivalent of dfx canister deposit-cycles is `icp cycles transfer`.
-# Balance parsing may need adjustment based on `icp canister status` output format.
+# TODO: icp-cli equivalent of dfx canister deposit-cycles is `icp cycles transfer`
+# — syntax below is unverified until icp-cli's cycles-transfer command stabilises.
 
 if [ "$ENV" != "local" ]; then
   WARNING_CYCLES=500000000000   # 500B
@@ -584,7 +584,9 @@ if [ "$ENV" != "local" ]; then
       continue
     }
 
-    BALANCE_RAW=$(echo "$STATUS_OUT" | grep -i "^Cycles:" | head -1 | awk '{print $2}' | tr -d '_,') || BALANCE_RAW=""
+    # icp canister status indents every field two spaces (e.g. "  Cycles: N") —
+    # an anchor without the leading whitespace never matches.
+    BALANCE_RAW=$(echo "$STATUS_OUT" | grep -iE "^[[:space:]]*Cycles:" | head -1 | awk '{print $2}' | tr -d '_,') || BALANCE_RAW=""
 
     if [ -z "$BALANCE_RAW" ] || ! [[ "$BALANCE_RAW" =~ ^[0-9]+$ ]]; then
       echo "  ⚠️  Could not parse cycles balance for $canister"
