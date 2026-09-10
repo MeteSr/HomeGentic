@@ -391,7 +391,6 @@ export function predictMaintenance(
 function createMaintenanceService() {
   let _actor: any = null;
   const scheduleStore = new Map<string, ScheduleEntry>();
-  let scheduleCounter = 0;
 
   async function getActor() {
     if (!_actor) {
@@ -515,7 +514,6 @@ function createMaintenanceService() {
   reset() {
     _actor = null;
     scheduleStore.clear();
-    scheduleCounter = 0;
   },
   };
 }

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { CheckCircle } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { MobileHomeDashboard } from "@/pages/MobileHomeDashboard";
@@ -85,7 +85,7 @@ interface PendingCard {
   onDecline:     () => void;
 }
 
-function AwaitingCard({ id, title, badge, badgeColor, pts, ptsColor, desc, who, date, amount, isPossibleDup, onApprove, onDecline }: PendingCard) {
+function AwaitingCard({ title, badge, badgeColor, pts, ptsColor, desc, who, date, amount, isPossibleDup, onApprove, onDecline }: PendingCard) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "16px 0", borderBottom: `1px solid ${BDR}` }}>
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -147,7 +147,7 @@ export default function DashboardPage() {
   const navigate                          = useNavigate();
   const { isMobile, isTablet }             = useBreakpoint();
   const { profile }                       = useAuthStore();
-  const { isOpen: isWizardOpen, open: openAddProp } = useAddPropertyStore();
+  const { open: openAddProp } = useAddPropertyStore();
 
   const {
     properties, loading: propLoading,
@@ -162,7 +162,9 @@ export default function DashboardPage() {
     : null;
 
   const jobSummary   = useJobSummary(properties, propLoading);
-  const quoteSummary = useQuoteSummary();
+  // Result unused today, but the fetch itself must stay part of the initial
+  // parallel data load (see renderPerf1341_1342.test.tsx).
+  useQuoteSummary();
   const { recurringServices, visitLogMap, systemAges } = useMaintenanceSchedule(properties, propLoading, activePropertyId);
 
   const loading = propLoading || jobSummary.loading;
@@ -228,7 +230,7 @@ export default function DashboardPage() {
 
   // ── Modals ────────────────────────────────────────────────────────────────
   const [showLogJobModal,  setShowLogJobModal]  = useState(false);
-  const [logJobPrefill,    setLogJobPrefill]    = useState<{ serviceType?: string } | undefined>();
+  const [logJobPrefill]    = useState<{ serviceType?: string } | undefined>();
   const [showQuoteModal,   setShowQuoteModal]   = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 

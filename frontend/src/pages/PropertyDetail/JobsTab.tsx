@@ -1,4 +1,3 @@
-import React from "react";
 import { Badge } from "@/components/Badge";
 import { type Job } from "@/services/job";
 import { V2_COLORS, V2_FONTS } from "@/theme";

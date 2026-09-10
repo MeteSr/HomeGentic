@@ -6,7 +6,7 @@
  * Use browser Print → Save as PDF to export.
  */
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Printer, ShieldCheck, CheckCircle, Clock, Zap, ChevronDown, ChevronUp, Sparkles, Wifi } from "lucide-react";
 import { Layout } from "@/components/Layout";
@@ -14,9 +14,7 @@ import { Button } from "@/components/Button";
 import { propertyService, Property } from "@/services/property";
 import { jobService, Job, INSURANCE_SERVICE_TYPES } from "@/services/job";
 import { sensorService, type SensorDevice, type SensorEvent } from "@/services/sensor";
-import { paymentService, type PlanTier } from "@/services/payment";
 import { billService, type BillRecord } from "@/services/billService";
-import { UpgradeGate } from "@/components/UpgradeGate";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 import {
   estimateInsurerDiscount,
@@ -61,7 +59,6 @@ export default function InsuranceDefensePage() {
   const [showSuccessPrompt, setShowSuccessPrompt] = useState(false);
   const [successSubmitted,  setSuccessSubmitted]  = useState(false);
   const [savingsInput,      setSavingsInput]       = useState("");
-  const [userTier, setUserTier] = useState<PlanTier>("Basic");
 
   // ── Sensor discount estimator state ──────────────────────────────────────
   const [sensorDevices,    setSensorDevices]    = useState<SensorDevice[]>([]);
@@ -73,7 +70,6 @@ export default function InsuranceDefensePage() {
   const [billAnomalies,    setBillAnomalies]    = useState<BillRecord[]>([]);
 
   useEffect(() => {
-    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch((e) => console.error("[InsuranceDefensePage] subscription load failed:", e));
     Promise.all([
       propertyService.getMyProperties(),
       jobService.getAll(),
@@ -496,7 +492,7 @@ export default function InsuranceDefensePage() {
                   </p>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 0, background: UI.paper }}>
-                  {sensorDevices.map((d, i) => (
+                  {sensorDevices.map((d) => (
                     <div key={d.id} style={{ padding: "0.75rem 1rem", borderRight: "1px solid #e5e5e5", borderBottom: "1px solid #e5e5e5" }}>
                       <p style={{ fontFamily: UI.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: UI.inkLight }}>{d.source}</p>
                       <p style={{ fontFamily: UI.mono, fontSize: "0.7rem", color: UI.ink }}>{d.name}</p>

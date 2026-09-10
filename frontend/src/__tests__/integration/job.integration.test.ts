@@ -319,10 +319,9 @@ describe.skipIf(!deployed)("createInviteToken / getJobByInviteToken — token li
 
 describe.skipIf(!deployed)("getJobSnapshotsForProperty — cross-canister snapshot IDL", () => {
   const propId = pid("snapshots");
-  let createdJobId: string;
 
   beforeAll(async () => {
-    const job = await jobService.create({
+    await jobService.create({
       ...BASE,
       propertyId:    propId,
       serviceType:   "HVAC",
@@ -331,7 +330,6 @@ describe.skipIf(!deployed)("getJobSnapshotsForProperty — cross-canister snapsh
       isDiy:         false,
       contractorName: "Snapshot LLC",
     });
-    createdJobId = job.id;
   });
 
   it("returns at least one snapshot for a property with jobs", async () => {

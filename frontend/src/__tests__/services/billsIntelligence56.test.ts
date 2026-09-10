@@ -15,7 +15,7 @@
  *   negotiateTelecom()     — shape + validation (fetch is mocked)
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 
 import {
   analyzeEfficiencyTrend,
@@ -23,7 +23,6 @@ import {
   findRebates,
   negotiateTelecom,
   type UsagePeriod,
-  type EfficiencyAnalysisResult,
   type RebateResult,
   type TelecomNegotiationResult,
 } from "@/services/billsIntelligence";

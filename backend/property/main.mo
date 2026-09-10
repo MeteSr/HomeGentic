@@ -189,7 +189,9 @@ persistent actor Property {
   ///  #Manager — operational: can add/edit jobs, approve proposals,
   ///             manage rooms/fixtures, upload photos, record bills.
   ///             Cannot transfer the property or manage other managers.
-  public type ManagerRole = { #Viewer; #Manager };
+  ///  #CoOwner — full control alongside the owner (no spend limit, no
+  ///             approvals) but cannot remove the original owner.
+  public type ManagerRole = { #Viewer; #Manager; #CoOwner };
 
   /// A principal that has been granted delegated access to a property.
   public type PropertyManager = {
@@ -198,6 +200,10 @@ persistent actor Property {
     /// Free-text display name set by the owner (e.g. "Sarah - daughter").
     displayName : Text;
     addedAt     : Time.Time;
+    /// Spend threshold in cents — actions at or under this amount don't need
+    /// owner approval. Null means no limit (full trust). Not meaningful for
+    /// #Viewer (read-only) or #CoOwner (never limited).
+    spendLimitCents : ?Nat;
   };
 
   /// Pending manager invite — claimed by the invitee via bearer token.
@@ -209,6 +215,7 @@ persistent actor Property {
     invitedBy   : Principal;
     createdAt   : Time.Time;
     expiresAt   : Time.Time;
+    spendLimitCents : ?Nat;
   };
 
   /// A notification pushed to the property owner when a manager performs
@@ -220,6 +227,22 @@ persistent actor Property {
     description      : Text;
     timestamp        : Time.Time;
     seen             : Bool;
+  };
+
+  /// Status of a manager's request to spend above their limit.
+  public type ApprovalStatus = { #Pending; #Approved; #Declined };
+
+  /// A manager's request to exceed their spend limit — sits in the owner's
+  /// approval queue until the owner responds.
+  public type PendingApprovalRequest = {
+    id            : Nat;
+    propertyId    : Text;
+    requestedBy   : Principal;
+    requesterName : Text;
+    description   : Text;
+    amountCents   : Nat;
+    createdAt     : Time.Time;
+    status        : ApprovalStatus;
   };
 
   // ─── Ownership History Types ──────────────────────────────────────────────
@@ -360,9 +383,14 @@ persistent actor Property {
   private let managerInvites   = Map.empty<Text, ManagerInvite>();
   /// token → propertyId (fast invite lookup)
   private let managerTokenIdx  = Map.empty<Text, Text>();
+  /// propertyId → [token] — lets the owner list/cancel their own pending invites.
+  private let propertyInvitesIdx = Map.empty<Text, [Text]>();
   /// propertyId → [OwnerNotification]
   private let ownerNotifs      = Map.empty<Text, [OwnerNotification]>();
   private var notifCounter     : Nat = 0;
+  /// propertyId → [PendingApprovalRequest]
+  private let approvalsMap     = Map.empty<Text, [PendingApprovalRequest]>();
+  private var approvalCounter  : Nat = 0;
 
   // ─── Private Helpers ──────────────────────────────────────────────────────
 
@@ -398,7 +426,7 @@ persistent actor Property {
         };
         for (m in mgrs.vals()) {
           if (m.principal == caller) {
-            if (requireWrite) { return m.role == #Manager };
+            if (requireWrite) { return m.role == #Manager or m.role == #CoOwner };
             return true;
           };
         };
@@ -408,6 +436,18 @@ persistent actor Property {
   };
 
   /// Append a notification to the owner's queue for the given property.
+  /// Removes a consumed/cancelled/expired invite from all three indexes.
+  private func dropInvite(propertyId: Text, token: Text) {
+    Map.remove(managerInvites,  Text.compare, token);
+    Map.remove(managerTokenIdx, Text.compare, token);
+    let existingTokens = switch (Map.get(propertyInvitesIdx, Text.compare, propertyId)) {
+      case null    [];
+      case (?list) list;
+    };
+    Map.add(propertyInvitesIdx, Text.compare, propertyId,
+      Array.filter<Text>(existingTokens, func(t) { t != token }));
+  };
+
   private func pushNotification(propertyId: Text, managerP: Principal, managerN: Text, desc: Text) {
     notifCounter += 1;
     let notif : OwnerNotification = {
@@ -1126,11 +1166,12 @@ persistent actor Property {
   //      frontend calls recordManagerActivity() to notify the owner.
 
   /// Step 1: owner generates a bearer-token invite for a manager.
-  /// Overwrites any existing invite for the same property+role combination.
+  /// Overwrites any existing pending invite for the same property+role combination.
   public shared(msg) func inviteManager(
-    propertyId  : Text,
-    role        : ManagerRole,
-    displayName : Text
+    propertyId      : Text,
+    role            : ManagerRole,
+    displayName     : Text,
+    spendLimitCents : ?Nat
   ) : async Result.Result<ManagerInvite, Error> {
     switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
     switch (Map.get(properties, Text.compare, propertyId)) {
@@ -1138,6 +1179,27 @@ persistent actor Property {
       case (?prop) {
         if (prop.owner != msg.caller) return #err(#NotAuthorized);
         if (Text.size(displayName) == 0) return #err(#InvalidInput("Display name is required."));
+
+        let existingTokens = switch (Map.get(propertyInvitesIdx, Text.compare, propertyId)) {
+          case null    [];
+          case (?list) list;
+        };
+        // Drop any prior pending invite for this same role — only one pending
+        // invite per role per property at a time.
+        var keptTokens : [Text] = [];
+        for (t in existingTokens.vals()) {
+          switch (Map.get(managerInvites, Text.compare, t)) {
+            case null {};
+            case (?inv) {
+              if (inv.role == role) {
+                Map.remove(managerInvites,  Text.compare, t);
+                Map.remove(managerTokenIdx, Text.compare, t);
+              } else {
+                keptTokens := Array.concat<Text>(keptTokens, [t]);
+              };
+            };
+          };
+        };
 
         let now = Time.now();
         transferCounter += 1;
@@ -1151,10 +1213,59 @@ persistent actor Property {
           invitedBy = msg.caller;
           createdAt = now;
           expiresAt = now + NINETY_DAYS_NS;
+          spendLimitCents;
         };
-        Map.add(managerInvites,  Text.compare, token,      invite);
-        Map.add(managerTokenIdx, Text.compare, token,      propertyId);
+        Map.add(managerInvites,    Text.compare, token,      invite);
+        Map.add(managerTokenIdx,   Text.compare, token,      propertyId);
+        Map.add(propertyInvitesIdx, Text.compare, propertyId, Array.concat<Text>(keptTokens, [token]));
         #ok(invite)
+      };
+    }
+  };
+
+  /// Owner cancels a pending (not yet claimed) invite before it's accepted.
+  public shared(msg) func cancelManagerInvite(
+    propertyId : Text,
+    token      : Text
+  ) : async Result.Result<(), Error> {
+    switch (Map.get(properties, Text.compare, propertyId)) {
+      case null { #err(#NotFound) };
+      case (?prop) {
+        if (prop.owner != msg.caller) return #err(#NotAuthorized);
+        switch (Map.get(managerInvites, Text.compare, token)) {
+          case null { #err(#NotFound) };
+          case (?invite) {
+            if (invite.propertyId != propertyId) return #err(#NotFound);
+            dropInvite(propertyId, token);
+            #ok(())
+          };
+        }
+      };
+    }
+  };
+
+  /// Owner lists all pending (not yet claimed) invites for a property,
+  /// including ones past their expiry — the frontend shows those as expired
+  /// rather than hiding them, so the owner knows to re-invite.
+  public query(msg) func getPendingInvitesForProperty(
+    propertyId : Text
+  ) : async Result.Result<[ManagerInvite], Error> {
+    switch (Map.get(properties, Text.compare, propertyId)) {
+      case null { #err(#NotFound) };
+      case (?prop) {
+        if (prop.owner != msg.caller) return #err(#NotAuthorized);
+        let tokens = switch (Map.get(propertyInvitesIdx, Text.compare, propertyId)) {
+          case null    [];
+          case (?list) list;
+        };
+        var invites : [ManagerInvite] = [];
+        for (t in tokens.vals()) {
+          switch (Map.get(managerInvites, Text.compare, t)) {
+            case null {};
+            case (?inv) { invites := Array.concat<ManagerInvite>(invites, [inv]) };
+          };
+        };
+        #ok(invites)
       };
     }
   };
@@ -1169,8 +1280,7 @@ persistent actor Property {
       case null { #err(#NotFound) };
       case (?invite) {
         if (Time.now() > invite.expiresAt) {
-          Map.remove(managerInvites,  Text.compare, token);
-          Map.remove(managerTokenIdx, Text.compare, token);
+          dropInvite(invite.propertyId, token);
           return #err(#InvalidInput("Invite link has expired."));
         };
         switch (Map.get(properties, Text.compare, invite.propertyId)) {
@@ -1192,12 +1302,12 @@ persistent actor Property {
               role        = invite.role;
               displayName = invite.displayName;
               addedAt     = Time.now();
+              spendLimitCents = invite.spendLimitCents;
             };
             Map.add(managersMap, Text.compare, invite.propertyId,
               Array.concat<PropertyManager>(filtered, [newMgr]));
             // Consume the token
-            Map.remove(managerInvites,  Text.compare, token);
-            Map.remove(managerTokenIdx, Text.compare, token);
+            dropInvite(invite.propertyId, token);
             #ok({ propertyId = invite.propertyId; role = invite.role })
           };
         }
@@ -1205,11 +1315,12 @@ persistent actor Property {
     }
   };
 
-  /// Owner changes an existing manager's role (Viewer ↔ Manager).
+  /// Owner changes an existing manager's role and/or spend limit.
   public shared(msg) func updateManagerRole(
-    propertyId       : Text,
-    managerPrincipal : Principal,
-    newRole          : ManagerRole
+    propertyId          : Text,
+    managerPrincipal    : Principal,
+    newRole             : ManagerRole,
+    newSpendLimitCents  : ?Nat
   ) : async Result.Result<(), Error> {
     switch (Map.get(properties, Text.compare, propertyId)) {
       case null { #err(#NotFound) };
@@ -1226,7 +1337,9 @@ persistent actor Property {
           case _ {};
         };
         let updated = Array.map<PropertyManager, PropertyManager>(existing, func(m) {
-          if (m.principal == managerPrincipal) { { m with role = newRole } } else m
+          if (m.principal == managerPrincipal) {
+            { m with role = newRole; spendLimitCents = newSpendLimitCents }
+          } else m
         });
         Map.add(managersMap, Text.compare, propertyId, updated);
         #ok(())
@@ -1368,6 +1481,96 @@ persistent actor Property {
         if (prop.owner != msg.caller) return #err(#NotAuthorized);
         Map.add(ownerNotifs, Text.compare, propertyId, []);
         #ok(())
+      };
+    }
+  };
+
+  /// Called by a Manager who wants to spend above their limit (or a Viewer
+  /// requesting an action they can't take directly). Sits in the owner's
+  /// approval queue until respondToApproval() is called.
+  public shared(msg) func requestApproval(
+    propertyId  : Text,
+    description : Text,
+    amountCents : Nat
+  ) : async Result.Result<Nat, Error> {
+    switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
+    if (not checkAuthorized(propertyId, msg.caller, false)) return #err(#NotAuthorized);
+    let requesterName : Text = switch (Map.get(managersMap, Text.compare, propertyId)) {
+      case null "A manager";
+      case (?mgrs) {
+        var found = "A manager";
+        for (m in mgrs.vals()) {
+          if (m.principal == msg.caller) found := m.displayName;
+        };
+        found
+      };
+    };
+    approvalCounter += 1;
+    let req : PendingApprovalRequest = {
+      id = approvalCounter;
+      propertyId;
+      requestedBy = msg.caller;
+      requesterName;
+      description;
+      amountCents;
+      createdAt = Time.now();
+      status = #Pending;
+    };
+    let existing = switch (Map.get(approvalsMap, Text.compare, propertyId)) {
+      case null    [];
+      case (?list) list;
+    };
+    Map.add(approvalsMap, Text.compare, propertyId, Array.concat<PendingApprovalRequest>(existing, [req]));
+    pushNotification(propertyId, msg.caller, requesterName, "Requested approval: " # description);
+    #ok(approvalCounter)
+  };
+
+  /// Owner approves or declines a pending approval request.
+  public shared(msg) func respondToApproval(
+    propertyId : Text,
+    approvalId : Nat,
+    approve    : Bool
+  ) : async Result.Result<(), Error> {
+    switch (Map.get(properties, Text.compare, propertyId)) {
+      case null { #err(#NotFound) };
+      case (?prop) {
+        if (prop.owner != msg.caller) return #err(#NotAuthorized);
+        let existing = switch (Map.get(approvalsMap, Text.compare, propertyId)) {
+          case null    return #err(#NotFound);
+          case (?list) list;
+        };
+        let found = Array.find<PendingApprovalRequest>(existing, func(a) { a.id == approvalId });
+        switch found {
+          case null return #err(#NotFound);
+          case _ {};
+        };
+        let newStatus = if (approve) #Approved else #Declined;
+        let updated = Array.map<PendingApprovalRequest, PendingApprovalRequest>(existing, func(a) {
+          if (a.id == approvalId) { { a with status = newStatus } } else a
+        });
+        Map.add(approvalsMap, Text.compare, propertyId, updated);
+        #ok(())
+      };
+    }
+  };
+
+  /// Returns all approval requests for a property (any status), newest first.
+  /// Only the property owner may call this.
+  public query(msg) func getApprovals(propertyId: Text) : async Result.Result<[PendingApprovalRequest], Error> {
+    switch (Map.get(properties, Text.compare, propertyId)) {
+      case null { #err(#NotFound) };
+      case (?prop) {
+        if (prop.owner != msg.caller) return #err(#NotAuthorized);
+        let list = switch (Map.get(approvalsMap, Text.compare, propertyId)) {
+          case null    [];
+          case (?l)    l;
+        };
+        let sorted = Array.sort<PendingApprovalRequest>(list, func(a, b) {
+          if      (a.createdAt > b.createdAt) #less
+          else if (a.createdAt < b.createdAt) #greater
+          else                                #equal
+        });
+        #ok(sorted)
       };
     }
   };

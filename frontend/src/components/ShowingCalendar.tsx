@@ -5,7 +5,7 @@
  * Includes iCal export.
  */
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { showingRequestService, generateIcal, type ShowingRequest } from "@/services/showingRequest";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 

@@ -1,124 +1,150 @@
+import {
+  propertyService,
+  type ManagerRole,
+  type PropertyManager,
+  type ManagerInvite,
+  type PendingApprovalRequest,
+  type OwnerNotification,
+  type Property,
+} from "@/services/property";
+
+export type PersonRole = "OWNER" | "CO-OWNER" | "MANAGER" | "VIEWER";
+
 export interface PersonAccess {
-  id:          string;
-  name:        string;
-  initials:    string;
-  email:       string;
-  relation:    string;
-  role:        'OWNER' | 'CO-OWNER' | 'MANAGER' | 'VIEWER';
-  limit:       number | null;
-  lastActive:  string;
-  pending:     boolean;
-  grantedNote: string;
-  permissions: { label: string; granted: boolean }[];
+  id:              string;   // principal text; "owner" for the synthesized owner row
+  name:            string;   // display name ("You" for the owner row)
+  initials:        string;
+  role:            PersonRole;
+  spendLimitCents: number | null;  // null = no limit; not meaningful for OWNER/VIEWER/CO-OWNER
+  addedAt:         number;   // ms
+  isPending:       boolean;  // true for a not-yet-claimed invite, not an accepted person
+  inviteToken?:    string;   // set only when isPending — needed to cancel the invite
 }
 
 export interface PendingApproval {
-  id:       string;
-  initials: string;
-  reason:   string;
-  when:     string;
-  title:    string;
-  body:     string;
-  facts:    { label: string; value: string }[];
+  id:            number;
+  requesterName: string;
+  description:   string;
+  amountCents:   number;
+  createdAt:     number;  // ms
 }
 
 export interface AuditRow {
-  when:        string;
-  initials:    string;
-  action:      string;
-  attribution: string;
-  amount:      string;
-  chip:        'UNDER LIMIT' | 'PENDING' | 'READ ONLY' | 'YOU APPROVED';
+  id:          number;
+  when:        number;  // ms
+  managerName: string;
+  description: string;
+  seen:        boolean;
 }
 
-const MOCK_PEOPLE: PersonAccess[] = [
-  {
-    id: 'p1', name: 'Patricia Hale', initials: 'PH', email: 'patricia.h@gmail.com',
-    relation: 'You', role: 'OWNER', limit: null, lastActive: 'TODAY', pending: false,
-    grantedNote: 'Ownership verified Mar 4, 2024 by deed and ID. This cannot be revoked from inside the app.',
-    permissions: [{ label: 'Everything, including selling and closing the account', granted: true }],
-  },
-  {
-    id: 'p2', name: 'Alex Whitfield', initials: 'AW', email: 'alex.whitfield@gmail.com',
-    relation: 'Son', role: 'MANAGER', limit: 500, lastActive: 'AUG 24', pending: false,
-    grantedNote: 'Accepted Apr 10, 2025 after an identity check. 31 actions logged since.',
-    permissions: [
-      { label: 'Book, log and pay for work under the limit', granted: true },
-      { label: 'Request quotes and compare bids',            granted: true },
-      { label: 'Upload photos and documents',                granted: true },
-      { label: 'Accept a bid above the limit',               granted: false },
-      { label: 'Invite other people',                        granted: false },
-    ],
-  },
-  {
-    id: 'p3', name: 'Dana Reyes', initials: 'DR', email: 'dana.reyes@outlook.com',
-    relation: 'Daughter', role: 'VIEWER', limit: 0, lastActive: 'AUG 12', pending: false,
-    grantedNote: 'Accepted Jun 2, 2025. Viewers never trigger an approval.',
-    permissions: [
-      { label: 'See the score, jobs, photos and documents', granted: true },
-      { label: 'Receive the monthly summary',               granted: true },
-      { label: 'Log work or hire anyone',                   granted: false },
-      { label: 'Upload or delete anything',                 granted: false },
-    ],
-  },
-  {
-    id: 'p4', name: 'Marcus Hale', initials: 'MH', email: 'invite sent Aug 20, not yet claimed',
-    relation: 'Spouse', role: 'CO-OWNER', limit: null, lastActive: 'PENDING', pending: true,
-    grantedNote: 'Invite expires Aug 27. Co-owner requires an identity check and your confirmation on claim.',
-    permissions: [
-      { label: 'Everything a Manager can do, with no spend limit', granted: true },
-      { label: 'Approve or decline what a Manager sends up',       granted: true },
-      { label: 'Invite Viewers and Managers',                      granted: true },
-      { label: 'Remove the original owner',                        granted: false },
-    ],
-  },
-];
+function toRole(role: ManagerRole): PersonRole {
+  if (role === "CoOwner") return "CO-OWNER";
+  if (role === "Manager") return "MANAGER";
+  return "VIEWER";
+}
 
-const MOCK_APPROVALS: PendingApproval[] = [
-  {
-    id: 'a1', initials: 'AW', reason: 'OVER THE $500 LIMIT', when: '2 HOURS AGO',
-    title: 'Alex wants to accept a $2,340 bid for a water heater replacement',
-    body: 'The 2009 unit failed its last inspection. Alex pulled three bids and picked the middle one because Middle TN Plumbing has done four verified jobs on this property.',
-    facts: [
-      { label: 'BID',         value: '$2,340'              },
-      { label: 'CONTRACTOR',  value: 'Middle TN Plumbing'  },
-      { label: 'OTHER BIDS',  value: '$2,050 · $3,180'     },
-      { label: 'START',       value: 'Fri, Aug 28'         },
-    ],
-  },
-  {
-    id: 'a2', initials: 'AW', reason: 'NEW RECURRING CONTRACT', when: 'YESTERDAY',
-    title: 'Alex wants to start a weekly lawn contract at $55 a visit',
-    body: 'Recurring work needs your sign-off once, not weekly. Approving starts the contract; each visit after that logs on its own.',
-    facts: [
-      { label: 'PER VISIT',     value: '$55'              },
-      { label: 'CADENCE',       value: 'Weekly, Mar–Nov'  },
-      { label: 'SEASON TOTAL',  value: '~$1,980'          },
-      { label: 'PRO',           value: 'Greenway Lawn Co' },
-    ],
-  },
-];
+function fromBackendRole(role: PersonRole): ManagerRole {
+  if (role === "CO-OWNER") return "CoOwner";
+  if (role === "MANAGER") return "Manager";
+  return "Viewer";
+}
 
-const MOCK_AUDIT: AuditRow[] = [
-  { when: 'AUG 24', initials: 'AW', action: 'Logged gutter cleaning, Bell & Sons',         attribution: 'Alex Whitfield · Manager · on behalf of Patricia Hale', amount: '$180', chip: 'UNDER LIMIT'  },
-  { when: 'AUG 20', initials: 'PH', action: 'Invited Marcus Hale as Co-owner',              attribution: 'Patricia Hale · Owner',                                 amount: '—',    chip: 'PENDING'      },
-  { when: 'AUG 18', initials: 'AW', action: 'Uploaded 8 photos to the crawlspace record',   attribution: 'Alex Whitfield · Manager · on behalf of Patricia Hale', amount: '—',    chip: 'UNDER LIMIT'  },
-  { when: 'AUG 14', initials: 'AW', action: 'Booked HVAC filter service, Ridgeline HVAC',   attribution: 'Alex Whitfield · Manager · on behalf of Patricia Hale', amount: '$95',  chip: 'UNDER LIMIT'  },
-  { when: 'AUG 12', initials: 'DR', action: 'Opened the verified property report',           attribution: 'Dana Reyes · Viewer',                                   amount: '—',    chip: 'READ ONLY'    },
-  { when: 'AUG 06', initials: 'AW', action: 'Accepted a $940 bid for crawlspace sealing',    attribution: 'Alex Whitfield · Manager · approved by Patricia Hale',  amount: '$940', chip: 'YOU APPROVED' },
-];
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function fromManager(m: PropertyManager): PersonAccess {
+  return {
+    id:              m.principal,
+    name:            m.displayName,
+    initials:        initialsOf(m.displayName),
+    role:            toRole(m.role),
+    spendLimitCents: m.spendLimitCents ?? null,
+    addedAt:         m.addedAt,
+    isPending:       false,
+  };
+}
+
+function fromInvite(inv: ManagerInvite): PersonAccess {
+  return {
+    id:              inv.token,
+    name:            inv.displayName,
+    initials:        initialsOf(inv.displayName),
+    role:            toRole(inv.role),
+    spendLimitCents: inv.spendLimitCents ?? null,
+    addedAt:         inv.createdAt,
+    isPending:       true,
+    inviteToken:     inv.token,
+  };
+}
+
+function fromApprovalRequest(a: PendingApprovalRequest): PendingApproval {
+  return {
+    id:            a.id,
+    requesterName: a.requesterName,
+    description:   a.description,
+    amountCents:   a.amountCents,
+    createdAt:     a.createdAt,
+  };
+}
+
+function fromNotification(n: OwnerNotification): AuditRow {
+  return {
+    id:          n.id,
+    when:        n.timestamp,
+    managerName: n.managerName,
+    description: n.description,
+    seen:        n.seen,
+  };
+}
 
 export const peopleService = {
-  getPeople(): PersonAccess[] {
-    if (import.meta.env.DEV && (window as any).__e2e_people) return (window as any).__e2e_people;
-    return MOCK_PEOPLE;
+  /** Owner row synthesized from the property record itself — never comes from the managers list. */
+  ownerRow(property: Property): PersonAccess {
+    return {
+      id: "owner", name: "You", initials: initialsOf("You"),
+      role: "OWNER", spendLimitCents: null, addedAt: Number(property.createdAt) / 1_000_000, isPending: false,
+    };
   },
-  getApprovals(): PendingApproval[] {
-    if (import.meta.env.DEV && (window as any).__e2e_approvals) return (window as any).__e2e_approvals;
-    return MOCK_APPROVALS;
+
+  async getPeople(propertyId: string): Promise<PersonAccess[]> {
+    const [managers, invites] = await Promise.all([
+      propertyService.getPropertyManagers(propertyId),
+      propertyService.getPendingInvitesForProperty(propertyId),
+    ]);
+    return [...managers.map(fromManager), ...invites.map(fromInvite)];
   },
-  getAuditLog(): AuditRow[] {
-    if (import.meta.env.DEV && (window as any).__e2e_audit) return (window as any).__e2e_audit;
-    return MOCK_AUDIT;
+
+  async invite(propertyId: string, role: PersonRole, displayName: string, spendLimitCents: number | null): Promise<ManagerInvite> {
+    return propertyService.inviteManager(propertyId, fromBackendRole(role), displayName, spendLimitCents ?? undefined);
+  },
+
+  async cancelInvite(propertyId: string, token: string): Promise<void> {
+    return propertyService.cancelManagerInvite(propertyId, token);
+  },
+
+  async updatePerson(propertyId: string, principal: string, role: PersonRole, spendLimitCents: number | null): Promise<void> {
+    return propertyService.updateManagerRole(propertyId, principal, fromBackendRole(role), spendLimitCents ?? undefined);
+  },
+
+  async revoke(propertyId: string, principal: string): Promise<void> {
+    return propertyService.removeManager(propertyId, principal);
+  },
+
+  async getApprovals(propertyId: string): Promise<PendingApproval[]> {
+    const list = await propertyService.getApprovals(propertyId);
+    return list.filter(a => a.status === "Pending").map(fromApprovalRequest);
+  },
+
+  async respondToApproval(propertyId: string, approvalId: number, approve: boolean): Promise<void> {
+    return propertyService.respondToApproval(propertyId, approvalId, approve);
+  },
+
+  async getAuditLog(propertyId: string): Promise<AuditRow[]> {
+    const notifs = await propertyService.getOwnerNotifications(propertyId);
+    return notifs.map(fromNotification);
   },
 };

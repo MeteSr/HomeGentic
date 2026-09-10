@@ -140,7 +140,7 @@ export default function SystemAgesModal({ open, onClose, propertyId, yearBuilt, 
         </p>
 
         <div style={{ border: `1px solid ${UI.rule}`, background: V2_COLORS.paper }}>
-          {TRACKED_SYSTEMS.map((sys, i) => {
+          {TRACKED_SYSTEMS.map((sys) => {
             const isTouched = touched.has(sys);
             const isCustom  = isTouched && ages[sys] !== String(yearBuilt);
 

@@ -8,8 +8,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   createMarketTimingService,
-  type TimingAnalysis,
-  type ListingRecommendation,
 } from "@/services/marketTimingService";
 
 // ── getAnalysis — shape ───────────────────────────────────────────────────────

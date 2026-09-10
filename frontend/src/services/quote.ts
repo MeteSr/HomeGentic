@@ -131,7 +131,7 @@ function createQuoteService() {
   return {
   async createRequest(
     req: Omit<QuoteRequest, "id" | "createdAt" | "status" | "homeowner">,
-    tier?: string
+    _tier?: string
   ): Promise<QuoteRequest> {
     // E2E bypass: when running in Playwright tests, create an in-memory mock request
     if (typeof window !== "undefined" && (window as any).__e2e_properties) {

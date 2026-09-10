@@ -14,7 +14,6 @@ import {
   parseForecastParams,
   buildForecastUrl,
   lookupYearBuilt,
-  type InstantForecastResult,
 } from "@/services/instantForecast";
 
 vi.mock("@/services/aiProxy", () => ({

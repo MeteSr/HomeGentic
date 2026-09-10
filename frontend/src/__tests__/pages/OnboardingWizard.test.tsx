@@ -24,7 +24,6 @@
  *   - Solar toggle shows/hides "Year installed" input
  */
 
-import React from "react";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
 import { MemoryRouter } from "react-router-dom";

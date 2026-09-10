@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 
 interface Props {

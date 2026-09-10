@@ -455,7 +455,7 @@ else
   echo ""
   echo "── [MGR-2] Owner invites manager; manager claims role ───────────────────"
   INVITE_OUT=$(dfx canister call property inviteManager \
-    "(\"$MGR_PROP_ID\", variant { Manager }, \"Quote Manager\")" \
+    "(\"$MGR_PROP_ID\", variant { Manager }, \"Quote Manager\", null)" \
     --identity quote-mgr-owner-test)
   INVITE_TOKEN=$(echo "$INVITE_OUT" | grep -oP 'token = "\K[^"]+' | head -1 || true)
   if [ -z "$INVITE_TOKEN" ]; then

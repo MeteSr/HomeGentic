@@ -11,7 +11,7 @@
  *   4. Success state nudges toward free account creation.
  */
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { CheckCircle, AlertTriangle, Loader2, ExternalLink } from "lucide-react";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";

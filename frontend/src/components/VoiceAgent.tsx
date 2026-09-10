@@ -29,7 +29,7 @@ export function VoiceAgent() {
     history, clearHistory, pendingImage,
     pendingProposal,
     startListening, stopListening, reset,
-    attachImage, clearImage, sendImageToAgent,
+    attachImage, clearImage,
     confirmProposal, dismissProposal,
   } = useVoiceAgent();
 

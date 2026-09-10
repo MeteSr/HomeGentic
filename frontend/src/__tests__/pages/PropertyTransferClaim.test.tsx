@@ -4,10 +4,9 @@
  * Covers: loading state, not-found / expired error states, unauthenticated
  * visitor flow, authenticated claim flow, and successful transfer redirect.
  */
-import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
+import { vi, describe, it, expect, beforeEach } from "vitest";
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 

@@ -17,7 +17,7 @@
 
 import { describe, it, expect, beforeAll } from "vitest";
 import { reportService } from "@/services/report";
-import type { ShareLink, ReportSnapshot } from "@/services/report";
+import type { ShareLink } from "@/services/report";
 
 const CANISTER_ID = (process.env as any).REPORT_CANISTER_ID || "";
 const deployed = !!CANISTER_ID;

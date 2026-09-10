@@ -8,7 +8,6 @@
  *   - Panorama manager: shows existing panoramas, add form, remove button
  */
 
-import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -72,8 +71,6 @@ vi.mock("@/services/notifications", async (importOriginal) => {
 vi.mock("@/services/fsboOffer", () => ({
   fsboOfferService: { getByProperty: vi.fn().mockReturnValue([]) },
 }));
-
-const mockPanoramaStore: Array<{ roomLabel: string; photoId: string }> = [];
 
 vi.mock("@/services/listing", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/listing")>();

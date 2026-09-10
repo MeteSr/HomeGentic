@@ -6,12 +6,10 @@
  * calls POST /api/pulse on the voice agent proxy.
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import {
   createPulseService,
   type PulseContext,
-  type PulseDigest,
-  type PulseItem,
 } from "@/services/pulseService";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

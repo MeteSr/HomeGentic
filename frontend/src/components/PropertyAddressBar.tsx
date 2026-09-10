@@ -1,5 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useRef, useEffect } from "react";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 import { useAddPropertyStore } from "@/store/addPropertyStore";
 
@@ -35,7 +34,6 @@ const AVATAR_COLORS = [
 export function PropertyAddressBar({ activeProperty, properties, onSelect, certBadge }: PropertyAddressBarProps) {
   const [open, setOpen]       = useState(false);
   const ref                   = useRef<HTMLDivElement>(null);
-  const navigate              = useNavigate();
   const { open: openAddProp } = useAddPropertyStore();
 
   useEffect(() => {

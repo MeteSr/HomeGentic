@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { useParams, Outlet } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { propertyService } from "@/services/property";

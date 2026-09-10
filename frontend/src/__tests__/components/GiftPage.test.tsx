@@ -2,7 +2,6 @@
  * GiftPage — Stripe gift subscription flow tests
  * Covers: renders, step navigation, Stripe redirect on submit, error handling.
  */
-import React from "react";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { vi, describe, it, expect, beforeEach } from "vitest";

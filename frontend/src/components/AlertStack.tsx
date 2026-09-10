@@ -1,8 +1,7 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Sparkles, ArrowRight, X } from "lucide-react";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import type { AtRiskWarning } from "@/services/scoreDecayService";
-import type { PlanTier } from "@/services/payment";
 
 const UI = {
   ink:      V2_COLORS.ink,
@@ -18,9 +17,7 @@ export interface AlertStackProps {
   scoreStagnant:   boolean;
   pulseTip:        { headline: string; detail: string; category: string } | null;
   pulseEnabled:    boolean;
-  userTier:        PlanTier;
   onLogJob:        () => void;
-  onNavigate:      (path: string) => void;
 }
 
 const PULSE_KEY = `homegentic_pulse_${new Date().toISOString().slice(0, 7)}`;
@@ -30,9 +27,7 @@ export function AlertStack({
   scoreStagnant,
   pulseTip,
   pulseEnabled,
-  userTier,
   onLogJob,
-  onNavigate,
 }: AlertStackProps) {
   const [pulseDismissed, setPulseDismissed] = useState(
     () => !!localStorage.getItem(PULSE_KEY)

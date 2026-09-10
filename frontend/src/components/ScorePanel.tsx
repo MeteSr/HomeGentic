@@ -1,4 +1,3 @@
-import React from "react";
 import { ShieldCheck } from "lucide-react";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 

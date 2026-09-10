@@ -5,7 +5,7 @@
  * auction into a race to undercut.
  */
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { listingService, type ListingProposal } from "@/services/listing";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
@@ -32,7 +32,6 @@ export default function AgentBidsPage() {
   }, []);
 
   const won = proposals.filter((p) => p.status === "Accepted");
-  const totalPaid = won.length; // fee amount not resolved per-proposal here; count is the honest signal available
 
   return (
     <Layout>

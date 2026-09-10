@@ -3,7 +3,7 @@
  * §17.1.5 — Hidden when sampleSize < 5.
  */
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   getPriceBenchmark,
   hasSufficientSamples,

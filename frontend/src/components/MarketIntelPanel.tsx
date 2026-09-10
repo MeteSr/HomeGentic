@@ -1,4 +1,3 @@
-import React from "react";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 import type { ProjectRecommendation } from "@/services/market";
 

@@ -10,13 +10,11 @@ import { describe, it, expect, beforeEach } from "vitest";
 import {
   createYearInReviewService,
   type YearInReviewContext,
-  type YearInReviewSummary,
 } from "@/services/yearInReviewService";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const NOW = new Date("2026-01-15").getTime();
-const ONE_YEAR_AGO = new Date("2025-01-15").getTime();
 
 function makeJob(overrides: {
   id?: string;

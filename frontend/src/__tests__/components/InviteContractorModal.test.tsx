@@ -15,9 +15,8 @@
  *   - Job summary line shows serviceType and amount
  */
 
-import React from "react";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { InviteContractorModal } from "@/components/InviteContractorModal";
 import type { Job } from "@/services/job";

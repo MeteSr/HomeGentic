@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { TrendingUp, BarChart2, Wrench, Star, ArrowRight, AlertCircle } from "lucide-react";
 import { Layout } from "@/components/Layout";
@@ -11,9 +11,7 @@ import {
   CompetitiveAnalysis,
   ProjectRecommendation,
 } from "@/services/market";
-import { paymentService, type PlanTier } from "@/services/payment";
 import { usePropertyStore } from "@/store/propertyStore";
-import { UpgradeGate } from "@/components/UpgradeGate";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 
 type Tab = "competitive" | "projects";
@@ -70,13 +68,11 @@ export default function MarketIntelligencePage() {
   const [budget, setBudget] = useState("50000");
   const [sortBy, setSortBy] = useState<SortBy>("roi");
   const [loading, setLoading] = useState(false);
-  const [userTier, setUserTier] = useState<PlanTier>("Basic");
 
   useEffect(() => {
     if (properties.length > 0 && !selectedId) {
       setSelectedId(String(properties[0].id));
     }
-    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch((e) => console.error("[MarketIntelligencePage] subscription load failed:", e));
   }, [properties]);
 
   const runAnalysis = async () => {

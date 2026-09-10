@@ -10,7 +10,6 @@ import { describe, it, expect, beforeEach } from "vitest";
 import {
   createDocumentClassificationService,
   type ClassificationResult,
-  type DocumentType,
   DOCUMENT_TYPES,
 } from "@/services/documentClassificationService";
 

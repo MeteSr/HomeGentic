@@ -18,7 +18,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { readFileSync, readdirSync, statSync } from "fs";
+import { readFileSync, readdirSync } from "fs";
 import { resolve, join } from "path";
 
 const ROOT = resolve(__dirname, "../../../../");

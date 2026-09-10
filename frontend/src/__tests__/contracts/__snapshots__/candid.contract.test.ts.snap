@@ -1568,6 +1568,16 @@ exports[`photo IDL factory > full signature snapshot 1`] = `
 
 exports[`property IDL factory > full signature snapshot 1`] = `
 {
+  "cancelManagerInvite": {
+    "args": [
+      "text",
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
+    ],
+  },
   "cancelTransfer": {
     "args": [
       "text",
@@ -1583,7 +1593,7 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     ],
     "mode": [],
     "rets": [
-      "variant {ok:record {role:variant {Viewer; Manager}; propertyId:text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
+      "variant {ok:record {role:variant {CoOwner; Viewer; Manager}; propertyId:text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
     ],
   },
   "claimTransfer": {
@@ -1604,6 +1614,17 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
     ],
   },
+  "getApprovals": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:vec record {id:nat; status:variant {Approved; Declined; Pending}; createdAt:int; description:text; propertyId:text; amountCents:nat; requesterName:text; requestedBy:principal}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
+    ],
+  },
   "getManagerInviteByToken": {
     "args": [
       "text",
@@ -1612,7 +1633,7 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "query",
     ],
     "rets": [
-      "opt record {token:text; expiresAt:int; displayName:text; createdAt:int; role:variant {Viewer; Manager}; invitedBy:principal; propertyId:text}",
+      "opt record {token:text; expiresAt:int; displayName:text; createdAt:int; role:variant {CoOwner; Viewer; Manager}; invitedBy:principal; propertyId:text; spendLimitCents:opt nat}",
     ],
   },
   "getMyManagedProperties": {
@@ -1621,7 +1642,7 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "query",
     ],
     "rets": [
-      "vec record {role:variant {Viewer; Manager}; property:record {id:text; identityVerified:opt bool; identitySessionId:opt text; propertyType:variant {SingleFamily; Townhouse; MultiFamily; Condo}; owner:principal; city:text; nameOnId:opt text; createdAt:int; tier:variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}; squareFeet:nat; nameOnDocument:opt text; isActive:bool; conflictWindowEndsAt:opt int; zipCode:text; updatedAt:int; state:text; address:text; verificationLevel:variant {Premium; Basic; PendingReview; Unverified}; identityVerifiedAt:opt int; yearBuilt:nat; contestedWithId:opt text}}",
+      "vec record {role:variant {CoOwner; Viewer; Manager}; property:record {id:text; identityVerified:opt bool; identitySessionId:opt text; propertyType:variant {SingleFamily; Townhouse; MultiFamily; Condo}; owner:principal; city:text; nameOnId:opt text; createdAt:int; tier:variant {Pro; Premium; Free; Basic; ContractorPro; ContractorFree}; squareFeet:nat; nameOnDocument:opt text; isActive:bool; conflictWindowEndsAt:opt int; zipCode:text; updatedAt:int; state:text; address:text; verificationLevel:variant {Premium; Basic; PendingReview; Unverified}; identityVerifiedAt:opt int; yearBuilt:nat; contestedWithId:opt text}}",
     ],
   },
   "getMyProperties": {
@@ -1653,6 +1674,17 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "vec record {to:principal; from:principal; propertyId:text; timestamp:int; txHash:text}",
+    ],
+  },
+  "getPendingInvitesForProperty": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "variant {ok:vec record {token:text; expiresAt:int; displayName:text; createdAt:int; role:variant {CoOwner; Viewer; Manager}; invitedBy:principal; propertyId:text; spendLimitCents:opt nat}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
     ],
   },
   "getPendingTransfer": {
@@ -1716,7 +1748,7 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "query",
     ],
     "rets": [
-      "variant {ok:vec record {principal:principal; displayName:text; role:variant {Viewer; Manager}; addedAt:int}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
+      "variant {ok:vec record {principal:principal; displayName:text; role:variant {CoOwner; Viewer; Manager}; spendLimitCents:opt nat; addedAt:int}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
     ],
   },
   "getPropertyOwner": {
@@ -1775,12 +1807,13 @@ exports[`property IDL factory > full signature snapshot 1`] = `
   "inviteManager": {
     "args": [
       "text",
-      "variant {Viewer; Manager}",
+      "variant {CoOwner; Viewer; Manager}",
       "text",
+      "opt nat",
     ],
     "mode": [],
     "rets": [
-      "variant {ok:record {token:text; expiresAt:int; displayName:text; createdAt:int; role:variant {Viewer; Manager}; invitedBy:principal; propertyId:text}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
+      "variant {ok:record {token:text; expiresAt:int; displayName:text; createdAt:int; role:variant {CoOwner; Viewer; Manager}; invitedBy:principal; propertyId:text; spendLimitCents:opt nat}; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
     ],
   },
   "isAdminPrincipal": {
@@ -1847,9 +1880,31 @@ exports[`property IDL factory > full signature snapshot 1`] = `
       "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
     ],
   },
+  "requestApproval": {
+    "args": [
+      "text",
+      "text",
+      "nat",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:nat; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
+    ],
+  },
   "resignAsManager": {
     "args": [
       "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {Paused; InvalidInput:text; AddressConflict:int; NotFound; NotAuthorized; LimitReached; DuplicateAddress}}",
+    ],
+  },
+  "respondToApproval": {
+    "args": [
+      "text",
+      "nat",
+      "bool",
     ],
     "mode": [],
     "rets": [
@@ -1882,7 +1937,8 @@ exports[`property IDL factory > full signature snapshot 1`] = `
     "args": [
       "text",
       "principal",
-      "variant {Viewer; Manager}",
+      "variant {CoOwner; Viewer; Manager}",
+      "opt nat",
     ],
     "mode": [],
     "rets": [

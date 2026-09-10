@@ -4,7 +4,7 @@
  * Neither side unmasks here — see ConfirmSelectionModal (H5) for that.
  */
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { X, Send } from "lucide-react";
 import { Button } from "@/components/Button";
 import { listingService, type MaskedProposal, type ThreadMessage } from "@/services/listing";

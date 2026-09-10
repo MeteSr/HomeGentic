@@ -7,7 +7,7 @@
  *   ICP            → on-chain subscribe via Internet Identity (no Stripe fees)
  */
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { Check, X, CreditCard, Coins } from "lucide-react";
 import { PLANS, type PlanTier } from "@/services/planConstants";
 import { paymentService } from "@/services/payment";

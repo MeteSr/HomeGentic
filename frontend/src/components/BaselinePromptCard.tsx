@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Camera, CheckCircle, X } from "lucide-react";
 import { photoService, type Photo } from "@/services/photo";
 import type { Property } from "@/services/property";

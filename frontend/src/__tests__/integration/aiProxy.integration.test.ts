@@ -31,7 +31,6 @@ const externalCalls = process.env.ENABLE_EXTERNAL_CALLS === "true";
 
 describe.skipIf(!deployed)("health — canister liveness", () => {
   it("returns a non-empty string", async () => {
-    const actor = (aiProxyService as any);
     // Access the underlying actor directly for methods not in the service wrapper
     const { Actor } = await import("@icp-sdk/core/agent");
     const { idlFactory } = await import("@/services/aiProxy");

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getReEngagementPrompts, type ReEngagementPrompt } from "@/services/reEngagementService";
+import { getReEngagementPrompts } from "@/services/reEngagementService";
 import type { Job } from "@/services/job";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

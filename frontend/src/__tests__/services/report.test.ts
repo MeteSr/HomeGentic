@@ -17,7 +17,7 @@ const mockReportActor = {
     expiryDays: any[],
     visibility: any,
     rooms: any[],
-    ...rest: any[]
+    ..._rest: any[]
   ) => {
     _mockCounter++;
     const snapshotId = `SNAP_${_mockCounter}`;

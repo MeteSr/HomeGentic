@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { CheckCircle, Gift } from "lucide-react";
@@ -27,7 +27,6 @@ export default function PaymentSuccessPage() {
   const sessionId         = params.get("session_id") ?? "";
   // PaymentElement also passes tier/billing directly in the URL
   const urlTier           = params.get("tier") ?? "";
-  const urlBilling        = params.get("billing") ?? "";
   // Quorum HOA member discount code — if present, mark it redeemed after checkout
   const quorumCoupon      = params.get("quorum_coupon") ?? "";
 

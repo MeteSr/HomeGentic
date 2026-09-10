@@ -7,7 +7,6 @@
  *   17.1.4 — PriceLookupPage renders at /prices?service=...&zip=...
  */
 
-import React from "react";
 import { render, screen, waitFor, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";

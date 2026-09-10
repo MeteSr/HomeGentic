@@ -1139,7 +1139,6 @@ function FeatureCard({ feature: ft }: { feature: typeof FEATURES[number] }) {
 
 function PlanCard({ plan: pl, onStart }: { plan: typeof PLANS[number]; onStart: () => void }) {
   const { hovered: btnHovered, handlers: btnHandlers } = useHover();
-  const planFeatures = ["1 property", "Up to 5 properties", "Up to 20 properties"];
   return (
     <div style={{ minWidth: 0, background: pl.bg, border: `1.5px solid ${pl.border}`, borderRadius: 28, padding: 32, display: "flex", flexDirection: "column", boxShadow: pl.shadow }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

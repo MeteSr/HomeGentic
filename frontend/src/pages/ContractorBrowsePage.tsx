@@ -11,7 +11,7 @@
  * and getBySpecialty queries are proxied through search() already.
  */
 
-import React, { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate }                          from "react-router-dom";
 import { Search, AlertTriangle, ShieldCheck, X } from "lucide-react";
 import { Layout }                               from "@/components/Layout";

@@ -9,7 +9,6 @@ import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Shield, CheckCircle, Wrench, FileText, Printer, AlertTriangle, XCircle } from "lucide-react";
 import { reportService, ReportSnapshot, ShareLink, JobInput, disclosureFromParams } from "@/services/report";
-import { premiumEstimate, getScoreGrade } from "@/services/scoreService";
 import { DocumentedValueSection } from "@/components/DocumentedValueSection";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 
@@ -169,7 +168,6 @@ export default function ReportPage() {
     snapshot.jobs.some((j) => j.isVerified && j.serviceType === sys)
   ).length;
   const certified = reportScore >= 88 && snapshot.verifiedJobCount >= 3 && certifiedSystems >= 2;
-  const premium   = premiumEstimate(reportScore);
   const jobsWithPermit    = disclosure.hidePermits ? [] : sortedJobs.filter((j) => j.permitNumber);
   const uniqueContractors = disclosure.hideContractors
     ? []

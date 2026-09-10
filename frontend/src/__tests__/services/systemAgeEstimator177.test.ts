@@ -12,8 +12,6 @@ import {
   parseEstimatorParams,
   buildEstimatorUrl,
   estimateSystems,
-  type EstimatorInput,
-  type SystemEstimate,
 } from "@/services/systemAgeEstimator";
 
 const CURRENT_YEAR = new Date().getFullYear();

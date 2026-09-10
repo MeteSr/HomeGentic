@@ -11,7 +11,6 @@ import {
   createBuilderService,
   type BulkPropertyRow,
   type SubcontractorJobRow,
-  type BuilderDevelopment,
 } from "@/services/builderService";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

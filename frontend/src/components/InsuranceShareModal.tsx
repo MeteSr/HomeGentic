@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { X, Copy, Download, Shield, CheckCircle } from "lucide-react";
 import { Button } from "@/components/Button";
 import { reportService, type RiskProfile } from "@/services/report";

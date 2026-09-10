@@ -197,7 +197,7 @@ function createJobService() {
     return unwrapJob(result);
   },
 
-  async updateJob(jobId: string, updates: Partial<Pick<Job, "serviceType" | "contractorName" | "amount" | "date" | "description" | "permitNumber" | "warrantyMonths" | "isDiy">>): Promise<Job> {
+  async updateJob(_jobId: string, _updates: Partial<Pick<Job, "serviceType" | "contractorName" | "amount" | "date" | "description" | "permitNumber" | "warrantyMonths" | "isDiy">>): Promise<Job> {
     // Canister updateJob not yet implemented — throw to signal unsupported
     throw new Error("Job editing is not yet available on-chain. Please contact support.");
   },

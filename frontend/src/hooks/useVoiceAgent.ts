@@ -14,7 +14,6 @@ import { buildImageUserMessage, fileToBase64, type SupportedImageMimeType } from
 import { useAuthStore } from "../store/authStore";
 import { paymentService } from "../services/payment";
 import { contractorService } from "../services/contractor";
-import { proposeJob } from "../services/contractorJobProposal";
 
 // ── Minimal message types (mirrors Anthropic SDK without importing it) ─────────
 
@@ -227,7 +226,6 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
       nextActions.push(`verify ${needed} more job${needed > 1 ? "s" : ""} to gain up to ${40 - breakdown.verifiedJobPts} pts`);
     }
     if (breakdown.diversityPts < 20) {
-      const verifiedTypes = new Set(jobs.filter((j) => j.verified || j.status === "verified").map((j) => j.serviceType)).size;
       const needed = Math.ceil((20 - breakdown.diversityPts) / 4);
       if (needed > 0) nextActions.push(`document ${needed} more system type${needed > 1 ? "s" : ""} (e.g. HVAC, Roofing, Plumbing, Electrical) for up to ${20 - breakdown.diversityPts} diversity pts`);
     }

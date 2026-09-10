@@ -300,7 +300,6 @@ function fromRiskProfile(raw: any): RiskProfile {
 
 function createReportService() {
   let _actor: any = null;
-  let mockCounter = 0;
   const mockSnapshots = new Map<string, ReportSnapshot>();
   const mockLinks     = new Map<string, ShareLink>();
 
@@ -477,7 +476,6 @@ function createReportService() {
 
   reset() {
     _actor = null;
-    mockCounter = 0;
     mockSnapshots.clear();
     mockLinks.clear();
   },

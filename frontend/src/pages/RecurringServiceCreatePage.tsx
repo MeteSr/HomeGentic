@@ -1,12 +1,10 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, CheckCircle } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { recurringService, RecurringServiceType, Frequency, SERVICE_TYPE_LABELS, FREQUENCY_LABELS } from "@/services/recurringService";
-import { paymentService, type PlanTier } from "@/services/payment";
 import { usePropertyStore } from "@/store/propertyStore";
-import { UpgradeGate } from "@/components/UpgradeGate";
 import toast from "react-hot-toast";
 import { isValidPhone } from "@/utils/validators";
 import { V2_COLORS, V2_FONTS } from "@/theme";
@@ -36,11 +34,6 @@ export default function RecurringServiceCreatePage() {
   const [loading, setLoading]   = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [createdName, setCreatedName] = useState("");
-  const [userTier, setUserTier] = useState<PlanTier>("Basic");
-
-  useEffect(() => {
-    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch((e) => console.error("[RecurringServiceCreatePage] subscription load failed:", e));
-  }, []);
   const [form, setForm] = useState({
     propertyId:      "",
     serviceType:     "LawnCare"     as RecurringServiceType,

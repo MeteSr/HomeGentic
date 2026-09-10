@@ -84,7 +84,7 @@ vi.mock("@icp-sdk/core/agent", () => ({
   Actor: { createActor: vi.fn(() => mockReportActor) },
 }));
 
-import { reportService, jobToInput, propertyToInput } from "../../services/report";
+import { reportService } from "../../services/report";
 import type { JobInput, PropertyInput } from "../../services/report";
 
 beforeEach(() => { resetReportMock(); reportService.reset(); });

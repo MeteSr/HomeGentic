@@ -4,7 +4,6 @@ import { ArrowLeft, ShieldCheck, AlertTriangle, Clock, ScanLine } from "lucide-r
 import { Layout } from "@/components/Layout";
 import { jobService, Job } from "@/services/job";
 import { propertyService, Property } from "@/services/property";
-import { paymentService, type PlanTier } from "@/services/payment";
 import { warrantyStatus, warrantyExpiry, daysRemaining, type WarrantyStatus } from "@/services/warranty";
 import { extractDocument, fileToBase64, type DocumentExtraction } from "@/services/documentOcr";
 import { V2_COLORS, V2_FONTS } from "@/theme";
@@ -272,10 +271,8 @@ export default function WarrantyWalletPage() {
   const navigate = useNavigate();
   const [warrantyJobs, setWarrantyJobs] = useState<WarrantyJob[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [userTier, setUserTier] = useState<PlanTier>("Basic");
 
   useEffect(() => {
-    paymentService.getMySubscription().then((s) => setUserTier(s.tier)).catch((e) => console.error("[WarrantyWalletPage] subscription load failed:", e));
     Promise.all([
       jobService.getAll(),
       propertyService.getMyProperties(),

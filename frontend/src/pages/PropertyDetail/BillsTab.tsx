@@ -9,7 +9,7 @@ import {
   getUsageTrend, analyzeEfficiencyTrend, findRebates, negotiateTelecom,
   type RebateResult, type TelecomNegotiationResult,
 } from "@/services/billsIntelligence";
-import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
+import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";
 import toast from "react-hot-toast";
 
 const BILL_TYPE_LABELS: Record<BillType, string> = {

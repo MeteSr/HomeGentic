@@ -53,7 +53,7 @@ function time(fn: () => void): number {
   return performance.now() - t0;
 }
 
-function validateReport(report: MaintenanceReport, yearBuilt: number) {
+function validateReport(report: MaintenanceReport) {
   expect(report.systemPredictions).toHaveLength(8);
   expect(report.generatedAt).toBeGreaterThan(0);
   for (const p of report.systemPredictions) {
@@ -73,7 +73,7 @@ describe("13.3.2: predictMaintenance() at scale", () => {
     const jobs = makeJobs(10);
     for (let year = 1950; year <= 2024; year++) {
       const report = predictMaintenance(year, jobs);
-      validateReport(report, year);
+      validateReport(report);
     }
   });
 
@@ -150,7 +150,7 @@ describe("13.3.2: predictMaintenance() at scale", () => {
     for (const state of states) {
       for (const yr of years) {
         const report = predictMaintenance(yr, jobs, {}, state);
-        validateReport(report, yr);
+        validateReport(report);
       }
     }
   });

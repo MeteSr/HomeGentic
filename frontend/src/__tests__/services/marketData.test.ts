@@ -9,8 +9,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   createMarketDataService,
-  type MarketSnapshot,
-  type InventoryTrend,
 } from "@/services/marketDataService";
 
 describe("marketDataService.getSnapshot (5.3.1)", () => {

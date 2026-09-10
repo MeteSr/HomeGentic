@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ChevronDown } from "lucide-react";
 import { usePropertyStore } from "@/store/propertyStore";
 import { usePropertyDetail } from "@/hooks/usePropertyDetail";
 import { usePropertyRooms } from "@/hooks/usePropertyRooms";
+import { sensorService, type SensorDevice, type SensorEvent } from "@/services/sensor";
 import { V2_FONTS } from "@/theme";
 
 const F = V2_FONTS;
@@ -146,6 +147,15 @@ export function MobilePropertyPage() {
   const { property, loading }    = usePropertyDetail(selectedId);
   const { rooms }                = usePropertyRooms(selectedId);
 
+  const [devices, setDevices] = useState<SensorDevice[] | null>(null);
+  const [alerts,  setAlerts]  = useState<SensorEvent[]>([]);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    sensorService.getDevicesForProperty(selectedId).then(setDevices).catch(() => setDevices([]));
+    sensorService.getPendingAlerts(selectedId).then(setAlerts).catch(() => setAlerts([]));
+  }, [selectedId]);
+
   // Build room rows
   const roomRows = rooms.map(room => {
     const fixtureCount = room.fixtures?.length ?? 0;
@@ -158,12 +168,6 @@ export function MobilePropertyPage() {
       chipBg:    fixtureCount > 0 ? "#F0FDF4" : "#FEF3C7",
     };
   });
-
-  // Mock sensors when no real data
-  const MOCK_SENSORS = [
-    { label: "BASEMENT WATER", value: "DRY",       note: "No leak events in 90 days", noteColor: "#166534" },
-    { label: "HVAC RUNTIME",   value: "4.2 HR/D",  note: "↑ 12% vs last month",       noteColor: M.muted   },
-  ];
 
   const propAddress = property?.address?.split(",")[0] ?? properties[0]?.address?.split(",")[0] ?? "My Property";
   const allProps = properties.map(p => ({ id: String(p.id), address: p.address }));
@@ -256,17 +260,41 @@ export function MobilePropertyPage() {
       <div style={{ font: `500 9px/1 ${F.mono}`, letterSpacing: ".14em", color: M.muted, margin: "22px 2px 11px" }}>
         SENSORS
       </div>
-      <div style={{ display: "flex", gap: 11 }}>
-        {MOCK_SENSORS.map(sn => (
+      {devices === null ? null : devices.length === 0 ? (
+        <div style={{
+          background: M.card, border: `1px solid ${M.cardBdr}`,
+          borderRadius: M.radius, boxShadow: M.cardShadow, padding: "24px 18px",
+        }}>
+          <div style={{ font: `500 13.5px/1.3 ${F.body}`, color: M.ink, marginBottom: 6 }}>No sensors connected</div>
+          <div style={{ font: `400 12px/1.5 ${F.body}`, color: M.muted, marginBottom: 14 }}>
+            Connect a Nest, Ecobee, Moen Flo, Ring or other smart device to see live readings here.
+          </div>
+          <button
+            onClick={() => navigate("/sensors")}
+            style={{
+              font: `600 13px/1 ${F.body}`, color: M.blue, background: M.blueLight,
+              border: `1px solid ${M.blueBdr}`, borderRadius: 100, padding: "9px 16px", cursor: "pointer",
+            }}
+          >
+            + Connect device
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: "flex", gap: 11 }}>
           <SensorCard
-            key={sn.label}
-            label={sn.label}
-            value={sn.value}
-            note={sn.note}
-            noteColor={sn.noteColor}
+            label="DEVICES"
+            value={`${devices.length} connected`}
+            note={Array.from(new Set(devices.map(d => d.source))).slice(0, 2).join(", ")}
+            noteColor={M.muted}
           />
-        ))}
-      </div>
+          <SensorCard
+            label="ALERTS"
+            value={alerts.length === 0 ? "All clear" : `${alerts.length} active`}
+            note={alerts.length === 0 ? "No pending alerts" : sensorService.eventLabel(alerts[0].eventType)}
+            noteColor={alerts.length === 0 ? "#166534" : sensorService.severityColor(alerts[0].severity)}
+          />
+        </div>
+      )}
 
       {/* ── View full record link ─────────────────────────────────────────── */}
       <div style={{ marginTop: 20, textAlign: "center" }}>

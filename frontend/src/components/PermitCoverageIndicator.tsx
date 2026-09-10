@@ -5,7 +5,6 @@
  * Tells the homeowner whether permit auto-import will be available for their area.
  */
 
-import React from "react";
 import { isPermitDataAvailable } from "@/services/permitImport";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 

@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { roomService, type Room as RoomRecord, type UpdateRoomArgs, type AddFixtureArgs } from "@/services/room";
 import { type Photo } from "@/services/photo";
-import { Button } from "@/components/Button";
 import { AddRoomModal } from "@/components/AddRoomModal";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 import toast from "react-hot-toast";
@@ -314,8 +313,6 @@ export function RoomsTab({
   propertyId,
   rooms,
   onRoomsChange,
-  photosByJob,
-  onRoomPhotoUpload,
 }: {
   propertyId:        string;
   rooms:             RoomRecord[];

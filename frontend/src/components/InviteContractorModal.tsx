@@ -12,7 +12,7 @@
  * The contractor scans or clicks → ContractorVerifyPage → one-tap sign.
  */
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { X, Copy, Check, Mail, Loader2 } from "lucide-react";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";

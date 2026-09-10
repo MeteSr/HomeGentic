@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { jobService, type Job } from "@/services/job";
 import { quoteService, type QuoteRequest, type Quote } from "@/services/quote";

@@ -228,7 +228,7 @@ export interface FsboOfferPanelProps {
   listPriceCents: number;
 }
 
-export default function FsboOfferPanel({ propertyId, listPriceCents }: FsboOfferPanelProps) {
+export default function FsboOfferPanel({ propertyId }: FsboOfferPanelProps) {
   const [offers,        setOffers]        = useState<FsboOffer[]>(() => fsboOfferService.getByProperty(propertyId));
   const [underContract, setUnderContract] = useState(false);
 

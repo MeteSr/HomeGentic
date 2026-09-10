@@ -10,7 +10,7 @@
  *   • Sample size
  */
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { MapPin, TrendingUp, TrendingDown, Minus, ArrowLeft } from "lucide-react";
 import { neighborhoodService, type ZipCodeStats } from "@/services/neighborhood";

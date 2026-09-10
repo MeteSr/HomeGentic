@@ -7,7 +7,7 @@ const PROPERTY_CANISTER_ID = (process.env as any).PROPERTY_CANISTER_ID || "";
 
 export type PropertyType      = "SingleFamily" | "Condo" | "Townhouse" | "MultiFamily";
 export type VerificationLevel = "Unverified" | "PendingReview" | "Basic" | "Premium";
-export type ManagerRole       = "Viewer" | "Manager";
+export type ManagerRole       = "Viewer" | "Manager" | "CoOwner";
 export type SubscriptionTier = "Free" | "Basic" | "Pro" | "Premium" | "ContractorFree" | "ContractorPro";
 
 export interface Property {
@@ -80,20 +80,22 @@ export interface PendingTransfer {
 }
 
 export interface PropertyManager {
-  principal   : string;   // principal text
-  role        : ManagerRole;
-  displayName : string;
-  addedAt     : number;   // ms
+  principal       : string;   // principal text
+  role            : ManagerRole;
+  displayName     : string;
+  addedAt         : number;   // ms
+  spendLimitCents ?: number;  // undefined = no limit (full trust)
 }
 
 export interface ManagerInvite {
-  propertyId  : string;
-  token       : string;
-  role        : ManagerRole;
-  displayName : string;
-  invitedBy   : string;   // principal text
-  createdAt   : number;   // ms
-  expiresAt   : number;   // ms
+  propertyId      : string;
+  token           : string;
+  role            : ManagerRole;
+  displayName     : string;
+  invitedBy       : string;   // principal text
+  createdAt       : number;   // ms
+  expiresAt       : number;   // ms
+  spendLimitCents ?: number;
 }
 
 export interface OwnerNotification {
@@ -108,6 +110,19 @@ export interface OwnerNotification {
 export interface ManagedProperty {
   property : Property;
   role     : ManagerRole;
+}
+
+export type ApprovalStatus = "Pending" | "Approved" | "Declined";
+
+export interface PendingApprovalRequest {
+  id            : number;
+  propertyId    : string;
+  requestedBy   : string;   // principal text
+  requesterName : string;
+  description   : string;
+  amountCents   : number;
+  createdAt     : number;   // ms
+  status        : ApprovalStatus;
 }
 
 export interface RegisterPropertyArgs {
@@ -184,6 +199,7 @@ function fromPropertyManager(r: any): PropertyManager {
     role        : Object.keys(r.role)[0] as ManagerRole,
     displayName : r.displayName,
     addedAt     : Number(r.addedAt) / 1_000_000,
+    spendLimitCents: r.spendLimitCents[0] !== undefined ? Number(r.spendLimitCents[0]) : undefined,
   };
 }
 
@@ -196,6 +212,20 @@ function fromManagerInvite(r: any): ManagerInvite {
     invitedBy   : r.invitedBy.toText(),
     createdAt   : Number(r.createdAt) / 1_000_000,
     expiresAt   : Number(r.expiresAt) / 1_000_000,
+    spendLimitCents: r.spendLimitCents[0] !== undefined ? Number(r.spendLimitCents[0]) : undefined,
+  };
+}
+
+function fromApproval(r: any): PendingApprovalRequest {
+  return {
+    id            : Number(r.id),
+    propertyId    : r.propertyId,
+    requestedBy   : r.requestedBy.toText(),
+    requesterName : r.requesterName,
+    description   : r.description,
+    amountCents   : Number(r.amountCents),
+    createdAt     : Number(r.createdAt) / 1_000_000,
+    status        : Object.keys(r.status)[0] as ApprovalStatus,
   };
 }
 
@@ -450,9 +480,9 @@ export const propertyService = {
   // ── Delegated management ────────────────────────────────────────────────────
 
   /** Owner invites someone by role + display name; returns a bearer-token invite. */
-  async inviteManager(propertyId: string, role: ManagerRole, displayName: string): Promise<ManagerInvite> {
+  async inviteManager(propertyId: string, role: ManagerRole, displayName: string, spendLimitCents?: number): Promise<ManagerInvite> {
     const a = await getActor();
-    const result = await a.inviteManager(propertyId, { [role]: null }, displayName);
+    const result = await a.inviteManager(propertyId, { [role]: null }, displayName, spendLimitCents !== undefined ? [BigInt(spendLimitCents)] : []);
     if ("ok" in result) return fromManagerInvite(result.ok);
     const key = Object.keys(result.err)[0];
     const val = result.err[key];
@@ -474,11 +504,32 @@ export const propertyService = {
     throw new Error(typeof val === "string" ? val : key);
   },
 
-  /** Owner changes a manager's role (Viewer ↔ Manager). */
-  async updateManagerRole(propertyId: string, managerPrincipal: string, role: ManagerRole): Promise<void> {
+  /** Owner cancels a pending (not yet claimed) invite. */
+  async cancelManagerInvite(propertyId: string, token: string): Promise<void> {
+    const a = await getActor();
+    const result = await a.cancelManagerInvite(propertyId, token);
+    if ("err" in result) {
+      const key = Object.keys(result.err)[0];
+      const val = result.err[key];
+      throw new Error(typeof val === "string" ? val : key);
+    }
+  },
+
+  /** Owner fetches their own pending (not yet claimed) invites for a property. */
+  async getPendingInvitesForProperty(propertyId: string): Promise<ManagerInvite[]> {
+    const a = await getActor();
+    const result = await a.getPendingInvitesForProperty(propertyId);
+    if ("ok" in result) return (result.ok as any[]).map(fromManagerInvite);
+    const key = Object.keys(result.err)[0];
+    const val = result.err[key];
+    throw new Error(typeof val === "string" ? val : key);
+  },
+
+  /** Owner changes a manager's role and/or spend limit. */
+  async updateManagerRole(propertyId: string, managerPrincipal: string, role: ManagerRole, spendLimitCents?: number): Promise<void> {
     const a = await getActor();
     const { Principal: P } = await import("@icp-sdk/core/principal");
-    const result = await a.updateManagerRole(propertyId, P.fromText(managerPrincipal), { [role]: null });
+    const result = await a.updateManagerRole(propertyId, P.fromText(managerPrincipal), { [role]: null }, spendLimitCents !== undefined ? [BigInt(spendLimitCents)] : []);
     if ("err" in result) {
       const key = Object.keys(result.err)[0];
       const val = result.err[key];
@@ -567,6 +618,37 @@ export const propertyService = {
       const val = result.err[key];
       throw new Error(typeof val === "string" ? val : key);
     }
+  },
+
+  /** Manager requests owner sign-off to spend above their limit. Returns the new approval's id. */
+  async requestApproval(propertyId: string, description: string, amountCents: number): Promise<number> {
+    const a = await getActor();
+    const result = await a.requestApproval(propertyId, description, BigInt(amountCents));
+    if ("ok" in result) return Number(result.ok);
+    const key = Object.keys(result.err)[0];
+    const val = result.err[key];
+    throw new Error(typeof val === "string" ? val : key);
+  },
+
+  /** Owner approves or declines a pending approval request. */
+  async respondToApproval(propertyId: string, approvalId: number, approve: boolean): Promise<void> {
+    const a = await getActor();
+    const result = await a.respondToApproval(propertyId, BigInt(approvalId), approve);
+    if ("err" in result) {
+      const key = Object.keys(result.err)[0];
+      const val = result.err[key];
+      throw new Error(typeof val === "string" ? val : key);
+    }
+  },
+
+  /** Owner fetches all approval requests (any status) for a property, newest first. */
+  async getApprovals(propertyId: string): Promise<PendingApprovalRequest[]> {
+    const a = await getActor();
+    const result = await a.getApprovals(propertyId);
+    if ("ok" in result) return (result.ok as any[]).map(fromApproval);
+    const key = Object.keys(result.err)[0];
+    const val = result.err[key];
+    throw new Error(typeof val === "string" ? val : key);
   },
 
   /** Cross-canister auth check: is this principal allowed to act on this property?

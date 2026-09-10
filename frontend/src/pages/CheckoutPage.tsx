@@ -335,7 +335,6 @@ function IcpPayButton({ tier, billing, couponCode, onError }: IcpPayButtonProps)
 
 export default function CheckoutPage() {
   const [searchParams]  = useSearchParams();
-  const navigate        = useNavigate();
   const { login, devLogin } = useAuth();
   const handleLogin     = import.meta.env.DEV ? devLogin : login;
 

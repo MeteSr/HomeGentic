@@ -8,7 +8,7 @@
  * NOTE: Canister-signed issuance is backlog item 4.2.1 — this is the frontend MVP.
  */
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { Shield, AlertTriangle, CheckCircle } from "lucide-react";

@@ -78,9 +78,7 @@ function fromEvent(raw: any): SensorEvent {
 function createSensorService() {
   let _actor: any = null;
   const devices: SensorDevice[] = [];
-  let deviceCounter = 0;
   const mockEvents: SensorEvent[] = [];
-  let eventCounter = 0;
   let criticalHandler: ((e: SensorEvent) => void) | null = null;
 
   async function getActor() {
@@ -239,9 +237,7 @@ function createSensorService() {
   reset() {
     _actor = null;
     devices.length = 0;
-    deviceCounter = 0;
     mockEvents.length = 0;
-    eventCounter = 0;
     criticalHandler = null;
   },
   };

@@ -6,7 +6,6 @@
  * Pro+ users must NOT trigger the notification.
  */
 
-import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
 import { MemoryRouter } from "react-router-dom";

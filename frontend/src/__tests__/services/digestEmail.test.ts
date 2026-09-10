@@ -6,7 +6,6 @@ import { describe, it, expect, beforeEach } from "vitest";
 import {
   createDigestEmailService,
   type DigestEmailPayload,
-  type SendResult,
 } from "@/services/digestEmailService";
 import type { PulseDigest } from "@/services/pulseService";
 

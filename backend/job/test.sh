@@ -793,7 +793,7 @@ else
   echo ""
   echo "── [MGR-2] Owner invites manager (Manager role) ─────────────────────────"
   INVITE_OUT=$(dfx canister call property inviteManager \
-    "(\"$MGR_PROP_ID\", variant { Manager }, \"Test Manager\")")
+    "(\"$MGR_PROP_ID\", variant { Manager }, \"Test Manager\", null)")
   echo "$INVITE_OUT"
   INVITE_TOKEN=$(echo "$INVITE_OUT" | grep -oP 'token = "\K[^"]+' | head -1 || true)
   echo "  → Token: $INVITE_TOKEN"

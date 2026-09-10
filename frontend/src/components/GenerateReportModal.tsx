@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { X, Link2, Copy, CheckCircle, Trash2, Eye, Clock, EyeOff } from "lucide-react";
 import { Button } from "@/components/Button";
 import { Checkbox } from "@/components/Checkbox";
@@ -9,7 +9,6 @@ import { jobService } from "@/services/job";
 import { recurringService } from "@/services/recurringService";
 import { computeScore, getScoreGrade } from "@/services/scoreService";
 import { paymentService, type PlanTier } from "@/services/payment";
-import { notificationService } from "@/services/notifications";
 import type { Property } from "@/services/property";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS } from "@/theme";

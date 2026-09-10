@@ -5,7 +5,6 @@
  * It must clearly surface the consent requirement and only analyze after opt-in.
  */
 
-import React from "react";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { NegotiationPanel } from "@/components/NegotiationPanel";

@@ -8,7 +8,7 @@
  * "Save your forecast" CTA → /dashboard (modal auto-opens for new users)
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import {

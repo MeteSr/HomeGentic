@@ -1,4 +1,3 @@
-import React from "react";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 import { type ScoreSnapshot } from "@/services/scoreService";
 

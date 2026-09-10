@@ -33,10 +33,6 @@ describe("FAQPage — content", () => {
     const { container } = render(
       <HelmetProvider><MemoryRouter><FAQPage /></MemoryRouter></HelmetProvider>
     );
-    // Each question is a <p> inside an accordion row
-    const questions = container.querySelectorAll(".hfl-faq-question, [data-faq-question], p[style]");
-    // Fall back to counting divs with cursor:pointer (accordion rows)
-    const rows = container.querySelectorAll("[onClick], [style*='cursor']");
     expect(container.textContent).toMatch(/maintenance/i);
     expect(container.textContent?.length).toBeGreaterThan(500);
   });

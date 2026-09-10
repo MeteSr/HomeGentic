@@ -3,7 +3,6 @@
  * Shows "+$X added to your home's documented value" estimate.
  */
 
-import React from "react";
 import { estimateJobValueDelta } from "@/services/scoreToValue";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 
