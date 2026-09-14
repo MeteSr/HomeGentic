@@ -77,17 +77,13 @@ test.describe("Visual — dashboard (/dashboard)", () => {
     await setup(page);
     await page.goto("/dashboard");
     // Below the mobile breakpoint, DashboardPage renders MobileHomeDashboard
-    // instead — a different layout with no "Log maintenance" button, so the
-    // ready-signal has to differ per project.
+    // instead — a different layout, so the ready-signal has to differ per
+    // project. Desktop renders the v3 left-rail dashboard.
     if (testInfo.project.name === "mobile") {
       await expect(page.getByText(/123 maple street/i).first()).toBeVisible();
     } else {
-      await expect(page.getByRole("button", { name: /log maintenance/i })).toBeVisible();
+      await expect(page.getByText("HOMEGENTIC SCORE")).toBeVisible();
     }
-    // The score hero shows "Loading…" until job/maintenance data resolves
-    // (a separate async load from the property fetch above) — wait it out
-    // so the snapshot never catches that transient frame.
-    await expect(page.getByText(/loading/i)).toHaveCount(0);
     await expect(page).toHaveScreenshot("dashboard.png", { fullPage: true });
   });
 });

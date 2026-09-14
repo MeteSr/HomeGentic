@@ -83,15 +83,10 @@ describe("DashboardPage — KPI stats grid", () => {
     expect(fiveCol).toBeUndefined();
   });
 
-  it("uses the main/right-panel 2-column grid on desktop", async () => {
+  it("renders the v3 left-rail shell on desktop", async () => {
     const { container } = await renderDashboard(1280);
-    const allDivs = Array.from(container.querySelectorAll("[style]")) as HTMLElement[];
-    expect(allDivs.length).toBeGreaterThan(0);
-    // New dashboard: outer grid is "1fr 320px" (content + right panel)
-    const twoCol = allDivs.find((el) =>
-      el.style.gridTemplateColumns?.replace(/\s/g, "").includes("1fr320px")
-    );
-    expect(twoCol).toBeDefined();
+    // v3 dashboard: left rail + stage, scoped under the .hg-v3 wrapper
+    expect(container.querySelector(".hg-v3")).not.toBeNull();
   });
 });
 

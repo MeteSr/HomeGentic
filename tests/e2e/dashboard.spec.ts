@@ -1,12 +1,11 @@
 import { test, expect } from "@playwright/test";
 import { injectTestAuth } from "./helpers/auth";
-import { injectBaselinePhotos, injectTestProperties } from "./helpers/testData";
+import { injectTestProperties } from "./helpers/testData";
 import { assertNoA11yViolations } from "./helpers/a11y";
 
-// Most tests below seed 2 properties so the "SWITCH" property-picker UI has
-// something to switch between — the dashboard itself is shown regardless of
-// property count (a single-property user no longer gets redirected away
-// from /dashboard, see "DashboardPage — /dashboard (single property)" below).
+// v3 left-rail dashboard (#dashboard-v3-left-nav). Most tests below seed 2
+// properties so the property-switcher popover has something to switch
+// between — the dashboard itself renders regardless of property count.
 async function setup(page: Parameters<typeof injectTestAuth>[0]) {
   await injectTestAuth(page);
   await page.addInitScript(() => {
@@ -69,107 +68,91 @@ async function setup(page: Parameters<typeof injectTestAuth>[0]) {
   });
 }
 
-test.describe("DashboardPage — /dashboard", () => {
+test.describe("DashboardPage — /dashboard (v3 left nav)", () => {
   test.beforeEach(async ({ page }) => {
     await setup(page);
     await page.goto("/dashboard");
-    // Hero "Log maintenance" button is always in the blue panel — reliable ready signal
-    await expect(page.getByRole("button", { name: /log maintenance/i })).toBeVisible();
+    // The score readout is always in the resting stage — reliable ready signal
+    await expect(page.getByText("HOMEGENTIC SCORE")).toBeVisible();
   });
 
   test.afterEach(async ({ page }) => {
     await assertNoA11yViolations(page);
   });
 
-  // ── Hero panel ──────────────────────────────────────────────────────────────
+  // ── Header ──────────────────────────────────────────────────────────────
 
-  test("shows score number in hero panel", async ({ page }) => {
-    // Score is a number rendered at 80px font; assert any numeric text exists in the hero
-    await expect(page.getByRole("button", { name: /log maintenance/i })).toBeVisible();
+  test("shows the property address in the header", async ({ page }) => {
+    await expect(page.getByText(/123 maple street/i).first()).toBeVisible();
   });
 
-  test("shows '+ Log maintenance' button in hero", async ({ page }) => {
-    await expect(page.getByRole("button", { name: /log maintenance/i })).toBeVisible();
+  test("clicking the address reveals the property switcher popover", async ({ page }) => {
+    await page.getByText(/123 maple street/i).first().click();
+    await expect(page.getByText("456 Oak Ave")).toBeVisible();
   });
 
-  test("shows 'Resale report' button in hero", async ({ page }) => {
-    await expect(page.getByRole("button", { name: /resale report/i })).toBeVisible();
-  });
-
-  test("shows 'Copy cert link' button in hero", async ({ page }) => {
-    await expect(page.getByRole("button", { name: /copy cert link/i })).toBeVisible();
-  });
-
-  // ── Address bar ─────────────────────────────────────────────────────────────
-
-  test("shows first property address in address bar", async ({ page }) => {
-    await expect(page.getByText("123 Maple Street").first()).toBeVisible();
-  });
-
-  test("shows SWITCH button in address bar", async ({ page }) => {
-    await expect(page.getByText("SWITCH")).toBeVisible();
-  });
-
-  test("clicking SWITCH reveals property switcher dropdown", async ({ page }) => {
-    await page.getByText("SWITCH").click();
-    await expect(page.getByText("456 Oak Ave").first()).toBeVisible();
-  });
-
-  // ── Sections ────────────────────────────────────────────────────────────────
-
-  test("shows 'HOME PULSE' section", async ({ page }) => {
-    await expect(page.getByText(/home pulse/i).first()).toBeVisible();
-  });
-
-  test("shows 'WHERE THE POINTS COME FROM' section", async ({ page }) => {
-    await expect(page.getByText(/where the points come from/i)).toBeVisible();
-  });
-
-  test("shows 'Ask about your home' section", async ({ page }) => {
-    await expect(page.getByText(/ask about your home/i)).toBeVisible();
-  });
-
-  test("shows 'UPCOMING MAINTENANCE' section", async ({ page }) => {
-    await expect(page.getByText(/upcoming maintenance/i).first()).toBeVisible();
-  });
-
-  test("shows 'THE PAPER TRAIL' section", async ({ page }) => {
-    await expect(page.getByText(/the paper trail/i)).toBeVisible();
-  });
-
-  // ── Paper trail docs ────────────────────────────────────────────────────────
-
-  test("shows recent job receipts in paper trail", async ({ page }) => {
-    // 4 jobs injected → top 3 appear as docs; service type is used in the title
-    await expect(page.getByText(/painting record|painting receipt|hvac record|hvac receipt|plumbing record|plumbing receipt/i).first()).toBeVisible();
-  });
-
-  // ── Recent activity ─────────────────────────────────────────────────────────
-
-  test("shows 'RECENT ACTIVITY' section when jobs are present", async ({ page }) => {
-    await expect(page.getByText(/recent activity/i).first()).toBeVisible();
-  });
-
-  // ── Sidebar ─────────────────────────────────────────────────────────────────
-
-  test("shows verification upsell card when property is unverified", async ({ page }) => {
-    await expect(page.getByText(/next points available/i)).toBeVisible();
-    await expect(page.getByRole("button", { name: /start verification/i })).toBeVisible();
-  });
-
-  // ── Navigation ──────────────────────────────────────────────────────────────
-
-  test("clicking SWITCH then a property switches the active property", async ({ page }) => {
-    await page.getByText("SWITCH").click();
-    // Second property listed in dropdown
+  test("switching properties updates the header address", async ({ page }) => {
+    await page.getByText(/123 maple street/i).first().click();
     await page.getByText("456 Oak Ave").click();
-    // Address bar now shows second property
-    await expect(page.getByText("456 Oak Ave").first()).toBeVisible();
+    await expect(page.getByText(/456 oak ave/i).first()).toBeVisible();
   });
 
-  test("'+ Log maintenance' button opens Log Job modal", async ({ page }) => {
-    await page.getByRole("button", { name: /log maintenance/i }).click();
+  test("shows a theme toggle and switches to light mode", async ({ page }) => {
+    const toggle = page.getByText("LIGHT", { exact: true });
+    await expect(toggle).toBeVisible();
+    await toggle.click();
+    await expect(page.getByText("DARK", { exact: true })).toBeVisible();
+  });
+
+  // ── Left rail ───────────────────────────────────────────────────────────
+
+  test("shows the left rail with SCORE, PROPERTY and MARKET chips", async ({ page }) => {
+    await expect(page.getByText("SCORE", { exact: true })).toBeVisible();
+    await expect(page.getByText("PROPERTY", { exact: true })).toBeVisible();
+    await expect(page.getByText("MARKET", { exact: true })).toBeVisible();
+  });
+
+  test("clicking a rail chip opens that panel", async ({ page }) => {
+    await page.getByText("DOCS", { exact: true }).click();
+    await expect(page.getByText("Most recent first.")).toBeVisible();
+  });
+
+  test("clicking a panel's close control returns to the resting stage", async ({ page }) => {
+    await page.getByText("SPEND", { exact: true }).click();
+    await expect(page.getByText("All logged jobs, by trade.")).toBeVisible();
+    await page.getByText("Back to quiet").click();
+    await expect(page.getByText("HOMEGENTIC SCORE")).toBeVisible();
+  });
+
+  // ── Ask bar ─────────────────────────────────────────────────────────────
+
+  test("shows the ask bar with its placeholder", async ({ page }) => {
+    await expect(page.getByPlaceholder(/ask about your home/i)).toBeVisible();
+  });
+
+  test("typing a question in the ask bar routes to a panel", async ({ page }) => {
+    await page.getByPlaceholder(/ask about your home/i).fill("how much have I spent");
+    await page.keyboard.press("Enter");
+    await expect(page.getByText("All logged jobs, by trade.")).toBeVisible();
+  });
+
+  test("the '+' button opens the Add panel", async ({ page }) => {
+    await page.getByTitle("Add to the record").click();
+    await expect(page.getByText("Add to the record")).toBeVisible();
+  });
+
+  // ── Panel CTAs open real modals ─────────────────────────────────────────
+
+  test("Docs panel's CTA opens the Log Job modal", async ({ page }) => {
+    await page.getByText("DOCS", { exact: true }).click();
+    await page.getByText(/upload a receipt/i).click();
     await expect(page.getByRole("heading", { name: /what was done/i })).toBeVisible();
+  });
+
+  test("Rooms panel's CTA opens the Add Room modal", async ({ page }) => {
+    await page.getByText("ROOMS", { exact: true }).click();
+    await page.getByText(/^add a room$/i).click();
+    await expect(page.getByRole("heading", { name: /add room/i })).toBeVisible();
   });
 });
 
@@ -178,7 +161,7 @@ test.describe("DashboardPage — /dashboard (single property)", () => {
     await injectTestAuth(page);
     await injectTestProperties(page); // seeds exactly 1 property
     await page.goto("/dashboard");
-    await expect(page.getByRole("button", { name: /log maintenance/i })).toBeVisible();
+    await expect(page.getByText("HOMEGENTIC SCORE")).toBeVisible();
     await expect(page).toHaveURL("/dashboard");
   });
 });
