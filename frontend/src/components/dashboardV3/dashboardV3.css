@@ -66,7 +66,6 @@
 @keyframes hgBarA { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes hgBarB { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes hgCol { from { transform: scaleY(0); } to { transform: scaleY(1); } }
-@keyframes hgBreathe { 0%, 100% { opacity: .35; transform: scale(1); } 50% { opacity: .9; transform: scale(1.35); } }
 @keyframes hgWave { 0%, 100% { transform: scaleY(.22); } 50% { transform: scaleY(1); } }
 @keyframes hgHalo { 0% { opacity: .5; transform: scale(.9); } 70% { opacity: 0; transform: scale(1.9); } 100% { opacity: 0; transform: scale(1.9); } }
 @keyframes hgThink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }

@@ -301,7 +301,7 @@ export function DashboardV3() {
         </div>
         <div style={{ width: 1, height: 16, background: "var(--hg-line)", flex: "none" }} />
         <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
-          <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#2B34FF", animation: "hgBreathe 3.4s ease-in-out infinite" }} />
+          <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#2B34FF" }} />
           <div style={{ font: "500 9px/1 'JetBrains Mono',monospace", letterSpacing: ".14em", color: "var(--hg-muted)" }}>WATCHING</div>
         </div>
       </div>
@@ -375,7 +375,7 @@ export function DashboardV3() {
 
                 <div onClick={() => { setTipIdx((i) => i + 1); goPanel(tip.go); }} style={{ marginTop: 16, maxWidth: 580, border: "1px solid var(--hg-blue-edge)", background: "var(--hg-blue-wash)", borderRadius: 16, padding: "12px 15px", cursor: "pointer" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--hg-blue-soft)", animation: "hgBreathe 3.4s ease-in-out infinite" }} />
+                    <div style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--hg-blue-soft)" }} />
                     <div style={{ font: "500 9px/1 'JetBrains Mono',monospace", letterSpacing: ".14em", color: "var(--hg-blue-ink)" }}>HOMEGENTIC SUGGESTS</div>
                   </div>
                   <div style={{ font: "400 13.5px/1.5 'Hanken Grotesk',sans-serif", color: "var(--hg-ink-2)", marginTop: 9 }}>{tip.text}</div>
