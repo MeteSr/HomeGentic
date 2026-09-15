@@ -1,0 +1,73 @@
+/**
+ * DashboardV3 — scoped design tokens.
+ *
+ * The v3 dashboard mockup ("HomeGentic Dashboard v3 left nav") runs a dark,
+ * cobalt/yellow "HUD" palette with its own light mode — a deliberate
+ * departure from the rest of the app's single light V2_COLORS palette. It is
+ * scoped entirely to `.hg-v3` (via CSS custom properties) rather than
+ * touching theme.ts, so the rest of the app is unaffected.
+ *
+ * Colors mirror the shipped mockup 1:1 (see the design handoff bundle,
+ * `HomeGentic Dashboard v3 left nav.dc.html`).
+ *
+ * This is a real stylesheet (imported once at module load, via Vite's CSS
+ * import handling) rather than a React-rendered <style> child — a
+ * runtime-inserted <style> tag raced its own consumers on first paint
+ * (variables briefly unresolved, tripping color-contrast checks).
+ */
+.hg-v3 {
+  --hg-bg: #0B0D1A; --hg-surface: #12142A; --hg-ink: #FCFCFD; --hg-ink-2: #E7E9F2; --hg-ink-3: #C6C9D4;
+  --hg-muted: #8E93A8; --hg-dim: rgba(252,252,253,0.3); --hg-line: rgba(252,252,253,0.10); --hg-line-2: rgba(252,252,253,0.16);
+  --hg-fill: rgba(252,252,253,0.05); --hg-fill-2: rgba(252,252,253,0.07);
+  --hg-blue-wash: rgba(43,52,255,0.10); --hg-blue-fill: rgba(43,52,255,0.20); --hg-blue-edge: rgba(43,52,255,0.55);
+  --hg-blue-ink: #9EA4FF; --hg-blue-soft: #7C83FF; --hg-blue: #2B34FF; --hg-chip-on: #FCFCFD;
+  --hg-good: #9EA4FF; --hg-good-wash: rgba(43,52,255,0.14); --hg-good-edge: rgba(43,52,255,0.5);
+  --hg-bad: #FF5C39; --hg-bad-soft: #FF8F72; --hg-warn: #FFD23F;
+  --hg-trend: rgba(255,210,63,0.28); --hg-trend-last: #FFD23F;
+  --hg-yel: #FFD23F; --hg-yel-ink: #FFD23F; --hg-yel-wash: rgba(255,210,63,0.10); --hg-yel-fill: rgba(255,210,63,0.18); --hg-yel-edge: rgba(255,210,63,0.5);
+  --hg-shadow: rgba(0,0,0,0.55);
+  background: var(--hg-bg);
+  font-family: 'Hanken Grotesk', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+.hg-v3[data-theme="light"] {
+  --hg-bg: #F4F5FA; --hg-surface: #FFFFFF; --hg-ink: #0B0D1A; --hg-ink-2: #2A2E3F; --hg-ink-3: #4A4F60;
+  --hg-muted: #6B7080; --hg-dim: #B9BDC8; --hg-line: #E6E7EE; --hg-line-2: #D9DBE4;
+  --hg-fill: #FFFFFF; --hg-fill-2: #EFF0F6;
+  --hg-blue-wash: #EEF0FF; --hg-blue-fill: #E0E2FF; --hg-blue-edge: #B9BDF5;
+  --hg-blue-ink: #2B34FF; --hg-blue-soft: #3A43FF; --hg-chip-on: #1F2794;
+  --hg-good: #2B34FF; --hg-good-wash: #EEF0FF; --hg-good-edge: #B9BDF5;
+  --hg-bad: #C23F1F; --hg-bad-soft: #C23F1F; --hg-warn: #8A6200;
+  --hg-trend: #FFE9A8; --hg-trend-last: #E8B400;
+  --hg-yel: #E8B400; --hg-yel-ink: #8A6200; --hg-yel-wash: #FFF6DB; --hg-yel-fill: #FFE9A8; --hg-yel-edge: #F0D890;
+  --hg-shadow: rgba(11,13,26,0.16);
+}
+.hg-v3 a { color: var(--hg-blue-soft); text-decoration: none; }
+.hg-v3 a:hover { color: var(--hg-blue-ink); }
+.hg-v3 input, .hg-v3 textarea { font-family: 'Hanken Grotesk', system-ui, sans-serif; }
+.hg-v3 input::placeholder, .hg-v3 textarea::placeholder { color: var(--hg-muted); }
+.hg-v3 *::-webkit-scrollbar { width: 6px; height: 6px; }
+.hg-v3 *::-webkit-scrollbar-track { background: transparent; }
+.hg-v3 *::-webkit-scrollbar-thumb { background: var(--hg-line-2); border-radius: 100px; }
+.hg-v3 * { scrollbar-width: thin; scrollbar-color: var(--hg-line-2) transparent; }
+
+/*
+ * Text-bearing elements animate position only, never opacity — an
+ * opacity:0→1 fade briefly renders text at reduced contrast against its
+ * background, which axe's color-contrast check (run immediately after
+ * DOM changes, with no settle delay) correctly flags as a real, if
+ * transient, WCAG violation. Purely decorative dots/halos (never text)
+ * keep their opacity animation below.
+ */
+@keyframes hgRiseA { from { transform: translateY(18px); } to { transform: none; } }
+@keyframes hgRiseB { from { transform: translateY(18px); } to { transform: none; } }
+@keyframes hgBarA { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes hgBarB { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes hgCol { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes hgWave { 0%, 100% { transform: scaleY(.22); } 50% { transform: scaleY(1); } }
+@keyframes hgHalo { 0% { opacity: .5; transform: scale(.9); } 70% { opacity: 0; transform: scale(1.9); } 100% { opacity: 0; transform: scale(1.9); } }
+@keyframes hgThink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+@keyframes hgPop { from { transform: translateY(14px) scale(.985); } to { transform: none; } }
+@keyframes hgScan { from { transform: translateX(-110%); } to { transform: translateX(380%); } }
+@keyframes hgFade { from { transform: translateY(-6px); } to { transform: none; } }
