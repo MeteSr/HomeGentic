@@ -32,7 +32,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <Layout>
+    <Layout hideSidebar>
       <DashboardV3 />
     </Layout>
   );

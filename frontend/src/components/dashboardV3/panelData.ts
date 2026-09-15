@@ -85,10 +85,17 @@ export interface PanelCtx {
   approveProposal: (id: string) => void;
   declineProposal: (id: string) => void;
   approveAll: () => void;
+  /** Leaves the dashboard for one of the app's full standalone pages. */
+  navigate: (path: string) => void;
 }
 
 function verifiedTone(j: Job): string {
   return j.verified ? INK : WARN;
+}
+
+/** A row that leaves the dashboard for the full standalone page on this topic. */
+function fullPageRow(lead: string, sub: string, path: string, ctx: PanelCtx): PanelRow {
+  return { lead, sub, right: "Open", rightSub: "FULL PAGE", tone: BLUE, onTap: () => ctx.navigate(path) };
 }
 
 // ── AWAITING ───────────────────────────────────────────────────────────────
@@ -158,13 +165,14 @@ function buildProperty(ctx: PanelCtx): PanelData {
     })),
   ];
   const needProof = ctx.jobs.filter((j) => !j.verified).length;
+  const baseRows = rows.length ? rows : [{ lead: "No open risks", sub: "NOTHING IS DECAYING AGAINST THE RECORD RIGHT NOW", right: "Clear", rightSub: "", tone: INK }];
   return {
     chip: "PROPERTY", count: p ? String(ctx.jobs.length) : "0",
     asked: p ? `${p.address}, built ${p.yearBuilt}` : "No property on file",
     title: p ? `${ctx.jobs.length} records on file, ${needProof} need proof` : "Add a property to start the record",
     sub: p ? `${p.propertyType === "SingleFamily" ? "Single-family home" : p.propertyType}. ${ctx.decayEvents.length} system${ctx.decayEvents.length === 1 ? "" : "s"} depreciating against rated life.` : "",
     cta: "Log a job to add proof",
-    rows: rows.length ? rows : [{ lead: "No open risks", sub: "NOTHING IS DECAYING AGAINST THE RECORD RIGHT NOW", right: "Clear", rightSub: "", tone: INK }],
+    rows: p ? [...baseRows, fullPageRow("Full property page", "PHOTOS, DOCUMENTS, SYSTEM AGES, VERIFICATION", `/properties/${p.id}`, ctx)] : baseRows,
   };
 }
 
@@ -179,6 +187,7 @@ function buildMarket(ctx: PanelCtx): PanelData {
       : { lead: "Log more jobs to unlock value insights", sub: "PREMIUM ESTIMATES NEED A SCORE ABOVE ZERO", right: "—", rightSub: "", tone: MUTED },
     { lead: "Certificate link", sub: "READ-ONLY · SCORE, VERIFIED JOBS, NO CONTACT DETAILS", right: "Copy", rightSub: "SHAREABLE", tone: BLUE },
     { lead: "List for agent bids", sub: "AGENTS BID COMMISSION AND PRICE · COSTS YOU $0", right: "Start", rightSub: "SELL", tone: WARN, flow: "listing" },
+    fullPageRow("Full Market Intelligence", "COMPS, PRICING HISTORY, TIMING", "/market", ctx),
   ];
   return {
     chip: "MARKET", count: ctx.zipCode ? "" : "",
@@ -219,13 +228,14 @@ function buildMaint(ctx: PanelCtx): PanelData {
     };
   });
   const dueSoon = rows.filter((r) => r.rightSub?.startsWith("IN")).length;
+  const baseRows = rows.length ? rows : [{ lead: "No recurring services yet", sub: "SET ONE UP TO TRACK VISITS AUTOMATICALLY", right: "Add", rightSub: "", tone: BLUE, flow: "recurring" as FlowKey }];
   return {
     chip: "MAINT", count: String(ctx.recurringServices.filter((s) => s.status === "Active").length),
     asked: `${dueSoon} visit${dueSoon === 1 ? "" : "s"} due in the next 30 days`,
     title: dueSoon > 0 ? "A visit is due soon" : "Nothing due in the next 30 days",
     sub: `${ctx.recurringServices.length} recurring contract${ctx.recurringServices.length === 1 ? "" : "s"}.`,
     cta: "Confirm the schedule",
-    rows: rows.length ? rows : [{ lead: "No recurring services yet", sub: "SET ONE UP TO TRACK VISITS AUTOMATICALLY", right: "Add", rightSub: "", tone: BLUE, flow: "recurring" }],
+    rows: [...baseRows, fullPageRow("Full Maintenance page", "VISIT LOGS, PREDICTIONS, SCHEDULING", "/maintenance", ctx)],
   };
 }
 
@@ -243,13 +253,14 @@ function buildJobs(ctx: PanelCtx): PanelData {
     };
   });
   const totalBids = open.reduce((s, r) => s + (ctx.bidCountMap[r.id] ?? 0), 0);
+  const baseRows = rows.length ? rows : [{ lead: "No open jobs", sub: "REQUEST A QUOTE TO START GETTING BIDS", right: "Request", rightSub: "QUOTE", tone: BLUE, flow: "quote" as FlowKey }];
   return {
     chip: "JOBS", count: String(open.length),
     asked: `${open.length} open job${open.length === 1 ? "" : "s"}, ${totalBids} bid${totalBids === 1 ? "" : "s"} waiting`,
     title: totalBids > 0 ? `${totalBids} bid${totalBids === 1 ? "" : "s"} waiting on you` : "No bids waiting",
     sub: "Every open quote request on this record, newest first.",
     cta: "Review the bids",
-    rows: rows.length ? rows : [{ lead: "No open jobs", sub: "REQUEST A QUOTE TO START GETTING BIDS", right: "Request", rightSub: "QUOTE", tone: BLUE, flow: "quote" }],
+    rows: [...baseRows, fullPageRow("Full Jobs board", "ALL BIDS, HISTORY, POST A NEW JOB", "/jobs", ctx)],
   };
 }
 
@@ -270,13 +281,14 @@ function buildPros(ctx: PanelCtx): PanelData {
       : { lead: name, sub: `${list[0].serviceType.toUpperCase()} · ${list.length} JOB${list.length === 1 ? "" : "S"} · VERIFIED`, right: money(total), rightSub: shortDate(latest.date).toUpperCase(), tone: INK };
   });
   const outstanding = rows.filter((r) => r.tone === BAD).length;
+  const baseRows = rows.length ? rows : [{ lead: "No contractors on record yet", sub: "LOG A JOB TO ADD ONE", right: "Add", rightSub: "", tone: BLUE, flow: "logJob" as FlowKey }];
   return {
     chip: "PROS", count: String(byContractor.size),
     asked: `${byContractor.size} pros have work on this record`,
     title: outstanding > 0 ? `${outstanding} signature${outstanding === 1 ? " is" : "s are"} outstanding` : "Every job is countersigned",
     sub: "Contractors who have logged work on this property, most recent first.",
     cta: "Chase the signature",
-    rows: rows.length ? rows : [{ lead: "No contractors on record yet", sub: "LOG A JOB TO ADD ONE", right: "Add", rightSub: "", tone: BLUE, flow: "logJob" }],
+    rows: [...baseRows, fullPageRow("Browse contractors", "FIND AND VET NEW PROS IN YOUR AREA", "/contractors", ctx)],
   };
 }
 
@@ -296,7 +308,10 @@ function buildSensors(ctx: PanelCtx): PanelData {
     title: alerts > 0 ? ctx.sensorAlerts[0].eventType.replace(/([A-Z])/g, " $1").trim() : "Everything reporting normal",
     sub: ctx.sensorDevices.length === 0 ? "Pair a device to start monitoring leaks, temperature and appliance faults." : "Live device state on this property.",
     cta: ctx.sensorDevices.length === 0 ? "Pair a device" : "Post a plumbing job",
-    rows: rows.length ? rows : [{ lead: "No sensors paired", sub: "PAIRS OVER WI-FI IN A FEW MINUTES", right: "Pair", rightSub: "DEVICE", tone: BLUE }],
+    rows: [
+      ...(rows.length ? rows : [{ lead: "No sensors paired", sub: "PAIRS OVER WI-FI IN A FEW MINUTES", right: "Pair", rightSub: "DEVICE", tone: BLUE }]),
+      fullPageRow("Full Sensors page", "PAIR DEVICES, EVENT HISTORY", "/sensors", ctx),
+    ],
   };
 }
 

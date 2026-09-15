@@ -12,8 +12,10 @@
  *
  * All data is real — see panelData.ts. Nothing here is demo/mock copy.
  */
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAddPropertyStore } from "@/store/addPropertyStore";
+import { useAuthStore } from "@/store/authStore";
 import { usePropertySummary } from "@/hooks/usePropertySummary";
 import { useJobSummary } from "@/hooks/useJobSummary";
 import { useQuoteSummary } from "@/hooks/useQuoteSummary";
@@ -22,6 +24,7 @@ import { useScoreTracking } from "@/hooks/useScoreTracking";
 import { usePropertyRooms } from "@/hooks/usePropertyRooms";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useVoiceAgent } from "@/hooks/useVoiceAgent";
+import { useActivityFeed } from "@/hooks/useActivityFeed";
 import {
   computeScoreWithDecay, computeBreakdown, getScoreGrade, premiumEstimate, isCertified,
 } from "@/services/scoreService";
@@ -36,12 +39,30 @@ import { AddRoomModal } from "@/components/AddRoomModal";
 import RecurringServiceCreateModal from "@/components/RecurringServiceCreateModal";
 import UpgradeModal from "@/components/UpgradeModal";
 import InitListingModal from "@/components/InitListingModal";
+import { ActivityFeedDrawer } from "@/components/ActivityFeedDrawer";
+import { UserMenuPopover } from "@/components/UserMenuPopover";
+import type { PlanTier } from "@/services/payment";
 
 import { AwardBidModal } from "./AwardBidModal";
 import { ChaseSignatureModal } from "./ChaseSignatureModal";
 import { HG_EASE } from "./theme";
 import { buildPanels, CTA_FLOW, PANEL_ORDER, type PanelCtx } from "./panelData";
 import type { FlowKey, PanelData, PanelKey, PanelRow } from "./types";
+
+// Pure page links (no in-page panel) that the app-wide sidebar normally
+// carries — kept here since the dashboard hides that sidebar (it has its
+// own richer left rail) and would otherwise strand these destinations.
+const PAGE_LINKS: { label: string; to: string }[] = [
+  { label: "CONTRACTORS", to: "/contractors" },
+  { label: "PEOPLE", to: "/people" },
+];
+
+// Mirrors Layout.tsx's TIER_PROPERTY_LIMIT — Free/Basic get 1 property,
+// Pro/Premium get 20. Duplicated locally rather than shared since Layout
+// keeps its own copy too (see services/agentTools.ts for a third).
+const TIER_PROPERTY_LIMIT: Partial<Record<PlanTier, number>> = {
+  Free: 1, Basic: 1, Pro: 20, Premium: 20,
+};
 
 // ── Keyword routing for the ask bar's typed search ──────────────────────────
 
@@ -111,7 +132,9 @@ function Row({ row, index, rise }: { row: PanelRow; index: number; rise: string 
 // ── Main component ───────────────────────────────────────────────────────────
 
 export function DashboardV3() {
+  const navigate = useNavigate();
   const { open: openAddProp } = useAddPropertyStore();
+  const { principal, profile } = useAuthStore();
   const { properties, loading: propLoading } = usePropertySummary();
 
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
@@ -139,6 +162,18 @@ export function DashboardV3() {
 
   const { rooms } = usePropertyRooms(activePropertyId ?? undefined);
   const { userTier } = useSubscription();
+  const atPropertyLimit = properties.length >= (TIER_PROPERTY_LIMIT[userTier] ?? Infinity);
+  // Pro/Premium share the top homeowner tier with nothing higher to offer —
+  // let the add-property flow surface its own at-capacity message instead
+  // of an upgrade modal with nowhere to go (mirrors Layout.tsx's old
+  // sidebar button, which this replaces now that the sidebar is hidden here).
+  const handleAddProperty = () => {
+    if (atPropertyLimit && userTier !== "Premium" && userTier !== "Pro") {
+      setFlow("upgrade");
+    } else {
+      openAddProp();
+    }
+  };
 
   const [sensorDevices, setSensorDevices] = useState<SensorDevice[]>([]);
   const [sensorAlerts, setSensorAlerts] = useState<SensorEvent[]>([]);
@@ -149,6 +184,21 @@ export function DashboardV3() {
   }, [activePropertyId]);
 
   const voice = useVoiceAgent();
+  const feed = useActivityFeed(properties);
+
+  // The app-wide sidebar (hidden on this page — see DashboardPage.tsx) is
+  // where "who am I logged in as, log out, manage plan" normally lives.
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    if (!userMenuOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setUserMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [userMenuOpen]);
+  const displayName = profile?.email || (principal ? principal.slice(0, 8) + "…" : "User");
 
   // ── UI state ────────────────────────────────────────────────────────────
   const [theme, setTheme] = useState<"dark" | "light">("dark");
@@ -194,7 +244,7 @@ export function DashboardV3() {
     activeProperty, properties, jobs, pendingProposals, decayEvents, atRiskWarnings, scoreEvents,
     quoteRequests, bidCountMap, recurringServices, visitLogMap, rooms, sensorDevices, sensorAlerts,
     planTier: userTier, agentCreditsLeft: voice.creditBalance, agentQuotaExhausted: voice.quotaExhausted,
-    goPanel, openFlow,
+    goPanel, openFlow, navigate,
     approveProposal: (id) => jobSummary.approveProposal(id),
     declineProposal: (id) => jobSummary.rejectProposal(id),
     approveAll: () => pendingProposals.forEach((p) => jobSummary.approveProposal(p.id)),
@@ -235,7 +285,7 @@ export function DashboardV3() {
     : "NO PROPERTY";
 
   return (
-    <div className="hg-v3" data-theme={theme} style={{ minHeight: 640, display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
+    <div className="hg-v3" data-theme={theme} style={{ minHeight: "100vh", display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div style={{ flex: "none", display: "flex", alignItems: "center", gap: 16, padding: "14px 24px", flexWrap: "wrap" }}>
@@ -270,12 +320,24 @@ export function DashboardV3() {
                   </div>
                 </div>
               ))}
-              <div onClick={() => { setPropsOpen(false); openAddProp(); }} style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 11px", marginTop: 3, borderTop: "1px solid var(--hg-line)", cursor: "pointer" }}>
+              <div onClick={() => { setPropsOpen(false); handleAddProperty(); }} style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 11px", marginTop: 3, borderTop: "1px solid var(--hg-line)", cursor: "pointer" }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--hg-blue-soft)" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
                 <div style={{ font: "600 12.5px/1 'Hanken Grotesk',sans-serif", color: "var(--hg-blue-ink)" }}>Add a property</div>
               </div>
             </div>
           )}
+
+          <button
+            aria-label="Add property"
+            title="Add property"
+            onClick={handleAddProperty}
+            style={{
+              flex: "none", width: 26, height: 26, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+              border: "1.5px dashed var(--hg-line-2)", background: "transparent", color: "var(--hg-muted)", cursor: "pointer", padding: 0,
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+          </button>
         </div>
 
         <div onClick={() => goPanel("billing")} title="AI assistant calls" style={{ display: "flex", alignItems: "center", gap: 7, flex: "none", cursor: "pointer" }}>
@@ -293,6 +355,31 @@ export function DashboardV3() {
         <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
           <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#2B34FF" }} />
           <div style={{ font: "500 9px/1 'JetBrains Mono',monospace", letterSpacing: ".14em", color: "var(--hg-muted)" }}>WATCHING</div>
+        </div>
+        <div style={{ width: 1, height: 16, background: "var(--hg-line)", flex: "none" }} />
+        <div onClick={feed.openFeed} title="Activity" style={{ position: "relative", flex: "none", width: 32, height: 32, borderRadius: 100, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--hg-ink-3)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
+          {feed.unread > 0 && (
+            <div style={{ position: "absolute", top: 2, right: 2, width: 14, height: 14, borderRadius: "50%", background: "#2B34FF", display: "flex", alignItems: "center", justifyContent: "center", font: "700 9px/1 'Hanken Grotesk',sans-serif", color: "#FCFCFD" }}>
+              {feed.unread > 9 ? "9+" : feed.unread}
+            </div>
+          )}
+        </div>
+        <div ref={userMenuRef} style={{ position: "relative", flex: "none" }}>
+          <button
+            aria-label={displayName}
+            onClick={() => setUserMenuOpen((o) => !o)}
+            style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--hg-blue-fill)", border: "1.5px solid var(--hg-blue-edge)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", font: "700 12px/1 'JetBrains Mono',monospace", color: "var(--hg-blue-ink)", padding: 0 }}
+          >
+            {(displayName[0] || "U").toUpperCase()}
+          </button>
+          {userMenuOpen && (
+            <UserMenuPopover
+              displayName={displayName}
+              onClose={() => setUserMenuOpen(false)}
+              onUpgrade={() => { setUserMenuOpen(false); setFlow("upgrade"); }}
+            />
+          )}
         </div>
       </div>
 
@@ -321,6 +408,24 @@ export function DashboardV3() {
               </div>
             );
           })}
+          <div style={{ height: 1, background: "var(--hg-line)", margin: "7px 4px" }} />
+          {PAGE_LINKS.map((l) => (
+            <div
+              key={l.to}
+              onClick={() => navigate(l.to)}
+              title={`Open ${l.label.charAt(0)}${l.label.slice(1).toLowerCase()}`}
+              style={{
+                minHeight: 31, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "space-between",
+                gap: 8, padding: "0 12px", borderRadius: 100,
+                background: "transparent", border: "1.5px dashed var(--hg-line-2)",
+                font: "500 10.5px/1 'JetBrains Mono',monospace", letterSpacing: ".06em",
+                color: "var(--hg-muted)", cursor: "pointer",
+              }}
+            >
+              {l.label}
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--hg-muted)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17 17 7M9 7h8v8" /></svg>
+            </div>
+          ))}
         </div>
 
         <div style={{ flex: 1, minWidth: 0, overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center" }}>
@@ -553,6 +658,14 @@ export function DashboardV3() {
         onClose={() => closeFlow()}
         onSent={() => closeFlow({ key: "pros", text: "Reminder sent." })}
       />
+      {feed.feedOpen && (
+        <ActivityFeedDrawer
+          events={feed.events}
+          feedLoaded={feed.feedLoaded}
+          lastReadAt={feed.lastReadAt}
+          onClose={feed.closeFeed}
+        />
+      )}
     </div>
   );
 }

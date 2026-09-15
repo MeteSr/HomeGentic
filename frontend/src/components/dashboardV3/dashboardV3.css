@@ -29,7 +29,6 @@
   background: var(--hg-bg);
   font-family: 'Hanken Grotesk', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
-  border-radius: 20px;
   overflow: hidden;
 }
 .hg-v3[data-theme="light"] {

@@ -59,7 +59,7 @@ interface NavLink {
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 
-export function Layout({ children }: { children: React.ReactNode }) {
+export function Layout({ children, hideSidebar = false }: { children: React.ReactNode; hideSidebar?: boolean }) {
   const { principal, profile } = useAuthStore();
   const { properties }         = usePropertyStore();
   const location               = useLocation();
@@ -222,6 +222,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <div style={{ display: "flex", minHeight: "100vh", backgroundColor: V2_COLORS.paper }}>
 
       {/* ── Left sidebar (desktop) ──────────────────────────────────────────── */}
+      {!hideSidebar && (
       <nav
         className="hf-sidebar"
         style={{ width: sidebarW }}
@@ -420,11 +421,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         </div>
       </nav>
+      )}
 
       {/* ── Content column ──────────────────────────────────────────────────── */}
       <div
         className="hf-main"
-        style={{ marginLeft: isTablet ? W_CLOSED : sidebarW, flex: 1, minWidth: 0 }}
+        style={{ marginLeft: hideSidebar ? 0 : (isTablet ? W_CLOSED : sidebarW), flex: 1, minWidth: 0 }}
         aria-hidden={addPropOpen || undefined}
       >
         {/* Mobile-only top header */}
