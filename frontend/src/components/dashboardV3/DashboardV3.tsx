@@ -14,6 +14,7 @@
  */
 import React, { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import { useAddPropertyStore } from "@/store/addPropertyStore";
 import { useAuthStore } from "@/store/authStore";
 import { usePropertySummary } from "@/hooks/usePropertySummary";
@@ -32,6 +33,8 @@ import { getAllDecayEvents, getAtRiskWarnings, getTotalDecay } from "@/services/
 import { getWeeklyPulse } from "@/services/pulseService";
 import { getRecentScoreEvents } from "@/services/scoreEventService";
 import { sensorService, type SensorDevice, type SensorEvent } from "@/services/sensor";
+import { peopleService, type PersonAccess } from "@/services/people";
+import { buildForecastUrl } from "@/services/instantForecast";
 
 import { LogJobModal } from "@/components/LogJobModal";
 import { RequestQuoteModal } from "@/components/RequestQuoteModal";
@@ -52,9 +55,11 @@ import type { FlowKey, PanelData, PanelKey, PanelRow } from "./types";
 // Pure page links (no in-page panel) that the app-wide sidebar normally
 // carries — kept here since the dashboard hides that sidebar (it has its
 // own richer left rail) and would otherwise strand these destinations.
+// PEOPLE isn't here: on Pro it's a full rail panel (see PANEL_ORDER); on
+// Free/Basic it's rendered as a locked upsell tile instead (see the rail
+// map below) rather than a plain link, since shared access is Pro-only.
 const PAGE_LINKS: { label: string; to: string }[] = [
   { label: "CONTRACTORS", to: "/contractors" },
-  { label: "PEOPLE", to: "/people" },
 ];
 
 // Mirrors Layout.tsx's TIER_PROPERTY_LIMIT — Free/Basic get 1 property,
@@ -67,6 +72,8 @@ const TIER_PROPERTY_LIMIT: Partial<Record<PlanTier, number>> = {
 // ── Keyword routing for the ask bar's typed search ──────────────────────────
 
 const KEYS: { k: PanelKey; words: string[] }[] = [
+  { k: "forecast", words: ["ten years", "10 years", "forecast", "decade", "budget", "set aside", "reserve", "replace"] },
+  { k: "people", words: ["who else", "access", "shared", "spouse", "wife", "husband", "manager", "viewer", "invite", "property manager", "revoke"] },
   { k: "safety", words: ["safe", "security", "alarm", "smoke", "detector", "lock", "camera"] },
   { k: "awaiting", words: ["approve", "awaiting", "pending", "waiting on me"] },
   { k: "activity", words: ["activity", "history", "recent", "what changed"] },
@@ -161,7 +168,8 @@ export function DashboardV3() {
   const certified = isCertified(score, jobs) || activeProperty?.verificationLevel === "Premium";
 
   const { rooms } = usePropertyRooms(activePropertyId ?? undefined);
-  const { userTier } = useSubscription();
+  const { userTier, expiresAt: subExpiresAt, cancelledAt: subCancelledAt } = useSubscription();
+  const isPro = userTier === "Pro" || userTier === "Premium";
   const atPropertyLimit = properties.length >= (TIER_PROPERTY_LIMIT[userTier] ?? Infinity);
   // Pro/Premium share the top homeowner tier with nothing higher to offer —
   // let the add-property flow surface its own at-capacity message instead
@@ -182,6 +190,15 @@ export function DashboardV3() {
     sensorService.getDevicesForProperty(activePropertyId).then(setSensorDevices).catch(() => {});
     sensorService.getPendingAlerts(activePropertyId).then(setSensorAlerts).catch(() => {});
   }, [activePropertyId]);
+
+  // Shared access is Pro-only (PeoplePage.tsx's own UpgradeGate, and the
+  // tier check in inviteManager() on the backend) — only load it for
+  // paying tiers so a Free/Basic account never fires the call.
+  const [people, setPeople] = useState<PersonAccess[] | null>(null);
+  React.useEffect(() => {
+    if (!isPro || !activePropertyId) { setPeople(null); return; }
+    peopleService.getPeople(activePropertyId).then(setPeople).catch(() => setPeople(null));
+  }, [isPro, activePropertyId]);
 
   const voice = useVoiceAgent();
   const feed = useActivityFeed(properties);
@@ -243,7 +260,9 @@ export function DashboardV3() {
     score, grade, breakdown, premium, zipCode: activeProperty?.zipCode ?? "",
     activeProperty, properties, jobs, pendingProposals, decayEvents, atRiskWarnings, scoreEvents,
     quoteRequests, bidCountMap, recurringServices, visitLogMap, rooms, sensorDevices, sensorAlerts,
-    planTier: userTier, agentCreditsLeft: voice.creditBalance, agentQuotaExhausted: voice.quotaExhausted,
+    systemAges, people,
+    planTier: userTier, subExpiresAt, subCancelledAt,
+    agentCreditsLeft: voice.creditBalance, agentQuotaExhausted: voice.quotaExhausted,
     goPanel, openFlow, navigate,
     approveProposal: (id) => jobSummary.approveProposal(id),
     declineProposal: (id) => jobSummary.rejectProposal(id),
@@ -252,7 +271,8 @@ export function DashboardV3() {
   const panels = useMemo(() => buildPanels(ctx), [
     score, grade, breakdown, premium, activeProperty, properties, jobs, pendingProposals,
     decayEvents, atRiskWarnings, scoreEvents, quoteRequests, bidCountMap, recurringServices,
-    visitLogMap, rooms, sensorDevices, sensorAlerts, userTier, voice.creditBalance, voice.quotaExhausted,
+    visitLogMap, rooms, sensorDevices, sensorAlerts, systemAges, people,
+    userTier, subExpiresAt, subCancelledAt, voice.creditBalance, voice.quotaExhausted,
   ]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const activePanel: PanelData | null = activeKey ? panels[activeKey] : null;
@@ -273,9 +293,11 @@ export function DashboardV3() {
     if (atRiskWarnings.length) t.push({ text: `${atRiskWarnings[0].label} — ${atRiskWarnings[0].daysRemaining} days left before it costs points.`, go: "property" });
     if (voice.quotaExhausted) t.push({ text: "Your AI assistant calls are used up for this period — chat still works.", go: "billing" });
     if (quoteRequests.some((r) => (bidCountMap[r.id] ?? 0) > 0)) t.push({ text: "Bids are waiting on an open job.", go: "jobs" });
+    const pendingInvite = people?.find((p) => p.isPending);
+    if (pendingInvite) t.push({ text: `${pendingInvite.name} hasn't accepted their invite yet.`, go: "people" });
     if (!t.length) t.push({ text: "Nothing needs your attention right now.", go: "score" });
     return t;
-  }, [sensorAlerts, jobs, atRiskWarnings, voice.quotaExhausted, quoteRequests, bidCountMap]);
+  }, [sensorAlerts, jobs, atRiskWarnings, voice.quotaExhausted, quoteRequests, bidCountMap, people]);
   const [tipIdx, setTipIdx] = useState(0);
   const tip = idleTips[tipIdx % idleTips.length];
 
@@ -340,6 +362,12 @@ export function DashboardV3() {
           </button>
         </div>
 
+        {isPro && (
+          <div onClick={() => goPanel("billing")} title="HomeGentic Pro" style={{ flex: "none", display: "flex", alignItems: "center", gap: 7, border: "1.5px solid var(--hg-yel-edge)", background: "var(--hg-yel-wash)", borderRadius: 100, padding: "5px 11px", cursor: "pointer" }}>
+            <Dot color="var(--hg-yel)" style={{ animation: "hgHalo 3.4s ease-in-out infinite" }} />
+            <div style={{ font: "500 9px/1 'JetBrains Mono',monospace", letterSpacing: ".14em", color: "var(--hg-yel-ink)", whiteSpace: "nowrap" }}>PLUS</div>
+          </div>
+        )}
         <div onClick={() => goPanel("billing")} title="AI assistant calls" style={{ display: "flex", alignItems: "center", gap: 7, flex: "none", cursor: "pointer" }}>
           <Dot color={voice.quotaExhausted ? "var(--hg-bad)" : "#FFD23F"} />
           <div style={{ font: "500 9px/1 'JetBrains Mono',monospace", letterSpacing: ".14em", color: "var(--hg-muted)", whiteSpace: "nowrap" }}>
@@ -389,22 +417,28 @@ export function DashboardV3() {
           {PANEL_ORDER.map((k) => {
             const p = panels[k];
             const on = activeKey === k;
-            const showCount = k === "jobs" || k === "maint" || k === "sensors" || (k === "awaiting" && pendingCount > 0);
+            const showCount = k === "jobs" || k === "maint" || k === "sensors" || k === "forecast" || (k === "people" && isPro) || (k === "awaiting" && pendingCount > 0);
+            const locked = k === "people" && !isPro;
             return (
               <div
                 key={k}
-                onClick={() => goPanel(k)}
+                onClick={() => (locked ? setFlow("upgrade") : goPanel(k))}
+                title={locked ? "Shared access is a Pro feature" : undefined}
                 style={{
                   minHeight: 31, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "space-between",
                   gap: 8, padding: "0 12px", borderRadius: 100,
-                  background: on ? "var(--hg-blue-fill)" : "var(--hg-fill)",
-                  border: `1.5px solid ${on ? "#2B34FF" : "var(--hg-line-2)"}`,
+                  background: locked ? "transparent" : on ? "var(--hg-blue-fill)" : "var(--hg-fill)",
+                  border: locked ? "1.5px dashed var(--hg-line-2)" : `1.5px solid ${on ? "#2B34FF" : "var(--hg-line-2)"}`,
                   font: "500 10.5px/1 'JetBrains Mono',monospace", letterSpacing: ".06em",
-                  color: on ? "var(--hg-chip-on)" : "var(--hg-ink-3)", cursor: "pointer",
+                  color: locked ? "var(--hg-muted)" : on ? "var(--hg-chip-on)" : "var(--hg-ink-3)", cursor: "pointer",
                 }}
               >
                 {p.chip}
-                <span style={{ font: "400 10px/1 'JetBrains Mono',monospace", color: "var(--hg-muted)" }}>{showCount ? p.count : ""}</span>
+                {locked ? (
+                  <span style={{ font: "500 9px/1 'JetBrains Mono',monospace", color: "var(--hg-yel-ink)" }}>PRO</span>
+                ) : (
+                  <span style={{ font: "400 10px/1 'JetBrains Mono',monospace", color: "var(--hg-muted)" }}>{showCount ? p.count : ""}</span>
+                )}
               </div>
             );
           })}
@@ -559,6 +593,14 @@ export function DashboardV3() {
                   <div
                     onClick={() => {
                       if (activeKey === "awaiting") { ctx.approveAll(); return; }
+                      if (activeKey === "forecast") {
+                        if (!activeProperty) return;
+                        const url = window.location.origin + buildForecastUrl({ address: activeProperty.address, yearBuilt: Number(activeProperty.yearBuilt), state: activeProperty.state, systemOverrides: systemAges });
+                        navigator.clipboard.writeText(url).then(() => toast.success("Forecast link copied.")).catch(() => toast.error("Couldn't copy the link."));
+                        return;
+                      }
+                      if (activeKey === "people") { navigate("/people"); return; }
+                      if (activeKey === "billing" && isPro) { navigate("/settings"); return; }
                       const f = activePanel.ctaFlow ?? CTA_FLOW[activeKey!];
                       if (f) openFlow(f);
                     }}

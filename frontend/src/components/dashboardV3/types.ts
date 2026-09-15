@@ -1,6 +1,6 @@
 export type PanelKey =
-  | "awaiting" | "score" | "property" | "market" | "maint" | "jobs" | "pros"
-  | "sensors" | "safety" | "credits" | "docs" | "rooms" | "spend" | "activity" | "billing"
+  | "awaiting" | "score" | "property" | "market" | "forecast" | "maint" | "jobs" | "pros"
+  | "sensors" | "safety" | "credits" | "docs" | "rooms" | "people" | "spend" | "activity" | "billing"
   | "add" | "listing";
 
 export interface PanelRow {

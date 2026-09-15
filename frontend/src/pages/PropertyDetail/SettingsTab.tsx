@@ -2,6 +2,8 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { propertyService, type Property, type TransferRecord, type PropertyManager, type ManagerRole } from "@/services/property";
 import { V2_COLORS, V2_FONTS } from "@/theme";
+import { UpgradeGate } from "@/components/UpgradeGate";
+import { useSubscription } from "@/hooks/useSubscription";
 import toast from "react-hot-toast";
 
 export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: { property: Property; currentPrincipal: string; onVerifyOwnership?: () => void }) {
@@ -16,6 +18,8 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
     mono:     V2_FONTS.body,
   };
   const navigate = useNavigate();
+  const { userTier } = useSubscription();
+  const canShareAccess = userTier === "Pro" || userTier === "Premium";
 
   const [transferStep,   setTransferStep]   = React.useState<"idle" | "loading" | "done">("idle");
   const [transferToken,  setTransferToken]  = React.useState<string | null>(null);
@@ -327,7 +331,15 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
             </div>
           )}
 
-          {inviteStep === "idle" && (
+          {!canShareAccess && (
+            <UpgradeGate
+              feature="Shared property access"
+              description="Invite family, a caretaker, or a co-owner to help manage this property — with role-based permissions and a full activity log."
+              tier="Pro"
+            />
+          )}
+
+          {canShareAccess && inviteStep === "idle" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
               <div style={{ display: "flex", gap: "0.75rem", alignItems: "flex-end" }}>
                 <div style={{ flex: 1 }}>
@@ -382,11 +394,11 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
             </div>
           )}
 
-          {inviteStep === "loading" && (
+          {canShareAccess && inviteStep === "loading" && (
             <p style={{ fontFamily: TC.mono, fontSize: "0.7rem", color: TC.inkLight, margin: 0 }}>Generating invite…</p>
           )}
 
-          {inviteStep === "done" && inviteUrl && (
+          {canShareAccess && inviteStep === "done" && inviteUrl && (
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
               <p style={{ fontFamily: TC.mono, fontSize: "0.65rem", color: TC.inkLight, margin: 0, lineHeight: 1.5 }}>
                 Share this link with <strong>{inviteDisplayName}</strong>. They'll log in and accept the <strong>{inviteRole}</strong> role. The link expires in 90 days.
