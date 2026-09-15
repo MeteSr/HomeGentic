@@ -11,6 +11,7 @@ async function setup(page: Parameters<typeof injectTestAuth>[0]) {
   await page.addInitScript(() => {
     // Pro tier so 2 properties don't hit the property limit
     (window as any).__e2e_subscription = { tier: "Pro", expiresAt: null };
+    (window as any).__e2e_agent_credits = 10;
     (window as any).__e2e_properties = [
       {
         id: 1, owner: "test-e2e-principal",

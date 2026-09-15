@@ -15,6 +15,7 @@ async function setup(page: Parameters<typeof injectTestAuth>[0]) {
   await injectTestAuth(page);
   await page.addInitScript(() => {
     (window as any).__e2e_subscription = { tier: "Pro", expiresAt: null };
+    (window as any).__e2e_agent_credits = 10;
     (window as any).__e2e_properties = [
       {
         id: 1, owner: "test-e2e-principal",
@@ -83,7 +84,16 @@ test.describe("Visual — dashboard (/dashboard)", () => {
       await expect(page.getByText(/123 maple street/i).first()).toBeVisible();
     } else {
       await expect(page.getByText("HOMEGENTIC SCORE")).toBeVisible();
+      // The score hero renders "—" until the mocked property/job data
+      // resolves (a couple of chained async ticks) — wait it out so a
+      // slower CI runner never catches that transient frame mid-capture.
+      await expect(page.getByText("—", { exact: true })).toHaveCount(0);
     }
+    // Web fonts (Bricolage Grotesque/Hanken Grotesk/JetBrains Mono, loaded
+    // from Google Fonts) can still be swapping in on a cold CI cache —
+    // Playwright's screenshot stability check has a bounded wait for that,
+    // but a slow font fetch can outrun it. Wait it out explicitly.
+    await page.evaluate(() => document.fonts.ready).catch(() => {});
     await expect(page).toHaveScreenshot("dashboard.png", { fullPage: true });
   });
 });
