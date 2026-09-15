@@ -1174,6 +1174,24 @@ persistent actor Property {
     spendLimitCents : ?Nat
   ) : async Result.Result<ManagerInvite, Error> {
     switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
+
+    // ── Tier gate ────────────────────────────────────────────────────────────
+    // Shared access (People) is Pro/Premium-only — mirrors the tier lookup in
+    // registerProperty(). Existing managers/invites from before this gate keep
+    // working; only granting a *new* invite is blocked on Free/Basic.
+    let callerTier : SubscriptionTier = if (payCanisterId != "") {
+      let payActor = actor(payCanisterId) : actor {
+        getTierForPrincipal : (Principal) -> async { #Free; #Basic; #Pro; #Premium; #ContractorFree; #ContractorPro };
+      };
+      await payActor.getTierForPrincipal(msg.caller)
+    } else {
+      tierFor(msg.caller)
+    };
+    switch (callerTier) {
+      case (#Pro or #Premium) {};
+      case _ { return #err(#InvalidInput("Shared access is a Pro feature. Subscribe to Pro ($59/year) to invite a manager or viewer.")) };
+    };
+
     switch (Map.get(properties, Text.compare, propertyId)) {
       case null { #err(#NotFound) };
       case (?prop) {

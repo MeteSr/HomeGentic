@@ -9,9 +9,11 @@
  * photos/job, and 3 open quote requests for free (matching what the old
  * retired Basic tier offered), plus job logging, Bid to List access, and
  * the AI/intelligence feature set — Market Intelligence, Predictive
- * Maintenance, Warranty Wallet, Recurring Services, Sensors, and
- * delegated People management. Only Insurance Defense and Resale Ready
- * stay Pro-only. Free also gets its own AI agent-call allowance: 10/week
+ * Maintenance, Warranty Wallet, Recurring Services, and Sensors.
+ * Delegated People management (shared/family access) is Pro-only — see
+ * PeoplePage.tsx's UpgradeGate and the tier check in inviteManager() on
+ * the property canister — along with Insurance Defense and Resale Ready.
+ * Free also gets its own AI agent-call allowance: 10/week
  * (not 10/day like Pro) — see agents/voice/agentLimiter.ts's TIER_PERIOD;
  * every call is pure cost against $0 revenue, so it's deliberately a much
  * smaller, weekly-paced allowance rather than Pro's daily one.
@@ -86,6 +88,7 @@ export const PLANS: Plan[] = [
       "10 AI agent calls/day",
       "Blockchain-backed maintenance record",
       "Public HomeGentic report",
+      "Shared property access",
       "Warranty Wallet",
       "Recurring Services",
       "Market Intelligence",

@@ -18,7 +18,11 @@ import type { SensorDevice, SensorEvent } from "@/services/sensor";
 import type { ScoreBreakdown } from "@/services/scoreService";
 import type { AtRiskWarning, DecayEvent } from "@/services/scoreDecayService";
 import type { ScoreEvent } from "@/services/scoreEventService";
-import type { PlanTier } from "@/services/planConstants";
+import { PLANS, type PlanTier } from "@/services/planConstants";
+import type { SystemAges } from "@/services/systemAges";
+import type { PersonAccess } from "@/services/people";
+import { estimateSystems } from "@/services/systemAgeEstimator";
+import { computeTenYearBudget } from "@/services/instantForecast";
 import type { FlowKey, PanelData, PanelKey, PanelRow } from "./types";
 
 const GOOD  = "var(--hg-good)";
@@ -29,8 +33,8 @@ const MUTED = "var(--hg-muted)";
 const BLUE  = "var(--hg-blue-soft)";
 
 export const PANEL_ORDER: PanelKey[] = [
-  "awaiting", "score", "property", "market", "maint", "jobs", "pros",
-  "sensors", "safety", "docs", "rooms", "spend", "activity", "billing",
+  "awaiting", "score", "property", "market", "forecast", "maint", "jobs", "pros",
+  "sensors", "safety", "docs", "rooms", "people", "spend", "activity", "billing",
 ];
 
 export const CTA_FLOW: Partial<Record<PanelKey, FlowKey>> = {
@@ -75,7 +79,13 @@ export interface PanelCtx {
   sensorDevices: SensorDevice[];
   sensorAlerts: SensorEvent[];
 
+  systemAges: SystemAges;
+  /** null while loading, or when the tier doesn't have shared access. */
+  people: PersonAccess[] | null;
+
   planTier: PlanTier;
+  subExpiresAt: number | null;
+  subCancelledAt: number | null;
   agentCreditsLeft: number | null;
   agentQuotaExhausted: boolean;
 
@@ -195,6 +205,104 @@ function buildMarket(ctx: PanelCtx): PanelData {
     title: est ? `${money(est.low * 100)}–${money(est.high * 100)} above the median` : "Log jobs to see resale value",
     sub: `What a documented ${ctx.activeProperty?.address ?? "record"} clears against an equivalent unverified sale.`,
     cta: "Generate resale report",
+    rows,
+  };
+}
+
+// ── FORECAST ─────────────────────────────────────────────────────────────
+//
+// Real numbers: computeTenYearBudget (services/instantForecast.ts) over
+// estimateSystems (services/systemAgeEstimator.ts) — the same pairing that
+// powers the public, logged-out /instant-forecast page — seeded with this
+// property's actual yearBuilt/state and any system install years the owner
+// has set (services/systemAges.ts). Available on every tier; nothing here
+// is Pro-gated.
+//
+// Known gap: estimateSystems() (unlike predictMaintenance() directly) does
+// not factor in logged job history to push out a system's install year, so
+// a system replaced via a logged job but never entered under "system ages"
+// still ages off yearBuilt here.
+
+const URGENCY_TONE: Record<string, string> = { Critical: BAD, Soon: WARN, Watch: BLUE, Good: INK };
+const URGENCY_BAR: Record<string, string> = { Critical: BAD, Soon: WARN, Watch: "#2B34FF", Good: "#2B34FF" };
+
+function dollars(d: number): string {
+  return `$${Math.round(d).toLocaleString()}`;
+}
+
+function buildForecast(ctx: PanelCtx): PanelData {
+  const p = ctx.activeProperty;
+  if (!p) {
+    return {
+      chip: "FORECAST", count: "", asked: "No property on file",
+      title: "Add a property to see the ten-year forecast", sub: "",
+      cta: "Add a property", rows: [],
+    };
+  }
+  const estimates = estimateSystems(Number(p.yearBuilt), p.state, ctx.systemAges);
+  const budgetLow = computeTenYearBudget(estimates);
+  const due = [...estimates].filter((e) => e.yearsRemaining <= 10).sort((a, b) => a.yearsRemaining - b.yearsRemaining);
+  const rows: PanelRow[] = due.map((e) => ({
+    lead: e.systemName,
+    sub: `INSTALLED ${e.installYear} · ${e.ageYears} YRS AGAINST A ${e.lifespanYears} YR LIFE · ${e.urgency.toUpperCase()}`,
+    right: `${dollars(e.replacementCostLow)}–${dollars(e.replacementCostHigh)}`,
+    rightSub: e.yearsRemaining <= 0 ? "PAST LIFE" : `${e.yearsRemaining} YRS LEFT`,
+    tone: URGENCY_TONE[e.urgency] ?? INK,
+    hasBar: true, pct: `${Math.min(100, Math.round(e.percentLifeUsed))}%`, barColor: URGENCY_BAR[e.urgency] ?? "#2B34FF",
+  }));
+  if (due.length) {
+    rows.push({
+      lead: "Ten-year budget",
+      sub: `${due.length} SYSTEM${due.length === 1 ? "" : "S"} DUE · LOW END OF EACH RANGE`,
+      right: dollars(budgetLow), rightSub: "TEN YEARS", tone: GOOD,
+    });
+  }
+  return {
+    chip: "FORECAST", count: budgetLow >= 1000 ? `$${(budgetLow / 1000).toFixed(1)}k` : dollars(budgetLow),
+    asked: due.length ? `${dollars(budgetLow)} of replacements over the next ten years` : "Nothing is due within ten years",
+    title: due.length ? `${dollars(budgetLow)} of replacements come due within ten years` : "Nothing is due within ten years",
+    sub: `${estimates.length} tracked system${estimates.length === 1 ? "" : "s"} for a ${p.yearBuilt} build${p.state ? `, ${p.state} climate` : ""}. Costs are the low end of each replacement range.`,
+    cta: "Copy the forecast link",
+    rows: rows.length ? rows : [{ lead: "No systems tracked yet", sub: "SET SYSTEM AGES ON THE PROPERTY PAGE", right: "Open", rightSub: "", tone: BLUE, go: "property" }],
+  };
+}
+
+// ── PEOPLE (Pro) ─────────────────────────────────────────────────────────
+//
+// Shared access is a Pro feature — see PeoplePage.tsx's own UpgradeGate and
+// the tier check added to inviteManager() in backend/property/main.mo. This
+// panel only appears in the rail for Pro/Premium (see DashboardV3.tsx);
+// ctx.people is real data from peopleService.getPeople(), loaded only for
+// paying tiers.
+
+const ROLE_LABEL: Record<string, string> = { OWNER: "Owner", "CO-OWNER": "Co-owner", MANAGER: "Manager", VIEWER: "Viewer" };
+
+function buildPeople(ctx: PanelCtx): PanelData {
+  const people = ctx.people ?? [];
+  const others = people.filter((p) => p.role !== "OWNER");
+  const active = others.filter((p) => !p.isPending);
+  const pending = others.filter((p) => p.isPending);
+  const rows: PanelRow[] = [
+    ...active.map((p) => ({
+      lead: p.name,
+      sub: `${ROLE_LABEL[p.role] ?? p.role} · ADDED ${shortDate(p.addedAt).toUpperCase()}`,
+      right: ROLE_LABEL[p.role] ?? p.role,
+      rightSub: p.role === "VIEWER" ? "READ ONLY" : p.role === "CO-OWNER" ? "FULL ACCESS" : "CAN ADD",
+      tone: GOOD,
+    })),
+    ...pending.map((p) => ({
+      lead: p.name,
+      sub: `INVITE SENT ${shortDate(p.addedAt).toUpperCase()} · NOT ACCEPTED`,
+      right: "Pending", rightSub: (ROLE_LABEL[p.role] ?? p.role).toUpperCase(), tone: WARN,
+    })),
+    fullPageRow(others.length ? "Manage access" : "Invite someone", "ROLES, SPEND LIMITS, APPROVALS AND THE ACTIVITY LOG", "/people", ctx),
+  ];
+  return {
+    chip: "PEOPLE", count: String(others.length),
+    asked: others.length ? `${others.length} ${others.length === 1 ? "person has" : "people have"} access besides you` : "Nobody else has access yet",
+    title: others.length ? `${others.length} ${others.length === 1 ? "person can" : "people can"} reach this record` : "Invite someone to help manage this record",
+    sub: "A manager can add jobs and documents. A viewer can only read. Every action they take lands in the activity log under their name.",
+    cta: "Invite someone",
     rows,
   };
 }
@@ -445,26 +553,35 @@ function buildActivity(ctx: PanelCtx): PanelData {
 
 function buildBilling(ctx: PanelCtx): PanelData {
   const isPro = ctx.planTier === "Pro" || ctx.planTier === "Premium";
-  const rows: PanelRow[] = [
-    ctx.agentQuotaExhausted
-      ? { lead: "AI assistant calls", sub: `NO CALLS LEFT THIS ${isPro ? "DAY" : "WEEK"} · FALLS BACK TO CHAT`, right: "0 left", rightSub: "", tone: BAD }
-      : ctx.agentCreditsLeft != null
-      ? { lead: "AI assistant calls", sub: `RESETS EACH ${isPro ? "DAY" : "WEEK"}`, right: `${ctx.agentCreditsLeft} left`, rightSub: "", tone: ctx.agentCreditsLeft <= 2 ? WARN : INK }
-      : { lead: "AI assistant calls", sub: "LOADING…", right: "—", rightSub: "", tone: MUTED },
-    { lead: "The record", sub: `${ctx.jobs.length} JOBS · ${ctx.properties.length} PROPERT${ctx.properties.length === 1 ? "Y" : "IES"}`, right: "$0", rightSub: "NEVER CAPPED", tone: INK },
-  ];
-  if (!isPro) {
-    rows.push({ lead: "HomeGentic Pro", sub: "20 PROPERTIES · UNLIMITED QUOTES · FORECASTING · PRIORITY VERIFICATION", right: "+$59", rightSub: "A YEAR", tone: BLUE, flow: "upgrade" });
-  } else {
-    rows.push({ lead: "HomeGentic Pro", sub: "ACTIVE · ANNUAL", right: "Active", rightSub: "", tone: GOOD });
-  }
+  const plan = PLANS.find((p) => p.tier === ctx.planTier);
+
+  const planRow: PanelRow = isPro
+    ? ctx.subCancelledAt
+      ? { lead: "HomeGentic Pro", sub: `CANCELLED · ACCESS ENDS ${ctx.subExpiresAt ? shortDate(ctx.subExpiresAt).toUpperCase() : "AT RENEWAL"} · THEN BACK TO FREE`, right: "Ending", rightSub: "", tone: WARN, onTap: () => ctx.navigate("/settings") }
+      : { lead: "HomeGentic Pro", sub: `ANNUAL${ctx.subExpiresAt ? ` · RENEWS ${shortDate(ctx.subExpiresAt).toUpperCase()}` : ""}`, right: "$59", rightSub: "A YEAR", tone: GOOD, onTap: () => ctx.navigate("/settings") }
+    : { lead: "HomeGentic Pro", sub: "20 PROPERTIES · SHARED ACCESS · PRIORITY VERIFICATION", right: "+$59", rightSub: "A YEAR", tone: BLUE, flow: "upgrade" };
+
+  const aiRow: PanelRow = ctx.agentQuotaExhausted
+    ? { lead: "AI assistant calls", sub: `NO CALLS LEFT THIS ${isPro ? "DAY" : "WEEK"} · FALLS BACK TO CHAT`, right: "0 left", rightSub: "", tone: BAD }
+    : ctx.agentCreditsLeft != null
+    ? { lead: "AI assistant calls", sub: `RESETS EACH ${isPro ? "DAY" : "WEEK"}`, right: `${ctx.agentCreditsLeft} left`, rightSub: "", tone: ctx.agentCreditsLeft <= 2 ? WARN : INK }
+    : { lead: "AI assistant calls", sub: "LOADING…", right: "—", rightSub: "", tone: MUTED };
+
+  const photosRow: PanelRow = { lead: "Photos per job", sub: `${plan?.photosPerJob ?? "—"} ON ${ctx.planTier.toUpperCase()}`, right: String(plan?.photosPerJob ?? "—"), rightSub: "PER JOB", tone: INK };
+
+  const sharedRow: PanelRow = isPro
+    ? { lead: "Shared access", sub: ctx.people ? `${ctx.people.filter((p) => p.role !== "OWNER").length} PEOPLE HAVE ACCESS` : "MANAGE FROM PEOPLE", right: "Included", rightSub: "PRO", tone: INK, go: "people" }
+    : { lead: "Shared access", sub: "INVITE A MANAGER OR VIEWER ON PRO", right: "Pro", rightSub: "", tone: BLUE, flow: "upgrade" };
+
+  const recordRow: PanelRow = { lead: "The record", sub: `${ctx.jobs.length} JOBS · ${ctx.properties.length} PROPERT${ctx.properties.length === 1 ? "Y" : "IES"}`, right: "$0", rightSub: "NEVER CAPPED", tone: INK };
+
   return {
     chip: "BILLING", count: isPro ? "PRO" : "FREE",
     asked: isPro ? "You are on Pro" : "You are on the Free plan",
-    title: isPro ? "Pro is active" : "One allowance is metered this week",
+    title: isPro ? "Pro is active" : "Shared access and higher allowances are on Pro",
     sub: "The record itself is never capped and never charged.",
     cta: isPro ? "Manage the plan" : "Upgrade to Pro — $59 a year",
-    rows,
+    rows: [planRow, aiRow, photosRow, sharedRow, recordRow],
   };
 }
 
@@ -474,6 +591,7 @@ export function buildPanels(ctx: PanelCtx): Record<PanelKey, PanelData> {
     score: buildScore(ctx),
     property: buildProperty(ctx),
     market: buildMarket(ctx),
+    forecast: buildForecast(ctx),
     maint: buildMaint(ctx),
     jobs: buildJobs(ctx),
     pros: buildPros(ctx),
@@ -482,6 +600,7 @@ export function buildPanels(ctx: PanelCtx): Record<PanelKey, PanelData> {
     credits: buildSafety(ctx), // drill-through alias — same heuristic data, framed as credits
     docs: buildDocs(ctx),
     rooms: buildRooms(ctx),
+    people: buildPeople(ctx),
     spend: buildSpend(ctx),
     activity: buildActivity(ctx),
     billing: buildBilling(ctx),
