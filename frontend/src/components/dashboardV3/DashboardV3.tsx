@@ -12,8 +12,7 @@
  *
  * All data is real — see panelData.ts. Nothing here is demo/mock copy.
  */
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useAuthStore } from "@/store/authStore";
+import React, { useMemo, useState } from "react";
 import { useAddPropertyStore } from "@/store/addPropertyStore";
 import { usePropertySummary } from "@/hooks/usePropertySummary";
 import { useJobSummary } from "@/hooks/useJobSummary";
@@ -112,21 +111,12 @@ function Row({ row, index, rise }: { row: PanelRow; index: number; rise: string 
 // ── Main component ───────────────────────────────────────────────────────────
 
 export function DashboardV3() {
-  const { profile } = useAuthStore();
   const { open: openAddProp } = useAddPropertyStore();
   const { properties, loading: propLoading } = usePropertySummary();
 
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const activePropertyId = selectedPropertyId ?? (properties.length > 0 ? String(properties[0].id) : null);
   const activeProperty = activePropertyId ? properties.find((p) => String(p.id) === activePropertyId) ?? null : null;
-
-  const autoOpenedRef = useRef(false);
-  useEffect(() => {
-    if (!propLoading && !autoOpenedRef.current && profile && !profile.onboardingComplete && properties.length === 0) {
-      autoOpenedRef.current = true;
-      openAddProp();
-    }
-  }, [propLoading, profile, properties.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const jobSummary = useJobSummary(properties, propLoading);
   const { quoteRequests, bidCountMap, reload: reloadQuotes } = useQuoteSummary();
