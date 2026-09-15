@@ -89,6 +89,8 @@ export default function UpgradeModal({ open, onClose }: UpgradeModalProps) {
         padding:      "2rem",
         maxWidth:     "680px",
         width:        "calc(100% - 2rem)",
+        maxHeight:    "90vh",
+        overflowY:    "auto",
         position:     "relative",
       }}>
         {/* Dismiss */}
