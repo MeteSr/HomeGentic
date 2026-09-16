@@ -1,4 +1,5 @@
 import Array     "mo:core/Array";
+import Blob      "mo:core/Blob";
 import Nat       "mo:core/Nat";
 import Principal "mo:core/Principal";
 import Result    "mo:core/Result";
@@ -47,6 +48,14 @@ persistent actor Audit {
 
   private func isTrusted(p : Principal) : Bool {
     Array.find<Principal>(trustedCanisters, func(a) { a == p }) != null
+  };
+
+  // ── Ingress inspection ─────────────────────────────────────────────────────
+  /// Reject anonymous callers and zero-byte payloads before execution.
+  /// Empty payload cannot be valid Candid for any method that takes a struct
+  /// argument — these are probe / garbage calls that waste cycles.
+  system func inspect({ caller : Principal; arg : Blob }) : Bool {
+    not Principal.isAnonymous(caller) and arg.size() > 0
   };
 
   // ── Bootstrap ──────────────────────────────────────────────────────────────
