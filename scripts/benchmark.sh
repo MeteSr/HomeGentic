@@ -9,10 +9,21 @@
 #   bash scripts/benchmark.sh --live        # require running replica; fail if not up
 #   bash scripts/benchmark.sh --no-commit   # skip committing the report to git
 #
+# --live requires the replica to already be deployed, wired, and seeded with
+# benchmark data — run these first:
+#   dfx start --background
+#   bash scripts/ci/deploy-canisters.sh
+#   bash scripts/ci/seed-perf-data.sh
+# Without that, --live calls fall back to placeholder IDs that don't exist in
+# any canister and every call will fail.
+#
 # Output:
 #   tests/perf-baselines/benchmark-report.md  (Markdown summary)
-#   tests/perf-baselines/query-baseline.csv   (raw CSV — used by CI regression gate)
-#   tests/perf-baselines/update-baseline.csv  (raw CSV)
+#   tests/perf-baselines/query-baseline.csv   (raw CSV — local dev reference only;
+#   tests/perf-baselines/update-baseline.csv  (raw CSV)   CI's perf-regression.yml
+#     gate now compares a PR's base and head live, in the same run — see that
+#     workflow and scripts/benchmark-*.mjs for the accounting. These files are
+#     not read by CI.
 
 set -euo pipefail
 
@@ -121,8 +132,9 @@ GIT_SHA="$(cd "$ROOT" && git rev-parse --short HEAD 2>/dev/null || echo 'unknown
   echo "  The cycles estimate includes: ingress fee (590K) + consensus overhead (3M) +"
   echo "  storage write cost (127K/KB) + instruction cost (200K per 1M instructions)."
   echo "- **Flag \`⚠ REVIEW\`** = estimated cycles > 1B — investigate before scaling."
-  echo "- Baseline committed to \`tests/perf-baselines/\`. CI regression gate (13.6.4) compares"
-  echo "  each PR against this baseline and fails on >25% cycles regression."
+  echo "- This report is for local reference only. CI's regression gate (13.6.4) runs its own"
+  echo "  live base-vs-head comparison in \`.github/workflows/perf-regression.yml\` and does not"
+  echo "  read the CSVs committed here."
 
 } > "$REPORT_FILE"
 
