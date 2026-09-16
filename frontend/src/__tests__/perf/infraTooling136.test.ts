@@ -207,18 +207,29 @@ describe("13.6.4: .github/workflows/perf-regression.yml — CI gate", () => {
     expect(workflow).toContain("main");
   });
 
-  it("runs benchmark-queries.mjs in dry-run mode", () => {
+  it("runs benchmark-queries.mjs against a live replica", () => {
     expect(workflow).toContain("benchmark-queries.mjs");
+    expect(workflow).toContain("--live");
     expect(workflow).toContain("--csv");
   });
 
-  it("runs benchmark-updates.mjs in dry-run mode", () => {
+  it("runs benchmark-updates.mjs against a live replica", () => {
     expect(workflow).toContain("benchmark-updates.mjs");
+    expect(workflow).toContain("--live");
   });
 
-  it("compares against committed baseline CSVs", () => {
-    expect(workflow).toContain("query-baseline.csv");
-    expect(workflow).toContain("update-baseline.csv");
+  it("deploys and seeds a real local replica for both PR base and head", () => {
+    // No committed baseline file to go stale — both sides of the comparison
+    // are measured live, in this same run, via a base/head matrix leg.
+    expect(workflow).toContain("scripts/ci/deploy-canisters.sh");
+    expect(workflow).toContain("scripts/ci/seed-perf-data.sh");
+    expect(workflow).toMatch(/leg:\s*\[base,\s*head\]/);
+  });
+
+  it("compares the base and head legs via uploaded/downloaded artifacts", () => {
+    expect(workflow).toContain("upload-artifact");
+    expect(workflow).toContain("download-artifact");
+    expect(workflow).toContain("perf-${{ matrix.leg }}");
   });
 
   it("regression threshold is 25%", () => {

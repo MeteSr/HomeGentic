@@ -78,20 +78,26 @@ describe("PROD.12a — deploy.sh wires every set*CanisterId defined in Motoko", 
 });
 
 // ─── PROD.12b — ci.yml coverage ──────────────────────────────────────────────
+//
+// ci.yml's test-backend and test-integration jobs both deploy by calling
+// `bash scripts/ci/deploy-canisters.sh` rather than inlining the wiring
+// calls, so the wiring itself lives in that shared script now — check both
+// files combined so this test still catches a wiring call missing from
+// either.
 
 describe("PROD.12b — ci.yml test-backend wires every set*CanisterId defined in Motoko", () => {
   const wiringFns = collectMotokWiringFunctions();
-  const ci        = read(".github/workflows/ci.yml");
+  const ci        = read(".github/workflows/ci.yml") + "\n" + read("scripts/ci/deploy-canisters.sh");
 
   for (const { canister, funcName } of wiringFns) {
-    it(`ci.yml Deploy step calls \`${canister} ${funcName}\``, () => {
+    it(`ci.yml (or its shared deploy script) calls \`${canister} ${funcName}\``, () => {
       const pattern = new RegExp(
         `(?:icp|dfx)\\s+canister\\s+call\\s+${canister}\\s+${funcName}`,
         "m"
       );
       expect(
         ci,
-        `Missing: dfx canister call ${canister} ${funcName} in .github/workflows/ci.yml`
+        `Missing: dfx canister call ${canister} ${funcName} in .github/workflows/ci.yml or scripts/ci/deploy-canisters.sh`
       ).toMatch(pattern);
     });
   }

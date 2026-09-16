@@ -1,60 +1,125 @@
 name: Performance Regression Gate
 
-# 13.6.4 — Runs the cycles baseline on every PR and fails if any call regresses
-# by more than 25% compared to the committed baseline in tests/perf-baselines/.
+# 13.6.4 — Deploys a real local dfx replica twice (once for the PR's base
+# commit, once for its head) and compares actual measured cycles cost
+# between the two.
 #
-# The baseline CSVs (query-baseline.csv, update-baseline.csv) are committed to
-# the repo after running `bash scripts/benchmark.sh` locally. This job runs the
-# scripts in dry-run mode (no live replica required) and compares cycles_estimate
-# values only — latency is not gated in CI because it varies by runner.
+# This used to run both "PR" and "baseline" numbers through the same
+# dry-run math with hardcoded per-target byte/instruction constants, so a
+# PR's numbers and the baseline were always computed identically regardless
+# of what the diff actually changed — the gate could never fail on a real
+# regression. It now deploys+wires the full canister set on a local replica
+# for each side and measures the real thing: dfx canister status cycle
+# balance deltas around each update call, and real response payload size
+# for each query call. See scripts/benchmark-updates.mjs and
+# scripts/benchmark-queries.mjs for the accounting details.
+#
+# There's no committed baseline file to go stale — both sides of the
+# comparison are produced fresh by this same workflow run.
 
 on:
   pull_request:
     branches: [main]
     paths:
-      # Only run when canister code, services, or benchmark scripts change
+      # Only run when canister code, services, or benchmark/deploy scripts change
       - "backend/**"
       - "frontend/src/services/**"
       - "scripts/benchmark-*.mjs"
-      - "tests/perf-baselines/**"
+      - "scripts/ci/**"
 
 permissions:
   contents: read
   pull-requests: write
 
 jobs:
-  perf-regression:
-    name: Cycles Regression Check
+  perf-live:
+    name: Live cycles benchmark (${{ matrix.leg }})
     runs-on: ubuntu-latest
-
+    strategy:
+      fail-fast: false
+      matrix:
+        leg: [base, head]
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ matrix.leg == 'base' && github.event.pull_request.base.sha || github.event.pull_request.head.sha }}
 
       - uses: actions/setup-node@v7
         with:
           node-version: "20"
 
-      - name: Run query baseline (dry-run)
-        id: query
+      - name: Install dfx
         run: |
-          mkdir -p tests/perf-baselines
-          node scripts/benchmark-queries.mjs --csv > /tmp/pr-queries.csv
-          echo "Generated PR query baseline:"
-          cat /tmp/pr-queries.csv
+          curl -fsSL "https://github.com/dfinity/sdk/releases/download/0.24.3/dfx-x86_64-unknown-linux-gnu.tar.gz" \
+            | tar -xz
+          DFX_BIN=$(find . -name "dfx*" -type f -perm /111 | head -1)
+          sudo install -m 755 "$DFX_BIN" /usr/local/bin/dfx
+          dfx --version
 
-      - name: Run update baseline (dry-run)
-        id: update
+      - name: Cache mops packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/mops
+          key: mops-${{ runner.os }}-${{ hashFiles('mops.toml') }}
+
+      - name: Install mops and Motoko dependencies
         run: |
-          node scripts/benchmark-updates.mjs --csv > /tmp/pr-updates.csv
-          echo "Generated PR update baseline:"
-          cat /tmp/pr-updates.csv
+          npm install -g ic-mops
+          mops install
+          mops toolchain use moc 1.3.0
+          MOC_BIN=$(mops toolchain bin moc 2>/dev/null) || MOC_BIN=""
+          if [ -z "$MOC_BIN" ]; then
+            rm -rf .mops/_tmp && mops toolchain use moc 1.3.0
+            MOC_BIN=$(mops toolchain bin moc)
+          fi
+          "$MOC_BIN" --version
+          echo "DFX_MOC_PATH=$MOC_BIN" >> "$GITHUB_ENV"
 
-      - name: Compare against committed baseline
+      - name: Start local replica
+        run: dfx start --clean --background
+
+      - name: Deploy canisters
+        run: bash scripts/ci/deploy-canisters.sh
+
+      - name: Seed benchmark data
+        run: bash scripts/ci/seed-perf-data.sh
+
+      - name: Run query baseline (live)
+        run: node scripts/benchmark-queries.mjs --live --csv > /tmp/queries.csv
+
+      - name: Run update baseline (live)
+        run: node scripts/benchmark-updates.mjs --live --csv > /tmp/updates.csv
+
+      - name: Upload leg results
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-${{ matrix.leg }}
+          path: |
+            /tmp/queries.csv
+            /tmp/updates.csv
+          retention-days: 7
+
+  compare:
+    name: Cycles Regression Check
+    needs: [perf-live]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: perf-base
+          path: base
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: perf-head
+          path: head
+
+      - name: Compare base vs head
         id: compare
         run: |
           node - <<'EOF'
-          const fs   = require("fs");
-          const path = require("path");
+          const fs = require("fs");
 
           const REGRESSION_THRESHOLD = 0.25;   // 25% worse = fail
           const CYCLES_COL = 5;                 // 0-indexed column in CSV
@@ -71,38 +136,39 @@ jobs:
               .filter((r) => !isNaN(r.cycles));
           }
 
-          const baselineQ = parseCSV("tests/perf-baselines/query-baseline.csv");
-          const baselineU = parseCSV("tests/perf-baselines/update-baseline.csv");
-          const prQ       = parseCSV("/tmp/pr-queries.csv");
-          const prU       = parseCSV("/tmp/pr-updates.csv");
+          const baseRows = [...parseCSV("base/queries.csv"), ...parseCSV("base/updates.csv")];
+          const headRows = [...parseCSV("head/queries.csv"), ...parseCSV("head/updates.csv")];
 
-          const baseline = Object.fromEntries([...baselineQ, ...baselineU].map((r) => [r.key, r.cycles]));
-          const pr       = Object.fromEntries([...prQ,       ...prU      ].map((r) => [r.key, r.cycles]));
+          const base = Object.fromEntries(baseRows.map((r) => [r.key, r.cycles]));
+          const head = Object.fromEntries(headRows.map((r) => [r.key, r.cycles]));
 
           let failed = false;
           const rows = [];
 
-          for (const [key, prCycles] of Object.entries(pr)) {
-            const baseCycles = baseline[key];
-            if (!baseCycles) {
-              rows.push(`  NEW   ${key}: ${(prCycles/1e6).toFixed(1)}M cycles (no baseline)`);
+          for (const [key, headCycles] of Object.entries(head)) {
+            const baseCycles = base[key];
+            if (baseCycles === undefined) {
+              rows.push(`  NEW   ${key}: ${(headCycles/1e6).toFixed(1)}M cycles (no base measurement)`);
               continue;
             }
-            const ratio = prCycles / baseCycles;
+            if (baseCycles === 0) {
+              rows.push(`  ?     ${key}: base measured 0 cycles — skipping ratio (likely a failed base call)`);
+              continue;
+            }
+            const ratio = headCycles / baseCycles;
             const pct   = ((ratio - 1) * 100).toFixed(1);
             const flag  = ratio > (1 + REGRESSION_THRESHOLD) ? "⚠ REGRESS" : ratio < 0.9 ? "✓ IMPROVE" : "  OK     ";
-            rows.push(`  ${flag}  ${key}: ${(prCycles/1e6).toFixed(1)}M (${pct > 0 ? "+" : ""}${pct}%)  baseline=${(baseCycles/1e6).toFixed(1)}M`);
+            rows.push(`  ${flag}  ${key}: ${(headCycles/1e6).toFixed(1)}M (${pct > 0 ? "+" : ""}${pct}%)  base=${(baseCycles/1e6).toFixed(1)}M`);
             if (ratio > (1 + REGRESSION_THRESHOLD)) failed = true;
           }
 
           const summary = rows.join("\n");
           console.log("\n═══════════════════════════════════════════════════");
-          console.log("  Cycles Regression Report (13.6.4)");
+          console.log("  Cycles Regression Report (13.6.4) — live measurement");
           console.log("═══════════════════════════════════════════════════");
           console.log(summary);
           console.log();
 
-          // Write summary to GitHub step summary
           const md = [
             "## Cycles Regression Report",
             "",
@@ -116,7 +182,6 @@ jobs:
 
           if (failed) {
             console.error("❌ Cycles regression exceeds 25% threshold on one or more operations.");
-            console.error("   Run `bash scripts/benchmark.sh --live` locally to investigate.");
             process.exit(1);
           } else {
             console.log("✅ All operations within acceptable regression bounds.");
@@ -128,14 +193,13 @@ jobs:
         uses: actions/github-script@v9
         with:
           script: |
-            const fs = require("fs");
-            const summary = process.env.GITHUB_STEP_SUMMARY;
-            // Post the step summary as a PR comment for visibility
             const body = [
               "### 📊 Cycles Regression Report (13.6.4)",
               "",
-              "Run `bash scripts/benchmark.sh --live` locally against a replica for real measurements.",
-              "This CI run used **dry-run mode** (estimates only — no live ICP replica).",
+              "Both sides of this comparison were measured **live** against a real local dfx replica —",
+              "the PR's base commit and its head commit, deployed and benchmarked independently in this run.",
+              "Update-call cycles are real `dfx canister status` balance deltas; query-call cycles are",
+              "estimated from live-measured response size (query execution itself isn't cycle-metered on IC).",
               "",
               `**Result:** ${ "${{ steps.compare.outcome }}" === "success" ? "✅ No regressions" : "❌ Regression detected — see job log" }`,
             ].join("\n");

@@ -71,8 +71,8 @@ const UPDATE_OPS: Op[] = [
   { canister: "report",     method: "generateReport",            type: "update", cycles: updateEstimate(8, 1.0),  description: "Generate snapshot + share link" },
   { canister: "recurring",  method: "addVisitLog",               type: "update", cycles: updateEstimate(1, 0.3),  description: "Log a recurring service visit" },
   { canister: "recurring",  method: "createRecurringService",    type: "update", cycles: updateEstimate(1, 0.3),  description: "Create recurring service contract" },
-  { canister: "quote",      method: "createRequest",             type: "update", cycles: updateEstimate(1, 0.3),  description: "Create quote request" },
-  { canister: "monitoring", method: "recordCanisterMetrics",     type: "update", cycles: updateEstimate(0.5, 0.2), description: "Record canister metrics" },
+  { canister: "quote",      method: "createQuoteRequest",        type: "update", cycles: updateEstimate(1, 0.3),  description: "Create quote request" },
+  { canister: "monitoring", method: "registerCanister",          type: "update", cycles: updateEstimate(0.5, 0.2), description: "Register a canister for cycle-balance polling" },
   { canister: "photo",      method: "uploadPhoto",               type: "update", cycles: updateEstimate(4, 0.8),  description: "Upload photo (SHA-256 + dedup)" },
 ];
 
@@ -200,7 +200,7 @@ describe("13.1.1 + 13.1.2: benchmark scripts exist and have correct structure", 
     expect(script).toContain("generateReport");
     expect(script).toContain("addVisitLog");
     expect(script).toContain("createRecurringService");
-    expect(script).toContain("createRequest");
+    expect(script).toContain("createQuoteRequest");
   });
 
   it("both scripts output CSV with the required columns", () => {
