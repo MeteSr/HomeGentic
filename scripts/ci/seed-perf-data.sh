@@ -14,6 +14,9 @@
 # scripts/lib/cycles-balance-check.sh) rather than relying on `--output json`,
 # whose support/exact behavior across dfx versions is less certain.
 set -euo pipefail
+set -x  # trace every command — this step has failed opaquely twice already
+        # and raw CI logs aren't reachable from this environment, so bash's
+        # own execution trace is the only remaining way to see what happens.
 
 # Runs a dfx canister call, always capturing combined stdout+stderr. Prints
 # the full response to stderr (so it's visible in the CI log either way,
