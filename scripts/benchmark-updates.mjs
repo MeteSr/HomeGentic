@@ -187,14 +187,16 @@ function getCyclesBalance(canister) {
 }
 
 function runDfxCall(canister, method, dfxArgs) {
-  const cmd = `dfx canister call ${canister} ${method} '${dfxArgs}' --network local 2>/dev/null`;
+  const cmd = `dfx canister call ${canister} ${method} '${dfxArgs}' --network local`;
   const before = getCyclesBalance(canister);
   const t0 = performance.now();
   let ok = true;
   try {
     execSync(cmd, { timeout: 30_000, stdio: "pipe" });
-  } catch {
+  } catch (e) {
     ok = false;
+    const detail = (e.stderr?.toString() || e.stdout?.toString() || e.message || "").trim();
+    console.error(`  ✗ ${canister}.${method} failed: ${detail}`);
   }
   const latencyMs = performance.now() - t0;
   const after = getCyclesBalance(canister);

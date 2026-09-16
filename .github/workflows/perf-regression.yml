@@ -128,10 +128,40 @@ jobs:
             });
 
       - name: Run query baseline (live)
-        run: node scripts/benchmark-queries.mjs --live --csv > /tmp/queries.csv
+        run: node scripts/benchmark-queries.mjs --live --csv > /tmp/queries.csv 2> /tmp/queries-stderr.log
 
       - name: Run update baseline (live)
-        run: node scripts/benchmark-updates.mjs --live --csv > /tmp/updates.csv
+        run: node scripts/benchmark-updates.mjs --live --csv > /tmp/updates.csv 2> /tmp/updates-stderr.log
+
+      - name: Post benchmark stderr on failure
+        if: failure()
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require("fs");
+            const MAX = 30000;
+            function readTail(path) {
+              try {
+                let s = fs.readFileSync(path, "utf-8");
+                if (s.length > MAX) s = "...(truncated)...\n" + s.slice(-MAX);
+                return s || "(empty)";
+              } catch {
+                return "(not written — step may not have run)";
+              }
+            }
+            const body = [
+              `### ❌ Live benchmark failed (leg: \`${{ matrix.leg }}\`)`,
+              "",
+              "<details><summary>benchmark-queries.mjs stderr</summary>\n\n```\n" + readTail("/tmp/queries-stderr.log") + "\n```\n</details>",
+              "",
+              "<details><summary>benchmark-updates.mjs stderr</summary>\n\n```\n" + readTail("/tmp/updates-stderr.log") + "\n```\n</details>",
+            ].join("\n");
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });
 
       - name: Upload leg results
         uses: actions/upload-artifact@v4

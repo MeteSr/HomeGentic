@@ -174,7 +174,9 @@ function runDfxCall(canister, method, dfxArgs) {
   try {
     const out = execSync(cmd, { timeout: 15_000, stdio: "pipe" }).toString();
     return { ok: true, latencyMs: performance.now() - t0, responseSizeBytes: Buffer.byteLength(out, "utf-8") };
-  } catch {
+  } catch (e) {
+    const detail = (e.stderr?.toString() || e.stdout?.toString() || e.message || "").trim();
+    console.error(`  ✗ ${canister}.${method} failed: ${detail}`);
     return { ok: false, latencyMs: performance.now() - t0, responseSizeBytes: 0 };
   }
 }
