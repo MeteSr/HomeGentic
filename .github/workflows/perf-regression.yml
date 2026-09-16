@@ -94,7 +94,38 @@ jobs:
         run: bash scripts/ci/deploy-canisters.sh
 
       - name: Seed benchmark data
-        run: bash scripts/ci/seed-perf-data.sh
+        run: bash scripts/ci/seed-perf-data.sh 2>&1 | tee /tmp/seed-output.log
+
+      - name: Post seed script output on failure
+        if: failure()
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require("fs");
+            let log = "(no output captured)";
+            try {
+              log = fs.readFileSync("/tmp/seed-output.log", "utf-8");
+            } catch {}
+            // Comments have a size limit — keep the tail, which is where the
+            // actual failure is.
+            const MAX = 60000;
+            if (log.length > MAX) log = "...(truncated)...\n" + log.slice(-MAX);
+            const body = [
+              `### ❌ scripts/ci/seed-perf-data.sh failed (leg: \`${{ matrix.leg }}\`)`,
+              "",
+              "<details><summary>Full output</summary>",
+              "",
+              "```",
+              log,
+              "```",
+              "</details>",
+            ].join("\n");
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });
 
       - name: Run query baseline (live)
         run: node scripts/benchmark-queries.mjs --live --csv > /tmp/queries.csv
