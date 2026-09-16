@@ -12,10 +12,30 @@
 #
 # Parses dfx's default Candid text output directly (same convention as
 # scripts/lib/cycles-balance-check.sh) rather than relying on `--output json`,
-# whose support/exact behavior across dfx versions is less certain. Every
-# dfx call's raw response is echoed before parsing, so a future failure is
-# diagnosable from the CI log instead of failing opaquely.
+# whose support/exact behavior across dfx versions is less certain.
 set -euo pipefail
+
+# Runs a dfx canister call, always capturing combined stdout+stderr. Prints
+# the full response to stderr (so it's visible in the CI log either way,
+# without polluting the $(...) capture the caller uses to get $out back),
+# and exits with a clear message on failure — so a bad call is diagnosable
+# from the log instead of dying silently under `set -e` before its output
+# was ever printed.
+run_dfx() {
+  local label="$1"; shift
+  local out status
+  out=$(dfx "$@" 2>&1)
+  status=$?
+  {
+    echo "── $label (exit $status) ──"
+    echo "$out"
+  } >&2
+  if [ $status -ne 0 ]; then
+    echo "❌ $label failed (dfx exit $status)" >&2
+    exit 1
+  fi
+  echo "$out"
+}
 
 # Extracts the first `<field> = "<value>"` occurrence from a Candid text blob
 # (tolerant of the exact whitespace dfx's pretty-printer uses around `=`).
@@ -33,8 +53,7 @@ require_field() {
   local value
   value=$(extract_field "$blob" "$field")
   if [ -z "$value" ]; then
-    echo "❌ Could not extract '$field' from $label response:"
-    echo "$blob"
+    echo "❌ Could not extract '$field' from $label response (shown above)"
     exit 1
   fi
   echo "$value"
@@ -42,38 +61,33 @@ require_field() {
 
 echo "── Seeding live perf-benchmark data ─────────────────────────────────"
 
-PROPERTY_OUT=$(dfx canister call property registerProperty \
+PROPERTY_OUT=$(run_dfx "property.registerProperty" canister call property registerProperty \
   '(record { address = "100 Perf Test Ln"; city = "Austin"; state = "TX"; zipCode = "78701"; propertyType = "SingleFamily"; yearBuilt = 2005 : nat; squareFeet = 2200 : nat; tier = variant { Pro } })' \
   --network local)
-echo "property response: $PROPERTY_OUT"
 PROPERTY_ID=$(require_field "$PROPERTY_OUT" "id" "property.registerProperty")
 echo "  property:         $PROPERTY_ID"
 
-JOB_OUT=$(dfx canister call job createJob \
+JOB_OUT=$(run_dfx "job.createJob" canister call job createJob \
   "(\"$PROPERTY_ID\", \"HVAC annual service\", variant { HVAC }, \"Annual maintenance visit\", null, 25000 : nat, 1_704_067_200_000_000_000 : int, null, null, false, null)" \
   --network local)
-echo "job response: $JOB_OUT"
 JOB_ID=$(require_field "$JOB_OUT" "id" "job.createJob")
 echo "  job:               $JOB_ID"
 
-SERVICE_OUT=$(dfx canister call recurring createRecurringService \
+SERVICE_OUT=$(run_dfx "recurring.createRecurringService" canister call recurring createRecurringService \
   "(\"$PROPERTY_ID\", variant { PestControl }, \"PestAway Inc\", null, null, variant { Monthly }, \"2024-01-01\", null, null)" \
   --network local)
-echo "recurring response: $SERVICE_OUT"
 SERVICE_ID=$(require_field "$SERVICE_OUT" "id" "recurring.createRecurringService")
 echo "  recurring service: $SERVICE_ID"
 
-QUOTE_OUT=$(dfx canister call quote createQuoteRequest \
+QUOTE_OUT=$(run_dfx "quote.createQuoteRequest" canister call quote createQuoteRequest \
   "(\"$PROPERTY_ID\", variant { HVAC }, \"HVAC replacement needed\", variant { Medium }, null, null, null, null, null)" \
   --network local)
-echo "quote response: $QUOTE_OUT"
 QUOTE_REQUEST_ID=$(require_field "$QUOTE_OUT" "id" "quote.createQuoteRequest")
 echo "  quote request:     $QUOTE_REQUEST_ID"
 
-REPORT_OUT=$(dfx canister call report generateReport \
+REPORT_OUT=$(run_dfx "report.generateReport" canister call report generateReport \
   "(\"$PROPERTY_ID\", record { address = \"100 Perf Test Ln\"; city = \"Austin\"; state = \"TX\"; zipCode = \"78701\"; propertyType = \"SingleFamily\"; yearBuilt = 2005 : nat; squareFeet = 2200 : nat; verificationLevel = \"Basic\" }, vec {}, vec {}, null, variant { Public }, null, null, null, null, null)" \
   --network local)
-echo "report response: $REPORT_OUT"
 REPORT_TOKEN=$(require_field "$REPORT_OUT" "token" "report.generateReport")
 echo "  report token:      $REPORT_TOKEN"
 
