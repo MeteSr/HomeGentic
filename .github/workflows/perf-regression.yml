@@ -40,9 +40,21 @@ jobs:
       matrix:
         leg: [base, head]
     steps:
+      # Always check out the PR head so both legs use the exact same deploy/seed/
+      # benchmark tooling (scripts/ci/**, scripts/benchmark-*.mjs) — that tooling
+      # is itself part of this PR's diff and doesn't exist on an older base commit.
+      # Comparing tooling versions instead of canister code would invalidate the
+      # measurement anyway; only backend/** (what's actually under test) should
+      # differ between legs.
       - uses: actions/checkout@v7
         with:
-          ref: ${{ matrix.leg == 'base' && github.event.pull_request.base.sha || github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Swap in base-commit canister source for the base leg
+        if: matrix.leg == 'base'
+        run: |
+          git checkout "${{ github.event.pull_request.base.sha }}" -- backend/ dfx.json mops.toml did/
 
       - uses: actions/setup-node@v7
         with:
