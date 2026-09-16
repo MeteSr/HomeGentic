@@ -104,14 +104,14 @@ const QUERY_TARGETS = [
     responseSizeBytes: 8192,  // snapshot with 20 jobs
     description: "Retrieve report snapshot by token",
   },
-  // maintenance canister (seasonal tasks)
+  // maintenance canister (scheduled tasks for a property)
   {
     canister: "maintenance",
-    method: "getSeasonalTasks",
-    dfxArgs: () => "(2000 : nat)",
+    method: "getScheduleByProperty",
+    dfxArgs: (ids) => `("${ids.propertyId}")`,
     argSizeBytes: 8,
-    responseSizeBytes: 2048,  // seasonal task list
-    description: "Get seasonal maintenance tasks for property age",
+    responseSizeBytes: 2048,  // scheduled task list
+    description: "Get maintenance schedule entries for a property",
   },
   // maintenance canister (predict)
   {

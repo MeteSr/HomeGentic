@@ -59,7 +59,7 @@ const QUERY_OPS: Op[] = [
   { canister: "property",    method: "getMyProperties",              type: "query",  cycles: queryEstimate(4, 512),    description: "List homeowner properties" },
   { canister: "job",         method: "getJobsForProperty",           type: "query",  cycles: queryEstimate(8, 4096),   description: "Load all jobs for a property" },
   { canister: "report",      method: "getReport",                    type: "query",  cycles: queryEstimate(24, 8192),  description: "Retrieve report snapshot" },
-  { canister: "maintenance", method: "getSeasonalTasks",             type: "query",  cycles: queryEstimate(8, 2048),   description: "Get seasonal tasks" },
+  { canister: "maintenance", method: "getScheduleByProperty",        type: "query",  cycles: queryEstimate(8, 2048),   description: "Get maintenance schedule for a property" },
   { canister: "maintenance", method: "predictMaintenance",           type: "query",  cycles: queryEstimate(32, 4096),  description: "Predict 8-system maintenance" },
   { canister: "market",      method: "recommendValueAddingProjects",  type: "query",  cycles: queryEstimate(128, 2048), description: "Get project recommendations" },
   { canister: "monitoring",  method: "getMetrics",                   type: "query",  cycles: queryEstimate(4, 64),     description: "Read monitoring metrics" },
@@ -189,7 +189,7 @@ describe("13.1.1 + 13.1.2: benchmark scripts exist and have correct structure", 
     const script = readFileSync(resolve(ROOT, "scripts", "benchmark-queries.mjs"), "utf-8");
     expect(script).toContain("getMyProperties");
     expect(script).toContain("getReport");
-    expect(script).toContain("getSeasonalTasks");
+    expect(script).toContain("getScheduleByProperty");
     expect(script).toContain("predictMaintenance");
     expect(script).toContain("getJobsForProperty");
   });
