@@ -53,6 +53,9 @@ persistent actor Referrals {
   private var paymentCanisterId  : Text = "";
   private var adminList          : [Text] = [];
   private var adminInitialized   : Bool = false;
+  /// H-20: Bootstrap nonce — must be set via setBootstrapNonce() before the
+  /// first addAdmin() call. Consumed on first successful use.
+  private var bootstrapNonce     : ?Text = null;
   private var codeCounter        : Nat = 0;
   private var paused             : Bool = false;
   private var pauseExpiryNs      : ?Int = null;
@@ -204,9 +207,25 @@ persistent actor Referrals {
     paymentCanisterId := id;
   };
 
-  /// First call bootstraps the admin list; subsequent calls require an existing admin.
-  public shared(msg) func addAdmin(p : Principal) : async Result.Result<(), Text> {
-    if (adminInitialized and not isAdmin(msg.caller)) return #err("unauthorized");
+  /// H-20: Set the one-time bootstrap nonce before calling addAdmin() the first time.
+  /// Ignored once adminInitialized = true, and can only be set once.
+  public shared func setBootstrapNonce(nonce: Text) : async () {
+    if (adminInitialized) return;  // already bootstrapped — ignore
+    if (bootstrapNonce != null) return;  // nonce already set — can only be set once
+    bootstrapNonce := ?nonce;
+  };
+
+  /// First call requires the bootstrap nonce (H-20); subsequent calls require an existing admin.
+  public shared(msg) func addAdmin(p : Principal, nonce : Text) : async Result.Result<(), Text> {
+    if (adminInitialized) {
+      if (not isAdmin(msg.caller)) return #err("unauthorized");
+    } else {
+      switch (bootstrapNonce) {
+        case null { return #err("unauthorized") };
+        case (?n) { if (nonce != n) return #err("unauthorized") };
+      };
+      bootstrapNonce := null;
+    };
     let t = Principal.toText(p);
     if (Option.isNull(Array.find<Text>(adminList, func(a) { a == t }))) {
       adminList := Array.concat(adminList, [t]);

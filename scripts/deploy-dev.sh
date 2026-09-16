@@ -145,12 +145,20 @@ update_env CANISTER_ID_PAYMENT  "$PAYMENT_ID"
 update_env PAYMENT_CANISTER_ID  "$PAYMENT_ID" # old-format fallback for Vite
 
 # ── Admin bootstrap ───────────────────────────────────────────────────────────
+# H-20: property/job/payment all require a bootstrap nonce before the first
+# addAdmin()/initAdmins() call, so a caller racing this deploy can't
+# self-appoint as admin and lock out the real deployer.
 echo ""
 echo "▶ Adding deployer as admin..."
-icp canister call property addAdmin "(principal \"$DEPLOYER\")" -e "$ENV" 2>/dev/null &
-icp canister call job      addAdmin "(principal \"$DEPLOYER\")" -e "$ENV" 2>/dev/null &
+DEV_BOOTSTRAP_NONCE=$(openssl rand -hex 16)
+icp canister call property setBootstrapNonce "(\"$DEV_BOOTSTRAP_NONCE\")" -e "$ENV" 2>/dev/null &
+icp canister call job      setBootstrapNonce "(\"$DEV_BOOTSTRAP_NONCE\")" -e "$ENV" 2>/dev/null &
+icp canister call payment  setBootstrapNonce "(\"$DEV_BOOTSTRAP_NONCE\")" -e "$ENV" 2>/dev/null &
 wait
-icp canister call payment initAdmins "(vec { principal \"$DEPLOYER\" })" -e "$ENV" 2>/dev/null \
+icp canister call property addAdmin "(principal \"$DEPLOYER\", \"$DEV_BOOTSTRAP_NONCE\")" -e "$ENV" 2>/dev/null &
+icp canister call job      addAdmin "(principal \"$DEPLOYER\", \"$DEV_BOOTSTRAP_NONCE\")" -e "$ENV" 2>/dev/null &
+wait
+icp canister call payment initAdmins "(vec { principal \"$DEPLOYER\" }, \"$DEV_BOOTSTRAP_NONCE\")" -e "$ENV" 2>/dev/null \
   && echo "  ✓ payment admin initialised"
 echo "  ✓ Done"
 
@@ -165,7 +173,7 @@ icp canister call job      setPaymentCanisterId "(\"$PAYMENT_ID\")"          -e 
   && echo "  ✓ job → payment"
 icp canister call property setPaymentCanisterId "(principal \"$PAYMENT_ID\")" -e "$ENV" 2>/dev/null \
   && echo "  ✓ property → payment"
-icp canister call property addAdmin "(principal \"$PAYMENT_ID\")" -e "$ENV" 2>/dev/null \
+icp canister call property addAdmin "(principal \"$PAYMENT_ID\", \"\")" -e "$ENV" 2>/dev/null \
   && echo "  ✓ property trusts payment"
 
 icp canister call property addTrustedCanister "(principal \"$JOB_ID\")"      -e "$ENV" 2>/dev/null \

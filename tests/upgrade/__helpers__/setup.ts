@@ -143,7 +143,8 @@ export const sensorIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
     criticalEvents: I.Nat, jobsCreated: I.Nat, isPaused: I.Bool,
   });
   return I.Service({
-    addAdmin:              I.Func([I.Principal], [I.Variant({ ok: I.Null, err: Error })], []),
+    addAdmin:              I.Func([I.Principal, I.Text], [I.Variant({ ok: I.Null, err: Error })], []),
+    setBootstrapNonce:     I.Func([I.Text], [], []),
     registerDevice:        I.Func([I.Text, I.Text, DeviceSource, I.Text], [I.Variant({ ok: SensorDevice, err: Error })], []),
     recordEvent:           I.Func([I.Text, SensorEventType, I.Float64, I.Text, I.Text], [I.Variant({ ok: SensorEvent, err: Error })], []),
     getDevicesForProperty: I.Func([I.Text], [I.Vec(SensorDevice)], ["query"]),
@@ -181,7 +182,8 @@ export const quoteIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
     totalQuotes: I.Nat, isPaused: I.Bool,
   });
   return I.Service({
-    addAdmin:               I.Func([I.Principal], [I.Variant({ ok: I.Null, err: Error })], []),
+    addAdmin:               I.Func([I.Principal, I.Text], [I.Variant({ ok: I.Null, err: Error })], []),
+    setBootstrapNonce:      I.Func([I.Text], [], []),
     setTier:                I.Func([I.Principal, SubscriptionTier], [I.Variant({ ok: I.Null, err: Error })], []),
     createQuoteRequest:     I.Func([I.Text, ServiceType, I.Text, UrgencyLevel, I.Opt(I.Text)], [I.Variant({ ok: QuoteRequest, err: Error })], []),
     createSealedBidRequest: I.Func([I.Text, ServiceType, I.Text, UrgencyLevel, I.Int, I.Opt(I.Text)], [I.Variant({ ok: QuoteRequest, err: Error })], []),
@@ -220,7 +222,8 @@ export const jobIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
     verifiedJobs: I.Nat, diyJobs: I.Nat, isPaused: I.Bool,
   });
   return I.Service({
-    addAdmin:        I.Func([I.Principal], [I.Variant({ ok: I.Null, err: Error })], []),
+    addAdmin:        I.Func([I.Principal, I.Text], [I.Variant({ ok: I.Null, err: Error })], []),
+    setBootstrapNonce: I.Func([I.Text], [], []),
     createJob:       I.Func(
       [I.Text, I.Text, ServiceType, I.Text, I.Opt(I.Text), I.Nat, I.Int, I.Opt(I.Text), I.Opt(I.Nat), I.Bool, I.Opt(I.Text)],
       [I.Variant({ ok: Job, err: Error })],
@@ -265,7 +268,8 @@ export const propertyIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
     pendingReviewProperties: I.Nat, unverifiedProperties: I.Nat, isPaused: I.Bool,
   });
   return I.Service({
-    addAdmin:         I.Func([I.Principal], [I.Variant({ ok: I.Null, err: Error })], []),
+    addAdmin:         I.Func([I.Principal, I.Text], [I.Variant({ ok: I.Null, err: Error })], []),
+    setBootstrapNonce: I.Func([I.Text], [], []),
     setTier:          I.Func([I.Principal, SubscriptionTier], [I.Variant({ ok: I.Null, err: Error })], []),
     registerProperty: I.Func([RegisterPropertyArgs], [I.Variant({ ok: Property, err: Error })], []),
     verifyProperty:   I.Func([I.Text, VerificationLevel, I.Opt(I.Text)], [I.Variant({ ok: Property, err: Error })], []),
@@ -296,7 +300,8 @@ export const monitoringIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
     })),
   });
   return I.Service({
-    addAdmin:              I.Func([I.Principal], [I.Variant({ ok: I.Null, err: Error })], []),
+    addAdmin:              I.Func([I.Principal, I.Text], [I.Variant({ ok: I.Null, err: Error })], []),
+    setBootstrapNonce:     I.Func([I.Text], [], []),
     recordCanisterMetrics: I.Func(
       [I.Principal, I.Nat, I.Nat, I.Nat, I.Nat, I.Nat, I.Nat, I.Nat], [], []
     ),
@@ -337,7 +342,8 @@ export const contractorIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
     totalReviews: I.Nat, isPaused: I.Bool,
   });
   return I.Service({
-    addAdmin:                I.Func([I.Principal], [I.Variant({ ok: I.Null, err: Error })], []),
+    addAdmin:                I.Func([I.Principal, I.Text], [I.Variant({ ok: I.Null, err: Error })], []),
+    setBootstrapNonce:       I.Func([I.Text], [], []),
     register:                I.Func([RegisterArgs], [I.Variant({ ok: ContractorProfile, err: Error })], []),
     submitReview:            I.Func([I.Principal, I.Nat, I.Text, I.Text], [I.Variant({ ok: Review, err: Error })], []),
     verifyContractor:        I.Func([I.Principal], [I.Variant({ ok: ContractorProfile, err: Error })], []),

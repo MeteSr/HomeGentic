@@ -150,19 +150,19 @@ jobs:
           done
 
           # ── Bootstrap admin lists ────────────────────────────────────────────
-          # job/property/photo use a bootstrap-nonce pattern (H-20 fix):
-          # setBootstrapNonce must be called first; addAdmin requires the nonce on first call.
+          # All canisters with an admin list use a bootstrap-nonce pattern (H-20 fix):
+          # setBootstrapNonce must be called first; addAdmin/initAdmins requires the
+          # nonce on first call, so a caller racing this deploy can't self-appoint
+          # as admin and lock out the real deployer.
           BOOTSTRAP_NONCE=$(openssl rand -hex 16)
-          for canister in property job photo; do
+          for canister in property job photo contractor quote report maintenance market sensor listing recurring bills monitoring referrals; do
             dfx canister call "$canister" setBootstrapNonce "(\"$BOOTSTRAP_NONCE\")"
             dfx canister call "$canister" addAdmin "(principal \"$DEPLOYER\", \"$BOOTSTRAP_NONCE\")"
           done
-          for canister in contractor quote report maintenance market sensor listing recurring bills monitoring referrals; do
-            dfx canister call "$canister" addAdmin "(principal \"$DEPLOYER\")"
+          for canister in payment agent fee; do
+            dfx canister call "$canister" setBootstrapNonce "(\"$BOOTSTRAP_NONCE\")"
+            dfx canister call "$canister" initAdmins "(vec { principal \"$DEPLOYER\" }, \"$BOOTSTRAP_NONCE\")" || true
           done
-          dfx canister call payment initAdmins "(vec { principal \"$DEPLOYER\" })" || true
-          dfx canister call agent   initAdmins "(vec { principal \"$DEPLOYER\" })" || true
-          dfx canister call fee     initAdmins "(vec { principal \"$DEPLOYER\" })" || true
           dfx canister call payment grantSubscription "(principal \"$DEPLOYER\", variant { Pro })"
 
           # ── Wire inter-canister IDs ──────────────────────────────────────────
@@ -214,10 +214,10 @@ jobs:
           dfx canister call market      setJobCanisterId        "(\"$JOB_ID\")"
 
           # ── Tier propagation wiring ──────────────────────────────────────────
-          # property/photo use nonce-gated addAdmin; DEPLOYER is already admin so
-          # adminInitialized=true — nonce param is required by Candid but ignored.
+          # property/photo/quote use nonce-gated addAdmin; DEPLOYER is already admin
+          # so adminInitialized=true — nonce param is required by Candid but ignored.
           dfx canister call property addAdmin "(principal \"$PAYMENT_ID\", \"\")"
-          dfx canister call quote    addAdmin "(principal \"$PAYMENT_ID\")"
+          dfx canister call quote    addAdmin "(principal \"$PAYMENT_ID\", \"\")"
           dfx canister call photo    addAdmin "(principal \"$PAYMENT_ID\", \"\")"
           dfx canister call payment  setTierCanisterIds \
             "(principal \"$PROPERTY_ID\", principal \"$QUOTE_ID\", principal \"$PHOTO_ID\")"
@@ -235,7 +235,8 @@ jobs:
           dfx canister call job        addTrustedCanister "(principal \"$SENSOR_ID\")"
 
           # ── Audit canister wiring ────────────────────────────────────────────
-          dfx canister call audit addAdmin "(principal \"$DEPLOYER\")"
+          dfx canister call audit setBootstrapNonce "(\"$BOOTSTRAP_NONCE\")"
+          dfx canister call audit addAdmin "(principal \"$DEPLOYER\", \"$BOOTSTRAP_NONCE\")"
           dfx canister call audit addTrustedCanister "(principal \"$AUTH_ID\")"
           dfx canister call audit addTrustedCanister "(principal \"$PAYMENT_ID\")"
           dfx canister call audit addTrustedCanister "(principal \"$PROPERTY_ID\")"
@@ -306,16 +307,14 @@ jobs:
           done
 
           BOOTSTRAP_NONCE=$(openssl rand -hex 16)
-          for canister in property job photo; do
+          for canister in property job photo contractor quote report maintenance market sensor listing recurring bills monitoring referrals; do
             dfx canister call "$canister" setBootstrapNonce "(\"$BOOTSTRAP_NONCE\")"
             dfx canister call "$canister" addAdmin "(principal \"$DEPLOYER\", \"$BOOTSTRAP_NONCE\")"
           done
-          for canister in contractor quote report maintenance market sensor listing recurring bills monitoring referrals; do
-            dfx canister call "$canister" addAdmin "(principal \"$DEPLOYER\")"
+          for canister in payment agent fee; do
+            dfx canister call "$canister" setBootstrapNonce "(\"$BOOTSTRAP_NONCE\")"
+            dfx canister call "$canister" initAdmins "(vec { principal \"$DEPLOYER\" }, \"$BOOTSTRAP_NONCE\")" || true
           done
-          dfx canister call payment initAdmins "(vec { principal \"$DEPLOYER\" })" || true
-          dfx canister call agent   initAdmins "(vec { principal \"$DEPLOYER\" })" || true
-          dfx canister call fee     initAdmins "(vec { principal \"$DEPLOYER\" })" || true
           dfx canister call payment grantSubscription "(principal \"$DEPLOYER\", variant { Pro })"
           # Grant integration test identity Premium — quote tests create many open requests
           # and would hit the Basic (3) or Pro (10) cap. Principal: fixed seed[0]=42 in setup.ts.
@@ -328,7 +327,8 @@ jobs:
           # tests bypass the ownership check (property.isAuthorized) and use synthetic
           # property IDs that don't exist in the property canister. The verification check
           # is then skipped by the `case null {}` branch (non-existent property → proceed).
-          dfx canister call report addAdmin "(principal \"$INTEG_PRINCIPAL\")"
+          # report already bootstrapped above; nonce param is required by Candid but ignored.
+          dfx canister call report addAdmin "(principal \"$INTEG_PRINCIPAL\", \"\")"
 
           # Grant integration test identity admin on agent so listing.integration.test.ts
           # can self-verify a test agent profile (submitProposal requires isVerified=true —
@@ -382,7 +382,7 @@ jobs:
           dfx canister call market      setJobCanisterId        "(\"$JOB_ID\")"
 
           dfx canister call property addAdmin "(principal \"$PAYMENT_ID\", \"\")"
-          dfx canister call quote    addAdmin "(principal \"$PAYMENT_ID\")"
+          dfx canister call quote    addAdmin "(principal \"$PAYMENT_ID\", \"\")"
           dfx canister call photo    addAdmin "(principal \"$PAYMENT_ID\", \"\")"
           dfx canister call payment  setTierCanisterIds \
             "(principal \"$PROPERTY_ID\", principal \"$QUOTE_ID\", principal \"$PHOTO_ID\")"
@@ -399,7 +399,8 @@ jobs:
           dfx canister call job        addTrustedCanister "(principal \"$SENSOR_ID\")"
 
           # ── Audit canister wiring ────────────────────────────────────────────
-          dfx canister call audit addAdmin "(principal \"$DEPLOYER\")"
+          dfx canister call audit setBootstrapNonce "(\"$BOOTSTRAP_NONCE\")"
+          dfx canister call audit addAdmin "(principal \"$DEPLOYER\", \"$BOOTSTRAP_NONCE\")"
           dfx canister call audit addTrustedCanister "(principal \"$AUTH_ID\")"
           dfx canister call audit addTrustedCanister "(principal \"$PAYMENT_ID\")"
           dfx canister call audit addTrustedCanister "(principal \"$PROPERTY_ID\")"

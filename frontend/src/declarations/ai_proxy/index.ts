@@ -60,7 +60,8 @@ export const idlFactory = ({ IDL }: any) => {
     ),
 
     // ── Admin ────────────────────────────────────────────────────────────────
-    addAdmin            : IDL.Func([IDL.Principal], [ResultOkError], []),
+    addAdmin            : IDL.Func([IDL.Principal, IDL.Text], [ResultOkError], []),
+    setBootstrapNonce   : IDL.Func([IDL.Text], [], []),
     setResendApiKey     : IDL.Func([IDL.Text], [ResultOkError], []),
     setOpenPermitApiKey : IDL.Func([IDL.Text], [ResultOkError], []),
     setAttomApiKey      : IDL.Func([IDL.Text], [ResultOkError], []),

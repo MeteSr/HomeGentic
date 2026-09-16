@@ -33,7 +33,10 @@ echo "$HEALTH" | grep -q "true" \
 
 echo ""
 echo "── [2] addAdmin — controller can add self as admin ──────────────────────"
-dfx canister call $CANISTER addAdmin "(principal \"$MY_PRINCIPAL\")"
+# H-20: addAdmin is nonce-gated on first bootstrap.
+TEST_BOOTSTRAP_NONCE=$(openssl rand -hex 16)
+dfx canister call $CANISTER setBootstrapNonce "(\"$TEST_BOOTSTRAP_NONCE\")" 2>/dev/null || true
+dfx canister call $CANISTER addAdmin "(principal \"$MY_PRINCIPAL\", \"$TEST_BOOTSTRAP_NONCE\")"
 echo "  ↳ addAdmin succeeded — ✓"
 
 echo ""

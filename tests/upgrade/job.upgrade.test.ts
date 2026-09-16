@@ -15,7 +15,8 @@ import { createPic, wasmPath, jobIdlFactory } from "./__helpers__/setup";
 const WASM = wasmPath("job");
 
 interface JobActor {
-  addAdmin:        (p: object) => Promise<{ ok: null } | { err: object }>;
+  addAdmin:        (p: object, nonce: string) => Promise<{ ok: null } | { err: object }>;
+  setBootstrapNonce: (nonce: string) => Promise<void>;
   createJob:       (
     propertyId: string, title: string, serviceType: object, description: string,
     contractorName: [] | [string], amount: bigint, completedDate: bigint,
@@ -53,8 +54,9 @@ describe("job canister — upgrade persistence", () => {
     actor = fixture.actor;
     actor.setIdentity(alice);
 
-    // Bootstrap alice as first admin (adminInitialized = false → check skipped)
-    ok(await actor.addAdmin(alice.getPrincipal()));
+    // Bootstrap alice as first admin (H-20: nonce-gated)
+    await actor.setBootstrapNonce("test-nonce");
+    ok(await actor.addAdmin(alice.getPrincipal(), "test-nonce"));
 
     // Create a DIY job with a permit number — completedDate = 0 (epoch, always past)
     const job: any = ok(await actor.createJob(

@@ -576,9 +576,15 @@ echo "============================================"
 DEPLOYER=$(icp identity principal)
 echo "  Deployer principal: $DEPLOYER"
 
-# job/property/photo use a bootstrap-nonce pattern (H-20 fix):
-# setBootstrapNonce must be called before addAdmin on first deploy.
+# All canisters with an admin list use a bootstrap-nonce pattern (H-20 fix):
+# setBootstrapNonce must be called before addAdmin/initAdmins on first deploy,
+# so a caller racing the deploy can't self-appoint as admin and lock out the
+# real deployer. One nonce is shared across all of them for simplicity — it's
+# single-use per canister and only useful in the narrow window before this
+# script's own addAdmin/initAdmins call lands.
 BOOTSTRAP_NONCE=$(openssl rand -hex 16)
+
+# property/job/photo take (principal, nonce) via addAdmin.
 for canister in property job photo; do
   echo "  $canister: setting bootstrap nonce..."
   icp canister call "$canister" setBootstrapNonce "(\"$BOOTSTRAP_NONCE\")" -e "$ENV" 2>/dev/null
@@ -586,25 +592,26 @@ for canister in property job photo; do
   icp canister call "$canister" addAdmin "(principal \"$DEPLOYER\", \"$BOOTSTRAP_NONCE\")" -e "$ENV" 2>/dev/null
 done
 
-ADMIN_CANISTERS=(contractor quote report maintenance market sensor listing recurring bills monitoring audit referrals)
+# contractor/quote/report/maintenance/market/sensor/listing/recurring/bills/
+# monitoring/audit/referrals/ai_proxy also take (principal, nonce) via addAdmin.
+ADMIN_CANISTERS=(contractor quote report maintenance market sensor listing recurring bills monitoring audit referrals ai_proxy)
 for canister in "${ADMIN_CANISTERS[@]}"; do
-  echo "  $canister: adding deployer as admin..."
-  icp canister call "$canister" addAdmin "(principal \"$DEPLOYER\")" -e "$ENV" \
+  echo "  $canister: setting bootstrap nonce..."
+  icp canister call "$canister" setBootstrapNonce "(\"$BOOTSTRAP_NONCE\")" -e "$ENV" 2>/dev/null
+  echo "  $canister: adding deployer as admin (nonce-gated)..."
+  icp canister call "$canister" addAdmin "(principal \"$DEPLOYER\", \"$BOOTSTRAP_NONCE\")" -e "$ENV" \
     2>/dev/null &
 done
 wait
 
-echo "  payment: initializing admin list..."
-icp canister call payment initAdmins "(vec { principal \"$DEPLOYER\" })" -e "$ENV" \
-  2>/dev/null || echo "  ⚠️  payment initAdmins failed (may already be initialized)"
-
-echo "  agent: initializing admin list..."
-icp canister call agent initAdmins "(vec { principal \"$DEPLOYER\" })" -e "$ENV" \
-  2>/dev/null || echo "  ⚠️  agent initAdmins failed (may already be initialized)"
-
-echo "  fee: initializing admin list..."
-icp canister call fee initAdmins "(vec { principal \"$DEPLOYER\" })" -e "$ENV" \
-  2>/dev/null || echo "  ⚠️  fee initAdmins failed (may already be initialized)"
+# payment/agent/fee take (vec principal, nonce) via initAdmins.
+for canister in payment agent fee; do
+  echo "  $canister: setting bootstrap nonce..."
+  icp canister call "$canister" setBootstrapNonce "(\"$BOOTSTRAP_NONCE\")" -e "$ENV" 2>/dev/null
+  echo "  $canister: initializing admin list (nonce-gated)..."
+  icp canister call "$canister" initAdmins "(vec { principal \"$DEPLOYER\" }, \"$BOOTSTRAP_NONCE\")" -e "$ENV" \
+    2>/dev/null || echo "  ⚠️  $canister initAdmins failed (may already be initialized)"
+done
 
 echo "  payment: granting deployer Pro subscription for test compatibility..."
 icp canister call payment grantSubscription "(principal \"$DEPLOYER\", variant { Pro })" -e "$ENV" \
@@ -656,7 +663,8 @@ if [ -n "$PAYMENT_ID" ] && [ -n "$PROPERTY_ID" ]; then
 fi
 if [ -n "$PAYMENT_ID" ] && [ -n "$QUOTE_ID" ]; then
   echo "  quote: adding payment as admin (for tier propagation)..."
-  icp canister call quote addAdmin "(principal \"$PAYMENT_ID\")" -e "$ENV" 2>/dev/null &
+  # quote uses nonce-gated addAdmin; DEPLOYER is already admin so nonce param is ignored
+  icp canister call quote addAdmin "(principal \"$PAYMENT_ID\", \"\")" -e "$ENV" 2>/dev/null &
 fi
 if [ -n "$PAYMENT_ID" ] && [ -n "$PHOTO_ID" ]; then
   echo "  photo: adding payment as admin (for tier propagation)..."
@@ -851,9 +859,8 @@ if [ -n "$AI_PROXY_ID" ]; then
   echo "  Wiring AI Proxy Canister"
   echo "============================================"
 
-  echo "  ai_proxy: adding deployer ($DEPLOYER) as admin..."
-  icp canister call ai_proxy addAdmin "(principal \"$DEPLOYER\")" -e "$ENV" \
-    2>/dev/null || echo "  ⚠️  ai_proxy addAdmin failed (may already be initialized)"
+  # ai_proxy's admin is already bootstrapped above (nonce-gated, alongside the
+  # other ADMIN_CANISTERS) — nothing to do here.
 
   if [ -n "${RESEND_API_KEY:-}" ]; then
     echo "  ai_proxy: setting Resend API key..."

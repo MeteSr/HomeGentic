@@ -15,7 +15,8 @@ import { createPic, wasmPath, quoteIdlFactory } from "./__helpers__/setup";
 const WASM = wasmPath("quote");
 
 interface QuoteActor {
-  addAdmin:               (p: object) => Promise<{ ok: null } | { err: object }>;
+  addAdmin:               (p: object, nonce: string) => Promise<{ ok: null } | { err: object }>;
+  setBootstrapNonce:      (nonce: string) => Promise<void>;
   setTier:                (user: object, tier: object) => Promise<{ ok: null } | { err: object }>;
   createQuoteRequest:     (propertyId: string, serviceType: object, description: string, urgency: object, zipCode: [] | [string]) => Promise<{ ok: Record<string, unknown> } | { err: object }>;
   createSealedBidRequest: (propertyId: string, serviceType: object, description: string, urgency: object, closeAtNs: bigint, zipCode: [] | [string]) => Promise<{ ok: Record<string, unknown> } | { err: object }>;
@@ -64,8 +65,9 @@ describe("quote canister — upgrade persistence", () => {
     actor = fixture.actor;
     actor.setIdentity(alice);
 
-    // Bootstrap alice as first admin
-    ok(await actor.addAdmin(alice.getPrincipal()));
+    // Bootstrap alice as first admin (H-20: nonce-gated)
+    await actor.setBootstrapNonce("test-nonce");
+    ok(await actor.addAdmin(alice.getPrincipal(), "test-nonce"));
     // Grant alice Pro tier so she can create up to 10 open requests
     ok(await actor.setTier(alice.getPrincipal(), { Pro: null }));
 
