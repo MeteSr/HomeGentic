@@ -413,29 +413,39 @@ persistent actor Job {
           if (not ok) return #err(#NotAuthorized);
         };
 
-        let updated: Job = {
-          id               = existing.id;
-          propertyId       = existing.propertyId;
-          homeowner        = existing.homeowner;
-          contractor       = existing.contractor;
-          title            = existing.title;
-          serviceType      = existing.serviceType;
-          description      = existing.description;
-          contractorName   = existing.contractorName;
-          amount           = existing.amount;
-          completedDate    = existing.completedDate;
-          permitNumber     = existing.permitNumber;
-          warrantyMonths   = existing.warrantyMonths;
-          isDiy            = existing.isDiy;
-          status;
-          verified         = existing.verified;
-          homeownerSigned  = existing.homeownerSigned;
-          contractorSigned = existing.contractorSigned;
-          createdAt        = existing.createdAt;
-          sourceQuoteId    = existing.sourceQuoteId;
-        };
-        Map.add(jobs, Text.compare, jobId, updated);
-        #ok(updated)
+        // Re-read fresh after the await above — a concurrent call (verifyJob,
+        // linkContractor, another updateJobStatus) could have already mutated
+        // this job while this call was suspended waiting on checkPropertyAuth.
+        switch (Map.get(jobs, Text.compare, jobId)) {
+          case null { return #err(#NotFound) };
+          case (?fresh) {
+            if (fresh.verified) return #err(#AlreadyVerified);
+
+            let updated: Job = {
+              id               = fresh.id;
+              propertyId       = fresh.propertyId;
+              homeowner        = fresh.homeowner;
+              contractor       = fresh.contractor;
+              title            = fresh.title;
+              serviceType      = fresh.serviceType;
+              description      = fresh.description;
+              contractorName   = fresh.contractorName;
+              amount           = fresh.amount;
+              completedDate    = fresh.completedDate;
+              permitNumber     = fresh.permitNumber;
+              warrantyMonths   = fresh.warrantyMonths;
+              isDiy            = fresh.isDiy;
+              status;
+              verified         = fresh.verified;
+              homeownerSigned  = fresh.homeownerSigned;
+              contractorSigned = fresh.contractorSigned;
+              createdAt        = fresh.createdAt;
+              sourceQuoteId    = fresh.sourceQuoteId;
+            };
+            Map.add(jobs, Text.compare, jobId, updated);
+            #ok(updated)
+          };
+        }
       };
     }
   };
@@ -451,31 +461,41 @@ persistent actor Job {
         if (existing.verified) return #err(#AlreadyVerified);
         let authOk = await checkPropertyAuth(existing.propertyId, existing.homeowner, msg.caller, true);
         if (not authOk) return #err(#NotAuthorized);
-        if (existing.isDiy) return #err(#InvalidInput("Cannot link contractor to a DIY job"));
 
-        let updated: Job = {
-          id               = existing.id;
-          propertyId       = existing.propertyId;
-          homeowner        = existing.homeowner;
-          contractor       = ?contractorPrincipal;
-          title            = existing.title;
-          serviceType      = existing.serviceType;
-          description      = existing.description;
-          contractorName   = existing.contractorName;
-          amount           = existing.amount;
-          completedDate    = existing.completedDate;
-          permitNumber     = existing.permitNumber;
-          warrantyMonths   = existing.warrantyMonths;
-          isDiy            = existing.isDiy;
-          status           = existing.status;
-          verified         = existing.verified;
-          homeownerSigned  = existing.homeownerSigned;
-          contractorSigned = existing.contractorSigned;
-          createdAt        = existing.createdAt;
-          sourceQuoteId    = existing.sourceQuoteId;
-        };
-        Map.add(jobs, Text.compare, jobId, updated);
-        #ok(updated)
+        // Re-read fresh after the await above — a concurrent call could have
+        // already verified or otherwise mutated this job while this call was
+        // suspended waiting on checkPropertyAuth.
+        switch (Map.get(jobs, Text.compare, jobId)) {
+          case null { return #err(#NotFound) };
+          case (?fresh) {
+            if (fresh.verified) return #err(#AlreadyVerified);
+            if (fresh.isDiy) return #err(#InvalidInput("Cannot link contractor to a DIY job"));
+
+            let updated: Job = {
+              id               = fresh.id;
+              propertyId       = fresh.propertyId;
+              homeowner        = fresh.homeowner;
+              contractor       = ?contractorPrincipal;
+              title            = fresh.title;
+              serviceType      = fresh.serviceType;
+              description      = fresh.description;
+              contractorName   = fresh.contractorName;
+              amount           = fresh.amount;
+              completedDate    = fresh.completedDate;
+              permitNumber     = fresh.permitNumber;
+              warrantyMonths   = fresh.warrantyMonths;
+              isDiy            = fresh.isDiy;
+              status           = fresh.status;
+              verified         = fresh.verified;
+              homeownerSigned  = fresh.homeownerSigned;
+              contractorSigned = fresh.contractorSigned;
+              createdAt        = fresh.createdAt;
+              sourceQuoteId    = fresh.sourceQuoteId;
+            };
+            Map.add(jobs, Text.compare, jobId, updated);
+            #ok(updated)
+          };
+        }
       };
     }
   };
@@ -512,45 +532,57 @@ persistent actor Job {
           return #err(#NotAuthorized);
         };
 
-        let newHomeownerSigned  = existing.homeownerSigned  or isHomeowner;
-        let newContractorSigned = existing.contractorSigned or isContractor;
+        // Re-read fresh after the (conditional) await above — a concurrent
+        // verifyJob call from the other party could have already recorded
+        // its signature while this call was suspended waiting on
+        // checkPropertyAuth. Building newHomeownerSigned/newContractorSigned
+        // from the stale pre-await snapshot would let this write clobber the
+        // other party's signature instead of combining with it.
+        let existing2 = switch (Map.get(jobs, Text.compare, jobId)) {
+          case null   { return #err(#NotFound) };
+          case (?job) { job };
+        };
+        if (existing2.verified) return #err(#AlreadyVerified);
+
+        let newHomeownerSigned  = existing2.homeownerSigned  or isHomeowner;
+        let newContractorSigned = existing2.contractorSigned or isContractor;
 
         // DIY: only homeowner signature needed.
         // Contractor: both signatures needed.
-        let fullyVerified = if (existing.isDiy) {
+        let fullyVerified = if (existing2.isDiy) {
           newHomeownerSigned
         } else {
           newHomeownerSigned and newContractorSigned
         };
 
         let updated: Job = {
-          id               = existing.id;
-          propertyId       = existing.propertyId;
-          homeowner        = existing.homeowner;
-          contractor       = existing.contractor;
-          title            = existing.title;
-          serviceType      = existing.serviceType;
-          description      = existing.description;
-          contractorName   = existing.contractorName;
-          amount           = existing.amount;
-          completedDate    = existing.completedDate;
-          permitNumber     = existing.permitNumber;
-          warrantyMonths   = existing.warrantyMonths;
-          isDiy            = existing.isDiy;
-          status           = if (fullyVerified) #Verified else existing.status;
+          id               = existing2.id;
+          propertyId       = existing2.propertyId;
+          homeowner        = existing2.homeowner;
+          contractor       = existing2.contractor;
+          title            = existing2.title;
+          serviceType      = existing2.serviceType;
+          description      = existing2.description;
+          contractorName   = existing2.contractorName;
+          amount           = existing2.amount;
+          completedDate    = existing2.completedDate;
+          permitNumber     = existing2.permitNumber;
+          warrantyMonths   = existing2.warrantyMonths;
+          isDiy            = existing2.isDiy;
+          status           = if (fullyVerified) #Verified else existing2.status;
           verified         = fullyVerified;
           homeownerSigned  = newHomeownerSigned;
           contractorSigned = newContractorSigned;
-          createdAt        = existing.createdAt;
-          sourceQuoteId    = existing.sourceQuoteId;
+          createdAt        = existing2.createdAt;
+          sourceQuoteId    = existing2.sourceQuoteId;
         };
         Map.add(jobs, Text.compare, jobId, updated);
 
         // Notify contractor canister when job becomes fully verified
         if (fullyVerified and Text.size(contrCanisterId) > 0) {
-          switch (existing.contractor) {
+          switch (existing2.contractor) {
             case (?con) {
-              let svcText = switch (existing.serviceType) {
+              let svcText = switch (existing2.serviceType) {
                 case (#HVAC)        { "HVAC"        };
                 case (#Roofing)     { "Roofing"     };
                 case (#Plumbing)    { "Plumbing"    };
@@ -571,7 +603,7 @@ persistent actor Job {
               // propagate. #err results (e.g. #Unauthorized) are valid values
               // and are simply discarded — job verification is already committed.
               try {
-                ignore await contrActor.recordJobVerified(con, jobId, svcText, existing.homeowner);
+                ignore await contrActor.recordJobVerified(con, jobId, svcText, existing2.homeowner);
               } catch (_e) {};
             };
             case null {};
