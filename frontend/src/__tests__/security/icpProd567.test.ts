@@ -163,8 +163,15 @@ describe("PROD.7 — deploy.sh calls addAdmin for each non-payment canister", ()
 
   it("deploy.sh calls initAdmins for payment canister", () => {
     // payment.initAdmins must be called so grantSubscription (and other admin-only
-    // methods) work during tests — job / quote / photo tests all call grantSubscription
-    expect(deploy()).toMatch(/canister call payment initAdmins/);
+    // methods) work during tests — job / quote / photo tests all call grantSubscription.
+    // H-20: payment/agent/fee are now nonce-gated and wired via a
+    // `for canister in payment agent fee; do ... initAdmins` loop rather than a
+    // literal "payment initAdmins" call, so accept either form.
+    const src = deploy();
+    const hasDirectCall = /canister call payment initAdmins/.test(src);
+    const hasNonceLoop  = src.includes("setBootstrapNonce") &&
+                          /for canister in[^\n]*\bpayment\b[^\n]*(\n[^\n]*)*?initAdmins/.test(src);
+    expect(hasDirectCall || hasNonceLoop).toBe(true);
   });
 });
 
@@ -321,6 +328,52 @@ describe("SEC.1 — Principal.isAnonymous guard in every update-capable canister
       }
     }
   });
+});
+
+// ── H-20 — bootstrap-nonce guard on every admin-bearing canister ──────────────
+
+describe("H-20 — every canister with an admin bootstrap requires a nonce", () => {
+  // Without a nonce, the FIRST call to addAdmin()/initAdmins() always wins
+  // regardless of caller — anyone racing the deploy (before this script's own
+  // bootstrap call lands) can self-appoint as admin and lock out the real
+  // deployer. property/job/photo were fixed first; this list is every other
+  // canister that has its own admin list and was fixed alongside them.
+  // auth is excluded — its admin is seeded atomically via a constructor
+  // argument at install time, so there's no bootstrap window to guard.
+  const NONCE_GATED_CANISTERS = [
+    "property", "job", "photo",
+    "contractor", "quote", "report", "maintenance", "market", "sensor",
+    "listing", "recurring", "bills", "monitoring", "audit", "referrals",
+    "ai_proxy", "payment", "agent", "fee",
+  ];
+
+  for (const canister of NONCE_GATED_CANISTERS) {
+    it(`backend/${canister}/main.mo declares a bootstrapNonce guard`, () => {
+      const src = read(`backend/${canister}/main.mo`);
+      expect(
+        src,
+        `backend/${canister}/main.mo must declare a bootstrapNonce state var`
+      ).toMatch(/bootstrapNonce\s*:\s*\?Text/);
+      expect(
+        src,
+        `backend/${canister}/main.mo must expose setBootstrapNonce()`
+      ).toMatch(/func\s+setBootstrapNonce\s*\(/);
+    });
+
+    it(`backend/${canister}/main.mo's addAdmin/initAdmins consumes the nonce before the first grant`, () => {
+      const src = read(`backend/${canister}/main.mo`);
+      // The bootstrap branch must check the nonce and consume it (set to null)
+      // rather than granting admin on an unconditioned first call.
+      expect(
+        src,
+        `backend/${canister}/main.mo must compare the caller-supplied nonce against bootstrapNonce`
+      ).toMatch(/if\s*\(nonce\s*!=\s*n\)|nonce\s*==\s*n/);
+      expect(
+        src,
+        `backend/${canister}/main.mo must consume the nonce (set bootstrapNonce := null) after use`
+      ).toMatch(/bootstrapNonce\s*:=\s*null/);
+    });
+  }
 });
 
 // ── SEC.3 — inspect_message cycle-drain mitigation (advisory) ─────────────────

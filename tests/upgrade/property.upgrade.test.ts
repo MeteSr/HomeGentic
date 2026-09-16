@@ -15,7 +15,8 @@ import { createPic, wasmPath, propertyIdlFactory } from "./__helpers__/setup";
 const WASM = wasmPath("property");
 
 interface PropertyActor {
-  addAdmin:         (p: object) => Promise<{ ok: null } | { err: object }>;
+  addAdmin:         (p: object, nonce: string) => Promise<{ ok: null } | { err: object }>;
+  setBootstrapNonce: (nonce: string) => Promise<void>;
   setTier:          (user: object, tier: object) => Promise<{ ok: null } | { err: object }>;
   registerProperty: (args: object) => Promise<{ ok: Record<string, unknown> } | { err: object }>;
   verifyProperty:   (id: string, level: object, method: [] | [string]) => Promise<{ ok: Record<string, unknown> } | { err: object }>;
@@ -49,8 +50,9 @@ describe("property canister — upgrade persistence", () => {
     actor = fixture.actor;
     actor.setIdentity(alice);
 
-    // Bootstrap alice as first admin
-    ok(await actor.addAdmin(alice.getPrincipal()));
+    // Bootstrap alice as first admin (H-20: nonce-gated)
+    await actor.setBootstrapNonce("test-nonce");
+    ok(await actor.addAdmin(alice.getPrincipal(), "test-nonce"));
     // Grant alice Pro tier (allows up to 5 properties)
     ok(await actor.setTier(alice.getPrincipal(), { Pro: null }));
 

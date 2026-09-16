@@ -292,6 +292,9 @@ persistent actor Monitoring {
   private var isPaused: Bool = false;
   private var pauseExpiryNs: ?Int = null;
   private var adminListEntries: [Principal] = [];
+  /// H-20: Bootstrap nonce — must be set via setBootstrapNonce() before the
+  /// first addAdmin() call. Consumed on first successful use.
+  private var bootstrapNonce: ?Text = null;
   /// Registry of canisters to poll in checkCycleLevels().
   private var trackedCanisterEntries : [TrackedCanister] = [];
   /// Configurable low-cycle threshold — default 1T cycles (issue #55).
@@ -1045,9 +1048,24 @@ persistent actor Monitoring {
     #ok(())
   };
 
-  public shared(msg) func addAdmin(newAdmin: Principal) : async Result.Result<(), Error> {
-    if (adminListEntries.size() > 0 and not isAdmin(msg.caller))
-      return #err(#NotAuthorized);
+  /// H-20: Set the one-time bootstrap nonce before calling addAdmin() the first time.
+  /// Ignored once the admin list is initialized, and can only be set once.
+  public shared func setBootstrapNonce(nonce: Text) : async () {
+    if (adminListEntries.size() > 0) return;  // already bootstrapped — ignore
+    if (bootstrapNonce != null) return;  // nonce already set — can only be set once
+    bootstrapNonce := ?nonce;
+  };
+
+  public shared(msg) func addAdmin(newAdmin: Principal, nonce: Text) : async Result.Result<(), Error> {
+    if (adminListEntries.size() > 0) {
+      if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    } else {
+      switch (bootstrapNonce) {
+        case null { return #err(#NotAuthorized) };
+        case (?n) { if (nonce != n) return #err(#NotAuthorized) };
+      };
+      bootstrapNonce := null;
+    };
     if (not isAdmin(newAdmin)) {
       adminListEntries := Array.concat(adminListEntries, [newAdmin]);
     };

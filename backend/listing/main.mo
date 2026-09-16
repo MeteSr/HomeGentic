@@ -209,6 +209,9 @@ persistent actor Listing {
   private var pauseExpiryNs:   ?Int = null;
   private var adminListEntries: [Principal] = [];
   private var adminInitialized: Bool = false;
+  /// H-20: Bootstrap nonce — must be set via setBootstrapNonce() before the
+  /// first addAdmin() call. Consumed on first successful use.
+  private var bootstrapNonce: ?Text = null;
   /// Canister IDs for cross-canister resolution — set post-deploy via setXxxCanisterId().
   private var propCanisterId   : Text = "";
   private var jobCanisterId    : Text = "";
@@ -955,8 +958,26 @@ persistent actor Listing {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized); maxUpdatesPerMin := n; #ok(())
   };
 
-  public shared(msg) func addAdmin(newAdmin: Principal) : async Result.Result<(), Error> {
-    if (adminInitialized and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+  /// H-20: Set the one-time bootstrap nonce before calling addAdmin() the first time.
+  /// Ignored once adminInitialized = true, and can only be set once.
+  public shared func setBootstrapNonce(nonce: Text) : async () {
+    if (adminInitialized) return;  // already bootstrapped — ignore
+    if (bootstrapNonce != null) return;  // nonce already set — can only be set once
+    bootstrapNonce := ?nonce;
+  };
+
+  public shared(msg) func addAdmin(newAdmin: Principal, nonce: Text) : async Result.Result<(), Error> {
+    if (adminInitialized) {
+      // Normal path: require an existing admin to add new admins.
+      if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    } else {
+      // Bootstrap path: require the pre-shared nonce.
+      switch (bootstrapNonce) {
+        case null    { return #err(#NotAuthorized) }; // nonce not set — reject
+        case (?n)    { if (nonce != n) return #err(#NotAuthorized) };
+      };
+      bootstrapNonce := null; // consume the nonce — single use
+    };
     if (not isAdmin(newAdmin)) { adminListEntries := Array.concat(adminListEntries, [newAdmin]) };
     adminInitialized := true;
     #ok(())

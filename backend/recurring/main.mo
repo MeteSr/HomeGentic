@@ -96,6 +96,9 @@ persistent actor Recurring {
   private var pauseExpiryNs     : ?Int        = null;
   private var adminListEntries  : [Principal] = [];
   private var adminInitialized  : Bool        = false;
+  /// H-20: Bootstrap nonce — must be set via setBootstrapNonce() before the
+  /// first addAdmin() call. Consumed on first successful use.
+  private var bootstrapNonce    : ?Text       = null;
   // ─── Stable State ────────────────────────────────────────────────────────────
 
   private let services = Map.empty<Text, RecurringService>();
@@ -364,8 +367,24 @@ persistent actor Recurring {
     #ok(())
   };
 
-  public shared(msg) func addAdmin(newAdmin: Principal) : async Result.Result<(), Error> {
-    if (adminInitialized and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+  /// H-20: Set the one-time bootstrap nonce before calling addAdmin() the first time.
+  /// Ignored once adminInitialized = true, and can only be set once.
+  public shared func setBootstrapNonce(nonce: Text) : async () {
+    if (adminInitialized) return;  // already bootstrapped — ignore
+    if (bootstrapNonce != null) return;  // nonce already set — can only be set once
+    bootstrapNonce := ?nonce;
+  };
+
+  public shared(msg) func addAdmin(newAdmin: Principal, nonce: Text) : async Result.Result<(), Error> {
+    if (adminInitialized) {
+      if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    } else {
+      switch (bootstrapNonce) {
+        case null { return #err(#NotAuthorized) };
+        case (?n) { if (nonce != n) return #err(#NotAuthorized) };
+      };
+      bootstrapNonce := null;
+    };
     if (not isAdmin(newAdmin)) {
       adminListEntries := Array.concat(adminListEntries, [newAdmin]);
     };

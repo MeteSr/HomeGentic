@@ -147,10 +147,11 @@ export const idlFactory = ({ IDL }: any) => {
       ["query"]
     ),
     initAdmins: IDL.Func(
-      [IDL.Vec(IDL.Principal)],
+      [IDL.Vec(IDL.Principal), IDL.Text],
       [IDL.Variant({ ok: IDL.Null, err: Error })],
       []
     ),
+    setBootstrapNonce: IDL.Func([IDL.Text], [], []),
     setTierCanisterIds: IDL.Func(
       [IDL.Principal, IDL.Principal, IDL.Principal],
       [IDL.Variant({ ok: IDL.Null, err: Error })],
