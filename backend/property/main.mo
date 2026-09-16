@@ -1013,17 +1013,25 @@ persistent actor Property {
   ) : async Result.Result<PendingTransfer, Error> {
     switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
 
+    // Fetch randomness before any state read/write so everything from the
+    // ownership check through the map writes below executes as one atomic
+    // step with no reentrancy window — awaiting *between* the check and the
+    // write would let two concurrent calls both pass the check first.
+    let randBytes = await Random.blob();
+
     switch (Map.get(properties, Text.compare, propertyId)) {
       case null { #err(#NotFound) };
       case (?prop) {
         if (prop.owner != msg.caller) return #err(#NotAuthorized);
 
         let now = Time.now();
-        // Generate a unique URL-safe token from nanosecond timestamp + counter.
-        // Collision probability is negligible: counter is per-canister-unique and
-        // the timestamp has nanosecond resolution.
+        // Cryptographically random, unguessable bearer token. This used to be
+        // derived from the timestamp plus a shared counter, which is
+        // predictable enough to brute-force — possession of this token is
+        // sole authorization for the transfer (see claimTransfer below), so
+        // it must not be guessable.
         transferCounter += 1;
-        let token : Text = Int.toText(Int.abs(now)) # "-" # Nat.toText(transferCounter);
+        let token : Text = blobToHex(randBytes);
 
         // Remove previous token from secondary index if one existed
         switch (Map.get(pendingTransfers, Text.compare, propertyId)) {
@@ -1175,6 +1183,12 @@ persistent actor Property {
   ) : async Result.Result<ManagerInvite, Error> {
     switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
 
+    // Fetch randomness alongside the tier-gate check below (both awaits
+    // happen before any property-specific read/write), so the ownership
+    // check through the map writes further down still executes as one
+    // atomic step with no new reentrancy window.
+    let randBytes = await Random.blob();
+
     // ── Tier gate ────────────────────────────────────────────────────────────
     // Shared access (People) is Pro/Premium-only — mirrors the tier lookup in
     // registerProperty(). Existing managers/invites from before this gate keep
@@ -1220,8 +1234,10 @@ persistent actor Property {
         };
 
         let now = Time.now();
-        transferCounter += 1;
-        let token : Text = Int.toText(Int.abs(now)) # "-m-" # Nat.toText(transferCounter);
+        // Cryptographically random, unguessable bearer token — see the note
+        // above initiateTransfer's token for why timestamp+counter isn't safe
+        // here (possession of this token grants manager access to the property).
+        let token : Text = "m-" # blobToHex(randBytes);
 
         let invite : ManagerInvite = {
           propertyId;
