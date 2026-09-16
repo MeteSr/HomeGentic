@@ -55,6 +55,9 @@ persistent actor Fee {
   private var pauseExpiryNs:     ?Int = null;
   private var adminEntries:      [Principal] = [];
   private var adminInitialized:  Bool = false;
+  /// H-20: Bootstrap nonce — must be set via setBootstrapNonce() before the
+  /// first initAdmins() call. Consumed on first successful use.
+  private var bootstrapNonce:    ?Text = null;
   private var listingCanisterId: Text = "";
 
   private let fees = Map.empty<Text, FeeRecord>();
@@ -221,10 +224,23 @@ persistent actor Fee {
     #ok(())
   };
 
-  public shared(msg) func initAdmins(newAdmins: [Principal]) : async Result.Result<(), Error> {
+  /// H-20: Set the one-time bootstrap nonce before calling initAdmins() the first time.
+  /// Ignored once adminInitialized = true, and can only be set once.
+  public shared func setBootstrapNonce(nonce: Text) : async () {
+    if (adminInitialized) return;  // already bootstrapped — ignore
+    if (bootstrapNonce != null) return;  // nonce already set — can only be set once
+    bootstrapNonce := ?nonce;
+  };
+
+  public shared(msg) func initAdmins(newAdmins: [Principal], nonce: Text) : async Result.Result<(), Error> {
     if (adminInitialized) return #err(#NotAuthorized);
     if (Principal.isAnonymous(msg.caller)) return #err(#NotAuthorized);
     if (newAdmins.size() == 0) return #err(#InvalidInput("admin list cannot be empty"));
+    switch (bootstrapNonce) {
+      case null { return #err(#NotAuthorized) };
+      case (?n) { if (nonce != n) return #err(#NotAuthorized) };
+    };
+    bootstrapNonce := null;
     adminEntries := newAdmins;
     adminInitialized := true;
     #ok(())

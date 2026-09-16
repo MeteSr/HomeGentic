@@ -16,7 +16,8 @@ import { createPic, wasmPath, sensorIdlFactory } from "./__helpers__/setup";
 const WASM = wasmPath("sensor");
 
 interface SensorActor {
-  addAdmin:              (p: object) => Promise<{ ok: null } | { err: object }>;
+  addAdmin:              (p: object, nonce: string) => Promise<{ ok: null } | { err: object }>;
+  setBootstrapNonce:     (nonce: string) => Promise<void>;
   registerDevice:        (propertyId: string, externalDeviceId: string, source: object, name: string) => Promise<{ ok: Record<string, unknown> } | { err: object }>;
   recordEvent:           (externalDeviceId: string, eventType: object, value: number, unit: string, rawPayload: string) => Promise<{ ok: Record<string, unknown> } | { err: object }>;
   getDevicesForProperty: (propertyId: string) => Promise<Record<string, unknown>[]>;
@@ -62,8 +63,9 @@ describe("sensor canister — upgrade persistence", () => {
     actor = fixture.actor;
     actor.setIdentity(alice);
 
-    // Bootstrap alice as admin (first addAdmin call succeeds without check)
-    ok(await actor.addAdmin(alice.getPrincipal()));
+    // Bootstrap alice as admin (H-20: nonce-gated)
+    await actor.setBootstrapNonce("test-nonce");
+    ok(await actor.addAdmin(alice.getPrincipal(), "test-nonce"));
 
     // Register 4 devices covering 4 different DeviceSource variants
     for (const d of DEVICES) {

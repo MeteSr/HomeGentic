@@ -6,9 +6,14 @@ MY_PRINCIPAL=$(dfx identity get-principal)
 
 # Bootstrap admin idempotently — deploy.sh should have already called initAdmins,
 # but if this test runs standalone (no prior deploy.sh), we do it here.
+# H-20: initAdmins is nonce-gated — setBootstrapNonce is a no-op once already
+# initialized, so this stays safe to run after deploy.sh too.
 # The || true suppresses the NotAuthorized error when already initialized.
 echo "▶ Ensuring payment admin is initialized..."
-dfx canister call payment initAdmins "(vec { principal \"$MY_PRINCIPAL\" })" \
+TEST_BOOTSTRAP_NONCE=$(openssl rand -hex 16)
+dfx canister call payment setBootstrapNonce "(\"$TEST_BOOTSTRAP_NONCE\")" \
+  --network local 2>/dev/null || true
+dfx canister call payment initAdmins "(vec { principal \"$MY_PRINCIPAL\" }, \"$TEST_BOOTSTRAP_NONCE\")" \
   --network local 2>/dev/null || true
 
 # Use a dedicated identity for subscription tier tests so that the deployer's
@@ -317,10 +322,10 @@ if [ -n "$PROPERTY_ID" ] && [ -n "$QUOTE_ID" ] && [ -n "$PHOTO_ID" ]; then
   # Wire payment as admin in property/quote/photo (may already be wired by deploy.sh)
   PAYMENT_ID=$(dfx canister id payment --network local 2>/dev/null || echo "")
   if [ -n "$PAYMENT_ID" ]; then
-    # property/photo use nonce-gated addAdmin(Principal, Text); pass "" — adminInitialized=true,
+    # property/quote/photo use nonce-gated addAdmin(Principal, Text); pass "" — adminInitialized=true,
     # deployer is already admin so nonce is accepted but ignored for subsequent calls.
     dfx canister call property addAdmin "(principal \"$PAYMENT_ID\", \"\")" 2>/dev/null || true
-    dfx canister call quote    addAdmin "(principal \"$PAYMENT_ID\")" 2>/dev/null || true
+    dfx canister call quote    addAdmin "(principal \"$PAYMENT_ID\", \"\")" 2>/dev/null || true
     dfx canister call photo    addAdmin "(principal \"$PAYMENT_ID\", \"\")" 2>/dev/null || true
   fi
 

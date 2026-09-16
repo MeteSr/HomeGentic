@@ -35,7 +35,8 @@ interface Metrics {
 }
 
 interface MonitoringActor {
-  addAdmin:              (p: object) => Promise<{ ok: null } | { err: object }>;
+  addAdmin:              (p: object, nonce: string) => Promise<{ ok: null } | { err: object }>;
+  setBootstrapNonce:     (nonce: string) => Promise<void>;
   recordCanisterMetrics: (
     canisterId: object,
     cyclesBalance: bigint,
@@ -86,8 +87,9 @@ describe("monitoring canister — upgrade persistence", () => {
     actor = fixture.actor;
     actor.setIdentity(admin);
 
-    // Bootstrap admin
-    ok(await actor.addAdmin(admin.getPrincipal()));
+    // Bootstrap admin (H-20: nonce-gated)
+    await actor.setBootstrapNonce("test-nonce");
+    ok(await actor.addAdmin(admin.getPrincipal(), "test-nonce"));
   });
 
   afterAll(async () => {

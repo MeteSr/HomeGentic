@@ -141,6 +141,9 @@ persistent actor Quote {
   private var isPaused: Bool = false;
   private var pauseExpiryNs: ?Int = null;
   private var adminListEntries: [Principal] = [];
+  /// H-20: Bootstrap nonce — must be set via setBootstrapNonce() before the
+  /// first addAdmin() call. Consumed on first successful use.
+  private var bootstrapNonce: ?Text = null;
   /// Payment canister ID — set post-deploy via setPaymentCanisterId().
   /// When set, createQuoteRequest() cross-calls getTierForPrincipal() instead of
   /// reading the local tierGrants map.
@@ -677,63 +680,80 @@ persistent actor Quote {
           case (?req) {
             let acceptOk = await checkPropertyAuth(req.propertyId, req.homeowner, msg.caller, true);
             if (not acceptOk) return #err(#NotAuthorized);
-            if (req.status == #Accepted or req.status == #Closed)
-              return #err(#InvalidInput("Request is already closed"));
-            if (req.status == #Cancelled)
-              return #err(#InvalidInput("Cannot accept a quote on a cancelled request"));
-            if (q.status != #Pending) return #err(#InvalidInput("Quote is no longer pending"));
 
-            // Accept this quote
-            let accepted: Quote = {
-              id         = q.id;
-              requestId  = q.requestId;
-              contractor = q.contractor;
-              amount     = q.amount;
-              timeline   = q.timeline;
-              validUntil = q.validUntil;
-              status     = #Accepted;
-              createdAt  = q.createdAt;
-            };
-            Map.add(quotes, Text.compare, quoteId, accepted);
+            // Re-read both maps fresh after the await above: a concurrent
+            // acceptQuote/closeQuoteRequest/cancelQuoteRequest call could
+            // have already mutated this request or quote while this call
+            // was suspended waiting on checkPropertyAuth. Validating against
+            // the pre-await `req`/`q` snapshot would let two concurrent
+            // accepts on the same request both pass.
+            switch (Map.get(requests, Text.compare, q.requestId)) {
+              case null { return #err(#NotFound) };
+              case (?freshReq) {
+                switch (Map.get(quotes, Text.compare, quoteId)) {
+                  case null { return #err(#NotFound) };
+                  case (?freshQ) {
+                    if (freshReq.status == #Accepted or freshReq.status == #Closed)
+                      return #err(#InvalidInput("Request is already closed"));
+                    if (freshReq.status == #Cancelled)
+                      return #err(#InvalidInput("Cannot accept a quote on a cancelled request"));
+                    if (freshQ.status != #Pending) return #err(#InvalidInput("Quote is no longer pending"));
 
-            // Reject all other pending quotes for the same request
-            for ((otherId, other) in Map.entries(quotes)) {
-              if (other.requestId == q.requestId and otherId != quoteId
-                  and other.status == #Pending) {
-                let rejected: Quote = {
-                  id         = other.id;
-                  requestId  = other.requestId;
-                  contractor = other.contractor;
-                  amount     = other.amount;
-                  timeline   = other.timeline;
-                  validUntil = other.validUntil;
-                  status     = #Rejected;
-                  createdAt  = other.createdAt;
-                };
-                Map.add(quotes, Text.compare, otherId, rejected);
+                    // Accept this quote
+                    let accepted: Quote = {
+                      id         = freshQ.id;
+                      requestId  = freshQ.requestId;
+                      contractor = freshQ.contractor;
+                      amount     = freshQ.amount;
+                      timeline   = freshQ.timeline;
+                      validUntil = freshQ.validUntil;
+                      status     = #Accepted;
+                      createdAt  = freshQ.createdAt;
+                    };
+                    Map.add(quotes, Text.compare, quoteId, accepted);
+
+                    // Reject all other pending quotes for the same request
+                    for ((otherId, other) in Map.entries(quotes)) {
+                      if (other.requestId == freshQ.requestId and otherId != quoteId
+                          and other.status == #Pending) {
+                        let rejected: Quote = {
+                          id         = other.id;
+                          requestId  = other.requestId;
+                          contractor = other.contractor;
+                          amount     = other.amount;
+                          timeline   = other.timeline;
+                          validUntil = other.validUntil;
+                          status     = #Rejected;
+                          createdAt  = other.createdAt;
+                        };
+                        Map.add(quotes, Text.compare, otherId, rejected);
+                      };
+                    };
+
+                    // Close the request
+                    let closed: QuoteRequest = {
+                      id               = freshReq.id;
+                      propertyId       = freshReq.propertyId;
+                      homeowner        = freshReq.homeowner;
+                      serviceType      = freshReq.serviceType;
+                      description      = freshReq.description;
+                      urgency          = freshReq.urgency;
+                      status           = #Accepted;
+                      createdAt        = freshReq.createdAt;
+                      closeAt          = freshReq.closeAt;
+                      zipCode          = freshReq.zipCode;
+                      minTrustScore    = freshReq.minTrustScore;
+                      minJobsCompleted = freshReq.minJobsCompleted;
+                      minReviews       = freshReq.minReviews;
+                      maxBids          = freshReq.maxBids;
+                    };
+                    Map.add(requests, Text.compare, freshReq.id, closed);
+
+                    #ok(accepted)
+                  };
+                }
               };
-            };
-
-            // Close the request
-            let closed: QuoteRequest = {
-              id               = req.id;
-              propertyId       = req.propertyId;
-              homeowner        = req.homeowner;
-              serviceType      = req.serviceType;
-              description      = req.description;
-              urgency          = req.urgency;
-              status           = #Accepted;
-              createdAt        = req.createdAt;
-              closeAt          = req.closeAt;
-              zipCode          = req.zipCode;
-              minTrustScore    = req.minTrustScore;
-              minJobsCompleted = req.minJobsCompleted;
-              minReviews       = req.minReviews;
-              maxBids          = req.maxBids;
-            };
-            Map.add(requests, Text.compare, req.id, closed);
-
-            #ok(accepted)
+            }
           };
         }
       };
@@ -749,29 +769,38 @@ persistent actor Quote {
       case (?req) {
         let closeOk = await checkPropertyAuth(req.propertyId, req.homeowner, msg.caller, true);
         if (not closeOk) return #err(#NotAuthorized);
-        if (req.status == #Accepted or req.status == #Closed)
-          return #err(#InvalidInput("Request is already closed"));
-        if (req.status == #Cancelled)
-          return #err(#InvalidInput("Request is already cancelled"));
 
-        let updated: QuoteRequest = {
-          id               = req.id;
-          propertyId       = req.propertyId;
-          homeowner        = req.homeowner;
-          serviceType      = req.serviceType;
-          description      = req.description;
-          urgency          = req.urgency;
-          status           = #Closed;
-          createdAt        = req.createdAt;
-          closeAt          = req.closeAt;
-          zipCode          = req.zipCode;
-          minTrustScore    = req.minTrustScore;
-          minJobsCompleted = req.minJobsCompleted;
-          minReviews       = req.minReviews;
-          maxBids          = req.maxBids;
-        };
-        Map.add(requests, Text.compare, requestId, updated);
-        #ok(updated)
+        // Re-read fresh after the await above — a concurrent call could have
+        // already accepted/closed/cancelled this request while this call was
+        // suspended waiting on checkPropertyAuth.
+        switch (Map.get(requests, Text.compare, requestId)) {
+          case null { return #err(#NotFound) };
+          case (?freshReq) {
+            if (freshReq.status == #Accepted or freshReq.status == #Closed)
+              return #err(#InvalidInput("Request is already closed"));
+            if (freshReq.status == #Cancelled)
+              return #err(#InvalidInput("Request is already cancelled"));
+
+            let updated: QuoteRequest = {
+              id               = freshReq.id;
+              propertyId       = freshReq.propertyId;
+              homeowner        = freshReq.homeowner;
+              serviceType      = freshReq.serviceType;
+              description      = freshReq.description;
+              urgency          = freshReq.urgency;
+              status           = #Closed;
+              createdAt        = freshReq.createdAt;
+              closeAt          = freshReq.closeAt;
+              zipCode          = freshReq.zipCode;
+              minTrustScore    = freshReq.minTrustScore;
+              minJobsCompleted = freshReq.minJobsCompleted;
+              minReviews       = freshReq.minReviews;
+              maxBids          = freshReq.maxBids;
+            };
+            Map.add(requests, Text.compare, requestId, updated);
+            #ok(updated)
+          };
+        }
       };
     }
   };
@@ -788,39 +817,48 @@ persistent actor Quote {
       case (?req) {
         let cancelOk = await checkPropertyAuth(req.propertyId, req.homeowner, msg.caller, true);
         if (not cancelOk) return #err(#NotAuthorized);
-        switch (req.status) {
-          case (#Open or #Quoted) {};
-          case (#Accepted)  { return #err(#InvalidInput("Cannot cancel an accepted request")) };
-          case (#Closed)    { return #err(#InvalidInput("Cannot cancel a closed request")) };
-          case (#Cancelled) { return #err(#InvalidInput("Request is already cancelled")) };
-        };
 
-        let updated: QuoteRequest = {
-          id               = req.id;
-          propertyId       = req.propertyId;
-          homeowner        = req.homeowner;
-          serviceType      = req.serviceType;
-          description      = req.description;
-          urgency          = req.urgency;
-          status           = #Cancelled;
-          createdAt        = req.createdAt;
-          closeAt          = req.closeAt;
-          zipCode          = req.zipCode;
-          minTrustScore    = req.minTrustScore;
-          minJobsCompleted = req.minJobsCompleted;
-          minReviews       = req.minReviews;
-          maxBids          = req.maxBids;
-        };
-        Map.add(requests, Text.compare, requestId, updated);
+        // Re-read fresh after the await above — a concurrent call could have
+        // already accepted/closed/cancelled this request while this call was
+        // suspended waiting on checkPropertyAuth.
+        switch (Map.get(requests, Text.compare, requestId)) {
+          case null { return #err(#NotFound) };
+          case (?freshReq) {
+            switch (freshReq.status) {
+              case (#Open or #Quoted) {};
+              case (#Accepted)  { return #err(#InvalidInput("Cannot cancel an accepted request")) };
+              case (#Closed)    { return #err(#InvalidInput("Cannot cancel a closed request")) };
+              case (#Cancelled) { return #err(#InvalidInput("Request is already cancelled")) };
+            };
 
-        // Collect principals of contractors who bid on this request
-        var bidders: [Principal] = [];
-        for (q in Map.values(quotes)) {
-          if (q.requestId == requestId) {
-            bidders := Array.concat(bidders, [q.contractor]);
+            let updated: QuoteRequest = {
+              id               = freshReq.id;
+              propertyId       = freshReq.propertyId;
+              homeowner        = freshReq.homeowner;
+              serviceType      = freshReq.serviceType;
+              description      = freshReq.description;
+              urgency          = freshReq.urgency;
+              status           = #Cancelled;
+              createdAt        = freshReq.createdAt;
+              closeAt          = freshReq.closeAt;
+              zipCode          = freshReq.zipCode;
+              minTrustScore    = freshReq.minTrustScore;
+              minJobsCompleted = freshReq.minJobsCompleted;
+              minReviews       = freshReq.minReviews;
+              maxBids          = freshReq.maxBids;
+            };
+            Map.add(requests, Text.compare, requestId, updated);
+
+            // Collect principals of contractors who bid on this request
+            var bidders: [Principal] = [];
+            for (q in Map.values(quotes)) {
+              if (q.requestId == requestId) {
+                bidders := Array.concat(bidders, [q.contractor]);
+              };
+            };
+            #ok(bidders)
           };
-        };
-        #ok(bidders)
+        }
       };
     }
   };
@@ -1174,10 +1212,25 @@ persistent actor Quote {
     #ok(())
   };
 
-  /// Add an admin. First caller is bootstrapped without a check.
-  public shared(msg) func addAdmin(newAdmin: Principal) : async Result.Result<(), Error> {
-    if (adminListEntries.size() > 0 and not isAdmin(msg.caller))
-      return #err(#NotAuthorized);
+  /// H-20: Set the one-time bootstrap nonce before calling addAdmin() the first time.
+  /// Ignored once the admin list is initialized, and can only be set once.
+  public shared func setBootstrapNonce(nonce: Text) : async () {
+    if (adminListEntries.size() > 0) return;  // already bootstrapped — ignore
+    if (bootstrapNonce != null) return;  // nonce already set — can only be set once
+    bootstrapNonce := ?nonce;
+  };
+
+  /// Add an admin. First call requires the bootstrap nonce (H-20).
+  public shared(msg) func addAdmin(newAdmin: Principal, nonce: Text) : async Result.Result<(), Error> {
+    if (adminListEntries.size() > 0) {
+      if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    } else {
+      switch (bootstrapNonce) {
+        case null { return #err(#NotAuthorized) };
+        case (?n) { if (nonce != n) return #err(#NotAuthorized) };
+      };
+      bootstrapNonce := null;
+    };
     if (not isAdmin(newAdmin)) {
       adminListEntries := Array.concat(adminListEntries, [newAdmin]);
     };

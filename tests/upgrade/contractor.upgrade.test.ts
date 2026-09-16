@@ -15,7 +15,8 @@ import { createPic, wasmPath, contractorIdlFactory } from "./__helpers__/setup";
 const WASM = wasmPath("contractor");
 
 interface ContractorActor {
-  addAdmin:                (p: object) => Promise<{ ok: null } | { err: object }>;
+  addAdmin:                (p: object, nonce: string) => Promise<{ ok: null } | { err: object }>;
+  setBootstrapNonce:       (nonce: string) => Promise<void>;
   register:                (args: object) => Promise<{ ok: Record<string, unknown> } | { err: object }>;
   submitReview:            (contractorPrincipal: object, rating: bigint, comment: string, jobId: string) => Promise<{ ok: Record<string, unknown> } | { err: object }>;
   verifyContractor:        (c: object) => Promise<{ ok: Record<string, unknown> } | { err: object }>;
@@ -51,8 +52,9 @@ describe("contractor canister — upgrade persistence", () => {
     actor = fixture.actor;
     actor.setIdentity(alice);
 
-    // Bootstrap alice as first admin
-    ok(await actor.addAdmin(alice.getPrincipal()));
+    // Bootstrap alice as first admin (H-20: nonce-gated)
+    await actor.setBootstrapNonce("test-nonce");
+    ok(await actor.addAdmin(alice.getPrincipal(), "test-nonce"));
 
     // Charlie registers as a contractor
     actor.setIdentity(charlie);

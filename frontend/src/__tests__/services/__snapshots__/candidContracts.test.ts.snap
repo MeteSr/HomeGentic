@@ -1,7 +1,7 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`Candid contract snapshots — method arity > ai_proxy 1`] = `
-"addAdmin(1) -> (1)
+"addAdmin(2) -> (1)
 addTrustedCanister(1) -> (1)
 checkReport(1) -> (1) [query]
 emailUsage(0) -> (1) [query]
@@ -21,6 +21,7 @@ sendEmail(6) -> (1)
 sendInviteEmail(6) -> (1)
 sendJobMatchEmail(4) -> (1)
 setAttomApiKey(1) -> (1)
+setBootstrapNonce(1) -> (0)
 setOpenPermitApiKey(1) -> (1)
 setResendApiKey(1) -> (1)
 setResendFromAddress(1) -> (1)
@@ -155,10 +156,11 @@ getPriceQuote(1) -> (1)
 getPricing(1) -> (1) [query]
 getSubscriptionStats(0) -> (1) [query]
 grantSubscription(2) -> (1)
-initAdmins(1) -> (1)
+initAdmins(2) -> (1)
 isStripeConfigured(0) -> (1) [query]
 listPendingGifts(0) -> (1) [query]
 redeemGift(1) -> (1)
+setBootstrapNonce(1) -> (0)
 setTierCanisterIds(3) -> (1)
 subscribe(1) -> (1)
 verifyStripeSession(1) -> (1)"

@@ -197,7 +197,8 @@ jobs:
           # tests bypass the ownership check (property.isAuthorized) and use synthetic
           # property IDs that don't exist in the property canister. The verification check
           # is then skipped by the `case null {}` branch (non-existent property → proceed).
-          dfx canister call report addAdmin "(principal \"$INTEG_PRINCIPAL\")"
+          # report already bootstrapped above; nonce param is required by Candid but ignored.
+          dfx canister call report addAdmin "(principal \"$INTEG_PRINCIPAL\", \"\")"
 
           # Grant integration test identity admin on agent so listing.integration.test.ts
           # can self-verify a test agent profile (submitProposal requires isVerified=true —
