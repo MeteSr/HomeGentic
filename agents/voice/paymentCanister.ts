@@ -7,7 +7,7 @@ import crypto from "node:crypto";
 const PAYMENT_CANISTER_ID =
   process.env.CANISTER_ID_PAYMENT ?? "a3shm-xiaaa-aaaaj-a6moa-cai";
 
-const PRINCIPAL_RE = /^[a-z0-9]([a-z0-9-]{0,60}[a-z0-9])?$/;
+export const PRINCIPAL_RE = /^[a-z0-9]([a-z0-9-]{0,60}[a-z0-9])?$/;
 
 export const VALID_TIERS = new Set([
   "Free", "Basic", "Pro", "Premium",

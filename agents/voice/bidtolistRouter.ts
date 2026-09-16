@@ -77,6 +77,7 @@ const agentIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
   });
   return I.Service({
     getAgentsForCity: I.Func([I.Text, I.Nat], [I.Vec(AgentProfile)], ["query"]),
+    getProfile:       I.Func([I.Principal],  [I.Opt(AgentProfile)], ["query"]),
   });
 };
 
@@ -122,6 +123,20 @@ async function createAgentActor() {
   const agent = await HttpAgent.create({ identity: makeIdentity(), host: ICP_HOST });
   if (ICP_HOST.includes("localhost")) await agent.fetchRootKey().catch(() => {});
   return Actor.createActor(agentIdlFactory, { agent, canisterId: AGENT_CANISTER_ID });
+}
+
+/**
+ * Resolves an agent's notification email server-side by principal — never
+ * from client-supplied request bodies. See the matching helper in
+ * listingFeeRouter.ts (a different agent canister — HomeGentic's own —
+ * so this can't just be imported from there).
+ */
+async function resolveAgentEmail(agentPrincipal: string): Promise<string | null> {
+  const actor = await createAgentActor();
+  if (!actor) return null;
+  const { Principal } = await import("@icp-sdk/core/principal");
+  const profile = await (actor as any).getProfile(Principal.fromText(agentPrincipal)) as any[];
+  return profile.length > 0 ? profile[0].email : null;
 }
 
 function createFeeActor() {
@@ -244,10 +259,22 @@ bidtolistRouter.post("/email/new-proposal", async (req, res) => {
 // POST /api/bidtolist/email/proposal-result
 // Notify agent that their proposal was accepted or rejected.
 bidtolistRouter.post("/email/proposal-result", async (req, res) => {
-  const { agentEmail, agentName, city, won } = req.body as {
-    agentEmail: string; agentName: string; city: string; won: boolean;
+  const { agentPrincipal, agentEmail: clientAgentEmail, agentName, city, won } = req.body as {
+    agentPrincipal?: string; agentEmail: string; agentName: string; city: string; won: boolean;
   };
-  if (!agentEmail) { res.status(400).json({ error: "agentEmail required" }); return; }
+
+  // Prefer the server-verified email looked up by principal — never trust a
+  // client-supplied agentEmail when a principal is available (H-03 follow-up:
+  // a client-supplied agentEmail let anyone redirect these notifications to
+  // an address they control). Falls back to the legacy field only while
+  // callers are migrated to send agentPrincipal.
+  let agentEmail = clientAgentEmail;
+  if (agentPrincipal) {
+    const resolved = await resolveAgentEmail(agentPrincipal);
+    if (!resolved) { res.status(404).json({ error: "Agent not found" }); return; }
+    agentEmail = resolved;
+  }
+  if (!agentEmail) { res.status(400).json({ error: "agentEmail or agentPrincipal required" }); return; }
 
   // H-03: validate email format; sanitize text fields to prevent header injection.
   // Bound length before regex to prevent polynomial backtracking on crafted input.
@@ -259,8 +286,6 @@ bidtolistRouter.post("/email/proposal-result", async (req, res) => {
   // Strip control characters from text fields
   const safeAgentName = agentName ? agentName.replace(/[\r\n\t]/g, " ").slice(0, 200) : "";
   const safeCity = city ? city.replace(/[\r\n\t]/g, " ").slice(0, 100) : "";
-  // NOTE: ideally agentEmail should be looked up from the ICP agent canister by agentId
-  // rather than accepted from the request body, to fully prevent phishing abuse.
 
   const subject = won
     ? `Congratulations — you won the listing in ${safeCity} — BidtoList`
@@ -287,8 +312,19 @@ bidtolistRouter.post("/email/proposal-result", async (req, res) => {
 // POST /api/bidtolist/email/agent-verified
 // Notify agent that their account has been verified by admin.
 bidtolistRouter.post("/email/agent-verified", async (req, res) => {
-  const { agentEmail, agentName } = req.body as { agentEmail: string; agentName: string };
-  if (!agentEmail) { res.status(400).json({ error: "agentEmail required" }); return; }
+  const { agentPrincipal, agentEmail: clientAgentEmail, agentName } = req.body as {
+    agentPrincipal?: string; agentEmail: string; agentName: string;
+  };
+
+  // Prefer the server-verified email looked up by principal — see the matching
+  // comment in /email/proposal-result above.
+  let agentEmail = clientAgentEmail;
+  if (agentPrincipal) {
+    const resolved = await resolveAgentEmail(agentPrincipal);
+    if (!resolved) { res.status(404).json({ error: "Agent not found" }); return; }
+    agentEmail = resolved;
+  }
+  if (!agentEmail) { res.status(400).json({ error: "agentEmail or agentPrincipal required" }); return; }
 
   // H-03: validate email format; sanitize text fields to prevent header injection.
   // Bound length before regex to prevent polynomial backtracking on crafted input.
@@ -299,8 +335,6 @@ bidtolistRouter.post("/email/agent-verified", async (req, res) => {
   }
   // Strip control characters from text fields
   const safeAgentName = agentName ? agentName.replace(/[\r\n\t]/g, " ").slice(0, 200) : "";
-  // NOTE: ideally agentEmail should be looked up from the ICP agent canister by agentId
-  // rather than accepted from the request body, to fully prevent phishing abuse.
 
   try {
     await resend.emails.send({

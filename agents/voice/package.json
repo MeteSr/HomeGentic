@@ -7,7 +7,8 @@
     "deploy": "wrangler deploy",
     "build": "tsc",
     "start": "node dist/voice/server.js",
-    "test": "jest --passWithNoTests"
+    "test": "jest --passWithNoTests",
+    "test:coverage": "jest --passWithNoTests --coverage"
   },
   "jest": {
     "testEnvironment": "node",
@@ -19,6 +20,22 @@
     },
     "moduleNameMapper": {
       "^\\./bidtolistRouter$": "<rootDir>/__mocks__/bidtolistRouter.js"
+    },
+    "collectCoverageFrom": [
+      "*.ts",
+      "!*.test.ts",
+      "!types.ts",
+      "!jest.config.ts"
+    ],
+    "coverageDirectory": "./coverage",
+    "coverageReporters": ["text", "html", "lcov", "json-summary"],
+    "coverageThreshold": {
+      "global": {
+        "lines": 42,
+        "functions": 44,
+        "branches": 38,
+        "statements": 40
+      }
     }
   },
   "dependencies": {

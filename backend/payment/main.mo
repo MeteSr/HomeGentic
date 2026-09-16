@@ -237,6 +237,10 @@ persistent actor Payment {
   // Admin
   private var adminEntries      : [Principal]  = [];
   private var adminInitialized  : Bool         = false;
+  /// Kill switch — payment.mo previously had no way to halt outcall-triggering
+  /// endpoints if something went wrong (runaway caller, Stripe/XRC incident).
+  private var isPaused          : Bool         = false;
+  private var pauseExpiryNs     : ?Int         = null;
   /// H-20: Bootstrap nonce — must be set via setBootstrapNonce() before the
   /// first initAdmins() call. Consumed on first successful use.
   private var bootstrapNonce    : ?Text        = null;
@@ -316,6 +320,38 @@ persistent actor Payment {
   public shared(msg) func setUpdateRateLimit(n: Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     maxUpdatesPerMin := n;
+    #ok(())
+  };
+
+  /// Combined guard for endpoints that trigger a real HTTP outcall (Stripe, XRC):
+  /// rejects anonymous callers, honors the pause kill-switch, and applies the
+  /// per-principal update rate limit.
+  private func _requireActive(caller: Principal) : Result.Result<(), Error> {
+    if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
+    if (isPaused) {
+      switch (pauseExpiryNs) {
+        case (?expiry) { if (Time.now() < expiry) return #err(#InvalidInput("Canister is paused")) };
+        case null { return #err(#InvalidInput("Canister is paused")) };
+      };
+    };
+    if (not tryConsumeUpdateSlot(caller)) return #err(#RateLimited);
+    #ok(())
+  };
+
+  public shared(msg) func pause(durationSeconds: ?Nat) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    isPaused := true;
+    pauseExpiryNs := switch (durationSeconds) {
+      case null    { null };
+      case (?secs) { ?(Time.now() + secs * 1_000_000_000) };
+    };
+    #ok(())
+  };
+
+  public shared(msg) func unpause() : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    isPaused := false;
+    pauseExpiryNs := null;
     #ok(())
   };
 
@@ -598,7 +634,7 @@ persistent actor Payment {
     billing : BillingPeriod,
     gift    : ?GiftMeta,
   ) : async Result.Result<CheckoutSession, Error> {
-    if (Principal.isAnonymous(msg.caller)) return #err(#NotAuthorized);
+    switch (_requireActive(msg.caller)) { case (#err(e)) return #err(e); case (#ok(())) {} };
 
     let cfg = switch (stripeConfig) {
       case null  { return #err(#PaymentFailed("Stripe is not configured")) };
@@ -664,7 +700,7 @@ persistent actor Payment {
   /// Returns the new subscription for self-subscriptions, or #err(#NotFound) with
   /// the gift token embedded in the message for gift sessions.
   public shared(msg) func verifyStripeSession(sessionId: Text) : async Result.Result<Subscription, Error> {
-    if (Principal.isAnonymous(msg.caller)) return #err(#NotAuthorized);
+    switch (_requireActive(msg.caller)) { case (#err(e)) return #err(e); case (#ok(())) {} };
 
     let cfg = switch (stripeConfig) {
       case null  { return #err(#PaymentFailed("Stripe is not configured")) };
@@ -800,7 +836,8 @@ persistent actor Payment {
   /// Returns the subscription price in e8s with a 5% buffer.
   /// Frontend calls this before icrc2_approve so it knows the allowance to set.
   /// Returns 0 for the Free tier (no payment needed).
-  public shared func getPriceQuote(tier: Tier) : async Result.Result<Nat, Error> {
+  public shared(msg) func getPriceQuote(tier: Tier) : async Result.Result<Nat, Error> {
+    switch (_requireActive(msg.caller)) { case (#err(e)) return #err(e); case (#ok(())) {} };
     let usdPrice = priceUsd(tier);
     if (usdPrice == 0) return #ok(0);
     let rateResult = await xrc.get_exchange_rate({

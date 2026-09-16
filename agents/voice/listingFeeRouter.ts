@@ -206,7 +206,7 @@ listingFeeRouter.post("/stripe/webhook", express.raw({ type: "*/*" }), async (re
 export async function resolveAgentEmail(agentPrincipal: string): Promise<string | null> {
   const actor = await createActor<any>(AGENT_CANISTER_ID, agentIdlFactory);
   if (!actor) return null;
-  const { Principal } = await import("@dfinity/principal");
+  const { Principal } = await import("@icp-sdk/core/principal");
   const raw = await actor.getProfile(Principal.fromText(agentPrincipal));
   return raw.length > 0 ? raw[0].email : null;
 }

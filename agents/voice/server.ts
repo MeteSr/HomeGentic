@@ -1,6 +1,6 @@
 import "dotenv/config";
 import express, { Request, Response } from "express";
-import { activateInCanister, consumeAgentCredit, grantAgentCredits, getSubscriptionTier } from "./paymentCanister";
+import { activateInCanister, consumeAgentCredit, grantAgentCredits, getSubscriptionTier, PRINCIPAL_RE } from "./paymentCanister";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { createHmac, timingSafeEqual } from "crypto";
@@ -94,6 +94,32 @@ if (!VOICE_API_KEY) {
   logger.warn("voice-agent", "VOICE_AGENT_API_KEY not set — API endpoints are unprotected (dev only, no Stripe)");
 }
 
+// x-icp-principal is client-supplied and not cryptographically bound to the caller
+// (see getSubscriptionTier, which already fails safe to "Free" on any format/lookup
+// error). Reject malformed values here too, before they're used as a rate-limit or
+// usage-log key — otherwise a client can mint unlimited distinct "identities" by
+// sending garbage strings, each getting its own fresh Free-tier quota bucket.
+function resolvePrincipal(req: Request): string {
+  const raw = req.headers["x-icp-principal"] as string | undefined;
+  return raw && PRINCIPAL_RE.test(raw) ? raw : "anon";
+}
+
+// Constant-time secret comparison — a plain !== leaks timing information
+// proportional to the matching prefix length, letting an attacker recover
+// the secret byte-by-byte. timingSafeEqual requires equal-length buffers,
+// so a length mismatch (the common case for a guessed key) is handled by
+// comparing against a same-length dummy first, which still takes constant
+// time relative to the *provided* string and never short-circuits on content.
+function safeCompare(provided: string, expected: string): boolean {
+  const providedBuf = Buffer.from(provided);
+  const expectedBuf = Buffer.from(expected);
+  if (providedBuf.length !== expectedBuf.length) {
+    timingSafeEqual(providedBuf, providedBuf);
+    return false;
+  }
+  return timingSafeEqual(providedBuf, expectedBuf);
+}
+
 // 14.3.3 — fail-secure: require FRONTEND_ORIGIN in production
 const allowedOrigin = process.env.FRONTEND_ORIGIN;
 if (!allowedOrigin) {
@@ -113,6 +139,24 @@ const origin: string | RegExp | string[] =
     : (allowedOrigin ?? /^http:\/\/localhost:/);
 
 app.use(cors({ origin }));
+
+// Stripe checkout success_url/cancel_url come from the client and are otherwise
+// passed straight to stripe.checkout.sessions.create() — an open redirect, since
+// Stripe will bounce the browser to whatever URL it's given after payment.
+// Restrict to the same origins CORS already trusts.
+function isAllowedRedirectUrl(url: string | undefined): boolean {
+  if (!url) return false;
+  let parsed: URL;
+  try { parsed = new URL(url); } catch { return false; }
+  const allowed = [allowedOrigin, bidtolistOrigin].filter((o): o is string => !!o);
+  if (allowed.length > 0) {
+    return allowed.some((o) => {
+      try { return new URL(o).origin === parsed.origin; } catch { return false; }
+    });
+  }
+  // No FRONTEND_ORIGIN configured — must be dev (production throws above).
+  return parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
+}
 // 50 kb default — sufficient for all text payloads; prevents DoS on every route.
 // /api/classify gets its own 5 mb parser (base64 image payloads) registered below.
 app.use((req, res, next) => {
@@ -153,8 +197,9 @@ app.use("/api/", (req: Request, res: Response, next: express.NextFunction): void
   // Stripe webhooks are authenticated via HMAC signature, not the API key header.
   if (req.originalUrl.startsWith("/api/stripe/webhook")) { next(); return; }
   if (req.originalUrl.startsWith("/api/bidtolist/stripe/webhook")) { next(); return; }
-  const provided = req.headers["x-api-key"];
-  if (provided !== VOICE_API_KEY) {
+  if (req.originalUrl.startsWith("/api/listing-fee/stripe/webhook")) { next(); return; }
+  const provided = (req.headers["x-api-key"] as string | undefined) ?? "";
+  if (!safeCompare(provided, VOICE_API_KEY)) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
@@ -184,7 +229,7 @@ app.use("/api/", (req: Request, res: Response, next: express.NextFunction): void
       latencyMs: Date.now() - start,
       ip:        (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0].trim()
                    ?? req.socket.remoteAddress ?? "unknown",
-      principal: (req.headers["x-icp-principal"] as string | undefined) ?? "anon",
+      principal: resolvePrincipal(req),
       reqId,
     };
     if (traceId) entry.traceId = traceId;
@@ -258,7 +303,7 @@ function contextMiddleware(req: Request, res: Response, next: express.NextFuncti
     next(); return;
   }
 
-  const principal = (req.headers["x-icp-principal"] as string | undefined) ?? "anon";
+  const principal = resolvePrincipal(req);
 
   // HMAC verification — skip in dev when key is absent
   if (VOICE_API_KEY) {
@@ -296,7 +341,7 @@ app.post("/api/chat", async (req: Request, res: Response): Promise<void> => {
 
   // Per-tier chat rate limit: free tiers capped at 3/day, paid tiers unlimited.
   // Tier is resolved server-side from the ICP payment canister — client header is not trusted.
-  const chatPrincipal = (req.headers["x-icp-principal"] as string | undefined) ?? "anon";
+  const chatPrincipal = resolvePrincipal(req);
   let chatTier: SubscriptionTier;
   try {
     chatTier = (chatPrincipal !== "anon"
@@ -364,7 +409,7 @@ app.post("/api/agent", async (req: Request, res: Response): Promise<void> => {
 
   // ── rate limit check ──────────────────────────────────────────────────────
   // Tier is resolved server-side from the ICP payment canister — client header is not trusted.
-  const principal = (req.headers["x-icp-principal"] as string | undefined) ?? "anon";
+  const principal = resolvePrincipal(req);
   let tier: SubscriptionTier;
   try {
     tier = (principal !== "anon"
@@ -1035,7 +1080,7 @@ app.post("/api/errors", (req: Request, res: Response): void => {
     ...(componentStack && { componentStack }),
     ...(url            && { url }),
     ts,
-    principal:  (req.headers["x-icp-principal"] as string | undefined) ?? "anon",
+    principal:  resolvePrincipal(req),
     ...(tier       && { tier }),
     ...(release    && { release }),
     ...(userAgent  && { userAgent }),
@@ -1200,8 +1245,10 @@ app.use("/api/listing-fee", listingFeeRouter);
 // ── POST /api/stripe/create-checkout (dev only) ───────────────────────────────
 // Local dfx replica doesn't forward custom HTTP headers in outcalls correctly.
 // This endpoint proxies Stripe checkout creation for local development.
-// In production the ICP canister makes the Stripe outcall directly.
+// In production the ICP canister makes the Stripe outcall directly — this route
+// must not be reachable there, since it trusts a client-supplied principal.
 app.post("/api/stripe/create-checkout", async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === "production") { res.status(404).json({ error: "Not found" }); return; }
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
   if (!stripeSecretKey) { res.status(500).json({ error: "STRIPE_SECRET_KEY not configured" }); return; }
 
@@ -1210,6 +1257,12 @@ app.post("/api/stripe/create-checkout", async (req: Request, res: Response) => {
     gift?: { recipientEmail: string; recipientName: string; senderName: string; giftMessage: string; deliveryDate: string };
     principal: string;
   };
+  if (principal && !PRINCIPAL_RE.test(principal)) {
+    res.status(400).json({ error: "Invalid principal format" }); return;
+  }
+  if (!isAllowedRedirectUrl(successUrl) || !isAllowedRedirectUrl(cancelUrl)) {
+    res.status(400).json({ error: "successUrl/cancelUrl must be on the frontend origin" }); return;
+  }
 
   const PRICE_MAP: Record<string, string | undefined> = {
     ProMonthly:           process.env.STRIPE_PRICE_PRO_MONTHLY?.trim(),
@@ -1259,6 +1312,9 @@ app.post("/api/stripe/create-subscription-intent", async (req: Request, res: Res
   };
   if (!tier || !billing) {
     res.status(400).json({ error: "tier and billing are required" }); return;
+  }
+  if (principal && !PRINCIPAL_RE.test(principal)) {
+    res.status(400).json({ error: "Invalid principal format" }); return;
   }
 
   const priceEnvMap: Record<string, string | undefined> = {
@@ -1343,6 +1399,7 @@ async function revertPrincipalToFree(principal: string): Promise<void> {
 }
 
 app.post("/api/stripe/verify-session", async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === "production") { res.status(404).json({ error: "Not found" }); return; }
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
   if (!stripeSecretKey) { res.status(500).json({ error: "STRIPE_SECRET_KEY not configured" }); return; }
 
@@ -1481,6 +1538,9 @@ app.post("/api/stripe/create-credit-checkout", async (req: Request, res: Respons
 
   if (!/^[a-z0-9]([a-z0-9-]{0,60}[a-z0-9])?$/.test(principal ?? "")) {
     res.status(400).json({ error: "Invalid principal" }); return;
+  }
+  if (!isAllowedRedirectUrl(successUrl) || !isAllowedRedirectUrl(cancelUrl)) {
+    res.status(400).json({ error: "successUrl/cancelUrl must be on the frontend origin" }); return;
   }
 
   try {
@@ -1726,7 +1786,7 @@ app.post("/api/stripe/webhook", async (req: Request, res: Response) => {
 // and ops tooling; never exposed to browser clients.
 app.get("/admin/cycle-status", async (req: Request, res: Response): Promise<void> => {
   const apiKey = (req.headers["x-api-key"] as string | undefined) ?? "";
-  if (process.env.VOICE_AGENT_API_KEY && apiKey !== process.env.VOICE_AGENT_API_KEY) {
+  if (process.env.VOICE_AGENT_API_KEY && !safeCompare(apiKey, process.env.VOICE_AGENT_API_KEY)) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }

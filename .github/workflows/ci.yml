@@ -288,8 +288,15 @@ jobs:
       - name: Install dependencies
         run: cd agents/voice && npm ci
 
-      - name: Unit tests
-        run: cd agents/voice && npm test
+      - name: Unit tests with coverage
+        run: cd agents/voice && npm run test:coverage
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v7
+        with:
+          name: voice-coverage-report
+          path: agents/voice/coverage/
+          retention-days: 14
 
       - name: Integration tests
         # describeIfConfigured guards in the test files skip automatically

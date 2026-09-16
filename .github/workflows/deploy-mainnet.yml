@@ -32,9 +32,12 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Install icp-cli
-        run: npm install -g @icp-sdk/icp-cli
+        # Pinned — this job also holds MAINNET_IDENTITY_PEM/MAINNET_WALLET_ID;
+        # an unpinned `npm install -g` here would let a compromised package
+        # release run with mainnet wallet/identity secrets in scope.
+        run: npm install -g @icp-sdk/icp-cli@1.5.0
       - name: Install mops
-        run: npm install -g ic-mops
+        run: npm install -g ic-mops@3.2.2
       - name: Install Node dependencies
         run: npm ci
 
