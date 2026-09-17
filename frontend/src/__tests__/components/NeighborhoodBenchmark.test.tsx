@@ -9,7 +9,7 @@
  *   - View area navigates to the zip's neighborhood detail route
  */
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { fireEvent } from "@testing-library/react";
 import { NeighborhoodBenchmark } from "@/components/NeighborhoodBenchmark";

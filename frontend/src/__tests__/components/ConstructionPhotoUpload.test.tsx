@@ -79,9 +79,7 @@ describe("ConstructionPhotoUpload — quota gating", () => {
 describe("ConstructionPhotoUpload — drag and drop", () => {
   it("uploads files dropped onto the dropzone", () => {
     const onUpload = vi.fn();
-    const { container } = render(
-      <ConstructionPhotoUpload onUpload={onUpload} quota={{ used: 0, limit: 10, tier: "Free" }} />
-    );
+    render(<ConstructionPhotoUpload onUpload={onUpload} quota={{ used: 0, limit: 10, tier: "Free" }} />);
     const dropzone = screen.getByText("Drag files here or click to browse").closest("div")!;
 
     fireEvent.dragOver(dropzone);
