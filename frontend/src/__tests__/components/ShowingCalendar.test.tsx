@@ -43,7 +43,7 @@ describe("ShowingCalendar — empty state", () => {
 describe("ShowingCalendar — confirmed showings", () => {
   it("lists only Accepted requests", () => {
     const accepted = seed({ name: "Jamie Rivera" });
-    const pending = seed({ name: "Sam Lee" });
+    seed({ name: "Sam Lee" });
     showingRequestService.accept(accepted.id);
 
     render(<ShowingCalendar propertyId="prop-1" />);
@@ -57,7 +57,7 @@ describe("ShowingCalendar — confirmed showings", () => {
 describe("ShowingCalendar — iCal export", () => {
   it("builds a calendar Blob download for the confirmed showings only", () => {
     const accepted = seed({ name: "Jamie Rivera" });
-    const pending = seed({ name: "Sam Lee" });
+    seed({ name: "Sam Lee" });
     showingRequestService.accept(accepted.id);
 
     const createObjectURL = vi.fn().mockReturnValue("blob:showings");
