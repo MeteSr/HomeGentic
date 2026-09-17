@@ -62,6 +62,33 @@ describe("STRIPE.4 — price IDs sourced from env", () => {
   });
 });
 
+/** Slice from a route's `app.post(...)` line up to the start of the next `app.` call. */
+function routeBlock(marker: string): string {
+  const start = src.indexOf(marker);
+  const next  = src.indexOf("app.", start + marker.length);
+  return src.slice(start, next);
+}
+
+describe("STRIPE.6 — dev-only checkout routes are not reachable in production", () => {
+  it("create-checkout 404s when NODE_ENV=production", () => {
+    expect(routeBlock('app.post("/api/stripe/create-checkout"')).toMatch(/NODE_ENV === ["'`]production["'`]/);
+  });
+
+  it("verify-session 404s when NODE_ENV=production", () => {
+    expect(routeBlock('app.post("/api/stripe/verify-session"')).toMatch(/NODE_ENV === ["'`]production["'`]/);
+  });
+});
+
+describe("STRIPE.7 — client-supplied principal is format-validated before it reaches Stripe metadata", () => {
+  it("create-checkout rejects malformed principal", () => {
+    expect(routeBlock('app.post("/api/stripe/create-checkout"')).toMatch(/PRINCIPAL_RE\.test\(principal\)/);
+  });
+
+  it("create-subscription-intent rejects malformed principal", () => {
+    expect(routeBlock('app.post("/api/stripe/create-subscription-intent"')).toMatch(/PRINCIPAL_RE\.test\(principal\)/);
+  });
+});
+
 describe("STRIPE.5 — TypeScript compilation", () => {
   it("server.ts compiles without errors", () => {
     const configPath = ts.findConfigFile(

@@ -34,6 +34,7 @@ jest.mock("../paymentCanister", () => ({
   consumeAgentCredit: jest.fn().mockResolvedValue(undefined),
   grantAgentCredits:  jest.fn().mockResolvedValue(undefined),
   VALID_TIERS: new Set(["Free", "Basic", "Pro", "Premium", "ContractorFree", "ContractorPro", "RealtorFree", "RealtorPro"]),
+  PRINCIPAL_RE: /^[a-z0-9]([a-z0-9-]{0,60}[a-z0-9])?$/,
 }));
 
 jest.mock("../anthropicProvider", () => ({

@@ -109,8 +109,13 @@ export default defineConfig(({ mode }) => {
       },
       coverage: {
         provider: "istanbul",
-        // Only measure coverage for service-layer files that have unit tests
-        include: ["src/services/**/*.ts"],
+        // Widened from src/services/** only — that scope let hooks/, components/,
+        // pages/, and contexts/ (185 files, the bulk of the app's actual user-facing
+        // logic) go completely unmeasured and ungated by CI. Thresholds below are
+        // the real measured baseline at widen-time (rounded down a few points so
+        // routine changes don't flake the gate); raise them as coverage improves,
+        // never lower them to make a PR pass.
+        include: ["src/{services,hooks,components,pages,contexts}/**/*.{ts,tsx}"],
         exclude: [
           "src/services/actor.ts",       // ICP transport layer — not unit-testable
           "src/services/agentTools.ts",  // Claude API schema definitions — not unit-testable
@@ -119,10 +124,10 @@ export default defineConfig(({ mode }) => {
         reporter: ["text", "html", "lcov", "json-summary"],   // terminal + browsable HTML + CI/tooling + PR comments
         reportsDirectory: "./coverage",
         thresholds: {
-          lines:      60,
-          functions:  60,
-          branches:   55,
-          statements: 60,
+          lines:      46,
+          functions:  37,
+          branches:   36,
+          statements: 44,
         },
       },
     },

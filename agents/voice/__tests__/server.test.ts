@@ -37,6 +37,7 @@ jest.mock("../paymentCanister", () => ({
   consumeAgentCredit:   jest.fn().mockRejectedValue(new Error("no canister in test")),
   activateInCanister:   jest.fn().mockResolvedValue(undefined),
   grantAgentCredits:    jest.fn().mockResolvedValue(undefined),
+  PRINCIPAL_RE:         /^[a-z0-9]([a-z0-9-]{0,60}[a-z0-9])?$/,
 }));
 
 jest.mock("../anthropicProvider", () => ({
@@ -136,6 +137,49 @@ describe("HEALTH.1 — GET /health", () => {
     expect(res.status).toBe(503);
     expect(res.body.ok).toBe(false);
     expect(res.body.checks.stripe_key).toBe(false);
+  });
+});
+
+// ── /api/stripe/create-checkout — open-redirect protection ────────────────────
+
+describe("CHECKOUT.1 — successUrl/cancelUrl must be on the frontend origin", () => {
+  let savedKey: string | undefined;
+  let savedEnv: string | undefined;
+
+  beforeEach(() => {
+    savedKey = process.env.STRIPE_SECRET_KEY;
+    savedEnv = process.env.NODE_ENV;
+    // Route only checks truthiness — not a real key, deliberately not shaped like one
+    // (an sk_test_-prefixed value here trips the gitleaks stripe-access-token rule).
+    process.env.STRIPE_SECRET_KEY = "test-value-not-a-real-key";
+    process.env.NODE_ENV = "test"; // keep the dev-only route reachable for this test
+  });
+  afterEach(() => {
+    savedKey === undefined ? delete process.env.STRIPE_SECRET_KEY : (process.env.STRIPE_SECRET_KEY = savedKey);
+    savedEnv === undefined ? delete process.env.NODE_ENV : (process.env.NODE_ENV = savedEnv);
+  });
+
+  it("rejects an off-origin successUrl (open redirect)", async () => {
+    const res = await supertest(app)
+      .post("/api/stripe/create-checkout")
+      .send({
+        tier: "Pro", billing: "Monthly", principal: uid(),
+        successUrl: "https://evil.example.com/steal-session",
+        cancelUrl:  "http://localhost:5173/upgrade",
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/successUrl.*cancelUrl|origin/i);
+  });
+
+  it("rejects an off-origin cancelUrl", async () => {
+    const res = await supertest(app)
+      .post("/api/stripe/create-checkout")
+      .send({
+        tier: "Pro", billing: "Monthly", principal: uid(),
+        successUrl: "http://localhost:5173/upgrade/success",
+        cancelUrl:  "https://evil.example.com/",
+      });
+    expect(res.status).toBe(400);
   });
 });
 
@@ -378,5 +422,31 @@ describe("AGENT.6 — daily limit enforced at tier cap", () => {
     expect(res.body.limit).toBe(10);
     // resetsAt should be a Monday (weekly reset), not just tomorrow.
     expect(new Date(res.body.resetsAt).getUTCDay()).toBe(1);
+  });
+
+  it("rejects malformed x-icp-principal values so they can't each mint a fresh quota bucket", async () => {
+    // Regression test: before principal-format validation, a client could send
+    // an arbitrary garbage string as x-icp-principal and get its own untouched
+    // rate-limit counter every time — defeating the per-identity quota entirely.
+    // Malformed values must now all collapse onto the shared "anon" bucket.
+    mockProvider.completeWithTools.mockResolvedValue({ type: "answer", text: "ok" });
+
+    for (let i = 0; i < 10; i++) {
+      await supertest(app)
+        .post("/api/agent")
+        .set("x-icp-principal", `Not A Valid Principal! #${i}`)
+        .set("x-subscription-tier", "Free")
+        .send({ messages: [{ role: "user", content: "ping" }] });
+    }
+
+    const res = await supertest(app)
+      .post("/api/agent")
+      .set("x-icp-principal", "Not A Valid Principal! #10")
+      .set("x-subscription-tier", "Free")
+      .send({ messages: [{ role: "user", content: "ping" }] });
+
+    expect(res.status).toBe(429);
+    expect(res.body.error).toBe("daily_agent_limit_reached");
+    expect(res.body.limit).toBe(10);
   });
 });

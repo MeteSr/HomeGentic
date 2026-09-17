@@ -39,6 +39,7 @@ jest.mock("../paymentCanister", () => ({
   consumeAgentCredit: jest.fn().mockResolvedValue(undefined),
   grantAgentCredits:  jest.fn().mockResolvedValue(undefined),
   VALID_TIERS: new Set(["Free", "Basic", "Pro", "Premium", "ContractorFree", "ContractorPro", "RealtorFree", "RealtorPro"]),
+  PRINCIPAL_RE: /^[a-z0-9]([a-z0-9-]{0,60}[a-z0-9])?$/,
 }));
 
 import { describe, it, expect, beforeEach, afterEach } from "@jest/globals";
@@ -113,6 +114,17 @@ describe("WEBHOOK.12 — webhook bypasses VOICE_AGENT_API_KEY auth", () => {
       src.indexOf("// ── Structured request logging"),
     );
     expect(authMiddlewareBlock).toMatch(/stripe\/webhook/);
+  });
+
+  it("also exempts the listing-fee webhook, which has its own Stripe signature check", () => {
+    // Regression test: this path was missing from the exemption list, so every
+    // listing-fee webhook delivery was rejected by the x-api-key check before
+    // it ever reached listingFeeRouter.ts's signature verification.
+    const authMiddlewareBlock = src.slice(
+      src.indexOf("§49 — API key auth middleware"),
+      src.indexOf("// ── Structured request logging"),
+    );
+    expect(authMiddlewareBlock).toMatch(/listing-fee\/stripe\/webhook/);
   });
 });
 
