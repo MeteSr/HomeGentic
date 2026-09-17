@@ -124,10 +124,10 @@ export default defineConfig(({ mode }) => {
         reporter: ["text", "html", "lcov", "json-summary"],   // terminal + browsable HTML + CI/tooling + PR comments
         reportsDirectory: "./coverage",
         thresholds: {
-          lines:      62,
-          functions:  53,
+          lines:      63,
+          functions:  54,
           branches:   53,
-          statements: 59,
+          statements: 60,
         },
       },
     },
