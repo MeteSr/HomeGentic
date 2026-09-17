@@ -6,7 +6,7 @@
  *   - copy-to-clipboard sets "Copied!" feedback
  */
 
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import ReferralPage from "@/pages/ReferralPage";
 import type { NeighborReferral } from "@/services/neighborReferral";
@@ -68,8 +68,16 @@ describe("ReferralPage — stats", () => {
       makeReferral({ referee: "pending-neighbor", convertedAt: null }),
     ]);
     render(<ReferralPage />);
-    await waitFor(() => expect(screen.getByText("Converted")).toBeInTheDocument());
-    expect(screen.getByText("Pending")).toBeInTheDocument();
+
+    // Anchor on the referral row itself (identified by its truncated referee
+    // name) rather than the badge text alone — the KPI stats row above also
+    // has a static "Converted" label, so an unscoped getByText("Converted")
+    // is ambiguous once both have rendered, and can resolve prematurely
+    // against just the KPI label while the referral list is still committing.
+    const convertedRow = (await screen.findByText(/converted-ne/)).closest("div")!;
+    const pendingRow = (await screen.findByText(/pending-neig/)).closest("div")!;
+    expect(within(convertedRow).getByText("Converted")).toBeInTheDocument();
+    expect(within(pendingRow).getByText("Pending")).toBeInTheDocument();
   });
 });
 
