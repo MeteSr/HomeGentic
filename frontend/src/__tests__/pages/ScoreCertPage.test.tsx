@@ -13,7 +13,7 @@
  *     blurred with an upgrade prompt for a non-Pro tier
  */
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import ScoreCertPage from "@/pages/ScoreCertPage";
