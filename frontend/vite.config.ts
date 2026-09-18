@@ -125,7 +125,7 @@ export default defineConfig(({ mode }) => {
         reportsDirectory: "./coverage",
         thresholds: {
           lines:      66,
-          functions:  57,
+          functions:  58,
           branches:   56,
           statements: 64,
         },
