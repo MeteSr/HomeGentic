@@ -88,7 +88,7 @@ deploy_canister() {
   local _t0
   _t0=$(date +%s)
   echo -n "  $name... "
-  if icp deploy "$name" "$@" -e "$ENV" >"$LOG_DIR/$name.log" 2>&1; then
+  if icp deploy "$name" "$@" --yes -e "$ENV" >"$LOG_DIR/$name.log" 2>&1; then
     _DEPLOY_TIMES[$name]=$(( $(date +%s) - _t0 ))
     echo "✓ (${_DEPLOY_TIMES[$name]}s)"
   else
