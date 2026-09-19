@@ -601,6 +601,14 @@ export function DashboardV3() {
                       }
                       if (activeKey === "people") { navigate("/people"); return; }
                       if (activeKey === "billing" && isPro) { navigate("/settings"); return; }
+                      if (activeKey === "market") { navigate("/resale-ready"); return; }
+                      if (activeKey === "sensors") {
+                        if (sensorDevices.length === 0) { navigate("/sensors"); return; }
+                        openFlow("quote");
+                        return;
+                      }
+                      if (activeKey === "spend") { goPanel("docs"); return; }
+                      if (activeKey === "activity") { feed.openFeed(); return; }
                       const f = activePanel.ctaFlow ?? CTA_FLOW[activeKey!];
                       if (f) openFlow(f);
                     }}
