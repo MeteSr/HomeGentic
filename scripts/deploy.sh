@@ -491,8 +491,23 @@ print(sum(1 for v in d.values() if isinstance(v,dict) and v.get(os.environ['ENV'
       # without an interactive prompt, which CI can never answer. Without
       # it, ANY breaking interface change blocks every future upgrade
       # deploy here, not just the first one after it merges.
+      #
+      # ONE-TIME RECOVERY (remove after this deploys clean): testnet's
+      # property canister hasn't upgraded successfully since 2026-04-28 —
+      # its live stable-memory layout has drifted too far from HEAD for
+      # Motoko's enhanced-orthogonal-persistence runtime to reinterpret in
+      # one step ("RTS error: Memory-incompatible program upgrade", which
+      # --yes cannot bypass — that flag only covers the Candid interface
+      # check). --mode reinstall discards its current state and starts
+      # fresh; testnet data there was confirmed disposable before adding
+      # this. Revert this canister to --mode auto once confirmed installed
+      # so a future routine deploy can never reinstall it again.
+      INSTALL_MODE="auto"
+      if [ "$canister" = "property" ]; then
+        INSTALL_MODE="reinstall"
+      fi
       if icp canister install "$canister" \
-          --mode auto \
+          --mode "$INSTALL_MODE" \
           --yes \
           -e "$ENV" \
           >"$LOG_DIR/$canister.install.log" 2>&1; then
