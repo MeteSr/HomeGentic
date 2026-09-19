@@ -318,6 +318,7 @@ if [ "$ENV" = "local" ]; then
     if [ "$canister" = "auth" ]; then
       if icp deploy auth \
           --args "(principal \"$DEPLOY_PRINCIPAL\")" \
+          --yes \
           -e "$ENV" \
           >"$LOG_DIR/auth.deploy.log" 2>&1; then
         _DEPLOY_TIMES[$canister]=$(( $(date +%s) - _T0 ))
@@ -331,7 +332,7 @@ if [ "$ENV" = "local" ]; then
         exit 1
       fi
     else
-      if icp deploy "$canister" -e "$ENV" >"$LOG_DIR/$canister.deploy.log" 2>&1; then
+      if icp deploy "$canister" --yes -e "$ENV" >"$LOG_DIR/$canister.deploy.log" 2>&1; then
         _DEPLOY_TIMES[$canister]=$(( $(date +%s) - _T0 ))
         echo "✓ (${_DEPLOY_TIMES[$canister]}s)"
       else
@@ -476,6 +477,7 @@ print(sum(1 for v in d.values() if isinstance(v,dict) and v.get(os.environ['ENV'
       if icp canister install auth \
           --args "(principal \"$DEPLOY_PRINCIPAL\")" \
           --mode auto \
+          --yes \
           -e "$ENV" \
           >"$LOG_DIR/auth.install.log" 2>&1; then
         echo "✓"
@@ -484,8 +486,14 @@ print(sum(1 for v in d.values() if isinstance(v,dict) and v.get(os.environ['ENV'
         INSTALL_FAILED+=("$canister")
       fi
     else
+      # --yes accepts a reviewed, backward-incompatible Candid interface
+      # change (e.g. an intentional signature change landed via PR + CI)
+      # without an interactive prompt, which CI can never answer. Without
+      # it, ANY breaking interface change blocks every future upgrade
+      # deploy here, not just the first one after it merges.
       if icp canister install "$canister" \
           --mode auto \
+          --yes \
           -e "$ENV" \
           >"$LOG_DIR/$canister.install.log" 2>&1; then
         echo "✓"
@@ -954,7 +962,7 @@ echo "============================================"
 echo "  Deploying Frontend Canister"
 echo "============================================"
 echo "▶ icp deploy frontend -e $ENV..."
-if icp deploy frontend -e "$ENV"; then
+if icp deploy frontend --yes -e "$ENV"; then
   FRONTEND_ID=$(icp canister status frontend -e "$ENV" --id-only 2>/dev/null || echo "unknown")
   echo "  ✓ Frontend canister deployed ($FRONTEND_ID)"
   # Persist frontend ID so future deploys recognise it as an existing canister.
