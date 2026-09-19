@@ -13,7 +13,7 @@
  * CANISTER.10 identityFromPem    — same PEM always produces the same principal
  *
  * CANISTER.1–7: guard clauses throw before any network call — no mock needed.
- * CANISTER.8–10: pure Node crypto + @dfinity/identity, no IC connection needed.
+ * CANISTER.8–10: pure Node crypto + @icp-sdk/core/identity, no IC connection needed.
  */
 
 import { describe, it, expect, afterEach } from "@jest/globals";

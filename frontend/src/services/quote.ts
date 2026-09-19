@@ -309,7 +309,7 @@ function createQuoteService() {
     timelineDays:           number,
     homeownerPrincipalText: string,
   ): Promise<{ id: string; requestId: string; timelineDays: number; submittedAt: number }> {
-    const { Principal } = await import("@dfinity/principal");
+    const { Principal } = await import("@icp-sdk/core/principal");
     const pubKeyBytes = await this.getIbePublicKey();
     const homeownerBytes = Principal.fromText(homeownerPrincipalText).toUint8Array();
     const ciphertextBytes = await ibeEncryptAmount(pubKeyBytes, homeownerBytes, amountCents);
@@ -343,7 +343,7 @@ function createQuoteService() {
     myPrincipalText: string,
   ): Promise<SealedRevealedBid[]> {
     const { TransportSecretKey } = await import("@dfinity/vetkeys");
-    const { Principal }          = await import("@dfinity/principal");
+    const { Principal }          = await import("@icp-sdk/core/principal");
 
     const tsk = TransportSecretKey.random();
     const tpk = tsk.publicKeyBytes();

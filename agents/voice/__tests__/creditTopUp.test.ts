@@ -58,7 +58,7 @@ describe("CREDIT.2 — consumeAgentCredit helper", () => {
     expect(canisterSrc).toMatch(/export async function consumeAgentCredit/);
   });
 
-  it("calls the payment canister consumeAgentCredit method via @dfinity/agent", () => {
+  it("calls the payment canister consumeAgentCredit method via @icp-sdk/core/agent", () => {
     expect(canisterSrc).toMatch(/\.consumeAgentCredit\(Principal\.fromText/);
   });
 });
@@ -68,7 +68,7 @@ describe("CREDIT.3 — grantAgentCredits helper", () => {
     expect(canisterSrc).toMatch(/export async function grantAgentCredits/);
   });
 
-  it("calls the payment canister adminGrantAgentCredits method via @dfinity/agent", () => {
+  it("calls the payment canister adminGrantAgentCredits method via @icp-sdk/core/agent", () => {
     expect(canisterSrc).toMatch(/adminGrantAgentCredits/);
   });
 });

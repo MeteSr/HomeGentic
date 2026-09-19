@@ -15,7 +15,7 @@ export const VALID_TIERS = new Set([
 ]);
 
 // ── Identity ──────────────────────────────────────────────────────────────────
-// Parse DFX_IDENTITY_PEM (Ed25519 SEC1 or PKCS8) into an @dfinity/identity.
+// Parse DFX_IDENTITY_PEM (Ed25519 SEC1 or PKCS8) into an @icp-sdk/core/identity.
 // The principal of this identity must be registered as admin in the payment
 // canister (done during deploy bootstrap in scripts/deploy.sh).
 export function identityFromPem(pem: string): Ed25519KeyIdentity {
