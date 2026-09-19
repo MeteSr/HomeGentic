@@ -40,6 +40,7 @@ export const PANEL_ORDER: PanelKey[] = [
 export const CTA_FLOW: Partial<Record<PanelKey, FlowKey>> = {
   jobs: "bids", docs: "receipt", add: "room", rooms: "room",
   billing: "upgrade", maint: "recurring", pros: "chase", listing: "listing",
+  score: "logJob", property: "logJob", safety: "logJob",
 };
 
 function money(cents: number): string {
