@@ -1,22 +1,14 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { propertyService, type Property, type TransferRecord, type PropertyManager, type ManagerRole } from "@/services/property";
-import { V2_COLORS, V2_FONTS } from "@/theme";
 import { UpgradeGate } from "@/components/UpgradeGate";
 import { useSubscription } from "@/hooks/useSubscription";
 import toast from "react-hot-toast";
+import { Panel, hudInputStyle } from "./hud";
+
+const MONO = "'JetBrains Mono',monospace";
 
 export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: { property: Property; currentPrincipal: string; onVerifyOwnership?: () => void }) {
-  const TC = {
-    rule:     V2_COLORS.border,
-    inkLight: V2_COLORS.muted,
-    ink:      V2_COLORS.ink,
-    rust:     V2_COLORS.blue,
-    sage:     V2_COLORS.blue,
-    paper:    V2_COLORS.paper,
-    serif:    V2_FONTS.display,
-    mono:     V2_FONTS.body,
-  };
   const navigate = useNavigate();
   const { userTier } = useSubscription();
   const canShareAccess = userTier === "Pro" || userTier === "Premium";
@@ -62,14 +54,14 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
 
   const verificationNext =
     property.verificationLevel === "Unverified"
-      ? { label: "Verify Ownership", onClick: onVerifyOwnership ?? (() => navigate(`/properties/${property.id}/verify`)), color: TC.rust }
+      ? { label: "Verify Ownership", onClick: onVerifyOwnership ?? (() => navigate(`/properties/${property.id}/verify`)), color: "var(--hg-blue)" }
       : property.verificationLevel === "Basic"
-      ? { label: "Upgrade to Premium", onClick: () => navigate("/pricing"), color: TC.ink }
+      ? { label: "Upgrade to Premium", onClick: () => navigate("/pricing"), color: "var(--hg-ink)" }
       : null;
 
   const section = (title: string) => (
-    <div style={{ padding: "0.875rem 1.25rem", borderBottom: `1px solid ${TC.rule}`, background: TC.paper }}>
-      <p style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: TC.inkLight }}>{title}</p>
+    <div style={{ padding: "0.875rem 1.25rem", borderBottom: "1px solid var(--hg-line)", background: "var(--hg-fill)" }}>
+      <p style={{ fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--hg-muted)" }}>{title}</p>
     </div>
   );
 
@@ -77,7 +69,7 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
 
       {/* Property Details */}
-      <div style={{ border: `1px solid ${TC.rule}` }}>
+      <Panel style={{ overflow: "hidden" }}>
         {section("Property Details")}
         {[
           { label: "Address",     value: property.address },
@@ -88,23 +80,23 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
           { label: "Year Built",  value: String(property.yearBuilt) },
           { label: "Square Feet", value: `${Number(property.squareFeet).toLocaleString()} sq ft` },
         ].map((row, i, arr) => (
-          <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.75rem 1.25rem", borderBottom: i < arr.length - 1 ? `1px solid ${TC.rule}` : "none", background: "#fff" }}>
-            <span style={{ fontFamily: TC.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: TC.inkLight }}>{row.label}</span>
-            <span style={{ fontSize: "0.875rem", fontWeight: 500, color: TC.ink }}>{row.value}</span>
+          <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.75rem 1.25rem", borderBottom: i < arr.length - 1 ? "1px solid var(--hg-line)" : "none" }}>
+            <span style={{ fontFamily: MONO, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--hg-muted)" }}>{row.label}</span>
+            <span style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--hg-ink-2)" }}>{row.value}</span>
           </div>
         ))}
-      </div>
+      </Panel>
 
       {/* Verification & Trust */}
-      <div style={{ border: `1px solid ${TC.rule}` }}>
+      <Panel style={{ overflow: "hidden" }}>
         {section("Verification & Trust")}
-        <div style={{ padding: "1.25rem", background: "#fff", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
+        <div style={{ padding: "1.25rem", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontFamily: TC.mono, fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "0.25rem",
-              color: property.verificationLevel === "Premium" ? TC.sage : property.verificationLevel === "Basic" ? V2_COLORS.ink : property.verificationLevel === "PendingReview" ? V2_COLORS.muted : TC.inkLight }}>
+            <p style={{ fontFamily: MONO, fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "0.25rem",
+              color: property.verificationLevel === "Premium" ? "var(--hg-good)" : property.verificationLevel === "Basic" ? "var(--hg-ink)" : property.verificationLevel === "PendingReview" ? "var(--hg-yel-ink)" : "var(--hg-muted)" }}>
               {property.verificationLevel}
             </p>
-            <p style={{ fontSize: "0.8rem", color: TC.inkLight, fontWeight: 300, lineHeight: 1.5 }}>
+            <p style={{ fontSize: "0.8rem", color: "var(--hg-muted)", fontWeight: 300, lineHeight: 1.5 }}>
               {property.verificationLevel === "Premium"
                 ? "Fully verified — buyers and lenders trust this record."
                 : property.verificationLevel === "Basic"
@@ -117,56 +109,56 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
           {verificationNext && (
             <button
               onClick={verificationNext.onClick}
-              style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", background: verificationNext.color, color: "#fff", border: "none", cursor: "pointer", flexShrink: 0 }}
+              style={{ fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", borderRadius: 6, background: verificationNext.color, color: "#FCFCFD", border: "none", cursor: "pointer", flexShrink: 0 }}
             >
               {verificationNext.label} →
             </button>
           )}
         </div>
-      </div>
+      </Panel>
 
       {/* On-Chain Identity */}
-      <div style={{ border: `1px solid ${TC.rule}` }}>
+      <Panel style={{ overflow: "hidden" }}>
         {section("On-Chain Identity")}
-        <div style={{ padding: "1.25rem", background: "#fff", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+        <div style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
           {[
             { label: "Owner Principal", value: property.owner },
             { label: "Property ID",     value: String(property.id) },
           ].map((row) => (
             <div key={row.label} style={{ display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
-              <span style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: TC.inkLight, width: "8rem", flexShrink: 0, paddingTop: "0.1rem" }}>{row.label}</span>
-              <span style={{ fontFamily: TC.mono, fontSize: "0.65rem", color: TC.ink, wordBreak: "break-all" }}>{row.value}</span>
+              <span style={{ fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--hg-muted)", width: "8rem", flexShrink: 0, paddingTop: "0.1rem" }}>{row.label}</span>
+              <span style={{ fontFamily: MONO, fontSize: "0.65rem", color: "var(--hg-ink-2)", wordBreak: "break-all" }}>{row.value}</span>
             </div>
           ))}
           <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-            <span style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: TC.inkLight, width: "8rem", flexShrink: 0 }}>ICP Dashboard</span>
+            <span style={{ fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--hg-muted)", width: "8rem", flexShrink: 0 }}>ICP Dashboard</span>
             <a
               href={`https://dashboard.internetcomputer.org/account/${property.owner}`}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ fontFamily: TC.mono, fontSize: "0.65rem", color: TC.sage, textDecoration: "none", borderBottom: `1px solid ${TC.sage}` }}
+              style={{ fontFamily: MONO, fontSize: "0.65rem", color: "var(--hg-good)", textDecoration: "none", borderBottom: "1px solid var(--hg-good)" }}
             >
               View on ICP Explorer ↗
             </a>
           </div>
         </div>
-      </div>
+      </Panel>
 
       {/* Transfer Ownership */}
-      <div style={{ border: `1px solid ${TC.rust}` }}>
+      <Panel style={{ border: "1px solid var(--hg-blue-edge)", overflow: "hidden" }}>
         {section("Transfer Ownership")}
-        <div style={{ padding: "1.25rem", background: "#fff", display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+        <div style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.875rem" }}>
 
           {transferStep === "idle" && (
             <>
-              <p style={{ fontSize: "0.8rem", color: TC.inkLight, fontWeight: 300, lineHeight: 1.6 }}>
+              <p style={{ fontSize: "0.8rem", color: "var(--hg-muted)", fontWeight: 300, lineHeight: 1.6 }}>
                 Generate a secure link and share it with the buyer. They'll use it to claim this property — all history, photos, and maintenance records transfer to them automatically.
               </p>
-              <p style={{ fontFamily: TC.mono, fontSize: "0.65rem", color: TC.inkLight, lineHeight: 1.5 }}>
+              <p style={{ fontFamily: MONO, fontSize: "0.65rem", color: "var(--hg-muted)", lineHeight: 1.5 }}>
                 The link expires in <strong>90 days</strong>. Ownership only transfers when the buyer claims it — generating the link doesn't move anything yet.
               </p>
               {transferError && (
-                <p style={{ fontFamily: TC.mono, fontSize: "0.65rem", color: TC.rust }}>{transferError}</p>
+                <p style={{ fontFamily: MONO, fontSize: "0.65rem", color: "var(--hg-bad)" }}>{transferError}</p>
               )}
               <button
                 onClick={async () => {
@@ -182,7 +174,7 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
                     setTransferStep("idle");
                   }
                 }}
-                style={{ alignSelf: "flex-start", fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", background: TC.rust, color: "#fff", border: "none", cursor: "pointer" }}
+                style={{ alignSelf: "flex-start", fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", borderRadius: 6, background: "var(--hg-blue)", color: "#FCFCFD", border: "none", cursor: "pointer" }}
               >
                 Generate Transfer Link →
               </button>
@@ -190,19 +182,19 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
           )}
 
           {transferStep === "loading" && (
-            <p style={{ fontFamily: TC.mono, fontSize: "0.7rem", color: TC.inkLight }}>Generating link…</p>
+            <p style={{ fontFamily: MONO, fontSize: "0.7rem", color: "var(--hg-muted)" }}>Generating link…</p>
           )}
 
           {transferStep === "done" && claimUrl && (
             <>
-              <p style={{ fontFamily: TC.mono, fontSize: "0.65rem", color: TC.inkLight, lineHeight: 1.5 }}>
+              <p style={{ fontFamily: MONO, fontSize: "0.65rem", color: "var(--hg-muted)", lineHeight: 1.5 }}>
                 Share this link with the buyer. Ownership transfers the moment they log in and accept.
               </p>
               <div style={{ display: "flex", gap: "0.5rem", alignItems: "stretch" }}>
                 <div style={{
-                  flex: 1, padding: "0.6rem 0.75rem",
-                  border: `1px solid ${TC.rule}`, background: V2_COLORS.lblue,
-                  fontFamily: TC.mono, fontSize: "0.6rem", color: TC.ink,
+                  flex: 1, padding: "0.6rem 0.75rem", borderRadius: 6,
+                  border: "1px solid var(--hg-line-2)", background: "var(--hg-blue-wash)",
+                  fontFamily: MONO, fontSize: "0.6rem", color: "var(--hg-ink-2)",
                   wordBreak: "break-all", lineHeight: 1.5,
                 }}>
                   {claimUrl}
@@ -215,16 +207,16 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
                     });
                   }}
                   style={{
-                    fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase",
-                    padding: "0 0.875rem", background: copied ? TC.sage : TC.ink,
-                    color: "#fff", border: "none", cursor: "pointer", flexShrink: 0, transition: "background 0.15s",
+                    fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase",
+                    padding: "0 0.875rem", borderRadius: 6, background: copied ? "var(--hg-good)" : "var(--hg-ink)",
+                    color: "#FCFCFD", border: "none", cursor: "pointer", flexShrink: 0, transition: "background 0.15s",
                   }}
                 >
                   {copied ? "Copied!" : "Copy"}
                 </button>
               </div>
               {transferExpiry && (
-                <p style={{ fontFamily: TC.mono, fontSize: "0.6rem", color: TC.inkLight }}>
+                <p style={{ fontFamily: MONO, fontSize: "0.6rem", color: "var(--hg-muted)" }}>
                   Expires {transferExpiry.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}
                 </p>
               )}
@@ -244,7 +236,7 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
                     setCancelLoading(false);
                   }
                 }}
-                style={{ alignSelf: "flex-start", fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.375rem 0.75rem", background: "none", border: `1px solid ${TC.rule}`, color: TC.inkLight, cursor: "pointer" }}
+                style={{ alignSelf: "flex-start", fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.375rem 0.75rem", borderRadius: 6, background: "none", border: "1px solid var(--hg-line-2)", color: "var(--hg-muted)", cursor: "pointer" }}
               >
                 {cancelLoading ? "Cancelling…" : "Cancel Transfer"}
               </button>
@@ -252,60 +244,60 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
           )}
 
         </div>
-      </div>
+      </Panel>
 
       {/* Ownership History */}
       {historyRecords.length > 0 && (
-        <div style={{ border: `1px solid ${TC.rule}` }}>
+        <Panel style={{ overflow: "hidden" }}>
           {section("Ownership History")}
-          <div style={{ background: "#fff" }}>
+          <div>
             {historyRecords.map((r, i) => (
               <div
                 key={i}
-                style={{ padding: "0.875rem 1.25rem", borderBottom: i < historyRecords.length - 1 ? `1px solid ${TC.rule}` : "none", display: "flex", flexDirection: "column", gap: "0.25rem" }}
+                style={{ padding: "0.875rem 1.25rem", borderBottom: i < historyRecords.length - 1 ? "1px solid var(--hg-line)" : "none", display: "flex", flexDirection: "column", gap: "0.25rem" }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: TC.inkLight }}>
+                  <span style={{ fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--hg-muted)" }}>
                     {new Date(r.timestamp).toLocaleDateString()}
                   </span>
                   {r.txHash && (
-                    <span style={{ fontFamily: TC.mono, fontSize: "0.55rem", color: TC.inkLight, opacity: 0.7 }}>{r.txHash.slice(0, 16)}…</span>
+                    <span style={{ fontFamily: MONO, fontSize: "0.55rem", color: "var(--hg-muted)", opacity: 0.7 }}>{r.txHash.slice(0, 16)}…</span>
                   )}
                 </div>
-                <div style={{ fontFamily: TC.mono, fontSize: "0.6rem", color: TC.ink }}>
-                  <span style={{ color: TC.inkLight }}>From </span>{r.from.slice(0, 20)}…
-                  <span style={{ color: TC.inkLight }}> → </span>{r.to.slice(0, 20)}…
+                <div style={{ fontFamily: MONO, fontSize: "0.6rem", color: "var(--hg-ink-2)" }}>
+                  <span style={{ color: "var(--hg-muted)" }}>From </span>{r.from.slice(0, 20)}…
+                  <span style={{ color: "var(--hg-muted)" }}> → </span>{r.to.slice(0, 20)}…
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        </Panel>
       )}
 
       {/* Access & Managers */}
-      <div style={{ border: `1px solid ${TC.rule}` }}>
+      <Panel style={{ overflow: "hidden" }}>
         {section("Access & Managers")}
-        <div style={{ padding: "1.25rem", background: "#fff", display: "flex", flexDirection: "column", gap: "1rem" }}>
+        <div style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
 
-          <p style={{ fontSize: "0.8rem", color: TC.inkLight, fontWeight: 300, lineHeight: 1.6, margin: 0 }}>
+          <p style={{ fontSize: "0.8rem", color: "var(--hg-muted)", fontWeight: 300, lineHeight: 1.6, margin: 0 }}>
             Grant a family member or property manager access to this property. <strong>Viewer</strong> can see all records. <strong>Manager</strong> can also add jobs, photos, and maintenance entries.
           </p>
 
           {managers.length > 0 && (
-            <div style={{ border: `1px solid ${TC.rule}` }}>
+            <div style={{ border: "1px solid var(--hg-line)", borderRadius: 10, overflow: "hidden" }}>
               {managers.map((m, i) => (
                 <div
                   key={m.principal}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.75rem 1rem", borderBottom: i < managers.length - 1 ? `1px solid ${TC.rule}` : "none", gap: "0.75rem" }}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.75rem 1rem", borderBottom: i < managers.length - 1 ? "1px solid var(--hg-line)" : "none", gap: "0.75rem" }}
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontFamily: TC.mono, fontSize: "0.7rem", fontWeight: 600, color: TC.ink, margin: 0, marginBottom: "0.15rem" }}>{m.displayName}</p>
-                    <p style={{ fontFamily: TC.mono, fontSize: "0.55rem", color: TC.inkLight, margin: 0, wordBreak: "break-all" }}>{m.principal}</p>
+                    <p style={{ fontFamily: MONO, fontSize: "0.7rem", fontWeight: 600, color: "var(--hg-ink-2)", margin: 0, marginBottom: "0.15rem" }}>{m.displayName}</p>
+                    <p style={{ fontFamily: MONO, fontSize: "0.55rem", color: "var(--hg-muted)", margin: 0, wordBreak: "break-all" }}>{m.principal}</p>
                   </div>
                   <span style={{
-                    fontFamily: TC.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase",
-                    padding: "0.2rem 0.5rem", border: `1px solid ${m.role === "Manager" ? TC.ink : TC.rule}`,
-                    color: m.role === "Manager" ? TC.ink : TC.inkLight, flexShrink: 0,
+                    fontFamily: MONO, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", borderRadius: 100,
+                    padding: "0.2rem 0.5rem", border: `1px solid ${m.role === "Manager" ? "var(--hg-line-2)" : "var(--hg-line)"}`,
+                    color: m.role === "Manager" ? "var(--hg-ink-2)" : "var(--hg-muted)", flexShrink: 0,
                   }}>
                     {m.role}
                   </span>
@@ -322,7 +314,7 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
                         setRemovingManager(null);
                       }
                     }}
-                    style={{ fontFamily: TC.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.2rem 0.5rem", background: "none", border: `1px solid ${TC.rule}`, color: TC.inkLight, cursor: "pointer", flexShrink: 0 }}
+                    style={{ fontFamily: MONO, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.2rem 0.5rem", borderRadius: 6, background: "none", border: "1px solid var(--hg-line-2)", color: "var(--hg-muted)", cursor: "pointer", flexShrink: 0 }}
                   >
                     {removingManager === m.principal ? "Removing…" : "Remove"}
                   </button>
@@ -336,6 +328,7 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
               feature="Shared property access"
               description="Invite family, a caretaker, or a co-owner to help manage this property — with role-based permissions and a full activity log."
               tier="Pro"
+              style={{ background: "var(--hg-fill)", border: "1.5px solid var(--hg-line-2)", boxShadow: "none" }}
             />
           )}
 
@@ -343,7 +336,7 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
               <div style={{ display: "flex", gap: "0.75rem", alignItems: "flex-end" }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: TC.inkLight, marginBottom: "0.35rem" }}>
+                  <label style={{ display: "block", fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--hg-muted)", marginBottom: "0.35rem" }}>
                     Display Name
                   </label>
                   <input
@@ -351,17 +344,17 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
                     value={inviteDisplayName}
                     onChange={(e) => setInviteDisplayName(e.target.value)}
                     placeholder="e.g. Sarah (daughter)"
-                    style={{ width: "100%", fontFamily: TC.mono, fontSize: "0.7rem", padding: "0.5rem 0.6rem", border: `1px solid ${TC.rule}`, background: "#fff", color: TC.ink, outline: "none", boxSizing: "border-box" }}
+                    style={{ ...hudInputStyle, width: "100%", fontSize: "0.7rem", boxSizing: "border-box" }}
                   />
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
-                  <label style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: TC.inkLight }}>Role</label>
+                  <label style={{ fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--hg-muted)" }}>Role</label>
                   <div style={{ display: "flex", gap: "0.5rem" }}>
                     {(["Viewer", "Manager"] as const).map((r) => (
                       <button
                         key={r}
                         onClick={() => setInviteRole(r)}
-                        style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.4rem 0.75rem", background: inviteRole === r ? TC.ink : "none", color: inviteRole === r ? "#fff" : TC.inkLight, border: `1px solid ${inviteRole === r ? TC.ink : TC.rule}`, cursor: "pointer" }}
+                        style={{ fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.4rem 0.75rem", borderRadius: 6, background: inviteRole === r ? "var(--hg-blue)" : "none", color: inviteRole === r ? "#FCFCFD" : "var(--hg-muted)", border: `1px solid ${inviteRole === r ? "var(--hg-blue)" : "var(--hg-line-2)"}`, cursor: "pointer" }}
                       >
                         {r}
                       </button>
@@ -370,7 +363,7 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
                 </div>
               </div>
               {inviteError && (
-                <p style={{ fontFamily: TC.mono, fontSize: "0.65rem", color: TC.rust, margin: 0 }}>{inviteError}</p>
+                <p style={{ fontFamily: MONO, fontSize: "0.65rem", color: "var(--hg-bad)", margin: 0 }}>{inviteError}</p>
               )}
               <button
                 disabled={!inviteDisplayName.trim()}
@@ -387,7 +380,7 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
                     setInviteStep("idle");
                   }
                 }}
-                style={{ alignSelf: "flex-start", fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", background: inviteDisplayName.trim() ? TC.ink : TC.rule, color: "#fff", border: "none", cursor: inviteDisplayName.trim() ? "pointer" : "default" }}
+                style={{ alignSelf: "flex-start", fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.5rem 1rem", borderRadius: 6, background: inviteDisplayName.trim() ? "var(--hg-blue)" : "var(--hg-line-2)", color: "#FCFCFD", border: "none", cursor: inviteDisplayName.trim() ? "pointer" : "default" }}
               >
                 Generate Invite Link →
               </button>
@@ -395,16 +388,16 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
           )}
 
           {canShareAccess && inviteStep === "loading" && (
-            <p style={{ fontFamily: TC.mono, fontSize: "0.7rem", color: TC.inkLight, margin: 0 }}>Generating invite…</p>
+            <p style={{ fontFamily: MONO, fontSize: "0.7rem", color: "var(--hg-muted)", margin: 0 }}>Generating invite…</p>
           )}
 
           {canShareAccess && inviteStep === "done" && inviteUrl && (
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-              <p style={{ fontFamily: TC.mono, fontSize: "0.65rem", color: TC.inkLight, margin: 0, lineHeight: 1.5 }}>
+              <p style={{ fontFamily: MONO, fontSize: "0.65rem", color: "var(--hg-muted)", margin: 0, lineHeight: 1.5 }}>
                 Share this link with <strong>{inviteDisplayName}</strong>. They'll log in and accept the <strong>{inviteRole}</strong> role. The link expires in 90 days.
               </p>
               <div style={{ display: "flex", gap: "0.5rem", alignItems: "stretch" }}>
-                <div style={{ flex: 1, padding: "0.6rem 0.75rem", border: `1px solid ${TC.rule}`, background: V2_COLORS.lblue, fontFamily: TC.mono, fontSize: "0.6rem", color: TC.ink, wordBreak: "break-all", lineHeight: 1.5 }}>
+                <div style={{ flex: 1, padding: "0.6rem 0.75rem", borderRadius: 6, border: "1px solid var(--hg-line-2)", background: "var(--hg-blue-wash)", fontFamily: MONO, fontSize: "0.6rem", color: "var(--hg-ink-2)", wordBreak: "break-all", lineHeight: 1.5 }}>
                   {inviteUrl}
                 </div>
                 <button
@@ -414,13 +407,13 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
                       setTimeout(() => setInviteCopied(false), 2000);
                     });
                   }}
-                  style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0 0.875rem", background: inviteCopied ? TC.sage : TC.ink, color: "#fff", border: "none", cursor: "pointer", flexShrink: 0, transition: "background 0.15s" }}
+                  style={{ fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0 0.875rem", borderRadius: 6, background: inviteCopied ? "var(--hg-good)" : "var(--hg-ink)", color: "#FCFCFD", border: "none", cursor: "pointer", flexShrink: 0, transition: "background 0.15s" }}
                 >
                   {inviteCopied ? "Copied!" : "Copy"}
                 </button>
               </div>
               {inviteExpiry && (
-                <p style={{ fontFamily: TC.mono, fontSize: "0.6rem", color: TC.inkLight, margin: 0 }}>
+                <p style={{ fontFamily: MONO, fontSize: "0.6rem", color: "var(--hg-muted)", margin: 0 }}>
                   Expires {inviteExpiry.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}
                 </p>
               )}
@@ -432,7 +425,7 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
                   setInviteDisplayName("");
                   setInviteRole("Viewer");
                 }}
-                style={{ alignSelf: "flex-start", fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.375rem 0.75rem", background: "none", border: `1px solid ${TC.rule}`, color: TC.inkLight, cursor: "pointer" }}
+                style={{ alignSelf: "flex-start", fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.375rem 0.75rem", borderRadius: 6, background: "none", border: "1px solid var(--hg-line-2)", color: "var(--hg-muted)", cursor: "pointer" }}
               >
                 Invite Another →
               </button>
@@ -440,7 +433,7 @@ export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: {
           )}
 
         </div>
-      </div>
+      </Panel>
 
     </div>
   );
