@@ -271,8 +271,18 @@ export default function PropertyDetailPage() {
 
         {/* ── Page header ────────────────────────────────────────────────────── */}
         <div style={{ marginBottom: "1.5rem" }}>
-          <div style={{ fontFamily: MONO, fontSize: 10, fontWeight: 700, color: "var(--hg-muted)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>
-            PROPERTY
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: MONO, fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>
+            <button
+              onClick={() => navigate("/dashboard")}
+              style={{ display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--hg-muted)", font: "inherit" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--hg-blue-ink)"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--hg-muted)"; }}
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+              Dashboard
+            </button>
+            <span style={{ color: "var(--hg-line-2)" }}>/</span>
+            <span style={{ color: "var(--hg-muted)" }}>PROPERTY</span>
           </div>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
             <div>
