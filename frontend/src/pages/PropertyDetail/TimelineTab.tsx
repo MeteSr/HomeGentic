@@ -1,12 +1,14 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Calendar, Star } from "lucide-react";
-import { Badge } from "@/components/Badge";
 import { photoService, type Photo } from "@/services/photo";
 import { type Property } from "@/services/property";
 import { type Job } from "@/services/job";
-import { V2_COLORS, V2_FONTS } from "@/theme";
 import toast from "react-hot-toast";
+import { Panel, Pill } from "./hud";
+
+const MONO = "'JetBrains Mono',monospace";
+const SERIF = "'Bricolage Grotesque',system-ui,sans-serif";
 
 // ─── SigPill ─────────────────────────────────────────────────────────────────
 
@@ -14,11 +16,11 @@ export function SigPill({ signed, label }: { signed: boolean; label: string }) {
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: "0.25rem",
-      fontFamily: V2_FONTS.body, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase",
+      fontFamily: MONO, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase",
       padding: "0.15rem 0.625rem", borderRadius: 100,
-      border: `1px solid ${signed ? V2_COLORS.cobalTint : V2_COLORS.border}`,
-      color: signed ? V2_COLORS.blue : V2_COLORS.muted,
-      background: signed ? V2_COLORS.lblue : V2_COLORS.paper,
+      border: `1px solid ${signed ? "var(--hg-blue-edge)" : "var(--hg-line-2)"}`,
+      color: signed ? "var(--hg-blue-ink)" : "var(--hg-muted)",
+      background: signed ? "var(--hg-blue-wash)" : "transparent",
     }}>
       {signed ? "✓" : "○"} {label}
     </span>
@@ -60,17 +62,17 @@ export function PhotoStrip({ photos, jobId, onUpload }: { photos: Photo[]; jobId
         {photos.slice(0, 5).map((p, i) => (
           <img key={p.id} src={p.url} alt={p.description} title={p.description}
             onClick={() => openLightbox(i)}
-            style={{ width: 48, height: 48, objectFit: "cover", border: `1px solid ${V2_COLORS.border}`, cursor: "pointer" }}
+            style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 6, border: "1px solid var(--hg-line-2)", cursor: "pointer" }}
           />
         ))}
         {photos.length > 5 && (
-          <button onClick={() => openLightbox(5)} style={{ fontFamily: V2_FONTS.body, fontSize: "0.6rem", color: V2_COLORS.muted, background: "none", border: `1px solid ${V2_COLORS.border}`, padding: "0.2rem 0.5rem", cursor: "pointer" }}>
+          <button onClick={() => openLightbox(5)} style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: "0.6rem", color: "var(--hg-muted)", background: "none", border: "1px solid var(--hg-line-2)", borderRadius: 6, padding: "0.2rem 0.5rem", cursor: "pointer" }}>
             +{photos.length - 5} more
           </button>
         )}
         <button
           onClick={() => inputRef.current?.click()}
-          style={{ padding: "0.2rem 0.6rem", fontFamily: V2_FONTS.body, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: V2_COLORS.muted, background: "none", border: `1px solid ${V2_COLORS.border}`, cursor: "pointer" }}
+          style={{ padding: "0.2rem 0.6rem", fontFamily: MONO, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--hg-muted)", background: "none", border: "1px solid var(--hg-line-2)", borderRadius: 6, cursor: "pointer" }}
         >
           + Add Photo
         </button>
@@ -78,17 +80,17 @@ export function PhotoStrip({ photos, jobId, onUpload }: { photos: Photo[]; jobId
       </div>
 
       {activePh && (
-        <div onClick={closeLightbox} style={{ position: "fixed", inset: 0, background: "rgba(14,14,12,0.92)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: "2rem" }}>
-          <button onClick={prev} disabled={lightboxIdx === 0} style={{ position: "absolute", left: "1.5rem", top: "50%", transform: "translateY(-50%)", background: "none", border: `1px solid rgba(255,255,255,0.3)`, color: V2_COLORS.paper, padding: "0.75rem", cursor: lightboxIdx === 0 ? "default" : "pointer", opacity: lightboxIdx === 0 ? 0.3 : 1, fontSize: "1.25rem", lineHeight: 1 }}>‹</button>
+        <div onClick={closeLightbox} style={{ position: "fixed", inset: 0, background: "rgba(11,13,26,0.94)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: "2rem" }}>
+          <button onClick={prev} disabled={lightboxIdx === 0} style={{ position: "absolute", left: "1.5rem", top: "50%", transform: "translateY(-50%)", background: "none", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 8, color: "#FCFCFD", padding: "0.75rem", cursor: lightboxIdx === 0 ? "default" : "pointer", opacity: lightboxIdx === 0 ? 0.3 : 1, fontSize: "1.25rem", lineHeight: 1 }}>‹</button>
           <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", flexDirection: "column", alignItems: "center", maxWidth: "80vw", maxHeight: "80vh" }}>
-            <img src={activePh.url} alt={activePh.description} style={{ maxWidth: "100%", maxHeight: "70vh", objectFit: "contain", border: "1px solid rgba(255,255,255,0.2)" }} />
+            <img src={activePh.url} alt={activePh.description} style={{ maxWidth: "100%", maxHeight: "70vh", objectFit: "contain", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8 }} />
             <div style={{ marginTop: "0.75rem", display: "flex", alignItems: "center", gap: "1rem" }}>
-              <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.6rem", letterSpacing: "0.08em", color: "rgba(255,255,255,0.6)" }}>{activePh.description || "No description"}</span>
-              <span style={{ fontFamily: V2_FONTS.body, fontSize: "0.55rem", color: "rgba(255,255,255,0.4)" }}>{(lightboxIdx ?? 0) + 1} / {photos.length}</span>
+              <span style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: "0.6rem", letterSpacing: "0.08em", color: "rgba(255,255,255,0.6)" }}>{activePh.description || "No description"}</span>
+              <span style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: "0.55rem", color: "rgba(255,255,255,0.4)" }}>{(lightboxIdx ?? 0) + 1} / {photos.length}</span>
             </div>
           </div>
-          <button onClick={next} disabled={lightboxIdx === photos.length - 1} style={{ position: "absolute", right: "1.5rem", top: "50%", transform: "translateY(-50%)", background: "none", border: `1px solid rgba(255,255,255,0.3)`, color: V2_COLORS.paper, padding: "0.75rem", cursor: lightboxIdx === photos.length - 1 ? "default" : "pointer", opacity: lightboxIdx === photos.length - 1 ? 0.3 : 1, fontSize: "1.25rem", lineHeight: 1 }}>›</button>
-          <button onClick={closeLightbox} style={{ position: "absolute", top: "1.25rem", right: "1.25rem", background: "none", border: `1px solid rgba(255,255,255,0.3)`, color: V2_COLORS.paper, padding: "0.375rem 0.75rem", fontFamily: V2_FONTS.body, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer" }}>Close</button>
+          <button onClick={next} disabled={lightboxIdx === photos.length - 1} style={{ position: "absolute", right: "1.5rem", top: "50%", transform: "translateY(-50%)", background: "none", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 8, color: "#FCFCFD", padding: "0.75rem", cursor: lightboxIdx === photos.length - 1 ? "default" : "pointer", opacity: lightboxIdx === photos.length - 1 ? 0.3 : 1, fontSize: "1.25rem", lineHeight: 1 }}>›</button>
+          <button onClick={closeLightbox} style={{ position: "absolute", top: "1.25rem", right: "1.25rem", background: "none", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 8, color: "#FCFCFD", padding: "0.375rem 0.75rem", fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer" }}>Close</button>
         </div>
       )}
     </>
@@ -103,10 +105,10 @@ export function warrantyStatus(job: Job): { label: string; color: string; bg: st
   const expiryMs = jobDate + job.warrantyMonths * 30.44 * 24 * 60 * 60 * 1000;
   const now      = Date.now();
   const daysLeft = Math.round((expiryMs - now) / (24 * 60 * 60 * 1000));
-  if (daysLeft < 0)   return { label: "Warranty expired",          color: V2_COLORS.muted, bg: V2_COLORS.paper };
-  if (daysLeft <= 90) return { label: `Warranty: ${daysLeft}d left`, color: V2_COLORS.blue, bg: V2_COLORS.attentionBg };
+  if (daysLeft < 0)   return { label: "Warranty expired",            color: "var(--hg-muted)",    bg: "transparent" };
+  if (daysLeft <= 90) return { label: `Warranty: ${daysLeft}d left`, color: "var(--hg-yel-ink)",   bg: "var(--hg-yel-wash)" };
   const monthsLeft = Math.round(daysLeft / 30);
-  return { label: `Warranty: ${monthsLeft}mo left`, color: V2_COLORS.blue, bg: V2_COLORS.lblue };
+  return { label: `Warranty: ${monthsLeft}mo left`, color: "var(--hg-blue-ink)", bg: "var(--hg-blue-wash)" };
 }
 
 // ─── TimelineTab ─────────────────────────────────────────────────────────────
@@ -122,7 +124,6 @@ interface TimelineTabProps {
 }
 
 export function TimelineTab({ property, jobs, onVerify, currentPrincipal, photosByJob, onPhotoUpload, onInviteContractor }: TimelineTabProps) {
-  const TC = { ink: V2_COLORS.ink, rule: V2_COLORS.border, rust: V2_COLORS.blue, inkLight: V2_COLORS.muted, sage: V2_COLORS.blue, mono: V2_FONTS.body, serif: V2_FONTS.display };
   const navigate = useNavigate();
   const [justVerified,        setJustVerified]        = React.useState<string | null>(null);
   const [reviewNudgeJob,      setReviewNudgeJob]      = React.useState<Job | null>(null);
@@ -161,52 +162,52 @@ export function TimelineTab({ property, jobs, onVerify, currentPrincipal, photos
 
   if (jobs.length === 0) {
     return (
-      <div style={{ border: `1px dashed ${TC.rule}`, padding: "3rem", textAlign: "center" }}>
-        <Calendar size={36} color={TC.rule} style={{ margin: "0 auto 1rem" }} />
-        <p style={{ fontFamily: TC.serif, fontWeight: 700, marginBottom: "0.375rem" }}>No jobs recorded yet</p>
-        <p style={{ fontFamily: TC.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: TC.inkLight }}>Log your first maintenance job to start the timeline.</p>
-      </div>
+      <Panel style={{ border: "1px dashed var(--hg-line-2)", background: "transparent", padding: "3rem", textAlign: "center" }}>
+        <Calendar size={36} color="var(--hg-line-2)" style={{ margin: "0 auto 1rem" }} />
+        <p style={{ fontFamily: SERIF, fontWeight: 700, color: "var(--hg-ink)", marginBottom: "0.375rem" }}>No jobs recorded yet</p>
+        <p style={{ fontFamily: MONO, fontSize: "0.65rem", letterSpacing: "0.06em", color: "var(--hg-muted)" }}>Log your first maintenance job to start the timeline.</p>
+      </Panel>
     );
   }
 
   return (
     <>
       {verifiedCount >= 3 && (
-        <div style={{ border: `1px solid ${TC.sage}`, background: V2_COLORS.lblue, padding: "0.875rem 1.25rem", marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
+        <Panel style={{ border: "1px solid var(--hg-blue-edge)", background: "var(--hg-blue-wash)", padding: "0.875rem 1.25rem", marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
           <span style={{ fontSize: "1.25rem" }}>🏅</span>
           <div>
-            <p style={{ fontFamily: TC.mono, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: TC.sage, marginBottom: "0.1rem" }}>Home History Taking Shape</p>
-            <p style={{ fontSize: "0.8rem", color: TC.inkLight, fontWeight: 300 }}>{verifiedCount} verified jobs on-chain. Your HomeGentic report is ready to impress buyers.</p>
+            <p style={{ fontFamily: MONO, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--hg-blue-ink)", marginBottom: "0.1rem" }}>Home History Taking Shape</p>
+            <p style={{ fontSize: "0.8rem", color: "var(--hg-muted)", fontWeight: 300 }}>{verifiedCount} verified jobs on-chain. Your HomeGentic report is ready to impress buyers.</p>
           </div>
-        </div>
+        </Panel>
       )}
 
       {reviewNudgeJob && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", border: `1px solid ${V2_COLORS.cobalTint}`, padding: "0.875rem 1.25rem", marginBottom: "1rem", background: V2_COLORS.attentionBg, flexWrap: "wrap" }}>
+        <Panel style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", border: "1px solid var(--hg-yel-edge)", padding: "0.875rem 1.25rem", marginBottom: "1rem", background: "var(--hg-yel-wash)", flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-            <Star size={14} color={V2_COLORS.ink} style={{ flexShrink: 0 }} />
+            <Star size={14} color="var(--hg-yel-ink)" style={{ flexShrink: 0 }} />
             <div>
-              <p style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: V2_COLORS.ink, marginBottom: "0.15rem" }}>Job verified — leave a review</p>
-              <p style={{ fontSize: "0.8rem", fontWeight: 300, color: V2_COLORS.muted }}>Help other homeowners by reviewing {reviewNudgeJob.contractorName || "this contractor"}.</p>
+              <p style={{ fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--hg-yel-ink)", marginBottom: "0.15rem" }}>Job verified — leave a review</p>
+              <p style={{ fontSize: "0.8rem", fontWeight: 300, color: "var(--hg-muted)" }}>Help other homeowners by reviewing {reviewNudgeJob.contractorName || "this contractor"}.</p>
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
             {reviewNudgeJob.contractor && (
-              <button onClick={() => navigate(`/contractor/${reviewNudgeJob.contractor}`)} style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.375rem 0.875rem", border: `1px solid ${V2_COLORS.cobalTint}`, color: V2_COLORS.ink, background: "none", cursor: "pointer" }}>Leave a Review</button>
+              <button onClick={() => navigate(`/contractor/${reviewNudgeJob.contractor}`)} style={{ fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.375rem 0.875rem", borderRadius: 6, border: "1px solid var(--hg-yel-edge)", color: "var(--hg-yel-ink)", background: "none", cursor: "pointer" }}>Leave a Review</button>
             )}
-            <button onClick={() => setReviewNudgeJob(null)} style={{ background: "none", border: "none", cursor: "pointer", color: V2_COLORS.muted, padding: "0.25rem" }}>×</button>
+            <button onClick={() => setReviewNudgeJob(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--hg-muted)", padding: "0.25rem" }}>×</button>
           </div>
-        </div>
+        </Panel>
       )}
 
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "0.75rem" }}>
-        <button onClick={() => setNewestFirst((v) => !v)} style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.25rem 0.75rem", border: `1px solid ${TC.rule}`, background: "none", color: TC.inkLight, cursor: "pointer" }}>
+        <button onClick={() => setNewestFirst((v) => !v)} style={{ fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.25rem 0.75rem", borderRadius: 6, border: "1px solid var(--hg-line-2)", background: "none", color: "var(--hg-muted)", cursor: "pointer" }}>
           {newestFirst ? "Newest First ↓" : "Oldest First ↑"}
         </button>
       </div>
 
       <div style={{ paddingLeft: "1.5rem", position: "relative" }}>
-        <div style={{ position: "absolute", left: "0.5rem", top: 0, bottom: 0, width: "1px", background: TC.rule }} />
+        <div style={{ position: "absolute", left: "0.5rem", top: 0, bottom: 0, width: "1px", background: "var(--hg-line)" }} />
         {sortedJobs.map((job, idx) => {
           const isHomeowner  = currentPrincipal && job.homeowner === currentPrincipal;
           const canSign      = !job.verified && isHomeowner && !job.homeownerSigned;
@@ -221,29 +222,29 @@ export function TimelineTab({ property, jobs, onVerify, currentPrincipal, photos
             <React.Fragment key={job.id}>
               {showYearMark && (
                 <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem", marginTop: idx > 0 ? "1.25rem" : 0 }}>
-                  <div style={{ position: "absolute", left: "0.125rem", width: "0.75rem", height: "0.75rem", background: TC.ink, display: "flex", alignItems: "center", justifyContent: "center" }} />
-                  <span style={{ fontFamily: TC.serif, fontWeight: 900, fontSize: "1rem", color: TC.ink, marginLeft: "0.25rem" }}>{year}</span>
+                  <div style={{ position: "absolute", left: "0.125rem", width: "0.75rem", height: "0.75rem", borderRadius: 3, background: "var(--hg-ink)", display: "flex", alignItems: "center", justifyContent: "center" }} />
+                  <span style={{ fontFamily: SERIF, fontWeight: 900, fontSize: "1rem", color: "var(--hg-ink)", marginLeft: "0.25rem" }}>{year}</span>
                 </div>
               )}
               <div style={{ position: "relative", marginBottom: "1px" }}>
-                <div style={{ position: "absolute", left: "-1.25rem", top: "1.375rem", width: "0.5rem", height: "0.5rem", background: job.verified ? TC.sage : TC.rule, border: `1px solid ${job.verified ? TC.sage : TC.inkLight}` }} />
-                <div data-testid={`job-${job.serviceType.toLowerCase().replace(/\s+/g, "-")}`} style={{ background: isFlashing ? V2_COLORS.lblue : V2_COLORS.paper, padding: "1.25rem", border: `1px solid ${TC.rule}`, transition: "background 0.6s ease" }}>
+                <div style={{ position: "absolute", left: "-1.25rem", top: "1.375rem", width: "0.5rem", height: "0.5rem", borderRadius: "50%", background: job.verified ? "var(--hg-blue)" : "var(--hg-line-2)", border: `1px solid ${job.verified ? "var(--hg-blue)" : "var(--hg-muted)"}` }} />
+                <div data-testid={`job-${job.serviceType.toLowerCase().replace(/\s+/g, "-")}`} style={{ background: isFlashing ? "var(--hg-blue-wash)" : "var(--hg-surface)", padding: "1.25rem", borderRadius: 12, border: "1px solid var(--hg-line)", transition: "background 0.6s ease" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div>
-                      <p style={{ fontWeight: 500, fontSize: "0.875rem", marginBottom: "0.125rem" }}>{job.serviceType}</p>
-                      <p style={{ fontFamily: TC.mono, fontSize: "0.65rem", letterSpacing: "0.06em", color: TC.inkLight }}>{job.isDiy ? "DIY" : job.contractorName} · {job.date}</p>
+                      <p style={{ fontWeight: 500, fontSize: "0.875rem", color: "var(--hg-ink-2)", marginBottom: "0.125rem" }}>{job.serviceType}</p>
+                      <p style={{ fontFamily: MONO, fontSize: "0.65rem", letterSpacing: "0.06em", color: "var(--hg-muted)" }}>{job.isDiy ? "DIY" : job.contractorName} · {job.date}</p>
                     </div>
                     <div style={{ textAlign: "right" }}>
-                      <p style={{ fontFamily: TC.mono, fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.25rem" }}>${(job.amount / 100).toLocaleString()}</p>
-                      <Badge variant={job.status === "verified" ? "success" : job.status === "completed" ? "info" : "warning"} size="sm">
+                      <p style={{ fontFamily: MONO, fontSize: "0.875rem", fontWeight: 500, color: "var(--hg-ink-2)", marginBottom: "0.25rem" }}>${(job.amount / 100).toLocaleString()}</p>
+                      <Pill tone={job.status === "verified" ? "good" : job.status === "completed" ? "info" : "warn"}>
                         {isFlashing ? "⛓ locked on-chain" : job.status}
-                      </Badge>
+                      </Pill>
                     </div>
                   </div>
-                  {job.description && <p style={{ fontSize: "0.8rem", color: TC.inkLight, fontWeight: 300, marginTop: "0.5rem" }}>{job.description}</p>}
+                  {job.description && <p style={{ fontSize: "0.8rem", color: "var(--hg-muted)", fontWeight: 300, marginTop: "0.5rem" }}>{job.description}</p>}
                   {warranty && (
                     <div style={{ marginTop: "0.5rem" }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", fontFamily: TC.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.15rem 0.5rem", color: warranty.color, background: warranty.bg, border: `1px solid ${warranty.color}40` }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", fontFamily: MONO, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", padding: "0.15rem 0.5rem", borderRadius: 100, color: warranty.color, background: warranty.bg, border: `1px solid ${warranty.color}` }}>
                         🛡 {warranty.label}
                       </span>
                     </div>
@@ -253,53 +254,53 @@ export function TimelineTab({ property, jobs, onVerify, currentPrincipal, photos
                       <SigPill signed={job.homeownerSigned} label="Homeowner" />
                       {needsBothSig && <SigPill signed={job.contractorSigned} label={job.contractor ? "Contractor" : "Contractor (not linked)"} />}
                       {canSign && (
-                        <button onClick={() => handleVerify(job.id)} style={{ padding: "0.25rem 0.75rem", fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: TC.rust, background: "none", border: `1px solid ${TC.rust}`, cursor: "pointer" }}>Sign →</button>
+                        <button onClick={() => handleVerify(job.id)} style={{ padding: "0.25rem 0.75rem", fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--hg-blue-ink)", background: "none", borderRadius: 6, border: "1px solid var(--hg-blue-edge)", cursor: "pointer" }}>Sign →</button>
                       )}
                       {job.homeownerSigned && !job.contractorSigned && !job.isDiy && !job.verified && (
                         <>
-                          <span style={{ fontFamily: TC.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: TC.inkLight }}>Awaiting contractor signature</span>
-                          <button onClick={() => onInviteContractor(job)} style={{ padding: "0.25rem 0.75rem", fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: TC.sage, background: "none", border: `1px solid ${TC.sage}`, cursor: "pointer" }}>Invite →</button>
+                          <span style={{ fontFamily: MONO, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--hg-muted)" }}>Awaiting contractor signature</span>
+                          <button onClick={() => onInviteContractor(job)} style={{ padding: "0.25rem 0.75rem", fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--hg-good)", background: "none", borderRadius: 6, border: "1px solid var(--hg-good-edge)", cursor: "pointer" }}>Invite →</button>
                         </>
                       )}
                     </div>
                   )}
                   {(job.permitNumber || job.description) && (
-                    <button onClick={() => setExpandedJobId((prev) => prev === job.id ? null : job.id)} style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", marginTop: "0.625rem", fontFamily: TC.mono, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: TC.inkLight, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                    <button onClick={() => setExpandedJobId((prev) => prev === job.id ? null : job.id)} style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", marginTop: "0.625rem", fontFamily: MONO, fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--hg-muted)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
                       {expandedJobId === job.id ? "▲ less" : "▼ details"}
                     </button>
                   )}
                   {expandedJobId === job.id && (
-                    <div style={{ marginTop: "0.625rem", padding: "0.75rem", background: V2_COLORS.paper, border: `1px solid ${TC.rule}`, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                    <div style={{ marginTop: "0.625rem", padding: "0.75rem", background: "var(--hg-fill)", borderRadius: 8, border: "1px solid var(--hg-line)", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                       {job.permitNumber && (
                         <div style={{ display: "flex", gap: "0.75rem" }}>
-                          <span style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: TC.inkLight, width: "6rem", flexShrink: 0 }}>Permit #</span>
-                          <span style={{ fontFamily: TC.mono, fontSize: "0.65rem", color: TC.ink }}>{job.permitNumber}</span>
+                          <span style={{ fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--hg-muted)", width: "6rem", flexShrink: 0 }}>Permit #</span>
+                          <span style={{ fontFamily: MONO, fontSize: "0.65rem", color: "var(--hg-ink-2)" }}>{job.permitNumber}</span>
                         </div>
                       )}
                       {job.description && (
                         <div style={{ display: "flex", gap: "0.75rem" }}>
-                          <span style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: TC.inkLight, width: "6rem", flexShrink: 0 }}>Description</span>
-                          <span style={{ fontSize: "0.8rem", color: TC.ink, fontWeight: 300, lineHeight: 1.5 }}>{job.description}</span>
+                          <span style={{ fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--hg-muted)", width: "6rem", flexShrink: 0 }}>Description</span>
+                          <span style={{ fontSize: "0.8rem", color: "var(--hg-ink-2)", fontWeight: 300, lineHeight: 1.5 }}>{job.description}</span>
                         </div>
                       )}
                       <div style={{ display: "flex", gap: "0.75rem" }}>
-                        <span style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: TC.inkLight, width: "6rem", flexShrink: 0 }}>Job ID</span>
-                        <span style={{ fontFamily: TC.mono, fontSize: "0.6rem", color: TC.inkLight }}>{job.id}</span>
+                        <span style={{ fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--hg-muted)", width: "6rem", flexShrink: 0 }}>Job ID</span>
+                        <span style={{ fontFamily: MONO, fontSize: "0.6rem", color: "var(--hg-muted)" }}>{job.id}</span>
                       </div>
                       {job.verified && (
                         <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-                          <span style={{ fontFamily: TC.mono, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: TC.inkLight, width: "6rem", flexShrink: 0 }}>ICP Record</span>
-                          <a href={`https://dashboard.internetcomputer.org/account/${property.owner}`} target="_blank" rel="noopener noreferrer" style={{ fontFamily: TC.mono, fontSize: "0.6rem", color: TC.sage, textDecoration: "none", borderBottom: `1px solid ${TC.sage}` }}>Verified on ICP ↗</a>
+                          <span style={{ fontFamily: MONO, fontSize: "0.6rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--hg-muted)", width: "6rem", flexShrink: 0 }}>ICP Record</span>
+                          <a href={`https://dashboard.internetcomputer.org/account/${property.owner}`} target="_blank" rel="noopener noreferrer" style={{ fontFamily: MONO, fontSize: "0.6rem", color: "var(--hg-good)", textDecoration: "none", borderBottom: "1px solid var(--hg-good)" }}>Verified on ICP ↗</a>
                         </div>
                       )}
                       {!job.verified && job.homeowner === currentPrincipal && (
                         <div style={{ marginTop: "0.25rem" }}>
-                          <button onClick={() => navigate("/jobs/new", { state: { editJob: job } })} style={{ fontFamily: TC.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.3rem 0.75rem", border: `1px solid ${TC.rule}`, background: "#fff", color: TC.inkLight, cursor: "pointer" }}>Edit record</button>
+                          <button onClick={() => navigate("/jobs/new", { state: { editJob: job } })} style={{ fontFamily: MONO, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.3rem 0.75rem", borderRadius: 6, border: "1px solid var(--hg-line-2)", background: "transparent", color: "var(--hg-muted)", cursor: "pointer" }}>Edit record</button>
                         </div>
                       )}
                       {job.warrantyMonths && job.warrantyMonths > 0 && (
                         <div style={{ marginTop: "0.25rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                          <button onClick={() => warrantyInputRefs.current[job.id]?.click()} disabled={warrantyUploading === job.id} style={{ fontFamily: TC.mono, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.3rem 0.75rem", border: `1px solid ${V2_COLORS.blue}`, background: V2_COLORS.paper, color: V2_COLORS.blue, cursor: warrantyUploading === job.id ? "not-allowed" : "pointer", opacity: warrantyUploading === job.id ? 0.5 : 1, display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+                          <button onClick={() => warrantyInputRefs.current[job.id]?.click()} disabled={warrantyUploading === job.id} style={{ fontFamily: MONO, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.3rem 0.75rem", borderRadius: 6, border: "1px solid var(--hg-blue-edge)", background: "transparent", color: "var(--hg-blue-ink)", cursor: warrantyUploading === job.id ? "not-allowed" : "pointer", opacity: warrantyUploading === job.id ? 0.5 : 1, display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
                             🛡 {warrantyUploading === job.id ? "Uploading…" : "Upload warranty doc"}
                           </button>
                           <input ref={(el) => { warrantyInputRefs.current[job.id] = el; }} type="file" accept="image/*,application/pdf" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleWarrantyUpload(job, f); e.target.value = ""; }} />
