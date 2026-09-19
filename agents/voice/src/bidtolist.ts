@@ -8,9 +8,9 @@
 
 import { Resend } from "resend";
 import Stripe from "stripe";
-import { Actor, HttpAgent } from "@dfinity/agent";
-import { Ed25519KeyIdentity } from "@dfinity/identity";
-import { IDL } from "@dfinity/candid";
+import { Actor, HttpAgent } from "@icp-sdk/core/agent";
+import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
+import { IDL } from "@icp-sdk/core/candid";
 
 export interface BidtolistEnv {
   BIDTOLIST_RESEND_API_KEY?: string;
