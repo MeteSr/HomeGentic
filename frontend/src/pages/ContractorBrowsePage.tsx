@@ -17,10 +17,11 @@ import { Search, AlertTriangle, ShieldCheck, X } from "lucide-react";
 import { Layout }                               from "@/components/Layout";
 import { contractorService, ContractorProfile } from "@/services/contractor";
 import { jobService, Job }                      from "@/services/job";
-import { V2_COLORS, V2_FONTS }                  from "@/theme";
+import { Panel, Pill, hudInputStyle, spinnerVars, type PillTone } from "@/components/hud";
 
-const C = V2_COLORS;
-const F = V2_FONTS;
+const DISPLAY = "'Bricolage Grotesque',sans-serif";
+const BODY = "'Hanken Grotesk',sans-serif";
+const MONO = "'JetBrains Mono',monospace";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -31,38 +32,22 @@ const SERVICE_TYPES = [
 ] as const;
 
 const AVATAR_COLORS = [
-  { bg: "#E0E2FF", fg: C.blue },
-  { bg: "#DCFCE7", fg: "#0F7A32" },
-  { bg: "#FEF3C7", fg: "#8A5200" },
-  { bg: "#FCE7F3", fg: "#A01D5C" },
-  { bg: "#E0F2FE", fg: "#0A6478" },
+  { bg: "var(--hg-blue-wash)", fg: "var(--hg-blue-ink)" },
+  { bg: "var(--hg-good-wash)", fg: "var(--hg-good)" },
+  { bg: "var(--hg-yel-wash)",  fg: "var(--hg-yel-ink)" },
+  { bg: "rgba(255,92,57,0.14)", fg: "var(--hg-bad)" },
+  { bg: "var(--hg-fill)",      fg: "var(--hg-muted)" },
 ];
 
 // ── Trust score badge ──────────────────────────────────────────────────────────
 
 function TrustBadge({ score }: { score: number }) {
-  const { bg, color, label } =
-    score >= 75 ? { bg: "#DCFCE7", color: "#0F7A32", label: "HIGH" }
-    : score >= 50 ? { bg: C.vbadge,   color: C.blue,    label: "MID"  }
-    :               { bg: "#FEF3C7",  color: "#8A5200", label: "LOW"  };
+  const { tone, label } =
+    score >= 75 ? { tone: "good" as PillTone, label: "HIGH" }
+    : score >= 50 ? { tone: "info" as PillTone, label: "MID"  }
+    :               { tone: "warn" as PillTone, label: "LOW"  };
 
-  return (
-    <div style={{
-      display:        "inline-flex",
-      alignItems:     "center",
-      gap:             4,
-      background:      bg,
-      borderRadius:    4,
-      padding:        "2px 7px",
-    }}>
-      <span style={{ fontFamily: F.mono, fontSize: 11, fontWeight: 700, color, lineHeight: 1 }}>
-        {score}
-      </span>
-      <span style={{ fontFamily: F.mono, fontSize: 8, fontWeight: 700, color, letterSpacing: "0.1em" }}>
-        /{label}
-      </span>
-    </div>
-  );
+  return <Pill tone={tone}>{score}/{label}</Pill>;
 }
 
 // ── Contractor card ────────────────────────────────────────────────────────────
@@ -82,15 +67,7 @@ function ContractorCard({
   const initials   = contractor.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 
   return (
-    <div style={{
-      border:     `1px solid ${C.border}`,
-      borderRadius: 12,
-      background:  "#fff",
-      padding:    "18px 20px",
-      display:    "flex",
-      flexDirection: "column",
-      gap:         0,
-    }}>
+    <Panel style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 0 }}>
       {/* Avatar + name row */}
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
         <div style={{
@@ -98,31 +75,22 @@ function ContractorCard({
           background: bg, display: "flex", alignItems: "center",
           justifyContent: "center", flexShrink: 0,
         }}>
-          <span style={{ fontFamily: F.mono, fontSize: 13, fontWeight: 700, color: fg }}>{initials}</span>
+          <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: fg }}>{initials}</span>
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 2 }}>
-            <span style={{ fontFamily: F.body, fontSize: 14, fontWeight: 700, color: C.ink }}>
+            <span style={{ fontFamily: BODY, fontSize: 14, fontWeight: 700, color: "var(--hg-ink)" }}>
               {contractor.name}
             </span>
             {contractor.isVerified && (
-              <span style={{
-                display: "inline-flex", alignItems: "center", gap: 3,
-                fontFamily: F.mono, fontSize: 9, fontWeight: 700,
-                color: C.blue, background: C.vbadge, borderRadius: 4, padding: "2px 5px",
-              }}>
-                <ShieldCheck size={9} /> VERIFIED
-              </span>
+              <Pill tone="info">
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                  <ShieldCheck size={9} /> VERIFIED
+                </span>
+              </Pill>
             )}
-            {isAwaiting && (
-              <span style={{
-                fontFamily: F.mono, fontSize: 9, fontWeight: 700,
-                color: "#D97706", background: "#FFFBEB", borderRadius: 4, padding: "2px 6px",
-              }}>
-                AWAITING
-              </span>
-            )}
+            {isAwaiting && <Pill tone="warn">AWAITING</Pill>}
           </div>
 
           {/* Trust score */}
@@ -135,8 +103,8 @@ function ContractorCard({
         <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 12 }}>
           {contractor.specialties.slice(0, 4).map((s) => (
             <span key={s} style={{
-              fontFamily: F.mono, fontSize: 9, color: C.muted,
-              border: `1px solid ${C.border}`, borderRadius: 4, padding: "2px 6px",
+              fontFamily: MONO, fontSize: 9, color: "var(--hg-muted)",
+              border: "1px solid var(--hg-line-2)", borderRadius: 4, padding: "2px 6px",
             }}>
               {s}
             </span>
@@ -148,15 +116,15 @@ function ContractorCard({
       <div style={{
         display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10,
         padding: "10px 0", marginBottom: 14,
-        borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`,
+        borderTop: "1px solid var(--hg-line)", borderBottom: "1px solid var(--hg-line)",
       }}>
         <div>
-          <div style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 2 }}>JOBS</div>
-          <div style={{ fontFamily: F.display, fontSize: 18, fontWeight: 900, color: C.ink }}>{contractor.jobsCompleted}</div>
+          <div style={{ fontFamily: MONO, fontSize: 9, fontWeight: 700, color: "var(--hg-muted)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 2 }}>JOBS</div>
+          <div style={{ fontFamily: DISPLAY, fontSize: 18, fontWeight: 900, color: "var(--hg-ink)" }}>{contractor.jobsCompleted}</div>
         </div>
         <div>
-          <div style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 2 }}>SERVICE AREA</div>
-          <div style={{ fontFamily: F.body, fontSize: 12, color: C.ink, lineHeight: 1.3 }}>
+          <div style={{ fontFamily: MONO, fontSize: 9, fontWeight: 700, color: "var(--hg-muted)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 2 }}>SERVICE AREA</div>
+          <div style={{ fontFamily: BODY, fontSize: 12, color: "var(--hg-ink)", lineHeight: 1.3 }}>
             {contractor.serviceArea ?? (contractor.serviceZips.length > 0 ? contractor.serviceZips.slice(0, 2).join(", ") : "—")}
           </div>
         </div>
@@ -167,8 +135,8 @@ function ContractorCard({
         <button
           onClick={onRequestQuote}
           style={{
-            flex: 1, fontFamily: F.body, fontSize: 13, fontWeight: 600,
-            color: "#fff", background: C.blue, border: "none",
+            flex: 1, fontFamily: BODY, fontSize: 13, fontWeight: 600,
+            color: "#FCFCFD", background: "var(--hg-blue)", border: "none",
             borderRadius: 100, padding: "8px", cursor: "pointer",
           }}
         >
@@ -177,15 +145,15 @@ function ContractorCard({
         <button
           onClick={onViewProfile}
           style={{
-            flex: 1, fontFamily: F.body, fontSize: 13, fontWeight: 600,
-            color: C.ink, background: "#fff", border: `1px solid ${C.border}`,
+            flex: 1, fontFamily: BODY, fontSize: 13, fontWeight: 600,
+            color: "var(--hg-ink)", background: "var(--hg-fill)", border: "1px solid var(--hg-line-2)",
             borderRadius: 100, padding: "8px", cursor: "pointer",
           }}
         >
           View profile
         </button>
       </div>
-    </div>
+    </Panel>
   );
 }
 
@@ -261,15 +229,15 @@ export default function ContractorBrowsePage() {
 
   return (
     <Layout>
-      <div style={{ background: C.page, minHeight: "100%" }}>
+      <div className="hg-v3" data-theme="dark" style={{ background: "var(--hg-bg)", minHeight: "100%" }}>
         <div style={{ maxWidth: 1024, margin: "0 auto", padding: "28px 24px" }}>
 
           {/* Header */}
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontFamily: F.mono, fontSize: 10, fontWeight: 700, color: C.muted2, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>
+            <div style={{ fontFamily: MONO, fontSize: 10, fontWeight: 700, color: "var(--hg-muted)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>
               CONTRACTORS
             </div>
-            <h1 style={{ fontFamily: F.display, fontWeight: 900, fontSize: "1.75rem", color: C.ink, margin: 0 }}>
+            <h1 style={{ fontFamily: DISPLAY, fontWeight: 900, fontSize: "1.75rem", color: "var(--hg-ink)", margin: 0 }}>
               Find a contractor
             </h1>
           </div>
@@ -281,7 +249,7 @@ export default function ContractorBrowsePage() {
           }}>
             {/* Zip code */}
             <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: "0 0 180px" }}>
-              <label htmlFor="contractor-zip" style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: C.muted2, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+              <label htmlFor="contractor-zip" style={{ fontFamily: MONO, fontSize: 9, fontWeight: 700, color: "var(--hg-muted)", letterSpacing: "0.1em", textTransform: "uppercase" }}>
                 ZIP CODE
               </label>
               <input
@@ -292,29 +260,20 @@ export default function ContractorBrowsePage() {
                 value={zipInput}
                 onChange={(e) => setZipInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                style={{
-                  fontFamily: F.body, fontSize: 14, color: C.ink,
-                  border: `1px solid ${C.border}`, borderRadius: 8,
-                  padding: "9px 12px", background: "#fff", outline: "none",
-                }}
+                style={hudInputStyle}
               />
             </div>
 
             {/* Specialty */}
             <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: "0 0 200px" }}>
-              <label htmlFor="contractor-specialty" style={{ fontFamily: F.mono, fontSize: 9, fontWeight: 700, color: C.muted2, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+              <label htmlFor="contractor-specialty" style={{ fontFamily: MONO, fontSize: 9, fontWeight: 700, color: "var(--hg-muted)", letterSpacing: "0.1em", textTransform: "uppercase" }}>
                 SERVICE TYPE
               </label>
               <select
                 id="contractor-specialty"
                 value={activeSpecialty}
                 onChange={(e) => setActiveSpecialty(e.target.value)}
-                style={{
-                  fontFamily: F.body, fontSize: 14, color: C.ink,
-                  border: `1px solid ${C.border}`, borderRadius: 8,
-                  padding: "9px 12px", background: "#fff", cursor: "pointer",
-                  appearance: "none",
-                }}
+                style={{ ...hudInputStyle, cursor: "pointer", appearance: "none" }}
               >
                 <option value="">All service types</option>
                 {SERVICE_TYPES.map((s) => (
@@ -328,8 +287,8 @@ export default function ContractorBrowsePage() {
               onClick={handleSearch}
               style={{
                 display: "flex", alignItems: "center", gap: 6,
-                fontFamily: F.body, fontSize: 14, fontWeight: 600,
-                color: "#fff", background: C.blue, border: "none",
+                fontFamily: BODY, fontSize: 14, fontWeight: 600,
+                color: "#FCFCFD", background: "var(--hg-blue)", border: "none",
                 borderRadius: 8, padding: "9px 20px", cursor: "pointer",
                 flexShrink: 0,
               }}
@@ -343,8 +302,8 @@ export default function ContractorBrowsePage() {
                 onClick={handleClear}
                 style={{
                   display: "flex", alignItems: "center", gap: 4,
-                  fontFamily: F.body, fontSize: 13, fontWeight: 500,
-                  color: C.muted, background: "none", border: `1px solid ${C.border}`,
+                  fontFamily: BODY, fontSize: 13, fontWeight: 500,
+                  color: "var(--hg-muted)", background: "none", border: "1px solid var(--hg-line-2)",
                   borderRadius: 8, padding: "9px 14px", cursor: "pointer",
                   flexShrink: 0,
                 }}
@@ -358,13 +317,13 @@ export default function ContractorBrowsePage() {
           {firstAwaiting && (
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
-              padding: "14px 20px", border: `1px solid #FEF3C7`,
-              borderRadius: 12, background: "#FFFBEB", marginBottom: 20,
+              padding: "14px 20px", border: "1px solid var(--hg-yel-edge)",
+              borderRadius: 12, background: "var(--hg-yel-wash)", marginBottom: 20,
               flexWrap: "wrap", gap: 12,
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <AlertTriangle size={16} color="#D97706" />
-                <span style={{ fontFamily: F.body, fontSize: 14, fontWeight: 500, color: C.ink }}>
+                <AlertTriangle size={16} color="var(--hg-yel-ink)" />
+                <span style={{ fontFamily: BODY, fontSize: 14, fontWeight: 500, color: "var(--hg-ink)" }}>
                   {firstAwaiting.contractorName} has not countersigned the{" "}
                   {new Date(firstAwaiting.date).toLocaleDateString(undefined, { month: "short", day: "numeric" })} work.
                   Unverified after 14 days, it earns no points.
@@ -373,8 +332,8 @@ export default function ContractorBrowsePage() {
               <button
                 onClick={() => navigate(`/contractor/${encodeURIComponent(firstAwaiting.contractorName ?? "")}`)}
                 style={{
-                  fontFamily: F.body, fontSize: 13, fontWeight: 600,
-                  color: C.blue, background: "#fff", border: `1px solid ${C.border}`,
+                  fontFamily: BODY, fontSize: 13, fontWeight: 600,
+                  color: "var(--hg-blue-ink)", background: "var(--hg-surface)", border: "1px solid var(--hg-line-2)",
                   borderRadius: 100, padding: "8px 16px", cursor: "pointer",
                 }}
               >
@@ -385,7 +344,7 @@ export default function ContractorBrowsePage() {
 
           {/* Result summary */}
           {!loading && (
-            <div style={{ fontFamily: F.mono, fontSize: 11, color: C.muted2, marginBottom: 16, letterSpacing: "0.04em" }}>
+            <div style={{ fontFamily: MONO, fontSize: 11, color: "var(--hg-muted)", marginBottom: 16, letterSpacing: "0.04em" }}>
               {resultLabel}
             </div>
           )}
@@ -393,26 +352,23 @@ export default function ContractorBrowsePage() {
           {/* Content */}
           {loading ? (
             <div style={{ display: "flex", justifyContent: "center", padding: "4rem" }}>
-              <div className="spinner-lg" />
+              <div className="spinner-lg" style={spinnerVars} />
             </div>
           ) : filtered.length === 0 ? (
-            <div style={{
-              border: `1px solid ${C.border}`, borderRadius: 12,
-              padding: "3rem", textAlign: "center", background: "#fff",
-            }}>
+            <Panel style={{ padding: "3rem", textAlign: "center" }}>
               {hasFilter ? (
                 <>
-                  <p style={{ fontFamily: F.body, fontSize: 15, fontWeight: 600, color: C.ink, marginBottom: 6 }}>
+                  <p style={{ fontFamily: BODY, fontSize: 15, fontWeight: 600, color: "var(--hg-ink)", marginBottom: 6 }}>
                     No contractors match your search
                   </p>
-                  <p style={{ fontFamily: F.body, fontSize: 13, color: C.muted, marginBottom: 20 }}>
+                  <p style={{ fontFamily: BODY, fontSize: 13, color: "var(--hg-muted)", marginBottom: 20 }}>
                     Try a different zip code or service type.
                   </p>
                   <button
                     onClick={handleClear}
                     style={{
-                      fontFamily: F.body, fontSize: 14, fontWeight: 600,
-                      color: C.blue, background: C.lblue, border: `1px solid ${C.border}`,
+                      fontFamily: BODY, fontSize: 14, fontWeight: 600,
+                      color: "var(--hg-blue-ink)", background: "var(--hg-blue-wash)", border: "1px solid var(--hg-blue-edge)",
                       borderRadius: 100, padding: "10px 24px", cursor: "pointer",
                     }}
                   >
@@ -421,17 +377,17 @@ export default function ContractorBrowsePage() {
                 </>
               ) : (
                 <>
-                  <p style={{ fontFamily: F.body, fontSize: 15, fontWeight: 600, color: C.ink, marginBottom: 6 }}>
+                  <p style={{ fontFamily: BODY, fontSize: 15, fontWeight: 600, color: "var(--hg-ink)", marginBottom: 6 }}>
                     No contractors yet
                   </p>
-                  <p style={{ fontFamily: F.body, fontSize: 13, color: C.muted, marginBottom: 20 }}>
+                  <p style={{ fontFamily: BODY, fontSize: 13, color: "var(--hg-muted)", marginBottom: 20 }}>
                     Contractors who register on HomeGentic will appear here.
                   </p>
                   <button
                     onClick={() => navigate("/dashboard")}
                     style={{
-                      fontFamily: F.body, fontSize: 14, fontWeight: 700,
-                      color: "#fff", background: C.blue, border: "none",
+                      fontFamily: BODY, fontSize: 14, fontWeight: 700,
+                      color: "#FCFCFD", background: "var(--hg-blue)", border: "none",
                       borderRadius: 100, padding: "10px 24px", cursor: "pointer",
                     }}
                   >
@@ -439,7 +395,7 @@ export default function ContractorBrowsePage() {
                   </button>
                 </>
               )}
-            </div>
+            </Panel>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(270px, 1fr))", gap: 16 }}>
               {filtered.map((ctr) => (
