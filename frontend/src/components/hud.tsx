@@ -1,14 +1,12 @@
 /**
- * PropertyDetail — HUD theme primitives.
+ * Shared HUD-theme primitives.
  *
- * Reuses the exact .hg-v3 CSS custom properties DashboardV3 already
- * defines (components/dashboardV3/dashboardV3.css) rather than a second
- * token system, so the property page's redesign stays visually identical
- * to the dashboard it's matching. This module exists because
- * PropertyDetailPage.tsx + its 6 tabs (~2600 lines across 7 files) repeat
- * card/section/label patterns far more than DashboardV3.tsx does — that
- * file gets away with raw inline var(--hg-*) styles because it's one file
- * with one shape in view at a time.
+ * Reuses the exact .hg-v3 CSS custom properties DashboardV3 defines
+ * (components/dashboardV3/dashboardV3.css) rather than a second token
+ * system, so every page built with these stays visually identical to
+ * the dashboard the theme originated from. Originally colocated with
+ * PropertyDetailPage's tabs; promoted here once a second page (Market)
+ * needed the same Panel/Pill/button/input patterns.
  */
 import React from "react";
 import "@/components/dashboardV3/dashboardV3.css";
@@ -32,7 +30,7 @@ export function Panel({ children, style }: { children: React.ReactNode; style?: 
   );
 }
 
-// ── SectionHeader (themed version of SettingsTab's local section() helper) ──
+// ── SectionHeader ────────────────────────────────────────────────────────────
 
 export function SectionHeader({ title, sub }: { title: string; sub?: string }) {
   return (

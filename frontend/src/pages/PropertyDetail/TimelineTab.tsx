@@ -5,7 +5,7 @@ import { photoService, type Photo } from "@/services/photo";
 import { type Property } from "@/services/property";
 import { type Job } from "@/services/job";
 import toast from "react-hot-toast";
-import { Panel, Pill } from "./hud";
+import { Panel, Pill } from "@/components/hud";
 
 const MONO = "'JetBrains Mono',monospace";
 const SERIF = "'Bricolage Grotesque',system-ui,sans-serif";

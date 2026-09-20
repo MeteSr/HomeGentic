@@ -9,7 +9,7 @@ import {
   getUsageTrend, analyzeEfficiencyTrend, findRebates, negotiateTelecom,
   type RebateResult, type TelecomNegotiationResult,
 } from "@/services/billsIntelligence";
-import { Panel, hudInputStyle, hudButtonStyle, spinnerVars } from "./hud";
+import { Panel, hudInputStyle, hudButtonStyle, spinnerVars } from "@/components/hud";
 import toast from "react-hot-toast";
 
 const DISPLAY = "'Bricolage Grotesque',sans-serif";

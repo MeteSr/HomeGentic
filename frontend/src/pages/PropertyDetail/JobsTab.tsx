@@ -1,5 +1,5 @@
 import { type Job } from "@/services/job";
-import { Panel, Pill } from "./hud";
+import { Panel, Pill } from "@/components/hud";
 
 export function JobsTab({ jobs }: { jobs: Job[] }) {
   if (jobs.length === 0) {

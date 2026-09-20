@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { roomService, type Room as RoomRecord, type UpdateRoomArgs, type AddFixtureArgs } from "@/services/room";
 import { type Photo } from "@/services/photo";
 import { AddRoomModal } from "@/components/AddRoomModal";
-import { Panel, hudInputStyle } from "./hud";
+import { Panel, hudInputStyle } from "@/components/hud";
 import toast from "react-hot-toast";
 
 const DISPLAY = "'Bricolage Grotesque',sans-serif";
