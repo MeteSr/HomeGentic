@@ -104,6 +104,7 @@ export default function MarketIntelligencePage() {
 
   return (
     <Layout>
+      <div className="hg-v3" data-theme="dark" style={{ minHeight: "100vh", background: "var(--hg-bg)" }}>
       <div style={{ maxWidth: "60rem", margin: "0 auto", padding: "2rem 1.5rem" }}>
 
         {/* Header */}
@@ -329,6 +330,7 @@ export default function MarketIntelligencePage() {
             )}
           </>
         )}
+      </div>
       </div>
     </Layout>
   );
