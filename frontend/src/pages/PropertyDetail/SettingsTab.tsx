@@ -4,7 +4,7 @@ import { propertyService, type Property, type TransferRecord, type PropertyManag
 import { UpgradeGate } from "@/components/UpgradeGate";
 import { useSubscription } from "@/hooks/useSubscription";
 import toast from "react-hot-toast";
-import { Panel, hudInputStyle } from "./hud";
+import { Panel, hudInputStyle } from "@/components/hud";
 
 const MONO = "'JetBrains Mono',monospace";
 

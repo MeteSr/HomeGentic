@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { photoService, type Photo } from "@/services/photo";
 import toast from "react-hot-toast";
-import { Panel, hudInputStyle } from "./hud";
+import { Panel, hudInputStyle } from "@/components/hud";
 
 const MONO = "'JetBrains Mono',monospace";
 const SERIF = "'Bricolage Grotesque',system-ui,sans-serif";

@@ -38,6 +38,7 @@ import { UserMenuPopover } from "./UserMenuPopover";
 import { deriveEvents } from "@/services/activityFeed";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
+import "@/components/dashboardV3/dashboardV3.css";
 
 // Re-export for consumers that imported these from Layout
 export type { ActivityEvent } from "@/services/activityFeed";
@@ -204,9 +205,9 @@ export function Layout({ children, hideSidebar = false }: { children: React.Reac
     justifyContent:  effectivelyCollapsed ? "center" : "flex-start",
     overflow:        "hidden",
     whiteSpace:      "nowrap",
-    color:           active ? V2_COLORS.blue : V2_COLORS.muted,
-    background:      active ? V2_COLORS.lblue : "transparent",
-    borderLeft:      active ? `3px solid ${V2_COLORS.blue}` : "3px solid transparent",
+    color:           active ? "var(--hg-blue-ink)" : "var(--hg-muted)",
+    background:      active ? "var(--hg-blue-wash)" : "transparent",
+    borderLeft:      active ? "3px solid var(--hg-blue)" : "3px solid transparent",
     transition:      "color 0.15s, background 0.15s",
   });
 
@@ -224,7 +225,8 @@ export function Layout({ children, hideSidebar = false }: { children: React.Reac
       {/* ── Left sidebar (desktop) ──────────────────────────────────────────── */}
       {!hideSidebar && (
       <nav
-        className="hf-sidebar"
+        className="hf-sidebar hg-v3"
+        data-theme="dark"
         style={{ width: sidebarW }}
         aria-label="Main navigation"
         aria-hidden={addPropOpen || undefined}
@@ -248,11 +250,11 @@ export function Layout({ children, hideSidebar = false }: { children: React.Reac
                 fontWeight:     900,
                 fontSize:       "1.1rem",
                 letterSpacing:  "-0.5px",
-                color:          V2_COLORS.ink,
+                color:          "var(--hg-ink)",
                 whiteSpace:     "nowrap",
               }}
             >
-              Home<span style={{ color: V2_COLORS.blue, fontStyle: "normal", fontWeight: 700 }}>Gentic™</span>
+              Home<span style={{ color: "var(--hg-blue-ink)", fontStyle: "normal", fontWeight: 700 }}>Gentic™</span>
             </Link>
           )}
           <button
@@ -266,7 +268,7 @@ export function Layout({ children, hideSidebar = false }: { children: React.Reac
               background: "none",
               border:     "none",
               cursor:     "pointer",
-              color:      V2_COLORS.muted,
+              color:      "var(--hg-muted)",
               padding:    "0.375rem",
               borderRadius: "0.25rem",
               flexShrink: 0,
@@ -295,8 +297,8 @@ export function Layout({ children, hideSidebar = false }: { children: React.Reac
                 }
               }}
               style={{ ...itemBase(), width: "100%", border: "none", cursor: "pointer" }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = V2_COLORS.blue; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = V2_COLORS.muted; }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--hg-blue-ink)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--hg-muted)"; }}
             >
               <Plus size={17} style={{ flexShrink: 0 }} />
               {!effectivelyCollapsed && <span style={labelStyle}>Add property</span>}
@@ -312,10 +314,10 @@ export function Layout({ children, hideSidebar = false }: { children: React.Reac
                 aria-current={active ? "page" : undefined}
                 style={{ ...itemBase(active), textDecoration: "none" }}
                 onMouseEnter={(e: React.MouseEvent) => {
-                  if (!active) (e.currentTarget as HTMLElement).style.color = V2_COLORS.blue;
+                  if (!active) (e.currentTarget as HTMLElement).style.color = "var(--hg-blue-ink)";
                 }}
                 onMouseLeave={(e: React.MouseEvent) => {
-                  if (!active) (e.currentTarget as HTMLElement).style.color = V2_COLORS.muted;
+                  if (!active) (e.currentTarget as HTMLElement).style.color = "var(--hg-muted)";
                 }}
               >
                   <link.Icon size={17} style={{ flexShrink: 0 }} />
@@ -325,7 +327,7 @@ export function Layout({ children, hideSidebar = false }: { children: React.Reac
                   </span>
                 )}
                 {!effectivelyCollapsed && link.badge != null && link.badge > 0 && (
-                  <span style={{ fontFamily: "sans-serif", fontSize: 11, fontWeight: 700, color: "#fff", background: V2_COLORS.blue, borderRadius: "1rem", padding: "1px 6px", lineHeight: 1.4 }}>
+                  <span style={{ fontFamily: "sans-serif", fontSize: 11, fontWeight: 700, color: "var(--hg-chip-on)", background: "var(--hg-blue)", borderRadius: "1rem", padding: "1px 6px", lineHeight: 1.4 }}>
                     {link.badge}
                   </span>
                 )}
@@ -335,7 +337,7 @@ export function Layout({ children, hideSidebar = false }: { children: React.Reac
         </div>
 
         {/* Bottom: activity bell + user menu button */}
-        <div style={{ borderTop: `1px solid ${V2_COLORS.border}`, flexShrink: 0 }}>
+        <div style={{ borderTop: "1px solid var(--hg-line)", flexShrink: 0 }}>
 
           {/* Activity bell */}
           <button
@@ -353,14 +355,14 @@ export function Layout({ children, hideSidebar = false }: { children: React.Reac
                   right:          "-5px",
                   width:          "14px",
                   height:         "14px",
-                  background:     V2_COLORS.blue,
+                  background:     "var(--hg-blue)",
                   borderRadius:   "50%",
                   display:        "flex",
                   alignItems:     "center",
                   justifyContent: "center",
                   fontFamily:     V2_FONTS.body,
                   fontSize:       "0.45rem",
-                  color:          V2_COLORS.paper,
+                  color:          "var(--hg-chip-on)",
                   fontWeight:     700,
                 }}>
                   {unread > 9 ? "9+" : unread}
@@ -398,8 +400,9 @@ export function Layout({ children, hideSidebar = false }: { children: React.Reac
                 width:          "26px",
                 height:         "26px",
                 borderRadius:   "50%",
-                background:     V2_COLORS.ink,
-                color:          V2_COLORS.paper,
+                background:     "var(--hg-blue-fill)",
+                border:         "1.5px solid var(--hg-blue-edge)",
+                color:          "var(--hg-blue-ink)",
                 display:        "flex",
                 alignItems:     "center",
                 justifyContent: "center",
