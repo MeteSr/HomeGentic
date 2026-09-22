@@ -5,6 +5,13 @@ on:
     workflows: [CI]
     branches: [main, develop]
     types: [completed]
+  workflow_dispatch:
+    inputs:
+      start_frontend_canister_first:
+        description: 'Start frontend canister first (recovers from a stopped-canister IC0508 deploy failure)'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -13,7 +20,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: testnet
-    if: github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     steps:
       # main requires the motoko-compile-check status check even on direct
       # pushes, and the default GITHUB_TOKEN has no bypass for that rule.
@@ -67,6 +74,7 @@ jobs:
           DFX_IDENTITY_PEM: ${{ secrets.DFX_IDENTITY_PEM }}
           DFX_WALLET_ID: ${{ secrets.DFX_WALLET_ID }}
           BACKUP_CONTROLLER_PRINCIPAL: ${{ secrets.BACKUP_CONTROLLER_PRINCIPAL }}
+          START_FRONTEND_CANISTER_FIRST: ${{ inputs.start_frontend_canister_first || 'false' }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           VOICE_AGENT_API_KEY: ${{ secrets.VOICE_AGENT_API_KEY }}
           VITE_VOICE_AGENT_API_KEY: ${{ secrets.VITE_VOICE_AGENT_API_KEY }}
