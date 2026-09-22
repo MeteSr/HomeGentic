@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEPLOY_SCRIPT_VERSION="1.10.0"
+DEPLOY_SCRIPT_VERSION="1.11.0"
 ENV=${1:-local}
 
 echo "============================================"
@@ -41,6 +41,21 @@ else
       exit 1
     fi
     echo "  ✓ Identity: $(icp identity principal)"
+  fi
+fi
+
+# ── Optional: start a stopped frontend canister before deploying ─────────────
+# Recovery path for IC0508 ("canister is stopped and therefore does not have
+# a CallContextManager") deploy failures — see the frontend canister
+# pre-flight check further down, which is what actually catches this case.
+# Set via the "Start frontend canister first" input on Deploy Testnet's
+# manual workflow_dispatch, or by exporting the var for a local run.
+if [ "${START_FRONTEND_CANISTER_FIRST:-false}" = "true" ] && [ "$ENV" != "local" ]; then
+  echo "▶ Starting frontend canister before deploy (recovery mode)..."
+  if icp canister start frontend -e "$ENV" >/dev/null 2>&1; then
+    echo "  ✓ Frontend canister started"
+  else
+    echo "  (start call did not succeed — already running, or not yet created; continuing)"
   fi
 fi
 
@@ -957,6 +972,36 @@ echo "  ✓ Freezing threshold set (${FREEZE_OK} ok, ${FREEZE_SKIP} skipped — 
 
 # Internet Identity is managed by icp-cli via ii: true in icp.yaml.
 # icp network start -d deploys it automatically. Local URL: http://id.ai.localhost:8000
+
+echo ""
+echo "============================================"
+echo "  Frontend Canister Pre-flight"
+echo "============================================"
+# Catches a stopped frontend canister before spending time on a build that
+# would only fail later with an opaque IC0508 ("canister is stopped and
+# therefore does not have a CallContextManager") from `icp deploy frontend`.
+if [ "$ENV" != "local" ]; then
+  FRONTEND_STATUS_OUT=$(icp canister status frontend -e "$ENV" 2>&1 || echo "")
+  FRONTEND_STATE=$(printf '%s\n' "$FRONTEND_STATUS_OUT" | grep "Status:" | awk '{print $2}' || echo "")
+  if [ "$FRONTEND_STATE" = "Stopped" ]; then
+    echo "  ✗ Frontend canister is STOPPED — deploying now would fail with IC0508"
+    echo "    (\"canister is stopped and therefore does not have a CallContextManager\")."
+    echo ""
+    echo "    Fix:"
+    echo "      icp canister start frontend -e $ENV"
+    echo "      icp deploy frontend -e $ENV"
+    echo ""
+    echo "    Or re-run the 'Deploy Testnet' GitHub Actions workflow manually with"
+    echo "    the 'Start frontend canister first' option checked."
+    exit 1
+  elif [ -z "$FRONTEND_STATE" ]; then
+    echo "  ⬜ Frontend canister not yet created — this deploy will create it."
+  else
+    echo "  ✓ Frontend canister is $FRONTEND_STATE"
+  fi
+else
+  echo "  (skipped — local network)"
+fi
 
 echo ""
 echo "============================================"
