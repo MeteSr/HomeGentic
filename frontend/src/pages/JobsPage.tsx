@@ -233,7 +233,7 @@ export default function JobsPage() {
 
   return (
     <Layout>
-      <div className="hg-v3" data-theme="dark" style={{ background: "var(--hg-bg)", minHeight: "100%", padding: isTablet ? "20px 20px" : "28px 32px" }}>
+      <div className="hg-v3" data-theme="dark" style={{ background: "var(--hg-bg)", minHeight: "100dvh", padding: isTablet ? "20px 20px" : "28px 32px" }}>
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
