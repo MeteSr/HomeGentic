@@ -38,6 +38,12 @@ export default defineConfig({
   projects: [
     { name: "desktop", use: { viewport: { width: 1280, height: 800 } } },
     { name: "mobile", use: { viewport: { width: 375, height: 812 } } },
+    // iPad portrait — the shape that exposed the min-height:"100%"/100vh
+    // bug (#520): short empty-state content under a viewport tall enough
+    // to reveal whatever's behind it, which desktop (800px) and mobile
+    // (812px, but narrow enough most of these pages fork to a different
+    // mobile-specific component) didn't reliably surface.
+    { name: "tablet", use: { viewport: { width: 768, height: 1024 } } },
   ],
 
   webServer: {

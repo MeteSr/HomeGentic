@@ -89,7 +89,9 @@ npm run test:visual             # compare against the committed baselines
 npm run test:visual:update      # regenerate baselines after an intentional design change
 ```
 
-Covered so far: landing page, pricing page, dashboard, property detail, and the AddPropertyModal onboarding wizard (address / details / saved-hub steps) — each at both the desktop (1280×800) and mobile (375×812) projects. A failure over 0.1% pixel diff (`maxDiffPixelRatio` in the config) fails the run; diffs are uploaded as a `visual-diff-report` artifact on CI failure.
+Covered so far: landing page, pricing page, dashboard, property detail, people, and the AddPropertyModal onboarding wizard (address / details / saved-hub steps) — each at the desktop (1280×800), mobile (375×812), and tablet (768×1024) projects. A failure over 0.1% pixel diff (`maxDiffPixelRatio` in the config) fails the run; diffs are uploaded as a `visual-diff-report` artifact on CI failure.
+
+**The tablet project exists specifically to catch a class of bug the other two miss**: short content under a viewport tall enough to reveal whatever's behind it. `min-height: "100%"` resolving to nothing (issue #520) only showed up at 768×1024 — desktop's content was usually tall enough to not expose it, and mobile (375px) is narrow enough that several of these pages fork to a dedicated mobile component with different markup entirely. When a new page's dark hg-v3 background needs to fill the viewport, give it a tablet baseline, not just desktop/mobile.
 
 **Two sources of non-determinism are handled explicitly, don't reintroduce them in a new spec:**
 - **The clock.** Several pages render relative time ("3d ago") or `toLocaleDateString()` output from mock data timestamped `Date.now() - N`. Every visual spec calls `freezeClock(page)` (`tests/e2e/helpers/visual.ts`) *before* `page.goto()` so those strings are identical on the day a baseline is captured and every day after. It uses `page.clock.setFixedTime()`, not `pauseAt()`/`install()`, so real timers (toasts, the actor's `fetchRootKey` retry) keep running — only the reported wall clock is pinned.
