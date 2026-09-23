@@ -228,6 +228,12 @@ table { border-collapse: collapse; }
 
 .hf-main {
   min-height: 100vh;
+  /* 100dvh tracks the actually-visible viewport on iOS/iPadOS Safari, where
+     the address bar's dynamic show/hide means 100vh (computed against its
+     tallest, address-bar-collapsed state) overstates the visible height.
+     Kept as a second declaration, after the 100vh fallback, so browsers
+     without dvh support simply ignore this line and keep the first. */
+  min-height: 100dvh;
   background: var(--canvas);
   transition: margin-left 0.2s ease;
 }
