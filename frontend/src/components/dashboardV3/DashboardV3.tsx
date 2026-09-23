@@ -307,7 +307,7 @@ export function DashboardV3() {
     : "NO PROPERTY";
 
   return (
-    <div className="hg-v3" data-theme={theme} style={{ minHeight: "100vh", display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
+    <div className="hg-v3 hg-v3-viewport" data-theme={theme} style={{ display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div style={{ flex: "none", display: "flex", alignItems: "center", gap: 16, padding: "14px 24px", flexWrap: "wrap" }}>
