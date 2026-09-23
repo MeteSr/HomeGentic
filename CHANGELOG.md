@@ -15,6 +15,9 @@ All notable changes to HomeGentic are documented here.
 - Added `Idempotency-Key` header to Resend email POST requests — prevents duplicate emails when the IC retries HTTP outcalls across subnet nodes
 - Added CallerGuard (`activeSubscribers` map) around both inter-canister `await` calls in `payment.subscribe()` to prevent TOCTOU double-charge from concurrent calls of the same principal
 
+### Fixes
+- **Frontend canister deploy pre-flight (deploy.sh v1.11.0)**: `icp deploy frontend` now fails fast with a clear message and remediation steps when the frontend canister is administratively stopped, instead of the opaque `IC0508` ("canister is stopped and therefore does not have a CallContextManager"). The Deploy Testnet workflow gained a `start_frontend_canister_first` manual-dispatch option that runs `icp canister start frontend` before redeploying, for recovering from exactly this state.
+
 ---
 
 ## [0.5.0] - 2026-04-11
