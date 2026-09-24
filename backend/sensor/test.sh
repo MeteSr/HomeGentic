@@ -109,9 +109,15 @@ LEAK_EVENT=$(dfx canister call sensor recordEvent '(
 )')
 echo "$LEAK_EVENT"
 if [ -n "$JOB_ID" ]; then
-  echo "$LEAK_EVENT" | grep -q "jobId = opt" \
-    && echo "  ↳ jobId auto-created for WaterLeak — ✓" \
-    || (echo "  ↳ ❌ Expected jobId to be set for WaterLeak; got: $LEAK_EVENT"; exit 1)
+  # Bash string match (not `echo | grep -q`) — under `set -o pipefail`, grep -q's
+  # early exit on match can SIGPIPE the still-writing echo, failing the pipeline
+  # even when the pattern matched. See git history for the flake this caused.
+  if [[ "$LEAK_EVENT" == *"jobId = opt"* ]]; then
+    echo "  ↳ jobId auto-created for WaterLeak — ✓"
+  else
+    echo "  ↳ ❌ Expected jobId to be set for WaterLeak; got: $LEAK_EVENT"
+    exit 1
+  fi
 else
   echo "  ↳ SKIP jobId assertion — job canister not deployed"
 fi
@@ -147,9 +153,12 @@ HVAC_EVENT=$(dfx canister call sensor recordEvent '(
 )')
 echo "$HVAC_EVENT"
 if [ -n "$JOB_ID" ]; then
-  echo "$HVAC_EVENT" | grep -q "jobId = opt" \
-    && echo "  ↳ jobId auto-created for HvacAlert — ✓" \
-    || (echo "  ↳ ❌ Expected jobId to be set for HvacAlert; got: $HVAC_EVENT"; exit 1)
+  if [[ "$HVAC_EVENT" == *"jobId = opt"* ]]; then
+    echo "  ↳ jobId auto-created for HvacAlert — ✓"
+  else
+    echo "  ↳ ❌ Expected jobId to be set for HvacAlert; got: $HVAC_EVENT"
+    exit 1
+  fi
 else
   echo "  ↳ SKIP jobId assertion — job canister not deployed"
 fi
@@ -173,9 +182,12 @@ echo "── [15] Get metrics (after tests) ────────────
 METRICS=$(dfx canister call sensor getMetrics)
 echo "$METRICS"
 if [ -n "$JOB_ID" ]; then
-  echo "$METRICS" | grep -qE "jobsCreated = [1-9]" \
-    && echo "  ↳ jobsCreated > 0 — ✓" \
-    || (echo "  ↳ ❌ Expected jobsCreated > 0 after Critical events"; exit 1)
+  if [[ "$METRICS" =~ jobsCreated\ =\ [1-9] ]]; then
+    echo "  ↳ jobsCreated > 0 — ✓"
+  else
+    echo "  ↳ ❌ Expected jobsCreated > 0 after Critical events"
+    exit 1
+  fi
 else
   echo "  ↳ SKIP jobsCreated assertion — job canister not deployed"
 fi
