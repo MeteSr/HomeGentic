@@ -290,9 +290,18 @@ function createJobService() {
     throw new Error(typeof val === "string" ? val : key);
   },
 
-  async redeemInviteToken(token: string): Promise<Job> {
+  async redeemInviteToken(
+    token: string,
+    identity: { contractorName: string; phone: string; email: string; licenseNumber?: string }
+  ): Promise<Job> {
     const a = await getActor();
-    const result = await a.redeemInviteToken(token);
+    const result = await a.redeemInviteToken(
+      token,
+      identity.contractorName,
+      identity.phone,
+      identity.email,
+      identity.licenseNumber ? [identity.licenseNumber] : []
+    );
     return unwrapJob(result);
   },
 

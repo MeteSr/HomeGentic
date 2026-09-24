@@ -625,7 +625,7 @@ function ContractorVerificationTab() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: UI.mono, fontSize: "0.7rem" }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${UI.rule}` }}>
-                {["Name", "Specialties", "License", "Trust Score", "Action"].map((h) => (
+                {["Name", "Contact", "Specialties", "License", "Trust Score", "Source", "Action"].map((h) => (
                   <th key={h} style={{ padding: "0.625rem 1rem", textAlign: "left", fontWeight: 400, fontSize: "0.55rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>{h}</th>
                 ))}
               </tr>
@@ -634,9 +634,13 @@ function ContractorVerificationTab() {
               {unverified.map((c) => (
                 <tr key={c.id} style={{ borderBottom: `1px solid ${UI.rule}` }}>
                   <td style={{ padding: "0.625rem 1rem", color: UI.ink, fontWeight: 600 }}>{c.name}</td>
+                  <td style={{ padding: "0.625rem 1rem", color: UI.inkLight }}>{c.email} · {c.phone}</td>
                   <td style={{ padding: "0.625rem 1rem", color: UI.inkLight }}>{c.specialties.join(", ")}</td>
                   <td style={{ padding: "0.625rem 1rem", color: UI.inkLight }}>{c.licenseNumber ?? "—"}</td>
                   <td style={{ padding: "0.625rem 1rem", color: UI.inkLight }}>{c.trustScore}</td>
+                  <td style={{ padding: "0.625rem 1rem", color: UI.inkLight }}>
+                    {c.origin.type === "GuestSigned" ? `Guest-signed (Job #${c.origin.jobId})` : "Self-registered"}
+                  </td>
                   <td style={{ padding: "0.625rem 1rem" }}>
                     <button
                       onClick={() => handleVerify(c.id)}

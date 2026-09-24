@@ -65,6 +65,7 @@ const mockContractor = {
   serviceZips: [] as string[],
   specialties: ["HVAC"], licenseNumber: null, rating: 4.8,
   bio: null, phone: "", email: "", createdAt: 0,
+  origin: { type: "SelfRegistered" as const },
 };
 
 const mockScheduleEntry = {

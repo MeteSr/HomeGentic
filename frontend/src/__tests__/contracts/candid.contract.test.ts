@@ -484,6 +484,7 @@ describe("contractor IDL factory", () => {
   it("exposes the expected methods", () => {
     const svc = extractService(contractorIdlFactory);
     expect(Object.keys(svc).sort()).toEqual([
+      "createOrLinkGuestProfile",
       "getAll",
       "getBySpecialty",
       "getContractor",

@@ -60,7 +60,7 @@ function makeContractor(overrides: Partial<ContractorProfile> = {}): ContractorP
     id: "ctr-1", name: "Alice Anderson", specialties: ["HVAC"],
     email: "alice@example.com", phone: "512-555-0100", bio: null, licenseNumber: null,
     serviceArea: null, serviceZips: [], trustScore: 80, jobsCompleted: 3,
-    isVerified: false, createdAt: Date.now(),
+    isVerified: false, createdAt: Date.now(), origin: { type: "SelfRegistered" },
     ...overrides,
   };
 }

@@ -42,6 +42,15 @@ persistent actor Contractor {
     #Pool;
   };
 
+  /// Provenance of a profile — did the contractor self-register, or was this
+  /// profile auto-created from a guest countersignature (#518)? Purely
+  /// informational for the admin-approval queue; does not affect isVerified,
+  /// trustScore, or any scoring/matching logic.
+  public type ContractorOrigin = {
+    #SelfRegistered;
+    #GuestSigned: Text;   // the jobId that triggered profile auto-creation
+  };
+
   public type ContractorProfile = {
     id:            Principal;
     name:          Text;
@@ -59,6 +68,7 @@ persistent actor Contractor {
     notifyEmail:   ?Text;   // override email for job-match notifications (null = use profile email)
     notifyPush:    ?Bool;   // opt-in to mobile push for new job matches
     alertZips:     [Text];  // subset of serviceZips to receive alerts for (empty = all serviceZips)
+    origin:        ContractorOrigin;
   };
 
   /// On-chain credential minted when a job is fully verified.
@@ -256,6 +266,38 @@ persistent actor Contractor {
     true
   };
 
+  /// Basic sanity check on a license number: 3–50 chars, alphanumeric plus
+  /// '-' and space. NOT a live state-registry lookup (deferred — see #518) —
+  /// this only rejects obviously-garbage input before admin review.
+  private func validateLicenseFormat(l: Text) : Bool {
+    let size = Text.size(l);
+    if (size < 3 or size > 50) return false;
+    for (c in l.chars()) {
+      if (not ((c >= '0' and c <= '9') or (c >= 'A' and c <= 'Z') or (c >= 'a' and c <= 'z') or c == '-' or c == ' ')) {
+        return false;
+      };
+    };
+    true
+  };
+
+  /// Maps the Text serviceType label the Job canister sends (its own
+  /// ServiceType variant, downgraded to Text at the cross-canister boundary)
+  /// onto this canister's own (larger) ServiceType variant. Job's 8 variants
+  /// are a subset of this canister's 16.
+  private func textToServiceType(t: Text) : ?ServiceType {
+    switch (t) {
+      case "Roofing"     { ?#Roofing };
+      case "HVAC"        { ?#HVAC };
+      case "Plumbing"    { ?#Plumbing };
+      case "Electrical"  { ?#Electrical };
+      case "Painting"    { ?#Painting };
+      case "Flooring"    { ?#Flooring };
+      case "Windows"     { ?#Windows };
+      case "Landscaping" { ?#Landscaping };
+      case _              { null };
+    }
+  };
+
   // ─── Core Functions ────────────────────────────────────────────────────────────
 
   /// Register a new contractor profile. Validates all required fields.
@@ -294,6 +336,7 @@ persistent actor Contractor {
       notifyEmail   = null;
       notifyPush    = null;
       alertZips     = [];
+      origin        = #SelfRegistered;
     };
     Map.add(contractors, Principal.compare, msg.caller, profile);
     #ok(profile)
@@ -398,7 +441,7 @@ persistent actor Contractor {
       case null {};
     };
     switch (args.licenseNumber) {
-      case (?l) { if (Text.size(l) > 50) return #err(#InvalidInput("licenseNumber exceeds 50 characters")) };
+      case (?l) { if (not validateLicenseFormat(l)) return #err(#InvalidInput("licenseNumber format is invalid")) };
       case null {};
     };
     switch (args.serviceArea) {
@@ -426,6 +469,7 @@ persistent actor Contractor {
           notifyEmail   = existing.notifyEmail;
           notifyPush    = existing.notifyPush;
           alertZips     = existing.alertZips;
+          origin        = existing.origin;
         };
         Map.add(contractors, Principal.compare, msg.caller, updated);
         #ok(updated)
@@ -543,8 +587,84 @@ persistent actor Contractor {
           notifyEmail   = existing.notifyEmail;
           notifyPush    = existing.notifyPush;
           alertZips     = existing.alertZips;
+          origin        = existing.origin;
         };
         Map.add(contractors, Principal.compare, contractorPrincipal, updated);
+        #ok(())
+      };
+    }
+  };
+
+  /// #518 — Called by the Job canister (cross-canister) when a guest
+  /// (no-account) contractor redeems an invite token. Creates an
+  /// admin-pending ContractorProfile for the redeeming principal if none
+  /// exists yet; leaves an existing profile untouched (a guest-sign event
+  /// must never clobber a contractor's own self-entered data).
+  ///
+  /// Profiles created this way start exactly like a fresh register() profile
+  /// — trustScore 70, isVerified false — so they flow through the same
+  /// unverified-tier scoring/matching path as any other new contractor.
+  /// Only the registered job canister principal or an admin may call this.
+  ///
+  /// Not a live license-registry check (deferred — see #518); this only
+  /// captures identity fields and gates the resulting profile behind the
+  /// existing admin-approval flow (verifyContractor()).
+  public shared(msg) func createOrLinkGuestProfile(
+    contractorPrincipal: Principal,
+    name:                Text,
+    phone:               Text,
+    email:               Text,
+    licenseNumber:       ?Text,
+    serviceTypeText:     Text,   // best-effort specialty seed; unmapped labels are silently skipped
+    originJobId:         Text,
+  ) : async Result.Result<(), Error> {
+    if (not isJobCanister(msg.caller) and not isAdmin(msg.caller))
+      return #err(#NotAuthorized);
+
+    switch (Map.get(contractors, Principal.compare, contractorPrincipal)) {
+      case (?_existing) { #ok(()) };  // already has a profile — no overwrite
+      case null {
+        if (Text.size(name)  == 0)   return #err(#InvalidInput("name cannot be empty"));
+        if (Text.size(name)  > 200)  return #err(#InvalidInput("name exceeds 200 characters"));
+        if (Text.size(email) == 0)   return #err(#InvalidInput("email cannot be empty"));
+        if (Text.size(email) > 254)  return #err(#InvalidInput("email exceeds 254 characters"));
+        if (not Text.contains(email, #text "@"))
+          return #err(#InvalidInput("email must contain @"));
+        if (Text.contains(email, #text " "))
+          return #err(#InvalidInput("email must not contain spaces"));
+        if (Text.size(phone) == 0)   return #err(#InvalidInput("phone cannot be empty"));
+        if (not validateE164Phone(phone))
+          return #err(#InvalidInput("phone must be in E.164 format (e.g. +12125551234)"));
+        switch (licenseNumber) {
+          case (?l) { if (not validateLicenseFormat(l)) return #err(#InvalidInput("licenseNumber format is invalid")) };
+          case null {};
+        };
+
+        let specialties : [ServiceType] = switch (textToServiceType(serviceTypeText)) {
+          case (?s) { [s] };
+          case null { [] };
+        };
+
+        let profile: ContractorProfile = {
+          id            = contractorPrincipal;
+          name;
+          specialties;
+          email;
+          phone;
+          bio           = null;
+          licenseNumber;
+          serviceArea   = null;
+          serviceZips   = [];
+          trustScore    = 70;
+          jobsCompleted = 0;
+          isVerified    = false;
+          createdAt     = Time.now();
+          notifyEmail   = null;
+          notifyPush    = null;
+          alertZips     = [];
+          origin        = #GuestSigned(originJobId);
+        };
+        Map.add(contractors, Principal.compare, contractorPrincipal, profile);
         #ok(())
       };
     }
@@ -592,6 +712,7 @@ persistent actor Contractor {
           notifyEmail   = existing.notifyEmail;
           notifyPush    = existing.notifyPush;
           alertZips     = existing.alertZips;
+          origin        = existing.origin;
         };
         Map.add(contractors, Principal.compare, c, updated);
         #ok(updated)
@@ -634,6 +755,7 @@ persistent actor Contractor {
           notifyEmail   = args.notifyEmail;
           notifyPush    = args.notifyPush;
           alertZips     = args.alertZips;
+          origin        = existing.origin;
         };
         Map.add(contractors, Principal.compare, msg.caller, updated);
         #ok(updated)

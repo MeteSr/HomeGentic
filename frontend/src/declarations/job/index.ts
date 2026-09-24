@@ -145,7 +145,13 @@ export const idlFactory = ({ IDL }: any) => {
       ["query"]
     ),
     redeemInviteToken: IDL.Func(
-      [IDL.Text],             // token
+      [
+        IDL.Text,            // token
+        IDL.Text,            // contractorName
+        IDL.Text,            // phone
+        IDL.Text,            // email
+        IDL.Opt(IDL.Text),   // licenseNumber
+      ],
       [IDL.Variant({ ok: Job, err: Error })],
       []
     ),

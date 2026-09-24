@@ -41,6 +41,7 @@ function makeRawProfile(overrides: Record<string, unknown> = {}) {
     jobsCompleted: BigInt(42),
     isVerified:    true,
     createdAt:     BigInt(1_700_000_000_000_000_000),
+    origin:        { SelfRegistered: null },
     ...overrides,
   };
 }

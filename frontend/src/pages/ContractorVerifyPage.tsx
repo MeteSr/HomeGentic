@@ -52,19 +52,34 @@ export default function ContractorVerifyPage() {
   const [stage,   setStage]   = useState<Stage>("loading");
   const [preview, setPreview] = useState<InvitePreview | null>(null);
   const [error,   setError]   = useState<string | null>(null);
+  // #518 — identity captured at signature time, cross-checked (format only,
+  // not a live registry lookup) and gated behind admin approval on the
+  // contractor canister before it counts toward trustScore/quote matching.
+  const [form, setForm] = useState({ contractorName: "", phone: "", email: "", licenseNumber: "" });
 
   useEffect(() => {
     if (!token) { setError("Invalid link."); setStage("error"); return; }
     jobService.getJobByInviteToken(token)
-      .then((p) => { setPreview(p); setStage("preview"); })
+      .then((p) => {
+        setPreview(p);
+        setStage("preview");
+        if (p.contractorName) setForm((f) => ({ ...f, contractorName: p.contractorName ?? "" }));
+      })
       .catch((e: Error) => { setError(e.message); setStage("error"); });
   }, [token]);
 
+  const canSign = form.contractorName.trim().length > 0 && form.phone.trim().length > 0 && form.email.trim().length > 0;
+
   async function handleSign() {
-    if (!token) return;
+    if (!token || !canSign) return;
     setStage("signing");
     try {
-      await jobService.redeemInviteToken(token);
+      await jobService.redeemInviteToken(token, {
+        contractorName: form.contractorName.trim(),
+        phone: form.phone.trim(),
+        email: form.email.trim(),
+        licenseNumber: form.licenseNumber.trim() || undefined,
+      });
       setStage("success");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
@@ -155,6 +170,75 @@ export default function ContractorVerifyPage() {
               ))}
             </div>
 
+            {/* Identity capture — #518. Required before the signature counts;
+                license number is optional and format-checked only (no live
+                registry lookup yet — see issue #518). */}
+            {!preview.alreadySigned && (
+              <div style={{ marginBottom: "1.5rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                <div>
+                  <label htmlFor="contractorName" style={{
+                    display: "block", fontFamily: UI.mono, fontSize: "0.62rem", letterSpacing: "0.08em",
+                    textTransform: "uppercase", color: UI.muted, marginBottom: "0.3rem",
+                  }}>
+                    Your name
+                  </label>
+                  <input
+                    id="contractorName"
+                    className="form-input"
+                    value={form.contractorName}
+                    onChange={(e) => setForm((f) => ({ ...f, contractorName: e.target.value }))}
+                    placeholder="Jane Contractor"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="phone" style={{
+                    display: "block", fontFamily: UI.mono, fontSize: "0.62rem", letterSpacing: "0.08em",
+                    textTransform: "uppercase", color: UI.muted, marginBottom: "0.3rem",
+                  }}>
+                    Phone
+                  </label>
+                  <input
+                    id="phone"
+                    className="form-input"
+                    value={form.phone}
+                    onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                    placeholder="+12125551234"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="email" style={{
+                    display: "block", fontFamily: UI.mono, fontSize: "0.62rem", letterSpacing: "0.08em",
+                    textTransform: "uppercase", color: UI.muted, marginBottom: "0.3rem",
+                  }}>
+                    Email
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    className="form-input"
+                    value={form.email}
+                    onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                    placeholder="jane@example.com"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="licenseNumber" style={{
+                    display: "block", fontFamily: UI.mono, fontSize: "0.62rem", letterSpacing: "0.08em",
+                    textTransform: "uppercase", color: UI.muted, marginBottom: "0.3rem",
+                  }}>
+                    License number <span style={{ textTransform: "none", letterSpacing: 0 }}>(optional)</span>
+                  </label>
+                  <input
+                    id="licenseNumber"
+                    className="form-input"
+                    value={form.licenseNumber}
+                    onChange={(e) => setForm((f) => ({ ...f, licenseNumber: e.target.value }))}
+                    placeholder="FL-LIC-99001"
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Already signed */}
             {preview.alreadySigned ? (
               <div style={{
@@ -171,7 +255,7 @@ export default function ContractorVerifyPage() {
               <>
                 <button
                   onClick={() => void handleSign()}
-                  disabled={stage === "signing"}
+                  disabled={stage === "signing" || !canSign}
                   style={{
                     width: "100%",
                     padding: "0.875rem",
@@ -183,12 +267,12 @@ export default function ContractorVerifyPage() {
                     fontSize: "0.8rem",
                     letterSpacing: "0.08em",
                     textTransform: "uppercase",
-                    cursor: stage === "signing" ? "not-allowed" : "pointer",
+                    cursor: stage === "signing" || !canSign ? "not-allowed" : "pointer",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     gap: "0.5rem",
-                    opacity: stage === "signing" ? 0.7 : 1,
+                    opacity: stage === "signing" || !canSign ? 0.7 : 1,
                     transition: "opacity 0.2s",
                   }}
                 >

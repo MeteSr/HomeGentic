@@ -309,7 +309,11 @@ describe.skipIf(!deployed)("createInviteToken / getJobByInviteToken — token li
   });
 
   it("redeemInviteToken signs the job and returns it", async () => {
-    const signed = await jobService.redeemInviteToken(token);
+    const signed = await jobService.redeemInviteToken(token, {
+      contractorName: "Pipe Masters Inc",
+      phone: "+15125551234",
+      email: "contact@pipemasters.example",
+    });
     expect(signed.id).toBe(jobId);
     expect(signed.contractorSigned).toBe(true);
   });
