@@ -226,7 +226,7 @@ export function Layout({ children, hideSidebar = false }: { children: React.Reac
       {!hideSidebar && (
       <nav
         className="hf-sidebar hg-v3"
-        data-theme="dark"
+        data-theme="light"
         style={{ width: sidebarW }}
         aria-label="Main navigation"
         aria-hidden={addPropOpen || undefined}

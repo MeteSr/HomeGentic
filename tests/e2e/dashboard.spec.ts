@@ -98,11 +98,13 @@ test.describe("DashboardPage — /dashboard (v3 left nav)", () => {
     await expect(page.getByText(/456 oak ave/i).first()).toBeVisible();
   });
 
-  test("shows a theme toggle and switches to light mode", async ({ page }) => {
-    const toggle = page.getByText("LIGHT", { exact: true });
+  test("shows a theme toggle and switches to dark mode", async ({ page }) => {
+    // Light is the default theme — the toggle label shows what clicking
+    // switches TO, so it reads "DARK" until clicked.
+    const toggle = page.getByText("DARK", { exact: true });
     await expect(toggle).toBeVisible();
     await toggle.click();
-    await expect(page.getByText("DARK", { exact: true })).toBeVisible();
+    await expect(page.getByText("LIGHT", { exact: true })).toBeVisible();
   });
 
   // ── Left rail ───────────────────────────────────────────────────────────

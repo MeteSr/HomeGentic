@@ -218,7 +218,7 @@ export function DashboardV3() {
   const displayName = profile?.email || (principal ? principal.slice(0, 8) + "…" : "User");
 
   // ── UI state ────────────────────────────────────────────────────────────
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [theme, setTheme] = useState<"dark" | "light">("light");
   const [activeKey, setActiveKey] = useState<PanelKey | null>(null);
   const [query, setQuery] = useState("");
   const [focus, setFocus] = useState(false);
