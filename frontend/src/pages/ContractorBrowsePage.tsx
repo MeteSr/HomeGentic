@@ -229,7 +229,7 @@ export default function ContractorBrowsePage() {
 
   return (
     <Layout>
-      <div className="hg-v3" data-theme="dark" style={{ background: "var(--hg-bg)", minHeight: "100dvh" }}>
+      <div className="hg-v3" data-theme="light" style={{ background: "var(--hg-bg)", minHeight: "100dvh" }}>
         <div style={{ maxWidth: 1024, margin: "0 auto", padding: "28px 24px" }}>
 
           {/* Header */}
