@@ -13,16 +13,17 @@ import {
   type PendingApproval,
   type AuditRow,
 } from "@/services/people";
-import { V2_COLORS, V2_FONTS } from "@/theme";
+import { Panel, Pill, hudInputStyle, type PillTone } from "@/components/hud";
 
-const C = V2_COLORS;
-const F = V2_FONTS;
+const DISPLAY = "'Bricolage Grotesque',sans-serif";
+const BODY = "'Hanken Grotesk',sans-serif";
+const MONO = "'JetBrains Mono',monospace";
 
-const ROLE_STYLE: Record<PersonRole, { bg: string; color: string; border: string }> = {
-  'OWNER':    { bg: '#FFF6DB', color: '#7C5500',  border: '#F2DFA8' },
-  'CO-OWNER': { bg: '#E0E2FF', color: '#2B34FF',  border: '#B9BDF5' },
-  'MANAGER':  { bg: '#E4F5EC', color: '#166634',  border: '#BFE3CE' },
-  'VIEWER':   { bg: '#F0F1F5', color: '#464B56',  border: '#DDDFE6' },
+const ROLE_TONE: Record<PersonRole, PillTone> = {
+  'OWNER':    'warn',
+  'CO-OWNER': 'info',
+  'MANAGER':  'good',
+  'VIEWER':   'neutral',
 };
 
 const ROLE_COPY: Record<PersonRole, string> = {
@@ -33,17 +34,17 @@ const ROLE_COPY: Record<PersonRole, string> = {
 };
 
 function avatarBg(role: PersonRole, pending: boolean): string {
-  if (pending) return '#F0F1F5';
-  if (role === 'OWNER') return C.ink;
-  if (role === 'CO-OWNER' || role === 'MANAGER') return C.vbadge;
-  return '#F0F1F5';
+  if (pending) return "var(--hg-fill)";
+  if (role === 'OWNER') return "var(--hg-ink)";
+  if (role === 'CO-OWNER' || role === 'MANAGER') return "var(--hg-blue-fill)";
+  return "var(--hg-fill)";
 }
 
 function avatarColor(role: PersonRole, pending: boolean): string {
-  if (pending) return C.muted;
-  if (role === 'OWNER') return '#FCFCFD';
-  if (role === 'CO-OWNER' || role === 'MANAGER') return C.blue;
-  return '#464B56';
+  if (pending) return "var(--hg-muted)";
+  if (role === 'OWNER') return "var(--hg-bg)";
+  if (role === 'CO-OWNER' || role === 'MANAGER') return "var(--hg-blue-ink)";
+  return "var(--hg-muted)";
 }
 
 function relativeTime(ms: number): string {
@@ -59,16 +60,7 @@ function money(cents: number): string {
 }
 
 function RoleBadge({ role }: { role: PersonRole }) {
-  const s = ROLE_STYLE[role];
-  return (
-    <span style={{
-      fontFamily: F.mono, fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.08em',
-      textTransform: 'uppercase', background: s.bg, color: s.color,
-      border: `1px solid ${s.border}`, borderRadius: 4, padding: '2px 7px', lineHeight: 1,
-    }}>
-      {role}
-    </span>
-  );
+  return <Pill tone={ROLE_TONE[role]}>{role}</Pill>;
 }
 
 function Avatar({ initials, bg, color, size = 32 }: { initials: string; bg: string; color: string; size?: number }) {
@@ -76,7 +68,7 @@ function Avatar({ initials, bg, color, size = 32 }: { initials: string; bg: stri
     <div style={{
       width: size, height: size, borderRadius: '50%', background: bg, color,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontFamily: F.mono, fontSize: size === 32 ? '0.65rem' : '0.7rem', fontWeight: 700,
+      fontFamily: MONO, fontSize: size === 32 ? '0.65rem' : '0.7rem', fontWeight: 700,
       flexShrink: 0, letterSpacing: '0.04em',
     }}>
       {initials}
@@ -85,12 +77,12 @@ function Avatar({ initials, bg, color, size = 32 }: { initials: string; bg: stri
 }
 
 const btnGhost: React.CSSProperties = {
-  fontFamily: F.body, fontSize: '0.8rem', fontWeight: 600, color: C.blue, background: 'white',
-  border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 14px', cursor: 'pointer',
+  fontFamily: BODY, fontSize: '0.8rem', fontWeight: 600, color: "var(--hg-blue-ink)", background: "var(--hg-surface)",
+  border: "1px solid var(--hg-line-2)", borderRadius: 100, padding: '7px 14px', cursor: 'pointer',
 };
 const btnDanger: React.CSSProperties = {
-  fontFamily: F.body, fontSize: '0.8rem', fontWeight: 600, color: '#B91C1C', background: 'white',
-  border: '1px solid #FECACA', borderRadius: 6, padding: '7px 14px', cursor: 'pointer',
+  fontFamily: BODY, fontSize: '0.8rem', fontWeight: 600, color: "var(--hg-bad)", background: "var(--hg-surface)",
+  border: "1px solid rgba(255,92,57,0.4)", borderRadius: 100, padding: '7px 14px', cursor: 'pointer',
 };
 
 // ─── People screen ────────────────────────────────────────────────────────────
@@ -109,13 +101,13 @@ function EditPersonForm({ person, onSave, onCancel }: { person: PersonAccess; on
   const isManager = role === 'MANAGER';
 
   return (
-    <div style={{ background: '#F5F6FB', border: `1px solid ${C.border}`, borderRadius: 8, padding: 14, marginBottom: 14 }}>
+    <Panel style={{ background: "var(--hg-fill)", border: "1px solid var(--hg-line-2)", borderRadius: 8, padding: 14, marginBottom: 14 }}>
       <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
         {(['VIEWER', 'MANAGER', 'CO-OWNER'] as PersonRole[]).map((r) => (
           <button key={r} onClick={() => setRole(r)} style={{
-            fontFamily: F.body, fontSize: '0.78rem', fontWeight: 600,
-            color: role === r ? 'white' : C.ink, background: role === r ? C.blue : 'white',
-            border: `1px solid ${role === r ? C.blue : C.border}`, borderRadius: 16, padding: '5px 12px', cursor: 'pointer',
+            fontFamily: BODY, fontSize: '0.78rem', fontWeight: 600,
+            color: role === r ? "var(--hg-chip-on)" : "var(--hg-ink)", background: role === r ? "var(--hg-blue)" : "var(--hg-surface)",
+            border: `1px solid ${role === r ? "var(--hg-blue)" : "var(--hg-line-2)"}`, borderRadius: 100, padding: '5px 12px', cursor: 'pointer',
           }}>
             {r === 'CO-OWNER' ? 'Co-owner' : r.charAt(0) + r.slice(1).toLowerCase()}
           </button>
@@ -125,9 +117,9 @@ function EditPersonForm({ person, onSave, onCancel }: { person: PersonAccess; on
         <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
           {SPEND_OPTIONS.map(({ label, value }) => (
             <button key={label} onClick={() => setLimit(value)} style={{
-              fontFamily: F.body, fontSize: '0.76rem', fontWeight: 600,
-              color: limit === value ? 'white' : C.ink, background: limit === value ? C.ink : 'white',
-              border: `1px solid ${limit === value ? C.ink : C.border}`, borderRadius: 16, padding: '5px 11px', cursor: 'pointer',
+              fontFamily: BODY, fontSize: '0.76rem', fontWeight: 600,
+              color: limit === value ? "var(--hg-chip-on)" : "var(--hg-ink)", background: limit === value ? "var(--hg-blue)" : "var(--hg-surface)",
+              border: `1px solid ${limit === value ? "var(--hg-blue)" : "var(--hg-line-2)"}`, borderRadius: 100, padding: '5px 11px', cursor: 'pointer',
             }}>
               {label}
             </button>
@@ -135,12 +127,12 @@ function EditPersonForm({ person, onSave, onCancel }: { person: PersonAccess; on
         </div>
       )}
       <div style={{ display: 'flex', gap: 8 }}>
-        <button onClick={() => onSave(role, isManager ? limit : null)} style={{ ...btnGhost, color: 'white', background: C.blue, border: 'none' }}>
+        <button onClick={() => onSave(role, isManager ? limit : null)} style={{ ...btnGhost, color: "var(--hg-chip-on)", background: "var(--hg-blue)", border: 'none' }}>
           Save
         </button>
         <button onClick={onCancel} style={btnGhost}>Cancel</button>
       </div>
-    </div>
+    </Panel>
   );
 }
 
@@ -157,7 +149,7 @@ function PeopleScreen({ propertyId, property, onInvite }: { propertyId: string; 
   useEffect(load, [propertyId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (people === null) {
-    return <p style={{ fontFamily: F.body, fontSize: '0.85rem', color: C.muted }}>Loading…</p>;
+    return <p style={{ fontFamily: BODY, fontSize: '0.85rem', color: "var(--hg-muted)" }}>Loading…</p>;
   }
 
   const rows: PersonAccess[] = [peopleService.ownerRow(property), ...people];
@@ -191,14 +183,14 @@ function PeopleScreen({ propertyId, property, onInvite }: { propertyId: string; 
 
   return (
     <div>
-      <p style={{ fontFamily: F.body, fontSize: '0.95rem', color: C.ink, fontWeight: 600, margin: '0 0 4px' }}>
+      <p style={{ fontFamily: BODY, fontSize: '0.95rem', color: "var(--hg-ink)", fontWeight: 600, margin: '0 0 4px' }}>
         {rows.length} {rows.length === 1 ? 'person can' : 'people can'} see this property
       </p>
-      <p style={{ fontFamily: F.body, fontSize: '0.85rem', color: C.muted, margin: '0 0 24px', lineHeight: 1.6, maxWidth: 520 }}>
+      <p style={{ fontFamily: BODY, fontSize: '0.85rem', color: "var(--hg-muted)", margin: '0 0 24px', lineHeight: 1.6, maxWidth: 520 }}>
         Access is granted per property, not per account. Everything a Manager or Co-owner does is signed with their name and shows on the record beside yours.
       </p>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 1, border: `1px solid ${C.border}`, borderRadius: 8, overflow: 'hidden', background: C.paper }}>
+      <Panel style={{ overflow: 'hidden' }}>
         {rows.map((person) => {
           const isOpen = openId === person.id;
           const isEditing = editing === person.id;
@@ -206,34 +198,34 @@ function PeopleScreen({ propertyId, property, onInvite }: { propertyId: string; 
           const aColor = avatarColor(person.role, person.isPending);
 
           return (
-            <div key={person.id} style={{ borderBottom: `1px solid ${C.border}` }}>
+            <div key={person.id} style={{ borderBottom: "1px solid var(--hg-line)" }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px' }}>
                 <Avatar initials={person.initials} bg={aBg} color={aColor} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ fontFamily: F.body, fontSize: '0.9rem', fontWeight: 700, color: C.ink }}>
+                    <span style={{ fontFamily: BODY, fontSize: '0.9rem', fontWeight: 700, color: "var(--hg-ink)" }}>
                       {person.name}
                     </span>
                     <RoleBadge role={person.role} />
                     {person.isPending && (
-                      <span style={{ fontFamily: F.mono, fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.06em', color: C.muted, background: '#F0F1F5', border: `1px solid ${C.border}`, borderRadius: 4, padding: '2px 7px' }}>
+                      <span style={{ fontFamily: MONO, fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.06em', color: "var(--hg-muted)", background: "var(--hg-fill)", border: "1px solid var(--hg-line-2)", borderRadius: 4, padding: '2px 7px' }}>
                         PENDING
                       </span>
                     )}
                   </div>
-                  <div style={{ fontFamily: F.body, fontSize: '0.78rem', color: C.muted, marginTop: 2 }}>
+                  <div style={{ fontFamily: BODY, fontSize: '0.78rem', color: "var(--hg-muted)", marginTop: 2 }}>
                     {person.role === 'MANAGER' && person.spendLimitCents !== null && `Up to ${money(person.spendLimitCents)} per action`}
                     {person.role === 'MANAGER' && person.spendLimitCents === null && 'No spend limit'}
                     {person.role !== 'MANAGER' && (person.isPending ? 'Invited ' : 'Added ') + relativeTime(person.addedAt).toLowerCase()}
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                  <span style={{ fontFamily: F.mono, fontSize: '0.7rem', color: C.muted, letterSpacing: '0.05em' }}>
+                  <span style={{ fontFamily: MONO, fontSize: '0.7rem', color: "var(--hg-muted)", letterSpacing: '0.05em' }}>
                     {person.isPending ? 'PENDING' : relativeTime(person.addedAt)}
                   </span>
                   <button onClick={() => { setOpenId(isOpen ? null : person.id); setEditing(null); }} style={{
-                    fontFamily: F.body, fontSize: '0.78rem', fontWeight: 600, color: C.blue, background: C.lblue,
-                    border: `1px solid ${C.border}`, borderRadius: 6, padding: '5px 12px', cursor: 'pointer',
+                    fontFamily: BODY, fontSize: '0.78rem', fontWeight: 600, color: "var(--hg-blue-ink)", background: "var(--hg-blue-wash)",
+                    border: "1px solid var(--hg-line-2)", borderRadius: 100, padding: '5px 12px', cursor: 'pointer',
                   }}>
                     {isOpen ? 'Close' : 'Manage'}
                   </button>
@@ -241,13 +233,13 @@ function PeopleScreen({ propertyId, property, onInvite }: { propertyId: string; 
               </div>
 
               {isOpen && (
-                <div style={{ background: '#F9F9FC', borderTop: `1px solid ${C.border}`, padding: '16px 20px 20px 60px' }}>
-                  <p style={{ fontFamily: F.body, fontSize: '0.82rem', color: C.muted, margin: '0 0 14px', lineHeight: 1.6 }}>
+                <div style={{ background: "var(--hg-fill)", borderTop: "1px solid var(--hg-line)", padding: '16px 20px 20px 60px' }}>
+                  <p style={{ fontFamily: BODY, fontSize: '0.82rem', color: "var(--hg-muted)", margin: '0 0 14px', lineHeight: 1.6 }}>
                     {ROLE_COPY[person.role]}
                   </p>
 
                   {person.role === 'OWNER' ? (
-                    <p style={{ fontFamily: F.mono, fontSize: '0.72rem', color: C.muted, letterSpacing: '0.04em', margin: 0 }}>
+                    <p style={{ fontFamily: MONO, fontSize: '0.72rem', color: "var(--hg-muted)", letterSpacing: '0.04em', margin: 0 }}>
                       NO LIMIT — OWNERSHIP CANNOT BE REVOKED FROM INSIDE THE APP
                     </p>
                   ) : isEditing ? (
@@ -271,12 +263,12 @@ function PeopleScreen({ propertyId, property, onInvite }: { propertyId: string; 
             </div>
           );
         })}
-      </div>
+      </Panel>
 
       <div style={{ marginTop: 20 }}>
         <button onClick={onInvite} style={{
-          fontFamily: F.body, fontSize: '0.875rem', fontWeight: 700, color: 'white', background: C.blue,
-          border: 'none', borderRadius: 8, padding: '10px 22px', cursor: 'pointer',
+          fontFamily: BODY, fontSize: '0.875rem', fontWeight: 700, color: "var(--hg-chip-on)", background: "var(--hg-blue)",
+          border: 'none', borderRadius: 100, padding: '10px 22px', cursor: 'pointer',
         }}>
           + Invite someone
         </button>
@@ -348,20 +340,20 @@ function InviteScreen({ propertyId, onSent }: { propertyId: string; onSent: () =
   return (
     <div style={{ maxWidth: 600 }}>
       {link ? (
-        <div style={{ background: '#E4F5EC', border: '1px solid #BFE3CE', borderRadius: 10, padding: '24px 28px' }}>
-          <p style={{ fontFamily: F.body, fontSize: '1.05rem', fontWeight: 700, color: '#166634', margin: '0 0 8px', textAlign: 'center' }}>
+        <Panel style={{ background: "var(--hg-good-wash)", border: "1px solid var(--hg-good-edge)", borderRadius: 10, padding: '24px 28px' }}>
+          <p style={{ fontFamily: BODY, fontSize: '1.05rem', fontWeight: 700, color: "var(--hg-good)", margin: '0 0 8px', textAlign: 'center' }}>
             Invite link ready
           </p>
-          <p style={{ fontFamily: F.body, fontSize: '0.85rem', color: '#166634', margin: '0 0 16px', textAlign: 'center' }}>
+          <p style={{ fontFamily: BODY, fontSize: '0.85rem', color: "var(--hg-good)", margin: '0 0 16px', textAlign: 'center' }}>
             Share this link with {displayName || 'them'} — it can only be claimed by a verified identity, and expires in 90 days.
           </p>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: 'white', border: '1px solid #BFE3CE', borderRadius: 8, padding: '8px 10px' }}>
-            <span style={{ flex: 1, fontFamily: F.mono, fontSize: '0.78rem', color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: "var(--hg-surface)", border: "1px solid var(--hg-good-edge)", borderRadius: 8, padding: '8px 10px' }}>
+            <span style={{ flex: 1, fontFamily: MONO, fontSize: '0.78rem', color: "var(--hg-ink)", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {link}
             </span>
             <button onClick={copyLink} style={{
               flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5,
-              fontFamily: F.body, fontSize: '0.78rem', fontWeight: 600, color: copied ? '#166634' : C.blue,
+              fontFamily: BODY, fontSize: '0.78rem', fontWeight: 600, color: copied ? "var(--hg-good)" : "var(--hg-blue-ink)",
               background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px',
             }}>
               {copied ? <CheckCircle size={13} /> : <Copy size={13} />} {copied ? 'Copied' : 'Copy'}
@@ -369,15 +361,15 @@ function InviteScreen({ propertyId, onSent }: { propertyId: string; onSent: () =
           </div>
           <button
             onClick={() => { setLink(null); setName(''); setRole('VIEWER'); setLimit(50000); onSent(); }}
-            style={{ marginTop: 16, fontFamily: F.body, fontSize: '0.82rem', fontWeight: 600, color: C.blue, background: 'white', border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 16px', cursor: 'pointer' }}
+            style={{ marginTop: 16, fontFamily: BODY, fontSize: '0.82rem', fontWeight: 600, color: "var(--hg-blue-ink)", background: "var(--hg-surface)", border: "1px solid var(--hg-line-2)", borderRadius: 100, padding: '7px 16px', cursor: 'pointer' }}
           >
             Done
           </button>
-        </div>
+        </Panel>
       ) : (
         <>
           <div style={{ marginBottom: 24 }}>
-            <p style={{ fontFamily: F.mono, fontSize: '0.68rem', fontWeight: 700, color: C.muted, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 10px' }}>
+            <p style={{ fontFamily: MONO, fontSize: '0.68rem', fontWeight: 700, color: "var(--hg-muted)", letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 10px' }}>
               Role
             </p>
             <div style={{ display: 'flex', gap: 12 }}>
@@ -386,14 +378,14 @@ function InviteScreen({ propertyId, onSent }: { propertyId: string; onSent: () =
                 return (
                   <button key={r} onClick={() => setRole(r)} style={{
                     flex: 1, textAlign: 'left', cursor: 'pointer',
-                    background: active ? '#F7F8FF' : 'white',
-                    border: `1.5px solid ${active ? C.blue : C.border}`, borderRadius: 8, padding: '14px 14px',
-                    boxShadow: active ? `0 0 0 3px rgba(43,52,255,0.08)` : 'none', transition: 'all 0.15s',
+                    background: active ? "var(--hg-blue-wash)" : "var(--hg-surface)",
+                    border: `1.5px solid ${active ? "var(--hg-blue)" : "var(--hg-line-2)"}`, borderRadius: 8, padding: '14px 14px',
+                    transition: 'all 0.15s',
                   }}>
-                    <div style={{ fontFamily: F.body, fontSize: '0.9rem', fontWeight: 700, color: active ? C.blue : C.ink, marginBottom: 4 }}>
+                    <div style={{ fontFamily: BODY, fontSize: '0.9rem', fontWeight: 700, color: active ? "var(--hg-blue-ink)" : "var(--hg-ink)", marginBottom: 4 }}>
                       {headline}
                     </div>
-                    <div style={{ fontFamily: F.body, fontSize: '0.78rem', color: C.muted, lineHeight: 1.5 }}>
+                    <div style={{ fontFamily: BODY, fontSize: '0.78rem', color: "var(--hg-muted)", lineHeight: 1.5 }}>
                       {body}
                     </div>
                   </button>
@@ -403,7 +395,7 @@ function InviteScreen({ propertyId, onSent }: { propertyId: string; onSent: () =
           </div>
 
           <div style={{ marginBottom: 24 }}>
-            <p style={{ fontFamily: F.mono, fontSize: '0.68rem', fontWeight: 700, color: C.muted, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 10px' }}>
+            <p style={{ fontFamily: MONO, fontSize: '0.68rem', fontWeight: 700, color: "var(--hg-muted)", letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 10px' }}>
               Spend limit
             </p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -412,11 +404,12 @@ function InviteScreen({ propertyId, onSent }: { propertyId: string; onSent: () =
                 const disabled = !isManager;
                 return (
                   <button key={label} onClick={() => { if (isManager) setLimit(value); }} disabled={disabled} style={{
-                    fontFamily: F.body, fontSize: '0.85rem', fontWeight: 600,
-                    color: disabled ? '#C0C4D0' : active ? 'white' : C.ink,
-                    background: disabled ? '#F5F6FA' : active ? C.ink : 'white',
-                    border: `1px solid ${disabled ? '#E8E9EF' : active ? C.ink : C.border}`,
-                    borderRadius: 20, padding: '7px 16px', cursor: disabled ? 'not-allowed' : 'pointer',
+                    fontFamily: BODY, fontSize: '0.85rem', fontWeight: 600,
+                    color: disabled ? "var(--hg-muted)" : active ? "var(--hg-chip-on)" : "var(--hg-ink)",
+                    background: disabled ? "var(--hg-fill)" : active ? "var(--hg-blue)" : "var(--hg-surface)",
+                    border: `1px solid ${disabled ? "var(--hg-line)" : active ? "var(--hg-blue)" : "var(--hg-line-2)"}`,
+                    borderRadius: 100, padding: '7px 16px', cursor: disabled ? 'not-allowed' : 'pointer',
+                    opacity: disabled ? 0.5 : 1,
                   }}>
                     {label}
                   </button>
@@ -426,30 +419,30 @@ function InviteScreen({ propertyId, onSent }: { propertyId: string; onSent: () =
           </div>
 
           <div style={{ marginBottom: 20 }}>
-            <label htmlFor="invite-name" style={{ display: 'block', fontFamily: F.mono, fontSize: '0.68rem', fontWeight: 700, color: C.muted, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>
+            <label htmlFor="invite-name" style={{ display: 'block', fontFamily: MONO, fontSize: '0.68rem', fontWeight: 700, color: "var(--hg-muted)", letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>
               Display name
             </label>
             <input
               id="invite-name" type="text" value={displayName} onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Sarah - daughter"
-              style={{ width: '100%', boxSizing: 'border-box', fontFamily: F.body, fontSize: '0.9rem', color: C.ink, background: 'white', border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 14px', outline: 'none' }}
+              style={{ ...hudInputStyle, width: '100%', boxSizing: 'border-box', padding: '10px 14px' }}
             />
           </div>
 
-          <div style={{ background: '#F5F6FB', border: `1px solid ${C.border}`, borderRadius: 10, padding: '20px 22px' }}>
-            <p style={{ fontFamily: F.body, fontSize: '0.9rem', fontWeight: 700, color: C.ink, margin: '0 0 6px' }}>{preview.title}</p>
-            <p style={{ fontFamily: F.body, fontSize: '0.82rem', color: C.muted, lineHeight: 1.6, margin: '0 0 18px' }}>{preview.body}</p>
+          <Panel style={{ background: "var(--hg-fill)", border: "1px solid var(--hg-line-2)", borderRadius: 10, padding: '20px 22px' }}>
+            <p style={{ fontFamily: BODY, fontSize: '0.9rem', fontWeight: 700, color: "var(--hg-ink)", margin: '0 0 6px' }}>{preview.title}</p>
+            <p style={{ fontFamily: BODY, fontSize: '0.82rem', color: "var(--hg-muted)", lineHeight: 1.6, margin: '0 0 18px' }}>{preview.body}</p>
             <button onClick={send} disabled={!displayName.trim() || sending} style={{
-              width: '100%', fontFamily: F.body, fontSize: '0.9rem', fontWeight: 700, color: 'white', background: C.blue,
-              border: 'none', borderRadius: 8, padding: '12px', cursor: displayName.trim() ? 'pointer' : 'not-allowed',
+              width: '100%', fontFamily: BODY, fontSize: '0.9rem', fontWeight: 700, color: "var(--hg-chip-on)", background: "var(--hg-blue)",
+              border: 'none', borderRadius: 100, padding: '12px', cursor: displayName.trim() ? 'pointer' : 'not-allowed',
               opacity: displayName.trim() && !sending ? 1 : 0.55,
             }}>
               {sending ? 'Generating…' : 'Generate invite link'}
             </button>
-            <p style={{ fontFamily: F.body, fontSize: '0.73rem', color: C.muted, textAlign: 'center', margin: '10px 0 0' }}>
+            <p style={{ fontFamily: BODY, fontSize: '0.73rem', color: "var(--hg-muted)", textAlign: 'center', margin: '10px 0 0' }}>
               The link expires in 90 days and can only be claimed by a verified identity.
             </p>
-          </div>
+          </Panel>
         </>
       )}
     </div>
@@ -467,31 +460,31 @@ function ApprovalCard({ approval, onRespond }: { approval: PendingApproval; onRe
   };
 
   return (
-    <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderBottom: `1px solid ${C.border}`, background: '#F9F9FC' }}>
-        <span style={{ fontFamily: F.body, fontSize: '0.85rem', fontWeight: 700, color: C.ink }}>{approval.requesterName}</span>
-        <span style={{ marginLeft: 'auto', fontFamily: F.mono, fontSize: '0.68rem', color: C.muted, letterSpacing: '0.04em' }}>
+    <Panel style={{ overflow: 'hidden', marginBottom: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderBottom: "1px solid var(--hg-line)", background: "var(--hg-fill)" }}>
+        <span style={{ fontFamily: BODY, fontSize: '0.85rem', fontWeight: 700, color: "var(--hg-ink)" }}>{approval.requesterName}</span>
+        <span style={{ marginLeft: 'auto', fontFamily: MONO, fontSize: '0.68rem', color: "var(--hg-muted)", letterSpacing: '0.04em' }}>
           {relativeTime(approval.createdAt)}
         </span>
       </div>
       <div style={{ padding: '16px 18px' }}>
-        <p style={{ fontFamily: F.body, fontSize: '0.95rem', fontWeight: 700, color: C.ink, margin: '0 0 8px', lineHeight: 1.4 }}>
+        <p style={{ fontFamily: BODY, fontSize: '0.95rem', fontWeight: 700, color: "var(--hg-ink)", margin: '0 0 8px', lineHeight: 1.4 }}>
           {approval.description}
         </p>
-        <p style={{ fontFamily: F.mono, fontSize: '1.1rem', fontWeight: 700, color: C.ink, margin: '0 0 16px' }}>
+        <p style={{ fontFamily: MONO, fontSize: '1.1rem', fontWeight: 700, color: "var(--hg-ink)", margin: '0 0 16px' }}>
           {money(approval.amountCents)}
         </p>
         {!responded ? (
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={() => respond(true)} style={{
-              fontFamily: F.body, fontSize: '0.85rem', fontWeight: 700, color: 'white', background: '#166634',
-              border: 'none', borderRadius: 7, padding: '9px 20px', cursor: 'pointer',
+              fontFamily: BODY, fontSize: '0.85rem', fontWeight: 700, color: "var(--hg-chip-on)", background: "var(--hg-blue)",
+              border: 'none', borderRadius: 100, padding: '9px 20px', cursor: 'pointer',
             }}>
               Approve
             </button>
             <button onClick={() => respond(false)} style={{
-              fontFamily: F.body, fontSize: '0.85rem', fontWeight: 600, color: '#B91C1C', background: 'white',
-              border: '1px solid #FECACA', borderRadius: 7, padding: '9px 20px', cursor: 'pointer',
+              fontFamily: BODY, fontSize: '0.85rem', fontWeight: 600, color: "var(--hg-muted)", background: "var(--hg-fill)",
+              border: "1px solid var(--hg-line-2)", borderRadius: 100, padding: '9px 20px', cursor: 'pointer',
             }}>
               Decline
             </button>
@@ -499,16 +492,16 @@ function ApprovalCard({ approval, onRespond }: { approval: PendingApproval; onRe
         ) : (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 10,
-            background: responded === 'approved' ? '#E4F5EC' : '#FEF2F2',
-            border: `1px solid ${responded === 'approved' ? '#BFE3CE' : '#FECACA'}`, borderRadius: 7, padding: '10px 16px',
+            background: responded === 'approved' ? "var(--hg-good-wash)" : "rgba(255,92,57,0.08)",
+            border: `1px solid ${responded === 'approved' ? "var(--hg-good-edge)" : "rgba(255,92,57,0.4)"}`, borderRadius: 7, padding: '10px 16px',
           }}>
-            <span style={{ fontFamily: F.body, fontSize: '0.875rem', fontWeight: 700, color: responded === 'approved' ? '#166634' : '#B91C1C' }}>
+            <span style={{ fontFamily: BODY, fontSize: '0.875rem', fontWeight: 700, color: responded === 'approved' ? "var(--hg-good)" : "var(--hg-bad)" }}>
               {responded === 'approved' ? `✓ Approved — ${approval.requesterName} will be notified.` : `✗ Declined — ${approval.requesterName} has been notified.`}
             </span>
           </div>
         )}
       </div>
-    </div>
+    </Panel>
   );
 }
 
@@ -534,7 +527,7 @@ function ActivityScreen({ propertyId, approvalsHint }: { propertyId: string; app
     <div>
       {approvals && approvals.length > 0 && (
         <div style={{ marginBottom: 32 }}>
-          <p style={{ fontFamily: F.mono, fontSize: '0.68rem', fontWeight: 700, color: C.muted, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 12px' }}>
+          <p style={{ fontFamily: MONO, fontSize: '0.68rem', fontWeight: 700, color: "var(--hg-muted)", letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 12px' }}>
             APPROVALS · {approvals.length} PENDING
           </p>
           {approvals.map((a) => <ApprovalCard key={a.id} approval={a} onRespond={(approve) => respond(a.id, approve)} />)}
@@ -542,32 +535,31 @@ function ActivityScreen({ propertyId, approvalsHint }: { propertyId: string; app
       )}
 
       <div>
-        <p style={{ fontFamily: F.mono, fontSize: '0.68rem', fontWeight: 700, color: C.muted, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 12px' }}>
+        <p style={{ fontFamily: MONO, fontSize: '0.68rem', fontWeight: 700, color: "var(--hg-muted)", letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 12px' }}>
           ACTIVITY LOG
         </p>
         {audit === null ? (
-          <p style={{ fontFamily: F.body, fontSize: '0.85rem', color: C.muted }}>Loading…</p>
+          <p style={{ fontFamily: BODY, fontSize: '0.85rem', color: "var(--hg-muted)" }}>Loading…</p>
         ) : audit.length === 0 ? (
-          <p style={{ fontFamily: F.body, fontSize: '0.85rem', color: C.muted }}>No activity yet — actions a Manager or Co-owner takes will show up here.</p>
+          <p style={{ fontFamily: BODY, fontSize: '0.85rem', color: "var(--hg-muted)" }}>No activity yet — actions a Manager or Co-owner takes will show up here.</p>
         ) : (
-          <div style={{ border: `1px solid ${C.border}`, borderRadius: 8, overflow: 'hidden' }}>
+          <Panel style={{ overflow: 'hidden' }}>
             {audit.map((row, i) => (
               <div key={row.id} style={{
                 display: 'grid', gridTemplateColumns: '80px 36px 1fr', gap: '0 12px', alignItems: 'center',
-                padding: '12px 16px', borderBottom: i < audit.length - 1 ? `1px solid ${C.border}` : 'none',
-                background: i % 2 === 0 ? C.paper : '#FAFAFA',
+                padding: '12px 16px', borderBottom: i < audit.length - 1 ? "1px solid var(--hg-line)" : 'none',
               }}>
-                <span style={{ fontFamily: F.mono, fontSize: '0.68rem', color: C.muted, letterSpacing: '0.04em' }}>
+                <span style={{ fontFamily: MONO, fontSize: '0.68rem', color: "var(--hg-muted)", letterSpacing: '0.04em' }}>
                   {relativeTime(row.when)}
                 </span>
-                <Avatar initials={row.managerName.slice(0, 2).toUpperCase()} bg={C.vbadge} color={C.blue} size={28} />
+                <Avatar initials={row.managerName.slice(0, 2).toUpperCase()} bg="var(--hg-blue-fill)" color="var(--hg-blue-ink)" size={28} />
                 <div>
-                  <div style={{ fontFamily: F.body, fontSize: '0.83rem', color: C.ink, fontWeight: 500 }}>{row.description}</div>
-                  <div style={{ fontFamily: F.body, fontSize: '0.74rem', color: C.muted, marginTop: 1 }}>{row.managerName}</div>
+                  <div style={{ fontFamily: BODY, fontSize: '0.83rem', color: "var(--hg-ink)", fontWeight: 500 }}>{row.description}</div>
+                  <div style={{ fontFamily: BODY, fontSize: '0.74rem', color: "var(--hg-muted)", marginTop: 1 }}>{row.managerName}</div>
                 </div>
               </div>
             ))}
-          </div>
+          </Panel>
         )}
       </div>
     </div>
@@ -610,15 +602,15 @@ export default function PeoplePage() {
 
   return (
     <Layout>
-      <div style={{ background: C.paper, minHeight: '100%', padding: '28px 32px' }}>
+      <div className="hg-v3" data-theme="dark" style={{ background: "var(--hg-bg)", minHeight: '100dvh', padding: '28px 32px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-          <h1 style={{ fontFamily: F.display, fontSize: '1.6rem', fontWeight: 700, color: C.ink, margin: 0 }}>
+          <h1 style={{ fontFamily: DISPLAY, fontSize: '1.6rem', fontWeight: 700, color: "var(--hg-ink)", margin: 0 }}>
             People
           </h1>
           {allowed && (
             <button onClick={() => setScreen('invite')} style={{
-              fontFamily: F.body, fontSize: '0.875rem', fontWeight: 700, color: 'white', background: C.blue,
-              border: 'none', borderRadius: 8, padding: '9px 20px', cursor: 'pointer',
+              fontFamily: BODY, fontSize: '0.875rem', fontWeight: 700, color: "var(--hg-chip-on)", background: "var(--hg-blue)",
+              border: 'none', borderRadius: 100, padding: '9px 20px', cursor: 'pointer',
             }}>
               + Invite someone
             </button>
@@ -626,7 +618,7 @@ export default function PeoplePage() {
         </div>
 
         {tierLoading ? (
-          <p style={{ fontFamily: F.body, fontSize: '0.85rem', color: C.muted }}>Loading…</p>
+          <p style={{ fontFamily: BODY, fontSize: '0.85rem', color: "var(--hg-muted)" }}>Loading…</p>
         ) : !allowed ? (
           <UpgradeGate
             feature="Shared property access"
@@ -634,7 +626,7 @@ export default function PeoplePage() {
             tier="Pro"
           />
         ) : !property ? (
-          <p style={{ fontFamily: F.body, fontSize: '0.85rem', color: C.muted }}>Add a property to invite people to it.</p>
+          <p style={{ fontFamily: BODY, fontSize: '0.85rem', color: "var(--hg-muted)" }}>Add a property to invite people to it.</p>
         ) : (
           <>
             <div style={{ display: 'flex', gap: 8, marginBottom: 28 }}>
@@ -642,16 +634,16 @@ export default function PeoplePage() {
                 const active = screen === key;
                 return (
                   <button key={key} onClick={() => setScreen(key)} style={{
-                    fontFamily: F.body, fontSize: '0.85rem', fontWeight: 600,
-                    color: active ? 'white' : C.ink, background: active ? C.ink : 'white',
-                    border: `1px solid ${active ? C.ink : C.border}`, borderRadius: 20, padding: '7px 16px',
+                    fontFamily: BODY, fontSize: '0.85rem', fontWeight: 600,
+                    color: active ? "var(--hg-chip-on)" : "var(--hg-ink)", background: active ? "var(--hg-blue)" : "var(--hg-surface)",
+                    border: `1px solid ${active ? "var(--hg-blue)" : "var(--hg-line-2)"}`, borderRadius: 100, padding: '7px 16px',
                     cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
                   }}>
                     {label}
                     {key === 'activity' && approvalCount > 0 && (
                       <span style={{
-                        fontFamily: F.mono, fontSize: '0.65rem', fontWeight: 700,
-                        background: active ? 'rgba(255,255,255,0.25)' : C.blue, color: 'white',
+                        fontFamily: MONO, fontSize: '0.65rem', fontWeight: 700,
+                        background: active ? 'rgba(255,255,255,0.25)' : "var(--hg-blue)", color: "var(--hg-chip-on)",
                         borderRadius: 10, padding: '1px 6px', minWidth: 18, textAlign: 'center',
                       }}>
                         {approvalCount}
