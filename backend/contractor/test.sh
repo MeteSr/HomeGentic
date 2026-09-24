@@ -173,3 +173,96 @@ fi
 
 echo ""
 echo "✅ Contractor submitReview negative case tests complete!"
+
+# ─── #518 createOrLinkGuestProfile (guest countersigning identity capture) ───
+echo ""
+echo "=== Contractor — createOrLinkGuestProfile Tests (#518) ==="
+
+if ! dfx identity list 2>/dev/null | grep -q "^guest-signed-test$"; then
+  dfx identity new guest-signed-test --disable-encryption 2>/dev/null || true
+fi
+GUEST_PRINCIPAL=$(dfx identity get-principal --identity guest-signed-test)
+
+echo ""
+echo "── [G1] createOrLinkGuestProfile — non-trusted/non-admin caller → expect NotAuthorized ─"
+G1_RESULT=$(dfx canister call contractor createOrLinkGuestProfile \
+  "(principal \"$GUEST_PRINCIPAL\", \"Jane Contractor\", \"+15125551234\", \"jane@example.com\", opt \"FL-LIC-99001\", \"HVAC\", \"JOB_TEST_1\")" \
+  --identity property-test 2>&1 || true)
+echo "$G1_RESULT"
+if echo "$G1_RESULT" | grep -qiE "NotAuthorized|err"; then
+  echo "  ✓ non-trusted/non-admin caller correctly rejected"
+else
+  echo "  ↳ ❌ Expected NotAuthorized for non-trusted/non-admin caller"
+fi
+
+echo ""
+echo "── [G2] createOrLinkGuestProfile — malformed phone (admin caller) → expect InvalidInput ─"
+G2_RESULT=$(dfx canister call contractor createOrLinkGuestProfile \
+  "(principal \"$GUEST_PRINCIPAL\", \"Jane Contractor\", \"555-1234\", \"jane@example.com\", opt \"FL-LIC-99001\", \"HVAC\", \"JOB_TEST_1\")" \
+  2>&1 || true)
+echo "$G2_RESULT"
+if echo "$G2_RESULT" | grep -qiE "InvalidInput|err"; then
+  echo "  ✓ malformed phone correctly rejected"
+else
+  echo "  ↳ ❌ Expected InvalidInput for malformed phone"
+fi
+
+echo ""
+echo "── [G3] createOrLinkGuestProfile — malformed license (too short) → expect InvalidInput ─"
+G3_RESULT=$(dfx canister call contractor createOrLinkGuestProfile \
+  "(principal \"$GUEST_PRINCIPAL\", \"Jane Contractor\", \"+15125551234\", \"jane@example.com\", opt \"a\", \"HVAC\", \"JOB_TEST_1\")" \
+  2>&1 || true)
+echo "$G3_RESULT"
+if echo "$G3_RESULT" | grep -qiE "InvalidInput|err"; then
+  echo "  ✓ malformed license number correctly rejected"
+else
+  echo "  ↳ ❌ Expected InvalidInput for malformed license number"
+fi
+
+echo ""
+echo "── [G4] createOrLinkGuestProfile — valid args, fresh principal → expect ok, isVerified=false, origin=GuestSigned ─"
+G4_RESULT=$(dfx canister call contractor createOrLinkGuestProfile \
+  "(principal \"$GUEST_PRINCIPAL\", \"Jane Contractor\", \"+15125551234\", \"jane@example.com\", opt \"FL-LIC-99001\", \"HVAC\", \"JOB_TEST_1\")" \
+  2>&1 || true)
+echo "$G4_RESULT"
+if echo "$G4_RESULT" | grep -qi "ok"; then
+  echo "  ✓ valid guest profile creation succeeded"
+else
+  echo "  ↳ ❌ Expected ok for valid guest profile creation"
+fi
+G4_PROFILE=$(dfx canister call contractor getContractor "(principal \"$GUEST_PRINCIPAL\")")
+echo "$G4_PROFILE"
+if echo "$G4_PROFILE" | grep -qi "isVerified = false" \
+  && echo "$G4_PROFILE" | grep -qi "GuestSigned" \
+  && echo "$G4_PROFILE" | grep -q "trustScore = 70"; then
+  echo "  ✓ profile shows isVerified=false, origin=GuestSigned, trustScore=70"
+else
+  echo "  ↳ ❌ Profile fields did not match expected guest-signed defaults"
+fi
+
+echo ""
+echo "── [G5] createOrLinkGuestProfile — second call for same principal is a no-op ─────"
+dfx canister call contractor createOrLinkGuestProfile \
+  "(principal \"$GUEST_PRINCIPAL\", \"Different Name\", \"+19995551234\", \"different@example.com\", null, \"Roofing\", \"JOB_TEST_2\")" \
+  || true
+G5_PROFILE=$(dfx canister call contractor getContractor "(principal \"$GUEST_PRINCIPAL\")")
+echo "$G5_PROFILE"
+if echo "$G5_PROFILE" | grep -qi "Jane Contractor" && echo "$G5_PROFILE" | grep -qi "JOB_TEST_1"; then
+  echo "  ✓ original guest-signed profile data preserved (no overwrite)"
+else
+  echo "  ↳ ❌ Expected original profile data to survive a second guest-sign call"
+fi
+
+echo ""
+echo "── [G6] verifyContractor on a guest-created principal — admin path just works ────"
+dfx canister call contractor verifyContractor "(principal \"$GUEST_PRINCIPAL\")"
+G6_PROFILE=$(dfx canister call contractor getContractor "(principal \"$GUEST_PRINCIPAL\")")
+echo "$G6_PROFILE"
+if echo "$G6_PROFILE" | grep -qi "isVerified = true"; then
+  echo "  ✓ guest-created profile verified via the existing admin approval path"
+else
+  echo "  ↳ ❌ Expected isVerified=true after verifyContractor"
+fi
+
+echo ""
+echo "✅ Contractor createOrLinkGuestProfile tests complete!"

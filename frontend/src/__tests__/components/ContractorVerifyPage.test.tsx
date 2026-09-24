@@ -48,6 +48,15 @@ function renderAtToken(token = "INV_abc123") {
   );
 }
 
+/** #518 — the sign button stays disabled until name/phone/email are filled.
+ *  MOCK_PREVIEW.contractorName pre-fills the name field, so only phone/email
+ *  need filling here. */
+async function fillRequiredFields() {
+  await waitFor(() => screen.getByLabelText("Phone"));
+  fireEvent.change(screen.getByLabelText("Phone"), { target: { value: "+15125551234" } });
+  fireEvent.change(screen.getByLabelText("Email"), { target: { value: "contact@coolair.example" } });
+}
+
 // ── Loading state ─────────────────────────────────────────────────────────────
 
 describe("ContractorVerifyPage — loading", () => {
@@ -126,18 +135,23 @@ describe("ContractorVerifyPage — confirm & sign", () => {
     (jobService.redeemInviteToken as any).mockResolvedValue(undefined);
   });
 
-  it("calls redeemInviteToken with the token from the URL", async () => {
+  it("calls redeemInviteToken with the token and captured identity from the form", async () => {
     renderAtToken("INV_tok999");
-    await waitFor(() => screen.getByRole("button", { name: /confirm.*sign/i }));
+    await fillRequiredFields();
     fireEvent.click(screen.getByRole("button", { name: /confirm.*sign/i }));
     await waitFor(() =>
-      expect(jobService.redeemInviteToken).toHaveBeenCalledWith("INV_tok999")
+      expect(jobService.redeemInviteToken).toHaveBeenCalledWith("INV_tok999", {
+        contractorName: "Cool Air LLC",
+        phone: "+15125551234",
+        email: "contact@coolair.example",
+        licenseNumber: undefined,
+      })
     );
   });
 
   it("shows success state after signing", async () => {
     renderAtToken();
-    await waitFor(() => screen.getByRole("button", { name: /confirm.*sign/i }));
+    await fillRequiredFields();
     fireEvent.click(screen.getByRole("button", { name: /confirm.*sign/i }));
     await waitFor(() =>
       expect(screen.getByText(/signature recorded/i)).toBeInTheDocument()
@@ -146,7 +160,7 @@ describe("ContractorVerifyPage — confirm & sign", () => {
 
   it("success state shows link to /register?role=Contractor", async () => {
     renderAtToken();
-    await waitFor(() => screen.getByRole("button", { name: /confirm.*sign/i }));
+    await fillRequiredFields();
     fireEvent.click(screen.getByRole("button", { name: /confirm.*sign/i }));
     await waitFor(() => screen.getByText(/signature recorded/i));
     const link = screen.getByRole("link", { name: /create free account/i }) as HTMLAnchorElement;
@@ -187,7 +201,7 @@ describe("ContractorVerifyPage — redeem error", () => {
       new Error("Token already used")
     );
     renderAtToken();
-    await waitFor(() => screen.getByRole("button", { name: /confirm.*sign/i }));
+    await fillRequiredFields();
     fireEvent.click(screen.getByRole("button", { name: /confirm.*sign/i }));
     await waitFor(() =>
       expect(screen.getByText(/link unavailable/i)).toBeInTheDocument()

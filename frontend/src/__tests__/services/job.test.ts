@@ -624,7 +624,11 @@ describe("jobService.getJobByInviteToken", () => {
 
 describe("jobService.redeemInviteToken", () => {
   it("returns a mock verified job in mock mode", async () => {
-    const job = await jobService.redeemInviteToken("any-token");
+    const job = await jobService.redeemInviteToken("any-token", {
+      contractorName: "Jane Contractor",
+      phone: "+15125551234",
+      email: "jane@example.com",
+    });
     expect(job.id).toBe("MOCK_JOB");
     expect(job.verified).toBe(true);
     expect(job.homeownerSigned).toBe(true);

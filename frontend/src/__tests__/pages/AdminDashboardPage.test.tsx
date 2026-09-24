@@ -125,7 +125,7 @@ function makeContractor(overrides: Partial<ContractorProfile> = {}): ContractorP
   return {
     id: "ctr-1", name: "Alice Anderson", specialties: ["HVAC"], email: "a@example.com", phone: "555-0100",
     bio: null, licenseNumber: "LIC-1", serviceArea: null, serviceZips: [], trustScore: 80, jobsCompleted: 5,
-    isVerified: false, createdAt: Date.now(),
+    isVerified: false, createdAt: Date.now(), origin: { type: "SelfRegistered" },
     ...overrides,
   };
 }
@@ -235,6 +235,33 @@ describe("AdminDashboardPage — contractors tab", () => {
     await waitFor(() => expect(mockVerifyContractor).toHaveBeenCalledWith("c1"));
     expect(mockToastSuccess).toHaveBeenCalledWith("Contractor verified");
     await waitFor(() => expect(screen.getByText("All contractors are verified.")).toBeInTheDocument());
+  });
+
+  it("shows the guest-signed source and originating job for a #518 auto-created profile", async () => {
+    mockSearch.mockResolvedValue([
+      makeContractor({
+        id: "c1", name: "Jane Contractor", isVerified: false,
+        origin: { type: "GuestSigned", jobId: "JOB_42" },
+      }),
+    ]);
+    renderPage();
+    await waitFor(() => expect(screen.getByText("Admin Dashboard")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Contractors"));
+
+    await waitFor(() => expect(screen.getByText("Jane Contractor")).toBeInTheDocument());
+    expect(screen.getByText("Guest-signed (Job #JOB_42)")).toBeInTheDocument();
+  });
+
+  it("shows self-registered as the source for a normally-registered contractor", async () => {
+    mockSearch.mockResolvedValue([
+      makeContractor({ id: "c1", name: "Alice Anderson", isVerified: false, origin: { type: "SelfRegistered" } }),
+    ]);
+    renderPage();
+    await waitFor(() => expect(screen.getByText("Admin Dashboard")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Contractors"));
+
+    await waitFor(() => expect(screen.getByText("Alice Anderson")).toBeInTheDocument());
+    expect(screen.getByText("Self-registered")).toBeInTheDocument();
   });
 });
 

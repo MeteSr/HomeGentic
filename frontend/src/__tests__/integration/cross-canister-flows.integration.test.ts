@@ -260,7 +260,16 @@ describe.skipIf(!integrationReady)("Flow 2: Contractor dual-signature workflow",
   });
 
   it("step 3 — CONTRACTOR redeems invite token → contractorSigned: true, homeownerSigned still false", async () => {
-    const result = await contractorJobActor.redeemInviteToken(inviteToken);
+    // #518 — redeemInviteToken now requires identity fields captured at
+    // signature time; cross-called to the contractor canister to
+    // create-or-link a ContractorProfile for the redeeming principal.
+    const result = await contractorJobActor.redeemInviteToken(
+      inviteToken,
+      "Cross-Canister Test Contractor",
+      "+15125559099",
+      "contractor-flow-test@example.com",
+      [],
+    );
     const raw = unwrap<{ contractorSigned: boolean; homeownerSigned: boolean; verified: boolean }>(
       result as any, "contractor redeemInviteToken",
     );

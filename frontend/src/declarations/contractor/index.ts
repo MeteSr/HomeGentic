@@ -6,6 +6,10 @@ export const idlFactory = ({ IDL }: any) => {
     Gutters: IDL.Null, GeneralHandyman: IDL.Null, Pest: IDL.Null, Concrete: IDL.Null,
     Fencing: IDL.Null, Insulation: IDL.Null, Solar: IDL.Null, Pool: IDL.Null,
   });
+  const ContractorOrigin = IDL.Variant({
+    SelfRegistered: IDL.Null,
+    GuestSigned:    IDL.Text,
+  });
   const ContractorProfile = IDL.Record({
     id:            IDL.Principal,
     name:          IDL.Text,
@@ -23,6 +27,7 @@ export const idlFactory = ({ IDL }: any) => {
     notifyEmail:   IDL.Opt(IDL.Text),
     notifyPush:    IDL.Opt(IDL.Bool),
     alertZips:     IDL.Vec(IDL.Text),
+    origin:        ContractorOrigin,
   });
   const NotificationPrefsArgs = IDL.Record({
     notifyEmail: IDL.Opt(IDL.Text),
@@ -98,6 +103,13 @@ export const idlFactory = ({ IDL }: any) => {
     ),
     recordJobVerified: IDL.Func(
       [IDL.Principal, IDL.Text, IDL.Text, IDL.Principal],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
+    // Job-canister-only cross-call (see backend/job/main.mo redeemInviteToken).
+    // Declared here for candid-contract-test parity; the frontend never calls it directly.
+    createOrLinkGuestProfile: IDL.Func(
+      [IDL.Principal, IDL.Text, IDL.Text, IDL.Text, IDL.Opt(IDL.Text), IDL.Text, IDL.Text],
       [IDL.Variant({ ok: IDL.Null, err: Error })],
       []
     ),

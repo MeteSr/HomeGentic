@@ -49,7 +49,8 @@ metrics(0) -> (1) [query]"
 `;
 
 exports[`Candid contract snapshots — method arity > contractor 1`] = `
-"getAll(0) -> (1) [query]
+"createOrLinkGuestProfile(7) -> (1)
+getAll(0) -> (1) [query]
 getBySpecialty(1) -> (1) [query]
 getContractor(1) -> (1) [query]
 getCredentials(1) -> (1) [query]
@@ -81,7 +82,7 @@ getMyReferralJobs(0) -> (1) [query]
 getPendingProposals(0) -> (1) [query]
 getReferralJobs(0) -> (1) [query]
 linkContractor(2) -> (1)
-redeemInviteToken(1) -> (1)
+redeemInviteToken(5) -> (1)
 rejectJobProposal(1) -> (1)
 setPropertyCanisterId(1) -> (1)
 updateJobStatus(2) -> (1)

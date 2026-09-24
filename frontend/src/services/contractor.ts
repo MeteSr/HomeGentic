@@ -7,6 +7,12 @@ const CONTRACTOR_CANISTER_ID = (process.env as any).CONTRACTOR_CANISTER_ID || ""
 
 // ─── TypeScript types ─────────────────────────────────────────────────────────
 
+/** Provenance of a profile — see #518. Informational only; does not affect
+ *  isVerified, trustScore, or any scoring/matching logic. */
+export type ContractorOrigin =
+  | { type: "SelfRegistered" }
+  | { type: "GuestSigned"; jobId: string };
+
 export interface ContractorProfile {
   id:            string;   // principal text
   name:          string;
@@ -22,6 +28,7 @@ export interface ContractorProfile {
   isVerified:    boolean;
   createdAt:     number;   // ms
   rating?:       number;   // average from reviews; computed client-side
+  origin:        ContractorOrigin;
 }
 
 export interface JobCredential {
@@ -68,6 +75,9 @@ function fromProfile(raw: any): ContractorProfile {
     jobsCompleted: Number(raw.jobsCompleted),
     isVerified:    raw.isVerified,
     createdAt:     Number(raw.createdAt) / 1_000_000,
+    origin:        "SelfRegistered" in raw.origin
+      ? { type: "SelfRegistered" }
+      : { type: "GuestSigned", jobId: raw.origin.GuestSigned },
   };
 }
 

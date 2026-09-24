@@ -247,6 +247,22 @@ persistent actor Job {
     "JOB_" # Nat.toText(jobCounter)
   };
 
+  /// Text label for a ServiceType, used at the contractor-canister
+  /// cross-call boundary (which stores serviceType as Text to avoid
+  /// importing this canister's variant type).
+  private func serviceTypeText(s: ServiceType) : Text {
+    switch (s) {
+      case (#HVAC)        { "HVAC"        };
+      case (#Roofing)     { "Roofing"     };
+      case (#Plumbing)    { "Plumbing"    };
+      case (#Electrical)  { "Electrical"  };
+      case (#Painting)    { "Painting"    };
+      case (#Flooring)    { "Flooring"    };
+      case (#Windows)     { "Windows"     };
+      case (#Landscaping) { "Landscaping" };
+    }
+  };
+
   // ─── Core Functions ───────────────────────────────────────────────────────────
 
   /// Create a new job for a property. Caller becomes the homeowner.
@@ -582,16 +598,7 @@ persistent actor Job {
         if (fullyVerified and Text.size(contrCanisterId) > 0) {
           switch (existing2.contractor) {
             case (?con) {
-              let svcText = switch (existing2.serviceType) {
-                case (#HVAC)        { "HVAC"        };
-                case (#Roofing)     { "Roofing"     };
-                case (#Plumbing)    { "Plumbing"    };
-                case (#Electrical)  { "Electrical"  };
-                case (#Painting)    { "Painting"    };
-                case (#Flooring)    { "Flooring"    };
-                case (#Windows)     { "Windows"     };
-                case (#Landscaping) { "Landscaping" };
-              };
+              let svcText = serviceTypeText(existing2.serviceType);
               type ContrError = {
                 #NotFound; #AlreadyExists; #Unauthorized;
                 #Paused; #RateLimitExceeded; #InvalidInput : Text;
@@ -971,7 +978,21 @@ persistent actor Job {
   /// principal, only that principal may redeem it. Legacy tokens (contractorPrincipal=null)
   /// remain bearer-token accessible for backwards compatibility.
   /// Sets contractorSigned = true; if homeownerSigned is also true, auto-verifies.
-  public shared(msg) func redeemInviteToken(token: Text) : async Result.Result<Job, Error> {
+  ///
+  /// #518 — the redeemer now supplies identity fields (name/phone/email,
+  /// optional license number). These are cross-called to the contractor
+  /// canister to create-or-link a ContractorProfile for the redeeming
+  /// principal (admin-approval-gated, isVerified defaults false — same
+  /// unverified-tier weight every new contractor starts at; NOT a live
+  /// license-registry check, see #518's non-goals) before the job is
+  /// mutated, so a rejected identity never burns the single-use token.
+  public shared(msg) func redeemInviteToken(
+    token:          Text,
+    contractorName: Text,
+    phone:          Text,
+    email:          Text,
+    licenseNumber:  ?Text,
+  ) : async Result.Result<Job, Error> {
     let invite = switch (Map.get(inviteTokens, Text.compare, token)) {
       case null    { return #err(#NotFound) };
       case (?i)    { i };
@@ -995,41 +1016,95 @@ persistent actor Job {
 
     if (job.contractorSigned)             return #err(#AlreadyVerified);
 
-    let bothSigned = job.homeownerSigned;
-    let updated : Job = {
-      id               = job.id;
-      propertyId       = job.propertyId;
-      homeowner        = job.homeowner;
-      contractor       = job.contractor;
-      title            = job.title;
-      serviceType      = job.serviceType;
-      description      = job.description;
-      contractorName   = job.contractorName;
-      amount           = job.amount;
-      completedDate    = job.completedDate;
-      permitNumber     = job.permitNumber;
-      warrantyMonths   = job.warrantyMonths;
-      isDiy            = job.isDiy;
-      status           = if (bothSigned) #Verified else job.status;
-      verified         = bothSigned;
-      homeownerSigned  = job.homeownerSigned;
-      contractorSigned = true;
-      createdAt        = job.createdAt;
-      sourceQuoteId    = job.sourceQuoteId;
+    if (Text.size(contractorName) == 0) return #err(#InvalidInput("contractorName cannot be empty"));
+    if (Text.size(phone) == 0)          return #err(#InvalidInput("phone cannot be empty"));
+    if (Text.size(email) == 0)          return #err(#InvalidInput("email cannot be empty"));
+
+    let svcText = serviceTypeText(job.serviceType);
+
+    // Identity capture happens BEFORE any job/token mutation — a rejected
+    // identity (bad format, contractor canister down) must not burn the
+    // single-use invite token.
+    if (Text.size(contrCanisterId) > 0) {
+      type ContrError = {
+        #NotFound; #AlreadyExists; #NotAuthorized;
+        #Paused; #RateLimitExceeded; #InvalidInput : Text;
+      };
+      let contrActor = actor(contrCanisterId) : actor {
+        createOrLinkGuestProfile : (Principal, Text, Text, Text, ?Text, Text, Text) -> async { #ok : (); #err : ContrError };
+      };
+      switch (await contrActor.createOrLinkGuestProfile(msg.caller, contractorName, phone, email, licenseNumber, svcText, job.id)) {
+        case (#err(_)) { return #err(#InvalidInput("Could not verify contractor identity — check name/phone/email/license format")) };
+        case (#ok(())) {};
+      };
     };
-    Map.add(jobs, Text.compare, job.id, updated);
+
+    // Re-read fresh after the await above — a concurrent call could have
+    // already redeemed this same token (or otherwise mutated the job) while
+    // this call was suspended waiting on the contractor canister.
+    let freshInvite = switch (Map.get(inviteTokens, Text.compare, token)) {
+      case null    { return #err(#NotFound) };
+      case (?i)    { i };
+    };
+    if (freshInvite.usedAt != null)         return #err(#InvalidInput("This invite link has already been used"));
+    let freshJob = switch (Map.get(jobs, Text.compare, freshInvite.jobId)) {
+      case null    { return #err(#NotFound) };
+      case (?j)    { j };
+    };
+    if (freshJob.contractorSigned)          return #err(#AlreadyVerified);
+
+    let bothSigned = freshJob.homeownerSigned;
+    let updated : Job = {
+      id               = freshJob.id;
+      propertyId       = freshJob.propertyId;
+      homeowner        = freshJob.homeowner;
+      // Only fill contractor if unset — never clobber a prior linkContractor() call.
+      contractor       = switch (freshJob.contractor) { case null { ?msg.caller }; case (?c) { ?c } };
+      title            = freshJob.title;
+      serviceType      = freshJob.serviceType;
+      description      = freshJob.description;
+      contractorName   = freshJob.contractorName;
+      amount           = freshJob.amount;
+      completedDate    = freshJob.completedDate;
+      permitNumber     = freshJob.permitNumber;
+      warrantyMonths   = freshJob.warrantyMonths;
+      isDiy            = freshJob.isDiy;
+      status           = if (bothSigned) #Verified else freshJob.status;
+      verified         = bothSigned;
+      homeownerSigned  = freshJob.homeownerSigned;
+      contractorSigned = true;
+      createdAt        = freshJob.createdAt;
+      sourceQuoteId    = freshJob.sourceQuoteId;
+    };
+    Map.add(jobs, Text.compare, freshJob.id, updated);
 
     // Mark token as used
     let usedInvite : InviteToken = {
-      token               = invite.token;
-      jobId               = invite.jobId;
-      propertyAddress     = invite.propertyAddress;
-      createdAt           = invite.createdAt;
-      expiresAt           = invite.expiresAt;
+      token               = freshInvite.token;
+      jobId               = freshInvite.jobId;
+      propertyAddress     = freshInvite.propertyAddress;
+      createdAt           = freshInvite.createdAt;
+      expiresAt           = freshInvite.expiresAt;
       usedAt              = ?Time.now();
-      contractorPrincipal = invite.contractorPrincipal;
+      contractorPrincipal = freshInvite.contractorPrincipal;
     };
     Map.add(inviteTokens, Text.compare, token, usedInvite);
+
+    // Notify contractor canister when the job becomes fully verified —
+    // mirrors verifyJob()'s cross-call exactly, same try/catch so a trap or
+    // network error doesn't roll back the already-committed signature.
+    if (bothSigned and Text.size(contrCanisterId) > 0) {
+      type ContrError2 = {
+        #NotFound; #AlreadyExists; #NotAuthorized;
+        #Paused; #RateLimitExceeded; #InvalidInput : Text;
+      };
+      let contrActor2 = actor(contrCanisterId) : actor {
+        recordJobVerified : (Principal, Text, Text, Principal) -> async { #ok : (); #err : ContrError2 };
+      };
+      try {
+        ignore await contrActor2.recordJobVerified(msg.caller, updated.id, svcText, updated.homeowner);
+      } catch (_e) {};
+    };
 
     #ok(updated)
   };

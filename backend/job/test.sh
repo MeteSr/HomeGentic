@@ -327,6 +327,19 @@ dfx canister call $CANISTER createJob "(
 )" || echo "  ↳ Expected InvalidInput (future date) — ✓"
 
 # ─── Invite token flow ────────────────────────────────────────────────────────
+# #518 — wire job ↔ contractor so redeemInviteToken's identity-capture and
+# recordJobVerified cross-calls actually fire during this suite (mirrors the
+# same two-way wiring scripts/deploy.sh performs in production). Guarded so
+# this suite still passes standalone if the contractor canister isn't deployed.
+CONTRACTOR_CANISTER_ID=$(dfx canister id contractor 2>/dev/null || echo "")
+if [ -n "$CONTRACTOR_CANISTER_ID" ]; then
+  echo ""
+  echo "── [518-setup] Wire job ↔ contractor canister IDs ────────────────────────"
+  dfx canister call $CANISTER setContractorCanisterId "(\"$CONTRACTOR_CANISTER_ID\")" > /dev/null
+  dfx canister call contractor setJobCanisterId "(\"$CANISTER_ID\")" > /dev/null
+  echo "  → wired job=$CANISTER_ID ↔ contractor=$CONTRACTOR_CANISTER_ID"
+fi
+
 # Create a FRESH unsigned contractor job for the invite token flow.
 # $JOB_ID is already fully signed by step [13] — createInviteToken rejects signed jobs.
 echo ""
@@ -366,19 +379,95 @@ else
 fi
 
 echo ""
-echo "── [20] redeemInviteToken — contractor redeems token ───────────────────"
-REDEEM_OUT=$(dfx canister call $CANISTER redeemInviteToken "(\"$INVITE_TOKEN\")" --identity contractor-test)
+echo "── [518-a] homeowner signs before redemption, so redemption completes verification ──"
+dfx canister call $CANISTER verifyJob "(\"$INVITE_JOB_ID\")" > /dev/null
+echo "  → homeowner signature recorded"
+
+echo ""
+echo "── [518-b] redeemInviteToken — empty contractorName → InvalidInput, token NOT burned ──"
+EMPTY_NAME_OUT=$(dfx canister call $CANISTER redeemInviteToken \
+  "(\"$INVITE_TOKEN\", \"\", \"+15125551234\", \"jane@example.com\", null)" \
+  --identity contractor-test 2>&1 || true)
+echo "$EMPTY_NAME_OUT"
+if echo "$EMPTY_NAME_OUT" | grep -qiE "InvalidInput|err"; then
+  echo "  ✓ empty contractorName correctly rejected"
+else
+  echo "  ↳ ❌ Expected InvalidInput for empty contractorName"
+fi
+
+echo ""
+echo "── [20] redeemInviteToken — contractor redeems token with #518 identity fields ───"
+REDEEM_OUT=$(dfx canister call $CANISTER redeemInviteToken \
+  "(\"$INVITE_TOKEN\", \"Jane Contractor\", \"+15125551234\", \"jane@example.com\", opt \"FL-LIC-99001\")" \
+  --identity contractor-test)
 echo "$REDEEM_OUT"
 if echo "$REDEEM_OUT" | grep -qiE "ok|success|redeemed"; then
-  echo "  ✓ Token redeemed successfully"
+  echo "  ✓ Token redeemed successfully — the retry above proves a rejected identity does not burn the token"
 else
   echo "  ↳ Redemption result shown above"
 fi
 
 echo ""
+echo "── [518-c] job.contractor is now linked to the redeeming principal (was untouched before #518) ──"
+POST_REDEEM_JOB=$(dfx canister call $CANISTER getJob "(\"$INVITE_JOB_ID\")")
+echo "$POST_REDEEM_JOB"
+if echo "$POST_REDEEM_JOB" | grep -q "$CONTRACTOR_PRINCIPAL"; then
+  echo "  ✓ job.contractor linked to the redeeming principal"
+else
+  echo "  ↳ ❌ Expected job.contractor to be set to the redeeming principal"
+fi
+
+if [ -n "$CONTRACTOR_CANISTER_ID" ]; then
+  echo ""
+  echo "── [518-d] contractor canister jobsCompleted incremented (recordJobVerified now fires) ──"
+  CONTRACTOR_STATS=$(dfx canister call contractor getContractor "(principal \"$CONTRACTOR_PRINCIPAL\")" 2>&1 || true)
+  echo "$CONTRACTOR_STATS"
+  if echo "$CONTRACTOR_STATS" | grep -q "jobsCompleted = 1"; then
+    echo "  ✓ contractor canister credited the guest-signed job"
+  else
+    echo "  ↳ ❌ Expected jobsCompleted = 1 on the contractor canister"
+  fi
+fi
+
+echo ""
 echo "── [21] redeemInviteToken again → expect AlreadyRedeemed / error ────────"
-dfx canister call $CANISTER redeemInviteToken "(\"$INVITE_TOKEN\")" --identity contractor-test \
+dfx canister call $CANISTER redeemInviteToken \
+  "(\"$INVITE_TOKEN\", \"Jane Contractor\", \"+15125551234\", \"jane@example.com\", null)" \
+  --identity contractor-test \
   || echo "  ↳ Expected error for double-redeem — ✓"
+
+echo ""
+echo "── [518-e] redeemInviteToken never overwrites a contractor already linked via linkContractor() ──"
+PRELINK_JOB_OUT=$(dfx canister call $CANISTER createJob "(
+  \"$TEST_PROP_ID\",
+  \"Pre-linked contractor job\",
+  variant { Electrical },
+  \"Pre-linked via linkContractor before invite redemption.\",
+  opt \"Pre-linked Electric\",
+  50000,
+  1700000000000000000,
+  null,
+  null,
+  false,
+  null
+)")
+PRELINK_JOB_ID=$(echo "$PRELINK_JOB_OUT" | grep -oP '"JOB_[0-9]+"' | head -1 | tr -d '"')
+dfx canister call $CANISTER linkContractor "(\"$PRELINK_JOB_ID\", principal \"$CONTRACTOR_PRINCIPAL\")" > /dev/null
+PRELINK_INVITE_OUT=$(dfx canister call $CANISTER createInviteToken "(\"$PRELINK_JOB_ID\", \"123 Main St, Austin TX 78701\")")
+PRELINK_TOKEN=$(echo "$PRELINK_INVITE_OUT" | grep -oP '"[a-zA-Z0-9_-]{16,}"' | head -1 | tr -d '"')
+if ! dfx identity list 2>/dev/null | grep -q "^redeemer-test$"; then
+  dfx identity new redeemer-test --disable-encryption 2>/dev/null || true
+fi
+dfx canister call $CANISTER redeemInviteToken \
+  "(\"$PRELINK_TOKEN\", \"Someone Else\", \"+19995551234\", \"someone@example.com\", null)" \
+  --identity redeemer-test > /dev/null || true
+PRELINK_JOB_AFTER=$(dfx canister call $CANISTER getJob "(\"$PRELINK_JOB_ID\")")
+echo "$PRELINK_JOB_AFTER"
+if echo "$PRELINK_JOB_AFTER" | grep -q "$CONTRACTOR_PRINCIPAL"; then
+  echo "  ✓ pre-linked contractor principal preserved — redeeming a bearer-token invite did not overwrite it"
+else
+  echo "  ↳ ❌ Expected job.contractor to remain the pre-linked principal"
+fi
 
 echo ""
 echo "── [22] createInviteToken on DIY job → expect NotAuthorized / error ─────"
