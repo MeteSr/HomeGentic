@@ -517,8 +517,14 @@ print(sum(1 for v in d.values() if isinstance(v,dict) and v.get(os.environ['ENV'
       # fresh; testnet data there was confirmed disposable before adding
       # this. Revert this canister to --mode auto once confirmed installed
       # so a future routine deploy can never reinstall it again.
+      #
+      # ONE-TIME RECOVERY #2 (remove after this deploys clean): same failure
+      # mode hit the contractor canister after #521 added a new required
+      # ContractorProfile field (`origin`) — testnet's live stable memory
+      # predates it, so EOP can't reinterpret it in place. Testnet data
+      # there was confirmed disposable before adding this.
       INSTALL_MODE="auto"
-      if [ "$canister" = "property" ]; then
+      if [ "$canister" = "property" ] || [ "$canister" = "contractor" ]; then
         INSTALL_MODE="reinstall"
       fi
       if icp canister install "$canister" \
