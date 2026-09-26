@@ -301,3 +301,56 @@ describe.skipIf(!deployed)("tier enforcement — Basic tier has no monthly uploa
     ).resolves.toBeDefined();
   });
 });
+
+// ─── Recurring housing expenses ───────────────────────────────────────────────
+
+describe.skipIf(!deployed)("recurring expenses — Candid round-trip & lifecycle", () => {
+  const FIELDS = {
+    category:    "Mortgage" as const,
+    provider:    "Rocket Mortgage",
+    amountCents: 245_000,
+    frequency:   "Monthly" as const,
+    startDate:   "2021-06-01",
+  };
+
+  it("every category and frequency Variant round-trips", async () => {
+    const pid = propId("rec-variants");
+    const categories  = ["Mortgage", "PropertyTax", "HOA", "HomeInsurance", "Other"] as const;
+    const frequencies = ["Monthly", "Quarterly", "SemiAnnual", "Annual"] as const;
+    for (const [i, category] of categories.entries()) {
+      const frequency = frequencies[i % frequencies.length];
+      const rec = await billService.addRecurringExpense(pid, { ...FIELDS, category, frequency });
+      expect(rec.category).toBe(category);
+      expect(rec.frequency).toBe(frequency);
+    }
+    expect(await billService.getRecurringExpensesForProperty(pid)).toHaveLength(categories.length);
+  });
+
+  it("endDate Opt round-trips both present and absent", async () => {
+    const pid = propId("rec-opt");
+    const withEnd = await billService.addRecurringExpense(pid, { ...FIELDS, endDate: "2030-06-01" });
+    const open    = await billService.addRecurringExpense(pid, FIELDS);
+    expect(withEnd.endDate).toBe("2030-06-01");
+    expect(open.endDate).toBeUndefined();
+    expect(open.homeowner).toBe(TEST_PRINCIPAL);
+  });
+
+  it("canister rejects an endDate before the startDate", async () => {
+    await expect(
+      billService.addRecurringExpense(propId("rec-bad"), { ...FIELDS, endDate: "2020-01-01" })
+    ).rejects.toThrow("InvalidInput");
+  });
+
+  it("update then delete", async () => {
+    const pid = propId("rec-lifecycle");
+    const rec = await billService.addRecurringExpense(pid, FIELDS);
+    const updated = await billService.updateRecurringExpense(rec.id, { ...FIELDS, provider: "Chase", amountCents: 219_000 });
+    expect(updated.id).toBe(rec.id);
+    expect(updated.provider).toBe("Chase");
+    expect(updated.amountCents).toBe(219_000);
+    expect(updated.createdAt).toBe(rec.createdAt);
+
+    await billService.deleteRecurringExpense(rec.id);
+    expect(await billService.getRecurringExpensesForProperty(pid)).toEqual([]);
+  });
+});

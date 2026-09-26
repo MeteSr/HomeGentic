@@ -46,6 +46,47 @@ export interface AddBillArgs {
   usageUnit?:  string;
 }
 
+export type ExpenseCategory  = "Mortgage" | "PropertyTax" | "HOA" | "HomeInsurance" | "Other";
+export type ExpenseFrequency = "Monthly" | "Quarterly" | "SemiAnnual" | "Annual";
+
+/** A fixed, scheduled housing cost entered once rather than per statement. */
+export interface RecurringExpense {
+  id:          string;
+  propertyId:  string;
+  homeowner:   string;
+  category:    ExpenseCategory;
+  provider:    string;
+  amountCents: number;   // per occurrence
+  frequency:   ExpenseFrequency;
+  startDate:   string;   // YYYY-MM-DD
+  endDate?:    string;   // YYYY-MM-DD; undefined = ongoing
+  createdAt:   number;   // ms
+  updatedAt:   number;   // ms
+}
+
+export interface RecurringExpenseFields {
+  category:    ExpenseCategory;
+  provider:    string;
+  amountCents: number;
+  frequency:   ExpenseFrequency;
+  startDate:   string;
+  endDate?:    string;
+}
+
+const OCCURRENCES_PER_YEAR: Record<ExpenseFrequency, number> = {
+  Monthly: 12, Quarterly: 4, SemiAnnual: 2, Annual: 1,
+};
+
+/** Average monthly cost of a recurring expense, in cents. */
+export function monthlyEquivalentCents(e: Pick<RecurringExpense, "amountCents" | "frequency">): number {
+  return Math.round((e.amountCents * OCCURRENCES_PER_YEAR[e.frequency]) / 12);
+}
+
+/** Whether the expense is in effect on `date` (YYYY-MM-DD, inclusive bounds). */
+export function isActiveOn(e: Pick<RecurringExpense, "startDate" | "endDate">, date: string): boolean {
+  return e.startDate <= date && (e.endDate == null || e.endDate >= date);
+}
+
 /** Result returned by /api/extract-bill (voice agent) */
 export interface BillExtraction {
   billType?:    BillType;
@@ -107,6 +148,33 @@ function toRecord(raw: any): BillRecord {
   };
 }
 
+function toRecurring(raw: any): RecurringExpense {
+  return {
+    id:          raw.id,
+    propertyId:  raw.propertyId,
+    homeowner:   raw.homeowner?.toString() ?? "",
+    category:    Object.keys(raw.category)[0] as ExpenseCategory,
+    provider:    raw.provider,
+    amountCents: Number(raw.amountCents),
+    frequency:   Object.keys(raw.frequency)[0] as ExpenseFrequency,
+    startDate:   raw.startDate,
+    endDate:     raw.endDate?.[0] ?? undefined,
+    createdAt:   Math.floor(Number(raw.createdAt) / 1_000_000),
+    updatedAt:   Math.floor(Number(raw.updatedAt) / 1_000_000),
+  };
+}
+
+function toFieldsArg(f: RecurringExpenseFields) {
+  return {
+    category:    { [f.category]: null },
+    provider:    f.provider,
+    amountCents: BigInt(f.amountCents),
+    frequency:   { [f.frequency]: null },
+    startDate:   f.startDate,
+    endDate:     f.endDate ? [f.endDate] : [],
+  };
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export const billService = {
@@ -139,6 +207,27 @@ export const billService = {
     const actor = await getBillsActor();
     const raw = await actor.deleteBill(id);
     fromVariant(raw);
+  },
+
+  async addRecurringExpense(propertyId: string, fields: RecurringExpenseFields): Promise<RecurringExpense> {
+    const actor = await getBillsActor();
+    return toRecurring(fromVariant(await actor.addRecurringExpense(propertyId, toFieldsArg(fields))));
+  },
+
+  async getRecurringExpensesForProperty(propertyId: string): Promise<RecurringExpense[]> {
+    const actor = await getBillsActor();
+    const records: any[] = fromVariant(await actor.getRecurringExpensesForProperty(propertyId));
+    return records.map(toRecurring);
+  },
+
+  async updateRecurringExpense(id: string, fields: RecurringExpenseFields): Promise<RecurringExpense> {
+    const actor = await getBillsActor();
+    return toRecurring(fromVariant(await actor.updateRecurringExpense(id, toFieldsArg(fields))));
+  },
+
+  async deleteRecurringExpense(id: string): Promise<void> {
+    const actor = await getBillsActor();
+    fromVariant(await actor.deleteRecurringExpense(id));
   },
 
   reset() {

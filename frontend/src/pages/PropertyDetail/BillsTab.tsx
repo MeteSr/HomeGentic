@@ -11,6 +11,7 @@ import {
 } from "@/services/billsIntelligence";
 import { Panel, hudInputStyle, hudButtonStyle, spinnerVars } from "@/components/hud";
 import toast from "react-hot-toast";
+import { HousingCostsSection } from "./HousingCostsSection";
 
 const DISPLAY = "'Bricolage Grotesque',sans-serif";
 const BODY = "'Hanken Grotesk',sans-serif";
@@ -174,6 +175,8 @@ export function BillsTab({ propertyId }: { propertyId: string }) {
 
   return (
     <div style={{ padding: "2rem 0" }}>
+      <HousingCostsSection propertyId={propertyId} />
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
         <div>
           <h3 style={{ fontFamily: DISPLAY, fontSize: "1.25rem", fontWeight: 700, color: ink, margin: 0 }}>

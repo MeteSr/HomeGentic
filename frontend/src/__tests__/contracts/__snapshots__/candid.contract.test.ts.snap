@@ -350,7 +350,26 @@ exports[`bills IDL factory > full signature snapshot 1`] = `
       "variant {ok:record {id:text; anomalyFlag:bool; provider:text; anomalyReason:opt text; propertyId:text; amountCents:nat; usageUnit:opt text; periodEnd:text; billType:variant {Gas; Internet; Water; Telecom; Electric; Other}; usageAmount:opt float64; periodStart:text; homeowner:principal; uploadedAt:int}; err:variant {InvalidInput:text; NotFound; NotAuthorized; TierLimitReached:text}}",
     ],
   },
+  "addRecurringExpense": {
+    "args": [
+      "text",
+      "record {provider:text; endDate:opt text; amountCents:nat; category:variant {HOA; PropertyTax; Other; Mortgage; HomeInsurance}; frequency:variant {Quarterly; Monthly; SemiAnnual; Annual}; startDate:text}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; provider:text; endDate:opt text; createdAt:int; propertyId:text; amountCents:nat; updatedAt:int; category:variant {HOA; PropertyTax; Other; Mortgage; HomeInsurance}; frequency:variant {Quarterly; Monthly; SemiAnnual; Annual}; homeowner:principal; startDate:text}; err:variant {InvalidInput:text; NotFound; NotAuthorized; TierLimitReached:text}}",
+    ],
+  },
   "deleteBill": {
+    "args": [
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; NotFound; NotAuthorized; TierLimitReached:text}}",
+    ],
+  },
+  "deleteRecurringExpense": {
     "args": [
       "text",
     ],
@@ -366,6 +385,15 @@ exports[`bills IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:vec record {id:text; anomalyFlag:bool; provider:text; anomalyReason:opt text; propertyId:text; amountCents:nat; usageUnit:opt text; periodEnd:text; billType:variant {Gas; Internet; Water; Telecom; Electric; Other}; usageAmount:opt float64; periodStart:text; homeowner:principal; uploadedAt:int}; err:variant {InvalidInput:text; NotFound; NotAuthorized; TierLimitReached:text}}",
+    ],
+  },
+  "getRecurringExpensesForProperty": {
+    "args": [
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:vec record {id:text; provider:text; endDate:opt text; createdAt:int; propertyId:text; amountCents:nat; updatedAt:int; category:variant {HOA; PropertyTax; Other; Mortgage; HomeInsurance}; frequency:variant {Quarterly; Monthly; SemiAnnual; Annual}; homeowner:principal; startDate:text}; err:variant {InvalidInput:text; NotFound; NotAuthorized; TierLimitReached:text}}",
     ],
   },
   "getUsageTrend": {
@@ -386,6 +414,16 @@ exports[`bills IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "record {isPaused:bool; totalBills:nat}",
+    ],
+  },
+  "updateRecurringExpense": {
+    "args": [
+      "text",
+      "record {provider:text; endDate:opt text; amountCents:nat; category:variant {HOA; PropertyTax; Other; Mortgage; HomeInsurance}; frequency:variant {Quarterly; Monthly; SemiAnnual; Annual}; startDate:text}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {id:text; provider:text; endDate:opt text; createdAt:int; propertyId:text; amountCents:nat; updatedAt:int; category:variant {HOA; PropertyTax; Other; Mortgage; HomeInsurance}; frequency:variant {Quarterly; Monthly; SemiAnnual; Annual}; homeowner:principal; startDate:text}; err:variant {InvalidInput:text; NotFound; NotAuthorized; TierLimitReached:text}}",
     ],
   },
 }

@@ -39,6 +39,7 @@ ALL_CANISTERS=(
   sensor
   monitoring
   recurring
+  bills
 )
 
 # Use command-line args as filter, or run all
