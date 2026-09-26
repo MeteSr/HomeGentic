@@ -23,9 +23,16 @@ echo "Bills canister: $CANISTER"
 
 # Assertions use bash matching, not `echo | grep -q` — under pipefail an early
 # grep exit can SIGPIPE the writer and fail a passing check.
+flatten() {
+  local s=${1//$'\n'/ }
+  while [[ "$s" == *"  "* ]]; do s=${s//  / }; done
+  echo "$s"
+}
+
+# dfx pretty-prints large results across lines, so match on a whitespace-flattened copy.
 expect() {
   local label=$1 haystack=$2 needle=$3
-  if [[ "$haystack" == *"$needle"* ]]; then
+  if [[ "$(flatten "$haystack")" == *"$needle"* ]]; then
     echo "  ↳ $label — ✓"
   else
     echo "  ↳ ❌ $label: expected to contain '$needle'; got: $haystack"
