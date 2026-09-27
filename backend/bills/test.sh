@@ -211,6 +211,137 @@ BILL=$(dfx canister call bills addBill "(record {
 })")
 expect "addBill ok" "$BILL" "variant { ok"
 
+# ─── Household sharing (real property + role-scoped access) ─────────────────
+# Uses dedicated identities so parallel suites registering properties as the
+# deployer can't push anyone past the per-tier property limit.
+echo ""
+echo "── [16] Sharing setup — owner registers a property and invites roles ────"
+PROP_CANISTER=$(dfx canister id property 2>/dev/null || echo "")
+if [ -z "$PROP_CANISTER" ]; then
+  echo "  ↳ SKIP sharing tests — property canister not deployed"
+else
+  for who in owner coowner manager viewer; do
+    dfx identity new "bills-$who-test" --disable-encryption 2>/dev/null || true
+  done
+  OWNER=$(dfx identity get-principal --identity bills-owner-test)
+  MANAGER=$(dfx identity get-principal --identity bills-manager-test)
+  for p in "$OWNER" "$MANAGER"; do
+    dfx canister call payment  grantSubscription "(principal \"$p\", variant { Pro })" >/dev/null 2>&1 || true
+    dfx canister call property setTier           "(principal \"$p\", variant { Pro })" >/dev/null 2>&1 || true
+    dfx canister call bills    grantTier         "(principal \"$p\", variant { Pro })" >/dev/null 2>&1 || true
+  done
+
+  REG=$(dfx canister call property registerProperty "(record {
+    address = \"$(date +%s) Shared Bills Lane\"; city = \"Tampa\"; state = \"FL\"; zipCode = \"33601\";
+    propertyType = variant { SingleFamily }; yearBuilt = 2004; squareFeet = 1850; tier = variant { Pro };
+  })" --identity bills-owner-test)
+  SHARED=""
+  if [[ "$REG" =~ id\ =\ \"([^\"]+)\" ]]; then SHARED="${BASH_REMATCH[1]}"; fi
+  [ -n "$SHARED" ] || { echo "  ↳ ❌ could not register shared property: $REG"; exit 1; }
+  echo "  → shared property: $SHARED"
+
+  for pair in "CoOwner:coowner" "Manager:manager" "Viewer:viewer"; do
+    ROLE=${pair%%:*}; WHO=${pair##*:}
+    INV=$(dfx canister call property inviteManager "(\"$SHARED\", variant { $ROLE }, \"$WHO\", null)" --identity bills-owner-test)
+    TOKEN=""
+    if [[ "$INV" =~ token\ =\ \"([^\"]+)\" ]]; then TOKEN="${BASH_REMATCH[1]}"; fi
+    [ -n "$TOKEN" ] || { echo "  ↳ ❌ inviteManager($ROLE) failed: $INV"; exit 1; }
+    CLAIM=$(dfx canister call property claimManagerRole "(\"$TOKEN\")" --identity "bills-$WHO-test")
+    expect "$ROLE claimed its invite" "$CLAIM" "variant { ok"
+  done
+  ROLE_OUT=$(dfx canister call property getAccessRole "(\"$SHARED\", principal \"$MANAGER\")")
+  expect "property reports the manager's role" "$ROLE_OUT" "Manager"
+
+  echo ""
+  echo "── [17] Writes — owner and manager can add; viewer and strangers can't ──"
+  OUT=$(dfx canister call bills addRecurringExpense "(\"$SHARED\", record {
+    category = variant { Mortgage }; provider = \"Lender\"; amountCents = 210000;
+    frequency = variant { Monthly }; startDate = \"2023-01-01\"; endDate = null;
+  })" --identity bills-owner-test)
+  expect "owner adds the mortgage" "$OUT" "variant { ok"
+  OUT=$(dfx canister call bills addRecurringExpense "(\"$SHARED\", record {
+    category = variant { PropertyTax }; provider = \"County\"; amountCents = 480000;
+    frequency = variant { Annual }; startDate = \"2023-11-01\"; endDate = null;
+  })" --identity bills-owner-test)
+  expect "owner adds property tax" "$OUT" "variant { ok"
+  OUT=$(dfx canister call bills addBill "(record {
+    propertyId = \"$SHARED\"; billType = variant { Electric }; provider = \"TECO\";
+    periodStart = \"2026-07-01\"; periodEnd = \"2026-07-31\"; amountCents = 21000;
+    usageAmount = null; usageUnit = null;
+  })" --identity bills-owner-test)
+  expect "owner adds an electric bill" "$OUT" "variant { ok"
+  OWNER_BILL=""
+  if [[ "$OUT" =~ id\ =\ \"(BILL_[0-9]+)\" ]]; then OWNER_BILL="${BASH_REMATCH[1]}"; fi
+
+  OUT=$(dfx canister call bills addBill "(record {
+    propertyId = \"$SHARED\"; billType = variant { Water }; provider = \"City\";
+    periodStart = \"2026-07-01\"; periodEnd = \"2026-07-31\"; amountCents = 6500;
+    usageAmount = null; usageUnit = null;
+  })" --identity bills-manager-test)
+  expect "manager adds a water bill" "$OUT" "variant { ok"
+  MANAGER_BILL=""
+  if [[ "$OUT" =~ id\ =\ \"(BILL_[0-9]+)\" ]]; then MANAGER_BILL="${BASH_REMATCH[1]}"; fi
+  OUT=$(dfx canister call bills addRecurringExpense "(\"$SHARED\", record {
+    category = variant { HOA }; provider = \"HOA\"; amountCents = 30000;
+    frequency = variant { Quarterly }; startDate = \"2024-01-01\"; endDate = null;
+  })" --identity bills-manager-test)
+  expect "manager adds HOA dues" "$OUT" "variant { ok"
+  MANAGER_HOA=$(id_of "$OUT")
+  OUT=$(dfx canister call bills addRecurringExpense "(\"$SHARED\", record {
+    category = variant { Mortgage }; provider = \"Other Lender\"; amountCents = 1;
+    frequency = variant { Monthly }; startDate = \"2024-01-01\"; endDate = null;
+  })" --identity bills-manager-test)
+  expect "manager cannot add a mortgage" "$OUT" "NotAuthorized"
+
+  OUT=$(dfx canister call bills addBill "(record {
+    propertyId = \"$SHARED\"; billType = variant { Gas }; provider = \"Gas Co\";
+    periodStart = \"2026-07-01\"; periodEnd = \"2026-07-31\"; amountCents = 100;
+    usageAmount = null; usageUnit = null;
+  })" --identity bills-viewer-test)
+  expect "viewer cannot add a bill" "$OUT" "NotAuthorized"
+  OUT=$(dfx canister call bills addBill "(record {
+    propertyId = \"$SHARED\"; billType = variant { Gas }; provider = \"Fake\";
+    periodStart = \"2026-07-01\"; periodEnd = \"2026-07-31\"; amountCents = 100;
+    usageAmount = null; usageUnit = null;
+  })" --identity bills-test-other)
+  expect "stranger cannot inject a bill into someone else's property" "$OUT" "NotAuthorized"
+
+  echo ""
+  echo "── [18] Reads — everyone with a role sees all bills; mortgage is owner/co-owner only"
+  OUT=$(dfx canister call bills getBillsForProperty "(\"$SHARED\")" --identity bills-viewer-test)
+  expect_count "viewer sees both members' bills" "$OUT" "id = \"BILL_" 2
+  OUT=$(dfx canister call bills getRecurringExpensesForProperty "(\"$SHARED\")" --identity bills-viewer-test)
+  expect_count "viewer sees tax + HOA" "$OUT" "id = \"REC_" 2
+  if [[ "$(flatten "$OUT")" == *"Mortgage"* ]]; then echo "  ↳ ❌ viewer can see the mortgage: $OUT"; exit 1; fi
+  echo "  ↳ viewer cannot see the mortgage — ✓"
+  OUT=$(dfx canister call bills getRecurringExpensesForProperty "(\"$SHARED\")" --identity bills-manager-test)
+  expect_count "manager sees tax + HOA, not the mortgage" "$OUT" "id = \"REC_" 2
+  OUT=$(dfx canister call bills getRecurringExpensesForProperty "(\"$SHARED\")" --identity bills-coowner-test)
+  expect_count "co-owner sees all three" "$OUT" "id = \"REC_" 3
+  expect "co-owner sees the mortgage" "$OUT" "category = variant { Mortgage }"
+  OUT=$(dfx canister call bills getBillsForProperty "(\"$SHARED\")" --identity bills-test-other)
+  expect_count "stranger sees nothing" "$OUT" "id = \"BILL_" 0
+
+  echo ""
+  echo "── [19] Control — owner/co-owner manage everyone's records; others only their own"
+  OUT=$(dfx canister call bills deleteBill "(\"$OWNER_BILL\")" --identity bills-manager-test)
+  expect "manager cannot delete the owner's bill" "$OUT" "NotAuthorized"
+  OUT=$(dfx canister call bills updateRecurringExpense "(\"$MANAGER_HOA\", record {
+    category = variant { HOA }; provider = \"HOA\"; amountCents = 33000;
+    frequency = variant { Quarterly }; startDate = \"2024-01-01\"; endDate = null;
+  })" --identity bills-owner-test)
+  expect "owner edits the manager's HOA entry" "$OUT" "amountCents = 33_000"
+  OUT=$(dfx canister call bills updateRecurringExpense "(\"$MANAGER_HOA\", record {
+    category = variant { Mortgage }; provider = \"HOA\"; amountCents = 33000;
+    frequency = variant { Monthly }; startDate = \"2024-01-01\"; endDate = null;
+  })" --identity bills-manager-test)
+  expect "manager cannot turn an entry into a mortgage" "$OUT" "NotAuthorized"
+  OUT=$(dfx canister call bills deleteBill "(\"$MANAGER_BILL\")" --identity bills-coowner-test)
+  expect "co-owner deletes the manager's bill" "$OUT" "variant { ok"
+  OUT=$(dfx canister call bills getBillsForProperty "(\"$SHARED\")" --identity bills-owner-test)
+  expect_count "one bill remains" "$OUT" "id = \"BILL_" 1
+fi
+
 echo ""
 echo "============================================"
 echo "  ✅ Bills canister tests complete!"

@@ -214,6 +214,11 @@ export const idlFactory = ({ IDL }: any) => {
     ),
     getApprovals: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Vec(PendingApprovalRequest), err: Error })], ["query"]),
     isAuthorized: IDL.Func([IDL.Text, IDL.Principal, IDL.Bool], [IDL.Bool], ["query"]),
+    getAccessRole: IDL.Func(
+      [IDL.Text, IDL.Principal],
+      [IDL.Opt(IDL.Variant({ Owner: IDL.Null, CoOwner: IDL.Null, Manager: IDL.Null, Viewer: IDL.Null, NoAccess: IDL.Null }))],
+      ["query"],
+    ),
     getPropertyYearBuilt: IDL.Func([IDL.Text], [IDL.Opt(IDL.Nat)], ["query"]),
   });
 };

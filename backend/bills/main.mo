@@ -167,6 +167,10 @@ persistent actor Bills {
   private let recurringExpenses = Map.empty<Text, RecurringExpense>();
   private transient let MAX_RECURRING_PER_PROPERTY : Nat = 50;
 
+  /// Property canister ID — set post-deploy via setPropertyCanisterId(). While
+  /// unset, every record is visible only to the principal who created it.
+  private var propCanisterId : Text = "";
+
 
   // ── Ingress inspection ────────────────────────────────────────────────────
   /// Reject anonymous callers and zero-byte payloads before execution.
@@ -288,6 +292,43 @@ persistent actor Bills {
     }
   };
 
+  // ─── Property access ─────────────────────────────────────────────────────────
+
+  type AccessRole = { #Owner; #CoOwner; #Manager; #Viewer; #NoAccess };
+
+  /// The caller's role on a property, from the property canister. null means the
+  /// canister isn't wired or doesn't know the property — records are then
+  /// visible only to their author, exactly as before sharing existed.
+  private func accessRole(propertyId: Text, caller: Principal) : async* ?AccessRole {
+    if (propCanisterId == "") return null;
+    let propActor = actor(propCanisterId) : actor {
+      getAccessRole : (Text, Principal) -> async ?AccessRole;
+    };
+    await propActor.getAccessRole(propertyId, caller)
+  };
+
+  private func canWrite(role: ?AccessRole) : Bool {
+    switch role { case (null or ?#Owner or ?#CoOwner or ?#Manager) true; case _ false }
+  };
+
+  /// Owner and co-owners control every record on the property, and alone see
+  /// or write the mortgage.
+  private func hasFullControl(role: ?AccessRole) : Bool {
+    switch role { case (?#Owner or ?#CoOwner) true; case _ false }
+  };
+
+  private func seesProperty(role: ?AccessRole) : Bool {
+    switch role { case (?#Owner or ?#CoOwner or ?#Manager or ?#Viewer) true; case _ false }
+  };
+
+  private func mortgageAllowed(role: ?AccessRole) : Bool {
+    role == null or hasFullControl(role)
+  };
+
+  private func isMortgage(c: ExpenseCategory) : Bool {
+    switch c { case (#Mortgage) true; case _ false }
+  };
+
   private func isIsoDate(t: Text) : Bool {
     let cs = Text.toArray(t);
     if (cs.size() != 10) return false;
@@ -332,6 +373,8 @@ persistent actor Bills {
     if (Text.size(args.provider)    > 200)  return #err(#InvalidInput("provider exceeds 200 characters"));
     if (Text.size(args.periodStart) == 0)   return #err(#InvalidInput("periodStart cannot be empty"));
     if (Text.size(args.periodEnd)   == 0)   return #err(#InvalidInput("periodEnd cannot be empty"));
+
+    if (not canWrite(await* accessRole(args.propertyId, msg.caller))) return #err(#NotAuthorized);
 
     // ── Tier enforcement ──────────────────────────────────────────────────────
     let callerTier = await* resolveTier(msg.caller);
@@ -389,12 +432,14 @@ persistent actor Bills {
     #ok(record)
   };
 
-  /// Return all bills for a property. Caller must be the homeowner.
+  /// Return a property's bills: all of them for anyone with a role on the
+  /// property (owner, co-owner, manager, viewer), otherwise only the caller's own.
   public shared(msg) func getBillsForProperty(propertyId: Text) : async Result.Result<[BillRecord], Error> {
+    let shared_ = seesProperty(await* accessRole(propertyId, msg.caller));
     let result = Array.filter<BillRecord>(
       Iter.toArray(Map.values(bills)),
       func(b) {
-        b.propertyId == propertyId and Principal.equal(b.homeowner, msg.caller)
+        b.propertyId == propertyId and (shared_ or Principal.equal(b.homeowner, msg.caller))
       }
     );
     #ok(result)
@@ -407,12 +452,13 @@ persistent actor Bills {
     billType   : BillType,
     months     : Nat,
   ) : async Result.Result<[UsagePeriod], Error> {
+    let shared_ = seesProperty(await* accessRole(propertyId, msg.caller));
     let cutoffNs : Int = Time.now() - (months * 30 * 24 * 3_600_000_000_000 : Nat);
     let periodsBuf = List.empty<UsagePeriod>();
 
     for ((_, b) in Map.entries(bills)) {
       if (b.propertyId == propertyId
-          and Principal.equal(b.homeowner, msg.caller)
+          and (shared_ or Principal.equal(b.homeowner, msg.caller))
           and billTypeEq(b.billType, billType)
           and b.uploadedAt >= cutoffNs)
       {
@@ -441,19 +487,24 @@ persistent actor Bills {
     #ok(sorted)
   };
 
-  /// Delete a specific bill record. Caller must be the owner or an admin.
+  /// Delete a bill. Allowed for its author, the property's owner or co-owners, or an admin.
   public shared(msg) func deleteBill(id: Text) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    switch (Map.get(bills, Text.compare, id)) {
-      case null { #err(#NotFound) };
+    let propertyId = switch (Map.get(bills, Text.compare, id)) {
+      case null { return #err(#NotFound) };
       case (?b) {
-        if (not Principal.equal(b.homeowner, msg.caller) and not isAdmin(msg.caller)) {
-          return #err(#NotAuthorized)
+        if (Principal.equal(b.homeowner, msg.caller) or isAdmin(msg.caller)) {
+          ignore Map.delete(bills, Text.compare, id);
+          return #ok(());
         };
-        ignore Map.delete(bills, Text.compare, id);
-        #ok(())
+        b.propertyId
       };
-    }
+    };
+    if (not hasFullControl(await* accessRole(propertyId, msg.caller))) return #err(#NotAuthorized);
+    // Re-check after the await: the bill may have been removed meanwhile.
+    if (Map.get(bills, Text.compare, id) == null) return #err(#NotFound);
+    ignore Map.delete(bills, Text.compare, id);
+    #ok(())
   };
 
   // ─── Core: Recurring Expenses ─────────────────────────────────────────────────
@@ -469,6 +520,10 @@ persistent actor Bills {
     if (Text.size(propertyId) > 200) return #err(#InvalidInput("propertyId exceeds 200 characters"));
     switch (validateRecurringFields(fields)) { case (?m) return #err(#InvalidInput(m)); case null {} };
 
+    let role = await* accessRole(propertyId, msg.caller);
+    if (not canWrite(role)) return #err(#NotAuthorized);
+    if (isMortgage(fields.category) and not mortgageAllowed(role)) return #err(#NotAuthorized);
+
     if ((await* resolveTier(msg.caller)) == #Free) {
       return #err(#TierLimitReached(
         "Bill tracking requires an active subscription. Subscribe to Pro ($59/year) to get started."
@@ -477,7 +532,7 @@ persistent actor Bills {
 
     var existing : Nat = 0;
     for (e in Map.values(recurringExpenses)) {
-      if (e.propertyId == propertyId and Principal.equal(e.homeowner, msg.caller)) existing += 1;
+      if (e.propertyId == propertyId) existing += 1;
     };
     if (existing >= MAX_RECURRING_PER_PROPERTY) {
       return #err(#InvalidInput("Recurring expense limit reached for this property"));
@@ -502,27 +557,45 @@ persistent actor Bills {
     #ok(expense)
   };
 
-  /// Return the caller's recurring expenses for a property, oldest start first.
+  /// Return a property's recurring expenses, oldest start first. Anyone with a
+  /// role on the property sees them all except the mortgage, which only the
+  /// owner and co-owners see; others see only entries they created.
   public shared(msg) func getRecurringExpensesForProperty(propertyId: Text) : async Result.Result<[RecurringExpense], Error> {
-    let mine = Array.filter<RecurringExpense>(
+    let role = await* accessRole(propertyId, msg.caller);
+    let visible = Array.filter<RecurringExpense>(
       Iter.toArray(Map.values(recurringExpenses)),
-      func(e) { e.propertyId == propertyId and Principal.equal(e.homeowner, msg.caller) }
+      func(e) {
+        e.propertyId == propertyId and (
+          Principal.equal(e.homeowner, msg.caller)
+          or (seesProperty(role) and (not isMortgage(e.category) or hasFullControl(role)))
+        )
+      }
     );
-    #ok(Array.sort<RecurringExpense>(mine, func(a, b) { Text.compare(a.startDate, b.startDate) }))
+    #ok(Array.sort<RecurringExpense>(visible, func(a, b) { Text.compare(a.startDate, b.startDate) }))
   };
 
   /// Replace the editable fields of a recurring expense (e.g. a refinance or
-  /// an insurance renewal). Caller must be the owner.
+  /// an insurance renewal). Allowed for its author or the property's owner or
+  /// co-owners; only they may set or change a mortgage entry.
   public shared(msg) func updateRecurringExpense(
     id     : Text,
     fields : RecurringExpenseFields,
   ) : async Result.Result<RecurringExpense, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     switch (validateRecurringFields(fields)) { case (?m) return #err(#InvalidInput(m)); case null {} };
+    let propertyId = switch (Map.get(recurringExpenses, Text.compare, id)) {
+      case null { return #err(#NotFound) };
+      case (?e) e.propertyId;
+    };
+    let role = await* accessRole(propertyId, msg.caller);
+    // Re-read after the await so a concurrent edit or delete isn't clobbered.
     switch (Map.get(recurringExpenses, Text.compare, id)) {
       case null { #err(#NotFound) };
       case (?e) {
-        if (not Principal.equal(e.homeowner, msg.caller)) return #err(#NotAuthorized);
+        if (not Principal.equal(e.homeowner, msg.caller) and not hasFullControl(role)) return #err(#NotAuthorized);
+        if ((isMortgage(e.category) or isMortgage(fields.category)) and not mortgageAllowed(role)) {
+          return #err(#NotAuthorized)
+        };
         let updated : RecurringExpense = {
           e with
           category    = fields.category;
@@ -539,22 +612,33 @@ persistent actor Bills {
     }
   };
 
-  /// Delete a recurring expense. Caller must be the owner or an admin.
+  /// Delete a recurring expense. Allowed for its author, the property's owner
+  /// or co-owners, or an admin.
   public shared(msg) func deleteRecurringExpense(id: Text) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    switch (Map.get(recurringExpenses, Text.compare, id)) {
-      case null { #err(#NotFound) };
+    let propertyId = switch (Map.get(recurringExpenses, Text.compare, id)) {
+      case null { return #err(#NotFound) };
       case (?e) {
-        if (not Principal.equal(e.homeowner, msg.caller) and not isAdmin(msg.caller)) {
-          return #err(#NotAuthorized)
+        if (Principal.equal(e.homeowner, msg.caller) or isAdmin(msg.caller)) {
+          ignore Map.delete(recurringExpenses, Text.compare, id);
+          return #ok(());
         };
-        ignore Map.delete(recurringExpenses, Text.compare, id);
-        #ok(())
+        e.propertyId
       };
-    }
+    };
+    if (not hasFullControl(await* accessRole(propertyId, msg.caller))) return #err(#NotAuthorized);
+    if (Map.get(recurringExpenses, Text.compare, id) == null) return #err(#NotFound);
+    ignore Map.delete(recurringExpenses, Text.compare, id);
+    #ok(())
   };
 
   // ─── Admin ────────────────────────────────────────────────────────────────────
+
+  public shared(msg) func setPropertyCanisterId(id: Text) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    propCanisterId := id;
+    #ok(())
+  };
 
   public shared(msg) func setPaymentCanisterId(id: Text) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);

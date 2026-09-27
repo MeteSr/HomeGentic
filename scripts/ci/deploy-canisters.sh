@@ -13,6 +13,16 @@ set -euo pipefail
 
 DEPLOYER=$(dfx identity get-principal)
 
+# perf-regression.yml runs this script from the PR head against the PR's *base*
+# canisters, so wiring for a method a PR introduces must be skipped when the
+# deployed canister predates it. Matches in bash, not `| grep -q`, which can
+# SIGPIPE-fail under pipefail.
+has_method() {
+  local iface
+  iface=$(dfx canister metadata "$1" candid:service 2>/dev/null || true)
+  [[ "$iface" == *"$2"* ]]
+}
+
 # moc-wrapper (installed by ic-mops) delegates to mops moc 1.3.0.
 # That moc still needs aaaaa-aa.did in the --actor-idl directory for
 # canisters that import ic:aaaaa-aa (e.g. caffeineai-http-outcalls).
@@ -80,6 +90,9 @@ dfx canister call contractor  setJobCanisterId        "(\"$JOB_ID\")"
 dfx canister call sensor      setJobCanisterId        "(\"$JOB_ID\")"
 dfx canister call sensor      setPropertyCanisterId   "(\"$PROPERTY_ID\")"
 dfx canister call report      setPropertyCanisterId   "(\"$PROPERTY_ID\")"
+if has_method bills setPropertyCanisterId; then
+  dfx canister call bills     setPropertyCanisterId   "(\"$PROPERTY_ID\")"
+fi
 dfx canister call report      setSensorCanisterId     "(\"$SENSOR_ID\")"
 dfx canister call report      setRiskJobCanisterId    "(\"$JOB_ID\")"
 dfx canister call listing     setPropertyCanisterId   "(\"$PROPERTY_ID\")"

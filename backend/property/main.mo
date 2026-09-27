@@ -193,6 +193,9 @@ persistent actor Property {
   ///             approvals) but cannot remove the original owner.
   public type ManagerRole = { #Viewer; #Manager; #CoOwner };
 
+  /// A principal's standing on one property (see getAccessRole).
+  public type AccessRole = { #Owner; #CoOwner; #Manager; #Viewer; #NoAccess };
+
   /// A principal that has been granted delegated access to a property.
   public type PropertyManager = {
     principal   : Principal;
@@ -1618,6 +1621,32 @@ persistent actor Property {
     requireWrite : Bool
   ) : async Bool {
     checkAuthorized(propertyId, caller, requireWrite)
+  };
+
+  /// Public query: the principal's role on a property, or null when the
+  /// property doesn't exist. Finer-grained than isAuthorized — called
+  /// cross-canister by bills, which hides mortgage entries from #Manager/#Viewer.
+  public query func getAccessRole(propertyId : Text, principal : Principal) : async ?AccessRole {
+    switch (Map.get(properties, Text.compare, propertyId)) {
+      case null null;
+      case (?prop) {
+        if (prop.owner == principal) return ?#Owner;
+        let mgrs = switch (Map.get(managersMap, Text.compare, propertyId)) {
+          case null    [];
+          case (?list) list;
+        };
+        for (m in mgrs.vals()) {
+          if (m.principal == principal) {
+            return ?(switch (m.role) {
+              case (#CoOwner) #CoOwner;
+              case (#Manager) #Manager;
+              case (#Viewer)  #Viewer;
+            });
+          };
+        };
+        ?#NoAccess
+      };
+    }
   };
 
   // ─── Admin Controls ───────────────────────────────────────────────────────

@@ -8,6 +8,8 @@ const PROPERTY_CANISTER_ID = (process.env as any).PROPERTY_CANISTER_ID || "";
 export type PropertyType      = "SingleFamily" | "Condo" | "Townhouse" | "MultiFamily";
 export type VerificationLevel = "Unverified" | "PendingReview" | "Basic" | "Premium";
 export type ManagerRole       = "Viewer" | "Manager" | "CoOwner";
+/** A principal's standing on one property (see getAccessRole). */
+export type AccessRole        = "Owner" | ManagerRole | "NoAccess";
 export type SubscriptionTier = "Free" | "Basic" | "Pro" | "Premium" | "ContractorFree" | "ContractorPro";
 
 export interface Property {
@@ -568,6 +570,14 @@ export const propertyService = {
       property: fromProperty(r.property),
       role    : Object.keys(r.role)[0] as ManagerRole,
     }));
+  },
+
+  /** The given principal's role on a property; null when the property doesn't exist. */
+  async getAccessRole(propertyId: string, principal: string): Promise<AccessRole | null> {
+    const a = await getActor();
+    const { Principal: P } = await import("@icp-sdk/core/principal");
+    const result: any[] = await a.getAccessRole(propertyId, P.fromText(principal));
+    return result.length ? (Object.keys(result[0])[0] as AccessRole) : null;
   },
 
   /** Owner fetches the list of managers for one of their properties. */

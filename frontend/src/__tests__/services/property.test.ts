@@ -36,6 +36,7 @@ const mockActor = {
   respondToApproval:         vi.fn(),
   getApprovals:              vi.fn(),
   isAuthorized:              vi.fn(),
+  getAccessRole:             vi.fn(),
   getPropertyYearBuilt:      vi.fn(),
 };
 
@@ -761,5 +762,20 @@ describe("propertyService.getPropertyYearBuilt", () => {
     mockActor.getPropertyYearBuilt.mockResolvedValue([BigInt(2005)]);
     await propertyService.getPropertyYearBuilt("specific-prop");
     expect(mockActor.getPropertyYearBuilt).toHaveBeenCalledWith("specific-prop");
+  });
+});
+
+describe("propertyService.getAccessRole", () => {
+  const ME = "aaaaa-aa";
+
+  it("maps the Candid variant to its role name and passes the principal", async () => {
+    mockActor.getAccessRole.mockResolvedValue([{ Manager: null }]);
+    await expect(propertyService.getAccessRole("p1", ME)).resolves.toBe("Manager");
+    expect(mockActor.getAccessRole).toHaveBeenCalledWith("p1", expect.anything());
+  });
+
+  it("returns null for an unknown property", async () => {
+    mockActor.getAccessRole.mockResolvedValue([]);
+    await expect(propertyService.getAccessRole("missing", ME)).resolves.toBeNull();
   });
 });

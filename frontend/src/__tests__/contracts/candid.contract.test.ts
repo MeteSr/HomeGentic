@@ -237,6 +237,7 @@ describe("property IDL factory", () => {
       "claimManagerRole",
       "claimTransfer",
       "dismissNotifications",
+      "getAccessRole",
       "getApprovals",
       "getManagerInviteByToken",
       "getMyManagedProperties",
@@ -279,6 +280,7 @@ describe("property IDL factory", () => {
       .map(([name]) => name)
       .sort();
     expect(queries).toEqual([
+      "getAccessRole",
       "getApprovals",
       "getManagerInviteByToken",
       "getMyManagedProperties",
