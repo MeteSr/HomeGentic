@@ -74,7 +74,8 @@ RESULT=$(dfx canister call report generateReport '(
   null,
   null,
   null,
-  null
+  null,
+  null   # billsSummary
 )')
 echo "$RESULT"
 TOKEN1=$(echo "$RESULT" | grep -oP '(?<=token = ")[^"]+' | head -1 || echo "")
@@ -126,7 +127,8 @@ RESULT2=$(dfx canister call report generateReport '(
   null,
   null,
   null,
-  null
+  null,
+  null   # billsSummary
 )')
 echo "$RESULT2"
 TOKEN2=$(echo "$RESULT2" | grep -oP '(?<=token = ")[^"]+' | head -1 || echo "")
@@ -168,7 +170,8 @@ RESULT3=$(dfx canister call report generateReport '(
   null,
   null,
   null,
-  null
+  null,
+  null   # billsSummary
 )')
 echo "$RESULT3"
 TOKEN3=$(echo "$RESULT3" | grep -oP '(?<=token = ")[^"]+' | head -1 || echo "")
@@ -249,7 +252,8 @@ dfx canister call report generateReport '(
   null,
   null,
   null,
-  null
+  null,
+  null   # billsSummary
 )' || echo "  ↳ Expected InvalidInput — ✓"
 
 # ─── Pause / Unpause ──────────────────────────────────────────────────────────
@@ -279,7 +283,8 @@ dfx canister call report generateReport '(
   null,
   null,
   null,
-  null
+  null,
+  null   # billsSummary
 )' || echo "  ↳ Rejected while paused — ✓"
 
 echo ""
@@ -308,7 +313,8 @@ dfx canister call report generateReport '(
   null,
   null,
   null,
-  null
+  null,
+  null   # billsSummary
 )'
 
 # ─── Final metrics ────────────────────────────────────────────────────────────
@@ -432,10 +438,18 @@ echo "  ↳ Mortgage is not a valid category (rejected at the Candid layer) — 
 
 echo ""
 echo "── [B6] old 11-argument callers still work ─────────────────────────────"
-OUT=$(dfx canister call report generateReport '(
+# dfx type-checks against the live 12-arg interface, so encode with the
+# pre-bills signature, as a deployed older frontend would.
+OLD_DID=$(mktemp --suffix=.did)
+dfx canister metadata report candid:service \
+  | perl -0pe 's/,\s*(?:billsSummary\s*:\s*)?opt\s+BillsSummary(?=\s*\))//' > "$OLD_DID"
+perl -0ne 'exit(/generateReport\s*:[^;]*BillsSummary/ ? 1 : 0)' "$OLD_DID" \
+  || { echo "  ↳ ❌ could not derive the 11-arg interface"; exit 1; }
+OUT=$(dfx canister call --candid "$OLD_DID" report generateReport '(
   "PROP_REPORT_BILLS_8",
   record { address = "10 Legacy Rd"; city = "Tampa"; state = "FL"; zipCode = "33601";
            propertyType = "SingleFamily"; yearBuilt = 1999; squareFeet = 1500; verificationLevel = "Basic" },
   vec {}, vec {}, null, variant { Public }, null, null, null, null, null
 )')
+rm -f "$OLD_DID"
 expect "11-arg call accepted" "$OUT" "variant { ok"
