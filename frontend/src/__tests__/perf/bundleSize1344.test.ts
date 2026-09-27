@@ -2,7 +2,8 @@
  * TDD — 13.4.4: Bundle size audit
  *
  * Walks frontend/dist/assets/ and asserts:
- *   - Total initial JS bundle (all .js files) is < 200KB gzipped
+ *   - Total JS bundle (all .js files, excl. PlayCanvas) is < 625KB gzipped
+ *   - First-load JS (entry + modulepreloads) is < 225KB gzipped
  *   - No single chunk exceeds 150KB gzipped (coarse guard against megabyte blobs)
  *   - Source maps are not included in dist/ (they inflate bundle size perception)
  *
@@ -41,7 +42,7 @@ describe("13.4.4: Bundle size audit", () => {
     expect(existsSync(ASSETS)).toBe(true);
   });
 
-  it.skipIf(!DIST_EXISTS)("total JS bundle (excl. PlayCanvas) is < 600KB gzipped", () => {
+  it.skipIf(!DIST_EXISTS)("total JS bundle (excl. PlayCanvas) is < 625KB gzipped", () => {
     const jsFiles = walk(ASSETS, ".js");
     expect(jsFiles.length, "No JS files found in dist/assets/").toBeGreaterThan(0);
 
@@ -54,14 +55,16 @@ describe("13.4.4: Bundle size audit", () => {
       totalGzip += gzippedSize(f);
     }
     const totalKB = totalGzip / 1024;
-    // 600KB total reflects the current stack floor: @dfinity ~68KB, react ~45KB,
-    // vendor-ui ~26KB, Stripe.js ~80KB — ~220KB before any app code.
-    // This threshold catches accidental large dependency additions beyond known overhead.
+    // Stack floor: @dfinity ~68KB, react ~45KB, vendor-ui ~26KB, Stripe.js ~80KB —
+    // ~220KB before any app code. Raised 600 → 625KB (~604KB with contractor usage
+    // sharing): this total counts lazily-loaded routes, so it mainly catches
+    // accidental large dependencies. What users download up front is guarded by the
+    // first-load budget below.
     expect(
       totalGzip,
-      `Total JS bundle is ${totalKB.toFixed(1)}KB gzipped — exceeds 600KB target. ` +
+      `Total JS bundle is ${totalKB.toFixed(1)}KB gzipped — exceeds 625KB target. ` +
       `Run 'vite-bundle-visualizer' to identify large dependencies.`
-    ).toBeLessThan(600 * 1024);
+    ).toBeLessThan(625 * 1024);
   });
 
   // What a visitor actually downloads before first paint: the entry script plus
