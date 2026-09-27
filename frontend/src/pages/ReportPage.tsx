@@ -7,8 +7,8 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { Shield, CheckCircle, Wrench, FileText, Printer, AlertTriangle, XCircle } from "lucide-react";
-import { reportService, ReportSnapshot, ShareLink, JobInput, disclosureFromParams } from "@/services/report";
+import { Shield, CheckCircle, Wrench, FileText, Printer, AlertTriangle, XCircle, Receipt } from "lucide-react";
+import { reportService, ReportSnapshot, ShareLink, JobInput, BillsSummary, BILLS_SUMMARY_LABELS, disclosureFromParams } from "@/services/report";
 import { DocumentedValueSection } from "@/components/DocumentedValueSection";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 
@@ -37,6 +37,10 @@ const SERVICE_ICONS: Record<string, string> = {
 };
 
 function fmt(cents: number): string { return `$${(cents / 100).toLocaleString()}`; }
+
+function fmtMonthly(cents: number): string {
+  return `$${Math.round(cents / 100).toLocaleString()}`;
+}
 
 function fmtDate(iso: string): string {
   if (!iso) return "";
@@ -101,6 +105,7 @@ export default function ReportPage() {
   const [snapshot, setSnapshot] = useState<ReportSnapshot | null>(null);
   const [link, setLink]         = useState<ShareLink | null>(null);
   const [error, setError]       = useState("");
+  const [bills, setBills]       = useState<BillsSummary | null>(null);
 
   useEffect(() => {
     if (!token) { setState("notfound"); return; }
@@ -119,6 +124,18 @@ export default function ReportPage() {
       else { setError(err.message); setState("error"); }
     });
   }, [token]);
+
+  // Monthly costs are an owner opt-in and follow the "hide amounts" choice.
+  const hideAmounts = disclosure.hideAmounts;
+  useEffect(() => {
+    if (!token || hideAmounts) { setBills(null); return; }
+    let cancelled = false;
+    // Optional section: any failure, even a synchronous one, just leaves it out.
+    Promise.resolve().then(() => reportService.getBillsSummary(token))
+      .then((s) => { if (!cancelled) setBills(s); })
+      .catch(() => { if (!cancelled) setBills(null); });
+    return () => { cancelled = true; };
+  }, [token, hideAmounts]);
 
   if (state === "loading") {
     return (
@@ -440,6 +457,43 @@ export default function ReportPage() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Monthly Costs */}
+        {!hideAmounts && bills && bills.lines.length > 0 && (
+          <div style={{ marginBottom: "2.5rem" }}>
+            <SectionHeader title="Monthly Costs" icon={<Receipt size={14} color={UI.inkLight} />} />
+            <div style={{ border: `1px solid ${UI.rule}` }}>
+              {bills.lines.map((line) => (
+                <div key={line.category} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "1rem", padding: "0.75rem 1.25rem", borderBottom: `1px solid ${UI.rule}` }}>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.7rem", letterSpacing: "0.04em", color: UI.ink }}>
+                      {BILLS_SUMMARY_LABELS[line.category]}
+                    </p>
+                    <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", color: UI.inkLight, marginTop: "0.15rem" }}>
+                      {line.statementMonths === null
+                        ? "Scheduled payment"
+                        : `Average of ${line.statementMonths} month${line.statementMonths !== 1 ? "s" : ""} of bills`}
+                    </p>
+                  </div>
+                  <span style={{ fontFamily: UI.serif, fontWeight: 700, color: UI.ink, whiteSpace: "nowrap" }}>
+                    {fmtMonthly(line.avgMonthlyCents)}<span style={{ fontFamily: UI.mono, fontSize: "0.6rem", fontWeight: 400, color: UI.inkLight }}>/mo</span>
+                  </span>
+                </div>
+              ))}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "1rem", padding: "0.875rem 1.25rem", background: V2_COLORS.paper }}>
+                <p style={{ fontFamily: UI.mono, fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: UI.inkLight }}>
+                  Typical total
+                </p>
+                <span style={{ fontFamily: UI.serif, fontWeight: 900, fontSize: "1.1rem", color: UI.ink, whiteSpace: "nowrap" }}>
+                  {fmtMonthly(bills.lines.reduce((s, l) => s + Math.round(l.avgMonthlyCents / 100) * 100, 0))}<span style={{ fontFamily: UI.mono, fontSize: "0.6rem", fontWeight: 400, color: UI.inkLight }}>/mo</span>
+                </span>
+              </div>
+            </div>
+            <p style={{ fontFamily: UI.mono, fontSize: "0.6rem", lineHeight: 1.5, color: UI.inkLight, marginTop: "0.625rem" }}>
+              Reported by the homeowner as of {fmtDate(bills.asOf)}. Excludes mortgage. Actual costs vary with occupancy and usage.
+            </p>
           </div>
         )}
 

@@ -92,6 +92,28 @@ persistent actor Report {
 
   public type VisibilityLevel = { #Public; #BuyerOnly };
 
+  /// Cost categories a shared report may carry. Deliberately has no mortgage or
+  /// "other housing" entry — those stay private to the household.
+  public type BillsCategory = {
+    #Electric; #Gas; #Water; #Internet; #Telecom; #OtherUtility;
+    #PropertyTax; #HOA; #HomeInsurance;
+  };
+
+  /// #Statements n = average of n months of bills; #Scheduled = from a fixed schedule.
+  public type BillsBasis = { #Statements : Nat; #Scheduled };
+
+  public type BillsSummaryLine = {
+    category        : BillsCategory;
+    avgMonthlyCents : Nat;
+    basis           : BillsBasis;
+  };
+
+  /// Owner-chosen monthly cost averages attached to a report for buyers/agents.
+  public type BillsSummary = {
+    lines : [BillsSummaryLine];
+    asOf  : Text;   // YYYY-MM-DD
+  };
+
   /// Immutable snapshot of property state at time of report generation.
   public type ReportSnapshot = {
     snapshotId:         Text;
@@ -185,6 +207,9 @@ persistent actor Report {
   private let snapshots = Map.empty<Text, ReportSnapshot>();
   private let links     = Map.empty<Text, ShareLink>();
   private let certs     = Map.empty<Text, CertRecord>();
+  /// Keyed by snapshotId. Kept out of ReportSnapshot, which lives in a Map
+  /// (invariant), so adding a field there would need an explicit migration.
+  private let billsSummaries = Map.empty<Text, BillsSummary>();
 
   // ─── Private Helpers ──────────────────────────────────────────────────────────
 
@@ -262,6 +287,32 @@ persistent actor Report {
     let sid = "SNAP_" # randHex;
     let tok = "RPT_"  # randHex;
     (sid, tok)
+  };
+
+  private transient let MAX_MONTHLY_CENTS : Nat = 100_000_000;   // $1M/month — far beyond any household cost
+
+  private func billsCategoryKey(c: BillsCategory) : Nat {
+    switch c {
+      case (#Electric) 0; case (#Gas) 1; case (#Water) 2; case (#Internet) 3; case (#Telecom) 4;
+      case (#OtherUtility) 5; case (#PropertyTax) 6; case (#HOA) 7; case (#HomeInsurance) 8;
+    }
+  };
+
+  private func validateBillsSummary(s: BillsSummary) : ?Text {
+    if (Text.size(s.asOf) != 10) return ?"billsSummary.asOf must be YYYY-MM-DD";
+    if (s.lines.size() > 9) return ?"billsSummary has too many lines";
+    var seen : [Nat] = [];
+    for (l in s.lines.vals()) {
+      let k = billsCategoryKey(l.category);
+      if (Option.isSome(Array.find<Nat>(seen, func(x) { x == k }))) return ?"billsSummary has a duplicate category";
+      seen := Array.concat(seen, [k]);
+      if (l.avgMonthlyCents > MAX_MONTHLY_CENTS) return ?"billsSummary amount out of range";
+      switch (l.basis) {
+        case (#Statements n) { if (n == 0 or n > 12) return ?"billsSummary months must be 1-12" };
+        case (#Scheduled) {};
+      };
+    };
+    null
   };
 
   private func isExpired(link: ShareLink) : Bool {
@@ -376,6 +427,7 @@ persistent actor Report {
   ///   9. hideContractors  — redact contractor names
   ///  10. hidePermits      — redact permit numbers
   ///  11. hideDescriptions — redact job description text
+  ///  12. billsSummary     — owner-chosen monthly cost averages (see getBillsSummary)
   public shared(msg) func generateReport(
     propertyId:        Text,
     property:          PropertyInput,
@@ -387,7 +439,8 @@ persistent actor Report {
     hideAmounts:       ?Bool,          // opt — null treated as false
     hideContractors:   ?Bool,
     hidePermits:       ?Bool,
-    hideDescriptions:  ?Bool
+    hideDescriptions:  ?Bool,
+    billsSummary:      ?BillsSummary   // opt — null / omitted = no cost summary
   ) : async Result.Result<ShareLink, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     if (Text.size(propertyId)      == 0)  return #err(#InvalidInput("propertyId cannot be empty"));
@@ -396,6 +449,10 @@ persistent actor Report {
     if (Text.size(property.city)    > 100) return #err(#InvalidInput("city exceeds 100 characters"));
     if (Text.size(property.state)   > 50)  return #err(#InvalidInput("state exceeds 50 characters"));
     if (Text.size(property.zipCode) > 20)  return #err(#InvalidInput("zipCode exceeds 20 characters"));
+    switch (billsSummary) {
+      case (?b) { switch (validateBillsSummary(b)) { case (?m) return #err(#InvalidInput(m)); case null {} } };
+      case null {};
+    };
 
     // ── Ownership verification gate ──────────────────────────────────────────
     // Cross-canister call to the property canister to fetch the authoritative
@@ -451,6 +508,10 @@ persistent actor Report {
       schemaVersion      = ?2;   // 14.4.3 — current schema version
     };
     Map.add(snapshots, Text.compare, snapshotId, snapshot);
+    switch (billsSummary) {
+      case (?b) { if (b.lines.size() > 0) Map.add(billsSummaries, Text.compare, snapshotId, b) };
+      case null {};
+    };
 
     let expiresAt : ?Time.Time = switch (expiryDays) {
       case null    { null };
@@ -511,6 +572,19 @@ persistent actor Report {
             #ok((updated, applyDisclosure(snap, updated)))
           };
         }
+      };
+    }
+  };
+
+  /// The cost summary attached to a report, if the owner included one. Same
+  /// link checks as getReport; withheld when the link hides amounts.
+  public query func getBillsSummary(token: Text) : async ?BillsSummary {
+    switch (Map.get(links, Text.compare, token)) {
+      case null null;
+      case (?link) {
+        if (not link.isActive or isExpired(link)) return null;
+        if (link.hideAmounts == ?true) return null;
+        Map.get(billsSummaries, Text.compare, link.snapshotId)
       };
     }
   };

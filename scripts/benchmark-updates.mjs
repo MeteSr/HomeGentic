@@ -86,6 +86,22 @@ function photoHash(i) {
 }
 
 // ─── Benchmark targets ────────────────────────────────────────────────────────
+// This script runs against both base and head canisters (perf-regression.yml),
+// and dfx requires the exact arity, so generateReport's 12th (billsSummary)
+// arg is passed only when the deployed report canister has it.
+let _reportBillsArg;
+function reportBillsArg() {
+  if (_reportBillsArg === undefined) {
+    let iface = "";
+    try {
+      iface = execSync("dfx canister metadata report candid:service --network local",
+        { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
+    } catch { /* no replica (estimate mode) — arity doesn't matter */ }
+    _reportBillsArg = iface.includes("getBillsSummary") ? ", null" : "";
+  }
+  return _reportBillsArg;
+}
+
 // dfxArgs is a function of (ids, repeatIndex) so --live calls use real seeded
 // records instead of placeholder literals that don't exist in any canister.
 
@@ -105,7 +121,7 @@ const UPDATE_TARGETS = [
     canister: "report",
     method: "generateReport",
     dfxArgs: (ids) =>
-      `("${ids.propertyId}", record { address = "123 Main St"; city = "Austin"; state = "TX"; zipCode = "78701"; propertyType = "SingleFamily"; yearBuilt = 2000 : nat; squareFeet = 2000 : nat; verificationLevel = "Basic" }, vec {}, vec {}, null, variant { Public }, null, null, null, null, null)`,
+      `("${ids.propertyId}", record { address = "123 Main St"; city = "Austin"; state = "TX"; zipCode = "78701"; propertyType = "SingleFamily"; yearBuilt = 2000 : nat; squareFeet = 2000 : nat; verificationLevel = "Basic" }, vec {}, vec {}, null, variant { Public }, null, null, null, null, null${reportBillsArg()})`,
     writeSizeKB: 8,        // snapshot ≈ 4KB + share link ≈ 512B + randomness call
     instructionsM: 1.0,    // snapshot serialization + random ID generation
     description: "Generate report snapshot and share link",

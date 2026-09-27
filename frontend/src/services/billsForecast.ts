@@ -81,7 +81,7 @@ function monthFromIndex(i: number): string {
 }
 
 /** Month a statement belongs to: the midpoint of its service period. */
-function statementMonth(b: Pick<BillRecord, "periodStart" | "periodEnd">): string | null {
+export function statementMonth(b: Pick<BillRecord, "periodStart" | "periodEnd">): string | null {
   const start = Date.parse(b.periodStart);
   const end   = Date.parse(b.periodEnd);
   if (Number.isNaN(start)) return null;

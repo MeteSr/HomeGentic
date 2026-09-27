@@ -88,8 +88,13 @@ QUOTE_OUT=$(run_dfx "quote.createQuoteRequest" canister call quote createQuoteRe
 QUOTE_REQUEST_ID=$(require_field "$QUOTE_OUT" "id" "quote.createQuoteRequest")
 echo "  quote request:     $QUOTE_REQUEST_ID"
 
+# perf-regression.yml runs this against base and head canisters, and dfx wants
+# the exact arity: pass the 12th (billsSummary) arg only where it exists.
+REPORT_IFACE=$(dfx canister metadata report candid:service --network local 2>/dev/null || true)
+REPORT_BILLS_ARG=""
+[[ "$REPORT_IFACE" == *getBillsSummary* ]] && REPORT_BILLS_ARG=", null"
 REPORT_OUT=$(run_dfx "report.generateReport" canister call report generateReport \
-  "(\"$PROPERTY_ID\", record { address = \"100 Perf Test Ln\"; city = \"Austin\"; state = \"TX\"; zipCode = \"78701\"; propertyType = \"SingleFamily\"; yearBuilt = 2005 : nat; squareFeet = 2200 : nat; verificationLevel = \"Basic\" }, vec {}, vec {}, null, variant { Public }, null, null, null, null, null)" \
+  "(\"$PROPERTY_ID\", record { address = \"100 Perf Test Ln\"; city = \"Austin\"; state = \"TX\"; zipCode = \"78701\"; propertyType = \"SingleFamily\"; yearBuilt = 2005 : nat; squareFeet = 2200 : nat; verificationLevel = \"Basic\" }, vec {}, vec {}, null, variant { Public }, null, null, null, null, null$REPORT_BILLS_ARG)" \
   --network local)
 REPORT_TOKEN=$(require_field "$REPORT_OUT" "token" "report.generateReport")
 echo "  report token:      $REPORT_TOKEN"

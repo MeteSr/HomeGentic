@@ -13,6 +13,8 @@
  *   - getReport with unknown token throws NotFound
  *   - listShareLinks(propertyId) returns all active links for the property
  *   - revokeShareLink(token) makes the token invalid
+ *   - BillsSummary (variant categories, Statements/Scheduled basis) round-trips
+ *     through generateReport's 12th arg and getBillsSummary
  */
 
 import { describe, it, expect, beforeAll } from "vitest";
@@ -176,5 +178,31 @@ describe.skipIf(!deployed)("revokeShareLink — invalidates token", () => {
   it("getReport throws after revocation", async () => {
     await reportService.revokeShareLink(token);
     await expect(reportService.getReport(token)).rejects.toThrow(/revoked/i);
+  });
+});
+
+// ─── Bills summary ───────────────────────────────────────────────────────────
+
+describe.skipIf(!deployed)("getBillsSummary — BillsSummary round-trip", () => {
+  const summary = {
+    asOf: "2026-09-01",
+    lines: [
+      { category: "Electric" as const, avgMonthlyCents: 14_250, statementMonths: 12 },
+      { category: "HOA" as const,      avgMonthlyCents: 35_000, statementMonths: null },
+    ],
+  };
+
+  it("returns the summary stored with the snapshot", async () => {
+    const link = await reportService.generateReport(
+      PROP_ID, BASE_PROPERTY, [], [], [], null, "Public", summary
+    );
+    expect(await reportService.getBillsSummary(link.token)).toEqual(summary);
+  });
+
+  it("returns null for a report generated without one", async () => {
+    const link = await reportService.generateReport(
+      PROP_ID, BASE_PROPERTY, [], [], [], null, "Public"
+    );
+    expect(await reportService.getBillsSummary(link.token)).toBeNull();
   });
 });

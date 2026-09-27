@@ -127,12 +127,29 @@ export const idlFactory = ({ IDL }: any) => {
     InvalidInput:  IDL.Text,
   });
 
+  const BillsCategory = IDL.Variant({
+    Electric: IDL.Null, Gas: IDL.Null, Water: IDL.Null, Internet: IDL.Null,
+    Telecom: IDL.Null, OtherUtility: IDL.Null, PropertyTax: IDL.Null,
+    HOA: IDL.Null, HomeInsurance: IDL.Null,
+  });
+  const BillsBasis = IDL.Variant({ Statements: IDL.Nat, Scheduled: IDL.Null });
+  const BillsSummaryLine = IDL.Record({
+    category:        BillsCategory,
+    avgMonthlyCents: IDL.Nat,
+    basis:           BillsBasis,
+  });
+  const BillsSummary = IDL.Record({
+    lines: IDL.Vec(BillsSummaryLine),
+    asOf:  IDL.Text,
+  });
+
   return IDL.Service({
-    // Params 1-6 match the original interface; 7-11 are new trailing opt args.
+    // Params 1-6 match the original interface; 7-12 are new trailing opt args.
     generateReport: IDL.Func(
       [IDL.Text, PropertyInput, IDL.Vec(JobInput), IDL.Vec(RecurringServiceInput),
        IDL.Opt(IDL.Nat), VisibilityLevel,
-       IDL.Opt(IDL.Vec(RoomInput)), IDL.Opt(IDL.Bool), IDL.Opt(IDL.Bool), IDL.Opt(IDL.Bool), IDL.Opt(IDL.Bool)],
+       IDL.Opt(IDL.Vec(RoomInput)), IDL.Opt(IDL.Bool), IDL.Opt(IDL.Bool), IDL.Opt(IDL.Bool), IDL.Opt(IDL.Bool),
+       IDL.Opt(BillsSummary)],
       [IDL.Variant({ ok: ShareLink, err: Error })],
       []
     ),
@@ -142,6 +159,7 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: IDL.Tuple(ShareLink, ReportSnapshot), err: Error })],
       []
     ),
+    getBillsSummary: IDL.Func([IDL.Text], [IDL.Opt(BillsSummary)], ["query"]),
     hasActivePublicShareLink: IDL.Func([IDL.Text], [IDL.Bool], ["query"]),
     listShareLinks: IDL.Func([IDL.Text], [IDL.Vec(ShareLink)], []),
     revokeShareLink: IDL.Func(
