@@ -155,4 +155,17 @@ describe("HousingCostsSection", () => {
     await waitFor(() => expect(mockToastError).toHaveBeenCalledWith("Subscribe to Pro", expect.anything()));
     expect(screen.getByRole("button", { name: "Add Cost" })).toBeInTheDocument();
   });
+
+  it("reports the list upward once loaded and after each change", async () => {
+    mockSvc.getRecurringExpensesForProperty.mockResolvedValue([MORTGAGE, TAX]);
+    mockSvc.deleteRecurringExpense.mockResolvedValue(undefined);
+    const onChange = vi.fn();
+    render(<HousingCostsSection propertyId="prop-1" onExpensesChange={onChange} />);
+
+    await waitFor(() => expect(onChange).toHaveBeenLastCalledWith([MORTGAGE, TAX]));
+    expect(onChange).not.toHaveBeenCalledWith([]);   // not before load completes
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove Mortgage" }));
+    await waitFor(() => expect(onChange).toHaveBeenLastCalledWith([TAX]));
+  });
 });

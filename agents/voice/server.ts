@@ -25,6 +25,9 @@ import { logger } from "./logger";
 // This relay handles only the 6 Claude AI endpoints.
 import { bidtolistRouter } from "./bidtolistRouter";
 import { listingFeeRouter } from "./listingFeeRouter";
+import {
+  parseInsightsPayload, describeFacts, parseNarrative, ruleBasedNarrative, NARRATIVE_SYSTEM_PROMPT,
+} from "./billsInsights";
 
 const app = express();
 const port = Number(process.env.VOICE_AGENT_PORT) || Number(process.env.PORT) || 3001;
@@ -706,6 +709,28 @@ Respond ONLY with plain text — no markdown, no JSON.`;
       estimatedAnnualWaste,
       recommendation: `Your ${unit} has increased ${trendPct.toFixed(1)}% over this period. This may indicate system inefficiency — consider scheduling an HVAC inspection or checking for leaks.`,
     });
+  }
+});
+
+// ── POST /api/bills-insights ──────────────────────────────────────────────────
+// Plain-language narrative over the client's deterministic bills forecast.
+// Request:  InsightsPayload (see billsInsights.ts) — keys, numbers and dates only
+// Response: { summary, tips[], source: "ai" | "rules" }
+app.post("/api/bills-insights", async (req: Request, res: Response): Promise<void> => {
+  const parsed = parseInsightsPayload(req.body);
+  if (!parsed.ok) {
+    res.status(400).json({ error: parsed.error });
+    return;
+  }
+  try {
+    const text = await provider.complete({
+      system:    NARRATIVE_SYSTEM_PROMPT,
+      messages:  [{ role: "user", content: describeFacts(parsed.value) }],
+      maxTokens: 400,
+    });
+    res.json(parseNarrative(text) ?? ruleBasedNarrative(parsed.value));
+  } catch {
+    res.json(ruleBasedNarrative(parsed.value));
   }
 });
 
