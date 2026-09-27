@@ -1,0 +1,69 @@
+name: Stable Compatibility
+
+# Blocks changes that would make a canister upgrade trap with
+# "Memory-incompatible program upgrade" — recoverable only by a reinstall that
+# deletes the canister's data. See scripts/ci/check-stable-compat.sh.
+#
+# Its own workflow (not ci.yml) so adding/removing the `allow-stable-break`
+# label re-runs just this check.
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stable-compat-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  stable-compat:
+    name: stable-compat-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Fetch base commit
+        id: base
+        env:
+          # PR: compare with the target branch. Push to main: with the previous head.
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            echo "No base commit to compare against — skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          echo "sha=$BASE_SHA" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v7
+        if: steps.base.outputs.skip != 'true'
+        with:
+          node-version: '20'
+
+      - name: Cache mops packages
+        if: steps.base.outputs.skip != 'true'
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/mops
+          key: mops-${{ runner.os }}-${{ hashFiles('mops.toml') }}
+
+      - name: Install mops and moc
+        if: steps.base.outputs.skip != 'true'
+        run: |
+          npm install -g ic-mops
+          mops install
+          mops toolchain use moc 1.3.0
+          "$(mops toolchain bin moc)" --version
+
+      - name: Check stable-memory compatibility
+        if: steps.base.outputs.skip != 'true'
+        env:
+          ALLOW_STABLE_BREAK: ${{ contains(github.event.pull_request.labels.*.name, 'allow-stable-break') && '1' || '' }}
+        run: bash scripts/ci/check-stable-compat.sh "${{ steps.base.outputs.sha }}"
