@@ -23,12 +23,15 @@ vi.mock("react-router-dom", async (importOriginal) => {
   };
 });
 
-const { mockGetRequest, mockGetQuotesForRequest, mockAccept, mockCancel, mockGetContractor } = vi.hoisted(() => ({
+const { mockGetRequest, mockGetQuotesForRequest, mockAccept, mockCancel, mockGetContractor, mockGetUsage, mockRemoveUsage,
+} = vi.hoisted(() => ({
   mockGetRequest:            vi.fn(),
   mockGetQuotesForRequest:   vi.fn(),
   mockAccept:                vi.fn(),
   mockCancel:                vi.fn(),
   mockGetContractor:         vi.fn().mockResolvedValue(null),
+  mockGetUsage:              vi.fn(),
+  mockRemoveUsage:           vi.fn(),
 }));
 
 vi.mock("@/services/quote", () => ({
@@ -37,6 +40,8 @@ vi.mock("@/services/quote", () => ({
     getQuotesForRequest: mockGetQuotesForRequest,
     accept: mockAccept,
     cancel: mockCancel,
+    getUsage: mockGetUsage,
+    removeUsage: mockRemoveUsage,
   },
 }));
 
@@ -89,6 +94,7 @@ function renderPage() {
 beforeEach(() => {
   vi.clearAllMocks();
   mockGetContractor.mockResolvedValue(null);
+  mockGetUsage.mockResolvedValue(null);
 });
 
 describe("QuoteDetailPage — Best Value composite scoring", () => {
@@ -184,5 +190,35 @@ describe("QuoteDetailPage — cancel flow", () => {
 
     await waitFor(() => expect(mockCancel).toHaveBeenCalledWith("req-1"));
     expect(mockToastSuccess).toHaveBeenCalledWith("Request cancelled — contractors who bid have been notified.");
+  });
+});
+
+describe("QuoteDetailPage — shared usage", () => {
+  const usage = {
+    asOf: "2026-09-15",
+    series: [{ category: "Electric" as const, unit: "kWh", months: [{ month: "2026-08", amountCents: 23_900, usage: 1655 }] }],
+  };
+
+  it("shows the requester what contractors can see, and stops sharing on request", async () => {
+    mockGetRequest.mockResolvedValue(REQUEST);
+    mockGetQuotesForRequest.mockResolvedValue([]);
+    mockGetUsage.mockResolvedValue(usage);
+    mockRemoveUsage.mockResolvedValue(undefined);
+    renderPage();
+
+    expect(await screen.findByText("Usage shared with contractors")).toBeInTheDocument();
+    expect(mockGetUsage).toHaveBeenCalledWith("req-1");
+    fireEvent.click(screen.getByRole("button", { name: /stop sharing/i }));
+    await waitFor(() => expect(mockRemoveUsage).toHaveBeenCalledWith("req-1"));
+    await waitFor(() => expect(screen.queryByText("Usage shared with contractors")).not.toBeInTheDocument());
+    expect(mockToastSuccess).toHaveBeenCalledWith("Contractors can no longer see your usage");
+  });
+
+  it("doesn't ask for usage on someone else's request", async () => {
+    mockGetRequest.mockResolvedValue({ ...REQUEST, homeowner: "p-someone-else" });
+    mockGetQuotesForRequest.mockResolvedValue([]);
+    renderPage();
+    await screen.findByText("Fix AC");
+    expect(mockGetUsage).not.toHaveBeenCalled();
   });
 });

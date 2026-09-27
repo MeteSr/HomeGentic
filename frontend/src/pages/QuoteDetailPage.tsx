@@ -7,6 +7,8 @@ import { Badge } from "@/components/Badge";
 import { quoteService, QuoteRequest, Quote } from "@/services/quote";
 import { contractorService } from "@/services/contractor";
 import { NegotiationPanel } from "@/components/NegotiationPanel";
+import { UsageHistory } from "@/components/UsageHistory";
+import type { UsageSummary } from "@/services/quoteUsage";
 import { useAuthStore } from "@/store/authStore";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
@@ -36,6 +38,8 @@ export default function QuoteDetailPage() {
   const [acceptedQuote,      setAcceptedQuote]      = useState<Quote | null>(null);
   const [showCancelModal,    setShowCancelModal]    = useState(false);
   const [cancelling,         setCancelling]         = useState(false);
+  const [usage,              setUsage]              = useState<UsageSummary | null>(null);
+  const [stoppingUsage,      setStoppingUsage]      = useState(false);
   const { principal } = useAuthStore();
 
   useEffect(() => {
@@ -112,6 +116,30 @@ export default function QuoteDetailPage() {
   const isOwner = request?.homeowner === (principal ?? "local");
   const canCancel = isOwner && (request?.status === "open" || request?.status === "quoted");
 
+  // The requester sees what they're sharing with contractors, and can stop.
+  useEffect(() => {
+    if (!isOwner || !request) return;
+    let cancelled = false;
+    Promise.resolve().then(() => quoteService.getUsage(request.id))
+      .then((u) => { if (!cancelled) setUsage(u); })
+      .catch(() => { if (!cancelled) setUsage(null); });
+    return () => { cancelled = true; };
+  }, [isOwner, request]);
+
+  const handleStopSharing = async () => {
+    if (!request) return;
+    setStoppingUsage(true);
+    try {
+      await quoteService.removeUsage(request.id);
+      setUsage(null);
+      toast.success("Contractors can no longer see your usage");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to stop sharing");
+    } finally {
+      setStoppingUsage(false);
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -171,6 +199,17 @@ export default function QuoteDetailPage() {
                 )}
               </div>
             </div>
+          </div>
+        )}
+
+        {usage && (
+          <div style={{ marginBottom: "1.5rem" }}>
+            <UsageHistory
+              summary={usage}
+              title="Usage shared with contractors"
+              onStopSharing={handleStopSharing}
+              stopping={stoppingUsage}
+            />
           </div>
         )}
 

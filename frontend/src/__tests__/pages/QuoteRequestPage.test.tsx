@@ -6,6 +6,7 @@
  *     to the new request on success
  *   - validation: empty description blocks submit with a toast
  *   - failure: server error surfaces via toast, does not navigate
+ *   - opt-in usage sharing runs after the request exists, never blocks it
  */
 
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -77,13 +78,20 @@ vi.mock("@/components/Layout", () => ({
   Layout: ({ children }: any) => <div data-testid="layout">{children}</div>,
 }));
 
-const { mockToastError, mockToastSuccess } = vi.hoisted(() => ({
+const { mockToastError, mockToastSuccess, mockToast } = vi.hoisted(() => ({
   mockToastError:   vi.fn(),
   mockToastSuccess: vi.fn(),
+  mockToast:        vi.fn(),
 }));
 
 vi.mock("react-hot-toast", () => ({
-  default: { error: mockToastError, success: mockToastSuccess },
+  default: Object.assign(mockToast, { error: mockToastError, success: mockToastSuccess }),
+}));
+
+const { mockShareBills } = vi.hoisted(() => ({ mockShareBills: vi.fn() }));
+vi.mock("@/services/quoteUsage", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/quoteUsage")>()),
+  shareBillsWithRequest: mockShareBills,
 }));
 
 function renderPage() {
@@ -168,5 +176,40 @@ describe("QuoteRequestPage — submit", () => {
 
     await waitFor(() => expect(mockToastError).toHaveBeenCalledWith("No matching contractors in your area"));
     expect(mockNavigate).not.toHaveBeenCalled();
+  });
+});
+
+describe("QuoteRequestPage — sharing utility usage", () => {
+  async function submitHvac(share: boolean) {
+    mockCreateRequest.mockResolvedValue({ id: "req-7" });
+    renderPage();
+    await waitFor(() => expect(screen.getByText("Send Quote Request")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText(/describe the work needed/i), { target: { value: "Replace the AC" } });
+    if (share) fireEvent.click(screen.getByRole("checkbox", { name: /share my electricity and gas usage/i }));
+    fireEvent.click(screen.getByText("Send Quote Request"));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/quotes/req-7"));
+  }
+
+  it("is off by default and shares nothing", async () => {
+    await submitHvac(false);
+    expect(mockShareBills).not.toHaveBeenCalled();
+  });
+
+  it("attaches the relevant bills to the new request when opted in", async () => {
+    mockShareBills.mockResolvedValue(true);
+    await submitHvac(true);
+    expect(mockShareBills).toHaveBeenCalledWith("req-7", "prop-1", "HVAC");
+  });
+
+  it("still navigates, with a notice, when there were no bills to share", async () => {
+    mockShareBills.mockResolvedValue(false);
+    await submitHvac(true);
+    expect(mockToast).toHaveBeenCalledWith(expect.stringMatching(/no matching bills/i));
+  });
+
+  it("still navigates, with an error, when sharing fails", async () => {
+    mockShareBills.mockRejectedValue(new Error("Rate limit exceeded"));
+    await submitHvac(true);
+    expect(mockToastError).toHaveBeenCalledWith(expect.stringMatching(/Request sent, but usage couldn't be shared: Rate limit exceeded/));
   });
 });

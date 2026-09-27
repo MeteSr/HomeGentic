@@ -2,6 +2,7 @@ import { Actor } from "@icp-sdk/core/agent";
 import { getAgent } from "./actor";
 import { idlFactory } from "@/declarations/quote";
 import { ibeEncryptAmount, ibeDecryptBids, type RevealedBid as SealedRevealedBid } from "./sealedBid";
+import type { UsageCategory, UsageSummary } from "./quoteUsage";
 export { idlFactory };
 
 const QUOTE_CANISTER_ID = (process.env as any).QUOTE_CANISTER_ID || "";
@@ -41,6 +42,44 @@ export interface Quote {
 }
 
 // ─── Converters ───────────────────────────────────────────────────────────────
+
+function usageToCanister(u: UsageSummary) {
+  return {
+    asOf:   u.asOf,
+    series: u.series.map((s) => ({
+      category: { [s.category]: null },
+      unit:     s.unit ? [s.unit] : [],
+      months:   s.months.map((m) => ({
+        month:       m.month,
+        amountCents: BigInt(Math.round(m.amountCents)),
+        usage:       m.usage === null ? [] : [m.usage],
+      })),
+    })),
+  };
+}
+
+function usageFromCanister(raw: any): UsageSummary {
+  return {
+    asOf:   raw.asOf,
+    series: (raw.series as any[]).map((s) => ({
+      category: Object.keys(s.category)[0] as UsageCategory,
+      unit:     s.unit.length > 0 ? s.unit[0] : null,
+      months:   (s.months as any[]).map((m) => ({
+        month:       m.month,
+        amountCents: Number(m.amountCents),
+        usage:       m.usage.length > 0 ? Number(m.usage[0]) : null,
+      })),
+    })),
+  };
+}
+
+function unwrapUnit(result: any): void {
+  if ("err" in result) {
+    const key = Object.keys(result.err)[0];
+    const val = result.err[key];
+    throw new Error(typeof val === "string" ? val : key);
+  }
+}
 
 const URGENCY_MAP: Record<string, Urgency> = {
   Low: "low", Medium: "medium", High: "high", Emergency: "emergency",
@@ -281,6 +320,36 @@ function createQuoteService() {
       const val = result.err[key];
       throw new Error(typeof val === "string" ? val : key);
     }
+  },
+
+  // ── Utility usage shared with contractors ───────────────────────────────────
+
+  /** Attach (or replace) usage on the caller's own open request. */
+  async attachUsage(requestId: string, summary: UsageSummary): Promise<void> {
+    if (typeof window !== "undefined" && (window as any).__e2e_properties) return;
+    const a = await getActor();
+    unwrapUnit(await a.attachUsageSummary(requestId, usageToCanister(summary)));
+  },
+
+  async removeUsage(requestId: string): Promise<void> {
+    const a = await getActor();
+    unwrapUnit(await a.removeUsageSummary(requestId));
+  },
+
+  /** Usage attached to a request, or null if none was shared. Throws NotAuthorized
+   *  for callers the request isn't visible to. */
+  async getUsage(requestId: string): Promise<UsageSummary | null> {
+    if (typeof window !== "undefined" && (window as any).__e2e_quote_usage) {
+      return ((window as any).__e2e_quote_usage as Record<string, UsageSummary>)[requestId] ?? null;
+    }
+    const a = await getActor();
+    const result = await a.getUsageSummary(requestId);
+    if ("err" in result) {
+      const key = Object.keys(result.err)[0];
+      const val = result.err[key];
+      throw new Error(typeof val === "string" ? val : key);
+    }
+    return result.ok.length > 0 ? usageFromCanister(result.ok[0]) : null;
   },
 
   // ── vetKeys IBE sealed-bid methods ──────────────────────────────────────────

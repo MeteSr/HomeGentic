@@ -504,3 +504,112 @@ else
   fi  # end if [ -z "$INVITE_TOKEN" ]
   fi  # end if [ -z "$MGR_PROP_ID" ]
 fi   # end if property/payment deployed
+
+# ─── Usage sharing (utility bills → contractors) ─────────────────────────────
+echo ""
+echo "============================================"
+echo "  Quote — usage sharing"
+echo "============================================"
+
+flatten() { printf '%s' "$1" | tr -s '[:space:]' ' '; }
+expect() {
+  if [[ "$(flatten "$2")" == *"$3"* ]]; then echo "  ↳ $1 — ✓"
+  else echo "  ↳ ❌ $1: expected '$3'; got: $2"; exit 1; fi
+}
+new_id() { dfx identity list 2>/dev/null | grep -q "^$1$" || dfx identity new "$1" --disable-encryption >/dev/null 2>&1 || true; }
+req_id_of() { if [[ "$1" =~ id\ =\ \"([^\"]+)\" ]]; then echo "${BASH_REMATCH[1]}"; fi; }
+
+new_id quote-usage-owner; new_id quote-usage-pro; new_id quote-usage-stranger
+OWNER_P=$(dfx identity get-principal --identity quote-usage-owner)
+dfx canister call payment grantSubscription "(principal \"$OWNER_P\", variant { Pro })" >/dev/null 2>&1 || true
+dfx canister call $CANISTER setTier "(principal \"$OWNER_P\", variant { Pro })" >/dev/null 2>&1 || true
+
+new_request() {   # $1 service variant
+  dfx canister call $CANISTER createQuoteRequest "(
+    \"PROP_USAGE_$1\", variant { $1 }, \"Usage sharing test request.\", variant { Low },
+    null, null, null, null, null
+  )" --identity quote-usage-owner
+}
+
+ELECTRIC='record { category = variant { Electric }; unit = opt "kWh"; months = vec {
+  record { month = "2026-07"; amountCents = 21400; usage = opt 1480.0 };
+  record { month = "2026-08"; amountCents = 23900; usage = opt 1655.5 };
+} }'
+summary() { echo "(record { asOf = \"2026-09-15\"; series = vec { $1 } })"; }
+
+echo ""
+echo "── [U1] owner attaches electric usage to an HVAC request ────────────────"
+HVAC_REQ=$(req_id_of "$(new_request HVAC)")
+[ -n "$HVAC_REQ" ] || { echo "  ↳ ❌ could not create HVAC request"; exit 1; }
+OUT=$(dfx canister call $CANISTER attachUsageSummary "(\"$HVAC_REQ\", $(summary "$ELECTRIC"))" --identity quote-usage-owner)
+expect "attach accepted" "$OUT" "variant { ok }"
+OUT=$(dfx canister call $CANISTER getUsageSummary "(\"$HVAC_REQ\")" --identity quote-usage-owner)
+expect "owner reads it back" "$OUT" "category = variant { Electric }"
+expect "usage figures survive" "$OUT" "usage = opt (1655.5 : float64)"
+
+echo ""
+echo "── [U2] only relevant utilities, only the requester ─────────────────────"
+WATER='record { category = variant { Water }; unit = null; months = vec { record { month = "2026-08"; amountCents = 6100; usage = null } } }'
+OUT=$(dfx canister call $CANISTER attachUsageSummary "(\"$HVAC_REQ\", $(summary "$WATER"))" --identity quote-usage-owner)
+expect "water on an HVAC request rejected" "$OUT" "not relevant to this service type"
+ROOF_REQ=$(req_id_of "$(new_request Roofing)")
+OUT=$(dfx canister call $CANISTER attachUsageSummary "(\"$ROOF_REQ\", $(summary "$ELECTRIC"))" --identity quote-usage-owner)
+expect "nothing is relevant to roofing" "$OUT" "not relevant to this service type"
+OUT=$(dfx canister call $CANISTER attachUsageSummary "(\"$HVAC_REQ\", $(summary "$ELECTRIC"))" --identity quote-usage-stranger)
+expect "someone else's request rejected" "$OUT" "NotAuthorized"
+
+echo ""
+echo "── [U3] malformed summaries rejected ────────────────────────────────────"
+BAD_MONTH='record { category = variant { Electric }; unit = null; months = vec { record { month = "2026-13"; amountCents = 1; usage = null } } }'
+OUT=$(dfx canister call $CANISTER attachUsageSummary "(\"$HVAC_REQ\", $(summary "$BAD_MONTH"))" --identity quote-usage-owner)
+expect "month 13" "$OUT" "month must be YYYY-MM"
+DUP_MONTH='record { category = variant { Gas }; unit = null; months = vec {
+  record { month = "2026-01"; amountCents = 1; usage = null }; record { month = "2026-01"; amountCents = 2; usage = null } } }'
+OUT=$(dfx canister call $CANISTER attachUsageSummary "(\"$HVAC_REQ\", $(summary "$DUP_MONTH"))" --identity quote-usage-owner)
+expect "duplicate month" "$OUT" "duplicate month"
+OUT=$(dfx canister call $CANISTER attachUsageSummary "(\"$HVAC_REQ\", $(summary "$ELECTRIC; $ELECTRIC"))" --identity quote-usage-owner)
+expect "duplicate category" "$OUT" "duplicate category"
+NEG='record { category = variant { Electric }; unit = null; months = vec { record { month = "2026-02"; amountCents = 1; usage = opt (-5.0) } } }'
+OUT=$(dfx canister call $CANISTER attachUsageSummary "(\"$HVAC_REQ\", $(summary "$NEG"))" --identity quote-usage-owner)
+expect "negative usage" "$OUT" "usage out of range"
+OUT=$(dfx canister call $CANISTER getUsageSummary "(\"$HVAC_REQ\")" --identity quote-usage-owner)
+expect "rejected attaches left the original intact" "$OUT" "usage = opt (1655.5 : float64)"
+
+echo ""
+echo "── [U4] who can read ────────────────────────────────────────────────────"
+OUT=$(dfx canister call $CANISTER getUsageSummary "(\"$HVAC_REQ\")" --identity quote-usage-stranger)
+expect "unregistered principal refused" "$OUT" "NotAuthorized"
+if dfx canister id contractor >/dev/null 2>&1; then
+  dfx canister call contractor register '(record {
+    name = "Usage Test HVAC"; specialties = vec { variant { HVAC } };
+    email = "usage-hvac@contractors.com"; phone = "+12125559077";
+  })' --identity quote-usage-pro >/dev/null 2>&1 || true
+  OUT=$(dfx canister call $CANISTER getUsageSummary "(\"$HVAC_REQ\")" --identity quote-usage-pro)
+  expect "registered contractor reads an open request's usage" "$OUT" "category = variant { Electric }"
+  # Same contractor, but the request demands a trust score it doesn't have.
+  PICKY=$(dfx canister call $CANISTER createQuoteRequest '(
+    "PROP_USAGE_PICKY", variant { Electrical }, "Picky usage request.", variant { Low },
+    null, opt 101, null, null, null
+  )' --identity quote-usage-owner)
+  PICKY_REQ=$(req_id_of "$PICKY")
+  ELECTRIC_ONLY='record { category = variant { Electric }; unit = null; months = vec { record { month = "2026-08"; amountCents = 9000; usage = null } } }'
+  OUT=$(dfx canister call $CANISTER attachUsageSummary "(\"$PICKY_REQ\", $(summary "$ELECTRIC_ONLY"))" --identity quote-usage-owner)
+  expect "electric on an electrical request accepted" "$OUT" "variant { ok }"
+  OUT=$(dfx canister call $CANISTER getUsageSummary "(\"$PICKY_REQ\")" --identity quote-usage-pro)
+  expect "contractor the request isn't shown to is refused" "$OUT" "NotAuthorized"
+fi
+OUT=$(dfx canister call $CANISTER submitQuote "(\"$HVAC_REQ\", 650000, 3, $VALID_UNTIL)" --identity quote-contractor-test)
+OUT=$(dfx canister call $CANISTER getUsageSummary "(\"$HVAC_REQ\")" --identity quote-contractor-test)
+expect "a contractor who quoted can read it" "$OUT" "category = variant { Electric }"
+
+echo ""
+echo "── [U5] owner stops sharing ─────────────────────────────────────────────"
+OUT=$(dfx canister call $CANISTER removeUsageSummary "(\"$HVAC_REQ\")" --identity quote-usage-stranger)
+expect "stranger can't remove it" "$OUT" "NotAuthorized"
+OUT=$(dfx canister call $CANISTER removeUsageSummary "(\"$HVAC_REQ\")" --identity quote-usage-owner)
+expect "owner removes it" "$OUT" "variant { ok }"
+OUT=$(dfx canister call $CANISTER getUsageSummary "(\"$HVAC_REQ\")" --identity quote-contractor-test)
+expect "gone for contractors" "$OUT" "variant { ok = null }"
+
+echo ""
+echo "✅ Usage sharing tests complete!"

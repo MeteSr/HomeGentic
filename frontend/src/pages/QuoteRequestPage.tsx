@@ -10,6 +10,8 @@ import { propertyService } from "@/services/property";
 import { jobService, Job } from "@/services/job";
 import { getPriceRange, PriceRange, SERVICE_SUBCATEGORIES } from "@/services/market";
 import { PriceBenchmarkWidget } from "@/components/PriceBenchmarkWidget";
+import { ShareUsageToggle } from "@/components/ShareUsageToggle";
+import { shareBillsWithRequest } from "@/services/quoteUsage";
 import { usePropertyStore } from "@/store/propertyStore";
 import { useAddPropertyStore } from "@/store/addPropertyStore";
 import toast from "react-hot-toast";
@@ -57,6 +59,7 @@ export default function QuoteRequestPage() {
   const [propertyJobs, setPropertyJobs] = useState<Job[]>([]);
   const [priceRange,  setPriceRange]  = useState<PriceRange | null>(null);
   const [showRequirements, setShowRequirements] = useState(false);
+  const [shareUsage,  setShareUsage]  = useState(false);
   const [form, setForm] = useState({
     propertyId:       properties[0] ? String(properties[0].id) : "",
     serviceType:      prefill?.serviceType ?? SERVICE_TYPES[0],
@@ -145,6 +148,15 @@ export default function QuoteRequestPage() {
         minTrustScore, minJobsCompleted, minReviews, maxBids,
       });
       toast.success("Quote request sent to contractors!");
+      if (shareUsage) {
+        // The request exists either way; usage is a best-effort extra.
+        try {
+          const shared = await shareBillsWithRequest(req.id, form.propertyId, form.serviceType);
+          if (!shared) toast("No matching bills to share yet — the request went out without usage.");
+        } catch (e: any) {
+          toast.error(`Request sent, but usage couldn't be shared: ${e.message || e}`);
+        }
+      }
       navigate(`/quotes/${req.id}`);
     } catch (err: any) {
       toast.error(err.message || "Failed to send request");
@@ -321,6 +333,8 @@ export default function QuoteRequestPage() {
             <label className="form-label" htmlFor="description">Describe the work needed *</label>
             <textarea id="description" className="form-input" rows={4} placeholder="Describe the issue or project in detail. Include any relevant measurements, materials, or constraints." value={form.description} onChange={(e) => update("description", e.target.value)} style={{ resize: "vertical" }} />
           </div>
+
+          <ShareUsageToggle serviceType={form.serviceType} checked={shareUsage} onChange={setShareUsage} />
 
           {/* Contractor requirements (collapsed by default) */}
           <div style={{ border: `1px solid ${UI.rule}` }}>

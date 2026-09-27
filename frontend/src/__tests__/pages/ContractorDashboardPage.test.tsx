@@ -19,8 +19,9 @@ import type { Job } from "@/services/job";
 const {
   mockGetMyProfile, mockGetReviewsForContractor, mockGetOpenRequests,
   mockGetJobsPendingMySignature, mockGetMyBids, mockSubmitQuote, mockVerifyJob,
-  mockUseAuthStore, mockUseBreakpoint,
+  mockUseAuthStore, mockUseBreakpoint, mockGetUsage,
 } = vi.hoisted(() => ({
+  mockGetUsage: vi.fn(),
   mockGetMyProfile: vi.fn(),
   mockGetReviewsForContractor: vi.fn(() => Promise.resolve([])),
   mockGetOpenRequests: vi.fn(),
@@ -38,7 +39,7 @@ vi.mock("@/services/contractor", async (importOriginal) => {
 });
 vi.mock("@/services/quote", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/quote")>();
-  return { ...actual, quoteService: { getOpenRequests: mockGetOpenRequests, getMyBids: mockGetMyBids, submitQuote: mockSubmitQuote } };
+  return { ...actual, quoteService: { getOpenRequests: mockGetOpenRequests, getMyBids: mockGetMyBids, submitQuote: mockSubmitQuote, getUsage: mockGetUsage } };
 });
 vi.mock("@/services/job", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/job")>();
@@ -72,6 +73,7 @@ beforeEach(() => {
   mockGetOpenRequests.mockResolvedValue([]);
   mockGetMyBids.mockResolvedValue([]);
   mockGetJobsPendingMySignature.mockResolvedValue([]);
+  mockGetUsage.mockResolvedValue(null);
 });
 
 describe("ContractorDashboardPage — request sorting", () => {
@@ -179,5 +181,35 @@ describe("ContractorDashboardPage — submitting a quote", () => {
     expect(screen.getByText("Send Quote").closest("button")).toBeDisabled();
     fireEvent.change(screen.getByPlaceholderText("e.g. 3"), { target: { value: "5" } });
     expect(screen.getByText("Send Quote").closest("button")).not.toBeDisabled();
+  });
+});
+
+describe("ContractorDashboardPage — homeowner's shared usage", () => {
+  it("shows usage in the quote modal when the homeowner shared it", async () => {
+    mockGetOpenRequests.mockResolvedValue([makeRequest({ id: "req-1", serviceType: "HVAC" })]);
+    mockGetUsage.mockResolvedValue({
+      asOf: "2026-09-15",
+      series: [{ category: "Gas", unit: "therms", months: [{ month: "2026-01", amountCents: 9_800, usage: 112 }] }],
+    });
+    renderPage();
+
+    fireEvent.click(await screen.findByText("HVAC", { selector: "span" }));
+    fireEvent.click(await screen.findByText("Submit Quote"));
+
+    expect(await screen.findByText("Homeowner's utility usage")).toBeInTheDocument();
+    expect(mockGetUsage).toHaveBeenCalledWith("req-1");
+    expect(screen.getByText("112 therms")).toBeInTheDocument();
+  });
+
+  it("shows nothing extra when usage isn't shared or isn't visible", async () => {
+    mockGetOpenRequests.mockResolvedValue([makeRequest({ id: "req-1", serviceType: "HVAC" })]);
+    mockGetUsage.mockRejectedValue(new Error("NotAuthorized"));
+    renderPage();
+
+    fireEvent.click(await screen.findByText("HVAC", { selector: "span" }));
+    fireEvent.click(await screen.findByText("Submit Quote"));
+    await waitFor(() => expect(mockGetUsage).toHaveBeenCalled());
+    expect(screen.queryByText("Homeowner's utility usage")).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText("e.g. 850")).toBeInTheDocument();
   });
 });

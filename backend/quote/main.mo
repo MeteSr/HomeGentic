@@ -6,11 +6,13 @@
 
 import Array    "mo:core/Array";
 import Blob     "mo:core/Blob";
+import Char     "mo:core/Char";
 import Map      "mo:core/Map";
 import Int      "mo:core/Int";
 import Iter     "mo:core/Iter";
 import Nat      "mo:core/Nat";
 import Nat8     "mo:core/Nat8";
+import Nat32    "mo:core/Nat32";
 import Option   "mo:core/Option";
 import Principal "mo:core/Principal";
 import Result   "mo:core/Result";
@@ -128,6 +130,28 @@ persistent actor Quote {
     bids:         [SealedBid];
   };
 
+  /// Utility usage a homeowner can attach to a quote request. Only the
+  /// utilities relevant to the request's service type are accepted (see
+  /// relevantUsage), so e.g. a roofer never receives any bill data.
+  public type UsageCategory = { #Electric; #Gas; #Water };
+
+  public type UsageMonth = {
+    month:       Text;     // YYYY-MM
+    amountCents: Nat;      // billed total for the month
+    usage:       ?Float;   // metered usage in `unit`, when every bill reported it
+  };
+
+  public type UsageSeries = {
+    category: UsageCategory;
+    unit:     ?Text;       // "kWh" | "therms" | "gallons" …
+    months:   [UsageMonth];
+  };
+
+  public type UsageSummary = {
+    series: [UsageSeries];
+    asOf:   Text;          // YYYY-MM-DD
+  };
+
   public type Metrics = {
     totalRequests: Nat;
     openRequests: Nat;
@@ -170,6 +194,8 @@ persistent actor Quote {
   private let sealedBidsByRequest    = Map.empty<Text, [Text]>();
   private let sealedBidsByContractor = Map.empty<Text, Text>();
   private let revealedBids           = Map.empty<Text, [RevealedBid]>();
+  /// requestId → usage the homeowner chose to share with contractors.
+  private let usageSummaries         = Map.empty<Text, UsageSummary>();
 
   // ─── vetKeys IBE (sealed-bid confidentiality) ─────────────────────────────────
   // Domain separator "hg-bid-v1" — must match the context used by @dfinity/vetkeys
@@ -249,6 +275,53 @@ persistent actor Quote {
       return #err(#InvalidInput("Rate limit exceeded. Max " # Nat.toText(maxUpdatesPerMin) # " update calls per minute per principal."))
     };
     #ok(())
+  };
+
+  type ContractorStats = {
+    trustScore:    Nat;
+    jobsCompleted: Nat;
+    reviewCount:   Nat;
+    isVerified:    Bool;
+    serviceZips:   [Text];
+  };
+
+  /// Registered-contractor stats from the contractor canister (null = not a contractor).
+  private func contractorStats(p: Principal) : async ?ContractorStats {
+    let contrActor = actor(contrCanisterId) : actor {
+      getContractorStats : (Principal) -> async ?ContractorStats;
+    };
+    await contrActor.getContractorStats(p)
+  };
+
+  /// Whether a request is visible to a contractor: service-zip match, then the
+  /// homeowner's quality thresholds (verified contractors bypass thresholds).
+  private func contractorMatches(r: QuoteRequest, s: ContractorStats) : Bool {
+    // Zip filter: if contractor has no serviceZips, they see all zips
+    let zipOk : Bool = if (s.serviceZips.size() == 0) { true }
+    else {
+      switch (r.zipCode) {
+        case null    { true };
+        case (?zip)  { Option.isSome(Array.find<Text>(s.serviceZips, func(z) { z == zip })) };
+      }
+    };
+    if (not zipOk) return false;
+
+    // Verified contractors bypass all quality thresholds
+    if (s.isVerified) return true;
+
+    switch (r.minTrustScore) {
+      case null {};
+      case (?minT) { if (s.trustScore < minT) return false };
+    };
+    switch (r.minJobsCompleted) {
+      case null {};
+      case (?minJ) { if (s.jobsCompleted < minJ) return false };
+    };
+    switch (r.minReviews) {
+      case null {};
+      case (?minR) { if (s.reviewCount < minR) return false };
+    };
+    true
   };
 
   /// Delegate property-ownership check to the property canister.
@@ -471,17 +544,7 @@ persistent actor Quote {
 
     if (Text.size(contrCanisterId) == 0) return allOpen;
 
-    let contrActor = actor(contrCanisterId) : actor {
-      getContractorStats : (Principal) -> async ?{
-        trustScore:    Nat;
-        jobsCompleted: Nat;
-        reviewCount:   Nat;
-        isVerified:    Bool;
-        serviceZips:   [Text];
-      };
-    };
-
-    let stats = await contrActor.getContractorStats(msg.caller);
+    let stats = await contractorStats(msg.caller);
 
     switch (stats) {
       case null {
@@ -489,34 +552,7 @@ persistent actor Quote {
         allOpen
       };
       case (?s) {
-        Array.filter<QuoteRequest>(allOpen, func(r: QuoteRequest) : Bool {
-          // Zip filter: if contractor has no serviceZips, they see all zips
-          let zipOk : Bool = if (s.serviceZips.size() == 0) { true }
-          else {
-            switch (r.zipCode) {
-              case null    { true };
-              case (?zip)  { Option.isSome(Array.find<Text>(s.serviceZips, func(z) { z == zip })) };
-            }
-          };
-          if (not zipOk) return false;
-
-          // Verified contractors bypass all quality thresholds
-          if (s.isVerified) return true;
-
-          switch (r.minTrustScore) {
-            case null {};
-            case (?minT) { if (s.trustScore < minT) return false };
-          };
-          switch (r.minJobsCompleted) {
-            case null {};
-            case (?minJ) { if (s.jobsCompleted < minJ) return false };
-          };
-          switch (r.minReviews) {
-            case null {};
-            case (?minR) { if (s.reviewCount < minR) return false };
-          };
-          true
-        })
+        Array.filter<QuoteRequest>(allOpen, func(r: QuoteRequest) : Bool { contractorMatches(r, s) })
       };
     }
   };
@@ -1174,6 +1210,116 @@ persistent actor Quote {
   /// Set the subscription tier for a principal.
   /// Called by an admin when a user's subscription changes.
   /// This is the only authoritative source for tier limits — callers cannot spoof.
+  // ─── Usage sharing ───────────────────────────────────────────────────────────
+
+  private transient let MAX_USAGE_MONTHS      : Nat   = 12;
+  private transient let MAX_USAGE_MONTH_CENTS : Nat   = 10_000_000;   // $100k/month — anything above is a typo
+  private transient let MAX_USAGE_AMOUNT      : Float = 1_000_000_000.0;
+
+  /// Utilities a contractor for this service type has a real use for.
+  private func relevantUsage(t: ServiceType) : [UsageCategory] {
+    switch t {
+      case (#HVAC or #Windows)         { [#Electric, #Gas] };   // load sizing, efficiency
+      case (#Electrical)               { [#Electric] };
+      case (#Plumbing or #Landscaping) { [#Water] };            // leaks, irrigation
+      case (#Roofing or #Painting or #Flooring) { [] };
+    }
+  };
+
+  private func validMonth(m: Text) : Bool {
+    let cs = Text.toArray(m);
+    if (cs.size() != 7 or cs[4] != '-') return false;
+    for (i in [0, 1, 2, 3, 5, 6].vals()) {
+      if (cs[i] < '0' or cs[i] > '9') return false;
+    };
+    // Digits checked above, so the wrapping ops can't wrap.
+    let mm = Nat32.toNat((Char.toNat32(cs[5]) -% 48) *% 10 +% (Char.toNat32(cs[6]) -% 48));
+    mm >= 1 and mm <= 12
+  };
+
+  private func validateUsage(r: QuoteRequest, u: UsageSummary) : Result.Result<(), Error> {
+    if (Text.size(u.asOf) != 10) return #err(#InvalidInput("asOf must be YYYY-MM-DD"));
+    if (u.series.size() == 0) return #err(#InvalidInput("usage summary has no series"));
+    let allowed = relevantUsage(r.serviceType);
+    for ((s, i) in Iter.zip(u.series.vals(), Nat.range(0, u.series.size()))) {
+      if (Option.isNull(Array.find<UsageCategory>(allowed, func(c) { c == s.category })))
+        return #err(#InvalidInput("category not relevant to this service type"));
+      for (j in Nat.range(0, i)) {
+        if (u.series[j].category == s.category) return #err(#InvalidInput("duplicate category"));
+      };
+      if (s.months.size() == 0 or s.months.size() > MAX_USAGE_MONTHS)
+        return #err(#InvalidInput("each series needs 1–12 months"));
+      switch (s.unit) { case (?unit) { if (Text.size(unit) == 0 or Text.size(unit) > 16) return #err(#InvalidInput("invalid unit")) }; case null {} };
+      for ((m, k) in Iter.zip(s.months.vals(), Nat.range(0, s.months.size()))) {
+        if (not validMonth(m.month)) return #err(#InvalidInput("month must be YYYY-MM"));
+        for (l in Nat.range(0, k)) {
+          if (s.months[l].month == m.month) return #err(#InvalidInput("duplicate month"));
+        };
+        if (m.amountCents > MAX_USAGE_MONTH_CENTS) return #err(#InvalidInput("monthly amount out of range"));
+        switch (m.usage) {
+          // Written so NaN fails too.
+          case (?x) { if (not (x >= 0.0 and x <= MAX_USAGE_AMOUNT)) return #err(#InvalidInput("usage out of range")) };
+          case null {};
+        };
+      };
+    };
+    #ok(())
+  };
+
+  /// Attach (or replace) utility usage on the caller's own open request.
+  public shared(msg) func attachUsageSummary(requestId: Text, summary: UsageSummary) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    switch (Map.get(requests, Text.compare, requestId)) {
+      case null { #err(#NotFound) };
+      case (?r) {
+        if (r.homeowner != msg.caller) return #err(#NotAuthorized);
+        if (r.status != #Open and r.status != #Quoted)
+          return #err(#InvalidInput("request is no longer open"));
+        switch (validateUsage(r, summary)) { case (#err(e)) return #err(e); case _ {} };
+        Map.add(usageSummaries, Text.compare, requestId, summary);
+        #ok(())
+      };
+    }
+  };
+
+  /// Stop sharing usage on the caller's request.
+  public shared(msg) func removeUsageSummary(requestId: Text) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    switch (Map.get(requests, Text.compare, requestId)) {
+      case null { #err(#NotFound) };
+      case (?r) {
+        if (r.homeowner != msg.caller and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+        Map.remove(usageSummaries, Text.compare, requestId);
+        #ok(())
+      };
+    }
+  };
+
+  /// Usage attached to a request. Readable by the requester, admins, any
+  /// contractor who has quoted on it, and — while it's open — registered
+  /// contractors the request is visible to (zip + quality thresholds).
+  /// Everyone else gets NotAuthorized; no summary is #ok(null).
+  public shared(msg) func getUsageSummary(requestId: Text) : async Result.Result<?UsageSummary, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    let r = switch (Map.get(requests, Text.compare, requestId)) {
+      case null { return #err(#NotFound) };
+      case (?r) r;
+    };
+    let quoted = Option.isSome(Iter.find(Map.values(quotes), func(q: Quote) : Bool {
+      q.requestId == requestId and q.contractor == msg.caller
+    }));
+    if (r.homeowner != msg.caller and not isAdmin(msg.caller) and not quoted) {
+      if (r.status != #Open and r.status != #Quoted) return #err(#NotAuthorized);
+      if (Text.size(contrCanisterId) == 0) return #err(#NotAuthorized);   // can't verify — fail closed
+      switch (await contractorStats(msg.caller)) {
+        case null { return #err(#NotAuthorized) };
+        case (?st) { if (not contractorMatches(r, st)) return #err(#NotAuthorized) };
+      };
+    };
+    // Re-read after the await: the homeowner may have removed it meanwhile.
+    #ok(Map.get(usageSummaries, Text.compare, requestId))
+  };
+
   public shared(msg) func setTier(user: Principal, tier: SubscriptionTier) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     Map.add(tierGrants, Text.compare, Principal.toText(user), tier);

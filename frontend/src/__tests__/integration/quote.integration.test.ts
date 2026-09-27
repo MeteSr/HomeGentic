@@ -260,6 +260,44 @@ describe.skipIf(!deployed)("zipCode — opt(Text) round-trip", () => {
   });
 });
 
+// ─── Usage sharing — UsageSummary round-trip ─────────────────────────────────
+
+describe.skipIf(!deployed)("usage sharing — UsageSummary round-trip", () => {
+  it("attaches, reads back and removes utility usage on an HVAC request", async () => {
+    const req = await quoteService.createRequest({ ...BASE_REQUEST, propertyId: realPropId });
+    const summary = {
+      asOf: "2026-09-15",
+      series: [
+        { category: "Electric" as const, unit: "kWh", months: [
+          { month: "2026-07", amountCents: 21_400, usage: 1480.5 },
+          { month: "2026-08", amountCents: 23_900, usage: null },
+        ] },
+        { category: "Gas" as const, unit: null, months: [{ month: "2026-01", amountCents: 9_800, usage: null }] },
+      ],
+    };
+    try {
+      await quoteService.attachUsage(req.id, summary);
+      expect(await quoteService.getUsage(req.id)).toEqual(summary);
+      await quoteService.removeUsage(req.id);
+      expect(await quoteService.getUsage(req.id)).toBeNull();
+    } finally {
+      await quoteService.cancel(req.id);
+    }
+  });
+
+  it("rejects utilities that aren't relevant to the service", async () => {
+    const req = await quoteService.createRequest({ ...BASE_REQUEST, propertyId: realPropId });
+    try {
+      await expect(quoteService.attachUsage(req.id, {
+        asOf: "2026-09-15",
+        series: [{ category: "Water", unit: null, months: [{ month: "2026-08", amountCents: 6_100, usage: null }] }],
+      })).rejects.toThrow("not relevant");
+    } finally {
+      await quoteService.cancel(req.id);
+    }
+  });
+});
+
 // ─── getOpenRequestsForMe — cross-canister filtering ─────────────────────────
 
 describe.skipIf(!deployed)("getOpenRequestsForMe — returns open requests visible to caller", () => {
