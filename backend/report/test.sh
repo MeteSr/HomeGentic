@@ -75,7 +75,7 @@ RESULT=$(dfx canister call report generateReport '(
   null,
   null,
   null,
-  null   # billsSummary
+  null   // billsSummary
 )')
 echo "$RESULT"
 TOKEN1=$(echo "$RESULT" | grep -oP '(?<=token = ")[^"]+' | head -1 || echo "")
@@ -128,7 +128,7 @@ RESULT2=$(dfx canister call report generateReport '(
   null,
   null,
   null,
-  null   # billsSummary
+  null   // billsSummary
 )')
 echo "$RESULT2"
 TOKEN2=$(echo "$RESULT2" | grep -oP '(?<=token = ")[^"]+' | head -1 || echo "")
@@ -171,7 +171,7 @@ RESULT3=$(dfx canister call report generateReport '(
   null,
   null,
   null,
-  null   # billsSummary
+  null   // billsSummary
 )')
 echo "$RESULT3"
 TOKEN3=$(echo "$RESULT3" | grep -oP '(?<=token = ")[^"]+' | head -1 || echo "")
@@ -253,7 +253,7 @@ dfx canister call report generateReport '(
   null,
   null,
   null,
-  null   # billsSummary
+  null   // billsSummary
 )' || echo "  ↳ Expected InvalidInput — ✓"
 
 # ─── Pause / Unpause ──────────────────────────────────────────────────────────
@@ -284,7 +284,7 @@ dfx canister call report generateReport '(
   null,
   null,
   null,
-  null   # billsSummary
+  null   // billsSummary
 )' || echo "  ↳ Rejected while paused — ✓"
 
 echo ""
@@ -314,7 +314,7 @@ dfx canister call report generateReport '(
   null,
   null,
   null,
-  null   # billsSummary
+  null   // billsSummary
 )'
 
 # ─── Final metrics ────────────────────────────────────────────────────────────
