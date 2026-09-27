@@ -18,10 +18,15 @@
  *   - Rolling 3-month average per (propertyId, billType, homeowner)
  *   - Bills > 20% above baseline are flagged with a natural-language reason
  *
+ * Recurring expenses:
+ *   - Fixed housing costs (mortgage, property tax, HOA, insurance) entered once
+ *     with a frequency and start/end date instead of per-statement uploads
+ *
  * Access control: callers may only read/write their own bills.
  */
 
 import Array     "mo:core/Array";
+import Char      "mo:core/Char";
 import Float     "mo:core/Float";
 import List      "mo:core/List";
 import Map       "mo:core/Map";
@@ -44,6 +49,48 @@ persistent actor Bills {
     #Internet;
     #Telecom;
     #Other;
+  };
+
+  /// Kept separate from BillType on purpose: BillRecord lives in a Map (mutable,
+  /// hence invariant), so widening BillType would need an explicit migration.
+  public type ExpenseCategory = {
+    #Mortgage;
+    #PropertyTax;
+    #HOA;
+    #HomeInsurance;
+    #Other;
+  };
+
+  public type ExpenseFrequency = {
+    #Monthly;
+    #Quarterly;
+    #SemiAnnual;
+    #Annual;
+  };
+
+  /// A fixed, scheduled housing cost (mortgage, tax, HOA, insurance) entered
+  /// once instead of uploading every statement.
+  public type RecurringExpense = {
+    id          : Text;
+    propertyId  : Text;
+    homeowner   : Principal;
+    category    : ExpenseCategory;
+    provider    : Text;           // lender, county, HOA, insurer
+    amountCents : Nat;            // per occurrence, not per month
+    frequency   : ExpenseFrequency;
+    startDate   : Text;           // YYYY-MM-DD
+    endDate     : ?Text;          // YYYY-MM-DD; null = ongoing
+    createdAt   : Time.Time;
+    updatedAt   : Time.Time;
+  };
+
+  public type RecurringExpenseFields = {
+    category    : ExpenseCategory;
+    provider    : Text;
+    amountCents : Nat;
+    frequency   : ExpenseFrequency;
+    startDate   : Text;
+    endDate     : ?Text;
   };
 
   public type SubscriptionTier = {
@@ -115,6 +162,10 @@ persistent actor Bills {
 
   private let bills      = Map.empty<Text, BillRecord>();
   private let tierGrants = Map.empty<Text, SubscriptionTier>();
+
+  private var recurringCounter  : Nat = 0;
+  private let recurringExpenses = Map.empty<Text, RecurringExpense>();
+  private transient let MAX_RECURRING_PER_PROPERTY : Nat = 50;
 
 
   // ── Ingress inspection ────────────────────────────────────────────────────
@@ -224,6 +275,44 @@ persistent actor Bills {
     }
   };
 
+  /// Resolve the caller's subscription tier — live from the payment canister
+  /// when wired, else from the local grant map (dev fallback).
+  private func resolveTier(caller: Principal) : async* SubscriptionTier {
+    if (payCanisterId != "") {
+      let payActor = actor(payCanisterId) : actor {
+        getTierForPrincipal : (Principal) -> async { #Free; #Basic; #Pro; #Premium; #ContractorFree; #ContractorPro };
+      };
+      await payActor.getTierForPrincipal(caller)
+    } else {
+      tierFor(caller)
+    }
+  };
+
+  private func isIsoDate(t: Text) : Bool {
+    let cs = Text.toArray(t);
+    if (cs.size() != 10) return false;
+    for (i in cs.keys()) {
+      let ok = if (i == 4 or i == 7) cs[i] == '-' else Char.isDigit(cs[i]);
+      if (not ok) return false;
+    };
+    true
+  };
+
+  private func validateRecurringFields(f: RecurringExpenseFields) : ?Text {
+    if (Text.size(f.provider) == 0)   return ?"provider cannot be empty";
+    if (Text.size(f.provider) > 200)  return ?"provider exceeds 200 characters";
+    if (f.amountCents == 0)           return ?"amountCents must be greater than 0";
+    if (not isIsoDate(f.startDate))   return ?"startDate must be YYYY-MM-DD";
+    switch (f.endDate) {
+      case null {};
+      case (?e) {
+        if (not isIsoDate(e)) return ?"endDate must be YYYY-MM-DD";
+        if (Text.compare(e, f.startDate) == #less) return ?"endDate cannot be before startDate";
+      };
+    };
+    null
+  };
+
   // ─── Core: Bill Operations ────────────────────────────────────────────────────
 
   /// Add a bill record for a property.
@@ -245,14 +334,7 @@ persistent actor Bills {
     if (Text.size(args.periodEnd)   == 0)   return #err(#InvalidInput("periodEnd cannot be empty"));
 
     // ── Tier enforcement ──────────────────────────────────────────────────────
-    let callerTier : SubscriptionTier = if (payCanisterId != "") {
-      let payActor = actor(payCanisterId) : actor {
-        getTierForPrincipal : (Principal) -> async { #Free; #Basic; #Pro; #Premium; #ContractorFree; #ContractorPro };
-      };
-      await payActor.getTierForPrincipal(msg.caller)
-    } else {
-      tierFor(msg.caller)
-    };
+    let callerTier = await* resolveTier(msg.caller);
 
     if (callerTier == #Free) {
       return #err(#TierLimitReached(
@@ -369,6 +451,104 @@ persistent actor Bills {
           return #err(#NotAuthorized)
         };
         ignore Map.delete(bills, Text.compare, id);
+        #ok(())
+      };
+    }
+  };
+
+  // ─── Core: Recurring Expenses ─────────────────────────────────────────────────
+
+  /// Add a fixed recurring housing cost. Same subscription gate as addBill,
+  /// but no monthly upload quota — one entry covers every future occurrence.
+  public shared(msg) func addRecurringExpense(
+    propertyId : Text,
+    fields     : RecurringExpenseFields,
+  ) : async Result.Result<RecurringExpense, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (Text.size(propertyId) == 0)  return #err(#InvalidInput("propertyId cannot be empty"));
+    if (Text.size(propertyId) > 200) return #err(#InvalidInput("propertyId exceeds 200 characters"));
+    switch (validateRecurringFields(fields)) { case (?m) return #err(#InvalidInput(m)); case null {} };
+
+    if ((await* resolveTier(msg.caller)) == #Free) {
+      return #err(#TierLimitReached(
+        "Bill tracking requires an active subscription. Subscribe to Pro ($59/year) to get started."
+      ));
+    };
+
+    var existing : Nat = 0;
+    for (e in Map.values(recurringExpenses)) {
+      if (e.propertyId == propertyId and Principal.equal(e.homeowner, msg.caller)) existing += 1;
+    };
+    if (existing >= MAX_RECURRING_PER_PROPERTY) {
+      return #err(#InvalidInput("Recurring expense limit reached for this property"));
+    };
+
+    recurringCounter += 1;
+    let now = Time.now();
+    let expense : RecurringExpense = {
+      id          = "REC_" # Nat.toText(recurringCounter);
+      propertyId;
+      homeowner   = msg.caller;
+      category    = fields.category;
+      provider    = fields.provider;
+      amountCents = fields.amountCents;
+      frequency   = fields.frequency;
+      startDate   = fields.startDate;
+      endDate     = fields.endDate;
+      createdAt   = now;
+      updatedAt   = now;
+    };
+    Map.add(recurringExpenses, Text.compare, expense.id, expense);
+    #ok(expense)
+  };
+
+  /// Return the caller's recurring expenses for a property, oldest start first.
+  public shared(msg) func getRecurringExpensesForProperty(propertyId: Text) : async Result.Result<[RecurringExpense], Error> {
+    let mine = Array.filter<RecurringExpense>(
+      Iter.toArray(Map.values(recurringExpenses)),
+      func(e) { e.propertyId == propertyId and Principal.equal(e.homeowner, msg.caller) }
+    );
+    #ok(Array.sort<RecurringExpense>(mine, func(a, b) { Text.compare(a.startDate, b.startDate) }))
+  };
+
+  /// Replace the editable fields of a recurring expense (e.g. a refinance or
+  /// an insurance renewal). Caller must be the owner.
+  public shared(msg) func updateRecurringExpense(
+    id     : Text,
+    fields : RecurringExpenseFields,
+  ) : async Result.Result<RecurringExpense, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    switch (validateRecurringFields(fields)) { case (?m) return #err(#InvalidInput(m)); case null {} };
+    switch (Map.get(recurringExpenses, Text.compare, id)) {
+      case null { #err(#NotFound) };
+      case (?e) {
+        if (not Principal.equal(e.homeowner, msg.caller)) return #err(#NotAuthorized);
+        let updated : RecurringExpense = {
+          e with
+          category    = fields.category;
+          provider    = fields.provider;
+          amountCents = fields.amountCents;
+          frequency   = fields.frequency;
+          startDate   = fields.startDate;
+          endDate     = fields.endDate;
+          updatedAt   = Time.now();
+        };
+        Map.add(recurringExpenses, Text.compare, id, updated);
+        #ok(updated)
+      };
+    }
+  };
+
+  /// Delete a recurring expense. Caller must be the owner or an admin.
+  public shared(msg) func deleteRecurringExpense(id: Text) : async Result.Result<(), Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    switch (Map.get(recurringExpenses, Text.compare, id)) {
+      case null { #err(#NotFound) };
+      case (?e) {
+        if (not Principal.equal(e.homeowner, msg.caller) and not isAdmin(msg.caller)) {
+          return #err(#NotAuthorized)
+        };
+        ignore Map.delete(recurringExpenses, Text.compare, id);
         #ok(())
       };
     }

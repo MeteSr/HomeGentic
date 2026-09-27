@@ -49,6 +49,44 @@ export const idlFactory = ({ IDL }: any) => {
     usageUnit:   IDL.Text,
   });
 
+  const ExpenseCategory = IDL.Variant({
+    Mortgage:      IDL.Null,
+    PropertyTax:   IDL.Null,
+    HOA:           IDL.Null,
+    HomeInsurance: IDL.Null,
+    Other:         IDL.Null,
+  });
+
+  const ExpenseFrequency = IDL.Variant({
+    Monthly:    IDL.Null,
+    Quarterly:  IDL.Null,
+    SemiAnnual: IDL.Null,
+    Annual:     IDL.Null,
+  });
+
+  const RecurringExpenseFields = IDL.Record({
+    category:    ExpenseCategory,
+    provider:    IDL.Text,
+    amountCents: IDL.Nat,
+    frequency:   ExpenseFrequency,
+    startDate:   IDL.Text,
+    endDate:     IDL.Opt(IDL.Text),
+  });
+
+  const RecurringExpense = IDL.Record({
+    id:          IDL.Text,
+    propertyId:  IDL.Text,
+    homeowner:   IDL.Principal,
+    category:    ExpenseCategory,
+    provider:    IDL.Text,
+    amountCents: IDL.Nat,
+    frequency:   ExpenseFrequency,
+    startDate:   IDL.Text,
+    endDate:     IDL.Opt(IDL.Text),
+    createdAt:   IDL.Int,
+    updatedAt:   IDL.Int,
+  });
+
   return IDL.Service({
     addBill: IDL.Func(
       [AddBillArgs],
@@ -68,6 +106,26 @@ export const idlFactory = ({ IDL }: any) => {
     getUsageTrend: IDL.Func(
       [IDL.Text, BillType, IDL.Nat],
       [IDL.Variant({ ok: IDL.Vec(UsagePeriod), err: Error })],
+      []
+    ),
+    addRecurringExpense: IDL.Func(
+      [IDL.Text, RecurringExpenseFields],
+      [IDL.Variant({ ok: RecurringExpense, err: Error })],
+      []
+    ),
+    getRecurringExpensesForProperty: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: IDL.Vec(RecurringExpense), err: Error })],
+      []
+    ),
+    updateRecurringExpense: IDL.Func(
+      [IDL.Text, RecurringExpenseFields],
+      [IDL.Variant({ ok: RecurringExpense, err: Error })],
+      []
+    ),
+    deleteRecurringExpense: IDL.Func(
+      [IDL.Text],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
       []
     ),
     metrics: IDL.Func(

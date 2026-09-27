@@ -16,6 +16,10 @@ const mockActor = {
   addBill:              vi.fn(),
   getBillsForProperty:  vi.fn(),
   deleteBill:           vi.fn(),
+  addRecurringExpense:             vi.fn(),
+  getRecurringExpensesForProperty: vi.fn(),
+  updateRecurringExpense:          vi.fn(),
+  deleteRecurringExpense:          vi.fn(),
 };
 
 vi.mock("@icp-sdk/core/agent", () => ({
@@ -25,7 +29,9 @@ vi.mock("@icp-sdk/core/agent", () => ({
   HttpAgent: vi.fn(),
 }));
 
-import { billService, extractBill, TierLimitReachedError } from "@/services/billService";
+import {
+  billService, extractBill, TierLimitReachedError, monthlyEquivalentCents, isActiveOn,
+} from "@/services/billService";
 
 // Rebuild actor state for each test
 beforeEach(() => {
@@ -186,5 +192,121 @@ describe("extractBill", () => {
 
     await expect(extractBill("bill.jpg", "image/jpeg", "abc")).rejects.toThrow("Claude Vision failed");
     vi.unstubAllGlobals();
+  });
+});
+
+// ── Recurring expenses ─────────────────────────────────────────────────────────
+
+function makeRawRecurring(overrides: Record<string, any> = {}) {
+  return {
+    id:          "REC_1",
+    propertyId:  "prop-1",
+    homeowner:   { toString: () => "owner-1" },
+    category:    { PropertyTax: null },
+    provider:    "Hillsborough County",
+    amountCents: BigInt(612_000),
+    frequency:   { Annual: null },
+    startDate:   "2019-11-01",
+    endDate:     ["2030-11-01"],
+    createdAt:   BigInt(1_700_000_000_000) * BigInt(1_000_000),
+    updatedAt:   BigInt(1_700_000_500_000) * BigInt(1_000_000),
+    ...overrides,
+  };
+}
+
+const FIELDS = {
+  category:    "PropertyTax" as const,
+  provider:    "Hillsborough County",
+  amountCents: 612_000,
+  frequency:   "Annual" as const,
+  startDate:   "2019-11-01",
+  endDate:     "2030-11-01",
+};
+
+describe("billService recurring expenses", () => {
+  it("addRecurringExpense encodes variants, BigInt and Opt, and decodes the record", async () => {
+    mockActor.addRecurringExpense.mockResolvedValueOnce({ ok: makeRawRecurring() });
+    const rec = await billService.addRecurringExpense("prop-1", FIELDS);
+
+    expect(mockActor.addRecurringExpense).toHaveBeenCalledWith("prop-1", {
+      category:    { PropertyTax: null },
+      provider:    "Hillsborough County",
+      amountCents: BigInt(612_000),
+      frequency:   { Annual: null },
+      startDate:   "2019-11-01",
+      endDate:     ["2030-11-01"],
+    });
+    expect(rec).toEqual({
+      id: "REC_1", propertyId: "prop-1", homeowner: "owner-1",
+      category: "PropertyTax", provider: "Hillsborough County", amountCents: 612_000,
+      frequency: "Annual", startDate: "2019-11-01", endDate: "2030-11-01",
+      createdAt: 1_700_000_000_000, updatedAt: 1_700_000_500_000,
+    });
+  });
+
+  it("omitted endDate is sent as an empty Opt and read back as undefined", async () => {
+    mockActor.addRecurringExpense.mockResolvedValueOnce({ ok: makeRawRecurring({ endDate: [] }) });
+    const rec = await billService.addRecurringExpense("prop-1", { ...FIELDS, endDate: undefined });
+    expect(mockActor.addRecurringExpense.mock.calls[0][1].endDate).toEqual([]);
+    expect(rec.endDate).toBeUndefined();
+  });
+
+  it("addRecurringExpense throws TierLimitReachedError on the tier gate", async () => {
+    mockActor.addRecurringExpense.mockResolvedValueOnce({ err: { TierLimitReached: "Subscribe" } });
+    await expect(billService.addRecurringExpense("prop-1", FIELDS)).rejects.toBeInstanceOf(TierLimitReachedError);
+  });
+
+  it("getRecurringExpensesForProperty maps every record", async () => {
+    mockActor.getRecurringExpensesForProperty.mockResolvedValueOnce({
+      ok: [makeRawRecurring(), makeRawRecurring({ id: "REC_2", category: { Mortgage: null }, frequency: { Monthly: null } })],
+    });
+    const list = await billService.getRecurringExpensesForProperty("prop-1");
+    expect(list.map((e) => [e.id, e.category, e.frequency])).toEqual([
+      ["REC_1", "PropertyTax", "Annual"],
+      ["REC_2", "Mortgage", "Monthly"],
+    ]);
+  });
+
+  it("updateRecurringExpense passes the id and encoded fields", async () => {
+    mockActor.updateRecurringExpense.mockResolvedValueOnce({ ok: makeRawRecurring({ amountCents: BigInt(650_000) }) });
+    const rec = await billService.updateRecurringExpense("REC_1", { ...FIELDS, amountCents: 650_000 });
+    expect(mockActor.updateRecurringExpense.mock.calls[0][0]).toBe("REC_1");
+    expect(mockActor.updateRecurringExpense.mock.calls[0][1].amountCents).toBe(BigInt(650_000));
+    expect(rec.amountCents).toBe(650_000);
+  });
+
+  it("deleteRecurringExpense throws on NotFound", async () => {
+    mockActor.deleteRecurringExpense.mockResolvedValueOnce({ err: { NotFound: null } });
+    await expect(billService.deleteRecurringExpense("REC_404")).rejects.toThrow("NotFound");
+  });
+});
+
+describe("monthlyEquivalentCents", () => {
+  it.each([
+    ["Monthly",    245_000, 245_000],
+    ["Quarterly",   45_000,  15_000],
+    ["SemiAnnual", 300_000,  50_000],
+    ["Annual",     612_000,  51_000],
+  ] as const)("%s %i → %i per month", (frequency, amountCents, expected) => {
+    expect(monthlyEquivalentCents({ frequency, amountCents })).toBe(expected);
+  });
+
+  it("rounds to whole cents", () => {
+    expect(monthlyEquivalentCents({ frequency: "Annual", amountCents: 100 })).toBe(8);
+  });
+});
+
+describe("isActiveOn", () => {
+  const e = { startDate: "2024-01-01", endDate: "2024-12-31" };
+  it("is inclusive of both bounds", () => {
+    expect(isActiveOn(e, "2024-01-01")).toBe(true);
+    expect(isActiveOn(e, "2024-12-31")).toBe(true);
+  });
+  it("is false outside the range", () => {
+    expect(isActiveOn(e, "2023-12-31")).toBe(false);
+    expect(isActiveOn(e, "2025-01-01")).toBe(false);
+  });
+  it("treats a missing endDate as ongoing", () => {
+    expect(isActiveOn({ startDate: "2024-01-01" }, "2099-01-01")).toBe(true);
   });
 });

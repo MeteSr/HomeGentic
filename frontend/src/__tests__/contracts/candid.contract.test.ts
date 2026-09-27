@@ -681,11 +681,23 @@ describe("bills IDL factory", () => {
     const svc = extractService(billsIdlFactory);
     expect(Object.keys(svc).sort()).toEqual([
       "addBill",
+      "addRecurringExpense",
       "deleteBill",
+      "deleteRecurringExpense",
       "getBillsForProperty",
+      "getRecurringExpensesForProperty",
       "getUsageTrend",
       "metrics",
+      "updateRecurringExpense",
     ]);
+  });
+
+  it("recurring expense category and frequency are Variants and endDate is opt", () => {
+    const svc = extractService(billsIdlFactory);
+    expect(svc.addRecurringExpense.args[0]).toContain("text");
+    expect(svc.addRecurringExpense.args[1]).toMatch(/category:variant/i);
+    expect(svc.addRecurringExpense.args[1]).toMatch(/frequency:variant/i);
+    expect(svc.addRecurringExpense.args[1]).toMatch(/endDate:opt/i);
   });
 
   it("only metrics is a query (reads go through update for tier-gated filtering)", () => {
