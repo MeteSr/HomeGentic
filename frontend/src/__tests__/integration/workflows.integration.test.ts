@@ -207,6 +207,7 @@ describe.skipIf(!integrationReady)("WF.A — Full homeowner onboarding chain", (
       [],                  // hideContractors : ?Bool
       [],                  // hidePermits : ?Bool
       [],                  // hideDescriptions : ?Bool
+      [],                  // billsSummary : ?BillsSummary
     );
     if ("err" in (result as any)) {
       const errKey = Object.keys((result as any).err)[0];
