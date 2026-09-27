@@ -187,6 +187,7 @@ cancelTransfer(1) -> (1)
 claimManagerRole(1) -> (1)
 claimTransfer(1) -> (1)
 dismissNotifications(1) -> (1)
+getAccessRole(2) -> (1) [query]
 getApprovals(1) -> (1) [query]
 getManagerInviteByToken(1) -> (1) [query]
 getMyManagedProperties(0) -> (1) [query]

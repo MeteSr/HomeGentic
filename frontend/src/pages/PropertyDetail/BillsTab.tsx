@@ -12,6 +12,9 @@ import {
 import { Panel, hudInputStyle, hudButtonStyle, spinnerVars } from "@/components/hud";
 import toast from "react-hot-toast";
 import { HousingCostsSection } from "./HousingCostsSection";
+import { propertyService, type AccessRole } from "@/services/property";
+import { billsPermissions } from "@/services/billsAccess";
+import { useAuthStore } from "@/store/authStore";
 import { BillsForecastPanel } from "./BillsForecastPanel";
 
 const DISPLAY = "'Bricolage Grotesque',sans-serif";
@@ -42,6 +45,16 @@ export function BillsTab({ propertyId }: { propertyId: string }) {
   const [bills,         setBills]         = useState<BillRecord[]>([]);
   const [loading,       setLoading]       = useState(true);
   const [expenses,      setExpenses]      = useState<RecurringExpense[] | null>(null);
+  const [role,          setRole]          = useState<AccessRole | null>(null);
+  const principal = useAuthStore((st) => st.principal);
+  const permissions = React.useMemo(() => billsPermissions(role, principal), [role, principal]);
+
+  useEffect(() => {
+    if (!principal) return;
+    // Unknown role (e.g. property canister unreachable) falls back to full
+    // controls — the canister still enforces the real rules on every call.
+    propertyService.getAccessRole(propertyId, principal).then(setRole).catch(() => setRole(null));
+  }, [propertyId, principal]);
   const [uploading,     setUploading]     = useState(false);
   const [extraction,    setExtraction]    = useState<BillExtraction | null>(null);
   const [confirmArgs,   setConfirmArgs]   = useState<Partial<BillRecord> | null>(null);
@@ -179,7 +192,13 @@ export function BillsTab({ propertyId }: { propertyId: string }) {
     <div style={{ padding: "2rem 0" }}>
       {!loading && expenses && <BillsForecastPanel bills={bills} expenses={expenses} />}
 
-      <HousingCostsSection propertyId={propertyId} onExpensesChange={setExpenses} />
+      {role === "Viewer" && (
+        <p role="note" style={{ fontFamily: BODY, fontSize: "0.85rem", color: inkLight, margin: "0 0 1.5rem", padding: "0.75rem 1rem", border: "1px solid var(--hg-line)", borderRadius: 12 }}>
+          You have view-only access to this property's bills.
+        </p>
+      )}
+
+      <HousingCostsSection propertyId={propertyId} onExpensesChange={setExpenses} permissions={permissions} />
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
         <div>
@@ -190,10 +209,12 @@ export function BillsTab({ propertyId }: { propertyId: string }) {
             Upload bills to track usage, detect anomalies, and surface savings opportunities.
           </p>
         </div>
-        <Button onClick={() => fileInputRef.current?.click()} disabled={uploading} style={hudButtonStyle("primary")}>
-          <Upload size={14} style={{ marginRight: "0.4rem" }} />
-          {uploading ? "Extracting…" : "Upload Bill"}
-        </Button>
+        {permissions.canAdd && (
+          <Button onClick={() => fileInputRef.current?.click()} disabled={uploading} style={hudButtonStyle("primary")}>
+            <Upload size={14} style={{ marginRight: "0.4rem" }} />
+            {uploading ? "Extracting…" : "Upload Bill"}
+          </Button>
+        )}
         <input
           ref={fileInputRef}
           type="file"
@@ -362,13 +383,16 @@ export function BillsTab({ propertyId }: { propertyId: string }) {
                         {loadingTelecom && telecomBillId === bill.id ? "…" : "Negotiate"}
                       </button>
                     )}
-                    <button
-                      onClick={() => handleDelete(bill.id)}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: inkLight, padding: "0.25rem" }}
-                      title="Remove bill"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    {permissions.canModify(bill.homeowner) && (
+                      <button
+                        onClick={() => handleDelete(bill.id)}
+                        style={{ background: "none", border: "none", cursor: "pointer", color: inkLight, padding: "0.25rem" }}
+                        title="Remove bill"
+                        aria-label="Remove bill"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

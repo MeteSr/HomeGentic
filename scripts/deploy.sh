@@ -726,6 +726,10 @@ if [ -n "$BILLS_ID" ]    && [ -n "$PAYMENT_ID" ];    then
   echo "  Wiring payment -> bills..."
   icp canister call bills    setPaymentCanisterId    "(\"$PAYMENT_ID\")"          -e "$ENV" &
 fi
+if [ -n "$BILLS_ID" ]    && [ -n "$PROPERTY_ID" ];   then
+  echo "  Wiring property -> bills..."
+  icp canister call bills    setPropertyCanisterId   "(\"$PROPERTY_ID\")"         -e "$ENV" &
+fi
 REFERRALS_ID=$(icp canister status referrals -e "$ENV" --id-only 2>/dev/null || echo "")
 if [ -n "$REFERRALS_ID" ] && [ -n "$PAYMENT_ID" ]; then
   echo "  Wiring payment <-> referrals..."

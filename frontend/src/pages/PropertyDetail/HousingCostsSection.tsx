@@ -7,6 +7,7 @@ import {
   billService, isActiveOn, monthlyEquivalentCents, TierLimitReachedError,
   type ExpenseCategory, type ExpenseFrequency, type RecurringExpense, type RecurringExpenseFields,
 } from "@/services/billService";
+import { FULL_BILLS_PERMISSIONS, type BillsPermissions } from "@/services/billsAccess";
 
 const DISPLAY = "'Bricolage Grotesque',sans-serif";
 const BODY    = "'Hanken Grotesk',sans-serif";
@@ -53,10 +54,11 @@ const labelText: React.CSSProperties = {
 const field: React.CSSProperties = { display: "flex", flexDirection: "column", gap: "0.25rem" };
 const cell:  React.CSSProperties = { fontFamily: BODY, fontSize: "0.875rem", color: "var(--hg-ink)", padding: "0.75rem" };
 
-export function HousingCostsSection({ propertyId, onExpensesChange }: {
+export function HousingCostsSection({ propertyId, onExpensesChange, permissions = FULL_BILLS_PERMISSIONS }: {
   propertyId: string;
   /** Called with the current list once loaded and after every add, edit or removal. */
   onExpensesChange?: (expenses: RecurringExpense[]) => void;
+  permissions?: BillsPermissions;
 }) {
   const [expenses, setExpenses] = useState<RecurringExpense[]>([]);
   const [loading,  setLoading]  = useState(true);
@@ -83,9 +85,12 @@ export function HousingCostsSection({ propertyId, onExpensesChange }: {
   const canSave = !!form && form.provider.trim() !== "" && form.amountCents > 0 && form.startDate !== ""
     && (!form.endDate || form.endDate >= form.startDate);
 
+  const categories = (Object.keys(CATEGORY_LABELS) as ExpenseCategory[])
+    .filter((c) => c !== "Mortgage" || permissions.canAddMortgage);
+
   function openAdd() {
     setEditingId(null);
-    setForm({ ...EMPTY_FORM });
+    setForm({ ...EMPTY_FORM, category: categories[0] });
   }
 
   function openEdit(e: RecurringExpense) {
@@ -152,10 +157,12 @@ export function HousingCostsSection({ propertyId, onExpensesChange }: {
             Mortgage, property tax, HOA and insurance — enter each once and we'll track it every period.
           </p>
         </div>
-        <Button onClick={openAdd} disabled={!!form} style={hudButtonStyle("primary")}>
-          <Plus size={14} style={{ marginRight: "0.4rem" }} />
-          Add Housing Cost
-        </Button>
+        {permissions.canAdd && (
+          <Button onClick={openAdd} disabled={!!form} style={hudButtonStyle("primary")}>
+            <Plus size={14} style={{ marginRight: "0.4rem" }} />
+            Add Housing Cost
+          </Button>
+        )}
       </div>
 
       {form && (
@@ -171,7 +178,7 @@ export function HousingCostsSection({ propertyId, onExpensesChange }: {
                 onChange={(e) => setForm({ ...form, category: e.target.value as ExpenseCategory })}
                 style={hudInputStyle}
               >
-                {(Object.keys(CATEGORY_LABELS) as ExpenseCategory[]).map((c) => (
+                {categories.map((c) => (
                   <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
                 ))}
               </select>
@@ -253,7 +260,9 @@ export function HousingCostsSection({ propertyId, onExpensesChange }: {
         !form && (
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "1.25rem 1.5rem", border: "1px dashed var(--hg-line)", borderRadius: 16, color: "var(--hg-muted)", fontFamily: BODY, fontSize: "0.875rem" }}>
             <Home size={16} />
-            No housing costs yet. Add your mortgage, property tax, HOA or insurance to see your true monthly cost of ownership.
+            {permissions.canAdd
+              ? "No housing costs yet. Add your mortgage, property tax, HOA or insurance to see your true monthly cost of ownership."
+              : "No housing costs have been shared for this property yet."}
           </div>
         )
       ) : (
@@ -284,6 +293,7 @@ export function HousingCostsSection({ propertyId, onExpensesChange }: {
                       <td style={{ ...cell, whiteSpace: "nowrap" }}>{usd(monthlyEquivalentCents(e))}</td>
                       <td style={{ ...cell, fontSize: "0.8rem", color: "var(--hg-muted)", whiteSpace: "nowrap" }}>{status(e)}</td>
                       <td style={{ padding: "0.75rem", whiteSpace: "nowrap" }}>
+                        {permissions.canModify(e.homeowner) && (<>
                         <button
                           onClick={() => openEdit(e)}
                           aria-label={`Edit ${CATEGORY_LABELS[e.category]}`}
@@ -300,6 +310,7 @@ export function HousingCostsSection({ propertyId, onExpensesChange }: {
                         >
                           <Trash2 size={14} />
                         </button>
+                        </>)}
                       </td>
                     </tr>
                   );

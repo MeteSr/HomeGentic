@@ -24,6 +24,7 @@ vi.mock("react-hot-toast", () => ({
 
 import { HousingCostsSection } from "@/pages/PropertyDetail/HousingCostsSection";
 import { TierLimitReachedError } from "@/services/billService";
+import { billsPermissions } from "@/services/billsAccess";
 
 function expense(overrides: Partial<RecurringExpense>): RecurringExpense {
   return {
@@ -167,5 +168,35 @@ describe("HousingCostsSection", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Remove Mortgage" }));
     await waitFor(() => expect(onChange).toHaveBeenLastCalledWith([TAX]));
+  });
+
+  describe("role-aware controls", () => {
+    it("a viewer sees costs but no add, edit or remove controls", async () => {
+      mockSvc.getRecurringExpensesForProperty.mockResolvedValue([TAX]);
+      render(<HousingCostsSection propertyId="prop-1" permissions={billsPermissions("Viewer", "me")} />);
+      expect(await screen.findByText("Hillsborough County")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Add Housing Cost/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Edit/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Remove/ })).not.toBeInTheDocument();
+    });
+
+    it("a viewer with nothing shared gets a read-only empty state", async () => {
+      render(<HousingCostsSection propertyId="prop-1" permissions={billsPermissions("Viewer", "me")} />);
+      expect(await screen.findByText(/No housing costs have been shared/i)).toBeInTheDocument();
+    });
+
+    it("a manager can't pick Mortgage and can only edit their own entries", async () => {
+      const mine = expense({ id: "REC_7", category: "HOA", provider: "Mine HOA", homeowner: "me" });
+      mockSvc.getRecurringExpensesForProperty.mockResolvedValue([TAX, mine]);
+      render(<HousingCostsSection propertyId="prop-1" permissions={billsPermissions("Manager", "me")} />);
+
+      expect(await screen.findByRole("button", { name: "Edit HOA Dues" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Edit Property Tax" })).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: /Add Housing Cost/i }));
+      const options = within(screen.getByLabelText("Category")).getAllByRole("option").map((o) => o.textContent);
+      expect(options).not.toContain("Mortgage");
+      expect(screen.getByLabelText("Category")).toHaveValue("PropertyTax");
+    });
   });
 });
