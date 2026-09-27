@@ -507,32 +507,40 @@ print(sum(1 for v in d.values() if isinstance(v,dict) and v.get(os.environ['ENV'
       # it, ANY breaking interface change blocks every future upgrade
       # deploy here, not just the first one after it merges.
       #
-      # ONE-TIME RECOVERY (remove after this deploys clean): testnet's
-      # property canister hasn't upgraded successfully since 2026-04-28 —
-      # its live stable-memory layout has drifted too far from HEAD for
-      # Motoko's enhanced-orthogonal-persistence runtime to reinterpret in
-      # one step ("RTS error: Memory-incompatible program upgrade", which
-      # --yes cannot bypass — that flag only covers the Candid interface
-      # check). --mode reinstall discards its current state and starts
-      # fresh; testnet data there was confirmed disposable before adding
-      # this. Revert this canister to --mode auto once confirmed installed
-      # so a future routine deploy can never reinstall it again.
-      #
-      # ONE-TIME RECOVERY #2 (remove after this deploys clean): same failure
-      # mode hit the contractor canister after #521 added a new required
-      # ContractorProfile field (`origin`) — testnet's live stable memory
-      # predates it, so EOP can't reinterpret it in place. Testnet data
-      # there was confirmed disposable before adding this.
-      INSTALL_MODE="auto"
-      if [ "$canister" = "property" ] || [ "$canister" = "contractor" ]; then
-        INSTALL_MODE="reinstall"
-      fi
+      # Always try an in-place upgrade first. If a canister's stable memory
+      # has drifted too far for Motoko's enhanced orthogonal persistence to
+      # reinterpret ("RTS error: Memory-incompatible program upgrade", which
+      # --yes cannot bypass), the IC rolls the failed upgrade back and the
+      # old version keeps running. Only then, only on testnet, and only for a
+      # canister listed here, is it reinstalled — which deletes its data.
+      # Because the reinstall needs the upgrade to have just failed, it can't
+      # repeat once the canister is back in step, and mainnet never reinstalls:
+      # there the deploy fails instead. The stable-compat CI check keeps new
+      # breaks from merging.
+      #   property   — testnet hadn't upgraded since 2026-04-28 (drift)
+      #   contractor — #521 added a required ContractorProfile field
+      # Testnet data in both was confirmed disposable.
+      TESTNET_REINSTALL_OK=" property contractor "
       if icp canister install "$canister" \
-          --mode "$INSTALL_MODE" \
+          --mode auto \
           --yes \
           -e "$ENV" \
           >"$LOG_DIR/$canister.install.log" 2>&1; then
         echo "✓"
+      elif [ "$ENV" = "testnet" ] \
+          && [[ "$TESTNET_REINSTALL_OK" == *" $canister "* ]] \
+          && grep -q "Memory-incompatible program upgrade" "$LOG_DIR/$canister.install.log"; then
+        echo -n "memory-incompatible — reinstalling (testnet data discarded)... "
+        if icp canister install "$canister" \
+            --mode reinstall \
+            --yes \
+            -e "$ENV" \
+            >>"$LOG_DIR/$canister.install.log" 2>&1; then
+          echo "✓"
+        else
+          echo "✗"
+          INSTALL_FAILED+=("$canister")
+        fi
       else
         echo "✗"
         INSTALL_FAILED+=("$canister")
