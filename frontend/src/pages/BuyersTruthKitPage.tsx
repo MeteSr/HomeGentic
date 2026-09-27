@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Helmet } from "react-helmet-async";
+import { PageHead } from "@/components/PageHead";
 import {
   ShieldCheck, AlertTriangle, ChevronRight, ChevronLeft,
   Printer, Share2, ArrowRight, Check, ExternalLink, Info,
@@ -635,10 +635,10 @@ export default function BuyersTruthKitPage() {
 
   return (
     <div style={{ background:C.paper, color:C.ink, fontFamily:F.body, minHeight:"100vh" }}>
-      <Helmet>
+      <PageHead>
         <title>Buyer's Truth Kit — Know What You're Actually Buying</title>
         <meta name="description" content="Enter any home address and seller claims. Get a personalized due-diligence kit: permit records, red flags, questions to ask, and documents to request." />
-      </Helmet>
+      </PageHead>
 
       {/* Print styles */}
       <style>{`

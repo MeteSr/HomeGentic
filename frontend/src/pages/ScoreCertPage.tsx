@@ -10,7 +10,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Helmet } from "react-helmet-async";
+import { PageHead } from "@/components/PageHead";
 import { Shield, AlertTriangle, CheckCircle } from "lucide-react";
 import { parseCertToken } from "@/services/scoreService";
 import { certService } from "@/services/cert";
@@ -57,7 +57,7 @@ export default function ScoreCertPage() {
   if (!payload) {
     return (
       <>
-        <Helmet>
+        <PageHead>
           <title>Score Certificate | HomeGentic™</title>
           <meta name="description" content="HomeGentic Score Certificate — blockchain-verified home maintenance score." />
           <meta property="og:title" content="Score Certificate | HomeGentic™" />
@@ -66,7 +66,7 @@ export default function ScoreCertPage() {
           <meta property="og:image" content="https://homegentic.app/og-default.png" />
           <link rel="canonical" href="https://homegentic.app/cert" />
           <script type="application/ld+json">{JSON.stringify({ "@context": "https://schema.org", "@type": "CreativeWork", "name": "HomeGentic Score Certificate", "description": "Blockchain-verified home maintenance score certificate." })}</script>
-        </Helmet>
+        </PageHead>
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: UI.paper, padding: outerPad }}>
         <div style={{ textAlign: "center", maxWidth: "28rem" }}>
           <AlertTriangle size={40} color={UI.rust} style={{ margin: "0 auto 1rem" }} />
@@ -95,7 +95,7 @@ export default function ScoreCertPage() {
 
   return (
     <>
-      <Helmet>
+      <PageHead>
         <title>{certTitle}</title>
         <meta name="description" content={certDesc} />
         <meta property="og:title" content={certTitle} />
@@ -110,7 +110,7 @@ export default function ScoreCertPage() {
           "description": certDesc,
           "url": `https://homegentic.app/cert/${token}`,
         })}</script>
-      </Helmet>
+      </PageHead>
     <div style={{ minHeight: "100vh", background: UI.paper, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: outerPad }}>
       <div style={{ width: "100%", maxWidth: "32rem", background: V2_COLORS.paper, border: `1px solid ${UI.rule}` }}>
 

@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
-import { Helmet } from "react-helmet-async";
+import { PageHead } from "@/components/PageHead";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthStore } from "@/store/authStore";
 import { type PlanTier, type BillingCycle, PLANS } from "@/services/planConstants";
@@ -125,11 +125,11 @@ export default function ForProsPage() {
 
   return (
     <>
-      <Helmet>
+      <PageHead>
         <title>For Contractors — Join the HomeGentic Network</title>
         <meta name="description" content="Contractors: grow your business with HomeGentic. Get leads from verified homeowners, auto-log completed work, and build a trusted profile." />
         <link rel="canonical" href="https://homegentic.app/for-pros" />
-      </Helmet>
+      </PageHead>
       <style>{RESPONSIVE_CSS}</style>
 
       <div style={{ background: C.paper, minHeight: "100vh", fontFamily: F.body }}>

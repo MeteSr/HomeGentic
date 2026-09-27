@@ -7,7 +7,7 @@
  * data unavailable on Zillow, Redfin, or Realtor.com.
  *
  * SEO strategy:
- *   - Dynamic <title> + <meta description> via react-helmet-async
+ *   - Dynamic <title> + <meta description> via PageHead
  *   - JSON-LD ItemList schema for each visible listing
  *   - JSON-LD BreadcrumbList
  *   - Canonical URL
@@ -18,7 +18,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Helmet } from "react-helmet-async";
+import { PageHead } from "@/components/PageHead";
 import { Search, SlidersHorizontal, ShieldCheck, Award, TrendingUp, Clock, Wrench, ChevronRight } from "lucide-react";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import {
@@ -502,7 +502,7 @@ export default function FsboSearchPage() {
 
   return (
     <>
-      <Helmet>
+      <PageHead>
         <title>{pageTitle}</title>
         <meta name="description" content={pageDesc} />
         <link rel="canonical" href={canonicalUrl} />
@@ -522,7 +522,7 @@ export default function FsboSearchPage() {
         {/* JSON-LD */}
         <script type="application/ld+json">{JSON.stringify(jsonLdItemList)}</script>
         <script type="application/ld+json">{JSON.stringify(jsonLdBreadcrumb)}</script>
-      </Helmet>
+      </PageHead>
 
       <div style={{ minHeight: "100vh", background: C.paper, fontFamily: F.body }}>
 

@@ -1,12 +1,11 @@
 /**
  * SEO.6 — Canonical URLs
  *
- * Every public-facing page must set <link rel="canonical"> via Helmet
+ * Every public-facing page must set <link rel="canonical"> via PageHead
  * to prevent duplicate-content penalties across ICP gateway origins.
  */
 import { render } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
-import { HelmetProvider } from "react-helmet-async";
 import React from "react";
 import { vi } from "vitest";
 
@@ -56,7 +55,7 @@ function canonical(): string {
 }
 
 function wrap(el: React.ReactElement, path = "/") {
-  return <HelmetProvider><MemoryRouter initialEntries={[path]}>{el}</MemoryRouter></HelmetProvider>;
+  return <><MemoryRouter initialEntries={[path]}>{el}</MemoryRouter></>;
 }
 
 const BASE = "https://homegentic.app";
@@ -97,11 +96,11 @@ describe("FsboListingPage — canonical", () => {
 
   it("sets canonical containing /for-sale or homegentic.app", () => {
     render(
-      <HelmetProvider>
+      <>
         <MemoryRouter initialEntries={["/listing/1"]}>
           <Routes><Route path="/listing/:id" element={<FsboListingPage />} /></Routes>
         </MemoryRouter>
-      </HelmetProvider>
+      </>
     );
     const c = canonical();
     expect(c.includes(BASE) || c.includes("for-sale")).toBe(true);
@@ -114,11 +113,11 @@ describe("ContractorPublicPage — canonical", () => {
 
   it("sets canonical containing homegentic.app", () => {
     render(
-      <HelmetProvider>
+      <>
         <MemoryRouter initialEntries={["/contractor/abc"]}>
           <Routes><Route path="/contractor/:id" element={<ContractorPublicPage />} /></Routes>
         </MemoryRouter>
-      </HelmetProvider>
+      </>
     );
     expect(canonical()).toContain(BASE);
   });
@@ -131,11 +130,11 @@ describe("ScoreCertPage — canonical", () => {
 
   it("sets canonical containing homegentic.app", () => {
     render(
-      <HelmetProvider>
+      <>
         <MemoryRouter initialEntries={["/cert/tok"]}>
           <Routes><Route path="/cert/:token" element={<ScoreCertPage />} /></Routes>
         </MemoryRouter>
-      </HelmetProvider>
+      </>
     );
     expect(canonical()).toContain(BASE);
   });

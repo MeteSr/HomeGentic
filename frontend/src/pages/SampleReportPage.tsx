@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Helmet } from "react-helmet-async";
+import { PageHead } from "@/components/PageHead";
 
 // ── Tokens ─────────────────────────────────────────────────────────────────────
 const BLUE   = "#2B34FF";
@@ -429,10 +429,10 @@ export default function SampleReportPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: PAPER, fontFamily: BODY, color: INK }}>
-      <Helmet>
+      <PageHead>
         <title>Sample Property Report — HomeGentic</title>
         <meta name="description" content="See what a HomeGentic verified property report looks like — score, job history, contractor signatures, and a shareable link." />
-      </Helmet>
+      </PageHead>
 
       {/* ── Nav ── */}
       <div style={{ background: BLUE, position: "sticky", top: 0, zIndex: 100 }}>

@@ -64,6 +64,28 @@ describe("13.4.4: Bundle size audit", () => {
     ).toBeLessThan(600 * 1024);
   });
 
+  // What a visitor actually downloads before first paint: the entry script plus
+  // every chunk index.html modulepreloads. The total above can't see this — it
+  // counts lazily-loaded routes too, and even rises when code is split out.
+  it.skipIf(!DIST_EXISTS)("first-load JS (entry + modulepreloads) is < 225KB gzipped", () => {
+    const html = readFileSync(join(DIST, "index.html"), "utf8");
+    const refs = new Set(
+      [...html.matchAll(/<(?:script|link)\b[^>]*\b(?:src|href)="\/?(assets\/[^"]+\.js)"/g)].map((m) => m[1]),
+    );
+    expect(refs.size, "No entry script found in dist/index.html").toBeGreaterThan(0);
+
+    let firstLoad = 0;
+    for (const rel of refs) firstLoad += gzippedSize(join(DIST, rel));
+    const kb = firstLoad / 1024;
+    // ~213KB when set: react ~57KB, ICP agent + dfinity ~88KB, vendor-ui ~25KB,
+    // app entry ~29KB. Public pages beyond Landing/Login/Pricing load on demand.
+    expect(
+      firstLoad,
+      `First-load JS is ${kb.toFixed(1)}KB gzipped — exceeds 225KB. ` +
+      `Keep new routes and heavy imports behind React.lazy / dynamic import().`
+    ).toBeLessThan(225 * 1024);
+  });
+
   it.skipIf(!DIST_EXISTS)("no single JS chunk exceeds 150KB gzipped (PlayCanvas exempt)", () => {
     const jsFiles = walk(ASSETS, ".js");
     for (const f of jsFiles) {

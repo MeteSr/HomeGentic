@@ -76,8 +76,8 @@ if (!("indexedDB" in window) || (window as any).indexedDB == null) {
   });
 }
 
-// Default requestAnimationFrame stub — react-helmet-async defers DOM writes
-// via RAF; this makes those writes synchronous in tests.
+// Default requestAnimationFrame stub — some components defer DOM writes via
+// RAF; this makes those writes synchronous in tests.
 if (typeof (globalThis as any).requestAnimationFrame !== "function") {
   (globalThis as any).requestAnimationFrame = (cb: FrameRequestCallback) => { cb(0); return 0; };
   (globalThis as any).cancelAnimationFrame = () => {};

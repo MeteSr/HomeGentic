@@ -1,5 +1,5 @@
 /**
- * SEO.1 — react-helmet-async per-route <title> and meta tags
+ * SEO.1 — per-route <title> and meta tags (set via PageHead)
  *
  * Each public-facing page must set:
  *   - document.title (unique, brand-suffixed)
@@ -10,11 +10,10 @@
  */
 import { render } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
-import { HelmetProvider } from "react-helmet-async";
 import React from "react";
 import { vi } from "vitest";
 
-// ── requestAnimationFrame — react-helmet-async defers DOM writes via RAF ───────
+// ── requestAnimationFrame — run RAF callbacks synchronously ────────────────────
 // Run synchronously so document.title and meta tags are set before assertions.
 (globalThis as any).requestAnimationFrame = (cb: FrameRequestCallback) => { cb(0); return 0; };
 (globalThis as any).cancelAnimationFrame = () => {};
@@ -73,11 +72,11 @@ afterEach(() => {
 
 function wrap(element: React.ReactElement, path = "/") {
   return (
-    <HelmetProvider>
+    <>
       <MemoryRouter initialEntries={[path]}>
         {element}
       </MemoryRouter>
-    </HelmetProvider>
+    </>
   );
 }
 
@@ -118,26 +117,26 @@ describe("FsboListingPage — Helmet meta", () => {
 
   it("sets a title (loading or loaded)", () => {
     render(
-      <HelmetProvider>
+      <>
         <MemoryRouter initialEntries={["/listing/1"]}>
           <Routes>
             <Route path="/listing/:id" element={<FsboListingPage />} />
           </Routes>
         </MemoryRouter>
-      </HelmetProvider>
+      </>
     );
     expect(document.title).toMatch(/HomeGentic/i);
   });
 
   it("sets og:type to website", () => {
     render(
-      <HelmetProvider>
+      <>
         <MemoryRouter initialEntries={["/listing/1"]}>
           <Routes>
             <Route path="/listing/:id" element={<FsboListingPage />} />
           </Routes>
         </MemoryRouter>
-      </HelmetProvider>
+      </>
     );
     expect(metaContent('meta[property="og:type"]')).toBe("website");
   });
@@ -152,26 +151,26 @@ describe("ContractorPublicPage — Helmet meta", () => {
 
   it("sets a title (loading or loaded)", () => {
     render(
-      <HelmetProvider>
+      <>
         <MemoryRouter initialEntries={["/contractor/abc"]}>
           <Routes>
             <Route path="/contractor/:id" element={<ContractorPublicPage />} />
           </Routes>
         </MemoryRouter>
-      </HelmetProvider>
+      </>
     );
     expect(document.title).toMatch(/HomeGentic/i);
   });
 
   it("sets og:type to website", () => {
     render(
-      <HelmetProvider>
+      <>
         <MemoryRouter initialEntries={["/contractor/abc"]}>
           <Routes>
             <Route path="/contractor/:id" element={<ContractorPublicPage />} />
           </Routes>
         </MemoryRouter>
-      </HelmetProvider>
+      </>
     );
     expect(metaContent('meta[property="og:type"]')).toBe("website");
   });
@@ -186,26 +185,26 @@ describe("ScoreCertPage — Helmet meta", () => {
 
   it("sets a title", () => {
     render(
-      <HelmetProvider>
+      <>
         <MemoryRouter initialEntries={["/cert/sometoken"]}>
           <Routes>
             <Route path="/cert/:token" element={<ScoreCertPage />} />
           </Routes>
         </MemoryRouter>
-      </HelmetProvider>
+      </>
     );
     expect(document.title).toMatch(/HomeGentic/i);
   });
 
   it("sets og:type to website", () => {
     render(
-      <HelmetProvider>
+      <>
         <MemoryRouter initialEntries={["/cert/sometoken"]}>
           <Routes>
             <Route path="/cert/:token" element={<ScoreCertPage />} />
           </Routes>
         </MemoryRouter>
-      </HelmetProvider>
+      </>
     );
     expect(metaContent('meta[property="og:type"]')).toBe("website");
   });

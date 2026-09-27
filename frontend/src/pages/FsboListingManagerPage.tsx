@@ -18,7 +18,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, Link }                         from "react-router-dom";
-import { Helmet }                                  from "react-helmet-async";
+import { PageHead } from "@/components/PageHead";
 import {
   Eye, TrendingDown, CalendarDays, MessageSquare,
   Tag, Award, AlertTriangle, CheckCircle2, ExternalLink,
@@ -234,7 +234,7 @@ export default function FsboListingManagerPage() {
   if (listingState === "not-activated") {
     return (
       <>
-        <Helmet><title>{pageTitle}</title></Helmet>
+        <PageHead><title>{pageTitle}</title></PageHead>
         <div style={{ maxWidth: "720px", margin: "0 auto", padding: isMobile ? "1.5rem 1rem" : "2.5rem 2rem", fontFamily: UI.sans }}>
           <div style={{ marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" as const }}>
             <StatusBadge state="not-activated" />
@@ -273,7 +273,7 @@ export default function FsboListingManagerPage() {
   if (listingState === "in-progress") {
     return (
       <>
-        <Helmet><title>{pageTitle}</title></Helmet>
+        <PageHead><title>{pageTitle}</title></PageHead>
         <div style={{ maxWidth: "720px", margin: "0 auto", padding: isMobile ? "1.5rem 1rem" : "2.5rem 2rem", fontFamily: UI.sans }}>
           <div style={{ marginBottom: "1.5rem" }}>
             <StatusBadge state="in-progress" />
@@ -294,7 +294,7 @@ export default function FsboListingManagerPage() {
 
   return (
     <>
-      <Helmet><title>{pageTitle}</title></Helmet>
+      <PageHead><title>{pageTitle}</title></PageHead>
 
       <div style={{ maxWidth: "900px", margin: "0 auto", padding: isMobile ? "1rem" : "2rem 2rem 4rem", fontFamily: UI.sans }}>
 

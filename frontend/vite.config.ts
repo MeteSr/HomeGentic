@@ -101,7 +101,7 @@ export default defineConfig(({ mode }) => {
       pool: "threads",
       testTimeout: 30000,
       hookTimeout: 30000,
-      setupFiles: ["./src/__tests__/setup.ts", "./src/__tests__/helmet-mock-setup.ts"],
+      setupFiles: ["./src/__tests__/setup.ts"],
       include: ["src/__tests__/**/*.test.{ts,tsx}"],
       exclude: ["src/__tests__/integration/**"],
       alias: {

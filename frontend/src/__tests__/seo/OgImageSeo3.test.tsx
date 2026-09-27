@@ -7,7 +7,6 @@
  */
 import { render } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
-import { HelmetProvider } from "react-helmet-async";
 import React from "react";
 import { existsSync } from "fs";
 import { resolve } from "path";
@@ -59,7 +58,7 @@ function ogImage(): string {
 }
 
 function wrap(el: React.ReactElement, path = "/") {
-  return <HelmetProvider><MemoryRouter initialEntries={[path]}>{el}</MemoryRouter></HelmetProvider>;
+  return <><MemoryRouter initialEntries={[path]}>{el}</MemoryRouter></>;
 }
 
 // ── public/og-default.png exists ─────────────────────────────────────────────
@@ -107,11 +106,11 @@ describe("FsboListingPage — og:image", () => {
 
   it("sets og:image (loading state)", () => {
     render(
-      <HelmetProvider>
+      <>
         <MemoryRouter initialEntries={["/listing/1"]}>
           <Routes><Route path="/listing/:id" element={<FsboListingPage />} /></Routes>
         </MemoryRouter>
-      </HelmetProvider>
+      </>
     );
     expect(ogImage()).toMatch(/og-default\.png/);
   });
@@ -123,11 +122,11 @@ describe("ContractorPublicPage — og:image", () => {
 
   it("sets og:image", () => {
     render(
-      <HelmetProvider>
+      <>
         <MemoryRouter initialEntries={["/contractor/abc"]}>
           <Routes><Route path="/contractor/:id" element={<ContractorPublicPage />} /></Routes>
         </MemoryRouter>
-      </HelmetProvider>
+      </>
     );
     expect(ogImage()).toMatch(/og-default\.png/);
   });
@@ -140,11 +139,11 @@ describe("ScoreCertPage — og:image", () => {
 
   it("sets og:image", () => {
     render(
-      <HelmetProvider>
+      <>
         <MemoryRouter initialEntries={["/cert/tok"]}>
           <Routes><Route path="/cert/:token" element={<ScoreCertPage />} /></Routes>
         </MemoryRouter>
-      </HelmetProvider>
+      </>
     );
     expect(ogImage()).toMatch(/og-default\.png/);
   });

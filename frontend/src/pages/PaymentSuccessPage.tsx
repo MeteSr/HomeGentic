@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useState } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
-import { Helmet } from "react-helmet-async";
+import { PageHead } from "@/components/PageHead";
 import { CheckCircle, Gift } from "lucide-react";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 import { paymentService } from "@/services/payment";
@@ -132,7 +132,7 @@ export default function PaymentSuccessPage() {
   if (state === "awaiting-login") {
     return (
       <>
-        <Helmet><title>One Last Step — HomeGentic</title></Helmet>
+        <PageHead><title>One Last Step — HomeGentic</title></PageHead>
         <div style={UI.page}>
           <div style={UI.card}>
             <div style={UI.icon}><CheckCircle size={40} color={V2_COLORS.blue} /></div>
@@ -156,7 +156,7 @@ export default function PaymentSuccessPage() {
   if (state === "error") {
     return (
       <>
-        <Helmet><title>Payment Error — HomeGentic</title></Helmet>
+        <PageHead><title>Payment Error — HomeGentic</title></PageHead>
         <div style={UI.page}>
           <div style={UI.card}>
             <h1 style={{ ...UI.h1, color: V2_COLORS.coralText }}>Something went wrong</h1>
@@ -172,7 +172,7 @@ export default function PaymentSuccessPage() {
   if (state === "gift") {
     return (
       <>
-        <Helmet><title>Gift Sent — HomeGentic</title></Helmet>
+        <PageHead><title>Gift Sent — HomeGentic</title></PageHead>
         <div style={UI.page}>
           <div style={UI.card}>
             <div style={UI.icon}><Gift size={40} color={V2_COLORS.blue} /></div>
@@ -194,7 +194,7 @@ export default function PaymentSuccessPage() {
 
   return (
     <>
-      <Helmet><title>Welcome to {tierName} — HomeGentic</title></Helmet>
+      <PageHead><title>Welcome to {tierName} — HomeGentic</title></PageHead>
       <div style={UI.page}>
         <div style={UI.card}>
           <div style={UI.icon}><CheckCircle size={40} color={V2_COLORS.blue} /></div>

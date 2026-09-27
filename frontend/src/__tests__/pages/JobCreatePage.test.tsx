@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import JobCreatePage from "@/pages/JobCreatePage";
 
-// RAF stub — react-helmet-async and some components defer via RAF
+// RAF stub — some components defer via RAF
 (globalThis as any).requestAnimationFrame = (cb: FrameRequestCallback) => { cb(0); return 0; };
 (globalThis as any).cancelAnimationFrame = () => {};
 

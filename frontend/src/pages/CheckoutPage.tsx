@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
-import { Helmet } from "react-helmet-async";
+import { PageHead } from "@/components/PageHead";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { CreditCard, Coins } from "lucide-react";
@@ -397,7 +397,7 @@ export default function CheckoutPage() {
 
   return (
     <>
-      <Helmet><title>Subscribe to {plan.label} — HomeGentic</title></Helmet>
+      <PageHead><title>Subscribe to {plan.label} — HomeGentic</title></PageHead>
       <div style={{ minHeight: "100vh", background: V2_COLORS.paper, display: "flex", flexDirection: "column" }}>
 
         {/* Header */}

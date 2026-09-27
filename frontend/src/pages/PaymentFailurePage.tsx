@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Helmet } from "react-helmet-async";
+import { PageHead } from "@/components/PageHead";
 import { XCircle } from "lucide-react";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 
@@ -15,7 +15,7 @@ export default function PaymentFailurePage() {
 
   return (
     <>
-      <Helmet><title>Payment Cancelled — HomeGentic</title></Helmet>
+      <PageHead><title>Payment Cancelled — HomeGentic</title></PageHead>
       <div style={UI.page}>
         <div style={UI.card}>
           <div style={{ marginBottom: "1.5rem" }}><XCircle size={40} color={V2_COLORS.muted} /></div>

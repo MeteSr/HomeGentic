@@ -6,7 +6,6 @@
  */
 import { render } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
-import { HelmetProvider } from "react-helmet-async";
 import React from "react";
 import { vi } from "vitest";
 
@@ -14,7 +13,7 @@ import { vi } from "vitest";
 (globalThis as any).cancelAnimationFrame = () => {};
 
 // Never-resolving promise — prevents async setState calls (setLoading, setProfile, etc.)
-// from firing outside act() while still allowing synchronous Helmet tag rendering.
+// from firing outside act() while still allowing synchronous head tag rendering.
 const PENDING = vi.hoisted(() => new Promise<never>(() => {}));
 
 vi.mock("@/components/Layout", () => ({
@@ -60,7 +59,7 @@ function ldJson(): any {
 }
 
 function wrap(el: React.ReactElement, path = "/") {
-  return <HelmetProvider><MemoryRouter initialEntries={[path]}>{el}</MemoryRouter></HelmetProvider>;
+  return <><MemoryRouter initialEntries={[path]}>{el}</MemoryRouter></>;
 }
 
 // ── LandingPage — Organization + WebSite ─────────────────────────────────────
@@ -88,22 +87,22 @@ describe("FsboListingPage — JSON-LD", () => {
 
   it("renders a JSON-LD script tag (loading state)", () => {
     render(
-      <HelmetProvider>
+      <>
         <MemoryRouter initialEntries={["/listing/1"]}>
           <Routes><Route path="/listing/:id" element={<FsboListingPage />} /></Routes>
         </MemoryRouter>
-      </HelmetProvider>
+      </>
     );
     expect(ldJson()).not.toBeNull();
   });
 
   it("has @type RealEstateListing", () => {
     render(
-      <HelmetProvider>
+      <>
         <MemoryRouter initialEntries={["/listing/1"]}>
           <Routes><Route path="/listing/:id" element={<FsboListingPage />} /></Routes>
         </MemoryRouter>
-      </HelmetProvider>
+      </>
     );
     const schema = ldJson();
     expect(schema?.["@type"]).toBe("RealEstateListing");
@@ -117,22 +116,22 @@ describe("ContractorPublicPage — JSON-LD", () => {
 
   it("renders a JSON-LD script tag", () => {
     render(
-      <HelmetProvider>
+      <>
         <MemoryRouter initialEntries={["/contractor/abc"]}>
           <Routes><Route path="/contractor/:id" element={<ContractorPublicPage />} /></Routes>
         </MemoryRouter>
-      </HelmetProvider>
+      </>
     );
     expect(ldJson()).not.toBeNull();
   });
 
   it("has @type LocalBusiness or Person", () => {
     render(
-      <HelmetProvider>
+      <>
         <MemoryRouter initialEntries={["/contractor/abc"]}>
           <Routes><Route path="/contractor/:id" element={<ContractorPublicPage />} /></Routes>
         </MemoryRouter>
-      </HelmetProvider>
+      </>
     );
     const schema = ldJson();
     expect(["LocalBusiness", "Person"]).toContain(schema?.["@type"]);
@@ -146,22 +145,22 @@ describe("ScoreCertPage — JSON-LD", () => {
 
   it("renders a JSON-LD script tag", () => {
     render(
-      <HelmetProvider>
+      <>
         <MemoryRouter initialEntries={["/cert/tok"]}>
           <Routes><Route path="/cert/:token" element={<ScoreCertPage />} /></Routes>
         </MemoryRouter>
-      </HelmetProvider>
+      </>
     );
     expect(ldJson()).not.toBeNull();
   });
 
   it("has @type CreativeWork", () => {
     render(
-      <HelmetProvider>
+      <>
         <MemoryRouter initialEntries={["/cert/tok"]}>
           <Routes><Route path="/cert/:token" element={<ScoreCertPage />} /></Routes>
         </MemoryRouter>
-      </HelmetProvider>
+      </>
     );
     const schema = ldJson();
     expect(schema?.["@type"]).toBe("CreativeWork");
