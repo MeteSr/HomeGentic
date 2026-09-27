@@ -9,7 +9,6 @@
  */
 import { render } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { HelmetProvider } from "react-helmet-async";
 import React from "react";
 
 (globalThis as any).requestAnimationFrame = (cb: FrameRequestCallback) => { cb(0); return 0; };
@@ -31,7 +30,7 @@ describe("FAQPage — content", () => {
 
   it("renders at least 5 FAQ questions", () => {
     const { container } = render(
-      <HelmetProvider><MemoryRouter><FAQPage /></MemoryRouter></HelmetProvider>
+      <><MemoryRouter><FAQPage /></MemoryRouter></>
     );
     expect(container.textContent).toMatch(/maintenance/i);
     expect(container.textContent?.length).toBeGreaterThan(500);
@@ -39,21 +38,21 @@ describe("FAQPage — content", () => {
 
   it("contains text about maintenance", () => {
     const { container } = render(
-      <HelmetProvider><MemoryRouter><FAQPage /></MemoryRouter></HelmetProvider>
+      <><MemoryRouter><FAQPage /></MemoryRouter></>
     );
     expect(container.textContent?.toLowerCase()).toMatch(/maintenance/);
   });
 
   it("contains text about verified or verification", () => {
     const { container } = render(
-      <HelmetProvider><MemoryRouter><FAQPage /></MemoryRouter></HelmetProvider>
+      <><MemoryRouter><FAQPage /></MemoryRouter></>
     );
     expect(container.textContent?.toLowerCase()).toMatch(/verif/);
   });
 
   it("has JSON-LD FAQPage structured data", () => {
     render(
-      <HelmetProvider><MemoryRouter><FAQPage /></MemoryRouter></HelmetProvider>
+      <><MemoryRouter><FAQPage /></MemoryRouter></>
     );
     const scripts = Array.from(document.querySelectorAll('script[type="application/ld+json"]'));
     const faqSchema = scripts.find((s) => {
@@ -64,9 +63,9 @@ describe("FAQPage — content", () => {
 
   it("has a page title containing FAQ", () => {
     render(
-      <HelmetProvider><MemoryRouter><FAQPage /></MemoryRouter></HelmetProvider>
+      <><MemoryRouter><FAQPage /></MemoryRouter></>
     );
-    // Title is set via Helmet — check the script content contains FAQ questions
+    // Title is set via PageHead — check the script content contains FAQ questions
     const scripts = Array.from(document.querySelectorAll('script[type="application/ld+json"]'));
     const faqSchema = scripts.find((s) => {
       try { return JSON.parse(s.innerHTML)?.["@type"] === "FAQPage"; } catch { return false; }

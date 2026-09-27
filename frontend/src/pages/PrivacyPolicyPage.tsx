@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Helmet } from "react-helmet-async";
+import { PageHead } from "@/components/PageHead";
 
 const C = {
   blue:   "#2B34FF",
@@ -173,14 +173,14 @@ const SECTIONS: Section[] = [
 export default function PrivacyPolicyPage() {
   return (
     <>
-      <Helmet>
+      <PageHead>
         <title>Privacy Policy — HomeGentic</title>
         <meta name="description" content="HomeGentic's Privacy Policy: how we collect, use, and protect your data, including your rights around ICP blockchain records and subscription cancellation." />
         <link rel="canonical" href="https://homegentic.app/privacy" />
         <meta property="og:title" content="Privacy Policy — HomeGentic" />
         <meta property="og:description" content="How HomeGentic collects, uses, and protects your data." />
         <meta property="og:url" content="https://homegentic.app/privacy" />
-      </Helmet>
+      </PageHead>
 
       <div style={{ minHeight: "100vh", background: C.paper, fontFamily: F.body }}>
 

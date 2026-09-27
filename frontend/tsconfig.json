@@ -16,8 +16,7 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@/*": ["./src/*"],
-      "react-helmet-async": ["./src/types/react-helmet-async-shim"]
+      "@/*": ["./src/*"]
     },
     "types": ["vite/client", "node", "vitest/globals"]
   },

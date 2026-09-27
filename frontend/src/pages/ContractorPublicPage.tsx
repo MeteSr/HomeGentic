@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Helmet } from "react-helmet-async";
+import { PageHead } from "@/components/PageHead";
 import { ArrowLeft, Star, ShieldCheck, Wrench, MessageSquare, Mail, Phone, Award } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
@@ -112,7 +112,7 @@ export default function ContractorPublicPage() {
   if (loading) {
     return (
       <Layout>
-        <Helmet>
+        <PageHead>
           <title>Contractor Profile | HomeGentic</title>
           <meta name="description" content="Verified contractor profile on HomeGentic." />
           <meta property="og:title" content="Contractor Profile | HomeGentic™" />
@@ -121,7 +121,7 @@ export default function ContractorPublicPage() {
           <meta property="og:image" content="https://homegentic.app/og-default.png" />
           <link rel="canonical" href="https://homegentic.app/contractor" />
           <script type="application/ld+json">{JSON.stringify({ "@context": "https://schema.org", "@type": "LocalBusiness", "name": "Contractor | HomeGentic™", "description": "Verified contractor on HomeGentic." })}</script>
-        </Helmet>
+        </PageHead>
         <div style={{ display: "flex", justifyContent: "center", padding: "4rem" }}>
           <div className="spinner-lg" />
         </div>
@@ -143,7 +143,7 @@ export default function ContractorPublicPage() {
 
   return (
     <Layout>
-      <Helmet>
+      <PageHead>
         <title>{helmetTitle}</title>
         <meta name="description" content={helmetDesc} />
         <meta property="og:title" content={helmetTitle} />
@@ -159,7 +159,7 @@ export default function ContractorPublicPage() {
           "url": `https://homegentic.app/contractor/${id}`,
           "image": "https://homegentic.app/og-default.png",
         })}</script>
-      </Helmet>
+      </PageHead>
       <div style={{ maxWidth: "38rem", margin: "0 auto", padding: isMobile ? "1rem" : "2rem 1.5rem" }}>
 
         <button

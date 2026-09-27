@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Helmet } from "react-helmet-async";
+import { PageHead } from "@/components/PageHead";
 import { V2_COLORS, V2_FONTS } from "@/theme";
 
 const C = V2_COLORS;
@@ -126,7 +126,7 @@ function FaqRow({ item }: { item: FaqItem }) {
 export default function FAQPage() {
   return (
     <>
-      <Helmet>
+      <PageHead>
         <title>FAQ — HomeGentic</title>
         <meta name="description" content="Answers to common questions about HomeGentic's verified home maintenance records, blockchain data ownership, subscription tiers, and more." />
         <script type="application/ld+json">{JSON.stringify({
@@ -138,7 +138,7 @@ export default function FAQPage() {
             "acceptedAnswer": { "@type": "Answer", "text": f.a },
           })),
         })}</script>
-      </Helmet>
+      </PageHead>
 
       <div style={{ background: C.paper, minHeight: "100vh", fontFamily: F.body }}>
 

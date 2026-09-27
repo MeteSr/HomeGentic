@@ -10,7 +10,7 @@
 
 import React, { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Helmet } from "react-helmet-async";
+import { PageHead } from "@/components/PageHead";
 import {
   computeTenYearBudget,
   parseForecastParams,
@@ -274,7 +274,7 @@ export default function InstantForecastPage() {
 
   return (
     <>
-      <Helmet>
+      <PageHead>
         <title>Instant Maintenance Forecast | HomeGentic</title>
         <meta name="description" content="Get a free instant forecast of your home's upcoming maintenance costs. Enter your address and year built — no login required." />
         <meta property="og:title" content="Instant Maintenance Forecast | HomeGentic™" />
@@ -283,7 +283,7 @@ export default function InstantForecastPage() {
         <meta property="og:url" content="https://homegentic.app/instant-forecast" />
         <meta property="og:image" content="https://homegentic.app/og-default.png" />
         <link rel="canonical" href="https://homegentic.app/instant-forecast" />
-      </Helmet>
+      </PageHead>
     <div style={{ minHeight: "100vh", background: C.paper, color: C.ink, display: "flex", flexDirection: "column" }}>
       <PublicNav />
       {input ? <ForecastView input={input} /> : <EntryForm />}

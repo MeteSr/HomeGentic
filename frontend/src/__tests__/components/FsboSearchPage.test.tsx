@@ -453,18 +453,14 @@ describe("FsboSearchPage — SEO", () => {
     expect(document.title).toMatch(/fsbo|for sale by owner/i);
   });
 
-  it("JSON-LD script tag is present in the document", async () => {
+  it("JSON-LD script tag is placed in <head>", async () => {
     await renderSearch();
-    // React 19: react-helmet-async v3 uses React 19's native head hoisting for
-    // <title>/<meta>/<link>, but non-async <script> tags are NOT hoisted to <head>.
-    // They render in the document body. We search the full document instead.
-    const scripts = Array.from(document.querySelectorAll("script[type='application/ld+json']"));
+    const scripts = Array.from(document.head.querySelectorAll("script[type='application/ld+json']"));
     expect(scripts.length).toBeGreaterThan(0);
   });
 
   it("JSON-LD contains ItemList type", async () => {
     await renderSearch();
-    // See note above — non-async scripts render in body with React 19.
     const scripts = Array.from(document.querySelectorAll("script[type='application/ld+json']")) as HTMLElement[];
     const combined = scripts.map((s) => s.textContent ?? "").join("\n");
     expect(combined).toMatch(/ItemList/);

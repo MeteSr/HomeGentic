@@ -15,22 +15,24 @@ function NavigationTracker() {
   return null;
 }
 
-// Critical path — kept static (first paint)
+// Critical path — kept static: the pages a first-time or returning visitor
+// lands on directly. Everything else loads on demand.
 import LandingPage           from "@/pages/LandingPage";
 import LoginPage             from "@/pages/LoginPage";
 import PricingPage           from "@/pages/PricingPage";
-import PrivacyPolicyPage     from "@/pages/PrivacyPolicyPage";
-import TermsOfServicePage    from "@/pages/TermsOfServicePage";
-import SupportPage           from "@/pages/SupportPage";
-import FAQPage               from "@/pages/FAQPage";
-import GiftPage              from "@/pages/GiftPage";
-import ContractorVerifyPage  from "@/pages/ContractorVerifyPage";
-import ForProsPage           from "@/pages/ForProsPage";
-import PaymentSuccessPage    from "@/pages/PaymentSuccessPage";
-import PaymentFailurePage    from "@/pages/PaymentFailurePage";
-import SampleReportPage      from "@/pages/SampleReportPage";
 
 // All other pages lazy-loaded (split into separate chunks)
+const publicPages = () => import("@/pages/publicPages");
+const PrivacyPolicyPage          = React.lazy(() => publicPages().then((m) => ({ default: m.PrivacyPolicyPage })));
+const TermsOfServicePage         = React.lazy(() => publicPages().then((m) => ({ default: m.TermsOfServicePage })));
+const SupportPage                = React.lazy(() => publicPages().then((m) => ({ default: m.SupportPage })));
+const FAQPage                    = React.lazy(() => publicPages().then((m) => ({ default: m.FAQPage })));
+const GiftPage                   = React.lazy(() => publicPages().then((m) => ({ default: m.GiftPage })));
+const ContractorVerifyPage       = React.lazy(() => publicPages().then((m) => ({ default: m.ContractorVerifyPage })));
+const ForProsPage                = React.lazy(() => publicPages().then((m) => ({ default: m.ForProsPage })));
+const PaymentSuccessPage         = React.lazy(() => publicPages().then((m) => ({ default: m.PaymentSuccessPage })));
+const PaymentFailurePage         = React.lazy(() => publicPages().then((m) => ({ default: m.PaymentFailurePage })));
+const SampleReportPage           = React.lazy(() => publicPages().then((m) => ({ default: m.SampleReportPage })));
 const RegisterPage               = React.lazy(() => import("@/pages/RegisterPage"));
 const DashboardPage              = React.lazy(() => import("@/pages/DashboardPage"));
 const PropertyDetailPage         = React.lazy(() => import("@/pages/PropertyDetailPage"));

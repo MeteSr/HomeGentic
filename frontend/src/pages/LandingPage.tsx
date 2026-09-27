@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { neighborReferralService } from "@/services/neighborReferral";
-import { Helmet } from "react-helmet-async";
+import { PageHead } from "@/components/PageHead";
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const BLUE   = "#2B34FF";
@@ -501,7 +501,7 @@ export default function LandingPage() {
 
   return (
     <>
-      <Helmet>
+      <PageHead>
         <title>HomeGentic™ — Your house keeps receipts.</title>
         <meta name="description" content="HomeGentic keeps every repair in one verified record, signed by the contractor who did the work and stored where nobody can edit it." />
         <meta property="og:title" content="HomeGentic™ — Your house keeps receipts." />
@@ -517,7 +517,7 @@ export default function LandingPage() {
           "url": "https://homegentic.app",
           "description": "Verified home maintenance records on the Internet Computer. One number buyers, agents, and insurers can trust.",
         })}</script>
-      </Helmet>
+      </PageHead>
 
       <style>{KEYFRAMES + RESPONSIVE_CSS}</style>
 
