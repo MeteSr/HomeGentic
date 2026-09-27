@@ -6,6 +6,7 @@
  *     verified jobs AND >= 2 verified key systems
  *   - disclosure params (?ha=1 etc.) mask amounts/contractor names in job cards
  *   - the print-ready report renders address, stats, and job timeline
+ *   - the owner-shared monthly costs section, hidden with ?ha=1
  */
 
 import { render, screen } from "@testing-library/react";
@@ -14,13 +15,14 @@ import { MemoryRouter, Routes, Route } from "react-router-dom";
 import ReportPage from "@/pages/ReportPage";
 import type { ReportSnapshot, ShareLink, JobInput } from "@/services/report";
 
-const { mockGetReport, mockExpiryLabel } = vi.hoisted(() => ({
+const { mockGetReport, mockGetBillsSummary, mockExpiryLabel } = vi.hoisted(() => ({
   mockGetReport: vi.fn(),
+  mockGetBillsSummary: vi.fn(async (): Promise<any> => null),
   mockExpiryLabel: vi.fn(() => "Expires in 30 days"),
 }));
 vi.mock("@/services/report", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/report")>();
-  return { ...actual, reportService: { getReport: mockGetReport, expiryLabel: mockExpiryLabel } };
+  return { ...actual, reportService: { getReport: mockGetReport, getBillsSummary: mockGetBillsSummary, expiryLabel: mockExpiryLabel } };
 });
 vi.mock("@/components/DocumentedValueSection", () => ({ DocumentedValueSection: () => <div data-testid="value-section" /> }));
 
@@ -147,5 +149,49 @@ describe("ReportPage — disclosure masking", () => {
     renderAt("/report/tok-1");
 
     expect(await screen.findByText("$500")).toBeInTheDocument();
+  });
+});
+
+describe("ReportPage — monthly costs", () => {
+  const summary = {
+    asOf: "2026-09-01",
+    lines: [
+      { category: "Electric" as const,    avgMonthlyCents: 14_250, statementMonths: 12 },
+      { category: "PropertyTax" as const, avgMonthlyCents: 41_667, statementMonths: null },
+    ],
+  };
+
+  it("renders each line, its basis and the typical total", async () => {
+    mockGetReport.mockResolvedValue({ link: makeLink(), snapshot: makeSnapshot() });
+    mockGetBillsSummary.mockResolvedValueOnce(summary);
+    renderAt("/report/tok-1");
+
+    expect(await screen.findByText("Monthly Costs")).toBeInTheDocument();
+    expect(mockGetBillsSummary).toHaveBeenCalledWith("tok-1");
+    expect(screen.getByText("Electricity")).toBeInTheDocument();
+    expect(screen.getByText("Average of 12 months of bills")).toBeInTheDocument();
+    expect(screen.getByText("Property tax")).toBeInTheDocument();
+    expect(screen.getByText("Scheduled payment")).toBeInTheDocument();
+    expect(screen.getByText("$560")).toBeInTheDocument();   // $143 + $417, as displayed
+    expect(screen.getByText(/Excludes mortgage/)).toBeInTheDocument();
+  });
+
+  it("omits the section when the link carries no summary", async () => {
+    mockGetReport.mockResolvedValue({ link: makeLink(), snapshot: makeSnapshot() });
+    renderAt("/report/tok-1");
+
+    await screen.findByText("123 Main St");
+    expect(screen.queryByText("Monthly Costs")).not.toBeInTheDocument();
+  });
+
+  it("doesn't fetch or show costs when amounts are hidden (?ha=1)", async () => {
+    mockGetReport.mockResolvedValue({ link: makeLink(), snapshot: makeSnapshot() });
+    mockGetBillsSummary.mockResolvedValue(summary);
+    renderAt("/report/tok-1?ha=1");
+
+    await screen.findByText("123 Main St");
+    expect(mockGetBillsSummary).not.toHaveBeenCalled();
+    expect(screen.queryByText("Monthly Costs")).not.toBeInTheDocument();
+    mockGetBillsSummary.mockImplementation(async () => null);
   });
 });

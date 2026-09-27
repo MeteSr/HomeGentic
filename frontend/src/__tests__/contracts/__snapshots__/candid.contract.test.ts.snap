@@ -2289,6 +2289,7 @@ exports[`report IDL factory > full signature snapshot 1`] = `
       "opt bool",
       "opt bool",
       "opt bool",
+      "opt record {asOf:text; lines:vec record {avgMonthlyCents:nat; category:variant {Gas; HOA; Internet; Water; OtherUtility; Telecom; PropertyTax; Electric; HomeInsurance}; basis:variant {Scheduled; Statements:nat}}}",
     ],
     "mode": [],
     "rets": [
@@ -2304,6 +2305,17 @@ exports[`report IDL factory > full signature snapshot 1`] = `
     "mode": [],
     "rets": [
       "variant {ok:record {sensorCoverage:vec record {source:text; name:text; isActive:bool; deviceId:text; lastEventAt:opt int; eventCount:nat}; token:text; expiresAt:opt int; generatedAt:int; maintenanceScore:nat; propertyId:text; recentAlerts:vec record {alertId:text; resolvedByJobId:opt text; timestamp:int; severity:text; eventType:text}; verificationLevel:text; schemaVersion:text; verifiedJobCount:nat; permitCount:nat; openJobs:nat}; err:variant {InvalidInput:text; NotFound; NotAuthorized; Expired}}",
+    ],
+  },
+  "getBillsSummary": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "opt record {asOf:text; lines:vec record {avgMonthlyCents:nat; category:variant {Gas; HOA; Internet; Water; OtherUtility; Telecom; PropertyTax; Electric; HomeInsurance}; basis:variant {Scheduled; Statements:nat}}}",
     ],
   },
   "getReport": {

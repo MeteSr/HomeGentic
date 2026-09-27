@@ -358,3 +358,84 @@ echo "$TRUSTED_LIST" | grep -q "$CALLER_TEST_PRINCIPAL" \
 echo ""
 echo "  NOTE: report's own principal must be in property's trustedCanisters list"
 echo "  for getVerificationLevel cross-calls to succeed. Wired by deploy.sh."
+
+# ─── Bills summary (buyer/agent cost view) ───────────────────────────────────
+# dfx pretty-prints records across lines, so match on a whitespace-flattened copy.
+flatten() { local s=${1//$'\n'/ }; while [[ "$s" == *"  "* ]]; do s=${s//  / }; done; echo "$s"; }
+expect() {
+  if [[ "$(flatten "$2")" == *"$3"* ]]; then echo "  ↳ $1 — ✓"
+  else echo "  ↳ ❌ $1: expected '$3'; got: $2"; exit 1; fi
+}
+token_of() { if [[ "$1" =~ token\ =\ \"([^\"]+)\" ]]; then echo "${BASH_REMATCH[1]}"; fi; }
+
+gen_with_bills() {   # $1 property id, $2 hideAmounts (true|false), $3 bills summary candid (or null)
+  dfx canister call report generateReport "(
+    \"$1\",
+    record { address = \"9 Cost St\"; city = \"Tampa\"; state = \"FL\"; zipCode = \"33601\";
+             propertyType = \"SingleFamily\"; yearBuilt = 2001; squareFeet = 1800; verificationLevel = \"Basic\" },
+    vec {}, vec {}, null, variant { Public }, null,
+    opt $2, opt false, opt false, opt false,
+    $3
+  )"
+}
+
+SUMMARY='opt record { asOf = "2026-09-15"; lines = vec {
+  record { category = variant { Electric };    avgMonthlyCents = 18400; basis = variant { Statements = 12 } };
+  record { category = variant { PropertyTax }; avgMonthlyCents = 51000; basis = variant { Scheduled } };
+} }'
+
+echo ""
+echo "── [B1] generateReport with a bills summary; getBillsSummary returns it ─"
+OUT=$(gen_with_bills "PROP_REPORT_BILLS_1" false "$SUMMARY")
+expect "report generated" "$OUT" "variant { ok"
+BT=$(token_of "$OUT")
+S=$(dfx canister call report getBillsSummary "(\"$BT\")")
+echo "$S"
+expect "summary returned" "$S" "opt record"
+expect "electric line kept" "$S" "avgMonthlyCents = 18_400"
+expect "statement basis kept" "$S" "Statements = 12"
+expect "scheduled basis kept" "$S" "variant { Scheduled }"
+
+echo ""
+echo "── [B2] report without a summary → getBillsSummary is null ─────────────"
+OUT=$(gen_with_bills "PROP_REPORT_BILLS_2" false "null")
+S=$(dfx canister call report getBillsSummary "(\"$(token_of "$OUT")\")")
+expect "no summary stored" "$S" "(null)"
+
+echo ""
+echo "── [B3] link that hides amounts withholds the summary ──────────────────"
+OUT=$(gen_with_bills "PROP_REPORT_BILLS_3" true "$SUMMARY")
+S=$(dfx canister call report getBillsSummary "(\"$(token_of "$OUT")\")")
+expect "hidden when hideAmounts" "$S" "(null)"
+
+echo ""
+echo "── [B4] revoked link withholds the summary ─────────────────────────────"
+dfx canister call report revokeShareLink "(\"$BT\")" >/dev/null
+S=$(dfx canister call report getBillsSummary "(\"$BT\")")
+expect "hidden after revoke" "$S" "(null)"
+
+echo ""
+echo "── [B5] invalid summaries are rejected before anything is stored ───────"
+OUT=$(gen_with_bills "PROP_REPORT_BILLS_4" false 'opt record { asOf = "2026-09-15"; lines = vec {
+  record { category = variant { Water }; avgMonthlyCents = 1; basis = variant { Statements = 1 } };
+  record { category = variant { Water }; avgMonthlyCents = 2; basis = variant { Statements = 1 } } } }')
+expect "duplicate category → InvalidInput" "$OUT" "InvalidInput"
+OUT=$(gen_with_bills "PROP_REPORT_BILLS_5" false 'opt record { asOf = "2026-09-15"; lines = vec {
+  record { category = variant { Gas }; avgMonthlyCents = 1; basis = variant { Statements = 13 } } } }')
+expect "13 months → InvalidInput" "$OUT" "InvalidInput"
+OUT=$(gen_with_bills "PROP_REPORT_BILLS_6" false 'opt record { asOf = "Sept"; lines = vec {} }')
+expect "bad asOf → InvalidInput" "$OUT" "InvalidInput"
+OUT=$(gen_with_bills "PROP_REPORT_BILLS_7" false 'opt record { asOf = "2026-09-15"; lines = vec {
+  record { category = variant { Mortgage }; avgMonthlyCents = 1; basis = variant { Scheduled } } } }' 2>&1 || true)
+if [[ "$(flatten "$OUT")" == *"variant { ok"* ]]; then echo "  ↳ ❌ a Mortgage category was accepted: $OUT"; exit 1; fi
+echo "  ↳ Mortgage is not a valid category (rejected at the Candid layer) — ✓"
+
+echo ""
+echo "── [B6] old 11-argument callers still work ─────────────────────────────"
+OUT=$(dfx canister call report generateReport '(
+  "PROP_REPORT_BILLS_8",
+  record { address = "10 Legacy Rd"; city = "Tampa"; state = "FL"; zipCode = "33601";
+           propertyType = "SingleFamily"; yearBuilt = 1999; squareFeet = 1500; verificationLevel = "Basic" },
+  vec {}, vec {}, null, variant { Public }, null, null, null, null, null
+)')
+expect "11-arg call accepted" "$OUT" "variant { ok"

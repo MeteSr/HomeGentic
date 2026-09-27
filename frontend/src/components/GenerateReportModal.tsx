@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { X, Link2, Copy, CheckCircle, Trash2, Eye, Clock, EyeOff } from "lucide-react";
+import { X, Link2, Copy, CheckCircle, Trash2, Eye, Clock, EyeOff, Receipt } from "lucide-react";
 import { Button } from "@/components/Button";
 import { Checkbox } from "@/components/Checkbox";
 import { ChoicePill } from "@/components/ChoicePill";
@@ -7,6 +7,8 @@ import { reportService, ShareLink, propertyToInput, jobToInput, roomToInput, Dis
 import { roomService } from "@/services/room";
 import { jobService } from "@/services/job";
 import { recurringService } from "@/services/recurringService";
+import { billService } from "@/services/billService";
+import { buildReportBillsSummary } from "@/services/reportBillsSummary";
 import { computeScore, getScoreGrade } from "@/services/scoreService";
 import { paymentService, type PlanTier } from "@/services/payment";
 import type { Property } from "@/services/property";
@@ -50,6 +52,8 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
   // Per-link disclosure overrides (keyed by token); defaults to the global disclosure
   const [linkDisclosures, setLinkDisclosures] = useState<Record<string, DisclosureOptions>>({});
   const [expandedToken, setExpandedToken] = useState<string | null>(null);
+  // Opt-in: monthly costs are stored with the snapshot, so they're chosen at generation.
+  const [includeBills, setIncludeBills] = useState(false);
   const [userTier, setUserTier] = useState<PlanTier>("Free");
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
 
@@ -95,6 +99,18 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
         })
       );
 
+      let billsSummary = null;
+      if (includeBills) {
+        const [bills, expenses] = await Promise.all([
+          billService.getBillsForProperty(propertyId),
+          billService.getRecurringExpensesForProperty(propertyId),
+        ]);
+        billsSummary = buildReportBillsSummary(bills, expenses, new Date().toISOString().slice(0, 10));
+        if (billsSummary.lines.length === 0) {
+          toast("No bills or scheduled costs to include yet — creating the report without monthly costs.");
+        }
+      }
+
       const link = await reportService.generateReport(
         propertyId,
         propertyToInput(property),
@@ -102,7 +118,8 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
         recurringSummaries,
         roomList.map(roomToInput),
         expiryDays,
-        "Public"
+        "Public",
+        billsSummary
       );
       setLinks((prev) => [link, ...prev]);
       setFreshLink(link);
@@ -218,6 +235,28 @@ export function GenerateReportModal({ property, onClose }: GenerateReportModalPr
             )}
 
             <div style={{ height: 1, background: "#F0F1F5", margin: "0.375rem 0" }} />
+
+            {/* Opt-in sections */}
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "1.125rem 0 0.75rem" }}>
+              <Receipt size={15} color={UI.inkLight} strokeWidth={2} />
+              <span style={{ fontFamily: UI.mono, fontSize: "9px", letterSpacing: "0.14em", textTransform: "uppercase", color: UI.inkLight }}>
+                Also include
+              </span>
+            </div>
+            <div style={{ borderTop: "1px solid #F0F1F5", borderBottom: "1px solid #F0F1F5" }}>
+              <div
+                onClick={() => setIncludeBills((v) => !v)}
+                style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.875rem 0.125rem", cursor: "pointer" }}
+              >
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: "block", fontFamily: V2_FONTS.body, fontWeight: 600, fontSize: "14.5px", lineHeight: 1.3, color: UI.ink }}>Monthly costs</span>
+                  <span style={{ display: "block", fontFamily: V2_FONTS.body, fontSize: "12.5px", lineHeight: 1.45, color: UI.inkLight, marginTop: "0.125rem" }}>
+                    Average utilities, property tax, HOA and insurance. Your mortgage is never shared.
+                  </span>
+                </span>
+                <Checkbox checked={includeBills} onChange={setIncludeBills} aria-label="Include monthly costs" />
+              </div>
+            </div>
 
             {/* Disclosure toggles */}
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "1.125rem 0 0.75rem" }}>

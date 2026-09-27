@@ -5,6 +5,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 let _mockCounter = 0;
 const _mockSnapshots = new Map<string, any>(); // snapshotId → raw snapshot
 const _mockLinks = new Map<string, any>();      // token → raw link
+const _mockBills = new Map<string, any>();      // token → raw bills summary
 
 function makePrincipal() { return { toText: () => "local" }; }
 
@@ -17,7 +18,7 @@ const mockReportActor = {
     expiryDays: any[],
     visibility: any,
     rooms: any[],
-    ..._rest: any[]
+    ...rest: any[]
   ) => {
     _mockCounter++;
     const snapshotId = `SNAP_${_mockCounter}`;
@@ -69,6 +70,8 @@ const mockReportActor = {
 
     _mockSnapshots.set(token, rawSnapshot);
     _mockLinks.set(token, rawLink);
+    // rest = [hideAmounts, hideContractors, hidePermits, hideDescriptions, billsSummary]
+    if (rest[4]?.length) _mockBills.set(token, rest[4][0]);
     return { ok: rawLink };
   }),
 
@@ -84,6 +87,12 @@ const mockReportActor = {
     link.viewCount = link.viewCount + 1n;
     const snapshot = _mockSnapshots.get(token);
     return { ok: [link, snapshot] };
+  }),
+
+  getBillsSummary: vi.fn(async (token: string) => {
+    const link = _mockLinks.get(token);
+    const bills = _mockBills.get(token);
+    return link?.isActive && bills ? [bills] : [];
   }),
 
   listShareLinks: vi.fn(async (propertyId: string) => {
@@ -112,6 +121,7 @@ beforeEach(() => {
   _mockCounter = 0;
   _mockSnapshots.clear();
   _mockLinks.clear();
+  _mockBills.clear();
   // Re-wire mocks (vi.clearAllMocks not called here, but ensure fresh state)
   reportService.reset();
 });
@@ -237,6 +247,49 @@ describe("reportService.getReport", () => {
     const all = await reportService.listShareLinks("prop-views");
     const stored = all.find((l) => l.token === link.token)!;
     expect(stored.viewCount).toBe(2);
+  });
+});
+
+// ─── bills summary ────────────────────────────────────────────────────────────
+
+describe("reportService bills summary", () => {
+  const summary = {
+    asOf: "2026-09-01",
+    lines: [
+      { category: "Electric" as const,    avgMonthlyCents: 14_250, statementMonths: 12 },
+      { category: "PropertyTax" as const, avgMonthlyCents: 41_667, statementMonths: null },
+    ],
+  };
+
+  it("sends the summary as the 12th arg in Candid form", async () => {
+    mockReportActor.generateReport.mockClear();
+    await reportService.generateReport("prop-bills", makeProperty(), [], [], [], null, "Public", summary);
+    const args = mockReportActor.generateReport.mock.calls[0] as any[];
+    expect(args).toHaveLength(12);
+    expect(args[11]).toEqual([{
+      asOf: "2026-09-01",
+      lines: [
+        { category: { Electric: null },    avgMonthlyCents: 14_250n, basis: { Statements: 12n } },
+        { category: { PropertyTax: null }, avgMonthlyCents: 41_667n, basis: { Scheduled: null } },
+      ],
+    }]);
+  });
+
+  it("sends an empty opt when no summary (or an empty one) is given", async () => {
+    mockReportActor.generateReport.mockClear();
+    await reportService.generateReport("prop-nb", makeProperty(), [], [], [], null, "Public");
+    await reportService.generateReport("prop-nb", makeProperty(), [], [], [], null, "Public", { asOf: "2026-09-01", lines: [] });
+    for (const call of mockReportActor.generateReport.mock.calls as any[][]) expect(call[11]).toEqual([]);
+  });
+
+  it("round-trips through getBillsSummary", async () => {
+    const link = await reportService.generateReport("prop-rt", makeProperty(), [], [], [], null, "Public", summary);
+    expect(await reportService.getBillsSummary(link.token)).toEqual(summary);
+  });
+
+  it("returns null when the link carries no summary", async () => {
+    const link = await reportService.generateReport("prop-none", makeProperty(), [], [], [], null, "Public");
+    expect(await reportService.getBillsSummary(link.token)).toBeNull();
   });
 });
 

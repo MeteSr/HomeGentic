@@ -65,6 +65,60 @@ export function disclosureFromParams(params: URLSearchParams): DisclosureOptions
   };
 }
 
+/** Categories a report may carry. Mortgage is deliberately absent — the
+ *  canister's Candid type can't represent it, so it never leaves the owner. */
+export type BillsSummaryCategory =
+  | "Electric" | "Gas" | "Water" | "Internet" | "Telecom" | "OtherUtility"
+  | "PropertyTax" | "HOA" | "HomeInsurance";
+
+export interface BillsSummaryLine {
+  category:        BillsSummaryCategory;
+  avgMonthlyCents: number;
+  /** Months of statements averaged, or null when derived from a recurring schedule. */
+  statementMonths: number | null;
+}
+
+export interface BillsSummary {
+  lines: BillsSummaryLine[];
+  asOf:  string;   // YYYY-MM-DD
+}
+
+export const BILLS_SUMMARY_LABELS: Record<BillsSummaryCategory, string> = {
+  Electric:      "Electricity",
+  Gas:           "Gas",
+  Water:         "Water",
+  Internet:      "Internet",
+  Telecom:       "Phone",
+  OtherUtility:  "Other utilities",
+  PropertyTax:   "Property tax",
+  HOA:           "HOA",
+  HomeInsurance: "Home insurance",
+};
+
+function billsSummaryToCanister(s: BillsSummary) {
+  return {
+    asOf:  s.asOf,
+    lines: s.lines.map((l) => ({
+      category:        { [l.category]: null },
+      avgMonthlyCents: BigInt(Math.round(l.avgMonthlyCents)),
+      basis:           l.statementMonths === null
+        ? { Scheduled: null }
+        : { Statements: BigInt(l.statementMonths) },
+    })),
+  };
+}
+
+function fromBillsSummary(raw: any): BillsSummary {
+  return {
+    asOf:  raw.asOf,
+    lines: (raw.lines as any[]).map((l) => ({
+      category:        Object.keys(l.category)[0] as BillsSummaryCategory,
+      avgMonthlyCents: Number(l.avgMonthlyCents),
+      statementMonths: "Statements" in l.basis ? Number(l.basis.Statements) : null,
+    })),
+  };
+}
+
 export interface RoomInput {
   name:         string;
   floorType:    string;
@@ -319,7 +373,8 @@ function createReportService() {
     recurringServices: RecurringServiceSummary[],
     rooms:             RoomInput[],
     expiryDays:        number | null,
-    visibility:        VisibilityLevel
+    visibility:        VisibilityLevel,
+    billsSummary:      BillsSummary | null = null
   ): Promise<ShareLink> {
 
     const a = await getActor();
@@ -356,7 +411,8 @@ function createReportService() {
         paintCode:    r.paintCode,
         fixtureCount: BigInt(r.fixtureCount),
       }))] : [],
-      [false], [false], [false], [false]   // hideAmounts, hideContractors, hidePermits, hideDescriptions
+      [false], [false], [false], [false],  // hideAmounts, hideContractors, hidePermits, hideDescriptions
+      billsSummary && billsSummary.lines.length > 0 ? [billsSummaryToCanister(billsSummary)] : []
     );
     if ("ok" in result) return fromShareLink(result.ok);
     const key = Object.keys(result.err)[0];
@@ -382,6 +438,17 @@ function createReportService() {
     // ok value is a tuple: [ShareLink, ReportSnapshot]
     const [rawLink, rawSnapshot] = result.ok as [any, any];
     return { link: fromShareLink(rawLink), snapshot: fromSnapshot(rawSnapshot) };
+  },
+
+  /** Monthly-costs summary attached to a report link; null when none was
+   *  shared or the link is no longer viewable. */
+  async getBillsSummary(token: string): Promise<BillsSummary | null> {
+    if (typeof window !== "undefined" && "__e2e_report_bills" in window) {
+      return (window as any).__e2e_report_bills as BillsSummary | null;
+    }
+    const a = await getActor();
+    const result = await a.getBillsSummary(token) as any[];
+    return result.length > 0 ? fromBillsSummary(result[0]) : null;
   },
 
   async listShareLinks(propertyId: string): Promise<ShareLink[]> {

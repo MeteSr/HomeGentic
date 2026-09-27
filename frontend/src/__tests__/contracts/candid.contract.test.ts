@@ -581,6 +581,7 @@ describe("report IDL factory", () => {
     expect(Object.keys(svc).sort()).toEqual([
       "generateReport",
       "generateRiskProfile",
+      "getBillsSummary",
       "getReport",
       "getRiskProfile",
       "hasActivePublicShareLink",
@@ -590,7 +591,7 @@ describe("report IDL factory", () => {
   });
 
   it("generateReport args include opt fields for schema-compatible extension", () => {
-    // Args 7–11 are new trailing Opt args added for backwards compatibility.
+    // Args 7–12 are new trailing Opt args added for backwards compatibility.
     // They must remain opt or existing callers break.
     const svc = extractService(reportIdlFactory);
     expect(svc.generateReport.args.length).toBeGreaterThanOrEqual(7);
