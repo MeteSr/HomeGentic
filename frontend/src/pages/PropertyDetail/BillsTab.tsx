@@ -3,7 +3,7 @@ import { Upload, Zap, Trash2, TrendingUp, ExternalLink, PhoneCall } from "lucide
 import { Button } from "@/components/Button";
 import {
   billService, extractBill, TierLimitReachedError,
-  type BillRecord, type BillExtraction, type BillType,
+  type BillRecord, type BillExtraction, type BillType, type RecurringExpense,
 } from "@/services/billService";
 import {
   getUsageTrend, analyzeEfficiencyTrend, findRebates, negotiateTelecom,
@@ -12,6 +12,7 @@ import {
 import { Panel, hudInputStyle, hudButtonStyle, spinnerVars } from "@/components/hud";
 import toast from "react-hot-toast";
 import { HousingCostsSection } from "./HousingCostsSection";
+import { BillsForecastPanel } from "./BillsForecastPanel";
 
 const DISPLAY = "'Bricolage Grotesque',sans-serif";
 const BODY = "'Hanken Grotesk',sans-serif";
@@ -40,6 +41,7 @@ function fileToBase64(file: File): Promise<string> {
 export function BillsTab({ propertyId }: { propertyId: string }) {
   const [bills,         setBills]         = useState<BillRecord[]>([]);
   const [loading,       setLoading]       = useState(true);
+  const [expenses,      setExpenses]      = useState<RecurringExpense[] | null>(null);
   const [uploading,     setUploading]     = useState(false);
   const [extraction,    setExtraction]    = useState<BillExtraction | null>(null);
   const [confirmArgs,   setConfirmArgs]   = useState<Partial<BillRecord> | null>(null);
@@ -175,7 +177,9 @@ export function BillsTab({ propertyId }: { propertyId: string }) {
 
   return (
     <div style={{ padding: "2rem 0" }}>
-      <HousingCostsSection propertyId={propertyId} />
+      {!loading && expenses && <BillsForecastPanel bills={bills} expenses={expenses} />}
+
+      <HousingCostsSection propertyId={propertyId} onExpensesChange={setExpenses} />
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
         <div>

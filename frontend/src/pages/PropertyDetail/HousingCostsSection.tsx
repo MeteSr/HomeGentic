@@ -53,7 +53,11 @@ const labelText: React.CSSProperties = {
 const field: React.CSSProperties = { display: "flex", flexDirection: "column", gap: "0.25rem" };
 const cell:  React.CSSProperties = { fontFamily: BODY, fontSize: "0.875rem", color: "var(--hg-ink)", padding: "0.75rem" };
 
-export function HousingCostsSection({ propertyId }: { propertyId: string }) {
+export function HousingCostsSection({ propertyId, onExpensesChange }: {
+  propertyId: string;
+  /** Called with the current list once loaded and after every add, edit or removal. */
+  onExpensesChange?: (expenses: RecurringExpense[]) => void;
+}) {
   const [expenses, setExpenses] = useState<RecurringExpense[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [form,     setForm]     = useState<RecurringExpenseFields | null>(null);
@@ -66,6 +70,10 @@ export function HousingCostsSection({ propertyId }: { propertyId: string }) {
       .catch((e) => console.error("[HousingCosts] load failed:", e))
       .finally(() => setLoading(false));
   }, [propertyId]);
+
+  useEffect(() => {
+    if (!loading) onExpensesChange?.(expenses);
+  }, [expenses, loading, onExpensesChange]);
 
   const today = todayIso();
   const monthlyTotal = expenses

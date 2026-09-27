@@ -8,6 +8,8 @@
 
 import { billService } from "./billService";
 import type { BillType } from "./billService";
+import type { BillsForecast } from "./billsForecast";
+import { voiceAgentHeaders } from "./voiceAgentHeaders";
 
 const VOICE_AGENT_URL = (import.meta as any).env?.VITE_VOICE_AGENT_URL || "http://localhost:3001";
 
@@ -173,4 +175,34 @@ export async function negotiateTelecom(params: TelecomNegotiateParams): Promise<
   }
 
   return response.json() as Promise<TelecomNegotiationResult>;
+}
+
+// ─── Forecast narrative ──────────────────────────────────────────────────────
+
+export interface BillsNarrative {
+  summary: string;
+  tips:    string[];
+  source:  "ai" | "rules";
+}
+
+/**
+ * Ask the voice agent to explain a deterministic forecast in plain language.
+ * Only series keys, numbers and dates are sent — never provider names or other
+ * user-entered text — so the model can explain the figures but not invent them.
+ */
+export async function getBillsNarrative(forecast: BillsForecast): Promise<BillsNarrative> {
+  const payload = {
+    asOf:             forecast.asOf,
+    next12TotalCents: forecast.next12TotalCents,
+    avgMonthlyCents:  forecast.avgMonthlyCents,
+    series: forecast.series.map(({ key, method, confidence, next12Cents }) => ({ key, method, confidence, next12Cents })),
+    insights: forecast.insights,
+  };
+  const response = await fetch(`${VOICE_AGENT_URL}/api/bills-insights`, {
+    method:  "POST",
+    headers: voiceAgentHeaders(),
+    body:    JSON.stringify(payload),
+  });
+  if (!response.ok) throw new Error(`Bills insights request failed: ${response.status}`);
+  return response.json() as Promise<BillsNarrative>;
 }
