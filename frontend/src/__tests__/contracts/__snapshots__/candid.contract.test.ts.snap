@@ -2070,6 +2070,16 @@ exports[`quote IDL factory > full signature snapshot 1`] = `
       "variant {ok:record {id:text; status:variant {Rejected; Accepted; Expired; Pending}; requestId:text; createdAt:int; amount:nat; contractor:principal; validUntil:int; timeline:nat}; err:variant {InvalidInput:text; NotFound; NotAuthorized}}",
     ],
   },
+  "attachUsageSummary": {
+    "args": [
+      "text",
+      "record {asOf:text; series:vec record {unit:opt text; category:variant {Gas; Water; Electric}; months:vec record {month:text; amountCents:nat; usage:opt float64}}}",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; NotFound; NotAuthorized}}",
+    ],
+  },
   "cancelQuoteRequest": {
     "args": [
       "text",
@@ -2218,6 +2228,24 @@ exports[`quote IDL factory > full signature snapshot 1`] = `
     ],
     "rets": [
       "vec record {id:text; requestId:text; timelineDays:nat; submittedAt:int; amountCents:nat; isWinner:bool; contractor:principal}",
+    ],
+  },
+  "getUsageSummary": {
+    "args": [
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:opt record {asOf:text; series:vec record {unit:opt text; category:variant {Gas; Water; Electric}; months:vec record {month:text; amountCents:nat; usage:opt float64}}}; err:variant {InvalidInput:text; NotFound; NotAuthorized}}",
+    ],
+  },
+  "removeUsageSummary": {
+    "args": [
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; NotFound; NotAuthorized}}",
     ],
   },
   "revealBids": {

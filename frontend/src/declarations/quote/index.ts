@@ -66,7 +66,24 @@ export const idlFactory = ({ IDL }: any) => {
     NotAuthorized: IDL.Null,
     InvalidInput: IDL.Text,
   });
+  const UsageCategory = IDL.Variant({ Electric: IDL.Null, Gas: IDL.Null, Water: IDL.Null });
+  const UsageMonth = IDL.Record({
+    month:       IDL.Text,
+    amountCents: IDL.Nat,
+    usage:       IDL.Opt(IDL.Float64),
+  });
+  const UsageSeries = IDL.Record({
+    category: UsageCategory,
+    unit:     IDL.Opt(IDL.Text),
+    months:   IDL.Vec(UsageMonth),
+  });
+  const UsageSummary = IDL.Record({ series: IDL.Vec(UsageSeries), asOf: IDL.Text });
+  const UnitResult = IDL.Variant({ ok: IDL.Null, err: Error });
+
   return IDL.Service({
+    attachUsageSummary: IDL.Func([IDL.Text, UsageSummary], [UnitResult], []),
+    removeUsageSummary: IDL.Func([IDL.Text], [UnitResult], []),
+    getUsageSummary:    IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Opt(UsageSummary), err: Error })], []),
     createQuoteRequest: IDL.Func(
       [IDL.Text, ServiceType, IDL.Text, UrgencyLevel, IDL.Opt(IDL.Text),
        IDL.Opt(IDL.Nat), IDL.Opt(IDL.Nat), IDL.Opt(IDL.Nat), IDL.Opt(IDL.Nat)],

@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { X, Send, Zap } from "lucide-react";
 import { Button } from "./Button";
 import { quoteService, Urgency } from "@/services/quote";
+import { shareBillsWithRequest } from "@/services/quoteUsage";
+import { ShareUsageToggle } from "./ShareUsageToggle";
 import { type Property } from "@/services/property";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
@@ -37,6 +39,7 @@ interface RequestQuoteModalProps {
 export function RequestQuoteModal({ isOpen, onClose, onSuccess, properties, prefill }: RequestQuoteModalProps) {
   const [form, setForm]       = useState(EMPTY_FORM);
   const [loading, setLoading] = useState(false);
+  const [shareUsage, setShareUsage] = useState(false);
 
   // Reset form + apply prefill whenever the modal opens
   useEffect(() => {
@@ -47,6 +50,7 @@ export function RequestQuoteModal({ isOpen, onClose, onSuccess, properties, pref
       serviceType: prefill?.serviceType ?? SERVICE_TYPES[0],
       description: prefill?.description ?? "",
     });
+    setShareUsage(false);
   }, [isOpen, prefill, properties]);
 
   // Scroll lock + Escape
@@ -78,6 +82,15 @@ export function RequestQuoteModal({ isOpen, onClose, onSuccess, properties, pref
         description: form.description,
       });
       toast.success("Quote request sent to contractors!");
+      if (shareUsage) {
+        // The request exists either way; usage is a best-effort extra.
+        try {
+          const shared = await shareBillsWithRequest(req.id, form.propertyId, form.serviceType);
+          if (!shared) toast("No matching bills to share yet — the request went out without usage.");
+        } catch (e: any) {
+          toast.error(`Request sent, but usage couldn't be shared: ${e.message || e}`);
+        }
+      }
       onSuccess(req.id);
     } catch (err: any) {
       toast.error(err.message || "Failed to send request");
@@ -202,6 +215,8 @@ export function RequestQuoteModal({ isOpen, onClose, onSuccess, properties, pref
                   style={{ resize: "vertical" }}
                 />
               </div>
+
+              <ShareUsageToggle serviceType={form.serviceType} checked={shareUsage} onChange={setShareUsage} />
 
               {/* Submit */}
               <Button loading={loading} onClick={handleSubmit} icon={<Send size={14} />} style={{ width: "100%" }}>

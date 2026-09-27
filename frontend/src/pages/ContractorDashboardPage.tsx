@@ -6,6 +6,8 @@ import { Button } from "@/components/Button";
 import { Badge } from "@/components/Badge";
 import { contractorService, ContractorProfile } from "@/services/contractor";
 import { quoteService, QuoteRequest, Quote } from "@/services/quote";
+import { UsageHistory } from "@/components/UsageHistory";
+import type { UsageSummary } from "@/services/quoteUsage";
 import { jobService, Job } from "@/services/job";
 import { useAuthStore } from "@/store/authStore";
 import { isNewSince, countNew } from "@/services/notifications";
@@ -66,6 +68,16 @@ function SubmitQuoteModal({ request, onSubmit, onClose }: SubmitModalProps) {
   const [timeline, setTimeline] = useState("");
   const [validDays, setValidDays] = useState("30");
   const [loading,  setLoading]  = useState(false);
+  const [usage,    setUsage]    = useState<UsageSummary | null>(null);
+
+  // Usage the homeowner chose to share for sizing the job (absent for most requests).
+  useEffect(() => {
+    let cancelled = false;
+    Promise.resolve().then(() => quoteService.getUsage(request.id))
+      .then((u) => { if (!cancelled) setUsage(u); })
+      .catch(() => { if (!cancelled) setUsage(null); });
+    return () => { cancelled = true; };
+  }, [request.id]);
 
   const canSubmit = amount && parseFloat(amount) > 0 && timeline && parseInt(timeline) > 0;
 
@@ -90,7 +102,7 @@ function SubmitQuoteModal({ request, onSubmit, onClose }: SubmitModalProps) {
       onClick={onClose}
     >
       <div
-        style={{ background: V2_COLORS.paper, padding: "1.5rem", maxWidth: "28rem", width: "100%", border: `1px solid ${UI.rule}`, borderRadius: V2_RADIUS.card, boxShadow: V2_SHADOWS.modal }}
+        style={{ background: V2_COLORS.paper, padding: "1.5rem", maxWidth: "28rem", width: "100%", maxHeight: "90vh", overflowY: "auto", border: `1px solid ${UI.rule}`, borderRadius: V2_RADIUS.card, boxShadow: V2_SHADOWS.modal }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -108,6 +120,12 @@ function SubmitQuoteModal({ request, onSubmit, onClose }: SubmitModalProps) {
             <X size={16} />
           </button>
         </div>
+
+        {usage && (
+          <div style={{ marginBottom: "1.25rem" }}>
+            <UsageHistory summary={usage} title="Homeowner's utility usage" />
+          </div>
+        )}
 
         <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
