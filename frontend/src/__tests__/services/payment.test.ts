@@ -19,13 +19,16 @@ vi.mock("@/services/icpLedger", () => ({
 }));
 
 const mockSubscribeActor = vi.fn().mockResolvedValue({
-  ok: { tier: { Basic: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0), cancelledAt: [] },
+  ok: { tier: { Pro: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0), cancelledAt: [] },
 });
 const mockGetMySubscription = vi.fn().mockResolvedValue({
-  ok: { tier: { Basic: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0), cancelledAt: [] },
+  ok: { tier: { Free: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0), cancelledAt: [] },
 });
 const mockCancelSubscription = vi.fn().mockResolvedValue({
   ok: { tier: { Pro: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0), cancelledAt: [BigInt(1_000_000_000)] },
+});
+const mockGrantSubscription = vi.fn().mockResolvedValue({
+  ok: { tier: { Pro: null }, expiresAt: BigInt(0), owner: "x", createdAt: BigInt(0), cancelledAt: [] },
 });
 const mockGetPriceQuote = vi.fn().mockResolvedValue({ ok: BigInt(1_000_000) });
 const mockCreateStripeCheckoutSession = vi.fn().mockResolvedValue({
@@ -50,6 +53,7 @@ vi.mock("@icp-sdk/core/agent", () => ({
       createStripeCheckoutSession: mockCreateStripeCheckoutSession,
       verifyStripeSession:         mockVerifyStripeSession,
       redeemGift:                  mockRedeemGift,
+      grantSubscription:           mockGrantSubscription,
     })),
   },
   HttpAgent: { create: vi.fn().mockResolvedValue({}) },
@@ -158,11 +162,6 @@ describe("paymentService.getPlan", () => {
     expect(plan.tier).toBe("Free");
   });
 
-  it("falls back to Free for grandfathered Basic/Premium tiers (retired, no longer in PLANS)", () => {
-    expect(paymentService.getPlan("Basic" as PlanTier).tier).toBe("Free");
-    expect(paymentService.getPlan("Premium" as PlanTier).tier).toBe("Free");
-  });
-
   it("returns the same object as in PLANS", () => {
     tiers.forEach((tier) => {
       const plan = paymentService.getPlan(tier);
@@ -182,9 +181,6 @@ describe("paymentService.subscribeAnnual (mock)", () => {
     await expect(paymentService.subscribeAnnual("Pro")).resolves.toBeUndefined();
   });
 
-  it("resolves without error in mock mode (Premium annual)", async () => {
-    await expect(paymentService.subscribeAnnual("Premium")).resolves.toBeUndefined();
-  });
 });
 
 // ─── subscribe (mock path — no PAYMENT_CANISTER_ID) ──────────────────────────
@@ -192,10 +188,6 @@ describe("paymentService.subscribeAnnual (mock)", () => {
 describe("paymentService.subscribe (mock)", () => {
   it("resolves without error when no canister is deployed (Free)", async () => {
     await expect(paymentService.subscribe("Free")).resolves.toBeUndefined();
-  });
-
-  it("resolves without error when no canister is deployed (Basic)", async () => {
-    await expect(paymentService.subscribe("Basic")).resolves.toBeUndefined();
   });
 
   it("resolves without error when no canister is deployed (Pro)", async () => {
@@ -214,9 +206,9 @@ describe("paymentService.subscribe (mock)", () => {
 // ─── getMySubscription (mock path) ───────────────────────────────────────────
 
 describe("paymentService.getMySubscription (mock)", () => {
-  it("returns Basic tier when no canister is deployed", async () => {
+  it("returns Free tier when no canister is deployed", async () => {
     const sub = await paymentService.getMySubscription();
-    expect(sub.tier).toBe("Basic");
+    expect(sub.tier).toBe("Free");
   });
 
   it("returns null expiresAt in mock mode", async () => {
@@ -228,10 +220,10 @@ describe("paymentService.getMySubscription (mock)", () => {
 // ─── hasPaidFor (mock path) ───────────────────────────────────────────────────
 
 describe("paymentService.hasPaidFor (mock)", () => {
-  it("returns true for paid tiers (Basic and above)", async () => {
-    expect(await paymentService.hasPaidFor("reports")).toBe(true);
-    expect(await paymentService.hasPaidFor("analytics")).toBe(true);
-    expect(await paymentService.hasPaidFor("")).toBe(true);
+  it("returns false for Free (no subscription record)", async () => {
+    expect(await paymentService.hasPaidFor("reports")).toBe(false);
+    expect(await paymentService.hasPaidFor("analytics")).toBe(false);
+    expect(await paymentService.hasPaidFor("")).toBe(false);
   });
 });
 
@@ -239,7 +231,7 @@ describe("paymentService.hasPaidFor (mock)", () => {
 
 describe("paymentService.initiate (mock)", () => {
   it("returns dashboard URL for any tier", async () => {
-    const tiers: PlanTier[] = ["Basic", "Pro", "Premium", "ContractorFree", "ContractorPro"];
+    const tiers: PlanTier[] = ["Pro", "ContractorFree", "ContractorPro"];
     for (const tier of tiers) {
       const result = await paymentService.initiate(tier);
       expect(result.url).toBe("/dashboard");
@@ -247,7 +239,7 @@ describe("paymentService.initiate (mock)", () => {
   });
 });
 
-// ─── getMySubscription — canister path (all 6 tier variants) ─────────────────
+// ─── getMySubscription — canister path (all 4 tier variants) ─────────────────
 
 describe("paymentService.getMySubscription — tier parsing", () => {
   beforeEach(() => {
@@ -255,7 +247,7 @@ describe("paymentService.getMySubscription — tier parsing", () => {
     paymentService.reset();
   });
 
-  const tiers: PlanTier[] = ["Free", "Basic", "Pro", "Premium", "ContractorFree", "ContractorPro"];
+  const tiers: PlanTier[] = ["Free", "Pro", "ContractorFree", "ContractorPro"];
 
   it.each(tiers)("parses '%s' tier variant from canister response", async (tier) => {
     mockGetMySubscription.mockResolvedValueOnce({
@@ -276,7 +268,7 @@ describe("paymentService.getMySubscription — tier parsing", () => {
   it("converts non-zero expiresAt from nanoseconds to milliseconds", async () => {
     const expiresNs = BigInt(1_735_689_600_000) * BigInt(1_000_000);
     mockGetMySubscription.mockResolvedValueOnce({
-      ok: { tier: { Premium: null }, expiresAt: expiresNs, owner: "x", createdAt: BigInt(0), cancelledAt: [] },
+      ok: { tier: { Pro: null }, expiresAt: expiresNs, owner: "x", createdAt: BigInt(0), cancelledAt: [] },
     });
     const sub = await paymentService.getMySubscription();
     expect(sub.expiresAt).toBeCloseTo(1_735_689_600_000, -3);
@@ -299,10 +291,10 @@ describe("paymentService.getMySubscription — tier parsing", () => {
     expect(sub.cancelledAt).toBeCloseTo(1_735_689_600_000, -3);
   });
 
-  it("returns Basic tier when canister returns NotFound (mid-checkout fallback)", async () => {
+  it("returns Free tier when canister returns NotFound (no subscription record)", async () => {
     mockGetMySubscription.mockResolvedValueOnce({ err: { NotFound: null } });
     const sub = await paymentService.getMySubscription();
-    expect(sub.tier).toBe("Basic");
+    expect(sub.tier).toBe("Free");
     expect(sub.expiresAt).toBeNull();
     expect(sub.cancelledAt).toBeNull();
   });
@@ -335,6 +327,25 @@ describe("paymentService.subscribe — error handling", () => {
 });
 
 // ─── cancel / recordCancellation / getCancellationInfo ───────────────────────
+
+describe("paymentService.grantSubscription", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    paymentService.reset();
+  });
+
+  it("grants the tier for the given principal", async () => {
+    await paymentService.grantSubscription("2vxsx-fae", "Pro");
+    const [principal, tier] = mockGrantSubscription.mock.calls[0];
+    expect(principal.toText()).toBe("2vxsx-fae");
+    expect(tier).toEqual({ Pro: null });
+  });
+
+  it("surfaces the canister's error", async () => {
+    mockGrantSubscription.mockResolvedValueOnce({ err: { NotAuthorized: null } });
+    await expect(paymentService.grantSubscription("2vxsx-fae", "Pro")).rejects.toThrow("NotAuthorized");
+  });
+});
 
 describe("paymentService.cancel", () => {
   beforeEach(() => {

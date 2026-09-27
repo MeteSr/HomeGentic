@@ -4,15 +4,12 @@ import { Button } from "./Button";
 import { quoteService, Urgency } from "@/services/quote";
 import { shareBillsWithRequest } from "@/services/quoteUsage";
 import { ShareUsageToggle } from "./ShareUsageToggle";
+import { SERVICE_TYPE_LABELS } from "@/services/serviceTypes";
 import { type Property } from "@/services/property";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 
-const SERVICE_TYPES = [
-  "HVAC", "Roofing", "Plumbing", "Electrical", "Flooring", "Painting",
-  "Landscaping", "Windows", "Kitchen", "Bathroom", "Insulation", "Solar",
-  "Foundation", "Other",
-];
+const SERVICE_TYPES = SERVICE_TYPE_LABELS;
 
 const URGENCY_OPTIONS: { value: Urgency; label: string; desc: string }[] = [
   { value: "low",       label: "Low",       desc: "Flexible timeline" },

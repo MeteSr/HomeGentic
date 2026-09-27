@@ -83,48 +83,42 @@ test.describe("Tier limit — Free homeowner gets 1-property access", () => {
 
 // ── Subscription upgrade flow from Settings ───────────────────────────────────
 
-test.describe("Tier limit — plan switch flow from Settings (Basic tier, grandfathered)", () => {
+test.describe("Tier limit — plan upgrade flow from Settings (Free tier)", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
     await injectTestProperties(page);
-    await injectSubscription(page, "Basic");
+    await injectSubscription(page, "Free");
     await page.goto("/settings");
     await page.getByRole("button", { name: /subscription/i }).click();
   });
 
-  test("Basic tier shows 'Switch Plan' section heading (Pro is offered as the switch target)", async ({ page }) => {
-    await expect(page.getByText("Switch Plan")).toBeVisible();
+  test("Free tier shows 'Upgrade Plan' section heading (Pro is offered as the upgrade)", async ({ page }) => {
+    await expect(page.getByText("Upgrade Plan")).toBeVisible();
   });
 
-  test("Basic tier shows 'Switch' buttons (not 'Upgrade') in plan grid", async ({ page }) => {
-    await expect(page.getByRole("button", { name: /^switch$/i }).first()).toBeVisible();
-    await expect(page.getByRole("button", { name: /^upgrade$/i })).toHaveCount(0);
-  });
-
-  test("clicking Switch opens the UpgradeModal dialog", async ({ page }) => {
-    await page.getByRole("button", { name: /^switch$/i }).first().click();
+  test("clicking Upgrade opens the UpgradeModal dialog", async ({ page }) => {
+    await page.getByRole("button", { name: /^upgrade$/i }).first().click();
     await expect(page.getByRole("dialog", { name: /upgrade your plan/i })).toBeVisible();
   });
 
   test("UpgradeModal shows only the single Pro plan card", async ({ page }) => {
-    await page.getByRole("button", { name: /^switch$/i }).first().click();
-    // Pro is the only purchasable homeowner plan now — Premium has no card to select.
+    await page.getByRole("button", { name: /^upgrade$/i }).first().click();
+    // Pro is the only purchasable homeowner plan now.
     await expect(page.getByRole("button", { name: "Select Pro" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Select Premium" })).toHaveCount(0);
   });
 
   test("UpgradeModal shows 'Pay with Card' payment method toggle", async ({ page }) => {
-    await page.getByRole("button", { name: /^switch$/i }).first().click();
+    await page.getByRole("button", { name: /^upgrade$/i }).first().click();
     await expect(page.getByRole("button", { name: /pay with card/i })).toBeVisible();
   });
 
   test("UpgradeModal shows 'Pay with ICP' payment method toggle", async ({ page }) => {
-    await page.getByRole("button", { name: /^switch$/i }).first().click();
+    await page.getByRole("button", { name: /^upgrade$/i }).first().click();
     await expect(page.getByRole("button", { name: /pay with icp/i })).toBeVisible();
   });
 
   test("UpgradeModal can be closed", async ({ page }) => {
-    await page.getByRole("button", { name: /^switch$/i }).first().click();
+    await page.getByRole("button", { name: /^upgrade$/i }).first().click();
     await expect(page.getByRole("dialog", { name: /upgrade your plan/i })).toBeVisible();
     // Close button (X) dismisses the modal
     await page.locator('[aria-label="Upgrade Your Plan"] button').first().click();
@@ -132,7 +126,7 @@ test.describe("Tier limit — plan switch flow from Settings (Basic tier, grandf
   });
 });
 
-test.describe("Tier limit — plan switch flow from Settings (Pro tier, the only purchasable plan)", () => {
+test.describe("Tier limit — Settings plan section (Pro tier, the only purchasable plan)", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
     await injectTestProperties(page);
@@ -141,14 +135,13 @@ test.describe("Tier limit — plan switch flow from Settings (Pro tier, the only
     await page.getByRole("button", { name: /subscription/i }).click();
   });
 
-  // Pro is the only purchasable homeowner tier, so there's nothing left to
-  // switch to — the whole "Switch Plan" section is absent for Pro subscribers.
-  test("Pro tier shows no 'Switch Plan' section (nothing else to switch to)", async ({ page }) => {
-    await expect(page.getByText("Switch Plan")).toHaveCount(0);
+  // Pro is the only purchasable homeowner tier, so there's nothing to
+  // upgrade to — the whole "Upgrade Plan" section is absent for Pro subscribers.
+  test("Pro tier shows no 'Upgrade Plan' section", async ({ page }) => {
+    await expect(page.getByText("Upgrade Plan")).toHaveCount(0);
   });
 
-  test("Pro tier shows no 'Switch' or 'Upgrade' buttons in the subscription tab", async ({ page }) => {
-    await expect(page.getByRole("button", { name: /^switch$/i })).toHaveCount(0);
+  test("Pro tier shows no 'Upgrade' buttons in the subscription tab", async ({ page }) => {
     await expect(page.getByRole("button", { name: /^upgrade$/i })).toHaveCount(0);
   });
 });

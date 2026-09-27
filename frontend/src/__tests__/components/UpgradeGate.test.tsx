@@ -32,8 +32,8 @@ describe("UpgradeGate", () => {
   });
 
   it("renders the default tier in the CTA button", () => {
-    renderGate({ tier: "Basic" });
-    expect(screen.getByRole("button", { name: /Upgrade to Basic/i })).toBeInTheDocument();
+    renderGate({});
+    expect(screen.getByRole("button", { name: /Upgrade to Pro/i })).toBeInTheDocument();
   });
 
   it("renders the specified tier in the CTA button", () => {

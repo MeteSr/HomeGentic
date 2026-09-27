@@ -61,11 +61,7 @@ Canisters that need to call each other at high frequency (e.g. job ↔ contracto
 
 ### Tier Enforcement Pattern
 
-Canisters that enforce subscription limits follow this lookup order:
-1. If a payment canister ID has been wired via `setPaymentCanisterId()`, call `getTierForPrincipal(caller)` asynchronously.
-2. Otherwise, use the local `tierGrants` map (admin-managed via `setTier(user, tier)`).
-
-This allows canisters to function in development without a deployed payment canister.
+The payment canister is the single source of truth for subscription tiers. Canisters that enforce subscription limits (property, quote, photo, bills) call `getTierForPrincipal(caller)` on the payment canister wired via `setPaymentCanisterId()`. There is no local tier cache. If no payment canister is wired, the caller is treated as `#Free` (fail closed). Admins change a user's tier with `payment.grantSubscription(user, tier)`.
 
 ### Error Variants
 
@@ -135,7 +131,7 @@ Manages property registration, ownership verification, ownership transfers, dele
 |------|-----------------|
 | `PropertyType` | `#SingleFamily \| #Condo \| #Townhouse \| #MultiFamily` |
 | `VerificationLevel` | `#Unverified \| #PendingReview \| #Basic \| #Premium` |
-| `SubscriptionTier` | `#Free \| #Basic \| #Pro \| #Premium \| #ContractorFree \| #ContractorPro` — `#Pro` ($59/yr) is the only purchasable homeowner tier; `#Basic`/`#Premium` are retired purchase options kept only for grandfathered subscribers |
+| `SubscriptionTier` | `#Free \| #Pro \| #ContractorFree \| #ContractorPro` — `#Pro` ($59/yr) is the only purchasable homeowner tier |
 | `Property` | `id, owner, address, city, state, zipCode, propertyType, yearBuilt, squareFeet, verificationLevel, verificationDate?, verificationMethod?, verificationDocHash?, tier, createdAt, updatedAt, isActive` |
 | `PropertyManager` | `principal, role (#Viewer \| #Manager), displayName, addedAt` |
 | `ManagerInvite` | `token, propertyId, role, displayName, invitedBy, createdAt, expiresAt` |
@@ -180,15 +176,11 @@ Manager activity (write ops) pushes `OwnerNotification` records to the owner's q
 | Pro | 20 |
 | ContractorFree | 0 |
 | ContractorPro | Unlimited |
-| Basic *(grandfathered)* | 1 |
-| Premium *(grandfathered)* | 20 |
 
-Pro ($59/yr) is the only purchasable homeowner tier and carries the old
-Premium tier's 20-property limit. Free is no longer blocked — it gets
-the same 1-property allowance as grandfathered Basic, so homeowners can
+There are two homeowner tiers: Free and Pro ($59/yr). A user with no
+subscription record is Free. Free gets 1 property, so homeowners can
 register and use a property (including Bid to List) before paying
-anything. Basic and Premium are retired as purchase options and only
-apply to subscribers grandfathered in before this change. Limits are
+anything. Limits are
 checked at registration time only. Existing properties are not revoked
 if the user downgrades.
 
@@ -206,7 +198,7 @@ if the user downgrades.
 | `getPropertyManagers()`, `getOwnerNotifications()`, `dismissNotifications()` | Owner |
 | `recordManagerActivity()` | Manager with `#Manager` role |
 | Room/Fixture CRUD | Owner or `#Manager` manager |
-| `setTier()`, `setPaymentCanisterId()`, `addAdmin()` | Admin |
+| `setPaymentCanisterId()`, `addAdmin()` | Admin |
 
 ### Validation Constraints
 
@@ -306,7 +298,7 @@ Sensor-triggered: createSensorJob()→ #Pending, isDiy=false, amount=0
 
 ### Tier Enforcement
 
-- `createJob()` has no tier gate — Free, grandfathered Basic/Premium, and Pro can all log jobs on a property they own or manage. There is no per-job-count cap; the practical limit is the property canister's property-count cap.
+- `createJob()` has no tier gate — Free and Pro can both log jobs on a property they own or manage. There is no per-job-count cap; the practical limit is the property canister's property-count cap.
 - If caller is a delegated manager, tier is looked up for the property owner, not the manager
 
 ### Cross-Canister Dependencies
@@ -358,14 +350,7 @@ Stores raw image bytes on-chain with SHA-256 deduplication and tier-based upload
 | Free | 5 | 25 |
 | Pro | 30 | Unlimited |
 | ContractorPro | 50 | Unlimited |
-| ContractorFree / Basic *(grandfathered)* | 5 | 25 |
-| Premium *(grandfathered)* | 30 | Unlimited |
-
-Pro ($59/yr) is the only purchasable homeowner tier and carries the old
-Premium tier's photo limits. Free is no longer blocked from photo
-uploads — it gets the same 5/job, 25/property cap as grandfathered
-Basic. Basic and Premium are retired as purchase options and only apply
-to subscribers grandfathered in before this change.
+| ContractorFree | 5 | 25 |
 
 **Additional rate limit:** 10 photo uploads per minute per principal (hardcoded, independent of tier).
 
@@ -381,7 +366,7 @@ to subscribers grandfathered in before this change.
 | `getPhoto()`, `getPhotoData()`, `getPhotosByJob()`, `getPhotosByProperty()` | Owner (or property auth check) |
 | `verifyPhoto()`, `deletePhoto()` | Owner or admin (property auth check) |
 | `getPublicListingPhotos()` | **No auth required** (FSBO buyer browsing) |
-| `setTier()`, `setPaymentCanisterId()`, `setPropertyCanisterId()` | Admin |
+| `setPaymentCanisterId()`, `setPropertyCanisterId()` | Admin |
 
 ### Cross-Canister Dependencies
 
@@ -452,15 +437,6 @@ In production, ciphertexts are IBE-encrypted via vetKeys. In local dev, the ciph
 | Pro | Unlimited (999,999) |
 | ContractorFree / ContractorPro | Unlimited (999,999) |
 | Free | 3 |
-| Basic *(grandfathered)* | 3 |
-| Premium *(grandfathered)* | 10 |
-
-Pro is genuinely unlimited — fixing a pre-existing bug where Premium was
-advertised as "Unlimited quote requests" but only ever enforced 10.
-Premium's grandfathered enforcement is left at its original (buggy) 10 so
-existing subscribers' behavior doesn't change out from under them; Pro,
-which inherits Premium's advertised feature set going forward, honors the
-promise properly.
 
 **Manager bypass:** If the caller is a delegated manager, the property owner's tier is used.
 
@@ -563,7 +539,7 @@ The subscription tier authority. All other canisters ultimately defer to this ca
 
 | Type | Fields / Values |
 |------|-----------------|
-| `Tier` | `#Free \| #Basic \| #Pro \| #Premium \| #ContractorFree \| #ContractorPro \| #RealtorFree \| #RealtorPro` |
+| `Tier` | `#Free \| #Pro \| #ContractorFree \| #ContractorPro` |
 | `BillingPeriod` | `#Monthly \| #Yearly` |
 | `Subscription` | `owner, tier, expiresAt (0=never), createdAt, cancelledAt?` |
 | `PendingGift` | `giftToken, tier, billing, recipientEmail, recipientName, senderName, giftMessage, deliveryDate, createdAt, redeemedBy?` |
@@ -579,18 +555,11 @@ The subscription tier authority. All other canisters ultimately defer to this ca
 | Pro | $59/yr | 20 | 30 | Unlimited |
 | ContractorFree | $0 | 0 | 5 | Unlimited |
 | ContractorPro | $40/mo | 0 | 50 | Unlimited |
-| RealtorFree | $0 | 0 | 5 | Unlimited |
-| RealtorPro | $30/mo | 0 | 50 | Unlimited |
-| Basic *(grandfathered)* | $10/mo | 1 | 5 | 3 |
-| Premium *(grandfathered)* | $40/mo | 20 | 30 | Unlimited |
 
 Pro is the single purchasable homeowner plan, annual-only (no monthly
-option), carrying the old Premium tier's property/photo/quote limits.
-Basic and Premium are retired as purchase options and only apply to
-subscribers grandfathered in before this change — they keep their
-original monthly pricing and limits until they renew, then move to Pro.
+option). Users with no subscription record are Free.
 
-ContractorPro and RealtorPro still support both Monthly and Yearly
+ContractorPro still supports both Monthly and Yearly
 billing (365-day expiry for Yearly, equivalent to 2 free months vs.
 paying monthly 12 times).
 
@@ -624,9 +593,9 @@ cancelSubscription() → cancelledAt=now; tier revoked to Free immediately; acce
 
 **Expiry** is checked lazily: `getTierForPrincipal()` returns `#Free` if `expiresAt > 0 && expiresAt <= now`. No background cleanup job.
 
-### Tier Propagation
+### Tier Reads
 
-After any subscription change, `propagateTier(principal, tier)` is called on all three downstream canisters (property, quote, photo) via `setTier(user, tier)`. Errors are swallowed — downstream failures do **not** roll back the subscription record.
+Payment does not push tiers anywhere. Property, quote, photo and bills read the caller's tier on demand with `getTierForPrincipal()`, so a subscription change takes effect everywhere immediately.
 
 ### Agent Credits
 
@@ -639,7 +608,6 @@ Agent call quotas can be supplemented with purchased credit packs:
 
 | Direction | Canister | Purpose |
 |-----------|----------|---------|
-| Payment → Property, Quote, Photo | `setTier()` | Tier propagation on subscription change |
 | Payment → XRC | `get_exchange_rate()` | ICP/USD rate for direct ICP payments |
 | Payment → ICP Ledger | `icrc2_transfer_from()` | Pull ICP from user's account |
 
@@ -1091,7 +1059,7 @@ The 3-month window uses `ONE_MONTH_NS = 30.44 days` (not calendar-aware).
 | Tier | Upload Allowed |
 |------|----------------|
 | Free | Blocked entirely (`#TierLimitReached`) |
-| Basic, Pro, Premium, ContractorFree, ContractorPro | Unlimited |
+| Pro, ContractorFree, ContractorPro | Unlimited |
 
 ### Role-Based Access
 
@@ -1203,12 +1171,8 @@ HMAC verification is skipped in development when `VOICE_API_KEY` is absent.
 |------|-----------------|----------------|
 | Free / ContractorFree / RealtorFree | 0 | 3 |
 | Pro / ContractorPro / RealtorPro | 10 | Unlimited |
-| Basic *(grandfathered)* | 5 | Unlimited |
-| Premium *(grandfathered)* | 20 | Unlimited |
 
-Pro ($59/yr) deliberately keeps its own 10/day limit rather than
-Premium's 20/day — see `docs/AI_RATE_LIMITS.md` for the margin math
-behind that call.
+See `docs/AI_RATE_LIMITS.md` for the margin math behind Pro's 10/day limit.
 
 If the tier quota is exhausted, the server attempts to consume an `agent_credit` from the payment canister. Returns 429 with `{ error: "daily_agent_limit_reached", creditsAvailable: bool }` if both are exhausted.
 
@@ -1316,10 +1280,10 @@ Graceful shutdown on SIGTERM/SIGINT: `httpServer.close()` with a 10-second force
 
 ```
 Payment ──────────────────────────────────────────────────────┐
-  │ setTier()                                                   │
-  ├→ Property                                                   │
-  ├→ Quote                                                      │
-  └→ Photo                                                      │
+  │ getTierForPrincipal() ← read by                             │
+  ├─ Property                                                   │
+  ├─ Quote, Photo, Bills                                        │
+  └─ Job                                                        │
                                                                 │
 Property (isAuthorized, getPropertyOwner, getVerificationLevel)│
   ├─ queried by: Job, Photo, Quote, Maintenance, Report        │

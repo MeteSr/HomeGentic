@@ -40,7 +40,7 @@ echo ""
 echo "── [2] Tier limits ──────────────────────────────────────────────────────"
 dfx canister call $CANISTER getPropertyLimitForTier '(variant { Free })'
 dfx canister call $CANISTER getPropertyLimitForTier '(variant { Pro })'
-dfx canister call $CANISTER getPropertyLimitForTier '(variant { Premium })'
+dfx canister call $CANISTER getPropertyLimitForTier '(variant { Pro })'
 dfx canister call $CANISTER getPropertyLimitForTier '(variant { ContractorPro })'
 
 # ─── §147 input validation tests ────────────────────────────────────────────

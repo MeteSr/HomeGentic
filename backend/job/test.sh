@@ -44,7 +44,7 @@ PROPERTY_CANISTER_ID=$(dfx canister id property 2>/dev/null || echo "")
 if [ -n "$PROPERTY_CANISTER_ID" ]; then
   MY_PRINCIPAL=$(dfx identity get-principal)
   dfx canister call payment grantSubscription \
-    "(principal \"$MY_PRINCIPAL\", variant { Premium })" > /dev/null 2>&1 || true
+    "(principal \"$MY_PRINCIPAL\", variant { Pro })" > /dev/null 2>&1 || true
   SETUP_PROP_OUT=$(dfx canister call property registerProperty '(record {
     address      = "1 Job Test Drive";
     city         = "Austin";
@@ -53,7 +53,7 @@ if [ -n "$PROPERTY_CANISTER_ID" ]; then
     propertyType = variant { SingleFamily };
     yearBuilt    = 2000;
     squareFeet   = 2000;
-    tier         = variant { Premium };
+    tier         = variant { Pro };
   })')
   TEST_PROP_ID=$(echo "$SETUP_PROP_OUT" | grep -oP 'id = "\K[^"]+' | head -1 || echo "")
   if [ -z "$TEST_PROP_ID" ]; then
@@ -111,6 +111,30 @@ DIY_OUT=$(dfx canister call $CANISTER createJob "(
 echo "$DIY_OUT"
 DIY_ID=$(echo "$DIY_OUT" | grep -oP '"JOB_[0-9]+"' | head -1 | tr -d '"')
 echo "  → DIY Job ID: $DIY_ID"
+
+# ─── Service types beyond the original eight (shared ServiceType) ─────────────
+echo ""
+echo "── [3b] Create jobs with the newer service types ───────────────────────"
+for SVC in KitchenRemodel Foundation Other; do
+  SVC_OUT=$(dfx canister call $CANISTER createJob "(
+    \"$TEST_PROP_ID\",
+    \"$SVC job\",
+    variant { $SVC },
+    \"Service-type coverage check.\",
+    null,
+    0,
+    1722816000000000000,
+    null,
+    null,
+    true,
+    null
+  )" 2>&1 || true)
+  if echo "$SVC_OUT" | grep -q "variant { $SVC }"; then
+    echo "  ✓ createJob accepts #$SVC"
+  else
+    echo "  ↳ ❌ createJob rejected #$SVC — FAIL"; echo "$SVC_OUT"; exit 1
+  fi
+done
 
 # ─── Create additional jobs for multi-job listing test (12.4.3) ───────────────
 echo ""
@@ -664,7 +688,7 @@ HOMEOWNER_PRINCIPAL=$(dfx identity get-principal)
 # The deployer (homeowner) owns this property; contractor-test will submit proposals against it.
 echo ""
 echo "── [38-setup] Register property for proposal tests ─────────────────────"
-dfx canister call payment grantSubscription "(principal \"$HOMEOWNER_PRINCIPAL\", variant { Premium })" > /dev/null 2>&1 || true
+dfx canister call payment grantSubscription "(principal \"$HOMEOWNER_PRINCIPAL\", variant { Pro })" > /dev/null 2>&1 || true
 PROPOSAL_PROP_OUT=$(dfx canister call property registerProperty '(record {
   address      = "77 Proposal Test Lane";
   city         = "Houston";
@@ -673,7 +697,7 @@ PROPOSAL_PROP_OUT=$(dfx canister call property registerProperty '(record {
   propertyType = variant { SingleFamily };
   yearBuilt    = 2000;
   squareFeet   = 1800;
-  tier         = variant { Premium };
+  tier         = variant { Pro };
 })')
 PROPOSAL_PROP_ID=$(echo "$PROPOSAL_PROP_OUT" | grep -oP 'id = "\K[^"]+' | head -1 || true)
 echo "  → Proposal property ID: $PROPOSAL_PROP_ID"
@@ -855,11 +879,11 @@ else
   MANAGER_PRINCIPAL=$(dfx identity get-principal --identity manager-test)
   echo "  Manager principal (Free tier): $MANAGER_PRINCIPAL"
 
-  # Ensure owner (default identity) has a Premium subscription so that the
+  # Ensure owner (default identity) has a Pro subscription so that the
   # MGR property registration succeeds even when parallel canister tests have
   # already consumed the Pro limit (5 properties) for the deployer.
   MY_PRINCIPAL=$(dfx identity get-principal)
-  dfx canister call payment grantSubscription "(principal \"$MY_PRINCIPAL\", variant { Premium })"
+  dfx canister call payment grantSubscription "(principal \"$MY_PRINCIPAL\", variant { Pro })"
 
   # Register a fresh property as the owner
   echo ""

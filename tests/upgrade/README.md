@@ -58,7 +58,7 @@ POCKET_IC_BIN=~/.local/bin/pocket-ic npm test
 | File | Canister | Scenarios |
 |---|---|---|
 | `auth.upgrade.test.ts` | auth | Profile fields, lastLoggedIn timestamp, getUserStats total, metrics consistency, three successive upgrades |
-| `payment.upgrade.test.ts` | payment | Pro/Premium subscription tier + timestamps, getSubscriptionStats totals, estimatedMrrUsd |
+| `payment.upgrade.test.ts` | payment | Pro/ContractorPro subscription tier + timestamps, getSubscriptionStats totals, estimatedMrrUsd |
 
 ---
 

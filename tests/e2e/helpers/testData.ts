@@ -31,7 +31,7 @@ export async function injectVerifyStatus(page: Page, status: Partial<VerifyClaim
   }, status);
 }
 
-type PlanTier = "Free" | "Basic" | "Pro" | "Premium" | "ContractorPro";
+type PlanTier = "Free" | "Pro" | "ContractorFree" | "ContractorPro";
 
 // ── Quote helpers ─────────────────────────────────────────────────────────────
 

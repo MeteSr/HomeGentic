@@ -1,7 +1,7 @@
 // Candid interface for the payment canister — keep in sync with backend/payment/main.mo
 export const idlFactory = ({ IDL }: any) => {
   const Tier = IDL.Variant({
-    Free: IDL.Null, Basic: IDL.Null, Pro: IDL.Null, Premium: IDL.Null,
+    Free: IDL.Null, Pro: IDL.Null,
     ContractorFree: IDL.Null, ContractorPro: IDL.Null,
   });
   const BillingPeriod = IDL.Variant({ Monthly: IDL.Null, Yearly: IDL.Null });
@@ -152,11 +152,6 @@ export const idlFactory = ({ IDL }: any) => {
       []
     ),
     setBootstrapNonce: IDL.Func([IDL.Text], [], []),
-    setTierCanisterIds: IDL.Func(
-      [IDL.Principal, IDL.Principal, IDL.Principal],
-      [IDL.Variant({ ok: IDL.Null, err: Error })],
-      []
-    ),
     // ── Agent credit top-ups (#89) ──
     getMyAgentCredits: IDL.Func(
       [],

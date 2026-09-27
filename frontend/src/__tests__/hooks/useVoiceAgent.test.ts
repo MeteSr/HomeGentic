@@ -22,7 +22,7 @@ vi.mock("@/services/market",            () => ({ marketService: { getROIRankings
 vi.mock("@/services/maintenanceForecast", () => ({ buildMaintenanceForecast: vi.fn().mockReturnValue([]) }));
 vi.mock("@/services/scoreTrend",        () => ({ buildScoreTrend: vi.fn().mockReturnValue([]) }));
 vi.mock("@/services/imageUtils",        () => ({ buildImageUserMessage: vi.fn(), fileToBase64: vi.fn() }));
-vi.mock("@/services/payment",          () => ({ paymentService: { getMySubscription: vi.fn().mockResolvedValue({ tier: "Basic" }), getMyAgentCredits: vi.fn().mockResolvedValue(10), startCreditPackCheckout: vi.fn().mockResolvedValue(undefined) } }));
+vi.mock("@/services/payment",          () => ({ paymentService: { getMySubscription: vi.fn().mockResolvedValue({ tier: "Pro" }), getMyAgentCredits: vi.fn().mockResolvedValue(10), startCreditPackCheckout: vi.fn().mockResolvedValue(undefined) } }));
 vi.mock("@/services/contractor",       () => ({ contractorService: { getContractors: vi.fn().mockResolvedValue([]) } }));
 vi.mock("@/services/contractorJobProposal", () => ({ proposeJob: vi.fn() }));
 vi.mock("@/store/authStore",           () => ({ useAuthStore: () => ({ principal: null, profile: null }) }));

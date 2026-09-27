@@ -3,7 +3,7 @@
  *
  * Verifies that:
  *  1. ReportSnapshot in the report canister includes schemaVersion: ?Nat
- *  2. snapshotSchemaVersion stable var exists and is > 1
+ *  2. SNAPSHOT_SCHEMA_VERSION constant exists and is > 1
  *  3. applyDisclosure passes schemaVersion through
  *  4. generateReport sets schemaVersion on new snapshots
  *  5. Upgrade runbook exists and contains required sections
@@ -26,15 +26,16 @@ describe("14.4.3: report canister schema versioning", () => {
     expect(canister).toMatch(/schemaVersion\s*:\s*\?Nat/);
   });
 
-  it("snapshotSchemaVersion stable var is > 1 (reflects current schema)", () => {
-    const match = canister.match(/snapshotSchemaVersion\s*:\s*Nat\s*=\s*(\d+)/);
+  it("SNAPSHOT_SCHEMA_VERSION is a transient constant > 1 (reflects current schema)", () => {
+    // transient: a stable `let` would keep its install-time value across upgrades.
+    const match = canister.match(/transient let SNAPSHOT_SCHEMA_VERSION\s*:\s*Nat\s*=\s*(\d+)/);
     expect(match).not.toBeNull();
     const version = parseInt(match![1], 10);
     expect(version).toBeGreaterThan(1);
   });
 
-  it("generateReport sets schemaVersion = ?2 on new snapshots", () => {
-    expect(canister).toMatch(/schemaVersion\s*=\s*\?2/);
+  it("generateReport stamps new snapshots with the current schema version", () => {
+    expect(canister).toMatch(/schemaVersion\s*=\s*\?SNAPSHOT_SCHEMA_VERSION/);
   });
 
   it("applyDisclosure passes schemaVersion through from the input snapshot", () => {

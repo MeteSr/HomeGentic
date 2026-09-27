@@ -5,14 +5,13 @@
  * property-aware expense intelligence (Epic #49).
  *
  * Tier-based upload limits (enforced server-side via payment canister):
- *   Free         — 1 upload per calendar month
- *   Pro          — unlimited
- *   Premium      — unlimited
- *   ContractorPro — unlimited
+ *   Free          — blocked (bills need a subscription)
+ *   Pro           — unlimited
+ *   ContractorFree / ContractorPro — unlimited
  *
  * When payCanisterId is set (post-deploy wiring), the tier is resolved live
- * via getTierForPrincipal(). Falls back to the local tierGrants admin map
- * for dev environments where the payment canister is not wired.
+ * via getTierForPrincipal(). Without it there is no tier source and every
+ * caller is treated as #Free (fail closed).
  *
  * Anomaly detection:
  *   - Rolling 3-month average per (propertyId, billType, homeowner)
@@ -95,9 +94,7 @@ persistent actor Bills {
 
   public type SubscriptionTier = {
     #Free;
-    #Basic;
     #Pro;
-    #Premium;
     #ContractorFree;
     #ContractorPro;
   };
@@ -161,7 +158,6 @@ persistent actor Bills {
   private var payCanisterId    : Text                       = "";
 
   private let bills      = Map.empty<Text, BillRecord>();
-  private let tierGrants = Map.empty<Text, SubscriptionTier>();
 
   private var recurringCounter  : Nat = 0;
   private let recurringExpenses = Map.empty<Text, RecurringExpense>();
@@ -202,21 +198,12 @@ persistent actor Bills {
     "BILL_" # Nat.toText(billCounter)
   };
 
-  /// Return the tier from the local grant map (dev fallback).
-  private func tierFor(p: Principal) : SubscriptionTier {
-    switch (Map.get(tierGrants, Text.compare, Principal.toText(p))) {
-      case (?t) t;
-      case null #Free;
-    }
-  };
 
   /// Monthly upload limit for a tier. 0 = unlimited. 999 = blocked sentinel.
   private func monthlyUploadLimit(tier: SubscriptionTier) : Nat {
     switch tier {
       case (#Free)             { 999 };  // blocked — unsubscribed (checked separately)
-      case (#Basic)            { 0   };  // unlimited
       case (#Pro)              { 0   };
-      case (#Premium)          { 0   };
       case (#ContractorFree)   { 0   };  // unlimited for free contractor tier
       case (#ContractorPro)    { 0   };
     }
@@ -224,7 +211,7 @@ persistent actor Bills {
 
   /// Count bills uploaded by this principal in the same calendar month as `nowNs`.
   /// Month boundary is approximate: 1 month ≈ 30.44 days in nanoseconds.
-  private let ONE_MONTH_NS : Int = 2_629_800_000_000_000; // ~30.44 days
+  private transient let ONE_MONTH_NS : Int = 2_629_800_000_000_000; // ~30.44 days
 
   private func countUploadsThisMonth(caller: Principal, nowNs: Int) : Nat {
     var count : Nat = 0;
@@ -284,11 +271,11 @@ persistent actor Bills {
   private func resolveTier(caller: Principal) : async* SubscriptionTier {
     if (payCanisterId != "") {
       let payActor = actor(payCanisterId) : actor {
-        getTierForPrincipal : (Principal) -> async { #Free; #Basic; #Pro; #Premium; #ContractorFree; #ContractorPro };
+        getTierForPrincipal : (Principal) -> async { #Free; #Pro; #ContractorFree; #ContractorPro };
       };
       await payActor.getTierForPrincipal(caller)
     } else {
-      tierFor(caller)
+      #Free  // payment canister not wired: no tier source, fail closed
     }
   };
 
@@ -646,12 +633,6 @@ persistent actor Bills {
     #ok(())
   };
 
-  /// Grant a tier override for a principal (dev / support use).
-  public shared(msg) func grantTier(p: Principal, tier: SubscriptionTier) : async Result.Result<(), Error> {
-    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    Map.add(tierGrants, Text.compare, Principal.toText(p), tier);
-    #ok(())
-  };
 
   /// H-20: Set the one-time bootstrap nonce before calling addAdmin() the first time.
   /// Ignored once adminInitialized = true, and can only be set once.

@@ -4,9 +4,7 @@
  * Core behaviour
  *   - Free: 10 calls/week allowed, 11th blocked (weekly reset, not daily)
  *   - ContractorFree tier: first call blocked (limit = 0)
- *   - Basic: 5 calls allowed, 6th blocked (grandfathered tier)
  *   - Pro / ContractorPro: 10 calls allowed, 11th blocked
- *   - Premium: 20 calls allowed, 21st blocked (grandfathered tier)
  *   - count only increments on allowed calls
  *
  * Isolation
@@ -42,9 +40,7 @@ function callN(n: number, principal: string, tier: SubscriptionTier) {
 
 describe("TIER_LIMITS constants", () => {
   it("Free = 10", ()           => expect(TIER_LIMITS.Free).toBe(10));
-  it("Basic = 5", ()           => expect(TIER_LIMITS.Basic).toBe(5));
   it("Pro = 10", ()            => expect(TIER_LIMITS.Pro).toBe(10));
-  it("Premium = 20", ()        => expect(TIER_LIMITS.Premium).toBe(20));
   it("ContractorFree = 0", ()  => expect(TIER_LIMITS.ContractorFree).toBe(0));
   it("ContractorPro = 10", ()  => expect(TIER_LIMITS.ContractorPro).toBe(10));
 });
@@ -52,9 +48,7 @@ describe("TIER_LIMITS constants", () => {
 describe("TIER_PERIOD constants", () => {
   it("Free resets weekly", ()  => expect(TIER_PERIOD.Free).toBe("week"));
   it("every other tier resets daily", () => {
-    expect(TIER_PERIOD.Basic).toBe("day");
     expect(TIER_PERIOD.Pro).toBe("day");
-    expect(TIER_PERIOD.Premium).toBe("day");
     expect(TIER_PERIOD.ContractorFree).toBe("day");
     expect(TIER_PERIOD.ContractorPro).toBe("day");
   });
@@ -87,34 +81,6 @@ describe("ContractorFree tier — no agent access", () => {
   });
 });
 
-describe("Basic tier — 5 calls/day", () => {
-  it("allows exactly 5 calls", () => {
-    const p = uid();
-    for (let i = 1; i <= 5; i++) {
-      const r = checkAndRecord(p, "Basic");
-      expect(r.allowed).toBe(true);
-      expect(r.count).toBe(i);
-    }
-  });
-
-  it("blocks the 6th call", () => {
-    const p = uid();
-    callN(5, p, "Basic");
-    const r = checkAndRecord(p, "Basic");
-    expect(r.allowed).toBe(false);
-    expect(r.count).toBe(5); // count does not increment when blocked
-    expect(r.limit).toBe(5);
-  });
-
-  it("count does not increment when blocked", () => {
-    const p = uid();
-    callN(5, p, "Basic");
-    checkAndRecord(p, "Basic"); // blocked
-    checkAndRecord(p, "Basic"); // blocked again
-    expect(getCount(p, "Basic")).toBe(5);
-  });
-});
-
 describe("Pro tier — 10 calls/day", () => {
   it("allows exactly 10 calls", () => {
     const p = uid();
@@ -141,31 +107,15 @@ describe("ContractorPro tier — 10 calls/day", () => {
   });
 });
 
-describe("Premium tier — 20 calls/day", () => {
-  it("allows exactly 20 calls", () => {
-    const p = uid();
-    callN(20, p, "Premium");
-    expect(getCount(p, "Premium")).toBe(20);
-  });
-
-  it("blocks the 21st call", () => {
-    const p = uid();
-    callN(20, p, "Premium");
-    const r = checkAndRecord(p, "Premium");
-    expect(r.allowed).toBe(false);
-    expect(r.limit).toBe(20);
-  });
-});
-
 // ── Isolation ─────────────────────────────────────────────────────────────────
 
 describe("Principal isolation", () => {
   it("different principals have independent counters", () => {
     const a = uid();
     const b = uid();
-    callN(5, a, "Basic");
+    callN(10, a, "Pro");
     // a is exhausted; b should still be allowed
-    const r = checkAndRecord(b, "Basic");
+    const r = checkAndRecord(b, "Pro");
     expect(r.allowed).toBe(true);
     expect(r.count).toBe(1);
   });
@@ -199,14 +149,14 @@ describe("getCount", () => {
 describe("resetsAt field", () => {
   it("is a valid ISO timestamp in the future", () => {
     const p = uid();
-    const { resetsAt } = checkAndRecord(p, "Basic");
+    const { resetsAt } = checkAndRecord(p, "Pro");
     const ts = new Date(resetsAt).getTime();
     expect(ts).toBeGreaterThan(Date.now());
   });
 
   it("is always midnight UTC (HH:MM:SS = 00:00:00)", () => {
     const p = uid();
-    const { resetsAt } = checkAndRecord(p, "Basic");
+    const { resetsAt } = checkAndRecord(p, "Pro");
     expect(resetsAt).toMatch(/T00:00:00\.000Z$/);
   });
 
@@ -262,13 +212,13 @@ describe("stdout JSON-lines logging", () => {
 
   it("blocked call: allowed=false and count is not incremented", () => {
     const p = uid();
-    callN(5, p, "Basic");
+    callN(10, p, "Pro");
     writtenLines = []; // clear previous lines
-    checkAndRecord(p, "Basic"); // this one is blocked
+    checkAndRecord(p, "Pro"); // this one is blocked
     const entry = JSON.parse(writtenLines[0]);
     expect(entry.allowed).toBe(false);
-    expect(entry.count).toBe(5); // still 5, not 6
-    expect(entry.limit).toBe(5);
+    expect(entry.count).toBe(10); // still 10, not 11
+    expect(entry.limit).toBe(10);
   });
 
   it("Free tier call: allowed=true with limit=10", () => {

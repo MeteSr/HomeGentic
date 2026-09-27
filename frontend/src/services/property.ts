@@ -10,7 +10,7 @@ export type VerificationLevel = "Unverified" | "PendingReview" | "Basic" | "Prem
 export type ManagerRole       = "Viewer" | "Manager" | "CoOwner";
 /** A principal's standing on one property (see getAccessRole). */
 export type AccessRole        = "Owner" | ManagerRole | "NoAccess";
-export type SubscriptionTier = "Free" | "Basic" | "Pro" | "Premium" | "ContractorFree" | "ContractorPro";
+export type SubscriptionTier = "Free" | "Pro" | "ContractorFree" | "ContractorPro";
 
 export interface Property {
   id: string;
@@ -376,16 +376,6 @@ export const propertyService = {
     const a = await getActor();
     const result = await a.verifyProperty(id, { [level]: null }, method ? [method] : []);
     return unwrap(result);
-  },
-
-  async setTier(userPrincipal: string, tier: SubscriptionTier): Promise<void> {
-    const a = await getActor();
-    const { Principal: P } = await import("@icp-sdk/core/principal");
-    const result = await a.setTier(P.fromText(userPrincipal), { [tier]: null });
-    if ("err" in result) {
-      const key = Object.keys(result.err)[0];
-      throw new Error(key);
-    }
   },
 
   /** Step 1: seller generates a bearer-token link for this property. */

@@ -218,7 +218,7 @@ export function MobileHomeDashboard() {
     : "Your home history is complete.";
 
   // Plan label
-  const planLabel = tier === "Pro" ? "Pro" : tier === "Premium" ? "Premium" : "Basic";
+  const planLabel = tier === "Pro" ? "Pro" : "Free";
   const planUsage = properties.length > 0
     ? `${properties.length} propert${properties.length !== 1 ? "ies" : "y"} · active`
     : "No properties yet";

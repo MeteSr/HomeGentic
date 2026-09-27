@@ -186,11 +186,10 @@ jobs:
 
       - name: Grant integration-test identity extra access
         run: |
-          # Grant integration test identity Premium — quote tests create many open requests
-          # and would hit the Basic (3) or Pro (10) cap. Principal: fixed seed[0]=42 in setup.ts.
+          # Grant the integration test identity ContractorPro. Principal: fixed seed[0]=42 in setup.ts.
           INTEG_PRINCIPAL="qxmov-duod5-ahrw6-wydp4-lppe4-ljtvj-7zvu3-qke5i-umwsv-vcb7g-mqe"
           # ContractorPro → limit=0 (unlimited) in property canister, unlimited open quotes.
-          # Premium caps at 20 properties and integration tests register more than 20 across all suites.
+          # Pro caps at 20 properties and integration tests register more than 20 across all suites.
           dfx canister call payment grantSubscription "(principal \"$INTEG_PRINCIPAL\", variant { ContractorPro })"
 
           # Grant integration test identity admin on report canister so generateReport
@@ -307,8 +306,6 @@ jobs:
           STRIPE_WEBHOOK_SECRET:             ${{ secrets.STRIPE_WEBHOOK_SECRET }}
           STRIPE_PRICE_PRO_MONTHLY:          ${{ secrets.STRIPE_PRICE_PRO_MONTHLY }}
           STRIPE_PRICE_PRO_YEARLY:           ${{ secrets.STRIPE_PRICE_PRO_YEARLY }}
-          STRIPE_PRICE_PREMIUM_MONTHLY:      ${{ secrets.STRIPE_PRICE_PREMIUM_MONTHLY }}
-          STRIPE_PRICE_PREMIUM_YEARLY:       ${{ secrets.STRIPE_PRICE_PREMIUM_YEARLY }}
           STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY: ${{ secrets.STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY }}
           STRIPE_PRICE_CONTRACTOR_PRO_YEARLY:  ${{ secrets.STRIPE_PRICE_CONTRACTOR_PRO_YEARLY }}
         run: cd agents/voice && npm test -- stripe.integration stripe.elements.integration stripe.subscription.integration

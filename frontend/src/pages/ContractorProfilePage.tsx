@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { TRADE_LABELS } from "@/services/serviceTypes";
 import { ArrowLeft, Save, ShieldCheck, User } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
@@ -20,31 +21,7 @@ const UI = {
   mono:     V2_FONTS.body,
 };
 
-export const ALL_TRADES = [
-  "HVAC", "Plumbing", "Electrical", "Roofing",
-  "Painting", "Flooring", "Windows", "Landscaping",
-  "Gutters", "GeneralHandyman", "Pest", "Concrete",
-  "Fencing", "Insulation", "Solar", "Pool",
-];
-
-export const TRADE_LABELS: Record<string, string> = {
-  HVAC:            "HVAC",
-  Plumbing:        "Plumbing",
-  Electrical:      "Electrical",
-  Roofing:         "Roofing",
-  Painting:        "Painting",
-  Flooring:        "Flooring",
-  Windows:         "Windows",
-  Landscaping:     "Landscaping",
-  Gutters:         "Gutters",
-  GeneralHandyman: "General Handyman",
-  Pest:            "Pest Control",
-  Concrete:        "Concrete",
-  Fencing:         "Fencing",
-  Insulation:      "Insulation",
-  Solar:           "Solar",
-  Pool:            "Pool",
-};
+export const ALL_TRADES = TRADE_LABELS;
 
 interface FormState {
   name:          string;
@@ -287,7 +264,7 @@ export default function ContractorProfilePage() {
                           transition: "border-color 0.12s, background 0.12s, color 0.12s",
                         }}
                       >
-                        {active ? "✓ " : ""}{TRADE_LABELS[trade]}
+                        {active ? "✓ " : ""}{trade}
                       </button>
                     );
                   })}

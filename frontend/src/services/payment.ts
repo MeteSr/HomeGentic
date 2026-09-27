@@ -84,7 +84,7 @@ export const paymentService = {
     if (typeof window !== "undefined" && (window as any).__e2e_subscription) {
       return { cancelledAt: null, ...(window as any).__e2e_subscription };
     }
-    if (!PAYMENT_CANISTER_ID) return { tier: "Basic", expiresAt: null, cancelledAt: null };
+    if (!PAYMENT_CANISTER_ID) return { tier: "Free", expiresAt: null, cancelledAt: null };
     let result: any;
     try {
       const a = await getActor();
@@ -95,7 +95,7 @@ export const paymentService = {
       // non-production networks where this is expected.
       const isStale = String(e).includes("IC0301") || String(e).includes("not found");
       if (isStale && (process.env as any).DFX_NETWORK !== "ic") {
-        return { tier: "Basic", expiresAt: null, cancelledAt: null };
+        return { tier: "Free", expiresAt: null, cancelledAt: null };
       }
       throw e;
     }
@@ -107,7 +107,7 @@ export const paymentService = {
         const key = Object.keys(result.err as any)[0];
         throw new Error(`getMySubscription: ${key}`);
       }
-      return { tier: "Basic", expiresAt: null, cancelledAt: null };
+      return { tier: "Free", expiresAt: null, cancelledAt: null };
     }
     const sub = result.ok;
     const tierKey       = Object.keys(sub.tier)[0] as PlanTier;
@@ -129,9 +129,9 @@ export const paymentService = {
     return { url: "/dashboard" };
   },
 
-  /** Subscribe to an annual plan (Pro or Premium). Sets expiresAt = now + 365 days on-chain. */
+  /** Subscribe to the annual Pro plan. Sets expiresAt = now + 365 days on-chain. */
   async subscribeAnnual(
-    tier: "Pro" | "Premium",
+    tier: "Pro",
     onStep?: (step: "quoting" | "approving" | "confirming") => void,
   ): Promise<void> {
     return this.subscribe(tier, onStep);
@@ -147,6 +147,18 @@ export const paymentService = {
     }
     const expiresNs = Number(result.ok.expiresAt);
     return { expiresAt: expiresNs === 0 ? null : expiresNs / 1_000_000 };
+  },
+
+  /** Admin: set a user's subscription tier. Every canister reads tiers from here. */
+  async grantSubscription(userPrincipal: string, tier: PlanTier): Promise<void> {
+    const a = await getActor();
+    const { Principal: P } = await import("@icp-sdk/core/principal");
+    const result = await a.grantSubscription(P.fromText(userPrincipal), { [tier]: null });
+    if ("err" in result) {
+      const key    = Object.keys(result.err)[0];
+      const detail = (result.err as any)[key];
+      throw new Error(typeof detail === "string" ? detail : key);
+    }
   },
 
   /** Record cancellation timestamp in localStorage (8.3.2). */
@@ -184,7 +196,7 @@ export const paymentService = {
 
   async hasPaidFor(_feature: string): Promise<boolean> {
     const sub = await this.getMySubscription();
-    return sub.tier !== "ContractorFree";
+    return sub.tier === "Pro" || sub.tier === "ContractorPro";
   },
 
   getPlan(tier: PlanTier): Plan {

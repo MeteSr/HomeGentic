@@ -1,11 +1,7 @@
 // Candid interface for the contractor canister — keep in sync with backend/contractor/main.mo
+import { serviceTypeIdl } from "../../services/serviceTypes";
 export const idlFactory = ({ IDL }: any) => {
-  const ServiceType = IDL.Variant({
-    Roofing: IDL.Null, HVAC: IDL.Null, Plumbing: IDL.Null, Electrical: IDL.Null,
-    Painting: IDL.Null, Flooring: IDL.Null, Windows: IDL.Null, Landscaping: IDL.Null,
-    Gutters: IDL.Null, GeneralHandyman: IDL.Null, Pest: IDL.Null, Concrete: IDL.Null,
-    Fencing: IDL.Null, Insulation: IDL.Null, Solar: IDL.Null, Pool: IDL.Null,
-  });
+  const ServiceType = serviceTypeIdl(IDL);
   const ContractorOrigin = IDL.Variant({
     SelfRegistered: IDL.Null,
     GuestSigned:    IDL.Text,

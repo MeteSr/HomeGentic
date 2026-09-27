@@ -148,7 +148,7 @@ export interface ReportSnapshot {
   diyJobCount:       number;
   permitCount:       number;
   generatedAt:       number;   // ms timestamp
-  planTier:          string;   // "Free" | "Pro" | "Premium" | "ContractorPro"; "" treated as "Free"
+  planTier:          string;   // "Free" | "Pro" | "ContractorFree" | "ContractorPro"; "" treated as "Free"
 }
 
 export interface ShareLink {

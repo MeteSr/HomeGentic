@@ -11,7 +11,7 @@
  *   - QuoteStatus Variant: Pending → Accepted (acceptQuote)
  *   - Homeowner scoping: getMyQuoteRequests only returns the caller's requests
  *   - getQuotesForRequest returns quotes submitted to a specific request
- *   - Premium-tier open-request limit (max 10 concurrent open requests)
+ *   - open-request limits (the CI identity is unlimited)
  */
 
 import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
@@ -48,14 +48,14 @@ beforeAll(async () => {
     propertyType: "SingleFamily" as const,
     yearBuilt:    2000,
     squareFeet:   2000,
-    tier:         "Basic" as const,
+    tier:         "Free" as const,
   });
   realPropId = prop.id;
 });
 
 // ─── createRequest — Candid serialization ────────────────────────────────────
-// Each test cancels its request inline to stay within the Premium open-request
-// limit (10). cancel() requires the property to exist in the property canister
+// Each test cancels its request inline so open requests don't accumulate.
+// cancel() requires the property to exist in the property canister
 // (cross-canister isAuthorized check), so all requests use realPropId.
 
 // Candid serialization tests share a single describe but are split into three

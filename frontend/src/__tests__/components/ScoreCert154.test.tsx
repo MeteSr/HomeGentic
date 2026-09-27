@@ -85,18 +85,6 @@ describe("ScoreCertPage — Pro cert shows full breakdown (15.4.3)", () => {
   });
 });
 
-describe("ScoreCertPage — Premium cert shows full breakdown (15.4.3)", () => {
-  it("shows a 'Score Breakdown' section for Premium", () => {
-    renderCert("Premium");
-    expect(screen.getByText(/score breakdown/i)).toBeInTheDocument();
-  });
-
-  it("shows the breakdown points for Premium", () => {
-    renderCert("Premium");
-    expect(screen.getByText("24")).toBeInTheDocument();
-  });
-});
-
 // ─── Tests: Free — blurred breakdown + upgrade prompt ────────────────────────
 
 describe("ScoreCertPage — Free cert shows blurred breakdown (15.4.3)", () => {

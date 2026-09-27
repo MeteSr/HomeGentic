@@ -41,7 +41,7 @@ jest.mock("../paymentCanister", () => ({
   activateInCanister: jest.fn().mockResolvedValue(undefined),
   consumeAgentCredit: jest.fn().mockResolvedValue(undefined),
   grantAgentCredits:  jest.fn().mockResolvedValue(undefined),
-  VALID_TIERS: new Set(["Free", "Basic", "Pro", "Premium", "ContractorFree", "ContractorPro", "RealtorFree", "RealtorPro"]),
+  VALID_TIERS: new Set(["Free", "Pro", "ContractorFree", "ContractorPro", "RealtorFree", "RealtorPro"]),
   PRINCIPAL_RE: /^[a-z0-9]([a-z0-9-]{0,60}[a-z0-9])?$/,
 }));
 
@@ -154,7 +154,7 @@ describeIfConfigured("Stripe subscription lifecycle integration", () => {
       object:              "subscription",
       status:              "canceled",
       cancel_at_period_end: false,
-      metadata:            { icp_principal: "lifecycle-test-cancel", tier: "Premium" },
+      metadata:            { icp_principal: "lifecycle-test-cancel", tier: "ContractorPro" },
     });
     const res = await sendWebhookEvent(event);
     expect(res.status).toBe(200);

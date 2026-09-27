@@ -1,8 +1,8 @@
 /**
  * 15.6.4: Agent Marketplace and FSBO flows are accessible to all paying tiers.
  *
- * The old Free-tier UpgradeGate was removed — Basic is now the minimum tier
- * and costs money.  All tests verify that Basic+ users see the real content.
+ * The old Free-tier UpgradeGate was removed.  All tests verify that paying
+ * users see the real content.
  */
 
 import { render, screen, waitFor } from "@testing-library/react";
@@ -11,7 +11,7 @@ import { MemoryRouter, Routes, Route } from "react-router-dom";
 
 // ─── Mutable tier (controlled per-test) ──────────────────────────────────────
 
-let mockTier: "Basic" | "Pro" | "Premium" | "ContractorPro" = "Basic";
+let mockTier: "Pro" | "ContractorPro" = "Pro";
 
 vi.mock("@/services/payment", () => ({
   paymentService: {
@@ -144,14 +144,6 @@ describe("ListingNewPage — accessible to all paying tiers (15.6.4)", () => {
     );
   });
 
-  it("Basic user sees the listing form", async () => {
-    mockTier = "Basic";
-    renderListing();
-    await waitFor(() =>
-      expect(screen.getByText(/let agents compete for your listing/i)).toBeInTheDocument()
-    );
-  });
-
   it("Pro user sees the listing form", async () => {
     mockTier = "Pro";
     renderListing();
@@ -160,13 +152,6 @@ describe("ListingNewPage — accessible to all paying tiers (15.6.4)", () => {
     );
   });
 
-  it("Premium user sees the listing form", async () => {
-    mockTier = "Premium";
-    renderListing();
-    await waitFor(() =>
-      expect(screen.getByText(/let agents compete for your listing/i)).toBeInTheDocument()
-    );
-  });
 });
 
 describe("FsboPanel — accessible to all paying tiers (15.6.4)", () => {
@@ -174,14 +159,6 @@ describe("FsboPanel — accessible to all paying tiers (15.6.4)", () => {
     vi.clearAllMocks();
     vi.mocked(paymentService.getMySubscription).mockImplementation(() =>
       Promise.resolve({ tier: mockTier, expiresAt: null, cancelledAt: null })
-    );
-  });
-
-  it("Basic user sees the FSBO panel", async () => {
-    mockTier = "Basic";
-    renderFsboPanel();
-    await waitFor(() =>
-      expect(screen.getByText(/sell this home yourself/i)).toBeInTheDocument()
     );
   });
 

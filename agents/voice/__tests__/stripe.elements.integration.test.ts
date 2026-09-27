@@ -29,8 +29,6 @@ const PRICE_PRO_MONTHLY = (process.env.STRIPE_PRICE_PRO_MONTHLY ?? "").trim();
 const PRICE_MAP: Record<string, string> = {
   "Pro-Monthly":           (process.env.STRIPE_PRICE_PRO_MONTHLY           ?? "").trim(),
   "Pro-Yearly":            (process.env.STRIPE_PRICE_PRO_YEARLY            ?? "").trim(),
-  "Premium-Monthly":       (process.env.STRIPE_PRICE_PREMIUM_MONTHLY       ?? "").trim(),
-  "Premium-Yearly":        (process.env.STRIPE_PRICE_PREMIUM_YEARLY        ?? "").trim(),
   "ContractorPro-Monthly": (process.env.STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY ?? "").trim(),
   "ContractorPro-Yearly":  (process.env.STRIPE_PRICE_CONTRACTOR_PRO_YEARLY  ?? "").trim(),
 };

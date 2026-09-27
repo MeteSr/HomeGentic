@@ -6,7 +6,7 @@ test.describe("PropertyDetailPage — /properties/1", () => {
   test.beforeEach(async ({ page }) => {
     await injectTestAuth(page);
     await injectTestProperties(page);
-    await injectSubscription(page, "Basic");
+    await injectSubscription(page, "Pro");
     await page.goto("/properties/1");
     await expect(page.getByText(/123 maple street/i).first()).toBeVisible();
   });

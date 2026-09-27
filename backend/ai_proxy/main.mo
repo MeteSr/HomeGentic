@@ -61,7 +61,7 @@ persistent actor AiProxy {
 
   // ── IC Management Canister (HTTP outcalls) ─────────────────────────────────
 
-  let ic : actor {
+  transient let ic : actor {
     http_request : shared ({
       url               : Text;
       max_response_bytes : ?Nat64;
@@ -111,9 +111,9 @@ persistent actor AiProxy {
   // Rate limiting
   private let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   private var maxUpdatesPerMin : Nat = 30;
-  private let ONE_MINUTE_NS    : Int = 60_000_000_000;
-  private let ONE_DAY_NS       : Int = 86_400_000_000_000;
-  private let ONE_MONTH_NS     : Int = 2_592_000_000_000_000; // 30 days
+  private transient let ONE_MINUTE_NS    : Int = 60_000_000_000;
+  private transient let ONE_DAY_NS       : Int = 86_400_000_000_000;
+  private transient let ONE_MONTH_NS     : Int = 2_592_000_000_000_000; // 30 days
 
 
   // ── Ingress inspection ────────────────────────────────────────────────────
@@ -169,7 +169,7 @@ persistent actor AiProxy {
 
   type BenchmarkSeed = { low: Nat; median: Nat; high: Nat; sampleSize: Nat };
 
-  private let PRICE_SEEDS : [(Text, BenchmarkSeed)] = [
+  private transient let PRICE_SEEDS : [(Text, BenchmarkSeed)] = [
     ("Roofing",     { low = 800000;  median = 1400000; high = 2200000; sampleSize = 47 }),
     ("HVAC",        { low = 350000;  median = 650000;  high = 1200000; sampleSize = 61 }),
     ("Plumbing",    { low = 15000;   median = 45000;   high = 180000;  sampleSize = 83 }),
@@ -186,7 +186,7 @@ persistent actor AiProxy {
 
   type SystemSpec = { name: Text; lifespanYears: Nat; costLowCents: Nat; costHighCents: Nat };
 
-  private let SYSTEMS : [SystemSpec] = [
+  private transient let SYSTEMS : [SystemSpec] = [
     { name = "HVAC";         lifespanYears = 18; costLowCents =   800_000; costHighCents = 1_500_000 },
     { name = "Roofing";      lifespanYears = 25; costLowCents = 1_500_000; costHighCents = 3_500_000 },
     { name = "Water Heater"; lifespanYears = 12; costLowCents =   120_000; costHighCents =   350_000 },
@@ -202,7 +202,7 @@ persistent actor AiProxy {
   // Value meaning: effectiveLifespan = floor(base * mult / 1000)
   type ClimateEntry = { sys: Text; multNumerator: Nat }; // denominator is 1000
 
-  private let CLIMATE_ZONES : [(Text, [ClimateEntry])] = [
+  private transient let CLIMATE_ZONES : [(Text, [ClimateEntry])] = [
     ("hotHumid", [
       { sys ="HVAC";         multNumerator = 850 },
       { sys ="Roofing";      multNumerator = 880 },
@@ -233,7 +233,7 @@ persistent actor AiProxy {
   ];
 
   // State abbreviation → climate zone key
-  private let STATE_ZONES : [(Text, Text)] = [
+  private transient let STATE_ZONES : [(Text, Text)] = [
     ("FL","hotHumid"),("LA","hotHumid"),("MS","hotHumid"),("AL","hotHumid"),
     ("GA","hotHumid"),("SC","hotHumid"),("HI","hotHumid"),
     ("AZ","hotDry"),("NM","hotDry"),("NV","hotDry"),("UT","hotDry"),
@@ -281,7 +281,7 @@ persistent actor AiProxy {
 
   // ── Volusia County supported cities ───────────────────────────────────────
 
-  private let VOLUSIA_CITIES : [Text] = [
+  private transient let VOLUSIA_CITIES : [Text] = [
     "daytona beach", "deltona", "ormond beach", "port orange", "holly hill",
     "south daytona", "new smyrna beach", "edgewater", "deland", "debary",
     "orange city", "ponce inlet", "oak hill", "lake helen", "pierson",
@@ -304,7 +304,7 @@ persistent actor AiProxy {
   };
 
   // Supported cities for OpenPermit (beyond Volusia)
-  private let OPENPERMIT_CITIES : [Text] = [
+  private transient let OPENPERMIT_CITIES : [Text] = [
     "los angeles", "houston", "phoenix", "philadelphia", "san antonio",
     "san diego", "dallas", "san jose", "austin", "jacksonville",
     "new york", "chicago", "fort worth", "columbus", "charlotte",

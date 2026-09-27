@@ -91,7 +91,7 @@ describe("A11Y.4 — UpgradeGate (Basic tier blocked state)", () => {
         <UpgradeGate
           feature="Score Breakdown"
           description="See exactly what's dragging your score down."
-          tier="Basic"
+          tier="Pro"
         />
       )
     );

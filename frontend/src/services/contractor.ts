@@ -1,6 +1,7 @@
 import { Actor } from "@icp-sdk/core/agent";
 import { getAgent } from "./actor";
 import { idlFactory } from "@/declarations/contractor";
+import { serviceTypeVariant, serviceTypeFromVariant, serviceTypeLabel } from "./serviceTypes";
 export { idlFactory };
 
 const CONTRACTOR_CANISTER_ID = (process.env as any).CONTRACTOR_CANISTER_ID || "";
@@ -64,7 +65,7 @@ function fromProfile(raw: any): ContractorProfile {
   return {
     id:            raw.id.toText(),
     name:          raw.name,
-    specialties:   (raw.specialties as any[]).map((s: any) => Object.keys(s)[0]),
+    specialties:   (raw.specialties as any[]).map(serviceTypeFromVariant),
     email:         raw.email,
     phone:         raw.phone,
     bio:           raw.bio[0] ?? null,
@@ -159,7 +160,7 @@ function createContractorService() {
     const a = await getActor();
     return unwrap(await a.register({
       name:        args.name,
-      specialties: args.specialties.map((s) => ({ [s]: null })),
+      specialties: args.specialties.map(serviceTypeVariant),
       email:       args.email,
       phone:       args.phone,
     }));
@@ -169,7 +170,7 @@ function createContractorService() {
     const a = await getActor();
     return unwrap(await a.updateProfile({
       name:          args.name,
-      specialties:   args.specialties.map((s) => ({ [s]: null })),
+      specialties:   args.specialties.map(serviceTypeVariant),
       email:         args.email,
       phone:         args.phone,
       bio:           args.bio           ? [args.bio]           : [],
@@ -198,7 +199,7 @@ function createContractorService() {
       id:                 Number(c.id),
       jobId:              c.jobId,
       contractorId:       c.contractorId.toText(),
-      serviceType:        c.serviceType,
+      serviceType:        serviceTypeLabel(c.serviceType),
       verifiedAt:         Number(c.verifiedAt) / 1_000_000,
       homeownerPrincipal: c.homeownerPrincipal.toText(),
     }));
@@ -220,7 +221,7 @@ function createContractorService() {
 
   async getBySpecialty(specialty: string): Promise<ContractorProfile[]> {
     const a = await getActor();
-    const result = await a.getBySpecialty({ [specialty]: null }) as any[];
+    const result = await a.getBySpecialty(serviceTypeVariant(specialty)) as any[];
     return result.map(fromProfile);
   },
 

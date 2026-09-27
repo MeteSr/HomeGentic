@@ -239,18 +239,17 @@ persistent actor Listing {
   /// propertyId → the principal who first added a panorama (owner lock)
   private let listingPanoramaOwners = Map.empty<Text, Principal>();
 
-  private let MAX_LISTING_PHOTOS    : Nat = 15;
-  private let MAX_LISTING_PANORAMAS : Nat = 10;
-  private let MAX_PROPOSALS_PER_REQUEST : Nat = 5;   // "up to five agents" — invariant surface
-  private let SEAL_REVEAL_COUNT : Nat = 3;           // invariant 02
-  private let LETTERS : [Text] = ["A", "B", "C", "D", "E"];
+  private transient let MAX_LISTING_PHOTOS    : Nat = 15;
+  private transient let MAX_LISTING_PANORAMAS : Nat = 10;
+  private transient let MAX_PROPOSALS_PER_REQUEST : Nat = 5;   // "up to five agents" — invariant surface
+  private transient let SEAL_REVEAL_COUNT : Nat = 3;           // invariant 02
+  private transient let LETTERS : [Text] = ["A", "B", "C", "D", "E"];
 
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
 
   private let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   private var maxUpdatesPerMin : Nat = 30;
-  private let ONE_MINUTE_NS       : Int = 60_000_000_000;
-  private let ONE_DAY_NS          : Int = 86_400_000_000_000;
+  private transient let ONE_MINUTE_NS       : Int = 60_000_000_000;
 
   system func inspect({ caller : Principal; arg : Blob }) : Bool {
     not Principal.isAnonymous(caller) and arg.size() > 0

@@ -10,7 +10,7 @@
  * AGENT.3  POST /api/agent — Pro tier returns 200 answer with quota headers
  * AGENT.4  POST /api/agent — Pro tier returns 200 tool_calls response
  * AGENT.5  POST /api/agent — unknown tier falls back to Free (10/week, allowed)
- * AGENT.6  POST /api/agent — limit is enforced at tier cap (Pro=10/day, Premium=20/day, Free=10/week)
+ * AGENT.6  POST /api/agent — limit is enforced at tier cap (Pro=10/day, Free=10/week)
  *
  * HEALTH.1  GET /health — returns { ok: true }
  *
@@ -375,29 +375,6 @@ describe("AGENT.6 — daily limit enforced at tier cap", () => {
     expect(res.status).toBe(429);
     expect(res.body.error).toBe("daily_agent_limit_reached");
     expect(res.body.limit).toBe(10);
-  });
-
-  it("Premium: blocks the 21st call (limit = 20)", async () => {
-    mockProvider.completeWithTools.mockResolvedValue({ type: "answer", text: "ok" });
-    const principal = uid();
-
-    for (let i = 0; i < 20; i++) {
-      await supertest(app)
-        .post("/api/agent")
-        .set("x-icp-principal", principal)
-        .set("x-subscription-tier", "Premium")
-        .send({ messages: [{ role: "user", content: "ping" }] });
-    }
-
-    const res = await supertest(app)
-      .post("/api/agent")
-      .set("x-icp-principal", principal)
-      .set("x-subscription-tier", "Premium")
-      .send({ messages: [{ role: "user", content: "ping" }] });
-
-    expect(res.status).toBe(429);
-    expect(res.body.error).toBe("daily_agent_limit_reached");
-    expect(res.body.limit).toBe(20);
   });
 
   it("Free: blocks the 11th call (limit = 10/week, not 10/day)", async () => {

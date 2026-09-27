@@ -97,7 +97,7 @@ persistent actor Maintenance {
     diyViable:       Bool;
   };
 
-  private let SYSTEMS : [SystemSpec] = [
+  private transient let SYSTEMS : [SystemSpec] = [
     { name = "HVAC";         lifespanYears = 18; costLowCents = 800_000;   costHighCents = 1_500_000; diyViable = false },
     { name = "Roofing";      lifespanYears = 25; costLowCents = 1_500_000; costHighCents = 3_500_000; diyViable = false },
     { name = "Water Heater"; lifespanYears = 12; costLowCents = 120_000;   costHighCents = 350_000;   diyViable = false },
@@ -108,7 +108,7 @@ persistent actor Maintenance {
     { name = "Insulation";   lifespanYears = 30; costLowCents = 150_000;   costHighCents = 500_000;   diyViable = true  },
   ];
 
-  private let ANNUAL_TASKS : [AnnualTask] = [
+  private transient let ANNUAL_TASKS : [AnnualTask] = [
     { task = "Replace HVAC air filter";          frequency = "Quarterly";     season = null;       estimatedCost = "$10–$30 (DIY)";     diyViable = true  },
     { task = "Clean gutters";                    frequency = "Semi-annually"; season = ?"Fall";    estimatedCost = "$100–$250";          diyViable = true  },
     { task = "Clean dryer vent";                 frequency = "Annually";      season = null;       estimatedCost = "$0–$150";            diyViable = true  },
@@ -143,7 +143,7 @@ persistent actor Maintenance {
   private let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
-  private let ONE_MINUTE_NS       : Int = 60_000_000_000;
+  private transient let ONE_MINUTE_NS       : Int = 60_000_000_000;
   // ── Ingress inspection ────────────────────────────────────────────────────
   /// Reject anonymous callers and zero-byte payloads before execution.
   /// Empty payload cannot be valid Candid for any method that takes a struct

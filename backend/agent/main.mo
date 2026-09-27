@@ -103,11 +103,11 @@ persistent actor Agent {
   /// Composite dedup key "reviewerPrincipal|transactionId" → true, one review per won bid.
   private let reviewDedup = Map.empty<Text, Bool>();
 
-  private let MAX_BIO_LEN     : Nat = 2000;
-  private let MAX_COMMENT_LEN : Nat = 1000;
-  private let MAX_REVIEWS_PER_DAY : Nat = 10;
-  private let ONE_DAY_NS : Int = 86_400_000_000_000;
-  private let ONE_MINUTE_NS : Int = 60_000_000_000;
+  private transient let MAX_BIO_LEN     : Nat = 2000;
+  private transient let MAX_COMMENT_LEN : Nat = 1000;
+  private transient let MAX_REVIEWS_PER_DAY : Nat = 10;
+  private transient let ONE_DAY_NS : Int = 86_400_000_000_000;
+  private transient let ONE_MINUTE_NS : Int = 60_000_000_000;
 
   /// Reviewer → (count, windowStart) sliding 24h window.
   private let reviewRateLimits = Map.empty<Text, (Nat, Int)>();

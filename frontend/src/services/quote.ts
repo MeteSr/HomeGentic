@@ -1,6 +1,7 @@
 import { Actor } from "@icp-sdk/core/agent";
 import { getAgent } from "./actor";
 import { idlFactory } from "@/declarations/quote";
+import { serviceTypeVariant, serviceTypeFromVariant } from "./serviceTypes";
 import { ibeEncryptAmount, ibeDecryptBids, type RevealedBid as SealedRevealedBid } from "./sealedBid";
 import type { UsageCategory, UsageSummary } from "./quoteUsage";
 export { idlFactory };
@@ -109,7 +110,7 @@ function fromRequest(raw: any): QuoteRequest {
     id:               raw.id,
     propertyId:       raw.propertyId,
     homeowner:        raw.homeowner.toText(),
-    serviceType:      Object.keys(raw.serviceType)[0],
+    serviceType:      serviceTypeFromVariant(raw.serviceType),
     urgency:          mapVariant(URGENCY_MAP, raw.urgency, "urgency"),
     description:      raw.description,
     status:           mapVariant(REQUEST_STATUS_MAP, raw.status, "requestStatus"),
@@ -189,7 +190,7 @@ function createQuoteService() {
     const urgencyKey = req.urgency.charAt(0).toUpperCase() + req.urgency.slice(1);
     const result = await a.createQuoteRequest(
       req.propertyId,
-      { [req.serviceType]: null },
+      serviceTypeVariant(req.serviceType),
       req.description,
       { [urgencyKey]: null },
       req.zipCode        ? [req.zipCode]                             : [],
@@ -443,7 +444,7 @@ function createQuoteService() {
 
   getQuotaForTier(tier: string): number {
     const limits: Record<string, number> = {
-      Free: 3, Pro: 10, Premium: 10, ContractorPro: 0,
+      Free: 3, Pro: 0, ContractorPro: 0,   // 0 = unlimited, as in the quote canister
     };
     return limits[tier] ?? 3;
   },

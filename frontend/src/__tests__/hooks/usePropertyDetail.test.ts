@@ -35,7 +35,7 @@ function makeProperty(overrides: Partial<Property> = {}): Property {
     yearBuilt: BigInt(1990),
     squareFeet: BigInt(2000),
     verificationLevel: "Unverified",
-    tier: "Basic",
+    tier: "Free",
     createdAt: BigInt(0),
     updatedAt: BigInt(0),
     isActive: true,

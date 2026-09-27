@@ -33,7 +33,7 @@ jest.mock("../paymentCanister", () => ({
   activateInCanister: jest.fn().mockResolvedValue(undefined),
   consumeAgentCredit: jest.fn().mockResolvedValue(undefined),
   grantAgentCredits:  jest.fn().mockResolvedValue(undefined),
-  VALID_TIERS: new Set(["Free", "Basic", "Pro", "Premium", "ContractorFree", "ContractorPro", "RealtorFree", "RealtorPro"]),
+  VALID_TIERS: new Set(["Free", "Pro", "ContractorFree", "ContractorPro", "RealtorFree", "RealtorPro"]),
   PRINCIPAL_RE: /^[a-z0-9]([a-z0-9-]{0,60}[a-z0-9])?$/,
 }));
 
@@ -139,10 +139,10 @@ describe("VERIFY.4 — verify-session paid subscription (Monthly)", () => {
 describe("VERIFY.5 — verify-session paid subscription (Yearly)", () => {
   it("calls activateInCanister with 12 months for Yearly billing", async () => {
     mockSessionsRetrieve.mockResolvedValueOnce(
-      paidSession({ metadata: { icp_principal: "test-user-002", tier: "Premium", billing: "Yearly", is_gift: "false" } })
+      paidSession({ metadata: { icp_principal: "test-user-002", tier: "ContractorPro", billing: "Yearly", is_gift: "false" } })
     );
     await supertest(app).post("/api/stripe/verify-session").send({ sessionId: "cs_test_yearly" });
-    expect(mockActivate).toHaveBeenCalledWith("test-user-002", "Premium", 12);
+    expect(mockActivate).toHaveBeenCalledWith("test-user-002", "ContractorPro", 12);
   });
 });
 
@@ -179,15 +179,15 @@ describe("VERIFY.8 — verify-subscription active subscription", () => {
   it("returns 200 and calls activateInCanister", async () => {
     mockSubscriptionsRetrieve.mockResolvedValueOnce({
       status: "active",
-      metadata: { tier: "Basic", billing: "Monthly", icp_principal: "test-user-003" },
+      metadata: { tier: "Pro", billing: "Monthly", icp_principal: "test-user-003" },
     });
     const res = await supertest(app)
       .post("/api/stripe/verify-subscription")
       .send({ subscriptionId: "sub_test_active" });
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ type: "subscription", tier: "Basic", billing: "Monthly" });
-    expect(mockActivate).toHaveBeenCalledWith("test-user-003", "Basic", 1);
+    expect(res.body).toEqual({ type: "subscription", tier: "Pro", billing: "Monthly" });
+    expect(mockActivate).toHaveBeenCalledWith("test-user-003", "Pro", 1);
   });
 });
 

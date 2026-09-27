@@ -10,7 +10,7 @@ const PAYMENT_CANISTER_ID =
 export const PRINCIPAL_RE = /^[a-z0-9]([a-z0-9-]{0,60}[a-z0-9])?$/;
 
 export const VALID_TIERS = new Set([
-  "Free", "Basic", "Pro", "Premium",
+  "Free", "Pro",
   "ContractorFree", "ContractorPro", "RealtorFree", "RealtorPro",
 ]);
 
@@ -63,7 +63,7 @@ async function getAgent(): Promise<HttpAgent> {
 // ── Minimal IDL for the three admin methods ───────────────────────────────────
 const idlFactory = ({ IDL }: { IDL: any }) => {
   const Tier = IDL.Variant({
-    Free: IDL.Null, Basic: IDL.Null, Pro: IDL.Null, Premium: IDL.Null,
+    Free: IDL.Null, Pro: IDL.Null,
     ContractorFree: IDL.Null, ContractorPro: IDL.Null,
     RealtorFree: IDL.Null, RealtorPro: IDL.Null,
   });
@@ -93,7 +93,7 @@ const idlFactory = ({ IDL }: { IDL: any }) => {
     ),
     getTierForPrincipal: IDL.Func(
       [IDL.Principal],
-      [IDL.Variant({ Free: IDL.Null, Basic: IDL.Null, Pro: IDL.Null, Premium: IDL.Null, ContractorFree: IDL.Null, ContractorPro: IDL.Null, RealtorFree: IDL.Null, RealtorPro: IDL.Null })],
+      [IDL.Variant({ Free: IDL.Null, Pro: IDL.Null, ContractorFree: IDL.Null, ContractorPro: IDL.Null, RealtorFree: IDL.Null, RealtorPro: IDL.Null })],
       ["query"],
     ),
   });

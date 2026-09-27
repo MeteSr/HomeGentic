@@ -28,9 +28,7 @@ and where in the codebase each integration lives.
 ## 0. Stripe
 
 **Purpose:** Subscription billing for Pro (the single $59/year homeowner
-plan) and ContractorPro. Premium is retired as a purchase option and only
-appears in billing for subscribers grandfathered in before the pricing
-consolidation.
+plan) and ContractorPro.
 Handles payment collection via Stripe Elements (`PaymentElement`) embedded
 directly in the app's checkout page — no redirect to Stripe-hosted pages.
 
@@ -42,8 +40,6 @@ directly in the app's checkout page — no redirect to Stripe-hosted pages.
 | `VITE_STRIPE_PUBLISHABLE_KEY` | `frontend/src/pages/CheckoutPage.tsx` | Client-side. Starts with `pk_test_` or `pk_live_`. |
 | `STRIPE_PRICE_PRO_MONTHLY` | server | `price_xxx` ID from Stripe dashboard |
 | `STRIPE_PRICE_PRO_YEARLY` | server | `price_xxx` ID |
-| `STRIPE_PRICE_PREMIUM_MONTHLY` | server | `price_xxx` ID |
-| `STRIPE_PRICE_PREMIUM_YEARLY` | server | `price_xxx` ID |
 | `STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY` | server | `price_xxx` ID |
 | `STRIPE_PRICE_CONTRACTOR_PRO_YEARLY` | server | `price_xxx` ID |
 

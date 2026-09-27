@@ -37,7 +37,7 @@ persistent actor Monitoring {
     };
   };
 
-  private let IC : ICActor = actor("aaaaa-aa");
+  private transient let IC : ICActor = actor("aaaaa-aa");
 
   // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -219,23 +219,23 @@ persistent actor Monitoring {
   // ─── Constants ───────────────────────────────────────────────────────────────
 
   // 1 trillion cycles = $1.30 USD
-  private let cyclesPerTrillion : Float = 1_000_000_000_000.0;
-  private let usdPerTrillion    : Float = 1.30;
+  private transient let cyclesPerTrillion : Float = 1_000_000_000_000.0;
+  private transient let usdPerTrillion    : Float = 1.30;
 
-  private let storageSharePct   : Float = 0.35;
-  private let computeSharePct   : Float = 0.50;
-  private let networkSharePct   : Float = 0.15;
+  private transient let storageSharePct   : Float = 0.35;
+  private transient let computeSharePct   : Float = 0.50;
+  private transient let networkSharePct   : Float = 0.15;
 
-  private let cacUsd            : Float = 15.0;
-  private let ltvMonths         : Float = 18.0;
+  private transient let cacUsd            : Float = 15.0;
+  private transient let ltvMonths         : Float = 18.0;
 
   // Alert thresholds
-  private let criticalCyclesT   : Nat   = 5_000_000_000_000;   // 5T
-  private let warningCyclesT    : Nat   = 10_000_000_000_000;  // 10T
-  private let criticalErrorPct  : Float = 5.0;
-  private let warningErrorPct   : Float = 2.0;
-  private let warningResponseMs : Nat   = 2_000;
-  private let warningMemoryPct  : Float = 80.0;
+  private transient let criticalCyclesT   : Nat   = 5_000_000_000_000;   // 5T
+  private transient let warningCyclesT    : Nat   = 10_000_000_000_000;  // 10T
+  private transient let criticalErrorPct  : Float = 5.0;
+  private transient let warningErrorPct   : Float = 2.0;
+  private transient let warningResponseMs : Nat   = 2_000;
+  private transient let warningMemoryPct  : Float = 80.0;
 
   // ─── Cross-canister actor interfaces (for getProductMetrics) ────────────────
 
@@ -310,7 +310,7 @@ persistent actor Monitoring {
   private let alerts          = Map.empty<Text, Alert>();
   private let cyclesPerCall   = Map.empty<Text, MethodCyclesSummary>();
 
-  private let MAX_ERROR_SUMMARIES : Nat = 500;
+  private transient let MAX_ERROR_SUMMARIES : Nat = 500;
   private let frontendErrors = Map.empty<Text, ErrorSummary>();
 
   // ─── Private Helpers ─────────────────────────────────────────────────────────
@@ -320,7 +320,7 @@ persistent actor Monitoring {
   private let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
-  private let ONE_MINUTE_NS       : Int = 60_000_000_000;
+  private transient let ONE_MINUTE_NS       : Int = 60_000_000_000;
   // ── Ingress inspection ────────────────────────────────────────────────────
   /// Reject anonymous callers and zero-byte payloads before execution.
   /// Empty payload cannot be valid Candid for any method that takes a struct
@@ -1127,8 +1127,8 @@ persistent actor Monitoring {
   // NOTE: This does NOT require the monitoring canister to be a controller of the
   // monitored canisters — it only reads already-stored metric timestamps.
 
-  private let STALE_THRESHOLD_NS : Int = 3_600_000_000_000; // 1 hour in nanoseconds
-  private let STALE_CHECK_NS     : Nat = 300_000_000_000;   // 5 minutes in nanoseconds
+  private transient let STALE_THRESHOLD_NS : Int = 3_600_000_000_000; // 1 hour in nanoseconds
+  private transient let STALE_CHECK_NS     : Nat = 300_000_000_000;   // 5 minutes in nanoseconds
 
   private func checkStaleMetrics() : async () {
     let now = Time.now();

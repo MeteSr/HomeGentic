@@ -287,11 +287,11 @@ describe.skipIf(!deployed)("getUsageTrend — Motoko query round-trip", () => {
 
 // ─── Tier enforcement ─────────────────────────────────────────────────────────
 
-describe.skipIf(!deployed)("tier enforcement — Basic tier has no monthly upload cap", () => {
-  // The test identity is granted Basic in CI (scripts/test-integration.sh).
-  // Basic tier: monthlyUploadLimit = 0 = unlimited.
+describe.skipIf(!deployed)("tier enforcement — paid tiers have no monthly upload cap", () => {
+  // The test identity is granted ContractorPro in CI (ci.yml).
+  // Paid tiers: monthlyUploadLimit = 0 = unlimited.
   // Free-tier blocking (any upload rejected) is covered by canister unit tests.
-  it("multiple uploads in the same month all succeed for a Basic-tier caller", async () => {
+  it("multiple uploads in the same month all succeed for a paid-tier caller", async () => {
     const pid = propId("tier-basic");
     await expect(
       billService.addBill({ ...BASE_ARGS, propertyId: pid, billType: "Electric" })

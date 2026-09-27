@@ -598,7 +598,7 @@ export default function PeoplePage() {
     peopleService.getApprovals(propertyId).then((a) => setApprovalCount(a.length)).catch(() => {});
   }, [propertyId, screen]);
 
-  const allowed = userTier === "Pro" || userTier === "Premium";
+  const allowed = userTier === "Pro";
 
   return (
     <Layout>

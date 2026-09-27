@@ -218,6 +218,6 @@ describe.skipIf(!deployed)("getPropertyYearBuilt — cross-canister query IDL", 
 });
 
 // ─── Tier enforcement ─────────────────────────────────────────────────────────
-// Skipped in integration: the CI test identity is granted Premium (20-property limit),
+// Skipped in integration: the CI test identity is granted Pro (20-property limit),
 // so the per-tier property cap cannot be exercised here without a dedicated Free identity.
 // Free-tier LimitReached behaviour is covered by the backend canister unit tests.

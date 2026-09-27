@@ -51,12 +51,8 @@ export interface Env {
   // Stripe — HomeGentic
   STRIPE_SECRET_KEY:              string;
   STRIPE_WEBHOOK_SECRET:          string;
-  STRIPE_PRICE_BASIC_MONTHLY?:         string;
-  STRIPE_PRICE_BASIC_YEARLY?:          string;
   STRIPE_PRICE_PRO_MONTHLY?:           string;
   STRIPE_PRICE_PRO_YEARLY?:            string;
-  STRIPE_PRICE_PREMIUM_MONTHLY?:       string;
-  STRIPE_PRICE_PREMIUM_YEARLY?:        string;
   STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY?: string;
   STRIPE_PRICE_CONTRACTOR_PRO_YEARLY?:  string;
   STRIPE_PRICE_CREDITS_25?:  string;
@@ -964,8 +960,6 @@ Rules:
     const PRICE_MAP: Record<string, string | undefined> = {
       ProMonthly:           env.STRIPE_PRICE_PRO_MONTHLY?.trim(),
       ProYearly:            env.STRIPE_PRICE_PRO_YEARLY?.trim(),
-      PremiumMonthly:       env.STRIPE_PRICE_PREMIUM_MONTHLY?.trim(),
-      PremiumYearly:        env.STRIPE_PRICE_PREMIUM_YEARLY?.trim(),
       ContractorProMonthly: env.STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY?.trim(),
       ContractorProYearly:  env.STRIPE_PRICE_CONTRACTOR_PRO_YEARLY?.trim(),
     };
@@ -999,12 +993,8 @@ Rules:
     const { tier, billing, principal, email } = await request.json() as any;
     if (!tier || !billing) return json({ error: "tier and billing are required" }, 400, cors);
     const priceEnvMap: Record<string, string | undefined> = {
-      "Basic-Monthly":          env.STRIPE_PRICE_BASIC_MONTHLY?.trim(),
-      "Basic-Yearly":           env.STRIPE_PRICE_BASIC_YEARLY?.trim(),
       "Pro-Monthly":            env.STRIPE_PRICE_PRO_MONTHLY?.trim(),
       "Pro-Yearly":             env.STRIPE_PRICE_PRO_YEARLY?.trim(),
-      "Premium-Monthly":        env.STRIPE_PRICE_PREMIUM_MONTHLY?.trim(),
-      "Premium-Yearly":         env.STRIPE_PRICE_PREMIUM_YEARLY?.trim(),
       "ContractorPro-Monthly":  env.STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY?.trim(),
       "ContractorPro-Yearly":   env.STRIPE_PRICE_CONTRACTOR_PRO_YEARLY?.trim(),
     };

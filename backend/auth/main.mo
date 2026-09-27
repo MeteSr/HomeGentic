@@ -130,7 +130,7 @@ persistent actor class Auth(initDeployer : Principal) {
   /// Admin-adjustable rate limit — default 30/min. Lower for tighter protection,
   /// raise for bulk-operation accounts, set to 0 to disable enforcement.
   private var maxUpdatesPerMin : Nat = 30;
-  private let ONE_MINUTE_NS       : Int = 60_000_000_000;
+  private transient let ONE_MINUTE_NS       : Int = 60_000_000_000;
 
   /// Returns true and bumps the counter if the caller is under the 120/min limit.
   /// Admins are always exempt. Window resets after 60 s.

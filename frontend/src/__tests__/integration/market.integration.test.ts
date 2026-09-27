@@ -171,7 +171,7 @@ describe.skipIf(!deployed)("computePropertyScore — on-chain FSBO score", () =>
         propertyType: "SingleFamily",
         yearBuilt:    2000,
         squareFeet:   1500,
-        tier:         "Basic",
+        tier:         "Free",
       });
     } catch (e: any) {
       if (e.message?.includes("limit")) {

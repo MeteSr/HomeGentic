@@ -63,10 +63,10 @@ const PAGE_LINKS: { label: string; to: string }[] = [
 ];
 
 // Mirrors Layout.tsx's TIER_PROPERTY_LIMIT — Free/Basic get 1 property,
-// Pro/Premium get 20. Duplicated locally rather than shared since Layout
+// Pro gets 20. Duplicated locally rather than shared since Layout
 // keeps its own copy too (see services/agentTools.ts for a third).
 const TIER_PROPERTY_LIMIT: Partial<Record<PlanTier, number>> = {
-  Free: 1, Basic: 1, Pro: 20, Premium: 20,
+  Free: 1, Pro: 20,
 };
 
 // ── Keyword routing for the ask bar's typed search ──────────────────────────
@@ -169,14 +169,14 @@ export function DashboardV3() {
 
   const { rooms } = usePropertyRooms(activePropertyId ?? undefined);
   const { userTier, expiresAt: subExpiresAt, cancelledAt: subCancelledAt } = useSubscription();
-  const isPro = userTier === "Pro" || userTier === "Premium";
+  const isPro = userTier === "Pro";
   const atPropertyLimit = properties.length >= (TIER_PROPERTY_LIMIT[userTier] ?? Infinity);
-  // Pro/Premium share the top homeowner tier with nothing higher to offer —
+  // Pro is the top homeowner tier with nothing higher to offer —
   // let the add-property flow surface its own at-capacity message instead
   // of an upgrade modal with nowhere to go (mirrors Layout.tsx's old
   // sidebar button, which this replaces now that the sidebar is hidden here).
   const handleAddProperty = () => {
-    if (atPropertyLimit && userTier !== "Premium" && userTier !== "Pro") {
+    if (atPropertyLimit && userTier !== "Pro") {
       setFlow("upgrade");
     } else {
       openAddProp();

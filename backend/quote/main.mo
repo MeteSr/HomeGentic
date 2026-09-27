@@ -18,21 +18,13 @@ import Principal "mo:core/Principal";
 import Result   "mo:core/Result";
 import Text     "mo:core/Text";
 import Time     "mo:core/Time";
+import ServiceTypes "../shared/ServiceType";
 
 persistent actor Quote {
 
   // ─── Types ──────────────────────────────────────────────────────────────────
 
-  public type ServiceType = {
-    #Roofing;
-    #HVAC;
-    #Plumbing;
-    #Electrical;
-    #Painting;
-    #Flooring;
-    #Windows;
-    #Landscaping;
-  };
+  public type ServiceType = ServiceTypes.ServiceType;
 
   public type UrgencyLevel = {
     #Low;
@@ -58,9 +50,7 @@ persistent actor Quote {
 
   public type SubscriptionTier = {
     #Free;             // unsubscribed sentinel — blocked (0)
-    #Basic;            // 3 concurrent open requests
     #Pro;              // 10
-    #Premium;          // 10
     #ContractorFree;   // unlimited (999_999) — contractors get unlimited quote requests
     #ContractorPro;    // unlimited (999_999)
   };
@@ -169,8 +159,8 @@ persistent actor Quote {
   /// first addAdmin() call. Consumed on first successful use.
   private var bootstrapNonce: ?Text = null;
   /// Payment canister ID — set post-deploy via setPaymentCanisterId().
-  /// When set, createQuoteRequest() cross-calls getTierForPrincipal() instead of
-  /// reading the local tierGrants map.
+  /// When set, createQuoteRequest() cross-calls getTierForPrincipal(); without it every
+  /// caller is treated as #Free (fail closed).
   private var payCanisterId: Text = "";
   /// Property canister ID — set post-deploy via setPropertyCanisterId().
   /// When set, quote creation uses the property owner's tier when the caller
@@ -189,7 +179,6 @@ persistent actor Quote {
   private let requests               = Map.empty<Text, QuoteRequest>();
   private let quotes                 = Map.empty<Text, Quote>();
   private let contractorRateLimits   = Map.empty<Principal, (Nat, Int)>();
-  private let tierGrants             = Map.empty<Text, SubscriptionTier>();
   private let sealedBids             = Map.empty<Text, SealedBid>();
   private let sealedBidsByRequest    = Map.empty<Text, [Text]>();
   private let sealedBidsByContractor = Map.empty<Text, Text>();
@@ -200,13 +189,16 @@ persistent actor Quote {
   // ─── vetKeys IBE (sealed-bid confidentiality) ─────────────────────────────────
   // Domain separator "hg-bid-v1" — must match the context used by @dfinity/vetkeys
   // on the frontend.  Changing this invalidates all existing ciphertexts.
-  private let IBE_CONTEXT : Blob = Blob.fromArray([
+  private transient let IBE_CONTEXT : Blob = Blob.fromArray([
     0x68, 0x67, 0x2D, 0x62, 0x69, 0x64, 0x2D, 0x76, 0x31   // "hg-bid-v1"
   ]);
   // "test_key_1" for local/testnet (~10B cycles per derive call).
   // Switch to "key_1" before mainnet launch (~26B cycles per derive call).
-  private let VETKD_KEY_NAME   : Text = "test_key_1";
-  private let VETKD_KEY_CYCLES : Nat  = 10_000_000_000;
+  /// vetKD master key. "test_key_1" is the IC's test key; production deploys set
+  /// "key_1" via setVetkdKeyName (scripts/deploy.sh does this for ic). Stored —
+  /// not a constant — so it can be changed without reinstalling.
+  private var vetkdKeyName : Text = "test_key_1";
+  private transient let VETKD_KEY_CYCLES : Nat  = 10_000_000_000;
 
   type VetKdCurve              = { #bls12_381_g2 };
   type VetKdKeyId              = { curve: VetKdCurve; name: Text };
@@ -220,22 +212,22 @@ persistent actor Quote {
   };
   type VetKdDeriveKeyResponse  = { encrypted_key: Blob };
 
-  let managementCanister : actor {
+  transient let managementCanister : actor {
     vetkd_public_key : VetKdPublicKeyRequest -> async VetKdPublicKeyResponse;
     vetkd_derive_key : VetKdDeriveKeyRequest -> async VetKdDeriveKeyResponse;
   } = actor "aaaaa-aa";
 
   // ─── Private Helpers ─────────────────────────────────────────────────────────
 
-  private let oneDayNs : Int = 24 * 60 * 60 * 1_000_000_000;
-  private let dailyQuoteLimit : Nat = 20;
+  private transient let oneDayNs : Int = 24 * 60 * 60 * 1_000_000_000;
+  private transient let dailyQuoteLimit : Nat = 20;
 
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
 
   private let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
-  private let ONE_MINUTE_NS       : Int = 60_000_000_000;
+  private transient let ONE_MINUTE_NS       : Int = 60_000_000_000;
   // ── Ingress inspection ────────────────────────────────────────────────────
   /// Reject anonymous callers and zero-byte payloads before execution.
   /// Empty payload cannot be valid Candid for any method that takes a struct
@@ -386,30 +378,16 @@ persistent actor Quote {
   };
 
   /// Max concurrent open requests for a tier. 0 = blocked/unlimited sentinel — see callers.
-  /// #Basic and #Premium are retired as purchasable tiers — #Pro is now the
-  /// single homeowner plan ($59/year) with genuinely unlimited requests
-  /// (matching what planConstants.ts has always advertised for the top
-  /// tier — previously enforced here as only 10, the same as old #Pro).
+  /// #Pro is the single homeowner plan ($59/year), with unlimited requests.
   private func tierOpenLimit(tier: SubscriptionTier) : Nat {
     switch tier {
       case (#Free)             { 3       };
-      case (#Basic)            { 3       };
       case (#Pro)              { 999_999 };  // effectively unlimited
-      case (#Premium)          { 10      };
       case (#ContractorFree)   { 999_999 };  // effectively unlimited for contractors
       case (#ContractorPro)    { 999_999 };  // effectively unlimited
     }
   };
 
-  /// Returns the authoritative tier for a principal.
-  /// Falls back to #Free for principals without an admin-granted tier.
-  /// Callers cannot influence this — it is set only via setTier() (admin-only).
-  private func tierFor(p: Principal) : SubscriptionTier {
-    switch (Map.get(tierGrants, Text.compare, Principal.toText(p))) {
-      case (?t) { t };
-      case null { #Free };
-    }
-  };
 
   /// Returns true and bumps the counter if the contractor is under their daily limit.
   /// Resets the window when 24 h have elapsed.
@@ -472,29 +450,24 @@ persistent actor Quote {
     } else { msg.caller };
     let callerTier : SubscriptionTier = if (payCanisterId != "") {
       let payActor = actor(payCanisterId) : actor {
-        getTierForPrincipal : (Principal) -> async { #Free; #Basic; #Pro; #Premium; #ContractorFree; #ContractorPro };
+        getTierForPrincipal : (Principal) -> async { #Free; #Pro; #ContractorFree; #ContractorPro };
       };
       await payActor.getTierForPrincipal(effectivePrincipal)
     } else {
-      tierFor(effectivePrincipal)
+      #Free  // payment canister not wired: no tier source, fail closed
     };
     let limit = tierOpenLimit(callerTier);
     if (countOpenRequests(msg.caller) >= limit) {
-      // Free and #Basic (grandfathered) share the same 3-request cap and
-      // upgrade path, to the single $59/year Pro plan. #Pro itself has no
-      // further homeowner tier to suggest (it was previously pointed at
-      // ContractorPro, a different persona's plan — that never made sense
-      // and is dropped here).
+      // Only Free has an upgrade path: Pro is the single $59/year plan.
       let upgradeHint = switch (callerTier) {
-        case (#Free or #Basic) {
+        case (#Free) {
           " Upgrade to Pro ($59/year) for unlimited concurrent requests."
         };
         case _ { "" };
       };
       return #err(#InvalidInput(
         "Open request limit reached for your " # (switch callerTier {
-          case (#Free) "Free"; case (#Basic) "Basic"; case (#Pro) "Pro";
-          case (#Premium) "Premium"; case (#ContractorFree) "ContractorFree";
+          case (#Free) "Free"; case (#Pro) "Pro"; case (#ContractorFree) "ContractorFree";
           case (#ContractorPro) "ContractorPro";
         }) # " plan (" # Nat.toText(limit) # " max)." # upgradeHint
       ));
@@ -933,11 +906,11 @@ persistent actor Quote {
     } else { msg.caller };
     let callerTier : SubscriptionTier = if (payCanisterId != "") {
       let payActor = actor(payCanisterId) : actor {
-        getTierForPrincipal : (Principal) -> async { #Free; #Basic; #Pro; #Premium; #ContractorFree; #ContractorPro };
+        getTierForPrincipal : (Principal) -> async { #Free; #Pro; #ContractorFree; #ContractorPro };
       };
       await payActor.getTierForPrincipal(effectivePrincipalSB)
     } else {
-      tierFor(effectivePrincipalSB)
+      #Free  // payment canister not wired: no tier source, fail closed
     };
     if (callerTier == #Free) return #err(#InvalidInput("Quote requests require an active subscription."));
     let limit = tierOpenLimit(callerTier);
@@ -1136,7 +1109,7 @@ persistent actor Quote {
     let response = await managementCanister.vetkd_public_key({
       canister_id = null;
       context     = IBE_CONTEXT;
-      key_id      = { curve = #bls12_381_g2; name = VETKD_KEY_NAME };
+      key_id      = { curve = #bls12_381_g2; name = vetkdKeyName };
     });
     response.public_key
   };
@@ -1181,7 +1154,7 @@ persistent actor Quote {
           input                = Principal.toBlob(caller);
           context              = IBE_CONTEXT;
           transport_public_key = transportPublicKey;
-          key_id               = { curve = #bls12_381_g2; name = VETKD_KEY_NAME };
+          key_id               = { curve = #bls12_381_g2; name = vetkdKeyName };
         });
 
         // Collect all sealed bids for this request
@@ -1219,10 +1192,13 @@ persistent actor Quote {
   /// Utilities a contractor for this service type has a real use for.
   private func relevantUsage(t: ServiceType) : [UsageCategory] {
     switch t {
-      case (#HVAC or #Windows)         { [#Electric, #Gas] };   // load sizing, efficiency
-      case (#Electrical)               { [#Electric] };
-      case (#Plumbing or #Landscaping) { [#Water] };            // leaks, irrigation
-      case (#Roofing or #Painting or #Flooring) { [] };
+      case (#HVAC or #Windows or #Insulation) { [#Electric, #Gas] };   // load sizing, efficiency
+      case (#Electrical or #Solar)            { [#Electric] };         // panel/array sizing
+      case (#Plumbing or #Landscaping)        { [#Water] };            // leaks, irrigation
+      case (#Pool)                            { [#Water, #Electric] }; // fill/leaks, pump
+      case (#Roofing or #Painting or #Flooring or #Gutters or #GeneralHandyman or #Pest
+            or #Concrete or #Fencing or #Foundation or #Drywall or #KitchenRemodel
+            or #BathroomRemodel or #Other) { [] };
     }
   };
 
@@ -1320,11 +1296,17 @@ persistent actor Quote {
     #ok(Map.get(usageSummaries, Text.compare, requestId))
   };
 
-  public shared(msg) func setTier(user: Principal, tier: SubscriptionTier) : async Result.Result<(), Error> {
+
+  /// Select the vetKD master key ("key_1" in production). Admin only.
+  public shared(msg) func setVetkdKeyName(name: Text) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    Map.add(tierGrants, Text.compare, Principal.toText(user), tier);
+    if (name != "key_1" and name != "test_key_1" and name != "dfx_test_key")
+      return #err(#InvalidInput("unknown vetKD key name"));
+    vetkdKeyName := name;
     #ok(())
   };
+
+  public query func getVetkdKeyName() : async Text { vetkdKeyName };
 
   /// Wire the quote canister to the payment canister for live tier enforcement.
   /// Must be called once after both canisters are deployed.

@@ -116,12 +116,8 @@ describe("quoteService.getQuotaForTier", () => {
     expect(quoteService.getQuotaForTier("Free")).toBe(3);
   });
 
-  it("Pro tier → 10 open requests", () => {
-    expect(quoteService.getQuotaForTier("Pro")).toBe(10);
-  });
-
-  it("Premium tier → 10 open requests", () => {
-    expect(quoteService.getQuotaForTier("Premium")).toBe(10);
+  it("Pro tier → 0 (unlimited)", () => {
+    expect(quoteService.getQuotaForTier("Pro")).toBe(0);
   });
 
   it("ContractorPro tier → 0 (no quote limits)", () => {
@@ -513,13 +509,13 @@ describe("quoteService mock — tier quota enforcement (12.2.3)", () => {
     ).resolves.toBeDefined();
   });
 
-  it("Pro tier: 11th open request throws QuotaExceeded", async () => {
+  it("Pro tier: unlimited — an 11th open request still succeeds", async () => {
     for (let i = 0; i < 10; i++) {
       await svc.createRequest({ propertyId: "p", serviceType: "HVAC", urgency: "low", description: `d${i}` }, "Pro");
     }
     await expect(
       svc.createRequest({ propertyId: "p", serviceType: "Plumbing", urgency: "low", description: "d11" }, "Pro")
-    ).rejects.toThrow(/quota|limit reached/i);
+    ).resolves.toBeDefined();
   });
 
   it("no tier argument → no quota check (backwards compat)", async () => {

@@ -144,7 +144,7 @@ describe("propertyService", () => {
     });
 
     it("maps all SubscriptionTier variants", async () => {
-      const tiers = ["Free", "Basic", "Pro", "Premium", "ContractorFree", "ContractorPro"];
+      const tiers = ["Free", "Pro", "ContractorFree", "ContractorPro"];
       for (const tier of tiers) {
         mockActor.getMyProperties.mockResolvedValue([makeRawProperty({ tier: { [tier]: null } })]);
         const [prop] = await propertyService.getMyProperties();
@@ -282,25 +282,6 @@ describe("propertyService", () => {
       });
       const prop = await propertyService.verifyProperty("1", "Premium");
       expect(prop.verificationLevel).toBe("Premium");
-    });
-  });
-
-  // ── setTier ──────────────────────────────────────────────────────────────────
-  describe("setTier", () => {
-    it("resolves without error on success", async () => {
-      mockActor.setTier.mockResolvedValue({ ok: null });
-      vi.doMock("@icp-sdk/core/principal", () => ({
-        Principal: { fromText: vi.fn().mockReturnValue("mock-p") },
-      }));
-      await expect(propertyService.setTier("some-principal", "Pro")).resolves.toBeUndefined();
-    });
-
-    it("throws on error", async () => {
-      mockActor.setTier.mockResolvedValue({ err: { NotAuthorized: null } });
-      vi.doMock("@icp-sdk/core/principal", () => ({
-        Principal: { fromText: vi.fn().mockReturnValue("mock-p") },
-      }));
-      await expect(propertyService.setTier("some-principal", "Pro")).rejects.toThrow("NotAuthorized");
     });
   });
 

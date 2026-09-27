@@ -63,12 +63,8 @@ calls and handles Stripe payments. It is deployed separately to
 | `FRONTEND_ORIGIN` | Exact origin of the frontend canister (no trailing slash) |
 | `STRIPE_SECRET_KEY` | Stripe live secret key (`sk_live_...`) |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret (`whsec_...`) |
-| `STRIPE_PRICE_BASIC_MONTHLY` | Stripe price ID |
-| `STRIPE_PRICE_BASIC_YEARLY` | Stripe price ID |
 | `STRIPE_PRICE_PRO_MONTHLY` | Stripe price ID |
 | `STRIPE_PRICE_PRO_YEARLY` | Stripe price ID |
-| `STRIPE_PRICE_PREMIUM_MONTHLY` | Stripe price ID |
-| `STRIPE_PRICE_PREMIUM_YEARLY` | Stripe price ID |
 | `STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY` | Stripe price ID |
 | `STRIPE_PRICE_CONTRACTOR_PRO_YEARLY` | Stripe price ID |
 | `STRIPE_PRICE_CREDITS_25` | Stripe price ID |
@@ -277,11 +273,8 @@ STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY=price_...
 STRIPE_PRICE_CONTRACTOR_PRO_YEARLY=price_...
 ```
 
-`STRIPE_PRICE_PRO_MONTHLY`, `STRIPE_PRICE_PREMIUM_MONTHLY`,
-`STRIPE_PRICE_PREMIUM_YEARLY`, `STRIPE_PRICE_BASIC_MONTHLY`, and
-`STRIPE_PRICE_BASIC_YEARLY` are legacy env vars — only needed if you have
-subscribers grandfathered onto Basic or Premium from before Pro became
-the single $59/year homeowner plan. `priceIdFor(#Pro, #Monthly)` always
+`STRIPE_PRICE_PRO_MONTHLY` is optional — Pro is the single $59/year
+homeowner plan. `priceIdFor(#Pro, #Monthly)` always
 returns `null` regardless of whether `STRIPE_PRICE_PRO_MONTHLY` is set.
 
 4. Start the voice agent: `cd agents/voice && npm run dev`

@@ -75,7 +75,7 @@ vi.mock("react-hot-toast", () => ({
 }));
 
 // paymentService mock is set per-test
-let mockTier: "Free" | "Basic" | "Pro" | "Premium" | "ContractorPro" = "Basic";
+let mockTier: "Free" | "Pro" | "ContractorPro" = "Free";
 vi.mock("@/services/payment", () => ({
   paymentService: {
     getMyAgentCredits: vi.fn(() => Promise.resolve(0)),
@@ -127,13 +127,13 @@ async function clickGenerate() {
 describe("GenerateReportModal — report generation never fires in-app notifications", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockTier = "Basic";
+    mockTier = "Free";
     vi.mocked(paymentService.getMySubscription).mockImplementation(() =>
       Promise.resolve({ tier: mockTier, expiresAt: null, cancelledAt: null })
     );
   });
 
-  it("does NOT call notificationService.create for Basic users", async () => {
+  it("does NOT call notificationService.create for Free users", async () => {
     renderModal();
     await clickGenerate();
     await waitFor(() =>
@@ -145,17 +145,6 @@ describe("GenerateReportModal — report generation never fires in-app notificat
   it("does NOT call notificationService.create for Pro users", async () => {
     mockTier = "Pro";
     vi.mocked(paymentService.getMySubscription).mockResolvedValue({ tier: "Pro", expiresAt: null, cancelledAt: null });
-    renderModal();
-    await clickGenerate();
-    await waitFor(() =>
-      expect(screen.getByText(/link ready to share/i)).toBeInTheDocument()
-    );
-    expect(vi.mocked(notificationService.create)).not.toHaveBeenCalled();
-  });
-
-  it("does NOT call notificationService.create for Premium users", async () => {
-    mockTier = "Premium";
-    vi.mocked(paymentService.getMySubscription).mockResolvedValue({ tier: "Premium", expiresAt: null, cancelledAt: null });
     renderModal();
     await clickGenerate();
     await waitFor(() =>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { SERVICE_TYPE_LABELS } from "@/services/serviceTypes";
 import { ArrowLeft, Send, Zap, User, ChevronDown, ChevronUp, Lock } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
@@ -28,7 +29,7 @@ const UI = {
   mono:     V2_FONTS.body,
 };
 
-const SERVICE_TYPES = ["HVAC","Roofing","Plumbing","Electrical","Flooring","Painting","Landscaping","Windows","Foundation","Other"];
+const SERVICE_TYPES = SERVICE_TYPE_LABELS;
 
 const URGENCY_OPTIONS: { value: Urgency; label: string; desc: string }[] = [
   { value: "low",       label: "Low",       desc: "Flexible timeline" },

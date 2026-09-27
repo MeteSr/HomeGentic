@@ -42,7 +42,7 @@ if (deployed) {
         propertyType: "SingleFamily",
         yearBuilt:    2000,
         squareFeet:   1800,
-        tier:         "Basic",
+        tier:         "Free",
       });
       PROPERTY_ID = prop.id;
     } catch (e: any) {

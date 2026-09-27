@@ -10,7 +10,7 @@ export interface Subscription {
 }
 
 export function useSubscription(): Subscription {
-  const [userTier, setUserTier] = useState<PlanTier>("Basic");
+  const [userTier, setUserTier] = useState<PlanTier>("Free");
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
   const [cancelledAt, setCancelledAt] = useState<number | null>(null);
 

@@ -6,6 +6,7 @@ import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
 import { ConstructionPhotoUpload } from "@/components/ConstructionPhotoUpload";
 import { jobService } from "@/services/job";
+import { SERVICE_TYPE_LABELS } from "@/services/serviceTypes";
 import { photoService, PhotoQuota } from "@/services/photo";
 import { propertyService } from "@/services/property";
 import { usePropertyStore } from "@/store/propertyStore";
@@ -26,11 +27,7 @@ const UI = {
   mono:     V2_FONTS.body,
 };
 
-const SERVICE_TYPES = [
-  "HVAC","Roofing","Plumbing","Electrical","Flooring","Painting",
-  "Landscaping","Windows","Foundation","Insulation","Drywall",
-  "Kitchen Remodel","Bathroom Remodel","Other",
-];
+const SERVICE_TYPES = SERVICE_TYPE_LABELS;
 const PERMIT_SERVICE_TYPES = new Set(["HVAC","Roofing","Electrical","Plumbing","Foundation"]);
 
 // Next-service suggestions per category

@@ -53,7 +53,7 @@ describe("STRIPE.3 — secret key sourced from env", () => {
 describe("STRIPE.4 — price IDs sourced from env", () => {
   it("reads price IDs from process.env", () => {
     expect(src).toMatch(/process\.env\.STRIPE_PRICE_PRO_MONTHLY/);
-    expect(src).toMatch(/process\.env\.STRIPE_PRICE_PREMIUM_MONTHLY/);
+    expect(src).not.toMatch(/STRIPE_PRICE_(BASIC|PREMIUM)_/);   // retired tiers can't be bought
     expect(src).toMatch(/process\.env\.STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY/);
   });
 

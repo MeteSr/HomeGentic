@@ -1,6 +1,6 @@
 /**
  * MobileAccountPage — real logic worth locking down:
- *   - plan label/usage lookups fall back to "Basic" for a null/unknown tier
+ *   - plan label/usage lookups fall back to "Free" for a null/unknown tier
  *   - the header falls back to "Account" when there's no profile email
  *   - property-count pluralization (1 property vs N properties)
  *   - navigation targets for the plan card, shared-access rows, and each
@@ -58,10 +58,10 @@ describe("MobileAccountPage — plan display", () => {
     expect(screen.getByText(/20 properties · 30 photos\/job/)).toBeInTheDocument();
   });
 
-  it("falls back to Basic label/usage for a null tier", () => {
+  it("falls back to Free label/usage for a null tier", () => {
     mockUseAuthStore.mockReturnValue({ profile: { email: "jamie@example.com" }, tier: null, clearAuth: mockClearAuth });
     renderPage();
-    expect(screen.getByText("Basic")).toBeInTheDocument();
+    expect(screen.getByText("Free")).toBeInTheDocument();
     expect(screen.getByText(/1 property · 5 photos\/job/)).toBeInTheDocument();
   });
 

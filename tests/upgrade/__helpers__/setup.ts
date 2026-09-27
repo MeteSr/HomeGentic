@@ -91,7 +91,7 @@ export const authIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
 /** Payment canister — methods used in upgrade tests only. */
 export const paymentIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
   const Tier = I.Variant({
-    Free: I.Null, Pro: I.Null, Premium: I.Null, ContractorPro: I.Null,
+    Free: I.Null, Pro: I.Null, ContractorFree: I.Null, ContractorPro: I.Null,
   });
   const Subscription = I.Record({
     owner: I.Principal, tier: Tier, expiresAt: I.Int, createdAt: I.Int,
@@ -164,8 +164,7 @@ export const quoteIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
     Open: I.Null, Quoted: I.Null, Accepted: I.Null, Closed: I.Null, Cancelled: I.Null,
   });
   const SubscriptionTier = I.Variant({
-    Free: I.Null, Basic: I.Null, Pro: I.Null, Premium: I.Null,
-    ContractorFree: I.Null, ContractorPro: I.Null,
+    Free: I.Null, Pro: I.Null, ContractorFree: I.Null, ContractorPro: I.Null,
   });
   const QuoteRequest = I.Record({
     id: I.Text, propertyId: I.Text, homeowner: I.Principal, serviceType: ServiceType,
@@ -244,8 +243,7 @@ export const propertyIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
     Unverified: I.Null, PendingReview: I.Null, Basic: I.Null, Premium: I.Null,
   });
   const SubscriptionTier = I.Variant({
-    Free: I.Null, Basic: I.Null, Pro: I.Null, Premium: I.Null,
-    ContractorFree: I.Null, ContractorPro: I.Null,
+    Free: I.Null, Pro: I.Null, ContractorFree: I.Null, ContractorPro: I.Null,
   });
   const RegisterPropertyArgs = I.Record({
     address: I.Text, city: I.Text, state: I.Text, zipCode: I.Text,

@@ -25,10 +25,10 @@ beforeEach(() => {
 });
 
 describe("useUserTier", () => {
-  it("defaults to Basic before the request resolves", () => {
+  it("defaults to Free before the request resolves", () => {
     mockGetMySubscription.mockReturnValue(new Promise(() => {}));
     const { result } = renderHook(() => useUserTier());
-    expect(result.current).toBe("Basic");
+    expect(result.current).toBe("Free");
   });
 
   it("returns the tier from paymentService on success", async () => {
@@ -39,11 +39,11 @@ describe("useUserTier", () => {
     });
   });
 
-  it("stays at Basic on service error", async () => {
+  it("stays at Free on service error", async () => {
     mockGetMySubscription.mockRejectedValueOnce(new Error("network error"));
     const { result } = renderHook(() => useUserTier());
     await waitFor(() => {
-      expect(result.current).toBe("Basic");
+      expect(result.current).toBe("Free");
     });
   });
 });

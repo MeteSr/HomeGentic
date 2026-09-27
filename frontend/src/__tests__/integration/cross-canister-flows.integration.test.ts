@@ -12,13 +12,13 @@
  * ── Identities ────────────────────────────────────────────────────────────────
  * All flows use dedicated identities via direct Actor.createActor() — never the shared
  * seed=42 service-layer agent — so no properties accumulate on the shared homeowner
- * across runs (which would eventually hit the Premium 20-property cap).
+ * across runs (which would eventually hit the Pro 20-property cap).
  *
- * WORKFLOW_USER seed[0]=55  principal zcku7-... — Premium granted by test-integration.sh
+ * WORKFLOW_USER seed[0]=55  principal zcku7-... — Pro granted by test-integration.sh
  *                           Flows 1 & 2: owns properties and signs jobs as "homeowner"
  * CONTRACTOR    seed[0]=99  ContractorFree — no subscription; acts as contractor signer
- * TIER_USER     seed[0]=77  principal lodek-... — Basic granted by test-integration.sh (1-property cap)
- * QUOTA_USER    seed[0]=88  principal fz27l-... — Basic granted by test-integration.sh (3-open-quote cap)
+ * TIER_USER     seed[0]=77  principal lodek-... — Free (no subscription) (1-property cap)
+ * QUOTA_USER    seed[0]=88  principal fz27l-... — Free (no subscription) (3-open-quote cap)
  *
  * Why direct actors everywhere:
  *   Service files cache `_actor` on first call. Creating actors directly with
@@ -28,7 +28,7 @@
  * 1. DIY full workflow: WORKFLOW_USER property → job → verifyJob → getCertificationData
  * 2. Contractor dual-signature: WORKFLOW_USER property → job → invite token →
  *    CONTRACTOR signs → WORKFLOW_USER countersigns → both confirmed, job verified
- * 3. Basic-tier property registration limit: enforces 1-property cap via property → payment cross-call
+ * 3. Free-tier property registration limit: enforces 1-property cap via property → payment cross-call
  * 4. Quote open-request limit: enforces cap via quote → payment cross-call
  * 5. Property verification state machine: Unverified → PendingReview (admin promotion documented)
  */
@@ -52,9 +52,9 @@ const deployed = !!(JOB_CANISTER_ID && PROPERTY_CANISTER_ID && QUOTE_CANISTER_ID
 const integrationReady = deployed && !!(process.env as any).INTEGRATION_READY;
 
 // Seed → principal mapping (computed offline, used in test-integration.sh grants):
-//   seed=55  zcku7-...  WORKFLOW_USER  Premium
-//   seed=77  lodek-...  TIER_USER      Basic
-//   seed=88  fz27l-...  QUOTA_USER     Basic
+//   seed=55  zcku7-...  WORKFLOW_USER  Pro
+//   seed=77  lodek-...  TIER_USER      Free
+//   seed=88  fz27l-...  QUOTA_USER     Free
 //   seed=99  (ContractorFree, no grant needed)
 
 // ─── Test identity helpers ────────────────────────────────────────────────────
@@ -109,12 +109,12 @@ const PROP_ARGS = {
   propertyType: { SingleFamily: null },
   yearBuilt:    BigInt(1995),
   squareFeet:   BigInt(1800),
-  tier:         { Basic: null },   // QUOTA/TIER_USER have Basic granted by test-integration.sh
+  tier:         { Free: null },   // QUOTA/TIER_USER are Free (see test-integration.sh)
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Flow 1 — DIY full workflow
-// WORKFLOW_USER (seed=55, Premium) registers property → creates DIY job →
+// WORKFLOW_USER (seed=55, Pro) registers property → creates DIY job →
 // verifyJob → getCertificationData confirms the verified HVAC job.
 // Uses direct actors (not the service layer) so no properties accumulate on
 // the shared seed=42 homeowner identity across runs.
@@ -127,7 +127,7 @@ describe.skipIf(!integrationReady)("Flow 1: DIY full workflow", () => {
   let workflowJobActor: any;
 
   beforeAll(async () => {
-    // zcku7-... : Premium subscription granted by test-integration.sh
+    // zcku7-... : Pro subscription granted by test-integration.sh
     const workflowAgent = await makeAgent(55);
     workflowPropertyActor = Actor.createActor(propertyIdl as any, {
       agent: workflowAgent, canisterId: PROPERTY_CANISTER_ID,
@@ -139,7 +139,7 @@ describe.skipIf(!integrationReady)("Flow 1: DIY full workflow", () => {
     // job.verifyJob cross-calls property.isAuthorized, so we need a real property
     const propResult = await workflowPropertyActor.registerProperty({
       ...PROP_ARGS,
-      tier:    { Premium: null },
+      tier:    { Pro: null },
       address: addr("diy-flow"),
     });
     propId = unwrap<{ id: string }>(propResult as any, "diy-flow property").id;
@@ -205,7 +205,7 @@ describe.skipIf(!integrationReady)("Flow 2: Contractor dual-signature workflow",
   let contractorJobActor: any;
 
   beforeAll(async () => {
-    const workflowAgent    = await makeAgent(55);  // zcku7-... Premium
+    const workflowAgent    = await makeAgent(55);  // zcku7-... Pro
     const contractorAgent  = await makeAgent(99);  // ContractorFree
 
     workflowJobActor = Actor.createActor(jobIdl as any, {
@@ -215,13 +215,13 @@ describe.skipIf(!integrationReady)("Flow 2: Contractor dual-signature workflow",
       agent: contractorAgent, canisterId: JOB_CANISTER_ID,
     });
 
-    // Register property under WORKFLOW_USER (Premium — no 20-property cap concern)
+    // Register property under WORKFLOW_USER (Pro — no 20-property cap concern)
     const workflowPropertyActor = Actor.createActor(propertyIdl as any, {
       agent: workflowAgent, canisterId: PROPERTY_CANISTER_ID,
     });
     const propResult = await workflowPropertyActor.registerProperty({
       ...PROP_ARGS,
-      tier:    { Premium: null },
+      tier:    { Pro: null },
       address: addr("dual-sig"),
     });
     propId = unwrap<{ id: string }>(propResult as any, "dual-sig property").id;
@@ -298,18 +298,18 @@ describe.skipIf(!integrationReady)("Flow 2: Contractor dual-signature workflow",
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Flow 3 — Basic-tier property registration limit
+// Flow 3 — Free-tier property registration limit
 // Tests that the property canister cross-calls payment to enforce tier limits.
-// Basic is the lowest homeowner tier: 1 property. TIER_USER has a Basic subscription
+// Free is the lowest homeowner tier: 1 property. TIER_USER has no subscription (Free)
 // granted by scripts/test-integration.sh, so the second registration must fail.
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe.skipIf(!integrationReady)("Flow 3: Basic-tier property registration limit (property → payment cross-call)", () => {
+describe.skipIf(!integrationReady)("Flow 3: Free-tier property registration limit (property → payment cross-call)", () => {
   let tierPropertyActor: any;
   const registrationResults: Array<{ ok: boolean; propId?: string; errorKey?: string; errorMsg?: string }> = [];
 
   beforeAll(async () => {
-    // lodek-...: Basic subscription granted by scripts/test-integration.sh (1-property limit)
+    // lodek-...: no subscription (Free) (1-property limit)
     const tierAgent = await makeAgent(77);
     tierPropertyActor = Actor.createActor(propertyIdl as any, {
       agent:      tierAgent,
@@ -318,7 +318,7 @@ describe.skipIf(!integrationReady)("Flow 3: Basic-tier property registration lim
   });
 
   it("registers properties until the tier limit is hit — second registration must be rejected", async () => {
-    // Basic tier = 1 property. Try 3: only the first should succeed.
+    // Free tier = 1 property. Try 3: only the first should succeed.
     for (let i = 0; i < 3; i++) {
       const result = await tierPropertyActor.registerProperty({
         ...PROP_ARGS,
@@ -340,7 +340,7 @@ describe.skipIf(!integrationReady)("Flow 3: Basic-tier property registration lim
     const successes = registrationResults.filter((r) => r.ok);
     const failures  = registrationResults.filter((r) => !r.ok);
 
-    // Basic tier = 1 property: exactly one must succeed
+    // Free tier = 1 property: exactly one must succeed
     expect(successes.length).toBe(1);
     // The remaining two must fail
     expect(failures.length).toBe(2);
@@ -365,8 +365,8 @@ describe.skipIf(!integrationReady)("Flow 3: Basic-tier property registration lim
 // ─────────────────────────────────────────────────────────────────────────────
 // Flow 4 — Quote open-request limit enforcement
 // quote canister cross-calls payment to enforce open-request caps per tier.
-// Basic tier = 3 open requests. QUOTA_USER has a Basic subscription granted by
-// scripts/test-integration.sh, so the fourth request must fail.
+// Free tier = 3 open requests. QUOTA_USER has no subscription (Free),
+// so the fourth request must fail.
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe.skipIf(!integrationReady)("Flow 4: Quote open-request limit enforcement (quote → payment cross-call)", () => {
@@ -376,7 +376,7 @@ describe.skipIf(!integrationReady)("Flow 4: Quote open-request limit enforcement
   const requestResults: Array<{ ok: boolean; reqId?: string; errorKey?: string; errorMsg?: string }> = [];
 
   beforeAll(async () => {
-    // fz27l-...: Basic subscription granted by scripts/test-integration.sh (3 open quotes limit)
+    // fz27l-...: no subscription (Free) (3 open quotes limit)
     const quoteTierAgent = await makeAgent(88);
 
     quotePropActor = Actor.createActor(propertyIdl as any, {
@@ -396,8 +396,8 @@ describe.skipIf(!integrationReady)("Flow 4: Quote open-request limit enforcement
     quotePropId = unwrap<{ id: string }>(propResult as any, "quote-limit property registration").id;
   });
 
-  it("submitting open quote requests hits Basic-tier limit of 3 (quote → payment cross-call)", async () => {
-    // Basic tier caps at 3 open requests. Attempt 5; the 4th and 5th must fail.
+  it("submitting open quote requests hits Free-tier limit of 3 (quote → payment cross-call)", async () => {
+    // Free tier caps at 3 open requests. Attempt 5; the 4th and 5th must fail.
     let consecutiveFailures = 0;
     for (let i = 0; i < 5 && consecutiveFailures < 2; i++) {
       const result = await quoteActor.createQuoteRequest(
@@ -429,7 +429,7 @@ describe.skipIf(!integrationReady)("Flow 4: Quote open-request limit enforcement
     const successes = requestResults.filter((r) => r.ok);
     const failures  = requestResults.filter((r) => !r.ok);
 
-    // Basic tier = exactly 3 open requests
+    // Free tier = exactly 3 open requests
     expect(successes.length).toBe(3);
     expect(failures.length).toBeGreaterThanOrEqual(1);
   });
@@ -462,14 +462,14 @@ describe.skipIf(!integrationReady)("Flow 5: Property verification state machine"
   let workflowPropertyActor5: any;
 
   beforeAll(async () => {
-    const workflowAgent = await makeAgent(55);  // zcku7-... Premium
+    const workflowAgent = await makeAgent(55);  // zcku7-... Pro
     workflowPropertyActor5 = Actor.createActor(propertyIdl as any, {
       agent: workflowAgent, canisterId: PROPERTY_CANISTER_ID,
     });
 
     const propResult = await workflowPropertyActor5.registerProperty({
       ...PROP_ARGS,
-      tier:    { Premium: null },
+      tier:    { Pro: null },
       address: addr("verify-flow"),
     });
     propId = unwrap<{ id: string }>(propResult as any, "verify-flow property").id;
@@ -513,7 +513,7 @@ describe.skipIf(!integrationReady)("Flow 5: Property verification state machine"
    *   dfx canister call property verifyProperty \
    *     "(\"<property-id>\", variant { Basic }, opt \"manual review\")"
    *
-   * Then confirm the property returns verificationLevel: "Basic".
+   * Then confirm the property returns verificationLevel: "Free".
    * See docs/MANUAL_TESTS.md for the full runbook.
    */
   it.todo("admin promotes PendingReview → Basic (requires dfx deployer identity — see docs/MANUAL_TESTS.md)");

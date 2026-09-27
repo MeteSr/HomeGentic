@@ -118,11 +118,6 @@ describe("PeoplePage — tier gating", () => {
     await waitFor(() => expect(screen.getByText("1 person can see this property")).toBeInTheDocument());
   });
 
-  it("allows Premium tier through as well", async () => {
-    mockGetMySubscription.mockResolvedValue({ tier: "Premium", expiresAt: null, cancelledAt: null });
-    render(<PeoplePage />);
-    await waitFor(() => expect(screen.getByText("1 person can see this property")).toBeInTheDocument());
-  });
 });
 
 describe("PeoplePage — people list", () => {

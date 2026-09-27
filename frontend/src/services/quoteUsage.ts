@@ -8,6 +8,7 @@
 import { billService, type BillRecord, type BillType } from "./billService";
 import { quoteService } from "./quote";
 import { statementMonth } from "./billsForecast";
+import { serviceTypeKey } from "./serviceTypes";
 
 export type UsageCategory = "Electric" | "Gas" | "Water";
 
@@ -32,13 +33,16 @@ export interface UsageSummary {
 const RELEVANT: Record<string, UsageCategory[]> = {
   HVAC:        ["Electric", "Gas"],
   Windows:     ["Electric", "Gas"],
+  Insulation:  ["Electric", "Gas"],
   Electrical:  ["Electric"],
+  Solar:       ["Electric"],
   Plumbing:    ["Water"],
   Landscaping: ["Water"],
+  Pool:        ["Water", "Electric"],
 };
 
 export function relevantUsageCategories(serviceType: string): UsageCategory[] {
-  return RELEVANT[serviceType] ?? [];
+  return RELEVANT[serviceTypeKey(serviceType) ?? ""] ?? [];
 }
 
 export const USAGE_LABELS: Record<UsageCategory, string> = {

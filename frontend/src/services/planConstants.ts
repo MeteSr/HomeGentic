@@ -19,18 +19,11 @@
  * smaller, weekly-paced allowance rather than Pro's daily one.
  *
  * Homeowner pricing is a single paid plan: Pro at $59/year (annual-only),
- * carrying the old Premium tier's property/photo/quote limits. Its AI
- * agent-call limit is the exception — it keeps its own original 10/day
- * cap rather than Premium's 20/day, since 20/day would run this tier at
- * a negative margin at the $59/year price (see docs/AI_RATE_LIMITS.md).
- * "Basic" and "Premium" remain valid PlanTier values and stay in the
- * backend's Tier variant purely so grandfathered subscribers from before
- * this change keep decoding and keep their existing limits until their
- * subscription expires — they are no longer offered anywhere as a
- * purchase option, so they're absent from PLANS below.
+ * with a 10/day AI agent-call cap — more would run the tier at a
+ * negative margin at the $59/year price (see docs/AI_RATE_LIMITS.md).
  */
 
-export type PlanTier     = "Free" | "Basic" | "Pro" | "Premium" | "ContractorFree" | "ContractorPro";
+export type PlanTier     = "Free" | "Pro" | "ContractorFree" | "ContractorPro";
 export type BillingCycle = "Monthly" | "Yearly";
 
 export interface GiftMeta {

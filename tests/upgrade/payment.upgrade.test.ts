@@ -89,14 +89,14 @@ describe("payment canister — upgrade persistence", () => {
 
   // ── 3. Tier upgrade then canister upgrade ───────────────────────────────────
 
-  it("Premium subscription created after Pro, then canister upgrade preserves Premium", async () => {
-    // Overwrite Pro with Premium
-    ok(await actor.subscribe({ Premium: null }));
+  it("ContractorPro subscription created after Pro, then canister upgrade preserves ContractorPro", async () => {
+    // Overwrite Pro with ContractorPro
+    ok(await actor.subscribe({ ContractorPro: null }));
 
     await pic.upgradeCanister({ canisterId, wasm: WASM });
 
     const sub = ok(await actor.getMySubscription());
-    expect(Object.keys(sub.tier)[0]).toBe("Premium");
+    expect(Object.keys(sub.tier)[0]).toBe("ContractorPro");
   });
 
   // ── 4. Estimated MRR calculation survives ───────────────────────────────────

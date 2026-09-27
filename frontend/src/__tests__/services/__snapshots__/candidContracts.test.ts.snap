@@ -166,7 +166,6 @@ isStripeConfigured(0) -> (1) [query]
 listPendingGifts(0) -> (1) [query]
 redeemGift(1) -> (1)
 setBootstrapNonce(1) -> (0)
-setTierCanisterIds(3) -> (1)
 subscribe(1) -> (1)
 verifyStripeSession(1) -> (1)"
 `;
@@ -216,7 +215,6 @@ removeManager(2) -> (1)
 requestApproval(3) -> (1)
 resignAsManager(1) -> (1)
 respondToApproval(3) -> (1)
-setTier(2) -> (1)
 submitVerification(4) -> (1)
 updateManagerRole(4) -> (1)
 verifyProperty(3) -> (1)"
