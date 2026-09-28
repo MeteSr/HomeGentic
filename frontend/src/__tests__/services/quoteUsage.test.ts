@@ -20,7 +20,10 @@ describe("relevantUsageCategories", () => {
     expect(relevantUsageCategories("Electrical")).toEqual(["Electric"]);
     expect(relevantUsageCategories("Plumbing")).toEqual(["Water"]);
     expect(relevantUsageCategories("Landscaping")).toEqual(["Water"]);
-    for (const t of ["Roofing", "Painting", "Flooring", "Foundation", "Other"]) {
+    expect(relevantUsageCategories("Insulation")).toEqual(["Electric", "Gas"]);
+    expect(relevantUsageCategories("Solar")).toEqual(["Electric"]);
+    expect(relevantUsageCategories("Pool")).toEqual(["Water", "Electric"]);
+    for (const t of ["Roofing", "Painting", "Flooring", "Foundation", "Kitchen Remodel", "General Handyman", "Other"]) {
       expect(relevantUsageCategories(t)).toEqual([]);
     }
   });

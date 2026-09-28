@@ -38,7 +38,7 @@ jest.mock("../paymentCanister", () => ({
   activateInCanister: jest.fn().mockResolvedValue(undefined),
   consumeAgentCredit: jest.fn().mockResolvedValue(undefined),
   grantAgentCredits:  jest.fn().mockResolvedValue(undefined),
-  VALID_TIERS: new Set(["Free", "Basic", "Pro", "Premium", "ContractorFree", "ContractorPro", "RealtorFree", "RealtorPro"]),
+  VALID_TIERS: new Set(["Free", "Pro", "ContractorFree", "ContractorPro", "RealtorFree", "RealtorPro"]),
   PRINCIPAL_RE: /^[a-z0-9]([a-z0-9-]{0,60}[a-z0-9])?$/,
 }));
 
@@ -315,7 +315,7 @@ describe("WEBHOOK.10 — invoice.payment_succeeded", () => {
   it("uses 12 months for Yearly billing", async () => {
     const invoice = {
       id: "in_test_yearly", object: "invoice", status: "paid",
-      metadata: { icp_principal: "test-user-004", tier: "Premium", billing: "Yearly" },
+      metadata: { icp_principal: "test-user-004", tier: "ContractorPro", billing: "Yearly" },
     };
     const payload = makeEvent("invoice.payment_succeeded", invoice);
     const header  = sign(payload);
@@ -327,7 +327,7 @@ describe("WEBHOOK.10 — invoice.payment_succeeded", () => {
       .set("stripe-signature", header)
       .send(payload);
 
-    expect(mockActivate).toHaveBeenCalledWith("test-user-004", "Premium", 12);
+    expect(mockActivate).toHaveBeenCalledWith("test-user-004", "ContractorPro", 12);
   });
 });
 

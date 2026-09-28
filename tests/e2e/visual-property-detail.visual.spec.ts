@@ -16,7 +16,7 @@ test.describe("Visual — property detail (/properties/1)", () => {
     await freezeClock(page);
     await injectTestAuth(page);
     await injectTestProperties(page);
-    await injectSubscription(page, "Basic");
+    await injectSubscription(page, "Pro");
     await page.goto("/properties/1");
     // Text search rather than a role query: the mobile layout (MobilePropertyPage)
     // renders the address in a different element than the desktop heading.

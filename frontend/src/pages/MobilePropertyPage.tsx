@@ -175,7 +175,7 @@ export function MobilePropertyPage() {
   const sqFt       = property?.squareFeet ? `${Number(property.squareFeet).toLocaleString()} SQ FT` : null;
   const yearBuilt  = property?.yearBuilt ? `BUILT ${property.yearBuilt}` : null;
   const propTier   = (property?.tier ?? "Unverified") as string;
-  const isVerified = propTier === "Premium" || propTier === "Pro" || propTier === "Basic";
+  const isVerified = propTier === "Pro";
 
   const details = [sqFt, yearBuilt].filter(Boolean).join(" · ");
 

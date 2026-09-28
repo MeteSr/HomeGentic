@@ -37,9 +37,7 @@ persistent actor Photo {
 
   public type SubscriptionTier = {
     #Free;
-    #Basic;
     #Pro;
-    #Premium;
     #ContractorFree;
     #ContractorPro;
   };
@@ -91,8 +89,8 @@ persistent actor Photo {
   /// first addAdmin() call when no admins exist yet.
   private var bootstrapNonce: ?Text = null;
   /// Payment canister ID — set post-deploy via setPaymentCanisterId().
-  /// When set, uploadPhoto() cross-calls getTierForPrincipal() instead of
-  /// reading the local tierGrants map.
+  /// When set, uploadPhoto() cross-calls getTierForPrincipal(); without it every
+  /// caller is treated as #Free (fail closed).
   private var payCanisterId: Text = "";
   /// Property canister ID — set post-deploy via setPropertyCanisterId().
   /// When set, uploadPhoto() uses the property owner's tier when the caller
@@ -103,7 +101,6 @@ persistent actor Photo {
   private let photos      = Map.empty<Text, Photo>();
   /// sha256 → photoId — O(1) duplicate detection.
   private let hashIndex   = Map.empty<Text, Text>();
-  private let tierGrants  = Map.empty<Text, SubscriptionTier>();
   private let photoRateLimits = Map.empty<Text, (Nat, Int)>();
 
   // ─── Ingress Inspection ───────────────────────────────────────────────────────
@@ -126,7 +123,7 @@ persistent actor Photo {
   private let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
-  private let ONE_MINUTE_NS       : Int = 60_000_000_000;
+  private transient let ONE_MINUTE_NS       : Int = 60_000_000_000;
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
     if (isAdmin(caller)) return true;
@@ -177,16 +174,12 @@ persistent actor Photo {
     "PHOTO_" # Nat.toText(photoCounter)
   };
 
-  // #Basic and #Premium are retired as purchasable tiers — #Pro is now the
-  // single homeowner plan ($59/year) carrying the old Premium quota. Their
-  // arms stay here so grandfathered subscribers keep their existing quota.
+  // #Pro is the single homeowner plan ($59/year).
   private func quotaFor(tier: SubscriptionTier) : PhotoQuota {
     switch (tier) {
       case (#Free)          { { tier; maxPerJob = 5;   maxPerProperty = 25  } };
       case (#ContractorFree){ { tier; maxPerJob = 5;   maxPerProperty = 25  } };
-      case (#Basic)         { { tier; maxPerJob = 5;   maxPerProperty = 25  } };
       case (#Pro)           { { tier; maxPerJob = 30;  maxPerProperty = 0   } };  // 0 = unlimited
-      case (#Premium)       { { tier; maxPerJob = 30;  maxPerProperty = 0   } };
       case (#ContractorPro) { { tier; maxPerJob = 50;  maxPerProperty = 0   } };
     }
   };
@@ -203,18 +196,9 @@ persistent actor Photo {
     n
   };
 
-  /// Returns the authoritative tier for a principal.
-  /// Falls back to #Free for principals that have no admin-granted tier.
-  /// Callers cannot influence this — it is set only via setTier() (admin-only).
-  private func tierFor(p: Principal) : SubscriptionTier {
-    switch (Map.get(tierGrants, Text.compare, Principal.toText(p))) {
-      case (?t) { t };
-      case null { #Free };
-    }
-  };
 
-  private let oneMinuteNs      : Int = 60 * 1_000_000_000;
-  private let perMinutePhotoLimit : Nat = 10;
+  private transient let oneMinuteNs      : Int = 60 * 1_000_000_000;
+  private transient let perMinutePhotoLimit : Nat = 10;
 
   /// Returns true and bumps the counter if the uploader is under the 10/min limit.
   /// Resets the window when 60 s have elapsed.
@@ -289,21 +273,18 @@ persistent actor Photo {
     } else { msg.caller };
     let callerTierRaw : SubscriptionTier = if (payCanisterId != "") {
       let payActor = actor(payCanisterId) : actor {
-        getTierForPrincipal : (Principal) -> async { #Free; #Basic; #Pro; #Premium; #ContractorFree; #ContractorPro };
+        getTierForPrincipal : (Principal) -> async { #Free; #Pro; #ContractorFree; #ContractorPro };
       };
       await payActor.getTierForPrincipal(effectivePrincipal)
     } else {
-      tierFor(effectivePrincipal)
+      #Free  // payment canister not wired: no tier source, fail closed
     };
     let quota = quotaFor(callerTierRaw);
 
     let callerTier = quota.tier;
-    // Free and #Basic (grandfathered) share the same 5-photo/job cap and the
-    // same upgrade path, to the single $59/year Pro plan. #Pro is already
-    // the top homeowner tier (unlimited photos/job), so there's nowhere
-    // further to suggest.
+    // Only Free has an upgrade path: Pro is the single $59/year plan.
     let upgradeHint = switch (callerTier) {
-      case (#Free or #Basic) {
+      case (#Free) {
         " Upgrade to Pro ($59/year) for 30 photos/job."
       };
       case _ { "" };
@@ -486,14 +467,6 @@ persistent actor Photo {
 
   // ─── Admin Functions ──────────────────────────────────────────────────────────
 
-  /// Set the subscription tier for a principal.
-  /// Called by an admin (or a future subscription canister) when a user upgrades or downgrades.
-  /// This is the only way to change quota limits — callers cannot pass their own tier.
-  public shared(msg) func setTier(user: Principal, tier: SubscriptionTier) : async Result.Result<(), Error> {
-    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    Map.add(tierGrants, Text.compare, Principal.toText(user), tier);
-    #ok(())
-  };
 
   /// Wire the photo canister to the payment canister for live tier enforcement.
   /// Must be called once after both canisters are deployed.

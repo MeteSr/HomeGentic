@@ -106,15 +106,6 @@ dfx canister call fee         setListingCanisterId    "(\"$LISTING_ID\")"
 dfx canister call market      setPropertyCanisterId   "(\"$PROPERTY_ID\")"
 dfx canister call market      setJobCanisterId        "(\"$JOB_ID\")"
 
-# ── Tier propagation wiring ──────────────────────────────────────────
-# property/photo/quote use nonce-gated addAdmin; DEPLOYER is already admin
-# so adminInitialized=true — nonce param is required by Candid but ignored.
-dfx canister call property addAdmin "(principal \"$PAYMENT_ID\", \"\")"
-dfx canister call quote    addAdmin "(principal \"$PAYMENT_ID\", \"\")"
-dfx canister call photo    addAdmin "(principal \"$PAYMENT_ID\", \"\")"
-dfx canister call payment  setTierCanisterIds \
-  "(principal \"$PROPERTY_ID\", principal \"$QUOTE_ID\", principal \"$PHOTO_ID\")"
-
 # ── Trusted canister lists ───────────────────────────────────────────
 dfx canister call payment    addTrustedCanister "(principal \"$JOB_ID\")"
 dfx canister call payment    addTrustedCanister "(principal \"$PROPERTY_ID\")"

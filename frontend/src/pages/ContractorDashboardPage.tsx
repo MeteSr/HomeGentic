@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { TRADE_LABELS } from "@/services/serviceTypes";
 import { Briefcase, Star, Zap, Clock, ChevronDown, ChevronUp, X, Send, UserCog, PenLine, CheckCircle2, Lock } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/Button";
@@ -303,7 +304,7 @@ function LeadCard({ request, alreadyQuoted, isNew, onQuote, contractorStats }: L
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-const SERVICE_TYPES = ["All", "HVAC", "Roofing", "Plumbing", "Electrical", "Painting", "Flooring", "Windows", "Landscaping"];
+const SERVICE_TYPES = ["All", ...TRADE_LABELS];
 
 export default function ContractorDashboardPage() {
   const navigate        = useNavigate();

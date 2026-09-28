@@ -26,9 +26,8 @@ const M = {
 // ── Tier display helpers ───────────────────────────────────────────────────────
 
 const TIER_LABELS: Record<string, string> = {
-  Basic:           "Basic",
+  Free:            "Free",
   Pro:             "Pro",
-  Premium:         "Premium",
   ContractorFree:  "Contractor Free",
   ContractorPro:   "Contractor Pro",
   RealtorFree:     "Realtor Free",
@@ -37,9 +36,7 @@ const TIER_LABELS: Record<string, string> = {
 
 const TIER_USAGE: Record<string, string> = {
   Free:           "1 property · 5 photos/job",
-  Basic:          "1 property · 5 photos/job",
   Pro:            "20 properties · 30 photos/job",
-  Premium:        "20 properties · 30 photos/job",
   ContractorFree: "Unlimited quotes · 5 photos",
   ContractorPro:  "Unlimited quotes · 50 photos",
   RealtorFree:    "Agent profile · 5 photos",
@@ -111,8 +108,8 @@ export function MobileAccountPage() {
 
   const email       = profile?.email ?? "";
   const fullName    = email || "Account";
-  const planName    = TIER_LABELS[tier ?? "Basic"] ?? "Basic";
-  const planUsage   = TIER_USAGE[tier ?? "Basic"] ?? "";
+  const planName    = TIER_LABELS[tier ?? "Free"] ?? "Free";
+  const planUsage   = TIER_USAGE[tier ?? "Free"] ?? "";
 
   // Mock shared people (replace with real people service when wired up)
   const people = [

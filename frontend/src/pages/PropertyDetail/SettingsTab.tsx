@@ -11,7 +11,7 @@ const MONO = "'JetBrains Mono',monospace";
 export function SettingsTab({ property, currentPrincipal, onVerifyOwnership }: { property: Property; currentPrincipal: string; onVerifyOwnership?: () => void }) {
   const navigate = useNavigate();
   const { userTier } = useSubscription();
-  const canShareAccess = userTier === "Pro" || userTier === "Premium";
+  const canShareAccess = userTier === "Pro";
 
   const [transferStep,   setTransferStep]   = React.useState<"idle" | "loading" | "done">("idle");
   const [transferToken,  setTransferToken]  = React.useState<string | null>(null);

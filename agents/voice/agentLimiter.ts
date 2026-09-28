@@ -19,9 +19,7 @@
 
 export type SubscriptionTier =
   | "Free"
-  | "Basic"
   | "Pro"
-  | "Premium"
   | "ContractorFree"
   | "ContractorPro";
 
@@ -34,9 +32,7 @@ export type Period = "day" | "week";
  */
 export const TIER_PERIOD: Record<SubscriptionTier, Period> = {
   Free:            "week",
-  Basic:           "day",
   Pro:             "day",
-  Premium:         "day",
   ContractorFree:  "day",
   ContractorPro:   "day",
 };
@@ -45,21 +41,16 @@ export const TIER_PERIOD: Record<SubscriptionTier, Period> = {
  * Agent-call limits per tier, counted over each tier's TIER_PERIOD
  * (0 = no agentic access).
  *
- * Pro is the single purchasable homeowner plan. It keeps its own
- * original 10/day limit (not Premium's 20/day) — at the $59/year price,
- * 20/day would run the tier at a negative margin under the cost model in
- * docs/AI_RATE_LIMITS.md. Basic and Premium keep their original values
- * here purely so grandfathered subscribers from before the pricing
- * consolidation keep their existing limits enforced until they renew.
+ * Pro is the single purchasable homeowner plan: 10/day — at the $59/year
+ * price, more would run the tier at a negative margin under the cost model
+ * in docs/AI_RATE_LIMITS.md.
  * Free gets 10/week (not 10/day) — a much smaller absolute allowance
  * than Pro's, spread weekly instead of daily since Free pays nothing and
  * every call is pure cost with no revenue to offset it.
  */
 export const TIER_LIMITS: Record<SubscriptionTier, number> = {
   Free:           10,
-  Basic:           5,
   Pro:            10,
-  Premium:        20,
   ContractorFree:  0,
   ContractorPro:  10,
 };
@@ -67,9 +58,7 @@ export const TIER_LIMITS: Record<SubscriptionTier, number> = {
 /** Daily chat-call limits per tier (-1 = unlimited). */
 export const CHAT_LIMITS: Record<SubscriptionTier, number> = {
   Free:            3,
-  Basic:          -1,
   Pro:            -1,
-  Premium:        -1,
   ContractorFree:  3,
   ContractorPro:  -1,
 };

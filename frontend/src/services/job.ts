@@ -1,6 +1,7 @@
 import { Actor } from "@icp-sdk/core/agent";
 import { getAgent } from "./actor";
 import { idlFactory } from "@/declarations/job";
+import { serviceTypeVariant, serviceTypeFromVariant } from "./serviceTypes";
 export { idlFactory };
 
 const JOB_CANISTER_ID = (process.env as any).JOB_CANISTER_ID || "";
@@ -71,7 +72,6 @@ const STATUS_MAP: Record<string, JobStatus> = {
 
 function fromJob(raw: any): Job {
   const statusKey      = Object.keys(raw.status)[0];
-  const serviceTypeKey = Object.keys(raw.serviceType)[0];
   // completedDate is Time.Time (nanoseconds as bigint)
   const date = new Date(Number(raw.completedDate) / 1_000_000).toISOString().split("T")[0];
 
@@ -80,7 +80,7 @@ function fromJob(raw: any): Job {
     propertyId:       raw.propertyId,
     homeowner:        raw.homeowner.toText(),
     contractor:       raw.contractor[0]?.toText() ?? undefined,
-    serviceType:      serviceTypeKey,
+    serviceType:      serviceTypeFromVariant(raw.serviceType),
     contractorName:   raw.contractorName[0] ?? undefined,
     amount:           Number(raw.amount),
     date,
@@ -184,7 +184,7 @@ function createJobService() {
     const result = await a.createJob(
       job.propertyId,
       job.serviceType,                                    // title = serviceType
-      { [job.serviceType]: null },                        // ServiceType variant
+      serviceTypeVariant(job.serviceType),                // ServiceType variant
       job.description,
       job.contractorName ? [job.contractorName] : [],     // ?Text
       BigInt(job.amount),
@@ -275,7 +275,7 @@ function createJobService() {
       return {
         jobId:           r.jobId,
         title:           r.title,
-        serviceType:     Object.keys(r.serviceType)[0],
+        serviceType:     serviceTypeFromVariant(r.serviceType),
         description:     r.description,
         amount:          Number(r.amount),
         completedDate:   Number(r.completedDate) / 1_000_000,
@@ -336,7 +336,7 @@ function createJobService() {
     const result = await a.createJobProposal(
       input.propertyId,
       input.serviceType,                               // title = serviceType label
-      { [input.serviceType]: null },                   // ServiceType variant
+      serviceTypeVariant(input.serviceType),           // ServiceType variant
       input.description,
       [input.contractorName],                          // ?Text
       BigInt(input.amountCents),

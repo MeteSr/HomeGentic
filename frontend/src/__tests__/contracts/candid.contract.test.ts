@@ -144,7 +144,6 @@ describe("payment IDL factory", () => {
       "listPendingGifts",
       "redeemGift",
       "setBootstrapNonce",
-      "setTierCanisterIds",
       "subscribe",
       "verifyStripeSession",
     ]);
@@ -266,7 +265,6 @@ describe("property IDL factory", () => {
       "requestApproval",
       "resignAsManager",
       "respondToApproval",
-      "setTier",
       "submitVerification",
       "updateManagerRole",
       "verifyProperty",

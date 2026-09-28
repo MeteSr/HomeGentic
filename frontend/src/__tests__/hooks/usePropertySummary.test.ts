@@ -45,7 +45,7 @@ import { usePropertySummary } from "@/hooks/usePropertySummary";
 const PROP: Property = {
   id: "p1", owner: "owner-1", address: "1 Main", city: "Austin", state: "TX",
   zipCode: "78701", propertyType: "SingleFamily", yearBuilt: BigInt(2000),
-  squareFeet: BigInt(1800), verificationLevel: "Basic", tier: "Basic",
+  squareFeet: BigInt(1800), verificationLevel: "Basic", tier: "Free",
   createdAt: BigInt(0), updatedAt: BigInt(0), isActive: true,
 };
 

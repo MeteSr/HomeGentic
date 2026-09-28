@@ -289,7 +289,7 @@ function IcpPayButton({ tier, billing, couponCode, onError }: IcpPayButtonProps)
   const handlePay = async () => {
     try {
       if (billing === "Yearly") {
-        await paymentService.subscribeAnnual(tier as "Pro" | "Premium", (s) => setStep(s as IcpStep));
+        await paymentService.subscribeAnnual(tier as "Pro", (s) => setStep(s as IcpStep));
       } else {
         await paymentService.subscribe(tier as PlanTier, (s) => setStep(s as IcpStep));
       }

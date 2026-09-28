@@ -5,6 +5,7 @@ import { propertyService, Property, VerificationLevel, SubscriptionTier } from "
 import { monitoringService, CanisterMetrics, CycleLevelResult, runwayDays, cyclesToUsd } from "@/services/monitoringService";
 import { jobService, Job } from "@/services/job";
 import { referralService } from "@/services/referralService";
+import { paymentService } from "@/services/payment";
 import { contractorService, ContractorProfile } from "@/services/contractor";
 import { useAuthStore } from "@/store/authStore";
 import { Shield, CheckCircle, XCircle, RefreshCw, AlertTriangle, DollarSign } from "lucide-react";
@@ -361,7 +362,7 @@ function TierManager() {
     if (!principal.trim()) { toast.error("Enter a principal"); return; }
     setLoading(true);
     try {
-      await propertyService.setTier(principal.trim(), tier);
+      await paymentService.grantSubscription(principal.trim(), tier);
       toast.success(`Set ${principal.trim().slice(0, 12)}… to ${tier}`);
       setPrincipal("");
     } catch (err: any) {
@@ -426,7 +427,6 @@ function TierManager() {
           {[
             { tier: "Free",          props: "1 property",      quotes: "3 open requests" },
             { tier: "Pro",           props: "20 properties",   quotes: "Unlimited" },
-            { tier: "Premium",       props: "20 properties",   quotes: "10 open requests (grandfathered)" },
             { tier: "ContractorPro", props: "Unlimited",       quotes: "Unlimited" },
           ].map((r) => (
             <div key={r.tier} style={{ background: V2_COLORS.paper, padding: "0.625rem 0.875rem", border: `1px solid ${UI.rule}` }}>

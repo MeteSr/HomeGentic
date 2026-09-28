@@ -9,26 +9,25 @@ async function goToSubscriptionTab(page: Parameters<typeof injectTestAuth>[0]) {
 }
 
 test.describe("SettingsPage — Subscription tab tier-gated UI", () => {
-  // ── Paid tier (Basic, grandfathered) ─────────────────────────────────────────
+  // ── Free tier — Pro is offered as the upgrade ───────────────────────────────
 
-  test.describe("Basic tier (paid, grandfathered)", () => {
+  test.describe("Free tier", () => {
     test.beforeEach(async ({ page }) => {
       await injectTestAuth(page);
-      await injectSubscription(page, "Basic");
+      await injectSubscription(page, "Free");
       await goToSubscriptionTab(page);
     });
 
-    test("shows 'Switch Plan' section heading", async ({ page }) => {
-      await expect(page.getByText("Switch Plan")).toBeVisible();
+    test("shows 'Upgrade Plan' section heading", async ({ page }) => {
+      await expect(page.getByText("Upgrade Plan")).toBeVisible();
     });
 
-    test("plan grid buttons are labelled 'Switch' not 'Upgrade'", async ({ page }) => {
-      await expect(page.getByRole("button", { name: /^switch$/i }).first()).toBeVisible();
-      await expect(page.getByRole("button", { name: /^upgrade$/i })).toHaveCount(0);
+    test("plan grid offers an 'Upgrade' button", async ({ page }) => {
+      await expect(page.getByRole("button", { name: /^upgrade$/i }).first()).toBeVisible();
     });
   });
 
-  // ── Pro tier — the only purchasable plan, so nothing to switch to ────────────
+  // ── Pro tier — the only purchasable plan, so nothing to upgrade to ───────────
 
   test.describe("Pro tier (current plan, only purchasable plan)", () => {
     test.beforeEach(async ({ page }) => {
@@ -37,12 +36,12 @@ test.describe("SettingsPage — Subscription tab tier-gated UI", () => {
       await goToSubscriptionTab(page);
     });
 
-    test("shows no 'Switch Plan' section (Pro is the only homeowner plan)", async ({ page }) => {
-      await expect(page.getByText("Switch Plan")).toHaveCount(0);
+    test("shows no 'Upgrade Plan' section (Pro is the only homeowner plan)", async ({ page }) => {
+      await expect(page.getByText("Upgrade Plan")).toHaveCount(0);
     });
 
-    test("shows no 'Switch' buttons in the subscription tab", async ({ page }) => {
-      await expect(page.getByRole("button", { name: /^switch$/i })).toHaveCount(0);
+    test("shows no 'Upgrade' buttons in the subscription tab", async ({ page }) => {
+      await expect(page.getByRole("button", { name: /^upgrade$/i })).toHaveCount(0);
     });
   });
 

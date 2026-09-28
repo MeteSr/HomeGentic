@@ -118,7 +118,7 @@ describe("useAuthStore — clearAuth", () => {
   it("resets all auth fields to defaults", () => {
     getStore().setAuthenticated("some-principal");
     getStore().setProfile({ id: "u1", name: "Bob" } as any);
-    getStore().setTier("Premium");
+    getStore().setTier("ContractorPro");
     getStore().setLastLoginAt(Date.now());
 
     getStore().clearAuth();

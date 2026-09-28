@@ -134,7 +134,7 @@ vi.mock("@/services/notifications", () => ({
   notificationService: { create: vi.fn(), getAll: vi.fn().mockReturnValue([]) },
 }));
 
-let mockTier: "Free" | "Pro" | "Premium" | "ContractorPro" = "Free";
+let mockTier: "Free" | "Pro" | "ContractorPro" = "Free";
 vi.mock("@/services/payment", () => ({
   paymentService: {
     getMyAgentCredits: vi.fn(() => Promise.resolve(0)),
@@ -275,16 +275,6 @@ describe("GenerateReportModal — success screen expiry row (15.2.3)", () => {
     expect(screen.getByText(/this link never expires/i)).toBeInTheDocument();
   });
 
-  it("Premium user also sees 'this link never expires'", async () => {
-    mockTier = "Premium";
-    vi.mocked(paymentService.getMySubscription).mockResolvedValue({ tier: "Premium", expiresAt: null, cancelledAt: null });
-    renderModal();
-    await clickGenerate();
-    await waitFor(() =>
-      expect(screen.getByText(/link ready to share/i)).toBeInTheDocument()
-    );
-    expect(screen.getByText(/this link never expires/i)).toBeInTheDocument();
-  });
 });
 
 // ─── 15.2.4 — ReportPage: expired link shows upgrade prompt ──────────────────

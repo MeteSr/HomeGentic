@@ -65,10 +65,10 @@ describe("PaymentSuccessPage — legacy session_id flow", () => {
   });
 
   it("renders the welcome state with the resolved tier on subscription success", async () => {
-    mockVerifyStripeSession.mockResolvedValue({ type: "subscription", tier: "Premium" });
+    mockVerifyStripeSession.mockResolvedValue({ type: "subscription", tier: "Pro" });
     renderAt("/payment-success?session_id=cs_test_123");
     await waitFor(() => expect(mockVerifyStripeSession).toHaveBeenCalledWith("cs_test_123"));
-    await waitFor(() => expect(screen.getByText(/welcome to premium/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/welcome to pro/i)).toBeInTheDocument());
   });
 
   it("redeems a quorum coupon on subscription success when one is present in the URL", async () => {
@@ -119,7 +119,7 @@ describe("PaymentSuccessPage — PaymentElement flow (subscription_id)", () => {
 
   it("verifies the subscription server-side and renders the welcome state when authenticated", async () => {
     global.fetch = vi.fn().mockResolvedValue({
-      json: () => Promise.resolve({ tier: "Premium" }),
+      json: () => Promise.resolve({ tier: "Pro" }),
     }) as any;
 
     renderAt("/payment-success?subscription_id=sub_123&tier=Basic");
@@ -128,7 +128,7 @@ describe("PaymentSuccessPage — PaymentElement flow (subscription_id)", () => {
       expect.stringContaining("/api/stripe/verify-subscription"),
       expect.objectContaining({ method: "POST" }),
     ));
-    await waitFor(() => expect(screen.getByText(/welcome to premium/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/welcome to pro/i)).toBeInTheDocument());
   });
 
   it("renders an error state when the server reports a verification failure", async () => {

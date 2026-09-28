@@ -48,11 +48,11 @@ persistent actor Property {
   // ─── Constants ────────────────────────────────────────────────────────────
 
   /// Nanoseconds in 7 days — the conflict resolution window.
-  private let SEVEN_DAYS_NS   : Int = 7  * 24 * 3600 * 1_000_000_000;
+  private transient let SEVEN_DAYS_NS   : Int = 7  * 24 * 3600 * 1_000_000_000;
   /// Nanoseconds in 90 days — the property transfer link expiry window.
-  private let NINETY_DAYS_NS  : Int = 90 * 24 * 3600 * 1_000_000_000;
+  private transient let NINETY_DAYS_NS  : Int = 90 * 24 * 3600 * 1_000_000_000;
   /// Nanoseconds in 72 hours — the v2 claim submission window.
-  private let SEVENTY_TWO_HOURS_NS : Int = 72 * 3600 * 1_000_000_000;
+  private transient let SEVENTY_TWO_HOURS_NS : Int = 72 * 3600 * 1_000_000_000;
 
   // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -78,9 +78,7 @@ persistent actor Property {
 
   public type SubscriptionTier = {
     #Free;             // unsubscribed sentinel — 0 properties (blocked)
-    #Basic;            // 1 property
     #Pro;              // 5 properties
-    #Premium;          // 20 properties
     #ContractorFree;   // 0 properties — contractors work on others' properties
     #ContractorPro;    // unlimited
   };
@@ -349,8 +347,8 @@ persistent actor Property {
   private var bootstrapNonce           : ?Text       = null;
   private var auditCanisterId          : ?Principal  = null;
   /// Payment canister ID — set post-deploy via setPaymentCanisterId().
-  /// When set, registerProperty() cross-calls getTierForPrincipal() instead of
-  /// reading the local tierGrants map.
+  /// When set, registerProperty() cross-calls getTierForPrincipal(); without it every
+  /// caller is treated as #Free (fail closed).
   private var payCanisterId            : Text        = "";
 
   private var transferCounter        : Nat                            = 0;
@@ -371,7 +369,6 @@ persistent actor Property {
   private let properties      = Map.empty<Text, Property>();
   /// Address key → property ID.
   private let addressIdx      = Map.empty<Text, Text>();
-  private let tierGrants      = Map.empty<Text, SubscriptionTier>();
   /// Transfer history keyed by transferCounter (Nat).
   private let transfers        = Map.empty<Nat, TransferRecord>();
   private let pendingTransfers = Map.empty<Text, PendingTransfer>();
@@ -476,7 +473,7 @@ persistent actor Property {
   private transient let inFlightRegistrations = Map.empty<Text, Bool>();
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
-  private let ONE_MINUTE_NS       : Int = 60_000_000_000;
+  private transient let ONE_MINUTE_NS       : Int = 60_000_000_000;
   // ── Ingress inspection ────────────────────────────────────────────────────
   /// Reject anonymous callers and zero-byte payloads before execution.
   /// Empty payload cannot be valid Candid for any method that takes a struct
@@ -557,27 +554,14 @@ persistent actor Property {
     }
   };
 
-  /// Returns the authoritative tier for a principal.
-  /// Falls back to #Free for principals without an admin-granted tier.
-  /// Callers cannot influence this — it is set only via setTier() (admin-only).
-  private func tierFor(p: Principal) : SubscriptionTier {
-    switch (Map.get(tierGrants, Text.compare, Principal.toText(p))) {
-      case (?t) { t };
-      case null { #Free };
-    }
-  };
 
   // ─── Tier Limits ──────────────────────────────────────────────────────────
 
-  // #Basic and #Premium are retired as purchasable tiers — #Pro is now the
-  // single homeowner plan ($59/year) with the old Premium limits. Their
-  // arms stay here so grandfathered subscribers keep their existing limits.
+  // #Pro is the single homeowner plan ($59/year).
   public query func getPropertyLimitForTier(tier: SubscriptionTier) : async Nat {
     switch tier {
       case (#Free)             { 1  };
-      case (#Basic)            { 1  };
       case (#Pro)              { 20 };
-      case (#Premium)          { 20 };
       case (#ContractorFree)   { 0  };  // contractors don't own properties
       case (#ContractorPro)    { 0  };  // 0 = unlimited (ContractorPro)
     }
@@ -686,36 +670,28 @@ persistent actor Property {
     // otherwise falls back to the local admin-grant map.
     let callerTier : SubscriptionTier = if (payCanisterId != "") {
       let payActor = actor(payCanisterId) : actor {
-        getTierForPrincipal : (Principal) -> async { #Free; #Basic; #Pro; #Premium; #ContractorFree; #ContractorPro };
+        getTierForPrincipal : (Principal) -> async { #Free; #Pro; #ContractorFree; #ContractorPro };
       };
       await payActor.getTierForPrincipal(caller)
     } else {
-      tierFor(caller)
+      #Free  // payment canister not wired: no tier source, fail closed
     };
     let limit = switch (callerTier) {
       case (#Free)             { 1  };
-      case (#Basic)            { 1  };
       case (#Pro)              { 20 };
-      case (#Premium)          { 20 };
       case (#ContractorFree)   { 0  };  // contractors don't own properties
       case (#ContractorPro)    { 0  };  // 0 = unlimited (ContractorPro)
     };
     if (callerTier == #ContractorFree or (limit > 0 and countOwnerProperties(caller) >= limit)) {
       let tierName = switch (callerTier) {
         case (#Free)             "Free";
-        case (#Basic)            "Basic";
         case (#Pro)              "Pro";
-        case (#Premium)          "Premium";
         case (#ContractorFree)   "ContractorFree";
         case (#ContractorPro)    "ContractorPro";
       };
-      // #Basic is grandfathered-only (no longer purchasable) — its upgrade
-      // path now points to the single $59/year Pro plan. #Pro/#Premium are
-      // already at the top homeowner tier, so there's nowhere further to
-      // suggest.
+      // Pro is the top homeowner tier, so only Free has somewhere to go.
       let upgradeMsg = switch (callerTier) {
         case (#Free)  " Subscribe to Pro ($59/year) for 20 properties.";
-        case (#Basic) " Upgrade to Pro ($59/year) for 20.";
         case _        "";
       };
       Map.remove(inFlightRegistrations, Text.compare, callerKey);
@@ -1198,14 +1174,14 @@ persistent actor Property {
     // working; only granting a *new* invite is blocked on Free/Basic.
     let callerTier : SubscriptionTier = if (payCanisterId != "") {
       let payActor = actor(payCanisterId) : actor {
-        getTierForPrincipal : (Principal) -> async { #Free; #Basic; #Pro; #Premium; #ContractorFree; #ContractorPro };
+        getTierForPrincipal : (Principal) -> async { #Free; #Pro; #ContractorFree; #ContractorPro };
       };
       await payActor.getTierForPrincipal(msg.caller)
     } else {
-      tierFor(msg.caller)
+      #Free  // payment canister not wired: no tier source, fail closed
     };
     switch (callerTier) {
-      case (#Pro or #Premium) {};
+      case (#Pro) {};
       case _ { return #err(#InvalidInput("Shared access is a Pro feature. Subscribe to Pro ($59/year) to invite a manager or viewer.")) };
     };
 
@@ -1651,14 +1627,6 @@ persistent actor Property {
 
   // ─── Admin Controls ───────────────────────────────────────────────────────
 
-  /// Set the subscription tier for a principal.
-  /// Called by an admin when a user's subscription changes.
-  /// This is the only authoritative source for tier limits — callers cannot spoof.
-  public shared(msg) func setTier(user: Principal, tier: SubscriptionTier) : async Result.Result<(), Error> {
-    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    Map.add(tierGrants, Text.compare, Principal.toText(user), tier);
-    #ok(())
-  };
 
   /// Wire the property canister to the payment canister for live tier enforcement.
   /// Must be called once after both canisters are deployed.

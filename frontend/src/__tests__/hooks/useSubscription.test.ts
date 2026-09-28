@@ -20,11 +20,11 @@ beforeEach(() => {
 });
 
 describe("useSubscription", () => {
-  it("defaults to Basic tier before the request resolves", () => {
+  it("defaults to Free tier before the request resolves", () => {
     // Never-resolving promise to freeze state at initial
     mockGetMySubscription.mockReturnValue(new Promise(() => {}));
     const { result } = renderHook(() => useSubscription());
-    expect(result.current.userTier).toBe("Basic");
+    expect(result.current.userTier).toBe("Free");
   });
 
   it("returns the tier from paymentService on success", async () => {
@@ -35,26 +35,26 @@ describe("useSubscription", () => {
     });
   });
 
-  it("returns Premium tier when service resolves Premium", async () => {
-    mockGetMySubscription.mockResolvedValueOnce({ tier: "Premium", expiresAt: null, cancelledAt: null });
+  it("returns ContractorPro tier when service resolves ContractorPro", async () => {
+    mockGetMySubscription.mockResolvedValueOnce({ tier: "ContractorPro", expiresAt: null, cancelledAt: null });
     const { result } = renderHook(() => useSubscription());
     await waitFor(() => {
-      expect(result.current.userTier).toBe("Premium");
+      expect(result.current.userTier).toBe("ContractorPro");
     });
   });
 
-  it("keeps Basic tier when service rejects (error case)", async () => {
+  it("keeps Free tier when service rejects (error case)", async () => {
     mockGetMySubscription.mockRejectedValueOnce(new Error("canister not available"));
     const { result } = renderHook(() => useSubscription());
     // Wait a tick for the effect to settle
     await waitFor(() => {
-      // Tier should remain Basic since error path just logs and doesn't change state
-      expect(result.current.userTier).toBe("Basic");
+      // Tier should remain Free since error path just logs and doesn't change state
+      expect(result.current.userTier).toBe("Free");
     });
   });
 
   it("calls getMySubscription exactly once on mount", async () => {
-    mockGetMySubscription.mockResolvedValueOnce({ tier: "Basic", expiresAt: null, cancelledAt: null });
+    mockGetMySubscription.mockResolvedValueOnce({ tier: "Free", expiresAt: null, cancelledAt: null });
     renderHook(() => useSubscription());
     await waitFor(() => {
       expect(mockGetMySubscription).toHaveBeenCalledTimes(1);

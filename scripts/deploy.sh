@@ -519,8 +519,12 @@ print(sum(1 for v in d.values() if isinstance(v,dict) and v.get(os.environ['ENV'
       # breaks from merging.
       #   property   — testnet hadn't upgraded since 2026-04-28 (drift)
       #   contractor — #521 added a required ContractorProfile field
-      # Testnet data in both was confirmed disposable.
-      TESTNET_REINSTALL_OK=" property contractor "
+      #   everything but audit — the pre-launch storage cleanup dropped stable
+      #   constants (now transient), the Basic/Premium tiers and the local tier
+      #   caches, and widened ServiceType
+      # Testnet data was confirmed disposable. Trim this list once testnet has
+      # deployed cleanly.
+      TESTNET_REINSTALL_OK=" agent ai_proxy auth bills contractor fee job listing maintenance market monitoring payment photo property quote recurring referrals report sensor "
       if icp canister install "$canister" \
           --mode auto \
           --yes \
@@ -708,28 +712,6 @@ if [ -n "$QUOTE_ID" ]    && [ -n "$PAYMENT_ID" ];    then
   icp canister call quote    setPaymentCanisterId    "(principal \"$PAYMENT_ID\")" -e "$ENV" 2>/dev/null &
 fi
 
-if [ -n "$PAYMENT_ID" ] && [ -n "$PROPERTY_ID" ]; then
-  echo "  property: adding payment as admin (for tier propagation)..."
-  # property uses nonce-gated addAdmin; DEPLOYER is already admin so nonce param is ignored
-  icp canister call property addAdmin "(principal \"$PAYMENT_ID\", \"\")" -e "$ENV" 2>/dev/null &
-fi
-if [ -n "$PAYMENT_ID" ] && [ -n "$QUOTE_ID" ]; then
-  echo "  quote: adding payment as admin (for tier propagation)..."
-  # quote uses nonce-gated addAdmin; DEPLOYER is already admin so nonce param is ignored
-  icp canister call quote addAdmin "(principal \"$PAYMENT_ID\", \"\")" -e "$ENV" 2>/dev/null &
-fi
-if [ -n "$PAYMENT_ID" ] && [ -n "$PHOTO_ID" ]; then
-  echo "  photo: adding payment as admin (for tier propagation)..."
-  # photo uses nonce-gated addAdmin; DEPLOYER is already admin so nonce param is ignored
-  icp canister call photo addAdmin "(principal \"$PAYMENT_ID\", \"\")" -e "$ENV" 2>/dev/null &
-fi
-
-if [ -n "$PAYMENT_ID" ] && [ -n "$PROPERTY_ID" ] && [ -n "$QUOTE_ID" ] && [ -n "$PHOTO_ID" ]; then
-  echo "  Wiring tier propagation: payment -> property, quote, photo..."
-  icp canister call payment setTierCanisterIds \
-    "(principal \"$PROPERTY_ID\", principal \"$QUOTE_ID\", principal \"$PHOTO_ID\")" \
-    -e "$ENV" 2>/dev/null &
-fi
 if [ -n "$BILLS_ID" ]    && [ -n "$PAYMENT_ID" ];    then
   echo "  Wiring payment -> bills..."
   icp canister call bills    setPaymentCanisterId    "(\"$PAYMENT_ID\")"          -e "$ENV" &
@@ -905,6 +887,18 @@ if [ -n "$AUDIT_ID" ]; then
 fi
 
 wait
+
+# ── vetKD master key ─────────────────────────────────────────────────────────
+# quote (sealed bids) and market (score encryption) default to the IC's test
+# key; mainnet must use the production key. Stored in the canisters, so this
+# takes effect on the next call without a reinstall.
+if [ "$ENV" = "ic" ]; then
+  for canister in quote market; do
+    echo "  $canister: vetKD key → key_1"
+    icp canister call "$canister" setVetkdKeyName '("key_1")' -e "$ENV" >/dev/null \
+      || { echo "❌ could not set the vetKD key on $canister"; exit 1; }
+  done
+fi
 
 # ── AI Proxy canister — wire API keys from environment ────────────────────────
 AI_PROXY_ID=$(icp canister status ai_proxy -e "$ENV" --id-only 2>/dev/null || echo "")

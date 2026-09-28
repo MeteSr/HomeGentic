@@ -149,8 +149,8 @@ dfx canister call quote createQuoteRequest '(
   || echo "  ✓ Free tier limit (3 open requests) enforced"
 
 echo ""
-echo "  → Admin upgrades caller to Pro tier in quote canister..."
-dfx canister call quote setTier "(principal \"$MY_PRINCIPAL\", variant { Pro })"
+echo "  → Admin upgrades caller to Pro (quote reads it live from payment)..."
+dfx canister call payment grantSubscription "(principal \"$MY_PRINCIPAL\", variant { Pro })"
 
 echo ""
 echo "  → Create 4th request on Pro tier — should succeed ─────────────────────"

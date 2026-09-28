@@ -219,7 +219,7 @@ dfx canister call $CANISTER cancelQuoteRequest "(\"$REQ_ID\")" \
   && echo "  ↳ ❌ Expected error for cancelling accepted request" \
   || echo "  ↳ Cancel on accepted request correctly rejected — ✓"
 
-# ─── Tier open-request limit — Free tier is fully blocked; Basic limit = 3 ───
+# ─── Tier open-request limit — Free limit = 3 ────────────────────────────────
 echo ""
 echo "── [15] Free tier: createQuoteRequest → expect full rejection ───────────"
 # Free tier has no access at all to quote requests.
@@ -239,19 +239,19 @@ echo "$RESULT" | grep -qi "subscription\|InvalidInput" \
   || echo "  ↳ ❌ Expected rejection for Free tier"
 
 echo ""
-echo "── [15b] Basic tier: fill 3 open slots then expect LimitReached ─────────"
-# Grant Basic (limit = 3) to the free-test identity.
+echo "── [15b] Free tier: fill 3 open slots then expect LimitReached ──────────"
+# Free (limit = 3) on a dedicated identity.
 if ! dfx identity list 2>/dev/null | grep -q "^quote-basic-test$"; then
   dfx identity new quote-basic-test --disable-encryption 2>/dev/null || true
 fi
 BASIC_PRINCIPAL=$(dfx identity get-principal --identity quote-basic-test)
-dfx canister call payment grantSubscription "(principal \"$BASIC_PRINCIPAL\", variant { Basic })"
+dfx canister call payment grantSubscription "(principal \"$BASIC_PRINCIPAL\", variant { Free })"
 LIMIT_REQ_IDS=()
 for i in 1 2 3; do
   OUT=$(dfx canister call $CANISTER createQuoteRequest "(
     \"PROP_LIMIT\",
     variant { Roofing },
-    \"Basic tier limit test request $i.\",
+    \"Free tier limit test request $i.\",
     variant { Low },
     null, null, null, null, null
   )" --identity quote-basic-test)
@@ -261,18 +261,18 @@ for i in 1 2 3; do
 done
 
 echo ""
-echo "── [16] 4th request on Basic tier → expect LimitReached (max 3 open) ────"
+echo "── [16] 4th request on Free tier → expect LimitReached (max 3 open) ─────"
 dfx canister call $CANISTER createQuoteRequest '(
   "PROP_LIMIT",
   variant { Roofing },
-  "This 4th request should fail on Basic tier limit.",
+  "This 4th request should fail on Free tier limit.",
   variant { Low },
   null, null, null, null, null
 )' --identity quote-basic-test \
-  && echo "  ↳ ❌ Expected LimitReached for Basic tier" \
-  || echo "  ↳ Basic tier open-request limit correctly enforced (max 3) — ✓"
+  && echo "  ↳ ❌ Expected LimitReached for Free tier" \
+  || echo "  ↳ Free tier open-request limit correctly enforced (max 3) — ✓"
 
-# Close the basic-tier limit-test requests
+# Close the free-tier limit-test requests
 echo ""
 echo "── [16-cleanup] Close limit-test requests ────────────────────────────────"
 for ID in "${LIMIT_REQ_IDS[@]}"; do
@@ -522,7 +522,6 @@ req_id_of() { if [[ "$1" =~ id\ =\ \"([^\"]+)\" ]]; then echo "${BASH_REMATCH[1]
 new_id quote-usage-owner; new_id quote-usage-pro; new_id quote-usage-stranger
 OWNER_P=$(dfx identity get-principal --identity quote-usage-owner)
 dfx canister call payment grantSubscription "(principal \"$OWNER_P\", variant { Pro })" >/dev/null 2>&1 || true
-dfx canister call $CANISTER setTier "(principal \"$OWNER_P\", variant { Pro })" >/dev/null 2>&1 || true
 
 new_request() {   # $1 service variant
   dfx canister call $CANISTER createQuoteRequest "(

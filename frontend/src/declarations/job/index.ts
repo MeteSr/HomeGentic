@@ -1,15 +1,7 @@
 // Candid interface for the job canister — keep in sync with backend/job/main.mo
+import { serviceTypeIdl } from "../../services/serviceTypes";
 export const idlFactory = ({ IDL }: any) => {
-  const ServiceType = IDL.Variant({
-    Roofing:     IDL.Null,
-    HVAC:        IDL.Null,
-    Plumbing:    IDL.Null,
-    Electrical:  IDL.Null,
-    Painting:    IDL.Null,
-    Flooring:    IDL.Null,
-    Windows:     IDL.Null,
-    Landscaping: IDL.Null,
-  });
+  const ServiceType = serviceTypeIdl(IDL);
   const JobStatus = IDL.Variant({
     Pending:                   IDL.Null,
     InProgress:                IDL.Null,

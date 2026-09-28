@@ -251,8 +251,7 @@ test.describe("EP.5 — Free user upgrade gate on quote request", () => {
     await injectTestAuth(page);
     await injectTestProperties(page); // Free needs a property to reach the quote-request form at all
     await injectSubscription(page, "Free");
-    // Free gets the same 3-open-request cap as grandfathered Basic —
-    // inject exactly 3 to sit right at the limit.
+    // Free has a 3-open-request cap — inject exactly 3 to sit right at the limit.
     await injectQuoteRequests(page, [
       { id: "q1", propertyId: "1", homeowner: "test-e2e-principal", serviceType: "HVAC", urgency: "medium", description: "Test", status: "open", createdAt: Date.now() - 1000 },
       { id: "q2", propertyId: "1", homeowner: "test-e2e-principal", serviceType: "Plumbing", urgency: "low", description: "Test 2", status: "open", createdAt: Date.now() - 2000 },

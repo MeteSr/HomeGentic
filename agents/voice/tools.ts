@@ -1,5 +1,14 @@
 import type { ToolDefinition } from "./provider";
 
+/** Service types the job/quote/contractor canisters accept — display labels from
+ *  frontend/src/services/serviceTypes.ts, which converts them to Candid tags. */
+const SERVICE_TYPES = [
+  "HVAC", "Roofing", "Plumbing", "Electrical", "Painting", "Flooring", "Windows",
+  "Landscaping", "Gutters", "General Handyman", "Pest Control", "Concrete", "Fencing",
+  "Insulation", "Solar", "Pool", "Foundation", "Drywall", "Kitchen Remodel",
+  "Bathroom Remodel", "Other",
+];
+
 /**
  * Tool schemas exposed to the AI agent for agentic HomeGentic interactions.
  *
@@ -44,7 +53,7 @@ After creating the job, always follow up:
         },
         service_type: {
           type: "string",
-          enum: ["Roofing", "HVAC", "Plumbing", "Electrical", "Painting", "Flooring", "Windows", "Landscaping"],
+          enum: SERVICE_TYPES,
           description: "The category of service performed",
         },
         description: {
@@ -114,7 +123,7 @@ Example: "It sounds like your roof is leaking and you need a contractor — want
         },
         service_type: {
           type: "string",
-          enum: ["Roofing", "HVAC", "Plumbing", "Electrical", "Painting", "Flooring", "Windows", "Landscaping"],
+          enum: SERVICE_TYPES,
           description: "The classified service category",
         },
         urgency: {
@@ -145,7 +154,7 @@ Always confirm the type of work and urgency before calling this tool.`,
         },
         service_type: {
           type: "string",
-          enum: ["Roofing", "HVAC", "Plumbing", "Electrical", "Painting", "Flooring", "Windows", "Landscaping"],
+          enum: SERVICE_TYPES,
           description: "The type of service needed",
         },
         description: {
@@ -174,7 +183,7 @@ YOU compose all the work order fields based on the homeowner's description, then
       properties: {
         service_type: {
           type: "string",
-          enum: ["Roofing", "HVAC", "Plumbing", "Electrical", "Painting", "Flooring", "Windows", "Landscaping"],
+          enum: SERVICE_TYPES,
           description: "The category of work needed",
         },
         scope_of_work: {
@@ -209,7 +218,7 @@ Returns up to 3 contractors sorted by trust score. After showing results, offer 
       properties: {
         service_type: {
           type: "string",
-          enum: ["Roofing", "HVAC", "Plumbing", "Electrical", "Painting", "Flooring", "Windows", "Landscaping"],
+          enum: SERVICE_TYPES,
           description: "The type of service to search for",
         },
       },
@@ -604,7 +613,7 @@ Do NOT call this tool without explicit contractor confirmation.`,
         },
         service_type: {
           type: "string",
-          enum: ["Roofing", "HVAC", "Plumbing", "Electrical", "Painting", "Flooring", "Windows", "Landscaping"],
+          enum: SERVICE_TYPES,
           description: "The category of service performed",
         },
         description: {

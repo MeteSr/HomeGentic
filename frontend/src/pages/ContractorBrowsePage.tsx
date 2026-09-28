@@ -12,6 +12,7 @@
  */
 
 import { useEffect, useState, useMemo } from "react";
+import { TRADE_LABELS } from "@/services/serviceTypes";
 import { useNavigate }                          from "react-router-dom";
 import { Search, AlertTriangle, ShieldCheck, X } from "lucide-react";
 import { Layout }                               from "@/components/Layout";
@@ -25,11 +26,7 @@ const MONO = "'JetBrains Mono',monospace";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-const SERVICE_TYPES = [
-  "HVAC", "Roofing", "Plumbing", "Electrical", "Painting",
-  "Flooring", "Windows", "Landscaping", "Gutters", "GeneralHandyman",
-  "Pest", "Concrete", "Fencing", "Insulation", "Solar", "Pool",
-] as const;
+const SERVICE_TYPES = TRADE_LABELS;
 
 const AVATAR_COLORS = [
   { bg: "var(--hg-blue-wash)", fg: "var(--hg-blue-ink)" },

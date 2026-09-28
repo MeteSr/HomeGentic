@@ -1,7 +1,7 @@
 /**
  * UpgradeGate (15.7.1)
  *
- * Drop-in lock card for Pro/Premium-only features. Shows a clean, empty
+ * Drop-in lock card for Pro-only features. Shows a clean, empty
  * gate — no blurred preview (which would leak data to the DOM).
  *
  * Usage:
@@ -19,10 +19,8 @@ interface UpgradeGateProps {
   feature: string;
   /** One-line value prop explaining what the user unlocks */
   description: string;
-  /** Minimum tier required — Pro is the only purchasable homeowner tier now;
-   *  "Basic"/"Premium" remain valid only for copy referring to grandfathered
-   *  subscribers, not as an upgrade target. Defaults to "Pro". */
-  tier?: "Basic" | "Pro" | "Premium";
+  /** Minimum tier required. Pro is the only paid homeowner tier. Defaults to "Pro". */
+  tier?: "Pro";
   /** Optional: replace the default lock icon with an emoji or element */
   icon?: React.ReactNode;
   /** Override card width/layout when embedded in a specific context */

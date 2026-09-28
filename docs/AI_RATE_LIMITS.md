@@ -35,10 +35,8 @@ $59/year Pro plan carrying the old Premium tier's property (20), photo
 exception: it keeps the old Pro tier's 10/day cap rather than Premium's
 20/day — at $59/year, 20/day would run the tier at a steep loss (see
 "Financial basis" below). Basic ($10/mo, 5/day) and old Premium ($40/mo,
-20/day) are retired as purchase options; they remain valid tier values
-purely so subscribers grandfathered in before the change keep their
-original limits enforced until they renew, at which point they move to
-the new Pro tier and price.
+20/day) have since been removed entirely — there were no subscribers on
+them, so the tiers no longer exist in the code.
 
 Free is no longer fully blocked from the app: it gets 1 property, 5
 photos/job, 3 open quote requests, job logging, Bid to List, and the
@@ -54,7 +52,7 @@ revenue (see "Financial basis" below).
 Model: `claude-sonnet-4-6` at $3.00/1M input tokens, $15.00/1M output tokens.
 
 **Note:** the tables below mix a legacy monthly-billed tier structure
-(Basic/Pro/Premium, kept only for grandfathered subscribers — see above)
+(Basic/Pro/Premium, since removed — kept here for comparison)
 with the current $59/**year** Pro plan. Pro's costs are computed over a
 full year, then divided by 12 for a monthly-equivalent figure so it's
 comparable to the legacy rows. Its Stripe fee is a single annual charge

@@ -38,9 +38,14 @@ vi.mock("@/services/property", async (importOriginal) => {
       isAdmin: mockIsAdmin,
       getPendingVerifications: mockGetPendingVerifications,
       verifyProperty: mockVerifyProperty,
-      setTier: mockSetTier,
     },
   };
+});
+
+// Tiers live in the payment canister — the admin control grants there.
+vi.mock("@/services/payment", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/services/payment")>();
+  return { ...actual, paymentService: { ...actual.paymentService, grantSubscription: mockSetTier } };
 });
 
 const {
@@ -290,7 +295,7 @@ describe("AdminDashboardPage — tier manager tab", () => {
     await waitFor(() => expect(screen.getByPlaceholderText("abc12-xyz34-...")).toHaveValue(""));
   });
 
-  it("shows an error toast and keeps the input when setTier fails", async () => {
+  it("shows an error toast and keeps the input when granting the tier fails", async () => {
     mockSetTier.mockRejectedValue(new Error("Invalid principal"));
     await goToTiers();
 

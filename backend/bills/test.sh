@@ -227,8 +227,6 @@ else
   MANAGER=$(dfx identity get-principal --identity bills-manager-test)
   for p in "$OWNER" "$MANAGER"; do
     dfx canister call payment  grantSubscription "(principal \"$p\", variant { Pro })" >/dev/null 2>&1 || true
-    dfx canister call property setTier           "(principal \"$p\", variant { Pro })" >/dev/null 2>&1 || true
-    dfx canister call bills    grantTier         "(principal \"$p\", variant { Pro })" >/dev/null 2>&1 || true
   done
 
   REG=$(dfx canister call property registerProperty "(record {

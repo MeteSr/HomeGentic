@@ -16,7 +16,7 @@ This document describes the safe upgrade procedure for HomeGentic canisters and 
 | `?1`    | Pre-1.4.7 snapshots migrated from V0 stable arrays |
 | `?2`    | Current (14.4.3+) — includes `rooms` and `schemaVersion` |
 
-The canister-level `snapshotSchemaVersion : Nat` stable variable tracks the schema the canister was last deployed with. Increment it any time `ReportSnapshot` gains a new required field.
+The canister-level `SNAPSHOT_SCHEMA_VERSION : Nat` constant (a `transient let`, so a new value takes effect on upgrade) is stamped onto every new snapshot. Increment it any time `ReportSnapshot` gains a new required field.
 
 **Rule:** New fields MUST use `?T` (optional) so that old serialized records deserialize safely to `null`. Never add a required non-optional field to an existing stable record type.
 
@@ -94,6 +94,6 @@ ICP canisters cannot be rolled back automatically — wasm modules are replaced 
 2. Add the same field to any `ReportSnapshotVN` migration types that need it, or let `null` serve as the default.
 3. Set the field to `?<value>` in `generateReport`.
 4. Pass the field through in `applyDisclosure` and any other place that reconstructs a snapshot literal.
-5. Increment `snapshotSchemaVersion` in the stable vars section.
+5. Increment `SNAPSHOT_SCHEMA_VERSION` in the constants section.
 6. Add a migration entry in `postupgrade()` if V0 records need a non-null default.
 7. Update this document with the new version row in the Schema Versioning table above.

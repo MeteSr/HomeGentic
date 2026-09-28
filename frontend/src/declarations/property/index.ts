@@ -14,9 +14,7 @@ export const idlFactory = ({ IDL }: any) => {
   });
   const SubscriptionTier = IDL.Variant({
     Free: IDL.Null,
-    Basic: IDL.Null,
     Pro: IDL.Null,
-    Premium: IDL.Null,
     ContractorFree: IDL.Null,
     ContractorPro: IDL.Null,
   });
@@ -161,11 +159,6 @@ export const idlFactory = ({ IDL }: any) => {
     verifyProperty: IDL.Func(
       [IDL.Text, IDL.Variant({ Unverified: IDL.Null, PendingReview: IDL.Null, Basic: IDL.Null, Premium: IDL.Null }), IDL.Opt(IDL.Text)],
       [IDL.Variant({ ok: Property, err: Error })],
-      []
-    ),
-    setTier: IDL.Func(
-      [IDL.Principal, IDL.Variant({ Free: IDL.Null, Pro: IDL.Null, Premium: IDL.Null, ContractorPro: IDL.Null })],
-      [IDL.Variant({ ok: IDL.Null, err: Error })],
       []
     ),
     // Token-based ownership transfer

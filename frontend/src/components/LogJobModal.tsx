@@ -3,14 +3,11 @@ import { X, CheckCircle, AlertTriangle, ShieldCheck, Wrench, HardHat } from "luc
 import { Button } from "./Button";
 import { jobService, isInsuranceRelevant } from "@/services/job";
 import { type Property } from "@/services/property";
+import { SERVICE_TYPE_LABELS } from "@/services/serviceTypes";
 import toast from "react-hot-toast";
 import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS } from "@/theme";
 
-const SERVICE_TYPES = [
-  "HVAC", "Roofing", "Plumbing", "Electrical", "Flooring", "Painting",
-  "Landscaping", "Windows", "Foundation", "Insulation", "Drywall",
-  "Kitchen Remodel", "Bathroom Remodel", "Other",
-];
+const SERVICE_TYPES = SERVICE_TYPE_LABELS;
 const PERMIT_SERVICE_TYPES = new Set(["HVAC", "Roofing", "Electrical", "Plumbing", "Foundation"]);
 
 const EMPTY_FORM = {

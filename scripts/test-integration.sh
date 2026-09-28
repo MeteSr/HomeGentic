@@ -93,41 +93,41 @@ done
 
 # ── 3. Grant test identities subscriptions ───────────────────────────────────
 # Fixed Ed25519 principals derived from seeded keys (computed offline):
-#   HOMEOWNER     seed[0]=42  qxmov-...  Premium — exercises full paid features
-#   WORKFLOW_USER seed[0]=55  zcku7-...  Premium — Flows 1 & 2 (isolated from homeowner)
-#   TIER_USER     seed[0]=77  lodek-...  Basic   — exercises 1-property limit
-#   QUOTA_USER    seed[0]=88  fz27l-...  Basic   — exercises 3-open-quote limit
+#   HOMEOWNER     seed[0]=42  qxmov-...  Pro     — exercises full paid features
+#   WORKFLOW_USER seed[0]=55  zcku7-...  Pro     — Flows 1 & 2 (isolated from homeowner)
+#   TIER_USER     seed[0]=77  lodek-...  Free    — exercises 1-property limit
+#   QUOTA_USER    seed[0]=88  fz27l-...  Free    — exercises 3-open-quote limit
 # CONTRACTOR seed[0]=99 stays at ContractorFree (no grant needed).
 #
 # WORKFLOW_USER is separate from HOMEOWNER so cross-canister flows don't accumulate
-# properties on the shared seed=42 identity (Premium cap = 20 properties).
+# properties on the shared seed=42 identity (Pro cap = 20 properties).
 
 echo ""
 echo "▶ Granting test identity subscriptions…"
 if command -v dfx >/dev/null 2>&1 && [ -n "${CANISTER_ID_PAYMENT:-}" ]; then
   dfx canister call payment grantSubscription \
-    "(principal \"qxmov-duod5-ahrw6-wydp4-lppe4-ljtvj-7zvu3-qke5i-umwsv-vcb7g-mqe\", variant { Premium })" \
+    "(principal \"qxmov-duod5-ahrw6-wydp4-lppe4-ljtvj-7zvu3-qke5i-umwsv-vcb7g-mqe\", variant { Pro })" \
     2>/dev/null \
-    && echo "  ✓ Premium → HOMEOWNER     (seed=42)" \
-    || echo "  ⚠  Could not grant Premium to HOMEOWNER"
+    && echo "  ✓ Pro     → HOMEOWNER     (seed=42)" \
+    || echo "  ⚠  Could not grant Pro to HOMEOWNER"
 
   dfx canister call payment grantSubscription \
-    "(principal \"zcku7-cgbhv-44pdq-d2as6-7hidi-qiuwm-nk4tt-uoqqw-lguim-hwozi-tqe\", variant { Premium })" \
+    "(principal \"zcku7-cgbhv-44pdq-d2as6-7hidi-qiuwm-nk4tt-uoqqw-lguim-hwozi-tqe\", variant { Pro })" \
     2>/dev/null \
-    && echo "  ✓ Premium → WORKFLOW_USER (seed=55)" \
-    || echo "  ⚠  Could not grant Premium to WORKFLOW_USER"
+    && echo "  ✓ Pro     → WORKFLOW_USER (seed=55)" \
+    || echo "  ⚠  Could not grant Pro to WORKFLOW_USER"
 
   dfx canister call payment grantSubscription \
-    "(principal \"lodek-xkcn2-ylhrl-ianfq-xzlz4-kexxd-2hc33-rutxg-tvyxb-hpypf-zqe\", variant { Basic })" \
+    "(principal \"lodek-xkcn2-ylhrl-ianfq-xzlz4-kexxd-2hc33-rutxg-tvyxb-hpypf-zqe\", variant { Free })" \
     2>/dev/null \
-    && echo "  ✓ Basic   → TIER_USER     (seed=77)" \
-    || echo "  ⚠  Could not grant Basic to TIER_USER"
+    && echo "  ✓ Free      → TIER_USER     (seed=77)" \
+    || echo "  ⚠  Could not grant Free to TIER_USER"
 
   dfx canister call payment grantSubscription \
-    "(principal \"fz27l-323vu-kqihx-wpazo-5xly5-vkrbv-zz4ee-2eppx-n56of-6qtd6-mqe\", variant { Basic })" \
+    "(principal \"fz27l-323vu-kqihx-wpazo-5xly5-vkrbv-zz4ee-2eppx-n56of-6qtd6-mqe\", variant { Free })" \
     2>/dev/null \
-    && echo "  ✓ Basic   → QUOTA_USER    (seed=88)" \
-    || echo "  ⚠  Could not grant Basic to QUOTA_USER"
+    && echo "  ✓ Free      → QUOTA_USER    (seed=88)" \
+    || echo "  ⚠  Could not grant Free to QUOTA_USER"
 
   # Workflow test identities (seeds 201-204) used by workflows.integration.test.ts.
   # Compute principals using the same SDK as the tests (@icp-sdk/core/identity),
@@ -154,14 +154,14 @@ __JSEOF__
     echo "  seed=204 → ${SEED_204:-<empty>}"
 
     [ -n "${SEED_201:-}" ] && \
-      dfx canister call payment grantSubscription "(principal \"$SEED_201\", variant { Premium })" 2>/dev/null \
-        && echo "  ✓ Premium      → WF_ONBOARD    (seed=201)" \
-        || echo "  ⚠  Could not grant Premium to WF_ONBOARD"
+      dfx canister call payment grantSubscription "(principal \"$SEED_201\", variant { Pro })" 2>/dev/null \
+        && echo "  ✓ Pro          → WF_ONBOARD    (seed=201)" \
+        || echo "  ⚠  Could not grant Pro to WF_ONBOARD"
 
     [ -n "${SEED_202:-}" ] && \
-      dfx canister call payment grantSubscription "(principal \"$SEED_202\", variant { Basic })" 2>/dev/null \
-        && echo "  ✓ Basic        → WF_HO         (seed=202)" \
-        || echo "  ⚠  Could not grant Basic to WF_HO"
+      dfx canister call payment grantSubscription "(principal \"$SEED_202\", variant { Free })" 2>/dev/null \
+        && echo "  ✓ Free           → WF_HO         (seed=202)" \
+        || echo "  ⚠  Could not grant Free to WF_HO"
 
     [ -n "${SEED_203:-}" ] && \
       dfx canister call payment grantSubscription "(principal \"$SEED_203\", variant { ContractorFree })" 2>/dev/null \
@@ -169,16 +169,16 @@ __JSEOF__
         || echo "  ⚠  Could not grant ContractorFree to WF_CONTRACTOR"
 
     [ -n "${SEED_204:-}" ] && \
-      dfx canister call payment grantSubscription "(principal \"$SEED_204\", variant { Basic })" 2>/dev/null \
-        && echo "  ✓ Basic        → WF_QUOTA      (seed=204)" \
-        || echo "  ⚠  Could not grant Basic to WF_QUOTA"
+      dfx canister call payment grantSubscription "(principal \"$SEED_204\", variant { Free })" 2>/dev/null \
+        && echo "  ✓ Free           → WF_QUOTA      (seed=204)" \
+        || echo "  ⚠  Could not grant Free to WF_QUOTA"
   fi
 else
   echo "  ⚠  dfx not found or payment canister not deployed — skipping grants"
 fi
 
 # NOTE: Properties are immutable (no deleteProperty). If tests fail with
-# "Premium limit of 20 properties reached", the local replica has accumulated
+# "Pro plan limit of 20 properties reached", the local replica has accumulated
 # too many properties across runs. Fix: make clean && make deploy, then re-run.
 
 # ── 4. Run vitest with integration config ─────────────────────────────────────

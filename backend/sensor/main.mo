@@ -24,6 +24,7 @@ import Principal "mo:core/Principal";
 import Result   "mo:core/Result";
 import Text     "mo:core/Text";
 import Time     "mo:core/Time";
+import ServiceTypes "../shared/ServiceType";
 
 persistent actor Sensor {
 
@@ -34,10 +35,7 @@ persistent actor Sensor {
   private var jobCanisterId:  Text = "";
   private var propCanisterId: Text = "";
 
-  type JobServiceType = {
-    #Roofing; #HVAC; #Plumbing; #Electrical;
-    #Painting; #Flooring; #Windows; #Landscaping;
-  };
+  type JobServiceType = ServiceTypes.ServiceType;
 
   // ─── Types ───────────────────────────────────────────────────────────────
 
@@ -157,12 +155,12 @@ persistent actor Sensor {
   private let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
-  private let ONE_MINUTE_NS       : Int = 60_000_000_000;
+  private transient let ONE_MINUTE_NS       : Int = 60_000_000_000;
 
   /// Per-device last auto-job creation timestamp (internal device ID → nanoseconds).
   /// Transient: resets on upgrade — acceptable, it is a DoS guard not business logic.
   private let lastCriticalJobNs : Map.Map<Text, Int> = Map.empty();
-  private let CRITICAL_JOB_COOLDOWN_NS : Int = 60 * 60 * 1_000_000_000;  // 1 hour
+  private transient let CRITICAL_JOB_COOLDOWN_NS : Int = 60 * 60 * 1_000_000_000;  // 1 hour
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
     if (isAdmin(caller)) return true;
@@ -396,7 +394,7 @@ persistent actor Sensor {
   // ─── Event Recording ─────────────────────────────────────────────────────
 
   /// Maximum bytes accepted for rawPayload to prevent canister memory exhaustion.
-  private let MAX_PAYLOAD_BYTES : Nat = 4096;
+  private transient let MAX_PAYLOAD_BYTES : Nat = 4096;
 
   /// Called by the IoT gateway (authorized principal) to record a sensor event.
   ///

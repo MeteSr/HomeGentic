@@ -175,62 +175,33 @@ describe("PROD.7 — deploy.sh calls addAdmin for each non-payment canister", ()
   });
 });
 
-// ── PROD.8 — Tier propagation wired in deploy.sh (#139) ──────────────────────
+// ── PROD.8 — Tiers are read live from payment (#139) ────────────────────────
 
-describe("PROD.8 — deploy.sh wires tier propagation from payment to property/quote/photo", () => {
-  // payment must call setTier() on property, quote, and photo whenever a subscription
-  // changes. Without this wiring, tier limits in those canisters default to #Free
-  // for everyone regardless of their payment subscription (#139).
+describe("PROD.8 — property/quote/photo/bills read the caller's tier live from payment", () => {
+  // payment is the single source of truth for subscription tiers. Each canister
+  // that enforces a tier limit cross-calls payment.getTierForPrincipal() — there
+  // is no local tier cache to drift out of step (#139).
 
   const deploy = () => read("scripts/deploy.sh");
 
-  it("deploy.sh adds payment as admin in property for tier propagation", () => {
-    const src = deploy();
-    // Must pass payment canister ID to property's addAdmin so setTier() calls succeed
-    expect(src).toMatch(/property\s+addAdmin.*PAYMENT_ID|PAYMENT_ID.*property\s+addAdmin/);
-  });
+  for (const canister of ["property", "quote", "photo", "bills"]) {
+    it(`${canister}/main.mo reads the tier via getTierForPrincipal and keeps no local tier cache`, () => {
+      const src = read(`backend/${canister}/main.mo`);
+      expect(src).toContain("getTierForPrincipal(");
+      expect(src).not.toMatch(/tierGrants/);
+      expect(src).not.toMatch(/func setTier\(/);
+    });
 
-  it("deploy.sh adds payment as admin in quote for tier propagation", () => {
-    const src = deploy();
-    expect(src).toMatch(/quote\s+addAdmin.*PAYMENT_ID|PAYMENT_ID.*quote\s+addAdmin/);
-  });
+    it(`deploy.sh wires the payment canister ID into ${canister}`, () => {
+      expect(deploy()).toMatch(new RegExp(`${canister}\\s+setPaymentCanisterId`));
+    });
+  }
 
-  it("deploy.sh adds payment as admin in photo for tier propagation", () => {
-    const src = deploy();
-    expect(src).toMatch(/photo\s+addAdmin.*PAYMENT_ID|PAYMENT_ID.*photo\s+addAdmin/);
-  });
-
-  it("deploy.sh calls setTierCanisterIds on payment with property/quote/photo IDs", () => {
-    const src = deploy();
-    expect(src).toContain("setTierCanisterIds");
-    expect(src).toMatch(/PROPERTY_ID.*QUOTE_ID.*PHOTO_ID|setTierCanisterIds/);
-  });
-
-  it("payment/main.mo declares propagateTier function", () => {
+  it("payment/main.mo no longer pushes tiers to other canisters", () => {
     const src = read("backend/payment/main.mo");
-    expect(src).toContain("propagateTier");
-  });
-
-  it("payment/main.mo calls propagateTier in subscribe()", () => {
-    const src = read("backend/payment/main.mo");
-    // propagateTier must be called after the subscription Map.add in subscribe()
-    const subscribeIdx   = src.indexOf("func subscribe(");
-    const propagateIdx   = src.indexOf("await propagateTier(msg.caller,", subscribeIdx);
-    expect(subscribeIdx).toBeGreaterThan(-1);
-    expect(propagateIdx).toBeGreaterThan(subscribeIdx);
-  });
-
-  it("payment/main.mo calls propagateTier in grantSubscription()", () => {
-    const src = read("backend/payment/main.mo");
-    const fnIdx        = src.indexOf("func grantSubscription(");
-    const propagateIdx = src.indexOf("await propagateTier(", fnIdx);
-    expect(fnIdx).toBeGreaterThan(-1);
-    expect(propagateIdx).toBeGreaterThan(fnIdx);
-  });
-
-  it("payment/main.mo propagates #Free on cancelSubscription()", () => {
-    const src = read("backend/payment/main.mo");
-    expect(src).toMatch(/propagateTier\([^,]+,\s*#Free\)/);
+    expect(src).not.toContain("propagateTier");
+    expect(src).not.toContain("setTierCanisterIds");
+    expect(deploy()).not.toContain("setTierCanisterIds");
   });
 });
 

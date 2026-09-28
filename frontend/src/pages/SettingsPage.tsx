@@ -312,7 +312,7 @@ function SubscriptionTab({ profile }: { profile: any }) {
       }).length > 0 && (
         <>
           <SectionDivider />
-          <SectionHeading>{isPaid ? "Switch Plan" : "Upgrade Plan"}</SectionHeading>
+          <SectionHeading>Upgrade Plan</SectionHeading>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
             {PLANS.filter((p) => {
               if (p.tier === "Free" || p.tier === tier) return false;
@@ -331,7 +331,7 @@ function SubscriptionTab({ profile }: { profile: any }) {
                     ${plan.price}<span style={{ fontFamily: V2_FONTS.body, fontSize: "0.8rem", fontWeight: 400, color: V2_COLORS.muted }}>/{plan.period}</span>
                   </p>
                   <Button size="sm" variant={plan.tier === "Pro" ? "primary" : "outline"} onClick={() => setShowUpgradeModal(true)}>
-                    {isPaid ? "Switch" : "Upgrade"}
+                    Upgrade
                   </Button>
                 </div>
               </div>

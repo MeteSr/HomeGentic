@@ -7,7 +7,6 @@
  *
  *   15.3.3 — Pro+ reports: no banner, "Verified by HomeGentic" trust badge
  *     - planTier "Pro"     → badge shown, free banner hidden
- *     - planTier "Premium" → badge shown, free banner hidden
  *     - planTier "Free"    → free banner shown, badge hidden
  */
 
@@ -136,20 +135,11 @@ describe("ReportPage — Pro plan trust badge (15.3.3)", () => {
     expect(screen.getByText(/verified by homegentic/i)).toBeInTheDocument();
   });
 
-  it("shows 'Verified by HomeGentic' trust badge for Premium tier", async () => {
-    await renderReport("Premium");
-    expect(screen.getByText(/verified by homegentic/i)).toBeInTheDocument();
-  });
-
   it("does NOT show free-plan banner for Pro tier", async () => {
     await renderReport("Pro");
     expect(screen.queryByText(/generated with homegentic free/i)).not.toBeInTheDocument();
   });
 
-  it("does NOT show free-plan banner for Premium tier", async () => {
-    await renderReport("Premium");
-    expect(screen.queryByText(/generated with homegentic free/i)).not.toBeInTheDocument();
-  });
 });
 
 describe("ReportPage — Free plan banner (15.3.3)", () => {

@@ -210,13 +210,13 @@ describe("AuthContext — devLogin()", () => {
   });
 
   it("resumes a stashed pendingCheckout intent same as login()", async () => {
-    sessionStorage.setItem("pendingCheckout", JSON.stringify({ tier: "Basic", billing: "Monthly" }));
+    sessionStorage.setItem("pendingCheckout", JSON.stringify({ tier: "Pro", billing: "Monthly" }));
     mockGetProfile.mockResolvedValue(HOMEOWNER_PROFILE);
     renderHarness();
 
     fireEvent.click(screen.getByText("devLogin"));
 
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/checkout?tier=Basic&billing=Monthly"));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/checkout?tier=Pro&billing=Monthly"));
   });
 });
 

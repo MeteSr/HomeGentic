@@ -69,7 +69,7 @@ persistent actor Referrals {
   // principal (Text) → credit balance in cents
   private let credits      = Map.empty<Text, Nat>();
 
-  private let CREDIT_CENTS : Nat = 1000; // $10.00
+  private transient let CREDIT_CENTS : Nat = 1000; // $10.00
 
   // ─── Helpers ──────────────────────────────────────────────────────────────────
 

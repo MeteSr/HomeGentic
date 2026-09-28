@@ -291,7 +291,7 @@ export default function ReportPage() {
         )}
 
         {/* Pro+ trust badge (15.3.3) — shown for Pro and Premium reports */}
-        {(snapshot.planTier === "Pro" || snapshot.planTier === "Premium" || snapshot.planTier === "ContractorPro") && (
+        {(snapshot.planTier === "Pro" || snapshot.planTier === "ContractorPro") && (
           <div className="no-print" style={{ border: `1.5px solid ${V2_COLORS.cobalTint}`, background: V2_COLORS.lblue, padding: "0.75rem 1.25rem", marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.625rem" }}>
             <CheckCircle size={14} color={V2_COLORS.blue} />
             <span style={{ fontFamily: UI.mono, fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: V2_COLORS.blue, fontWeight: 700 }}>Verified by HomeGentic</span>

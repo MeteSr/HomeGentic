@@ -1,9 +1,7 @@
 // Candid interface for the quote canister — keep in sync with backend/quote/main.mo
+import { serviceTypeIdl } from "../../services/serviceTypes";
 export const idlFactory = ({ IDL }: any) => {
-  const ServiceType = IDL.Variant({
-    Roofing: IDL.Null, HVAC: IDL.Null, Plumbing: IDL.Null, Electrical: IDL.Null,
-    Painting: IDL.Null, Flooring: IDL.Null, Windows: IDL.Null, Landscaping: IDL.Null,
-  });
+  const ServiceType = serviceTypeIdl(IDL);
   const UrgencyLevel = IDL.Variant({
     Low: IDL.Null, Medium: IDL.Null, High: IDL.Null, Emergency: IDL.Null,
   });

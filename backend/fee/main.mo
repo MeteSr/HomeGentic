@@ -66,7 +66,7 @@ persistent actor Fee {
 
   private let updateCallLimits = Map.empty<Text, (Nat, Int)>();
   private var maxUpdatesPerMin : Nat = 30;
-  private let ONE_MINUTE_NS : Int = 60_000_000_000;
+  private transient let ONE_MINUTE_NS : Int = 60_000_000_000;
 
   // ─── Private Helpers ─────────────────────────────────────────────────────────
 

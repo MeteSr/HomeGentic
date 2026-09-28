@@ -20,21 +20,13 @@ import Random    "mo:core/Random";
 import Result    "mo:core/Result";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
+import ServiceTypes "../shared/ServiceType";
 
 persistent actor Job {
 
   // ─── Types ──────────────────────────────────────────────────────────────────
 
-  public type ServiceType = {
-    #Roofing;
-    #HVAC;
-    #Plumbing;
-    #Electrical;
-    #Painting;
-    #Flooring;
-    #Windows;
-    #Landscaping;
-  };
+  public type ServiceType = ServiceTypes.ServiceType;
 
   public type JobStatus = {
     #Pending;
@@ -104,7 +96,7 @@ persistent actor Job {
     createdAt:           Int;
     expiresAt:           Int;      // createdAt + 48 hours
     usedAt:              ?Int;     // null until redeemed
-    contractorPrincipal: ?Principal; // M-12: intended redeemer; null = legacy token (any bearer)
+    contractorPrincipal: ?Principal; // M-12: optional lock to one redeemer; null = bearer link (the guest-contractor flow — createInviteToken always issues these)
   };
 
   /// Subset of job data returned to the public verify page (no auth required).
@@ -160,7 +152,7 @@ persistent actor Job {
   // ─── Constants ───────────────────────────────────────────────────────────────
 
   /// Maximum job amount in cents ($1,000,000). Prevents runaway values in stable storage.
-  private let MAX_JOB_AMOUNT_CENTS : Nat = 100_000_000;
+  private transient let MAX_JOB_AMOUNT_CENTS : Nat = 100_000_000;
 
   // ─── Private Helpers ─────────────────────────────────────────────────────────
 
@@ -170,7 +162,7 @@ persistent actor Job {
 
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
-  private let ONE_MINUTE_NS       : Int = 60_000_000_000;
+  private transient let ONE_MINUTE_NS       : Int = 60_000_000_000;
   // ── Ingress inspection ────────────────────────────────────────────────────
   /// Reject anonymous callers and zero-byte payloads before execution.
   /// Empty payload cannot be valid Candid for any method that takes a struct
@@ -247,21 +239,9 @@ persistent actor Job {
     "JOB_" # Nat.toText(jobCounter)
   };
 
-  /// Text label for a ServiceType, used at the contractor-canister
-  /// cross-call boundary (which stores serviceType as Text to avoid
-  /// importing this canister's variant type).
-  private func serviceTypeText(s: ServiceType) : Text {
-    switch (s) {
-      case (#HVAC)        { "HVAC"        };
-      case (#Roofing)     { "Roofing"     };
-      case (#Plumbing)    { "Plumbing"    };
-      case (#Electrical)  { "Electrical"  };
-      case (#Painting)    { "Painting"    };
-      case (#Flooring)    { "Flooring"    };
-      case (#Windows)     { "Windows"     };
-      case (#Landscaping) { "Landscaping" };
-    }
-  };
+  /// Text label for a ServiceType, used where it crosses a canister boundary
+  /// as Text (the contractor canister, job snapshots).
+  private func serviceTypeText(s: ServiceType) : Text { ServiceTypes.toText(s) };
 
   // ─── Core Functions ───────────────────────────────────────────────────────────
 
@@ -362,16 +342,7 @@ persistent actor Job {
       func(j: Job) : JobSnapshot {
         let secsSince1970 = Int.abs(j.completedDate) / 1_000_000_000;
         {
-          serviceType   = switch (j.serviceType) {
-            case (#HVAC)        "HVAC";
-            case (#Roofing)     "Roofing";
-            case (#Plumbing)    "Plumbing";
-            case (#Electrical)  "Electrical";
-            case (#Painting)    "Painting";
-            case (#Flooring)    "Flooring";
-            case (#Windows)     "Windows";
-            case (#Landscaping) "Landscaping";
-          };
+          serviceType   = serviceTypeText(j.serviceType);
           completedYear = 1970 + secsSince1970 / secsPerYear;
           amountCents   = j.amount;
           isDiy         = j.isDiy;
@@ -975,8 +946,8 @@ persistent actor Job {
 
   /// Redeem an invite token: mark the contractor's signature on the job.
   /// M-12: Caller is captured; if the token was locked to a specific contractor
-  /// principal, only that principal may redeem it. Legacy tokens (contractorPrincipal=null)
-  /// remain bearer-token accessible for backwards compatibility.
+  /// principal, only that principal may redeem it. Tokens without one are bearer links —
+  /// the guest-contractor flow, where the homeowner can't know the signer's principal.
   /// Sets contractorSigned = true; if homeownerSigned is also true, auto-verifies.
   ///
   /// #518 — the redeemer now supplies identity fields (name/phone/email,
@@ -1006,7 +977,7 @@ persistent actor Job {
       case (?intended) {
         if (msg.caller != intended) return #err(#NotAuthorized);
       };
-      case null {}; // legacy tokens without contractorPrincipal — allow any bearer
+      case null {}; // bearer link (guest contractor) — the link itself is the credential
     };
 
     let job = switch (Map.get(jobs, Text.compare, invite.jobId)) {

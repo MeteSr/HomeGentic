@@ -130,21 +130,15 @@ are implicitly stable, so no `preupgrade`/`postupgrade` hooks are needed.
 Enforced server-side inside `payment`, `quote`, `photo`, and `property`.
 The frontend reflects tier state but never gates logic unilaterally.
 
-Homeowner pricing is a single paid plan — **Pro at $59/year** — carrying
-the old Premium tier's property/photo/quote limits. Free is not fully
-blocked: it gets the same property/photo/quote allowance the old retired
-Basic tier offered for free (1 property, 5 photos/job, 3 open quote
-requests), plus job logging, Bid to List access, and the
+There are two homeowner tiers: **Free** and **Pro at $59/year**. A user
+with no subscription record is Free. Free is not fully blocked: it gets
+1 property, 5 photos/job and 3 open quote requests, plus job logging, Bid to List access, and the
 AI/intelligence feature set (Market Intelligence, Predictive
 Maintenance, Warranty Wallet, Recurring Services, Sensors, People) —
 only Insurance Defense and Resale Ready stay Pro-only. Free also gets
 its own AI agent-call quota (10/week, resetting weekly rather than
 daily — see `TIER_PERIOD` in `agents/voice/agentLimiter.ts`), smaller
-and differently paced than every paid tier's 10-20/day. Basic and
-Premium are retired as purchase options; they remain valid `Tier`
-variant values and keep enforcing their original limits below purely so
-subscribers grandfathered in before this change keep their existing
-plan until they renew, at which point they move to Pro.
+and differently paced than Pro's 10/day.
 
 ```
 ┌──────────────────┬──────────┬──────────┬───────────────┬───────────────┬─────────────┬────────────┐
@@ -157,30 +151,7 @@ plan until they renew, at which point they move to Pro.
 └──────────────────┴──────────┴──────────┴───────────────┴───────────────┴─────────────┴────────────┘
 ```
 
-Grandfathered legacy tiers (no longer purchasable):
-
-```
-┌──────────────────┬──────────┬──────────┐
-│                  │  Basic   │ Premium  │
-├──────────────────┼──────────┼──────────┤
-│ Price            │ $10 / mo │ $40 / mo │
-│ Properties       │ 1        │ 20       │
-│ Photos / job     │ 5        │ 30       │
-│ Open quote reqs  │ 3        │ unlimited│
-└──────────────────┴──────────┴──────────┘
-```
-
-All limits are enforced server-side in the `payment`, `quote`, `photo`, and `property` canisters.
-
-**Note on old Pro subscribers:** unlike Basic/Premium, the old $20/mo Pro
-tier shared the same `#Pro` variant tag that was repurposed for the new
-$59/yr plan. There is no separate tag to distinguish a pre-cutover Pro
-subscription, so any subscriber who was on old Pro is enforced against
-the *new* Pro's limits (20 properties / 30 photos / unlimited quotes)
-immediately, not their original 5/10/10 — a strictly better deal, not a
-worse one, until they hit their next renewal and are billed the new
-$59/yr price. Basic and Premium subscribers are unaffected by this and
-keep their original limits exactly until renewal.
+All limits are enforced server-side in the `payment`, `quote`, `photo`, `property`, and `bills` canisters, which read each caller's tier live from `payment`.
 
 ---
 

@@ -27,6 +27,7 @@ import Random     "mo:core/Random";
 import Result     "mo:core/Result";
 import Text       "mo:core/Text";
 import Time       "mo:core/Time";
+import ServiceTypes "../shared/ServiceType";
 
 persistent actor Report {
 
@@ -184,9 +185,6 @@ persistent actor Report {
 
   // ─── Stable State ─────────────────────────────────────────────────────────────
 
-  // reportCounter / snapshotSchemaVersion must keep their original names.
-  // Renaming a stable variable is treated as deletion (M0169 error).
-  private var reportCounter         : Nat        = 0;   // unused; kept for compat
   private var isPaused              : Bool        = false;
   private var pauseExpiryNs         : ?Int        = null;
   private var adminListEntries         : [Principal] = [];
@@ -196,7 +194,7 @@ persistent actor Report {
   private var bootstrapNonce           : ?Text       = null;
   private var trustedCanisterEntries   : [Principal] = [];
   private var auditCanisterId          : ?Principal  = null;
-  private var snapshotSchemaVersion : Nat         = 2;   // 14.4.3 — incremented when schema changes; kept as stable var for audit
+  private transient let SNAPSHOT_SCHEMA_VERSION : Nat = 2;   // 14.4.3 — bump when the snapshot schema changes
   private var propCanisterId        : Text        = "";
 
   // Cert state — new; starts empty so no migration needed.
@@ -218,7 +216,7 @@ persistent actor Report {
   private let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
-  private let ONE_MINUTE_NS       : Int = 60_000_000_000;
+  private transient let ONE_MINUTE_NS       : Int = 60_000_000_000;
   // ── Ingress inspection ────────────────────────────────────────────────────
   /// Reject anonymous callers and zero-byte payloads before execution.
   /// Empty payload cannot be valid Candid for any method that takes a struct
@@ -505,7 +503,7 @@ persistent actor Report {
       diyJobCount        = countDiy(jobs);
       permitCount        = countPermits(jobs);
       generatedAt        = now;
-      schemaVersion      = ?2;   // 14.4.3 — current schema version
+      schemaVersion      = ?SNAPSHOT_SCHEMA_VERSION;
     };
     Map.add(snapshots, Text.compare, snapshotId, snapshot);
     switch (billsSummary) {
@@ -975,10 +973,7 @@ persistent actor Report {
         getJobsForProperty : (Text) -> async {
           #ok : [{
             id: Text; propertyId: Text; homeowner: Principal; contractor: ?Principal;
-            title: Text; serviceType: {
-              #Roofing; #HVAC; #Plumbing; #Electrical;
-              #Painting; #Flooring; #Windows; #Landscaping;
-            };
+            title: Text; serviceType: ServiceTypes.ServiceType;
             description: Text; contractorName: ?Text; amount: Nat;
             completedDate: Int; permitNumber: ?Text; warrantyMonths: ?Nat;
             isDiy: Bool; status: {

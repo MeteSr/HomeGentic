@@ -16,7 +16,7 @@ import OutCall   "mo:caffeineai-http-outcalls/outcall";
 
 persistent actor Payment {
 
-  public type Tier = { #Free; #Basic; #Pro; #Premium; #ContractorFree; #ContractorPro };
+  public type Tier = { #Free; #Pro; #ContractorFree; #ContractorPro };
 
   public type Subscription = {
     owner:       Principal;
@@ -39,12 +39,8 @@ persistent actor Payment {
   };
 
   public type StripePriceIds = {
-    basicMonthly         : Text;
-    basicYearly          : Text;
     proMonthly           : Text;
     proYearly            : Text;
-    premiumMonthly       : Text;
-    premiumYearly        : Text;
     contractorProMonthly : Text;
     contractorProYearly  : Text;
   };
@@ -85,9 +81,7 @@ persistent actor Payment {
   public type SubscriptionStats = {
     total: Nat;
     free: Nat;
-    basic: Nat;
     pro: Nat;
-    premium: Nat;
     contractorFree: Nat;
     contractorPro: Nat;
     activePaid: Nat;
@@ -182,7 +176,7 @@ persistent actor Payment {
   };
 
   /// Transfer fee for the ICP ledger: 0.0001 ICP = 10_000 e8s.
-  private let ICP_FEE : Nat = 10_000;
+  private transient let ICP_FEE : Nat = 10_000;
 
   transient let icpLedger : actor {
     icrc2_transfer_from : shared (TransferFromArgs) -> async { #Ok: Nat; #Err: TransferFromError };
@@ -198,17 +192,12 @@ persistent actor Payment {
   // ─── Price helpers ───────────────────────────────────────────────────────────
 
   /// USD price for each tier (whole dollars).
-  /// #Basic and #Premium are retired as purchasable tiers — #Pro is now the
-  /// single homeowner plan at $59/year (annual-only; see priceIdFor and the
-  /// #Pro-specific duration handling in subscribe/grantSubscription below).
-  /// Basic/Premium prices are kept only so grandfathered subscribers' records
-  /// keep decoding and their existing limits keep enforcing until they expire.
+  /// #Pro is the single homeowner plan at $59/year (annual-only; see priceIdFor
+  /// and the #Pro-specific duration handling in subscribe/grantSubscription below).
   private func priceUsd(tier: Tier) : Nat {
     switch tier {
       case (#Free)          { 0  };
-      case (#Basic)         { 10 };
       case (#Pro)           { 59 };
-      case (#Premium)       { 40 };
       case (#ContractorFree){ 0  };
       case (#ContractorPro) { 40 };
     }
@@ -270,33 +259,19 @@ persistent actor Payment {
   /// In-flight guard for verifyStripeSession: sessionId → true while an HTTP outcall is live.
   private transient let inFlightVerifications   : Map.Map<Text, Bool>       = Map.empty();
   private var maxUpdatesPerMin        : Nat = 30;
-  private let ONE_MINUTE_NS           : Int = 60_000_000_000;
+  private transient let ONE_MINUTE_NS           : Int = 60_000_000_000;
   private var trustedCanisterEntries  : [Principal] = [];
 
-  // ─── Tier Propagation ────────────────────────────────────────────────────────
+  // ─── Referral conversion ─────────────────────────────────────────────────────
+  // Tiers are not pushed anywhere: property, quote, photo and bills read them
+  // live via getTierForPrincipal().
 
-  /// Canister IDs for tier propagation — set by admin via setTierCanisterIds().
-  /// Propagation is best-effort: errors are swallowed so a downstream canister
-  /// failure cannot prevent the payment record from being written.
-  private var propertyCanisterId   : ?Principal = null;
-  private var quoteCanisterId      : ?Principal = null;
-  private var photoCanisterId      : ?Principal = null;
   private var referralsCanisterId  : ?Text      = null;
 
-  // Remote error types for setTier cross-canister calls.
-  // Declared as supertypes of what setTier can actually return so Candid
+  // Declared as a supertype of what markConverted can return so Candid
   // decoding never traps on an unexpected variant tag.
   type ReferralsMarkConvertedErr = {
     #AlreadyReferred; #SelfReferral; #CodeNotFound; #AlreadyConverted; #Unauthorized; #InvalidInput : Text;
-  };
-
-  type PropertySetTierErr = {
-    #NotFound; #NotAuthorized; #Paused; #LimitReached;
-    #InvalidInput : Text; #DuplicateAddress; #AddressConflict : Int;
-  };
-  type QuoteSetTierErr = { #NotFound; #Unauthorized; #InvalidInput : Text };
-  type PhotoSetTierErr = {
-    #NotFound; #Unauthorized; #QuotaExceeded : Text; #Duplicate : Text; #InvalidInput : Text;
   };
 
   private func isTrustedCanister(p: Principal) : Bool {
@@ -442,20 +417,6 @@ persistent actor Payment {
     };
   };
 
-  /// Configure the canister IDs that receive setTier calls when a subscription
-  /// changes. Must be called once after deploy; subsequent calls update all three.
-  public shared(msg) func setTierCanisterIds(
-    property : Principal,
-    quote    : Principal,
-    photo    : Principal,
-  ) : async Result.Result<(), Error> {
-    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    propertyCanisterId := ?property;
-    quoteCanisterId    := ?quote;
-    photoCanisterId    := ?photo;
-    #ok(())
-  };
-
   public shared(msg) func setReferralsCanisterId(id: Text) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     referralsCanisterId := ?id;
@@ -473,45 +434,6 @@ persistent actor Payment {
         } = actor(rid);
         try { ignore await a.markConverted(user) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
       };
-    };
-  };
-
-  /// Push the new tier to the property, quote, and photo canisters.
-  /// Calls are made sequentially; errors are swallowed so a downstream failure
-  /// cannot prevent the subscription record from being written.
-  private func propagateTier(user: Principal, tier: Tier) : async () {
-    switch (propertyCanisterId) {
-      case (?pid) {
-        let a : actor {
-          setTier : (Principal, Tier) -> async Result.Result<(), PropertySetTierErr>
-        } = actor(Principal.toText(pid));
-        try { ignore await a.setTier(user, tier) } catch _ {
-          Debug.print("propagateTier: property setTier failed for " # Principal.toText(user));
-        };
-      };
-      case null {};
-    };
-    switch (quoteCanisterId) {
-      case (?pid) {
-        let a : actor {
-          setTier : (Principal, Tier) -> async Result.Result<(), QuoteSetTierErr>
-        } = actor(Principal.toText(pid));
-        try { ignore await a.setTier(user, tier) } catch _ {
-          Debug.print("propagateTier: quote setTier failed for " # Principal.toText(user));
-        };
-      };
-      case null {};
-    };
-    switch (photoCanisterId) {
-      case (?pid) {
-        let a : actor {
-          setTier : (Principal, Tier) -> async Result.Result<(), PhotoSetTierErr>
-        } = actor(Principal.toText(pid));
-        try { ignore await a.setTier(user, tier) } catch _ {
-          Debug.print("propagateTier: photo setTier failed for " # Principal.toText(user));
-        };
-      };
-      case null {};
     };
   };
 
@@ -557,18 +479,13 @@ persistent actor Payment {
     result
   };
 
-  // #Basic and #Premium price IDs are no longer offered for new purchases —
   // #Pro is the single homeowner plan, annual-only ($59/year via proYearly;
   // proMonthly is intentionally unmapped so a monthly Pro checkout can't be
   // created at the old $20/mo rate).
   private func priceIdFor(cfg: StripeConfig, tier: Tier, billing: BillingPeriod) : ?Text {
     switch (tier, billing) {
-      case (#Basic,         #Monthly) { ?cfg.priceIds.basicMonthly };
-      case (#Basic,         #Yearly)  { ?cfg.priceIds.basicYearly };
       case (#Pro,           #Monthly) { null };
       case (#Pro,           #Yearly)  { ?cfg.priceIds.proYearly };
-      case (#Premium,       #Monthly) { ?cfg.priceIds.premiumMonthly };
-      case (#Premium,       #Yearly)  { ?cfg.priceIds.premiumYearly };
       case (#ContractorPro, #Monthly) { ?cfg.priceIds.contractorProMonthly };
       case (#ContractorPro, #Yearly)  { ?cfg.priceIds.contractorProYearly };
       case _                          { null };
@@ -577,9 +494,7 @@ persistent actor Payment {
 
   private func tierFromText(t: Text) : ?Tier {
     switch t {
-      case "Basic"         { ?#Basic };
       case "Pro"           { ?#Pro };
-      case "Premium"       { ?#Premium };
       case "ContractorPro" { ?#ContractorPro };
       case _               { null };
     }
@@ -588,9 +503,7 @@ persistent actor Payment {
   private func tierToText(t: Tier) : Text {
     switch t {
       case (#Free)           { "Free" };
-      case (#Basic)          { "Basic" };
       case (#Pro)            { "Pro" };
-      case (#Premium)        { "Premium" };
       case (#ContractorFree) { "ContractorFree" };
       case (#ContractorPro)  { "ContractorPro" };
     }
@@ -783,7 +696,6 @@ persistent actor Payment {
             cancelledAt = null;
           };
           Map.add(subscriptions, Principal.compare, msg.caller, sub);
-          await propagateTier(msg.caller, tier);
           await notifyReferralConverted(msg.caller);
           #ok(sub)
         }
@@ -818,7 +730,6 @@ persistent actor Payment {
         Map.add(pendingGifts, Text.compare, giftToken, {
           gift with redeemedBy = ?msg.caller
         });
-        await propagateTier(msg.caller, gift.tier);
         #ok(sub)
       };
     }
@@ -947,7 +858,6 @@ persistent actor Payment {
     };
     Map.add(subscriptions, Principal.compare, msg.caller, sub);
     Map.remove(activeSubscribers, Text.compare, callerKey);  // release lock before cross-canister calls
-    await propagateTier(msg.caller, sub.tier);
     if (usdPrice > 0) { await notifyReferralConverted(msg.caller) };
     #ok(sub)
   };
@@ -971,7 +881,6 @@ persistent actor Payment {
       cancelledAt = null;
     };
     Map.add(subscriptions, Principal.compare, userPrincipal, sub);
-    await propagateTier(userPrincipal, tier);
     await notifyReferralConverted(userPrincipal);
     try { ignore await auditLog("TierActivated", ?userPrincipal, "months=" # Nat.toText(months) # " caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(sub)
@@ -995,7 +904,6 @@ persistent actor Payment {
       cancelledAt = null;
     };
     Map.add(subscriptions, Principal.compare, principal, sub);
-    await propagateTier(principal, tier);
     try { ignore await auditLog("TierGranted", ?principal, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(sub)
   };
@@ -1029,7 +937,6 @@ persistent actor Payment {
           cancelledAt = ?now;
         };
         Map.add(subscriptions, Principal.compare, msg.caller, updated);
-        await propagateTier(msg.caller, #Free);  // revoke limits immediately on cancellation
         #ok(updated)
       };
     }
@@ -1040,17 +947,12 @@ persistent actor Payment {
   public query func getPricing(tier: Tier) : async PricingInfo {
     switch (tier) {
       case (#Free)           { { tier = #Free;           priceUSD = 0;  periodDays = 0;  propertyLimit = 1;  photosPerJob = 5;  quoteRequestsPerMonth = 3  } };
-      case (#Basic)          { { tier = #Basic;          priceUSD = 10; periodDays = 30;  propertyLimit = 1;  photosPerJob = 5;  quoteRequestsPerMonth = 3  } };
       case (#Pro)            { { tier = #Pro;            priceUSD = 59; periodDays = 365; propertyLimit = 20; photosPerJob = 30; quoteRequestsPerMonth = 0  } };
-      case (#Premium)        { { tier = #Premium;        priceUSD = 40; periodDays = 30;  propertyLimit = 20; photosPerJob = 30; quoteRequestsPerMonth = 0  } };
       case (#ContractorFree) { { tier = #ContractorFree; priceUSD = 0;  periodDays = 0;   propertyLimit = 0;  photosPerJob = 5;  quoteRequestsPerMonth = 0  } };
       case (#ContractorPro)  { { tier = #ContractorPro;  priceUSD = 40; periodDays = 30;  propertyLimit = 0;  photosPerJob = 50; quoteRequestsPerMonth = 0  } };
     }
   };
 
-  // #Basic and #Premium are omitted — no longer offered for new purchases.
-  // Existing subscribers on those tiers keep working via getPricing(tier)
-  // directly (called with their own stored tier), just not listed here.
   public query func getAllPricing() : async [PricingInfo] {
     [
       { tier = #Pro;            priceUSD = 59; periodDays = 365; propertyLimit = 20; photosPerJob = 30; quoteRequestsPerMonth = 0  },
@@ -1064,9 +966,7 @@ persistent actor Payment {
   public query func getSubscriptionStats() : async SubscriptionStats {
     let now = Time.now();
     var free            = 0;
-    var basic           = 0;
     var pro             = 0;
-    var premium         = 0;
     var contractorFree  = 0;
     var contractorPro   = 0;
     var activePaid      = 0;
@@ -1075,9 +975,7 @@ persistent actor Payment {
       let isActive = sub.expiresAt == 0 or sub.expiresAt > now;
       switch (sub.tier) {
         case (#Free)           { free           += 1 };
-        case (#Basic)          { basic          += 1; if (isActive) { activePaid += 1 } };
         case (#Pro)            { pro            += 1; if (isActive) { activePaid += 1 } };
-        case (#Premium)        { premium        += 1; if (isActive) { activePaid += 1 } };
         case (#ContractorFree) { contractorFree += 1 };
         case (#ContractorPro)  { contractorPro  += 1; if (isActive) { activePaid += 1 } };
       };
@@ -1086,13 +984,12 @@ persistent actor Payment {
     {
       total           = Map.size(subscriptions);
       free;
-      basic;
       pro;
-      premium;
       contractorFree;
       contractorPro;
       activePaid;
-      estimatedMrrUsd = basic * 10 + pro * 20 + premium * 40 + contractorPro * 30;
+      // Pro is billed yearly, ContractorPro monthly.
+      estimatedMrrUsd = pro * priceUsd(#Pro) / 12 + contractorPro * priceUsd(#ContractorPro);
     }
   };
 

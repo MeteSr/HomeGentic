@@ -243,7 +243,7 @@ Multi-tab page — the main workspace for a property.
 - Urgency (Low / Medium / High / Emergency)
 - Description + optional budget range
 - Price benchmark widget (shows typical range for service in this zip)
-- Tier limit on open requests: Pro=Unlimited (grandfathered: Basic=3, Premium=Unlimited)
+- Tier limit on open requests: Free=3, Pro=Unlimited
 
 **View bids (`/quotes/:id`)**
 - Request details
@@ -494,12 +494,6 @@ than daily like every other tier — see `TIER_PERIOD` in
 `agents/voice/agentLimiter.ts` and `docs/AI_RATE_LIMITS.md` for the
 cost rationale (Free carries $0 revenue to offset the cost, so its
 allowance is both smaller and paced weekly).
-
-Basic and Premium are retired as purchase options; subscribers
-grandfathered in before this change keep their original Basic
-(1 property / 5 photos / 3 quote reqs / 5 AI calls/day) or Premium
-(20 properties / 30 photos / unlimited quote reqs / 20 AI calls/day)
-limits until they renew, then move to Pro.
 
 Contractor tiers: **ContractorFree** (profile + view leads, 3% referral fee per winning bid, $20 minimum) · **ContractorPro** ($40/mo, quote submissions + earnings dashboard + reviews)
 

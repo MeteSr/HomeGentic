@@ -395,7 +395,7 @@ app.post("/api/chat", async (req: Request, res: Response): Promise<void> => {
 //
 // Request:  { messages: MessageParam[], context: AgentContext }
 // Headers:  x-icp-principal   — ICP principal (required for rate limiting)
-//           x-subscription-tier — user's plan tier (Free/Basic/Pro/Premium/…)
+//           x-subscription-tier — user's plan tier (Free/Pro/ContractorFree/ContractorPro)
 //
 // Response: { type: "answer",     text: string }
 //         | { type: "tool_calls", assistantMessage, toolCalls: [...] }
@@ -1292,8 +1292,6 @@ app.post("/api/stripe/create-checkout", async (req: Request, res: Response) => {
   const PRICE_MAP: Record<string, string | undefined> = {
     ProMonthly:           process.env.STRIPE_PRICE_PRO_MONTHLY?.trim(),
     ProYearly:            process.env.STRIPE_PRICE_PRO_YEARLY?.trim(),
-    PremiumMonthly:       process.env.STRIPE_PRICE_PREMIUM_MONTHLY?.trim(),
-    PremiumYearly:        process.env.STRIPE_PRICE_PREMIUM_YEARLY?.trim(),
     ContractorProMonthly: process.env.STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY?.trim(),
     ContractorProYearly:  process.env.STRIPE_PRICE_CONTRACTOR_PRO_YEARLY?.trim(),
   };
@@ -1343,12 +1341,8 @@ app.post("/api/stripe/create-subscription-intent", async (req: Request, res: Res
   }
 
   const priceEnvMap: Record<string, string | undefined> = {
-    "Basic-Monthly":          process.env.STRIPE_PRICE_BASIC_MONTHLY?.trim(),
-    "Basic-Yearly":           process.env.STRIPE_PRICE_BASIC_YEARLY?.trim(),
     "Pro-Monthly":            process.env.STRIPE_PRICE_PRO_MONTHLY?.trim(),
     "Pro-Yearly":             process.env.STRIPE_PRICE_PRO_YEARLY?.trim(),
-    "Premium-Monthly":        process.env.STRIPE_PRICE_PREMIUM_MONTHLY?.trim(),
-    "Premium-Yearly":         process.env.STRIPE_PRICE_PREMIUM_YEARLY?.trim(),
     "ContractorPro-Monthly":  process.env.STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY?.trim(),
     "ContractorPro-Yearly":   process.env.STRIPE_PRICE_CONTRACTOR_PRO_YEARLY?.trim(),
   };

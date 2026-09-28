@@ -87,9 +87,7 @@ const QUICK_LINKS = [
 
 const RESPONSE_TIMES = [
   { tier: "Free",          time: "3–5 business days", highlight: false },
-  { tier: "Basic",         time: "2–3 business days", highlight: false },
   { tier: "Pro",           time: "1–2 business days", highlight: true },
-  { tier: "Premium",       time: "Next business day", highlight: true },
   { tier: "ContractorPro", time: "Next business day", highlight: true },
 ];
 

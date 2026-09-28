@@ -67,7 +67,7 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `removeFixture` | update | `(roomId: Text, fixtureId: Text)` | Remove a fixture |
 | `getRoomMetrics` | query | `()` | Room/fixture counts |
 
-**Admin / Lifecycle:** `addAdmin(Principal)` · `setTier(Principal, SubscriptionTier)` · `setUpdateRateLimit(Nat)` · `addTrustedCanister(Principal)` · `removeTrustedCanister(Principal)` · `pause(?Nat)` · `unpause()`
+**Admin / Lifecycle:** `addAdmin(Principal)` · `setUpdateRateLimit(Nat)` · `addTrustedCanister(Principal)` · `removeTrustedCanister(Principal)` · `pause(?Nat)` · `unpause()`
 
 ---
 
@@ -150,7 +150,7 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 
 **UrgencyLevel:** `#Low | #Medium | #High | #Emergency`
 
-**Admin / Lifecycle:** `addAdmin(Principal)` · `setTier(Principal, SubscriptionTier)` · `setUpdateRateLimit(Nat)` · `setPropertyCanisterId(Principal)` · `setContractorCanisterId(Principal)` · `pause(?Nat)` · `unpause()`
+**Admin / Lifecycle:** `addAdmin(Principal)` · `setUpdateRateLimit(Nat)` · `setPropertyCanisterId(Principal)` · `setContractorCanisterId(Principal)` · `pause(?Nat)` · `unpause()`
 
 ---
 
@@ -167,13 +167,11 @@ Owns subscription management and pricing table (merged from old `price` canister
 | `getPricing` | query | `(Tier)` | Pricing info for a specific tier |
 | `getAllPricing` | query | `()` | Pricing info for all tiers |
 
-**Tier:** `#Basic | #Pro | #Premium | #ContractorFree | #ContractorPro | #RealtorFree | #RealtorPro`
+**Tier:** `#Free | #Pro | #ContractorFree | #ContractorPro`
 
-`#Pro` ($59/year) is the only purchasable homeowner tier. `#Basic` and
-`#Premium` remain valid variant values only so subscribers grandfathered
-in before the pricing consolidation keep decoding and keep their original
-limits enforced until they renew — `subscribe`/`getPricing` no longer
-offer them as purchase options.
+`#Pro` ($59/year) is the only purchasable homeowner tier. A principal with
+no subscription record is `#Free`. Other canisters read tiers from here via
+`getTierForPrincipal`; admins set one with `grantSubscription`.
 
 **Admin / Lifecycle:** `setUpdateRateLimit(Nat)` · `addTrustedCanister(Principal)` · `removeTrustedCanister(Principal)`
 
@@ -193,7 +191,7 @@ offer them as purchase options.
 | `verifyPhoto` | update | `(photoId: Text)` | Admin: mark photo as verified |
 | `deletePhoto` | update | `(photoId: Text)` | Delete a photo (owner or admin) |
 
-**Admin / Lifecycle:** `addAdmin(Principal)` · `setTier(Principal, SubscriptionTier)` · `setUpdateRateLimit(Nat)` · `pause(?Nat)` · `unpause()`
+**Admin / Lifecycle:** `addAdmin(Principal)` · `setUpdateRateLimit(Nat)` · `pause(?Nat)` · `unpause()`
 
 ---
 

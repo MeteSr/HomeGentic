@@ -18,29 +18,13 @@ import Principal "mo:core/Principal";
 import Result    "mo:core/Result";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
+import ServiceTypes "../shared/ServiceType";
 
 persistent actor Contractor {
 
   // ─── Types ──────────────────────────────────────────────────────────────────
 
-  public type ServiceType = {
-    #Roofing;
-    #HVAC;
-    #Plumbing;
-    #Electrical;
-    #Painting;
-    #Flooring;
-    #Windows;
-    #Landscaping;
-    #Gutters;
-    #GeneralHandyman;
-    #Pest;
-    #Concrete;
-    #Fencing;
-    #Insulation;
-    #Solar;
-    #Pool;
-  };
+  public type ServiceType = ServiceTypes.ServiceType;
 
   /// Provenance of a profile — did the contractor self-register, or was this
   /// profile auto-created from a guest countersignature (#518)? Purely
@@ -165,7 +149,7 @@ persistent actor Contractor {
   private let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
-  private let ONE_MINUTE_NS       : Int = 60_000_000_000;
+  private transient let ONE_MINUTE_NS       : Int = 60_000_000_000;
   // ── Ingress inspection ────────────────────────────────────────────────────
   /// Reject anonymous callers and zero-byte payloads before execution.
   /// Empty payload cannot be valid Candid for any method that takes a struct
@@ -215,8 +199,8 @@ persistent actor Contractor {
     #ok(())
   };
 
-  private let oneDayNs      : Int = 24 * 60 * 60 * 1_000_000_000;
-  private let dailyReviewLimit : Nat = 10;
+  private transient let oneDayNs      : Int = 24 * 60 * 60 * 1_000_000_000;
+  private transient let dailyReviewLimit : Nat = 10;
 
   /// Returns true and bumps the counter if the reviewer is under their daily limit.
   /// Resets the window when 24 h have elapsed.
@@ -280,23 +264,10 @@ persistent actor Contractor {
     true
   };
 
-  /// Maps the Text serviceType label the Job canister sends (its own
-  /// ServiceType variant, downgraded to Text at the cross-canister boundary)
-  /// onto this canister's own (larger) ServiceType variant. Job's 8 variants
-  /// are a subset of this canister's 16.
-  private func textToServiceType(t: Text) : ?ServiceType {
-    switch (t) {
-      case "Roofing"     { ?#Roofing };
-      case "HVAC"        { ?#HVAC };
-      case "Plumbing"    { ?#Plumbing };
-      case "Electrical"  { ?#Electrical };
-      case "Painting"    { ?#Painting };
-      case "Flooring"    { ?#Flooring };
-      case "Windows"     { ?#Windows };
-      case "Landscaping" { ?#Landscaping };
-      case _              { null };
-    }
-  };
+  /// Maps the Text serviceType label the Job canister sends (the shared
+  /// ServiceType, downgraded to Text at the cross-canister boundary) back to
+  /// the variant.
+  private func textToServiceType(t: Text) : ?ServiceType { ServiceTypes.fromText(t) };
 
   // ─── Core Functions ────────────────────────────────────────────────────────────
 

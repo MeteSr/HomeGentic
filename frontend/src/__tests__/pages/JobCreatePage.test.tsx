@@ -37,14 +37,14 @@ vi.mock("@/services/job", () => ({
 vi.mock("@/services/photo", () => ({
   photoService: {
     upload:   mockUpload,
-    getQuota: vi.fn().mockResolvedValue({ used: 0, limit: 10, tier: "Basic" }),
+    getQuota: vi.fn().mockResolvedValue({ used: 0, limit: 3, tier: "Free" }),
   },
   PhotoQuota: {},
 }));
 
 vi.mock("@/services/payment", () => ({
   paymentService: {
-    getMySubscription: vi.fn().mockResolvedValue({ tier: "Basic" }),
+    getMySubscription: vi.fn().mockResolvedValue({ tier: "Pro" }),
   },
   PlanTier: {},
 }));

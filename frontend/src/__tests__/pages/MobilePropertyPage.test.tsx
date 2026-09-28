@@ -108,19 +108,6 @@ describe("MobilePropertyPage — verification badge", () => {
     expect(screen.getByText("Ownership verified on-chain.")).toBeInTheDocument();
   });
 
-  it("shows a verified badge for Basic and Premium tiers too", () => {
-    mockUsePropertyDetail.mockReturnValue({ property: makeProperty({ tier: "Basic" as any }), loading: false });
-    const { rerender } = renderPage();
-    expect(screen.getByText("BASIC VERIFIED")).toBeInTheDocument();
-
-    mockUsePropertyDetail.mockReturnValue({ property: makeProperty({ tier: "Premium" as any }), loading: false });
-    rerender(
-      <MemoryRouter>
-        <MobilePropertyPage />
-      </MemoryRouter>
-    );
-    expect(screen.getByText("PREMIUM VERIFIED")).toBeInTheDocument();
-  });
 });
 
 describe("MobilePropertyPage — rooms", () => {

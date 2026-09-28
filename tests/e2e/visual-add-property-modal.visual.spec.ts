@@ -34,7 +34,7 @@ test.describe("Visual — AddPropertyModal wizard", () => {
   test("step 1: address", async ({ page }) => {
     await freezeClock(page);
     await injectTestAuth(page);
-    await injectSubscription(page, "Basic");
+    await injectSubscription(page, "Pro");
     await page.goto("/dashboard");
     await expect(page.getByRole("heading", { name: /where is the home/i })).toBeVisible();
     await expect(page).toHaveScreenshot("add-property-address.png");
@@ -43,7 +43,7 @@ test.describe("Visual — AddPropertyModal wizard", () => {
   test("step 2: details", async ({ page }) => {
     await freezeClock(page);
     await injectTestAuth(page);
-    await injectSubscription(page, "Basic");
+    await injectSubscription(page, "Pro");
     await page.goto("/dashboard");
     await expect(page.getByRole("heading", { name: /where is the home/i })).toBeVisible();
     await fillAddressStep(page);
@@ -54,7 +54,7 @@ test.describe("Visual — AddPropertyModal wizard", () => {
   test("saved hub", async ({ page }) => {
     await freezeClock(page);
     await injectTestAuth(page);
-    await injectSubscription(page, "Basic");
+    await injectSubscription(page, "Pro");
     await injectRegisterProperty(page);
     await page.goto("/dashboard");
     await expect(page.getByRole("heading", { name: /where is the home/i })).toBeVisible();

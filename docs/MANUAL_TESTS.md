@@ -121,9 +121,7 @@ tier), plus job logging and Bid to List access. Homeowner paid pricing
 is a single plan, **Pro at $59/year**, which raises those caps to 20
 properties / 30 photos / unlimited quotes and unlocks the AI/intelligence
 features (Market Intelligence, Maintenance, Warranty Wallet, Insurance
-Defense, Resale Ready, Recurring Services). Basic and Premium are
-retired as purchase options and only exist for subscribers grandfathered
-in before this change.
+Defense, Resale Ready, Recurring Services).
 
 **Prerequisites**
 - A newly registered user account (defaults to **Free** tier)

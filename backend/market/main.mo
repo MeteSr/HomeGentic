@@ -162,21 +162,24 @@ persistent actor MarketIntelligence {
   };
   type VetKdDeriveKeyResponse = { encrypted_key : Blob };
 
-  let managementCanister : actor {
+  transient let managementCanister : actor {
     vetkd_public_key : VetKdPublicKeyRequest -> async VetKdPublicKeyResponse;
     vetkd_derive_key : VetKdDeriveKeyRequest -> async VetKdDeriveKeyResponse;
   } = actor "aaaaa-aa";
 
   // Domain separator — "hg-score-v1" as UTF-8 bytes.
   // Must match the context value used on the frontend with @dfinity/vetkeys.
-  let SCORE_CONTEXT : Blob = Blob.fromArray([
+  transient let SCORE_CONTEXT : Blob = Blob.fromArray([
     0x68, 0x67, 0x2D, 0x73, 0x63, 0x6F, 0x72, 0x65, 0x2D, 0x76, 0x31
   ]);
 
   // Use "test_key_1" locally and on testnet (~10B cycles per derive call).
   // Switch to "key_1" for mainnet production (~26B cycles per derive call).
-  let VETKD_KEY_NAME   : Text = "test_key_1";
-  let VETKD_KEY_CYCLES : Nat  = 10_000_000_000;
+  /// vetKD master key. "test_key_1" is the IC's test key; production deploys set
+  /// "key_1" via setVetkdKeyName (scripts/deploy.sh does this for ic). Stored —
+  /// not a constant — so it can be changed without reinstalling.
+  private var vetkdKeyName : Text = "test_key_1";
+  transient let VETKD_KEY_CYCLES : Nat  = 10_000_000_000;
 
   // ─── Stable State ─────────────────────────────────────────────────────────────
 
@@ -215,7 +218,7 @@ persistent actor MarketIntelligence {
     minPropertyAge:  Nat;     // 0 = always eligible; N = only if yearBuilt ≤ currentYear - N
   };
 
-  private let PROJECT_TEMPLATES : [ProjectTemplate] = [
+  private transient let PROJECT_TEMPLATES : [ProjectTemplate] = [
     { name = "Energy Efficiency Upgrade";   category = "Insulation"; baseCostCents = 400_000;   roiPercent = 102; paybackMonths = 12; requiresPermit = false; minPropertyAge = 10 },
     { name = "Hardwood Floor Refinish";     category = "Flooring";   baseCostCents = 500_000;   roiPercent = 147; paybackMonths = 8;  requiresPermit = false; minPropertyAge = 5  },
     { name = "Minor Kitchen Remodel";       category = "Kitchen";    baseCostCents = 2_700_000; roiPercent = 96;  paybackMonths = 18; requiresPermit = true;  minPropertyAge = 0  },
@@ -230,7 +233,7 @@ persistent actor MarketIntelligence {
   // System lifespans in years (used for modernization scoring).
   private type SystemLifespan = { category: Text; lifespanYears: Nat; weight: Nat };
 
-  private let SYSTEM_LIFESPANS : [SystemLifespan] = [
+  private transient let SYSTEM_LIFESPANS : [SystemLifespan] = [
     { category = "HVAC";      lifespanYears = 18; weight = 25 },
     { category = "Roofing";   lifespanYears = 25; weight = 25 },
     { category = "Plumbing";  lifespanYears = 50; weight = 15 },
@@ -256,7 +259,7 @@ persistent actor MarketIntelligence {
   private let updateCallLimits : Map.Map<Text, (Nat, Int)> = Map.empty();
   /// Admin-adjustable rate limit — default 30/min.
   private var maxUpdatesPerMin : Nat = 30;
-  private let ONE_MINUTE_NS       : Int = 60_000_000_000;
+  private transient let ONE_MINUTE_NS       : Int = 60_000_000_000;
   // ── Ingress inspection ────────────────────────────────────────────────────
   /// Reject anonymous callers and zero-byte payloads before execution.
   /// Empty payload cannot be valid Candid for any method that takes a struct
@@ -734,7 +737,7 @@ persistent actor MarketIntelligence {
     let response = await managementCanister.vetkd_public_key({
       canister_id = null;
       context     = SCORE_CONTEXT;
-      key_id      = { curve = #bls12_381_g2; name = VETKD_KEY_NAME };
+      key_id      = { curve = #bls12_381_g2; name = vetkdKeyName };
     });
     response.public_key
   };
@@ -760,7 +763,7 @@ persistent actor MarketIntelligence {
       input                = Principal.toBlob(caller);
       context              = SCORE_CONTEXT;
       transport_public_key = transportPublicKey;
-      key_id               = { curve = #bls12_381_g2; name = VETKD_KEY_NAME };
+      key_id               = { curve = #bls12_381_g2; name = vetkdKeyName };
     });
 
     #ok({
@@ -774,6 +777,17 @@ persistent actor MarketIntelligence {
   // ─── Admin Functions ──────────────────────────────────────────────────────────
 
   /// Wire the property canister for yearBuilt lookups in computePropertyScore.
+  /// Select the vetKD master key ("key_1" in production). Admin only.
+  public shared(msg) func setVetkdKeyName(name: Text) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (name != "key_1" and name != "test_key_1" and name != "dfx_test_key")
+      return #err(#InvalidInput("unknown vetKD key name"));
+    vetkdKeyName := name;
+    #ok(())
+  };
+
+  public query func getVetkdKeyName() : async Text { vetkdKeyName };
+
   public shared(msg) func setPropertyCanisterId(id: Text) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     propCanisterId := id;

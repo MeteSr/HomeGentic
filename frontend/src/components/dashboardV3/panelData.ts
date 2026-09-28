@@ -553,7 +553,7 @@ function buildActivity(ctx: PanelCtx): PanelData {
 // ── BILLING ──────────────────────────────────────────────────────────────
 
 function buildBilling(ctx: PanelCtx): PanelData {
-  const isPro = ctx.planTier === "Pro" || ctx.planTier === "Premium";
+  const isPro = ctx.planTier === "Pro";
   const plan = PLANS.find((p) => p.tier === ctx.planTier);
 
   const planRow: PanelRow = isPro

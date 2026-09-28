@@ -15,7 +15,7 @@
  *     CANISTER_ID_PAYMENT="$(dfx canister id payment)" \
  *     cd agents/voice && npm test -- paymentCanister.integration
  *
- * INTEG.1  activateInCanister — activates a Basic subscription for a test principal
+ * INTEG.1  activateInCanister — activates a Pro subscription for a test principal
  * INTEG.2  grantAgentCredits  — grants credits to a test principal
  * INTEG.3  consumeAgentCredit — consumes a credit granted in INTEG.2
  */
@@ -48,9 +48,9 @@ beforeAll(async () => {
 });
 
 describeIfConfigured("INTEG.1 — activateInCanister against local replica", () => {
-  it("activates a Basic subscription without throwing", async () => {
+  it("activates a Pro subscription without throwing", async () => {
     await expect(
-      activateInCanister(TEST_PRINCIPAL, "Basic", 1),
+      activateInCanister(TEST_PRINCIPAL, "Pro", 1),
     ).resolves.toBeUndefined();
   });
 });

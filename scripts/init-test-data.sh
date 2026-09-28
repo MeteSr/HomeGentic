@@ -18,7 +18,7 @@ dfx canister call property registerProperty '(record {
 })'
 
 echo "  Granting Basic subscription to dev identity ($DEV_PRINCIPAL)..."
-dfx canister call payment grantSubscription "(principal \"$DEV_PRINCIPAL\", variant { Basic })" \
+dfx canister call payment grantSubscription "(principal \"$DEV_PRINCIPAL\", variant { Pro })" \
   2>/dev/null || echo "  ⚠️  grantSubscription failed (payment canister may not be initialized)"
 
 echo "✅ Test data initialized!"

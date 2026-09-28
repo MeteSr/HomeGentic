@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, afterAll } from "vitest";
+import { SERVICE_TYPES } from "@/services/serviceTypes";
 
 // ─── Mock external ICP dependencies ──────────────────────────────────────────
 
@@ -149,14 +150,11 @@ describe("contractorService", () => {
       expect(c.serviceZips).toEqual(["78701", "78702", "78703"]);
     });
 
-    it("maps all sixteen trade variants", async () => {
-      const trades = ["Roofing", "HVAC", "Plumbing", "Electrical", "Painting", "Flooring",
-                      "Windows", "Landscaping", "Gutters", "GeneralHandyman", "Pest",
-                      "Concrete", "Fencing", "Insulation", "Solar", "Pool"];
-      for (const s of trades) {
-        mockActor.getAll.mockResolvedValue([makeRawProfile({ specialties: [{ [s]: null }] })]);
+    it("maps every trade variant to its display label", async () => {
+      for (const { key, label } of SERVICE_TYPES) {
+        mockActor.getAll.mockResolvedValue([makeRawProfile({ specialties: [{ [key]: null }] })]);
         const [c] = await contractorService.search();
-        expect(c.specialties).toContain(s);
+        expect(c.specialties).toContain(label);
       }
     });
   });

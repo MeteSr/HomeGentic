@@ -23,9 +23,9 @@ import { activateInCanister, consumeAgentCredit, grantAgentCredits, VALID_TIERS,
 // ── CANISTER.7 — VALID_TIERS ──────────────────────────────────────────────────
 
 describe("CANISTER.7 — VALID_TIERS", () => {
-  const expected = ["Free", "Basic", "Pro", "Premium", "ContractorFree", "ContractorPro", "RealtorFree", "RealtorPro"];
+  const expected = ["Free", "Pro", "ContractorFree", "ContractorPro", "RealtorFree", "RealtorPro"];
 
-  it("contains all 8 expected tier names", () => {
+  it("contains all 6 expected tier names", () => {
     for (const t of expected) {
       expect(VALID_TIERS.has(t)).toBe(true);
     }
@@ -53,7 +53,7 @@ describe("CANISTER.1 — activateInCanister rejects unknown tier", () => {
 
 describe("CANISTER.2 — activateInCanister rejects malformed principal", () => {
   it("throws on an empty string", async () => {
-    await expect(activateInCanister("", "Basic", 1)).rejects.toThrow("Invalid principal");
+    await expect(activateInCanister("", "Pro", 1)).rejects.toThrow("Invalid principal");
   });
 
   it("throws on a principal containing uppercase letters", async () => {

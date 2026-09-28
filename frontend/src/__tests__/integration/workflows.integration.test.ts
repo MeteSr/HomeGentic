@@ -8,10 +8,10 @@
  * (no dfx running), so this file is always safe to include in the test suite.
  *
  * ── Identities ────────────────────────────────────────────────────────────────
- * WF_ONBOARD   seed[0]=201  — Full homeowner onboarding (Premium granted by test scripts)
- * WF_HO        seed[0]=202  — Quote homeowner (Basic)
+ * WF_ONBOARD   seed[0]=201  — Full homeowner onboarding (Pro granted by test scripts)
+ * WF_HO        seed[0]=202  — Quote homeowner (Free)
  * WF_CONTRACTOR seed[0]=203 — Quote contractor (ContractorFree)
- * WF_QUOTA     seed[0]=204  — Quota enforcement homeowner (Basic)
+ * WF_QUOTA     seed[0]=204  — Quota enforcement homeowner (Free)
  *
  * These seeds intentionally avoid the existing identity pool (55, 77, 88, 99)
  * defined in cross-canister-flows.integration.test.ts.
@@ -115,7 +115,7 @@ const BASE_PROP_ARGS = {
 // ─────────────────────────────────────────────────────────────────────────────
 // Flow A — Full homeowner onboarding chain
 //
-// WF_ONBOARD (seed=201, Premium) registers a property → uploads a photo →
+// WF_ONBOARD (seed=201, Pro) registers a property → uploads a photo →
 // generates a report → fetches the report and verifies address is present.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -127,7 +127,7 @@ describe.skipIf(!integrationReady)("WF.A — Full homeowner onboarding chain", (
   let onboardReportActor: any;
 
   beforeAll(async () => {
-    const agent = await makeAgent(201);  // WF_ONBOARD — Premium granted by test-integration.sh
+    const agent = await makeAgent(201);  // WF_ONBOARD — Pro granted by test-integration.sh
 
     onboardPropertyActor = Actor.createActor(propertyIdl as any, {
       agent, canisterId: PROPERTY_CANISTER_ID,
@@ -143,7 +143,7 @@ describe.skipIf(!integrationReady)("WF.A — Full homeowner onboarding chain", (
   it("step A.1 — registers a property and returns a numeric ID", async () => {
     const result = await onboardPropertyActor.registerProperty({
       ...BASE_PROP_ARGS,
-      tier:    { Premium: null },
+      tier:    { Pro: null },
       address: addr("onboarding"),
     });
     const prop = unwrap<{ id: string; address: string }>(result as any, "WF.A registerProperty");
@@ -181,7 +181,7 @@ describe.skipIf(!integrationReady)("WF.A — Full homeowner onboarding chain", (
   });
 
   it("step A.3 — generates a report snapshot for the property", async () => {
-    // NOTE: generateReport requires at least Basic verification on the property.
+    // NOTE: generateReport requires at least Free verification on the property.
     // Newly registered properties start as Unverified; promoting them requires
     // admin action (dfx canister call property verifyProperty) which is not
     // automated in CI. We accept UnverifiedProperty as a valid CI outcome.
@@ -193,7 +193,7 @@ describe.skipIf(!integrationReady)("WF.A — Full homeowner onboarding chain", (
       propertyType:      "SingleFamily",
       yearBuilt:         BigInt(1998),
       squareFeet:        BigInt(2100),
-      verificationLevel: "Basic",
+      verificationLevel: "Free",
     };
     const result = await onboardReportActor.generateReport(
       propId,              // propertyId : Text
@@ -241,7 +241,7 @@ describe.skipIf(!integrationReady)("WF.A — Full homeowner onboarding chain", (
 // ─────────────────────────────────────────────────────────────────────────────
 // Flow B — Quote request → bid → accept
 //
-// WF_HO (seed=202, Basic) registers a property → creates an open quote request.
+// WF_HO (seed=202, Free) registers a property → creates an open quote request.
 // WF_CONTRACTOR (seed=203, ContractorFree) submits a bid.
 // WF_HO accepts the bid → final status should be "Accepted".
 // ─────────────────────────────────────────────────────────────────────────────
@@ -255,7 +255,7 @@ describe.skipIf(!integrationReady)("WF.B — Quote request → bid → accept", 
   let hoPropertyActor: any;
 
   beforeAll(async () => {
-    const hoAgent         = await makeAgent(202);  // WF_HO — Basic
+    const hoAgent         = await makeAgent(202);  // WF_HO — Free
     const contractorAgent = await makeAgent(203);  // WF_CONTRACTOR — ContractorFree
 
     hoPropertyActor   = Actor.createActor(propertyIdl as any, { agent: hoAgent, canisterId: PROPERTY_CANISTER_ID });
@@ -265,7 +265,7 @@ describe.skipIf(!integrationReady)("WF.B — Quote request → bid → accept", 
     // Register a property for the homeowner to quote against
     const propResult = await hoPropertyActor.registerProperty({
       ...BASE_PROP_ARGS,
-      tier:    { Basic: null },
+      tier:    { Free: null },
       address: addr("quote-ho"),
     });
     const prop = unwrap<{ id: string }>(propResult as any, "WF.B registerProperty");
@@ -331,7 +331,7 @@ describe.skipIf(!integrationReady)("WF.B — Quote request → bid → accept", 
 // ─────────────────────────────────────────────────────────────────────────────
 // Flow C — Subscription downgrade tier-quota enforcement
 //
-// WF_QUOTA (seed=204, Basic) has a 3-open-request limit (Basic tier).
+// WF_QUOTA (seed=204, Free) has a 3-open-request limit (Free tier).
 // Submitting 3 requests succeeds; the 4th should return an error containing
 // "limit", "quota", or a tier-related message.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -344,7 +344,7 @@ describe.skipIf(!integrationReady)("WF.C — Subscription tier-quota enforcement
   const createdRequestIds: string[] = [];
 
   beforeAll(async () => {
-    const agent = await makeAgent(204);  // WF_QUOTA — Basic (3-request cap)
+    const agent = await makeAgent(204);  // WF_QUOTA — Free (3-request cap)
 
     quotaPropertyActor = Actor.createActor(propertyIdl as any, { agent, canisterId: PROPERTY_CANISTER_ID });
     quotaQuoteActor    = Actor.createActor(quoteIdl as any,    { agent, canisterId: QUOTE_CANISTER_ID });
@@ -353,21 +353,21 @@ describe.skipIf(!integrationReady)("WF.C — Subscription tier-quota enforcement
     // Register a property to anchor the quota test
     const propResult = await quotaPropertyActor.registerProperty({
       ...BASE_PROP_ARGS,
-      tier:    { Basic: null },
+      tier:    { Free: null },
       address: addr("quota-test"),
     });
     const prop = unwrap<{ id: string }>(propResult as any, "WF.C registerProperty");
     quotaPropId = prop.id;
   });
 
-  it("step C.1 — getMySubscription confirms Basic tier for WF_QUOTA identity", async () => {
+  it("step C.1 — getMySubscription confirms Free tier for WF_QUOTA identity", async () => {
     // getMySubscription returns Result<Subscription, Error>
     const result = await quotaPaymentActor.getMySubscription();
     const sub = unwrap<{ tier: Record<string, null> }>(result as any, "WF.C getMySubscription");
-    expect("Basic" in sub.tier || "basic" in sub.tier).toBe(true);
+    expect("Free" in sub.tier).toBe(true);
   });
 
-  it("step C.2 — first 3 open requests succeed (within Basic limit)", async () => {
+  it("step C.2 — first 3 open requests succeed (within Free limit)", async () => {
     for (let i = 1; i <= 3; i++) {
       const result = await quotaQuoteActor.createQuoteRequest(
         quotaPropId,

@@ -138,7 +138,7 @@ PROP2_OUT=$(call property registerProperty '(record {
   propertyType = variant { Condo };
   yearBuilt    = 2015;
   squareFeet   = 1100;
-  tier         = variant { Basic };
+  tier         = variant { Pro };
 })')
 echo "$PROP2_OUT"
 PROP2_ID=$(echo "$PROP2_OUT" | grep -oP 'id = "\K[^"]+' | head -1 || true)

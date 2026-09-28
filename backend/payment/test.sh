@@ -36,10 +36,10 @@ dfx canister call payment getMySubscription --identity payment-tier-test
 echo "▶ getTierForPrincipal — expect Pro..."
 dfx canister call payment getTierForPrincipal "(principal \"$TIER_PRINCIPAL\")"
 
-echo "▶ Grant Premium subscription..."
-dfx canister call payment grantSubscription "(principal \"$TIER_PRINCIPAL\", variant { Premium })"
+echo "▶ Grant Pro subscription..."
+dfx canister call payment grantSubscription "(principal \"$TIER_PRINCIPAL\", variant { Pro })"
 
-echo "▶ Get updated subscription (expect Premium)..."
+echo "▶ Get updated subscription (expect Pro)..."
 dfx canister call payment getMySubscription --identity payment-tier-test
 
 echo "▶ Downgrade to Free via grantSubscription..."
@@ -264,72 +264,28 @@ echo "✅ Payment Stripe admin & config tests complete!"
 echo "   Note: createStripeCheckoutSession / verifyStripeSession require a"
 echo "   live Stripe sandbox key and cycles — test via the UI with a deployed canister."
 
-# ─── §139 Tier Propagation tests ─────────────────────────────────────────────
-# Verifies that setTierCanisterIds stores canister IDs and that grantSubscription
-# propagates the tier to property, quote, and photo canisters (#139).
-#
-# Full cross-canister propagation (payment calling setTier on property/quote/photo)
-# requires all three canisters to be deployed AND payment to be an admin on them.
-# The integration assertions below verify the wiring using the real canisters when
-# available; the setTierCanisterIds admin-guard test runs unconditionally.
+# ─── §139 Tier enforcement tests ─────────────────────────────────────────────
+# property, quote, photo and bills read the tier live from payment via
+# getTierForPrincipal() — nothing is pushed to them. These verify that a
+# granted / downgraded subscription is what property enforces.
 
 echo ""
-echo "=== Payment — Tier Propagation Tests (§139) ==="
+echo "=== Payment — Tier Enforcement Tests (§139) ==="
 
 MY_PRINCIPAL=$(dfx identity get-principal)
-
-echo ""
-echo "── [P1] setTierCanisterIds — non-admin is rejected ──────────────────────"
-if ! dfx identity list 2>/dev/null | grep -q "^tier-nonadmin-test$"; then
-  dfx identity new tier-nonadmin-test --disable-encryption 2>/dev/null || true
-fi
-RESULT=$(dfx canister call payment setTierCanisterIds \
-  "(principal \"$MY_PRINCIPAL\", principal \"$MY_PRINCIPAL\", principal \"$MY_PRINCIPAL\")" \
-  --identity tier-nonadmin-test 2>&1)
-echo "$RESULT" | grep -q "NotAuthorized" \
-  && echo "  ↳ Non-admin correctly rejected from setTierCanisterIds — ✓" \
-  || echo "  ↳ ❌ Expected NotAuthorized for non-admin: $RESULT"
-
-echo ""
-echo "── [P2] setTierCanisterIds — admin call succeeds ─────────────────────────"
 PROPERTY_ID=$(dfx canister id property --network local 2>/dev/null || echo "")
 QUOTE_ID=$(dfx canister id quote --network local 2>/dev/null || echo "")
 PHOTO_ID=$(dfx canister id photo --network local 2>/dev/null || echo "")
 
-if [ -n "$PROPERTY_ID" ] && [ -n "$QUOTE_ID" ] && [ -n "$PHOTO_ID" ]; then
-  RESULT=$(dfx canister call payment setTierCanisterIds \
-    "(principal \"$PROPERTY_ID\", principal \"$QUOTE_ID\", principal \"$PHOTO_ID\")" 2>&1)
-  echo "$RESULT" | grep -q "ok" \
-    && echo "  ↳ setTierCanisterIds succeeded — ✓" \
-    || (echo "  ↳ ❌ setTierCanisterIds failed: $RESULT"; exit 1)
-else
-  echo "  ↳ SKIP — property/quote/photo not deployed; using deployer principal as placeholder..."
-  RESULT=$(dfx canister call payment setTierCanisterIds \
-    "(principal \"$MY_PRINCIPAL\", principal \"$MY_PRINCIPAL\", principal \"$MY_PRINCIPAL\")" 2>&1)
-  echo "$RESULT" | grep -q "ok" \
-    && echo "  ↳ setTierCanisterIds accepted args — ✓" \
-    || (echo "  ↳ ❌ setTierCanisterIds failed: $RESULT"; exit 1)
-fi
-
 echo ""
-echo "── [P3] grantSubscription → tier propagated to property (if deployed) ────"
+echo "── [P3] grantSubscription → property enforces the tier (if deployed) ──────"
 if ! dfx identity list 2>/dev/null | grep -q "^tier-prop-test$"; then
   dfx identity new tier-prop-test --disable-encryption 2>/dev/null || true
 fi
 PROP_TEST_PRINCIPAL=$(dfx identity get-principal --identity tier-prop-test)
 
 if [ -n "$PROPERTY_ID" ] && [ -n "$QUOTE_ID" ] && [ -n "$PHOTO_ID" ]; then
-  # Wire payment as admin in property/quote/photo (may already be wired by deploy.sh)
-  PAYMENT_ID=$(dfx canister id payment --network local 2>/dev/null || echo "")
-  if [ -n "$PAYMENT_ID" ]; then
-    # property/quote/photo use nonce-gated addAdmin(Principal, Text); pass "" — adminInitialized=true,
-    # deployer is already admin so nonce is accepted but ignored for subsequent calls.
-    dfx canister call property addAdmin "(principal \"$PAYMENT_ID\", \"\")" 2>/dev/null || true
-    dfx canister call quote    addAdmin "(principal \"$PAYMENT_ID\", \"\")" 2>/dev/null || true
-    dfx canister call photo    addAdmin "(principal \"$PAYMENT_ID\", \"\")" 2>/dev/null || true
-  fi
-
-  # Grant Pro subscription — triggers propagateTier → property/quote/photo.setTier
+  # Grant Pro — property reads it live from payment on the next call
   dfx canister call payment grantSubscription \
     "(principal \"$PROP_TEST_PRINCIPAL\", variant { Pro })" 2>/dev/null
 
@@ -372,7 +328,7 @@ else
 fi
 
 echo ""
-echo "── [P4] cancelSubscription → Free tier propagated ───────────────────────"
+echo "── [P4] cancelSubscription → recorded on the subscription ────────────────"
 # Grant the tier-prop-test user Pro, then cancel, verify payment record shows cancelledAt.
 RESULT=$(dfx canister call payment grantSubscription \
   "(principal \"$PROP_TEST_PRINCIPAL\", variant { Pro })" 2>&1)
@@ -395,4 +351,4 @@ echo "$TIER_AFTER_CANCEL" | grep -q "Pro" \
   || echo "  ↳ ❌ [P4a] Expected Pro to persist until expiry: $TIER_AFTER_CANCEL"
 
 echo ""
-echo "✅ Tier propagation tests complete!"
+echo "✅ Tier enforcement tests complete!"
