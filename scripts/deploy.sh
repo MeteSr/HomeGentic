@@ -512,14 +512,13 @@ print(sum(1 for v in d.values() if isinstance(v,dict) and v.get(os.environ['ENV'
     # repeat once the canister is back in step, and mainnet never reinstalls:
     # there the deploy fails instead. The stable-compat CI check keeps new
     # breaks from merging.
-    #   property   — testnet hadn't upgraded since 2026-04-28 (drift)
-    #   contractor — #521 added a required ContractorProfile field
-    #   everything but audit — the pre-launch storage cleanup dropped stable
-    #   constants (now transient), the Basic/Premium tiers and the local tier
-    #   caches, and widened ServiceType
-    # Testnet data was confirmed disposable. Trim this list once testnet has
-    # deployed cleanly.
-    TESTNET_REINSTALL_OK=" agent ai_proxy auth bills contractor fee job listing maintenance market monitoring payment photo property quote recurring referrals report sensor "
+    #
+    # Empty by default. For a deliberate break (a PR merged with the
+    # allow-stable-break label), add the canister names here — space-
+    # separated, with a leading and trailing space — plus a comment saying
+    # why and that its testnet data is disposable. Empty the list again once
+    # testnet has deployed cleanly.
+    TESTNET_REINSTALL_OK=" "
     if icp canister install "$canister" ${INSTALL_ARGS[@]+"${INSTALL_ARGS[@]}"} \
         --mode auto \
         --yes \
