@@ -2,7 +2,7 @@
  * LoginPage — mostly presentational, but has real logic worth locking down:
  *   - ?role= query param swaps the heading/sub copy (or falls back to generic)
  *   - login button reflects isLoading state and calls useAuth().login
- *   - "Get Started" / "Try the demo first" navigate correctly
+ *   - "Get started" / "Try the demo" navigate correctly
  */
 
 import { render, screen, fireEvent } from "@testing-library/react";
@@ -47,7 +47,7 @@ describe("LoginPage — role-based heading", () => {
 
   it("shows the generic heading with no role param", () => {
     renderAt("/login");
-    expect(screen.getByText("Log in to your account")).toBeInTheDocument();
+    expect(screen.getByText("Log in")).toBeInTheDocument();
   });
 
   it("shows the homeowner heading for ?role=homeowner", () => {
@@ -68,7 +68,7 @@ describe("LoginPage — role-based heading", () => {
 
   it("falls back to the generic heading for an unrecognised role", () => {
     renderAt("/login?role=astronaut");
-    expect(screen.getByText("Log in to your account")).toBeInTheDocument();
+    expect(screen.getByText("Log in")).toBeInTheDocument();
   });
 });
 
@@ -104,15 +104,15 @@ describe("LoginPage — secondary navigation", () => {
     mockAuthState.isLoading = false;
   });
 
-  it("navigates to /register on 'Get Started'", () => {
+  it("navigates to /register on 'Get started'", () => {
     renderAt("/login");
-    fireEvent.click(screen.getByText("Get Started"));
+    fireEvent.click(screen.getByText("Get started"));
     expect(mockNavigate).toHaveBeenCalledWith("/register");
   });
 
   it("navigates to /demo on 'Try the demo first'", () => {
     renderAt("/login");
-    fireEvent.click(screen.getByText(/try the demo first/i));
+    fireEvent.click(screen.getByText(/try the demo/i));
     expect(mockNavigate).toHaveBeenCalledWith("/demo");
   });
 });
