@@ -1,18 +1,19 @@
 /**
- * Layout — collapsible left sidebar + main content
+ * Layout — the app shell for every page except the dashboard.
  *
- * Desktop: fixed sidebar (56 px collapsed / 216 px expanded) + scrollable main.
- *   Icons-only when collapsed; icon + label when expanded.
- *   State persisted to localStorage ("hf_sidebar": "open" | "closed").
- * Mobile (≤640 px): sidebar hidden; sticky top bar with hamburger overlay.
+ * Desktop: the same chrome as the v3 dashboard (components/dashboardV3/chrome):
+ *   a top bar (brand, current page, activity, account) and a left rail of
+ *   pill chips, so leaving the dashboard doesn't drop you into a different app.
+ * Mobile (≤640 px): the rail and top bar are hidden; a sticky top bar and a
+ *   bottom tab bar take over (see .hf-* rules in index.css).
  */
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Bell, Plus,
-  LayoutDashboard, TrendingUp, HardHat, Wrench, Radio, Home as HomeIcon,
-  PanelLeft, Briefcase, Users2, User,
+  LayoutDashboard, Wrench, Home as HomeIcon,
+  Briefcase, User,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { usePropertyStore } from "@/store/propertyStore";
@@ -25,9 +26,8 @@ import { billService, type BillRecord } from "@/services/billService";
 import { fsboService } from "@/services/fsbo";
 
 // Inline tier→property limit so Layout never imports PLANS from payment,
-// keeping the payment mock surface small in tests.
-// Basic/Premium are grandfathered-only (no longer purchasable) — Pro is the
-// single homeowner plan (20 properties); Free gets 1.
+// keeping the payment mock surface small in tests. Pro (the only paid
+// homeowner plan) gets 20 properties; Free gets 1.
 const TIER_PROPERTY_LIMIT: Partial<Record<PlanTier, number>> = {
   Free: 1, Pro: 20,
 };
@@ -36,24 +36,27 @@ import { ActivityFeedDrawer } from "./ActivityFeedDrawer";
 import { UserMenuPopover } from "./UserMenuPopover";
 import { deriveEvents } from "@/services/activityFeed";
 import { V2_COLORS, V2_FONTS } from "@/theme";
-import { useBreakpoint } from "@/hooks/useBreakpoint";
-import "@/components/dashboardV3/dashboardV3.css";
+import {
+  BrandMark, HeaderDivider, RailChipCount, railChipStyle,
+  RAIL_WIDTH, SHELL_GUTTER, RAIL_GAP,
+} from "@/components/dashboardV3/chrome";
 
 // Re-export for consumers that imported these from Layout
 export type { ActivityEvent } from "@/services/activityFeed";
 export { deriveEvents } from "@/services/activityFeed";
 
-// ─── Sidebar dimensions ───────────────────────────────────────────────────────
+// ─── Shell dimensions ─────────────────────────────────────────────────────────
 
-const W_OPEN   = 216;
-const W_CLOSED = 56;
+/** Height of the desktop top bar; the rail and page content sit below it. */
+const HEADER_H = 60;
+/** Left edge of page content: gutter + rail + gap, matching the dashboard. */
+const CONTENT_LEFT = SHELL_GUTTER + RAIL_WIDTH + RAIL_GAP;
 
 // ─── Nav link definition ──────────────────────────────────────────────────────
 
 interface NavLink {
   to:    string;
   label: string;
-  Icon:  React.ElementType;
   badge?: number;
 }
 
@@ -64,11 +67,7 @@ export function Layout({ children, hideSidebar = false }: { children: React.Reac
   const { properties }         = usePropertyStore();
   const location               = useLocation();
   const navigate               = useNavigate();
-  const { isTablet }           = useBreakpoint();
 
-  const [sidebarOpen,  setSidebarOpen]  = useState(() =>
-    localStorage.getItem("hf_sidebar") !== "closed"
-  );
   const [feedOpen,     setFeedOpen]     = useState(false);
   const [feedJobs,     setFeedJobs]     = useState<Job[]>([]);
   const [feedQuotes,   setFeedQuotes]   = useState<QuoteRequest[]>([]);
@@ -128,14 +127,6 @@ export function Layout({ children, hideSidebar = false }: { children: React.Reac
     localStorage.setItem("homegentic_feed_read", String(now));
   };
 
-  const toggleSidebar = () => {
-    setSidebarOpen((prev) => {
-      const next = !prev;
-      localStorage.setItem("hf_sidebar", next ? "open" : "closed");
-      return next;
-    });
-  };
-
   const displayName = profile?.email || (principal ? principal.slice(0, 8) + "…" : "User");
   const initials    = (profile?.email || "U")[0].toUpperCase();
 
@@ -161,27 +152,27 @@ export function Layout({ children, hideSidebar = false }: { children: React.Reac
 
   const navLinks: NavLink[] = isContractor
     ? [
-        { to: "/contractor-dashboard", label: "Dashboard", Icon: LayoutDashboard },
+        { to: "/contractor-dashboard", label: "Dashboard" },
       ]
     : isRealtor
     ? [
-        { to: "/agents/browse",  label: "Browse listings", Icon: Briefcase },
-        { to: "/agents/bids",    label: "My bids",          Icon: LayoutDashboard },
-        { to: "/agents/verify",  label: "Verification",     Icon: User },
+        { to: "/agents/browse",  label: "Browse listings" },
+        { to: "/agents/bids",    label: "My bids" },
+        { to: "/agents/verify",  label: "Verification" },
       ]
     : [
-        { to: "/dashboard",      label: "Dashboard",    Icon: LayoutDashboard },
+        { to: "/dashboard",      label: "Dashboard" },
         ...(singlePropertyId
-          ? [{ to: `/properties/${singlePropertyId}`, label: "Property", Icon: HomeIcon }]
+          ? [{ to: `/properties/${singlePropertyId}`, label: "Property" }]
           : []),
-        { to: "/market",         label: "Market",       Icon: TrendingUp },
-        { to: "/maintenance",    label: "Maintenance",  Icon: Wrench },
-        { to: "/jobs",           label: "Jobs",         Icon: Briefcase, badge: feedJobs.filter(j => !j.verified && j.status !== "rejected_by_homeowner").length || undefined },
-        { to: "/contractors",    label: "Contractors",  Icon: HardHat },
-        { to: "/sensors",        label: "Sensors",      Icon: Radio },
-        { to: "/people",         label: "People",       Icon: Users2 },
+        { to: "/market",         label: "Market" },
+        { to: "/maintenance",    label: "Maintenance" },
+        { to: "/jobs",           label: "Jobs", badge: feedJobs.filter(j => !j.verified && j.status !== "rejected_by_homeowner").length || undefined },
+        { to: "/contractors",    label: "Contractors" },
+        { to: "/sensors",        label: "Sensors" },
+        { to: "/people",         label: "People" },
         ...(singlePropertyId && hasActiveListing
-          ? [{ to: `/my-listing/${singlePropertyId}`, label: "My Listing", Icon: HomeIcon }]
+          ? [{ to: `/my-listing/${singlePropertyId}`, label: "My Listing" }]
           : []),
       ];
 
@@ -189,246 +180,119 @@ export function Layout({ children, hideSidebar = false }: { children: React.Reac
     return location.pathname === link.to || location.pathname.startsWith(link.to + "/");
   };
 
-  // On tablet, force icon-only (collapsed) display regardless of localStorage state
-  const effectivelyCollapsed = isTablet || !sidebarOpen;
-  const sidebarW = isTablet ? W_CLOSED : (sidebarOpen ? W_OPEN : W_CLOSED);
+  const activeLink = navLinks.find(isActive);
 
-  // ── Shared sidebar item style helpers ────────────────────────────────────────
-
-  const itemBase = (active = false): React.CSSProperties => ({
-    display:         "flex",
-    alignItems:      "center",
-    gap:             effectivelyCollapsed ? 0 : "0.75rem",
-    height:          "2.75rem",
-    paddingLeft:     effectivelyCollapsed ? 0 : "1.125rem",
-    justifyContent:  effectivelyCollapsed ? "center" : "flex-start",
-    overflow:        "hidden",
-    whiteSpace:      "nowrap",
-    color:           active ? "var(--hg-blue-ink)" : "var(--hg-muted)",
-    background:      active ? "var(--hg-blue-wash)" : "transparent",
-    borderLeft:      active ? "3px solid var(--hg-blue)" : "3px solid transparent",
-    transition:      "color 0.15s, background 0.15s",
-  });
-
-  const labelStyle: React.CSSProperties = {
-    fontFamily: V2_FONTS.body,
-    fontSize:   "0.875rem",
-    fontWeight: 500,
+  const openAddProperty = () => {
+    // Pro is the top homeowner tier — there's no higher plan to offer, so let
+    // the add-property flow surface its own at-capacity message instead.
+    if (atPropertyLimit && userTier !== "Pro") {
+      setUpgradeOpen(true);
+    } else {
+      openAddProp();
+    }
   };
 
   // ─── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", backgroundColor: V2_COLORS.paper }}>
+    <div style={{ minHeight: "100vh", backgroundColor: V2_COLORS.paper }}>
 
-      {/* ── Left sidebar (desktop) ──────────────────────────────────────────── */}
+      {/* ── Top bar (desktop) — same chrome as the dashboard's header ─────── */}
+      {!hideSidebar && (
+      <header
+        className="hf-shell-header hg-v3"
+        data-theme="light"
+        style={{ height: HEADER_H, padding: `0 ${SHELL_GUTTER}px` }}
+        aria-hidden={addPropOpen || undefined}
+      >
+        <Link to={dashboardPath} aria-label="HomeGentic home" style={{ textDecoration: "none" }}>
+          <BrandMark />
+        </Link>
+        <HeaderDivider />
+        <div style={{ flex: 1, minWidth: 0, font: "500 10px/1 'JetBrains Mono',monospace", letterSpacing: ".14em", color: "var(--hg-muted)", textTransform: "uppercase", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {activeLink?.label ?? ""}
+        </div>
+
+        <button
+          onClick={openFeed}
+          aria-label="Activity"
+          title="Activity"
+          style={{ position: "relative", flex: "none", width: 32, height: 32, borderRadius: 100, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+        >
+          <Bell size={16} color="var(--hg-ink-3)" strokeWidth={1.8} />
+          {unread > 0 && (
+            <span style={{ position: "absolute", top: 2, right: 2, width: 14, height: 14, borderRadius: "50%", background: "#2B34FF", display: "flex", alignItems: "center", justifyContent: "center", font: "700 9px/1 'Hanken Grotesk',sans-serif", color: "#FCFCFD" }}>
+              {unread > 9 ? "9+" : unread}
+            </span>
+          )}
+        </button>
+        <HeaderDivider />
+        <div ref={userMenuRef} style={{ position: "relative", flex: "none" }}>
+          <button
+            onClick={() => setUserMenuOpen((o) => !o)}
+            aria-label={displayName}
+            title={displayName}
+            style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--hg-blue-fill)", border: "1.5px solid var(--hg-blue-edge)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", font: "700 12px/1 'JetBrains Mono',monospace", color: "var(--hg-blue-ink)", padding: 0 }}
+          >
+            {initials}
+          </button>
+          {userMenuOpen && (
+            <UserMenuPopover
+              displayName={displayName}
+              onClose={() => setUserMenuOpen(false)}
+              onUpgrade={() => setUpgradeOpen(true)}
+              anchor="top-right"
+            />
+          )}
+        </div>
+      </header>
+      )}
+
+      {/* ── Left rail (desktop) — pill chips, as on the dashboard ────────── */}
       {!hideSidebar && (
       <nav
         className="hf-sidebar hg-v3"
         data-theme="light"
-        style={{ width: sidebarW }}
+        style={{ top: HEADER_H, width: CONTENT_LEFT, padding: `4px ${RAIL_GAP}px 16px ${SHELL_GUTTER}px` }}
         aria-label="Main navigation"
         aria-hidden={addPropOpen || undefined}
       >
-        {/* Header: branding + add-property + toggle */}
-        <div style={{
-          height:        "3.5rem",
-          display:       "flex",
-          alignItems:    "center",
-          justifyContent: effectivelyCollapsed ? "center" : "space-between",
-          paddingLeft:   effectivelyCollapsed ? 0 : "1.25rem",
-          paddingRight:  effectivelyCollapsed ? 0 : "0.75rem",
-          flexShrink:    0,
-        }}>
-          {!effectivelyCollapsed && (
-            <Link
-              to={dashboardPath}
-              style={{
-                textDecoration: "none",
-                fontFamily:     V2_FONTS.display,
-                fontWeight:     900,
-                fontSize:       "1.1rem",
-                letterSpacing:  "-0.5px",
-                color:          "var(--hg-ink)",
-                whiteSpace:     "nowrap",
-              }}
-            >
-              Home<span style={{ color: "var(--hg-blue-ink)", fontStyle: "normal", fontWeight: 700 }}>Gentic™</span>
-            </Link>
-          )}
-          <button
-            onClick={isTablet ? undefined : toggleSidebar}
-            title={effectivelyCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            aria-label={effectivelyCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            style={{
-              display:    "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "none",
-              border:     "none",
-              cursor:     "pointer",
-              color:      "var(--hg-muted)",
-              padding:    "0.375rem",
-              borderRadius: "0.25rem",
-              flexShrink: 0,
-            }}
-          >
-            <PanelLeft size={18} />
-          </button>
-        </div>
-
-        {/* Nav links */}
-        <div style={{ flex: 1, paddingTop: "0.375rem", overflowY: "auto", overflowX: "hidden" }}>
-          {/* Add property button — sits just below the toggle, mirrors Claude's sidebar */}
-          {isHomeowner && (
-            <button
-              aria-label="Add property"
-              title={!sidebarOpen ? "Add property" : undefined}
-              onClick={() => {
-                // Pro (the only purchasable homeowner tier) and Premium
-                // (grandfathered) share the same top property limit — there's
-                // no higher tier to offer, so let the add-property flow
-                // surface its own at-capacity message instead of the modal.
-                if (atPropertyLimit && userTier !== "Pro") {
-                  setUpgradeOpen(true);
-                } else {
-                  openAddProp();
-                }
-              }}
-              style={{ ...itemBase(), width: "100%", border: "none", cursor: "pointer" }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--hg-blue-ink)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--hg-muted)"; }}
-            >
-              <Plus size={17} style={{ flexShrink: 0 }} />
-              {!effectivelyCollapsed && <span style={labelStyle}>Add property</span>}
-            </button>
-          )}
+        <div style={{ width: RAIL_WIDTH, display: "flex", flexDirection: "column", gap: 3, paddingRight: 8, boxSizing: "border-box" }}>
           {navLinks.map((link) => {
-            const active = isActive(link);
+            const active = link === activeLink;
             return (
               <Link
                 key={link.to}
                 to={link.to}
-                title={!sidebarOpen ? link.label : undefined}
                 aria-current={active ? "page" : undefined}
-                style={{ ...itemBase(active), textDecoration: "none" }}
-                onMouseEnter={(e: React.MouseEvent) => {
-                  if (!active) (e.currentTarget as HTMLElement).style.color = "var(--hg-blue-ink)";
-                }}
-                onMouseLeave={(e: React.MouseEvent) => {
-                  if (!active) (e.currentTarget as HTMLElement).style.color = "var(--hg-muted)";
-                }}
+                style={railChipStyle({ on: active })}
               >
-                  <link.Icon size={17} style={{ flexShrink: 0 }} />
-                {!effectivelyCollapsed && (
-                  <span style={{ ...labelStyle, fontWeight: active ? 600 : 500, flex: 1 }}>
-                    {link.label}
-                  </span>
-                )}
-                {!effectivelyCollapsed && link.badge != null && link.badge > 0 && (
-                  <span style={{ fontFamily: "sans-serif", fontSize: 11, fontWeight: 700, color: "var(--hg-chip-on)", background: "var(--hg-blue)", borderRadius: "1rem", padding: "1px 6px", lineHeight: 1.4 }}>
-                    {link.badge}
-                  </span>
-                )}
+                {link.label}
+                <RailChipCount>{link.badge ? link.badge : ""}</RailChipCount>
               </Link>
             );
           })}
-        </div>
-
-        {/* Bottom: activity bell + user menu button */}
-        <div style={{ borderTop: "1px solid var(--hg-line)", flexShrink: 0 }}>
-
-          {/* Activity bell */}
-          <button
-            onClick={openFeed}
-            aria-label="Activity"
-            title={!sidebarOpen ? "Activity" : undefined}
-            style={{ ...itemBase(), width: "100%", border: "none", cursor: "pointer" }}
-          >
-            <div style={{ position: "relative", flexShrink: 0 }}>
-              <Bell size={17} />
-              {unread > 0 && (
-                <span style={{
-                  position:       "absolute",
-                  top:            "-4px",
-                  right:          "-5px",
-                  width:          "14px",
-                  height:         "14px",
-                  background:     "var(--hg-blue)",
-                  borderRadius:   "50%",
-                  display:        "flex",
-                  alignItems:     "center",
-                  justifyContent: "center",
-                  fontFamily:     V2_FONTS.body,
-                  fontSize:       "0.45rem",
-                  color:          "var(--hg-chip-on)",
-                  fontWeight:     700,
-                }}>
-                  {unread > 9 ? "9+" : unread}
-                </span>
-              )}
-            </div>
-            {!effectivelyCollapsed && <span style={labelStyle}>Activity</span>}
-          </button>
-
-          {/* User menu anchor */}
-          <div ref={userMenuRef} style={{ position: "relative" }}>
-            {userMenuOpen && (
-              <UserMenuPopover
-                displayName={displayName}
-                onClose={() => setUserMenuOpen(false)}
-                onUpgrade={() => setUpgradeOpen(true)}
-              />
-            )}
-
-            {/* Avatar button */}
-            <button
-              onClick={() => setUserMenuOpen((o) => !o)}
-              aria-label={displayName}
-              title={!sidebarOpen ? displayName : undefined}
-              style={{
-                ...itemBase(),
-                width:   "100%",
-                border:  "none",
-                cursor:  "pointer",
-                gap:     effectivelyCollapsed ? 0 : "0.625rem",
-              }}
-            >
-              {/* Avatar circle */}
-              <div style={{
-                width:          "26px",
-                height:         "26px",
-                borderRadius:   "50%",
-                background:     "var(--hg-blue-fill)",
-                border:         "1.5px solid var(--hg-blue-edge)",
-                color:          "var(--hg-blue-ink)",
-                display:        "flex",
-                alignItems:     "center",
-                justifyContent: "center",
-                fontFamily:     V2_FONTS.body,
-                fontSize:       "0.6rem",
-                fontWeight:     700,
-                flexShrink:     0,
-                letterSpacing:  "0.03em",
-              }}>
-                {initials}
-              </div>
-              {!effectivelyCollapsed && (
-                <span style={{ ...labelStyle, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, textAlign: "left" }}>
-                  {displayName}
-                </span>
-              )}
-            </button>
-          </div>
-
+          {isHomeowner && (
+            <>
+              <div style={{ height: 1, background: "var(--hg-line)", margin: "7px 4px" }} />
+              <button
+                aria-label="Add property"
+                onClick={openAddProperty}
+                style={{ ...railChipStyle({ dashed: true }), width: "100%" }}
+              >
+                Add property
+                <Plus size={11} strokeWidth={2.6} aria-hidden="true" />
+              </button>
+            </>
+          )}
         </div>
       </nav>
       )}
 
       {/* ── Content column ──────────────────────────────────────────────────── */}
       <div
-        className="hf-main"
-        style={{ marginLeft: hideSidebar ? 0 : (isTablet ? W_CLOSED : sidebarW), flex: 1, minWidth: 0 }}
+        className={hideSidebar ? "hf-main" : "hf-main hf-main--shell"}
+        style={hideSidebar ? { flex: 1, minWidth: 0 } : { marginLeft: CONTENT_LEFT, paddingTop: HEADER_H, minWidth: 0, "--hf-shell-top": `${HEADER_H}px` } as React.CSSProperties}
         aria-hidden={addPropOpen || undefined}
       >
         {/* Mobile-only top header */}

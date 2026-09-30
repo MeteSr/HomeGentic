@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Copy, CheckCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import { Layout } from "@/components/Layout";
+import { SHELL_PAGE_MIN_HEIGHT } from "@/components/dashboardV3/chrome";
 import { UpgradeGate } from "@/components/UpgradeGate";
 import { usePropertyStore } from "@/store/propertyStore";
 import { paymentService, type PlanTier } from "@/services/payment";
@@ -602,7 +603,7 @@ export default function PeoplePage() {
 
   return (
     <Layout>
-      <div className="hg-v3" data-theme="light" style={{ background: "var(--hg-bg)", minHeight: '100dvh', padding: '28px 32px' }}>
+      <div className="hg-v3" data-theme="light" style={{ background: "var(--hg-bg)", minHeight: SHELL_PAGE_MIN_HEIGHT, padding: '28px 32px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
           <h1 style={{ fontFamily: DISPLAY, fontSize: '1.6rem', fontWeight: 700, color: "var(--hg-ink)", margin: 0 }}>
             People

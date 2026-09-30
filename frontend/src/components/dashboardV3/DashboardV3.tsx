@@ -60,6 +60,7 @@ import type { PlanTier } from "@/services/payment";
 import { AwardBidModal } from "./AwardBidModal";
 import { ChaseSignatureModal } from "./ChaseSignatureModal";
 import { HG_EASE } from "./theme";
+import { BrandMark, HeaderDivider, RailChipCount, railChipStyle, RAIL_WIDTH } from "./chrome";
 import { buildPanels, CTA_FLOW, PANEL_ORDER, type PanelCtx } from "./panelData";
 import { buildHomeBrief, type BriefTone } from "./homeBrief";
 import { buildSystemAnswer, matchSystemQuestion, SYSTEM_SERVICE_TYPE, type FactTone } from "./answerCards";
@@ -382,11 +383,8 @@ export function DashboardV3() {
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div style={{ flex: "none", display: "flex", alignItems: "center", gap: 16, padding: "14px 24px", flexWrap: "wrap" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-          <div style={{ font: "800 15px/1 'Bricolage Grotesque',system-ui,sans-serif", color: "var(--hg-ink)", letterSpacing: "-.02em" }}>HomeGentic</div>
-          <div style={{ font: "500 9px/1 'JetBrains Mono',monospace", letterSpacing: ".14em", color: "var(--hg-muted)" }}>HOME</div>
-        </div>
-        <div style={{ width: 1, height: 16, background: "var(--hg-line)" }} />
+        <BrandMark />
+        <HeaderDivider />
 
         <div style={{ position: "relative", flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 9 }}>
           <div onClick={() => setPropsOpen((o) => !o)} style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 7, cursor: "pointer", borderRadius: 100, padding: "4px 9px 4px 0" }}>
@@ -477,6 +475,7 @@ export function DashboardV3() {
               displayName={displayName}
               onClose={() => setUserMenuOpen(false)}
               onUpgrade={() => { setUserMenuOpen(false); setFlow("upgrade"); }}
+              anchor="top-right"
             />
           )}
         </div>
@@ -484,7 +483,7 @@ export function DashboardV3() {
 
       {/* ── Body: rail + stage ─────────────────────────────────────────── */}
       <div style={{ flex: "1 1 auto", minHeight: 0, display: "flex", gap: 22, padding: "0 24px" }}>
-        <div style={{ flex: "none", width: 158, display: "flex", flexDirection: "column", gap: 3, padding: "4px 8px 4px 0" }}>
+        <div style={{ flex: "none", width: RAIL_WIDTH, display: "flex", flexDirection: "column", gap: 3, padding: "4px 8px 4px 0" }}>
           {PANEL_ORDER.map((k) => {
             const p = panels[k];
             const on = activeKey === k;
@@ -495,20 +494,13 @@ export function DashboardV3() {
                 key={k}
                 onClick={() => (locked ? setFlow("upgrade") : goPanel(k))}
                 title={locked ? "Shared access is a Pro feature" : undefined}
-                style={{
-                  minHeight: 31, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "space-between",
-                  gap: 8, padding: "0 12px", borderRadius: 100,
-                  background: locked ? "transparent" : on ? "var(--hg-blue-fill)" : "var(--hg-fill)",
-                  border: locked ? "1.5px dashed var(--hg-line-2)" : `1.5px solid ${on ? "#2B34FF" : "var(--hg-line-2)"}`,
-                  font: "500 10.5px/1 'JetBrains Mono',monospace", letterSpacing: ".06em",
-                  color: locked ? "var(--hg-muted)" : on ? "var(--hg-chip-on)" : "var(--hg-ink-3)", cursor: "pointer",
-                }}
+                style={railChipStyle({ on, dashed: locked })}
               >
                 {p.chip}
                 {locked ? (
                   <span style={{ font: "500 9px/1 'JetBrains Mono',monospace", color: "var(--hg-yel-ink)" }}>PRO</span>
                 ) : (
-                  <span style={{ font: "400 10px/1 'JetBrains Mono',monospace", color: "var(--hg-muted)" }}>{showCount ? p.count : ""}</span>
+                  <RailChipCount>{showCount ? p.count : ""}</RailChipCount>
                 )}
               </div>
             );
@@ -519,13 +511,7 @@ export function DashboardV3() {
               key={l.to}
               onClick={() => navigate(l.to)}
               title={`Open ${l.label.charAt(0)}${l.label.slice(1).toLowerCase()}`}
-              style={{
-                minHeight: 31, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "space-between",
-                gap: 8, padding: "0 12px", borderRadius: 100,
-                background: "transparent", border: "1.5px dashed var(--hg-line-2)",
-                font: "500 10.5px/1 'JetBrains Mono',monospace", letterSpacing: ".06em",
-                color: "var(--hg-muted)", cursor: "pointer",
-              }}
+              style={railChipStyle({ dashed: true })}
             >
               {l.label}
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--hg-muted)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17 17 7M9 7h8v8" /></svg>
@@ -753,7 +739,7 @@ export function DashboardV3() {
 
       {/* ── Ask bar ────────────────────────────────────────────────────── */}
       <div style={{ flex: "none", display: "flex", gap: 22, padding: "14px 24px 18px" }}>
-        <div style={{ flex: "none", width: 158 }} />
+        <div style={{ flex: "none", width: RAIL_WIDTH }} />
         <div style={{ flex: 1, minWidth: 0, maxWidth: 820, margin: "0 auto", width: "100%" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--hg-fill)", border: `1.5px solid ${focus ? "#2B34FF" : "var(--hg-line-2)"}`, borderRadius: 100, padding: "6px 6px 6px 20px" }}>
             <input

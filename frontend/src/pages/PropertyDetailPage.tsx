@@ -7,6 +7,7 @@ import {
   CalendarDays, Activity, Cpu, ArrowRight,
 } from "lucide-react";
 import { Layout } from "@/components/Layout";
+import { SHELL_PAGE_MIN_HEIGHT } from "@/components/dashboardV3/chrome";
 import { Button } from "@/components/Button";
 import { GenerateReportModal }       from "@/components/GenerateReportModal";
 import { InsuranceShareModal }       from "@/components/InsuranceShareModal";
@@ -233,7 +234,7 @@ export default function PropertyDetailPage() {
   if (loading) {
     return (
       <Layout hideSidebar>
-        <div className="hg-v3" data-theme="light" style={{ minHeight: "100dvh", background: "var(--hg-bg)", display: "flex", justifyContent: "center", padding: "4rem" }}>
+        <div className="hg-v3" data-theme="light" style={{ minHeight: SHELL_PAGE_MIN_HEIGHT, background: "var(--hg-bg)", display: "flex", justifyContent: "center", padding: "4rem" }}>
           <div className="spinner-lg" style={spinnerVars} />
         </div>
       </Layout>
@@ -243,7 +244,7 @@ export default function PropertyDetailPage() {
   if (!property) {
     return (
       <Layout hideSidebar>
-        <div className="hg-v3" data-theme="light" style={{ minHeight: "100dvh", background: "var(--hg-bg)" }}>
+        <div className="hg-v3" data-theme="light" style={{ minHeight: SHELL_PAGE_MIN_HEIGHT, background: "var(--hg-bg)" }}>
           <div style={{ maxWidth: "40rem", margin: "0 auto", padding: "4rem 1.5rem 0", textAlign: "center" }}>
             <AlertCircle size={48} color="var(--hg-muted)" style={{ margin: "0 auto 1rem" }} />
             <h2 style={{ fontFamily: BODY, fontWeight: 700, color: "var(--hg-ink)" }}>Property not found</h2>
@@ -266,7 +267,7 @@ export default function PropertyDetailPage() {
 
   return (
     <Layout hideSidebar>
-      <div className="hg-v3" data-theme="light" style={{ minHeight: "100dvh", background: "var(--hg-bg)" }}>
+      <div className="hg-v3" data-theme="light" style={{ minHeight: SHELL_PAGE_MIN_HEIGHT, background: "var(--hg-bg)" }}>
       <div style={{ padding: isTablet ? "1.25rem 1.25rem" : "1.5rem 2rem" }}>
 
         {/* ── Page header ────────────────────────────────────────────────────── */}

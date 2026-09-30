@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
+import { SHELL_PAGE_MIN_HEIGHT } from "@/components/dashboardV3/chrome";
 import { RegisterDeviceModal } from "@/components/RegisterDeviceModal";
 import { usePropertyStore } from "@/store/propertyStore";
 import { sensorService, SensorDevice, SensorEvent } from "@/services/sensor";
@@ -143,7 +144,7 @@ export default function SensorPage() {
 
   return (
     <Layout>
-      <div className="hg-v3" data-theme="light" style={{ background: "var(--hg-bg)", minHeight: "100dvh", padding: "28px 32px" }}>
+      <div className="hg-v3" data-theme="light" style={{ background: "var(--hg-bg)", minHeight: SHELL_PAGE_MIN_HEIGHT, padding: "28px 32px" }}>
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>

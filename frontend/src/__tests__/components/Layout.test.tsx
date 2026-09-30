@@ -92,8 +92,8 @@ describe("Layout nav — Dashboard vs. Property active state (16.3.2)", () => {
     const { container } = renderNav("/properties/42");
     const dashLink = getSidebarLink(container, /^dashboard$/i);
     const propLink = getSidebarLink(container, /^property$/i);
-    expect(dashLink.getAttribute("style")).toMatch(/transparent/);
-    expect(propLink.getAttribute("style")).not.toMatch(/transparent/);
+    expect(dashLink.getAttribute("aria-current")).toBeNull();
+    expect(propLink.getAttribute("aria-current")).toBe("page");
   });
 
   it("highlights only Property (not Dashboard) on a sub-path of their property", () => {
@@ -101,8 +101,8 @@ describe("Layout nav — Dashboard vs. Property active state (16.3.2)", () => {
     const { container } = renderNav("/properties/42/jobs");
     const dashLink = getSidebarLink(container, /^dashboard$/i);
     const propLink = getSidebarLink(container, /^property$/i);
-    expect(dashLink.getAttribute("style")).toMatch(/transparent/);
-    expect(propLink.getAttribute("style")).not.toMatch(/transparent/);
+    expect(dashLink.getAttribute("aria-current")).toBeNull();
+    expect(propLink.getAttribute("aria-current")).toBe("page");
   });
 
   it("does NOT highlight Dashboard on /dashboard itself for single-property user", () => {
@@ -111,7 +111,7 @@ describe("Layout nav — Dashboard vs. Property active state (16.3.2)", () => {
     const dashLink = screen.getByRole("link", { name: /^dashboard$/i });
     // Should still be active (it's /dashboard path), just testing we don't break the normal case
     expect(dashLink).toBeInTheDocument();
-    expect(dashLink.getAttribute("style")).not.toMatch(/transparent/);
+    expect(dashLink.getAttribute("aria-current")).toBe("page");
   });
 
   // ── Multi-property user ────────────────────────────────────────────────────
@@ -123,7 +123,7 @@ describe("Layout nav — Dashboard vs. Property active state (16.3.2)", () => {
     ];
     renderNav("/properties/42");
     const dashLink = screen.getByRole("link", { name: /^dashboard$/i });
-    expect(dashLink.getAttribute("style")).toMatch(/transparent/);
+    expect(dashLink.getAttribute("aria-current")).toBeNull();
   });
 
   // ── Property ID mismatch ───────────────────────────────────────────────────
@@ -133,7 +133,7 @@ describe("Layout nav — Dashboard vs. Property active state (16.3.2)", () => {
     // Navigating to a property that isn't theirs (e.g. shared link)
     renderNav("/properties/999");
     const dashLink = screen.getByRole("link", { name: /^dashboard$/i });
-    expect(dashLink.getAttribute("style")).toMatch(/transparent/);
+    expect(dashLink.getAttribute("aria-current")).toBeNull();
   });
 
   // ── Non-property routes unaffected ────────────────────────────────────────
@@ -142,10 +142,10 @@ describe("Layout nav — Dashboard vs. Property active state (16.3.2)", () => {
     mockProperties = [{ id: "42", address: "123 Maple St" }];
     renderNav("/market");
     const marketLink = screen.getByRole("link", { name: /^market$/i });
-    expect(marketLink.getAttribute("style")).not.toMatch(/transparent/);
+    expect(marketLink.getAttribute("aria-current")).toBe("page");
     // Dashboard should NOT be highlighted
     const dashLink = screen.getByRole("link", { name: /^dashboard$/i });
-    expect(dashLink.getAttribute("style")).toMatch(/transparent/);
+    expect(dashLink.getAttribute("aria-current")).toBeNull();
   });
 
   // ── Contractor role unaffected ─────────────────────────────────────────────
@@ -157,7 +157,7 @@ describe("Layout nav — Dashboard vs. Property active state (16.3.2)", () => {
     // Contractors have a Dashboard link (→ /contractor-dashboard) but it should NOT
     // be highlighted just because the path is /properties/42
     const dashLink = screen.getByRole("link", { name: /^dashboard$/i });
-    expect(dashLink.getAttribute("style")).toMatch(/transparent/);
+    expect(dashLink.getAttribute("aria-current")).toBeNull();
   });
 });
 

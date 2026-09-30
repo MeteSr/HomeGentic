@@ -16,6 +16,7 @@ import { TRADE_LABELS } from "@/services/serviceTypes";
 import { useNavigate }                          from "react-router-dom";
 import { Search, AlertTriangle, ShieldCheck, X } from "lucide-react";
 import { Layout }                               from "@/components/Layout";
+import { SHELL_PAGE_MIN_HEIGHT } from "@/components/dashboardV3/chrome";
 import { contractorService, ContractorProfile } from "@/services/contractor";
 import { jobService, Job }                      from "@/services/job";
 import { Panel, Pill, hudInputStyle, spinnerVars, type PillTone } from "@/components/hud";
@@ -226,7 +227,7 @@ export default function ContractorBrowsePage() {
 
   return (
     <Layout>
-      <div className="hg-v3" data-theme="light" style={{ background: "var(--hg-bg)", minHeight: "100dvh" }}>
+      <div className="hg-v3" data-theme="light" style={{ background: "var(--hg-bg)", minHeight: SHELL_PAGE_MIN_HEIGHT }}>
         <div style={{ maxWidth: 1024, margin: "0 auto", padding: "28px 24px" }}>
 
           {/* Header */}
