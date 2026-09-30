@@ -578,7 +578,7 @@ export function DashboardV3() {
                     <div style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--hg-blue-soft)" }} />
                     <div style={{ font: "500 9px/1 'JetBrains Mono',monospace", letterSpacing: ".14em", color: "var(--hg-blue-ink)" }}>YOUR BRIEF</div>
                   </div>
-                  <div style={{ font: "600 14px/1.5 'Hanken Grotesk',sans-serif", color: "var(--hg-ink-2)", marginTop: 9 }}>
+                  <div data-testid="brief-greeting" style={{ font: "600 14px/1.5 'Hanken Grotesk',sans-serif", color: "var(--hg-ink-2)", marginTop: 9 }}>
                     {brief.greeting}. {brief.summary}
                   </div>
                   {brief.items.map((item) => (
