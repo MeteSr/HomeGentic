@@ -500,7 +500,7 @@ export function DashboardV3() {
                 {locked ? (
                   <span style={{ font: "500 9px/1 'JetBrains Mono',monospace", color: "var(--hg-yel-ink)" }}>PRO</span>
                 ) : (
-                  <RailChipCount>{showCount ? p.count : ""}</RailChipCount>
+                  <RailChipCount on={on}>{showCount ? p.count : ""}</RailChipCount>
                 )}
               </div>
             );
