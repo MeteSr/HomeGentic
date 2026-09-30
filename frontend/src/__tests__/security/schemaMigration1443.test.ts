@@ -63,13 +63,17 @@ describe("14.4.3: upgrade runbook documentation", () => {
 
   it("runbook describes the upgrade procedure steps", () => {
     expect(runbook).toMatch(/Step \d/i);
-    expect(runbook).toMatch(/dfx deploy/);
+    // Deploys go through icp-cli (icp.yaml); the runbook must say how.
+    expect(runbook).toMatch(/icp deploy/);
+    // EOP: it must explain there are no pre/postupgrade hooks to rely on.
     expect(runbook).toMatch(/preupgrade|postupgrade/);
+    expect(runbook).toMatch(/stable-compat/);
   });
 
   it("runbook describes the rollback procedure", () => {
     expect(runbook).toMatch(/[Rr]ollback/);
-    expect(runbook).toMatch(/dfx canister install/);
+    // Rolling back = redeploying the previous commit's Wasm.
+    expect(runbook).toMatch(/git checkout <sha> && icp deploy/);
   });
 
   it("runbook warns against removing stable variables", () => {
