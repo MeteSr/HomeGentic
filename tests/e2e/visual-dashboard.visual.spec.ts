@@ -94,6 +94,7 @@ test.describe("Visual — dashboard (/dashboard)", () => {
     // Playwright's screenshot stability check has a bounded wait for that,
     // but a slow font fetch can outrun it. Wait it out explicitly.
     await page.evaluate(() => document.fonts.ready).catch(() => {});
-    await expect(page).toHaveScreenshot("dashboard.png", { fullPage: true });
+    // The brief's greeting depends on the time of day the run happens at.
+    await expect(page).toHaveScreenshot("dashboard.png", { fullPage: true, mask: [page.getByTestId("brief-greeting")] });
   });
 });

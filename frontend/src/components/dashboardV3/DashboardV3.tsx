@@ -10,6 +10,12 @@
  * flows the app didn't have a home for yet (award a bid, chase a
  * countersignature).
  *
+ * The resting stage opens with a home brief (homeBrief.ts): the few things
+ * that need the owner today, ranked from real data. A decision question
+ * about a system ("should I replace my water heater?") gets an answer card
+ * (answerCards.ts) that combines the forecast, local prices, the owner's
+ * bills and the contractor directory instead of a single panel.
+ *
  * All data is real — see panelData.ts. Nothing here is demo/mock copy.
  */
 import React, { useMemo, useRef, useState } from "react";
@@ -35,6 +41,11 @@ import { getRecentScoreEvents } from "@/services/scoreEventService";
 import { sensorService, type SensorDevice, type SensorEvent } from "@/services/sensor";
 import { peopleService, type PersonAccess } from "@/services/people";
 import { buildForecastUrl } from "@/services/instantForecast";
+import { estimateSystems } from "@/services/systemAgeEstimator";
+import { billService } from "@/services/billService";
+import { buildBillsForecast, type Insight } from "@/services/billsForecast";
+import { getPriceBenchmark, type PriceBenchmarkResult } from "@/services/priceBenchmark";
+import { contractorService } from "@/services/contractor";
 
 import { LogJobModal } from "@/components/LogJobModal";
 import { RequestQuoteModal } from "@/components/RequestQuoteModal";
@@ -50,6 +61,8 @@ import { AwardBidModal } from "./AwardBidModal";
 import { ChaseSignatureModal } from "./ChaseSignatureModal";
 import { HG_EASE } from "./theme";
 import { buildPanels, CTA_FLOW, PANEL_ORDER, type PanelCtx } from "./panelData";
+import { buildHomeBrief, type BriefTone } from "./homeBrief";
+import { buildSystemAnswer, matchSystemQuestion, SYSTEM_SERVICE_TYPE, type FactTone } from "./answerCards";
 import type { FlowKey, PanelData, PanelKey, PanelRow } from "./types";
 
 // Pure page links (no in-page panel) that the app-wide sidebar normally
@@ -97,6 +110,13 @@ function routeQuery(q: string): PanelKey {
 }
 
 // ── Small presentational bits ────────────────────────────────────────────────
+
+const BRIEF_DOT: Record<BriefTone, string> = {
+  urgent: "var(--hg-bad)", action: "#2B34FF", money: "var(--hg-warn)", info: "var(--hg-dim)",
+};
+const FACT_TONE: Record<FactTone, string> = {
+  good: "var(--hg-good)", warn: "var(--hg-warn)", bad: "var(--hg-bad)", neutral: "var(--hg-ink-2)",
+};
 
 function Dot({ color, style }: { color: string; style?: React.CSSProperties }) {
   return <div style={{ width: 5, height: 5, borderRadius: "50%", background: color, flexShrink: 0, ...style }} />;
@@ -203,6 +223,29 @@ export function DashboardV3() {
   const voice = useVoiceAgent();
   const feed = useActivityFeed(properties);
 
+  // System ages and bill patterns feed both the home brief and answer cards.
+  const systems = useMemo(
+    () => (activeProperty ? estimateSystems(Number(activeProperty.yearBuilt), activeProperty.state, systemAges) : []),
+    [activeProperty, systemAges],
+  );
+  const [billInsights, setBillInsights] = useState<Insight[]>([]);
+  const [hasBills, setHasBills] = useState(false);
+  React.useEffect(() => {
+    setBillInsights([]);
+    setHasBills(false);
+    if (!activePropertyId) return;
+    let cancelled = false;
+    Promise.all([
+      billService.getBillsForProperty(activePropertyId),
+      billService.getRecurringExpensesForProperty(activePropertyId),
+    ]).then(([bills, expenses]) => {
+      if (cancelled) return;
+      setHasBills(bills.length > 0);
+      setBillInsights(buildBillsForecast(bills, expenses).insights);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [activePropertyId]);
+
   // The app-wide sidebar (hidden on this page — see DashboardPage.tsx) is
   // where "who am I logged in as, log out, manage plan" normally lives.
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -227,9 +270,35 @@ export function DashboardV3() {
   const [flash, setFlash] = useState<{ key: PanelKey; text: string } | null>(null);
   const [awardRequestId, setAwardRequestId] = useState<string | null>(null);
   const [chaseJobId, setChaseJobId] = useState<string | null>(null);
+  const [quotePrefill, setQuotePrefill] = useState<{ serviceType?: string; description?: string } | undefined>(undefined);
+
+  // Answer card: the system being asked about, plus its two remote lookups.
+  const [answerSystem, setAnswerSystem] = useState<string | null>(null);
+  const [benchmark, setBenchmark] = useState<PriceBenchmarkResult | null>(null);
+  const [proCount, setProCount] = useState<number | null>(null);
+  const answerEstimate = answerSystem ? systems.find((s) => s.systemName === answerSystem) ?? null : null;
+  React.useEffect(() => {
+    setBenchmark(null);
+    setProCount(null);
+    if (!answerEstimate) return;
+    let cancelled = false;
+    const serviceType = SYSTEM_SERVICE_TYPE[answerEstimate.systemName] ?? "Other";
+    getPriceBenchmark(serviceType, activeProperty?.zipCode ?? "").then((b) => { if (!cancelled) setBenchmark(b); });
+    contractorService.getBySpecialty(serviceType)
+      .then((pros) => { if (!cancelled) setProCount(pros.length); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [answerEstimate?.systemName, activeProperty?.zipCode]); // eslint-disable-line react-hooks/exhaustive-deps
+  const answer = answerEstimate && activeProperty
+    ? buildSystemAnswer({
+        system: answerEstimate, yearBuilt: Number(activeProperty.yearBuilt), zipCode: activeProperty.zipCode,
+        billInsights, hasBills, benchmark, proCount,
+      })
+    : null;
 
   const goPanel = (k: PanelKey) => {
     voice.reset();
+    setAnswerSystem(null);
     setActiveKey(k);
     setQuery("");
   };
@@ -250,6 +319,7 @@ export function DashboardV3() {
     setFlow(null);
     setAwardRequestId(null);
     setChaseJobId(null);
+    setQuotePrefill(undefined);
     if (result) {
       setFlash(result);
       setActiveKey(result.key);
@@ -277,29 +347,30 @@ export function DashboardV3() {
 
   const activePanel: PanelData | null = activeKey ? panels[activeKey] : null;
   const isVoiceActive = voice.state !== "idle" || !!voice.transcript || !!voice.response || !!voice.error;
-  const mode: "idle" | "voice" | "panel" = activePanel ? "panel" : isVoiceActive ? "voice" : "idle";
+  const mode: "idle" | "voice" | "panel" | "answer" =
+    activePanel ? "panel" : answer ? "answer" : isVoiceActive ? "voice" : "idle";
 
   const submit = () => {
     const q = query.trim();
     if (!q) return;
+    const system = matchSystemQuestion(q);
+    if (system && systems.some((s) => s.systemName === system)) {
+      voice.reset();
+      setActiveKey(null);
+      setAnswerSystem(system);
+      setQuery("");
+      return;
+    }
     goPanel(routeQuery(q));
   };
 
   const pendingCount = pendingProposals.length;
-  const idleTips = useMemo(() => {
-    const t: { text: string; go: PanelKey }[] = [];
-    if (sensorAlerts.length) t.push({ text: `${sensorAlerts[0].eventType.replace(/([A-Z])/g, " $1").trim()} on a paired sensor.`, go: "sensors" });
-    if (jobs.some((j) => j.contractorName && !j.contractorSigned)) t.push({ text: "A contractor hasn't countersigned a logged job — it earns no points until they do.", go: "pros" });
-    if (atRiskWarnings.length) t.push({ text: `${atRiskWarnings[0].label} — ${atRiskWarnings[0].daysRemaining} days left before it costs points.`, go: "property" });
-    if (voice.quotaExhausted) t.push({ text: "Your AI assistant calls are used up for this period — chat still works.", go: "billing" });
-    if (quoteRequests.some((r) => (bidCountMap[r.id] ?? 0) > 0)) t.push({ text: "Bids are waiting on an open job.", go: "jobs" });
-    const pendingInvite = people?.find((p) => p.isPending);
-    if (pendingInvite) t.push({ text: `${pendingInvite.name} hasn't accepted their invite yet.`, go: "people" });
-    if (!t.length) t.push({ text: "Nothing needs your attention right now.", go: "score" });
-    return t;
-  }, [sensorAlerts, jobs, atRiskWarnings, voice.quotaExhausted, quoteRequests, bidCountMap, people]);
-  const [tipIdx, setTipIdx] = useState(0);
-  const tip = idleTips[tipIdx % idleTips.length];
+  const brief = useMemo(() => buildHomeBrief({
+    now: new Date(), pendingProposals, sensorAlerts, quoteRequests, bidCountMap, jobs,
+    recurringServices, visitLogMap, atRiskWarnings, systems, billInsights, people,
+    quotaExhausted: voice.quotaExhausted,
+  }), [pendingProposals, sensorAlerts, quoteRequests, bidCountMap, jobs, recurringServices, visitLogMap,
+    atRiskWarnings, systems, billInsights, people, voice.quotaExhausted]);
 
   // ── Header helpers ────────────────────────────────────────────────────────
   const propertyLabel = activeProperty
@@ -502,12 +573,25 @@ export function DashboardV3() {
                   {pulseTip?.detail ?? "Your record is up to date."}
                 </div>
 
-                <div onClick={() => { setTipIdx((i) => i + 1); goPanel(tip.go); }} style={{ marginTop: 16, maxWidth: 580, border: "1px solid var(--hg-blue-edge)", background: "var(--hg-blue-wash)", borderRadius: 16, padding: "12px 15px", cursor: "pointer" }}>
+                <div data-testid="home-brief" style={{ marginTop: 16, maxWidth: 580, border: "1px solid var(--hg-blue-edge)", background: "var(--hg-blue-wash)", borderRadius: 16, padding: "12px 15px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--hg-blue-soft)" }} />
-                    <div style={{ font: "500 9px/1 'JetBrains Mono',monospace", letterSpacing: ".14em", color: "var(--hg-blue-ink)" }}>HOMEGENTIC SUGGESTS</div>
+                    <div style={{ font: "500 9px/1 'JetBrains Mono',monospace", letterSpacing: ".14em", color: "var(--hg-blue-ink)" }}>YOUR BRIEF</div>
                   </div>
-                  <div style={{ font: "400 13.5px/1.5 'Hanken Grotesk',sans-serif", color: "var(--hg-ink-2)", marginTop: 9 }}>{tip.text}</div>
+                  <div data-testid="brief-greeting" style={{ font: "600 14px/1.5 'Hanken Grotesk',sans-serif", color: "var(--hg-ink-2)", marginTop: 9 }}>
+                    {brief.greeting}. {brief.summary}
+                  </div>
+                  {brief.items.map((item) => (
+                    <div
+                      key={item.id}
+                      onClick={() => (item.flow ? openFlow(item.flow) : item.go ? goPanel(item.go) : undefined)}
+                      style={{ display: "flex", alignItems: "flex-start", gap: 10, marginTop: 10, cursor: "pointer" }}
+                    >
+                      <Dot color={BRIEF_DOT[item.tone]} style={{ marginTop: 7 }} />
+                      <div style={{ flex: 1, minWidth: 0, font: "400 13.5px/1.5 'Hanken Grotesk',sans-serif", color: "var(--hg-ink-2)" }}>{item.text}</div>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--hg-muted)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none", marginTop: 5 }}><path d="m9 6 6 6-6 6" /></svg>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -556,6 +640,47 @@ export function DashboardV3() {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {mode === "answer" && answer && (
+              <div data-testid="answer-card" style={{ margin: "auto 0", padding: "6px 0" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 20 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ font: "500 9px/1 'JetBrains Mono',monospace", letterSpacing: ".14em", color: "var(--hg-muted)" }}>ANSWER · {answer.systemName.toUpperCase()}</div>
+                    <div style={{ font: "700 clamp(21px,3vw,29px)/1.2 'Bricolage Grotesque',system-ui,sans-serif", color: "var(--hg-ink)", letterSpacing: "-.03em", marginTop: 12 }}>{answer.title}</div>
+                    <div style={{ font: "400 13.5px/1.55 'Hanken Grotesk',sans-serif", color: "var(--hg-muted)", marginTop: 9, maxWidth: 600 }}>{answer.verdict}</div>
+                  </div>
+                  <div onClick={() => setAnswerSystem(null)} aria-label="Close answer" style={{ flex: "none", width: 36, height: 36, borderRadius: 100, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--hg-muted)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 20, borderTop: "1px solid var(--hg-line)" }}>
+                  {answer.facts.map((f, i) => (
+                    <Row key={f.label} index={i} rise="hgRiseA" row={{ lead: f.label, sub: f.detail.toUpperCase(), right: f.value, tone: FACT_TONE[f.tone] }} />
+                  ))}
+                </div>
+                <div style={{ font: "400 11px/1.5 'JetBrains Mono',monospace", color: "var(--hg-muted)", marginTop: 12 }}>
+                  BUILT FROM {answer.sources.join(" · ").toUpperCase()}
+                </div>
+
+                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, marginTop: 20 }}>
+                  <div
+                    onClick={() => { setQuotePrefill({ serviceType: answer.serviceType, description: answer.quoteDescription }); setFlow("quote"); }}
+                    style={{ minHeight: 44, display: "inline-flex", alignItems: "center", padding: "0 1.4rem", borderRadius: 100, background: "#2B34FF", border: "1.5px solid #2B34FF", font: "600 .875rem/1 'Hanken Grotesk',sans-serif", color: "#FCFCFD", cursor: "pointer" }}
+                  >
+                    Request quotes
+                  </div>
+                  <div onClick={() => goPanel("forecast")} style={{ minHeight: 44, display: "inline-flex", alignItems: "center", padding: "0 1.2rem", borderRadius: 100, background: "transparent", border: "1.5px solid var(--hg-line-2)", font: "600 .875rem/1 'Hanken Grotesk',sans-serif", color: "var(--hg-ink-3)", cursor: "pointer" }}>
+                    See the ten-year forecast
+                  </div>
+                  {answer.installYearAssumed && activePropertyId && (
+                    <div onClick={() => navigate(`/properties/${activePropertyId}/systems`)} style={{ minHeight: 44, display: "inline-flex", alignItems: "center", padding: "0 1.2rem", borderRadius: 100, background: "transparent", border: "1.5px solid var(--hg-line-2)", font: "600 .875rem/1 'Hanken Grotesk',sans-serif", color: "var(--hg-ink-3)", cursor: "pointer" }}>
+                      Set when it was installed
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -668,8 +793,9 @@ export function DashboardV3() {
       <RequestQuoteModal
         isOpen={flow === "quote"}
         onClose={() => closeFlow()}
-        onSuccess={() => { reloadQuotes(); closeFlow({ key: "jobs", text: "Quote request posted to verified pros." }); }}
+        onSuccess={() => { reloadQuotes(); setAnswerSystem(null); closeFlow({ key: "jobs", text: "Quote request posted to verified pros." }); }}
         properties={properties}
+        prefill={quotePrefill}
       />
       {activePropertyId && (
         <AddRoomModal

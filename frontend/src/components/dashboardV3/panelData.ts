@@ -318,16 +318,19 @@ const FREQ_LABEL: Record<string, string> = {
   Quarterly: "EVERY 3 MONTHS", SemiAnnually: "EVERY 6 MONTHS", Annually: "ANNUALLY",
 };
 
+/** When a recurring service's next visit is due: last visit (or start) plus one period. */
+export function nextVisit(svc: RecurringService, logs: VisitLog[]): { last: number; nextDue: number } {
+  const last = logs.length ? new Date(logs[logs.length - 1].visitDate).getTime() : new Date(svc.startDate).getTime();
+  return { last, nextDue: last + (FREQ_DAYS[svc.frequency] ?? 365) * 86400000 };
+}
+
 function buildMaint(ctx: PanelCtx): PanelData {
   const now = Date.now();
   const rows: PanelRow[] = ctx.recurringServices.map((svc) => {
     if (svc.status === "Paused") {
       return { lead: svc.providerName || svc.serviceType, sub: `${FREQ_LABEL[svc.frequency] ?? svc.frequency} · PAUSED`, right: "Paused", rightSub: "NO VISITS", tone: MUTED };
     }
-    const logs = ctx.visitLogMap[svc.id] ?? [];
-    const last = logs.length ? new Date(logs[logs.length - 1].visitDate).getTime() : new Date(svc.startDate).getTime();
-    const freqDays = FREQ_DAYS[svc.frequency] ?? 365;
-    const nextDue = last + freqDays * 86400000;
+    const { last, nextDue } = nextVisit(svc, ctx.visitLogMap[svc.id] ?? []);
     const daysUntil = Math.max(0, Math.round((nextDue - now) / 86400000));
     return {
       lead: svc.providerName ? `${svc.serviceType} · ${svc.providerName}` : svc.serviceType,
