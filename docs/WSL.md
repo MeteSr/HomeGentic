@@ -81,4 +81,4 @@ Internet Identity as a system canister at the well-known principal
 | node_modules | `C:\Users\demet\homegentic\...` | `~/homegentic/...` (separate install) |
 | icp-cli | Not used | Linux binary installed via npm |
 | Replica port | N/A | `localhost:4943` |
-| Frontend dev server | `localhost:5173` (Vite) | same port, accessible from Windows browser |
+| Frontend dev server | `localhost:3000` (Vite) | same port, accessible from Windows browser |

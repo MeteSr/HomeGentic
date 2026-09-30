@@ -16,7 +16,7 @@ starting:
 
 **Local replica**
 ```bash
-make dev           # starts dfx + deploys all canisters + runs frontend at :5173
+make dev           # starts the local ICP network + deploys all canisters + runs frontend at :3000
 ```
 
 **Testnet** (recommended for pre-production sign-off)
@@ -48,7 +48,7 @@ single-session flows.
 The real production auth path has never been exercised by a test runner.
 
 **Prerequisites**
-- A running ICP local replica (`dfx start --background`) or testnet target
+- A running local ICP network (`make start`, i.e. `icp network start -d`) or testnet target
 - Chrome or Firefox with no existing II session
 - A configured Internet Identity anchor (or create one during the test)
 
@@ -57,7 +57,7 @@ The real production auth path has never been exercised by a test runner.
 | # | Action | Expected Result |
 |---|--------|-----------------|
 | 1 | Open a fresh browser profile (no cookies, no extensions pre-loaded) | Clean slate |
-| 2 | Navigate to `http://localhost:5173` (or testnet URL) | Landing page renders; no console errors |
+| 2 | Navigate to `http://localhost:3000` (or testnet URL) | Landing page renders; no console errors |
 | 3 | Click **Sign In** or **Get Started** | Login page shown |
 | 4 | Click **Sign in with Internet Identity** | II popup or redirect opens |
 | 5 | Authenticate with an existing anchor, or create a new one | II flow completes; popup closes |
@@ -372,7 +372,7 @@ write and the alert resolution flow require a human to confirm the full cycle.
 | 1 | Navigate to `/sensors` | Page loads; device list empty if first visit |
 | 2 | Click **Add Device** | `RegisterDeviceModal` opens |
 | 3 | Select device type = **Moen Flo** (water leak), enter device name and property | Device registered; appears in device list with **Active** badge |
-| 4 | Trigger a test Critical event (use the admin panel or the canister CLI: `dfx canister call sensor addEvent '(...)' `) | Event logged; alert appears in the **Pending Alerts** panel |
+| 4 | Trigger a test Critical event (use the admin panel or the canister CLI: `icp canister call sensor recordEvent '(...)' -e local`) | Event logged; alert appears in the **Pending Alerts** panel |
 | 5 | Confirm the alert severity badge = **Critical** | Badge shows correctly |
 | 6 | Navigate to `/dashboard` → Activity feed | Auto-created pending job appears in the feed |
 | 7 | Navigate to the pending job | Status = pending; description references the sensor device |

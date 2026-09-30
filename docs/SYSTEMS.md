@@ -26,12 +26,17 @@ For a high-level overview see `ARCHITECTURE.md`. For public API signatures see `
 16. [Bills](#15-bills)
 17. [Monitoring](#16-monitoring)
 18. [Voice Agent Server](#17-voice-agent-server)
+19. [Fee](#18-fee)
+20. [Referrals](#19-referrals)
+21. [Audit](#20-audit)
+
+The `ai_proxy` canister (HTTP outcalls: permits, property records, price benchmarks, instant forecast, Resend email) is covered method-by-method in [API.md](API.md#ai-proxy-canister).
 
 ---
 
 ## Common Patterns
 
-All 17 canisters share the following infrastructure.
+All 20 canisters share the following infrastructure.
 
 ### Stable Storage
 
@@ -53,7 +58,7 @@ Every canister enforces a per-principal update-call rate limit.
 
 ### Admin Bootstrap
 
-Admins are stored as a stable `[Principal]` array. The first call to `addAdmin()` always succeeds regardless of caller (bootstrap). Subsequent calls require an existing admin. All canisters accept `pause(durationSeconds?)` and `unpause()` from admins; a pause with an optional expiry auto-lifts without needing a manual unpause.
+Admins are stored as a stable `[Principal]` array. A fresh canister has no admin, and claiming the first one needs a single-use nonce (H-20): `setBootstrapNonce(nonce)` is called once, then `addAdmin(principal, nonce)` — or `initAdmins(principals, nonce)` on `payment`, `agent` and `fee` — succeeds only with that nonce and consumes it. After that, only an existing admin can add admins. `scripts/deploy.sh` generates the nonce and bootstraps the deployer on every canister. `auth` is the exception: its deployer principal is an install argument. All canisters accept `pause(durationSeconds?)` and `unpause()` from admins; a pause with an optional expiry auto-lifts without needing a manual unpause.
 
 ### Trusted Canisters
 
@@ -569,14 +574,14 @@ paying monthly 12 times).
 ```
 createStripeCheckoutSession(tier, billing) → Stripe checkout URL
 User pays on Stripe
-verifyStripeSession(sessionId)             → subscription created; tier propagated downstream
+verifyStripeSession(sessionId)             → subscription created (other canisters read the new tier on their next call)
 ```
 
 **Direct ICP path:**
 ```
 getPriceQuote(tier)                  → e8s amount with 5% buffer
 Frontend: icrc2_approve(ledger, amount)
-subscribe(tier)                      → fetches fresh rate; icrc2_transfer_from; creates subscription; propagates tier
+subscribe(tier)                      → fetches fresh rate; icrc2_transfer_from; creates subscription
 ```
 
 **Gift path:**
@@ -615,7 +620,7 @@ Agent call quotas can be supplemented with purchased credit packs:
 
 - **CallerGuard** — A transient `activeSubscribers` map prevents concurrent `subscribe()` calls from the same principal (race condition / double-charge protection). The lock persists until canister upgrade if a call errors out mid-execution.
 - **Session principal mismatch** — `verifyStripeSession()` checks that the session's embedded principal matches `msg.caller`; protects against session hijacking.
-- **Admin bootstrap** — `initAdmins()` is a one-time call; subsequent calls fail with `#NotAuthorized`.
+- **Admin bootstrap** — `initAdmins(principals, nonce)` needs the single-use bootstrap nonce (see Common Patterns); once admins exist, further calls fail with `#NotAuthorized`.
 
 ---
 
@@ -914,15 +919,19 @@ submitProposal(requestId, agentDetails...)
 [Frontend hides proposals until deadline — enforced by UI; canister returns all proposals to owner]
 
 acceptProposal(proposalId) [homeowner]
-  → winning proposal → #Accepted
-  → all others → #Rejected
-  → request → #Awarded
+  → cross-calls fee.recordFeeOwed(request, proposal, agent, homeowner, platformFeeCents)
+  → identities stay masked; the winning agent is charged the platform fee via Stripe
 
-counterProposal(proposalId, newCommissionBps, notes) [homeowner]
-  → creates CounterProposal with fromRole="homeowner"
-  → agent can accept/reject counter
-  → counter history preserved on proposal card
+markListingFeePaid(requestId, proposalId) [admin identity, from the settled Stripe webhook only]
+  → winning proposal → #Accepted; all others → #Rejected
+  → request → #Awarded, feePaid = true; identities revealed to both sides
+  → idempotent on webhook retry (invariant 04: charge, then release)
+
+postMessage(proposalId, body, role)  → message on the proposal thread
+withdrawProposal(proposalId) [agent] → agent pulls their proposal
 ```
+
+The platform fee is `getPlatformFee()` ($399 default, admin-set with `setPlatformFeeCents`).
 
 ### FSBO Listing Index
 
@@ -945,7 +954,9 @@ After a proposal is accepted, the listing gains milestone and offer tracking:
 
 | Function | Who |
 |----------|-----|
-| `createBidRequest()`, `cancelBidRequest()`, `acceptProposal()`, `counterProposal()` | Homeowner |
+| `createBidRequest()`, `cancelBidRequest()`, `acceptProposal()` | Homeowner |
+| `withdrawProposal()` | Agent (own proposal) |
+| `markListingFeePaid()` | Admin (Stripe webhook identity) |
 | `activateFsboListing()` | Homeowner |
 | `submitProposal()` | Agents (before deadline) |
 | `getMyBidRequests()`, `getMyProposals()` | Authenticated self |
@@ -1068,7 +1079,7 @@ The 3-month window uses `ONE_MONTH_NS = 30.44 days` (not calendar-aware).
 | `addBill()` | Homeowner; tier-enforced |
 | `getBillsForProperty()`, `getUsageTrend()` | Homeowner (caller must be bill owner) |
 | `deleteBill()` | Bill owner or admin |
-| `setPaymentCanisterId()`, `grantTier()` | Admin |
+| `setPaymentCanisterId()`, `setPropertyCanisterId()` | Admin |
 
 ### Cross-Canister Dependencies
 
@@ -1146,9 +1157,9 @@ Any canister can call `recordCanisterMetrics()` — no authentication required. 
 
 ## 17. Voice Agent Server
 
-**File:** `agents/voice/server.ts`
+**Files:** `agents/voice/src/index.ts` (Cloudflare Worker — production) and `agents/voice/server.ts` (legacy Express equivalent, port 3001)
 
-Express.js proxy (port 3001) between the frontend and the Claude API. Handles streaming chat, agentic tool-use loops, vision extraction, Stripe checkout, and operational endpoints.
+Proxy between the frontend and the Claude API. Handles streaming chat, agentic tool-use loops, vision extraction, Stripe checkout and webhooks, Bid to List routes, and operational endpoints. Both runtimes expose the same routes; the Worker keeps rate-limit counters in Workers KV instead of process memory. Rentcast lookups (`/api/rentcast/properties`) exist only on the Express server.
 
 ### Authentication
 
@@ -1163,16 +1174,18 @@ HMAC verification is skipped in development when `VOICE_API_KEY` is absent.
 
 ### Rate Limiting
 
-**Global:** 30 requests/min per IP on all `/api/` routes (express-rate-limit). Returns 429: `{ error: "Too many requests" }`. Skipped in `NODE_ENV === "test"`.
+**Global:** 30 requests/min per IP on all `/api/` routes (express-rate-limit on Express, KV counters on the Worker). Returns 429: `{ error: "Too many requests" }`. Skipped in `NODE_ENV === "test"`.
 
-**Per-tier daily agent call quota** (tracked by `agentLimiter`):
+**Per-tier agent call quota** (`TIER_LIMITS` / `TIER_PERIOD` / `CHAT_LIMITS` in `agentLimiter.ts`):
 
-| Tier | Agent Calls/Day | Chat Calls/Day |
-|------|-----------------|----------------|
-| Free / ContractorFree / RealtorFree | 0 | 3 |
-| Pro / ContractorPro / RealtorPro | 10 | Unlimited |
+| Tier | Agent Calls | Chat Calls/Day |
+|------|-------------|----------------|
+| Free | 10/week | 3 |
+| Pro | 10/day | Unlimited |
+| ContractorFree | 0 | 3 |
+| ContractorPro | 10/day | Unlimited |
 
-See `docs/AI_RATE_LIMITS.md` for the margin math behind Pro's 10/day limit.
+See `docs/AI_RATE_LIMITS.md` for the margin math behind these limits.
 
 If the tier quota is exhausted, the server attempts to consume an `agent_credit` from the payment canister. Returns 429 with `{ error: "daily_agent_limit_reached", creditsAvailable: bool }` if both are exhausted.
 
@@ -1273,6 +1286,61 @@ Response headers: `X-Agent-Calls-Used`, `X-Agent-Calls-Limit` — used by the UI
 Structured JSON log line per request: `{ ts, method, path, status, latencyMs, ip, principal }` → stdout (consumed by Datadog/Loki/CloudWatch).
 
 Graceful shutdown on SIGTERM/SIGINT: `httpServer.close()` with a 10-second force-exit fallback to allow in-flight SSE streams to drain.
+
+---
+
+## 18. Fee
+
+**File:** `backend/fee/main.mo`
+
+Platform-fee ledger for Bid to List. Records what the winning agent owes and whether it settled; the settled state is what lets `listing` release identities.
+
+### Data Types
+
+| Type | Fields / Values |
+|------|-----------------|
+| `FeeStatus` | `#Owed \| #Invoiced \| #Paid \| #Waived` |
+| `FeeRecord` | `id, requestId, proposalId, agentId, homeownerId, amountCents, status, createdAt, updatedAt` |
+
+### Lifecycle
+
+```
+listing.acceptProposal()          → fee.recordFeeOwed(...)   → #Owed   (listing canister or admin)
+admin                             → markFeeInvoiced(feeId)   → #Invoiced
+settled Stripe webhook (admin id) → markFeePaid(feeId)       → #Paid
+admin, 30-day "we did not sign"   → waiveFee(feeId)          → #Waived
+```
+
+`recordFeeOwed` is idempotent per request: a repeat call updates the existing record rather than creating a second fee.
+
+### Role-Based Access
+
+| Function | Who |
+|----------|-----|
+| `recordFeeOwed()` | Listing canister (wired via `setListingCanisterId`) or admin |
+| `markFeeInvoiced()`, `markFeePaid()`, `waiveFee()`, `getAllFees()`, `getFeesDue()` | Admin |
+| `getMyFees()` | Authenticated agent (own fees) |
+
+---
+
+## 19. Referrals
+
+**File:** `backend/referrals/main.mo`
+
+Each user gets a shareable code (`HG-000001`, created lazily by `getMyCode()`). A new user records the code with `useReferralCode(code)` at sign-up; when the payment canister reports their first paid month (`markConverted(referee)`), both sides receive a $10 credit (stored as 1000 cents). `getMyReferrals()` and `getCreditBalance()` are caller-scoped queries. Redeeming credits against a payment is not wired yet — this canister is the source of truth for balances and conversion state.
+
+| Function | Who |
+|----------|-----|
+| `getMyCode()`, `useReferralCode()`, `getMyReferrals()`, `getCreditBalance()` | Authenticated self |
+| `markConverted()` | Payment canister (wired via `setPaymentCanisterId`) or admin |
+
+---
+
+## 20. Audit
+
+**File:** `backend/audit/main.mo`
+
+Append-only log of privileged actions. Source canisters (wired with `setAuditCanisterId` and registered here with `addTrustedCanister`) call `log(canister, action, subject, detail)` fire-and-forget after admin operations. Entries can't be edited or deleted. Reads — `getEntries(from, limit)` and `getEntriesByCallerAndAction(caller, action)` — are admin-only. Anonymous callers are rejected.
 
 ---
 

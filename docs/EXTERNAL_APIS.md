@@ -36,9 +36,8 @@ directly in the app's checkout page — no redirect to Stripe-hosted pages.
 
 | Variable | Used by | Description |
 |---|---|---|
-| `STRIPE_SECRET_KEY` | `agents/voice/server.ts` | Server-side only. Starts with `sk_test_` (sandbox) or `sk_live_`. |
+| `STRIPE_SECRET_KEY` | voice Worker (`agents/voice/src/index.ts`; also `server.ts`) | Server-side only (Worker secret). Starts with `sk_test_` (sandbox) or `sk_live_`. |
 | `VITE_STRIPE_PUBLISHABLE_KEY` | `frontend/src/pages/CheckoutPage.tsx` | Client-side. Starts with `pk_test_` or `pk_live_`. |
-| `STRIPE_PRICE_PRO_MONTHLY` | server | `price_xxx` ID from Stripe dashboard |
 | `STRIPE_PRICE_PRO_YEARLY` | server | `price_xxx` ID |
 | `STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY` | server | `price_xxx` ID |
 | `STRIPE_PRICE_CONTRACTOR_PRO_YEARLY` | server | `price_xxx` ID |
@@ -51,7 +50,7 @@ No platform fee. See https://stripe.com/pricing
 ### Checkout flow
 
 ```
-PricingPage → /checkout?tier=Pro&billing=Monthly
+PricingPage → /checkout?tier=Pro&billing=Yearly
   └─ POST /api/stripe/create-subscription-intent
        1. stripe.customers.create({ email, metadata: { icp_principal, tier, billing } })
        2. stripe.subscriptions.create({ payment_behavior: 'default_incomplete', ... })
@@ -68,7 +67,7 @@ PricingPage → /checkout?tier=Pro&billing=Monthly
   └─ POST /api/stripe/verify-subscription
        1. stripe.paymentIntents.retrieve(paymentIntentId) — must be 'succeeded'
        2. stripe.subscriptions.retrieve(subscriptionId) — read metadata
-       3. dfx canister call payment adminActivateStripeSubscription (local dev)
+       3. payment.adminActivateStripeSubscription via @dfinity/agent (admin identity)
        Returns: { type: 'subscription', tier, billing }
 ```
 
@@ -97,21 +96,23 @@ PricingPage → /checkout?tier=Pro&billing=Monthly
 
 ### ICP canister activation
 
-After payment, the Express server calls the ICP `payment` canister to write the
-subscription tier server-side:
+After payment, the voice Worker calls the ICP `payment` canister directly with
+`@dfinity/agent` (`agents/voice/paymentCanister.ts`) to write the subscription
+tier server-side:
 
-```bash
-dfx canister call payment adminActivateStripeSubscription \
-  '(principal "<icp_principal>", variant { Pro }, 1)'
+```
+adminActivateStripeSubscription(principal "<icp_principal>", variant { Pro }, <months>)
 ```
 
-This calls `adminActivateStripeSubscription` in `backend/payment/main.mo`, which
-is guarded by `isAdmin(msg.caller)`. The Express process must be running under
-the same dfx identity that was added as an admin when the canister was deployed.
+`adminActivateStripeSubscription` in `backend/payment/main.mo` is guarded by
+`isAdmin(msg.caller)`, so the Worker signs with the Ed25519 identity in its
+`DFX_IDENTITY_PEM` secret, which must be an admin of the payment canister. No
+`dfx` binary is involved. If the secret is unset (typical locally) the call is
+skipped with a warning.
 
-**On mainnet**, replace the `dfx` CLI call with an ICP HTTP outcall or a
-server-to-canister call using the management canister — the `dfx` approach only
-works in local dev.
+The Stripe webhook (`/api/stripe/webhook`) handles
+`customer.subscription.updated`, `customer.subscription.deleted` and
+`invoice.payment_failed`, reverting the tier when a subscription lapses.
 
 ---
 
@@ -154,11 +155,13 @@ document classification, negotiation analysis, and maintenance digest generation
 
 **Used in:**
 - `agents/voice/anthropicProvider.ts` — API client
-- `agents/voice/server.ts` — all six AI endpoints (`/api/chat`, `/api/agent`,
-  `/api/maintenance/chat`, `/api/classify`, `/api/pulse`, `/api/negotiate`)
+- `agents/voice/src/index.ts` (Cloudflare Worker, production) and
+  `agents/voice/server.ts` (legacy Express) — the AI endpoints (`/api/chat`,
+  `/api/agent`, `/api/maintenance/chat`, `/api/classify`, `/api/pulse`,
+  `/api/negotiate`, `/api/extract-document`, `/api/extract-bill`, and others)
 
-**Notes:** The voice agent runs as a separate Express process (port 3001) and acts
-as a secure proxy so the API key is never exposed to the browser.
+**Notes:** The voice agent runs outside ICP (Cloudflare Worker in production) and
+acts as a secure proxy so the API key is never exposed to the browser.
 
 ---
 

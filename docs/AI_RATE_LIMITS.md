@@ -7,7 +7,7 @@ HomeGentic uses Claude (claude-sonnet-4-6) for two categories of AI calls. These
 | Category | Endpoint | Avg cost/call | Counted toward limit |
 |---|---|---|---|
 | **Agent calls** | `POST /api/agent` | ~$0.030 (avg 3 tool-use turns) | **Yes** |
-| **Chat calls** | `POST /api/chat`, `/api/maintenance-chat` | ~$0.007 | No |
+| **Chat calls** | `POST /api/chat`, `/api/maintenance/chat` | ~$0.007 | No |
 | Document extraction | `POST /api/extract-document` | ~$0.005 | No |
 | Other AI features | billing analysis, internet check, etc. | ~$0.005–$0.015 | No |
 
@@ -26,8 +26,8 @@ a per-tier period — daily for every tier except Free, which resets weekly
 | **Pro** ($59/yr) | 10/day | Unlimited | The only purchasable homeowner plan |
 | **ContractorFree** | 0 | 3 | No agentic access |
 | **ContractorPro** ($40/mo) | 10/day | Unlimited | |
-| **RealtorFree** | 0 | 3 | No agentic access |
-| **RealtorPro** ($30/mo) | 10/day | Unlimited | Same as ContractorPro |
+
+Realtors have no subscription tier (they pay a per-award Bid to List fee), so they fall under whichever tier their principal resolves to — Free unless they've subscribed.
 
 Homeowner pricing collapsed from three tiers (Basic/Pro/Premium) to a single
 $59/year Pro plan carrying the old Premium tier's property (20), photo

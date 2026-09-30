@@ -24,7 +24,7 @@ A complete profile earns more quote invitations and homeowner trust.
    - Service area and ZIP codes
    - Specialties (HVAC, Plumbing, Electrical, Roofing, etc.)
    - Profile photo
-3. Save — your public profile is now live at `/contractors/<your-id>`.
+3. Save — your public profile is now live at `/contractor/<your-id>`.
 
 > Your license number is displayed on your public profile and on every co-signed job record, building verifiable trust with homeowners.
 
@@ -34,7 +34,7 @@ A complete profile earns more quote invitations and homeowner trust.
 
 Homeowners post quote requests for specific jobs. You'll be notified when one matches your service area and specialties.
 
-1. Open **Quotes** from the sidebar.
+1. Open your **Dashboard** (`/contractor-dashboard`) — open requests matching your service area appear as leads.
 2. Review the job description, property address, and requested timeline.
 3. Click **Submit Bid** to respond with your price and estimated start date.
 4. The homeowner selects a contractor — you'll be notified if chosen.

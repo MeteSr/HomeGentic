@@ -26,7 +26,7 @@ rewiring screens.
 | `/` | LandingPage | Marketing homepage |
 | `/login` | LoginPage | Internet Identity auth |
 | `/pricing` | PricingPage | Homeowner plan page (single Pro plan, $59/year); links to `/for-pros` |
-| `/for-pros` | ForProsPage | Contractor and Realtor plan selector (ContractorPro / RealtorPro) |
+| `/for-pros` | ForProsPage | Contractor plan selector (Contractor Free / ContractorPro) |
 | `/privacy` | PrivacyPolicyPage | Privacy policy |
 | `/terms` | TermsOfServicePage | Terms of service |
 | `/support` | SupportPage | Contact / support |
@@ -55,6 +55,7 @@ rewiring screens.
 | `/instant-forecast` | InstantForecastPage | 10-year maintenance cost forecast from address + year built; system-age overrides inline |
 | `/home-systems` | HomeSystemsEstimatorPage | Urgency table for 9 home systems from year built; shareable URL |
 | `/truth-kit` | BuyersTruthKitPage | Buyer's due-diligence kit: permit records, credibility flags, questions to ask before closing |
+| `/sample-report` | SampleReportPage | Example HomeGentic report with demo data |
 
 > `/neighborhood/:zipCode` (NeighborhoodHealthPage) is implemented but currently disabled in routing.
 
@@ -63,10 +64,12 @@ rewiring screens.
 | Route | Page | Notes |
 |---|---|---|
 | `/register` | RegisterPage | 3-step wizard: role → email/phone → terms |
-| `/onboarding` | OnboardingWizard | First-time homeowner setup (6 steps) |
 | `/settings` | SettingsPage | Account, subscription, notifications, privacy |
-| `/dashboard` | DashboardPage | Homeowner hub |
-| `/properties/new` | PropertyRegisterPage | Register a property |
+| `/dashboard` | DashboardPage → DashboardV3 | Homeowner hub (v3 rail dashboard; see below) |
+| `/plans` | MobilePlansPage | Plan picker (mobile layout) |
+| `/refer` | ReferralPage | Referral code, referrals made, credit balance |
+| `/people` | PeoplePage | Shared property access (managers, viewers, approvals) — Pro |
+| `/jobs` | JobsPage | All jobs across the homeowner's properties |
 | `/properties/:id` | PropertyDetailPage | Full property view (multi-tab) |
 | `/properties/:id/verify` | PropertyVerifyPage | Upload ownership documents |
 | `/properties/:id/systems` | SystemAgesPage | Manage system ages |
@@ -88,12 +91,18 @@ rewiring screens.
 | `/contractor/:id` | ContractorPublicPage | Contractor public profile |
 | `/contractor/profile` | ContractorProfilePage | Edit own contractor profile |
 | `/contractor-dashboard` | ContractorDashboardPage | Contractor leads + quotes + earnings |
-| `/agents` | AgentBrowsePage | Browse realtor directory |
-| `/agent/:id` | AgentPublicPage | Realtor public profile |
-| `/agent/profile` | AgentProfileEditPage | Edit own realtor profile + co-branding |
-| `/agent-dashboard` | AgentDashboardPage | Realtor's shared report links |
-| `/agent/marketplace` | AgentMarketplacePage | Browse listing intents, submit proposals |
+| `/agents/verify` | AgentVerifyPage | Realtor licence verification + card on file — must pass before bidding (Bid to List A1) |
+| `/agents/browse` | AgentListingsPage | Masked listing opportunities open for bids (A2) |
+| `/agents/listings/:id/bid` | AgentBidFormPage | Submit sealed terms on a listing (A3) |
+| `/agents/bids` | AgentBidsPage | Agent's bid status board (A4) |
+| `/agents/bids/:id` | AgentAwardPage | Award: fee receipt, seller identity, record access (A5) |
 | `/admin` | AdminDashboardPage | Admin only |
+
+The `/agents/*` routes are realtor-only (`RealtorRoute`). `/insurance-defense` and `/resale-ready` require Pro (`PaidHomeownerRoute`).
+
+**Redirects (legacy routes):** `/properties/new`, `/onboarding`, `/agent-dashboard` and `/agent/:id` → `/dashboard` (adding a property and onboarding happen in the dashboard's Add Property wizard); `/agents` and `/agent/marketplace` → `/agents/browse`; `/agent/profile` → `/agents/verify`; unknown routes → `/`.
+
+`/properties/:id/verify` is a nested flow: `identity`, `document`, `representative`, `status`, `expired`, `contested`.
 
 ---
 
@@ -134,14 +143,16 @@ rewiring screens.
 
 ### Homeowner Dashboard (`/dashboard`)
 
-- Property cards (all owned properties) with score and quick actions
-- Score summary with sparkline trend
-- Activity feed (jobs logged, score changes, alerts)
-- Quick-action buttons: Add Property · Log Job · Request Quote · Generate Report
-- Weekly Home Pulse (AI maintenance tips, toggleable)
-- Market Intelligence panel (competitive analysis, top ROI projects)
-- Recurring services panel (list + quick-add)
-- FSBO listing initiation CTA
+`DashboardPage` renders **`DashboardV3`** (`frontend/src/components/dashboardV3/`) on desktop and `MobileHomeDashboard` on phones.
+
+- **Top bar** — brand, property switcher + add-property, Plus/Pro pill, AI-calls-left counter, light/dark toggle (light is the default), "watching" status, activity bell, avatar menu
+- **Left rail of panel chips** — Awaiting, Score, Property, Market, Forecast, Maint, Jobs, Pros, Sensors, Safety, Docs, Rooms, People (Pro), Spend, Activity, Billing; counts on the right of each chip; the active chip is solid yellow. A dashed **Contractors ↗** chip links out to `/contractors`
+- **Resting stage** — HomeGentic score (with 12-month trend), Home Pulse headline, and the **home brief**: a rule-based list of what needs the homeowner today (sensor alerts, approvals, bids, countersignatures, visits due, payments, decay warnings, end-of-life systems, bill spikes, pending invites)
+- **Panels** — tapping a chip opens that panel in the stage (e.g. Score breakdown, Forecast, Spend)
+- **Ask bar** — "Ask about your home": type or tap the mic; answers render as answer cards and are read aloud (voice agent)
+- **Flows (modals)** — add room, log job, add receipt, request quote, add recurring service, start listing, review bids, chase a countersignature, upgrade; new users with no property get the Add Property wizard automatically
+
+Every other authenticated page uses the same top bar and chip rail via `Layout.tsx`.
 
 ---
 
@@ -415,30 +426,19 @@ Multi-tab page — the main workspace for a property.
 
 ---
 
-### Realtor / Agent Features
+### Realtor / Agent Features (Bid to List)
 
-**Dashboard (`/agent-dashboard`)**
-- All report share links created across client properties
-- View counts, expiry dates per link
-- Revoke link
-- Copy link
+Realtors compete for homeowners' listings in a sealed-bid auction. Identities stay masked until the winning agent's platform fee settles.
 
-**Marketplace (`/agent/marketplace`)**
-- Browse active listing intents from homeowners
-- View property, desired price, agent competition
-- Submit proposal (commission %, est. net proceeds, timeline)
+**Verify (`/agents/verify`)** — licence verification and card on file; required before any listing is visible.
 
-**Profile edit (`/agent/profile`)**
-- Name, brokerage, phone, logo URL
-- Co-branding preview (how it looks on shared reports)
+**Browse (`/agents/browse`)** — masked opportunity feed. The open-slot count is the only cross-agent signal shown; never bid counts, bid contents or competitor identity.
 
-**Public profile (`/agent/:id`)**
-- Name, brokerage, closed deals count
-- Client property score distribution
-- Reviews and contact info
+**Bid (`/agents/listings/:id/bid`)** — submit sealed terms; the agent sees up front how the seller will see the bid.
 
-**Directory (`/agents`)**
-- Browse realtors by location and specialties
+**My bids (`/agents/bids`)** — status board. Agents are never told what others bid, how many bids a listing has, or why they lost.
+
+**Award (`/agents/bids/:id`)** — fee receipt, seller identity and record access, available once the platform fee ($399 default) has settled.
 
 ---
 
@@ -497,7 +497,7 @@ allowance is both smaller and paced weekly).
 
 Contractor tiers: **ContractorFree** (profile + view leads, 3% referral fee per winning bid, $20 minimum) · **ContractorPro** ($40/mo, quote submissions + earnings dashboard + reviews)
 
-Realtor tiers: **RealtorFree** (profile + bid on listing requests, $100/won bid) · **RealtorPro** ($30/mo, unlimited bids + priority placement + verified badge + 10 AI calls/day)
+Realtors have no subscription tier: the winning agent in a Bid to List auction pays a one-time platform fee (`listing.getPlatformFee()`, $399 default).
 
 ---
 

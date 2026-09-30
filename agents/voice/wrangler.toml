@@ -33,13 +33,8 @@ crons = ["0 * * * *"]   # every hour — fires scheduledBidtolist (deadline remi
 #   DFX_IDENTITY_PEM              Ed25519 PEM for ICP canister admin calls
 #   CANISTER_ID_PAYMENT
 #
-# Stripe price IDs (one per plan × billing cycle):
-#   STRIPE_PRICE_BASIC_MONTHLY
-#   STRIPE_PRICE_BASIC_YEARLY
-#   STRIPE_PRICE_PRO_MONTHLY
+# Stripe price IDs (Pro is annual-only; PRO_MONTHLY is accepted but unused):
 #   STRIPE_PRICE_PRO_YEARLY
-#   STRIPE_PRICE_PREMIUM_MONTHLY
-#   STRIPE_PRICE_PREMIUM_YEARLY
 #   STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY
 #   STRIPE_PRICE_CONTRACTOR_PRO_YEARLY
 #   STRIPE_PRICE_CREDITS_25

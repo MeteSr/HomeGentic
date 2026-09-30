@@ -7,10 +7,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Development
 ```bash
 make dev          # Start local ICP network, deploy all canisters, run frontend (all-in-one)
+make dev-full     # Network + canisters + frontend + voice agent + admin dashboard
 make start        # icp network start -d (network only)
-make deploy       # bash scripts/deploy.sh (all 17 canisters)
-make frontend     # cd frontend && npm run dev (Vite dev server at :5173)
+make deploy       # bash scripts/deploy.sh (all 20 backend canisters + frontend)
+make deploy-one CANISTER=payment   # Deploy a single canister
+make frontend     # cd frontend && npm run dev (Vite dev server at :3000)
+make check-motoko # Compile-check every canister with `icp build` (no network needed)
 ```
+
+The canister CLI is **icp-cli** (`npm install -g @icp-sdk/icp-cli`; `icp.yaml` is the project config). `dfx.json` is still present for `dfx generate` (declarations), the PocketIC upgrade tests (which build with `dfx build`), and the bash canister test suites (`backend/*/test.sh`, which call `dfx canister call`).
 
 The voice agent runs separately (Cloudflare Workers via wrangler):
 ```bash
@@ -28,9 +33,19 @@ cd frontend && npm run test:unit:coverage
 npm run test:e2e
 npm run test:e2e:ui
 
+# Visual regression (Playwright pixel diffs, mock mode — no replica)
+npm run test:visual
+npm run test:visual:update   # regenerate baselines
+
 # Backend canister tests (bash, requires deployed canisters)
 make test                  # alias for bash scripts/test-backend.sh
 ```
+
+Local visual baselines don't match CI (different fonts/Chromium build), so don't commit locally regenerated PNGs. When a PR intentionally changes the UI, CI's `test-visual` fails and `test-visual-heal` commits baselines regenerated on the CI runner back to the branch — review those images.
+
+### Stable-memory compatibility (IMPORTANT)
+
+Canisters use enhanced orthogonal persistence: an upgrade whose stable types aren't compatible with the running version (e.g. a new non-optional field on a record stored in a `Map`) is rejected with `Memory-incompatible program upgrade`, and the only way out is a reinstall that wipes data. The `stable-compat-check` CI job (`scripts/ci/check-stable-compat.sh`) compares every canister's stable types against the PR's base and fails on a break. Add new record fields as `?T`. An intentional break needs the `allow-stable-break` label, and on testnet `scripts/deploy.sh` only reinstalls canisters listed in its `TESTNET_REINSTALL_OK` allow-list (empty by default); mainnet never reinstalls.
 
 ### E2E test maintenance (IMPORTANT)
 
@@ -55,15 +70,16 @@ Run `CI=true npx playwright test` after any frontend change that touches pages, 
 ### Canister operations
 ```bash
 make status       # Show canister IDs and health
-make upgrade      # Safe canister upgrade (preserves state)
-make clean        # Reset local dfx state
+make upgrade      # Upgrade the core canisters in place (auth, property, job, contractor, quote, payment, photo, monitoring)
+make logs         # Tail recent logs for the key canisters
+make clean        # Reset local ICP network state
 bash scripts/init-test-data.sh   # Seed test users and properties
 ```
 
 ### Frontend build
 ```bash
 cd frontend && npm run build    # Outputs to frontend/dist/ (served by assets canister)
-dfx generate                    # Regenerate Candid bindings after .mo changes
+bash scripts/generate-declarations.sh   # Regenerate Candid bindings after .mo changes (needs dfx)
 ```
 
 ## Architecture
@@ -71,31 +87,35 @@ dfx generate                    # Regenerate Candid bindings after .mo changes
 ### Monorepo Layout
 
 ```
-backend/          17 Motoko canisters (each has main.mo)
+backend/          20 Motoko canisters (each has main.mo) + shared/ (e.g. ServiceType.mo)
 frontend/         React + TypeScript SPA (Vite)
-agents/voice/     Node.js/Express proxy for Claude voice agent
-agents/iot-gateway/  IoT event ingestion (future)
+agents/voice/     Claude voice/AI proxy — Cloudflare Worker (src/index.ts) in production; server.ts is the legacy Express equivalent
+agents/email/     Lead-form email relay (Cloudflare Worker → Resend)
+agents/notifications/  Push relay (APNs / FCM / VAPID web push)
+agents/iot-gateway/    Smart-home webhook ingestion → sensor canister
 dashboard/        Standalone monitoring SPA (admin use)
-tests/e2e/        Playwright tests
-scripts/          Bash deploy/upgrade/test scripts
-docs/             ARCHITECTURE.md, API.md, DEPLOYMENT.md, SECURITY.md, AI_RATE_LIMITS.md
+mobile/           Expo React Native app
+tests/e2e/        Playwright tests (functional, visual, a11y)
+tests/upgrade/    PocketIC upgrade-persistence tests
+scripts/          Bash deploy/upgrade/test scripts; scripts/ci/ holds CI gates
+docs/             ARCHITECTURE.md, API.md, SYSTEMS.md, FEATURES.md, DEPLOYMENT.md, SECURITY.md, AI_RATE_LIMITS.md, UPGRADE_RUNBOOK.md
 ```
 
 ### ICP Canister Map
 
-All 17 active canisters use `persistent actor` (Motoko mo:core) — all variables are implicitly stable, so no `preupgrade`/`postupgrade` hooks are needed. `transient var` is used for in-memory structures that should reset on upgrade (e.g. rate-limit sliding-window maps). Each exports a `metrics()` query and `pause()`/`unpause()` admin capability.
+All 20 canisters use `persistent actor` (Motoko mo:core) — all variables are implicitly stable, so no `preupgrade`/`postupgrade` hooks are needed. `transient var` is used for in-memory structures that should reset on upgrade (e.g. rate-limit sliding-window maps). Each exports a `metrics()` query and `pause()`/`unpause()` admin capability.
 
 | Canister | Responsibility |
 |---|---|
-| **auth** | User profiles, roles (Homeowner / Contractor / Realtor) |
+| **auth** | User profiles, roles (Homeowner / Contractor / Realtor / Builder) |
 | **property** | Registration, ownership verification (Unverified → PendingReview → Basic → Premium), 7-day conflict window; also owns room/fixture CRUD (merged from old `room` canister) |
 | **job** | Maintenance records, dual-signature verification (homeowner + contractor, or DIY homeowner-only) |
 | **contractor** | Profiles, trust scores, rate-limited reviews (10/day/user, composite key deduplication) |
-| **quote** | Quote requests & contractor bids, tier-enforced open-request limits |
+| **quote** | Quote requests & contractor bids, tier-enforced open-request limits; vetKD-sealed bids |
 | **payment** | Subscription tier management & expiry; also owns pricing table queries — `getPricing(tier)` / `getAllPricing()` (merged from old `price` canister) |
-| **photo** | SHA-256 deduplication, tier-based quotas, multi-approval for sensitive records |
+| **photo** | Photo bytes stored on-chain, SHA-256 deduplication, tier-based quotas, multi-approval for sensitive records |
 | **report** | Immutable report snapshots, share links with visibility levels & revocation |
-| **market** | ROI-ranked project recommendations (2024 Remodeling Magazine data) |
+| **market** | ROI-ranked project recommendations (2024 Remodeling Magazine data); HomeGentic score (returned vetKD-encrypted to the owner) |
 | **maintenance** | Predictive scheduling, system lifespan estimates, seasonal task generation |
 | **sensor** | IoT device registry (12 device types: Nest, Ecobee, Moen Flo, Ring Alarm, Honeywell Home, Rheem EcoNet, Sense, Emporia Vue, Rachio, SmartThings, Home Assistant, Manual); auto-creates pending jobs for Critical events |
 | **monitoring** | Cycles usage, cost metrics, profitability (ARPU/LTV/CAC), alerting |
@@ -103,36 +123,40 @@ All 17 active canisters use `persistent actor` (Motoko mo:core) — all variable
 | **agent** | Realtor profiles, reviews, HomeGentic transaction count |
 | **recurring** | Recurring service contracts (HVAC, pest, landscaping) and visit logs |
 | **bills** | Utility bill storage per property; 3-month rolling anomaly detection (>20% spike flagged); feeds Activity feed bell drawer |
-| **ai_proxy** | IC HTTP outcalls: permit imports (ArcGIS / OpenPermit) and transactional email (Resend) |
+| **ai_proxy** | IC HTTP outcalls: permit imports (ArcGIS / OpenPermit), property-record lookups, and transactional email (Resend) |
+| **fee** | Bid to List platform-fee ledger (Owed → Invoiced → Paid / Waived); identities are released only after the fee settles |
+| **referrals** | Referral codes (`HG-000001`) and $10 credits for both sides after the referee's first paid month |
+| **audit** | Append-only log of privileged (admin) actions, written fire-and-forget by the other canisters |
 
 ### Tier System (enforced server-side in multiple canisters)
 
+Two homeowner tiers — **Free** and **Pro ($59/year, annual only)** — plus two contractor tiers. A principal with no subscription is Free. `payment` is the single source of truth: `property`, `quote`, `photo` and `bills` read the caller's tier live with `getTierForPrincipal` (no local caches; fail closed to Free if `payment` isn't wired).
+
 | Tier | Properties | Photos/Job | Open Quotes | Price |
 |---|---|---|---|---|
-| Basic | 1 | 5 | 3 | $10/mo |
-| Pro | 5 | 10 | 10 | $20/mo |
-| Premium | 20 | 30 | unlimited | $40/mo |
+| Free | 1 | 5 | 3 | $0 |
+| Pro | 20 | 30 | unlimited | $59/yr |
 | ContractorFree | 0 | 5 | unlimited | $0 + 3% referral fee per winning bid, $20 min |
-| ContractorPro | unlimited | 50 | unlimited | $40/mo |
-| RealtorFree | 0 | 5 | unlimited | $0 |
-| RealtorPro | 0 | 50 | unlimited | $30/mo |
+| ContractorPro | 0 | 50 | unlimited | $40/mo (or yearly) |
 
-### AI Agent Rate Limits (enforced in Express voice server)
+Realtors have no subscription tier: the winning agent in a Bid to List auction pays a one-time platform fee (`listing.getPlatformFee()`, $399 default), tracked in the `fee` canister.
 
-Agent calls (agentic tool-use loop) are counted separately from chat calls. See `docs/AI_RATE_LIMITS.md` for full financial basis and implementation notes.
+### AI Agent Rate Limits (enforced in the voice agent)
 
-| Tier | Agent calls/day | Chat calls/day |
+Agent calls (agentic tool-use loop) are counted separately from chat calls. Limits live in `agents/voice/agentLimiter.ts` (`TIER_LIMITS`, `TIER_PERIOD`, `CHAT_LIMITS`). See `docs/AI_RATE_LIMITS.md` for the financial basis.
+
+| Tier | Agent calls | Chat calls/day |
 |---|---|---|
-| Free / ContractorFree / RealtorFree | 0 | 3 |
-| Basic | 5 | Unlimited |
-| Pro / ContractorPro / RealtorPro | 10 | Unlimited |
-| Premium | 20 | Unlimited |
+| Free | 10/week | 3 |
+| Pro | 10/day | Unlimited |
+| ContractorFree | 0 | 3 |
+| ContractorPro | 10/day | Unlimited |
 
 ### Frontend Service Layer
 
 `frontend/src/services/actor.ts` creates the ICP `HttpAgent`. In local dev it uses a fixed-seed Ed25519 identity to survive hot-reloads without re-authenticating. In production it uses `@dfinity/auth-client` (Internet Identity).
 
-Each service file (e.g. `job.ts`, `property.ts`) contains the Candid IDL factory inline and a mock-fallback pattern:
+Each service file (e.g. `job.ts`, `property.ts`) imports its canister's IDL from `frontend/src/declarations/<canister>/` and follows a mock-fallback pattern:
 ```typescript
 if (!CANISTER_ID) return mockData;   // canister not deployed → use mock
 ```
@@ -150,43 +174,37 @@ Zustand stores in `frontend/src/store/`:
 - `authStore` — `isAuthenticated`, `principal`, `profile`, `isLoading`
 - `propertyStore` — cached `properties[]`
 - `jobStore` — cached `jobs[]`
+- `addPropertyStore` — open/close state for the Add Property wizard
 
 Auth flow: `AuthContext.tsx` wraps the app and exposes `login()` / `devLogin()` / `logout()`. `devLogin()` skips Internet Identity (only available when `import.meta.env.DEV`).
 
 ### Voice Agent
 
-`agents/voice/server.ts` (Express, port 3001) exposes:
+Production runs the Cloudflare Worker `agents/voice/src/index.ts` (deployed by CI with `wrangler deploy`; rate-limit counters in Workers KV). `agents/voice/server.ts` is the older Express equivalent (port 3001, `npm start`) with the same routes. Main endpoints:
 - `POST /api/chat` — SSE streaming chat (max 200 tokens, 2-3 sentence voice responses)
 - `POST /api/agent` — Agentic tool-use loop returning tool_calls or final answer
+- Plus document/bill extraction, Stripe checkout + webhook, Bid to List routes, and `/health` — see `docs/SYSTEMS.md` §17.
 
-The frontend `useVoiceAgent` hook (`frontend/src/hooks/useVoiceAgent.ts`) handles:
+In the app, voice lives in the dashboard's "Ask about your home" bar (`DashboardV3`), driven by the `useVoiceAgent` hook (`frontend/src/hooks/useVoiceAgent.ts`):
 1. Web Speech API → user speech captured
 2. `buildContext()` fetches live properties + jobs from ICP canisters
 3. POST to `/api/agent` with context
-4. SSE stream → text chunks rendered in speech bubble
+4. SSE stream → text chunks rendered in the answer card
 5. Browser `SpeechSynthesis` reads the full response aloud
 6. Max 5 agentic turns per interaction for safety
 
-Tool definitions for Claude live in `frontend/src/services/agentTools.ts` (frontend side, used for UI) and `agents/voice/tools.ts` (server side, sent to Claude API). Requires `ANTHROPIC_API_KEY` in `.env`.
+Tool definitions for Claude live in `frontend/src/services/agentTools.ts` (frontend side, used for UI) and `agents/voice/tools.ts` (server side, sent to Claude API). The model is set by `AI_MODEL` in `agents/voice/wrangler.toml`. Requires `ANTHROPIC_API_KEY`.
 
 ### Design System
 
-The app uses an editorial "blueprint" aesthetic — no CSS framework. All styling is inline React styles. Key tokens (defined as `const S = {...}` at the top of each component file):
+No CSS framework — styling is inline React styles plus a few global classes in `frontend/src/index.css`. Two token sets:
 
-```typescript
-ink: "#0E0E0C"      // Near-black text
-paper: "#F4F1EB"    // Warm off-white background
-rule: "#C8C3B8"     // Warm gray borders
-rust: "#C94C2E"     // Rust red — primary accent
-inkLight: "#7A7268" // Muted text
-serif: "'Playfair Display', Georgia, serif"   // Headings (700/900 weight)
-mono: "'IBM Plex Mono', monospace"            // Labels, nav, code
-sans: "'IBM Plex Sans', sans-serif"           // Body text (weight 300–500)
-```
+- **`frontend/src/theme.ts`** — app-wide `V2_COLORS` (cobalt `#2B34FF` primary, yellow `#FFD23F` highlight, `#0B0D1A` ink), `V2_FONTS` (Bricolage Grotesque display, Hanken Grotesk body, JetBrains Mono labels), `V2_RADIUS` (pill 100, card 16, input 10). Older `COLORS`/`FONTS`/`RADIUS` exports are deprecated.
+- **`.hg-v3` tokens** (`frontend/src/components/dashboardV3/dashboardV3.css`) — the v3 palette as CSS custom properties (`--hg-bg`, `--hg-ink`, `--hg-line`, `--hg-blue`, `--hg-yel`, …) with light (default, `data-theme="light"`) and dark modes. Neutral black/white with cobalt and yellow accents.
 
-Rules: **no border-radius anywhere** (sharp editorial corners), borders are `1px solid #C8C3B8`, section labels are mono uppercase ~0.65rem with letter-spacing. Google Fonts loaded in `frontend/index.html`.
+**App shell.** `/dashboard` renders `DashboardV3` (top bar + left chip rail + panels + ask bar). Every other authenticated page is wrapped in `Layout.tsx`, whose desktop chrome uses the same top bar and chip rail; `dashboardV3/chrome.tsx` (`BrandMark`, `railChipStyle`, `RailChipCount`, `SHELL_PAGE_MIN_HEIGHT`) is shared by both so they can't drift. The active rail chip is solid yellow. Mobile keeps its own header, bottom nav and FAB.
 
-Shared styled components: `Button.tsx`, `Badge.tsx`, `Layout.tsx`, `VoiceAgent.tsx`.
+Google Fonts are loaded in `frontend/index.html`.
 
 ### E2E Testing Notes
 
@@ -197,7 +215,7 @@ Playwright tests use `window.__e2e_properties` and similar globals to inject moc
 Copy `.env.example` to `.env`. Key vars:
 ```
 DFX_NETWORK=local
-ANTHROPIC_API_KEY=sk-ant-...     # Required for voice agent
+ANTHROPIC_API_KEY=sk-ant-...     # Required for voice agent (local .env; Worker secrets in production)
 VOICE_AGENT_PORT=3001
 FRONTEND_ORIGIN=http://localhost:3000
 VITE_VOICE_AGENT_URL=http://localhost:3001

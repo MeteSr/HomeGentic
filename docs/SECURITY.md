@@ -146,8 +146,8 @@ public shared(msg) func addAdmin(newAdmin: Principal, nonce: Text)
 **Deploy sequence (handled automatically by `scripts/deploy.sh`):**
 ```bash
 NONCE=$(openssl rand -hex 16)
-dfx canister call property setBootstrapNonce "($NONCE)"
-dfx canister call property addAdmin "(principal \"$DEPLOYER\", \"$NONCE\")"
+icp canister call property setBootstrapNonce "(\"$NONCE\")" -e "$ENV"
+icp canister call property addAdmin "(principal \"$DEPLOYER\", \"$NONCE\")" -e "$ENV"
 ```
 
 **Upgrade behaviour:** On canister upgrade `adminInitialized` is preserved (stable
