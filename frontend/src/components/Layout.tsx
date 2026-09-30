@@ -268,7 +268,7 @@ export function Layout({ children, hideSidebar = false }: { children: React.Reac
                 style={railChipStyle({ on: active })}
               >
                 {link.label}
-                <RailChipCount>{link.badge ? link.badge : ""}</RailChipCount>
+                <RailChipCount on={active}>{link.badge ? link.badge : ""}</RailChipCount>
               </Link>
             );
           })}

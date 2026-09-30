@@ -1,14 +1,18 @@
 /**
  * DashboardV3 — scoped design tokens.
  *
- * The v3 dashboard mockup ("HomeGentic Dashboard v3 left nav") runs a dark,
- * cobalt/yellow "HUD" palette with its own light mode — a deliberate
+ * The v3 dashboard mockup ("HomeGentic Dashboard v3 palette") runs a
+ * neutral black/white palette with cobalt and yellow accents, in dark and
+ * light modes (light is the app default) — a deliberate
  * departure from the rest of the app's single light V2_COLORS palette. It is
  * scoped entirely to `.hg-v3` (via CSS custom properties) rather than
  * touching theme.ts, so the rest of the app is unaffected.
  *
  * Colors mirror the shipped mockup 1:1 (see the design handoff bundle,
- * `HomeGentic Dashboard v3 left nav.dc.html`).
+ * `HomeGentic Dashboard v3 palette - standalone.html`). --hg-chip-on is
+ * the one exception: every use here is text on --hg-blue, so it stays white
+ * rather than the mockup's #000 (the mockup's active rail chip uses
+ * --hg-on-yel on --hg-yel instead).
  *
  * This is a real stylesheet (imported once at module load, via Vite's CSS
  * import handling) rather than a React-rendered <style> child — a
@@ -16,16 +20,17 @@
  * (variables briefly unresolved, tripping color-contrast checks).
  */
 .hg-v3 {
-  --hg-bg: #0B0D1A; --hg-surface: #12142A; --hg-ink: #FCFCFD; --hg-ink-2: #E7E9F2; --hg-ink-3: #C6C9D4;
-  --hg-muted: #8E93A8; --hg-dim: rgba(252,252,253,0.3); --hg-line: rgba(252,252,253,0.10); --hg-line-2: rgba(252,252,253,0.16);
-  --hg-fill: rgba(252,252,253,0.05); --hg-fill-2: rgba(252,252,253,0.07);
-  --hg-blue-wash: rgba(43,52,255,0.10); --hg-blue-fill: rgba(43,52,255,0.20); --hg-blue-edge: rgba(43,52,255,0.55);
-  --hg-blue-ink: #9EA4FF; --hg-blue-soft: #7C83FF; --hg-blue: #2B34FF; --hg-chip-on: #FCFCFD;
-  --hg-good: #9EA4FF; --hg-good-wash: rgba(43,52,255,0.14); --hg-good-edge: rgba(43,52,255,0.5);
+  --hg-bg: #000000; --hg-surface: #111111; --hg-ink: #FFFFFF; --hg-ink-2: #F2F2F2; --hg-ink-3: #CFCFCF;
+  --hg-muted: #8F8F8F; --hg-dim: rgba(255,255,255,0.3); --hg-line: rgba(255,255,255,0.10); --hg-line-2: rgba(255,255,255,0.18);
+  --hg-fill: rgba(255,255,255,0.045); --hg-fill-2: rgba(255,255,255,0.08);
+  --hg-blue-wash: rgba(43,52,255,0.12); --hg-blue-fill: rgba(43,52,255,0.24); --hg-blue-edge: rgba(43,52,255,0.65);
+  --hg-blue-ink: #A3A8FF; --hg-blue-soft: #8088FF; --hg-blue: #2B34FF; --hg-chip-on: #FFFFFF;
+  --hg-good: #A3A8FF; --hg-good-wash: rgba(43,52,255,0.14); --hg-good-edge: rgba(43,52,255,0.55);
   --hg-bad: #FF5C39; --hg-bad-soft: #FF8F72; --hg-warn: #FFD23F;
-  --hg-trend: rgba(255,210,63,0.28); --hg-trend-last: #FFD23F;
-  --hg-yel: #FFD23F; --hg-yel-ink: #FFD23F; --hg-yel-wash: rgba(255,210,63,0.10); --hg-yel-fill: rgba(255,210,63,0.18); --hg-yel-edge: rgba(255,210,63,0.5);
-  --hg-shadow: rgba(0,0,0,0.55);
+  --hg-trend: rgba(255,255,255,0.16); --hg-trend-last: #FFD23F;
+  --hg-yel: #FFD23F; --hg-yel-ink: #FFD23F; --hg-yel-wash: rgba(255,210,63,0.10); --hg-yel-fill: rgba(255,210,63,0.20); --hg-yel-edge: rgba(255,210,63,0.55);
+  --hg-on-yel: #000000;
+  --hg-shadow: rgba(0,0,0,0.7);
   /* Categorical chart series — validated (CVD + contrast) against --hg-surface per theme. */
   --hg-viz-1: #3987e5; --hg-viz-2: #d95926;
   background: var(--hg-bg);
@@ -34,16 +39,17 @@
   overflow: hidden;
 }
 .hg-v3[data-theme="light"] {
-  --hg-bg: #F4F5FA; --hg-surface: #FFFFFF; --hg-ink: #0B0D1A; --hg-ink-2: #2A2E3F; --hg-ink-3: #4A4F60;
-  --hg-muted: #6B7080; --hg-dim: #B9BDC8; --hg-line: #E6E7EE; --hg-line-2: #D9DBE4;
-  --hg-fill: #FFFFFF; --hg-fill-2: #EFF0F6;
+  --hg-bg: #FFFFFF; --hg-surface: #FFFFFF; --hg-ink: #000000; --hg-ink-2: #141414; --hg-ink-3: #3D3D3D;
+  --hg-muted: #6B6B6B; --hg-dim: #BDBDBD; --hg-line: #EBEBEB; --hg-line-2: #DCDCDC;
+  --hg-fill: #FFFFFF; --hg-fill-2: #F5F5F3;
   --hg-blue-wash: #EEF0FF; --hg-blue-fill: #E0E2FF; --hg-blue-edge: #B9BDF5;
-  --hg-blue-ink: #2B34FF; --hg-blue-soft: #3A43FF; --hg-chip-on: #1F2794;
+  --hg-blue-ink: #2B34FF; --hg-blue-soft: #2B34FF; --hg-chip-on: #FFFFFF;
   --hg-good: #2B34FF; --hg-good-wash: #EEF0FF; --hg-good-edge: #B9BDF5;
   --hg-bad: #C23F1F; --hg-bad-soft: #C23F1F; --hg-warn: #8A6200;
-  --hg-trend: #FFE9A8; --hg-trend-last: #E8B400;
-  --hg-yel: #E8B400; --hg-yel-ink: #8A6200; --hg-yel-wash: #FFF6DB; --hg-yel-fill: #FFE9A8; --hg-yel-edge: #F0D890;
-  --hg-shadow: rgba(11,13,26,0.16);
+  --hg-trend: #E6E6E6; --hg-trend-last: #FFD23F;
+  --hg-yel: #FFD23F; --hg-yel-ink: #7A5A00; --hg-yel-wash: #FFF7D6; --hg-yel-fill: #FFE98F; --hg-yel-edge: #F2CF4A;
+  --hg-on-yel: #000000;
+  --hg-shadow: rgba(0,0,0,0.14);
   --hg-viz-1: #2a78d6; --hg-viz-2: #eb6834;
 }
 .hg-v3 a { color: var(--hg-blue-soft); text-decoration: none; }
