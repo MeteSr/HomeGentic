@@ -37,6 +37,16 @@ describe("deploy.sh — reinstall guard", () => {
     expect(guard).toContain("TESTNET_REINSTALL_OK");
     expect(guard).toContain("Memory-incompatible program upgrade");
   });
+
+  it("sends auth through the same guarded path, with its init argument on both installs", () => {
+    // A separate auth install branch once bypassed the guard: auth was on the
+    // allow-list but its failed upgrade was never reinstalled.
+    expect(code).not.toMatch(/icp canister install auth\b/);
+    const installs = code.match(/icp canister install "\$canister"[^\n]*/g) ?? [];
+    expect(installs).toHaveLength(2);
+    for (const line of installs) expect(line).toContain("INSTALL_ARGS");
+    expect(code).toMatch(/INSTALL_ARGS=\(--args "\(principal \\"\$DEPLOY_PRINCIPAL\\"\)"\)/);
+  });
 });
 
 describe("stable-compat CI gate", () => {
