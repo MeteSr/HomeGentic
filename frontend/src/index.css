@@ -212,18 +212,26 @@ textarea.form-input {
 
 table { border-collapse: collapse; }
 
-/* ─── Collapsible sidebar layout ─────────────────────────────────────────────── */
+/* ─── App shell (Layout) — the dashboard's top bar + chip rail ──────────────── */
+
+.hf-shell-header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-sizing: border-box;
+  background: var(--hg-bg);
+  z-index: 50;
+}
 
 .hf-sidebar {
   position: fixed;
-  top: 0; left: 0; bottom: 0;
-  display: flex;
-  flex-direction: column;
+  left: 0; bottom: 0;           /* top is set inline to sit below .hf-shell-header */
+  box-sizing: border-box;
   background: var(--hg-bg);
-  border-right: 1px solid var(--hg-line);
   z-index: 50;
-  transition: width 0.2s ease;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .hf-main {
@@ -235,7 +243,6 @@ table { border-collapse: collapse; }
      without dvh support simply ignore this line and keep the first. */
   min-height: 100dvh;
   background: var(--canvas);
-  transition: margin-left 0.2s ease;
 }
 
 .hf-mobile-header {
@@ -252,7 +259,8 @@ table { border-collapse: collapse; }
 
 @media (max-width: 640px) {
   .hf-sidebar       { display: none; }
-  .hf-main          { margin-left: 0 !important; transition: none; }
+  .hf-shell-header  { display: none; }
+  .hf-main          { margin-left: 0 !important; padding-top: 0 !important; }
   .hf-mobile-header { display: flex; }
   .hf-main-content  { padding-bottom: 100px; } /* clear bottom nav + FAB */
   .hf-bottom-nav    { display: flex; }

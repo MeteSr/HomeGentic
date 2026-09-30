@@ -9,9 +9,11 @@ interface UserMenuPopoverProps {
   displayName: string;
   onClose:     () => void;
   onUpgrade:   () => void;
+  /** Where the menu opens: below a header avatar (top-right), or above a sidebar one. */
+  anchor?:     "top-right" | "bottom-left";
 }
 
-export function UserMenuPopover({ displayName, onClose, onUpgrade }: UserMenuPopoverProps) {
+export function UserMenuPopover({ displayName, onClose, onUpgrade, anchor = "bottom-left" }: UserMenuPopoverProps) {
   const navigate   = useNavigate();
   const { logout } = useAuth();
 
@@ -44,8 +46,7 @@ export function UserMenuPopover({ displayName, onClose, onUpgrade }: UserMenuPop
       {/* Popover */}
       <div style={{
         position:      "fixed",
-        bottom:        "1rem",
-        left:          "1rem",
+        ...(anchor === "top-right" ? { top: "3.75rem", right: "1rem" } : { bottom: "1rem", left: "1rem" }),
         width:         "280px",
         background:    V2_COLORS.paper,
         border:        `1px solid ${V2_COLORS.border}`,
