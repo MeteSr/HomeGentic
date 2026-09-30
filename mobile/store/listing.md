@@ -54,7 +54,7 @@ https://homegentic.app/privacy
 
 ## App Store reviewer notes (15.6.4)
 This app does not offer in-app purchases or collect payment information.
-All subscription upgrades (Pro, Premium, ContractorPro) are handled via
+All subscription upgrades (Pro, ContractorPro) are handled via
 the homegentic.app website, opened in the device browser using
 Linking.openURL("https://homegentic.app/pricing"). No App Store payment
 APIs are used. The upgrade banners in the app are browser deep-links only.

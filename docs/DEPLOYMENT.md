@@ -33,73 +33,91 @@ cd frontend && npm run dev
 bash scripts/deploy.sh testnet
 ```
 
-Requires a DFX identity with cycles. Set `DFX_IDENTITY_PEM` as a GitHub secret for CI.
+Requires an identity with cycles. In CI, `deploy-testnet.yml` runs this after a green `main` build using the `DFX_IDENTITY_PEM` and `DFX_WALLET_ID` secrets.
 
-## Voice Agent (Railway)
+On testnet an upgrade that fails with `Memory-incompatible program upgrade` is retried as a reinstall (which wipes that canister's data) **only** for canisters listed in `TESTNET_REINSTALL_OK` in `scripts/deploy.sh` — empty by default. Mainnet never reinstalls. See [UPGRADE_RUNBOOK.md](UPGRADE_RUNBOOK.md).
 
-The voice agent (`agents/voice/`) is a Node/Express server that proxies Claude API
-calls and handles Stripe payments. It is deployed separately to
-[Railway](https://railway.app) — not to ICP.
+## Voice Agent (Cloudflare Workers)
 
-### First deploy
+The voice / AI proxy (`agents/voice/`) proxies Claude API calls, handles
+Stripe checkout and webhooks, and serves the Bid to List routes. In
+production it runs as a Cloudflare Worker (`agents/voice/src/index.ts`,
+config in `agents/voice/wrangler.toml`). `agents/voice/server.ts` is the
+older Express equivalent with the same routes (still usable locally with
+`npm run build && npm start`, or via `agents/voice/Dockerfile`).
 
-1. Create a new Railway project and connect the GitHub repo.
-2. In **Settings → Build**:
-   - Root Directory: `/` (repo root — required for the Dockerfile build context)
-   - Dockerfile Path: `agents/voice/Dockerfile`
-3. In **Settings → Deploy**, the health check path `/health` and timeout 30 s are
-   already set via `agents/voice/railway.json`.
-4. Add all required environment variables (see below).
-5. Deploy. Verify at `https://<your-service>.railway.app/health` — all `checks`
-   should be `true`.
+### Deploys
 
-### Required environment variables
+The `deploy-voice-worker` job in `deploy-mainnet.yml` runs `npx wrangler deploy`
+after the canister deploy, and `deploy-testnet.yml` does the same for
+testnet. Both need the `CLOUDFLARE_API_TOKEN` secret.
+
+### First-time setup
+
+1. Create the rate-limit KV namespace and put its IDs in `wrangler.toml`
+   (the committed `id` / `preview_id` are placeholders):
+   ```bash
+   cd agents/voice
+   npx wrangler kv namespace create RATE_LIMIT
+   npx wrangler kv namespace create RATE_LIMIT --preview
+   ```
+2. Set the secrets below with `npx wrangler secret put <NAME>`.
+3. Deploy (`npx wrangler deploy`) and check `https://<worker>/health`.
+
+Non-secret settings (`AI_MODEL`, `NODE_ENV`, `DFX_NETWORK`, ICP hosts) are
+`[vars]` in `wrangler.toml`. The hourly cron trigger fires the Bid to List
+deadline reminders.
+
+### Secrets
 
 | Variable | Description |
 |---|---|
-| `NODE_ENV` | `production` |
 | `ANTHROPIC_API_KEY` | Claude API key (`sk-ant-...`) |
 | `VOICE_AGENT_API_KEY` | Shared secret sent by the frontend in `x-api-key` |
 | `FRONTEND_ORIGIN` | Exact origin of the frontend canister (no trailing slash) |
-| `STRIPE_SECRET_KEY` | Stripe live secret key (`sk_live_...`) |
+| `STRIPE_SECRET_KEY` | Stripe secret key (`sk_live_...`) |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret (`whsec_...`) |
-| `STRIPE_PRICE_PRO_MONTHLY` | Stripe price ID |
-| `STRIPE_PRICE_PRO_YEARLY` | Stripe price ID |
+| `STRIPE_PRICE_PRO_YEARLY` | Stripe price ID — the $59/year homeowner plan |
 | `STRIPE_PRICE_CONTRACTOR_PRO_MONTHLY` | Stripe price ID |
 | `STRIPE_PRICE_CONTRACTOR_PRO_YEARLY` | Stripe price ID |
-| `STRIPE_PRICE_CREDITS_25` | Stripe price ID |
-| `STRIPE_PRICE_CREDITS_100` | Stripe price ID |
-| `DFX_IDENTITY_PEM` | Ed25519 PEM of the identity registered as admin in the payment canister — same value as the `DFX_IDENTITY_PEM` GitHub secret used for testnet deploys |
-| `RENTCAST_API_KEY` | Rentcast API key — kept server-side so it is never exposed in the browser bundle. The frontend calls `/api/rentcast/properties` on this server, which proxies to `api.rentcast.io`. Do **not** use `VITE_RENTCAST_API_KEY`. |
+| `STRIPE_PRICE_CREDITS_25` | Stripe price ID — agent-credit pack |
+| `STRIPE_PRICE_CREDITS_100` | Stripe price ID — agent-credit pack |
+| `DFX_IDENTITY_PEM` | Ed25519 PEM of the identity registered as admin in the payment canister |
+| `CANISTER_ID_PAYMENT` | Payment canister ID |
+| `CANISTER_ID_MONITORING` | Optional — monitoring canister, for frontend-error and cycle-alert routes |
+| `BIDTOLIST_*` | Optional — Bid to List Stripe/Resend keys and canister IDs (see the comment block in `wrangler.toml`) |
 
-`CANISTER_ID_PAYMENT` is optional; it defaults to the testnet canister
-`a3shm-xiaaa-aaaaj-a6moa-cai`. Override only when deploying against a different
-payment canister.
+Rentcast lookups (`/api/rentcast/properties`) exist only on the legacy
+Express server and need `RENTCAST_API_KEY` there.
 
 ### How canister calls work in production
 
-After Stripe confirms payment, the voice server calls the ICP payment canister
+After Stripe confirms payment, the Worker calls the ICP payment canister
 directly via `@dfinity/agent` (see `agents/voice/paymentCanister.ts`). It uses
 the Ed25519 identity from `DFX_IDENTITY_PEM` to authenticate as an admin and
 invoke `adminActivateStripeSubscription`, `adminGrantAgentCredits`, or
 `consumeAgentCredit`. No `dfx` binary is required at runtime.
 
 Locally, `DFX_IDENTITY_PEM` is typically unset — canister calls gracefully degrade
-with a `console.warn` and the activation is skipped. See issue #217 for the
-planned local integration test path.
-
-### Subsequent deploys
-
-Railway redeploys automatically on every push to `main`. No manual steps needed
-unless environment variables change.
+with a warning and the activation is skipped.
 
 ---
 
-## Notification Relay (Railway)
+## Email Relay (Cloudflare Workers)
 
-The notification relay (`agents/notifications/`) is a separate Railway service.
-Deploy it as a second Railway service in the same project, pointing to `agents/notifications/Dockerfile`
-(or `Dockerfile` at repo root if a multi-service setup).
+`agents/email/` is a small Worker (`homegentic-email-relay`) that turns
+lead-form submissions into emails via Resend. It is deployed by the
+`deploy-email-worker` job in `deploy-mainnet.yml`. Secrets (set with
+`npx wrangler secret put`): `RESEND_API_KEY`, and `ROUTE_CONFIG` — a JSON
+array mapping each allowed origin to its to/from addresses.
+
+---
+
+## Notification Relay
+
+The notification relay (`agents/notifications/`) is a standalone Node service
+(`npm run build && npm start`). It is not deployed by CI and has no Dockerfile
+in the repo — host it on any Node platform and set the variables below.
 
 ### Required environment variables
 
@@ -107,7 +125,7 @@ Deploy it as a second Railway service in the same project, pointing to `agents/n
 |---|---|
 | `NODE_ENV` | `production` |
 | `FRONTEND_ORIGIN` | Exact origin of the frontend canister (no trailing slash) |
-| `NOTIFICATIONS_PORT` | Port to listen on (Railway sets `PORT` automatically) |
+| `NOTIFICATIONS_PORT` | Port to listen on (default `3002`; `PORT` is not read) |
 | `VAPID_PUBLIC_KEY` | Base64url VAPID public key (generate with `web-push`) |
 | `VAPID_PRIVATE_KEY` | Base64url VAPID private key — keep secret |
 | `VAPID_SUBJECT` | `mailto:` or URL identifying the sender (e.g. `mailto:admin@homegentic.io`) |
@@ -207,7 +225,12 @@ make upgrade
 bash scripts/upgrade.sh
 ```
 
-All canisters use `persistent actor` with upgrade hooks — data is preserved automatically.
+`scripts/upgrade.sh` upgrades the core canisters (auth, property, job, contractor,
+quote, payment, photo, monitoring) in place; `scripts/deploy.sh` upgrades all of
+them. Canisters use `persistent actor` with enhanced orthogonal persistence — state
+survives upgrades with no hooks, as long as the new stable types are compatible
+with the running ones. The `stable-compat-check` CI job enforces that on every PR;
+see [UPGRADE_RUNBOOK.md](UPGRADE_RUNBOOK.md).
 
 ## Checking Status
 
@@ -253,8 +276,6 @@ icp canister status <canister-name> -e ic
 
 **Never remove a controller before confirming the replacement has access.**
 
-**Never remove a controller before confirming the replacement has access.**
-
 ## Stripe Setup
 
 ### Local development
@@ -285,10 +306,12 @@ returns `null` regardless of whether `STRIPE_PRICE_PRO_MONTHLY` is set.
 1. Switch the Stripe dashboard to **Live mode** and copy live key/price IDs.
 2. Set `STRIPE_SECRET_KEY=sk_live_...` and `VITE_STRIPE_PUBLISHABLE_KEY=pk_live_...`
    in your production environment.
-3. Configure a Stripe webhook pointing at `https://your-domain/api/stripe/webhook`
-   for the `payment_intent.succeeded` and `customer.subscription.updated` events
-   (not yet wired — currently the success page calls verify-subscription directly).
-4. Ensure `DFX_IDENTITY_PEM` is set in Railway — the voice server calls the ICP
+3. Configure a Stripe webhook pointing at `https://<voice-worker>/api/stripe/webhook`
+   and set its signing secret as `STRIPE_WEBHOOK_SECRET`. The Worker handles
+   `customer.subscription.updated`, `customer.subscription.deleted` and
+   `invoice.payment_failed` (reverting the tier when a subscription lapses);
+   activation itself still happens when the success page calls verify-subscription.
+4. Ensure `DFX_IDENTITY_PEM` is set as a Worker secret — the Worker calls the ICP
    payment canister directly via `@dfinity/agent` (no `dfx` binary required).
 
 ### How payment verification works
@@ -304,7 +327,7 @@ See [docs/EXTERNAL_APIS.md](EXTERNAL_APIS.md#0-stripe) for the full flow.
 
 ## Cycle Wallet Funding and Automated Top-Up
 
-All 17 canisters burn cycles continuously. The `cycle-watchdog` workflow (runs every 6 hours)
+All 20 canisters burn cycles continuously. The `cycle-watchdog` workflow (runs every 6 hours)
 checks balances and tops up any canister below 2T cycles. For this to work the CI identity
 must hold enough cycles.
 
@@ -370,7 +393,7 @@ DFX_NETWORK=ic bash scripts/top-up-canisters.sh
 ### Ongoing maintenance
 
 - **Refill the CI wallet** when `dfx wallet --network ic balance` falls below 10T cycles.
-  At typical burn rates (~200B cycles/day across 17 canisters) this is roughly monthly.
+  At typical burn rates (~200B cycles/day across 20 canisters) this is roughly monthly.
 - **Adjust thresholds** by updating `TOP_UP_TRIGGER_T` / `TOP_UP_TARGET_T` in
   `cycle-watchdog.yml` and `criticalCyclesT` / `warningCyclesT` in `backend/monitoring/main.mo`.
 - The cycle watchdog workflow can be triggered manually via **Actions → Cycle Watchdog → Run workflow**

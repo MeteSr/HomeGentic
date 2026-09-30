@@ -442,7 +442,7 @@ console.log(id.getPrincipal().toText());
 "
 
 # Whitelist it on the sensor canister
-dfx canister call sensor addAuthorizedGateway '(principal "YOUR_GATEWAY_PRINCIPAL")'
+icp canister call sensor addGateway '(principal "YOUR_GATEWAY_PRINCIPAL")' -e ic
 ```
 
 The gateway also prints its principal on startup via `GET /health`.
