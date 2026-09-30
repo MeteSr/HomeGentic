@@ -61,26 +61,6 @@ function HomeIcon() {
   );
 }
 
-function GoogleIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-      <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
-      <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
-      <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
-      <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
-    </svg>
-  );
-}
-
-function AppleIcon() {
-  return (
-    <svg width="14" height="16" viewBox="0 0 17 18" fill="none" aria-hidden="true">
-      <path d="M13.769 9.523c-.02-2.075 1.694-3.079 1.771-3.128-.966-1.411-2.466-1.604-2.999-1.624-1.275-.13-2.496.756-3.143.756-.647 0-1.645-.739-2.706-.718-1.386.02-2.67.808-3.384 2.046C1.69 9.186 2.74 13.4 4.325 15.773c.79 1.163 1.726 2.463 2.951 2.415 1.188-.049 1.634-.77 3.07-.77 1.437 0 1.843.77 3.094.746 1.278-.021 2.086-1.18 2.866-2.35.911-1.347 1.285-2.659 1.304-2.726-.028-.014-2.497-.962-2.52-3.565h-.321z" fill="#6B7080"/>
-      <path d="M11.617 3.17c.653-.806 1.094-1.918.974-3.028-.941.039-2.088.632-2.764 1.422-.603.7-1.136 1.826-.994 2.907 1.052.08 2.127-.537 2.784-1.3z" fill="#6B7080"/>
-    </svg>
-  );
-}
-
 function IcpLogoIcon({ size = 22 }: { size?: number }) {
   const uid = useId().replace(/:/g, "");
   const gradA = `icp-a-${uid}`;
@@ -212,46 +192,11 @@ export default function LoginPage() {
               padding: "2.5rem",
               boxShadow: "0 4px 32px rgba(43,52,255,0.08), 0 1px 3px rgba(0,0,0,0.05)",
             }}>
-              <h2 style={{ fontFamily: F.display, fontWeight: 800, fontSize: "1.625rem", color: C.ink, textAlign: "center", marginBottom: "0.375rem", lineHeight: 1.2 }}>
-                {ctx ? ctx.heading : "Log in to your account"}
+              <h2 style={{ fontFamily: F.display, fontWeight: 800, fontSize: "1.625rem", color: C.ink, textAlign: "center", marginBottom: "0.5rem", lineHeight: 1.2 }}>
+                {ctx ? ctx.heading : "Log in"}
               </h2>
-              {ctx && (
-                <p style={{ fontSize: "0.875rem", color: C.muted, textAlign: "center", marginBottom: "0.75rem" }}>
-                  {ctx.sub}
-                </p>
-              )}
-
-              {/* PASSWORD-FREE badge */}
-              <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.375rem", marginTop: ctx ? 0 : "0.25rem" }}>
-                <span style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "0.375rem",
-                  background: C.blueFg,
-                  color: C.blue,
-                  fontFamily: F.mono,
-                  fontSize: "0.63rem",
-                  fontWeight: 700,
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                  padding: "0.3rem 0.875rem",
-                  borderRadius: "100px",
-                }}>
-                  🔑 PASSWORD-FREE
-                </span>
-              </div>
-
-              <p style={{ fontSize: "0.8125rem", color: C.muted, textAlign: "center", marginBottom: "1.25rem", lineHeight: 1.6 }}>
-                All options use{" "}
-                <a
-                  href="https://identity.ic0.app"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ color: C.blue, fontWeight: 600, textDecoration: "none" }}
-                >
-                  Internet Identity
-                </a>
-                {" "}— a password-free system that supports Google, Apple, passkeys, and hardware keys.
+              <p style={{ fontSize: "0.875rem", color: C.muted, textAlign: "center", marginBottom: "1.5rem", lineHeight: 1.6 }}>
+                {ctx ? ctx.sub : "No password. Use Google, Apple, a passkey, or a hardware key."}
               </p>
 
               <button
@@ -259,21 +204,11 @@ export default function LoginPage() {
                 disabled={isLoading}
                 data-tid="login-button"
                 style={{
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "0.75rem",
-                  padding: "0.9rem 1.25rem",
-                  border: "none",
-                  borderRadius: "100px",
+                  width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.75rem",
+                  padding: "0.9rem 1.25rem", border: "none", borderRadius: "100px",
                   background: isLoading ? "#8890ff" : C.blue,
-                  fontSize: "0.9375rem",
-                  fontFamily: F.body,
-                  fontWeight: 600,
-                  color: C.white,
-                  cursor: isLoading ? "not-allowed" : "pointer",
-                  marginBottom: "1rem",
+                  fontSize: "0.9375rem", fontFamily: F.body, fontWeight: 600, color: C.white,
+                  cursor: isLoading ? "not-allowed" : "pointer", marginBottom: "0.75rem",
                   transition: "background 0.15s",
                   boxShadow: isLoading ? "none" : "0 4px 18px rgba(43,52,255,0.28)",
                 }}
@@ -282,39 +217,24 @@ export default function LoginPage() {
                 {isLoading ? "Connecting…" : "Sign in with Internet Identity"}
               </button>
 
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", justifyContent: "center", marginBottom: "1.25rem" }}>
-                <span style={{ fontSize: "0.75rem", color: C.muted }}>Supports</span>
-                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                  <GoogleIcon />
-                  <AppleIcon />
-                  <span style={{ fontSize: "0.75rem", color: C.muted }}>· Passkeys · Hardware keys</span>
-                </div>
-              </div>
-
-              <p style={{ textAlign: "center", fontSize: "0.875rem", color: C.muted, marginBottom: "0.5rem" }}>
-                Don't have an account?{" "}
-                <button
-                  type="button"
-                  onClick={() => navigate("/register")}
-                  style={{ color: C.blue, fontWeight: 600, cursor: "pointer", background: "none", border: "none", padding: 0, fontFamily: F.body, fontSize: "0.875rem" }}
-                >
-                  Get Started
-                </button>
+              <p style={{ textAlign: "center", fontSize: "0.75rem", marginBottom: "1.75rem" }}>
+                <a href="https://identity.ic0.app" target="_blank" rel="noopener noreferrer"
+                   style={{ color: C.blue, fontWeight: 500, textDecoration: "none" }}>
+                  What's Internet Identity?
+                </a>
               </p>
 
-              <p style={{ textAlign: "center", fontSize: "0.8125rem", color: C.muted, marginBottom: "1.25rem" }}>
-                <button
-                  type="button"
-                  onClick={() => navigate("/demo")}
-                  style={{ color: C.blue, fontWeight: 500, cursor: "pointer", background: "none", border: "none", padding: 0, fontFamily: F.body, fontSize: "0.8125rem" }}
-                >
-                  Try the demo first →
+              <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: "1.25rem", display: "flex", justifyContent: "center", gap: "0.5rem", fontSize: "0.875rem", color: C.muted }}>
+                <span>New here?</span>
+                <button type="button" onClick={() => navigate("/register")}
+                  style={{ color: C.blue, fontWeight: 600, cursor: "pointer", background: "none", border: "none", padding: 0, fontFamily: F.body, fontSize: "0.875rem" }}>
+                  Get started
                 </button>
-              </p>
-
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.375rem" }}>
-                <span style={{ fontSize: "0.8rem" }}>🔒</span>
-                <span style={{ fontSize: "0.75rem", color: C.muted }}>Secured by Internet Identity — no passwords stored</span>
+                <span aria-hidden="true">·</span>
+                <button type="button" onClick={() => navigate("/demo")}
+                  style={{ color: C.blue, fontWeight: 500, cursor: "pointer", background: "none", border: "none", padding: 0, fontFamily: F.body, fontSize: "0.875rem" }}>
+                  Try the demo
+                </button>
               </div>
 
               {import.meta.env.DEV && (

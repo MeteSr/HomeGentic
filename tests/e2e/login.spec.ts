@@ -18,8 +18,8 @@ test.describe("LoginPage — /login", () => {
     await expect(page.getByText(/HomeGentic/).first()).toBeVisible();
   });
 
-  test("shows 'Log in to your account' heading", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: /log in to your account/i })).toBeVisible();
+  test("shows 'Log in' heading", async ({ page }) => {
+    await expect(page.getByRole("heading", { name: "Log in", exact: true })).toBeVisible();
   });
 
   test("shows 'Welcome back!' heading on the left panel", async ({ page }) => {
@@ -30,17 +30,8 @@ test.describe("LoginPage — /login", () => {
     await expect(page.getByRole("button", { name: /sign in with internet identity/i })).toBeVisible();
   });
 
-  test("shows provider icon strip (Google, Apple, passkeys)", async ({ page }) => {
-    // exact:true matches only the <span>Supports</span> in the provider strip, not the paragraph that contains "supports"
-    await expect(page.getByText("Supports", { exact: true })).toBeVisible();
-  });
-
-  test("shows 'Secured by Internet Identity' footer note", async ({ page }) => {
-    await expect(page.getByText(/Secured by Internet Identity/i)).toBeVisible();
-  });
-
-  test("shows 'Try the demo first' link below sign-up prompt", async ({ page }) => {
-    await expect(page.getByText(/try the demo first/i)).toBeVisible();
+  test("shows 'Try the demo' link next to the sign-up prompt", async ({ page }) => {
+    await expect(page.getByText(/try the demo/i)).toBeVisible();
   });
 
   // ── Dev login (only rendered when import.meta.env.DEV is true) ────────────
@@ -74,8 +65,8 @@ test.describe("LoginPage — /login", () => {
 
   // ── Sign-up link ──────────────────────────────────────────────────────────
 
-  test("shows 'Don't have an account?' with Get Started link", async ({ page }) => {
-    await expect(page.getByText(/don't have an account/i)).toBeVisible();
+  test("shows 'New here?' with Get started link", async ({ page }) => {
+    await expect(page.getByText(/new here/i)).toBeVisible();
     await expect(page.getByText(/get started/i).first()).toBeVisible();
   });
 });
