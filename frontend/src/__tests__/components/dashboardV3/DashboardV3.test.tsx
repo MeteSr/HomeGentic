@@ -6,7 +6,7 @@
  * real action rather than silently doing nothing when clicked.
  */
 
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { render, screen, fireEvent, within, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { DashboardV3 } from "@/components/dashboardV3/DashboardV3";
@@ -23,7 +23,13 @@ const {
   mockUseQuoteSummary, mockUseMaintenanceSchedule, mockUseScoreTracking,
   mockUsePropertyRooms, mockUseSubscription, mockUseVoiceAgent, mockUseActivityFeed,
   mockGetDevicesForProperty, mockGetPendingAlerts, mockGetPeople,
+  mockGetBills, mockGetExpenses, mockGetBySpecialty, mockGetPriceBenchmark, mockRequestQuoteModal,
 } = vi.hoisted(() => ({
+  mockGetBills: vi.fn(),
+  mockGetExpenses: vi.fn(),
+  mockGetBySpecialty: vi.fn(),
+  mockGetPriceBenchmark: vi.fn(),
+  mockRequestQuoteModal: vi.fn(),
   mockOpenAddProp: vi.fn(),
   mockUseAuthStore: vi.fn(),
   mockUsePropertySummary: vi.fn(),
@@ -55,12 +61,17 @@ vi.mock("@/services/sensor", () => ({
   sensorService: { getDevicesForProperty: mockGetDevicesForProperty, getPendingAlerts: mockGetPendingAlerts },
 }));
 vi.mock("@/services/people", () => ({ peopleService: { getPeople: mockGetPeople } }));
+vi.mock("@/services/billService", () => ({
+  billService: { getBillsForProperty: mockGetBills, getRecurringExpensesForProperty: mockGetExpenses },
+}));
+vi.mock("@/services/contractor", () => ({ contractorService: { getBySpecialty: mockGetBySpecialty } }));
+vi.mock("@/services/priceBenchmark", () => ({ getPriceBenchmark: mockGetPriceBenchmark }));
 
 // Real modals aren't exercised here (DashboardV3's own precedent is to
 // render them unthemed with no extra wiring) — stub them out so their own
 // hook/service dependencies don't need mocking too.
 vi.mock("@/components/LogJobModal", () => ({ LogJobModal: () => null }));
-vi.mock("@/components/RequestQuoteModal", () => ({ RequestQuoteModal: () => null }));
+vi.mock("@/components/RequestQuoteModal", () => ({ RequestQuoteModal: (props: any) => { mockRequestQuoteModal(props); return null; } }));
 vi.mock("@/components/AddRoomModal", () => ({ AddRoomModal: () => null }));
 vi.mock("@/components/RecurringServiceCreateModal", () => ({ default: () => null }));
 vi.mock("@/components/UpgradeModal", () => ({ default: () => null }));
@@ -109,6 +120,10 @@ beforeEach(() => {
   mockGetDevicesForProperty.mockResolvedValue([]);
   mockGetPendingAlerts.mockResolvedValue([]);
   mockGetPeople.mockResolvedValue([]);
+  mockGetBills.mockResolvedValue([]);
+  mockGetExpenses.mockResolvedValue([]);
+  mockGetBySpecialty.mockResolvedValue([]);
+  mockGetPriceBenchmark.mockResolvedValue(null);
 });
 
 describe("DashboardV3 — panel navigation", () => {
@@ -259,5 +274,107 @@ describe("DashboardV3 — ask bar", () => {
     fireEvent.change(input, { target: { value: "who else has access" } });
     fireEvent.keyDown(input, { key: "Enter" });
     expect(screen.getAllByText("PEOPLE").length).toBeGreaterThan(0);
+  });
+});
+
+describe("DashboardV3 — home brief", () => {
+  it("greets the owner and lists what needs them, most urgent first", () => {
+    mockUseJobSummary.mockReturnValue({
+      allJobs: [], pendingProposals: [{ id: "j1", propertyId: "prop-1" }], loading: false,
+      approveProposal: vi.fn(), rejectProposal: vi.fn(),
+    });
+    renderDashboard();
+    const brief = screen.getByTestId("home-brief");
+    expect(within(brief).getByText(/^Good (morning|afternoon|evening)\. \d+ things? needs? you\.$/)).toBeInTheDocument();
+    expect(within(brief).getByText("1 job is waiting on your approval.")).toBeInTheDocument();
+    // A 2000 build puts the water heater well past its 12-year life.
+    expect(within(brief).getByText(/past its expected life\. Replacement runs/)).toBeInTheDocument();
+  });
+
+  it("opens the matching panel when a brief item is tapped", () => {
+    mockUseJobSummary.mockReturnValue({
+      allJobs: [], pendingProposals: [{ id: "j1", propertyId: "prop-1" }], loading: false,
+      approveProposal: vi.fn(), rejectProposal: vi.fn(),
+    });
+    renderDashboard();
+    fireEvent.click(screen.getByText("1 job is waiting on your approval."));
+    expect(screen.getByText("Back to quiet")).toBeInTheDocument();
+    expect(screen.queryByTestId("home-brief")).not.toBeInTheDocument();
+  });
+
+  it("includes a utility rise from the property's bills", async () => {
+    const bill = (month: string, cents: number) => ({
+      id: month, propertyId: "prop-1", homeowner: "me", billType: "Gas", provider: "Gas Co",
+      periodStart: `${month}-01`, periodEnd: `${month}-28`, amountCents: cents, uploadedAt: 0, anomalyFlag: false,
+    });
+    const now = new Date();
+    const bills = [];
+    for (let back = 1; back <= 24; back++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - back, 1);
+      const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      bills.push(bill(ym, back <= 12 ? 13_000 : 10_000));
+    }
+    mockGetBills.mockResolvedValue(bills);
+    renderDashboard();
+    expect(await screen.findByText("Gas bills are up 30% on last year.")).toBeInTheDocument();
+  });
+});
+
+describe("DashboardV3 — answer cards", () => {
+  function ask(q: string) {
+    const input = screen.getByPlaceholderText("Ask about your home");
+    fireEvent.change(input, { target: { value: q } });
+    fireEvent.keyDown(input, { key: "Enter" });
+  }
+
+  it("answers a system decision question with facts composed from several sources", async () => {
+    mockGetPriceBenchmark.mockResolvedValue({ serviceType: "Plumbing", zipCode: "78701", low: 150_000, median: 240_000, high: 380_000, sampleSize: 12, lastUpdated: "2026-08" });
+    mockGetBySpecialty.mockResolvedValue([{}, {}, {}]);
+    renderDashboard();
+    ask("Should I replace my water heater?");
+
+    const card = screen.getByTestId("answer-card");
+    expect(within(card).getByText(/^Your water heater is \d+ years old and past its expected life$/)).toBeInTheDocument();
+    expect(within(card).getByText("Age")).toBeInTheDocument();
+    expect(within(card).getByText("Replacement")).toBeInTheDocument();
+    expect(await within(card).findByText("$1,500–$3,800")).toBeInTheDocument();
+    expect(await within(card).findByText("3")).toBeInTheDocument();
+    expect(mockGetPriceBenchmark).toHaveBeenCalledWith("Plumbing", "78701");
+    expect(mockGetBySpecialty).toHaveBeenCalledWith("Plumbing");
+    expect(within(card).getByText(/BUILT FROM TEN-YEAR FORECAST · LOCAL PRICES · CONTRACTOR DIRECTORY/)).toBeInTheDocument();
+  });
+
+  it("opens a quote request prefilled with the system's service type", async () => {
+    renderDashboard();
+    ask("how long will the roof last");
+    fireEvent.click(await screen.findByText("Request quotes"));
+    await waitFor(() => {
+      const calls = mockRequestQuoteModal.mock.calls;
+      const last = calls[calls.length - 1][0];
+      expect(last.isOpen).toBe(true);
+      expect(last.prefill).toMatchObject({ serviceType: "Roofing" });
+      expect(last.prefill.description).toMatch(/^Roofing is about \d+ years old/);
+    });
+  });
+
+  it("offers to set the install year when it's assumed from the build year", () => {
+    renderDashboard();
+    ask("should I replace my water heater");
+    fireEvent.click(screen.getByText("Set when it was installed"));
+    expect(mockNavigate).toHaveBeenCalledWith("/properties/prop-1/systems");
+  });
+
+  it("closes back to the resting stage", () => {
+    renderDashboard();
+    ask("should I replace my water heater");
+    fireEvent.click(screen.getByLabelText("Close answer"));
+    expect(screen.getByTestId("home-brief")).toBeInTheDocument();
+  });
+
+  it("still routes questions that aren't about a system to a panel", () => {
+    renderDashboard();
+    ask("how much have I spent");
+    expect(screen.queryByTestId("answer-card")).not.toBeInTheDocument();
+    expect(screen.getByText("Back to quiet")).toBeInTheDocument();
   });
 });
