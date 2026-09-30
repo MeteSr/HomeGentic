@@ -149,9 +149,9 @@ describe("PROD.7 — deploy.sh calls addAdmin for each non-payment canister", ()
     const src = deploy();
     // Must pass the deployer principal as a Candid argument so the actor class
     // constructor receives it atomically — closing the bootstrap race (#144).
-    // The two strings may be on separate lines, so check both independently.
-    expect(src).toContain("canister install auth");
-    expect(src).toMatch(/--args.*principal/);
+    // auth shares the guarded install loop, so its argument is set per-canister.
+    expect(src).toMatch(/if \[ "\$canister" = "auth" \]; then\s+INSTALL_ARGS=\(--args "\(principal/);
+    expect(src).toMatch(/icp canister install "\$canister" \$\{INSTALL_ARGS/);
   });
 
   it("deploy.sh does NOT call addAdmin for payment (payment uses initAdmins instead)", () => {
