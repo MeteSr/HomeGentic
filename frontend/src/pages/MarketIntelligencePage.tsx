@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { TrendingUp, BarChart2, Wrench, Star, ArrowRight, AlertCircle } from "lucide-react";
 import { Layout } from "@/components/Layout";
+import { SHELL_PAGE_MIN_HEIGHT } from "@/components/dashboardV3/chrome";
 import { Button } from "@/components/Button";
 import { jobService } from "@/services/job";
 import {
@@ -104,7 +105,7 @@ export default function MarketIntelligencePage() {
 
   return (
     <Layout>
-      <div className="hg-v3" data-theme="light" style={{ minHeight: "100dvh", background: "var(--hg-bg)" }}>
+      <div className="hg-v3" data-theme="light" style={{ minHeight: SHELL_PAGE_MIN_HEIGHT, background: "var(--hg-bg)" }}>
       <div style={{ maxWidth: "60rem", margin: "0 auto", padding: "2rem 1.5rem" }}>
 
         {/* Header */}

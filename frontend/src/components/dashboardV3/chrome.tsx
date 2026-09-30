@@ -11,6 +11,13 @@ export const RAIL_WIDTH  = 158;
 export const SHELL_GUTTER = 24;
 export const RAIL_GAP     = 22;
 
+/**
+ * Full-height min-height for a page rendered inside Layout's shell. The shell
+ * sets --hf-shell-top to its fixed header's height (0 on mobile and outside
+ * the shell), so the page fills the screen without scrolling by that much.
+ */
+export const SHELL_PAGE_MIN_HEIGHT = "calc(100dvh - var(--hf-shell-top, 0px))";
+
 const MONO = "'JetBrains Mono',monospace";
 
 /** "HomeGentic  HOME" — the header brand mark. */

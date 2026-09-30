@@ -292,7 +292,7 @@ export function Layout({ children, hideSidebar = false }: { children: React.Reac
       {/* ── Content column ──────────────────────────────────────────────────── */}
       <div
         className={hideSidebar ? "hf-main" : "hf-main hf-main--shell"}
-        style={hideSidebar ? { flex: 1, minWidth: 0 } : { marginLeft: CONTENT_LEFT, paddingTop: HEADER_H, minWidth: 0 }}
+        style={hideSidebar ? { flex: 1, minWidth: 0 } : { marginLeft: CONTENT_LEFT, paddingTop: HEADER_H, minWidth: 0, "--hf-shell-top": `${HEADER_H}px` } as React.CSSProperties}
         aria-hidden={addPropOpen || undefined}
       >
         {/* Mobile-only top header */}

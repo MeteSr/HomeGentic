@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
+import { SHELL_PAGE_MIN_HEIGHT } from "@/components/dashboardV3/chrome";
 import { jobService, type Job } from "@/services/job";
 import { quoteService, type QuoteRequest, type Quote } from "@/services/quote";
 import { usePropertyStore } from "@/store/propertyStore";
@@ -233,7 +234,7 @@ export default function JobsPage() {
 
   return (
     <Layout>
-      <div className="hg-v3" data-theme="light" style={{ background: "var(--hg-bg)", minHeight: "100dvh", padding: isTablet ? "20px 20px" : "28px 32px" }}>
+      <div className="hg-v3" data-theme="light" style={{ background: "var(--hg-bg)", minHeight: SHELL_PAGE_MIN_HEIGHT, padding: isTablet ? "20px 20px" : "28px 32px" }}>
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
