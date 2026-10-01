@@ -168,12 +168,21 @@ export async function grantAgentCredits(
     throw new Error(`Credit grant failed: ${JSON.stringify(result.err)}`);
 }
 
-export async function getSubscriptionTier(principal: string): Promise<string> {
+/**
+ * The caller's effective tier, read from the payment canister. Throws if the
+ * canister can't be reached, so callers can tell "Free" from "unknown" (e.g.
+ * to avoid caching a transient failure as Free).
+ */
+export async function fetchSubscriptionTier(principal: string): Promise<string> {
   if (!PRINCIPAL_RE.test(principal)) return "Free";
+  const result = await (await getActor()).getTierForPrincipal(Principal.fromText(principal));
+  const tier = Object.keys(result)[0];
+  return VALID_TIERS.has(tier) ? tier : "Free";
+}
+
+export async function getSubscriptionTier(principal: string): Promise<string> {
   try {
-    const result = await (await getActor()).getTierForPrincipal(Principal.fromText(principal));
-    const tier = Object.keys(result)[0];
-    return VALID_TIERS.has(tier) ? tier : "Free";
+    return await fetchSubscriptionTier(principal);
   } catch {
     return "Free"; // fail-safe: downgrade to Free on canister error
   }

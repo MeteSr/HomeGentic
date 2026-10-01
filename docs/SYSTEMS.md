@@ -1159,7 +1159,7 @@ Any canister can call `recordCanisterMetrics()` — no authentication required. 
 
 **Files:** `agents/voice/src/index.ts` (Cloudflare Worker — production) and `agents/voice/server.ts` (legacy Express equivalent, port 3001)
 
-Proxy between the frontend and the Claude API. Handles streaming chat, agentic tool-use loops, vision extraction, Stripe checkout and webhooks, Bid to List routes, and operational endpoints. Both runtimes expose the same routes; the Worker keeps rate-limit counters in Workers KV instead of process memory. Rentcast lookups (`/api/rentcast/properties`) exist only on the Express server.
+Proxy between the frontend and the Claude API. Handles streaming chat, agentic tool-use loops, vision extraction, Stripe checkout and webhooks, Bid to List routes, and operational endpoints. Both runtimes expose the same routes; the Worker keeps rate-limit counters in Workers KV instead of process memory.
 
 ### Authentication
 
@@ -1168,7 +1168,7 @@ Proxy between the frontend and the Claude API. Handles streaming chat, agentic t
 | `x-api-key` | Required on all `/api/` routes except `/api/errors` and `/api/buyers-truth-kit` |
 | `x-context-hmac` | SHA-256 HMAC of the request context body, signed with `VOICE_API_KEY`; verified on `/api/chat` and `/api/agent` |
 | `x-icp-principal` | Caller's ICP principal; server overwrites `context.principal` (never trusts client) |
-| `x-subscription-tier` | Tier for per-tier rate limit checks on `/api/agent` |
+| `x-subscription-tier` | Sent by the frontend but **not trusted**: the Worker resolves the tier from the payment canister (`getTierForPrincipal`, cached 60 s in KV) and the Express server does the same |
 
 HMAC verification is skipped in development when `VOICE_API_KEY` is absent.
 

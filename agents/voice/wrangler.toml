@@ -41,6 +41,7 @@ crons = ["0 * * * *"]   # every hour — fires scheduledBidtolist (deadline remi
 #   STRIPE_PRICE_CREDITS_100
 #
 # Optional:
+#   RENTCAST_API_KEY              Add Property prefill (/api/rentcast/properties)
 #   CANISTER_ID_MONITORING
 #   BIDTOLIST_FRONTEND_ORIGIN     e.g. https://bidtolist.com
 #   BIDTOLIST_RESEND_API_KEY
