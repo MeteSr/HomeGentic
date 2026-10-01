@@ -34,7 +34,16 @@ describe("payloadFor", () => {
     });
   });
 
-  it("describes accepted and declined bids by trade", () => {
+  it("tells a contractor the homeowner signed and is waiting on them", () => {
+    const p = payloadFor({ seq: 1, kind: "job_awaiting_contractor_signature", recipient: "c", refId: "JOB_4", summary: "Roof repair" });
+    expect(p).toEqual({
+      title: "A job needs your sign-off",
+      body:  "The homeowner signed Roof repair and is waiting for you.",
+      route: "jobs/JOB_4",
+    });
+  });
+
+    it("describes accepted and declined bids by trade", () => {
     const base = { seq: 1, recipient: "c", refId: "QUOTE_1", summary: "KitchenRemodel" };
     expect(payloadFor({ ...base, kind: "bid_accepted" })?.body).toContain("Kitchen Remodel");
     expect(payloadFor({ ...base, kind: "bid_declined" })?.title).toBe("Bid not selected");

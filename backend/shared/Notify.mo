@@ -20,6 +20,8 @@ module {
   /// kind is Text rather than a variant so a new kind can be added without
   /// changing the Candid interface or the stable type.
   ///   "job_awaiting_signature" — recipient: the homeowner; refId: jobId
+  ///   "job_awaiting_contractor_signature"
+  ///                            — recipient: the linked contractor; refId: jobId
   ///   "bid_accepted"           — recipient: the contractor; refId: quoteId
   ///   "bid_declined"           — recipient: the contractor; refId: quoteId
   ///   "new_lead"               — recipient: null (the relay picks matching

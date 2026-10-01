@@ -133,3 +133,46 @@ describe("disablePush", () => {
     expect(sub.unsubscribe).toHaveBeenCalled();
   });
 });
+
+describe("push preferences", () => {
+  const PREFS = {
+    job_awaiting_signature: true, job_awaiting_contractor_signature: true,
+    bid_accepted: true, bid_declined: false,
+  };
+
+  it("pushConfigured follows VITE_NOTIFICATIONS_URL", async () => {
+    expect((await load()).pushConfigured()).toBe(true);
+    expect((await load("")).pushConfigured()).toBe(false);
+  });
+
+  it("reads the user's preferences under the agent session", async () => {
+    const { getPushPrefs } = await load();
+    fetchWithSession.mockResolvedValue(new Response(JSON.stringify({ prefs: PREFS })));
+    expect(await getPushPrefs()).toEqual(PREFS);
+    expect(fetchWithSession).toHaveBeenCalledWith(`${RELAY}/api/push/prefs`, { method: "GET" });
+  });
+
+  it("sends only the changed kinds and returns the full set", async () => {
+    const { setPushPrefs } = await load();
+    fetchWithSession.mockResolvedValue(new Response(JSON.stringify({ prefs: { ...PREFS, bid_accepted: false } })));
+    const out = await setPushPrefs({ bid_accepted: false });
+    expect(out.bid_accepted).toBe(false);
+    const [url, init] = fetchWithSession.mock.calls[0];
+    expect(url).toBe(`${RELAY}/api/push/prefs`);
+    expect(init.method).toBe("PUT");
+    expect(JSON.parse(init.body)).toEqual({ prefs: { bid_accepted: false } });
+  });
+
+  it("explains a rejected session", async () => {
+    const { getPushPrefs } = await load();
+    fetchWithSession.mockResolvedValue(new Response("{}", { status: 401 }));
+    await expect(getPushPrefs()).rejects.toThrow(/sign in again/i);
+  });
+
+  it("refuses without a relay", async () => {
+    const { getPushPrefs } = await load("");
+    await expect(getPushPrefs()).rejects.toThrow(/aren't configured/);
+    expect(fetchWithSession).not.toHaveBeenCalled();
+  });
+});
+

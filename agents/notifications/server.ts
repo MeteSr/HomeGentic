@@ -8,6 +8,7 @@ import { registerSubscription, removeSubscription } from "./vapidStore";
 import { dispatchToUser }             from "./dispatcher";
 import { startPoller }                from "./poller";
 import { requestPrincipal }           from "./session";
+import { getPrefs, setPrefs }         from "./prefs";
 import { relayIdentity }              from "./icp";
 import type { Platform, PushPayload } from "./types";
 import type { PushSubscription }      from "web-push";
@@ -127,6 +128,32 @@ export function buildApp() {
       const msg = err instanceof Error ? err.message : "Unknown error";
       res.status(500).json({ error: msg });
     }
+  });
+
+  // ── GET/PUT /api/push/prefs ─────────────────────────────────────────────────
+  // The caller's push preferences (see prefs.ts), identified by the
+  // x-agent-session header. PUT body: { prefs: { <kind>: boolean, … } }.
+  app.get("/api/push/prefs", async (req: Request, res: Response): Promise<void> => {
+    const principal = await requestPrincipal(req);
+    if (!principal) {
+      res.status(401).json({ error: "session_required" });
+      return;
+    }
+    res.json({ prefs: getPrefs(principal) });
+  });
+
+  app.put("/api/push/prefs", async (req: Request, res: Response): Promise<void> => {
+    const principal = await requestPrincipal(req);
+    if (!principal) {
+      res.status(401).json({ error: "session_required" });
+      return;
+    }
+    const prefs = setPrefs(principal, (req.body as { prefs?: unknown })?.prefs);
+    if (!prefs) {
+      res.status(400).json({ error: "prefs must map known notification kinds to booleans" });
+      return;
+    }
+    res.json({ prefs });
   });
 
   // ── GET /api/push/vapid-public-key ──────────────────────────────────────────
