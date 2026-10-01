@@ -83,8 +83,11 @@ describe("auth IDL factory", () => {
       "getProfile",
       "getUserStats",
       "hasRole",
+      "issueAgentSession",
       "recordLogin",
       "register",
+      "resolveAgentSession",
+      "revokeAgentSession",
       "updateProfile",
     ]);
   });
@@ -95,7 +98,7 @@ describe("auth IDL factory", () => {
       .filter(([, sig]) => sig.mode.includes("query"))
       .map(([name]) => name)
       .sort();
-    expect(queries).toEqual(["getMetrics", "getProfile", "getUserStats", "hasRole"]);
+    expect(queries).toEqual(["getMetrics", "getProfile", "getUserStats", "hasRole", "resolveAgentSession"]);
   });
 
   it("UserRole variant includes Builder", () => {

@@ -32,6 +32,7 @@ crons = ["0 * * * *"]   # every hour — fires scheduledBidtolist (deadline remi
 #   STRIPE_WEBHOOK_SECRET
 #   DFX_IDENTITY_PEM              Ed25519 PEM for ICP canister admin calls
 #   CANISTER_ID_PAYMENT
+#   CANISTER_ID_AUTH              resolves x-agent-session tokens (401 without it)
 #
 # Stripe price IDs (Pro is annual-only; PRO_MONTHLY is accepted but unused):
 #   STRIPE_PRICE_PRO_YEARLY

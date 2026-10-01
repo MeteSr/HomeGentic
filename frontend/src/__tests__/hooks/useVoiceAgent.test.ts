@@ -6,6 +6,8 @@
  * VA.3  reset() returns state to idle and clears transcript/response/error
  * VA.4  clearImage sets pendingImage to null
  * VA.5  dismissProposal sets pendingProposal to null
+ * VA.6  sendChat goes through the session-authenticated fetch, and a 429
+ *       (Free daily chat limit) shows a friendly message and flags the quota
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -13,7 +15,7 @@ import { renderHook, act } from "@testing-library/react";
 
 // Mock all heavy service dependencies — useVoiceAgent imports many services
 vi.mock("@/services/property",          () => ({ propertyService: { getMyProperties: vi.fn().mockResolvedValue([]) } }));
-vi.mock("@/services/job",               () => ({ jobService: { getByProperty: vi.fn().mockResolvedValue([]), getPendingProposals: vi.fn().mockResolvedValue([]) } }));
+vi.mock("@/services/job",               () => ({ jobService: { getAll: vi.fn().mockResolvedValue([]), getByProperty: vi.fn().mockResolvedValue([]), getPendingProposals: vi.fn().mockResolvedValue([]) } }));
 vi.mock("@/services/quote",             () => ({ quoteService: { getRequests: vi.fn().mockResolvedValue([]) } }));
 vi.mock("@/services/agentTools",        () => ({ executeTool: vi.fn(), toolActionLabel: vi.fn().mockReturnValue("") }));
 vi.mock("@/services/scoreService",      () => ({ computeScore: vi.fn().mockReturnValue(0), computeBreakdown: vi.fn().mockReturnValue({}), getScoreGrade: vi.fn().mockReturnValue("B"), loadHistory: vi.fn().mockReturnValue([]), recordSnapshot: vi.fn().mockReturnValue([]) }));
@@ -25,7 +27,9 @@ vi.mock("@/services/imageUtils",        () => ({ buildImageUserMessage: vi.fn(),
 vi.mock("@/services/payment",          () => ({ paymentService: { getMySubscription: vi.fn().mockResolvedValue({ tier: "Pro" }), getMyAgentCredits: vi.fn().mockResolvedValue(10), startCreditPackCheckout: vi.fn().mockResolvedValue(undefined) } }));
 vi.mock("@/services/contractor",       () => ({ contractorService: { getContractors: vi.fn().mockResolvedValue([]) } }));
 vi.mock("@/services/contractorJobProposal", () => ({ proposeJob: vi.fn() }));
-vi.mock("@/store/authStore",           () => ({ useAuthStore: () => ({ principal: null, profile: null }) }));
+vi.mock("@/store/authStore",           () => ({ useAuthStore: Object.assign(() => ({ principal: null, profile: null }), { getState: () => ({ principal: null, profile: null }) }) }));
+const mockFetchWithAgentSession = vi.fn();
+vi.mock("@/services/agentSession",      () => ({ fetchWithAgentSession: (...a: unknown[]) => mockFetchWithAgentSession(...a) }));
 
 import { useVoiceAgent } from "@/hooks/useVoiceAgent";
 
@@ -113,5 +117,19 @@ describe("VA.5 — dismissProposal sets pendingProposal to null", () => {
     const { result } = renderHook(() => useVoiceAgent());
     act(() => { result.current.dismissProposal(); });
     expect(result.current.pendingProposal).toBeNull();
+  });
+});
+
+// ── VA.6 ─────────────────────────────────────────────────────────────────────
+
+describe("sendChat", () => {
+  it("uses the session-authenticated fetch and explains a Free daily-limit 429", async () => {
+    mockFetchWithAgentSession.mockResolvedValue(new Response(JSON.stringify({ error: "daily_chat_limit_reached" }), { status: 429 }));
+    const { result } = renderHook(() => useVoiceAgent());
+    await act(async () => { await result.current.sendChat("Is my roof okay?"); });
+    expect(mockFetchWithAgentSession).toHaveBeenCalledWith(expect.stringMatching(/\/api\/chat$/), expect.objectContaining({ method: "POST" }));
+    expect(result.current.state).toBe("error");
+    expect(result.current.error).toMatch(/free questions/i);
+    expect(result.current.quotaExhausted).toBe(true);
   });
 });

@@ -12,7 +12,7 @@
  * of the single-process in-memory Map (which reset on every Railway restart).
  */
 
-import { TIER_LIMITS, TIER_PERIOD, agentPeriodKey, nextResetUtc, type SubscriptionTier } from "../agentLimiter";
+import { TIER_LIMITS, TIER_PERIOD, CHAT_LIMITS, agentPeriodKey, nextResetUtc, type SubscriptionTier } from "../agentLimiter";
 
 export interface KVEnv {
   RATE_LIMIT: KVNamespace;
@@ -66,5 +66,25 @@ export async function checkAgentRateLimit(
   // expires once superseded; a day's slop past the period length is fine.
   const ttlSeconds = period === "week" ? 8 * 86_400 : 2 * 86_400;
   await env.RATE_LIMIT.put(key, String(count + 1), { expirationTtl: ttlSeconds });
+  return { allowed: true, count: count + 1, limit, resetsAt };
+}
+
+// ── Chat limit per principal (daily; -1 = unlimited) ────────────────────────
+
+export async function checkChatRateLimit(
+  principal: string,
+  tier: string,
+  env: KVEnv,
+): Promise<AgentLimitResult> {
+  const limit    = CHAT_LIMITS[tier as SubscriptionTier] ?? CHAT_LIMITS.Free;
+  const resetsAt = nextResetUtc("day");
+  if (limit < 0) return { allowed: true, count: 0, limit, resetsAt };
+
+  const key   = `chat:${principal}:${new Date().toISOString().slice(0, 10)}`;
+  const raw   = await env.RATE_LIMIT.get(key);
+  const count = raw ? Number(raw) : 0;
+  if (count >= limit) return { allowed: false, count, limit, resetsAt };
+
+  await env.RATE_LIMIT.put(key, String(count + 1), { expirationTtl: 2 * 86_400 });
   return { allowed: true, count: count + 1, limit, resetsAt };
 }

@@ -64,6 +64,18 @@ service : {
   /// Return true if the caller has the specified role.
   hasRole       : (UserRole) -> (bool) query;
 
+  /// Issue a 24-hour voice-agent session token for the caller (registered
+  /// users only), replacing any earlier one.
+  issueAgentSession  : () -> (variant { ok : record { token : text; expiresAt : int }; err : Error });
+
+  /// Revoke the caller's voice-agent session.
+  revokeAgentSession : () -> ();
+
+  // ── Voice Worker ──────────────────────────────────────────────────────────
+
+  /// Principal that owns a live session token, or null if unknown/expired.
+  resolveAgentSession : (text) -> (opt principal) query;
+
   // ── Read ──────────────────────────────────────────────────────────────────
 
   /// Canister health and aggregate user counts.

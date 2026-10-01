@@ -20,6 +20,9 @@ Signatures and query/update types in this file are generated from the Motoko sou
 | `recordLogin` | update | `()` | Record a login timestamp |
 | `getUserStats` | query | `()` | Aggregate user stats (counts by tier/role) |
 | `completeOnboarding` | update | `()` | Mark the caller's onboarding as complete so they are not redirected to the wizard on subsequent logins. |
+| `issueAgentSession` | update | `()` | Issue a 24-hour voice-agent session token (`hgs_…`) for the caller, replacing any earlier one. Registered users only (`#NotFound` otherwise). |
+| `revokeAgentSession` | update | `()` | Revoke the caller's voice-agent session. |
+| `resolveAgentSession` | query | `(token: Text)` | Principal owning a live session token, or null. Called by the voice Worker. |
 
 **UserRole:** `#Homeowner | #Contractor | #Realtor | #Builder`
 

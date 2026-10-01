@@ -35,8 +35,11 @@ getMetrics(0) -> (1) [query]
 getProfile(0) -> (1) [query]
 getUserStats(0) -> (1) [query]
 hasRole(1) -> (1) [query]
+issueAgentSession(0) -> (1)
 recordLogin(0) -> (0)
 register(1) -> (1)
+resolveAgentSession(1) -> (1) [query]
+revokeAgentSession(0) -> (0)
 updateProfile(1) -> (1)"
 `;
 

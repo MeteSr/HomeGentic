@@ -105,6 +105,35 @@ export const authService = {
     return a.hasRole({ [role]: null });
   },
 
+  /**
+   * Mint a voice-agent session token for the current user. The IC
+   * authenticates this call, so the token proves to the voice Worker which
+   * principal is calling. Valid 24 h; issuing again replaces the old token.
+   */
+  async issueAgentSession(): Promise<{ token: string; expiresAtMs: number }> {
+    const a = await getActor();
+    const result = await a.issueAgentSession();
+    if ("ok" in result) {
+      return { token: result.ok.token, expiresAtMs: Number(result.ok.expiresAt / 1_000_000n) };
+    }
+    const key = Object.keys(result.err)[0];
+    const val = result.err[key];
+    throw new Error(typeof val === "string" ? val : key);
+  },
+
+  async revokeAgentSession(): Promise<void> {
+    if (!getCanisterId()) return;
+    const a = await getActor();
+    await a.revokeAgentSession();
+  },
+
+  /** Principal (text) owning a live session token, or null. Used by tests; the Worker calls the canister directly. */
+  async resolveAgentSession(token: string): Promise<string | null> {
+    const a = await getActor();
+    const r = await a.resolveAgentSession(token);
+    return r.length ? r[0].toText() : null;
+  },
+
   reset() {
     _actor = null;
   },

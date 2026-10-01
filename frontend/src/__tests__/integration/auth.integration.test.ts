@@ -157,3 +157,34 @@ describe.skipIf(!deployed)("recordLogin — lastLoggedIn Opt(Int) → ms convers
     expect(fetched.lastLoggedIn!).toBeLessThan(after);
   });
 });
+
+// ─── Voice-agent sessions ────────────────────────────────────────────────────
+// The voice Worker resolves these tokens to learn the caller's real principal,
+// so the round-trip and the invalidation rules are what keep AI quotas honest.
+
+describe.skipIf(!deployed)("voice-agent sessions", () => {
+  it("issueAgentSession returns a token that resolves to the caller", async () => {
+    const { token, expiresAtMs } = await authService.issueAgentSession();
+    expect(token).toMatch(/^hgs_[0-9a-f]{64}$/);
+    expect(expiresAtMs).toBeGreaterThan(Date.now());
+    expect(await authService.resolveAgentSession(token)).toBe(TEST_PRINCIPAL);
+  });
+
+  it("issuing again invalidates the previous token", async () => {
+    const first  = await authService.issueAgentSession();
+    const second = await authService.issueAgentSession();
+    expect(second.token).not.toBe(first.token);
+    expect(await authService.resolveAgentSession(first.token)).toBeNull();
+    expect(await authService.resolveAgentSession(second.token)).toBe(TEST_PRINCIPAL);
+  });
+
+  it("revokeAgentSession invalidates the caller's token", async () => {
+    const { token } = await authService.issueAgentSession();
+    await authService.revokeAgentSession();
+    expect(await authService.resolveAgentSession(token)).toBeNull();
+  });
+
+  it("an unknown token resolves to null", async () => {
+    expect(await authService.resolveAgentSession("hgs_" + "0".repeat(64))).toBeNull();
+  });
+});

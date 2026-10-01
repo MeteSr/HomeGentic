@@ -11,6 +11,7 @@ import {
 import { authService } from "@/services/auth";
 import { paymentService } from "@/services/payment";
 import { propertyService } from "@/services/property";
+import { clearAgentSession } from "@/services/agentSession";
 
 interface AuthContextValue {
   login: () => Promise<void>;
@@ -179,6 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // state regardless so the button always works.
     } finally {
       navigate("/");   // navigate before clearing so ProtectedRoute doesn't race-redirect to /login
+      clearAgentSession();
       clearAuth();
     }
   };
