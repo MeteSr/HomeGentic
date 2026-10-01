@@ -83,6 +83,8 @@ jobs:
           VITE_VOICE_AGENT_URL: ${{ secrets.VITE_VOICE_AGENT_URL }}
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.VITE_STRIPE_PUBLISHABLE_KEY }}
+          # Optional: the testnet notification relay's URL (see DEPLOYMENT.md).
+          VITE_NOTIFICATIONS_URL: ${{ secrets.VITE_NOTIFICATIONS_URL }}
 
       - name: Commit canister IDs
         # Must run even when the deploy step above fails partway through:

@@ -71,6 +71,13 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RESEND_FROM_ADDRESS: ${{ secrets.RESEND_FROM_ADDRESS }}
           OPEN_PERMIT_API_KEY: ${{ secrets.OPEN_PERMIT_API_KEY }}
+          ATTOM_API_KEY: ${{ secrets.ATTOM_API_KEY }}
+          # deploy.sh's pre-flight refuses to deploy without these two.
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.VITE_STRIPE_PUBLISHABLE_KEY }}
+          # Optional: the notification relay's URL. Unset hides the browser
+          # push toggle and leaves the relay out of the CSP.
+          VITE_NOTIFICATIONS_URL: ${{ secrets.VITE_NOTIFICATIONS_URL }}
 
       - name: Commit canister IDs
         # Must run even when the deploy step above fails partway through:

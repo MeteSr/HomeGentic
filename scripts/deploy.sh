@@ -935,6 +935,14 @@ if [ -n "$AI_PROXY_ID" ]; then
     icp canister call ai_proxy setResendFromAddress "(\"$RESEND_FROM_ADDRESS\")" -e "$ENV" \
       2>/dev/null || echo "  ⚠️  setResendFromAddress failed"
   fi
+
+  if [ -n "${ATTOM_API_KEY:-}" ]; then
+    echo "  ai_proxy: setting ATTOM API key..."
+    icp canister call ai_proxy setAttomApiKey "(\"$ATTOM_API_KEY\")" -e "$ENV" \
+      2>/dev/null || echo "  ⚠️  setAttomApiKey failed"
+  else
+    echo "  ⚠️  ATTOM_API_KEY not set — ATTOM property-record lookups will be disabled"
+  fi
 fi
 
 echo ""
