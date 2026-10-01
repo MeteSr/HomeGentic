@@ -50,7 +50,12 @@ export function railChipStyle({ on = false, dashed = false }: { on?: boolean; da
     font: `500 10.5px/1 ${MONO}`, letterSpacing: ".06em", textTransform: "uppercase",
     color: dashed ? "var(--hg-muted)" : on ? "var(--hg-on-yel)" : "var(--hg-ink-3)",
     cursor: "pointer", textDecoration: "none",
-    transition: "background .2s, border-color .2s, color .2s",
+    // Only the border animates. Fading background and text colour let a
+    // theme switch pass through grey-on-grey for ~100ms — the chip's count
+    // text switches instantly while the background is still fading — which
+    // axe's colour-contrast check catches (see dashboardV3.css on text and
+    // opacity animations).
+    transition: "border-color .2s",
   };
 }
 
