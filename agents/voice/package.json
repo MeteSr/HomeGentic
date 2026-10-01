@@ -62,7 +62,7 @@
     "@types/node": "^26.6.3",
     "@types/supertest": "^7.2.0",
     "babel-jest": "^30.5.0",
-    "jest": "^30.4.2",
+    "jest": "^30.5.2",
     "supertest": "^7.2.2",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.2",
