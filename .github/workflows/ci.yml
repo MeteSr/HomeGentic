@@ -204,6 +204,11 @@ jobs:
           # invariant 05, licence re-check gate) without a real DBPR check in CI.
           dfx canister call agent addAdmin "(principal \"$INTEG_PRINCIPAL\")"
 
+          # Let the integration test identity read the push-notification
+          # outboxes (notifications.integration.test.ts), as the relay would.
+          dfx canister call job   addNotifier "(principal \"$INTEG_PRINCIPAL\")"
+          dfx canister call quote addNotifier "(principal \"$INTEG_PRINCIPAL\")"
+
       - name: Run integration tests
         run: npm run test:integration
 
@@ -272,6 +277,26 @@ jobs:
 
       - name: Performance tests
         run: cd frontend && npm run test:perf
+
+  test-notifications:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: agents/notifications/package-lock.json
+
+      - name: Install dependencies
+        run: cd agents/notifications && npm ci
+
+      - name: Typecheck
+        run: cd agents/notifications && npx tsc --noEmit -p .
+
+      - name: Unit tests
+        run: cd agents/notifications && npm test
 
   test-voice:
     runs-on: ubuntu-latest

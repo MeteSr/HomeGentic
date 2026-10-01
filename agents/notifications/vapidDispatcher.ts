@@ -6,7 +6,7 @@ export async function dispatchWebPush(principal: string, payload: PushPayload): 
   const subs = getSubscriptionsForPrincipal(principal);
   if (subs.length === 0) return;
 
-  const notification = JSON.stringify({ title: payload.title, body: payload.body });
+  const notification = JSON.stringify({ title: payload.title, body: payload.body, route: payload.route });
   const options = { TTL: 86_400 };
 
   await Promise.all(

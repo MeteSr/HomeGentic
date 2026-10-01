@@ -19,6 +19,7 @@ import Result   "mo:core/Result";
 import Text     "mo:core/Text";
 import Time     "mo:core/Time";
 import ServiceTypes "../shared/ServiceType";
+import Notify       "../shared/Notify";
 
 persistent actor Quote {
 
@@ -186,6 +187,12 @@ persistent actor Quote {
   /// requestId → usage the homeowner chose to share with contractors.
   private let usageSummaries         = Map.empty<Text, UsageSummary>();
 
+  /// Push-notification outbox read by the notification relay (see
+  /// shared/Notify.mo). notifierEntries are the principals allowed to read it.
+  private let notifyLog       = Map.empty<Nat, Notify.Event>();
+  private var notifyLatestSeq : Nat         = 0;
+  private var notifierEntries : [Principal] = [];
+
   // ─── vetKeys IBE (sealed-bid confidentiality) ─────────────────────────────────
   // Domain separator "hg-bid-v1" — must match the context used by @dfinity/vetkeys
   // on the frontend.  Changing this invalidates all existing ciphertexts.
@@ -253,6 +260,14 @@ persistent actor Quote {
 
   private func isAdmin(caller: Principal) : Bool {
     Option.isSome(Array.find<Principal>(adminListEntries, func(a) { a == caller }))
+  };
+
+  private func isNotifier(p: Principal) : Bool {
+    Option.isSome(Array.find<Principal>(notifierEntries, func(n) { n == p }))
+  };
+
+  private func notify(kind: Text, recipient: ?Principal, refId: Text, summary: Text) {
+    notifyLatestSeq := Notify.record(notifyLog, notifyLatestSeq, kind, recipient, refId, summary);
   };
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
@@ -491,6 +506,8 @@ persistent actor Quote {
       maxBids;
     };
     Map.add(requests, Text.compare, id, req);
+    // The relay picks the matching contractors (trade, zip, push opt-in).
+    notify("new_lead", null, id, ServiceTypes.toText(serviceType));
     #ok(req)
   };
 
@@ -720,6 +737,8 @@ persistent actor Quote {
                       createdAt  = freshQ.createdAt;
                     };
                     Map.add(quotes, Text.compare, quoteId, accepted);
+                    let svcLabel = ServiceTypes.toText(freshReq.serviceType);
+                    notify("bid_accepted", ?accepted.contractor, accepted.id, svcLabel);
 
                     // Reject all other pending quotes for the same request
                     for ((otherId, other) in Map.entries(quotes)) {
@@ -736,6 +755,7 @@ persistent actor Quote {
                           createdAt  = other.createdAt;
                         };
                         Map.add(quotes, Text.compare, otherId, rejected);
+                        notify("bid_declined", ?rejected.contractor, rejected.id, svcLabel);
                       };
                     };
 
@@ -935,6 +955,8 @@ persistent actor Quote {
       maxBids;
     };
     Map.add(requests, Text.compare, id, req);
+    // The relay picks the matching contractors (trade, zip, push opt-in).
+    notify("new_lead", null, id, ServiceTypes.toText(serviceType));
     #ok(req)
   };
 
@@ -1334,6 +1356,30 @@ persistent actor Quote {
   };
 
   /// Set the update-call rate limit (admin only). Pass 0 to disable enforcement.
+  // ─── Notification outbox ────────────────────────────────────────────────────
+
+  /// Allow a principal (the notification relay's identity) to read the outbox.
+  public shared(msg) func addNotifier(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (not isNotifier(p)) {
+      notifierEntries := Array.concat(notifierEntries, [p]);
+    };
+    #ok(())
+  };
+
+  public shared(msg) func removeNotifier(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    notifierEntries := Array.filter<Principal>(notifierEntries, func(n) { n != p });
+    #ok(())
+  };
+
+  /// Outbox events with seq > afterSeq, oldest first (at most 200 per call).
+  /// Notifiers and admins only.
+  public query(msg) func getNotificationEvents(afterSeq: Nat, limit: Nat) : async Result.Result<Notify.Page, Error> {
+    if (not isNotifier(msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    #ok(Notify.page(notifyLog, notifyLatestSeq, afterSeq, limit))
+  };
+
   public shared(msg) func setUpdateRateLimit(n: Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     maxUpdatesPerMin := n;

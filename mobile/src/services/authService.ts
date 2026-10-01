@@ -32,6 +32,11 @@ const idlFactory = ({ IDL }: any) => {
   const Result = IDL.Variant({ ok: UserProfileIDL, err: Error });
   return IDL.Service({
     getProfile: IDL.Func([], [Result], ["query"]),
+    issueAgentSession: IDL.Func(
+      [],
+      [IDL.Variant({ ok: IDL.Record({ token: IDL.Text, expiresAt: IDL.Int }), err: Error })],
+      [],
+    ),
   });
 };
 
@@ -57,4 +62,17 @@ export async function getProfile(agent: HttpAgent): Promise<UserProfile | null> 
   });
   const result = await (actor as any).getProfile();
   return unwrap(result);
+}
+
+/**
+ * Get a short-lived session token proving who this app is signed in as.
+ * The notification relay accepts it (x-agent-session) in place of a principal
+ * the app asserts itself. Returns null when no canister ID is configured or
+ * the caller isn't a registered user.
+ */
+export async function issueAgentSession(agent: HttpAgent): Promise<string | null> {
+  if (!AUTH_CANISTER_ID) return null;
+  const actor = Actor.createActor(idlFactory, { agent, canisterId: AUTH_CANISTER_ID });
+  const result = await (actor as any).issueAgentSession();
+  return "ok" in result ? (result.ok.token as string) : null;
 }

@@ -1,127 +1,156 @@
 /**
  * @jest-environment node
  */
-// 15.3.4 — poller: start/stop lifecycle + event fan-out via injected fetchers
+// Outbox poller: cursors, first-run and reinstall handling, paging, fan-out.
+jest.mock("../icp", () => ({}));
 jest.mock("../dispatcher", () => ({ dispatchToUser: jest.fn() }));
 
-import { pollOnce, startPoller, stopPoller } from "../poller";
-import { dispatchToUser } from "../dispatcher";
-import type { NotificationEvent } from "../types";
+import type { OutboxEvent, OutboxPage } from "../types";
+import type { PollerDeps } from "../poller";
 
-const mockDispatch = dispatchToUser as jest.MockedFunction<typeof dispatchToUser>;
+function freshPoller() {
+  jest.resetModules();
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  return require("../poller") as typeof import("../poller");
+}
 
-const LEAD_EVENT: NotificationEvent = {
-  type:      "new_lead",
-  principal: "contractor-xyz",
-  payload:   { title: "New lead", body: "Quote request in Plumbing", route: "leads/lead-1" },
-};
-
-const SIGNED_EVENT: NotificationEvent = {
-  type:      "job_signed",
-  principal: "contractor-abc",
-  payload:   { title: "Job signed", body: "Homeowner signed off", route: "jobs/job-99" },
-};
-
-beforeEach(() => {
-  jest.clearAllMocks();
-  stopPoller(); // ensure clean state
+const ev = (seq: number, over: Partial<OutboxEvent> = {}): OutboxEvent => ({
+  seq,
+  kind:      "job_awaiting_signature",
+  recipient: "homeowner-1",
+  refId:     `JOB_${seq}`,
+  summary:   `Job ${seq}`,
+  ...over,
 });
 
-afterEach(() => {
-  stopPoller();
-});
+/** A fake outbox holding `events`, paged like the canister (seq > after, max 200). */
+function outbox(events: OutboxEvent[], latestSeq = events.length ? events[events.length - 1].seq : 0) {
+  return jest.fn(async (_id: string, after: number): Promise<OutboxPage> => ({
+    events: events.filter((e) => e.seq > after).slice(0, 200),
+    latestSeq,
+  }));
+}
 
-// ── pollOnce ──────────────────────────────────────────────────────────────────
+function deps(over: Partial<PollerDeps> = {}): PollerDeps {
+  return {
+    readOutbox:      outbox([]),
+    getQuoteRequest: jest.fn(async () => null),
+    getContractors:  jest.fn(async () => []),
+    dispatch:        jest.fn(async () => undefined),
+    ...over,
+  };
+}
+
+describe("pollCanister", () => {
+  it("starts at the latest seq on first run without replaying history", async () => {
+    const p = freshPoller();
+    const d = deps({ readOutbox: outbox([ev(1), ev(2)]) });
+    expect(await p.pollCanister("job-id", d)).toBe(0);
+    expect(d.dispatch).not.toHaveBeenCalled();
+    expect(p.getCursor("job-id")).toBe(2);
+  });
+
+  it("sends events after the cursor and advances it", async () => {
+    const p = freshPoller();
+    const events = [ev(1)];
+    const d = deps({ readOutbox: outbox(events) });
+    await p.pollCanister("job-id", d); // cursor → 1
+    events.push(ev(2), ev(3, { recipient: "homeowner-2" }));
+    d.readOutbox = outbox(events);
+
+    expect(await p.pollCanister("job-id", d)).toBe(2);
+    expect(d.dispatch).toHaveBeenCalledWith("homeowner-1", expect.objectContaining({ route: "jobs/JOB_2" }));
+    expect(d.dispatch).toHaveBeenCalledWith("homeowner-2", expect.objectContaining({ route: "jobs/JOB_3" }));
+    expect(p.getCursor("job-id")).toBe(3);
+
+    // Nothing new → nothing sent.
+    expect(await p.pollCanister("job-id", d)).toBe(0);
+  });
+
+  it("restarts from 0 when the outbox is behind the cursor (canister reinstalled)", async () => {
+    const p = freshPoller();
+    await p.pollCanister("job-id", deps({ readOutbox: outbox([ev(5)]) })); // cursor → 5
+    const d = deps({ readOutbox: outbox([ev(1), ev(2)]) });
+    expect(await p.pollCanister("job-id", d)).toBe(2);
+    expect(p.getCursor("job-id")).toBe(2);
+  });
+
+  it("pages through more than 200 events", async () => {
+    const p = freshPoller();
+    await p.pollCanister("job-id", deps({ readOutbox: outbox([]) })); // cursor → 0
+    const many = Array.from({ length: 450 }, (_, i) => ev(i + 1));
+    const d = deps({ readOutbox: outbox(many) });
+    expect(await p.pollCanister("job-id", d)).toBe(450);
+    expect(d.readOutbox).toHaveBeenCalledTimes(3);
+    expect(p.getCursor("job-id")).toBe(450);
+  });
+
+  it("stops at a failing event and resumes there on the next poll", async () => {
+    const p = freshPoller();
+    await p.pollCanister("quote-id", deps({ readOutbox: outbox([]) })); // cursor → 0
+    const events = [
+      ev(1, { kind: "bid_accepted", recipient: "c-1", summary: "HVAC" }),
+      ev(2, { kind: "new_lead", recipient: null, refId: "REQ_1", summary: "HVAC" }),
+    ];
+    const failing = deps({
+      readOutbox:      outbox(events),
+      getQuoteRequest: jest.fn(async () => { throw new Error("replica down"); }),
+    });
+    await expect(p.pollCanister("quote-id", failing)).rejects.toThrow("replica down");
+    expect(failing.dispatch).toHaveBeenCalledTimes(1);
+    expect(p.getCursor("quote-id")).toBe(1);
+
+    const ok = deps({ readOutbox: outbox(events) });
+    await p.pollCanister("quote-id", ok);
+    expect(ok.getQuoteRequest).toHaveBeenCalledWith("REQ_1");
+    expect(p.getCursor("quote-id")).toBe(2);
+  });
+
+  it("fetches contractor profiles at most once per poll", async () => {
+    const p = freshPoller();
+    await p.pollCanister("quote-id", deps({ readOutbox: outbox([]) }));
+    const leads = [1, 2, 3].map((n) => ev(n, { kind: "new_lead", recipient: null, refId: `REQ_${n}`, summary: "Roofing" }));
+    const d = deps({
+      readOutbox:      outbox(leads),
+      getQuoteRequest: jest.fn(async (id: string) => ({
+        id, homeowner: "h", serviceType: "Roofing", status: "Open",
+        zipCode: null, minTrustScore: null, minJobsCompleted: null,
+      })),
+      getContractors: jest.fn(async () => [{
+        principal: "roofer", specialties: ["Roofing"], serviceZips: [], alertZips: [],
+        notifyPush: true, trustScore: 70, jobsCompleted: 0, isVerified: false,
+      }]),
+    });
+    expect(await p.pollCanister("quote-id", d)).toBe(3);
+    expect(d.getContractors).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe("pollOnce", () => {
-  it("dispatches each event returned by the fetchers", async () => {
-    mockDispatch.mockResolvedValue(undefined);
+  const saved = { ...process.env };
+  afterEach(() => { process.env = { ...saved }; });
 
-    await pollOnce([
-      async () => [LEAD_EVENT],
-      async () => [SIGNED_EVENT],
-    ]);
-
-    expect(mockDispatch).toHaveBeenCalledTimes(2);
-    expect(mockDispatch).toHaveBeenCalledWith(LEAD_EVENT.principal,  LEAD_EVENT.payload);
-    expect(mockDispatch).toHaveBeenCalledWith(SIGNED_EVENT.principal, SIGNED_EVENT.payload);
+  it("polls every configured outbox and keeps going when one fails", async () => {
+    process.env.CANISTER_ID_JOB   = "job-id";
+    process.env.CANISTER_ID_QUOTE = "quote-id";
+    const p = freshPoller();
+    const readOutbox = jest.fn(async (id: string) => {
+      if (id === "job-id") throw new Error("boom");
+      return { events: [], latestSeq: 0 };
+    });
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    await p.pollOnce(deps({ readOutbox }));
+    expect(readOutbox).toHaveBeenCalledWith("job-id", 0);
+    expect(readOutbox).toHaveBeenCalledWith("quote-id", 0);
+    expect(p.getCursor("quote-id")).toBe(0);
   });
 
-  it("is a no-op when all fetchers return empty arrays", async () => {
-    await pollOnce([async () => [], async () => []]);
-    expect(mockDispatch).not.toHaveBeenCalled();
-  });
-
-  it("merges events from multiple fetchers into one dispatch loop", async () => {
-    mockDispatch.mockResolvedValue(undefined);
-
-    await pollOnce([
-      async () => [LEAD_EVENT, SIGNED_EVENT],
-      async () => [],
-    ]);
-
-    expect(mockDispatch).toHaveBeenCalledTimes(2);
-  });
-
-  it("dispatches multiple events for the same principal independently", async () => {
-    const event2: NotificationEvent = { ...LEAD_EVENT, payload: { title: "Lead 2", body: "Roofing" } };
-    mockDispatch.mockResolvedValue(undefined);
-
-    await pollOnce([async () => [LEAD_EVENT, event2]]);
-
-    expect(mockDispatch).toHaveBeenCalledTimes(2);
-  });
-
-  it("uses default fetchers (stubs) when called with no arguments", async () => {
-    // Default stubs return [] — dispatch should not be called
-    await expect(pollOnce()).resolves.toBeUndefined();
-    expect(mockDispatch).not.toHaveBeenCalled();
-  });
-
-  it("propagates fetcher errors (caller handles them)", async () => {
-    await expect(
-      pollOnce([async () => { throw new Error("canister unreachable"); }])
-    ).rejects.toThrow("canister unreachable");
-  });
-});
-
-// ── startPoller / stopPoller ──────────────────────────────────────────────────
-
-describe("startPoller / stopPoller", () => {
-  beforeEach(() => {
-    jest.useFakeTimers();
-  });
-  afterEach(() => {
-    jest.useRealTimers();
-  });
-
-  it("startPoller registers a recurring interval", () => {
-    const spy = jest.spyOn(global, "setInterval");
-    startPoller();
-    expect(spy).toHaveBeenCalledTimes(1);
-    spy.mockRestore();
-  });
-
-  it("startPoller is idempotent — calling twice registers only one interval", () => {
-    const spy = jest.spyOn(global, "setInterval");
-    startPoller();
-    startPoller();
-    expect(spy).toHaveBeenCalledTimes(1);
-    spy.mockRestore();
-  });
-
-  it("stopPoller clears the interval", () => {
-    const spy = jest.spyOn(global, "clearInterval");
-    startPoller();
-    stopPoller();
-    expect(spy).toHaveBeenCalledTimes(1);
-    spy.mockRestore();
-  });
-
-  it("stopPoller is a no-op when poller was never started", () => {
-    const spy = jest.spyOn(global, "clearInterval");
-    stopPoller(); // called without startPoller
-    expect(spy).not.toHaveBeenCalled();
-    spy.mockRestore();
+  it("skips canisters whose ID isn't set", async () => {
+    delete process.env.CANISTER_ID_JOB;
+    delete process.env.CANISTER_ID_QUOTE;
+    const p = freshPoller();
+    const d = deps();
+    await p.pollOnce(d);
+    expect(d.readOutbox).not.toHaveBeenCalled();
   });
 });

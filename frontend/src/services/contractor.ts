@@ -30,6 +30,10 @@ export interface ContractorProfile {
   createdAt:     number;   // ms
   rating?:       number;   // average from reviews; computed client-side
   origin:        ContractorOrigin;
+  /** Push alerts for new leads in the contractor's trades (all their devices). */
+  notifyPush?:   boolean;
+  notifyEmail?:  string | null;
+  alertZips?:    string[];
 }
 
 export interface JobCredential {
@@ -79,6 +83,9 @@ function fromProfile(raw: any): ContractorProfile {
     origin:        "SelfRegistered" in raw.origin
       ? { type: "SelfRegistered" }
       : { type: "GuestSigned", jobId: raw.origin.GuestSigned },
+    notifyPush:    raw.notifyPush?.[0] === true,
+    notifyEmail:   raw.notifyEmail?.[0] ?? null,
+    alertZips:     (raw.alertZips as string[] | undefined) ?? [],
   };
 }
 
@@ -177,6 +184,18 @@ function createContractorService() {
       licenseNumber: args.licenseNumber ? [args.licenseNumber] : [],
       serviceArea:   args.serviceArea   ? [args.serviceArea]   : [],
       serviceZips:   args.serviceZips,
+    }));
+  },
+
+  /** Turn new-lead push alerts on or off, keeping the other notification prefs. */
+  async setLeadPushAlerts(enabled: boolean): Promise<ContractorProfile> {
+    const a = await getActor();
+    const current = await a.getMyProfile();
+    if ("err" in current) throw new Error("Create your contractor profile first");
+    return unwrap(await a.updateNotificationPrefs({
+      notifyEmail: current.ok.notifyEmail,
+      notifyPush:  [enabled],
+      alertZips:   current.ok.alertZips,
     }));
   },
 

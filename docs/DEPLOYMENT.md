@@ -158,6 +158,14 @@ in the repo — host it on any Node platform and set the variables below.
 | `VAPID_PRIVATE_KEY` | Base64url VAPID private key — keep secret |
 | `VAPID_SUBJECT` | `mailto:` or URL identifying the sender (e.g. `mailto:admin@homegentic.io`) |
 | `INTERNAL_API_KEY` | Shared secret required in `x-internal-key` header on `POST /api/push/send` |
+| `NOTIFICATIONS_DATA_FILE` | Path of the JSON file holding device tokens, browser subscriptions and outbox cursors (e.g. `/var/lib/homegentic/notifications.json`). Put it on persistent storage. |
+| `RELAY_IDENTITY_SEED` | 32-byte hex seed for the relay's own ICP identity (`openssl rand -hex 32`). Keep secret and stable — its principal is allowlisted on the canisters. |
+| `IC_HOST` | ICP API host (default `https://icp-api.io`; `http://localhost:4943` locally) |
+| `CANISTER_ID_AUTH` | Auth canister — resolves the session tokens clients register with |
+| `CANISTER_ID_JOB` | Job canister — outbox for "job awaiting signature" |
+| `CANISTER_ID_QUOTE` | Quote canister — outbox for bid outcomes and new leads |
+| `CANISTER_ID_CONTRACTOR` | Contractor canister — profiles for new-lead matching |
+| `POLL_INTERVAL_MS` | How often to read the outboxes (default `30000`) |
 | `APNS_KEY_ID` | Apple APNs Auth Key ID (for iOS push) |
 | `APNS_TEAM_ID` | Apple Team ID |
 | `APNS_PRIVATE_KEY` | APNs `.p8` private key content |
@@ -166,7 +174,33 @@ in the repo — host it on any Node platform and set the variables below.
 
 VAPID keys are stable — regenerate only if the private key is compromised (invalidates all existing browser subscriptions).
 
-`INTERNAL_API_KEY` gates both `/api/push/send` and `/api/push/register`. It must be set in production — the server throws at startup if it is absent when `NODE_ENV=production`.
+`INTERNAL_API_KEY` gates `/api/push/send`. Registration (`/api/push/register`, `/api/push/vapid-subscribe`) is authenticated with the auth canister's session tokens instead. In production the server throws at startup if `INTERNAL_API_KEY`, `CANISTER_ID_AUTH`, `NOTIFICATIONS_DATA_FILE` or `RELAY_IDENTITY_SEED` is missing.
+
+### Allowlist the relay on the canisters
+
+The relay logs its principal at startup (`relay principal: …`). Allow it to read
+the job and quote outboxes, either when deploying:
+
+```bash
+NOTIFIER_PRINCIPAL=<relay principal> bash scripts/deploy.sh <env>
+```
+
+or directly:
+
+```bash
+icp canister call job   addNotifier '(principal "<relay principal>")' -e <env>
+icp canister call quote addNotifier '(principal "<relay principal>")' -e <env>
+```
+
+Until it is allowlisted, the relay logs `NotAuthorized` each poll and sends nothing.
+
+### Point the clients at the relay
+
+- **Web:** set `VITE_NOTIFICATIONS_URL` (the relay's https URL) for the frontend
+  build. The build adds its origin to the CSP. Without it, the push toggle in
+  Settings is hidden.
+- **Mobile:** set `EXPO_PUBLIC_NOTIFICATIONS_URL` for the Expo build.
+- Set the relay's `FRONTEND_ORIGIN` to the web app's origin (CORS).
 
 ### Generate VAPID keys (first-time only)
 

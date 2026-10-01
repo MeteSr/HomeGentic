@@ -63,6 +63,18 @@ if (!voiceAgentUrl) {
 
 const voiceOrigin = voiceAgentUrl || "http://localhost:3001";
 
+// The notification relay is optional; when configured, browsers must be able
+// to reach it to register for push.
+let notificationsOrigin = "";
+if (env.VITE_NOTIFICATIONS_URL?.trim()) {
+  try {
+    notificationsOrigin = new URL(env.VITE_NOTIFICATIONS_URL.trim()).origin;
+  } catch {
+    console.error(`[gen-ic-assets] FATAL: VITE_NOTIFICATIONS_URL is not a valid URL: ${env.VITE_NOTIFICATIONS_URL}`);
+    process.exit(1);
+  }
+}
+
 // ── Build CSP ─────────────────────────────────────────────────────────────────
 // Production-appropriate directives — no localhost entries.
 // Matches the <meta> tag CSP in index.html but without the dev-only localhost
@@ -75,7 +87,7 @@ const csp = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   // icp-api.io is an alternative boundary-node endpoint used by some @dfinity/* versions
-  `connect-src 'self' https://ic0.app https://*.ic0.app https://icp-api.io ${voiceOrigin}`,
+  `connect-src 'self' https://ic0.app https://*.ic0.app https://icp-api.io ${voiceOrigin}${notificationsOrigin ? ` ${notificationsOrigin}` : ""}`,
   "img-src 'self' data: blob:",
   "frame-ancestors 'none'",
 ].join("; ");

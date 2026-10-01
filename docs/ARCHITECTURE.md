@@ -100,6 +100,7 @@ flowchart TB
   web -- "sign in" --> ii
   web -- "x-agent-session" --> voice
   mobile -- "register device" --> notify
+  web -- "register browser" --> notify
 
   voice -- "resolve session" --> auth
   voice -- "tier · grant" --> payment
@@ -111,6 +112,8 @@ flowchart TB
   payment -- "outcall" --> stripe
   ai_proxy -- "outcalls" --> records & resend
 
+  notify -- "read outboxes" --> core
+  notify -- "resolve session" --> auth
   devices --> iot
   iot -- "recordEvent" --> sensor
   notify --> push
@@ -389,9 +392,31 @@ Max response: 200 tokens, 2–3 sentences, tuned for speech rhythm.
 
 ## Notification Relay
 
-A standalone Node/Express server at `agents/notifications/` (port 3002 locally) fans out push
-notifications to registered devices and browsers. ICP canisters cannot initiate outbound
-HTTP, so this relay bridges the gap.
+A standalone Node/Express server at `agents/notifications/` (port 3002 locally) sends push
+notifications to users' phones and browsers.
+
+Canisters *can* make outbound HTTPS requests (`ai_proxy` and `payment` do), but push sending stays
+off-chain for three reasons. A replicated outcall is made by every node in the subnet, so APNs and
+FCM would get duplicate sends. The APNs and FCM signing keys would sit in canister state, readable
+by node operators. And each push would cost cycles.
+
+### How events reach the relay
+
+The canisters that raise push-worthy events keep a small **outbox** (`backend/shared/Notify.mo`):
+`job` and `quote` record an event when something happens, keeping the newest 1,000. The relay
+reads each outbox every `POLL_INTERVAL_MS` (30 s) with `getNotificationEvents(afterSeq, limit)`,
+using its own identity (`RELAY_IDENTITY_SEED`). An admin allowlists that identity's principal on
+each canister with `addNotifier`. The relay keeps a cursor per canister and advances it one event
+at a time after sending, so a crash resumes at the first unsent event.
+
+| Event | Raised by | Sent to |
+|---|---|---|
+| `job_awaiting_signature` | `job.createJobProposal`, a contractor's `verifyJob` or invite redemption before the homeowner signs | The homeowner |
+| `bid_accepted` / `bid_declined` | `quote.acceptQuote` | The winning contractor / every other bidder |
+| `new_lead` | `quote.createQuoteRequest`, `createSealedBidRequest` | Every contractor with `notifyPush` on, the trade in `specialties`, and the request's zip in `alertZips` (or `serviceZips`; none means everywhere), who meets the request's trust thresholds |
+
+On its first run the relay starts at each outbox's latest event rather than replaying history. If
+an outbox reports a latest seq below the cursor (the canister was reinstalled), it starts again from 0.
 
 ### Channels
 
@@ -401,16 +426,28 @@ HTTP, so this relay bridges the gap.
 | Mobile (Android) | FCM | `store.ts` | `fcm.ts` |
 | Browser (any) | VAPID Web Push | `vapidStore.ts` | `vapidDispatcher.ts` |
 
+Registrations and cursors persist to `NOTIFICATIONS_DATA_FILE`. A device token or browser endpoint
+belongs to one user at a time: registering it under a new user removes it from the previous one.
+
 ### Endpoints
+
+Registration endpoints identify the caller from the `x-agent-session` header: the session token the
+auth canister issues (`issueAgentSession`) and the relay resolves (`resolveAgentSession`), as the
+voice Worker does. A principal in the body is ignored.
 
 | Endpoint | Description |
 |---|---|
 | `GET  /api/push/vapid-public-key` | Returns the VAPID public key for browser `PushManager.subscribe()` |
-| `POST /api/push/vapid-subscribe` | Register a browser `PushSubscription` (`{ principal, subscription }`) |
+| `POST /api/push/vapid-subscribe` | Register a browser `PushSubscription` for the session's user (`{ subscription }`) |
 | `POST /api/push/vapid-unsubscribe` | Remove a subscription by endpoint URL (`{ endpoint }`) |
-| `POST /api/push/register` | Register an Expo/APNs/FCM device token (`{ principal, token, platform }`) |
+| `POST /api/push/register` | Register a native APNs/FCM device token for the session's user (`{ token, platform }`) |
 | `POST /api/push/unregister` | Remove a device token (`{ token }`) |
-| `POST /api/push/send` | Internal: fan-out to all devices + browsers for a principal; requires `x-internal-key` header in production |
+| `POST /api/push/send` | Internal/manual: send to all of a principal's devices and browsers; requires `x-internal-key` |
+
+The web app turns push on per browser in **Settings → Notifications** (`services/pushNotifications.ts`,
+service worker `public/push-sw.js`); contractors also switch new-lead alerts on there, which sets
+`notifyPush` on their profile. The mobile app registers its native device token after sign-in
+(`hooks/useNotifications.ts`).
 
 ### VAPID key setup (first-time only)
 
@@ -425,9 +462,11 @@ VAPID_PRIVATE_KEY=<base64url private key>
 VAPID_SUBJECT=mailto:admin@homegentic.io
 ```
 
-### Job-match notifications (#279)
+### Job-match emails (#279)
 
-When a new job is created, the job canister cross-calls `ai_proxy.sendJobMatchEmail` for each contractor whose `specialties` + `alertZips` (or `serviceZips` if `alertZips` is empty) overlap the job. `ai_proxy` sends a branded HTML email via Resend. Contractors opt in to email alerts via `contractor.updateNotificationPrefs(notifyEmail, notifyPush, alertZips)`.
+`ai_proxy.sendJobMatchEmail` sends a branded job-match email through Resend, and contractors store
+their email preferences with `contractor.updateNotificationPrefs(notifyEmail, notifyPush, alertZips)`.
+Nothing calls `sendJobMatchEmail` yet; new-lead alerts currently go out only as pushes (above).
 
 ---
 
@@ -518,7 +557,7 @@ backend/
   listing/        maintenance/    market/       monitoring/
   payment/        photo/          property/     quote/
   recurring/      referrals/      report/       sensor/
-  shared/         — ServiceType.mo shared by job / quote / contractor
+  shared/         — ServiceType.mo (job / quote / contractor), Notify.mo push outbox (job / quote)
   — each canister has main.mo; most have test.sh
 
 frontend/

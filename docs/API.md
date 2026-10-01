@@ -128,6 +128,8 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `rejectJobProposal` | update | `(jobId: Text)` | Homeowner rejects a pending contractor proposal. |
 | `getJobSnapshotsForProperty` | query | `(propertyId: Text)` | Returns a lightweight snapshot of all jobs for a property, suitable for cross-canister consumption by the market canister's computePropertyScore. |
 | `getReferralJobs` | update | `()` | Returns all jobs that were sourced via a HomeGentic quote request. |
+| `getNotificationEvents` | query | `(afterSeq: Nat, limit: Nat)` | Notifier/admin: push outbox events after `afterSeq` (max 200), with `latestSeq` — read by the notification relay. See `backend/shared/Notify.mo` |
+| `addNotifier` / `removeNotifier` | update | `(p: Principal)` | Admin: allow or revoke a principal (the relay's) reading the outbox |
 
 **JobStatus:** `#Pending | #InProgress | #Completed | #Verified | #PendingHomeownerApproval | #RejectedByHomeowner`
 
@@ -158,7 +160,7 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `getContractorStats` | query | `(p: Principal)` | Lightweight stats query used by the quote canister to check visibility thresholds. |
 | `getPage` | query | `(from: Nat, limit: Nat)` | Paginated contractor list |
 
-**ContractorProfile new fields (after #279):** `notifyEmail: ?Text` (override email for alerts; null = use profile email), `notifyPush: ?Bool` (opt-in to mobile push), `alertZips: [Text]` (subset of serviceZips to receive alerts for; empty = all serviceZips).
+**ContractorProfile new fields (after #279):** `notifyEmail: ?Text` (override email for alerts; null = use profile email), `notifyPush: ?Bool` (opt-in to new-lead push alerts on the contractor's phones and browsers), `alertZips: [Text]` (subset of serviceZips to receive alerts for; empty = all serviceZips).
 
 **Admin / Lifecycle:** `setJobCanisterId(id: Text)` · `setUpdateRateLimit(n: Nat)` · `setBootstrapNonce(nonce: Text)` · `addAdmin(newAdmin: Principal, nonce: Text)` · `removeAdmin(target: Principal)` · `addTrustedCanister(p: Principal)` · `removeTrustedCanister(p: Principal)` · `getTrustedCanisters()` · `pause(durationSeconds: ?Nat)` · `unpause()` · `getMetrics()`
 
@@ -179,6 +181,8 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `getQuotesForRequest` | query | `(requestId: Text)` | All bids on a request |
 | `acceptQuote` | update | `(quoteId: Text)` | Homeowner accepts a bid |
 | `closeQuoteRequest` | update | `(requestId: Text)` | Close a request without accepting |
+| `getNotificationEvents` | query | `(afterSeq: Nat, limit: Nat)` | Notifier/admin: push outbox events after `afterSeq` (max 200), with `latestSeq` — read by the notification relay. See `backend/shared/Notify.mo` |
+| `addNotifier` / `removeNotifier` | update | `(p: Principal)` | Admin: allow or revoke a principal (the relay's) reading the outbox |
 
 ### Sealed Bids
 

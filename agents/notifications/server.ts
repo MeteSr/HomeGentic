@@ -7,6 +7,8 @@ import { registerToken, removeToken } from "./store";
 import { registerSubscription, removeSubscription } from "./vapidStore";
 import { dispatchToUser }             from "./dispatcher";
 import { startPoller }                from "./poller";
+import { requestPrincipal }           from "./session";
+import { relayIdentity }              from "./icp";
 import type { Platform, PushPayload } from "./types";
 import type { PushSubscription }      from "web-push";
 
@@ -42,32 +44,39 @@ export function buildApp() {
   });
   app.use("/api/", apiLimiter);
 
-  // ── Auth key startup check ──────────────────────────────────────────────────
+  // ── Startup checks ──────────────────────────────────────────────────────────
   const internalKey = process.env.INTERNAL_API_KEY;
   if (!internalKey) {
     if (process.env.NODE_ENV === "production") {
       throw new Error("INTERNAL_API_KEY must be set in production");
     }
-    console.warn("[notifications] INTERNAL_API_KEY not set — /api/push/send will reject all requests in non-dev");
+    console.warn("[notifications] INTERNAL_API_KEY not set — /api/push/send will reject all requests");
+  }
+  if (process.env.NODE_ENV === "production") {
+    // Registrations are authenticated with auth-canister session tokens, and
+    // must survive a restart.
+    for (const v of ["CANISTER_ID_AUTH", "NOTIFICATIONS_DATA_FILE"]) {
+      if (!process.env[v]) throw new Error(`${v} must be set in production`);
+    }
   }
 
   // ── POST /api/push/register ─────────────────────────────────────────────────
-  app.post("/api/push/register", (req: Request, res: Response): void => {
-    // Require internal API key — prevents unauthorized token registration
-    const internalKey = process.env.INTERNAL_API_KEY;
-    if (!internalKey || req.headers["x-internal-key"] !== internalKey) {
-      res.status(401).json({ error: "Unauthorized" });
+  // Registers a mobile device token for the caller identified by the
+  // x-agent-session header (see session.ts). Body: { token, platform }.
+  app.post("/api/push/register", async (req: Request, res: Response): Promise<void> => {
+    const principal = await requestPrincipal(req);
+    if (!principal) {
+      res.status(401).json({ error: "session_required" });
       return;
     }
 
-    const { principal, token, platform } = req.body as {
-      principal?: string;
+    const { token, platform } = req.body as {
       token?:     string;
       platform?:  Platform;
     };
 
-    if (!principal || !token || !platform) {
-      res.status(400).json({ error: "principal, token, and platform are required" });
+    if (!token || !platform) {
+      res.status(400).json({ error: "token and platform are required" });
       return;
     }
 
@@ -127,18 +136,19 @@ export function buildApp() {
   });
 
   // ── POST /api/push/vapid-subscribe ─────────────────────────────────────────
-  // Registers a browser Web Push subscription for a principal.
-  // Body: { principal: string, subscription: PushSubscription }
-  app.post("/api/push/vapid-subscribe", (req: Request, res: Response): void => {
-    const { principal, subscription } = req.body as {
-      principal?:   string;
-      subscription?: PushSubscription;
-    };
-
+  // Registers a browser Web Push subscription for the caller identified by
+  // the x-agent-session header (see session.ts).
+  // Body: { subscription: PushSubscription }
+  app.post("/api/push/vapid-subscribe", async (req: Request, res: Response): Promise<void> => {
+    const principal = await requestPrincipal(req);
     if (!principal) {
-      res.status(400).json({ error: "principal is required" });
+      res.status(401).json({ error: "session_required" });
       return;
     }
+
+    const { subscription } = req.body as {
+      subscription?: PushSubscription;
+    };
     if (!subscription?.endpoint) {
       res.status(400).json({ error: "subscription.endpoint is required" });
       return;
@@ -179,6 +189,14 @@ if (require.main === module) {
   const app  = buildApp();
   app.listen(port, () => {
     console.log(`HomeGentic notification relay → http://localhost:${port}`);
-    startPoller();
+    try {
+      // Allowlist this on job and quote: addNotifier(principal), or
+      // NOTIFIER_PRINCIPAL=<it> when running scripts/deploy.sh.
+      console.log(`[notifications] relay principal: ${relayIdentity().getPrincipal().toText()}`);
+      startPoller();
+    } catch (err) {
+      if (process.env.NODE_ENV === "production") throw err;
+      console.warn(`[notifications] ${err instanceof Error ? err.message : err} — not polling canisters`);
+    }
   });
 }

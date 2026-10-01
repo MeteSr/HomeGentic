@@ -7,10 +7,12 @@ import { registerToken, removeToken, getTokensForPrincipal } from "../store";
 // Mock transport modules before importing dispatcher
 jest.mock("../apns", () => ({ sendApns: jest.fn() }));
 jest.mock("../fcm",  () => ({ sendFcm:  jest.fn() }));
+jest.mock("../vapidDispatcher", () => ({ dispatchWebPush: jest.fn() }));
 
 import { dispatchToUser } from "../dispatcher";
 import { sendApns } from "../apns";
 import { sendFcm  } from "../fcm";
+import { dispatchWebPush } from "../vapidDispatcher";
 
 const mockSendApns = sendApns as jest.MockedFunction<typeof sendApns>;
 const mockSendFcm  = sendFcm  as jest.MockedFunction<typeof sendFcm>;
@@ -132,5 +134,13 @@ describe("dispatchToUser — stale token eviction", () => {
     await expect(dispatchToUser(PRINCIPAL, PAYLOAD)).resolves.toBeUndefined();
     // Token should NOT be evicted for a network error
     expect(getTokensForPrincipal(PRINCIPAL)).toHaveLength(1);
+  });
+});
+
+describe("browser push", () => {
+  it("also sends to the principal's browser subscriptions", async () => {
+    const payload = { title: "T", body: "B", route: "jobs/JOB_1" };
+    await dispatchToUser("browser-only-principal", payload);
+    expect(dispatchWebPush).toHaveBeenCalledWith("browser-only-principal", payload);
   });
 });

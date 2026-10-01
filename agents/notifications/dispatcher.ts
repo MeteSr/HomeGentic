@@ -1,13 +1,18 @@
 /**
- * Dispatches a push payload to all registered devices for a given principal.
- * Failures on individual devices are logged but do not abort the batch.
+ * Dispatches a push payload to every registered device and browser for a
+ * principal. Failures on individual devices are logged but do not abort the batch.
  */
 import { getTokensForPrincipal, removeToken } from "./store";
 import { sendApns } from "./apns";
 import { sendFcm  } from "./fcm";
+import { dispatchWebPush } from "./vapidDispatcher";
 import type { PushPayload } from "./types";
 
 export async function dispatchToUser(principal: string, payload: PushPayload): Promise<void> {
+  await Promise.all([dispatchToDevices(principal, payload), dispatchWebPush(principal, payload)]);
+}
+
+async function dispatchToDevices(principal: string, payload: PushPayload): Promise<void> {
   const tokens = getTokensForPrincipal(principal);
   if (tokens.length === 0) return;
 

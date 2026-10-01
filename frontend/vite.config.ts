@@ -23,8 +23,21 @@ export default defineConfig(({ mode }) => {
     },
   };
 
+  // The notification relay is optional, so its CSP entry can't use Vite's
+  // %VITE_…% substitution (an unset variable is left in as a literal).
+  const notificationsCsp = {
+    name: "notifications-csp",
+    transformIndexHtml(html: string): string {
+      let origin = "";
+      try {
+        if (env.VITE_NOTIFICATIONS_URL) origin = new URL(env.VITE_NOTIFICATIONS_URL).origin;
+      } catch { /* malformed URL — leave it out of the CSP */ }
+      return html.replace(" __NOTIFICATIONS_ORIGIN__", origin ? ` ${origin}` : "");
+    },
+  };
+
   return {
-    plugins: [react(), stripDevCsp],
+    plugins: [react(), stripDevCsp, notificationsCsp],
     envDir: path.resolve(__dirname, ".."),
     resolve: {
       alias: {
