@@ -1,5 +1,20 @@
 # HomeGentic Deployment Guide
 
+## What gets deployed
+
+| Component | Code | Ships via | Section |
+|---|---|---|---|
+| 20 Motoko canisters | `backend/` | `scripts/deploy.sh` (CI: `deploy-testnet.yml` on green `main`, `deploy-mainnet.yml` by hand) | [Mainnet Deployment](#mainnet-deployment), [One-time canister configuration](#one-time-canister-configuration) |
+| Web app (assets canister) | `frontend/` | Built and uploaded by `scripts/deploy.sh` | [Frontend build variables](#frontend-build-variables) |
+| Voice / AI Worker | `agents/voice/` | `deploy-voice-worker` job (Cloudflare) | [Voice Agent](#voice-agent-cloudflare-workers) |
+| Lead email Worker | `agents/email/` | `deploy-email-worker` job (Cloudflare) | [Email Relay](#email-relay-cloudflare-workers) |
+| Notification relay | `agents/notifications/` | Manual — any Node host | [Notification Relay](#notification-relay) |
+| IoT gateway | `agents/iot-gateway/` | Manual — any Node host | [IoT Gateway](#iot-gateway) |
+| Mobile app | `mobile/` | Manual — Expo EAS | [Mobile App](#mobile-app) |
+| Admin monitoring dashboard | `dashboard/` | Manual — static build | [Admin Dashboard](#admin-dashboard) |
+
+`agents/maintenance/` holds prompt templates only; it isn't deployed on its own.
+
 ## Local Development
 
 ```bash
@@ -108,12 +123,13 @@ deadline reminders.
 | `STRIPE_PRICE_CONTRACTOR_PRO_YEARLY` | Stripe price ID |
 | `STRIPE_PRICE_CREDITS_25` | Stripe price ID — agent-credit pack |
 | `STRIPE_PRICE_CREDITS_100` | Stripe price ID — agent-credit pack |
-| `DFX_IDENTITY_PEM` | Ed25519 PEM of the identity registered as admin in the payment canister |
+| `DFX_IDENTITY_PEM` | Ed25519 PEM of the identity the Worker signs canister calls with. Make it a payment admin — [One-time canister configuration](#one-time-canister-configuration), step 2 |
 | `CANISTER_ID_PAYMENT` | Payment canister ID |
 | `CANISTER_ID_AUTH` | Auth canister ID — resolves the `x-agent-session` tokens that identify callers on `/api/chat` and `/api/agent`. Without it those routes return 401 in production |
 | `CANISTER_ID_MONITORING` | Optional — monitoring canister, for frontend-error and cycle-alert routes |
 | `BIDTOLIST_*` | Optional — Bid to List Stripe/Resend keys and canister IDs (see the comment block in `wrangler.toml`) |
 
+`STRIPE_PRICE_PRO_MONTHLY` is optional (Pro is sold yearly only).
 `RENTCAST_API_KEY` is optional — it enables `/api/rentcast/properties`
 (year built / square footage in the Add Property wizard); without it the
 route returns 503 and the wizard just skips the prefill.
@@ -135,17 +151,33 @@ with a warning and the activation is skipped.
 
 `agents/email/` is a small Worker (`homegentic-email-relay`) that turns
 lead-form submissions into emails via Resend. It is deployed by the
-`deploy-email-worker` job in `deploy-mainnet.yml`. Secrets (set with
-`npx wrangler secret put`): `RESEND_API_KEY`, and `ROUTE_CONFIG` — a JSON
-array mapping each allowed origin to its to/from addresses.
+`deploy-email-worker` job in both `deploy-mainnet.yml` and
+`deploy-testnet.yml`. There is only one Worker (no `[env.testnet]`), so a
+testnet deploy also redeploys the production email Worker.
+
+First-time setup:
+
+1. `cd agents/email && npx wrangler deploy`
+2. Set its secrets with `npx wrangler secret put <NAME>`:
+   - `RESEND_API_KEY` — Resend key whose domain matches the `fromEmail` addresses
+   - `ROUTE_CONFIG` — JSON array with one entry per site that may post leads:
+     `[{"origin":"https://example.com","toEmail":"leads@…","fromEmail":"noreply@…","fromName":"…"}]`.
+     Requests from any other origin are rejected.
+3. Point each site's lead form at the Worker's URL.
 
 ---
 
 ## Notification Relay
 
 The notification relay (`agents/notifications/`) is a standalone Node service
-(`npm run build && npm start`). It is not deployed by CI and has no Dockerfile
-in the repo — host it on any Node platform and set the variables below.
+(`npm ci && npm run build && npm start`). It is not deployed by CI and has no
+Dockerfile in the repo — host it on any Node platform and set the variables below.
+
+- Serve it over **HTTPS**: browsers only register push from an https page, and
+  the web app's CSP lists the relay's origin.
+- Run **one instance**. The outbox cursors live in `NOTIFICATIONS_DATA_FILE`;
+  two instances would each send every push.
+- Put `NOTIFICATIONS_DATA_FILE` on a disk that survives restarts and redeploys.
 
 ### Required environment variables
 
@@ -169,6 +201,7 @@ in the repo — host it on any Node platform and set the variables below.
 | `APNS_KEY_ID` | Apple APNs Auth Key ID (for iOS push) |
 | `APNS_TEAM_ID` | Apple Team ID |
 | `APNS_PRIVATE_KEY` | APNs `.p8` private key content |
+| `APNS_BUNDLE_ID` | iOS bundle ID the pushes are for (default `app.homegentic.mobile`, matching `mobile/app.json`). `NODE_ENV=production` sends to APNs production, anything else to the sandbox |
 | `FCM_PROJECT_ID` | Firebase project ID (for Android push) |
 | `FCM_SERVICE_ACCOUNT_JSON` | Firebase service account JSON (for Android push) |
 
@@ -214,7 +247,20 @@ cd agents/notifications && node -e "const wp=require('web-push'); const k=wp.gen
 
 The IoT gateway (`agents/iot-gateway/`) is a Node/Express server that ingests
 sensor events, manages OAuth credentials for smart-home platforms, and writes
-events to the `sensor` ICP canister.
+events to the `sensor` ICP canister. Like the notification relay it isn't
+deployed by CI: host it on any Node platform over HTTPS
+(`npm ci && npm run build && npm start`). Its default port, 3002, is the same as
+the relay's, so set `IOT_GATEWAY_PORT` if they share a host.
+
+**Allow it to write to the sensor canister.** The gateway logs its principal
+at startup (`gatewayPrincipal` on the `listening on` line). Add it once per
+environment:
+
+```bash
+icp canister call sensor addGateway '(principal "<gateway principal>")' -e <env>
+```
+
+Until then its `recordEvent` calls are rejected.
 
 ### Required environment variables
 
@@ -223,12 +269,21 @@ events to the `sensor` ICP canister.
 | `NODE_ENV` | `production` |
 | `IOT_GATEWAY_PORT` | Port to listen on (default `3002`) |
 | `SENSOR_CANISTER_ID` | ICP principal of the `sensor` canister |
+| `GATEWAY_IDENTITY_SEED` | 32-byte hex seed for the gateway's ICP identity (`openssl rand -hex 32`). Keep it stable — without it the gateway makes a new identity on every start, which the sensor canister won't accept |
+| `ICP_HOST` | ICP API host (default `http://localhost:4943`; set `https://icp-api.io` for testnet / mainnet) |
 | `ADMIN_TOKEN` | Strong random secret required in `x-admin-token` on `POST /accounts/:platform` (credential proxy) and `GET /oauth/start/*` (OAuth initiation). Server logs a warning and disables the credential proxy endpoint if unset. Generate with `openssl rand -hex 32`. |
 | `FRONTEND_ORIGIN` | Exact origin of the frontend — used in `postMessage` responses from the OAuth device picker |
 | `HONEYWELL_CLIENT_ID` | Honeywell Home OAuth app client ID |
 | `HONEYWELL_CLIENT_SECRET` | Honeywell Home OAuth app client secret |
 | `GE_CLIENT_ID` | GE SmartHQ OAuth app client ID |
 | `GE_CLIENT_SECRET` | GE SmartHQ OAuth app client secret |
+
+Each smart-home platform also needs its own webhook secret or API tokens
+(`NEST_WEBHOOK_SECRET`, `ECOBEE_*`, `MOEN_FLO_WEBHOOK_SECRET`, …); the table in
+[`agents/iot-gateway/README.md`](../agents/iot-gateway/README.md) lists them.
+Refreshed OAuth tokens are written to the `*_TOKENS_FILE` paths, so keep those on
+persistent storage too. Set the web app's `VITE_IOT_GATEWAY_URL` to the
+gateway's URL.
 
 ### OAuth setup (Honeywell / GE)
 
@@ -250,17 +305,78 @@ for the full OAuth CSRF state store design.
 
 ---
 
+## Mobile App
+
+The Expo app in `mobile/` (bundle ID / package `app.homegentic.mobile`) is built
+and submitted with [EAS](https://docs.expo.dev/build/introduction/), using the
+profiles in `mobile/eas.json` (`development`, `preview`, `production`):
+
+```bash
+cd mobile
+npx eas-cli build --profile production --platform all
+npx eas-cli submit --profile production --platform all
+```
+
+Set these as EAS environment variables (they're inlined at build time):
+
+| Variable | Description |
+|---|---|
+| `EXPO_PUBLIC_ICP_HOST` | ICP API host (`https://icp-api.io`) |
+| `EXPO_PUBLIC_AUTH_CANISTER_ID`, `EXPO_PUBLIC_PROPERTY_CANISTER_ID`, `EXPO_PUBLIC_JOB_CANISTER_ID`, `EXPO_PUBLIC_QUOTE_CANISTER_ID`, `EXPO_PUBLIC_PHOTO_CANISTER_ID` | Canister IDs for the target environment (`canister_ids.json`) |
+| `EXPO_PUBLIC_VOICE_AGENT_URL` | Voice Worker URL |
+| `EXPO_PUBLIC_WEB_URL` | Web app origin, used for shareable report links (default `https://homegentic.app`) |
+| `EXPO_PUBLIC_NOTIFICATIONS_URL` | Notification relay URL; without it the app skips push registration |
+
+For push, the app registers its native device token with the relay. iOS is set
+up already (`aps-environment` in `app.json`); the relay's APNs key must belong
+to the same Apple team. Android isn't yet: add the Firebase project's
+`google-services.json` and point `android.googleServicesFile` in `app.json` at
+it, or the app can't get an FCM token.
+
+---
+
+## Admin Dashboard
+
+`dashboard/` is a small Vite app showing monitoring, cycle and revenue metrics
+from the `auth`, `payment` and `monitoring` canisters. It reads
+`CANISTER_ID_AUTH`, `CANISTER_ID_PAYMENT`, `CANISTER_ID_MONITORING` and
+`DFX_NETWORK` from the repo-root `.env`. It isn't deployed by CI; run it locally
+(`cd dashboard && npm ci && npm run dev`, port 3002) or build it
+(`npm run build` → `dashboard/dist/`) and serve it from any static host. It calls
+the canisters with the anonymous identity, so it only shows what their public
+queries return.
+
+---
+
 ## Mainnet Deployment
 
 ```bash
 bash scripts/deploy.sh ic
 ```
 
-Requires:
-1. A funded cycles wallet
-2. DFX identity with controller permissions
-3. `DFX_IDENTITY_PEM` secret configured in GitHub (production environment)
-4. `VITE_VOICE_AGENT_URL` set in `.env` to your production voice agent domain
+`deploy-mainnet.yml` runs this from **Actions → Deploy Mainnet → Run workflow**
+(it never runs on its own). It needs these secrets in the `production`
+GitHub environment; `deploy.sh`'s pre-flight stops the deploy if any marked
+required is missing.
+
+| Secret | Required | Used for |
+|---|---|---|
+| `MAINNET_IDENTITY_PEM` | yes | Deploying identity (controller of every canister); passed to `deploy.sh` as `DFX_IDENTITY_PEM` |
+| `MAINNET_WALLET_ID` | yes | Funded cycles wallet |
+| `CI_PUSH_TOKEN` | yes | Commits `canister_ids.json` after the deploy |
+| `BACKUP_CONTROLLER_PRINCIPAL` | yes | Second controller (see [Controller Hardening](#controller-hardening)) |
+| `ANTHROPIC_API_KEY`, `VOICE_AGENT_API_KEY` | yes | Pre-flight checks only — the Worker holds its own copies |
+| `VITE_VOICE_AGENT_URL`, `VITE_VOICE_AGENT_API_KEY` | yes | Baked into the frontend |
+| `STRIPE_SECRET_KEY` | yes | Pre-flight (must be `sk_live_…` on mainnet); also see [Stripe → Production](#production) |
+| `VITE_STRIPE_PUBLISHABLE_KEY` | yes | Baked into the frontend |
+| `RESEND_API_KEY`, `RESEND_FROM_ADDRESS` | no | Set on `ai_proxy` (transactional email) |
+| `OPEN_PERMIT_API_KEY`, `ATTOM_API_KEY` | no | Set on `ai_proxy` (permit and property-record lookups) |
+| `VITE_NOTIFICATIONS_URL` | no | Notification relay URL baked into the frontend |
+| `CLOUDFLARE_API_TOKEN` | yes | The Worker deploy jobs |
+
+Locally, put the same values in `.env` (the `VITE_*` ones are read by the
+frontend build) and use an identity with controller permissions and a funded
+cycles wallet.
 
 **Build and deploy ordering** — the script handles this automatically, but for manual steps:
 
@@ -278,6 +394,68 @@ icp deploy frontend -e ic
 Running `npm run build` before step 1 will produce a bundle with empty canister IDs.
 Running `icp deploy frontend` before step 2 will serve a stale build without the
 updated `.ic-assets.json5` security headers.
+
+## Frontend build variables
+
+`frontend/vite.config.ts` reads `.env` at the repo root (which `deploy.sh`
+fills with `CANISTER_ID_*`) plus the build's environment. Besides the canister
+IDs:
+
+| Variable | Needed | Effect |
+|---|---|---|
+| `VITE_VOICE_AGENT_URL` | yes (testnet / mainnet) | Voice Worker URL; also added to the CSP. `deploy.sh` refuses a non-`https://` value |
+| `VITE_VOICE_AGENT_API_KEY` | yes | Sent to the Worker as `x-api-key` |
+| `VITE_STRIPE_PUBLISHABLE_KEY` | yes | Stripe.js |
+| `VITE_NOTIFICATIONS_URL` | optional | Notification relay URL; added to the CSP. Unset hides the browser push toggle |
+| `VITE_IOT_GATEWAY_URL` | optional | IoT gateway URL for the device-linking OAuth popup (defaults to `http://localhost:3002`) |
+| `VITE_GOOGLE_MAPS_API_KEY` | optional | Address autocomplete; without it the address field is plain text |
+| `VITE_MONITORING_CANISTER_ID` | optional | Frontend error reporting to the `monitoring` canister |
+| `VITE_CANISTER_ID_REPORT` | optional | Score certificate lookups (`/cert/:token`) |
+| `VITE_QUORUM_BENEFIT_CANISTER_ID` | optional | Partner benefit lookups |
+| `VITE_LOCAL_BROKER_EMAIL` | optional | Recipient for the local-broker contact form |
+
+The last three canister-ID variables are read under these `VITE_` names, not
+from the `CANISTER_ID_*` that `deploy.sh` writes, so copy the IDs over if you
+want those features.
+
+## One-time canister configuration
+
+`deploy.sh` creates the canisters, makes the deploying identity an admin of
+each, wires them to each other and sets the `ai_proxy` keys. A few things it
+can't do, because they need values or principals from other services. Do these
+once per environment (`-e ic` or `-e testnet`), as the deploying identity:
+
+1. **Stripe on the payment canister (mainnet checkout).** On mainnet
+   (`DFX_NETWORK=ic`) the web app starts checkout by calling
+   `payment.createStripeCheckoutSession`, which calls Stripe itself; local and
+   testnet builds go through the voice Worker instead. Until it's configured,
+   mainnet checkout fails with "Stripe is not configured":
+   ```bash
+   icp canister call payment configureStripe '(record {
+     secretKey  = "sk_live_…";
+     priceIds   = record {
+       proMonthly           = "";
+       proYearly            = "price_…";
+       contractorProMonthly = "price_…";
+       contractorProYearly  = "price_…";
+     };
+     successUrl = "https://<app-origin>/payment-success";
+     cancelUrl  = "https://<app-origin>/payment-failure";
+   })' -e ic
+   ```
+   The secret key is stored in the canister's state, which the subnet's node
+   operators can read; use a [restricted key](https://docs.stripe.com/keys#limit-access)
+   limited to Checkout Sessions.
+2. **Let the voice Worker act on payments.** The Worker signs canister calls
+   with `DFX_IDENTITY_PEM` (see [Voice Agent](#voice-agent-cloudflare-workers)).
+   Make that identity's principal a payment admin:
+   ```bash
+   dfx identity import voice-worker worker-identity.pem --storage-mode plaintext
+   icp canister call payment addAdmin "(principal \"$(dfx identity get-principal --identity voice-worker)\")" -e ic
+   ```
+3. **Allowlist the notification relay** on `job` and `quote` — see
+   [Notification Relay](#allowlist-the-relay-on-the-canisters).
+4. **Allowlist the IoT gateway** on `sensor` — see [IoT Gateway](#iot-gateway).
 
 ## Upgrading Canisters
 
@@ -375,6 +553,11 @@ returns `null` regardless of whether `STRIPE_PRICE_PRO_MONTHLY` is set.
    activation itself still happens when the success page calls verify-subscription.
 4. Ensure `DFX_IDENTITY_PEM` is set as a Worker secret — the Worker calls the ICP
    payment canister directly via `@dfinity/agent` (no `dfx` binary required).
+5. On mainnet, configure Stripe on the payment canister too
+   ([One-time canister configuration](#one-time-canister-configuration), step 1):
+   mainnet builds create and verify Checkout Sessions from the canister rather
+   than the Worker. It only calls the Checkout Sessions API, so a restricted key
+   with just that permission is enough.
 
 ### How payment verification works
 
