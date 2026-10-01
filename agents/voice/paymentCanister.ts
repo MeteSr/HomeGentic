@@ -3,9 +3,15 @@ import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 import { Principal } from "@icp-sdk/core/principal";
 import crypto from "node:crypto";
 
-// Testnet ID is the fallback; override with CANISTER_ID_PAYMENT in Railway env vars.
-const PAYMENT_CANISTER_ID =
-  process.env.CANISTER_ID_PAYMENT ?? "a3shm-xiaaa-aaaaj-a6moa-cai";
+// Read at call time, not module load: the Cloudflare Worker copies its env
+// bindings into process.env per request, after this module is imported, so a
+// module-level read always saw it unset. No fallback ID — a missing ID should
+// fail loudly, not quietly target some other environment's canister.
+function paymentCanisterId(): string {
+  const id = process.env.CANISTER_ID_PAYMENT;
+  if (!id) throw new Error("CANISTER_ID_PAYMENT is not set — cannot call the payment canister");
+  return id;
+}
 
 export const PRINCIPAL_RE = /^[a-z0-9]([a-z0-9-]{0,60}[a-z0-9])?$/;
 
@@ -116,9 +122,10 @@ type PaymentActor = {
 };
 
 async function getActor(): Promise<PaymentActor> {
+  const canisterId = paymentCanisterId();
   return Actor.createActor(idlFactory, {
-    agent:      await getAgent(),
-    canisterId: PAYMENT_CANISTER_ID,
+    agent: await getAgent(),
+    canisterId,
   }) as unknown as PaymentActor;
 }
 

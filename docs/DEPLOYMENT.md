@@ -48,9 +48,26 @@ older Express equivalent with the same routes (still usable locally with
 
 ### Deploys
 
-The `deploy-voice-worker` job in `deploy-mainnet.yml` runs `npx wrangler deploy`
-after the canister deploy, and `deploy-testnet.yml` does the same for
-testnet. Both need the `CLOUDFLARE_API_TOKEN` secret.
+There are two Workers, one per environment:
+
+| Environment | Worker name | Deployed by |
+|---|---|---|
+| mainnet | `homegentic-voice-agent` | `deploy-voice-worker` in `deploy-mainnet.yml` (`npx wrangler deploy`) |
+| testnet | `homegentic-voice-agent-testnet` | `deploy-voice-worker` in `deploy-testnet.yml` (`npx wrangler deploy --env testnet`) |
+
+Both jobs need the `CLOUDFLARE_API_TOKEN` secret. The testnet Worker is
+configured under `[env.testnet]` in `wrangler.toml` and has its own secrets,
+KV namespace (created automatically on its first deploy) and
+`FRONTEND_ORIGIN`, so testnet never touches production Stripe keys,
+canisters or rate-limit counters.
+
+The frontend bundle (and the CSP `connect-src` in `frontend/index.html`) is
+built with that URL baked in. Both deploy workflows pass it from the
+`VITE_VOICE_AGENT_URL` secret, and `scripts/deploy.sh` refuses to build the
+frontend for testnet or mainnet unless it is an `https://` URL — otherwise
+every voice/Stripe call would fall back to `http://localhost:3001` and be
+blocked by the CSP. The Worker only accepts requests from its
+`FRONTEND_ORIGIN`, so that must match the frontend that uses it.
 
 ### First-time setup
 
@@ -63,6 +80,15 @@ testnet. Both need the `CLOUDFLARE_API_TOKEN` secret.
    ```
 2. Set the secrets below with `npx wrangler secret put <NAME>`.
 3. Deploy (`npx wrangler deploy`) and check `https://<worker>/health`.
+
+**Testnet Worker (one-time):** deploy it once (`npx wrangler deploy --env testnet`,
+or let `deploy-testnet.yml` do it), then set the same secrets with
+`npx wrangler secret put <NAME> --env testnet` using testnet values — Stripe
+**test** keys and price IDs, the testnet `CANISTER_ID_PAYMENT` (see
+`canister_ids.json`), and the testnet frontend's origin as `FRONTEND_ORIGIN`.
+Finally set the `VITE_VOICE_AGENT_URL` secret in the `testnet` GitHub
+environment to `https://homegentic-voice-agent-testnet.<your-subdomain>.workers.dev`
+so the next testnet deploy bakes it into the frontend.
 
 Non-secret settings (`AI_MODEL`, `NODE_ENV`, `DFX_NETWORK`, ICP hosts) are
 `[vars]` in `wrangler.toml`. The hourly cron trigger fires the Bid to List

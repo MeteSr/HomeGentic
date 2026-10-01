@@ -52,3 +52,27 @@ crons = ["0 * * * *"]   # every hour — fires scheduledBidtolist (deadline remi
 #   BIDTOLIST_FEE_CANISTER_ID
 #   BIDTOLIST_IDENTITY_SEED
 #   HOMEGENTIC_CANISTER_ID
+
+# ── Testnet ──────────────────────────────────────────────────────────────────
+# Separate Worker for the testnet frontend, so testnet never touches production
+# Stripe keys, canisters or rate-limit counters. Deployed by deploy-testnet.yml
+# with `wrangler deploy --env testnet`. `vars` and `kv_namespaces` are not
+# inherited from the top level, so they are repeated here. The KV binding has no
+# `id`: wrangler creates the namespace on the first deploy and reuses it after.
+#
+# Secrets — set once with `npx wrangler secret put <NAME> --env testnet`, using
+# testnet values (Stripe test keys, testnet canister IDs, the testnet frontend
+# origin as FRONTEND_ORIGIN). Same names as the list above.
+[env.testnet]
+name = "homegentic-voice-agent-testnet"
+
+[env.testnet.vars]
+AI_MODEL = "claude-sonnet-4-6"
+NODE_ENV = "production"
+DFX_NETWORK = "ic"   # testnet canisters live on the IC network (icp.yaml)
+BIDTOLIST_RESEND_FROM = "noreply@bidtolist.com"
+BIDTOLIST_ICP_HOST = "https://ic0.app"
+HOMEGENTIC_ICP_HOST = "https://ic0.app"
+
+[[env.testnet.kv_namespaces]]
+binding = "RATE_LIMIT"
