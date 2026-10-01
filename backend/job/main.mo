@@ -21,6 +21,7 @@ import Result    "mo:core/Result";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
 import ServiceTypes "../shared/ServiceType";
+import Notify       "../shared/Notify";
 
 persistent actor Job {
 
@@ -144,6 +145,12 @@ persistent actor Job {
   private let inviteTokens = Map.empty<Text, InviteToken>();
   private let errsByMethod : Map.Map<Text, Nat> = Map.empty();
 
+  /// Push-notification outbox read by the notification relay (see
+  /// shared/Notify.mo). notifierEntries are the principals allowed to read it.
+  private let notifyLog       = Map.empty<Nat, Notify.Event>();
+  private var notifyLatestSeq : Nat         = 0;
+  private var notifierEntries : [Principal] = [];
+
   private func countError(method : Text) {
     let prev = Option.get(Map.get(errsByMethod, Text.compare, method), 0);
     Map.add(errsByMethod, Text.compare, method, prev + 1);
@@ -205,6 +212,17 @@ persistent actor Job {
 
   private func isTrustedCanister(p: Principal) : Bool {
     Option.isSome(Array.find<Principal>(trustedCanisterEntries, func(t) { t == p }))
+  };
+
+  private func isNotifier(p: Principal) : Bool {
+    Option.isSome(Array.find<Principal>(notifierEntries, func(n) { n == p }))
+  };
+
+  /// Tell the homeowner a job is waiting for their signature.
+  private func notifyAwaitingSignature(job: Job) {
+    notifyLatestSeq := Notify.record(
+      notifyLog, notifyLatestSeq, "job_awaiting_signature", ?job.homeowner, job.id, job.title
+    );
   };
 
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
@@ -565,6 +583,10 @@ persistent actor Job {
         };
         Map.add(jobs, Text.compare, jobId, updated);
 
+        if (isContractor and not existing2.contractorSigned and not newHomeownerSigned) {
+          notifyAwaitingSignature(updated);
+        };
+
         // Notify contractor canister when job becomes fully verified
         if (fullyVerified and Text.size(contrCanisterId) > 0) {
           switch (existing2.contractor) {
@@ -750,6 +772,30 @@ persistent actor Job {
 
   public query func getTrustedCanisters() : async [Principal] {
     trustedCanisterEntries
+  };
+
+  // ─── Notification outbox ────────────────────────────────────────────────────
+
+  /// Allow a principal (the notification relay's identity) to read the outbox.
+  public shared(msg) func addNotifier(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (not isNotifier(p)) {
+      notifierEntries := Array.concat(notifierEntries, [p]);
+    };
+    #ok(())
+  };
+
+  public shared(msg) func removeNotifier(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    notifierEntries := Array.filter<Principal>(notifierEntries, func(n) { n != p });
+    #ok(())
+  };
+
+  /// Outbox events with seq > afterSeq, oldest first (at most 200 per call).
+  /// Notifiers and admins only.
+  public query(msg) func getNotificationEvents(afterSeq: Nat, limit: Nat) : async Result.Result<Notify.Page, Error> {
+    if (not isNotifier(msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    #ok(Notify.page(notifyLog, notifyLatestSeq, afterSeq, limit))
   };
 
   public shared(msg) func pause(durationSeconds: ?Nat) : async Result.Result<(), Error> {
@@ -1061,6 +1107,8 @@ persistent actor Job {
     };
     Map.add(inviteTokens, Text.compare, token, usedInvite);
 
+    if (not bothSigned) notifyAwaitingSignature(updated);
+
     // Notify contractor canister when the job becomes fully verified —
     // mirrors verifyJob()'s cross-call exactly, same try/catch so a trap or
     // network error doesn't roll back the already-committed signature.
@@ -1169,6 +1217,7 @@ persistent actor Job {
     };
 
     Map.add(jobs, Text.compare, id, job);
+    notifyAwaitingSignature(job);
     #ok(job)
   };
 

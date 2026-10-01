@@ -11,6 +11,7 @@ const mockActor = {
   getAll:                  vi.fn(),
   submitReview:            vi.fn(),
   getReviewsForContractor: vi.fn(),
+  updateNotificationPrefs: vi.fn(),
 };
 
 vi.mock("@/services/actor", () => ({
@@ -69,6 +70,34 @@ describe("contractorService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     contractorService.reset();
+  });
+
+  // ── setLeadPushAlerts ────────────────────────────────────────────────────────
+  describe("setLeadPushAlerts", () => {
+    it("flips notifyPush and keeps the email override and alert zips", async () => {
+      mockActor.getMyProfile.mockResolvedValue({
+        ok: makeRawProfile({ notifyEmail: ["leads@alice.com"], notifyPush: [false], alertZips: ["78701"] }),
+      });
+      mockActor.updateNotificationPrefs.mockResolvedValue({
+        ok: makeRawProfile({ notifyEmail: ["leads@alice.com"], notifyPush: [true], alertZips: ["78701"] }),
+      });
+
+      const updated = await contractorService.setLeadPushAlerts(true);
+
+      expect(mockActor.updateNotificationPrefs).toHaveBeenCalledWith({
+        notifyEmail: ["leads@alice.com"],
+        notifyPush:  [true],
+        alertZips:   ["78701"],
+      });
+      expect(updated.notifyPush).toBe(true);
+      expect(updated.alertZips).toEqual(["78701"]);
+    });
+
+    it("throws when the caller has no contractor profile", async () => {
+      mockActor.getMyProfile.mockResolvedValue({ err: { NotFound: null } });
+      await expect(contractorService.setLeadPushAlerts(true)).rejects.toThrow(/profile/);
+      expect(mockActor.updateNotificationPrefs).not.toHaveBeenCalled();
+    });
   });
 
   // ── search ───────────────────────────────────────────────────────────────────

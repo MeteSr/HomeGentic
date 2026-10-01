@@ -9,6 +9,8 @@ import { authService } from "@/services/auth";
 import { PLANS, type PlanTier } from "@/services/planConstants";
 import { paymentService } from "@/services/payment";
 import { winBackService } from "@/services/winBackService";
+import { contractorService } from "@/services/contractor";
+import { getPushStatus, enablePush, disablePush, type PushStatus } from "@/services/pushNotifications";
 import { useAuthStore } from "@/store/authStore";
 import { usePropertyStore } from "@/store/propertyStore";
 import { useJobStore } from "@/store/jobStore";
@@ -499,8 +501,52 @@ function ToggleRow({ label, desc, value, onChange, last = false }: { label: stri
 
 // ── Notifications tabs ────────────────────────────────────────────────────────
 
+/**
+ * Push notifications in this browser. Hidden when the browser has no Push API
+ * or no notification relay is configured.
+ */
+function BrowserPushRow() {
+  const [status, setStatus] = useState<PushStatus | null>(null);
+  const [busy,   setBusy]   = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    getPushStatus().then((s) => { if (live) setStatus(s); }).catch(() => { if (live) setStatus("unavailable"); });
+    return () => { live = false; };
+  }, []);
+
+  if (status === null || status === "unavailable") return null;
+
+  async function toggle(next: boolean) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const s = next ? await enablePush() : await disablePush();
+      setStatus(s);
+      if (s === "on") toast.success("Notifications are on for this browser");
+      else if (s === "denied") toast.error("Notifications are blocked in your browser settings");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't change notifications");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <ToggleRow
+      label="Push Notifications in This Browser"
+      desc={status === "denied"
+        ? "Blocked in your browser settings — allow notifications for this site to turn them on"
+        : "Alerts for jobs to sign and quote activity, even when HomeGentic isn't open"}
+      value={status === "on"}
+      onChange={toggle}
+    />
+  );
+}
+
 function ContractorNotificationsTab() {
-  const [newLead,     setNewLead]     = useState(true);
+  const [newLead,     setNewLead]     = useState(false);
+  const [leadLoaded,  setLeadLoaded]  = useState(false);
   const [bidAccepted, setBidAccepted] = useState(true);
   const [bidRejected, setBidRejected] = useState(true);
   const [jobToSign,   setJobToSign]   = useState(true);
@@ -508,8 +554,29 @@ function ContractorNotificationsTab() {
   const [emailBid,    setEmailBid]    = useState(false);
   const [smsAlerts,   setSmsAlerts]   = useState(false);
 
+  useEffect(() => {
+    let live = true;
+    contractorService.getMyProfile()
+      .then((p) => { if (live) { setNewLead(p?.notifyPush ?? false); setLeadLoaded(true); } })
+      .catch(() => {});
+    return () => { live = false; };
+  }, []);
+
+  // Saved straight to the contractor profile — it decides who the relay
+  // sends new-lead pushes to, on every device.
+  async function toggleNewLead(next: boolean) {
+    if (!leadLoaded) return;
+    setNewLead(next);
+    try {
+      await contractorService.setLeadPushAlerts(next);
+    } catch (err) {
+      setNewLead(!next);
+      toast.error(err instanceof Error ? err.message : "Couldn't save lead alerts");
+    }
+  }
+
   const rows = [
-    { label: "New Lead in My Trades",   desc: "Alert when a homeowner posts a request matching your trades", value: newLead,     onChange: setNewLead },
+    { label: "Push: New Lead in My Trades", desc: "Push alert when a homeowner posts a request in your trades and service area", value: newLead, onChange: toggleNewLead },
     { label: "Bid Accepted",            desc: "When a homeowner accepts one of your quotes",                 value: bidAccepted, onChange: setBidAccepted },
     { label: "Bid Not Selected",        desc: "When a homeowner accepts another contractor's quote",         value: bidRejected, onChange: setBidRejected },
     { label: "Job Pending Signature",   desc: "When a homeowner marks a job complete and needs your sign-off", value: jobToSign, onChange: setJobToSign },
@@ -521,6 +588,7 @@ function ContractorNotificationsTab() {
   return (
     <div>
       <SectionHeading>Notifications</SectionHeading>
+      <BrowserPushRow />
       {rows.map((r, i) => <ToggleRow key={r.label} {...r} last={i === rows.length - 1} />)}
       <div style={{ marginTop: "1.25rem" }}>
         <Button onClick={() => toast.success("Preferences saved")}>Save Preferences</Button>
@@ -559,6 +627,7 @@ function NotificationsTab() {
   return (
     <div>
       <SectionHeading>Notifications</SectionHeading>
+      <BrowserPushRow />
       {rows.map((r, i) => <ToggleRow key={r.label} {...r} last={i === rows.length - 1} />)}
       <div style={{ marginTop: "1.25rem" }}>
         <Button onClick={savePrefs}>Save Preferences</Button>

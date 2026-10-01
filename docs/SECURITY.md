@@ -178,8 +178,10 @@ if (internalKey && req.headers["x-internal-key"] !== internalKey) { ... }
 if (!internalKey || req.headers["x-internal-key"] !== internalKey) { ... }
 ```
 
-This pattern is used in `agents/notifications/server.ts` (`/api/push/send` and
-`/api/push/register`) and `agents/iot-gateway/server.ts` (`/accounts/:platform`).
+This pattern is used in `agents/notifications/server.ts` (`/api/push/send`) and
+`agents/iot-gateway/server.ts` (`/accounts/:platform`). The relay's registration
+endpoints (`/api/push/register`, `/api/push/vapid-subscribe`) authenticate the
+user instead, with an auth-canister session token in `x-agent-session`.
 Any new auth-gated endpoint must use the `||` form.
 
 ### Startup key assertions

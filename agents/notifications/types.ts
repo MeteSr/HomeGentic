@@ -14,8 +14,51 @@ export interface PushPayload {
   data?:  Record<string, string>;
 }
 
+export type NotificationKind =
+  | "job_awaiting_signature"
+  | "bid_accepted"
+  | "bid_declined"
+  | "new_lead";
+
 export interface NotificationEvent {
-  type:      "new_lead" | "job_signed" | "score_change" | "bid_accepted" | "bid_declined" | "job_pending_sig";
+  type:      NotificationKind;
   principal: string;
   payload:   PushPayload;
+}
+
+/** One entry from a canister's push outbox (backend/shared/Notify.mo). */
+export interface OutboxEvent {
+  seq:       number;
+  kind:      string;
+  recipient: string | null;
+  refId:     string;
+  summary:   string;
+}
+
+export interface OutboxPage {
+  events:    OutboxEvent[];
+  latestSeq: number;
+}
+
+/** The fields of a quote request that new-lead matching needs. */
+export interface QuoteRequestInfo {
+  id:               string;
+  homeowner:        string;
+  serviceType:      string;
+  status:           string;
+  zipCode:          string | null;
+  minTrustScore:    number | null;
+  minJobsCompleted: number | null;
+}
+
+/** The fields of a contractor profile that new-lead matching needs. */
+export interface ContractorInfo {
+  principal:     string;
+  specialties:   string[];
+  serviceZips:   string[];
+  alertZips:     string[];
+  notifyPush:    boolean;
+  trustScore:    number;
+  jobsCompleted: number;
+  isVerified:    boolean;
 }

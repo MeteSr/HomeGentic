@@ -16,6 +16,7 @@ import {
   registerPushToken,
   unregisterPushToken,
 } from "../services/notificationService";
+import { issueAgentSession } from "../services/authService";
 
 // Show alerts + play sounds while the app is foregrounded
 Notifications.setNotificationHandler({
@@ -35,7 +36,7 @@ export function useNotifications(): void {
   useEffect(() => {
     if (authState.status !== "authenticated") return;
 
-    const principal = authState.principal;
+    const agent     = authState.agent;
     let cancelled   = false;
 
     async function setup(): Promise<void> {
@@ -50,15 +51,19 @@ export function useNotifications(): void {
 
       if (finalStatus !== "granted" || cancelled) return;
 
-      // Retrieve the Expo push token
-      const tokenData = await Notifications.getExpoPushTokenAsync();
+      // The relay sends straight to APNs / FCM, so it needs the native device
+      // token — an Expo push token only works through Expo's push service.
+      const tokenData = await Notifications.getDevicePushTokenAsync();
       if (cancelled) return;
 
-      const expoPushToken = tokenData.data;
-      tokenRef.current    = expoPushToken;
+      const deviceToken = String(tokenData.data);
+      tokenRef.current  = deviceToken;
+
+      const sessionToken = await issueAgentSession(agent).catch(() => null);
+      if (cancelled) return;
 
       const platform = Platform.OS === "ios" ? "ios" : "android";
-      await registerPushToken(buildTokenPayload(principal, expoPushToken, platform));
+      await registerPushToken(buildTokenPayload(deviceToken, platform), sessionToken);
     }
 
     setup().catch((err) =>

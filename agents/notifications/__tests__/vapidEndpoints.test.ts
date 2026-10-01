@@ -53,11 +53,11 @@ describe("POST /api/push/vapid-subscribe", () => {
     expect(mockRegister).toHaveBeenCalledWith("principal-1", VALID_SUB);
   });
 
-  it("rejects missing principal with 400", async () => {
+  it("rejects a request with no caller with 401", async () => {
     const res = await request(app)
       .post("/api/push/vapid-subscribe")
       .send({ subscription: VALID_SUB });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(401);
   });
 
   it("rejects missing subscription with 400", async () => {

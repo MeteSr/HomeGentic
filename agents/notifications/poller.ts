@@ -1,81 +1,109 @@
 /**
- * 15.3.4 — Canister event → push relay
+ * Canister outbox → push relay.
  *
- * Polls ICP canisters every POLL_INTERVAL_MS for actionable events and
- * dispatches push notifications via the dispatcher.
+ * Every POLL_INTERVAL_MS the relay reads the job and quote canisters' push
+ * outboxes (backend/shared/Notify.mo) after its saved cursor, turns each
+ * event into pushes (events.ts), sends them, and advances the cursor one
+ * event at a time — so a crash or a failed canister lookup resumes at the
+ * first unsent event rather than skipping it.
  *
- * Event types:
- *   • new_lead        — new quote request matching a contractor's specialties (15.5.4)
- *   • job_signed      — homeowner signed a job, contractor can pick up payment
- *   • score_change    — homeowner's HomeGentic Score changed by ≥5 points (15.4.5)
- *   • job_pending_sig — contractor marked a job complete; homeowner must sign (15.4.6)
- *   • bid_accepted    — homeowner accepted contractor's bid (15.5.5)
- *   • bid_declined    — homeowner chose another contractor (15.5.5)
- *
- * Real canister calls are wired in once the mobile HTTP agent is tested end-to-end.
- * Until then, stubs return [] so the poller runs safely in dev without a replica.
+ * Cursors persist with the rest of the relay's state (persist.ts):
+ *   - no cursor yet (first run)      → start at the outbox's latest seq; history isn't replayed
+ *   - latestSeq below the cursor     → the canister was reinstalled; start again from 0
  */
+import * as icp from "./icp";
 import { dispatchToUser } from "./dispatcher";
-import type { NotificationEvent } from "./types";
-
-export type EventFetcher = () => Promise<NotificationEvent[]>;
+import { notificationsFor, type LeadLookups } from "./events";
+import { loadSection, saveSection } from "./persist";
+import type { ContractorInfo, NotificationEvent, OutboxPage, PushPayload, QuoteRequestInfo } from "./types";
 
 const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS) || 30_000;
+const PAGE_SIZE = 200; // the canister's MAX_PAGE
 
-// ── Canister stubs ────────────────────────────────────────────────────────────
-// Canister calls are wired here once the notification agent gains its own
-// authenticated HttpAgent. Each stub documents the canister method it will call.
+/** Canisters with an outbox, by the env var holding each one's ID. */
+const OUTBOX_CANISTERS = ["CANISTER_ID_JOB", "CANISTER_ID_QUOTE"];
 
-// 15.5.4 — contractor: new quote request matching their specialties
-export const fetchNewLeadInTradesEvents: EventFetcher = async () => {
-  // query canister: quote.getUnnotifiedRequests()
-  // returns { requestId, serviceType, zipCode, contractorPrincipal }[]
-  return [];
+export interface PollerDeps {
+  readOutbox:      (canisterId: string, afterSeq: number) => Promise<OutboxPage>;
+  getQuoteRequest: (requestId: string) => Promise<QuoteRequestInfo | null>;
+  getContractors:  () => Promise<ContractorInfo[]>;
+  dispatch:        (principal: string, payload: PushPayload) => Promise<void>;
+}
+
+const defaultDeps: PollerDeps = {
+  readOutbox:      icp.readOutbox,
+  getQuoteRequest: icp.getQuoteRequest,
+  getContractors:  icp.getContractors,
+  dispatch:        dispatchToUser,
 };
 
-const defaultFetchJobSignedEvents: EventFetcher = async () => {
-  // query canister: job.getRecentlySignedJobs(since: lastPollAt)
-  // returns { jobId, contractorPrincipal, serviceType }[]
-  return [];
-};
+const cursors: Record<string, number> = loadSection<Record<string, number>>("cursors", {});
 
-// 15.5.5 — contractor: bid accepted or not selected by homeowner
-export const fetchBidOutcomeEvents: EventFetcher = async () => {
-  // query canister: quote.getBidOutcomesSince(lastPollAt)
-  // returns { quoteId, contractorPrincipal, jobId, outcome: "accepted" | "declined" }[]
-  return [];
-};
+function setCursor(canisterId: string, seq: number): void {
+  cursors[canisterId] = seq;
+  saveSection("cursors", cursors);
+}
 
-// 15.4.5 — homeowner score change ≥5 points
-export const fetchScoreChangeEvents: EventFetcher = async () => {
-  // query canister: property.getScoreChangesSince(lastPollAt, minDelta: 5)
-  // returns { propertyId, homeownerPrincipal, oldScore, newScore }[]
-  return [];
-};
+export function getCursor(canisterId: string): number | undefined {
+  return cursors[canisterId];
+}
 
-// 15.4.6 — contractor marked job complete, homeowner signature pending
-export const fetchJobPendingSignatureEvents: EventFetcher = async () => {
-  // query canister: job.getJobsAwaitingHomeownerSignature(since: lastPollAt)
-  // returns { jobId, homeownerPrincipal, serviceType }[]
-  return [];
-};
+/** Send everything new in one canister's outbox. Returns the number of pushes sent. */
+export async function pollCanister(canisterId: string, deps: PollerDeps = defaultDeps): Promise<number> {
+  const cursor = cursors[canisterId];
+  let page = await deps.readOutbox(canisterId, cursor ?? 0);
 
-// ── Poll loop ─────────────────────────────────────────────────────────────────
+  if (cursor === undefined) {
+    setCursor(canisterId, page.latestSeq);
+    return 0;
+  }
+  if (page.latestSeq < cursor) {
+    console.warn(`[poller] ${canisterId} outbox is behind the cursor (${page.latestSeq} < ${cursor}); was it reinstalled? Restarting from 0.`);
+    setCursor(canisterId, 0);
+    page = await deps.readOutbox(canisterId, 0);
+  }
 
-export async function pollOnce(
-  fetchers: EventFetcher[] = [
-    fetchNewLeadInTradesEvents,
-    defaultFetchJobSignedEvents,
-    fetchScoreChangeEvents,
-    fetchJobPendingSignatureEvents,
-    fetchBidOutcomeEvents,
-  ]
-): Promise<void> {
-  const results = await Promise.all(fetchers.map((f) => f()));
-  const events: NotificationEvent[] = results.flat();
+  // Contractor profiles are only needed for new leads; fetch them at most once per poll.
+  let contractors: Promise<ContractorInfo[]> | null = null;
+  const lookups: LeadLookups = {
+    getQuoteRequest: deps.getQuoteRequest,
+    getContractors:  () => (contractors ??= deps.getContractors()),
+  };
 
-  for (const event of events) {
-    await dispatchToUser(event.principal, event.payload);
+  let sent = 0;
+  for (;;) {
+    for (const event of page.events) {
+      const pushes: NotificationEvent[] = await notificationsFor(event, lookups);
+      for (const n of pushes) {
+        await deps.dispatch(n.principal, n.payload);
+        sent += 1;
+      }
+      setCursor(canisterId, event.seq);
+    }
+    if (page.events.length < PAGE_SIZE) return sent;
+    page = await deps.readOutbox(canisterId, cursors[canisterId]);
+  }
+}
+
+let polling = false;
+
+/** One pass over every configured outbox. A failing canister doesn't stop the others. */
+export async function pollOnce(deps: PollerDeps = defaultDeps): Promise<void> {
+  if (polling) return; // the previous pass is still running
+  polling = true;
+  try {
+    for (const envVar of OUTBOX_CANISTERS) {
+      const canisterId = process.env[envVar];
+      if (!canisterId) continue;
+      try {
+        const sent = await pollCanister(canisterId, deps);
+        if (sent > 0) console.log(`[poller] ${envVar}: sent ${sent} push(es)`);
+      } catch (err) {
+        console.error(`[poller] ${envVar} (${canisterId}):`, err instanceof Error ? err.message : err);
+      }
+    }
+  } finally {
+    polling = false;
   }
 }
 
@@ -83,10 +111,14 @@ let intervalHandle: ReturnType<typeof setInterval> | null = null;
 
 export function startPoller(): void {
   if (intervalHandle) return; // already running
-  console.log(`[poller] starting — interval ${POLL_INTERVAL_MS}ms`);
-  intervalHandle = setInterval(() => {
-    pollOnce().catch((err) => console.error("[poller] error during poll:", err));
-  }, POLL_INTERVAL_MS);
+  const configured = OUTBOX_CANISTERS.filter((v) => process.env[v]);
+  if (configured.length === 0) {
+    console.warn("[poller] neither CANISTER_ID_JOB nor CANISTER_ID_QUOTE is set — not polling");
+    return;
+  }
+  console.log(`[poller] polling ${configured.join(", ")} every ${POLL_INTERVAL_MS}ms`);
+  void pollOnce();
+  intervalHandle = setInterval(() => void pollOnce(), POLL_INTERVAL_MS);
 }
 
 export function stopPoller(): void {
