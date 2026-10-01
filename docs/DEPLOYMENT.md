@@ -49,8 +49,18 @@ older Express equivalent with the same routes (still usable locally with
 ### Deploys
 
 The `deploy-voice-worker` job in `deploy-mainnet.yml` runs `npx wrangler deploy`
-after the canister deploy, and `deploy-testnet.yml` does the same for
-testnet. Both need the `CLOUDFLARE_API_TOKEN` secret.
+after the canister deploy (needs the `CLOUDFLARE_API_TOKEN` secret).
+`deploy-testnet.yml` does **not** deploy the voice Worker — it deploys only
+the email relay — so a testnet frontend talks to whichever Worker
+`VITE_VOICE_AGENT_URL` points at.
+
+The frontend bundle (and the CSP `connect-src` in `frontend/index.html`) is
+built with that URL baked in. Both deploy workflows pass it from the
+`VITE_VOICE_AGENT_URL` secret, and `scripts/deploy.sh` refuses to build the
+frontend for testnet or mainnet unless it is an `https://` URL — otherwise
+every voice/Stripe call would fall back to `http://localhost:3001` and be
+blocked by the CSP. The Worker only accepts requests from its
+`FRONTEND_ORIGIN`, so that must match the frontend that uses it.
 
 ### First-time setup
 

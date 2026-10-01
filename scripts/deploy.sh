@@ -1014,6 +1014,20 @@ echo "  Building Frontend"
 echo "============================================"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 export DFX_NETWORK="$ENV"
+# The voice/AI Worker URL is baked into the bundle (and the CSP connect-src in
+# index.html). Unset, every voice/Stripe call falls back to localhost:3001 and
+# the CSP blocks it — so refuse to ship that to a real network.
+if [ "$ENV" != "local" ]; then
+  VOICE_URL="${VITE_VOICE_AGENT_URL:-$( { grep -E '^VITE_VOICE_AGENT_URL=' "$REPO_ROOT/.env" 2>/dev/null || true; } | tail -1 | cut -d= -f2-)}"
+  case "$VOICE_URL" in
+    https://*) echo "  Voice agent URL: $VOICE_URL" ;;
+    *)
+      echo "  ✗ VITE_VOICE_AGENT_URL must be set to the voice Worker's https:// URL for $ENV (got '${VOICE_URL}')."
+      echo "    Set it as a GitHub secret for the deploy workflow, or in .env for a manual deploy."
+      exit 1
+      ;;
+  esac
+fi
 echo "▶ npm run build (frontend)..."
 if (cd "$REPO_ROOT/frontend" && npm run build); then
   echo "  ✓ Frontend built (dist/ + .ic-assets.json5 ready)"
