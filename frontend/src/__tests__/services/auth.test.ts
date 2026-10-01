@@ -15,6 +15,9 @@ const mockActor: Record<string, ReturnType<typeof vi.fn>> = {
   updateProfile: vi.fn(),
   recordLogin:   vi.fn(),
   hasRole:       vi.fn(),
+  issueAgentSession:   vi.fn(),
+  revokeAgentSession:  vi.fn(),
+  resolveAgentSession: vi.fn(),
 };
 
 vi.mock("@icp-sdk/core/agent", () => ({
@@ -191,5 +194,47 @@ describe("recordLogin", () => {
     mockActor.recordLogin.mockResolvedValue(undefined);
     await authService.recordLogin();
     expect(mockActor.recordLogin).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ─── voice-agent sessions ─────────────────────────────────────────────────────
+
+describe("issueAgentSession", () => {
+  it("returns the token and converts expiresAt from ns to ms", async () => {
+    mockActor.issueAgentSession.mockResolvedValue({
+      ok: { token: "hgs_abc", expiresAt: 1_700_000_000_000_000_000n },
+    });
+    expect(await authService.issueAgentSession()).toEqual({ token: "hgs_abc", expiresAtMs: 1_700_000_000_000 });
+  });
+
+  it("throws the error variant name (e.g. NotFound for an unregistered caller)", async () => {
+    mockActor.issueAgentSession.mockResolvedValue({ err: { NotFound: null } });
+    await expect(authService.issueAgentSession()).rejects.toThrow("NotFound");
+  });
+});
+
+describe("resolveAgentSession", () => {
+  it("returns the principal text for a live token", async () => {
+    mockActor.resolveAgentSession.mockResolvedValue([{ toText: () => "2vxsx-fae" }]);
+    expect(await authService.resolveAgentSession("hgs_abc")).toBe("2vxsx-fae");
+  });
+
+  it("returns null for an unknown token", async () => {
+    mockActor.resolveAgentSession.mockResolvedValue([]);
+    expect(await authService.resolveAgentSession("hgs_nope")).toBeNull();
+  });
+});
+
+describe("revokeAgentSession", () => {
+  it("calls the actor", async () => {
+    mockActor.revokeAgentSession.mockResolvedValue(undefined);
+    await authService.revokeAgentSession();
+    expect(mockActor.revokeAgentSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("is a no-op when the auth canister isn't configured", async () => {
+    (process.env as any).AUTH_CANISTER_ID = "";
+    await authService.revokeAgentSession();
+    expect(mockActor.revokeAgentSession).not.toHaveBeenCalled();
   });
 });

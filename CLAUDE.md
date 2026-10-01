@@ -195,6 +195,8 @@ In the app, voice lives in the dashboard's "Ask about your home" bar (`Dashboard
 
 Tool definitions for Claude live in `frontend/src/services/agentTools.ts` (frontend side, used for UI) and `agents/voice/tools.ts` (server side, sent to Claude API). The model is set by `AI_MODEL` in `agents/voice/wrangler.toml`. Requires `ANTHROPIC_API_KEY`.
 
+**Caller identity:** the Worker never trusts a principal or tier the browser asserts. The frontend gets a session token from `auth.issueAgentSession()` (`services/agentSession.ts`) and sends it as `x-agent-session`; the Worker resolves it via the auth canister (`src/session.ts`), then reads the tier from `payment` (`src/tier.ts`).
+
 ### Design System
 
 No CSS framework — styling is inline React styles plus a few global classes in `frontend/src/index.css`. Two token sets:

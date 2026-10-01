@@ -84,7 +84,7 @@ blocked by the CSP. The Worker only accepts requests from its
 **Testnet Worker (one-time):** deploy it once (`npx wrangler deploy --env testnet`,
 or let `deploy-testnet.yml` do it), then set the same secrets with
 `npx wrangler secret put <NAME> --env testnet` using testnet values — Stripe
-**test** keys and price IDs, the testnet `CANISTER_ID_PAYMENT` (see
+**test** keys and price IDs, the testnet `CANISTER_ID_PAYMENT` and `CANISTER_ID_AUTH` (see
 `canister_ids.json`), and the testnet frontend's origin as `FRONTEND_ORIGIN`.
 Finally set the `VITE_VOICE_AGENT_URL` secret in the `testnet` GitHub
 environment to `https://homegentic-voice-agent-testnet.<your-subdomain>.workers.dev`
@@ -110,6 +110,7 @@ deadline reminders.
 | `STRIPE_PRICE_CREDITS_100` | Stripe price ID — agent-credit pack |
 | `DFX_IDENTITY_PEM` | Ed25519 PEM of the identity registered as admin in the payment canister |
 | `CANISTER_ID_PAYMENT` | Payment canister ID |
+| `CANISTER_ID_AUTH` | Auth canister ID — resolves the `x-agent-session` tokens that identify callers on `/api/chat` and `/api/agent`. Without it those routes return 401 in production |
 | `CANISTER_ID_MONITORING` | Optional — monitoring canister, for frontend-error and cycle-alert routes |
 | `BIDTOLIST_*` | Optional — Bid to List Stripe/Resend keys and canister IDs (see the comment block in `wrangler.toml`) |
 

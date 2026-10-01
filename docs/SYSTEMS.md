@@ -1167,7 +1167,8 @@ Proxy between the frontend and the Claude API. Handles streaming chat, agentic t
 |--------|---------|
 | `x-api-key` | Required on all `/api/` routes except `/api/errors` and `/api/buyers-truth-kit` |
 | `x-context-hmac` | SHA-256 HMAC of the request context body, signed with `VOICE_API_KEY`; verified on `/api/chat` and `/api/agent` |
-| `x-icp-principal` | Caller's ICP principal; server overwrites `context.principal` (never trusts client) |
+| `x-agent-session` | Session token from `auth.issueAgentSession()`. The Worker resolves it with `auth.resolveAgentSession` (cached 120 s in KV under the token's SHA-256) to get the caller's **verified** principal for `/api/chat` and `/api/agent`; missing or invalid → 401 `{ error: "session_required" }`, and the frontend re-issues once and retries |
+| `x-icp-principal` | Still sent, but only used for log attribution, and as the principal in local dev when the Worker has no `CANISTER_ID_AUTH` and `NODE_ENV` isn't `production`. The legacy Express server still trusts it |
 | `x-subscription-tier` | Sent by the frontend but **not trusted**: the Worker resolves the tier from the payment canister (`getTierForPrincipal`, cached 60 s in KV) and the Express server does the same |
 
 HMAC verification is skipped in development when `VOICE_API_KEY` is absent.
@@ -1186,6 +1187,8 @@ HMAC verification is skipped in development when `VOICE_API_KEY` is absent.
 | ContractorPro | 10/day | Unlimited |
 
 See `docs/AI_RATE_LIMITS.md` for the margin math behind these limits.
+
+Both limits are keyed by the verified principal. Chat over the limit returns 429 `{ error: "daily_chat_limit_reached", limit, resetsAt }` (KV counter per principal per UTC day on the Worker).
 
 If the tier quota is exhausted, the server attempts to consume an `agent_credit` from the payment canister. Returns 429 with `{ error: "daily_agent_limit_reached", creditsAvailable: bool }` if both are exhausted.
 

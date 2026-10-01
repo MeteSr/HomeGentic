@@ -5,12 +5,15 @@
  */
 
 import Array "mo:core/Array";
+import Blob "mo:core/Blob";
 import Debug "mo:core/Debug";
 import Iter "mo:core/Iter";
 import Map "mo:core/Map";
 import Nat "mo:core/Nat";
+import Nat8 "mo:core/Nat8";
 import Option "mo:core/Option";
 import Principal "mo:core/Principal";
+import Random "mo:core/Random";
 import Result "mo:core/Result";
 import Text "mo:core/Text";
 import Time "mo:core/Time";
@@ -98,6 +101,15 @@ persistent actor class Auth(initDeployer : Principal) {
   /// No preupgrade serialisation required — eliminates the upgrade instruction-limit footgun.
   private let users = Map.empty<Principal, UserProfile>();
   private let errsByMethod : Map.Map<Text, Nat> = Map.empty();
+
+  /// Voice-agent sessions: bearer token → owner. Lets the off-chain voice
+  /// Worker learn which principal a request really comes from — the IC
+  /// authenticates the issueAgentSession call, so only the owner can mint a
+  /// token for itself. At most one live token per principal.
+  public type AgentSession = { owner : Principal; expiresAt : Int };
+  private let agentSessions       = Map.empty<Text, AgentSession>();
+  private let agentSessionByOwner = Map.empty<Principal, Text>();
+  private transient let AGENT_SESSION_TTL_NS : Int = 24 * 60 * 60 * 1_000_000_000;
 
   private func countError(method : Text) {
     let prev = Option.get(Map.get(errsByMethod, Text.compare, method), 0);
@@ -393,6 +405,58 @@ persistent actor class Auth(initDeployer : Principal) {
   };
 
   // ─── Metrics ─────────────────────────────────────────────────────────────────
+
+  // ─── Voice-agent sessions ────────────────────────────────────────────────────
+
+  private func blobToHex(b : Blob) : Text {
+    let hex = ['0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'];
+    var out = "";
+    for (byte in Blob.toArray(b).vals()) {
+      let n = Nat8.toNat(byte);
+      out := out # Text.fromChar(hex[n / 16]) # Text.fromChar(hex[n % 16]);
+    };
+    out
+  };
+
+  private func dropAgentSession(owner : Principal) {
+    switch (Map.get(agentSessionByOwner, Principal.compare, owner)) {
+      case (?old) { Map.remove(agentSessions, Text.compare, old) };
+      case null {};
+    };
+    Map.remove(agentSessionByOwner, Principal.compare, owner);
+  };
+
+  /// Issue a 24-hour voice-agent session token for the caller (registered
+  /// users only), replacing any earlier one. The frontend sends it to the
+  /// voice Worker, which resolves it back to the caller with
+  /// resolveAgentSession — so the Worker never has to trust a principal the
+  /// client merely asserts.
+  public shared(msg) func issueAgentSession() : async Result.Result<{ token : Text; expiresAt : Int }, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (Map.get(users, Principal.compare, msg.caller) == null) return #err(#NotFound);
+
+    let token     = "hgs_" # blobToHex(await Random.blob());   // 256 bits of IC randomness
+    let expiresAt = Time.now() + AGENT_SESSION_TTL_NS;
+    dropAgentSession(msg.caller);
+    Map.add(agentSessions, Text.compare, token, { owner = msg.caller; expiresAt });
+    Map.add(agentSessionByOwner, Principal.compare, msg.caller, token);
+    #ok({ token; expiresAt })
+  };
+
+  /// Revoke the caller's voice-agent session (e.g. on logout).
+  public shared(msg) func revokeAgentSession() : async () {
+    if (Principal.isAnonymous(msg.caller)) return;
+    dropAgentSession(msg.caller);
+  };
+
+  /// The principal a live session token belongs to, or null if the token is
+  /// unknown or expired. The token itself is the secret, so this is public.
+  public query func resolveAgentSession(token : Text) : async ?Principal {
+    switch (Map.get(agentSessions, Text.compare, token)) {
+      case (?s) { if (s.expiresAt > Time.now()) ?s.owner else null };
+      case null null;
+    }
+  };
 
   /// Time-based user stats — new signups and engagement for the admin dashboard.
   public query func getUserStats() : async UserStats {

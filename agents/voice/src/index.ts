@@ -33,7 +33,8 @@ import { lookupPermits, generateKit, geocodeAddress } from "../buyersTruthKit";
 import type { BuyerTruthKitRequest } from "../buyersTruthKit";
 import type { ChatRequest } from "../types";
 import { logger } from "../logger";
-import { checkGlobalRateLimit, checkAgentRateLimit } from "./rateLimiter";
+import { checkGlobalRateLimit, checkAgentRateLimit, checkChatRateLimit } from "./rateLimiter";
+import { resolveSessionPrincipal, SESSION_HEADER } from "./session";
 import { resolveTier } from "./tier";
 import { lookupRentcast } from "./rentcast";
 import { handleBidtolist, scheduledBidtolist } from "./bidtolist";
@@ -62,6 +63,7 @@ export interface Env {
   DFX_IDENTITY_PEM?:     string;
   DFX_NETWORK?:          string;
   CANISTER_ID_PAYMENT?:  string;
+  CANISTER_ID_AUTH?:     string;   // resolves x-agent-session tokens
   CANISTER_ID_MONITORING?: string;
   // Property lookups
   RENTCAST_API_KEY?: string;
@@ -107,7 +109,7 @@ function buildCorsHeaders(request: Request, env: Env): Record<string, string> {
     "Access-Control-Allow-Origin":   origin,
     "Access-Control-Allow-Methods":  "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers":
-      "Content-Type, x-api-key, x-icp-principal, x-subscription-tier, " +
+      "Content-Type, x-api-key, x-icp-principal, x-subscription-tier, x-agent-session, " +
       "x-context-hmac, x-request-id, x-trace-id",
     "Access-Control-Expose-Headers":
       "x-request-id, x-trace-id, X-Agent-Calls-Used, X-Agent-Calls-Limit",
@@ -290,6 +292,7 @@ export default {
     (process.env as any).DFX_IDENTITY_PEM        = env.DFX_IDENTITY_PEM ?? "";
     (process.env as any).DFX_NETWORK             = env.DFX_NETWORK ?? "ic";
     (process.env as any).CANISTER_ID_PAYMENT     = env.CANISTER_ID_PAYMENT ?? "";
+    (process.env as any).CANISTER_ID_AUTH        = env.CANISTER_ID_AUTH ?? "";
     (process.env as any).CANISTER_ID_MONITORING  = env.CANISTER_ID_MONITORING ?? "";
     (process.env as any).AI_MODEL                = env.AI_MODEL ?? "";
 
@@ -377,6 +380,13 @@ async function route(
     const { message, context } = body as ChatRequest;
     if (!message?.trim()) return json({ error: "message is required" }, 400, cors);
 
+    const principal = await callerPrincipal(request, env);
+    if (!principal) return json({ error: "session_required" }, 401, cors);
+    const chat = await checkChatRateLimit(principal, await resolveTier(principal, env), env);
+    if (!chat.allowed) {
+      return json({ error: "daily_chat_limit_reached", limit: chat.limit, resetsAt: chat.resetsAt }, 429, cors);
+    }
+
     return sseResponse(async (write) => {
       for await (const chunk of provider.stream({
         system:    buildSystemPrompt(context ?? { properties: [], recentJobs: [] }),
@@ -400,9 +410,11 @@ async function route(
       return json({ error: "messages array is required" }, 400, cors);
     }
 
-    const principal = request.headers.get("x-icp-principal") ?? "anon";
-    // Tier comes from the payment canister, never the client's
-    // x-subscription-tier header (which anyone can set to "Pro").
+    // Principal comes from the canister-issued session token and the tier
+    // from the payment canister — never from client headers, which anyone
+    // can set (to "Pro", or to another user's principal).
+    const principal = await callerPrincipal(request, env);
+    if (!principal) return json({ error: "session_required" }, 401, cors);
     const tier      = await resolveTier(principal, env);
 
     const limit = await checkAgentRateLimit(principal, tier, env);
@@ -1275,6 +1287,19 @@ Rules:
 }
 
 // ── Context verification helper ───────────────────────────────────────────────
+
+/**
+ * The caller's verified principal, from the canister-issued session token
+ * (see src/session.ts), or null if there's no valid session. Local dev
+ * without an auth canister (CANISTER_ID_AUTH unset and NODE_ENV not
+ * "production") falls back to the unverified x-icp-principal header.
+ */
+async function callerPrincipal(request: Request, env: Env): Promise<string | null> {
+  if (!env.CANISTER_ID_AUTH && env.NODE_ENV !== "production") {
+    return request.headers.get("x-icp-principal") ?? "anon";
+  }
+  return resolveSessionPrincipal(request.headers.get(SESSION_HEADER), env);
+}
 
 async function verifyContext(
   request: Request,

@@ -14,6 +14,7 @@ import { buildImageUserMessage, fileToBase64, type SupportedImageMimeType } from
 import { useAuthStore } from "../store/authStore";
 import { paymentService } from "../services/payment";
 import { contractorService } from "../services/contractor";
+import { fetchWithAgentSession } from "../services/agentSession";
 
 // ── Minimal message types (mirrors Anthropic SDK without importing it) ─────────
 
@@ -396,7 +397,7 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
       const { principal } = useAuthStore.getState();
       const hmac = await signContext(context);
 
-      const res = await fetch(`${PROXY_URL}/api/chat`, {
+      const res = await fetchWithAgentSession(`${PROXY_URL}/api/chat`, {
         method:  "POST",
         headers: {
           "Content-Type": "application/json",
@@ -407,6 +408,10 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
         body: JSON.stringify({ message: userMessage, context }),
       });
 
+      if (res.status === 429) {
+        setQuotaExhausted(true);
+        throw new Error("You've used today's free questions. Upgrade to Pro for unlimited answers.");
+      }
       if (!res.ok) throw new Error(`Chat error: HTTP ${res.status}`);
 
       const reader  = res.body!.getReader();
@@ -462,7 +467,7 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
       const messages: MessageParam[] = [firstMessage];
 
       for (let turn = 0; turn < MAX_TURNS; turn++) {
-        const res = await fetch(`${PROXY_URL}/api/agent`, {
+        const res = await fetchWithAgentSession(`${PROXY_URL}/api/agent`, {
           method: "POST",
           headers: {
             "Content-Type":        "application/json",

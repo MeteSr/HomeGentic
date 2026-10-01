@@ -313,6 +313,13 @@ exports[`auth IDL factory > full signature snapshot 1`] = `
       "bool",
     ],
   },
+  "issueAgentSession": {
+    "args": [],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {token:text; expiresAt:int}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists}}",
+    ],
+  },
   "recordLogin": {
     "args": [],
     "mode": [],
@@ -326,6 +333,22 @@ exports[`auth IDL factory > full signature snapshot 1`] = `
     "rets": [
       "variant {ok:record {principal:principal; createdAt:int; lastLoggedIn:opt int; role:variant {Builder; Homeowner; Realtor; Contractor}; onboardingComplete:opt bool; isActive:bool; email:text; updatedAt:int; phone:text}; err:variant {Paused; InvalidInput:text; NotFound; NotAuthorized; AlreadyExists}}",
     ],
+  },
+  "resolveAgentSession": {
+    "args": [
+      "text",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "opt principal",
+    ],
+  },
+  "revokeAgentSession": {
+    "args": [],
+    "mode": [],
+    "rets": [],
   },
   "updateProfile": {
     "args": [

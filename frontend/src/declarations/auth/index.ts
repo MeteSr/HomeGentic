@@ -47,6 +47,13 @@ export const idlFactory = ({ IDL }: any) => {
     updateProfile: IDL.Func([UpdateArgs], [Result], []),
     recordLogin:        IDL.Func([], [], []),
     completeOnboarding: IDL.Func([], [], []),
+    issueAgentSession:  IDL.Func(
+      [],
+      [IDL.Variant({ ok: IDL.Record({ token: IDL.Text, expiresAt: IDL.Int }), err: Error })],
+      [],
+    ),
+    revokeAgentSession:  IDL.Func([], [], []),
+    resolveAgentSession: IDL.Func([IDL.Text], [IDL.Opt(IDL.Principal)], ["query"]),
     hasRole:       IDL.Func([UserRole], [IDL.Bool], ["query"]),
     getUserStats:  IDL.Func([], [UserStats], ["query"]),
     getMetrics: IDL.Func(
