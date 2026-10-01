@@ -103,6 +103,29 @@ jobs:
             git push || echo "⚠️  Push blocked by branch protection — commit canister_ids.json manually from the deploy log above"
           fi
 
+  deploy-voice-worker:
+    runs-on: ubuntu-latest
+    environment: testnet
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: agents/voice/package-lock.json
+      - name: Install voice agent dependencies
+        working-directory: agents/voice
+        run: npm ci
+      - name: Deploy voice agent to Cloudflare Workers (testnet)
+        # Separate Worker ([env.testnet] in wrangler.toml) with its own
+        # secrets, KV namespace and FRONTEND_ORIGIN. The testnet frontend
+        # reaches it via the VITE_VOICE_AGENT_URL secret.
+        working-directory: agents/voice
+        run: npx wrangler deploy --env testnet
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
   deploy-email-worker:
     runs-on: ubuntu-latest
     environment: testnet
