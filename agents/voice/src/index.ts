@@ -32,9 +32,10 @@ import {
 import { lookupPermits, generateKit, geocodeAddress } from "../buyersTruthKit";
 import type { BuyerTruthKitRequest } from "../buyersTruthKit";
 import type { ChatRequest } from "../types";
-import { TIER_LIMITS, type SubscriptionTier } from "../agentLimiter";
 import { logger } from "../logger";
 import { checkGlobalRateLimit, checkAgentRateLimit } from "./rateLimiter";
+import { resolveTier } from "./tier";
+import { lookupRentcast } from "./rentcast";
 import { handleBidtolist, scheduledBidtolist } from "./bidtolist";
 
 // ── Environment bindings ──────────────────────────────────────────────────────
@@ -62,6 +63,8 @@ export interface Env {
   DFX_NETWORK?:          string;
   CANISTER_ID_PAYMENT?:  string;
   CANISTER_ID_MONITORING?: string;
+  // Property lookups
+  RENTCAST_API_KEY?: string;
   // BidtoList
   BIDTOLIST_RESEND_API_KEY?:           string;
   BIDTOLIST_RESEND_FROM?:              string;
@@ -398,8 +401,9 @@ async function route(
     }
 
     const principal = request.headers.get("x-icp-principal") ?? "anon";
-    const rawTier   = request.headers.get("x-subscription-tier") ?? "Free";
-    const tier      = (rawTier in TIER_LIMITS ? rawTier : "Free") as SubscriptionTier;
+    // Tier comes from the payment canister, never the client's
+    // x-subscription-tier header (which anyone can set to "Pro").
+    const tier      = await resolveTier(principal, env);
 
     const limit = await checkAgentRateLimit(principal, tier, env);
 
@@ -861,6 +865,13 @@ Rules:
   }
 
   // ── POST /api/buyers-truth-kit ────────────────────────────────────────────
+  // ── POST /api/rentcast/properties ─────────────────────────────────────────
+  if (path === "/api/rentcast/properties" && method === "POST") {
+    const body = await request.json().catch(() => null);
+    const { status, body: out } = await lookupRentcast(body, env.RENTCAST_API_KEY);
+    return json(out, status, cors);
+  }
+
   if (path === "/api/buyers-truth-kit" && method === "POST") {
     const body = await request.json() as Partial<BuyerTruthKitRequest>;
     if (!body.address?.trim()) return json({ error: "address is required" }, 400, cors);

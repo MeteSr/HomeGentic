@@ -113,8 +113,9 @@ deadline reminders.
 | `CANISTER_ID_MONITORING` | Optional — monitoring canister, for frontend-error and cycle-alert routes |
 | `BIDTOLIST_*` | Optional — Bid to List Stripe/Resend keys and canister IDs (see the comment block in `wrangler.toml`) |
 
-Rentcast lookups (`/api/rentcast/properties`) exist only on the legacy
-Express server and need `RENTCAST_API_KEY` there.
+`RENTCAST_API_KEY` is optional — it enables `/api/rentcast/properties`
+(year built / square footage in the Add Property wizard); without it the
+route returns 503 and the wizard just skips the prefill.
 
 ### How canister calls work in production
 
