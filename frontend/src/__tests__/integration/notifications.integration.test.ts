@@ -187,6 +187,32 @@ describe.skipIf(!deployed)("job outbox", () => {
   });
 });
 
+describe.skipIf(!deployed)("job outbox — contractor signature", () => {
+  it("homeowner signing a job with a linked contractor records job_awaiting_contractor_signature", async () => {
+    const contractorAgent = await makeAgent(155);
+    const contractor = (await contractorAgent.getPrincipal()).toText();
+    const job = Actor.createActor(jobIdl, { agent: ownerAgent, canisterId: JOB_ID }) as any;
+    const title = `Contractor sign ${RUN_ID}`;
+
+    const created = await job.createJob(
+      realPropId, title, { Plumbing: null }, "Replaced the shutoff valve",
+      ["Notify Test Plumbing"], 18_000n, BigInt(Date.now()) * 1_000_000n, [], [], false, [],
+    );
+    expect("ok" in created).toBe(true);
+    const jobId = created.ok.id;
+
+    expect("ok" in (await job.linkContractor(jobId, Principal.fromText(contractor)))).toBe(true);
+    const signed = await job.verifyJob(jobId);
+    expect("ok" in signed && signed.ok.homeownerSigned && !signed.ok.verified).toBe(true);
+
+    const events = await readOutbox(JOB_ID, ownerAgent);
+    const pending = events.filter((e) => e.kind === "job_awaiting_contractor_signature" && e.refId === jobId);
+    expect(pending).toHaveLength(1);
+    expect(recipientOf(pending[0])).toBe(contractor);
+    expect(pending[0].summary).toBe(title);
+  });
+});
+
 describe.skipIf(!deployed)("outbox access", () => {
   it("rejects a caller that is not an allowlisted notifier", async () => {
     const stranger = await makeAgent(154);

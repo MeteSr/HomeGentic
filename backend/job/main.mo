@@ -225,6 +225,13 @@ persistent actor Job {
     );
   };
 
+  /// Tell the linked contractor the homeowner has signed and is waiting on them.
+  private func notifyAwaitingContractorSignature(job: Job, contractor: Principal) {
+    notifyLatestSeq := Notify.record(
+      notifyLog, notifyLatestSeq, "job_awaiting_contractor_signature", ?contractor, job.id, job.title
+    );
+  };
+
   private func requireActive(caller: Principal) : Result.Result<(), Error> {
     if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
     if (isPaused) {
@@ -498,6 +505,9 @@ persistent actor Job {
               sourceQuoteId    = fresh.sourceQuoteId;
             };
             Map.add(jobs, Text.compare, jobId, updated);
+            if (fresh.homeownerSigned and not fresh.contractorSigned) {
+              notifyAwaitingContractorSignature(updated, contractorPrincipal);
+            };
             #ok(updated)
           };
         }
@@ -585,6 +595,12 @@ persistent actor Job {
 
         if (isContractor and not existing2.contractorSigned and not newHomeownerSigned) {
           notifyAwaitingSignature(updated);
+        };
+        if (isHomeowner and not existing2.homeownerSigned and not newContractorSigned) {
+          switch (existing2.contractor) {
+            case (?con) { notifyAwaitingContractorSignature(updated, con) };
+            case null {};  // DIY, or no contractor linked yet — linkContractor notifies later
+          };
         };
 
         // Notify contractor canister when job becomes fully verified
