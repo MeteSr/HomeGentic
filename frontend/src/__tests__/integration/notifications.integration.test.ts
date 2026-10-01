@@ -105,6 +105,13 @@ let ownerAgent: HttpAgent;
 beforeAll(async () => {
   if (!deployed) return;
   ownerAgent = await getAgent();
+  // Reuse a property the test identity already owns: earlier suites can take
+  // it to its property cap, so registering another would fail.
+  const owned = await propertyService.getMyProperties();
+  if (owned.length > 0) {
+    realPropId = owned[0].id;
+    return;
+  }
   const prop = await propertyService.registerProperty({
     address:      `${RUN_ID} Notify Test Ave, Austin TX 78701`,
     city:         "Austin",
