@@ -50,6 +50,121 @@ Worker.
 
 ---
 
+## System Diagram
+
+GitHub renders these Mermaid diagrams inline. They are drawn from the code:
+off-chain edges from the services' canister clients and outbound URLs, and
+canister edges from the `actor(...)` cross-calls in each `backend/*/main.mo`.
+If you add a cross-canister call or an external integration, update them.
+
+### Components
+
+```mermaid
+flowchart TB
+  subgraph Clients
+    web["Web SPA<br/>frontend/ · React + Vite"]
+    mobile["Mobile app<br/>mobile/ · Expo"]
+  end
+
+  subgraph ICP["Internet Computer · 20 Motoko canisters"]
+    direction LR
+    core["domain canisters<br/>property · job · quote · photo · report · …<br/>(see Canister calls)"]
+    auth["auth"]
+    payment["payment"]
+    monitoring["monitoring"]
+    ai_proxy["ai_proxy"]
+    sensor["sensor"]
+  end
+
+  subgraph OffChain["Off-chain services"]
+    voice["Voice / AI Worker<br/>agents/voice · Cloudflare"]
+    kv[("Workers KV")]
+    notify["Notification relay<br/>agents/notifications"]
+    iot["IoT gateway<br/>agents/iot-gateway"]
+    email["Lead email relay<br/>agents/email"]
+  end
+
+  subgraph External["Third-party services"]
+    ii["Internet Identity"]
+    anthropic["Anthropic Claude API"]
+    stripe["Stripe"]
+    rentcast["Rentcast"]
+    resend["Resend"]
+    records["Permit / property-record APIs"]
+    push["APNs · FCM · Web Push"]
+    devices["Smart-home platforms"]
+  end
+
+  web -- "Candid, user identity" --> ICP
+  mobile -- "Candid" --> ICP
+  web -- "sign in" --> ii
+  web -- "x-agent-session" --> voice
+  mobile -- "register device" --> notify
+
+  voice -- "resolve session" --> auth
+  voice -- "tier · grant" --> payment
+  voice -- "AI usage" --> monitoring
+  voice --- kv
+  voice --> anthropic & rentcast
+  voice <-- "checkout · webhook" --> stripe
+
+  payment -- "outcall" --> stripe
+  ai_proxy -- "outcalls" --> records & resend
+
+  devices --> iot
+  iot -- "recordEvent" --> sensor
+  notify --> push
+  email --> resend
+```
+
+The voice Worker never holds the user's identity. The browser gets a
+24-hour session token from `auth.issueAgentSession`, and the Worker resolves
+it back to a principal with `auth.resolveAgentSession`. Agent tool calls run
+in the browser against the canisters with the user's own identity (see
+[Voice Agent](#voice-agent)).
+
+### Canister calls
+
+Each arrow is a canister-to-canister call (`caller --> callee`). Wiring is set
+after deploy with each canister's `set<Name>CanisterId` admin method; an
+unwired call is skipped. Some callees also accept certain update calls only
+from their wired caller: `agent` and `fee` from `listing`, `contractor`
+from `job`, `referrals` from `payment`.
+
+```mermaid
+flowchart TB
+  listing --> agent & fee & report & market & job & property
+  report --> sensor & job & property
+  market --> job & property
+  quote --> contractor & property & payment
+  sensor -- "critical → job" --> job
+  sensor --> property
+  contractor -- "review check" --> job
+  job --> contractor & property
+  photo --> property & payment
+  bills --> property & payment
+  maintenance --> property
+  property --> payment
+  payment -- "credit" --> referrals
+
+  classDef hub fill:#EEF0FF,stroke:#2B34FF,color:#000
+  class property,payment,job hub
+```
+
+`property`, `payment` and `job` (highlighted) are the hubs: most canisters
+read ownership from `property` and limits from the caller's tier in
+`payment`.
+
+Left out to keep the graph readable:
+
+- **`audit`**: `auth`, `payment`, `photo`, `property` and `report` send it
+  fire-and-forget log entries for admin actions.
+- **`monitoring`**: reads product metrics from `property`, `job`, `quote`
+  and `payment`.
+- `recurring` and `ai_proxy` make no canister calls.
+
+---
+
 ## Canister Map
 
 All 20 canisters use `persistent actor` (Motoko mo:core) — all variables

@@ -20,6 +20,9 @@ HomeGentic gives homeowners an immutable, tamper-proof record of every repair, u
 | Email | Resend (transactional, rate-limited to free tier: 100/day, 3,000/month) |
 | Admin Dashboard | Standalone React SPA querying canisters via `@dfinity/agent` |
 
+For a picture of how these pieces connect, see the
+[system diagram](docs/ARCHITECTURE.md#system-diagram).
+
 ---
 
 ## Backend Canisters
