@@ -10,7 +10,10 @@ import { PLANS, type PlanTier } from "@/services/planConstants";
 import { paymentService } from "@/services/payment";
 import { winBackService } from "@/services/winBackService";
 import { contractorService } from "@/services/contractor";
-import { getPushStatus, enablePush, disablePush, type PushStatus } from "@/services/pushNotifications";
+import {
+  getPushStatus, enablePush, disablePush, pushConfigured, getPushPrefs, setPushPrefs,
+  type PushStatus, type PushPrefs, type PushPrefKind,
+} from "@/services/pushNotifications";
 import { useAuthStore } from "@/store/authStore";
 import { usePropertyStore } from "@/store/propertyStore";
 import { useJobStore } from "@/store/jobStore";
@@ -547,9 +550,7 @@ function BrowserPushRow() {
 function ContractorNotificationsTab() {
   const [newLead,     setNewLead]     = useState(false);
   const [leadLoaded,  setLeadLoaded]  = useState(false);
-  const [bidAccepted, setBidAccepted] = useState(true);
-  const [bidRejected, setBidRejected] = useState(true);
-  const [jobToSign,   setJobToSign]   = useState(true);
+  const [pushPrefs,   setPushPrefsState] = useState<PushPrefs | null>(null);
   const [emailLead,   setEmailLead]   = useState(true);
   const [emailBid,    setEmailBid]    = useState(false);
   const [smsAlerts,   setSmsAlerts]   = useState(false);
@@ -561,6 +562,27 @@ function ContractorNotificationsTab() {
       .catch(() => {});
     return () => { live = false; };
   }, []);
+
+  // Bid and signature pushes are per-user preferences kept by the
+  // notification relay, so they only show when a relay is configured.
+  useEffect(() => {
+    if (!pushConfigured()) return;
+    let live = true;
+    getPushPrefs().then((p) => { if (live) setPushPrefsState(p); }).catch(() => {});
+    return () => { live = false; };
+  }, []);
+
+  async function togglePushPref(kind: PushPrefKind, next: boolean) {
+    if (!pushPrefs) return;
+    const before = pushPrefs;
+    setPushPrefsState({ ...before, [kind]: next });
+    try {
+      setPushPrefsState(await setPushPrefs({ [kind]: next }));
+    } catch (err) {
+      setPushPrefsState(before);
+      toast.error(err instanceof Error ? err.message : "Couldn't save notification settings");
+    }
+  }
 
   // Saved straight to the contractor profile — it decides who the relay
   // sends new-lead pushes to, on every device.
@@ -577,9 +599,11 @@ function ContractorNotificationsTab() {
 
   const rows = [
     { label: "Push: New Lead in My Trades", desc: "Push alert when a homeowner posts a request in your trades and service area", value: newLead, onChange: toggleNewLead },
-    { label: "Bid Accepted",            desc: "When a homeowner accepts one of your quotes",                 value: bidAccepted, onChange: setBidAccepted },
-    { label: "Bid Not Selected",        desc: "When a homeowner accepts another contractor's quote",         value: bidRejected, onChange: setBidRejected },
-    { label: "Job Pending Signature",   desc: "When a homeowner marks a job complete and needs your sign-off", value: jobToSign, onChange: setJobToSign },
+    ...(pushPrefs ? [
+      { label: "Push: Bid Accepted",          desc: "When a homeowner accepts one of your quotes",                   value: pushPrefs.bid_accepted,                      onChange: (v: boolean) => togglePushPref("bid_accepted", v) },
+      { label: "Push: Bid Not Selected",      desc: "When a homeowner accepts another contractor's quote",           value: pushPrefs.bid_declined,                      onChange: (v: boolean) => togglePushPref("bid_declined", v) },
+      { label: "Push: Job Pending Signature", desc: "When a homeowner signs off on a job and it needs your signature", value: pushPrefs.job_awaiting_contractor_signature, onChange: (v: boolean) => togglePushPref("job_awaiting_contractor_signature", v) },
+    ] : []),
     { label: "Email: New Lead",         desc: "Email when a matching quote request is posted",              value: emailLead,   onChange: setEmailLead },
     { label: "Email: Bid Outcome",      desc: "Email when a bid is accepted or closed",                     value: emailBid,    onChange: setEmailBid },
     { label: "SMS Alerts",              desc: "Critical alerts via text message",                           value: smsAlerts,   onChange: setSmsAlerts },

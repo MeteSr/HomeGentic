@@ -37,6 +37,7 @@ function deps(over: Partial<PollerDeps> = {}): PollerDeps {
     getQuoteRequest: jest.fn(async () => null),
     getContractors:  jest.fn(async () => []),
     dispatch:        jest.fn(async () => undefined),
+    wantsPush:       jest.fn(() => true),
     ...over,
   };
 }
@@ -123,6 +124,26 @@ describe("pollCanister", () => {
     });
     expect(await p.pollCanister("quote-id", d)).toBe(3);
     expect(d.getContractors).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("push preferences", () => {
+  it("skips pushes the recipient turned off, but still advances past them", async () => {
+    const p = freshPoller();
+    await p.pollCanister("quote-id", deps({ readOutbox: outbox([]) }));
+    const events = [
+      ev(1, { kind: "bid_declined", recipient: "c-off", summary: "HVAC" }),
+      ev(2, { kind: "bid_accepted", recipient: "c-on",  summary: "HVAC" }),
+    ];
+    const d = deps({
+      readOutbox: outbox(events),
+      wantsPush:  jest.fn((principal: string) => principal !== "c-off"),
+    });
+    expect(await p.pollCanister("quote-id", d)).toBe(1);
+    expect(d.dispatch).toHaveBeenCalledTimes(1);
+    expect(d.dispatch).toHaveBeenCalledWith("c-on", expect.anything());
+    expect(d.wantsPush).toHaveBeenCalledWith("c-off", "bid_declined");
+    expect(p.getCursor("quote-id")).toBe(2);
   });
 });
 

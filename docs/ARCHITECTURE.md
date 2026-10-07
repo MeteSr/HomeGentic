@@ -412,6 +412,7 @@ at a time after sending, so a crash resumes at the first unsent event.
 | Event | Raised by | Sent to |
 |---|---|---|
 | `job_awaiting_signature` | `job.createJobProposal`, a contractor's `verifyJob` or invite redemption before the homeowner signs | The homeowner |
+| `job_awaiting_contractor_signature` | The homeowner's `verifyJob` on a job with a linked contractor who hasn't signed, or `linkContractor` on a job the homeowner already signed | The linked contractor |
 | `bid_accepted` / `bid_declined` | `quote.acceptQuote` | The winning contractor / every other bidder |
 | `new_lead` | `quote.createQuoteRequest`, `createSealedBidRequest` | Every contractor with `notifyPush` on, the trade in `specialties`, and the request's zip in `alertZips` (or `serviceZips`; none means everywhere), who meets the request's trust thresholds |
 
@@ -442,12 +443,16 @@ voice Worker does. A principal in the body is ignored.
 | `POST /api/push/vapid-unsubscribe` | Remove a subscription by endpoint URL (`{ endpoint }`) |
 | `POST /api/push/register` | Register a native APNs/FCM device token for the session's user (`{ token, platform }`) |
 | `POST /api/push/unregister` | Remove a device token (`{ token }`) |
+| `GET  /api/push/prefs` | The session user's push preferences (`{ prefs: { <kind>: boolean } }`) |
+| `PUT  /api/push/prefs` | Change some of them (`{ prefs: { bid_declined: false } }`); returns the full set |
 | `POST /api/push/send` | Internal/manual: send to all of a principal's devices and browsers; requires `x-internal-key` |
 
 The web app turns push on per browser in **Settings → Notifications** (`services/pushNotifications.ts`,
-service worker `public/push-sw.js`); contractors also switch new-lead alerts on there, which sets
-`notifyPush` on their profile. The mobile app registers its native device token after sign-in
-(`hooks/useNotifications.ts`).
+service worker `public/push-sw.js`). Contractors also choose which pushes they get there:
+new-lead alerts set `notifyPush` on their profile (the relay picks lead recipients from profiles),
+while bid-accepted, bid-not-selected and job-pending-signature are per-user preferences kept by the
+relay (`prefs.ts`, on by default). Preferences apply to all of a user's devices. The mobile app
+registers its native device token after sign-in (`hooks/useNotifications.ts`).
 
 ### VAPID key setup (first-time only)
 

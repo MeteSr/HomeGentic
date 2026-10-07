@@ -16,6 +16,7 @@ export interface PushPayload {
 
 export type NotificationKind =
   | "job_awaiting_signature"
+  | "job_awaiting_contractor_signature"
   | "bid_accepted"
   | "bid_declined"
   | "new_lead";

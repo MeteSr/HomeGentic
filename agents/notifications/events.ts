@@ -34,6 +34,12 @@ export function payloadFor(event: OutboxEvent, zipCode?: string | null): PushPay
         body:  `${event.summary} is waiting for you to sign off.`,
         route: `jobs/${event.refId}`,
       };
+    case "job_awaiting_contractor_signature":
+      return {
+        title: "A job needs your sign-off",
+        body:  `The homeowner signed ${event.summary} and is waiting for you.`,
+        route: `jobs/${event.refId}`,
+      };
     case "bid_accepted":
       return {
         title: "Your bid was accepted",

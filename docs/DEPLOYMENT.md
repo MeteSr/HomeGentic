@@ -190,7 +190,7 @@ Dockerfile in the repo — host it on any Node platform and set the variables be
 | `VAPID_PRIVATE_KEY` | Base64url VAPID private key — keep secret |
 | `VAPID_SUBJECT` | `mailto:` or URL identifying the sender (e.g. `mailto:admin@homegentic.io`) |
 | `INTERNAL_API_KEY` | Shared secret required in `x-internal-key` header on `POST /api/push/send` |
-| `NOTIFICATIONS_DATA_FILE` | Path of the JSON file holding device tokens, browser subscriptions and outbox cursors (e.g. `/var/lib/homegentic/notifications.json`). Put it on persistent storage. |
+| `NOTIFICATIONS_DATA_FILE` | Path of the JSON file holding device tokens, browser subscriptions, push preferences and outbox cursors (e.g. `/var/lib/homegentic/notifications.json`). Put it on persistent storage. |
 | `RELAY_IDENTITY_SEED` | 32-byte hex seed for the relay's own ICP identity (`openssl rand -hex 32`). Keep secret and stable — its principal is allowlisted on the canisters. |
 | `IC_HOST` | ICP API host (default `https://icp-api.io`; `http://localhost:4943` locally) |
 | `CANISTER_ID_AUTH` | Auth canister — resolves the session tokens clients register with |

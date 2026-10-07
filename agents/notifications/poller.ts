@@ -15,6 +15,7 @@ import * as icp from "./icp";
 import { dispatchToUser } from "./dispatcher";
 import { notificationsFor, type LeadLookups } from "./events";
 import { loadSection, saveSection } from "./persist";
+import { wantsPush } from "./prefs";
 import type { ContractorInfo, NotificationEvent, OutboxPage, PushPayload, QuoteRequestInfo } from "./types";
 
 const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS) || 30_000;
@@ -28,6 +29,7 @@ export interface PollerDeps {
   getQuoteRequest: (requestId: string) => Promise<QuoteRequestInfo | null>;
   getContractors:  () => Promise<ContractorInfo[]>;
   dispatch:        (principal: string, payload: PushPayload) => Promise<void>;
+  wantsPush:       (principal: string, kind: string) => boolean;
 }
 
 const defaultDeps: PollerDeps = {
@@ -35,6 +37,7 @@ const defaultDeps: PollerDeps = {
   getQuoteRequest: icp.getQuoteRequest,
   getContractors:  icp.getContractors,
   dispatch:        dispatchToUser,
+  wantsPush,
 };
 
 const cursors: Record<string, number> = loadSection<Record<string, number>>("cursors", {});
@@ -75,6 +78,7 @@ export async function pollCanister(canisterId: string, deps: PollerDeps = defaul
     for (const event of page.events) {
       const pushes: NotificationEvent[] = await notificationsFor(event, lookups);
       for (const n of pushes) {
+        if (!deps.wantsPush(n.principal, n.type)) continue; // turned off in Settings
         await deps.dispatch(n.principal, n.payload);
         sent += 1;
       }
