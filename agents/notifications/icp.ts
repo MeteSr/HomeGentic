@@ -96,15 +96,30 @@ const contractorIdl = ({ IDL }: any) => {
     alertZips:     IDL.Vec(IDL.Text),
     origin:        IDL.Variant({ SelfRegistered: IDL.Null, GuestSigned: IDL.Text }),
   });
+  const Error = IDL.Variant({
+    NotFound: IDL.Null, AlreadyExists: IDL.Null, NotAuthorized: IDL.Null,
+    Paused: IDL.Null, RateLimitExceeded: IDL.Null, InvalidInput: IDL.Text,
+  });
   return IDL.Service({
-    getAll: IDL.Func([], [IDL.Vec(ContractorProfile)], ["query"]),
+    getAll:        IDL.Func([], [IDL.Vec(ContractorProfile)], ["query"]),
+    getContractor: IDL.Func([IDL.Principal], [IDL.Variant({ ok: ContractorProfile, err: Error })], ["query"]),
   });
 };
 
-const authIdl = ({ IDL }: any) =>
-  IDL.Service({
-    resolveAgentSession: IDL.Func([IDL.Text], [IDL.Opt(IDL.Principal)], ["query"]),
+const authIdl = ({ IDL }: any) => {
+  const Error = IDL.Variant({
+    NotFound: IDL.Null, AlreadyExists: IDL.Null, NotAuthorized: IDL.Null,
+    Paused: IDL.Null, InvalidInput: IDL.Text,
   });
+  return IDL.Service({
+    resolveAgentSession:    IDL.Func([IDL.Text], [IDL.Opt(IDL.Principal)], ["query"]),
+    getNotificationContact: IDL.Func(
+      [IDL.Principal],
+      [IDL.Variant({ ok: IDL.Opt(IDL.Record({ email: IDL.Text })), err: Error })],
+      ["query"],
+    ),
+  });
+};
 
 // ── Agents ────────────────────────────────────────────────────────────────────
 
@@ -205,3 +220,25 @@ export async function resolveAgentSession(token: string): Promise<string | null>
   const res: [] | [Principal] = await actor.resolveAgentSession(token);
   return res[0] ? res[0].toText() : null;
 }
+
+/**
+ * Where to email `principal`: a contractor's alert-email override
+ * (notifyEmail) when they set one, else the email they registered with. Null
+ * when there's no address. Needs the relay allowlisted on auth (addNotifier).
+ */
+export async function getNotificationEmail(principal: string): Promise<string | null> {
+  const p = Principal.fromText(principal);
+  const contractor = Actor.createActor(contractorIdl, {
+    agent: await getAnonAgent(), canisterId: requireId("CANISTER_ID_CONTRACTOR"),
+  }) as any;
+  const profile = await contractor.getContractor(p);
+  if ("ok" in profile && profile.ok.notifyEmail[0]) return profile.ok.notifyEmail[0] as string;
+
+  const auth = Actor.createActor(authIdl, {
+    agent: await getRelayAgent(), canisterId: requireId("CANISTER_ID_AUTH"),
+  }) as any;
+  const res = await auth.getNotificationContact(p);
+  if ("err" in res) throw new Error(`getNotificationContact: ${Object.keys(res.err)[0]}`);
+  return res.ok[0]?.email ?? null;
+}
+

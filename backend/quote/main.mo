@@ -646,6 +646,7 @@ persistent actor Quote {
           createdAt = Time.now();
         };
         Map.add(quotes, Text.compare, id, q);
+        notify("quote_received", ?req.homeowner, requestId, ServiceTypes.toText(req.serviceType));
 
         // Advance request status to #Quoted if still #Open
         if (req.status == #Open) {
@@ -1001,6 +1002,7 @@ persistent actor Quote {
           submittedAt = Time.now();
         };
         Map.add(sealedBids, Text.compare, id, bid);
+        notify("quote_received", ?req.homeowner, requestId, ServiceTypes.toText(req.serviceType));
 
         // Index by request
         let existing = switch (Map.get(sealedBidsByRequest, Text.compare, requestId)) {

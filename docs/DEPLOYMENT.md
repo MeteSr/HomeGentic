@@ -176,7 +176,7 @@ Dockerfile in the repo — host it on any Node platform and set the variables be
 - Serve it over **HTTPS**: browsers only register push from an https page, and
   the web app's CSP lists the relay's origin.
 - Run **one instance**. The outbox cursors live in `NOTIFICATIONS_DATA_FILE`;
-  two instances would each send every push.
+  two instances would each send every push, email and text.
 - Put `NOTIFICATIONS_DATA_FILE` on a disk that survives restarts and redeploys.
 
 ### Required environment variables
@@ -190,13 +190,13 @@ Dockerfile in the repo — host it on any Node platform and set the variables be
 | `VAPID_PRIVATE_KEY` | Base64url VAPID private key — keep secret |
 | `VAPID_SUBJECT` | `mailto:` or URL identifying the sender (e.g. `mailto:admin@homegentic.io`) |
 | `INTERNAL_API_KEY` | Shared secret required in `x-internal-key` header on `POST /api/push/send` |
-| `NOTIFICATIONS_DATA_FILE` | Path of the JSON file holding device tokens, browser subscriptions, push preferences and outbox cursors (e.g. `/var/lib/homegentic/notifications.json`). Put it on persistent storage. |
+| `NOTIFICATIONS_DATA_FILE` | Path of the JSON file holding device tokens, browser subscriptions, notification preferences, confirmed SMS numbers and outbox cursors (e.g. `/var/lib/homegentic/notifications.json`). Put it on persistent storage. |
 | `RELAY_IDENTITY_SEED` | 32-byte hex seed for the relay's own ICP identity (`openssl rand -hex 32`). Keep secret and stable — its principal is allowlisted on the canisters. |
 | `IC_HOST` | ICP API host (default `https://icp-api.io`; `http://localhost:4943` locally) |
-| `CANISTER_ID_AUTH` | Auth canister — resolves the session tokens clients register with |
-| `CANISTER_ID_JOB` | Job canister — outbox for "job awaiting signature" |
-| `CANISTER_ID_QUOTE` | Quote canister — outbox for bid outcomes and new leads |
-| `CANISTER_ID_CONTRACTOR` | Contractor canister — profiles for new-lead matching |
+| `CANISTER_ID_AUTH` | Auth canister — resolves the session tokens clients register with, and users' email addresses |
+| `CANISTER_ID_JOB` | Job canister — outbox for job signatures, verified jobs and sensor alerts |
+| `CANISTER_ID_QUOTE` | Quote canister — outbox for bid outcomes, quotes received and new leads |
+| `CANISTER_ID_CONTRACTOR` | Contractor canister — profiles for new-lead matching and contractors' notification email |
 | `POLL_INTERVAL_MS` | How often to read the outboxes (default `30000`) |
 | `APNS_KEY_ID` | Apple APNs Auth Key ID (for iOS push) |
 | `APNS_TEAM_ID` | Apple Team ID |
@@ -205,6 +205,25 @@ Dockerfile in the repo — host it on any Node platform and set the variables be
 | `FCM_PROJECT_ID` | Firebase project ID (for Android push) |
 | `FCM_SERVICE_ACCOUNT_JSON` | Firebase service account JSON (for Android push) |
 
+### Email and SMS (optional)
+
+Each channel is off until its variables are set; Settings hides its rows while it's off.
+
+| Variable | Description |
+|---|---|
+| `RESEND_API_KEY` | Resend API key. Turns notification email on |
+| `NOTIFY_EMAIL_FROM` | Sender, on a domain verified in Resend (default `HomeGentic <notifications@homegentic.app>`) |
+| `APP_URL` | Web app origin used for links in emails and texts (default `https://homegentic.app`) |
+| `TWILIO_ACCOUNT_SID` | Twilio account SID |
+| `TWILIO_AUTH_TOKEN` | Twilio auth token — keep secret |
+| `TWILIO_VERIFY_SERVICE_SID` | Twilio Verify service (`VA…`) that texts the confirmation codes |
+| `TWILIO_MESSAGING_SERVICE_SID` | Messaging service (`MG…`) that sends alerts — or set `TWILIO_FROM_NUMBER` (E.164) instead |
+
+SMS turns on only when the account SID, auth token, Verify service and a sender are all set.
+Texting US numbers from a 10-digit long code needs an approved **A2P 10DLC** brand and campaign
+in Twilio, attached to the messaging service; without it carriers filter the alerts. Each user can
+request at most 5 codes an hour, and every alert ends "Reply STOP to opt out" (Twilio handles STOP).
+
 VAPID keys are stable — regenerate only if the private key is compromised (invalidates all existing browser subscriptions).
 
 `INTERNAL_API_KEY` gates `/api/push/send`. Registration (`/api/push/register`, `/api/push/vapid-subscribe`) is authenticated with the auth canister's session tokens instead. In production the server throws at startup if `INTERNAL_API_KEY`, `CANISTER_ID_AUTH`, `NOTIFICATIONS_DATA_FILE` or `RELAY_IDENTITY_SEED` is missing.
@@ -212,7 +231,7 @@ VAPID keys are stable — regenerate only if the private key is compromised (inv
 ### Allowlist the relay on the canisters
 
 The relay logs its principal at startup (`relay principal: …`). Allow it to read
-the job and quote outboxes, either when deploying:
+the job and quote outboxes and look up users' email on auth, either when deploying:
 
 ```bash
 NOTIFIER_PRINCIPAL=<relay principal> bash scripts/deploy.sh <env>
@@ -221,17 +240,20 @@ NOTIFIER_PRINCIPAL=<relay principal> bash scripts/deploy.sh <env>
 or directly:
 
 ```bash
+icp canister call auth  addNotifier '(principal "<relay principal>")' -e <env>
 icp canister call job   addNotifier '(principal "<relay principal>")' -e <env>
 icp canister call quote addNotifier '(principal "<relay principal>")' -e <env>
 ```
 
-Until it is allowlisted, the relay logs `NotAuthorized` each poll and sends nothing.
+Until it is allowlisted on job and quote, the relay logs `NotAuthorized` each poll and sends
+nothing. Without auth, emails go only to contractors who set a notification email on their
+profile; the rest are logged and skipped.
 
 ### Point the clients at the relay
 
 - **Web:** set `VITE_NOTIFICATIONS_URL` (the relay's https URL) for the frontend
-  build. The build adds its origin to the CSP. Without it, the push toggle in
-  Settings is hidden.
+  build. The build adds its origin to the CSP. Without it, the push, email and
+  SMS rows in Settings are hidden.
 - **Mobile:** set `EXPO_PUBLIC_NOTIFICATIONS_URL` for the Expo build.
 - Set the relay's `FRONTEND_ORIGIN` to the web app's origin (CORS).
 

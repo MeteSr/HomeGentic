@@ -54,6 +54,18 @@ describe("payloadFor", () => {
     expect(payloadFor(lead, null)?.body).toBe("New HVAC request.");
   });
 
+  it("words the homeowner events", () => {
+    const base = { seq: 1, recipient: "h", refId: "JOB_2", summary: "Water heater" };
+    expect(payloadFor({ ...base, kind: "job_verified" })).toEqual({
+      title: "Job verified", body: "Water heater is now verified on your home's record.", route: "jobs/JOB_2",
+    });
+    expect(payloadFor({ ...base, kind: "sensor_alert", summary: "Water leak detected" })?.body)
+      .toBe("Water leak detected. We opened a job for it.");
+    expect(payloadFor({ ...base, kind: "quote_received", refId: "REQ_7", summary: "GeneralHandyman" })).toEqual({
+      title: "New quote", body: "A contractor sent a quote for your General Handyman request.", route: "quotes/REQ_7",
+    });
+  });
+
   it("ignores unknown kinds", () => {
     expect(payloadFor({ ...lead, kind: "something_new" })).toBeNull();
   });
@@ -64,8 +76,8 @@ describe("contractorWantsLead", () => {
     expect(contractorWantsLead(REQ, PRO)).toBe(true);
   });
 
-  it("requires push opt-in", () => {
-    expect(contractorWantsLead(REQ, { ...PRO, notifyPush: false })).toBe(false);
+  it("matches regardless of push opt-in (email may still want it)", () => {
+    expect(contractorWantsLead(REQ, { ...PRO, notifyPush: false })).toBe(true);
   });
 
   it("requires the trade", () => {
@@ -100,8 +112,14 @@ describe("notificationsFor", () => {
   it("sends a recipient event to its recipient", async () => {
     const l = lookups(null, []);
     const out = await notificationsFor({ seq: 2, kind: "bid_accepted", recipient: "c-1", refId: "Q", summary: "HVAC" }, l);
-    expect(out).toEqual([{ type: "bid_accepted", principal: "c-1", payload: expect.objectContaining({ route: "leads" }) }]);
+    expect(out).toEqual([{ type: "bid_accepted", principal: "c-1", pushOptIn: true, payload: expect.objectContaining({ route: "leads" }) }]);
     expect(l.getQuoteRequest).not.toHaveBeenCalled();
+  });
+
+  it("marks lead pushes with the contractor's notifyPush opt-in", async () => {
+    const quiet = { ...PRO, principal: "quiet-pro", notifyPush: false };
+    const out = await notificationsFor(lead, lookups(REQ, [PRO, quiet]));
+    expect(out.map((n) => [n.principal, n.pushOptIn])).toEqual([["hvac-pro", true], ["quiet-pro", false]]);
   });
 
   it("fans a new lead out to every matching contractor", async () => {

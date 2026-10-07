@@ -17,14 +17,22 @@ export interface PushPayload {
 export type NotificationKind =
   | "job_awaiting_signature"
   | "job_awaiting_contractor_signature"
+  | "job_verified"
+  | "sensor_alert"
   | "bid_accepted"
   | "bid_declined"
+  | "quote_received"
   | "new_lead";
 
 export interface NotificationEvent {
   type:      NotificationKind;
   principal: string;
   payload:   PushPayload;
+  /**
+   * Whether the recipient's own opt-in allows a push. Only new leads use it
+   * (the contractor profile's notifyPush); everything else is true.
+   */
+  pushOptIn: boolean;
 }
 
 /** One entry from a canister's push outbox (backend/shared/Notify.mo). */

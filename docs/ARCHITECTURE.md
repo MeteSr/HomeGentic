@@ -92,6 +92,7 @@ flowchart TB
     resend["Resend"]
     records["Permit / property-record APIs"]
     push["APNs · FCM · Web Push"]
+    twilio["Twilio"]
     devices["Smart-home platforms"]
   end
 
@@ -113,10 +114,10 @@ flowchart TB
   ai_proxy -- "outcalls" --> records & resend
 
   notify -- "read outboxes" --> core
-  notify -- "resolve session" --> auth
+  notify -- "resolve session · contact email" --> auth
   devices --> iot
   iot -- "recordEvent" --> sensor
-  notify --> push
+  notify --> push & resend & twilio
   email --> resend
 ```
 
@@ -392,47 +393,66 @@ Max response: 200 tokens, 2–3 sentences, tuned for speech rhythm.
 
 ## Notification Relay
 
-A standalone Node/Express server at `agents/notifications/` (port 3002 locally) sends push
-notifications to users' phones and browsers.
+A standalone Node/Express server at `agents/notifications/` (port 3002 locally) sends notifications
+to users' phones and browsers (push), inboxes (email, through Resend) and phones by text (SMS,
+through Twilio).
 
-Canisters *can* make outbound HTTPS requests (`ai_proxy` and `payment` do), but push sending stays
-off-chain for three reasons. A replicated outcall is made by every node in the subnet, so APNs and
-FCM would get duplicate sends. The APNs and FCM signing keys would sit in canister state, readable
-by node operators. And each push would cost cycles.
+Canisters *can* make outbound HTTPS requests (`ai_proxy` and `payment` do), but sending stays
+off-chain for three reasons. A replicated outcall is made by every node in the subnet, so APNs, FCM,
+Resend and Twilio would get duplicate sends. The signing keys and API keys would sit in canister
+state, readable by node operators. And each send would cost cycles.
 
 ### How events reach the relay
 
-The canisters that raise push-worthy events keep a small **outbox** (`backend/shared/Notify.mo`):
+The canisters that raise notification-worthy events keep a small **outbox** (`backend/shared/Notify.mo`):
 `job` and `quote` record an event when something happens, keeping the newest 1,000. The relay
 reads each outbox every `POLL_INTERVAL_MS` (30 s) with `getNotificationEvents(afterSeq, limit)`,
 using its own identity (`RELAY_IDENTITY_SEED`). An admin allowlists that identity's principal on
-each canister with `addNotifier`. The relay keeps a cursor per canister and advances it one event
+`job`, `quote` and `auth` with `addNotifier` (on `auth` it lets the relay look up a user's email
+with `getNotificationContact`). The relay keeps a cursor per canister and advances it one event
 at a time after sending, so a crash resumes at the first unsent event.
 
-| Event | Raised by | Sent to |
-|---|---|---|
-| `job_awaiting_signature` | `job.createJobProposal`, a contractor's `verifyJob` or invite redemption before the homeowner signs | The homeowner |
-| `job_awaiting_contractor_signature` | The homeowner's `verifyJob` on a job with a linked contractor who hasn't signed, or `linkContractor` on a job the homeowner already signed | The linked contractor |
-| `bid_accepted` / `bid_declined` | `quote.acceptQuote` | The winning contractor / every other bidder |
-| `new_lead` | `quote.createQuoteRequest`, `createSealedBidRequest` | Every contractor with `notifyPush` on, the trade in `specialties`, and the request's zip in `alertZips` (or `serviceZips`; none means everywhere), who meets the request's trust thresholds |
+| Event | Raised by | Sent to | Push | Email row | SMS |
+|---|---|---|---|---|---|
+| `job_awaiting_signature` | `job.createJobProposal`, a contractor's `verifyJob` or invite redemption before the homeowner signs | The homeowner | ✓ | Job Updates | ✓ |
+| `job_awaiting_contractor_signature` | The homeowner's `verifyJob` on a job with a linked contractor who hasn't signed, or `linkContractor` on a job the homeowner already signed | The linked contractor | ✓ | — | ✓ |
+| `job_verified` | The contractor's `verifyJob` or invite redemption that completes both signatures | The homeowner | — | Job Verified | — |
+| `sensor_alert` | `job.createSensorJob` (a critical sensor event opened a job) | The homeowner | — | Job Updates | ✓ |
+| `bid_accepted` / `bid_declined` | `quote.acceptQuote` | The winning contractor / every other bidder | ✓ | Bid Outcome | accepted only |
+| `quote_received` | `quote.submitQuote`, `submitSealedBid` | The homeowner who posted the request | — | Quote Received | — |
+| `new_lead` | `quote.createQuoteRequest`, `createSealedBidRequest` | Every contractor with the trade in `specialties` and the request's zip in `alertZips` (or `serviceZips`; none means everywhere), who meets the request's trust thresholds | if `notifyPush` | New Lead | — |
+
+Which kinds go out on which channel is in `channels.ts`.
 
 On its first run the relay starts at each outbox's latest event rather than replaying history. If
 an outbox reports a latest seq below the cursor (the canister was reinstalled), it starts again from 0.
 
 ### Channels
 
-| Channel | Transport | Store | Dispatcher |
+| Channel | Transport | Store | Sender |
 |---|---|---|---|
 | Mobile (iOS) | APNs | `store.ts` | `apns.ts` |
 | Mobile (Android) | FCM | `store.ts` | `fcm.ts` |
 | Browser (any) | VAPID Web Push | `vapidStore.ts` | `vapidDispatcher.ts` |
+| Email | Resend | — | `email.ts` |
+| SMS | Twilio (Verify for codes, Messages for alerts) | `prefs.ts` (confirmed number) | `sms.ts` |
 
-Registrations and cursors persist to `NOTIFICATIONS_DATA_FILE`. A device token or browser endpoint
-belongs to one user at a time: registering it under a new user removes it from the previous one.
+Registrations, preferences and cursors persist to `NOTIFICATIONS_DATA_FILE`. A device token or
+browser endpoint belongs to one user at a time: registering it under a new user removes it from
+the previous one.
+
+Email goes to the contractor profile's `notifyEmail` if set, otherwise the address on the user's
+auth profile (`auth.getNotificationContact`). Each send carries an `Idempotency-Key` of
+`<canister>:<seq>:<principal>`, so a relay that restarts mid-poll doesn't email anyone twice. A
+text goes only to a number the user confirmed with a code from Twilio Verify; the relay stores
+it, and the API only ever returns it masked (`•••• 0142`). A failed email or text is logged and
+skipped — it doesn't hold up the push or the cursor. Email is off without `RESEND_API_KEY`, and
+SMS is off without the `TWILIO_*` settings ([DEPLOYMENT.md](DEPLOYMENT.md)); Settings hides the
+rows for a channel that's off.
 
 ### Endpoints
 
-Registration endpoints identify the caller from the `x-agent-session` header: the session token the
+User endpoints identify the caller from the `x-agent-session` header: the session token the
 auth canister issues (`issueAgentSession`) and the relay resolves (`resolveAgentSession`), as the
 voice Worker does. A principal in the body is ignored.
 
@@ -443,16 +463,20 @@ voice Worker does. A principal in the body is ignored.
 | `POST /api/push/vapid-unsubscribe` | Remove a subscription by endpoint URL (`{ endpoint }`) |
 | `POST /api/push/register` | Register a native APNs/FCM device token for the session's user (`{ token, platform }`) |
 | `POST /api/push/unregister` | Remove a device token (`{ token }`) |
-| `GET  /api/push/prefs` | The session user's push preferences (`{ prefs: { <kind>: boolean } }`) |
-| `PUT  /api/push/prefs` | Change some of them (`{ prefs: { bid_declined: false } }`); returns the full set |
+| `GET  /api/prefs` | The session user's preferences and which channels are on: `{ prefs: { push, email, sms: { enabled, phone } }, channels: { email, sms } }` |
+| `PUT  /api/prefs` | Change some of them (`{ prefs: { email: { bid_outcome: true } } }`); returns the full set. `sms: { enabled: true }` needs a confirmed number |
+| `POST /api/sms/start` | Text a confirmation code to `{ phone }` (E.164). At most 5 codes per user per hour |
+| `POST /api/sms/confirm` | `{ phone, code }`: on a match, store the number and turn SMS on; returns the full set |
+| `DELETE /api/sms` | Forget the number and turn SMS off |
 | `POST /api/push/send` | Internal/manual: send to all of a principal's devices and browsers; requires `x-internal-key` |
 
 The web app turns push on per browser in **Settings → Notifications** (`services/pushNotifications.ts`,
-service worker `public/push-sw.js`). Contractors also choose which pushes they get there:
-new-lead alerts set `notifyPush` on their profile (the relay picks lead recipients from profiles),
-while bid-accepted, bid-not-selected and job-pending-signature are per-user preferences kept by the
-relay (`prefs.ts`, on by default). Preferences apply to all of a user's devices. The mobile app
-registers its native device token after sign-in (`hooks/useNotifications.ts`).
+service worker `public/push-sw.js`), and every other row on that tab saves as it changes
+(`services/notificationPrefs.ts`). Contractors' new-lead push sets `notifyPush` on their profile;
+the bid and signature pushes, the email rows and SMS Alerts are per-user preferences kept by the
+relay (`prefs.ts`): pushes on by default, email rows defaulting as in `channels.ts`, SMS off until
+a number is confirmed. Preferences apply to all of a user's devices. The mobile app registers its
+native device token after sign-in (`hooks/useNotifications.ts`).
 
 ### VAPID key setup (first-time only)
 
@@ -471,7 +495,7 @@ VAPID_SUBJECT=mailto:admin@homegentic.io
 
 `ai_proxy.sendJobMatchEmail` sends a branded job-match email through Resend, and contractors store
 their email preferences with `contractor.updateNotificationPrefs(notifyEmail, notifyPush, alertZips)`.
-Nothing calls `sendJobMatchEmail` yet; new-lead alerts currently go out only as pushes (above).
+Nothing calls `sendJobMatchEmail`; new-lead emails come from the notification relay (above).
 
 ---
 
@@ -562,7 +586,7 @@ backend/
   listing/        maintenance/    market/       monitoring/
   payment/        photo/          property/     quote/
   recurring/      referrals/      report/       sensor/
-  shared/         — ServiceType.mo (job / quote / contractor), Notify.mo push outbox (job / quote)
+  shared/         — ServiceType.mo (job / quote / contractor), Notify.mo notification outbox (job / quote)
   — each canister has main.mo; most have test.sh
 
 frontend/
@@ -579,7 +603,7 @@ frontend/
 agents/
   voice/          — Claude voice / AI proxy (Cloudflare Worker; legacy Express server.ts)
   email/          — Lead-form email relay (Cloudflare Worker → Resend)
-  notifications/  — Push notification relay: Expo (APNs/FCM) + VAPID web push (port 3002)
+  notifications/  — Notification relay: APNs/FCM + VAPID web push, Resend email, Twilio SMS (port 3002)
   iot-gateway/    — Smart-home webhook ingestion → sensor canister
 
 mobile/           — Expo React Native app

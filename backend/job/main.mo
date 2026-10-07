@@ -225,6 +225,21 @@ persistent actor Job {
     );
   };
 
+  /// Tell the homeowner their job is now fully verified, when the other
+  /// party's signature completed it (they already know when they sign last).
+  private func notifyJobVerified(job: Job) {
+    notifyLatestSeq := Notify.record(
+      notifyLog, notifyLatestSeq, "job_verified", ?job.homeowner, job.id, job.title
+    );
+  };
+
+  /// Tell the homeowner a critical sensor reading opened a job for them.
+  private func notifySensorAlert(job: Job) {
+    notifyLatestSeq := Notify.record(
+      notifyLog, notifyLatestSeq, "sensor_alert", ?job.homeowner, job.id, job.title
+    );
+  };
+
   /// Tell the linked contractor the homeowner has signed and is waiting on them.
   private func notifyAwaitingContractorSignature(job: Job, contractor: Principal) {
     notifyLatestSeq := Notify.record(
@@ -596,6 +611,9 @@ persistent actor Job {
         if (isContractor and not existing2.contractorSigned and not newHomeownerSigned) {
           notifyAwaitingSignature(updated);
         };
+        if (fullyVerified and isContractor) {
+          notifyJobVerified(updated);
+        };
         if (isHomeowner and not existing2.homeownerSigned and not newContractorSigned) {
           switch (existing2.contractor) {
             case (?con) { notifyAwaitingContractorSignature(updated, con) };
@@ -692,6 +710,7 @@ persistent actor Job {
     };
 
     Map.add(jobs, Text.compare, id, job);
+    notifySensorAlert(job);
     #ok(id)
   };
 
@@ -1123,7 +1142,7 @@ persistent actor Job {
     };
     Map.add(inviteTokens, Text.compare, token, usedInvite);
 
-    if (not bothSigned) notifyAwaitingSignature(updated);
+    if (bothSigned) notifyJobVerified(updated) else notifyAwaitingSignature(updated);
 
     // Notify contractor canister when the job becomes fully verified —
     // mirrors verifyJob()'s cross-call exactly, same try/catch so a trap or

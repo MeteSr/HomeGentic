@@ -57,8 +57,8 @@ test.describe("SettingsPage — /settings", () => {
 
   test("clicking Notifications tab shows notification content", async ({ page }) => {
     await page.getByRole("button", { name: /notifications/i }).click();
-    // "Save Preferences" button is unique to the NotificationsTab content area
-    await expect(page.getByRole("button", { name: /save preferences/i })).toBeVisible();
+    // The "Weekly Home Pulse" switch is unique to the NotificationsTab content area
+    await expect(page.getByRole("switch", { name: "Weekly Home Pulse" })).toBeVisible();
   });
 
   // ── Privacy tab ───────────────────────────────────────────────────────────

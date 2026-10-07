@@ -208,6 +208,7 @@ jobs:
           # outboxes (notifications.integration.test.ts), as the relay would.
           dfx canister call job   addNotifier "(principal \"$INTEG_PRINCIPAL\")"
           dfx canister call quote addNotifier "(principal \"$INTEG_PRINCIPAL\")"
+          dfx canister call auth  addNotifier "(principal \"$INTEG_PRINCIPAL\")"
 
       - name: Run integration tests
         run: npm run test:integration
