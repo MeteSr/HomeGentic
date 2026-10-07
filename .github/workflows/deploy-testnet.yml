@@ -74,6 +74,11 @@ jobs:
           DFX_IDENTITY_PEM: ${{ secrets.DFX_IDENTITY_PEM }}
           DFX_WALLET_ID: ${{ secrets.DFX_WALLET_ID }}
           BACKUP_CONTROLLER_PRINCIPAL: ${{ secrets.BACKUP_CONTROLLER_PRINCIPAL }}
+          # Optional grants for the off-chain services (see "One-time canister
+          # configuration" in docs/DEPLOYMENT.md). Principals aren't secret, so
+          # they can be environment variables; secrets work too.
+          NOTIFIER_PRINCIPAL: ${{ vars.NOTIFIER_PRINCIPAL || secrets.NOTIFIER_PRINCIPAL }}
+          VOICE_WORKER_PRINCIPAL: ${{ vars.VOICE_WORKER_PRINCIPAL || secrets.VOICE_WORKER_PRINCIPAL }}
           START_FRONTEND_CANISTER_FIRST: ${{ inputs.start_frontend_canister_first || 'false' }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           VOICE_AGENT_API_KEY: ${{ secrets.VOICE_AGENT_API_KEY }}

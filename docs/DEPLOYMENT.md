@@ -237,7 +237,7 @@ the job and quote outboxes and look up users' email on auth, either when deployi
 NOTIFIER_PRINCIPAL=<relay principal> bash scripts/deploy.sh <env>
 ```
 
-or directly:
+(in CI, set the `NOTIFIER_PRINCIPAL` variable on the GitHub environment), or directly:
 
 ```bash
 icp canister call auth  addNotifier '(principal "<relay principal>")' -e <env>
@@ -469,15 +469,31 @@ once per environment (`-e ic` or `-e testnet`), as the deploying identity:
    operators can read; use a [restricted key](https://docs.stripe.com/keys#limit-access)
    limited to Checkout Sessions.
 2. **Let the voice Worker act on payments.** The Worker signs canister calls
-   with `DFX_IDENTITY_PEM` (see [Voice Agent](#voice-agent-cloudflare-workers)).
-   Make that identity's principal a payment admin:
-   ```bash
-   dfx identity import voice-worker worker-identity.pem --storage-mode plaintext
-   icp canister call payment addAdmin "(principal \"$(dfx identity get-principal --identity voice-worker)\")" -e ic
-   ```
-3. **Allowlist the notification relay** on `job` and `quote` — see
+   with `DFX_IDENTITY_PEM` (see [Voice Agent](#voice-agent-cloudflare-workers)),
+   which must be an **Ed25519** key (`openssl genpkey -algorithm ed25519`).
+   Its principal must be a payment admin.
+3. **Allowlist the notification relay** on `auth`, `job` and `quote` — see
    [Notification Relay](#allowlist-the-relay-on-the-canisters).
 4. **Allowlist the IoT gateway** on `sensor` — see [IoT Gateway](#iot-gateway).
+
+`deploy.sh` makes the grants in steps 2 and 3 itself when these are set, on
+every deploy (they're idempotent, and a failure is reported without stopping
+the deploy):
+
+| Variable | Grant |
+|---|---|
+| `NOTIFIER_PRINCIPAL` | `addNotifier` on `auth`, `job` and `quote` for the relay's principal (logged by the relay at startup) |
+| `VOICE_WORKER_PRINCIPAL` | `payment.addAdmin` for the voice Worker's principal |
+
+The deploy workflows read them from the GitHub environment's **variables**
+(or secrets) of the same name. To grant by hand instead:
+
+```bash
+icp canister call auth    addNotifier "(principal \"<relay>\")" -e <env>
+icp canister call job     addNotifier "(principal \"<relay>\")" -e <env>
+icp canister call quote   addNotifier "(principal \"<relay>\")" -e <env>
+icp canister call payment addAdmin    "(principal \"<voice worker>\")" -e <env>
+```
 
 ## Upgrading Canisters
 
