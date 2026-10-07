@@ -38,6 +38,13 @@ function deps(over: Partial<PollerDeps> = {}): PollerDeps {
     getContractors:  jest.fn(async () => []),
     dispatch:        jest.fn(async () => undefined),
     wantsPush:       jest.fn(() => true),
+    emailEnabled:    jest.fn(() => false),
+    wantsEmail:      jest.fn(() => false),
+    getEmail:        jest.fn(async () => null),
+    sendEmail:       jest.fn(async () => undefined),
+    smsEnabled:      jest.fn(() => false),
+    smsPhoneFor:     jest.fn(() => null),
+    sendSms:         jest.fn(async () => undefined),
     ...over,
   };
 }
@@ -144,6 +151,96 @@ describe("push preferences", () => {
     expect(d.dispatch).toHaveBeenCalledWith("c-on", expect.anything());
     expect(d.wantsPush).toHaveBeenCalledWith("c-off", "bid_declined");
     expect(p.getCursor("quote-id")).toBe(2);
+  });
+});
+
+describe("email and SMS", () => {
+  async function primed(p: ReturnType<typeof freshPoller>, id: string) {
+    await p.pollCanister(id, deps({ readOutbox: outbox([]) }));
+  }
+
+  it("emails and texts recipients who want it, keyed for idempotency", async () => {
+    const p = freshPoller();
+    await primed(p, "job-id");
+    const d = deps({
+      readOutbox:   outbox([ev(1, { kind: "sensor_alert", recipient: "h-1", summary: "Water leak detected" })]),
+      emailEnabled: jest.fn(() => true),
+      wantsEmail:   jest.fn(() => true),
+      getEmail:     jest.fn(async () => "h1@example.com"),
+      smsEnabled:   jest.fn(() => true),
+      smsPhoneFor:  jest.fn(() => "+15125550142"),
+    });
+    expect(await p.pollCanister("job-id", d)).toBe(2);   // sensor_alert isn't pushed
+    expect(d.dispatch).not.toHaveBeenCalled();
+    expect(d.sendEmail).toHaveBeenCalledWith("h1@example.com", expect.objectContaining({ title: "Sensor alert" }), "job-id:1:h-1");
+    expect(d.sendSms).toHaveBeenCalledWith("+15125550142", expect.objectContaining({ route: "jobs/JOB_1" }));
+  });
+
+  it("skips email when the channel is off or the user has no address", async () => {
+    const p = freshPoller();
+    await primed(p, "job-id");
+    const events = [ev(1, { kind: "job_verified", recipient: "h-1" }), ev(2, { kind: "job_verified", recipient: "h-2" })];
+    const off = deps({ readOutbox: outbox(events), emailEnabled: jest.fn(() => false), wantsEmail: jest.fn(() => true) });
+    await p.pollCanister("job-id", off);
+    expect(off.getEmail).not.toHaveBeenCalled();
+
+    const p2 = freshPoller();
+    await primed(p2, "job-id");
+    const noAddress = deps({ readOutbox: outbox(events), emailEnabled: jest.fn(() => true), wantsEmail: jest.fn(() => true) });
+    expect(await p2.pollCanister("job-id", noAddress)).toBe(0);
+    expect(noAddress.sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("looks each address up once per poll", async () => {
+    const p = freshPoller();
+    await primed(p, "quote-id");
+    const events = [1, 2, 3].map((n) => ev(n, { kind: "quote_received", recipient: "h-1", refId: `REQ_${n}`, summary: "HVAC" }));
+    const d = deps({
+      readOutbox: outbox(events), emailEnabled: jest.fn(() => true), wantsEmail: jest.fn(() => true),
+      getEmail: jest.fn(async () => "h1@example.com"),
+    });
+    expect(await p.pollCanister("quote-id", d)).toBe(3);
+    expect(d.getEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it("a failed email or text doesn't stop the push or the cursor", async () => {
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    const p = freshPoller();
+    await primed(p, "quote-id");
+    const d = deps({
+      readOutbox:   outbox([ev(1, { kind: "bid_accepted", recipient: "c-1", summary: "HVAC" })]),
+      emailEnabled: jest.fn(() => true),
+      wantsEmail:   jest.fn(() => true),
+      getEmail:     jest.fn(async () => { throw new Error("auth canister down"); }),
+      smsEnabled:   jest.fn(() => true),
+      smsPhoneFor:  jest.fn(() => "+15125550142"),
+      sendSms:      jest.fn(async () => { throw new Error("Twilio 500"); }),
+    });
+    expect(await p.pollCanister("quote-id", d)).toBe(1);
+    expect(d.dispatch).toHaveBeenCalledTimes(1);
+    expect(p.getCursor("quote-id")).toBe(1);
+  });
+
+  it("new leads: push follows notifyPush, email follows the contractor's email preference", async () => {
+    const p = freshPoller();
+    await primed(p, "quote-id");
+    const req = { id: "REQ_1", homeowner: "h", serviceType: "Roofing", status: "Open", zipCode: null, minTrustScore: null, minJobsCompleted: null };
+    const base = { specialties: ["Roofing"], serviceZips: [], alertZips: [], trustScore: 70, jobsCompleted: 0, isVerified: false };
+    const d = deps({
+      readOutbox:      outbox([ev(1, { kind: "new_lead", recipient: null, refId: "REQ_1", summary: "Roofing" })]),
+      getQuoteRequest: jest.fn(async () => req),
+      getContractors:  jest.fn(async () => [
+        { ...base, principal: "pusher",  notifyPush: true },
+        { ...base, principal: "emailer", notifyPush: false },
+      ]),
+      emailEnabled: jest.fn(() => true),
+      wantsEmail:   jest.fn((principal: string) => principal === "emailer"),
+      getEmail:     jest.fn(async (principal: string) => `${principal}@example.com`),
+    });
+    expect(await p.pollCanister("quote-id", d)).toBe(2);
+    expect(d.dispatch).toHaveBeenCalledWith("pusher", expect.anything());
+    expect(d.dispatch).not.toHaveBeenCalledWith("emailer", expect.anything());
+    expect(d.sendEmail).toHaveBeenCalledWith("emailer@example.com", expect.anything(), "quote-id:1:emailer");
   });
 });
 

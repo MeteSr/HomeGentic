@@ -24,6 +24,10 @@ module {
   ///                            — recipient: the linked contractor; refId: jobId
   ///   "bid_accepted"           — recipient: the contractor; refId: quoteId
   ///   "bid_declined"           — recipient: the contractor; refId: quoteId
+  ///   "job_verified"           — recipient: the homeowner; refId: jobId
+  ///   "sensor_alert"           — recipient: the homeowner; refId: the job a
+  ///                              critical sensor reading opened
+  ///   "quote_received"         — recipient: the homeowner; refId: quote requestId
   ///   "new_lead"               — recipient: null (the relay picks matching
   ///                              contractors); refId: quote requestId
   public type Event = {

@@ -745,10 +745,10 @@ if [ -n "$MAINTENANCE_ID" ] && [ -n "$PROPERTY_ID" ]; then
   icp canister call maintenance setPropertyCanisterId "(principal \"$PROPERTY_ID\")" -e "$ENV" &
 fi
 # Notification relay: allowlist its principal on the canisters it reads
-# push events from. NOTIFIER_PRINCIPAL is the principal of the relay's
+# notification events (job, quote) and email addresses (auth) from. NOTIFIER_PRINCIPAL is the principal of the relay's
 # RELAY_IDENTITY_SEED (agents/notifications logs it on start).
 if [ -n "${NOTIFIER_PRINCIPAL:-}" ]; then
-  for c in job quote; do
+  for c in auth job quote; do
     echo "  Allowlisting notification relay on $c..."
     icp canister call "$c" addNotifier "(principal \"$NOTIFIER_PRINCIPAL\")" -e "$ENV" &
   done

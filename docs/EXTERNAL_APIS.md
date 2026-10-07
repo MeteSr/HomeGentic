@@ -16,6 +16,7 @@ and where in the codebase each integration lives.
 | [Google Fonts](#4-google-fonts) | Typography CDN | None | Free | No — fonts degrade gracefully |
 | [Firebase FCM](#5-firebase-cloud-messaging-fcm) | Mobile push notifications | `FCM_PROJECT_ID`, `FCM_SERVICE_ACCOUNT_JSON` | Free | No |
 | [VAPID Web Push](#5b-vapid-web-push) | Browser push notifications | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Free (self-hosted keys) | No |
+| [Twilio](#5c-twilio) | SMS alerts and phone confirmation codes | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID`, `TWILIO_MESSAGING_SERVICE_SID` | Per message + per verification | No — SMS rows hidden without it |
 | [Google Nest SDM](#6-google-nest-sdm) | Thermostat webhooks | `NEST_WEBHOOK_SECRET` | Free | No |
 | [Ecobee](#7-ecobee) | Thermostat webhooks | `ECOBEE_WEBHOOK_SECRET` | Free | No |
 | [Moen Flo](#8-moen-flo) | Water sensor webhooks | `MOEN_FLO_WEBHOOK_SECRET` | Free | No |
@@ -177,6 +178,8 @@ See https://resend.com/pricing
 **Used in:**
 - `agents/voice/resendEmailProvider.ts` — email provider with rate-limit enforcement
 - `backend/ai_proxy/main.mo` — HTTP outcall to `https://api.resend.com/emails`
+- `agents/notifications/email.ts` — notification email (job verified, quotes, bids, new leads),
+  with its own `RESEND_API_KEY` and `NOTIFY_EMAIL_FROM`; sends carry an `Idempotency-Key`
 
 **Notes:** A rate-limiting wrapper in `resendEmailProvider.ts` enforces the free-tier
 limits (100/day, 3,000/month) so the service doesn't fail silently when the quota
@@ -256,6 +259,26 @@ node -e "const wp=require('web-push'); const k=wp.generateVAPIDKeys(); console.l
 ```
 
 **Notes:** VAPID keys are stable — regenerating them invalidates all existing browser subscriptions. The private key must remain server-side only.
+
+---
+
+## 5c. Twilio
+
+**Purpose:** Texts the "SMS Alerts" users turn on in Settings, and the codes that confirm their number first.
+
+**Env vars:** `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID`, and
+`TWILIO_MESSAGING_SERVICE_SID` (or `TWILIO_FROM_NUMBER`)
+
+**Pricing:** Per outbound message and per Verify confirmation. See https://www.twilio.com/en-us/pricing
+
+**Used in:**
+- `agents/notifications/sms.ts` — Verify (`https://verify.twilio.com/v2/Services/{sid}/Verifications`,
+  `/VerificationCheck`) and Messages (`https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json`)
+- `agents/notifications/server.ts` — `POST /api/sms/start`, `POST /api/sms/confirm`, `DELETE /api/sms`
+
+**Notes:** US alerts from a 10-digit number need an approved A2P 10DLC brand and campaign on the
+messaging service. Each user can request 5 codes an hour. Alerts end "Reply STOP to opt out";
+Twilio handles STOP/HELP on the messaging service.
 
 ---
 

@@ -1,15 +1,18 @@
 /**
- * Turns canister outbox events into the pushes to send.
+ * Turns canister outbox events into notifications: who gets told what. Which
+ * channels each one then goes out on (push, email, SMS) is decided by the
+ * poller from channels.ts and the recipient's preferences.
  *
- * Events with a recipient map to one push. A new_lead event has no recipient:
- * the relay looks up the quote request and sends to every contractor who opted
- * in to push (notifyPush), lists the trade among their specialties, covers the
+ * Events with a recipient map to one notification. A new_lead event has no
+ * recipient: the relay looks up the quote request and notifies every
+ * contractor who lists the trade among their specialties, covers the
  * request's zip, and meets its trust thresholds — the same rules the quote
  * canister's getOpenRequestsForMe applies (verified contractors skip the
- * thresholds; a contractor with no zips covers every zip).
+ * thresholds; a contractor with no zips covers every zip). Pushes for leads
+ * also need the contractor's notifyPush opt-in (pushOptIn).
  *
  * The minReviews threshold isn't checked here: review counts aren't on the
- * contractor profile, and an extra push to a contractor who then can't see
+ * contractor profile, and an extra alert to a contractor who then can't see
  * the lead is harmless.
  */
 import type {
@@ -40,6 +43,24 @@ export function payloadFor(event: OutboxEvent, zipCode?: string | null): PushPay
         body:  `The homeowner signed ${event.summary} and is waiting for you.`,
         route: `jobs/${event.refId}`,
       };
+    case "job_verified":
+      return {
+        title: "Job verified",
+        body:  `${event.summary} is now verified on your home's record.`,
+        route: `jobs/${event.refId}`,
+      };
+    case "sensor_alert":
+      return {
+        title: "Sensor alert",
+        body:  `${event.summary}. We opened a job for it.`,
+        route: `jobs/${event.refId}`,
+      };
+    case "quote_received":
+      return {
+        title: "New quote",
+        body:  `A contractor sent a quote for your ${tradeLabel(event.summary)} request.`,
+        route: `quotes/${event.refId}`,
+      };
     case "bid_accepted":
       return {
         title: "Your bid was accepted",
@@ -63,8 +84,8 @@ export function payloadFor(event: OutboxEvent, zipCode?: string | null): PushPay
   }
 }
 
+/** Whether a lead fits this contractor (trade, zip, thresholds); opt-ins are checked later. */
 export function contractorWantsLead(req: QuoteRequestInfo, c: ContractorInfo): boolean {
-  if (!c.notifyPush) return false;
   if (c.principal === req.homeowner) return false;
   if (!c.specialties.includes(req.serviceType)) return false;
   if (req.zipCode) {
@@ -79,7 +100,7 @@ export function contractorWantsLead(req: QuoteRequestInfo, c: ContractorInfo): b
 }
 
 /**
- * The pushes one outbox event produces. `contractors` is fetched at most once
+ * The notifications one outbox event produces. `contractors` is fetched at most once
  * per poll by the caller and passed in through `lookups`.
  */
 export async function notificationsFor(
@@ -97,10 +118,10 @@ export async function notificationsFor(
     const contractors = await lookups.getContractors();
     return contractors
       .filter((c) => contractorWantsLead(req, c))
-      .map((c) => ({ type: kind, principal: c.principal, payload }));
+      .map((c) => ({ type: kind, principal: c.principal, payload, pushOptIn: c.notifyPush }));
   }
 
   const payload = payloadFor(event);
   if (!payload || !event.recipient) return [];
-  return [{ type: kind, principal: event.recipient, payload }];
+  return [{ type: kind, principal: event.recipient, payload, pushOptIn: true }];
 }

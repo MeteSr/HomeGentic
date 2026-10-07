@@ -111,6 +111,10 @@ persistent actor class Auth(initDeployer : Principal) {
   private let agentSessionByOwner = Map.empty<Principal, Text>();
   private transient let AGENT_SESSION_TTL_NS : Int = 24 * 60 * 60 * 1_000_000_000;
 
+  /// Principals allowed to look up a user's email for notifications — the
+  /// notification relay's identity (agents/notifications). Admin-managed.
+  private var notifierEntries : [Principal] = [];
+
   private func countError(method : Text) {
     let prev = Option.get(Map.get(errsByMethod, Text.compare, method), 0);
     if (prev < 999_999) {
@@ -135,6 +139,10 @@ persistent actor class Auth(initDeployer : Principal) {
 
   private func isAdmin(caller: Principal) : Bool {
     Array.find<Principal>(admins, func (a) { a == caller }) != null
+  };
+
+  private func isNotifier(p: Principal) : Bool {
+    Array.find<Principal>(notifierEntries, func (n) { n == p }) != null
   };
 
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
@@ -447,6 +455,36 @@ persistent actor class Auth(initDeployer : Principal) {
   public shared(msg) func revokeAgentSession() : async () {
     if (Principal.isAnonymous(msg.caller)) return;
     dropAgentSession(msg.caller);
+  };
+
+  // ─── Notification contact ───────────────────────────────────────────────────
+
+  /// Allow a principal (the notification relay's identity) to look up emails.
+  public shared(msg) func addNotifier(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (not isNotifier(p)) {
+      notifierEntries := Array.concat(notifierEntries, [p]);
+    };
+    #ok(())
+  };
+
+  public shared(msg) func removeNotifier(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    notifierEntries := Array.filter<Principal>(notifierEntries, func (n) { n != p });
+    #ok(())
+  };
+
+  /// The email address a user registered with, so the relay can send the
+  /// notification emails they opted into. Notifiers and admins only; null for
+  /// an unknown principal, an inactive account or an empty address.
+  public query(msg) func getNotificationContact(p: Principal) : async Result.Result<?{ email : Text }, Error> {
+    if (not isNotifier(msg.caller) and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    switch (Map.get(users, Principal.compare, p)) {
+      case (?u) {
+        if (not u.isActive or Text.size(u.email) == 0) #ok(null) else #ok(?{ email = u.email })
+      };
+      case null #ok(null);
+    }
   };
 
   /// The principal a live session token belongs to, or null if the token is

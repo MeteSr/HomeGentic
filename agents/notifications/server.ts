@@ -8,7 +8,9 @@ import { registerSubscription, removeSubscription } from "./vapidStore";
 import { dispatchToUser }             from "./dispatcher";
 import { startPoller }                from "./poller";
 import { requestPrincipal }           from "./session";
-import { getPrefs, setPrefs }         from "./prefs";
+import { clearPhone, publicPrefs, setPrefs, setVerifiedPhone } from "./prefs";
+import { emailConfigured }            from "./email";
+import { E164, allowCodeRequest, checkVerification, smsConfigured, startVerification } from "./sms";
 import { relayIdentity }              from "./icp";
 import type { Platform, PushPayload } from "./types";
 import type { PushSubscription }      from "web-push";
@@ -130,30 +132,105 @@ export function buildApp() {
     }
   });
 
-  // ── GET/PUT /api/push/prefs ─────────────────────────────────────────────────
-  // The caller's push preferences (see prefs.ts), identified by the
-  // x-agent-session header. PUT body: { prefs: { <kind>: boolean, … } }.
-  app.get("/api/push/prefs", async (req: Request, res: Response): Promise<void> => {
+  // ── GET/PUT /api/prefs ──────────────────────────────────────────────────────
+  // The caller's notification preferences (see prefs.ts), identified by the
+  // x-agent-session header. `channels` says which optional channels this relay
+  // has configured, so the app can hide the rows for the rest.
+  // PUT body: { prefs: { push?: {…}, email?: {…}, sms?: { enabled } } }.
+  const channels = () => ({ email: emailConfigured(), sms: smsConfigured() });
+
+  app.get("/api/prefs", async (req: Request, res: Response): Promise<void> => {
     const principal = await requestPrincipal(req);
     if (!principal) {
       res.status(401).json({ error: "session_required" });
       return;
     }
-    res.json({ prefs: getPrefs(principal) });
+    res.json({ prefs: publicPrefs(principal), channels: channels() });
   });
 
-  app.put("/api/push/prefs", async (req: Request, res: Response): Promise<void> => {
+  app.put("/api/prefs", async (req: Request, res: Response): Promise<void> => {
     const principal = await requestPrincipal(req);
     if (!principal) {
       res.status(401).json({ error: "session_required" });
       return;
     }
-    const prefs = setPrefs(principal, (req.body as { prefs?: unknown })?.prefs);
-    if (!prefs) {
-      res.status(400).json({ error: "prefs must map known notification kinds to booleans" });
+    const result = setPrefs(principal, (req.body as { prefs?: unknown })?.prefs);
+    if ("error" in result) {
+      res.status(400).json({ error: result.error });
       return;
     }
-    res.json({ prefs });
+    res.json({ prefs: publicPrefs(principal), channels: channels() });
+  });
+
+  // ── SMS phone confirmation ──────────────────────────────────────────────────
+  // POST /api/sms/start   { phone }        — text a code to an E.164 number
+  // POST /api/sms/confirm { phone, code }  — on a match, store it and turn SMS on
+  // DELETE /api/sms                        — forget the number, turn SMS off
+  app.post("/api/sms/start", async (req: Request, res: Response): Promise<void> => {
+    const principal = await requestPrincipal(req);
+    if (!principal) {
+      res.status(401).json({ error: "session_required" });
+      return;
+    }
+    if (!smsConfigured()) {
+      res.status(503).json({ error: "sms_unavailable" });
+      return;
+    }
+    const phone = String((req.body as { phone?: unknown })?.phone ?? "");
+    if (!E164.test(phone)) {
+      res.status(400).json({ error: "phone must be in international format, e.g. +15125550142" });
+      return;
+    }
+    if (!allowCodeRequest(principal)) {
+      res.status(429).json({ error: "too_many_codes" });
+      return;
+    }
+    try {
+      await startVerification(phone);
+      res.json({ ok: true });
+    } catch (err) {
+      console.error("[sms] start failed:", err instanceof Error ? err.message : err);
+      res.status(502).json({ error: "send_failed" });
+    }
+  });
+
+  app.post("/api/sms/confirm", async (req: Request, res: Response): Promise<void> => {
+    const principal = await requestPrincipal(req);
+    if (!principal) {
+      res.status(401).json({ error: "session_required" });
+      return;
+    }
+    if (!smsConfigured()) {
+      res.status(503).json({ error: "sms_unavailable" });
+      return;
+    }
+    const { phone, code } = req.body as { phone?: unknown; code?: unknown };
+    if (typeof phone !== "string" || !E164.test(phone) || typeof code !== "string" || !/^\d{4,10}$/.test(code)) {
+      res.status(400).json({ error: "phone and code are required" });
+      return;
+    }
+    try {
+      if (!(await checkVerification(phone, code))) {
+        res.status(400).json({ error: "wrong_code" });
+        return;
+      }
+    } catch (err) {
+      console.error("[sms] confirm failed:", err instanceof Error ? err.message : err);
+      res.status(502).json({ error: "check_failed" });
+      return;
+    }
+    setVerifiedPhone(principal, phone);
+    res.json({ prefs: publicPrefs(principal), channels: channels() });
+  });
+
+  app.delete("/api/sms", async (req: Request, res: Response): Promise<void> => {
+    const principal = await requestPrincipal(req);
+    if (!principal) {
+      res.status(401).json({ error: "session_required" });
+      return;
+    }
+    clearPhone(principal);
+    res.json({ prefs: publicPrefs(principal), channels: channels() });
   });
 
   // ── GET /api/push/vapid-public-key ──────────────────────────────────────────

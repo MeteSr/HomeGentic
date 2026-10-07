@@ -1,17 +1,20 @@
 /**
- * Integration tests — push-notification outboxes on the job and quote canisters.
+ * Integration tests — notification outboxes on the job and quote canisters,
+ * and the auth canister's contact lookup for the relay.
  *
  * Requires: dfx start --background && make deploy, plus the integration test
- * principal allowlisted as a notifier on job and quote (ci.yml does this).
+ * principal allowlisted as a notifier on auth, job and quote (ci.yml does this).
  * Run:      npm run test:integration  (from repo root)
  *
  * What these tests prove:
  *   - createQuoteRequest records a new_lead event (no recipient; the relay
  *     picks contractors)
+ *   - submitQuote records quote_received for the homeowner
  *   - acceptQuote records bid_accepted for the winner and bid_declined for
  *     every other bidder
  *   - createJobProposal records job_awaiting_signature for the homeowner
- *   - only an allowlisted notifier can read the outbox
+ *   - the contractor's signature completing a job records job_verified
+ *   - only an allowlisted notifier can read the outbox or look up an email
  */
 
 import { describe, it, expect, beforeAll } from "vitest";
@@ -27,6 +30,7 @@ import { TEST_PRINCIPAL } from "./setup";
 
 const JOB_ID   = process.env.JOB_CANISTER_ID || "";
 const QUOTE_ID = (process.env as any).QUOTE_CANISTER_ID || "";
+const AUTH_ID  = (process.env as any).AUTH_CANISTER_ID || "";
 const deployed = !!JOB_ID && !!QUOTE_ID;
 
 const RUN_ID = Date.now();
@@ -73,6 +77,23 @@ const outboxIdl = ({ IDL }: any) => {
     getNotificationEvents: IDL.Func(
       [IDL.Nat, IDL.Nat],
       [IDL.Variant({ ok: Page, err: Error })],
+      ["query"],
+    ),
+  });
+};
+
+const contactIdl = ({ IDL }: any) => {
+  const Error = IDL.Variant({
+    NotFound:      IDL.Null,
+    AlreadyExists: IDL.Null,
+    NotAuthorized: IDL.Null,
+    Paused:        IDL.Null,
+    InvalidInput:  IDL.Text,
+  });
+  return IDL.Service({
+    getNotificationContact: IDL.Func(
+      [IDL.Principal],
+      [IDL.Variant({ ok: IDL.Opt(IDL.Record({ email: IDL.Text })), err: Error })],
       ["query"],
     ),
   });
@@ -165,6 +186,10 @@ describe.skipIf(!deployed)("quote outbox", () => {
     expect(accepted && recipientOf(accepted)).toBe((await winnerAgent.getPrincipal()).toText());
     expect(declined && recipientOf(declined)).toBe((await loserAgent.getPrincipal()).toText());
     expect(accepted!.summary).toBe("HVAC");
+
+    const received = events.filter((e) => e.kind === "quote_received" && e.refId === req.id);
+    expect(received).toHaveLength(2);
+    expect(received.every((e) => recipientOf(e) === TEST_PRINCIPAL && e.summary === "HVAC")).toBe(true);
   });
 });
 
@@ -210,6 +235,32 @@ describe.skipIf(!deployed)("job outbox — contractor signature", () => {
     expect(pending).toHaveLength(1);
     expect(recipientOf(pending[0])).toBe(contractor);
     expect(pending[0].summary).toBe(title);
+
+    // The contractor's signature completes the job → the homeowner hears it's verified.
+    const asContractor = Actor.createActor(jobIdl, { agent: contractorAgent, canisterId: JOB_ID }) as any;
+    const done = await asContractor.verifyJob(jobId);
+    expect("ok" in done && done.ok.verified).toBe(true);
+    const verified = (await readOutbox(JOB_ID, ownerAgent)).filter((e) => e.kind === "job_verified" && e.refId === jobId);
+    expect(verified).toHaveLength(1);
+    expect(recipientOf(verified[0])).toBe(TEST_PRINCIPAL);
+  });
+});
+
+describe.skipIf(!deployed || !AUTH_ID)("auth contact lookup", () => {
+  it("gives an allowlisted notifier a user's email, and null for an unknown principal", async () => {
+    const auth = Actor.createActor(contactIdl, { agent: ownerAgent, canisterId: AUTH_ID }) as any;
+    const mine = await auth.getNotificationContact(Principal.fromText(TEST_PRINCIPAL));
+    expect("ok" in mine).toBe(true);
+    if (mine.ok.length > 0) expect(mine.ok[0].email).toMatch(/@/);
+
+    const nobody = await (await makeAgent(156)).getPrincipal();
+    expect(await auth.getNotificationContact(nobody)).toEqual({ ok: [] });
+  });
+
+  it("rejects a caller that is not an allowlisted notifier", async () => {
+    const stranger = await makeAgent(154);
+    const auth = Actor.createActor(contactIdl, { agent: stranger, canisterId: AUTH_ID }) as any;
+    expect(await auth.getNotificationContact(Principal.fromText(TEST_PRINCIPAL))).toEqual({ err: { NotAuthorized: null } });
   });
 });
 

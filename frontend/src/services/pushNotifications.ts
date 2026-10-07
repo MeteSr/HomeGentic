@@ -16,19 +16,6 @@ const SW_URL = "/push-sw.js";
 
 export type PushStatus = "unavailable" | "denied" | "off" | "on";
 
-/** Kinds of push a user can turn off (agents/notifications/prefs.ts). */
-export type PushPrefKind =
-  | "job_awaiting_signature"
-  | "job_awaiting_contractor_signature"
-  | "bid_accepted"
-  | "bid_declined";
-export type PushPrefs = Record<PushPrefKind, boolean>;
-
-/** Whether a notification relay is configured for this build. */
-export function pushConfigured(): boolean {
-  return !!RELAY_URL;
-}
-
 function supported(): boolean {
   return (
     !!RELAY_URL &&
@@ -103,26 +90,4 @@ export async function disablePush(): Promise<PushStatus> {
     await sub.unsubscribe();
   }
   return "off";
-}
-
-async function prefsRequest(init: RequestInit): Promise<PushPrefs> {
-  const res = await fetchWithAgentSession(`${RELAY_URL}/api/push/prefs`, init);
-  if (!res.ok) throw new Error(res.status === 401 ? "Sign in again to change notifications" : "Couldn't load notification settings");
-  return ((await res.json()) as { prefs: PushPrefs }).prefs;
-}
-
-/** The signed-in user's push preferences (they apply on every device). */
-export async function getPushPrefs(): Promise<PushPrefs> {
-  if (!RELAY_URL) throw new Error("Notifications aren't configured");
-  return prefsRequest({ method: "GET" });
-}
-
-/** Change some of the signed-in user's push preferences; resolves to the full set. */
-export async function setPushPrefs(changes: Partial<PushPrefs>): Promise<PushPrefs> {
-  if (!RELAY_URL) throw new Error("Notifications aren't configured");
-  return prefsRequest({
-    method:  "PUT",
-    headers: { "Content-Type": "application/json" },
-    body:    JSON.stringify({ prefs: changes }),
-  });
 }

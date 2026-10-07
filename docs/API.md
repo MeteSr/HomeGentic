@@ -23,6 +23,8 @@ Signatures and query/update types in this file are generated from the Motoko sou
 | `issueAgentSession` | update | `()` | Issue a 24-hour voice-agent session token (`hgs_…`) for the caller, replacing any earlier one. Registered users only (`#NotFound` otherwise). |
 | `revokeAgentSession` | update | `()` | Revoke the caller's voice-agent session. |
 | `resolveAgentSession` | query | `(token: Text)` | Principal owning a live session token, or null. Called by the voice Worker. |
+| `getNotificationContact` | query | `(p: Principal)` | Notifier/admin: `?{ email }` for an active user with an email on file, else null — read by the notification relay to send notification email |
+| `addNotifier` / `removeNotifier` | update | `(p: Principal)` | Admin: allow or revoke a principal (the relay's) calling `getNotificationContact` |
 
 **UserRole:** `#Homeowner | #Contractor | #Realtor | #Builder`
 
@@ -128,7 +130,7 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `rejectJobProposal` | update | `(jobId: Text)` | Homeowner rejects a pending contractor proposal. |
 | `getJobSnapshotsForProperty` | query | `(propertyId: Text)` | Returns a lightweight snapshot of all jobs for a property, suitable for cross-canister consumption by the market canister's computePropertyScore. |
 | `getReferralJobs` | update | `()` | Returns all jobs that were sourced via a HomeGentic quote request. |
-| `getNotificationEvents` | query | `(afterSeq: Nat, limit: Nat)` | Notifier/admin: push outbox events after `afterSeq` (max 200), with `latestSeq` — read by the notification relay. See `backend/shared/Notify.mo` |
+| `getNotificationEvents` | query | `(afterSeq: Nat, limit: Nat)` | Notifier/admin: notification outbox events after `afterSeq` (max 200), with `latestSeq` — read by the notification relay. See `backend/shared/Notify.mo` |
 | `addNotifier` / `removeNotifier` | update | `(p: Principal)` | Admin: allow or revoke a principal (the relay's) reading the outbox |
 
 **JobStatus:** `#Pending | #InProgress | #Completed | #Verified | #PendingHomeownerApproval | #RejectedByHomeowner`
@@ -181,7 +183,7 @@ Owns property registration, ownership verification, transfers, and room/fixture 
 | `getQuotesForRequest` | query | `(requestId: Text)` | All bids on a request |
 | `acceptQuote` | update | `(quoteId: Text)` | Homeowner accepts a bid |
 | `closeQuoteRequest` | update | `(requestId: Text)` | Close a request without accepting |
-| `getNotificationEvents` | query | `(afterSeq: Nat, limit: Nat)` | Notifier/admin: push outbox events after `afterSeq` (max 200), with `latestSeq` — read by the notification relay. See `backend/shared/Notify.mo` |
+| `getNotificationEvents` | query | `(afterSeq: Nat, limit: Nat)` | Notifier/admin: notification outbox events after `afterSeq` (max 200), with `latestSeq` — read by the notification relay. See `backend/shared/Notify.mo` |
 | `addNotifier` / `removeNotifier` | update | `(p: Principal)` | Admin: allow or revoke a principal (the relay's) reading the outbox |
 
 ### Sealed Bids

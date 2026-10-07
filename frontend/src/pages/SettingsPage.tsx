@@ -10,10 +10,12 @@ import { PLANS, type PlanTier } from "@/services/planConstants";
 import { paymentService } from "@/services/payment";
 import { winBackService } from "@/services/winBackService";
 import { contractorService } from "@/services/contractor";
+import { getPushStatus, enablePush, disablePush, type PushStatus } from "@/services/pushNotifications";
 import {
-  getPushStatus, enablePush, disablePush, pushConfigured, getPushPrefs, setPushPrefs,
-  type PushStatus, type PushPrefs, type PushPrefKind,
-} from "@/services/pushNotifications";
+  notificationsConfigured, getNotificationPrefs, setNotificationPrefs, startSmsVerification, confirmSms,
+  removeSmsPhone, toE164,
+  type NotificationPrefs, type PrefsChanges, type PrefsState, type PushPrefKind, type EmailPrefKey,
+} from "@/services/notificationPrefs";
 import { useAuthStore } from "@/store/authStore";
 import { usePropertyStore } from "@/store/propertyStore";
 import { useJobStore } from "@/store/jobStore";
@@ -485,19 +487,28 @@ function SubscriptionTab({ profile }: { profile: any }) {
 
 // ── Toggle row ────────────────────────────────────────────────────────────────
 
-function ToggleRow({ label, desc, value, onChange, last = false }: { label: string; desc?: string; value: boolean; onChange: (v: boolean) => void; last?: boolean }) {
+function ToggleRow({ label, desc, value, onChange, last = false, children }: {
+  label: string; desc?: string; value: boolean; onChange: (v: boolean) => void; last?: boolean; children?: React.ReactNode;
+}) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.875rem 0", borderBottom: last ? "none" : `1px solid ${V2_COLORS.border}` }}>
-      <div>
-        <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.9375rem", fontWeight: 500, color: V2_COLORS.ink }}>{label}</p>
-        {desc && <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: V2_COLORS.muted, marginTop: "0.125rem" }}>{desc}</p>}
+    <div style={{ padding: "0.875rem 0", borderBottom: last ? "none" : `1px solid ${V2_COLORS.border}` }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
+        <div>
+          <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.9375rem", fontWeight: 500, color: V2_COLORS.ink }}>{label}</p>
+          {desc && <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: V2_COLORS.muted, marginTop: "0.125rem" }}>{desc}</p>}
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={value}
+          aria-label={label}
+          onClick={() => onChange(!value)}
+          style={{ width: "2.5rem", height: "1.25rem", background: value ? V2_COLORS.blue : V2_COLORS.border, cursor: "pointer", position: "relative", flexShrink: 0, borderRadius: V2_RADIUS.pill, border: "none", padding: 0 }}
+        >
+          <span style={{ position: "absolute", top: "0.125rem", left: value ? "1.375rem" : "0.125rem", width: "1rem", height: "1rem", background: V2_COLORS.paper, transition: "left 0.15s", borderRadius: "50%" }} />
+        </button>
       </div>
-      <div
-        onClick={() => onChange(!value)}
-        style={{ width: "2.5rem", height: "1.25rem", background: value ? V2_COLORS.blue : V2_COLORS.border, cursor: "pointer", position: "relative", flexShrink: 0, borderRadius: V2_RADIUS.pill }}
-      >
-        <div style={{ position: "absolute", top: "0.125rem", left: value ? "1.375rem" : "0.125rem", width: "1rem", height: "1rem", background: V2_COLORS.paper, transition: "left 0.15s", borderRadius: "50%" }} />
-      </div>
+      {children}
     </div>
   );
 }
@@ -547,13 +558,184 @@ function BrowserPushRow() {
   );
 }
 
+/** Deep-merge a change into preferences, for showing it before the relay confirms. */
+function withChanges(p: NotificationPrefs, c: PrefsChanges): NotificationPrefs {
+  return {
+    push:  { ...p.push,  ...c.push },
+    email: { ...p.email, ...c.email },
+    sms:   c.sms ? { ...p.sms, ...c.sms } : p.sms,
+  };
+}
+
+/**
+ * The signed-in user's preferences from the notification relay. `state` stays
+ * null — and the rows it backs stay hidden — when no relay is configured or it
+ * can't be reached. `change` shows a change at once, saves it, and rolls it
+ * back if the save fails.
+ */
+function useRelayPrefs() {
+  const [state, setState] = useState<PrefsState | null>(null);
+
+  useEffect(() => {
+    if (!notificationsConfigured()) return;
+    let live = true;
+    getNotificationPrefs().then((s) => { if (live) setState(s); }).catch(() => {});
+    return () => { live = false; };
+  }, []);
+
+  async function change(changes: PrefsChanges) {
+    if (!state) return;
+    const before = state;
+    setState({ ...before, prefs: withChanges(before.prefs, changes) });
+    try {
+      setState(await setNotificationPrefs(changes));
+    } catch (err) {
+      setState(before);
+      toast.error(err instanceof Error ? err.message : "Couldn't save notification settings");
+    }
+  }
+
+  return { state, setState, change };
+}
+
+type RelayPrefs = ReturnType<typeof useRelayPrefs>;
+
+/** Email rows backed by the relay; none when email isn't configured. */
+function emailRows(relay: RelayPrefs, rows: { key: EmailPrefKey; label: string; desc: string }[]) {
+  const { state, change } = relay;
+  if (!state?.channels.email) return [];
+  return rows.map(({ key, label, desc }) => ({
+    label, desc,
+    value:    state.prefs.email[key],
+    onChange: (v: boolean) => change({ email: { [key]: v } }),
+  }));
+}
+
+const smallLink: React.CSSProperties = {
+  background: "none", border: "none", padding: 0, cursor: "pointer",
+  fontFamily: V2_FONTS.body, fontSize: "0.8125rem", color: V2_COLORS.blue, textDecoration: "underline",
+};
+
+/**
+ * "SMS Alerts". Texts only go to a number the user has confirmed: turning the
+ * switch on without one opens an inline form that texts a code and checks it.
+ * Hidden when the relay can't send texts.
+ */
+function SmsAlertsRow({ relay, desc, last }: { relay: RelayPrefs; desc: string; last?: boolean }) {
+  const { state, setState, change } = relay;
+  const [setup,  setSetup]  = useState(false);
+  const [stage,  setStage]  = useState<"phone" | "code">("phone");
+  const [input,  setInput]  = useState("");
+  const [phone,  setPhone]  = useState("");
+  const [code,   setCode]   = useState("");
+  const [busy,   setBusy]   = useState(false);
+  const [error,  setError]  = useState<string | null>(null);
+
+  if (!state?.channels.sms) return null;
+  const { sms } = state.prefs;
+
+  function closeSetup() {
+    setSetup(false); setStage("phone"); setCode(""); setError(null);
+  }
+
+  async function run(action: () => Promise<void>) {
+    setBusy(true);
+    setError(null);
+    try {
+      await action();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const sendCode = () => run(async () => {
+    const e164 = toE164(input);
+    if (!e164) throw new Error("Enter a mobile number, with the country code if it's outside the US");
+    await startSmsVerification(e164);
+    setPhone(e164);
+    setStage("code");
+  });
+
+  const confirm = () => run(async () => {
+    setState(await confirmSms(phone, code.trim()));
+    closeSetup();
+    toast.success("Text alerts are on");
+  });
+
+  const remove = () => run(async () => {
+    setState(await removeSmsPhone());
+    toast.success("Number removed");
+  });
+
+  const onToggle = (next: boolean) => {
+    if (sms.phone) change({ sms: { enabled: next } });
+    else if (next) setSetup(true);
+    else closeSetup();
+  };
+
+  const inputLabel: React.CSSProperties = {
+    display: "block", fontFamily: V2_FONTS.body, fontWeight: 500, fontSize: "0.875rem", color: V2_COLORS.ink, marginBottom: "0.375rem",
+  };
+
+  return (
+    <ToggleRow
+      label="SMS Alerts"
+      desc={sms.phone ? `${desc} Texts go to ${sms.phone}.` : desc}
+      value={sms.phone ? sms.enabled : setup}
+      onChange={onToggle}
+      last={last}
+    >
+      {sms.phone && (
+        <div style={{ marginTop: "0.5rem" }}>
+          <button type="button" style={smallLink} onClick={remove} disabled={busy}>Remove this number</button>
+        </div>
+      )}
+      {!sms.phone && setup && (
+        <div style={{ marginTop: "0.875rem", maxWidth: "22rem" }}>
+          {stage === "phone" ? (
+            <>
+              <label htmlFor="sms-phone" style={inputLabel}>Mobile number</label>
+              <input id="sms-phone" className="form-input" type="tel" autoComplete="tel" placeholder="+1 (512) 555-0142"
+                value={input} onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !busy) sendCode(); }} />
+              <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", marginTop: "0.75rem" }}>
+                <Button size="sm" onClick={sendCode} disabled={busy || !input.trim()}>Text me a code</Button>
+                <button type="button" style={smallLink} onClick={closeSetup}>Cancel</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <label htmlFor="sms-code" style={inputLabel}>Code we texted to {phone}</label>
+              <input id="sms-code" className="form-input" inputMode="numeric" autoComplete="one-time-code"
+                value={code} onChange={(e) => setCode(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !busy) confirm(); }} />
+              <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", marginTop: "0.75rem" }}>
+                <Button size="sm" onClick={confirm} disabled={busy || !code.trim()}>Confirm</Button>
+                <button type="button" style={smallLink} onClick={() => { setStage("phone"); setCode(""); setError(null); }}>
+                  Use a different number
+                </button>
+              </div>
+            </>
+          )}
+          {error && (
+            <p role="alert" style={{ color: V2_COLORS.coralText, fontSize: "0.8125rem", marginTop: "0.5rem", fontFamily: V2_FONTS.body }}>{error}</p>
+          )}
+          <p style={{ fontFamily: V2_FONTS.body, fontSize: "0.75rem", color: V2_COLORS.muted, marginTop: "0.75rem" }}>
+            Message and data rates may apply. Reply STOP to any alert to opt out.
+          </p>
+        </div>
+      )}
+    </ToggleRow>
+  );
+}
+
 function ContractorNotificationsTab() {
   const [newLead,     setNewLead]     = useState(false);
   const [leadLoaded,  setLeadLoaded]  = useState(false);
-  const [pushPrefs,   setPushPrefsState] = useState<PushPrefs | null>(null);
-  const [emailLead,   setEmailLead]   = useState(true);
-  const [emailBid,    setEmailBid]    = useState(false);
-  const [smsAlerts,   setSmsAlerts]   = useState(false);
+  const relay = useRelayPrefs();
+  const push = relay.state?.prefs.push;
 
   useEffect(() => {
     let live = true;
@@ -562,27 +744,6 @@ function ContractorNotificationsTab() {
       .catch(() => {});
     return () => { live = false; };
   }, []);
-
-  // Bid and signature pushes are per-user preferences kept by the
-  // notification relay, so they only show when a relay is configured.
-  useEffect(() => {
-    if (!pushConfigured()) return;
-    let live = true;
-    getPushPrefs().then((p) => { if (live) setPushPrefsState(p); }).catch(() => {});
-    return () => { live = false; };
-  }, []);
-
-  async function togglePushPref(kind: PushPrefKind, next: boolean) {
-    if (!pushPrefs) return;
-    const before = pushPrefs;
-    setPushPrefsState({ ...before, [kind]: next });
-    try {
-      setPushPrefsState(await setPushPrefs({ [kind]: next }));
-    } catch (err) {
-      setPushPrefsState(before);
-      toast.error(err instanceof Error ? err.message : "Couldn't save notification settings");
-    }
-  }
 
   // Saved straight to the contractor profile — it decides who the relay
   // sends new-lead pushes to, on every device.
@@ -597,35 +758,36 @@ function ContractorNotificationsTab() {
     }
   }
 
+  const togglePush = (kind: PushPrefKind) => (v: boolean) => relay.change({ push: { [kind]: v } });
+
+  // Everything below saves as it changes; the bid, signature, email and SMS
+  // rows are preferences kept by the notification relay.
   const rows = [
     { label: "Push: New Lead in My Trades", desc: "Push alert when a homeowner posts a request in your trades and service area", value: newLead, onChange: toggleNewLead },
-    ...(pushPrefs ? [
-      { label: "Push: Bid Accepted",          desc: "When a homeowner accepts one of your quotes",                   value: pushPrefs.bid_accepted,                      onChange: (v: boolean) => togglePushPref("bid_accepted", v) },
-      { label: "Push: Bid Not Selected",      desc: "When a homeowner accepts another contractor's quote",           value: pushPrefs.bid_declined,                      onChange: (v: boolean) => togglePushPref("bid_declined", v) },
-      { label: "Push: Job Pending Signature", desc: "When a homeowner signs off on a job and it needs your signature", value: pushPrefs.job_awaiting_contractor_signature, onChange: (v: boolean) => togglePushPref("job_awaiting_contractor_signature", v) },
+    ...(push ? [
+      { label: "Push: Bid Accepted",          desc: "When a homeowner accepts one of your quotes",                   value: push.bid_accepted,                      onChange: togglePush("bid_accepted") },
+      { label: "Push: Bid Not Selected",      desc: "When a homeowner accepts another contractor's quote",           value: push.bid_declined,                      onChange: togglePush("bid_declined") },
+      { label: "Push: Job Pending Signature", desc: "When a homeowner signs off on a job and it needs your signature", value: push.job_awaiting_contractor_signature, onChange: togglePush("job_awaiting_contractor_signature") },
     ] : []),
-    { label: "Email: New Lead",         desc: "Email when a matching quote request is posted",              value: emailLead,   onChange: setEmailLead },
-    { label: "Email: Bid Outcome",      desc: "Email when a bid is accepted or closed",                     value: emailBid,    onChange: setEmailBid },
-    { label: "SMS Alerts",              desc: "Critical alerts via text message",                           value: smsAlerts,   onChange: setSmsAlerts },
+    ...emailRows(relay, [
+      { key: "new_lead",    label: "Email: New Lead",    desc: "Email when a matching quote request is posted" },
+      { key: "bid_outcome", label: "Email: Bid Outcome", desc: "Email when a bid is accepted or closed" },
+    ]),
   ];
+  const hasSms = !!relay.state?.channels.sms;
 
   return (
     <div>
       <SectionHeading>Notifications</SectionHeading>
       <BrowserPushRow />
-      {rows.map((r, i) => <ToggleRow key={r.label} {...r} last={i === rows.length - 1} />)}
-      <div style={{ marginTop: "1.25rem" }}>
-        <Button onClick={() => toast.success("Preferences saved")}>Save Preferences</Button>
-      </div>
+      {rows.map((r, i) => <ToggleRow key={r.label} {...r} last={!hasSms && i === rows.length - 1} />)}
+      <SmsAlertsRow relay={relay} desc="Texts when a bid is accepted or a job needs your signature." last />
     </div>
   );
 }
 
 function NotificationsTab() {
-  const [emailVerified, setEmailVerified] = useState(true);
-  const [emailQuote,    setEmailQuote]    = useState(true);
-  const [emailJob,      setEmailJob]      = useState(false);
-  const [smsAlerts,     setSmsAlerts]     = useState(false);
+  const relay = useRelayPrefs();
   const [pulseEnabled,  setPulseEnabled]  = useState(() =>
     localStorage.getItem("homegentic_pulse_enabled") !== "false"
   );
@@ -633,29 +795,31 @@ function NotificationsTab() {
     localStorage.getItem("homegentic_score_alerts") !== "false"
   );
 
-  function savePrefs() {
-    localStorage.setItem("homegentic_pulse_enabled", pulseEnabled ? "true" : "false");
-    localStorage.setItem("homegentic_score_alerts", scoreAlerts ? "true" : "false");
-    toast.success("Preferences saved");
+  // These two are dashboard features kept in this browser.
+  function setLocal(key: string, set: (v: boolean) => void) {
+    return (v: boolean) => {
+      set(v);
+      localStorage.setItem(key, v ? "true" : "false");
+    };
   }
 
   const rows = [
-    { label: "Weekly Home Pulse",     desc: "In-app maintenance tips on your dashboard", value: pulseEnabled,  onChange: setPulseEnabled },
-    { label: "Score Change Alerts",   desc: "Banner when your HomeGentic Score increases",  value: scoreAlerts,   onChange: setScoreAlerts },
-    { label: "Email: Job Verified",   desc: "When a job is verified on-chain",           value: emailVerified, onChange: setEmailVerified },
-    { label: "Email: Quote Received", desc: "When a contractor submits a quote",         value: emailQuote,    onChange: setEmailQuote },
-    { label: "Email: Job Updates",    desc: "Status changes on your jobs",               value: emailJob,      onChange: setEmailJob },
-    { label: "SMS Alerts",            desc: "Critical alerts via text message",          value: smsAlerts,     onChange: setSmsAlerts },
+    { label: "Weekly Home Pulse",     desc: "In-app maintenance tips on your dashboard",   value: pulseEnabled, onChange: setLocal("homegentic_pulse_enabled", setPulseEnabled) },
+    { label: "Score Change Alerts",   desc: "Banner when your HomeGentic Score increases", value: scoreAlerts,  onChange: setLocal("homegentic_score_alerts", setScoreAlerts) },
+    ...emailRows(relay, [
+      { key: "job_verified",   label: "Email: Job Verified",   desc: "When a contractor signs off and a job is verified" },
+      { key: "quote_received", label: "Email: Quote Received", desc: "When a contractor submits a quote" },
+      { key: "job_updates",    label: "Email: Job Updates",    desc: "When a job needs your signature or a sensor opens one" },
+    ]),
   ];
+  const hasSms = !!relay.state?.channels.sms;
 
   return (
     <div>
       <SectionHeading>Notifications</SectionHeading>
       <BrowserPushRow />
-      {rows.map((r, i) => <ToggleRow key={r.label} {...r} last={i === rows.length - 1} />)}
-      <div style={{ marginTop: "1.25rem" }}>
-        <Button onClick={savePrefs}>Save Preferences</Button>
-      </div>
+      {rows.map((r, i) => <ToggleRow key={r.label} {...r} last={!hasSms && i === rows.length - 1} />)}
+      <SmsAlertsRow relay={relay} desc="Texts when a job needs your signature or a sensor detects a problem." last />
     </div>
   );
 }
