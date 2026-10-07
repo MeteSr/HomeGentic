@@ -744,14 +744,32 @@ if [ -n "$MAINTENANCE_ID" ] && [ -n "$PROPERTY_ID" ]; then
   echo "  Wiring property -> maintenance..."
   icp canister call maintenance setPropertyCanisterId "(principal \"$PROPERTY_ID\")" -e "$ENV" &
 fi
-# Notification relay: allowlist its principal on the canisters it reads
-# notification events (job, quote) and email addresses (auth) from. NOTIFIER_PRINCIPAL is the principal of the relay's
-# RELAY_IDENTITY_SEED (agents/notifications logs it on start).
+# Grants for the off-chain services. Both calls are idempotent, so they run on
+# every deploy; they run in the foreground so a failure is reported, but it
+# doesn't stop the deploy.
+#   NOTIFIER_PRINCIPAL      — the notification relay (its RELAY_IDENTITY_SEED;
+#                             agents/notifications logs it on start). Allowlisted
+#                             to read notification events (job, quote) and email
+#                             addresses (auth).
+#   VOICE_WORKER_PRINCIPAL  — the voice Worker's DFX_IDENTITY_PEM. Made a payment
+#                             admin so it can activate subscriptions after checkout.
+grant() {  # grant <canister> <method> <principal> <description>
+  local out
+  echo "  $4 on $1..."
+  if out=$(icp canister call "$1" "$2" "(principal \"$3\")" -e "$ENV" 2>&1) && [[ "$out" == *"variant { ok"* ]]; then
+    echo "    ✓ $1.$2"
+  else
+    echo "    ⚠️  $1.$2 failed: $out"
+    echo "       Run it by hand as an admin of $1 once the cause is fixed."
+  fi
+}
 if [ -n "${NOTIFIER_PRINCIPAL:-}" ]; then
   for c in auth job quote; do
-    echo "  Allowlisting notification relay on $c..."
-    icp canister call "$c" addNotifier "(principal \"$NOTIFIER_PRINCIPAL\")" -e "$ENV" &
+    grant "$c" addNotifier "$NOTIFIER_PRINCIPAL" "Allowlisting notification relay"
   done
+fi
+if [ -n "${VOICE_WORKER_PRINCIPAL:-}" ]; then
+  grant payment addAdmin "$VOICE_WORKER_PRINCIPAL" "Making the voice Worker a payment admin"
 fi
 if [ -n "$CONTRACTOR_ID" ] && [ -n "$JOB_ID" ]; then
   echo "  Wiring job -> contractor..."

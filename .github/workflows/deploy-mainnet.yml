@@ -68,6 +68,11 @@ jobs:
           VITE_VOICE_AGENT_API_KEY: ${{ secrets.VITE_VOICE_AGENT_API_KEY }}
           VITE_VOICE_AGENT_URL: ${{ secrets.VITE_VOICE_AGENT_URL }}
           BACKUP_CONTROLLER_PRINCIPAL: ${{ secrets.BACKUP_CONTROLLER_PRINCIPAL }}
+          # Optional grants for the off-chain services (see "One-time canister
+          # configuration" in docs/DEPLOYMENT.md). Principals aren't secret, so
+          # they can be environment variables; secrets work too.
+          NOTIFIER_PRINCIPAL: ${{ vars.NOTIFIER_PRINCIPAL || secrets.NOTIFIER_PRINCIPAL }}
+          VOICE_WORKER_PRINCIPAL: ${{ vars.VOICE_WORKER_PRINCIPAL || secrets.VOICE_WORKER_PRINCIPAL }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RESEND_FROM_ADDRESS: ${{ secrets.RESEND_FROM_ADDRESS }}
           OPEN_PERMIT_API_KEY: ${{ secrets.OPEN_PERMIT_API_KEY }}
