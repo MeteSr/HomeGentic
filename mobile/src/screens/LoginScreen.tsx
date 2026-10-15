@@ -7,7 +7,7 @@ import {
   StyleSheet,
 } from "react-native";
 import { useAuthContext } from "../auth/AuthContext";
-import { colors, fonts, spacing } from "../theme";
+import { colors, family, fonts, spacing, v3 } from "../theme";
 
 export default function LoginScreen() {
   const { authState, login } = useAuthContext();
@@ -15,7 +15,7 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.wordmark}>HOMEGENTIC</Text>
+      <Text style={styles.wordmark}>HomeGentic</Text>
       <Text style={styles.tagline}>Your home's permanent record.</Text>
 
       <View style={styles.divider} />
@@ -30,7 +30,7 @@ export default function LoginScreen() {
         {isLoading ? (
           <ActivityIndicator color={colors.paper} size="small" />
         ) : (
-          <Text style={styles.buttonText}>SIGN IN WITH INTERNET IDENTITY</Text>
+          <Text style={styles.buttonText}>Sign in with Internet Identity</Text>
         )}
       </TouchableOpacity>
 
@@ -49,53 +49,55 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.paper,
+    backgroundColor: v3.bg,
     alignItems: "center",
     justifyContent: "center",
     padding: spacing.xl,
   },
   wordmark: {
-    fontFamily: fonts.mono,
-    fontSize: 13,
-    letterSpacing: 4,
-    color: colors.ink,
+    fontFamily: family.displayBold,
+    fontSize: 17,
+    letterSpacing: -0.34,
+    color: v3.blue,
     marginBottom: spacing.sm,
   },
   tagline: {
-    fontFamily: fonts.serif,
-    fontSize: 26,
-    color: colors.ink,
+    fontFamily: family.display,
+    fontSize: 30,
+    letterSpacing: -0.9,
+    color: v3.ink,
     textAlign: "center",
     lineHeight: 34,
   },
   divider: {
     width: 40,
-    height: 1,
-    backgroundColor: colors.rust,
+    height: 4,
+    borderRadius: 100,
+    backgroundColor: v3.yellow,
     marginVertical: spacing.xl,
   },
   button: {
-    backgroundColor: colors.ink,
+    backgroundColor: v3.ink,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     width: "100%",
     alignItems: "center",
     minHeight: 52,
+    borderRadius: 100,
     justifyContent: "center",
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   buttonText: {
-    fontFamily: fonts.mono,
-    fontSize: 11,
-    letterSpacing: 2,
-    color: colors.paper,
+    fontFamily: family.bodySemi,
+    fontSize: 15,
+    color: v3.paper,
   },
   errorText: {
     fontFamily: fonts.sans,
     fontSize: 13,
-    color: colors.rust,
+    color: v3.red,
     marginTop: spacing.md,
     textAlign: "center",
   },

@@ -1,5 +1,5 @@
 import { HttpAgent, Actor } from "@icp-sdk/core/agent";
-import { IDL }              from "@icp-sdk/core/candid";
+import { idlFactory as quoteIdlFactory } from "../declarations/quote";
 import { getIcpAgent }      from "./icpAgent";
 
 export interface SubmitBidInput {
@@ -22,40 +22,6 @@ export interface Bid {
 
 const QUOTE_CANISTER_ID = process.env.EXPO_PUBLIC_QUOTE_CANISTER_ID ?? "";
 
-const quoteIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
-  const QuoteStatus = I.Variant({
-    Pending:  I.Null,
-    Accepted: I.Null,
-    Rejected: I.Null,
-    Expired:  I.Null,
-  } as Record<string, IDL.Type>);
-
-  const Quote = I.Record({
-    id:         I.Text,
-    requestId:  I.Text,
-    contractor: I.Principal,
-    amount:     I.Nat,
-    timeline:   I.Nat,
-    validUntil: I.Int,
-    status:     QuoteStatus,
-    createdAt:  I.Int,
-  });
-
-  const Error = I.Variant({
-    NotFound:     I.Null,
-    Unauthorized: I.Null,
-    InvalidInput: I.Text,
-  } as Record<string, IDL.Type>);
-
-  return I.Service({
-    // submitQuote(requestId, amountCents, timelineDays, validUntilNs)
-    submitQuote: I.Func(
-      [I.Text, I.Nat, I.Nat, I.Int],
-      [I.Variant({ ok: Quote, err: Error })],
-      []
-    ),
-  });
-};
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
@@ -90,4 +56,11 @@ export async function submitBid(input: SubmitBidInput, agent?: HttpAgent): Promi
   const key = Object.keys(result.err)[0];
   const val = result.err[key];
   throw new Error(typeof val === "string" ? val : key);
+}
+
+/** Request ids this contractor has already bid on — the lead card shows "Bid sent". */
+export async function getMyBidRequestIds(agent?: HttpAgent): Promise<Set<string>> {
+  const a = Actor.createActor(quoteIdlFactory as any, { agent: agent ?? getIcpAgent(), canisterId: QUOTE_CANISTER_ID });
+  const raw: any[] = await (a as any).getMyQuotes();
+  return new Set(raw.map((q) => q.requestId as string));
 }

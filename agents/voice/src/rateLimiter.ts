@@ -69,6 +69,32 @@ export async function checkAgentRateLimit(
   return { allowed: true, count: count + 1, limit, resetsAt };
 }
 
+// ── Agent usage (read-only) ─────────────────────────────────────────────────
+
+export interface AgentUsage {
+  used:     number;
+  limit:    number;
+  period:   "day" | "week";
+  resetsAt: string;
+}
+
+/**
+ * How many agent calls the principal has used in the current period. Reads
+ * the same counter checkAgentRateLimit increments, without touching it —
+ * backs the mobile app's "6 of 10 AI calls left this week" meter.
+ */
+export async function getAgentUsage(
+  principal: string,
+  tier: string,
+  env: KVEnv,
+): Promise<AgentUsage> {
+  const t      = tier as SubscriptionTier;
+  const limit  = TIER_LIMITS[t] ?? 0;
+  const period = TIER_PERIOD[t] ?? "day";
+  const raw    = limit > 0 ? await env.RATE_LIMIT.get(`agent:${principal}:${agentPeriodKey(t)}`) : null;
+  return { used: raw ? Number(raw) : 0, limit, period, resetsAt: nextResetUtc(period) };
+}
+
 // ── Chat limit per principal (daily; -1 = unlimited) ────────────────────────
 
 export async function checkChatRateLimit(

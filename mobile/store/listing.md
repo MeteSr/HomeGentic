@@ -17,7 +17,7 @@ HomeGentic puts your home's maintenance history on the blockchain — permanentl
 Log every repair, renovation, and service visit. Upload receipts, permits, and photos. Get a HomeGentic Score that reflects how well-maintained your home really is — and share a verified report with buyers when it's time to sell.
 
 - Log jobs in seconds via voice or form
-- Get a verified HomeFax Score (0–100)
+- Get a verified HomeGentic Score (0–100)
 - Predict which systems need attention next
 - Share tamper-proof reports with buyers and agents
 - Sign off on contractor work directly from your phone

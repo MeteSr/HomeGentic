@@ -1,5 +1,6 @@
 import { HttpAgent, Actor } from "@icp-sdk/core/agent";
-import { IDL }              from "@icp-sdk/core/candid";
+import { idlFactory as quoteIdlFactory } from "../declarations/quote";
+import { idlFactory as contractorIdlFactory } from "../declarations/contractor";
 import { getIcpAgent }      from "./icpAgent";
 import type { Urgency }     from "./quoteFormService";
 
@@ -13,6 +14,20 @@ export interface QuoteRequest {
   description: string;
   status:      QuoteRequestStatus;
   createdAt:   number;  // ms
+  /** When bidding closes (ms), if the homeowner set a deadline. */
+  closeAt:     number | null;
+}
+
+export interface Bid {
+  id:             string;
+  requestId:      string;
+  contractorId:   string;
+  contractorName: string;
+  verified:       boolean;
+  jobsCompleted:  number;
+  amountCents:    number;
+  timelineDays:   number;
+  status:         "Pending" | "Accepted" | "Rejected" | "Expired";
 }
 
 export interface CreateQuoteInput {
@@ -26,42 +41,6 @@ export interface CreateQuoteInput {
 
 const QUOTE_CANISTER_ID = process.env.EXPO_PUBLIC_QUOTE_CANISTER_ID ?? "";
 
-const quoteIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
-  const ServiceType = I.Variant({
-    Roofing: I.Null, HVAC: I.Null, Plumbing: I.Null, Electrical: I.Null,
-    Painting: I.Null, Flooring: I.Null, Windows: I.Null, Landscaping: I.Null,
-  } as Record<string, IDL.Type>);
-  const UrgencyLevel = I.Variant({
-    Low: I.Null, Medium: I.Null, High: I.Null, Emergency: I.Null,
-  } as Record<string, IDL.Type>);
-  const RequestStatus = I.Variant({
-    Open: I.Null, Quoted: I.Null, Accepted: I.Null, Closed: I.Null, Cancelled: I.Null,
-  } as Record<string, IDL.Type>);
-  const QuoteRequest = I.Record({
-    id:          I.Text,
-    propertyId:  I.Text,
-    homeowner:   I.Principal,
-    serviceType: ServiceType,
-    description: I.Text,
-    urgency:     UrgencyLevel,
-    status:      RequestStatus,
-    createdAt:   I.Int,
-    closeAt:     I.Opt(I.Int),
-  });
-  const Error = I.Variant({
-    NotFound:     I.Null,
-    Unauthorized: I.Null,
-    InvalidInput: I.Text,
-  } as Record<string, IDL.Type>);
-  return I.Service({
-    getMyQuoteRequests: I.Func([], [I.Vec(QuoteRequest)], ["query"]),
-    createQuoteRequest: I.Func(
-      [I.Text, ServiceType, I.Text, UrgencyLevel],
-      [I.Variant({ ok: QuoteRequest, err: Error })],
-      []
-    ),
-  });
-};
 
 // ── Converters ────────────────────────────────────────────────────────────────
 
@@ -81,6 +60,7 @@ function fromRaw(raw: any): QuoteRequest {
     description: raw.description,
     status:      STATUS_MAP[Object.keys(raw.status)[0]] ?? "open",
     createdAt:   Number(raw.createdAt) / 1_000_000,
+    closeAt:     raw.closeAt?.length ? Number(raw.closeAt[0]) / 1_000_000 : null,
   };
 }
 
@@ -121,6 +101,44 @@ export async function createQuoteRequest(
     { [input.serviceType]: null },
     input.description,
     { [urgencyKey]: null },
+    [], [], [], [], [],           // zipCode, minTrustScore, minJobsCompleted, minReviews, maxBids
   );
   return fromRaw(unwrap(result));
+}
+
+const CONTRACTOR_CANISTER_ID = process.env.EXPO_PUBLIC_CONTRACTOR_CANISTER_ID ?? "";
+
+/** Bids on a request, cheapest first, with each contractor's name and record. */
+export async function getBids(requestId: string, agent?: HttpAgent): Promise<Bid[]> {
+  const ag = agent ?? getIcpAgent();
+  const raw: any[] = unwrap(await (getActor(ag) as any).getQuotesForRequest(requestId));
+  const contractors = CONTRACTOR_CANISTER_ID
+    ? Actor.createActor(contractorIdlFactory, { agent: ag, canisterId: CONTRACTOR_CANISTER_ID }) as any
+    : null;
+  const profiles = await Promise.all(raw.map((q) =>
+    contractors ? contractors.getContractor(q.contractor).then((r: any) => ("ok" in r ? r.ok : null)).catch(() => null) : null,
+  ));
+  return raw
+    .map((q, i) => ({
+      id:             q.id,
+      requestId:      q.requestId,
+      contractorId:   q.contractor.toText(),
+      contractorName: profiles[i]?.name ?? "Contractor",
+      verified:       !!profiles[i]?.isVerified,
+      jobsCompleted:  profiles[i] ? Number(profiles[i].jobsCompleted) : 0,
+      amountCents:    Number(q.amount),
+      timelineDays:   Number(q.timeline),
+      status:         Object.keys(q.status)[0] as Bid["status"],
+    }))
+    .sort((a, b) => a.amountCents - b.amountCents);
+}
+
+/** Accepts a bid; the request closes and the other bids are declined. */
+export async function acceptBid(quoteId: string, agent?: HttpAgent): Promise<void> {
+  unwrap(await (getActor(agent ?? getIcpAgent()) as any).acceptQuote(quoteId));
+}
+
+/** Requests still collecting bids — what counts toward the Free plan's limit. */
+export function isOpenRequest(r: QuoteRequest): boolean {
+  return r.status === "open" || r.status === "quoted";
 }

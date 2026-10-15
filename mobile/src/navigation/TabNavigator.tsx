@@ -1,144 +1,92 @@
-import React from "react";
+import React, { useCallback, useState } from "react";
+import { View } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { Text, View } from "react-native";
-import { colors, fonts } from "../theme";
-import { useAuthContext } from "../auth/AuthContext";
-import ChatStack        from "./ChatStack";
-import ContractorStack  from "./ContractorStack";
-import EarningsStack    from "./EarningsStack";
-import SettingsStack    from "./SettingsStack";
-import PhotosScreen     from "../screens/PhotosScreen";
-import ReportScreen     from "../screens/ReportScreen";
-import LeadFeedScreen   from "../screens/LeadFeedScreen";
-import { useOfflineQueue }       from "../hooks/useOfflineQueue";
-import { usePendingProposals }   from "../hooks/usePendingProposals";
-
-export type HomeownerTabParamList = {
-  Chat:     undefined;
-  Photos:   undefined;
-  Report:   undefined;
-  Settings: undefined;
-};
-
-export type ContractorTabParamList = {
-  Chat:     undefined;
-  Leads:    undefined;
-  Earnings: undefined;
-  Settings: undefined;
-};
+import { useFocusEffect } from "@react-navigation/native";
+import { useAppData } from "../context/AppData";
+import { useOfflineQueue } from "../hooks/useOfflineQueue";
+import { usePendingProposals } from "../hooks/usePendingProposals";
+import { getJobsPendingMySignature } from "../services/jobService";
+import { AssistantSheet } from "../components/AssistantSheet";
+import { PropertySheet } from "../components/PropertySheet";
+import { AskButton, TabBar, TabSpec } from "./TabBar";
+import type { ContractorTabParamList, HomeownerTabParamList } from "./types";
+import HomeScreen from "../screens/v3/HomeScreen";
+import PropertyScreen from "../screens/v3/PropertyScreen";
+import JobsScreen from "../screens/v3/JobsScreen";
+import UpkeepScreen from "../screens/v3/UpkeepScreen";
+import AccountScreen from "../screens/v3/AccountScreen";
+import ContractorAccountScreen from "../screens/v3/ContractorAccountScreen";
+import LeadFeedScreen from "../screens/LeadFeedScreen";
+import PendingSignaturesScreen from "../screens/PendingSignaturesScreen";
+import EarningsScreen from "../screens/EarningsScreen";
+import { v3 } from "../theme";
 
 const HomeownerTab  = createBottomTabNavigator<HomeownerTabParamList>();
 const ContractorTab = createBottomTabNavigator<ContractorTabParamList>();
 
-function TabIcon({ label, focused, badge }: { label: string; focused: boolean; badge?: number }) {
-  return (
-    <View style={{ alignItems: "center" }}>
-      <Text
-        style={{
-          fontFamily: fonts.mono,
-          fontSize: 10,
-          letterSpacing: 1,
-          color: focused ? colors.rust : colors.inkLight,
-          marginTop: 2,
-        }}
-      >
-        {label}
-      </Text>
-      {badge != null && badge > 0 && (
-        <View style={{
-          position: "absolute", top: -4, right: -8,
-          backgroundColor: colors.rust, borderRadius: 6,
-          minWidth: 12, height: 12, alignItems: "center", justifyContent: "center",
-          paddingHorizontal: 2,
-        }}>
-          <Text style={{ fontFamily: fonts.mono, fontSize: 8, color: "#fff" }}>{badge}</Text>
-        </View>
-      )}
-    </View>
-  );
+/** Jobs waiting on the signed-in user's signature, refreshed when the tabs regain focus. */
+function useMySignatureCount(contractor: boolean): number {
+  const [n, setN] = useState(0);
+  useFocusEffect(useCallback(() => {
+    let live = true;
+    getJobsPendingMySignature()
+      .then((jobs) => live && setN(jobs.filter((j) => (contractor ? !j.contractorSigned : !j.homeownerSigned)).length))
+      .catch(() => {});
+    return () => { live = false; };
+  }, [contractor]));
+  return n;
 }
-
-const TAB_BAR_STYLE = {
-  backgroundColor: colors.paper,
-  borderTopWidth: 1,
-  borderTopColor: colors.rule,
-  height: 60,
-  paddingBottom: 8,
-} as const;
-
-const SCREEN_OPTIONS = {
-  headerShown:           false,
-  tabBarStyle:           TAB_BAR_STYLE,
-  tabBarActiveTintColor:   colors.rust,
-  tabBarInactiveTintColor: colors.inkLight,
-  tabBarLabelStyle: {
-    fontFamily: fonts.mono,
-    fontSize:   10,
-    letterSpacing: 1,
-  },
-} as const;
 
 function HomeownerTabs() {
   const { pendingCount, failedCount } = useOfflineQueue();
-  const queueBadge        = pendingCount + failedCount;
-  const pendingProposals  = usePendingProposals();
+  const proposals = usePendingProposals();
+  const toSign = useMySignatureCount(false);
+  const specs: Record<keyof HomeownerTabParamList, TabSpec> = {
+    Home:     { label: "Home",     icon: "home" },
+    Property: { label: "Property", icon: "property" },
+    Jobs:     { label: "Jobs",     icon: "jobs",    dot: proposals + toSign > 0 ? v3.blue : null },
+    Upkeep:   { label: "Upkeep",   icon: "upkeep" },
+    Account:  { label: "Account",  icon: "account", dot: pendingCount + failedCount > 0 ? v3.red : null },
+  };
   return (
-    <HomeownerTab.Navigator screenOptions={SCREEN_OPTIONS}>
-      <HomeownerTab.Screen
-        name="Chat"
-        component={ChatStack}
-        options={{ tabBarLabel: "CHAT", tabBarIcon: ({ focused }) => <TabIcon label="◎" focused={focused} badge={pendingProposals} /> }}
-      />
-      <HomeownerTab.Screen
-        name="Photos"
-        component={PhotosScreen}
-        options={{ tabBarLabel: "PHOTOS", tabBarIcon: ({ focused }) => <TabIcon label="⬜" focused={focused} /> }}
-      />
-      <HomeownerTab.Screen
-        name="Report"
-        component={ReportScreen}
-        options={{ tabBarLabel: "REPORT", tabBarIcon: ({ focused }) => <TabIcon label="▤" focused={focused} /> }}
-      />
-      <HomeownerTab.Screen
-        name="Settings"
-        component={SettingsStack}
-        options={{ tabBarLabel: "SETTINGS", tabBarIcon: ({ focused }) => <TabIcon label="≡" focused={focused} badge={queueBadge} /> }}
-      />
+    <HomeownerTab.Navigator screenOptions={{ headerShown: false }} tabBar={(p) => <TabBar {...p} specs={specs} />}>
+      <HomeownerTab.Screen name="Home"     component={HomeScreen} />
+      <HomeownerTab.Screen name="Property" component={PropertyScreen} />
+      <HomeownerTab.Screen name="Jobs"     component={JobsScreen} />
+      <HomeownerTab.Screen name="Upkeep"   component={UpkeepScreen} />
+      <HomeownerTab.Screen name="Account"  component={AccountScreen} />
     </HomeownerTab.Navigator>
   );
 }
 
 function ContractorTabs() {
   const { pendingCount, failedCount } = useOfflineQueue();
-  const queueBadge = pendingCount + failedCount;
+  const toSign = useMySignatureCount(true);
+  const specs: Record<keyof ContractorTabParamList, TabSpec> = {
+    Leads:    { label: "Leads",    icon: "leads" },
+    Sign:     { label: "Sign",     icon: "sign",     dot: toSign > 0 ? v3.blue : null },
+    Earnings: { label: "Earnings", icon: "earnings" },
+    CAccount: { label: "Account",  icon: "user",     dot: pendingCount + failedCount > 0 ? v3.red : null },
+  };
   return (
-    <ContractorTab.Navigator screenOptions={SCREEN_OPTIONS}>
-      <ContractorTab.Screen
-        name="Chat"
-        component={ContractorStack}
-        options={{ tabBarLabel: "CHAT", tabBarIcon: ({ focused }) => <TabIcon label="◎" focused={focused} /> }}
-      />
-      <ContractorTab.Screen
-        name="Leads"
-        component={LeadFeedScreen}
-        options={{ tabBarLabel: "LEADS", tabBarIcon: ({ focused }) => <TabIcon label="◈" focused={focused} /> }}
-      />
-      <ContractorTab.Screen
-        name="Earnings"
-        component={EarningsStack}
-        options={{ tabBarLabel: "EARNINGS", tabBarIcon: ({ focused }) => <TabIcon label="$" focused={focused} /> }}
-      />
-      <ContractorTab.Screen
-        name="Settings"
-        component={SettingsStack}
-        options={{ tabBarLabel: "SETTINGS", tabBarIcon: ({ focused }) => <TabIcon label="≡" focused={focused} badge={queueBadge} /> }}
-      />
+    <ContractorTab.Navigator screenOptions={{ headerShown: false }} tabBar={(p) => <TabBar {...p} specs={specs} />}>
+      <ContractorTab.Screen name="Leads"    component={LeadFeedScreen} />
+      <ContractorTab.Screen name="Sign"     component={PendingSignaturesScreen} />
+      <ContractorTab.Screen name="Earnings" component={EarningsScreen} />
+      <ContractorTab.Screen name="CAccount" component={ContractorAccountScreen} />
     </ContractorTab.Navigator>
   );
 }
 
+/** The role's tab set, the floating assistant button, and the two global sheets. */
 export default function TabNavigator() {
-  const { authState } = useAuthContext();
-  const role = authState.status === "authenticated" ? authState.profile?.role : undefined;
-  return role === "Contractor" ? <ContractorTabs /> : <HomeownerTabs />;
+  const app = useAppData();
+  return (
+    <View style={{ flex: 1, backgroundColor: v3.bg }}>
+      {app.contractor ? <ContractorTabs /> : <HomeownerTabs />}
+      <AskButton onPress={app.openAsk} />
+      <AssistantSheet />
+      {!app.contractor && <PropertySheet />}
+    </View>
+  );
 }

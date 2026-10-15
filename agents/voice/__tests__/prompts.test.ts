@@ -13,6 +13,7 @@
  * PROMPT.10  Recommendations → name in output
  * PROMPT.11  Contractor role → contractor persona, not homeowner
  * PROMPT.12  Contractor profile → name and trust score embedded
+ * PROMPT.13  Plan, signatures and earnings from the mobile app → embedded when sent
  */
 
 import { describe, it, expect } from "@jest/globals";
@@ -250,4 +251,46 @@ describe("PROMPT.12 — Contractor profile embedded", () => {
   it("includes trust score",        () => { expect(prompt).toContain("88/100"); });
   it("includes verified badge",     () => { expect(prompt).toContain("Verified"); });
   it("includes specialties",        () => { expect(prompt).toContain("Plumbing"); });
+});
+
+// ── PROMPT.13 — Plan, signatures and earnings sent by the mobile app ──────────
+
+describe("PROMPT.13 — mobile app context sections", () => {
+  it("homeowner prompt includes the plan when sent", () => {
+    const prompt = buildSystemPrompt({ ...base, plan: { tier: "Free", propertyLimit: 1, summary: "Free covers 1 property" } });
+    expect(prompt).toContain("Plan: Free — Free covers 1 property");
+  });
+
+  it("omits the plan line when no plan is sent", () => {
+    expect(buildSystemPrompt(base)).not.toContain("Plan:");
+  });
+
+  it("contractor prompt lists jobs waiting on a signature and who they wait on", () => {
+    const prompt = buildSystemPrompt({
+      ...base,
+      role: "Contractor",
+      contractorSignatures: [
+        { serviceType: "Gutters", address: "412 Grandview Ave", amountDollars: 180, awaiting: "contractor" },
+        { serviceType: "Roofing", address: "1210 Halifax Dr", amountDollars: 650, awaiting: "homeowner" },
+      ],
+    });
+    expect(prompt).toContain("Gutters at 412 Grandview Ave, $180 — waiting on you");
+    expect(prompt).toContain("Roofing at 1210 Halifax Dr, $650 — waiting on the homeowner");
+  });
+
+  it("contractor prompt includes this month's referral fees", () => {
+    const prompt = buildSystemPrompt({
+      ...base,
+      role: "Contractor",
+      contractorEarnings: {
+        month: "October 2026",
+        jobs: [{ label: "Roofing · 412 Grandview Ave", amountDollars: 1240, feeDollars: 37.2 }],
+        feeTotalDollars: 37.2,
+        feeRule: "3% of each winning bid, $20 minimum",
+      },
+    });
+    expect(prompt).toContain("Winning bids in October 2026 (referral fee: 3% of each winning bid, $20 minimum)");
+    expect(prompt).toContain("Roofing · 412 Grandview Ave: $1,240, fee $37.20");
+    expect(prompt).toContain("Referral fees this month: $37.20");
+  });
 });

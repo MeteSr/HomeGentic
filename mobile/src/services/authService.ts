@@ -1,44 +1,12 @@
 import { Actor, HttpAgent } from "@icp-sdk/core/agent";
 import { fromProfile, UserProfile } from "./authTypes";
+import { idlFactory } from "../declarations/auth";
 
 export type { UserRole, UserProfile } from "./authTypes";
 export { fromProfile } from "./authTypes";
 
 const AUTH_CANISTER_ID = process.env.EXPO_PUBLIC_AUTH_CANISTER_ID ?? "";
 
-const idlFactory = ({ IDL }: any) => {
-  const UserRole = IDL.Variant({
-    Homeowner:  IDL.Null,
-    Contractor: IDL.Null,
-    Realtor:    IDL.Null,
-  });
-  const UserProfileIDL = IDL.Record({
-    principal:    IDL.Principal,
-    role:         UserRole,
-    email:        IDL.Text,
-    phone:        IDL.Text,
-    createdAt:    IDL.Int,
-    updatedAt:    IDL.Int,
-    isActive:     IDL.Bool,
-    lastLoggedIn: IDL.Opt(IDL.Int),
-  });
-  const Error = IDL.Variant({
-    NotFound:      IDL.Null,
-    AlreadyExists: IDL.Null,
-    NotAuthorized: IDL.Null,
-    Paused:        IDL.Null,
-    InvalidInput:  IDL.Text,
-  });
-  const Result = IDL.Variant({ ok: UserProfileIDL, err: Error });
-  return IDL.Service({
-    getProfile: IDL.Func([], [Result], ["query"]),
-    issueAgentSession: IDL.Func(
-      [],
-      [IDL.Variant({ ok: IDL.Record({ token: IDL.Text, expiresAt: IDL.Int }), err: Error })],
-      [],
-    ),
-  });
-};
 
 function unwrap(result: any): UserProfile {
   if ("ok" in result) return fromProfile(result.ok);

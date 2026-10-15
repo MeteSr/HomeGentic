@@ -1,6 +1,11 @@
 import { HttpAgent, Actor } from "@icp-sdk/core/agent";
-import { IDL }              from "@icp-sdk/core/candid";
+import { idlFactory as quoteIdlFactory } from "../declarations/quote";
+import { idlFactory as jobIdlFactory } from "../declarations/job";
+import { idlFactory as contractorIdlFactory } from "../declarations/contractor";
 import { getIcpAgent }      from "./icpAgent";
+import { referralFeeCents, isFeeFloored, type PlanTier } from "./planService";
+import { serviceTypeLabel } from "./serviceTypes";
+import type { Job } from "./jobService";
 
 export type Urgency = "Low" | "Medium" | "High" | "Emergency";
 
@@ -10,6 +15,16 @@ export interface Lead {
   description: string;
   urgency:     Urgency;
   propertyZip: string;
+  createdAt?:  number;          // ms
+  closeAt?:    number | null;   // ms
+}
+
+export interface ContractorProfile {
+  name:          string;
+  specialties:   string[];   // service type keys
+  trustScore:    number;
+  jobsCompleted: number;
+  isVerified:    boolean;
 }
 
 export interface PendingSignatureJob {
@@ -64,59 +79,7 @@ export function formatEarnings(cents: number): string {
 const QUOTE_CANISTER_ID = process.env.EXPO_PUBLIC_QUOTE_CANISTER_ID ?? "";
 const JOB_CANISTER_ID   = process.env.EXPO_PUBLIC_JOB_CANISTER_ID   ?? "";
 
-const quoteIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
-  const ServiceType = I.Variant({
-    Roofing: I.Null, HVAC: I.Null, Plumbing: I.Null, Electrical: I.Null,
-    Painting: I.Null, Flooring: I.Null, Windows: I.Null, Landscaping: I.Null,
-  } as Record<string, IDL.Type>);
-  const UrgencyLevel = I.Variant({
-    Low: I.Null, Medium: I.Null, High: I.Null, Emergency: I.Null,
-  } as Record<string, IDL.Type>);
-  const RequestStatus = I.Variant({
-    Open: I.Null, Quoted: I.Null, Accepted: I.Null, Closed: I.Null, Cancelled: I.Null,
-  } as Record<string, IDL.Type>);
-  const QuoteRequest = I.Record({
-    id:          I.Text,
-    propertyId:  I.Text,
-    homeowner:   I.Principal,
-    serviceType: ServiceType,
-    description: I.Text,
-    urgency:     UrgencyLevel,
-    status:      RequestStatus,
-    createdAt:   I.Int,
-    closeAt:     I.Opt(I.Int),
-  });
-  return I.Service({
-    getOpenRequests: I.Func([], [I.Vec(QuoteRequest)], ["query"]),
-  });
-};
 
-const jobIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
-  const ServiceType = I.Variant({
-    Roofing: I.Null, HVAC: I.Null, Plumbing: I.Null, Electrical: I.Null,
-    Painting: I.Null, Flooring: I.Null, Windows: I.Null, Landscaping: I.Null,
-  } as Record<string, IDL.Type>);
-  const JobStatus = I.Variant({
-    Pending: I.Null, InProgress: I.Null, Completed: I.Null, Verified: I.Null,
-    PendingHomeownerApproval: I.Null, RejectedByHomeowner: I.Null,
-  } as Record<string, IDL.Type>);
-  const Job = I.Record({
-    id:               I.Text,
-    propertyId:       I.Text,
-    serviceType:      ServiceType,
-    description:      I.Text,
-    amount:           I.Nat,
-    completedDate:    I.Int,
-    status:           JobStatus,
-    isDiy:            I.Bool,
-    homeownerSigned:  I.Bool,
-    contractorSigned: I.Bool,
-    contractorName:   I.Opt(I.Text),
-  });
-  return I.Service({
-    getJobsPendingMySignature: I.Func([], [I.Vec(Job)], ["query"]),
-  });
-};
 
 function fromQuoteRequest(raw: any): Lead {
   return {
@@ -124,7 +87,9 @@ function fromQuoteRequest(raw: any): Lead {
     serviceType: Object.keys(raw.serviceType)[0],
     description: raw.description,
     urgency:     Object.keys(raw.urgency)[0] as Urgency,
-    propertyZip: "",  // zip not stored on QuoteRequest; populated if needed via property lookup
+    propertyZip: raw.zipCode?.[0] ?? "",
+    createdAt:   Number(raw.createdAt) / 1_000_000,
+    closeAt:     raw.closeAt?.length ? Number(raw.closeAt[0]) / 1_000_000 : null,
   };
 }
 
@@ -183,5 +148,79 @@ export async function getEarningsSummary(agent?: HttpAgent): Promise<EarningsSum
     verifiedJobCount: 0,
     totalEarnedCents: 0,
     pendingJobCount:  pending.filter((j) => j.awaitingRole === "contractor").length,
+  };
+}
+
+const CONTRACTOR_CANISTER_ID = process.env.EXPO_PUBLIC_CONTRACTOR_CANISTER_ID ?? "";
+
+/** The signed-in contractor's profile, or null if they haven't set one up. */
+export async function getMyContractorProfile(agent?: HttpAgent): Promise<ContractorProfile | null> {
+  if (!CONTRACTOR_CANISTER_ID) return null;
+  const a = Actor.createActor(contractorIdlFactory as any, { agent: agent ?? getIcpAgent(), canisterId: CONTRACTOR_CANISTER_ID });
+  const r: any = await (a as any).getMyProfile();
+  if (!("ok" in r)) return null;
+  return {
+    name:          r.ok.name,
+    specialties:   r.ok.specialties.map((v: any) => Object.keys(v)[0]),
+    trustScore:    Number(r.ok.trustScore),
+    jobsCompleted: Number(r.ok.jobsCompleted),
+    isVerified:    r.ok.isVerified,
+  };
+}
+
+// ── Earnings ledger (pure) ────────────────────────────────────────────────────
+
+export interface LedgerRow {
+  id:          string;
+  label:       string;   // "Roofing · 412 Grandview Ave"
+  amountCents: number;
+  feeCents:    number;
+  feeLabel:    string;   // "$37.20 FEE · 3%", "$20.00 FEE · MINIMUM", "NO FEE · CONTRACTOR PRO"
+}
+
+export interface Ledger {
+  month:         string;   // "OCTOBER"
+  monthLong:     string;   // "October 2026"
+  rows:          LedgerRow[];
+  totalCents:    number;
+  feeTotalCents: number;
+  /** What the same month would cost on ContractorFree — shown to Pro as savings and to Free as the upsell. */
+  freeFeeCents:  number;
+}
+
+/**
+ * Verified winning bids completed this calendar month, newest first, with
+ * the referral fee each carries on the contractor's tier.
+ */
+export function buildLedger(jobs: Job[], tier: PlanTier, addresses: Record<string, string> = {}, now = new Date()): Ledger {
+  const y = now.getFullYear(), m = now.getMonth();
+  const inMonth = jobs.filter((j) => {
+    if (!j.verified || !j.completedDate) return false;
+    const d = new Date(j.completedDate);
+    return d.getUTCFullYear() === y && d.getUTCMonth() === m;
+  }).sort((a, b) => b.completedDate.localeCompare(a.completedDate));
+
+  const rows = inMonth.map((j) => {
+    const fee = referralFeeCents(j.amountCents, tier);
+    const feeLabel = tier === "ContractorPro"
+      ? "NO FEE · CONTRACTOR PRO"
+      : `$${(fee / 100).toFixed(2)} FEE · ${isFeeFloored(j.amountCents) ? "MINIMUM" : "3%"}`;
+    const where = addresses[j.propertyId];
+    return {
+      id: j.id,
+      label: `${serviceTypeLabel(j.serviceType)}${where ? ` · ${where}` : ""}`,
+      amountCents: j.amountCents,
+      feeCents: fee,
+      feeLabel,
+    };
+  });
+
+  return {
+    month:         now.toLocaleDateString("en-US", { month: "long" }).toUpperCase(),
+    monthLong:     now.toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+    rows,
+    totalCents:    rows.reduce((s, r) => s + r.amountCents, 0),
+    feeTotalCents: rows.reduce((s, r) => s + r.feeCents, 0),
+    freeFeeCents:  inMonth.reduce((s, j) => s + referralFeeCents(j.amountCents, "ContractorFree"), 0),
   };
 }

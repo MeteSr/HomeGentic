@@ -344,7 +344,7 @@ Set these as EAS environment variables (they're inlined at build time):
 | Variable | Description |
 |---|---|
 | `EXPO_PUBLIC_ICP_HOST` | ICP API host (`https://icp-api.io`) |
-| `EXPO_PUBLIC_AUTH_CANISTER_ID`, `EXPO_PUBLIC_PROPERTY_CANISTER_ID`, `EXPO_PUBLIC_JOB_CANISTER_ID`, `EXPO_PUBLIC_QUOTE_CANISTER_ID`, `EXPO_PUBLIC_PHOTO_CANISTER_ID` | Canister IDs for the target environment (`canister_ids.json`) |
+| `EXPO_PUBLIC_AUTH_CANISTER_ID`, `EXPO_PUBLIC_PROPERTY_CANISTER_ID`, `EXPO_PUBLIC_JOB_CANISTER_ID`, `EXPO_PUBLIC_QUOTE_CANISTER_ID`, `EXPO_PUBLIC_PHOTO_CANISTER_ID`, `EXPO_PUBLIC_PAYMENT_CANISTER_ID`, `EXPO_PUBLIC_CONTRACTOR_CANISTER_ID`, `EXPO_PUBLIC_RECURRING_CANISTER_ID`, `EXPO_PUBLIC_MAINTENANCE_CANISTER_ID`, `EXPO_PUBLIC_SENSOR_CANISTER_ID` | Canister IDs for the target environment (`canister_ids.json`). Without `PAYMENT` every user reads as Free; without `SENSOR` the Property tab shows no sensors |
 | `EXPO_PUBLIC_VOICE_AGENT_URL` | Voice Worker URL |
 | `EXPO_PUBLIC_WEB_URL` | Web app origin, used for shareable report links (default `https://homegentic.app`) |
 | `EXPO_PUBLIC_NOTIFICATIONS_URL` | Notification relay URL; without it the app skips push registration |

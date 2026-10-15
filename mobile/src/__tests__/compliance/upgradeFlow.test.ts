@@ -62,48 +62,55 @@ describe("upgradePage utility", () => {
   });
 });
 
-// ─── BillUploadScreen ─────────────────────────────────────────────────────────
+// ─── In-app upgrade CTAs → the Upgrade hand-off screen ───────────────────────
+//
+// v3 routes every upgrade prompt to UpgradeScreen, which explains the web
+// hand-off and then calls openUpgradePage (or openAccountPage for Pro).
 
-describe("BillUploadScreen upgrade flow", () => {
-  it("imports openUpgradePage from upgradePage service", () => {
-    const src = read(BILL_SCREEN);
-    expect(src).toMatch(/openUpgradePage/);
+const UPGRADE_SCREEN = path.join(SCREENS_ROOT, "v3", "UpgradeScreen.tsx");
+const PLAN_CARD      = path.join(SRC_ROOT, "components", "PlanCard.tsx");
+
+describe("UpgradeScreen hand-off", () => {
+  it("opens the pricing page with openUpgradePage", () => {
+    const src = read(UPGRADE_SCREEN);
+    expect(src).toMatch(/import \{[^}]*openUpgradePage[^}]*\} from "..\/..\/services\/upgradePage"/);
+    expect(src).toMatch(/openUpgradePage\(\)/);
   });
 
-  it("calls openUpgradePage (not bare Linking.openURL) on TierLimitReachedError", () => {
+  it("re-reads the plan from the account instead of restoring a purchase", () => {
+    const src = read(UPGRADE_SCREEN);
+    expect(src).toMatch(/refreshPlan\(\)/);
+    expect(src).not.toMatch(/restorePurchases|InAppPurchase|StoreKit/);
+  });
+});
+
+describe("BillUploadScreen upgrade flow", () => {
+  it("routes TierLimitReachedError to the Upgrade hand-off screen", () => {
     const src = read(BILL_SCREEN);
     expect(src).toMatch(/TierLimitReachedError/);
-    expect(src).toMatch(/openUpgradePage/);
+    expect(src).toMatch(/navigation\.navigate\("Upgrade"\)/);
   });
 
   it("does not call Linking.openURL directly for pricing", () => {
     const src = read(BILL_SCREEN);
-    // Any openURL referencing pricing must go through openUpgradePage
     const directPricingCall = src.match(/Linking\.openURL\s*\([^)]*pricing[^)]*\)/);
     expect(directPricingCall).toBeNull();
   });
 });
 
-// ─── PropertyDetailScreen ─────────────────────────────────────────────────────
-
-describe("PropertyDetailScreen upgrade flow", () => {
-  it("imports openUpgradePage from upgradePage service", () => {
-    const src = read(PROPERTY_SCREEN);
-    expect(src).toMatch(/openUpgradePage/);
+describe("Plan card (Home, Account, Earnings) upgrade flow", () => {
+  it("PlanCard opens the Upgrade hand-off screen", () => {
+    expect(read(PLAN_CARD)).toMatch(/navigation\.navigate\("Upgrade"\)/);
   });
 
-  it("calls openUpgradePage for the upgrade banner", () => {
-    const src = read(PROPERTY_SCREEN);
-    expect(src).toMatch(/openUpgradePage/);
+  it("EarningsScreen shows the PlanCard", () => {
+    expect(read(EARNINGS_SCREEN)).toMatch(/<PlanCard/);
   });
 });
 
-// ─── EarningsScreen ───────────────────────────────────────────────────────────
-
-describe("EarningsScreen upgrade flow", () => {
-  it("imports openUpgradePage from upgradePage service", () => {
-    const src = read(EARNINGS_SCREEN);
-    expect(src).toMatch(/openUpgradePage/);
+describe("PropertyDetailScreen", () => {
+  it("does not open pricing directly", () => {
+    expect(read(PROPERTY_SCREEN)).not.toMatch(/homegentic\.app\/pricing/);
   });
 });
 

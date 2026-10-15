@@ -12,7 +12,7 @@ import {
   Platform,
 } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import type { ContractorStackParamList } from "../navigation/ContractorStack";
+import type { RootStackParamList } from "../navigation/types";
 import { submitBid } from "../services/bidService";
 import {
   validateBidForm,
@@ -21,7 +21,7 @@ import {
 } from "../services/bidFormService";
 import { colors, fonts, spacing, borderWidth } from "../theme";
 
-type Props = NativeStackScreenProps<ContractorStackParamList, "LeadDetail">;
+type Props = NativeStackScreenProps<RootStackParamList, "LeadDetail">;
 
 const URGENCY_COLOR: Record<string, string> = {
   Low:       colors.inkLight,

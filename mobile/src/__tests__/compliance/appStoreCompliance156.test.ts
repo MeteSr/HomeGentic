@@ -213,17 +213,17 @@ describe("15.6.4 — Upgrade CTAs use browser deep-link", () => {
     expect(violations).toEqual([]);
   });
 
-  it("upgrade banner screens open pricing in browser (EarningsScreen)", () => {
+  it("the Upgrade hand-off screen opens pricing in the browser via openUpgradePage", () => {
     const content = fs.readFileSync(
-      path.join(SRC_ROOT, "screens", "EarningsScreen.tsx"), "utf8"
+      path.join(SRC_ROOT, "screens", "v3", "UpgradeScreen.tsx"), "utf8"
     );
-    expect(content).toContain(`Linking.openURL("${PRICING_URL}")`);
+    expect(content).toContain("openUpgradePage");
+    expect(content).not.toMatch(/navigation\.navigate\s*\(\s*['"].*[Pp]ricing/);
   });
 
-  it("upgrade banner screens open pricing in browser (PropertyDetailScreen)", () => {
-    const content = fs.readFileSync(
-      path.join(SRC_ROOT, "screens", "PropertyDetailScreen.tsx"), "utf8"
-    );
-    expect(content).toContain(`Linking.openURL("${PRICING_URL}")`);
+  it(`upgradePage.ts is the one place that opens ${PRICING_URL}`, () => {
+    const content = fs.readFileSync(path.join(SRC_ROOT, "services", "upgradePage.ts"), "utf8");
+    expect(content).toContain(`PRICING_URL = "${PRICING_URL}"`);
+    expect(content).toMatch(/Linking\.openURL\(PRICING_URL\)/);
   });
 });

@@ -1,5 +1,6 @@
 import { HttpAgent, Actor } from "@icp-sdk/core/agent";
-import { IDL }              from "@icp-sdk/core/candid";
+import { idlFactory as jobIdlFactory }   from "../declarations/job";
+import { idlFactory as photoIdlFactory } from "../declarations/photo";
 import { getIcpAgent }      from "./icpAgent";
 
 export type JobStatus = "pending" | "awaiting_contractor" | "verified" | "pending_homeowner_approval";
@@ -25,6 +26,12 @@ export interface Job {
   status:       JobStatus;
   isDiy:        boolean;
   contractorName?: string;
+  verified:         boolean;
+  homeownerSigned:  boolean;
+  contractorSigned: boolean;
+  /** Set when the job came from a HomeGentic quote request (referral fee applies). */
+  sourceQuoteId?:   string;
+  warrantyMonths?:  number;
 }
 
 // ── Canister wiring ───────────────────────────────────────────────────────────
@@ -32,105 +39,7 @@ export interface Job {
 const JOB_CANISTER_ID   = process.env.EXPO_PUBLIC_JOB_CANISTER_ID   ?? "";
 const PHOTO_CANISTER_ID = process.env.EXPO_PUBLIC_PHOTO_CANISTER_ID ?? "";
 
-const jobIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
-  const ServiceType = I.Variant({
-    Roofing:     I.Null,
-    HVAC:        I.Null,
-    Plumbing:    I.Null,
-    Electrical:  I.Null,
-    Painting:    I.Null,
-    Flooring:    I.Null,
-    Windows:     I.Null,
-    Landscaping: I.Null,
-  } as Record<string, IDL.Type>);
 
-  const JobStatus = I.Variant({
-    Pending:                  I.Null,
-    InProgress:               I.Null,
-    Completed:                I.Null,
-    Verified:                 I.Null,
-    PendingHomeownerApproval: I.Null,
-    RejectedByHomeowner:      I.Null,
-  } as Record<string, IDL.Type>);
-
-  const Job = I.Record({
-    id:               I.Text,
-    propertyId:       I.Text,
-    serviceType:      ServiceType,
-    description:      I.Text,
-    amount:           I.Nat,
-    completedDate:    I.Int,
-    status:           JobStatus,
-    isDiy:            I.Bool,
-    contractorName:   I.Opt(I.Text),
-  });
-
-  const Error = I.Variant({
-    NotFound:        I.Null,
-    Unauthorized:    I.Null,
-    InvalidInput:    I.Text,
-    AlreadyVerified: I.Null,
-  } as Record<string, IDL.Type>);
-
-  return I.Service({
-    getPendingProposals:       I.Func([], [I.Vec(Job)], ["query"]),
-    getJobsForProperty:        I.Func([I.Text], [I.Variant({ ok: I.Vec(Job), err: Error })], ["query"]),
-    getJobsPendingMySignature: I.Func([], [I.Vec(Job)], ["query"]),
-    createJob: I.Func(
-      [
-        I.Text,           // propertyId
-        I.Text,           // title
-        ServiceType,      // serviceType
-        I.Text,           // description
-        I.Opt(I.Text),    // contractorName
-        I.Nat,            // amount (cents)
-        I.Int,            // completedDate (nanoseconds)
-        I.Opt(I.Text),    // permitNumber
-        I.Opt(I.Nat),     // warrantyMonths
-        I.Bool,           // isDiy
-        I.Opt(I.Text),    // sourceQuoteId
-      ],
-      [I.Variant({ ok: Job, err: Error })],
-      []
-    ),
-    verifyJob: I.Func([I.Text], [I.Variant({ ok: Job, err: Error })], []),
-  });
-};
-
-const photoIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
-  const ConstructionPhase = I.Variant({
-    PostConstruction: I.Null,
-    Listing:          I.Null,
-  } as Record<string, IDL.Type>);
-
-  const Error = I.Variant({
-    NotFound:      I.Null,
-    Unauthorized:  I.Null,
-    QuotaExceeded: I.Text,
-    Duplicate:     I.Text,
-    InvalidInput:  I.Text,
-  } as Record<string, IDL.Type>);
-
-  const Photo = I.Record({
-    id:          I.Text,
-    jobId:       I.Text,
-    propertyId:  I.Text,
-    phase:       ConstructionPhase,
-    description: I.Text,
-    hash:        I.Text,
-    size:        I.Nat,
-    verified:    I.Bool,
-    createdAt:   I.Int,
-  });
-
-  return I.Service({
-    uploadPhoto: I.Func(
-      [I.Text, I.Text, ConstructionPhase, I.Text, I.Text, I.Vec(I.Nat8)],
-      [I.Variant({ ok: Photo, err: Error })],
-      []
-    ),
-  });
-};
 
 function getJobActor(agent: HttpAgent) {
   return Actor.createActor(jobIdlFactory as any, { agent, canisterId: JOB_CANISTER_ID });
@@ -166,6 +75,11 @@ function fromRaw(raw: any): Job {
     status:         STATUS_MAP[statusKey] ?? "pending",
     isDiy:          raw.isDiy,
     contractorName: raw.contractorName?.[0] ?? undefined,
+    verified:         !!raw.verified,
+    homeownerSigned:  !!raw.homeownerSigned,
+    contractorSigned: !!raw.contractorSigned,
+    sourceQuoteId:    raw.sourceQuoteId?.[0] ?? undefined,
+    warrantyMonths:   raw.warrantyMonths?.length ? Number(raw.warrantyMonths[0]) : undefined,
   };
 }
 
@@ -225,6 +139,16 @@ export async function getPendingProposals(agent?: HttpAgent): Promise<Job[]> {
 export async function getJobsPendingMySignature(agent?: HttpAgent): Promise<Job[]> {
   const a = getJobActor(agent ?? getIcpAgent());
   const raw: any[] = await (a as any).getJobsPendingMySignature();
+  return raw.map(fromRaw);
+}
+
+/**
+ * Verified jobs this contractor won through a HomeGentic quote request —
+ * the ones a referral fee applies to.
+ */
+export async function getMyReferralJobs(agent?: HttpAgent): Promise<Job[]> {
+  const a = getJobActor(agent ?? getIcpAgent());
+  const raw: any[] = await (a as any).getMyReferralJobs();
   return raw.map(fromRaw);
 }
 

@@ -112,6 +112,29 @@ export interface QuoteRequestSummary {
   lowestBidContractor?: string;
 }
 
+/** The caller's plan, as the app shows it — lets the agent answer plan questions. */
+export interface PlanContext {
+  tier:          string;   // "Free" | "Pro" | "ContractorFree" | "ContractorPro"
+  propertyLimit: number;
+  summary:       string;   // e.g. "Pro covers 20 properties, shared access and PDF export"
+}
+
+/** A job waiting on the contractor's (or homeowner's) signature. */
+export interface ContractorSignatureContext {
+  serviceType:   string;
+  address:       string;
+  amountDollars: number;
+  awaiting:      "contractor" | "homeowner";
+}
+
+/** Winning bids this month with the referral fee each one carries. */
+export interface ContractorEarningsContext {
+  month:           string;   // "October 2026"
+  jobs:            { label: string; amountDollars: number; feeDollars: number }[];
+  feeTotalDollars: number;
+  feeRule:         string;   // e.g. "3% of each winning bid, $20 minimum" or "waived on Contractor Pro"
+}
+
 export interface AgentContext {
   properties:            PropertyContext[];
   recentJobs:            JobContext[];
@@ -125,6 +148,9 @@ export interface AgentContext {
   maintenanceForecast?:  MaintenanceForecastContext;
   role?:                 "Homeowner" | "Contractor" | "Realtor";
   contractorProfile?:    ContractorContext;
+  plan?:                 PlanContext;
+  contractorSignatures?: ContractorSignatureContext[];
+  contractorEarnings?:   ContractorEarningsContext;
   /** Authenticated ICP principal — set server-side from x-icp-principal header, not trusted from client. */
   principal?:            string;
 }

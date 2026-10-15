@@ -1,111 +1,81 @@
-import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  ActivityIndicator,
-  TouchableOpacity,
-  Linking,
-  StyleSheet,
-} from "react-native";
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import type { EarningsStackParamList } from "../navigation/EarningsStack";
-import { getEarningsSummary, formatEarnings, EarningsSummary } from "../services/contractorService";
-import { colors, fonts, spacing, borderWidth } from "../theme";
+import React from "react";
+import { Text, View } from "react-native";
+import { useAppData } from "../context/AppData";
+import { useLoad } from "../hooks/useLoad";
+import { buildLedger } from "../services/contractorService";
+import { getMyReferralJobs } from "../services/jobService";
+import { getStreetAddresses } from "../services/propertyService";
+import { PlanCard } from "../components/PlanCard";
+import { Card, EmptyRow, Kicker, Loading, PageHeader, TabScroll } from "../components/ui";
+import { family, type, v3 } from "../theme";
 
-type Nav = NativeStackNavigationProp<EarningsStackParamList, "Earnings">;
+function dollars(cents: number, decimals = 0): string {
+  return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
 
-function StatBlock({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.statBlock}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
+/** The line under the ledger — the fee rule, and what Pro saves or would save. */
+export function feeNote(pro: boolean, feeTotalCents: number, freeFeeCents: number): string {
+  if (pro) {
+    return freeFeeCents > 0
+      ? `Referral fees are waived on Contractor Pro. On Contractor Free this month would have cost ${dollars(freeFeeCents, 2)}.`
+      : "Referral fees are waived on Contractor Pro.";
+  }
+  return feeTotalCents > 0
+    ? "3% of each winning bid, $20 minimum per job. On Contractor Pro this month would be $0."
+    : "3% of each winning bid, $20 minimum per job. Contractor Pro has no referral fees.";
 }
 
 export default function EarningsScreen() {
-  const navigation = useNavigation<Nav>();
-  const [summary, setSummary] = useState<EarningsSummary | null>(null);
-  const [loading, setLoading] = useState(true);
+  const app = useAppData();
+  const data = useLoad(async () => {
+    const jobs = await getMyReferralJobs();
+    const streets = await getStreetAddresses(jobs.map((j) => j.propertyId)).catch(() => ({} as Record<string, string>));
+    return { jobs, streets };
+  }, "earnings");
 
-  useEffect(() => {
-    getEarningsSummary()
-      .then(setSummary)
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) {
-    return <View style={styles.center}><ActivityIndicator color={colors.rust} /></View>;
-  }
-
-  if (!summary) return null;
+  const ledger = data.data ? buildLedger(data.data.jobs, app.tier, data.data.streets) : null;
+  const n = ledger?.rows.length ?? 0;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.sectionLabel}>EARNINGS</Text>
-      </View>
+    <TabScroll refreshing={data.loading && !!data.data} onRefresh={() => { data.reload(); app.refreshPlan(); }}>
+      <PageHeader
+        kicker={`EARNINGS · ${ledger?.month ?? new Date().toLocaleDateString("en-US", { month: "long" }).toUpperCase()}`}
+        title={!ledger ? " " : n ? `${dollars(ledger.totalCents)} from ${n} ${n === 1 ? "job" : "jobs"}` : "No winning bids yet"}
+      />
 
-      <View style={styles.statsRow}>
-        <StatBlock label="TOTAL EARNED"    value={formatEarnings(summary.totalEarnedCents)} />
-        <View style={styles.dividerV} />
-        <StatBlock label="VERIFIED JOBS"   value={String(summary.verifiedJobCount)} />
-        <View style={styles.dividerV} />
-        <TouchableOpacity
-          onPress={() => navigation.navigate("PendingSignatures")}
-          accessibilityRole="button"
-          accessibilityLabel="View pending signatures"
-        >
-          <StatBlock label="PENDING" value={String(summary.pendingJobCount)} />
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.dividerH} />
-
-      {/* Upgrade CTA (15.5.6) */}
-      <TouchableOpacity
-        style={styles.upgradeBanner}
-        onPress={() => Linking.openURL("https://homegentic.app/pricing")}
-        accessibilityRole="button"
-        accessibilityLabel="Upgrade to ContractorPro"
-      >
-        <Text style={styles.upgradeBannerText}>
-          Upgrade to ContractorPro — unlimited leads & priority listing ›
+      <Card>
+        {!ledger ? (
+          data.loading ? <Loading /> : <EmptyRow text="Couldn't load earnings. Pull to retry." />
+        ) : n === 0 ? (
+          <EmptyRow text="Verified jobs you win through HomeGentic this month show up here." />
+        ) : (
+          ledger.rows.map((r) => (
+            <View key={r.id} style={{ paddingVertical: 15, paddingHorizontal: 18, borderBottomWidth: 1, borderBottomColor: v3.lineSoft, flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={[type.rowTitle, { fontSize: 14 }]}>{r.label}</Text>
+                <Text style={[type.meta, { fontSize: 11, lineHeight: 15.4, marginTop: 5 }]}>{r.feeLabel}</Text>
+              </View>
+              <Text style={{ fontFamily: family.displayBold, fontSize: 16, letterSpacing: -0.48, color: v3.ink }}>{dollars(r.amountCents)}</Text>
+            </View>
+          ))
+        )}
+        {ledger && (
+          <View style={{ paddingVertical: 15, paddingHorizontal: 18, flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 12, backgroundColor: v3.field }}>
+            <Kicker style={{ letterSpacing: 1.08 }}>REFERRAL FEES THIS MONTH</Kicker>
+            <Text style={{ fontFamily: family.displayBold, fontSize: 15, color: v3.ink }}>{dollars(ledger.feeTotalCents, 2)}</Text>
+          </View>
+        )}
+      </Card>
+      {ledger && (
+        <Text style={{ fontFamily: family.body, fontSize: 11.5, lineHeight: 17.8, color: v3.muted, marginTop: 10, marginHorizontal: 2 }}>
+          {feeNote(app.pro, ledger.feeTotalCents, ledger.freeFeeCents)}
         </Text>
-      </TouchableOpacity>
-    </View>
+      )}
+
+      {/* Upgrades hand off to homegentic.app (UpgradeScreen → openUpgradePage); nothing is sold in the app. */}
+      <View style={{ marginTop: 14 }}>
+        <PlanCard />
+      </View>
+    </TabScroll>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.paper },
-  center:    { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.paper },
-  header: {
-    padding: spacing.md,
-    borderBottomWidth: borderWidth,
-    borderBottomColor: colors.rule,
-  },
-  sectionLabel: { fontFamily: fonts.mono, fontSize: 11, letterSpacing: 2, color: colors.inkLight },
-  statsRow: {
-    flexDirection: "row",
-    padding: spacing.lg,
-  },
-  statBlock:  { flex: 1, alignItems: "center" },
-  statValue:  { fontFamily: fonts.serifBlack, fontSize: 32, color: colors.ink, lineHeight: 38 },
-  statLabel:  { fontFamily: fonts.mono, fontSize: 9, letterSpacing: 1.5, color: colors.inkLight, marginTop: 4 },
-  dividerV:   { width: borderWidth, backgroundColor: colors.rule, marginHorizontal: spacing.sm },
-  dividerH:   { height: borderWidth, backgroundColor: colors.rule },
-  upgradeBanner: {
-    backgroundColor: colors.ink,
-    padding: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  upgradeBannerText: {
-    fontFamily: fonts.mono,
-    fontSize: 10,
-    letterSpacing: 0.5,
-    color: colors.paper,
-    textAlign: "center",
-  },
-});
