@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import type { ChatStackParamList } from "../navigation/ChatStack";
+import type { RootStackParamList } from "../navigation/types";
 import { createJob, uploadJobPhoto } from "../services/jobService";
 import {
   SERVICE_TYPES,
@@ -25,7 +25,7 @@ import {
 } from "../services/jobFormService";
 import { colors, fonts, spacing, borderWidth } from "../theme";
 
-type Props = NativeStackScreenProps<ChatStackParamList, "LogJob">;
+type Props = NativeStackScreenProps<RootStackParamList, "LogJob">;
 
 const EMPTY_FORM: JobForm = {
   serviceType:    "",

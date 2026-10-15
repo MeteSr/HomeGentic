@@ -230,7 +230,7 @@ Voice response rules — these are mandatory:
 - Write as you would speak: natural, conversational, clear.
 - For cost estimates, give a realistic range (e.g. "typically between eight hundred and twelve hundred dollars") and note that local rates vary.
 - If the user's property or job data is relevant to their question, reference it directly.
-${propertySection}${jobSection}${warrantySection}${pendingSection}${quotesSection}${scoreSection}${trendSection}${recsSection}${maintenanceSection}`;
+${planLine(ctx)}${propertySection}${jobSection}${warrantySection}${pendingSection}${quotesSection}${scoreSection}${trendSection}${recsSection}${maintenanceSection}`;
 }
 
 // ── Contractor persona (16.7.2) ───────────────────────────────────────────────
@@ -251,6 +251,25 @@ function buildContractorSystemPrompt(
         .filter((q) => profile ? profile.specialties.includes(q.serviceType) : true)
         .map((q) => `- [ID: ${q.id}] ${q.serviceType} (${q.urgency}): "${q.description.slice(0, 80)}"`)
         .join("\n")
+    : "";
+
+  const planSection = planLine(ctx);
+
+  const signaturesSection = ctx.contractorSignatures && ctx.contractorSignatures.length > 0
+    ? "\nJobs waiting on a signature:\n" +
+      ctx.contractorSignatures
+        .map((j) => `- ${j.serviceType} at ${j.address}, $${j.amountDollars.toLocaleString()} — waiting on ${j.awaiting === "contractor" ? "you" : "the homeowner"}`)
+        .join("\n")
+    : "";
+
+  const earningsSection = ctx.contractorEarnings
+    ? (() => {
+        const e = ctx.contractorEarnings;
+        const lines = e.jobs.map((j) => `- ${j.label}: $${j.amountDollars.toLocaleString()}, fee $${j.feeDollars.toFixed(2)}`);
+        return `\nWinning bids in ${e.month} (referral fee: ${e.feeRule}):\n` +
+          (lines.length ? lines.join("\n") : "- none yet") +
+          `\nReferral fees this month: $${e.feeTotalDollars.toFixed(2)}`;
+      })()
     : "";
 
   const principalLine = ctx.principal
@@ -288,5 +307,10 @@ Voice response rules — these are mandatory:
 - Responses will be spoken aloud. Keep answers to 2-3 sentences max unless detail is requested.
 - Never use markdown, bullet points, or numbered lists.
 - Write naturally, as you would speak.
-${profileSection}${leadsSection}`;
+${profileSection}${planSection}${leadsSection}${signaturesSection}${earningsSection}`;
+}
+
+/** "\nPlan: Pro — Pro covers 20 properties…" when the app sent its plan. */
+function planLine(ctx: AgentContext): string {
+  return ctx.plan ? `\nPlan: ${ctx.plan.tier} — ${ctx.plan.summary}` : "";
 }

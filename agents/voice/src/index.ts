@@ -33,7 +33,7 @@ import { lookupPermits, generateKit, geocodeAddress } from "../buyersTruthKit";
 import type { BuyerTruthKitRequest } from "../buyersTruthKit";
 import type { ChatRequest } from "../types";
 import { logger } from "../logger";
-import { checkGlobalRateLimit, checkAgentRateLimit, checkChatRateLimit } from "./rateLimiter";
+import { checkGlobalRateLimit, checkAgentRateLimit, checkChatRateLimit, getAgentUsage } from "./rateLimiter";
 import { resolveSessionPrincipal, SESSION_HEADER } from "./session";
 import { resolveTier } from "./tier";
 import { lookupRentcast } from "./rentcast";
@@ -397,6 +397,15 @@ async function route(
       }
       await write("data: [DONE]\n\n");
     }, cors);
+  }
+
+  // ── GET /api/agent/usage ──────────────────────────────────────────────────
+  // The caller's agent-call count for the current period (no side effects).
+  if (path === "/api/agent/usage" && method === "GET") {
+    const principal = await callerPrincipal(request, env);
+    if (!principal) return json({ error: "session_required" }, 401, cors);
+    const tier = await resolveTier(principal, env);
+    return json({ tier, ...(await getAgentUsage(principal, tier, env)) }, 200, cors);
   }
 
   // ── POST /api/agent ───────────────────────────────────────────────────────

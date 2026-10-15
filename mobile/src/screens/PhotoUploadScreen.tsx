@@ -17,7 +17,7 @@ import {
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import type { ChatStackParamList } from "../navigation/ChatStack";
+import type { RootStackParamList } from "../navigation/types";
 import {
   validateImageAsset,
   uploadPhoto,
@@ -26,7 +26,7 @@ import {
 } from "../services/photoUploadService";
 import { colors, fonts, spacing, borderWidth } from "../theme";
 
-type Props = NativeStackScreenProps<ChatStackParamList, "PhotoUpload">;
+type Props = NativeStackScreenProps<RootStackParamList, "PhotoUpload">;
 
 export default function PhotoUploadScreen({ route, navigation }: Props) {
   const { jobId, propertyId, jobServiceType } = route.params;

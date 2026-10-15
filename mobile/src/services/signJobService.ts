@@ -1,5 +1,5 @@
 import { HttpAgent, Actor } from "@icp-sdk/core/agent";
-import { IDL }              from "@icp-sdk/core/candid";
+import { idlFactory as jobIdlFactory } from "../declarations/job";
 import { getIcpAgent }      from "./icpAgent";
 
 export type SignRole = "homeowner" | "contractor";
@@ -40,36 +40,6 @@ export function signConfirmationText(job: SignableJob): string {
 
 const JOB_CANISTER_ID = process.env.EXPO_PUBLIC_JOB_CANISTER_ID ?? "";
 
-const jobIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
-  const ServiceType = I.Variant({
-    Roofing: I.Null, HVAC: I.Null, Plumbing: I.Null, Electrical: I.Null,
-    Painting: I.Null, Flooring: I.Null, Windows: I.Null, Landscaping: I.Null,
-  } as Record<string, IDL.Type>);
-  const JobStatus = I.Variant({
-    Pending: I.Null, InProgress: I.Null, Completed: I.Null, Verified: I.Null,
-    PendingHomeownerApproval: I.Null, RejectedByHomeowner: I.Null,
-  } as Record<string, IDL.Type>);
-  const Job = I.Record({
-    id:               I.Text,
-    propertyId:       I.Text,
-    serviceType:      ServiceType,
-    description:      I.Text,
-    amount:           I.Nat,
-    completedDate:    I.Int,
-    status:           JobStatus,
-    isDiy:            I.Bool,
-    contractorName:   I.Opt(I.Text),
-  });
-  const Error = I.Variant({
-    NotFound:        I.Null,
-    Unauthorized:    I.Null,
-    InvalidInput:    I.Text,
-    AlreadyVerified: I.Null,
-  } as Record<string, IDL.Type>);
-  return I.Service({
-    verifyJob: I.Func([I.Text], [I.Variant({ ok: Job, err: Error })], []),
-  });
-};
 
 // ── Public API ────────────────────────────────────────────────────────────────
 

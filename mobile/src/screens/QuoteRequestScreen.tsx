@@ -12,7 +12,7 @@ import {
   Platform,
 } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import type { ChatStackParamList } from "../navigation/ChatStack";
+import type { RootStackParamList } from "../navigation/types";
 import { createQuoteRequest } from "../services/quoteService";
 import {
   URGENCY_LEVELS,
@@ -25,7 +25,7 @@ import {
 import { SERVICE_TYPES } from "../services/jobFormService";
 import { colors, fonts, spacing, borderWidth } from "../theme";
 
-type Props = NativeStackScreenProps<ChatStackParamList, "QuoteRequest">;
+type Props = NativeStackScreenProps<RootStackParamList, "QuoteRequest">;
 
 const URGENCY_COLORS: Record<Urgency, string> = {
   low:       colors.inkLight,

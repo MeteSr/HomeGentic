@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F4F1EB"
+      "backgroundColor": "#EDEEF2"
     },
     "ios": {
       "supportsTablet": true,
@@ -51,7 +51,7 @@
       "package": "app.homegentic.mobile",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#F4F1EB"
+        "backgroundColor": "#EDEEF2"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -73,11 +73,12 @@
         "expo-notifications",
         {
           "icon":  "./assets/icon.png",
-          "color": "#C94C2E",
+          "color": "#2B34FF",
           "sounds": []
         }
       ],
-      "expo-local-authentication"
+      "expo-local-authentication",
+      "expo-font"
     ]
   }
 }

@@ -9,7 +9,7 @@ import {
   StyleSheet,
 } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import type { ContractorStackParamList } from "../navigation/ContractorStack";
+import type { RootStackParamList } from "../navigation/types";
 import {
   signJob,
   signButtonLabel,
@@ -21,7 +21,7 @@ import { colors, fonts, spacing, borderWidth } from "../theme";
 
 // SignJobScreen is mounted from ContractorStack.
 // For homeowner signing (15.8.4), add the same screen to ChatStack when needed.
-type Props = NativeStackScreenProps<ContractorStackParamList, "SignJob">;
+type Props = NativeStackScreenProps<RootStackParamList, "SignJob">;
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (

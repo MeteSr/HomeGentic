@@ -1,6 +1,6 @@
 /** Shared types and pure data transformation — no @icp-sdk/core/agent dependency. */
 
-export type UserRole = "Homeowner" | "Contractor" | "Realtor";
+export type UserRole = "Homeowner" | "Contractor" | "Realtor" | "Builder";
 
 export interface UserProfile {
   principal:    string;

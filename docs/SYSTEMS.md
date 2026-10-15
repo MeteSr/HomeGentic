@@ -1207,6 +1207,11 @@ Response headers: `X-Agent-Calls-Used`, `X-Agent-Calls-Limit` — used by the UI
 - Max tokens: 1024
 - Returns `{ type: "answer", text }` or `{ type: "tool_calls", toolCalls[] }`; frontend executes tools and loops back
 - Max 5 agentic turns per interaction (frontend-enforced)
+- Optional context from the mobile app: `plan` (tier and summary, both roles), `contractorSignatures` and `contractorEarnings` (contractor prompt) — lets the assistant answer plan, signature and fee questions without tools
+
+**`GET /api/agent/usage`** — AI-call meter
+- Requires `x-agent-session`; returns `{ tier, used, limit, period, resetsAt }` for the caller's current period
+- Reads the same KV counter `/api/agent` increments, without consuming a call
 
 **`POST /api/maintenance/chat`** — Maintenance advisor chat
 - Dedicated system prompt via `buildMaintenanceSystemPrompt()`
