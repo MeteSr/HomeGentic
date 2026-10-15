@@ -339,6 +339,38 @@ npx eas-cli build --profile production --platform all
 npx eas-cli submit --profile production --platform all
 ```
 
+CI runs `npm run ci` (typecheck + Jest) and an iOS bundle export for `mobile/`
+on every PR (`test-mobile` in `ci.yml`). Builds run from
+`.github/workflows/mobile-release.yml` and are queued on EAS (`--no-wait`;
+follow them on expo.dev):
+
+| Trigger | Build |
+|---|---|
+| Push to `main` touching `mobile/**` | `preview` profile, internal distribution |
+| Tag `mobile-vX.Y.Z` (must equal `expo.version` in `app.json`) | `production` profile, auto-submitted to TestFlight and the Play internal track |
+| Manual run (Actions → Mobile Release) | Choose profile, platform, and whether to submit |
+
+To cut a store release: bump `expo.version` in `mobile/app.json`, merge, then
+push the tag (`git tag mobile-v1.1.0 && git push origin mobile-v1.1.0`). EAS sets
+build numbers itself (`appVersionSource: remote`, `autoIncrement`).
+
+The workflow needs, before it does anything beyond the tests:
+
+- `EXPO_TOKEN` repository secret (an Expo access token).
+- The app linked to an EAS project: `npx eas-cli init` in `mobile/` writes
+  `extra.eas.projectId` into `app.json`; commit it.
+- A `mobile-production` GitHub environment. Add required reviewers so store
+  releases need an approval, as `deploy-mainnet.yml` does for `production`.
+- To submit: App Store Connect API key and Play service-account JSON stored as
+  EAS credentials, and real values for the `APPLE_ID` / `ASC_APP_ID` /
+  `APPLE_TEAM_ID` placeholders in `eas.json`. Play rejects API uploads until
+  one build has been uploaded by hand.
+
+Until the first two exist, pushes to `main` skip the build with a notice; a
+manual run or tag fails with a list of what's missing. Each `eas.json` profile
+names its EAS environment (`development`, `preview`, `production`), which is
+where the variables below are read from.
+
 Set these as EAS environment variables (they're inlined at build time):
 
 | Variable | Description |
