@@ -1,0 +1,204 @@
+name: Mobile Release
+
+# EAS builds for the Expo app in mobile/ (issue #592).
+#
+#   push to main touching mobile/**  → preview build (internal distribution, testnet canisters)
+#   tag mobile-vX.Y.Z                → production build + submit (TestFlight, Play internal track)
+#   manual run                       → pick profile, platform and whether to submit
+#
+# Builds run on EAS servers (--no-wait), so this workflow only verifies,
+# queues the build and exits; progress and artifacts are on expo.dev.
+# Canister IDs and URLs come from EAS environment variables — each profile in
+# mobile/eas.json names its EAS environment (development / preview / production).
+#
+# Needs: the EXPO_TOKEN secret, and the app linked to an EAS project
+# (`npx eas-cli init` writes extra.eas.projectId into mobile/app.json).
+# Production also needs the `mobile-production` GitHub environment (add
+# required reviewers there) and, to submit, the store credentials in EAS
+# plus real values for the APPLE_ID / ASC_APP_ID / APPLE_TEAM_ID placeholders
+# in mobile/eas.json. See docs/DEPLOYMENT.md → Mobile App.
+
+on:
+  push:
+    branches: [main]
+    paths: ['mobile/**']
+    tags: ['mobile-v*']
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'EAS build profile'
+        type: choice
+        options: [preview, production]
+        default: preview
+      platform:
+        description: 'Platform'
+        type: choice
+        options: [all, ios, android]
+        default: all
+      submit:
+        description: 'Submit to TestFlight / Play internal (production only)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  EAS_CLI_VERSION: 24.14.0
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    outputs:
+      profile:  ${{ steps.plan.outputs.profile }}
+      platform: ${{ steps.plan.outputs.platform }}
+      submit:   ${{ steps.plan.outputs.submit }}
+      ready:    ${{ steps.ready.outputs.ready }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        run: cd mobile && npm ci
+
+      - name: Typecheck and unit tests
+        run: cd mobile && npm run ci
+
+      - name: Plan the build
+        id: plan
+        env:
+          EVENT:          ${{ github.event_name }}
+          REF_TYPE:       ${{ github.ref_type }}
+          REF_NAME:       ${{ github.ref_name }}
+          INPUT_PROFILE:  ${{ inputs.profile }}
+          INPUT_PLATFORM: ${{ inputs.platform }}
+          INPUT_SUBMIT:   ${{ inputs.submit }}
+        run: |
+          set -euo pipefail
+          if [ "$REF_TYPE" = "tag" ]; then
+            version=$(node -p "require('./mobile/app.json').expo.version")
+            if [ "$REF_NAME" != "mobile-v$version" ]; then
+              echo "::error::Tag $REF_NAME doesn't match mobile/app.json expo.version ($version). Tag mobile-v$version, or bump the version first."
+              exit 1
+            fi
+            profile=production; platform=all; submit=true
+          elif [ "$EVENT" = "workflow_dispatch" ]; then
+            profile="$INPUT_PROFILE"; platform="$INPUT_PLATFORM"; submit="$INPUT_SUBMIT"
+          else
+            profile=preview; platform=all; submit=false
+          fi
+          [ "$profile" = "production" ] || submit=false
+          {
+            echo "profile=$profile"
+            echo "platform=$platform"
+            echo "submit=$submit"
+          } >> "$GITHUB_OUTPUT"
+          echo "Plan: $profile build for $platform, submit=$submit" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check EAS setup
+        id: ready
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EVENT:      ${{ github.event_name }}
+          REF_TYPE:   ${{ github.ref_type }}
+          SUBMIT:     ${{ steps.plan.outputs.submit }}
+        run: |
+          set -euo pipefail
+          missing=()
+          [ -n "${EXPO_TOKEN:-}" ] || missing+=("the EXPO_TOKEN secret")
+          node -e "process.exit(require('./mobile/app.json').expo?.extra?.eas?.projectId ? 0 : 1)" \
+            || missing+=("an EAS project link (run 'npx eas-cli init' in mobile/ and commit app.json)")
+          if [ "$SUBMIT" = "true" ] && grep -qE '"(APPLE_ID|ASC_APP_ID|APPLE_TEAM_ID)"' mobile/eas.json; then
+            missing+=("real App Store values for the APPLE_ID / ASC_APP_ID / APPLE_TEAM_ID placeholders in mobile/eas.json")
+          fi
+          if [ ${#missing[@]} -eq 0 ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          joined=$(printf '%s; ' "${missing[@]}")
+          msg="EAS build skipped — missing: ${joined%; }. See issue #592."
+          echo "ready=false" >> "$GITHUB_OUTPUT"
+          echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+          # Merges to main stay green until setup is done; a release someone
+          # asked for (manual run or tag) fails loudly instead.
+          if [ "$EVENT" = "push" ] && [ "$REF_TYPE" != "tag" ]; then
+            echo "::notice::$msg"
+          else
+            echo "::error::$msg"
+            exit 1
+          fi
+
+  preview:
+    needs: [verify]
+    if: needs.verify.outputs.ready == 'true' && needs.verify.outputs.profile == 'preview'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: ${{ env.EAS_CLI_VERSION }}
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: cd mobile && npm ci
+
+      - name: Queue preview build
+        env:
+          PLATFORM: ${{ needs.verify.outputs.platform }}
+        run: |
+          cd mobile
+          eas build --profile preview --platform "$PLATFORM" --non-interactive --no-wait \
+            --message "${GITHUB_SHA::7} ${GITHUB_REF_NAME}"
+
+  production:
+    needs: [verify]
+    if: needs.verify.outputs.ready == 'true' && needs.verify.outputs.profile == 'production'
+    runs-on: ubuntu-latest
+    # Add required reviewers to this environment (Settings → Environments)
+    # so store releases need a human approval, like deploy-mainnet.yml.
+    environment: mobile-production
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: ${{ env.EAS_CLI_VERSION }}
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: cd mobile && npm ci
+
+      # --auto-submit hands the finished build to EAS Submit (eas.json →
+      # submit.production): iOS to TestFlight, Android to the Play internal track.
+      - name: Queue production build
+        env:
+          PLATFORM: ${{ needs.verify.outputs.platform }}
+          SUBMIT:   ${{ needs.verify.outputs.submit }}
+        run: |
+          cd mobile
+          args=(--profile production --platform "$PLATFORM" --non-interactive --no-wait
+                --message "${GITHUB_SHA::7} ${GITHUB_REF_NAME}")
+          [ "$SUBMIT" = "true" ] && args+=(--auto-submit)
+          eas build "${args[@]}"

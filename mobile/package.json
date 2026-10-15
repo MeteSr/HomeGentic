@@ -8,7 +8,9 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "test": "jest --watchAll=false",
-    "test:watch": "jest --watchAll"
+    "test:watch": "jest --watchAll",
+    "typecheck": "tsc --noEmit",
+    "ci": "tsc --noEmit && jest --ci --watchAll=false"
   },
   "jest": {
     "preset": "jest-expo",
