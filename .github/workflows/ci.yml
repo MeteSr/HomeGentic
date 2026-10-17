@@ -48,6 +48,9 @@ jobs:
           echo "moc: $MOC_BIN"
           "$MOC_BIN" --version
 
+      - name: Motoko unit tests
+        run: bash scripts/ci/test-motoko-units.sh
+
       - name: Install ic-wasm
         run: |
           TMP=$(mktemp -d)
