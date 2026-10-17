@@ -23,7 +23,7 @@ has_method() {
   [[ "$iface" == *"$2"* ]]
 }
 
-# moc-wrapper (installed by ic-mops) delegates to mops moc 1.3.0.
+# moc-wrapper (installed by ic-mops) delegates to mops moc 1.16.1.
 # That moc still needs aaaaa-aa.did in the --actor-idl directory for
 # canisters that import ic:aaaaa-aa (e.g. caffeineai-http-outcalls).
 mkdir -p .dfx/local/canisters/idl/

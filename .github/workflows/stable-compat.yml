@@ -59,7 +59,7 @@ jobs:
         run: |
           npm install -g ic-mops
           mops install
-          mops toolchain use moc 1.3.0
+          mops toolchain use moc 1.16.1
           "$(mops toolchain bin moc)" --version
 
       - name: Check stable-memory compatibility
