@@ -71,6 +71,30 @@ persistent actor Referrals {
 
   private transient let CREDIT_CENTS : Nat = 1000; // $10.00
 
+  // L6: per-principal rate limit (transient — a DoS guard, resets on upgrade).
+  private transient let callLimits = Map.empty<Text, (Nat, Int)>();
+  private transient let MAX_CALLS_PER_MIN : Nat = 10;
+  private transient let ONE_MINUTE_NS : Int = 60_000_000_000;
+
+  private func tryConsumeSlot(caller : Principal) : Bool {
+    if (isAdmin(caller)) return true;
+    let key = Principal.toText(caller);
+    let now = Time.now();
+    switch (Map.get(callLimits, Text.compare, key)) {
+      case null { Map.add(callLimits, Text.compare, key, (1, now)); true };
+      case (?(count, start)) {
+        if (now - start >= ONE_MINUTE_NS) { Map.add(callLimits, Text.compare, key, (1, now)); true }
+        else if (count >= MAX_CALLS_PER_MIN) { false }
+        else { Map.add(callLimits, Text.compare, key, (count + 1, start)); true }
+      };
+    }
+  };
+
+  /// Cycle-saving ingress filter only (the real checks are in each method).
+  system func inspect({ caller : Principal }) : Bool {
+    not Principal.isAnonymous(caller)
+  };
+
   // ─── Helpers ──────────────────────────────────────────────────────────────────
 
   private func isAdmin(caller : Principal) : Bool {
@@ -102,6 +126,7 @@ persistent actor Referrals {
         case null      { return #err(#InvalidInput("Canister is paused")) };
       };
     };
+    if (not tryConsumeSlot(caller)) return #err(#InvalidInput("Rate limit exceeded. Try again in a minute."));
     #ok(())
   };
 
@@ -113,11 +138,14 @@ persistent actor Referrals {
   // ─── Public API ───────────────────────────────────────────────────────────────
 
   /// Get (or lazily create) the caller's unique referral code.
+  /// L6: the anonymous principal gets no code (it would be a shared identity).
   public shared(msg) func getMyCode() : async Text {
+    if (Principal.isAnonymous(msg.caller)) return "";
     let key = Principal.toText(msg.caller);
     switch (Map.get(referrerCode, Text.compare, key)) {
       case (?code) code;
       case null {
+        switch (requireActive(msg.caller)) { case (#err _) return ""; case _ {} };
         let code = makeCode();
         ignore Map.add(referrerCode, Text.compare, key, code);
         ignore Map.add(codeOwner,    Text.compare, code, key);
@@ -133,6 +161,7 @@ persistent actor Referrals {
     let callerId = Principal.toText(msg.caller);
 
     if (Text.size(code) == 0) return #err(#InvalidInput("code cannot be empty"));
+    if (Text.size(code) > 32) return #err(#InvalidInput("code too long"));
 
     // Resolve the referrer
     let referrer = switch (Map.get(codeOwner, Text.compare, code)) {
@@ -145,6 +174,26 @@ persistent actor Referrals {
     // Only allow one referral per referee
     if (Option.isSome(Map.get(referralOf, Text.compare, callerId))) {
       return #err(#AlreadyReferred);
+    };
+
+    // L6: a code can only be attached at onboarding, i.e. while the caller is
+    // not on a paid plan. Otherwise an existing subscriber could attach a code
+    // before a renewal (payment calls markConverted on every paid activation).
+    if (Text.size(paymentCanisterId) > 0 and not isAdmin(msg.caller)) {
+      let pay = actor(paymentCanisterId) : actor {
+        getTierForPrincipal : shared query Principal -> async { #Free; #Pro; #ContractorFree; #ContractorPro };
+      };
+      let tier = try { await pay.getTierForPrincipal(msg.caller) } catch (_) {
+        return #err(#InvalidInput("Could not verify subscription status; try again later"))
+      };
+      switch (tier) {
+        case (#Free or #ContractorFree) {};
+        case _ { return #err(#InvalidInput("Referral codes can only be used before your first paid subscription")) };
+      };
+      // Re-check after the await (TOCTOU): one referral per referee.
+      if (Option.isSome(Map.get(referralOf, Text.compare, callerId))) {
+        return #err(#AlreadyReferred);
+      };
     };
 
     let r : Referral = {
@@ -196,6 +245,7 @@ persistent actor Referrals {
 
   /// Credit balance in cents (1000 = $10.00).
   public shared query(msg) func getCreditBalance() : async Nat {
+    if (Principal.isAnonymous(msg.caller)) return 0;
     let key = Principal.toText(msg.caller);
     Option.get(Map.get(credits, Text.compare, key), 0)
   };
@@ -209,7 +259,8 @@ persistent actor Referrals {
 
   /// H-20: Set the one-time bootstrap nonce before calling addAdmin() the first time.
   /// Ignored once adminInitialized = true, and can only be set once.
-  public shared func setBootstrapNonce(nonce: Text) : async () {
+  public shared(msg) func setBootstrapNonce(nonce: Text) : async () {
+    if (not Principal.isController(msg.caller)) return;  // only a controller may open the bootstrap
     if (adminInitialized) return;  // already bootstrapped — ignore
     if (bootstrapNonce != null) return;  // nonce already set — can only be set once
     bootstrapNonce := ?nonce;

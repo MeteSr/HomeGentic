@@ -32,6 +32,7 @@ Notifications.setNotificationHandler({
 export function useNotifications(): void {
   const { authState } = useAuthContext();
   const tokenRef      = useRef<string | null>(null);
+  const sessionRef    = useRef<string | null>(null);
 
   useEffect(() => {
     if (authState.status !== "authenticated") return;
@@ -60,6 +61,7 @@ export function useNotifications(): void {
       tokenRef.current  = deviceToken;
 
       const sessionToken = await issueAgentSession(agent).catch(() => null);
+      sessionRef.current = sessionToken;
       if (cancelled) return;
 
       const platform = Platform.OS === "ios" ? "ios" : "android";
@@ -87,8 +89,9 @@ export function useNotifications(): void {
 
       // Unregister token on logout
       if (tokenRef.current) {
-        unregisterPushToken(tokenRef.current).catch(() => undefined);
+        unregisterPushToken(tokenRef.current, sessionRef.current).catch(() => undefined);
         tokenRef.current = null;
+        sessionRef.current = null;
       }
     };
   }, [authState.status, authState.status === "authenticated" ? authState.principal : null]);

@@ -7,6 +7,7 @@
  * Rentcast API key is held server-side in the voice agent (not VITE_RENTCAST_API_KEY which would be exposed in the browser bundle)
  * Returns null (silently) when the lookup fails.
  */
+import { voiceAgentFetch } from "./voiceAgentHeaders";
 
 // Rentcast API key is held server-side in the voice agent (not VITE_RENTCAST_API_KEY which would be exposed in the browser bundle)
 const VOICE_AGENT_URL = (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:3001";
@@ -24,7 +25,7 @@ export async function lookupPropertyDetails(
 ): Promise<PropertyLookupResult | null> {
   try {
     // POST so address data stays out of server access logs and referrer headers
-    const resp = await fetch(`${VOICE_AGENT_URL}/api/rentcast/properties`, {
+    const resp = await voiceAgentFetch(`${VOICE_AGENT_URL}/api/rentcast/properties`, {
       method:  "POST",
       headers: {
         "Content-Type": "application/json",

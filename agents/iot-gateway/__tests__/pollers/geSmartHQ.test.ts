@@ -117,7 +117,7 @@ describe("persistTokenState", () => {
     expect(mockFs.writeFileSync).toHaveBeenCalledWith(
       expect.any(String),
       expect.stringContaining(VALID_STATE.accessToken),
-      "utf8"
+      { encoding: "utf8", mode: 0o600 }
     );
   });
 

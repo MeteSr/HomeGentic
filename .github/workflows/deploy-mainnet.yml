@@ -4,27 +4,34 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read   # canister-ID commits push with CI_PUSH_TOKEN, not GITHUB_TOKEN
 
 jobs:
   test:
     name: Pre-deploy test gate
+    # Jobs in this workflow hold MAINNET_IDENTITY_PEM (controller of every
+    # mainnet canister) and run the dispatched ref's own scripts, so only
+    # main may be deployed — belt-and-braces on top of the `production`
+    # environment's branch rule (security audit finding 5).
+    if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/ci.yml
     secrets: inherit
+    permissions:
+      contents: read
+      pull-requests: write   # ci.yml's test-frontend declares it (PR coverage comment; skipped here)
 
   deploy:
     runs-on: ubuntu-latest
     environment: production
     needs: [test]
+    if: github.ref == 'refs/heads/main'
     steps:
-      # main requires the motoko-compile-check status check even on direct
-      # pushes, and the default GITHUB_TOKEN has no bypass for that rule.
-      # CI_PUSH_TOKEN is a fine-grained PAT scoped to this repo (Contents:
-      # Read and write) issued from an account that does have that bypass
-      # — same fix as deploy-testnet.yml's "Commit canister IDs" step.
+      # persist-credentials: false keeps any token out of .git/config while
+      # npm ci and deploy.sh run; CI_PUSH_TOKEN is only handed to the final
+      # "Commit canister IDs" step (security audit CI-1).
       - uses: actions/checkout@v7
         with:
-          token: ${{ secrets.CI_PUSH_TOKEN }}
+          persist-credentials: false
       - name: Install Node.js
         uses: actions/setup-node@v7
         with:
@@ -91,7 +98,14 @@ jobs:
         # means the next run can't tell those canisters already exist and
         # will try to create them again, wasting cycles on duplicates or
         # failing outright. Same fix as deploy-testnet.yml.
+        # main requires the motoko-compile-check status check even on direct
+        # pushes, and the default GITHUB_TOKEN has no bypass for that rule.
+        # CI_PUSH_TOKEN is a fine-grained PAT scoped to this repo (Contents:
+        # Read and write) issued from an account that does have that bypass.
+        # It is only in this step's environment, never in .git/config.
         if: always()
+        env:
+          CI_PUSH_TOKEN: ${{ secrets.CI_PUSH_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -100,7 +114,9 @@ jobs:
             echo "canister IDs unchanged, nothing to commit"
           else
             git commit -m "ops: update canister IDs after mainnet deploy [skip ci]"
-            git push || echo "⚠️  Push blocked by branch protection — commit canister_ids.json manually from the deploy log above"
+            git -c core.hooksPath=/dev/null push \
+              "https://x-access-token:${CI_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+              "HEAD:${GITHUB_REF}" || echo "⚠️  Push blocked by branch protection — commit canister_ids.json manually from the deploy log above"
           fi
 
       - name: Post-deploy cycle health gate
@@ -116,6 +132,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     needs: deploy
+    if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v7
       - name: Install Node.js
@@ -136,6 +153,9 @@ jobs:
   deploy-email-worker:
     runs-on: ubuntu-latest
     environment: production
+    # Previously had no `needs:` and deployed before the test gate ran.
+    needs: [test]
+    if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v7
       - name: Install Node.js

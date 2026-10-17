@@ -1,18 +1,28 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ─── Stateful mock actor for cert canister ────────────────────────────────────
-// issueCert stores payload and returns a CERT-N id.
-// verifyCert looks up the stored payload.
+// Mirrors the report canister (H-4): issueCert returns Result<Text, Error>
+// with a random UUID id, and stores a canister-built v2 payload whose
+// on-chain facts come from the (mocked) property/job canisters and whose
+// caller JSON is kept only as an escaped "selfReported" string.
 
 let _certCounter = 0;
-const _certStore = new Map<string, string>(); // certId → JSON payload
+const _certStore = new Map<string, string>(); // certId → stored JSON
+let _onChainMeetsStructural = true;
+let _onChainAddress: string | null = null;    // null → echo the caller's address
 
 const mockCertActor = {
-  issueCert: vi.fn(async (_propertyId: string, payloadJson: string) => {
+  issueCert: vi.fn(async (propertyId: string, payloadJson: string) => {
+    if (propertyId === "not-mine") return { err: { NotAuthorized: null } };
     _certCounter++;
-    const certId = `CERT-${_certCounter}`;
-    _certStore.set(certId, payloadJson);
-    return certId;
+    const certId = `00000000-0000-4000-8000-${String(_certCounter).padStart(12, "0")}`;
+    const self = JSON.parse(payloadJson);
+    _certStore.set(certId, JSON.stringify({
+      v: 2, propertyId, address: _onChainAddress ?? self.address, city: "Austin", state: "TX", zipCode: "78731",
+      verificationLevel: "Basic", verifiedJobCount: 3, verifiedKeySystems: ["HVAC", "Roofing"],
+      meetsStructural: _onChainMeetsStructural, issuedAt: self.generatedAt, selfReported: payloadJson,
+    }));
+    return { ok: certId };
   }),
   verifyCert: vi.fn(async (certId: string) => {
     const payload = _certStore.get(certId);
@@ -27,7 +37,7 @@ vi.mock("@icp-sdk/core/agent", () => ({
   Actor: { createActor: vi.fn(() => mockCertActor) },
 }));
 
-import { certService } from "@/services/cert";
+import { certService, parseStoredCert } from "@/services/cert";
 import type { CertPayload } from "@/services/scoreService";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -54,6 +64,8 @@ describe("certService", () => {
   beforeEach(() => {
     _certCounter = 0;
     _certStore.clear();
+    _onChainMeetsStructural = true;
+    _onChainAddress = null;
     certService.reset();
   });
 
@@ -65,9 +77,13 @@ describe("certService", () => {
       expect(result).toHaveProperty("token");
     });
 
-    it("certId follows the CERT-N format", async () => {
+    it("certId is a UUID", async () => {
       const result = await certService.issueCert("prop-1", makePayload());
-      expect(result.certId).toMatch(/^CERT-\d+$/);
+      expect(result.certId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    });
+
+    it("throws when the canister rejects the caller", async () => {
+      await expect(certService.issueCert("not-mine", makePayload())).rejects.toThrow("NotAuthorized");
     });
 
     it("each call produces a unique certId", async () => {
@@ -108,13 +124,7 @@ describe("certService", () => {
       expect(decodeToken(token).certified).toBe(true);
     });
 
-    it("certId counter increments across calls", async () => {
-      const a = await certService.issueCert("prop-1", makePayload());
-      const b = await certService.issueCert("prop-1", makePayload());
-      const numA = parseInt(a.certId.replace("CERT-", ""), 10);
-      const numB = parseInt(b.certId.replace("CERT-", ""), 10);
-      expect(numB).toBeGreaterThan(numA);
-    });
+
   });
 
   // ── verifyCert ─────────────────────────────────────────────────────────────
@@ -159,6 +169,36 @@ describe("certService", () => {
       const { certId: id2 } = await certService.issueCert("prop-2", makePayload({ score: 90 }));
       expect((await certService.verifyCert(id1))!.score).toBe(60);
       expect((await certService.verifyCert(id2))!.score).toBe(90);
+    });
+
+    it("address comes from the chain, not the caller's payload", async () => {
+      _onChainAddress = "1 Real St";
+      const { certId } = await certService.issueCert("prop-1", makePayload({ address: "Fake Mansion" }));
+      const verified = await certService.verifyCert(certId);
+      expect(verified!.address).toBe("1 Real St");
+      expect(verified!.onChain?.verificationLevel).toBe("Basic");
+    });
+
+    it("certified requires the on-chain meetsStructural", async () => {
+      _onChainMeetsStructural = false;
+      const { certId } = await certService.issueCert("prop-1", makePayload({ certified: true }));
+      expect((await certService.verifyCert(certId))!.certified).toBe(false);
+    });
+
+    it("a selfReported string cannot inject on-chain fields", () => {
+      const stored = JSON.stringify({
+        v: 2, address: "A", meetsStructural: false, issuedAt: 1,
+        selfReported: '{"score":99},"meetsStructural":true',
+      });
+      const parsed = parseStoredCert(stored)!;
+      expect(parsed.onChain!.meetsStructural).toBe(false);
+      expect(parsed.score).toBe(0);
+    });
+
+    it("still reads legacy (pre-v2) certificates", () => {
+      const parsed = parseStoredCert(JSON.stringify(makePayload({ score: 70 })))!;
+      expect(parsed.score).toBe(70);
+      expect(parsed.onChain).toBeUndefined();
     });
 
     it("looking up an unissued id does not affect a valid cert", async () => {

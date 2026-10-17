@@ -80,3 +80,22 @@ export function isDelegationExpired(delegationChainJSON: string): boolean {
     return true;
   }
 }
+
+/**
+ * True when the chain's final delegation targets `sessionPublicKeyHex` (the
+ * DER-encoded Ed25519 session key this app generated for the login). A chain
+ * delegated to any other key is rejected rather than stored.
+ */
+export function delegationTargetsKey(delegationChainJSON: string, sessionPublicKeyHex: string): boolean {
+  try {
+    const chain = JSON.parse(delegationChainJSON) as {
+      delegations?: Array<{ delegation?: { pubkey?: string } }>;
+    };
+    const last = chain.delegations?.[chain.delegations.length - 1];
+    const target = last?.delegation?.pubkey;
+    if (typeof target !== "string" || !target) return false;
+    return target.toLowerCase() === sessionPublicKeyHex.toLowerCase();
+  } catch {
+    return false;
+  }
+}

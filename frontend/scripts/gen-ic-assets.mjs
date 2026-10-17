@@ -81,14 +81,26 @@ if (env.VITE_NOTIFICATIONS_URL?.trim()) {
 // endpoints (http://localhost:4943, ws://localhost:*).
 // When both a header CSP and a meta CSP are present the browser enforces both;
 // the header is the more restrictive (and certified) policy.
+// Stripe.js + Elements (CheckoutPage) need js.stripe.com scripts/frames,
+// api.stripe.com / m.stripe.* XHR, and *.stripe.com frames (hooks.stripe.com
+// 3-D Secure challenges) and images. Kept in sync with the <meta> CSP in
+// index.html — browsers enforce both, so a source missing here blocks it.
+const STRIPE_CONNECT = "https://api.stripe.com https://m.stripe.network https://m.stripe.com https://errors.stripe.com";
+const STRIPE_FRAME   = "https://js.stripe.com https://hooks.stripe.com https://*.stripe.com https://m.stripe.network";
+const STRIPE_IMG     = "https://*.stripe.com";
+
 const csp = [
   "default-src 'self'",
-  "script-src 'self' 'wasm-unsafe-eval'",
+  "script-src 'self' 'wasm-unsafe-eval' https://js.stripe.com https://m.stripe.network",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   // icp-api.io is an alternative boundary-node endpoint used by some @dfinity/* versions
-  `connect-src 'self' https://ic0.app https://*.ic0.app https://icp-api.io ${voiceOrigin}${notificationsOrigin ? ` ${notificationsOrigin}` : ""}`,
-  "img-src 'self' data: blob:",
+  `connect-src 'self' https://ic0.app https://*.ic0.app https://icp-api.io ${STRIPE_CONNECT} ${voiceOrigin}${notificationsOrigin ? ` ${notificationsOrigin}` : ""}`,
+  `img-src 'self' data: blob: ${STRIPE_IMG}`,
+  `frame-src ${STRIPE_FRAME}`,
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
   "frame-ancestors 'none'",
 ].join("; ");
 
@@ -96,6 +108,10 @@ const csp = [
 const icAssets = [
   {
     match: "**/*",
+    // Serve only through the certified (icp0.io / ic0.app) domain, never the
+    // uncertified raw.* domain where a malicious node could alter responses.
+    allow_raw_access: false,
+    enable_aliasing: true,
     headers: {
       // HSTS: tell browsers to always use HTTPS for this origin for 1 year
       "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",

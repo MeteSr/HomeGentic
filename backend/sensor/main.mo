@@ -231,12 +231,51 @@ persistent actor Sensor {
     }
   };
 
-  /// True when `caller` registered a device on `propertyId`.
+  /// True when `caller` registered a still-active device on `propertyId`.
+  /// Only used as the local-dev fallback when the property canister isn't wired.
   private func ownsDeviceOn(propertyId : Text, caller : Principal) : Bool {
     Option.isSome(Iter.find<SensorDevice>(
       Index.records(devicesByProperty, propertyId, devices),
-      func(d) { d.homeowner == caller }
+      func(d) { d.homeowner == caller and d.isActive }
     ))
+  };
+
+  type PropertyAuth = actor {
+    isAuthorized : shared query (Text, Principal, Bool) -> async Bool;
+  };
+
+  /// M9: live property-role check (owner / manager) against the property
+  /// canister, so a former owner or revoked manager loses access at once.
+  /// Falls back to "registered an active device here" in local dev.
+  private func authorizedOn(propertyId : Text, p : Principal, requireWrite : Bool) : async Bool {
+    switch (await authCheck(propertyId, p, requireWrite)) { case (?b) b; case null false }
+  };
+
+  /// Like authorizedOn, but null when the property canister couldn't be reached.
+  private func authCheck(propertyId : Text, p : Principal, requireWrite : Bool) : async ?Bool {
+    if (Text.size(propCanisterId) == 0) return ?ownsDeviceOn(propertyId, p);
+    let propActor : PropertyAuth = actor(propCanisterId);
+    try { ?(await propActor.isAuthorized(propertyId, p, requireWrite)) } catch (_) { null }
+  };
+
+  /// M9: mark a device inactive and release its external ID so it can be
+  /// registered again (by the new owner after a sale, for instance).
+  private func retireDevice(d : SensorDevice) {
+    let updated : SensorDevice = {
+      id               = d.id;
+      propertyId       = d.propertyId;
+      homeowner        = d.homeowner;
+      externalDeviceId = d.externalDeviceId;
+      source           = d.source;
+      name             = d.name;
+      registeredAt     = d.registeredAt;
+      isActive         = false;
+    };
+    Map.add(devices, Text.compare, d.id, updated);
+    switch (Map.get(externalIdIdx, Text.compare, d.externalDeviceId)) {
+      case (?idxId) { if (idxId == d.id) { Map.remove(externalIdIdx, Text.compare, d.externalDeviceId) } };
+      case null {};
+    };
   };
 
   system func postupgrade() {
@@ -420,10 +459,42 @@ persistent actor Sensor {
       // If propCanisterId is not set, allow (dev/local environment)
     };
 
+    // M9: an external ID can be bound to one active device at a time. A
+    // binding is refused while its registrant still has access to the
+    // property it was registered on; a stale binding (former owner, revoked
+    // manager, or deactivated device) is released and can be re-registered.
     switch (Map.get(externalIdIdx, Text.compare, externalDeviceId)) {
-      case (?_) { return #err(#AlreadyExists) };
       case null {};
+      case (?existingId) {
+        switch (Map.get(devices, Text.compare, existingId)) {
+          case (?old) {
+            if (old.isActive) {
+              let stillOwned = await authorizedOn(old.propertyId, old.homeowner, true);
+              // Re-check after the await (TOCTOU): the binding may have changed.
+              switch (Map.get(externalIdIdx, Text.compare, externalDeviceId)) {
+                case (?nowId) {
+                  if (nowId != existingId) return #err(#AlreadyExists);
+                  switch (Map.get(devices, Text.compare, nowId)) {
+                    case (?cur) {
+                      if (cur.isActive) {
+                        if (stillOwned) return #err(#AlreadyExists);
+                        retireDevice(cur);
+                      };
+                    };
+                    case null { Map.remove(externalIdIdx, Text.compare, externalDeviceId) };
+                  };
+                };
+                case null {};
+              };
+            } else {
+              Map.remove(externalIdIdx, Text.compare, externalDeviceId);
+            };
+          };
+          case null { Map.remove(externalIdIdx, Text.compare, externalDeviceId) };
+        };
+      };
     };
+    if (Map.get(externalIdIdx, Text.compare, externalDeviceId) != null) return #err(#AlreadyExists);
 
     let id = nextDeviceId();
     let device : SensorDevice = {
@@ -448,26 +519,40 @@ persistent actor Sensor {
     switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
     switch (Map.get(devices, Text.compare, deviceId)) {
       case null { #err(#NotFound) };
-      case (?d) {
-        if (d.homeowner != msg.caller and not isAdmin(msg.caller))
-          return #err(#NotAuthorized);
-        let updated : SensorDevice = {
-          id               = d.id;
-          propertyId       = d.propertyId;
-          homeowner        = d.homeowner;
-          externalDeviceId = d.externalDeviceId;
-          source           = d.source;
-          name             = d.name;
-          registeredAt     = d.registeredAt;
-          isActive         = false;
+      case (?first) {
+        // The registrant, an admin, or the property's current owner/manager
+        // (so a new owner can remove a former owner's device).
+        if (first.homeowner != msg.caller and not isAdmin(msg.caller)) {
+          if (not (await authorizedOn(first.propertyId, msg.caller, true)))
+            return #err(#NotAuthorized);
         };
-        Map.add(devices, Text.compare, deviceId, updated);
-        #ok(())
+        // Re-read after the await (TOCTOU).
+        switch (Map.get(devices, Text.compare, deviceId)) {
+          case null { #err(#NotFound) };
+          case (?d) {
+            // M9: release the external ID so the device can be registered again.
+            retireDevice(d);
+            #ok(())
+          };
+        }
       };
     }
   };
 
-  public query func getDevicesForProperty(propertyId: Text) : async [SensorDevice] {
+  /// M9: only the property's current owner/manager, an admin or a gateway may
+  /// list its devices (external device IDs are what a hijacker needs). A
+  /// composite query so the property role can be checked live.
+  public composite query(msg) func getDevicesForProperty(propertyId: Text) : async [SensorDevice] {
+    if (Principal.isAnonymous(msg.caller)) return [];
+    if (not isAdmin(msg.caller) and not isGateway(msg.caller)) {
+      if (Text.size(propCanisterId) == 0) {
+        if (not ownsDeviceOn(propertyId, msg.caller)) return [];
+      } else {
+        let propActor : PropertyAuth = actor(propCanisterId);
+        let ok = try { await propActor.isAuthorized(propertyId, msg.caller, false) } catch (_) { false };
+        if (not ok) return [];
+      };
+    };
     Iter.toArray(
       Iter.filter(Index.records(devicesByProperty, propertyId, devices), func(d: SensorDevice) : Bool {
         d.isActive
@@ -521,6 +606,11 @@ persistent actor Sensor {
       };
       case (?d)  { d };
     };
+    // M9: a deactivated device records nothing and creates no jobs.
+    if (not device.isActive) {
+      countError("recordEvent");
+      return #err(#NotFound);
+    };
 
     let severity = severityOf(eventType);
     let eventId  = nextEventId();
@@ -531,27 +621,55 @@ persistent actor Sensor {
     if (isCritical(severity) and Text.size(jobCanisterId) > 0) {
       switch (jobDetailsFor(eventType, device.name)) {
         case (?(title, svcType, desc)) {
-          let lastT = Option.get(Map.get(lastCriticalJobNs, Text.compare, deviceId), 0);
+          let prevT = Map.get(lastCriticalJobNs, Text.compare, deviceId);
+          let lastT = Option.get(prevT, 0);
           if (now - lastT >= CRITICAL_JOB_COOLDOWN_NS) {
+            // L8: reserve the cooldown slot before the await so concurrent
+            // Critical events from one device can't each create a job.
+            Map.add(lastCriticalJobNs, Text.compare, deviceId, now);
+            let restore = func() {
+              switch (prevT) {
+                case (?t) { Map.add(lastCriticalJobNs, Text.compare, deviceId, t) };
+                case null { Map.remove(lastCriticalJobNs, Text.compare, deviceId) };
+              };
+            };
+            // M9: only open a job for a registrant who still has the property.
+            let auth = await authCheck(device.propertyId, device.homeowner, false);
+            if (auth == ?false) {
+              // Former owner / revoked manager: retire the device, record nothing.
+              switch (Map.get(devices, Text.compare, deviceId)) {
+                case (?cur) { if (cur.isActive) retireDevice(cur) };
+                case null {};
+              };
+              restore();
+              countError("recordEvent");
+              return #err(#NotAuthorized);
+            };
             let jobActor = actor(jobCanisterId) : actor {
               createSensorJob : (
                 Text, Principal, Text, JobServiceType, Text
               ) -> async Result.Result<Text, Text>;
             };
-            let res = await jobActor.createSensorJob(
-              device.propertyId,
-              device.homeowner,
-              title,
-              svcType,
-              desc
-            );
+            let res : Result.Result<Text, Text> = if (auth == null) {
+              // Property canister unreachable: record the event, skip the job.
+              #err("property check unavailable")
+            } else {
+              try {
+                await jobActor.createSensorJob(
+                  device.propertyId,
+                  device.homeowner,
+                  title,
+                  svcType,
+                  desc
+                )
+              } catch (_) { #err("job canister call failed") }
+            };
             switch res {
               case (#ok id)  {
                 maybeJobId := ?id;
                 jobsCreatedCount += 1;
-                Map.add(lastCriticalJobNs, Text.compare, deviceId, now);
               };
-              case (#err _)  {};   // job creation failed — still record the event
+              case (#err _)  { restore() };   // job creation failed — still record the event
             };
           };
         };
@@ -579,9 +697,10 @@ persistent actor Sensor {
 
   // M-07: restrict getEventsForProperty to property owner, admin, or trusted canister
   public shared(msg) func getEventsForProperty(propertyId: Text, limit: Nat) : async [SensorEvent] {
+    if (Principal.isAnonymous(msg.caller)) return [];
     if (not isAdmin(msg.caller) and not isGateway(msg.caller)) {
-      // Verify caller owns at least one device on this property
-      if (not ownsDeviceOn(propertyId, msg.caller)) return [];
+      // M9: current owner/manager of the property, checked live.
+      if (not (await authorizedOn(propertyId, msg.caller, false))) return [];
     };
     // The latest `limit` events (all when limit = 0), oldest first.
     let seqs = switch (Map.get(eventsByProperty, Text.compare, propertyId)) {
@@ -595,8 +714,10 @@ persistent actor Sensor {
 
   // M-07: restrict getPendingAlerts to property owner, admin, or trusted gateway
   public shared(msg) func getPendingAlerts(propertyId: Text) : async [SensorEvent] {
+    if (Principal.isAnonymous(msg.caller)) return [];
     if (not isAdmin(msg.caller) and not isGateway(msg.caller)) {
-      if (not ownsDeviceOn(propertyId, msg.caller)) return [];
+      // M9: current owner/manager of the property, checked live.
+      if (not (await authorizedOn(propertyId, msg.caller, false))) return [];
     };
     Iter.toArray(
       Iter.filter(propertyEvents(propertyId), func(e: SensorEvent) : Bool {
@@ -625,7 +746,17 @@ persistent actor Sensor {
   /// Authorize an IoT gateway identity to call recordEvent().
   public shared(msg) func addGateway(gw: Principal) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    authorizedGateways := Array.concat(authorizedGateways, [gw]);
+    // L8: no duplicates.
+    if (not isGateway(gw)) {
+      authorizedGateways := Array.concat(authorizedGateways, [gw]);
+    };
+    #ok(())
+  };
+
+  /// L8: revoke an IoT gateway identity (e.g. a compromised gateway key). Admin only.
+  public shared(msg) func removeGateway(gw: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    authorizedGateways := Array.filter<Principal>(authorizedGateways, func(g) { g != gw });
     #ok(())
   };
 
@@ -638,7 +769,8 @@ persistent actor Sensor {
 
   /// H-20: Set the one-time bootstrap nonce before calling addAdmin() the first time.
   /// Ignored once the admin list is initialized, and can only be set once.
-  public shared func setBootstrapNonce(nonce: Text) : async () {
+  public shared(msg) func setBootstrapNonce(nonce: Text) : async () {
+    if (not Principal.isController(msg.caller)) return;  // only a controller may open the bootstrap
     if (adminListEntries.size() > 0) return;  // already bootstrapped — ignore
     if (bootstrapNonce != null) return;  // nonce already set — can only be set once
     bootstrapNonce := ?nonce;

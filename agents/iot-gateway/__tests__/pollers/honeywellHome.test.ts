@@ -161,7 +161,7 @@ describe("persistTokenState", () => {
     expect(mockFs.writeFileSync).toHaveBeenCalledWith(
       expect.any(String),
       JSON.stringify(state, null, 2),
-      "utf8"
+      { encoding: "utf8", mode: 0o600 }
     );
   });
 

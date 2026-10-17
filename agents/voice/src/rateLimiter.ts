@@ -114,3 +114,35 @@ export async function checkChatRateLimit(
   await env.RATE_LIMIT.put(key, String(count + 1), { expirationTtl: 2 * 86_400 });
   return { allowed: true, count: count + 1, limit, resetsAt };
 }
+
+// ── Other AI / paid-API routes: per-principal daily cap (F-4) ───────────────
+//
+// /api/classify, /api/extract-*, /api/pulse, /api/negotiate, /api/rentcast/…
+// each cost Anthropic or Rentcast money. They used to be gated only by the
+// public x-api-key; now they need a session, and each principal gets a daily
+// budget. Note (F-10): KV get→put is not atomic and replicates eventually, so
+// a parallel burst can overshoot these soft limits; making them exact needs a
+// Durable Object or the Workers Rate Limiting binding, neither of which is
+// configured for this Worker yet.
+
+export const AUX_AI_DAILY_LIMITS: Record<string, number> = {
+  Free:           25,
+  ContractorFree: 25,
+  Pro:            200,
+  ContractorPro:  200,
+};
+
+export async function checkAuxAiRateLimit(
+  principal: string,
+  tier: string,
+  env: KVEnv,
+): Promise<AgentLimitResult> {
+  const limit    = AUX_AI_DAILY_LIMITS[tier] ?? AUX_AI_DAILY_LIMITS.Free;
+  const resetsAt = nextResetUtc("day");
+  const key      = `aux:${principal}:${new Date().toISOString().slice(0, 10)}`;
+  const raw      = await env.RATE_LIMIT.get(key);
+  const count    = raw ? Number(raw) : 0;
+  if (count >= limit) return { allowed: false, count, limit, resetsAt };
+  await env.RATE_LIMIT.put(key, String(count + 1), { expirationTtl: 2 * 86_400 });
+  return { allowed: true, count: count + 1, limit, resetsAt };
+}

@@ -33,6 +33,14 @@ export function getSubscriptionsForPrincipal(principal: string): PushSubscriptio
   return registry.get(principal) ?? [];
 }
 
+export function findSubscription(endpoint: string): PushSubscription | undefined {
+  for (const subs of registry.values()) {
+    const hit = subs.find((s) => s.endpoint === endpoint);
+    if (hit) return hit;
+  }
+  return undefined;
+}
+
 export function removeSubscription(endpoint: string): void {
   let changed = false;
   for (const [principal, subs] of registry.entries()) {

@@ -4,6 +4,7 @@
  * Calls /api/extract-document on the voice agent to extract structured data
  * from an appliance manual, warranty card, receipt, inspection report, or permit.
  */
+import { voiceAgentFetch } from "./voiceAgentHeaders";
 
 const VOICE_AGENT_URL =
   (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:3001";
@@ -35,7 +36,7 @@ export async function extractDocument(
   mimeType: string,
   base64Data: string,
 ): Promise<DocumentExtraction> {
-  const res = await fetch(`${VOICE_AGENT_URL}/api/extract-document`, {
+  const res = await voiceAgentFetch(`${VOICE_AGENT_URL}/api/extract-document`, {
     method:  "POST",
     headers: { "Content-Type": "application/json" },
     body:    JSON.stringify({ fileName, mimeType, base64Data }),

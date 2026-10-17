@@ -28,6 +28,11 @@ vi.mock("react-router-dom", async (importOriginal) => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 vi.mock("@/store/authStore", () => ({ useAuthStore: mockUseAuthStore }));
+// voiceAgentFetch adds the x-agent-session header; here it's a plain fetch.
+vi.mock("@/services/voiceAgentHeaders", () => ({
+  voiceAgentFetch: (url: string, init?: RequestInit) => (global.fetch as any)(url, init),
+  voiceAgentHeaders: () => ({ "Content-Type": "application/json" }),
+}));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ login: mockLogin, devLogin: mockDevLogin, logout: vi.fn() }) }));
 vi.mock("@/services/payment", () => ({ paymentService: { subscribe: mockSubscribe, subscribeAnnual: mockSubscribeAnnual } }));
 vi.mock("@stripe/stripe-js", () => ({ loadStripe: vi.fn(() => Promise.resolve({})) }));

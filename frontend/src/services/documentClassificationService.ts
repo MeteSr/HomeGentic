@@ -5,6 +5,7 @@
  * Claude Vision classifies the document type and extracts metadata.
  * Falls back to a rule-based mock classifier when the agent is offline.
  */
+import { voiceAgentFetch } from "./voiceAgentHeaders";
 
 const CLASSIFY_URL =
   typeof import.meta !== "undefined"
@@ -130,7 +131,7 @@ export function createDocumentClassificationService() {
 
     try {
       const base64Data = await fileToBase64(file);
-      const res = await fetch(CLASSIFY_URL, {
+      const res = await voiceAgentFetch(CLASSIFY_URL, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ fileName: file.name, mimeType: file.type, base64Data }),

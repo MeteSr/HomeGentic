@@ -2,6 +2,97 @@ export interface Env {
   RESEND_API_KEY: string;
   // JSON array: RouteConfig[] — set via `wrangler secret put ROUTE_CONFIG`
   ROUTE_CONFIG: string;
+  // Optional Cloudflare Turnstile secret. When set, every /send must carry a
+  // valid `turnstileToken` (or `cf-turnstile-response`) field.
+  TURNSTILE_SECRET_KEY?: string;
+  // Optional KV namespace for a cross-isolate per-IP rate limit. Without it
+  // the limit is kept in memory per isolate (weaker, but never absent).
+  RATE_LIMIT_KV?: KVNamespace;
+}
+
+// ── Abuse controls (security audit F-12) ─────────────────────────────────────
+const MAX_BODY_BYTES     = 16 * 1024;
+const RATE_LIMIT_MAX     = 5;            // sends per IP per window
+const RATE_LIMIT_WINDOW  = 10 * 60;      // seconds
+const MEMORY_RL_MAX_KEYS = 10_000;
+const FIELD_LIMITS: Record<string, number> = {
+  name: 200, email: 254, phone: 40, address: 500, message: 5000,
+  source: 200, utmSource: 200, utmMedium: 200, utmCampaign: 200, timeline: 200,
+};
+
+const memoryHits = new Map<string, { count: number; resetAt: number }>();
+
+async function rateLimited(env: Env, ip: string): Promise<boolean> {
+  const now = Math.floor(Date.now() / 1000);
+  if (env.RATE_LIMIT_KV) {
+    const key = `email-rl:${ip}`;
+    const raw = await env.RATE_LIMIT_KV.get(key);
+    const entry = raw ? (JSON.parse(raw) as { count: number; resetAt: number }) : null;
+    const cur = entry && entry.resetAt > now ? entry : { count: 0, resetAt: now + RATE_LIMIT_WINDOW };
+    if (cur.count >= RATE_LIMIT_MAX) return true;
+    cur.count += 1;
+    await env.RATE_LIMIT_KV.put(key, JSON.stringify(cur), {
+      expirationTtl: Math.max(60, cur.resetAt - now),
+    });
+    return false;
+  }
+  const entry = memoryHits.get(ip);
+  if (entry && entry.resetAt > now) {
+    if (entry.count >= RATE_LIMIT_MAX) return true;
+    entry.count += 1;
+    return false;
+  }
+  if (memoryHits.size >= MEMORY_RL_MAX_KEYS) {
+    for (const [k, v] of memoryHits) if (v.resetAt <= now) memoryHits.delete(k);
+    if (memoryHits.size >= MEMORY_RL_MAX_KEYS) memoryHits.clear();
+  }
+  memoryHits.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
+  return false;
+}
+
+async function verifyTurnstile(secret: string, token: string, ip: string): Promise<boolean> {
+  const form = new FormData();
+  form.append("secret", secret);
+  form.append("response", token);
+  if (ip) form.append("remoteip", ip);
+  try {
+    const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      body: form,
+    });
+    const data = (await res.json()) as { success?: boolean };
+    return data.success === true;
+  } catch {
+    return false;
+  }
+}
+
+// local@domain.tld with no whitespace or angle brackets. Checked without a
+// backtracking regex so a crafted address can't stall the Worker.
+function isPlainEmail(s: string): boolean {
+  if (/[\s<>]/.test(s)) return false;
+  const at = s.indexOf("@");
+  if (at < 1 || at !== s.lastIndexOf("@")) return false;
+  const domain = s.slice(at + 1);
+  const dot = domain.lastIndexOf(".");
+  return dot > 0 && dot < domain.length - 1;
+}
+
+function fieldError(p: LeadPayload): string | null {
+  for (const [field, max] of Object.entries(FIELD_LIMITS)) {
+    const v = (p as Record<string, unknown>)[field];
+    if (v === undefined || v === null) continue;
+    if (typeof v !== "string") return `Invalid field: ${field}`;
+    if (v.length > max) return `Field too long: ${field}`;
+  }
+  if (p.estimatedPrice !== undefined && p.estimatedPrice !== null &&
+      (typeof p.estimatedPrice !== "number" || !Number.isFinite(p.estimatedPrice))) {
+    return "Invalid field: estimatedPrice";
+  }
+  if (/[\r\n]/.test(p.name ?? "") || !isPlainEmail(p.email ?? "")) {
+    return "Invalid name or email";
+  }
+  return null;
 }
 
 interface RouteConfig {
@@ -24,6 +115,8 @@ interface LeadPayload {
   estimatedPrice?: number;
   timeline?:       string;
   website?:        string; // honeypot — must be absent or empty
+  turnstileToken?: string;
+  "cf-turnstile-response"?: string;
 }
 
 export default {
@@ -52,9 +145,22 @@ export default {
 
     if (!route) return json({ error: "Forbidden" }, 403, origin);
 
+    const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
+    if (await rateLimited(env, ip)) {
+      return json({ error: "Too many requests" }, 429, origin);
+    }
+
+    const declaredLen = Number(request.headers.get("Content-Length") ?? "0");
+    if (declaredLen > MAX_BODY_BYTES) return json({ error: "Payload too large" }, 413, origin);
+    const bodyText = await request.text();
+    if (new TextEncoder().encode(bodyText).length > MAX_BODY_BYTES) {
+      return json({ error: "Payload too large" }, 413, origin);
+    }
+
     let payload: LeadPayload;
     try {
-      payload = await request.json() as LeadPayload;
+      payload = JSON.parse(bodyText) as LeadPayload;
+      if (!payload || typeof payload !== "object") throw new Error("not an object");
     } catch {
       return json({ error: "Invalid JSON" }, 400, origin);
     }
@@ -64,8 +170,19 @@ export default {
       return json({ ok: true }, 200, origin);
     }
 
-    if (!payload.name?.trim() || !payload.email?.trim()) {
+    if (typeof payload.name !== "string" || typeof payload.email !== "string" ||
+        !payload.name.trim() || !payload.email.trim()) {
       return json({ error: "Missing required fields: name, email" }, 422, origin);
+    }
+    const invalid = fieldError(payload);
+    if (invalid) return json({ error: invalid }, 422, origin);
+
+    if (env.TURNSTILE_SECRET_KEY) {
+      const token = payload.turnstileToken ?? payload["cf-turnstile-response"] ?? "";
+      if (typeof token !== "string" || !token ||
+          !(await verifyTurnstile(env.TURNSTILE_SECRET_KEY, token, ip))) {
+        return json({ error: "Verification failed" }, 403, origin);
+      }
     }
 
     const resendRes = await fetch("https://api.resend.com/emails", {
@@ -138,7 +255,7 @@ function buildHtml(p: LeadPayload, origin: string): string {
     .map(([k, v]) =>
       `<tr>
         <td style="padding:8px 16px;font-weight:600;white-space:nowrap;color:#374151;background:#f9fafb;border-bottom:1px solid #e5e7eb;">${k}</td>
-        <td style="padding:8px 16px;color:#111827;border-bottom:1px solid #e5e7eb;">${esc(v)}</td>
+        <td style="padding:8px 16px;color:#111827;border-bottom:1px solid #e5e7eb;">${esc(String(v))}</td>
       </tr>`
     )
     .join("\n");

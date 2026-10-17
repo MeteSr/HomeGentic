@@ -100,6 +100,9 @@ persistent actor Recurring {
   /// H-20: Bootstrap nonce — must be set via setBootstrapNonce() before the
   /// first addAdmin() call. Consumed on first successful use.
   private var bootstrapNonce    : ?Text       = null;
+  /// M8: property canister ID for live owner/manager checks — set post-deploy
+  /// via setPropertyCanisterId(). Empty = local dev (falls back to homeowner == caller).
+  private var propCanisterId    : Text        = "";
   // ─── Stable State ────────────────────────────────────────────────────────────
 
   private let services = Map.empty<Text, RecurringService>();
@@ -168,6 +171,21 @@ persistent actor Recurring {
     #ok(())
   };
 
+  /// M8: is `caller` the property's owner/manager (write = needs write access)?
+  /// Asked live from the property canister so a former owner loses access.
+  /// When the property canister isn't wired (local dev), only `fallbackOwner` passes.
+  private func checkPropertyAuth(propertyId: Text, fallbackOwner: Principal, caller: Principal, requireWrite: Bool) : async Bool {
+    if (isAdmin(caller)) return true;
+    if (Text.size(propCanisterId) > 0) {
+      let propActor = actor(propCanisterId) : actor {
+        isAuthorized : (Text, Principal, Bool) -> async Bool;
+      };
+      try { await propActor.isAuthorized(propertyId, caller, requireWrite) } catch (_) { false }
+    } else {
+      caller == fallbackOwner
+    }
+  };
+
   private func nextRecurringId() : Text {
     "REC_" # Int.toText(Int.abs(Time.now()) / 1_000_000)
   };
@@ -203,6 +221,10 @@ persistent actor Recurring {
     switch (contractEndDate) { case (?v) { if (Text.size(v) > 10)  return #err(#InvalidInput("contractEndDate exceeds 10 characters"))  }; case null {} };
     switch (notes)           { case (?v) { if (Text.size(v) > 2000) return #err(#InvalidInput("notes exceed 2000 characters"))          }; case null {} };
 
+    // M8: only the property's owner or a write-capable manager may add services.
+    if (not (await checkPropertyAuth(propertyId, msg.caller, msg.caller, true)))
+      return #err(#NotAuthorized);
+
     let id  = nextRecurringId();
     let now = Time.now();
 
@@ -228,15 +250,34 @@ persistent actor Recurring {
   };
 
   /// Fetch a single recurring service by ID.
-  public query func getRecurringService(serviceId: Text) : async Result.Result<RecurringService, Error> {
+  /// M8: owner/manager of the property (or admin) only.
+  public shared(msg) func getRecurringService(serviceId: Text) : async Result.Result<RecurringService, Error> {
+    if (Principal.isAnonymous(msg.caller)) return #err(#NotAuthorized);
     switch (Map.get(services, Text.compare, serviceId)) {
       case null  { #err(#NotFound) };
-      case (?s)  { #ok(s) };
+      case (?s)  {
+        if (not (await checkPropertyAuth(s.propertyId, s.homeowner, msg.caller, false)))
+          return #err(#NotAuthorized);
+        switch (Map.get(services, Text.compare, serviceId)) {
+          case null    { #err(#NotFound) };
+          case (?cur)  { #ok(cur) };
+        }
+      };
     }
   };
 
   /// Fetch all recurring services for a given property.
-  public query func getByProperty(propertyId: Text) : async [RecurringService] {
+  /// M8: owner/manager of the property (or admin) only; others get [].
+  public shared(msg) func getByProperty(propertyId: Text) : async [RecurringService] {
+    if (Principal.isAnonymous(msg.caller)) return [];
+    if (Text.size(propCanisterId) == 0 and not isAdmin(msg.caller)) {
+      // Local dev: only the caller's own records.
+      return Iter.toArray(Iter.filter<RecurringService>(
+        Index.records(servicesByProperty, propertyId, services),
+        func(s) { s.homeowner == msg.caller }
+      ));
+    };
+    if (not (await checkPropertyAuth(propertyId, msg.caller, msg.caller, false))) return [];
     Iter.toArray(
       Index.records(servicesByProperty, propertyId, services)
     )
@@ -253,9 +294,15 @@ persistent actor Recurring {
 
     switch (Map.get(services, Text.compare, serviceId)) {
       case null { #err(#NotFound) };
-      case (?existing) {
-        if (existing.homeowner != msg.caller and not isAdmin(msg.caller))
+      case (?first) {
+        // M8: owner/manager of the property, checked live (former owners lose access).
+        if (not (await checkPropertyAuth(first.propertyId, first.homeowner, msg.caller, true)))
           return #err(#NotAuthorized);
+        // Re-read after the await (TOCTOU).
+        let existing = switch (Map.get(services, Text.compare, serviceId)) {
+          case null { return #err(#NotFound) };
+          case (?cur) { cur };
+        };
 
         switch (existing.status) {
           case (#Cancelled) { return #err(#AlreadyCancelled) };
@@ -295,9 +342,15 @@ persistent actor Recurring {
 
     switch (Map.get(services, Text.compare, serviceId)) {
       case null { #err(#NotFound) };
-      case (?existing) {
-        if (existing.homeowner != msg.caller and not isAdmin(msg.caller))
+      case (?first) {
+        // M8: owner/manager of the property, checked live (former owners lose access).
+        if (not (await checkPropertyAuth(first.propertyId, first.homeowner, msg.caller, true)))
           return #err(#NotAuthorized);
+        // Re-read after the await (TOCTOU).
+        let existing = switch (Map.get(services, Text.compare, serviceId)) {
+          case null { return #err(#NotFound) };
+          case (?cur) { cur };
+        };
 
         let updated : RecurringService = {
           id                 = existing.id;
@@ -337,9 +390,15 @@ persistent actor Recurring {
 
     switch (Map.get(services, Text.compare, serviceId)) {
       case null { #err(#NotFound) };
-      case (?svc) {
-        if (svc.homeowner != msg.caller and not isAdmin(msg.caller))
+      case (?first) {
+        // M8: owner/manager of the property, checked live (former owners lose access).
+        if (not (await checkPropertyAuth(first.propertyId, first.homeowner, msg.caller, true)))
           return #err(#NotAuthorized);
+        // Re-read after the await (TOCTOU).
+        let svc = switch (Map.get(services, Text.compare, serviceId)) {
+          case null { return #err(#NotFound) };
+          case (?cur) { cur };
+        };
 
         let id  = nextVisitId();
         let now = Time.now();
@@ -359,7 +418,15 @@ persistent actor Recurring {
   };
 
   /// Fetch all visit log entries for a recurring service, sorted by visitDate descending.
-  public query func getVisitLogs(serviceId: Text) : async [VisitLog] {
+  /// M8: owner/manager of the service's property (or admin) only; others get [].
+  public shared(msg) func getVisitLogs(serviceId: Text) : async [VisitLog] {
+    if (Principal.isAnonymous(msg.caller)) return [];
+    switch (Map.get(services, Text.compare, serviceId)) {
+      case null { return [] };
+      case (?svc) {
+        if (not (await checkPropertyAuth(svc.propertyId, svc.homeowner, msg.caller, false))) return [];
+      };
+    };
     let matches = Iter.toArray(
       Index.records(visitsByService, serviceId, visits)
     );
@@ -373,6 +440,13 @@ persistent actor Recurring {
 
   // ─── Admin Functions ──────────────────────────────────────────────────────────
 
+  /// M8: wire the property canister for live owner/manager checks (admin only).
+  public shared(msg) func setPropertyCanisterId(id: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    propCanisterId := Principal.toText(id);
+    #ok(())
+  };
+
   /// Set the update-call rate limit (admin only). Pass 0 to disable enforcement.
   public shared(msg) func setUpdateRateLimit(n: Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
@@ -382,7 +456,8 @@ persistent actor Recurring {
 
   /// H-20: Set the one-time bootstrap nonce before calling addAdmin() the first time.
   /// Ignored once adminInitialized = true, and can only be set once.
-  public shared func setBootstrapNonce(nonce: Text) : async () {
+  public shared(msg) func setBootstrapNonce(nonce: Text) : async () {
+    if (not Principal.isController(msg.caller)) return;  // only a controller may open the bootstrap
     if (adminInitialized) return;  // already bootstrapped — ignore
     if (bootstrapNonce != null) return;  // nonce already set — can only be set once
     bootstrapNonce := ?nonce;

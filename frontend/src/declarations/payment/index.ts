@@ -163,5 +163,27 @@ export const idlFactory = ({ IDL }: any) => {
       [IDL.Variant({ ok: IDL.Nat, err: Error })],
       []
     ),
+    // ── Stripe relay (voice Worker) — idempotent per Stripe reference ──
+    stripeGrantAgentCredits: IDL.Func(
+      [IDL.Principal, IDL.Nat, IDL.Text],
+      [IDL.Variant({ ok: IDL.Nat, err: Error })],
+      []
+    ),
+    stripeActivateSubscription: IDL.Func(
+      [IDL.Principal, Tier, IDL.Int, IDL.Text],
+      [IDL.Variant({ ok: Subscription, err: Error })],
+      []
+    ),
+    addStripeRelay: IDL.Func(
+      [IDL.Principal],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
+    removeStripeRelay: IDL.Func(
+      [IDL.Principal],
+      [IDL.Variant({ ok: IDL.Null, err: Error })],
+      []
+    ),
+    listStripeRelays: IDL.Func([], [IDL.Vec(IDL.Principal)], ["query"]),
   });
 };

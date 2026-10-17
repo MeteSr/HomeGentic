@@ -8,6 +8,8 @@
  * VA.5  dismissProposal sets pendingProposal to null
  * VA.6  sendChat goes through the session-authenticated fetch, and a 429
  *       (Free daily chat limit) shows a friendly message and flags the quota
+ * VA.7  F-8: side-effecting tool calls need explicit user confirmation;
+ *       read-only tools run without asking
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -31,7 +33,8 @@ vi.mock("@/store/authStore",           () => ({ useAuthStore: Object.assign(() =
 const mockFetchWithAgentSession = vi.fn();
 vi.mock("@/services/agentSession",      () => ({ fetchWithAgentSession: (...a: unknown[]) => mockFetchWithAgentSession(...a) }));
 
-import { useVoiceAgent } from "@/hooks/useVoiceAgent";
+import { useVoiceAgent, setToolConfirmationHandler, toolNeedsConfirmation } from "@/hooks/useVoiceAgent";
+import { executeTool } from "@/services/agentTools";
 
 beforeEach(() => {
   // Ensure SpeechRecognition is undefined in jsdom (it is by default)
@@ -131,5 +134,70 @@ describe("sendChat", () => {
     expect(result.current.state).toBe("error");
     expect(result.current.error).toMatch(/free questions/i);
     expect(result.current.quotaExhausted).toBe(true);
+  });
+});
+
+// ── VA.7 ─────────────────────────────────────────────────────────────────────
+
+describe("VA.7 — side-effecting tools need confirmation (F-8)", () => {
+  const toolCallsResponse = {
+    status: 200, ok: true,
+    json: async () => ({
+      type: "tool_calls",
+      assistantMessage: { role: "assistant", content: [] },
+      toolCalls: [
+        { id: "t1", name: "accept_bid", input: { quote_id: "Q-ATTACKER" } },
+        { id: "t2", name: "list_bids",  input: {} },
+      ],
+    }),
+  };
+  const answerResponse = { status: 200, ok: true, json: async () => ({ type: "answer", text: "ok" }) };
+
+  async function runLoop() {
+    const { result } = renderHook(() => useVoiceAgent());
+    await act(async () => { await result.current.attachImage(new File(["x"], "x.png", { type: "image/png" })); });
+    await act(async () => { result.current.sendImageToAgent("show my bids"); });
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+  }
+
+  beforeEach(() => {
+    vi.mocked(executeTool).mockReset().mockResolvedValue({ success: true, data: {} });
+    mockFetchWithAgentSession.mockReset()
+      .mockResolvedValueOnce(toolCallsResponse)
+      .mockResolvedValueOnce(answerResponse);
+  });
+
+  it("classifies tools: writes need confirmation, reads don't, unknown tools do", () => {
+    expect(toolNeedsConfirmation("accept_bid")).toBe(true);
+    expect(toolNeedsConfirmation("share_report")).toBe(true);
+    expect(toolNeedsConfirmation("propose_job")).toBe(true);
+    expect(toolNeedsConfirmation("list_bids")).toBe(false);
+    expect(toolNeedsConfirmation("some_future_tool")).toBe(true);
+  });
+
+  it("a declined write is not executed and the model is told so", async () => {
+    const confirm = vi.fn().mockResolvedValue(false);
+    setToolConfirmationHandler(confirm);
+    try {
+      await runLoop();
+    } finally {
+      setToolConfirmationHandler(null);
+    }
+    expect(confirm).toHaveBeenCalledWith("accept_bid", { quote_id: "Q-ATTACKER" }, "");
+    expect(confirm).toHaveBeenCalledTimes(1);   // list_bids is read-only
+    expect(vi.mocked(executeTool).mock.calls.map((c) => c[0])).toEqual(["list_bids"]);
+    const secondBody = JSON.parse(mockFetchWithAgentSession.mock.calls[1][1].body);
+    const results = secondBody.messages.at(-1).content;
+    expect(JSON.parse(results[0].content).error).toMatch(/declined/);
+  });
+
+  it("an approved write runs", async () => {
+    setToolConfirmationHandler(() => true);
+    try {
+      await runLoop();
+    } finally {
+      setToolConfirmationHandler(null);
+    }
+    expect(vi.mocked(executeTool).mock.calls.map((c) => c[0])).toEqual(["accept_bid", "list_bids"]);
   });
 });

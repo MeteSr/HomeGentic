@@ -131,6 +131,7 @@ describe("payment IDL factory", () => {
   it("exposes the expected methods", () => {
     const svc = extractService(paymentIdlFactory);
     expect(Object.keys(svc).sort()).toEqual([
+      "addStripeRelay",
       "adminGrantAgentCredits",
       "cancelSubscription",
       "configureStripe",
@@ -145,8 +146,12 @@ describe("payment IDL factory", () => {
       "initAdmins",
       "isStripeConfigured",
       "listPendingGifts",
+      "listStripeRelays",
       "redeemGift",
+      "removeStripeRelay",
       "setBootstrapNonce",
+      "stripeActivateSubscription",
+      "stripeGrantAgentCredits",
       "subscribe",
       "verifyStripeSession",
     ]);
@@ -158,7 +163,7 @@ describe("payment IDL factory", () => {
       .filter(([, sig]) => sig.mode.includes("query"))
       .map(([name]) => name)
       .sort();
-    expect(queries).toEqual(["getAllPricing", "getMyAgentCredits", "getMySubscription", "getPricing", "getSubscriptionStats", "isStripeConfigured", "listPendingGifts"]);
+    expect(queries).toEqual(["getAllPricing", "getMyAgentCredits", "getMySubscription", "getPricing", "getSubscriptionStats", "isStripeConfigured", "listPendingGifts", "listStripeRelays"]);
   });
 
   it("getSubscriptionStats returns all tier breakdown fields", () => {
@@ -330,12 +335,14 @@ describe("listing IDL factory", () => {
       "getMyBidRequests",
       "getMyProposals",
       "getOpenBidRequests",
+      "getOpenBidRequestsPage",
       "getPanoramas",
       "getPhotoReviewState",
       "getPlatformFee",
       "getProposalsForRequest",
       "getThread",
       "listActiveFsboListings",
+      "listActiveFsboListingsPage",
       "markListingFeePaid",
       "postMessage",
       "removeListingPhoto",
@@ -369,12 +376,14 @@ describe("listing IDL factory", () => {
       "getMyBidRequests",
       "getMyProposals",
       "getOpenBidRequests",
+      "getOpenBidRequestsPage",
       "getPanoramas",
       "getPhotoReviewState",
       "getPlatformFee",
       "getProposalsForRequest",
       "getThread",
       "listActiveFsboListings",
+      "listActiveFsboListingsPage",
     ]);
   });
 
@@ -633,10 +642,10 @@ describe("sensor IDL factory", () => {
       .map(([name]) => name)
       .sort();
     // getEventsForProperty and getPendingAlerts use msg.caller (M-07 ownership check)
-    // so they are update calls, not queries.
-    expect(queries).toEqual([
-      "getDevicesForProperty",
-    ]);
+    // so they are update calls, not queries. getDevicesForProperty is a
+    // composite query (M9: live property-role check against the property canister).
+    expect(queries).toEqual([]);
+    expect(svc.getDevicesForProperty.mode).toEqual(["composite_query"]);
   });
 
   it("getEventsForProperty limit arg is nat", () => {
@@ -667,9 +676,9 @@ describe("maintenance IDL factory", () => {
     ]);
   });
 
-  it("getScheduleByProperty is a query", () => {
+  it("getScheduleByProperty is an update call (M8: live property-auth check)", () => {
     const svc = extractService(maintenanceIdlFactory);
-    expect(svc.getScheduleByProperty.mode).toContain("query");
+    expect(svc.getScheduleByProperty.mode).not.toContain("query");
   });
 
   it("createScheduleEntry optional args are opt nat (nullable interval/last-completed)", () => {

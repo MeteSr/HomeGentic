@@ -2,7 +2,11 @@
  * @jest-environment node
  */
 // POST /api/push/register — the caller comes from the x-agent-session token.
-jest.mock("../store", () => ({ registerToken: jest.fn(), removeToken: jest.fn() }));
+jest.mock("../store", () => ({
+  registerToken: jest.fn(),
+  removeToken: jest.fn(),
+  getTokensForPrincipal: jest.fn(() => []),
+}));
 jest.mock("../session", () => ({ requestPrincipal: jest.fn() }));
 jest.mock("web-push", () => ({
   setVapidDetails:   jest.fn(),
@@ -11,8 +15,8 @@ jest.mock("web-push", () => ({
 }));
 
 import request from "supertest";
-import { buildApp } from "../server";
-import { registerToken } from "../store";
+import { buildApp, safeEqual, unsubscribeTokenFor } from "../server";
+import { getTokensForPrincipal, registerToken, removeToken } from "../store";
 import { requestPrincipal } from "../session";
 
 const mockRegister  = registerToken    as jest.MockedFunction<typeof registerToken>;
@@ -44,5 +48,59 @@ describe("POST /api/push/register", () => {
     mockPrincipal.mockResolvedValue("session-user");
     expect((await request(app).post("/api/push/register").send({ platform: "ios" })).status).toBe(400);
     expect((await request(app).post("/api/push/register").send({ token: "t", platform: "web" })).status).toBe(400);
+  });
+});
+
+describe("POST /api/push/unregister", () => {
+  const mockRemove = removeToken as jest.MockedFunction<typeof removeToken>;
+  const mockTokens = getTokensForPrincipal as jest.MockedFunction<typeof getTokensForPrincipal>;
+
+  it("returns the unsubscribe token on register", async () => {
+    mockPrincipal.mockResolvedValue("session-user");
+    const res = await request(app)
+      .post("/api/push/register")
+      .send({ token: "apns-token", platform: "ios" });
+    expect(res.body.unsubscribeToken).toBe(unsubscribeTokenFor("device", "apns-token"));
+  });
+
+  it("removes the token with a valid unsubscribe token and no session", async () => {
+    mockPrincipal.mockResolvedValue(null);
+    const res = await request(app)
+      .post("/api/push/unregister")
+      .send({ token: "apns-token", unsubscribeToken: unsubscribeTokenFor("device", "apns-token") });
+    expect(res.status).toBe(200);
+    expect(mockRemove).toHaveBeenCalledWith("apns-token");
+  });
+
+  it("requires a session when no valid unsubscribe token is given", async () => {
+    mockPrincipal.mockResolvedValue(null);
+    const res = await request(app)
+      .post("/api/push/unregister")
+      .send({ token: "apns-token", unsubscribeToken: "forged" });
+    expect(res.status).toBe(401);
+    expect(mockRemove).not.toHaveBeenCalled();
+  });
+
+  it("does not remove another user's token", async () => {
+    mockPrincipal.mockResolvedValue("attacker");
+    mockTokens.mockReturnValue([]);
+    const res = await request(app).post("/api/push/unregister").send({ token: "victim-token" });
+    expect(res.status).toBe(200);
+    expect(mockRemove).not.toHaveBeenCalled();
+  });
+
+  it("removes the caller's own token", async () => {
+    mockPrincipal.mockResolvedValue("owner");
+    mockTokens.mockReturnValue([{ token: "mine", platform: "ios", updatedAt: 1 }]);
+    await request(app).post("/api/push/unregister").send({ token: "mine" });
+    expect(mockRemove).toHaveBeenCalledWith("mine");
+  });
+});
+
+describe("safeEqual", () => {
+  it("compares strings in constant time semantics", () => {
+    expect(safeEqual("abc", "abc")).toBe(true);
+    expect(safeEqual("abc", "abd")).toBe(false);
+    expect(safeEqual("abc", "abcd")).toBe(false);
   });
 });

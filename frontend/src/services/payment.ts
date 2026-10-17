@@ -1,5 +1,6 @@
 import { Actor } from "@icp-sdk/core/agent";
-import { getAgent, getPrincipal } from "./actor";
+import { getAgent } from "./actor";
+import { voiceAgentFetch } from "./voiceAgentHeaders";
 import { idlFactory } from "@/declarations/payment";
 export { idlFactory };
 
@@ -247,12 +248,12 @@ export const paymentService = {
     if (USE_EXPRESS_CHECKOUT) {
       // Dev: local dfx replica doesn't forward custom HTTP headers in outcalls.
       // Route through the Express voice server which uses the Stripe Node SDK.
-      const principal  = await getPrincipal().catch(() => "");
+      // The Worker takes the principal from the x-agent-session token, not the body.
       const successUrl = `${window.location.origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`;
       const cancelUrl  = `${window.location.origin}/payment-failure`;
-      const body: Record<string, unknown> = { tier, billing, successUrl, cancelUrl, principal };
+      const body: Record<string, unknown> = { tier, billing, successUrl, cancelUrl };
       if (gift) body.gift = gift;
-      const resp = await fetch(`${VOICE_AGENT_URL}/api/stripe/create-checkout`, {
+      const resp = await voiceAgentFetch(`${VOICE_AGENT_URL}/api/stripe/create-checkout`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
       });
       const data = await resp.json();
@@ -288,7 +289,7 @@ export const paymentService = {
     sessionId: string,
   ): Promise<{ type: "subscription"; tier?: string; billing?: string } | { type: "gift"; giftToken: string }> {
     if (USE_EXPRESS_CHECKOUT) {
-      const resp = await fetch(`${VOICE_AGENT_URL}/api/stripe/verify-session`, {
+      const resp = await voiceAgentFetch(`${VOICE_AGENT_URL}/api/stripe/verify-session`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId }),
       });
@@ -338,13 +339,13 @@ export const paymentService = {
    * `packSize` must be 25 or 100.
    */
   async startCreditPackCheckout(packSize: 25 | 100): Promise<void> {
-    const principal  = await getPrincipal().catch(() => "");
+    // Credits go to the session's principal (x-agent-session), never a body field.
     const successUrl = `${window.location.origin}/payment-success?credit_session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl  = `${window.location.origin}/payment-failure`;
-    const resp = await fetch(`${VOICE_AGENT_URL}/api/stripe/create-credit-checkout`, {
+    const resp = await voiceAgentFetch(`${VOICE_AGENT_URL}/api/stripe/create-credit-checkout`, {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ packSize, principal, successUrl, cancelUrl }),
+      body:    JSON.stringify({ packSize, successUrl, cancelUrl }),
     });
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error ?? "Checkout failed");

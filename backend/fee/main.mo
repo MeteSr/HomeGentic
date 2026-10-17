@@ -164,6 +164,18 @@ persistent actor Fee {
     }
   };
 
+  /// M13: the fee record for a Bid to List request. Read cross-canister by the
+  /// listing canister in markListingFeePaid, so an award is only released for
+  /// the proposal the homeowner selected and whose fee actually settled.
+  /// Admins and the wired listing canister only; everyone else gets null.
+  public query(msg) func getFeeForRequest(requestId: Text) : async ?FeeRecord {
+    if (not isTrusted(msg.caller)) return null;
+    switch (Map.get(feeByRequest, Text.compare, requestId)) {
+      case null { null };
+      case (?feeId) { Map.get(fees, Text.compare, feeId) };
+    }
+  };
+
   public query(msg) func getMyFees() : async [FeeRecord] {
     Iter.toArray(Index.records(feesByAgent, Principal.toText(msg.caller), fees))
   };
@@ -234,7 +246,8 @@ persistent actor Fee {
 
   /// H-20: Set the one-time bootstrap nonce before calling initAdmins() the first time.
   /// Ignored once adminInitialized = true, and can only be set once.
-  public shared func setBootstrapNonce(nonce: Text) : async () {
+  public shared(msg) func setBootstrapNonce(nonce: Text) : async () {
+    if (not Principal.isController(msg.caller)) return;  // only a controller may open the bootstrap
     if (adminInitialized) return;  // already bootstrapped — ignore
     if (bootstrapNonce != null) return;  // nonce already set — can only be set once
     bootstrapNonce := ?nonce;

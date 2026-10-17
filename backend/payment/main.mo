@@ -1,6 +1,7 @@
 import Array     "mo:core/Array";
 import Blob      "mo:core/Blob";
 import Debug     "mo:core/Debug";
+import Error     "mo:core/Error";
 import Int       "mo:core/Int";
 import Iter      "mo:core/Iter";
 import Map       "mo:core/Map";
@@ -13,6 +14,7 @@ import Result    "mo:core/Result";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
 import OutCall   "mo:caffeineai-http-outcalls/outcall";
+import IC        "ic:aaaaa-aa";
 
 persistent actor Payment {
 
@@ -247,6 +249,26 @@ persistent actor Payment {
     Option.isSome(Array.find<Principal>(adminEntries, func(a) { a == caller }))
   };
 
+  /// F-9: the voice Worker's identity only needs to activate Stripe-paid
+  /// subscriptions, grant/consume agent credits and downgrade on cancellation.
+  /// Relays may call exactly those functions — not addAdmin, configureStripe,
+  /// grantSubscription, pause, etc.
+  private var stripeRelayEntries : [Principal] = [];
+
+  private func isStripeRelay(caller: Principal) : Bool {
+    Option.isSome(Array.find<Principal>(stripeRelayEntries, func(a) { a == caller }))
+  };
+
+  private func isAdminOrRelay(caller: Principal) : Bool {
+    isAdmin(caller) or isStripeRelay(caller)
+  };
+
+  /// P-2 / H-1: Stripe objects that have already produced a grant, keyed by a
+  /// reference such as "cs:<checkout session id>", "credits:<session id>" or
+  /// "sub:<subscription id>:<period end>". Value = the principal credited.
+  /// Never pruned, so a replayed verify / credit purchase / gift is a no-op.
+  private let consumedStripeRefs = Map.empty<Text, Principal>();
+
   // Stripe
   private var stripeConfig        : ?StripeConfig                  = null;
   private let pendingGifts        = Map.empty<Text, PendingGift>();  // key = giftToken
@@ -353,7 +375,8 @@ persistent actor Payment {
 
   /// H-20: Set the one-time bootstrap nonce before calling initAdmins() the first time.
   /// Ignored once adminInitialized = true, and can only be set once.
-  public shared func setBootstrapNonce(nonce: Text) : async () {
+  public shared(msg) func setBootstrapNonce(nonce: Text) : async () {
+    if (not Principal.isController(msg.caller)) return;  // only a controller may open the bootstrap
     if (adminInitialized) return;  // already bootstrapped — ignore
     if (bootstrapNonce != null) return;  // nonce already set — can only be set once
     bootstrapNonce := ?nonce;
@@ -396,6 +419,30 @@ persistent actor Payment {
 
   public query func isAdminPrincipal(p: Principal) : async Bool {
     isAdmin(p)
+  };
+
+  /// F-9: register a principal (the voice Worker) that may only call the
+  /// Stripe activation / agent-credit functions. Use this instead of addAdmin.
+  public shared(msg) func addStripeRelay(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (Principal.isAnonymous(p)) return #err(#InvalidInput("anonymous principal"));
+    if (not isStripeRelay(p)) {
+      stripeRelayEntries := Array.concat(stripeRelayEntries, [p]);
+    };
+    try { ignore await auditLog("StripeRelayAdded", ?p, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
+    #ok(())
+  };
+
+  public shared(msg) func removeStripeRelay(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    stripeRelayEntries := Array.filter<Principal>(stripeRelayEntries, func(a) { a != p });
+    try { ignore await auditLog("StripeRelayRemoved", ?p, "caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
+    #ok(())
+  };
+
+  public query(msg) func listStripeRelays() : async [Principal] {
+    if (not isAdmin(msg.caller)) return [];
+    stripeRelayEntries
   };
 
   public shared(msg) func setAuditCanisterId(id : Principal) : async Result.Result<(), Error> {
@@ -477,6 +524,48 @@ persistent actor Payment {
       };
     };
     result
+  };
+
+  /// M-7: a Stripe Checkout Session id is `cs_test_` / `cs_live_` followed by
+  /// letters and digits. Anything else (`/`, `?`, `..`) could steer the
+  /// authenticated GET to another Stripe endpoint.
+  private func isValidCheckoutSessionId(s: Text) : Bool {
+    if (s.size() < 9 or s.size() > 255) return false;
+    if (not (Text.startsWith(s, #text "cs_test_") or Text.startsWith(s, #text "cs_live_"))) return false;
+    var i = 0;
+    for (c in s.chars()) {
+      if (i >= 8) {
+        let ok = (c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z') or (c >= '0' and c <= '9');
+        if (not ok) return false;
+      };
+      i += 1;
+    };
+    true
+  };
+
+  /// M-6: replicated GET — every replica fetches the URL and the subnet must
+  /// agree on the (header-stripped) response, so a single malicious replica
+  /// can't forge a "paid" session. The caffeineai library only does
+  /// non-replicated outcalls, hence this local helper.
+  private func stripeGetReplicated(url: Text, secretKey: Text) : async Text {
+    let req : IC.http_request_args = {
+      url;
+      max_response_bytes = ?(200_000 : Nat64);
+      headers = [
+        { name = "authorization"; value = "Bearer " # secretKey },
+        { name = "User-Agent";    value = "homegentic-payment" },
+      ];
+      body = null;
+      method = #get;
+      transform = ?{ function = transform; context = Blob.fromArray([]) };
+      is_replicated = ?true;
+    };
+    let resp = await (with cycles = 231_000_000_000) IC.http_request(req);
+    if (resp.status != 200) throw Error.reject("Stripe returned HTTP " # Nat.toText(resp.status));
+    switch (Text.decodeUtf8(resp.body)) {
+      case null  { throw Error.reject("Stripe response was not UTF-8") };
+      case (?t)  { t };
+    }
   };
 
   // #Pro is the single homeowner plan, annual-only ($59/year via proYearly;
@@ -599,8 +688,15 @@ persistent actor Payment {
         body,
         transform,
       );
-      let id  = switch (jsonExtract(json, "id"))  { case (?v) v; case null return #err(#PaymentFailed("No session ID in Stripe response: " # json)) };
-      let url = switch (jsonExtract(json, "url")) { case (?v) v; case null return #err(#PaymentFailed("No URL in Stripe response: " # json)) };
+      // M-7: never echo the raw Stripe response to the caller.
+      let id  = switch (jsonExtract(json, "id"))  { case (?v) v; case null return #err(#PaymentFailed("Stripe did not return a checkout session")) };
+      let url = switch (jsonExtract(json, "url")) { case (?v) v; case null return #err(#PaymentFailed("Stripe did not return a checkout URL")) };
+      // M-6: this POST is a non-replicated outcall (one replica answers), so
+      // refuse anything that isn't a Stripe-hosted checkout page for a
+      // well-formed session id rather than redirecting the user to it.
+      if (not isValidCheckoutSessionId(id) or not Text.startsWith(url, #text "https://checkout.stripe.com/")) {
+        return #err(#PaymentFailed("Unexpected Stripe checkout response"));
+      };
       #ok({ id; url })
     } catch (_e) {
       #err(#PaymentFailed("Stripe checkout request failed"))
@@ -614,10 +710,18 @@ persistent actor Payment {
   /// the gift token embedded in the message for gift sessions.
   public shared(msg) func verifyStripeSession(sessionId: Text) : async Result.Result<Subscription, Error> {
     switch (_requireActive(msg.caller)) { case (#err(e)) return #err(e); case (#ok(())) {} };
+    if (not isValidCheckoutSessionId(sessionId)) return #err(#InvalidInput("Invalid session id"));
 
     let cfg = switch (stripeConfig) {
       case null  { return #err(#PaymentFailed("Stripe is not configured")) };
       case (?c)  { c };
+    };
+
+    // H-1: a session already turned into a grant is never processed again.
+    let consumedKey = "cs:" # sessionId;
+    switch (alreadyConsumed(consumedKey, msg.caller)) {
+      case (?r) { return r };
+      case null {};
     };
 
     // In-flight guard: set before the HTTP outcall so a second concurrent call with
@@ -631,14 +735,14 @@ persistent actor Payment {
     // Labeled expression ensures Map.remove runs on every exit path.
     let result = label exit : Result.Result<Subscription, Error> {
       try {
-        let json = await OutCall.httpGetRequest(
+        let json = await stripeGetReplicated(
           "https://api.stripe.com/v1/checkout/sessions/" # sessionId,
-          [{ name = "authorization"; value = "Bearer " # cfg.secretKey }],
-          transform,
+          cfg.secretKey,
         );
 
+        // M-7: never echo Stripe's response body to the caller.
         if (json.contains(#text "\"error\"")) {
-          break exit (#err(#PaymentFailed("Stripe error: " # json)));
+          break exit (#err(#PaymentFailed("Stripe could not verify this session")));
         };
 
         let payStatus = switch (jsonExtract(json, "payment_status")) {
@@ -651,9 +755,7 @@ persistent actor Payment {
         };
 
         if (payStatus != "paid" or sessStatus != "complete") {
-          break exit (#err(#PaymentFailed(
-            "Payment not complete — status: " # sessStatus # ", payment_status: " # payStatus
-          )));
+          break exit (#err(#PaymentFailed("Payment not complete")));
         };
 
         let tierText_ = switch (jsonExtract(json, "tier")) {
@@ -662,26 +764,35 @@ persistent actor Payment {
         };
         let tier = switch (tierFromText(tierText_)) {
           case (?t) t;
-          case null break exit (#err(#PaymentFailed("Unknown tier: " # tierText_)));
+          case null break exit (#err(#PaymentFailed("Unknown tier in session metadata")));
         };
         let billing  = billingFromText(Option.get(jsonExtract(json, "billing"), "Monthly"));
         let isGift   = Option.get(jsonExtract(json, "is_gift"), "false") == "true";
         let now = Time.now();
 
+        // TOCTOU: re-check after the await — another call may have consumed it.
+        switch (alreadyConsumed(consumedKey, msg.caller)) {
+          case (?r) { break exit r };
+          case null {};
+        };
+
         if (isGift) {
-          let gift : PendingGift = {
-            giftToken      = sessionId;
-            tier;
-            billing;
-            recipientEmail = Option.get(jsonExtract(json, "recipient_email"), "");
-            recipientName  = Option.get(jsonExtract(json, "recipient_name"),  "");
-            senderName     = Option.get(jsonExtract(json, "sender_name"),     "");
-            giftMessage    = Option.get(jsonExtract(json, "gift_message"),    "");
-            deliveryDate   = Option.get(jsonExtract(json, "delivery_date"),   "");
-            createdAt      = now;
-            redeemedBy     = null;
+          // H-1: never overwrite an existing gift (that would reset redeemedBy).
+          if (Option.isNull(Map.get(pendingGifts, Text.compare, sessionId))) {
+            let gift : PendingGift = {
+              giftToken      = sessionId;
+              tier;
+              billing;
+              recipientEmail = Option.get(jsonExtract(json, "recipient_email"), "");
+              recipientName  = Option.get(jsonExtract(json, "recipient_name"),  "");
+              senderName     = Option.get(jsonExtract(json, "sender_name"),     "");
+              giftMessage    = Option.get(jsonExtract(json, "gift_message"),    "");
+              deliveryDate   = Option.get(jsonExtract(json, "delivery_date"),   "");
+              createdAt      = now;
+              redeemedBy     = null;
+            };
+            Map.add(pendingGifts, Text.compare, sessionId, gift);
           };
-          Map.add(pendingGifts, Text.compare, sessionId, gift);
           #err(#NotFound) // frontend detects this + sessionId to show gift-sent screen
         } else {
           let sessionPrincipal = Option.get(jsonExtract(json, "principal"), "");
@@ -695,7 +806,10 @@ persistent actor Payment {
             createdAt   = now;
             cancelledAt = null;
           };
+          // Consume and grant in the same message, before the next await.
+          Map.add(consumedStripeRefs, Text.compare, consumedKey, msg.caller);
           Map.add(subscriptions, Principal.compare, msg.caller, sub);
+          Map.remove(inFlightVerifications, Text.compare, sessionId);
           await notifyReferralConverted(msg.caller);
           #ok(sub)
         }
@@ -705,6 +819,23 @@ persistent actor Payment {
     };
     Map.remove(inFlightVerifications, Text.compare, sessionId);
     result
+  };
+
+  /// For an already-consumed Stripe reference: `?#ok(current subscription)`
+  /// when it was consumed by `caller` (an idempotent retry, e.g. a reload of
+  /// the success page), `?#err(#NotAuthorized)` when another principal used
+  /// it, `null` when it hasn't been consumed.
+  private func alreadyConsumed(key: Text, caller: Principal) : ?Result.Result<Subscription, Error> {
+    switch (Map.get(consumedStripeRefs, Text.compare, key)) {
+      case null { null };
+      case (?owner) {
+        if (owner != caller) return ?#err(#NotAuthorized);
+        switch (Map.get(subscriptions, Principal.compare, caller)) {
+          case (?sub) { ?#ok(sub) };
+          case null   { ?#err(#InvalidInput("Session already redeemed")) };
+        }
+      };
+    }
   };
 
   /// Redeem a pending gift. Any authenticated principal can call this once with
@@ -862,15 +993,23 @@ persistent actor Payment {
     #ok(sub)
   };
 
-  /// Called by the Express voice server after Stripe confirms payment.
-  /// Admin-guarded: only principals in adminEntries may call this.
-  /// months = 1 for monthly, 12 for yearly.
+  /// Admin: set a subscription to `tier` for `months` from now.
+  /// Stripe relays (the voice Worker) may only use it to downgrade to a free
+  /// tier (cancellation / failed payment); paid activations go through
+  /// stripeActivateSubscription, which is idempotent per Stripe reference and
+  /// takes its expiry from Stripe instead of "now + months".
   public shared(msg) func adminActivateStripeSubscription(
     userPrincipal : Principal,
     tier           : Tier,
     months         : Nat,
   ) : async Result.Result<Subscription, Error> {
-    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (not isAdmin(msg.caller)) {
+      if (not isStripeRelay(msg.caller)) return #err(#NotAuthorized);
+      switch (tier) {
+        case (#Free or #ContractorFree) {};
+        case _ { return #err(#NotAuthorized) };
+      };
+    };
     let now = Time.now();
     let durationNs : Int = Int.fromNat(months) * 30 * 24 * 60 * 60 * 1_000_000_000;
     let sub : Subscription = {
@@ -883,6 +1022,58 @@ persistent actor Payment {
     Map.add(subscriptions, Principal.compare, userPrincipal, sub);
     await notifyReferralConverted(userPrincipal);
     try { ignore await auditLog("TierActivated", ?userPrincipal, "months=" # Nat.toText(months) # " caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
+    #ok(sub)
+  };
+
+  /// P-2 / F-3: activate a Stripe-paid subscription, idempotently.
+  /// `stripeRef` identifies the paid Stripe object and period (the Worker uses
+  /// "sub:<subscription id>:<current_period_end>"); `expiresAt` is Stripe's
+  /// period end in nanoseconds. Replaying the same reference changes nothing,
+  /// so re-verifying a subscription can never extend it past what Stripe says.
+  /// Admin or Stripe relay only.
+  public shared(msg) func stripeActivateSubscription(
+    userPrincipal : Principal,
+    tier          : Tier,
+    expiresAt     : Int,
+    stripeRef     : Text,
+  ) : async Result.Result<Subscription, Error> {
+    if (not isAdminOrRelay(msg.caller)) return #err(#NotAuthorized);
+    switch (tier) {
+      case (#Pro or #ContractorPro) {};
+      case _ { return #err(#InvalidInput("paid tier required")) };
+    };
+    if (stripeRef.size() == 0 or stripeRef.size() > 200) return #err(#InvalidInput("invalid stripeRef"));
+    let now = Time.now();
+    let maxAhead : Int = 400 * 24 * 60 * 60 * 1_000_000_000;
+    if (expiresAt <= now or expiresAt > now + maxAhead) return #err(#InvalidInput("expiresAt out of range"));
+
+    switch (alreadyConsumed(stripeRef, userPrincipal)) {
+      case (?r) { return r };
+      case null {};
+    };
+
+    let existing = Map.get(subscriptions, Principal.compare, userPrincipal);
+    let (createdAt, finalExpiry) = switch (existing) {
+      // Same paid tier still running (e.g. a gift): don't shorten it.
+      case (?e) {
+        if (e.tier == tier and e.expiresAt > expiresAt) (e.createdAt, e.expiresAt)
+        else if (e.tier == tier) (e.createdAt, expiresAt)
+        else (now, expiresAt)
+      };
+      case null { (now, expiresAt) };
+    };
+    let sub : Subscription = {
+      owner       = userPrincipal;
+      tier;
+      expiresAt   = finalExpiry;
+      createdAt;
+      cancelledAt = null;
+    };
+    // Consume and write before any await.
+    Map.add(consumedStripeRefs, Text.compare, stripeRef, userPrincipal);
+    Map.add(subscriptions, Principal.compare, userPrincipal, sub);
+    await notifyReferralConverted(userPrincipal);
+    try { ignore await auditLog("TierActivated", ?userPrincipal, "ref=" # stripeRef # " caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[payment] fire-and-forget call failed") };
     #ok(sub)
   };
 
@@ -1064,12 +1255,46 @@ persistent actor Payment {
     #ok(updated.balance)
   };
 
+  /// P-2 / F-2: grant a credit pack once per Stripe reference
+  /// ("credits:<checkout session id>"). A replay returns
+  /// #err(#InvalidInput("already_consumed")) and grants nothing.
+  /// Admin or Stripe relay only.
+  public shared(msg) func stripeGrantAgentCredits(
+    user      : Principal,
+    amount    : Nat,
+    stripeRef : Text,
+  ) : async Result.Result<Nat, Error> {
+    if (not isAdminOrRelay(msg.caller)) return #err(#NotAuthorized);
+    if (amount == 0 or amount > 1000) return #err(#InvalidInput("amount out of range"));
+    if (stripeRef.size() == 0 or stripeRef.size() > 200) return #err(#InvalidInput("invalid stripeRef"));
+    if (Option.isSome(Map.get(consumedStripeRefs, Text.compare, stripeRef))) {
+      return #err(#InvalidInput("already_consumed"));
+    };
+    let now          = Time.now();
+    let twelveMonths : Int = 365 * 24 * 60 * 60 * 1_000_000_000;
+    let newExpiry    = now + twelveMonths;
+    let existing     = switch (Map.get(agentCreditBalances, Principal.compare, user)) {
+      case null  { { balance = 0; expiresAt = 0 } };
+      case (?b)  {
+        if (b.expiresAt > 0 and b.expiresAt <= now) { { balance = 0; expiresAt = 0 } }
+        else { b }
+      };
+    };
+    let updated : AgentCreditBalance = {
+      balance   = existing.balance + amount;
+      expiresAt = if (existing.expiresAt > newExpiry) existing.expiresAt else newExpiry;
+    };
+    Map.add(consumedStripeRefs, Text.compare, stripeRef, user);
+    Map.add(agentCreditBalances, Principal.compare, user, updated);
+    #ok(updated.balance)
+  };
+
   /// Admin: atomically decrement 1 agent credit for a user.
   /// Called by the voice server when the tier quota is exhausted but the user has
   /// purchased top-up credits.  Returns the remaining balance after decrement.
   /// Returns #err(#NotFound) when the user has no credits or all credits have expired.
   public shared(msg) func consumeAgentCredit(user: Principal) : async Result.Result<Nat, Error> {
-    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (not isAdminOrRelay(msg.caller)) return #err(#NotAuthorized);
     let now = Time.now();
     switch (Map.get(agentCreditBalances, Principal.compare, user)) {
       case null  {

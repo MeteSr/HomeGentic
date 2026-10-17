@@ -197,6 +197,81 @@ function verifySmartThingsHmac(req: Request, secret: string | undefined): boolea
   return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(sig));
 }
 
+// ── Replay protection (security audit F-14) ─────────────────────────────────
+// A captured, correctly signed body could otherwise be re-sent to create
+// duplicate pending jobs. Two layers:
+//   1. timestamp tolerance for platforms that send an event time (Nest, Moen);
+//   2. a seen-ID cache — the vendor's event ID where there is one (Nest
+//      eventId, SmartThings executionId), else a SHA-256 of the raw body.
+// IDs are only marked seen after the event was recorded, so a vendor retry
+// after a canister error still goes through.
+const REPLAY_WINDOW_MS   = (Number(process.env.WEBHOOK_MAX_AGE_SEC) || 600) * 1000;
+const FUTURE_SKEW_MS     = 2 * 60 * 1000;
+const SEEN_MAX           = 50_000;
+const seenWebhookIds     = new Map<string, number>(); // key → expiresAt
+
+function replayKey(platform: string, req: Request, vendorId?: string): string {
+  if (vendorId) return `${platform}:id:${vendorId}`;
+  const raw = (req as Request & { rawBody?: Buffer }).rawBody ?? Buffer.from("");
+  return `${platform}:body:${crypto.createHash("sha256").update(raw).digest("hex")}`;
+}
+
+/** Returns a rejection reason, or null when the event may be processed. */
+function replayCheck(key: string, timestamp?: string): string | null {
+  const now = Date.now();
+  if (timestamp !== undefined) {
+    const t = Date.parse(timestamp);
+    if (!Number.isFinite(t)) return "unparseable timestamp";
+    if (now - t > REPLAY_WINDOW_MS) return "stale event";
+    if (t - now > FUTURE_SKEW_MS) return "timestamp in the future";
+  }
+  const exp = seenWebhookIds.get(key);
+  if (exp !== undefined && exp > now) return "duplicate event";
+  return null;
+}
+
+function markSeen(key: string): void {
+  const now = Date.now();
+  if (seenWebhookIds.size >= SEEN_MAX) {
+    for (const [k, exp] of seenWebhookIds) if (exp <= now) seenWebhookIds.delete(k);
+    if (seenWebhookIds.size >= SEEN_MAX) seenWebhookIds.clear();
+  }
+  seenWebhookIds.set(key, now + REPLAY_WINDOW_MS + FUTURE_SKEW_MS);
+}
+
+/** Constant-time comparison for shared tokens (undefined/empty never matches). */
+function tokenMatches(received: unknown, expected: string | undefined): boolean {
+  if (!expected || typeof received !== "string" || !received) return false;
+  const a = Buffer.from(received);
+  const b = Buffer.from(expected);
+  // Only the length can leak; the contents are compared in constant time.
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+// ── Device-picker OAuth browser binding ──────────────────────────────────────
+// /oauth/device/start sets an HttpOnly cookie carrying the state; the callback
+// only accepts a state that matches the cookie, so a state minted by someone
+// else (login CSRF: tricking a victim into completing the attacker's
+// authorization) is rejected in the victim's browser.
+const DEVICE_STATE_COOKIE = "hg_device_oauth_state";
+
+function readCookie(req: Request, name: string): string | undefined {
+  const header = req.headers.cookie;
+  if (!header) return undefined;
+  for (const part of header.split(";")) {
+    const idx = part.indexOf("=");
+    if (idx < 0) continue;
+    if (part.slice(0, idx).trim() === name) return decodeURIComponent(part.slice(idx + 1).trim());
+  }
+  return undefined;
+}
+
+function deviceStateCookie(value: string, maxAgeSec: number): string {
+  const secure = (process.env.IOT_GATEWAY_PUBLIC_URL ?? "").startsWith("https://") ||
+    process.env.NODE_ENV === "production";
+  return `${DEVICE_STATE_COOKIE}=${encodeURIComponent(value)}; Path=/oauth/device; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSec}${secure ? "; Secure" : ""}`;
+}
+
 // ── Request ID + structured logging middleware ────────────────────────────────
 
 type RequestWithId = Request & { reqId: string };
@@ -313,7 +388,7 @@ app.post("/webhooks/nest", nestLimiter, async (req: Request, res: Response): Pro
   const expected = process.env.NEST_WEBHOOK_SECRET;
 
   const reqId = (req as RequestWithId).reqId;
-  if (!expected || token !== expected) {
+  if (!tokenMatches(token, expected)) {
     logger.warn("nest", "rejected — invalid token", { reqId });
     res.status(401).json({ error: "Unauthorized" });
     return;
@@ -323,6 +398,13 @@ app.post("/webhooks/nest", nestLimiter, async (req: Request, res: Response): Pro
   if (nestErr) {
     logger.warn("nest", `rejected — invalid payload: ${nestErr}`, { reqId });
     res.status(400).json({ error: nestErr });
+    return;
+  }
+  const replayK = replayKey("nest", req, String((req.body as { eventId: string }).eventId));
+  const replayWhy = replayCheck(replayK, (req.body as { timestamp: string }).timestamp);
+  if (replayWhy) {
+    logger.warn("nest", `rejected — ${replayWhy}`, { reqId });
+    res.status(replayWhy === "duplicate event" ? 200 : 400).json({ status: "rejected", reason: replayWhy });
     return;
   }
   const body = req.body as NestWebhookEvent;
@@ -339,6 +421,7 @@ app.post("/webhooks/nest", nestLimiter, async (req: Request, res: Response): Pro
   const result = await recordSensorEvent(reading);
 
   if (result.success) {
+    markSeen(replayK);
     logger.info("nest", "recorded", { reqId, eventId: result.eventId, jobId: result.jobId });
     res.json({ status: "recorded", eventId: result.eventId, jobId: result.jobId });
   } else {
@@ -364,6 +447,13 @@ app.post("/webhooks/ecobee", ecobeeLimiter, async (req: Request, res: Response):
     res.status(400).json({ error: ecobeeErr });
     return;
   }
+  const replayK = replayKey("ecobee", req);
+  const replayWhy = replayCheck(replayK, undefined);
+  if (replayWhy) {
+    logger.warn("ecobee", `rejected — ${replayWhy}`, { reqId });
+    res.status(replayWhy === "duplicate event" ? 200 : 400).json({ status: "rejected", reason: replayWhy });
+    return;
+  }
   const body = req.body as EcobeeWebhookEvent;
   const raw = JSON.stringify(body);
 
@@ -378,6 +468,7 @@ app.post("/webhooks/ecobee", ecobeeLimiter, async (req: Request, res: Response):
   const result = await recordSensorEvent(reading);
 
   if (result.success) {
+    markSeen(replayK);
     logger.info("ecobee", "recorded", { reqId, eventId: result.eventId, jobId: result.jobId });
     res.json({ status: "recorded", eventId: result.eventId, jobId: result.jobId });
   } else {
@@ -403,6 +494,13 @@ app.post("/webhooks/moen-flo", moenFloLimiter, async (req: Request, res: Respons
     res.status(400).json({ error: moenErr });
     return;
   }
+  const replayK = replayKey("moen-flo", req);
+  const replayWhy = replayCheck(replayK, (req.body as { timestamp: string }).timestamp);
+  if (replayWhy) {
+    logger.warn("moen-flo", `rejected — ${replayWhy}`, { reqId });
+    res.status(replayWhy === "duplicate event" ? 200 : 400).json({ status: "rejected", reason: replayWhy });
+    return;
+  }
   const body = req.body as MoenFloWebhookEvent;
   const raw = JSON.stringify(body);
 
@@ -417,6 +515,7 @@ app.post("/webhooks/moen-flo", moenFloLimiter, async (req: Request, res: Respons
   const result = await recordSensorEvent(reading);
 
   if (result.success) {
+    markSeen(replayK);
     logger.info("moen-flo", "recorded", { reqId, eventId: result.eventId, jobId: result.jobId });
     res.json({ status: "recorded", eventId: result.eventId, jobId: result.jobId });
   } else {
@@ -431,7 +530,7 @@ app.post("/webhooks/moen-flo", moenFloLimiter, async (req: Request, res: Respons
 // user-provided data ever flows into a server-side fetch call.
 app.post("/admin/smartthings/confirm", async (req: Request, res: Response): Promise<void> => {
   const adminToken = process.env.ADMIN_TOKEN;
-  if (!adminToken || req.headers["x-admin-token"] !== adminToken) {
+  if (!tokenMatches(req.headers["x-admin-token"], adminToken)) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
@@ -486,6 +585,14 @@ app.post("/webhooks/smartthings", smartThingsLimiter, async (req: Request, res: 
     return;
   }
 
+  const replayK = replayKey("smartthings", req, body.executionId);
+  const replayWhy = replayCheck(replayK);
+  if (replayWhy) {
+    logger.warn("smartthings", `rejected — ${replayWhy}`, { reqId });
+    res.json({ status: "rejected", reason: replayWhy });
+    return;
+  }
+
   // EVENT — process each capability state-change event.
   const events = body.eventData?.events ?? [];
   let processed = 0;
@@ -513,6 +620,7 @@ app.post("/webhooks/smartthings", smartThingsLimiter, async (req: Request, res: 
     }
   }
 
+  if (processed > 0) markSeen(replayK);
   res.json({ status: "processed", count: processed });
 });
 
@@ -521,7 +629,7 @@ app.post("/webhooks/smartthings", smartThingsLimiter, async (req: Request, res: 
 // Requires x-admin-token header.
 app.get("/oauth/start/honeywell", adminOAuthLimiter, (req: Request, res: Response): void => {
   const adminToken = process.env.ADMIN_TOKEN;
-  if (!adminToken || req.headers["x-admin-token"] !== adminToken) {
+  if (!tokenMatches(req.headers["x-admin-token"], adminToken)) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
@@ -540,7 +648,7 @@ app.get("/oauth/start/honeywell", adminOAuthLimiter, (req: Request, res: Respons
 // Requires x-admin-token header.
 app.get("/oauth/start/ge", adminOAuthLimiter, (req: Request, res: Response): void => {
   const adminToken = process.env.ADMIN_TOKEN;
-  if (!adminToken || req.headers["x-admin-token"] !== adminToken) {
+  if (!tokenMatches(req.headers["x-admin-token"], adminToken)) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
@@ -634,7 +742,7 @@ app.post("/webhooks/lgthinq", lgThinQLimiter, async (req: Request, res: Response
   const bearerToken = (req.headers["authorization"] ?? "").replace(/^Bearer\s+/i, "");
   const expectedPat = process.env.LG_THINQ_PAT;
 
-  if (!expectedPat || bearerToken !== expectedPat) {
+  if (!tokenMatches(bearerToken, expectedPat)) {
     logger.warn("lgthinq", "rejected — invalid PAT", { reqId });
     res.status(401).json({ error: "Unauthorized" });
     return;
@@ -644,6 +752,13 @@ app.post("/webhooks/lgthinq", lgThinQLimiter, async (req: Request, res: Response
   if (lgErr) {
     logger.warn("lgthinq", `rejected — invalid payload: ${lgErr}`, { reqId });
     res.status(400).json({ error: lgErr });
+    return;
+  }
+  const replayK = replayKey("lgthinq", req);
+  const replayWhy = replayCheck(replayK, undefined);
+  if (replayWhy) {
+    logger.warn("lgthinq", `rejected — ${replayWhy}`, { reqId });
+    res.status(replayWhy === "duplicate event" ? 200 : 400).json({ status: "rejected", reason: replayWhy });
     return;
   }
   const body = req.body as LGThinQPCCEvent;
@@ -660,6 +775,7 @@ app.post("/webhooks/lgthinq", lgThinQLimiter, async (req: Request, res: Response
   const result = await recordSensorEvent(reading);
 
   if (result.success) {
+    markSeen(replayK);
     logger.info("lgthinq", "recorded", { reqId, eventId: result.eventId, jobId: result.jobId });
     res.json({ status: "recorded", eventId: result.eventId, jobId: result.jobId });
   } else {
@@ -747,6 +863,7 @@ app.get("/oauth/device/start/:platform", deviceOAuthLimiter, (req: Request, res:
   const redirectUri  = `http://localhost:${port}/oauth/device/callback/${platform}`;
   const state = generateOAuthState();
   storeOAuthState(state, platform);
+  res.setHeader("Set-Cookie", deviceStateCookie(state, OAUTH_STATE_TTL_MS / 1000));
 
   try {
     let url: string;
@@ -789,7 +906,10 @@ app.get("/oauth/device/callback/:platform", deviceOAuthLimiter, async (req: Requ
     return;
   }
 
-  if (!state || !consumeOAuthState(state, platform)) {
+  const cookieState = readCookie(req, DEVICE_STATE_COOKIE);
+  // Clear the one-time cookie whatever the outcome.
+  res.setHeader("Set-Cookie", deviceStateCookie("", 0));
+  if (!state || !cookieState || !tokenMatches(state, cookieState) || !consumeOAuthState(state, platform)) {
     const errMsg      = JSON.stringify({ type: "oauth-devices", error: "Invalid or expired OAuth state — CSRF protection rejected this callback" });
     const targetOrigin = JSON.stringify(FRONTEND_ORIGIN);
     res.send(`<!doctype html><html><body><script>
@@ -877,7 +997,7 @@ app.post("/accounts/:platform", adminOAuthLimiter, async (req: Request, res: Res
     res.status(503).json({ error: "Service unavailable — ADMIN_TOKEN not configured" });
     return;
   }
-  if (req.headers["x-admin-token"] !== adminToken) {
+  if (!tokenMatches(req.headers["x-admin-token"], adminToken)) {
     logger.warn("accounts", "rejected — missing or invalid admin token", { reqId });
     res.status(401).json({ error: "Unauthorized" });
     return;

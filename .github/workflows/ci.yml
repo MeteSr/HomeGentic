@@ -5,6 +5,12 @@ on:
     branches: [main, develop, test/tier-propagation-and-sensor-job]
   pull_request:
     branches: [main]
+  # Deploy Mainnet runs this whole workflow as its pre-deploy test gate
+  # (`uses: ./.github/workflows/ci.yml`, `secrets: inherit`). In a called
+  # workflow github.event_name is the caller's ('workflow_dispatch'), so the
+  # PR-only coverage comment and test-visual-heal (push / same-repo PR only)
+  # are skipped there.
+  workflow_call:
 
 permissions:
   contents: read
@@ -498,24 +504,24 @@ jobs:
   # a broken font) would get silently accepted here rather than failing
   # CI — test-e2e's content/accessibility assertions and test-frontend
   # remain the actual safety net for that class of bug, not this job.
+  #
+  # Split into two jobs on purpose (security audit CI-1): the job that runs
+  # the branch's own code (npm install lifecycle scripts, Playwright config
+  # and global setup) never sees CI_PUSH_TOKEN, and the job that holds the
+  # token runs on a fresh runner, executes no repo code, and only copies
+  # *.png files from the artifact into tests/e2e/__snapshots__/.
   test-visual-heal:
     name: test-visual-heal
     runs-on: ubuntu-latest
     needs: [test-visual]
     if: failure() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
     permissions:
-      contents: write
+      contents: read
     steps:
-      # main requires the motoko-compile-check status check even on direct
-      # pushes, and the default GITHUB_TOKEN has no bypass for that rule —
-      # only identities with admin/maintain-level bypass rights on the
-      # branch protection rule can push straight to main. CI_PUSH_TOKEN is
-      # a fine-grained PAT scoped to this repo (Contents: Read and write)
-      # issued from such an account, used only for this push.
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.head_ref || github.ref }}
-          token: ${{ secrets.CI_PUSH_TOKEN }}
+          persist-credentials: false
 
       - uses: actions/setup-node@v7
         with:
@@ -531,8 +537,62 @@ jobs:
       - name: Regenerate visual baselines
         run: npm run test:visual:update
 
-      - name: Commit and push updated baselines
+      - name: Upload regenerated baselines
+        uses: actions/upload-artifact@v7
+        with:
+          name: visual-heal-baselines
+          path: tests/e2e/__snapshots__/
+          retention-days: 3
+
+  test-visual-heal-push:
+    name: test-visual-heal-push
+    runs-on: ubuntu-latest
+    needs: [test-visual-heal]
+    # test-visual (an ancestor) failed by design, so the implicit success()
+    # would skip this job; gate on the heal job's own result instead.
+    if: ${{ !cancelled() && needs.test-visual-heal.result == 'success' }}
+    permissions:
+      contents: read   # the push itself authenticates with CI_PUSH_TOKEN
+    steps:
+      # main requires the motoko-compile-check status check even on direct
+      # pushes, and the default GITHUB_TOKEN has no bypass for that rule —
+      # only identities with admin/maintain-level bypass rights on the
+      # branch protection rule can push straight to main. CI_PUSH_TOKEN is
+      # a fine-grained PAT scoped to this repo (Contents: Read and write)
+      # issued from such an account. It is never written to .git/config and
+      # is only in the environment of the final push step.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.head_ref || github.ref }}
+          persist-credentials: false
+
+      - name: Download regenerated baselines
+        uses: actions/download-artifact@v8
+        with:
+          name: visual-heal-baselines
+          path: ${{ runner.temp }}/visual-heal
+
+      - name: Copy PNG baselines only
+        env:
+          SRC: ${{ runner.temp }}/visual-heal
         run: |
+          set -euo pipefail
+          DEST="tests/e2e/__snapshots__"
+          cd "$SRC"
+          # Only regular *.png files, relative paths, no traversal.
+          find . -type f -name '*.png' -print0 | while IFS= read -r -d '' f; do
+            rel="${f#./}"
+            case "$rel" in *..*) echo "skipping suspicious path: $rel"; continue ;; esac
+            mkdir -p "$GITHUB_WORKSPACE/$DEST/$(dirname "$rel")"
+            cp -- "$rel" "$GITHUB_WORKSPACE/$DEST/$rel"
+          done
+
+      - name: Commit and push updated baselines
+        env:
+          CI_PUSH_TOKEN: ${{ secrets.CI_PUSH_TOKEN }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add tests/e2e/__snapshots__/
@@ -542,4 +602,7 @@ jobs:
             exit 1
           fi
           git commit -m "test(visual): auto-heal baseline after layout change"
-          git push
+          if [ -n "$HEAD_REF" ]; then TARGET="refs/heads/$HEAD_REF"; else TARGET="$GITHUB_REF"; fi
+          git -c core.hooksPath=/dev/null push \
+            "https://x-access-token:${CI_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            "HEAD:${TARGET}"

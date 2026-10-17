@@ -28,6 +28,11 @@ export function parseNotificationRoute(data: unknown): string | null {
 
 const RELAY_URL = process.env.EXPO_PUBLIC_NOTIFICATIONS_URL ?? "";
 
+// Device token → unsubscribe token returned by the relay on registration.
+// The relay only drops a device token for its owner's session or with this
+// token, so logout can unregister even after the session is gone.
+const unsubscribeTokens = new Map<string, string>();
+
 /**
  * Registers a native device push token (APNs / FCM) with the notification
  * relay for the user the session token belongs to. Resolves to whether the
@@ -49,8 +54,17 @@ export async function registerPushToken(payload: TokenPayload, sessionToken: str
       headers: { "content-type": "application/json", [SESSION_HEADER]: sessionToken },
       body:    JSON.stringify(payload),
     });
-    if (!res.ok) console.error(`[notifications] token registration rejected: ${res.status}`);
-    return res.ok;
+    if (!res.ok) {
+      console.error(`[notifications] token registration rejected: ${res.status}`);
+      return false;
+    }
+    try {
+      const body = (await res.json()) as { unsubscribeToken?: unknown };
+      if (typeof body?.unsubscribeToken === "string") unsubscribeTokens.set(payload.token, body.unsubscribeToken);
+    } catch {
+      // older relay without unsubscribe tokens
+    }
+    return true;
   } catch (err) {
     console.error("[notifications] token registration failed:", err);
     return false;
@@ -60,15 +74,18 @@ export async function registerPushToken(payload: TokenPayload, sessionToken: str
 /**
  * Unregisters a device push token (called on logout).
  */
-export async function unregisterPushToken(token: string): Promise<void> {
+export async function unregisterPushToken(token: string, sessionToken: string | null = null): Promise<void> {
   if (!RELAY_URL) return;
 
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  if (sessionToken) headers[SESSION_HEADER] = sessionToken;
   try {
     await fetch(`${RELAY_URL}/api/push/unregister`, {
       method:  "POST",
-      headers: { "content-type": "application/json" },
-      body:    JSON.stringify({ token }),
+      headers,
+      body:    JSON.stringify({ token, unsubscribeToken: unsubscribeTokens.get(token) }),
     });
+    unsubscribeTokens.delete(token);
   } catch (err) {
     console.error("[notifications] token unregistration failed:", err);
   }

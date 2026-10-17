@@ -9,7 +9,7 @@
 import { billService } from "./billService";
 import type { BillType } from "./billService";
 import type { BillsForecast } from "./billsForecast";
-import { voiceAgentHeaders } from "./voiceAgentHeaders";
+import { voiceAgentHeaders, voiceAgentFetch } from "./voiceAgentHeaders";
 
 const VOICE_AGENT_URL = (import.meta as any).env?.VITE_VOICE_AGENT_URL || "http://localhost:3001";
 
@@ -137,7 +137,7 @@ export async function findRebates(params: RebateFindParams): Promise<RebateResul
     throw new Error(`Rebate finder only supports Electric bills (got: ${params.billType})`);
   }
 
-  const response = await fetch(`${VOICE_AGENT_URL}/api/rebate-finder`, {
+  const response = await voiceAgentFetch(`${VOICE_AGENT_URL}/api/rebate-finder`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(params),
@@ -164,7 +164,7 @@ export async function negotiateTelecom(params: TelecomNegotiateParams): Promise<
     throw new Error("amountCents must be a positive integer");
   }
 
-  const response = await fetch(`${VOICE_AGENT_URL}/api/telecom-negotiate`, {
+  const response = await voiceAgentFetch(`${VOICE_AGENT_URL}/api/telecom-negotiate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(params),

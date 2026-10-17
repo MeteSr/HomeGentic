@@ -10,6 +10,7 @@
 import { Actor } from "@icp-sdk/core/agent";
 import { getAgent } from "./actor";
 import { idlFactory } from "@/declarations/bills";
+import { voiceAgentFetch } from "./voiceAgentHeaders";
 export { idlFactory };
 
 const BILLS_CANISTER_ID = (process.env as any).BILLS_CANISTER_ID || "";
@@ -243,7 +244,7 @@ export async function extractBill(
   mimeType: string,
   base64Data: string,
 ): Promise<BillExtraction> {
-  const res = await fetch(`${VOICE_AGENT_URL}/api/extract-bill`, {
+  const res = await voiceAgentFetch(`${VOICE_AGENT_URL}/api/extract-bill`, {
     method:  "POST",
     headers: { "Content-Type": "application/json" },
     body:    JSON.stringify({ fileName, mimeType, base64Data }),

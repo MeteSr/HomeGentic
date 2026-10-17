@@ -19,6 +19,7 @@
 const mockSessionsRetrieve        = jest.fn();
 const mockSubscriptionsRetrieve   = jest.fn();
 const mockPaymentIntentsRetrieve  = jest.fn();
+const mockInvoicesRetrieve        = jest.fn();
 
 jest.mock("stripe", () => ({
   __esModule: true,
@@ -26,6 +27,7 @@ jest.mock("stripe", () => ({
     checkout:       { sessions:      { retrieve: mockSessionsRetrieve } },
     subscriptions:  { retrieve: mockSubscriptionsRetrieve },
     paymentIntents: { retrieve: mockPaymentIntentsRetrieve },
+    invoices:       { retrieve: mockInvoicesRetrieve },
   })),
 }));
 
@@ -33,6 +35,8 @@ jest.mock("../paymentCanister", () => ({
   activateInCanister: jest.fn().mockResolvedValue(undefined),
   consumeAgentCredit: jest.fn().mockResolvedValue(undefined),
   grantAgentCredits:  jest.fn().mockResolvedValue(undefined),
+  grantAgentCreditsOnce: jest.fn().mockResolvedValue(undefined),
+  AlreadyConsumedError: class AlreadyConsumedError extends Error {},
   VALID_TIERS: new Set(["Free", "Pro", "ContractorFree", "ContractorPro", "RealtorFree", "RealtorPro"]),
   PRINCIPAL_RE: /^[a-z0-9]([a-z0-9-]{0,60}[a-z0-9])?$/,
 }));
@@ -52,10 +56,10 @@ jest.mock("../../maintenance/prompts", () => ({
 import { describe, it, expect, beforeEach, afterEach } from "@jest/globals";
 import supertest from "supertest";
 import { app } from "../server";
-import { activateInCanister, grantAgentCredits } from "../paymentCanister";
+import { activateInCanister, grantAgentCreditsOnce, AlreadyConsumedError } from "../paymentCanister";
 
 const mockActivate = activateInCanister as jest.Mock;
-const mockGrant    = grantAgentCredits   as jest.Mock;
+const mockGrant    = grantAgentCreditsOnce as jest.Mock;
 
 const STRIPE_KEY = "sk_test_placeholder";
 
@@ -194,18 +198,36 @@ describe("VERIFY.8 — verify-subscription active subscription", () => {
 // ── VERIFY.9 — verify-subscription incomplete + confirmed PI ─────────────────
 
 describe("VERIFY.9 — verify-subscription incomplete with confirmed PaymentIntent", () => {
-  it("returns 200 when subscription is incomplete but PI succeeded", async () => {
+  it("returns 200 when subscription is incomplete but its own latest invoice is paid", async () => {
     mockPaymentIntentsRetrieve.mockResolvedValueOnce({ status: "succeeded" });
     mockSubscriptionsRetrieve.mockResolvedValueOnce({
       status: "incomplete",
+      latest_invoice: "in_test_1",
       metadata: { tier: "Pro", billing: "Monthly", icp_principal: "test-user-004" },
     });
+    mockInvoicesRetrieve.mockResolvedValueOnce({ id: "in_test_1", status: "paid" });
     const res = await supertest(app)
       .post("/api/stripe/verify-subscription")
       .send({ subscriptionId: "sub_test_incomplete", paymentIntentId: "pi_test_ok" });
 
     expect(res.status).toBe(200);
     expect(mockActivate).toHaveBeenCalledWith("test-user-004", "Pro", 1);
+  });
+
+  it("P-1: rejects an incomplete subscription whose invoice is unpaid, even with a succeeded PI from elsewhere", async () => {
+    mockPaymentIntentsRetrieve.mockResolvedValueOnce({ status: "succeeded" });
+    mockSubscriptionsRetrieve.mockResolvedValueOnce({
+      status: "incomplete",
+      latest_invoice: "in_unpaid",
+      metadata: { tier: "Pro", billing: "Monthly", icp_principal: "test-user-004" },
+    });
+    mockInvoicesRetrieve.mockResolvedValueOnce({ id: "in_unpaid", status: "open" });
+    const res = await supertest(app)
+      .post("/api/stripe/verify-subscription")
+      .send({ subscriptionId: "sub_unpaid", paymentIntentId: "pi_other_purchase" });
+
+    expect(res.status).toBe(400);
+    expect(mockActivate).not.toHaveBeenCalled();
   });
 });
 
@@ -255,6 +277,19 @@ describe("VERIFY.12 — verify-credit-purchase valid 25-credit pack", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ type: "agent_credits", packSize: 25, principal: "test-user-006" });
-    expect(mockGrant).toHaveBeenCalledWith("test-user-006", 25);
+    expect(mockGrant).toHaveBeenCalledWith("test-user-006", 25, "credits:cs_test_credits");
+  });
+
+  it("P-2: a replayed session grants nothing and reports alreadyRedeemed", async () => {
+    mockSessionsRetrieve.mockResolvedValueOnce({
+      payment_status: "paid",
+      metadata: { type: "agent_credits", principal: "test-user-006", pack_size: "25" },
+    });
+    mockGrant.mockRejectedValueOnce(new (AlreadyConsumedError as any)());
+    const res = await supertest(app)
+      .post("/api/stripe/verify-credit-purchase")
+      .send({ sessionId: "cs_test_credits" });
+    expect(res.status).toBe(200);
+    expect(res.body.alreadyRedeemed).toBe(true);
   });
 });

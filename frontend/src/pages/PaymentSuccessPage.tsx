@@ -7,7 +7,7 @@ import { paymentService } from "@/services/payment";
 import { redeemQuorumCoupon } from "@/services/benefit";
 import { useAuthStore } from "@/store/authStore";
 import { useAuth } from "@/contexts/AuthContext";
-import { getPrincipal } from "@/services/actor";
+import { voiceAgentFetch } from "@/services/voiceAgentHeaders";
 
 type PageState = "verifying" | "awaiting-login" | "subscription" | "gift" | "error";
 
@@ -47,13 +47,13 @@ export default function PaymentSuccessPage() {
       setTimeout(() => navigate("/dashboard"), 2500);
       return;
     }
-    const principal = await getPrincipal().catch(() => "");
-    const resp = await fetch(`${VOICE_AGENT_URL}/api/stripe/verify-subscription`, {
+    // The Worker identifies the caller from x-agent-session and checks they
+    // own the subscription; no principal is sent in the body.
+    const resp = await voiceAgentFetch(`${VOICE_AGENT_URL}/api/stripe/verify-subscription`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         subscriptionId,
         paymentIntentId: paymentIntentId || undefined,
-        principal: principal || undefined,
       }),
     });
     const data = await resp.json();

@@ -340,15 +340,22 @@ persistent actor Contractor {
     // M-09: if jobCanisterId is wired, cross-canister validate the jobId exists
     // and that the caller was the homeowner and the reviewed contractor was on this job
     if (Text.size(jobCanisterId) > 0) {
+      // L5: job.getJob returns Result<Job, Error>. Declare that shape here
+      // (record subtyping drops the Job fields we don't need). The error
+      // payload is declared as an opt so a new job Error tag decodes to null
+      // instead of failing the whole reply.
       let jobActor = actor(jobCanisterId) : actor {
-        getJob : (Text) -> async ?{
-          homeowner:   Principal;
-          contractor:  ?Principal;
+        getJob : (Text) -> async {
+          #ok  : { homeowner : Principal; contractor : ?Principal };
+          #err : ?{ #NotFound; #NotAuthorized; #InvalidInput : Text; #AlreadyVerified; #TierLimitReached : Text };
         };
       };
-      switch (await jobActor.getJob(jobId)) {
-        case null { return #err(#InvalidInput("jobId does not exist")) };
-        case (?job) {
+      let jobResult = try { await jobActor.getJob(jobId) } catch (_) {
+        return #err(#InvalidInput("could not verify jobId"))
+      };
+      switch (jobResult) {
+        case (#err _) { return #err(#InvalidInput("jobId does not exist or is not accessible")) };
+        case (#ok job) {
           if (job.homeowner != msg.caller) return #err(#NotAuthorized);
           switch (job.contractor) {
             case null  { return #err(#InvalidInput("job has no contractor")) };
@@ -439,7 +446,11 @@ persistent actor Contractor {
           serviceZips   = args.serviceZips;
           trustScore    = existing.trustScore;
           jobsCompleted = existing.jobsCompleted;
-          isVerified    = existing.isVerified;
+          // M3: changing the identity or licence that an admin verified
+          // drops the verified badge until it is re-verified.
+          isVerified    = existing.isVerified
+                          and args.name == existing.name
+                          and args.licenseNumber == existing.licenseNumber;
           createdAt     = existing.createdAt;
           notifyEmail   = existing.notifyEmail;
           notifyPush    = existing.notifyPush;
@@ -738,7 +749,8 @@ persistent actor Contractor {
 
   /// H-20: Set the one-time bootstrap nonce before calling addAdmin() the first time.
   /// Ignored once adminInitialized = true, and can only be set once.
-  public shared func setBootstrapNonce(nonce: Text) : async () {
+  public shared(msg) func setBootstrapNonce(nonce: Text) : async () {
+    if (not Principal.isController(msg.caller)) return;  // only a controller may open the bootstrap
     if (adminInitialized) return;  // already bootstrapped — ignore
     if (bootstrapNonce != null) return;  // nonce already set — can only be set once
     bootstrapNonce := ?nonce;

@@ -6,6 +6,8 @@
  * inspection report captured via the camera or picked from the photo library.
  */
 
+import { getAgentSessionToken } from "./agentSession";
+
 const VOICE_AGENT_URL =
   process.env.EXPO_PUBLIC_VOICE_AGENT_URL ?? "http://localhost:3001";
 
@@ -36,9 +38,13 @@ export async function extractDocument(
   mimeType: string,
   base64Data: string,
 ): Promise<DocumentExtraction> {
+  // The Worker only runs AI routes for a signed-in user's session.
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const token = await getAgentSessionToken().catch(() => null);
+  if (token) headers["x-agent-session"] = token;
   const res = await fetch(`${VOICE_AGENT_URL}/api/extract-document`, {
     method:  "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body:    JSON.stringify({ fileName, mimeType, base64Data }),
   });
   if (!res.ok) {

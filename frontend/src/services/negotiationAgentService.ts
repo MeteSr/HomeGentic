@@ -132,8 +132,8 @@ export function createNegotiationAgentService() {
     }
 
     try {
-      const { voiceAgentHeaders } = await import("./voiceAgentHeaders");
-      const resp = await fetch(`${VOICE_AGENT_URL}/api/negotiate`, {
+      const { voiceAgentHeaders, voiceAgentFetch } = await import("./voiceAgentHeaders");
+      const resp = await voiceAgentFetch(`${VOICE_AGENT_URL}/api/negotiate`, {
         method:  "POST",
         headers: voiceAgentHeaders(),
         body: JSON.stringify({

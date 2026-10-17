@@ -139,8 +139,8 @@ export function createPulseService() {
 
   async function generateDigest(ctx: PulseContext): Promise<PulseDigest> {
     try {
-      const { voiceAgentHeaders } = await import("./voiceAgentHeaders");
-      const res = await fetch(`${PULSE_AGENT_URL}/api/pulse`, {
+      const { voiceAgentHeaders, voiceAgentFetch } = await import("./voiceAgentHeaders");
+      const res = await voiceAgentFetch(`${PULSE_AGENT_URL}/api/pulse`, {
         method:  "POST",
         headers: voiceAgentHeaders(),
         body:    JSON.stringify(ctx),

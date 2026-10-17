@@ -8,6 +8,7 @@ import Array     "mo:core/Array";
 import Blob      "mo:core/Blob";
 import Debug     "mo:core/Debug";
 import Map       "mo:core/Map";
+import Int       "mo:core/Int";
 import Iter      "mo:core/Iter";
 import List      "mo:core/List";
 import Nat       "mo:core/Nat";
@@ -138,7 +139,9 @@ persistent actor Photo {
   /// postupgrade has moved its photos into `photoStore`.
   private let photos      = Map.empty<Text, LegacyPhoto>();
   private let photoStore  = Map.empty<Text, Photo>();
-  /// sha256 → photoId — O(1) duplicate detection.
+  /// Duplicate detection, O(1). L-6: keyed "<owner principal>:<sha256>" so
+  /// dedup is per uploader and nobody can squat another user's hash. Entries
+  /// written before that change are keyed by the bare sha256 (see dupOf).
   private let hashIndex   = Map.empty<Text, Text>();
   private let photoRateLimits = Map.empty<Text, (Nat, Int)>();
 
@@ -146,16 +149,74 @@ persistent actor Photo {
   private transient let photosByJob      = Index.build<Photo>(photoStore, func(p) { ?p.jobId });
   private transient let photosByProperty = Index.build<Photo>(photoStore, func(p) { ?p.propertyId });
 
+  /// M-5: per-uploader usage (photo count, bytes), rebuilt on every upgrade
+  /// and kept current by putPhoto / deletePhotoRecord.
+  private transient let usageByOwner : Map.Map<Text, (Nat, Nat)> = do {
+    let m = Map.empty<Text, (Nat, Nat)>();
+    for (p in Map.values(photoStore)) {
+      let k = Principal.toText(p.owner);
+      let (c, b) = Option.get(Map.get(m, Text.compare, k), (0, 0));
+      Map.add(m, Text.compare, k, (c + 1, b + p.size));
+    };
+    m
+  };
+
+  private func usageOf(owner : Principal) : (Nat, Nat) {
+    Option.get(Map.get(usageByOwner, Text.compare, Principal.toText(owner)), (0, 0))
+  };
+
+  private func addUsage(owner : Principal, count : Int, bytes : Int) {
+    let (c, b) = usageOf(owner);
+    let nc : Int = c + count;
+    let nb : Int = b + bytes;
+    Map.add(usageByOwner, Text.compare, Principal.toText(owner),
+      (if (nc < 0) 0 else Int.abs(nc), if (nb < 0) 0 else Int.abs(nb)));
+  };
+
   private func putPhoto(p: Photo) {
+    switch (Map.get(photoStore, Text.compare, p.id)) {
+      case (?old) { addUsage(old.owner, -1, -old.size) };
+      case null   {};
+    };
     Map.add(photoStore, Text.compare, p.id, p);
     Index.add(photosByJob, p.jobId, p.id);
     Index.add(photosByProperty, p.propertyId, p.id);
+    addUsage(p.owner, 1, p.size);
   };
 
   private func deletePhotoRecord(p: Photo) {
     Map.remove(photoStore, Text.compare, p.id);
     Index.remove(photosByJob, p.jobId, p.id);
     Index.remove(photosByProperty, p.propertyId, p.id);
+    addUsage(p.owner, -1, -p.size);
+  };
+
+  private func hashKey(owner : Principal, hash : Text) : Text {
+    Principal.toText(owner) # ":" # hash
+  };
+
+  /// L-6: the caller's existing photo with this hash, if any. Legacy entries
+  /// (bare-hash keys) only count when the caller uploaded that photo.
+  private func dupOf(owner : Principal, hash : Text) : ?Text {
+    switch (Map.get(hashIndex, Text.compare, hashKey(owner, hash))) {
+      case (?id) { return ?id };
+      case null {};
+    };
+    switch (Map.get(hashIndex, Text.compare, hash)) {
+      case (?id) {
+        switch (Map.get(photoStore, Text.compare, id)) {
+          case (?p) { if (p.owner == owner) ?id else null };
+          case null null;
+        }
+      };
+      case null null;
+    }
+  };
+
+  private func dropHash(p : Photo) {
+    for (k in [hashKey(p.owner, p.hash), p.hash].vals()) {
+      if (Map.get(hashIndex, Text.compare, k) == ?p.id) { Map.remove(hashIndex, Text.compare, k) };
+    };
   };
 
   system func postupgrade() {
@@ -260,6 +321,20 @@ persistent actor Photo {
     }
   };
 
+  /// M-5: hard per-photo limits, independent of tier.
+  private transient let MAX_PHOTO_BYTES       : Nat = 1_500_000;
+  private transient let MAX_DESCRIPTION_CHARS : Nat = 1_000;
+  private transient let MAX_ID_CHARS          : Nat = 200;
+
+  /// M-5: per-uploader totals (photo count, bytes) across all jobs and
+  /// properties — a fresh jobId per upload no longer escapes the quota.
+  private func ownerCapFor(tier: SubscriptionTier) : (Nat, Nat) {
+    switch (tier) {
+      case (#Free or #ContractorFree) { (100,   150_000_000) };    // 100 photos / 150 MB
+      case (#Pro or #ContractorPro)   { (5_000, 2_000_000_000) };  // 5,000 photos / 2 GB
+    }
+  };
+
   private func countByJob(jobId: Text) : Nat { Index.count(photosByJob, jobId) };
 
   private func countByProperty(propertyId: Text) : Nat { Index.count(photosByProperty, propertyId) };
@@ -312,6 +387,12 @@ persistent actor Photo {
     if (Text.size(hash) == 0)       return #err(#InvalidInput("hash cannot be empty"));
     if (Text.size(hash) != 64)         return #err(#InvalidInput("hash must be a 64-character hex string (SHA-256)"));
     if (data.size() == 0)           return #err(#InvalidInput("data cannot be empty"));
+    if (data.size() > MAX_PHOTO_BYTES)
+      return #err(#InvalidInput("photo exceeds " # Nat.toText(MAX_PHOTO_BYTES) # " bytes"));
+    if (Text.size(description) > MAX_DESCRIPTION_CHARS)
+      return #err(#InvalidInput("description exceeds " # Nat.toText(MAX_DESCRIPTION_CHARS) # " characters"));
+    if (Text.size(jobId) > MAX_ID_CHARS or Text.size(propertyId) > MAX_ID_CHARS)
+      return #err(#InvalidInput("jobId/propertyId too long"));
 
     // Per-minute rate limit: 10 uploads/min regardless of tier
     if (not tryConsumePhotoSlot(msg.caller)) {
@@ -320,8 +401,8 @@ persistent actor Photo {
       ));
     };
 
-    // Duplicate check — O(1) via hash index
-    switch (Map.get(hashIndex, Text.compare, hash)) {
+    // Duplicate check — O(1) via hash index, scoped to the uploader (L-6)
+    switch (dupOf(msg.caller, hash)) {
       case (?existingId) { return #err(#Duplicate(existingId)) };
       case null          {};
     };
@@ -376,6 +457,26 @@ persistent actor Photo {
       ));
     };
 
+    // M-5: per-uploader totals. Read after the awaits above, so concurrent
+    // uploads from one principal can't all pass on a stale count.
+    if (not isAdmin(msg.caller)) {
+      let (maxCount, maxBytes) = ownerCapFor(callerTier);
+      let (usedCount, usedBytes) = usageOf(msg.caller);
+      if (usedCount >= maxCount or usedBytes + data.size() > maxBytes) {
+        return #err(#QuotaExceeded(
+          "Account photo storage limit (" # Nat.toText(maxCount) # " photos / " #
+          Nat.toText(maxBytes / 1_000_000) # " MB) reached for your plan." # upgradeHint
+        ));
+      };
+    };
+
+    // Re-check the duplicate after the awaits (a concurrent upload of the
+    // same image by this caller may have landed meanwhile).
+    switch (dupOf(msg.caller, hash)) {
+      case (?existingId) { return #err(#Duplicate(existingId)) };
+      case null          {};
+    };
+
     let id = nextPhotoId();
     let photo: Photo = {
       id;
@@ -393,13 +494,14 @@ persistent actor Photo {
     };
 
     putPhoto(photo);
-    Map.add(hashIndex, Text.compare, hash, id);
+    Map.add(hashIndex, Text.compare, hashKey(msg.caller, hash), id);
     #ok(meta(photo))
   };
 
   /// Fetch the full photo record (including raw bytes).
   /// Caller must be the photo's owner or an admin.
   public shared(msg) func getPhoto(photoId: Text) : async Result.Result<Photo, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };  // L-7
     switch (Map.get(photoStore, Text.compare, photoId)) {
       case null  { #err(#NotFound) };
       case (?p)  {
@@ -415,6 +517,7 @@ persistent actor Photo {
   /// Fetch only the raw bytes — avoids sending the full record for metadata-only callers.
   /// Caller must be the photo's owner or an admin.
   public shared(msg) func getPhotoData(photoId: Text) : async Result.Result<Blob, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };  // L-7
     switch (Map.get(photoStore, Text.compare, photoId)) {
       case null  { #err(#NotFound) };
       case (?p)  {
@@ -430,18 +533,27 @@ persistent actor Photo {
   /// Reply budget for getPhotoDataBatch — under the 2 MiB reply limit with
   /// room for Candid framing.
   private transient let BATCH_REPLY_BYTES : Nat = 1_500_000;
+  private transient let MAX_BATCH_IDS        : Nat = 200;
+  private transient let MAX_BATCH_AUTH_CALLS : Nat = 10;
 
   /// Bytes for several photos in one call, in request order. Returns as many
   /// as fit in ~1.5 MB (always at least one); the caller asks again for the
   /// ids that were left out. Ids that don't exist or that the caller may not
   /// read are skipped. Listing photos are public, like getPublicListingPhotos.
+  ///
+  /// L-7: anonymous callers get nothing, at most MAX_BATCH_IDS ids are looked
+  /// at, and at most MAX_BATCH_AUTH_CALLS distinct properties are checked
+  /// cross-canister per call (later ones are skipped; ask again for them).
   public shared(msg) func getPhotoDataBatch(photoIds: [Text]) : async [(Text, Blob)] {
+    if (Principal.isAnonymous(msg.caller)) return [];
     let admin = isAdmin(msg.caller);
     // One property-auth call per distinct property, not per photo.
     let allowed = Map.empty<Text, Bool>();
+    var authCalls = 0;
     let out = List.empty<(Text, Blob)>();
     var bytes = 0;
-    label fill for (id in photoIds.vals()) {
+    let ids = if (photoIds.size() > MAX_BATCH_IDS) Array.sliceToArray<Text>(photoIds, 0, MAX_BATCH_IDS) else photoIds;
+    label fill for (id in ids.vals()) {
       switch (Map.get(photoStore, Text.compare, id)) {
         case null {};
         case (?p) {
@@ -449,9 +561,12 @@ persistent actor Photo {
             switch (Map.get(allowed, Text.compare, p.propertyId)) {
               case (?known) { known };
               case null {
-                let res = await checkPropertyAuth(p.propertyId, p.owner, msg.caller, false);
-                Map.add(allowed, Text.compare, p.propertyId, res);
-                res
+                if (authCalls >= MAX_BATCH_AUTH_CALLS) { false } else {
+                  authCalls += 1;
+                  let res = await checkPropertyAuth(p.propertyId, p.owner, msg.caller, false);
+                  Map.add(allowed, Text.compare, p.propertyId, res);
+                  res
+                }
               };
             }
           };
@@ -577,7 +692,7 @@ persistent actor Photo {
           if (not authOk) return #err(#NotAuthorized);
         };
         deletePhotoRecord(existing);
-        Map.remove(hashIndex, Text.compare, existing.hash);
+        dropHash(existing);
         #ok(())
       };
     }
@@ -612,7 +727,8 @@ persistent actor Photo {
 
   /// H-20: Set the one-time bootstrap nonce before calling addAdmin() the first time.
   /// Ignored once an admin exists, and can only be set once.
-  public shared func setBootstrapNonce(nonce: Text) : async () {
+  public shared(msg) func setBootstrapNonce(nonce: Text) : async () {
+    if (not Principal.isController(msg.caller)) return;  // only a controller may open the bootstrap
     if (adminListEntries.size() > 0) return;  // already bootstrapped — ignore
     if (bootstrapNonce != null) return;  // nonce already set — can only be set once
     bootstrapNonce := ?nonce;

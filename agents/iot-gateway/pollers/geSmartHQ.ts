@@ -62,7 +62,9 @@ export function loadTokenState(): GETokenState | null {
 
 export function persistTokenState(state: GETokenState): void {
   try {
-    fs.writeFileSync(TOKENS_FILE, JSON.stringify(state, null, 2), "utf8");
+    // Refresh tokens: owner-only file permissions (security audit F-14).
+    fs.writeFileSync(TOKENS_FILE, JSON.stringify(state, null, 2), { encoding: "utf8", mode: 0o600 });
+    fs.chmodSync(TOKENS_FILE, 0o600);
   } catch (err) {
     logger.warn("ge-poller", "failed to persist tokens", { error: String(err) });
   }

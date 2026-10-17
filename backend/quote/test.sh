@@ -26,6 +26,13 @@ if ! dfx identity list 2>/dev/null | grep -q "^quote-contractor-test$"; then
 fi
 CONTRACTOR_PRINCIPAL=$(dfx identity get-principal --identity quote-contractor-test)
 echo "Contractor test principal: $CONTRACTOR_PRINCIPAL"
+# M2: only registered contractors may submit quotes / sealed bids.
+if dfx canister id contractor >/dev/null 2>&1; then
+  dfx canister call contractor register '(record {
+    name = "Quote Test Plumbing"; specialties = vec { variant { Plumbing }; variant { HVAC } };
+    email = "quote-test@contractors.com"; phone = "+12125559076";
+  })' --identity quote-contractor-test >/dev/null 2>&1 || true
+fi
 
 # Far-future validUntil timestamp (nanoseconds) — year 2030
 VALID_UNTIL="1893456000000000000"

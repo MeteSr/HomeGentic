@@ -5,6 +5,7 @@ import {
   buildIIAuthUrl,
   parseAuthCallback,
   isDelegationExpired,
+  delegationTargetsKey,
   II_URL,
   REDIRECT_URI,
 } from "../../auth/authUtils";
@@ -131,5 +132,28 @@ describe("isDelegationExpired", () => {
   it("returns true when delegations array is empty", () => {
     const empty = JSON.stringify({ delegations: [], publicKey: "aa" });
     expect(isDelegationExpired(empty)).toBe(true);
+  });
+});
+
+// ── delegationTargetsKey ──────────────────────────────────────────────────────
+
+describe("delegationTargetsKey", () => {
+  const chain = (pubkeys: string[]) =>
+    JSON.stringify({
+      delegations: pubkeys.map((pubkey) => ({ delegation: { pubkey, expiration: "1" }, signature: "00" })),
+      publicKey: "ff",
+    });
+
+  it("accepts a chain whose last delegation targets the session key", () => {
+    expect(delegationTargetsKey(chain(["11", "AbCd"]), "abcd")).toBe(true);
+  });
+
+  it("rejects a chain delegated to a different key", () => {
+    expect(delegationTargetsKey(chain(["abcd", "1234"]), "abcd")).toBe(false);
+  });
+
+  it("rejects empty or malformed chains", () => {
+    expect(delegationTargetsKey(chain([]), "abcd")).toBe(false);
+    expect(delegationTargetsKey("not json", "abcd")).toBe(false);
   });
 });

@@ -229,10 +229,19 @@ function decodeAmountCents(bytes: Uint8Array): number {
 }
 
 /**
- * IBE-encrypt an amountCents value to the homeowner's identity.
+ * IBE identity for a sealed-bid request: the UTF-8 bytes of the request ID.
+ * Must match `bidIdentity(requestId)` in backend/quote/main.mo, which derives
+ * the reveal key for exactly this input (one key per request, L1).
+ */
+export function sealedBidIdentity(requestId: string): Uint8Array {
+  return new TextEncoder().encode(requestId);
+}
+
+/**
+ * IBE-encrypt an amountCents value to a sealed-bid request's identity.
  *
  * @param pubKeyBytes  - Raw bytes from canister `getIbePublicKey()`.
- * @param homeownerPrincipalBytes - `principal.toUint8Array()` of the homeowner.
+ * @param homeownerPrincipalBytes - IBE identity bytes: `sealedBidIdentity(requestId)`.
  * @param amountCents  - Bid amount in US cents.
  * @returns Serialized IbeCiphertext bytes to store in the canister.
  */
@@ -255,7 +264,7 @@ export async function ibeEncryptAmount(
  *
  * @param encryptedKeyBytes  - `encryptedKey` from `revealBidsEncrypted()` canister call.
  * @param pubKeyBytes        - Raw bytes from `getIbePublicKey()`.
- * @param myPrincipalBytes   - `principal.toUint8Array()` of the homeowner (must match canister input).
+ * @param myPrincipalBytes   - IBE identity bytes, `sealedBidIdentity(requestId)` (must match canister input).
  * @param tsk                - The TransportSecretKey whose public key was sent to the canister.
  * @param rawBids            - SealedBid records from the canister.
  * @returns Decrypted RevealedBid array with isWinner set for the lowest price.

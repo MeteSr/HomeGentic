@@ -6,6 +6,8 @@
  * Then saves the confirmed bill record to the bills canister.
  */
 
+import { getAgentSessionToken } from "./agentSession";
+
 const VOICE_AGENT_URL =
   process.env.EXPO_PUBLIC_VOICE_AGENT_URL ?? "http://localhost:3001";
 
@@ -69,9 +71,13 @@ export async function extractBill(
   mimeType: string,
   base64Data: string,
 ): Promise<BillExtraction> {
+  // The Worker only runs AI routes for a signed-in user's session.
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const token = await getAgentSessionToken().catch(() => null);
+  if (token) headers["x-agent-session"] = token;
   const res = await fetch(`${VOICE_AGENT_URL}/api/extract-bill`, {
     method:  "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body:    JSON.stringify({ fileName, mimeType, base64Data }),
   });
   if (!res.ok) {

@@ -7,6 +7,7 @@ import {
   Home, Zap, Flame, Droplets, Wind, Square, Layers,
 } from "lucide-react";
 import { V2_COLORS, V2_FONTS } from "@/theme";
+import { voiceAgentFetch } from "@/services/voiceAgentHeaders";
 
 /* ─── Types (mirrors server types) ────────────────────────────────────────── */
 type SystemStatus = "replaced" | "original" | "unknown";
@@ -150,11 +151,13 @@ function decodeState(s: string): { address: string; yearBuilt: number; claims: C
 const VOICE_URL = (import.meta as any).env?.VITE_VOICE_AGENT_URL ?? "http://localhost:3001";
 
 async function fetchKit(address: string, yearBuilt: number, claims: Claims): Promise<KitResponse> {
-  const res = await fetch(`${VOICE_URL}/api/buyers-truth-kit`, {
+  const res = await voiceAgentFetch(`${VOICE_URL}/api/buyers-truth-kit`, {
     method:  "POST",
     headers: { "Content-Type": "application/json" },
     body:    JSON.stringify({ address, yearBuilt, claims }),
   });
+  // The Worker requires a signed-in session for AI routes (cost control).
+  if (res.status === 401) throw new Error("Please sign in to generate your Truth Kit.");
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "Request failed" }));
     throw new Error(err.error ?? "Analysis failed");

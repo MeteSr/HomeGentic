@@ -112,12 +112,14 @@ getListingPhotos(1) -> (1) [query]
 getMyBidRequests(0) -> (1) [query]
 getMyProposals(0) -> (1) [query]
 getOpenBidRequests(0) -> (1) [query]
+getOpenBidRequestsPage(2) -> (1) [query]
 getPanoramas(1) -> (1) [query]
 getPhotoReviewState(1) -> (1) [query]
 getPlatformFee(0) -> (1) [query]
 getProposalsForRequest(1) -> (1) [query]
 getThread(1) -> (1) [query]
 listActiveFsboListings(0) -> (1) [query]
+listActiveFsboListingsPage(2) -> (1) [query]
 markListingFeePaid(2) -> (1)
 postMessage(3) -> (1)
 removeListingPhoto(2) -> (1)
@@ -138,7 +140,7 @@ withdrawProposal(1) -> (1)"
 
 exports[`Candid contract snapshots — method arity > maintenance 1`] = `
 "createScheduleEntry(6) -> (1)
-getScheduleByProperty(1) -> (1) [query]
+getScheduleByProperty(1) -> (1)
 markCompleted(1) -> (1)"
 `;
 
@@ -153,7 +155,8 @@ unregisterCanister(1) -> (1)"
 `;
 
 exports[`Candid contract snapshots — method arity > payment 1`] = `
-"adminGrantAgentCredits(2) -> (1)
+"addStripeRelay(1) -> (1)
+adminGrantAgentCredits(2) -> (1)
 cancelSubscription(0) -> (1)
 configureStripe(1) -> (1)
 createStripeCheckoutSession(3) -> (1)
@@ -167,8 +170,12 @@ grantSubscription(2) -> (1)
 initAdmins(2) -> (1)
 isStripeConfigured(0) -> (1) [query]
 listPendingGifts(0) -> (1) [query]
+listStripeRelays(0) -> (1) [query]
 redeemGift(1) -> (1)
+removeStripeRelay(1) -> (1)
 setBootstrapNonce(1) -> (0)
+stripeActivateSubscription(4) -> (1)
+stripeGrantAgentCredits(3) -> (1)
 subscribe(1) -> (1)
 verifyStripeSession(1) -> (1)"
 `;
@@ -255,10 +262,10 @@ exports[`Candid contract snapshots — method arity > recurring 1`] = `
 "addVisitLog(3) -> (1)
 attachContractDoc(2) -> (1)
 createRecurringService(9) -> (1)
-getByProperty(1) -> (1) [query]
+getByProperty(1) -> (1)
 getMetrics(0) -> (1) [query]
-getRecurringService(1) -> (1) [query]
-getVisitLogs(1) -> (1) [query]
+getRecurringService(1) -> (1)
+getVisitLogs(1) -> (1)
 updateStatus(2) -> (1)"
 `;
 
@@ -275,7 +282,7 @@ revokeShareLink(1) -> (1)"
 
 exports[`Candid contract snapshots — method arity > sensor 1`] = `
 "deactivateDevice(1) -> (1)
-getDevicesForProperty(1) -> (1) [query]
+getDevicesForProperty(1) -> (1) [composite_query]
 getEventsForProperty(2) -> (1)
 getPendingAlerts(1) -> (1)
 recordEvent(5) -> (1)

@@ -4,7 +4,7 @@ import * as Linking from "expo-linking";
 import { Ed25519KeyIdentity } from "@icp-sdk/core/identity";
 import { DelegationChain, DelegationIdentity } from "@icp-sdk/core/identity";
 import { HttpAgent } from "@icp-sdk/core/agent";
-import { buildIIAuthUrl, parseAuthCallback, isDelegationExpired, REDIRECT_URI } from "./authUtils";
+import { buildIIAuthUrl, parseAuthCallback, isDelegationExpired, delegationTargetsKey, REDIRECT_URI } from "./authUtils";
 import { saveAuth, loadAuth, clearAuth, StoredAuth } from "./authStorage";
 import { authenticateWithBiometrics } from "./biometricService";
 import { getProfile, UserProfile } from "../services/authService";
@@ -16,13 +16,16 @@ export type AuthState =
   | { status: "authenticated"; principal: string; profile: UserProfile | null; identity: DelegationIdentity; agent: HttpAgent }
   | { status: "error"; message: string };
 
-/** Session keypair persisted in memory for the current app lifecycle */
+/**
+ * Session keypair for the login in progress / the restored session. A fresh
+ * key is generated for every login and persisted in SecureStore with the
+ * delegation chain (see authStorage), so a restored chain is paired with the
+ * key it actually delegates to.
+ */
 let _sessionIdentity: Ed25519KeyIdentity | null = null;
 
-function getOrCreateSessionIdentity(): Ed25519KeyIdentity {
-  if (!_sessionIdentity) {
-    _sessionIdentity = Ed25519KeyIdentity.generate();
-  }
+function newSessionIdentity(): Ed25519KeyIdentity {
+  _sessionIdentity = Ed25519KeyIdentity.generate();
   return _sessionIdentity;
 }
 
@@ -35,6 +38,9 @@ function buildIdentityFromStored(
   sessionIdentity: Ed25519KeyIdentity,
   stored: StoredAuth,
 ): DelegationIdentity {
+  if (!delegationTargetsKey(stored.delegationChainJSON, sessionPublicKeyHex(sessionIdentity))) {
+    throw new Error("Delegation does not target this device's session key");
+  }
   const chain = DelegationChain.fromJSON(JSON.parse(stored.delegationChainJSON));
   return DelegationIdentity.fromDelegation(sessionIdentity, chain);
 }
@@ -73,7 +79,8 @@ export function useAuth() {
         return;
       }
 
-      const sessionIdentity = getOrCreateSessionIdentity();
+      const sessionIdentity = Ed25519KeyIdentity.fromJSON(stored.sessionKeyJSON);
+      _sessionIdentity = sessionIdentity;
       const identity = buildIdentityFromStored(sessionIdentity, stored);
       const agent = buildAgent(identity);
       setIcpAgent(agent);
@@ -88,7 +95,7 @@ export function useAuth() {
   const login = useCallback(async () => {
     setAuthState({ status: "loading" });
     try {
-      const sessionIdentity = getOrCreateSessionIdentity();
+      const sessionIdentity = newSessionIdentity();
       const pubkeyHex = sessionPublicKeyHex(sessionIdentity);
       const authUrl = buildIIAuthUrl(pubkeyHex);
 
@@ -126,9 +133,11 @@ export function useAuth() {
       const stored: StoredAuth = {
         delegationChainJSON: parsed.delegationChainJSON,
         userPublicKey: parsed.userPublicKey,
+        sessionKeyJSON: JSON.stringify(sessionIdentity.toJSON()),
       };
-      await saveAuth(stored);
+      // Validate (incl. the delegation-target check) before persisting.
       const identity = buildIdentityFromStored(sessionIdentity, stored);
+      await saveAuth(stored);
       const agent = buildAgent(identity);
       setIcpAgent(agent);
       const principal = identity.getPrincipal().toText();

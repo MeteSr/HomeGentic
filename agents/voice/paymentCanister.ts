@@ -22,8 +22,10 @@ export const VALID_TIERS = new Set([
 
 // ── Identity ──────────────────────────────────────────────────────────────────
 // Parse DFX_IDENTITY_PEM (Ed25519 SEC1 or PKCS8) into an @icp-sdk/core/identity.
-// The principal of this identity must be registered as admin in the payment
-// canister (done during deploy bootstrap in scripts/deploy.sh).
+// The principal of this identity must be registered in the payment canister —
+// preferably as a Stripe relay (payment.addStripeRelay), which may only call
+// stripeActivateSubscription / stripeGrantAgentCredits / consumeAgentCredit and
+// free-tier downgrades, rather than as a full admin (F-9).
 export function identityFromPem(pem: string): Ed25519KeyIdentity {
   const keyObj = crypto.createPrivateKey({ key: pem, format: "pem" });
   const jwk = keyObj.export({ format: "jwk" }) as { crv?: string; d?: string };
@@ -97,6 +99,16 @@ const idlFactory = ({ IDL }: { IDL: any }) => {
       [IDL.Variant({ ok: IDL.Nat, err: Err })],
       [],
     ),
+    stripeActivateSubscription: IDL.Func(
+      [IDL.Principal, Tier, IDL.Int, IDL.Text],
+      [IDL.Variant({ ok: Sub, err: Err })],
+      [],
+    ),
+    stripeGrantAgentCredits: IDL.Func(
+      [IDL.Principal, IDL.Nat, IDL.Text],
+      [IDL.Variant({ ok: IDL.Nat, err: Err })],
+      [],
+    ),
     getTierForPrincipal: IDL.Func(
       [IDL.Principal],
       [IDL.Variant({ Free: IDL.Null, Pro: IDL.Null, ContractorFree: IDL.Null, ContractorPro: IDL.Null, RealtorFree: IDL.Null, RealtorPro: IDL.Null })],
@@ -117,6 +129,17 @@ type PaymentActor = {
   adminGrantAgentCredits(
     user: Principal,
     amount: bigint,
+  ): Promise<{ ok: bigint } | { err: unknown }>;
+  stripeActivateSubscription(
+    user: Principal,
+    tier: Record<string, null>,
+    expiresAtNs: bigint,
+    stripeRef: string,
+  ): Promise<{ ok: unknown } | { err: unknown }>;
+  stripeGrantAgentCredits(
+    user: Principal,
+    amount: bigint,
+    stripeRef: string,
   ): Promise<{ ok: bigint } | { err: unknown }>;
   getTierForPrincipal(user: Principal): Promise<Record<string, null>>;
 };
@@ -166,6 +189,60 @@ export async function grantAgentCredits(
   );
   if ("err" in result)
     throw new Error(`Credit grant failed: ${JSON.stringify(result.err)}`);
+}
+
+/** Paid tiers a Stripe subscription can activate. */
+export const PAID_TIERS = new Set(["Pro", "ContractorPro"]);
+
+/**
+ * Activate a Stripe-paid subscription until Stripe's period end. Idempotent
+ * per `stripeRef` in the canister (P-2): replaying the same reference changes
+ * nothing, and the expiry always comes from Stripe, never "now + N months".
+ */
+export async function activateSubscriptionUntil(
+  principal: string,
+  tier: string,
+  periodEndSeconds: number,
+  stripeRef: string,
+): Promise<void> {
+  if (!PAID_TIERS.has(tier)) throw new Error(`Invalid tier: ${tier}`);
+  if (!PRINCIPAL_RE.test(principal)) throw new Error("Invalid principal format");
+  if (!Number.isInteger(periodEndSeconds) || periodEndSeconds <= 0) throw new Error("Invalid period end");
+  const result = await (await getActor()).stripeActivateSubscription(
+    Principal.fromText(principal),
+    { [tier]: null },
+    BigInt(periodEndSeconds) * 1_000_000_000n,
+    stripeRef,
+  );
+  if ("err" in result) throw new Error("Canister activation failed");
+}
+
+/** Thrown when a Stripe reference has already produced a grant. */
+export class AlreadyConsumedError extends Error {
+  constructor() { super("already_consumed"); this.name = "AlreadyConsumedError"; }
+}
+
+/**
+ * Grant a credit pack once per Stripe reference (F-2). Throws
+ * AlreadyConsumedError on a replay.
+ */
+export async function grantAgentCreditsOnce(
+  principal: string,
+  amount: number,
+  stripeRef: string,
+): Promise<void> {
+  if (!PRINCIPAL_RE.test(principal)) throw new Error("Invalid principal format");
+  if (!Number.isInteger(amount) || amount <= 0) throw new Error("Invalid credit amount");
+  const result = await (await getActor()).stripeGrantAgentCredits(
+    Principal.fromText(principal),
+    BigInt(amount),
+    stripeRef,
+  );
+  if ("err" in result) {
+    const err = result.err as Record<string, unknown>;
+    if (err && (err as any).InvalidInput === "already_consumed") throw new AlreadyConsumedError();
+    throw new Error("Credit grant failed");
+  }
 }
 
 /**

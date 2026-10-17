@@ -59,7 +59,9 @@ export function loadSession(): TeslaSession | null {
 
 export function persistSession(session: TeslaSession): void {
   try {
-    fs.writeFileSync(SESSION_FILE, JSON.stringify(session, null, 2), "utf8");
+    // Refresh tokens: owner-only file permissions (security audit F-14).
+    fs.writeFileSync(SESSION_FILE, JSON.stringify(session, null, 2), { encoding: "utf8", mode: 0o600 });
+    fs.chmodSync(SESSION_FILE, 0o600);
   } catch (err) {
     logger.warn("tesla-poller", "failed to persist session", { error: String(err) });
   }

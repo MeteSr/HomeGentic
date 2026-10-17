@@ -89,7 +89,7 @@ JOB_OUT=$(dfx canister call $CANISTER createJob "(
   null
 )")
 echo "$JOB_OUT"
-JOB_ID=$(echo "$JOB_OUT" | grep -oP '"JOB_[0-9]+"' | head -1 | tr -d '"')
+JOB_ID=$(echo "$JOB_OUT" | grep -oP '"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"' | head -1 | tr -d '"')
 echo "  → Job ID: $JOB_ID"
 
 # ─── Create a DIY job ─────────────────────────────────────────────────────────
@@ -109,7 +109,7 @@ DIY_OUT=$(dfx canister call $CANISTER createJob "(
   null
 )")
 echo "$DIY_OUT"
-DIY_ID=$(echo "$DIY_OUT" | grep -oP '"JOB_[0-9]+"' | head -1 | tr -d '"')
+DIY_ID=$(echo "$DIY_OUT" | grep -oP '"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"' | head -1 | tr -d '"')
 echo "  → DIY Job ID: $DIY_ID"
 
 # ─── Service types beyond the original eight (shared ServiceType) ─────────────
@@ -259,7 +259,7 @@ REFERRAL_JOB_OUT=$(dfx canister call $CANISTER createJob "(
   opt \"QUOTE_REFERRAL_1\"
 )")
 echo "$REFERRAL_JOB_OUT"
-REFERRAL_JOB_ID=$(echo "$REFERRAL_JOB_OUT" | grep -oP '"JOB_[0-9]+"' | head -1 | tr -d '"')
+REFERRAL_JOB_ID=$(echo "$REFERRAL_JOB_OUT" | grep -oP '"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"' | head -1 | tr -d '"')
 echo "  → Referral job ID: $REFERRAL_JOB_ID"
 dfx canister call $CANISTER linkContractor "(\"$REFERRAL_JOB_ID\", principal \"$CONTRACTOR_PRINCIPAL\")"
 dfx canister call $CANISTER verifyJob "(\"$REFERRAL_JOB_ID\")" > /dev/null
@@ -382,7 +382,7 @@ INVITE_JOB_OUT=$(dfx canister call $CANISTER createJob "(
   null
 )")
 echo "$INVITE_JOB_OUT"
-INVITE_JOB_ID=$(echo "$INVITE_JOB_OUT" | grep -oP '"JOB_[0-9]+"' | head -1 | tr -d '"')
+INVITE_JOB_ID=$(echo "$INVITE_JOB_OUT" | grep -oP '"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"' | head -1 | tr -d '"')
 echo "  → Fresh job ID: $INVITE_JOB_ID"
 
 echo ""
@@ -475,7 +475,7 @@ PRELINK_JOB_OUT=$(dfx canister call $CANISTER createJob "(
   false,
   null
 )")
-PRELINK_JOB_ID=$(echo "$PRELINK_JOB_OUT" | grep -oP '"JOB_[0-9]+"' | head -1 | tr -d '"')
+PRELINK_JOB_ID=$(echo "$PRELINK_JOB_OUT" | grep -oP '"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"' | head -1 | tr -d '"')
 dfx canister call $CANISTER linkContractor "(\"$PRELINK_JOB_ID\", principal \"$CONTRACTOR_PRINCIPAL\")" > /dev/null
 PRELINK_INVITE_OUT=$(dfx canister call $CANISTER createInviteToken "(\"$PRELINK_JOB_ID\", \"123 Main St, Austin TX 78701\")")
 PRELINK_TOKEN=$(echo "$PRELINK_INVITE_OUT" | grep -oP '"[a-zA-Z0-9_-]{16,}"' | head -1 | tr -d '"')
@@ -717,7 +717,7 @@ PROPOSAL_OUT=$(dfx canister call $CANISTER createJobProposal "(
   null
 )" --identity contractor-test)
 echo "$PROPOSAL_OUT"
-PROPOSAL_ID=$(echo "$PROPOSAL_OUT" | grep -oP '"JOB_[0-9]+"' | head -1 | tr -d '"' || true)
+PROPOSAL_ID=$(echo "$PROPOSAL_OUT" | grep -oP '"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"' | head -1 | tr -d '"' || true)
 if echo "$PROPOSAL_OUT" | grep -q "PendingHomeownerApproval"; then
   echo "  ✓ Proposal created with PendingHomeownerApproval status"
 else
@@ -793,7 +793,7 @@ REJECT_PROPOSAL_OUT=$(dfx canister call $CANISTER createJobProposal "(
   null
 )" --identity contractor-test)
 echo "$REJECT_PROPOSAL_OUT"
-REJECT_PROPOSAL_ID=$(echo "$REJECT_PROPOSAL_OUT" | grep -oP '"JOB_[0-9]+"' | head -1 | tr -d '"' || true)
+REJECT_PROPOSAL_ID=$(echo "$REJECT_PROPOSAL_OUT" | grep -oP '"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"' | head -1 | tr -d '"' || true)
 echo "  → Reject-target proposal ID: $REJECT_PROPOSAL_ID"
 
 echo ""
