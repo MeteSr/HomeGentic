@@ -128,7 +128,7 @@ describe("disablePush", () => {
     const sub = (existingSub = fakeSub("https://push.example/sub-9"));
     expect(await disablePush()).toBe("off");
     expect(fetch).toHaveBeenCalledWith(`${RELAY}/api/push/vapid-unsubscribe`, expect.objectContaining({
-      body: JSON.stringify({ endpoint: "https://push.example/sub-9" }),
+      body: JSON.stringify({ endpoint: "https://push.example/sub-9", auth: "a" }),
     }));
     expect(sub.unsubscribe).toHaveBeenCalled();
   });

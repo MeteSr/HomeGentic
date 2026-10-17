@@ -11,6 +11,7 @@ import Array     "mo:core/Array";
 import Map       "mo:core/Map";
 import Int       "mo:core/Int";
 import Iter      "mo:core/Iter";
+import List      "mo:core/List";
 import Nat       "mo:core/Nat";
 import Option    "mo:core/Option";
 import Principal "mo:core/Principal";
@@ -258,6 +259,24 @@ persistent actor Listing {
   /// propertyId → the principal who first added a panorama (owner lock)
   private let listingPanoramaOwners = Map.empty<Text, Principal>();
 
+  /// photoId → the propertyId whose listing first added it. Ties a photo's
+  /// review state to one property so another owner can't clear its gate (M7).
+  private let listingPhotoProperty  = Map.empty<Text, Text>();
+
+  // ─── Input caps (M6) — keep every stored Text/array bounded so public feeds
+  // can never be pushed past the reply-size limit. ──────────────────────────
+  private transient let MAX_SHORT_TEXT     : Nat = 200;    // city, county, zip, names, labels
+  private transient let MAX_ADDRESS_TEXT   : Nat = 300;
+  private transient let MAX_EMAIL_TEXT     : Nat = 254;
+  private transient let MAX_URL_TEXT       : Nat = 2048;
+  private transient let MAX_LONG_TEXT      : Nat = 4000;   // cmaSummary, marketingPlan, coverLetter
+  private transient let MAX_LIST_ENTRIES   : Nat = 20;
+  private transient let MAX_ENTRY_TEXT     : Nat = 300;
+  private transient let MAX_THREAD_MESSAGES : Nat = 200;
+  /// Public feeds return at most this many records per call; page through the
+  /// rest with the *Page variants.
+  private transient let MAX_FEED_PAGE      : Nat = 200;
+
   private transient let MAX_LISTING_PHOTOS    : Nat = 15;
   private transient let MAX_LISTING_PANORAMAS : Nat = 10;
   private transient let MAX_PROPOSALS_PER_REQUEST : Nat = 5;   // "up to five agents" — invariant surface
@@ -325,21 +344,75 @@ persistent actor Listing {
     }))
   };
 
+  /// M5: coarse buckets for the agent-record snapshot shown while identity is
+  /// masked, so a homeowner can't match exact (closedInZip, avgDom) pairs
+  /// against public agent stats to re-identify the bidder.
+  private func bucketCount(n: Nat) : Nat {
+    if (n == 0) 0 else if (n < 5) 1 else if (n < 10) 5 else if (n < 25) 10 else if (n < 50) 25 else 50
+  };
+  private func bucketDays(n: Nat) : Nat { (n / 15) * 15 };
+
+  private func scrubbed(t: Text) : Text { scrubText(t).0 };
+
   private func toMasked(p: ListingProposal, caller: Principal, unmasked: Bool) : MaskedProposal {
     let mine = p.agentId == caller;
     let reveal = unmasked or mine;
+    // M5: free text is scrubbed of contact details until identity release
+    // (also scrubbed at submit; this covers proposals stored before that).
     {
       id = p.id; requestId = p.requestId; letter = p.letter;
       commissionBps = p.commissionBps; suggestedListCents = p.suggestedListCents;
-      cmaSummary = p.cmaSummary; marketingPlan = p.marketingPlan;
-      marketingCommitments = p.marketingCommitments;
+      cmaSummary    = if (reveal) { p.cmaSummary } else { scrubbed(p.cmaSummary) };
+      marketingPlan = if (reveal) { p.marketingPlan } else { scrubbed(p.marketingPlan) };
+      marketingCommitments = if (reveal) { p.marketingCommitments }
+        else { Array.map<Text, Text>(p.marketingCommitments, scrubbed) };
       estimatedDaysOnMarket = p.estimatedDaysOnMarket; status = p.status;
-      derived = p.derived; agentRecord = p.agentRecord; isMine = mine;
+      derived = p.derived;
+      agentRecord = if (reveal) { p.agentRecord } else {
+        { p.agentRecord with closedInZip = bucketCount(p.agentRecord.closedInZip);
+          avgDom = bucketDays(p.agentRecord.avgDom) }
+      };
+      isMine = mine;
       agentName      = if (reveal) { ?p.agentName } else { null };
       agentEmail     = if (reveal) { ?p.agentEmail } else { null };
       agentBrokerage = if (reveal) { ?p.agentBrokerage } else { null };
       createdAt = p.createdAt;
     }
+  };
+
+  private func tooLong(t: Text, max: Nat) : Bool { Text.size(t) > max };
+
+  private func listTooBig(xs: [Text]) : Bool {
+    if (xs.size() > MAX_LIST_ENTRIES) return true;
+    for (x in xs.vals()) { if (Text.size(x) > MAX_ENTRY_TEXT) return true };
+    false
+  };
+
+  private func page<T>(it: Iter.Iter<T>, from: Nat, limit: Nat) : [T] {
+    Iter.toArray(Iter.take(Iter.drop(it, from), Nat.min(limit, MAX_FEED_PAGE)))
+  };
+
+  /// Property-canister ownership: the property's registered owner only.
+  /// Fails closed when the property canister isn't wired.
+  private func isPropertyOwner(propertyId: Text, caller: Principal) : async Bool {
+    if (Text.size(propCanisterId) == 0) return false;
+    let propActor = actor(propCanisterId) : actor {
+      getPropertyOwner : query (Text) -> async ?Principal;
+    };
+    switch (await propActor.getPropertyOwner(propertyId)) {
+      case null    { false };
+      case (?owner) { owner == caller };
+    }
+  };
+
+  /// Owner or write-capable manager (co-owner / manager) of a property.
+  /// Fails closed when the property canister isn't wired.
+  private func canManageProperty(propertyId: Text, caller: Principal) : async Bool {
+    if (Text.size(propCanisterId) == 0) return false;
+    let propActor = actor(propCanisterId) : actor {
+      isAuthorized : query (Text, Principal, Bool) -> async Bool;
+    };
+    await propActor.isAuthorized(propertyId, caller, true)
   };
 
   // ─── Homeowner: Bid Request Lifecycle ────────────────────────────────────────
@@ -367,6 +440,17 @@ persistent actor Listing {
     if (Text.size(address) == 0)    return #err(#InvalidInput("address cannot be empty"));
     if (Text.size(zipCode) == 0)    return #err(#InvalidInput("zipCode cannot be empty"));
     if (Text.size(notes) > 180)     return #err(#InvalidInput("notes exceeds 180 characters"));
+    // M6: bound every stored field so the public feed stays under reply limits.
+    if (tooLong(propertyId, MAX_SHORT_TEXT))   return #err(#InvalidInput("propertyId too long"));
+    if (tooLong(address, MAX_ADDRESS_TEXT))    return #err(#InvalidInput("address too long"));
+    if (tooLong(city, MAX_SHORT_TEXT))         return #err(#InvalidInput("city too long"));
+    if (tooLong(county, MAX_SHORT_TEXT))       return #err(#InvalidInput("county too long"));
+    if (tooLong(zipCode, 20))                  return #err(#InvalidInput("zipCode too long"));
+    if (tooLong(homeownerEmail, MAX_EMAIL_TEXT)) return #err(#InvalidInput("homeownerEmail too long"));
+
+    // M6: only the property's owner may put it up for Bid to List — no fake
+    // listings for homes the caller doesn't own. Fails closed when unwired.
+    if (not (await isPropertyOwner(propertyId, msg.caller))) return #err(#NotAuthorized);
 
     let id = nextBidId();
     let (scrubbedNotes, _) = scrubText(notes);
@@ -384,15 +468,20 @@ persistent actor Listing {
     Iter.toArray(Index.records(requestsByHomeowner, Principal.toText(msg.caller), requests))
   };
 
-  /// Redacts address/homeownerEmail for anyone but the homeowner, an admin, or
-  /// (post-payment) the winning agent — invariant 01.
+  /// Redacts address/homeownerEmail, and also propertyId and the homeowner
+  /// principal (either one resolves to the address via the property canister —
+  /// L-1/H1), for anyone but the homeowner, an admin, or (post-payment) the
+  /// winning agent — invariant 01. The redacted homeowner is the anonymous
+  /// principal.
   public query(msg) func getBidRequest(id: Text) : async Result.Result<ListingBidRequest, Error> {
     switch (Map.get(requests, Text.compare, id)) {
       case null { #err(#NotFound) };
       case (?r) {
         let privileged = isAdmin(msg.caller) or r.homeowner == msg.caller
           or (r.feePaid and isWinningAgent(r.id, msg.caller));
-        if (privileged) { #ok(r) } else { #ok({ r with address = ""; homeownerEmail = "" }) };
+        if (privileged) { #ok(r) } else {
+          #ok({ r with address = ""; homeownerEmail = ""; propertyId = ""; homeowner = Principal.anonymous() })
+        };
       };
     }
   };
@@ -413,22 +502,26 @@ persistent actor Listing {
 
   /// Masked opportunity feed for the agent browse screen (A2). Open-slot count
   /// is the only cross-agent signal permitted — invariant 03.
+  private func toSummary(r: ListingBidRequest) : BidRequestSummary {
+    let count = proposalsFor(r.id).size();
+    {
+      id = r.id; city = r.city; county = r.county; zipCode = r.zipCode;
+      beds = r.beds; baths = r.baths; sqft = r.sqft;
+      targetListDate = r.targetListDate; desiredSalePrice = r.desiredSalePrice;
+      notes = r.notes; windowDays = r.windowDays; bidDeadline = r.bidDeadline;
+      status = r.status; proposalCount = count;
+      openSlots = if (count >= MAX_PROPOSALS_PER_REQUEST) { 0 } else { MAX_PROPOSALS_PER_REQUEST - count };
+      createdAt = r.createdAt;
+    }
+  };
+
+  /// M6: capped at MAX_FEED_PAGE entries; use getOpenBidRequestsPage for the rest.
   public query func getOpenBidRequests() : async [BidRequestSummary] {
-    Iter.toArray(Iter.map<ListingBidRequest, BidRequestSummary>(
-      Index.records(openBidRequests, "open", requests),
-      func(r) {
-        let count = proposalsFor(r.id).size();
-        {
-          id = r.id; city = r.city; county = r.county; zipCode = r.zipCode;
-          beds = r.beds; baths = r.baths; sqft = r.sqft;
-          targetListDate = r.targetListDate; desiredSalePrice = r.desiredSalePrice;
-          notes = r.notes; windowDays = r.windowDays; bidDeadline = r.bidDeadline;
-          status = r.status; proposalCount = count;
-          openSlots = if (count >= MAX_PROPOSALS_PER_REQUEST) { 0 } else { MAX_PROPOSALS_PER_REQUEST - count };
-          createdAt = r.createdAt;
-        }
-      }
-    ))
+    page(Iter.map<ListingBidRequest, BidRequestSummary>(Index.records(openBidRequests, "open", requests), toSummary), 0, MAX_FEED_PAGE)
+  };
+
+  public query func getOpenBidRequestsPage(from: Nat, limit: Nat) : async [BidRequestSummary] {
+    page(Iter.map<ListingBidRequest, BidRequestSummary>(Index.records(openBidRequests, "open", requests), toSummary), from, limit)
   };
 
   // ─── Homeowner: Photo review (H1 flagged-tile gate) ─────────────────────────
@@ -436,14 +529,42 @@ persistent actor Listing {
   // dependency, not built here. flagPhotoForReview stands in for that scan —
   // wire a real vision pipeline to call it later without changing this surface.
 
+  /// The property whose listing holds this photo (M7). Falls back to a scan
+  /// for photos added before listingPhotoProperty existed.
+  private func photoPropertyOf(photoId: Text) : ?Text {
+    switch (Map.get(listingPhotoProperty, Text.compare, photoId)) {
+      case (?pid) { return ?pid };
+      case null {};
+    };
+    for ((pid, ids) in Map.entries(listingPhotos)) {
+      if (Option.isSome(Array.find<Text>(ids, func(id) { id == photoId }))) return ?pid;
+    };
+    for ((pid, entries) in Map.entries(listingPanoramas)) {
+      if (Option.isSome(Array.find<PanoramaEntry>(entries, func(e) { e.photoId == photoId }))) return ?pid;
+    };
+    null
+  };
+
+  /// M7: review-state changes are limited to admins and the owner/manager of
+  /// the property whose listing holds the photo.
+  private func canChangePhotoReview(photoId: Text, caller: Principal) : async Bool {
+    if (isAdmin(caller)) return true;
+    switch (photoPropertyOf(photoId)) {
+      case null    { false };
+      case (?pid)  { await canManageProperty(pid, caller) };
+    }
+  };
+
   public shared(msg) func flagPhotoForReview(photoId: Text) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (not (await canChangePhotoReview(photoId, msg.caller))) return #err(#NotAuthorized);
     Map.add(photoReviews, Text.compare, photoId, { flagged = true; reviewed = false });
     #ok(())
   };
 
   public shared(msg) func reviewPhoto(photoId: Text) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (not (await canChangePhotoReview(photoId, msg.caller))) return #err(#NotAuthorized);
     Map.add(photoReviews, Text.compare, photoId, { flagged = true; reviewed = true });
     #ok(())
   };
@@ -470,6 +591,13 @@ persistent actor Listing {
     coverLetter:           Text
   ) : async Result.Result<ListingProposal, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+
+    // M6: bound proposal free text.
+    if (tooLong(cmaSummary, MAX_LONG_TEXT))    return #err(#InvalidInput("cmaSummary too long"));
+    if (tooLong(marketingPlan, MAX_LONG_TEXT)) return #err(#InvalidInput("marketingPlan too long"));
+    if (tooLong(coverLetter, MAX_LONG_TEXT))   return #err(#InvalidInput("coverLetter too long"));
+    if (listTooBig(marketingCommitments))      return #err(#InvalidInput("too many or too long marketingCommitments"));
+    if (listTooBig(includedServices))          return #err(#InvalidInput("too many or too long includedServices"));
 
     if (Text.size(agentCanisterId) == 0) return #err(#InvalidInput("Agent canister not configured — cannot verify licence"));
     let agentActor = actor(agentCanisterId) : actor {
@@ -520,9 +648,14 @@ persistent actor Listing {
         let proposal: ListingProposal = {
           id; requestId; agentId = msg.caller; agentName = profile.name;
           agentEmail = profile.email; agentBrokerage = profile.brokerage; letter;
-          commissionBps; suggestedListCents; cmaSummary; marketingPlan;
-          marketingCommitments; estimatedDaysOnMarket; includedServices; validUntil;
-          coverLetter; status = #Pending; derived; agentRecord; createdAt = Time.now();
+          commissionBps; suggestedListCents;
+          // M5: scrub contact details (phones, emails, URLs, handles, street
+          // addresses) from every free-text field before persistence.
+          cmaSummary = scrubbed(cmaSummary); marketingPlan = scrubbed(marketingPlan);
+          marketingCommitments = Array.map<Text, Text>(marketingCommitments, scrubbed);
+          estimatedDaysOnMarket;
+          includedServices = Array.map<Text, Text>(includedServices, scrubbed); validUntil;
+          coverLetter = scrubbed(coverLetter); status = #Pending; derived; agentRecord; createdAt = Time.now();
         };
         Index.put(proposals, proposalsIndexes, id, proposal);
         #ok(proposal)
@@ -632,16 +765,51 @@ persistent actor Listing {
   /// Called only from the settled Stripe webhook (via an admin-held identity,
   /// never a client). Reveals identity to both sides, closes the other bids,
   /// marks the request Awarded. Idempotent on webhook retry.
+  ///
+  /// M13: the relay's (requestId, proposalId) is not trusted on its own. The
+  /// fee canister's record for the request — written only by acceptProposal,
+  /// i.e. the homeowner's latest selection — must be #Paid for exactly this
+  /// proposal, and the request/proposal must still be open/pending.
   public shared(msg) func markListingFeePaid(requestId: Text, proposalId: Text) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     switch (Map.get(requests, Text.compare, requestId)) {
+      case null { return #err(#NotFound) };
+      case (?req) {
+        if (req.status == #Awarded and req.feePaid) {
+          // Idempotent retry — only for the proposal that actually won.
+          return if (isProposalAccepted(requestId, proposalId)) #ok(()) else #err(#InvalidInput("request already awarded to another proposal"));
+        };
+      };
+    };
+    if (Text.size(feeCanisterId) == 0) return #err(#InvalidInput("Fee canister not configured"));
+    type FeeRec = {
+      id: Text; requestId: Text; proposalId: Text; agentId: Principal; homeownerId: Principal;
+      amountCents: Nat; status: { #Owed; #Invoiced; #Paid; #Waived }; createdAt: Int; updatedAt: Int;
+    };
+    let feeActor = actor(feeCanisterId) : actor { getFeeForRequest : query (Text) -> async ?FeeRec };
+    let fee = switch (await feeActor.getFeeForRequest(requestId)) {
+      case null { return #err(#InvalidInput("no fee record for this request")) };
+      case (?f) { f };
+    };
+    if (fee.requestId != requestId or fee.proposalId != proposalId)
+      return #err(#InvalidInput("proposal is not the homeowner's selected bid"));
+    if (fee.status != #Paid) return #err(#InvalidInput("platform fee has not settled"));
+
+    // Re-read after the await (TOCTOU): the request may have been cancelled or
+    // awarded, or the proposal withdrawn, while we waited on the fee canister.
+    switch (Map.get(requests, Text.compare, requestId)) {
       case null { #err(#NotFound) };
       case (?req) {
-        if (req.status == #Awarded and req.feePaid) return #ok(()); // idempotent retry
+        if (req.status == #Awarded and req.feePaid) {
+          return if (isProposalAccepted(requestId, proposalId)) #ok(()) else #err(#InvalidInput("request already awarded to another proposal"));
+        };
+        if (req.status != #Open) return #err(#InvalidInput("Request is no longer open"));
         switch (Map.get(proposals, Text.compare, proposalId)) {
           case null { #err(#NotFound) };
           case (?winner) {
             if (winner.requestId != requestId) return #err(#InvalidInput("proposal does not belong to this request"));
+            if (winner.agentId != fee.agentId) return #err(#InvalidInput("fee was paid for a different agent"));
+            if (winner.status != #Pending) return #err(#InvalidInput("proposal is no longer pending"));
             Index.put(proposals, proposalsIndexes, winner.id, { winner with status = #Accepted });
             for (p in proposalsFor(requestId).vals()) {
               if (p.id != winner.id and p.status == #Pending) {
@@ -650,6 +818,34 @@ persistent actor Listing {
             };
             Index.put(requests, requestsIndexes, requestId, { req with status = #Awarded; feePaid = true });
             #ok(())
+          };
+        }
+      };
+    }
+  };
+
+  private func isProposalAccepted(requestId: Text, proposalId: Text) : Bool {
+    switch (Map.get(proposals, Text.compare, proposalId)) {
+      case (?p) { p.requestId == requestId and p.status == #Accepted };
+      case null { false };
+    }
+  };
+
+  /// M4: what the agent canister needs to accept a review — the awarded,
+  /// fee-paid proposal behind a transactionId (= proposalId). Admins and the
+  /// wired agent canister only; everyone else gets null.
+  public query(msg) func getReviewEligibility(proposalId: Text) : async ?{
+    agentId: Principal; homeowner: Principal; awarded: Bool;
+  } {
+    if (not isAdmin(msg.caller) and Principal.toText(msg.caller) != agentCanisterId) return null;
+    switch (Map.get(proposals, Text.compare, proposalId)) {
+      case null { null };
+      case (?p) {
+        switch (Map.get(requests, Text.compare, p.requestId)) {
+          case null { null };
+          case (?req) {
+            ?{ agentId = p.agentId; homeowner = req.homeowner;
+               awarded = p.status == #Accepted and req.feePaid and req.status == #Awarded }
           };
         }
       };
@@ -685,6 +881,7 @@ persistent actor Listing {
           redactions; sentAt = Time.now();
         };
         let existing = switch (Map.get(threads, Text.compare, proposalId)) { case null { [] }; case (?ms) { ms } };
+        if (existing.size() >= MAX_THREAD_MESSAGES) return #err(#InvalidInput("thread message limit reached"));
         Map.add(threads, Text.compare, proposalId, Array.concat(existing, [m]));
         #ok(m)
       };
@@ -710,57 +907,77 @@ persistent actor Listing {
   private func scrubText(raw: Text) : (Text, [Text]) {
     let suffixes : [Text] = ["st","street","ave","avenue","rd","road","blvd","boulevard",
       "dr","drive","ln","lane","ct","court","way","pl","place"];
+    let tlds : [Text] = [".com",".net",".org",".io",".co",".us",".biz",".info",".me",
+      ".realty",".realtor",".homes",".house",".properties",".app",".site"];
     let tokens = Iter.toArray(Text.split(raw, #char ' '));
-    var redactions : [Text] = [];
-    var out : [Text] = [];
-    var i = 0;
+    let redactions = List.empty<Text>();
+    let out = List.empty<Text>();
     let n = tokens.size();
+
+    func digitsIn(t: Text) : Nat {
+      var d = 0;
+      for (c in t.chars()) { if (c >= '0' and c <= '9') { d += 1 } };
+      d
+    };
+    // Token made only of digits and phone punctuation, with at least one digit.
+    func phoneish(t: Text) : Bool {
+      if (Text.size(t) == 0) return false;
+      for (c in t.chars()) {
+        if (not ((c >= '0' and c <= '9') or c == '(' or c == ')' or c == '-' or c == '.' or c == '+' or c == ',')) return false;
+      };
+      digitsIn(t) > 0
+    };
+    func redact(kind: Text) { List.add(redactions, kind); List.add(out, "[redacted]") };
+
+    var i = 0;
     while (i < n) {
       let t = tokens[i];
       let lower = Text.toLower(t);
-      var digitCount = 0;
-      for (c in t.chars()) { if (c >= '0' and c <= '9') { digitCount += 1 } };
+      let trimmed = Text.trimEnd(Text.trimEnd(Text.trimEnd(lower, #char ','), #char '.'), #char ')');
+      let digitCount = digitsIn(t);
+
+      // Phone numbers split across tokens ("555 123 4567", "(555) 123-4567").
+      var j = i;
+      var runDigits = 0;
+      while (j < n and phoneish(tokens[j])) { runDigits += digitsIn(tokens[j]); j += 1 };
 
       if (Text.contains(t, #char '@') and Text.contains(t, #char '.')) {
-        redactions := Array.concat(redactions, ["email"]);
-        out := Array.concat(out, ["[redacted]"]);
-        i += 1;
+        redact("email"); i += 1;
       } else if (Text.startsWith(t, #char '@')) {
-        redactions := Array.concat(redactions, ["social-handle"]);
-        out := Array.concat(out, ["[redacted]"]);
-        i += 1;
+        redact("social-handle"); i += 1;
       } else if (Text.contains(lower, #text "instagram.com") or Text.contains(lower, #text "facebook.com")
                  or Text.contains(lower, #text "twitter.com") or Text.contains(lower, #text "tiktok.com")) {
-        redactions := Array.concat(redactions, ["social-handle"]);
-        out := Array.concat(out, ["[redacted]"]);
-        i += 1;
+        redact("social-handle"); i += 1;
+      } else if (Text.contains(lower, #text "http://") or Text.contains(lower, #text "https://")
+                 or Text.startsWith(lower, #text "www.")
+                 or Option.isSome(Array.find<Text>(tlds, func(d) { Text.endsWith(trimmed, #text d) or Text.contains(trimmed, #text (d # "/")) }))) {
+        redact("url"); i += 1;
       } else if (digitCount >= 7) {
-        redactions := Array.concat(redactions, ["phone"]);
-        out := Array.concat(out, ["[redacted]"]);
-        i += 1;
+        redact("phone"); i += 1;
+      } else if (j > i + 1 and runDigits >= 7) {
+        redact("phone"); i := j;
       } else if (digitCount >= 1 and digitCount == Text.size(t) and Text.size(t) <= 6 and i + 1 < n) {
         // Numeric token — look ahead up to 3 tokens for a street-suffix word.
-        var j = i + 1;
+        var k = i + 1;
         var found = false;
         let lookahead = Nat.min(i + 4, n);
-        while (j < lookahead and not found) {
-          let cand = Text.toLower(Text.trimEnd(Text.trimEnd(tokens[j], #char ','), #char '.'));
-          if (Option.isSome(Array.find<Text>(suffixes, func(s) { s == cand }))) { found := true } else { j += 1 };
+        while (k < lookahead and not found) {
+          let cand = Text.toLower(Text.trimEnd(Text.trimEnd(tokens[k], #char ','), #char '.'));
+          if (Option.isSome(Array.find<Text>(suffixes, func(s) { s == cand }))) { found := true } else { k += 1 };
         };
         if (found) {
-          redactions := Array.concat(redactions, ["address"]);
-          out := Array.concat(out, ["[redacted]"]);
-          i := j + 1;
+          redact("address");
+          i := k + 1;
         } else {
-          out := Array.concat(out, [t]);
+          List.add(out, t);
           i += 1;
         };
       } else {
-        out := Array.concat(out, [t]);
+        List.add(out, t);
         i += 1;
       };
     };
-    (Text.join(Iter.fromArray(out), " "), redactions)
+    (Text.join(List.values(out), " "), List.toArray(redactions))
   };
 
   // ─── Comps & platform-fee configuration (admin) ─────────────────────────────
@@ -790,10 +1007,19 @@ persistent actor Listing {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     if (Text.size(propertyId) == 0) return #err(#InvalidInput("propertyId cannot be empty"));
     if (Text.size(photoId) == 0)    return #err(#InvalidInput("photoId cannot be empty"));
+    if (tooLong(propertyId, MAX_SHORT_TEXT) or tooLong(photoId, MAX_SHORT_TEXT)) return #err(#InvalidInput("id too long"));
 
-    switch (Map.get(listingPhotoOwners, Text.compare, propertyId)) {
-      case null    { Map.add(listingPhotoOwners, Text.compare, propertyId, msg.caller) };
-      case (?owner) { if (owner != msg.caller and not isAdmin(msg.caller)) return #err(#NotAuthorized) };
+    // M7: authorise against the property canister (owner or write-capable
+    // manager) instead of a first-come owner lock. State is read after the await.
+    if (not isAdmin(msg.caller) and not (await canManageProperty(propertyId, msg.caller))) return #err(#NotAuthorized);
+    // A photo belongs to one listing, so another property can't claim it and
+    // clear its review gate.
+    switch (photoPropertyOf(photoId)) {
+      case (?pid) { if (pid != propertyId) return #err(#InvalidInput("Photo belongs to another listing")) };
+      case null {};
+    };
+    if (Option.isNull(Map.get(listingPhotoOwners, Text.compare, propertyId))) {
+      Map.add(listingPhotoOwners, Text.compare, propertyId, msg.caller);
     };
 
     let existing : [Text] = switch (Map.get(listingPhotos, Text.compare, propertyId)) { case null { [] }; case (?ids) { ids } };
@@ -803,6 +1029,7 @@ persistent actor Listing {
       return #err(#InvalidInput("Photo already added to this listing"));
 
     Map.add(listingPhotos, Text.compare, propertyId, Array.concat(existing, [photoId]));
+    Map.add(listingPhotoProperty, Text.compare, photoId, propertyId);
     #ok(())
   };
 
@@ -812,10 +1039,7 @@ persistent actor Listing {
 
   public shared(msg) func removeListingPhoto(propertyId: Text, photoId: Text) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    switch (Map.get(listingPhotoOwners, Text.compare, propertyId)) {
-      case null     { return #err(#NotFound) };
-      case (?owner) { if (owner != msg.caller and not isAdmin(msg.caller)) return #err(#NotAuthorized) };
-    };
+    if (not isAdmin(msg.caller) and not (await canManageProperty(propertyId, msg.caller))) return #err(#NotAuthorized);
     let existing : [Text] = switch (Map.get(listingPhotos, Text.compare, propertyId)) { case null { return #err(#NotFound) }; case (?ids) { ids } };
     Map.add(listingPhotos, Text.compare, propertyId, Array.filter<Text>(existing, func(id) { id != photoId }));
     #ok(())
@@ -823,10 +1047,7 @@ persistent actor Listing {
 
   public shared(msg) func reorderListingPhotos(propertyId: Text, photoIds: [Text]) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    switch (Map.get(listingPhotoOwners, Text.compare, propertyId)) {
-      case null     { return #err(#NotFound) };
-      case (?owner) { if (owner != msg.caller and not isAdmin(msg.caller)) return #err(#NotAuthorized) };
-    };
+    if (not isAdmin(msg.caller) and not (await canManageProperty(propertyId, msg.caller))) return #err(#NotAuthorized);
     let existing : [Text] = switch (Map.get(listingPhotos, Text.compare, propertyId)) { case null { return #err(#NotFound) }; case (?ids) { ids } };
     if (photoIds.size() != existing.size())
       return #err(#InvalidInput("Reorder list must contain the same number of photos"));
@@ -845,10 +1066,17 @@ persistent actor Listing {
     if (Text.size(propertyId) == 0) return #err(#InvalidInput("propertyId cannot be empty"));
     if (Text.size(roomLabel)  == 0) return #err(#InvalidInput("roomLabel cannot be empty"));
     if (Text.size(photoId)    == 0) return #err(#InvalidInput("photoId cannot be empty"));
+    if (tooLong(propertyId, MAX_SHORT_TEXT) or tooLong(roomLabel, MAX_SHORT_TEXT) or tooLong(photoId, MAX_SHORT_TEXT))
+      return #err(#InvalidInput("field too long"));
 
-    switch (Map.get(listingPanoramaOwners, Text.compare, propertyId)) {
-      case null    { Map.add(listingPanoramaOwners, Text.compare, propertyId, msg.caller) };
-      case (?owner) { if (owner != msg.caller and not isAdmin(msg.caller)) return #err(#NotAuthorized) };
+    // M7: property-canister ownership instead of a first-come owner lock.
+    if (not isAdmin(msg.caller) and not (await canManageProperty(propertyId, msg.caller))) return #err(#NotAuthorized);
+    switch (photoPropertyOf(photoId)) {
+      case (?pid) { if (pid != propertyId) return #err(#InvalidInput("Photo belongs to another listing")) };
+      case null {};
+    };
+    if (Option.isNull(Map.get(listingPanoramaOwners, Text.compare, propertyId))) {
+      Map.add(listingPanoramaOwners, Text.compare, propertyId, msg.caller);
     };
 
     let existing : [PanoramaEntry] = switch (Map.get(listingPanoramas, Text.compare, propertyId)) { case null { [] }; case (?entries) { entries } };
@@ -858,6 +1086,7 @@ persistent actor Listing {
       return #err(#InvalidInput("Room label \"" # roomLabel # "\" already exists"));
 
     Map.add(listingPanoramas, Text.compare, propertyId, Array.concat(existing, [{ roomLabel; photoId }]));
+    Map.add(listingPhotoProperty, Text.compare, photoId, propertyId);
     #ok(())
   };
 
@@ -867,10 +1096,7 @@ persistent actor Listing {
 
   public shared(msg) func removePanorama(propertyId: Text, roomLabel: Text) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-    switch (Map.get(listingPanoramaOwners, Text.compare, propertyId)) {
-      case null     { return #err(#NotFound) };
-      case (?owner) { if (owner != msg.caller and not isAdmin(msg.caller)) return #err(#NotAuthorized) };
-    };
+    if (not isAdmin(msg.caller) and not (await canManageProperty(propertyId, msg.caller))) return #err(#NotAuthorized);
     let existing : [PanoramaEntry] = switch (Map.get(listingPanoramas, Text.compare, propertyId)) { case null { return #err(#NotFound) }; case (?entries) { entries } };
     if (not Option.isSome(Array.find<PanoramaEntry>(existing, func(e) { e.roomLabel == roomLabel }))) return #err(#NotFound);
     Map.add(listingPanoramas, Text.compare, propertyId, Array.filter<PanoramaEntry>(existing, func(e) { e.roomLabel != roomLabel }));
@@ -887,6 +1113,17 @@ persistent actor Listing {
       case (?d) { if (Text.size(d) > 5000) return #err(#InvalidInput("description exceeds 5000 characters")) };
       case null {};
     };
+    // M6: bound every caller-supplied field of the public buyer-search record.
+    if (tooLong(listing.propertyId, MAX_SHORT_TEXT) or tooLong(listing.address, MAX_ADDRESS_TEXT)
+        or tooLong(listing.city, MAX_SHORT_TEXT) or tooLong(listing.state, MAX_SHORT_TEXT)
+        or tooLong(listing.zipCode, 20) or tooLong(listing.propertyType, MAX_SHORT_TEXT)
+        or tooLong(listing.verificationLevel, MAX_SHORT_TEXT))
+      return #err(#InvalidInput("listing field too long"));
+    switch (listing.photoUrl) {
+      case (?u) { if (tooLong(u, MAX_URL_TEXT)) return #err(#InvalidInput("photoUrl too long")) };
+      case null {};
+    };
+    if (listTooBig(listing.systemHighlights)) return #err(#InvalidInput("too many or too long systemHighlights"));
 
     var resolvedVerificationLevel : Text = "Unverified";
     var resolvedVerifiedJobCount  : Nat  = 0;
@@ -948,8 +1185,13 @@ persistent actor Listing {
     }
   };
 
+  /// M6: capped at MAX_FEED_PAGE entries; use listActiveFsboListingsPage for the rest.
   public query func listActiveFsboListings() : async [PublicFsboListing] {
-    Iter.toArray(Map.values(fsboListings))
+    page(Map.values(fsboListings), 0, MAX_FEED_PAGE)
+  };
+
+  public query func listActiveFsboListingsPage(from: Nat, limit: Nat) : async [PublicFsboListing] {
+    page(Map.values(fsboListings), from, limit)
   };
 
   // ─── Admin Controls ───────────────────────────────────────────────────────────

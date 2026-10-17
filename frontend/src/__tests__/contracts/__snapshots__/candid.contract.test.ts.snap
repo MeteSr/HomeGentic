@@ -1156,6 +1156,18 @@ exports[`listing IDL factory > full signature snapshot 1`] = `
       "vec record {id:text; status:variant {Open; Awarded; Cancelled}; targetListDate:int; desiredSalePrice:opt nat; beds:opt nat; city:text; createdAt:int; sqft:opt nat; zipCode:text; notes:text; baths:opt nat; proposalCount:nat; county:text; windowDays:variant {Seven; Fourteen; Three}; bidDeadline:int; openSlots:nat}",
     ],
   },
+  "getOpenBidRequestsPage": {
+    "args": [
+      "nat",
+      "nat",
+    ],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "vec record {id:text; status:variant {Open; Awarded; Cancelled}; targetListDate:int; desiredSalePrice:opt nat; beds:opt nat; city:text; createdAt:int; sqft:opt nat; zipCode:text; notes:text; baths:opt nat; proposalCount:nat; county:text; windowDays:variant {Seven; Fourteen; Three}; bidDeadline:int; openSlots:nat}",
+    ],
+  },
   "getPanoramas": {
     "args": [
       "text",
@@ -1211,6 +1223,18 @@ exports[`listing IDL factory > full signature snapshot 1`] = `
   },
   "listActiveFsboListings": {
     "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "vec record {propertyType:text; systemHighlights:vec text; bedrooms:nat; activatedAt:int; city:text; squareFeet:nat; description:opt text; photoUrl:opt text; propertyId:text; hasPublicReport:bool; listPriceCents:nat; zipCode:text; score:opt nat; state:text; address:text; verificationLevel:text; bathrooms:nat; homeowner:principal; verifiedJobCount:nat; yearBuilt:nat}",
+    ],
+  },
+  "listActiveFsboListingsPage": {
+    "args": [
+      "nat",
+      "nat",
+    ],
     "mode": [
       "query",
     ],
@@ -1402,9 +1426,7 @@ exports[`maintenance IDL factory > full signature snapshot 1`] = `
     "args": [
       "text",
     ],
-    "mode": [
-      "query",
-    ],
+    "mode": [],
     "rets": [
       "vec record {id:text; plannedYear:nat; isCompleted:bool; plannedMonth:opt nat; createdAt:int; createdBy:principal; taskDescription:text; propertyId:text; estimatedCostCents:opt nat; systemName:text}",
     ],
@@ -1423,6 +1445,15 @@ exports[`maintenance IDL factory > full signature snapshot 1`] = `
 
 exports[`payment IDL factory > full signature snapshot 1`] = `
 {
+  "addStripeRelay": {
+    "args": [
+      "principal",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
+    ],
+  },
   "adminGrantAgentCredits": {
     "args": [
       "principal",
@@ -1554,6 +1585,15 @@ exports[`payment IDL factory > full signature snapshot 1`] = `
       "variant {ok:vec record {redeemedBy:opt principal; giftMessage:text; createdAt:int; tier:variant {Pro; Free; ContractorPro; ContractorFree}; deliveryDate:text; billing:variant {Monthly; Yearly}; senderName:text; recipientName:text; giftToken:text; recipientEmail:text}; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
     ],
   },
+  "listStripeRelays": {
+    "args": [],
+    "mode": [
+      "query",
+    ],
+    "rets": [
+      "vec principal",
+    ],
+  },
   "redeemGift": {
     "args": [
       "text",
@@ -1563,12 +1603,44 @@ exports[`payment IDL factory > full signature snapshot 1`] = `
       "variant {ok:record {expiresAt:int; owner:principal; createdAt:int; tier:variant {Pro; Free; ContractorPro; ContractorFree}; cancelledAt:opt int}; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
     ],
   },
+  "removeStripeRelay": {
+    "args": [
+      "principal",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
+    ],
+  },
   "setBootstrapNonce": {
     "args": [
       "text",
     ],
     "mode": [],
     "rets": [],
+  },
+  "stripeActivateSubscription": {
+    "args": [
+      "principal",
+      "variant {Pro; Free; ContractorPro; ContractorFree}",
+      "int",
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:record {expiresAt:int; owner:principal; createdAt:int; tier:variant {Pro; Free; ContractorPro; ContractorFree}; cancelledAt:opt int}; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
+    ],
+  },
+  "stripeGrantAgentCredits": {
+    "args": [
+      "principal",
+      "nat",
+      "text",
+    ],
+    "mode": [],
+    "rets": [
+      "variant {ok:nat; err:variant {InvalidInput:text; PaymentFailed:text; NotFound; NotAuthorized; RateLimited}}",
+    ],
   },
   "subscribe": {
     "args": [
@@ -2436,7 +2508,7 @@ exports[`sensor IDL factory > full signature snapshot 1`] = `
       "text",
     ],
     "mode": [
-      "query",
+      "composite_query",
     ],
     "rets": [
       "vec record {id:text; externalDeviceId:text; source:variant {Sense; GESmartHQ; Nest; HomeAssistant; MoenFlo; SolarEdge; LGThinQ; TeslaPowerwall; HoneywellHome; SmartThings; EnphaseEnvoy; RheemEcoNet; RingAlarm; Ecobee; Rachio; Manual; EmporiaVue}; name:text; propertyId:text; isActive:bool; homeowner:principal; registeredAt:int}",

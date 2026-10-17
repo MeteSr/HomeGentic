@@ -27,7 +27,7 @@ const idlFactory = ({ IDL }: any) => {
   const ResultTx = IDL.Variant({ ok: IDL.Null, err: IDL.Text });
 
   return IDL.Service({
-    getMyCode:        IDL.Func([],             [IDL.Text],       ["query"]),
+    getMyCode:        IDL.Func([],             [IDL.Text],       []),  // update: lazily creates the code (a query call would discard it)
     useReferralCode:  IDL.Func([IDL.Text],     [Result],         []),
     getMyReferrals:   IDL.Func([],             [IDL.Vec(Referral)], ["query"]),
     getCreditBalance: IDL.Func([],             [IDL.Nat],        ["query"]),

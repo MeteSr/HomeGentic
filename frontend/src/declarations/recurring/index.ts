@@ -76,12 +76,12 @@ export const idlFactory = ({ IDL }: any) => {
     getRecurringService: IDL.Func(
       [IDL.Text],
       [IDL.Variant({ ok: RecurringService, err: Error })],
-      ["query"]
+      []  // M8: update call (live property-auth check)
     ),
     getByProperty: IDL.Func(
       [IDL.Text],
       [IDL.Vec(RecurringService)],
-      ["query"]
+      []  // M8: update call (live property-auth check)
     ),
     updateStatus: IDL.Func(
       [IDL.Text, ServiceStatus],
@@ -101,7 +101,7 @@ export const idlFactory = ({ IDL }: any) => {
     getVisitLogs: IDL.Func(
       [IDL.Text],
       [IDL.Vec(VisitLog)],
-      ["query"]
+      []  // M8: update call (live property-auth check)
     ),
     getMetrics: IDL.Func([], [IDL.Record({
       totalServices:  IDL.Nat,

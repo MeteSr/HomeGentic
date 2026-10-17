@@ -15,6 +15,7 @@
 
 import Array     "mo:core/Array";
 import Blob      "mo:core/Blob";
+import Char      "mo:core/Char";
 import Debug     "mo:core/Debug";
 import Map       "mo:core/Map";
 import Int        "mo:core/Int";
@@ -29,10 +30,14 @@ import Text       "mo:core/Text";
 import Time       "mo:core/Time";
 import ServiceTypes "../shared/ServiceType";
 import Index     "../shared/Index";
+import Uuid      "../shared/Uuid";
 
 persistent actor Report {
 
-  // ─── Input Types (caller supplies all data) ───────────────────────────────────
+  // ─── Input Types ──────────────────────────────────────────────────────────────
+  // generateReport ignores the caller-supplied PropertyInput and JobInput list
+  // (J-2/H-3) and rebuilds both on-chain; the types stay for Candid and for the
+  // stored snapshot. Rooms and recurring services are still owner-supplied.
 
   public type JobInput = {
     serviceType:    Text;
@@ -195,11 +200,22 @@ persistent actor Report {
   private var bootstrapNonce           : ?Text       = null;
   private var trustedCanisterEntries   : [Principal] = [];
   private var auditCanisterId          : ?Principal  = null;
-  private transient let SNAPSHOT_SCHEMA_VERSION : Nat = 2;   // 14.4.3 — bump when the snapshot schema changes
+  /// 14.4.3 — bump when the snapshot schema changes.
+  /// 3 = property facts and the job list are read on-chain from the property
+  ///     and job canisters (J-2/H-3); rooms and recurring services are still
+  ///     owner-supplied (self-reported).
+  private transient let SNAPSHOT_SCHEMA_VERSION : Nat = 3;
   private var propCanisterId        : Text        = "";
 
   // Cert state — new; starts empty so no migration needed.
+  /// Legacy sequential counter ("CERT-N"). New cert IDs are random UUIDs;
+  /// kept so the stable signature is unchanged.
   private var certCounter  : Nat                 = 0;
+
+  /// M-4/M-5: per-property daily windows (count, windowStart) for
+  /// generateRiskProfile and issueCert.
+  private let riskWindowByProperty : Map.Map<Text, (Nat, Int)> = Map.empty();
+  private let certWindowByProperty : Map.Map<Text, (Nat, Int)> = Map.empty();
 
   // ─── Stable State ────────────────────────────────────────────────────────────
 
@@ -285,14 +301,210 @@ persistent actor Report {
     result
   };
 
-  /// Generate a cryptographically random snapshot ID and share token.
-  /// Uses IC certified randomness — tokens are unguessable and non-sequential.
+  /// Generate a random snapshot ID (UUID v4) and share token.
+  /// L-2: the two come from disjoint halves of the 32-byte random blob, so a
+  /// snapshotId reveals nothing about the bearer token.
   private func nextIds() : async (Text, Text) {
-    let randBytes = await Random.blob();
-    let randHex   = blobToHex(randBytes);
-    let sid = "SNAP_" # randHex;
-    let tok = "RPT_"  # randHex;
+    let bytes = Blob.toArray(await Random.blob());
+    let sid = Uuid.fromBlob(Blob.fromArray(Array.sliceToArray<Nat8>(bytes, 0, 16)));
+    let tok = "RPT_" # blobToHex(Blob.fromArray(Array.sliceToArray<Nat8>(bytes, 16, 32)));
     (sid, tok)
+  };
+
+  // ─── On-chain sources (J-2/H-3/H-4/M-4) ─────────────────────────────────────
+
+  private transient let DAY_NS : Int = 24 * 3600 * 1_000_000_000;
+
+  /// M-5: caps on share links / snapshots per property.
+  private transient let MAX_LINKS_PER_PROPERTY      : Nat = 200;
+  private transient let MAX_LINKS_PER_PROPERTY_DAY  : Nat = 10;
+  private transient let MAX_RISK_PER_PROPERTY_DAY   : Nat = 20;
+  private transient let MAX_CERTS_PER_PROPERTY_DAY  : Nat = 20;
+  private transient let MAX_ROOMS                   : Nat = 100;
+  private transient let MAX_RECURRING               : Nat = 50;
+  private transient let MAX_FIELD_CHARS             : Nat = 200;
+  private transient let MAX_CERT_PAYLOAD_CHARS      : Nat = 8_192;
+
+  /// Subset of property.Property (Candid record subtyping drops the rest).
+  type PropFacts = {
+    owner             : Principal;
+    address           : Text;
+    city              : Text;
+    state             : Text;
+    zipCode           : Text;
+    propertyType      : { #SingleFamily; #Condo; #Townhouse; #MultiFamily };
+    yearBuilt         : Nat;
+    squareFeet        : Nat;
+    verificationLevel : { #Unverified; #PendingReview; #Basic; #Premium };
+  };
+
+  /// Shape of job.Job as returned by job.getJobsForProperty.
+  type JobRec = {
+    id: Text; propertyId: Text; homeowner: Principal; contractor: ?Principal;
+    title: Text; serviceType: ServiceTypes.ServiceType;
+    description: Text; contractorName: ?Text; amount: Nat;
+    completedDate: Int; permitNumber: ?Text; warrantyMonths: ?Nat;
+    isDiy: Bool; status: {
+      #Pending; #InProgress; #Completed; #Verified;
+      #PendingHomeownerApproval; #RejectedByHomeowner;
+    };
+    verified: Bool; homeownerSigned: Bool; contractorSigned: Bool;
+    createdAt: Int; sourceQuoteId: ?Text;
+  };
+
+  private func levelText(l : { #Unverified; #PendingReview; #Basic; #Premium }) : Text {
+    switch l { case (#Unverified) "Unverified"; case (#PendingReview) "PendingReview"; case (#Basic) "Basic"; case (#Premium) "Premium" }
+  };
+
+  private func propertyTypeText(t : { #SingleFamily; #Condo; #Townhouse; #MultiFamily }) : Text {
+    switch t { case (#SingleFamily) "SingleFamily"; case (#Condo) "Condo"; case (#Townhouse) "Townhouse"; case (#MultiFamily) "MultiFamily" }
+  };
+
+  /// Fetch the property record from the property canister (report is a
+  /// trusted canister there). null = not wired, not found, or call failed.
+  private func fetchProperty(propertyId : Text) : async ?PropFacts {
+    if (Text.size(propCanisterId) == 0) return null;
+    let propActor = actor(propCanisterId) : actor {
+      getProperty : query (Text) -> async { #ok : PropFacts; #err : Any };
+    };
+    try {
+      switch (await propActor.getProperty(propertyId)) { case (#ok(p)) ?p; case (#err(_)) null }
+    } catch (_) { null }
+  };
+
+  /// Fetch every job for the property from the job canister (report must be a
+  /// trusted canister there). null = not wired or call failed.
+  private func fetchJobs(propertyId : Text) : async ?[JobRec] {
+    if (Text.size(riskJobCanisterId) == 0) return null;
+    let jobActor = actor(riskJobCanisterId) : actor {
+      getJobsForProperty : (Text) -> async { #ok : [JobRec]; #err : Any };
+    };
+    try {
+      switch (await jobActor.getJobsForProperty(propertyId)) { case (#ok(js)) ?js; case (#err(_)) null }
+    } catch (_) { null }
+  };
+
+  /// Frontend display label for a service type (matches serviceTypes.ts).
+  private func serviceLabel(s : ServiceTypes.ServiceType) : Text {
+    switch s {
+      case (#GeneralHandyman) "General Handyman";
+      case (#Pest)            "Pest Control";
+      case (#KitchenRemodel)  "Kitchen Remodel";
+      case (#BathroomRemodel) "Bathroom Remodel";
+      case _                  ServiceTypes.toText(s);
+    }
+  };
+
+  private func pad2(n : Nat) : Text { if (n < 10) "0" # Nat.toText(n) else Nat.toText(n) };
+
+  /// Nanosecond timestamp → "YYYY-MM-DD" (UTC; Hinnant's civil_from_days).
+  private func isoDate(ns : Int) : Text {
+    let days : Int = if (ns >= 0) ns / DAY_NS else (ns - DAY_NS + 1) / DAY_NS;
+    let z   : Int = days + 719_468;
+    let era : Int = (if (z >= 0) z else z - 146_096) / 146_097;
+    let doe : Int = z - era * 146_097;
+    let yoe : Int = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy : Int = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp  : Int = (5 * doy + 2) / 153;
+    let d   : Int = doy - (153 * mp + 2) / 5 + 1;
+    let m   : Int = if (mp < 10) mp + 3 else mp - 9;
+    let y   : Int = yoe + era * 400 + (if (m <= 2) 1 else 0);
+    Int.toText(y) # "-" # pad2(Int.abs(m)) # "-" # pad2(Int.abs(d))
+  };
+
+  private func statusText(j : JobRec) : Text {
+    switch (j.status) {
+      case (#Pending)                  "pending";
+      case (#InProgress)               "in_progress";
+      case (#Completed)                "completed";
+      case (#Verified)                 "verified";
+      case (#PendingHomeownerApproval) "pending_homeowner_approval";
+      case (#RejectedByHomeowner)      "rejected_by_homeowner";
+    }
+  };
+
+  /// Job record (on-chain) → snapshot JobInput. Proposals the homeowner has not
+  /// approved (or rejected) are left out.
+  private func jobsToInputs(js : [JobRec]) : [JobInput] {
+    let kept = Array.filter<JobRec>(js, func(j) {
+      j.status != #PendingHomeownerApproval and j.status != #RejectedByHomeowner
+    });
+    Array.map<JobRec, JobInput>(kept, func(j) {
+      {
+        serviceType    = serviceLabel(j.serviceType);
+        description    = j.description;
+        contractorName = j.contractorName;
+        amountCents    = j.amount;
+        date           = isoDate(j.completedDate);
+        isDiy          = j.isDiy;
+        permitNumber   = j.permitNumber;
+        warrantyMonths = j.warrantyMonths;
+        isVerified     = j.verified;
+        status         = statusText(j);
+      }
+    })
+  };
+
+  /// Sliding one-day per-property counter. Returns false when over `max`.
+  private func consumePropertySlot(m : Map.Map<Text, (Nat, Int)>, propertyId : Text, max : Nat) : Bool {
+    let now = Time.now();
+    switch (Map.get(m, Text.compare, propertyId)) {
+      case null { Map.add(m, Text.compare, propertyId, (1, now)); true };
+      case (?(count, start)) {
+        if (now - start >= DAY_NS) { Map.add(m, Text.compare, propertyId, (1, now)); true }
+        else if (count >= max) { false }
+        else { Map.add(m, Text.compare, propertyId, (count + 1, start)); true }
+      };
+    }
+  };
+
+  /// M-5: (total links, links created in the last 24h) for a property.
+  private func linkCounts(propertyId : Text) : (Nat, Nat) {
+    let now = Time.now();
+    var total = 0;
+    var recent = 0;
+    for (l in Index.records(linksByProperty, propertyId, links)) {
+      total += 1;
+      if (now - l.createdAt < DAY_NS) recent += 1;
+    };
+    (total, recent)
+  };
+
+  private func validateSelfReported(rooms : ?[RoomInput], recurring : [RecurringServiceInput]) : ?Text {
+    if (recurring.size() > MAX_RECURRING) return ?"too many recurring services";
+    for (r in recurring.vals()) {
+      if (Text.size(r.serviceType) > MAX_FIELD_CHARS or Text.size(r.providerName) > MAX_FIELD_CHARS
+          or Text.size(r.frequency) > MAX_FIELD_CHARS or Text.size(r.status) > MAX_FIELD_CHARS
+          or Text.size(r.startDate) > 10) return ?"recurring service field too long";
+      switch (r.lastVisitDate) { case (?d) { if (Text.size(d) > 10) return ?"recurring service field too long" }; case null {} };
+    };
+    switch (rooms) {
+      case null {};
+      case (?rs) {
+        if (rs.size() > MAX_ROOMS) return ?"too many rooms";
+        for (r in rs.vals()) {
+          if (Text.size(r.name) > MAX_FIELD_CHARS or Text.size(r.floorType) > MAX_FIELD_CHARS
+              or Text.size(r.paintColor) > MAX_FIELD_CHARS or Text.size(r.paintBrand) > MAX_FIELD_CHARS
+              or Text.size(r.paintCode) > MAX_FIELD_CHARS) return ?"room field too long";
+        };
+      };
+    };
+    null
+  };
+
+  /// JSON string literal (with quotes) for arbitrary text.
+  private func jsonStr(t : Text) : Text {
+    var out = "\"";
+    for (c in t.chars()) {
+      if (c == '\"') { out #= "\\\"" }
+      else if (c == '\\') { out #= "\\\\" }
+      else if (c == '\n') { out #= "\\n" }
+      else if (c == '\r') { out #= "\\r" }
+      else if (c == '\t') { out #= "\\t" }
+      else if (Char.toNat32(c) < 0x20) { out #= " " }
+      else { out #= Char.toText(c) };
+    };
+    out # "\""
   };
 
   private transient let MAX_MONTHLY_CENTS : Nat = 100_000_000;   // $1M/month — far beyond any household cost
@@ -450,66 +662,72 @@ persistent actor Report {
   ) : async Result.Result<ShareLink, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     if (Text.size(propertyId)      == 0)  return #err(#InvalidInput("propertyId cannot be empty"));
-    if (Text.size(property.address) == 0) return #err(#InvalidInput("address cannot be empty"));
-    if (Text.size(property.address) > 500) return #err(#InvalidInput("address exceeds 500 characters"));
-    if (Text.size(property.city)    > 100) return #err(#InvalidInput("city exceeds 100 characters"));
-    if (Text.size(property.state)   > 50)  return #err(#InvalidInput("state exceeds 50 characters"));
-    if (Text.size(property.zipCode) > 20)  return #err(#InvalidInput("zipCode exceeds 20 characters"));
+    if (Text.size(propertyId)      > 100) return #err(#InvalidInput("propertyId too long"));
     switch (billsSummary) {
       case (?b) { switch (validateBillsSummary(b)) { case (?m) return #err(#InvalidInput(m)); case null {} } };
       case null {};
     };
+    switch (validateSelfReported(rooms, recurringServices)) { case (?m) return #err(#InvalidInput(m)); case null {} };
+    // J-2/H-3: `property` and `jobs` are accepted for Candid compatibility but
+    // IGNORED — property facts, the verification level and the job list
+    // (amounts, permits, verified flags) are read from the property and job
+    // canisters below. Only redaction choices, rooms and recurring services
+    // come from the caller (schemaVersion 3 marks this).
+    ignore property; ignore jobs;
 
-    // ── Ownership verification gate ──────────────────────────────────────────
-    // Cross-canister call to the property canister to fetch the authoritative
-    // verification level — callers cannot spoof this by passing a fake level
-    // in the PropertyInput.
-    // M-06: also verify the caller owns the property before generating the snapshot.
-    if (Text.size(propCanisterId) > 0) {
-      let propActor = actor(propCanisterId) : actor {
-        getVerificationLevel : (Text) -> async ?Text;
-        isAuthorized         : (Text, Principal, Bool) -> async Bool;
-      };
-      // Ownership check — admins are always permitted
-      if (not isAdmin(msg.caller)) {
-        let authorized = await propActor.isAuthorized(propertyId, msg.caller, false);
-        if (not authorized) return #err(#NotAuthorized);
-      };
-      switch (await propActor.getVerificationLevel(propertyId)) {
-        case (?level) {
-          if (level == "Unverified" or level == "PendingReview") {
-            return #err(#UnverifiedProperty);
-          };
-        };
-        case null {};   // not found — proceed
-      };
-    } else if (not isAdmin(msg.caller)) {
-      // propCanisterId not wired — fail closed for non-admins
-      return #err(#NotAuthorized);
+    // M-5: cheap early cap check (re-checked after the awaits).
+    do {
+      let (total0, recent0) = linkCounts(propertyId);
+      if (total0 >= MAX_LINKS_PER_PROPERTY or recent0 >= MAX_LINKS_PER_PROPERTY_DAY)
+        return #err(#InvalidInput("Report limit reached for this property; try again later"));
+    };
+
+    // ── Authoritative property record + owner-only gate ─────────────────────
+    let prop = switch (await fetchProperty(propertyId)) {
+      case null { return #err(if (isAdmin(msg.caller)) #NotFound else #NotAuthorized) };
+      case (?p) { p };
+    };
+    if (prop.owner != msg.caller and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    let level = levelText(prop.verificationLevel);
+    if (level == "Unverified" or level == "PendingReview") return #err(#UnverifiedProperty);
+
+    // ── Authoritative job list ──────────────────────────────────────────────
+    let onChainJobs : [JobInput] = switch (await fetchJobs(propertyId)) {
+      case null { return #err(#InvalidInput("Could not load job history; try again later")) };
+      case (?js) { jobsToInputs(js) };
     };
 
     let (snapshotId, token) = await nextIds();
     let now = Time.now();
 
+    // Re-check state after the awaits (TOCTOU).
+    do {
+      let (total1, recent1) = linkCounts(propertyId);
+      if (total1 >= MAX_LINKS_PER_PROPERTY or recent1 >= MAX_LINKS_PER_PROPERTY_DAY)
+        return #err(#InvalidInput("Report limit reached for this property; try again later"));
+    };
+    if (Map.get(links, Text.compare, token) != null or Map.get(snapshots, Text.compare, snapshotId) != null)
+      return #err(#InvalidInput("ID collision, retry"));
+
     let snapshot : ReportSnapshot = {
       snapshotId;
       propertyId;
       generatedBy        = msg.caller;
-      address            = property.address;
-      city               = property.city;
-      state              = property.state;
-      zipCode            = property.zipCode;
-      propertyType       = property.propertyType;
-      yearBuilt          = property.yearBuilt;
-      squareFeet         = property.squareFeet;
-      verificationLevel  = property.verificationLevel;
-      jobs;
+      address            = prop.address;
+      city               = prop.city;
+      state              = prop.state;
+      zipCode            = prop.zipCode;
+      propertyType       = propertyTypeText(prop.propertyType);
+      yearBuilt          = prop.yearBuilt;
+      squareFeet         = prop.squareFeet;
+      verificationLevel  = level;
+      jobs               = onChainJobs;
       recurringServices;
-      rooms;   // already ?[RoomInput] — null for old callers, ?arr for new ones
-      totalAmountCents   = totalAmount(jobs);
-      verifiedJobCount   = countVerified(jobs);
-      diyJobCount        = countDiy(jobs);
-      permitCount        = countPermits(jobs);
+      rooms;   // owner-supplied (self-reported) — null for old callers
+      totalAmountCents   = totalAmount(onChainJobs);
+      verifiedJobCount   = countVerified(onChainJobs);
+      diyJobCount        = countDiy(onChainJobs);
+      permitCount        = countPermits(onChainJobs);
       generatedAt        = now;
       schemaVersion      = ?SNAPSHOT_SCHEMA_VERSION;
     };
@@ -547,12 +765,15 @@ persistent actor Report {
 
   /// Fetch the report snapshot for a share token.
   /// Increments view count; returns error if expired or revoked.
-  public shared func getReport(token: Text) : async Result.Result<(ShareLink, ReportSnapshot), Error> {
+  /// L-1: #BuyerOnly links require a signed-in (non-anonymous) caller. There
+  /// is no buyer allow-list yet, so this is "authenticated viewers only".
+  public shared(msg) func getReport(token: Text) : async Result.Result<(ShareLink, ReportSnapshot), Error> {
     switch (Map.get(links, Text.compare, token)) {
       case null { #err(#NotFound) };
       case (?link) {
         if (not link.isActive) return #err(#Revoked);
         if (isExpired(link))   return #err(#Expired);
+        if (link.visibility == #BuyerOnly and Principal.isAnonymous(msg.caller)) return #err(#NotAuthorized);
 
         switch (Map.get(snapshots, Text.compare, link.snapshotId)) {
           case null      { #err(#NotFound) };
@@ -584,11 +805,12 @@ persistent actor Report {
 
   /// The cost summary attached to a report, if the owner included one. Same
   /// link checks as getReport; withheld when the link hides amounts.
-  public query func getBillsSummary(token: Text) : async ?BillsSummary {
+  public query(msg) func getBillsSummary(token: Text) : async ?BillsSummary {
     switch (Map.get(links, Text.compare, token)) {
       case null null;
       case (?link) {
         if (not link.isActive or isExpired(link)) return null;
+        if (link.visibility == #BuyerOnly and Principal.isAnonymous(msg.caller)) return null;
         if (link.hideAmounts == ?true) return null;
         Map.get(billsSummaries, Text.compare, link.snapshotId)
       };
@@ -858,25 +1080,37 @@ persistent actor Report {
 
   /// Generate a time-limited risk profile token. Fetches live data from
   /// job and sensor canisters via cross-canister queries.
+  ///
+  /// M-4: `verificationLevel` is accepted for Candid compatibility but
+  /// IGNORED — the level is read from the property canister. Only the owner,
+  /// a co-owner or a manager (write access) may generate a profile.
   public shared(msg) func generateRiskProfile(
     propertyId:     Text,
     expiryDays:     ?Nat,
     verificationLevel: Text
   ) : async Result.Result<RiskProfile, RiskProfileError> {
-    if (Principal.isAnonymous(msg.caller)) return #err(#NotAuthorized);
+    ignore verificationLevel;
+    switch (requireActive(msg.caller)) {
+      case (#err(#InvalidInput(m))) return #err(#InvalidInput(m));
+      case (#err(_)) return #err(#NotAuthorized);
+      case _ {};
+    };
     if (Text.size(propertyId) == 0) return #err(#InvalidInput("propertyId required"));
+    if (Text.size(propertyId) > 100) return #err(#InvalidInput("propertyId too long"));
+    if (Text.size(propCanisterId) == 0) return #err(#NotAuthorized);
 
-    // H-14: require property ownership before cross-canister fetches
+    let propActor = actor(propCanisterId) : actor {
+      isAuthorized         : (Text, Principal, Bool) -> async Bool;
+      getVerificationLevel : (Text) -> async ?Text;
+    };
+    // H-14 / M-4: write access (owner / co-owner / manager) required.
     if (not isAdmin(msg.caller)) {
-      if (Text.size(propCanisterId) > 0) {
-        let propActor = actor(propCanisterId) : actor {
-          isAuthorized : (Text, Principal, Bool) -> async Bool;
-        };
-        let authorized = await propActor.isAuthorized(propertyId, msg.caller, false);
-        if (not authorized) return #err(#NotAuthorized);
-      } else {
-        return #err(#NotAuthorized);
-      };
+      let authorized = await propActor.isAuthorized(propertyId, msg.caller, true);
+      if (not authorized) return #err(#NotAuthorized);
+    };
+    let onChainLevel : Text = switch (await propActor.getVerificationLevel(propertyId)) {
+      case null { return #err(#NotFound) };
+      case (?l) { l };
     };
 
     let now = Time.now();
@@ -977,30 +1211,10 @@ persistent actor Report {
     var permitCount      : Nat = 0;
     var verifiedWithPermit : Nat = 0;
 
-    if (Text.size(riskJobCanisterId) > 0) {
-      let jobActor = actor(riskJobCanisterId) : actor {
-        getJobsForProperty : (Text) -> async {
-          #ok : [{
-            id: Text; propertyId: Text; homeowner: Principal; contractor: ?Principal;
-            title: Text; serviceType: ServiceTypes.ServiceType;
-            description: Text; contractorName: ?Text; amount: Nat;
-            completedDate: Int; permitNumber: ?Text; warrantyMonths: ?Nat;
-            isDiy: Bool; status: {
-              #Pending; #InProgress; #Completed; #Verified;
-              #PendingHomeownerApproval; #RejectedByHomeowner;
-            };
-            verified: Bool; homeownerSigned: Bool; contractorSigned: Bool;
-            createdAt: Int; sourceQuoteId: ?Text;
-          }];
-          #err : { #NotFound; #Unauthorized; #InvalidInput: Text;
-                   #AlreadyVerified; #TierLimitReached: Text; };
-        };
-      };
-
-      let jobResult = await jobActor.getJobsForProperty(propertyId);
-      switch (jobResult) {
-        case (#err(_)) {};
-        case (#ok(allJobs)) {
+    do {
+      switch (await fetchJobs(propertyId)) {
+        case null {};
+        case (?allJobs) {
           for (j in allJobs.vals()) {
             let isOpen = switch (j.status) {
               case (#Pending)    { true };
@@ -1030,7 +1244,7 @@ persistent actor Report {
 
     // ── Compute score ───────────────────────────────────────────────────────
     let hasSensors  = sensorCoverage.size() > 0;
-    let isVerifiedProp = verificationLevel != "Unverified" and verificationLevel != "PendingReview";
+    let isVerifiedProp = onChainLevel != "Unverified" and onChainLevel != "PendingReview";
     let score = computeMaintenanceScore(
       recentAlerts, openOldJobCount, verifiedWithPermit, hasSensors, isVerifiedProp
     );
@@ -1038,6 +1252,9 @@ persistent actor Report {
     // ── Issue token ─────────────────────────────────────────────────────────
     let randBytes = await Random.blob();
     let token = "RISK_" # blobToHex(randBytes);
+    // M-5: per-property daily cap, checked after the awaits (TOCTOU).
+    if (not isAdmin(msg.caller) and not consumePropertySlot(riskWindowByProperty, propertyId, MAX_RISK_PER_PROPERTY_DAY))
+      return #err(#InvalidInput("Risk profile limit reached for this property; try again tomorrow"));
 
     let expiresAt : ?Int = switch (expiryDays) {
       case null    { null };
@@ -1051,7 +1268,7 @@ persistent actor Report {
       generatedAt       = now;
       expiresAt;
       maintenanceScore  = score;
-      verificationLevel;
+      verificationLevel = onChainLevel;
       sensorCoverage;
       recentAlerts;
       openJobs;
@@ -1094,29 +1311,70 @@ persistent actor Report {
 
   // ─── Score Certificate API (4.2.1) ───────────────────────────────────────────
 
-  /// Issue an on-chain score certificate. Stores the payload (no personal data)
-  /// against a stable CERT-N id. The caller must be the property owner or admin.
+  /// Issue an on-chain score certificate.
+  ///
+  /// H-4/J-2: owner (or admin) only. The stored payload is built here, not
+  /// taken from the caller: property facts and the verification level come
+  /// from the property canister, verified-job facts from the job canister's
+  /// getCertificationData. The caller's `payload` (the client-computed score)
+  /// is stored only as an escaped string under "selfReported", so it can't
+  /// add or override any on-chain field. Cert IDs are random UUIDs.
+  ///
+  /// Stored JSON (v2):
+  ///   {"v":2,"propertyId","address","city","state","zipCode",
+  ///    "verificationLevel","verifiedJobCount","verifiedKeySystems",
+  ///    "meetsStructural","issuedAt"(ms),"selfReported":"<caller JSON>"}
   public shared(msg) func issueCert(propertyId: Text, payload: Text) : async Result.Result<Text, Error> {
-    // H-13: require property ownership or admin; remove the insecure `ignore msg.caller`
-    if (not isAdmin(msg.caller)) {
-      if (Text.size(propCanisterId) > 0) {
-        let propActor = actor(propCanisterId) : actor {
-          isAuthorized : (Text, Principal, Bool) -> async Bool;
-        };
-        let authorized = await propActor.isAuthorized(propertyId, msg.caller, false);
-        if (not authorized) return #err(#NotAuthorized);
-      } else {
-        // propCanisterId not wired — fail closed
-        return #err(#NotAuthorized);
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (Text.size(propertyId) == 0 or Text.size(propertyId) > 100) return #err(#InvalidInput("invalid propertyId"));
+    if (Text.size(payload) > MAX_CERT_PAYLOAD_CHARS) return #err(#InvalidInput("payload too large"));
+
+    let prop = switch (await fetchProperty(propertyId)) {
+      case null { return #err(if (isAdmin(msg.caller)) #NotFound else #NotAuthorized) };
+      case (?p) { p };
+    };
+    if (prop.owner != msg.caller and not isAdmin(msg.caller)) return #err(#NotAuthorized);
+
+    if (Text.size(riskJobCanisterId) == 0) return #err(#InvalidInput("Job canister not configured"));
+    let jobActor = actor(riskJobCanisterId) : actor {
+      getCertificationData : query (Text) -> async {
+        verifiedJobCount : Nat; verifiedKeySystems : [Text]; meetsStructural : Bool;
       };
     };
-    certCounter += 1;
-    let certId = "CERT-" # Nat.toText(certCounter);
+    let cert = try { await jobActor.getCertificationData(propertyId) } catch (_) {
+      return #err(#InvalidInput("Could not load job history; try again later"))
+    };
+
+    let certId = Uuid.fromBlob(await Random.blob());
+    let now = Time.now();
+    // State checks after the awaits (TOCTOU).
+    if (Map.get(certs, Text.compare, certId) != null) return #err(#InvalidInput("ID collision, retry"));
+    if (not isAdmin(msg.caller) and not consumePropertySlot(certWindowByProperty, propertyId, MAX_CERTS_PER_PROPERTY_DAY))
+      return #err(#InvalidInput("Certificate limit reached for this property; try again tomorrow"));
+
+    var systems = "";
+    for (k in cert.verifiedKeySystems.vals()) {
+      systems #= (if (systems == "") "" else ",") # jsonStr(k);
+    };
+    let json = "{\"v\":2"
+      # ",\"propertyId\":"        # jsonStr(propertyId)
+      # ",\"address\":"           # jsonStr(prop.address)
+      # ",\"city\":"              # jsonStr(prop.city)
+      # ",\"state\":"             # jsonStr(prop.state)
+      # ",\"zipCode\":"           # jsonStr(prop.zipCode)
+      # ",\"verificationLevel\":" # jsonStr(levelText(prop.verificationLevel))
+      # ",\"verifiedJobCount\":"  # Nat.toText(cert.verifiedJobCount)
+      # ",\"verifiedKeySystems\":[" # systems # "]"
+      # ",\"meetsStructural\":"   # (if (cert.meetsStructural) "true" else "false")
+      # ",\"issuedAt\":"          # Int.toText(now / 1_000_000)
+      # ",\"selfReported\":"      # jsonStr(payload)
+      # "}";
+
     let record : CertRecord = {
       id         = certId;
       propertyId = propertyId;
-      payload    = payload;
-      issuedAt   = Time.now();
+      payload    = json;
+      issuedAt   = now;
     };
     Map.add(certs, Text.compare, certId, record);
     #ok(certId)

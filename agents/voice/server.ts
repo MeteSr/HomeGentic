@@ -1,6 +1,6 @@
 import "dotenv/config";
 import express, { Request, Response } from "express";
-import { activateInCanister, consumeAgentCredit, grantAgentCredits, getSubscriptionTier, PRINCIPAL_RE } from "./paymentCanister";
+import { activateInCanister, consumeAgentCredit, grantAgentCreditsOnce, AlreadyConsumedError, getSubscriptionTier, PRINCIPAL_RE } from "./paymentCanister";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { createHmac, timingSafeEqual } from "crypto";
@@ -1496,14 +1496,22 @@ app.post("/api/stripe/verify-subscription", async (req: Request, res: Response) 
 
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
-    // Accept incomplete if payment was confirmed above; active/trialing always pass.
-    const paymentConfirmed = !!paymentIntentId;
-    if (
-      subscription.status !== "active" &&
-      subscription.status !== "trialing" &&
-      !(paymentConfirmed && subscription.status === "incomplete")
-    ) {
-      res.status(400).json({ error: `Subscription not active — status: ${subscription.status}` }); return;
+    // Accept incomplete only when this subscription's own latest invoice is
+    // paid (P-1/F-1: a succeeded PaymentIntent from another purchase must not
+    // activate an unpaid subscription); active/trialing always pass.
+    if (subscription.status !== "active" && subscription.status !== "trialing") {
+      let invoicePaid = false;
+      if (paymentIntentId && subscription.status === "incomplete") {
+        const invoiceId = typeof subscription.latest_invoice === "string"
+          ? subscription.latest_invoice : (subscription.latest_invoice as any)?.id;
+        if (invoiceId) {
+          const invoice: any = await stripe.invoices.retrieve(invoiceId);
+          invoicePaid = invoice?.status === "paid";
+        }
+      }
+      if (!invoicePaid) {
+        res.status(400).json({ error: `Subscription not active — status: ${subscription.status}` }); return;
+      }
     }
 
     const tier      = subscription.metadata?.tier    ?? "Pro";
@@ -1608,9 +1616,13 @@ app.post("/api/stripe/verify-credit-purchase", async (req: Request, res: Respons
     }
 
     try {
-      await grantAgentCredits(principal, packSize);
+      // P-2/F-2: once per checkout session, enforced by the payment canister.
+      await grantAgentCreditsOnce(principal, packSize, `credits:${sessionId}`);
       logger.info("stripe", "agent credits granted", { packSize, principal });
     } catch (e) {
+      if (e instanceof AlreadyConsumedError) {
+        res.json({ type: "agent_credits", packSize, principal, alreadyRedeemed: true }); return;
+      }
       logger.warn("stripe", "credit grant skipped", { error: (e as Error).message });
     }
 

@@ -328,6 +328,13 @@ persistent actor Maintenance {
     if (Text.size(systemName)    > 100)  return #err(#InvalidInput("systemName exceeds 100 characters"));
     if (Text.size(taskDescription) > 2000) return #err(#InvalidInput("taskDescription exceeds 2000 characters"));
 
+    // M8: only the property's owner or a write-capable manager (or an admin)
+    // may add schedule entries to a property.
+    if (not isAdmin(msg.caller)) {
+      let authOk = await checkPropertyAuth(propertyId, msg.caller, msg.caller, true);
+      if (not authOk) return #err(#NotAuthorized);
+    };
+
     scheduleCounter += 1;
     let id = "SCH_" # Nat.toText(scheduleCounter);
 
@@ -347,17 +354,38 @@ persistent actor Maintenance {
     #ok(entry)
   };
 
-  public query func getScheduleByProperty(propertyId: Text) : async [ScheduleEntry] {
+  /// M8: schedules are private to the property's owner/managers (and admins).
+  /// An update call (not a query) so the property canister can be asked live;
+  /// unauthorized callers get an empty list.
+  public shared(msg) func getScheduleByProperty(propertyId: Text) : async [ScheduleEntry] {
+    if (Principal.isAnonymous(msg.caller)) return [];
+    if (not isAdmin(msg.caller)) {
+      if (Text.size(propCanisterId) > 0) {
+        if (not (await checkPropertyAuth(propertyId, msg.caller, msg.caller, false))) return [];
+      } else {
+        // Local dev (property canister not wired): only the caller's own entries.
+        return Iter.toArray(Iter.filter<ScheduleEntry>(
+          Index.records(scheduleByProperty, propertyId, schedule),
+          func(e) { e.createdBy == msg.caller }
+        ));
+      };
+    };
     Iter.toArray(Index.records(scheduleByProperty, propertyId, schedule))
   };
 
   public shared(msg) func markCompleted(entryId: Text) : async Result.Result<ScheduleEntry, Error> {
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
     switch (Map.get(schedule, Text.compare, entryId)) {
       case null { #err(#NotFound) };
-      case (?entry) {
+      case (?first) {
         if (not isAdmin(msg.caller)) {
-          let authOk = await checkPropertyAuth(entry.propertyId, entry.createdBy, msg.caller, true);
+          let authOk = await checkPropertyAuth(first.propertyId, first.createdBy, msg.caller, true);
           if (not authOk) return #err(#NotAuthorized);
+        };
+        // Re-read after the await (TOCTOU).
+        let entry = switch (Map.get(schedule, Text.compare, entryId)) {
+          case null { return #err(#NotFound) };
+          case (?e) { e };
         };
         let updated : ScheduleEntry = {
           id                 = entry.id;

@@ -85,7 +85,8 @@ export async function disablePush(): Promise<PushStatus> {
     await fetch(`${RELAY_URL}/api/push/vapid-unsubscribe`, {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ endpoint: sub.endpoint }),
+      // keys.auth proves we own the subscription (the relay rejects bare endpoints).
+      body:    JSON.stringify({ endpoint: sub.endpoint, auth: sub.toJSON().keys?.auth }),
     }).catch(() => {});
     await sub.unsubscribe();
   }

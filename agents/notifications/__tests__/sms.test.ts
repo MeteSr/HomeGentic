@@ -3,7 +3,7 @@
  */
 // SMS through Twilio: Verify codes and alert texts.
 import {
-  E164, allowCodeRequest, checkVerification, renderSms, resetCodeLimits, sendSms, smsConfigured, startVerification,
+  E164, allowCodeRequest, allowCodeToPhone, checkVerification, renderSms, resetCodeLimits, sendSms, smsConfigured, startVerification,
 } from "../sms";
 
 const saved = { ...process.env };
@@ -93,5 +93,17 @@ describe("code-request limit", () => {
     expect(allowCodeRequest("u", t0 + 10)).toBe(false);
     expect(allowCodeRequest("other", t0 + 10)).toBe(true);
     expect(allowCodeRequest("u", t0 + 3_600_001)).toBe(true);
+  });
+});
+
+describe("allowCodeToPhone", () => {
+  it("caps codes per destination number regardless of principal", () => {
+    const t0 = 1_000_000_000;
+    for (let i = 0; i < 3; i++) expect(allowCodeToPhone("+15125550142", t0 + i)).toBe(true);
+    expect(allowCodeToPhone("+15125550142", t0 + 10)).toBe(false);
+    expect(allowCodeToPhone("+15125550143", t0 + 10)).toBe(true);
+    // a new hour, but the daily cap (6) still applies
+    for (let h = 1; h <= 3; h++) allowCodeToPhone("+15125550142", t0 + h * 3_600_001);
+    expect(allowCodeToPhone("+15125550142", t0 + 4 * 3_600_001)).toBe(false);
   });
 });

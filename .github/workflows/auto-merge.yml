@@ -1,27 +1,49 @@
 name: Auto-merge Dependabot PRs
 
+# Enables GitHub's native auto-merge on qualifying Dependabot PRs. Nothing is
+# merged here: `gh pr merge --auto` only queues the merge, and GitHub performs
+# it once branch protection on main is satisfied (required checks such as
+# motoko-compile-check green, required reviews if configured). Requires
+# "Allow auto-merge" in the repository settings.
+#
+# Policy: only semver patch/minor updates of npm *development* dependencies.
+# Runtime dependencies of the frontend and the voice Worker, GitHub Actions
+# updates (which run with repository secrets) and every major update need a
+# human review and a manual merge.
+
 on:
   pull_request:
-    types: [opened, synchronize]
-  check_suite:
-    types: [completed]
+    types: [opened, synchronize, reopened]
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   auto-merge:
     runs-on: ubuntu-latest
-    # Only run for Dependabot PRs where CI has passed
-    if: |
-      github.actor == 'dependabot[bot]' &&
-      (github.event_name == 'check_suite' && github.event.check_suite.conclusion == 'success' ||
-       github.event_name == 'pull_request')
+    # The PR author (not github.actor, which a re-run by a human changes) must
+    # be Dependabot, and the PR must come from this repository's own branch.
+    if: >-
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: write        # required by the auto-merge API
+      pull-requests: write
     steps:
-      - uses: actions/checkout@v7
-      - uses: ahmadnassri/action-dependabot-auto-merge@v2
+      - name: Dependabot metadata
+        id: metadata
+        # GitHub's own action, pinned to the v3.1.0 commit.
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          # Only auto-merge patch and minor updates; major versions require manual review
-          target: minor
+
+      - name: Enable auto-merge (dev dependency, patch/minor)
+        if: >-
+          steps.metadata.outputs.package-ecosystem == 'npm_and_yarn' &&
+          steps.metadata.outputs.dependency-type == 'direct:development' &&
+          (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+           steps.metadata.outputs.update-type == 'version-update:semver-minor')
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

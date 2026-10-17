@@ -17,8 +17,8 @@
  *  When two users claim the same address:
  *   • First registrant gets a 7-day window to reach #Basic or #Premium.
  *   • If they verify in time  → second registration is rejected outright.
- *   • If 7 days pass without verification → second registrant may register
- *     and race to verify first.
+ *   • If 7 days pass without verification → anyone may register the address
+ *     (no new exclusive window) and race to verify first.
  *   • Whoever verifies first becomes the canonical owner; the other is flagged.
  *
  * ── Value gates (enforced by Report canister) ─────────────────────────────
@@ -45,6 +45,7 @@ import Result    "mo:core/Result";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
 import Index     "../shared/Index";
+import Uuid      "../shared/Uuid";
 
 persistent actor Property {
 
@@ -56,6 +57,13 @@ persistent actor Property {
   private transient let NINETY_DAYS_NS  : Int = 90 * 24 * 3600 * 1_000_000_000;
   /// Nanoseconds in 72 hours — the v2 claim submission window.
   private transient let SEVENTY_TWO_HOURS_NS : Int = 72 * 3600 * 1_000_000_000;
+
+  /// M-5: storage caps for caller-supplied collections.
+  private transient let MAX_ROOMS_PER_PROPERTY : Nat = 100;
+  private transient let MAX_FIXTURES_PER_ROOM  : Nat = 100;
+  private transient let MAX_NOTIFS_PER_PROPERTY : Nat = 200;
+  private transient let MAX_APPROVALS_PER_PROPERTY : Nat = 200;
+  private transient let MAX_DESCRIPTION_CHARS  : Nat = 1000;
 
   // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -372,6 +380,12 @@ persistent actor Property {
   private let properties      = Map.empty<Text, Property>();
   /// Address key → property ID.
   private let addressIdx      = Map.empty<Text, Text>();
+  /// M-8: address key → when the current run of unverified claims on that
+  /// address began. The 7-day exclusive window is measured from here, so a
+  /// lapsed unverified claim can't be renewed by re-registering from a fresh
+  /// principal. Absent for addresses claimed before this field existed
+  /// (falls back to the indexed property's createdAt).
+  private let addressClaimSince = Map.empty<Text, Int>();
   /// Transfer history keyed by transferCounter (Nat).
   private let transfers        = Map.empty<Nat, TransferRecord>();
   private let pendingTransfers = Map.empty<Text, PendingTransfer>();
@@ -428,11 +442,12 @@ persistent actor Property {
     result
   };
 
-  /// Generate a cryptographically random property ID.
-  /// Uses IC certified randomness — IDs are unguessable and non-sequential.
+  /// Generate a cryptographically random property ID: an RFC 4122 version-4
+  /// UUID (lowercase 8-4-4-4-12 hex) from IC randomness — unguessable and
+  /// non-sequential. Properties registered before this change keep their
+  /// legacy "PROP_<hex>" IDs; both forms are opaque Text everywhere.
   private func nextPropertyId() : async Text {
-    let randBytes = await Random.blob();
-    "PROP_" # blobToHex(randBytes)
+    Uuid.fromBlob(await Random.blob())
   };
 
   /// Returns true if `caller` is the property owner OR an authorised manager.
@@ -484,7 +499,59 @@ persistent actor Property {
       case null    [];
       case (?list) list;
     };
-    Map.add(ownerNotifs, Text.compare, propertyId, Array.concat<OwnerNotification>(existing, [notif]));
+    // M-5: keep only the newest MAX_NOTIFS_PER_PROPERTY entries.
+    let kept = if (existing.size() >= MAX_NOTIFS_PER_PROPERTY) {
+      Array.sliceToArray<OwnerNotification>(existing, existing.size() + 1 - MAX_NOTIFS_PER_PROPERTY, existing.size())
+    } else existing;
+    Map.add(ownerNotifs, Text.compare, propertyId, Array.concat<OwnerNotification>(kept, [notif]));
+  };
+
+  /// M-3: drops every delegated grant on a property — managers, pending
+  /// invites, approval requests and owner notifications. Called when
+  /// ownership changes hands so the previous owner's delegates (including an
+  /// alt principal the seller invited) lose access.
+  private func clearDelegatedAccess(propertyId : Text) {
+    Map.remove(managersMap, Text.compare, propertyId);
+    let tokens = switch (Map.get(propertyInvitesIdx, Text.compare, propertyId)) {
+      case null    [];
+      case (?list) list;
+    };
+    for (t in tokens.vals()) {
+      Map.remove(managerInvites,  Text.compare, t);
+      Map.remove(managerTokenIdx, Text.compare, t);
+    };
+    Map.remove(propertyInvitesIdx, Text.compare, propertyId);
+    Map.remove(approvalsMap, Text.compare, propertyId);
+    Map.remove(ownerNotifs,  Text.compare, propertyId);
+  };
+
+  /// D-1/H-5: true when `caller` may see a property's verification PII
+  /// (legal names, Stripe Identity session ID, document hash, competing
+  /// claim): the owner, a delegated manager, an admin or a trusted canister.
+  private func canSeePrivate(p : Property, caller : Principal) : Bool {
+    p.owner == caller or isAdmin(caller) or isTrustedCanister(caller)
+      or checkAuthorized(p.id, caller, false)
+  };
+
+  /// D-1/H-5: the public view of a property. Address, type and size stay
+  /// (the claim pages and contractor views need them); identity and
+  /// verification evidence are blanked.
+  private func redactProperty(p : Property) : Property {
+    {
+      p with
+      verificationDocHash  = null;
+      verificationMethod   = null;
+      identitySessionId    = null;
+      identityVerifiedAt   = null;
+      nameOnId             = null;
+      nameOnDocument       = null;
+      contestedWithId      = null;
+      conflictWindowEndsAt = null;
+    }
+  };
+
+  private func viewFor(p : Property, caller : Principal) : Property {
+    if (canSeePrivate(p, caller)) p else redactProperty(p)
   };
 
   // ─── Rate Limit (cycle-drain protection) ────────────────────────────────────
@@ -656,6 +723,48 @@ persistent actor Property {
 
   // ─── Registration ─────────────────────────────────────────────────────────
 
+  /// M-8: why `caller` may not register the address `key` right now, or null
+  /// when they may. A verified claim blocks outright; an unverified claim by
+  /// someone else blocks until 7 days after the address's unverified claims
+  /// began (addressClaimSince) — re-registering from a fresh principal does
+  /// not restart that window.
+  private func addressConflict(key : Text, caller : Principal) : ?Error {
+    switch (Map.get(addressIdx, Text.compare, key)) {
+      case null null;
+      case (?existingId) {
+        switch (Map.get(properties, Text.compare, existingId)) {
+          case null null;  // stale index entry — harmless, overwritten on write
+          case (?existing) {
+            if (existing.owner == caller) return null;  // idempotent re-registration
+            if (isVerified(existing.verificationLevel)) return ?#DuplicateAddress;
+            let windowEnd : Int = claimStart(key, existing.createdAt) + SEVEN_DAYS_NS;
+            if (Time.now() < windowEnd) ?#AddressConflict(windowEnd) else null
+          };
+        }
+      };
+    }
+  };
+
+  /// When the current run of unverified claims on `key` began. Falls back to
+  /// the indexed unverified property's createdAt (claims made before
+  /// addressClaimSince existed), else `dflt`.
+  private func claimStart(key : Text, dflt : Int) : Int {
+    switch (Map.get(addressClaimSince, Text.compare, key)) {
+      case (?t) t;
+      case null {
+        switch (Map.get(addressIdx, Text.compare, key)) {
+          case null dflt;
+          case (?id) {
+            switch (Map.get(properties, Text.compare, id)) {
+              case (?p) { if (isVerified(p.verificationLevel) or p.createdAt > dflt) dflt else p.createdAt };
+              case null dflt;
+            }
+          };
+        }
+      };
+    }
+  };
+
   /// Register a new property for the calling principal.
   ///
   /// Duplicate-address rules (Safeguard 1):
@@ -663,7 +772,10 @@ persistent actor Property {
   ///  2. If the existing record is Unverified/PendingReview and within the
   ///     7-day window: reject with #AddressConflict (carries expiry time).
   ///  3. If the window has expired: allow — the new registration displaces the
-  ///     old one in the address index and begins a fresh 7-day window.
+  ///     old one in the address index but does NOT get a fresh 7-day window
+  ///     (M-8: the window runs from the first unverified claim on the address,
+  ///     so it can't be renewed forever by rotating principals). Whoever an
+  ///     admin verifies first wins; verifyProperty rejects a second one.
   public shared(msg) func registerProperty(
     args: RegisterPropertyArgs
   ) : async Result.Result<Property, Error> {
@@ -688,31 +800,13 @@ persistent actor Property {
     let key    = addressKey(args.address, args.city, args.state, args.zipCode);
 
     // ── Duplicate address check ──────────────────────────────────────────────
-    switch (Map.get(addressIdx, Text.compare, key)) {
-      case (?existingId) {
-        switch (Map.get(properties, Text.compare, existingId)) {
-          case (?existing) {
-            if (existing.owner == caller) {
-              // Same owner re-registering the same address — allow (idempotent).
-            } else if (isVerified(existing.verificationLevel)) {
-              // Address is already owned and verified — hard reject.
-              Debug.print("property.registerProperty: duplicate address: " # key # " owner=" # Principal.toText(existing.owner));
-              countError("registerProperty");
-              return #err(#DuplicateAddress);
-            } else {
-              // Address is claimed but not yet verified.
-              let windowEnd : Int = existing.createdAt + SEVEN_DAYS_NS;
-              if (Time.now() < windowEnd) {
-                Debug.print("property.registerProperty: address conflict: " # key # " expires=" # Int.toText(windowEnd));
-                countError("registerProperty");
-                return #err(#AddressConflict(windowEnd));
-              };
-              // Window expired without verification — allow the new registrant.
-              // They displace the stale claim in the index.
-            }
-          };
-          case null { /* stale index entry — harmless, overwrite below */ };
-        }
+    // Checked here and again after the last await below (M-8): two principals
+    // registering the same address concurrently would otherwise both pass.
+    switch (addressConflict(key, caller)) {
+      case (?e) {
+        Debug.print("property.registerProperty: address conflict: " # key);
+        countError("registerProperty");
+        return #err(e);
       };
       case null {};
     };
@@ -763,8 +857,19 @@ persistent actor Property {
       ));
     };
 
-    let now = Time.now();
     let id  = await nextPropertyId();
+    let now = Time.now();
+
+    // M-8: re-check after the awaits — another registration of this address
+    // may have landed while this call was suspended.
+    switch (addressConflict(key, caller)) {
+      case (?e) {
+        Map.remove(inFlightRegistrations, Text.compare, callerKey);
+        countError("registerProperty");
+        return #err(e);
+      };
+      case null {};
+    };
 
     let prop : Property = {
       id;
@@ -793,8 +898,21 @@ persistent actor Property {
       conflictWindowEndsAt = null;
     };
 
+    let since = claimStart(key, now);
     putProperty(prop);
-    Map.add(addressIdx, Text.compare, key, id);
+    // A verified property keeps the address index (only its own owner gets
+    // here past addressConflict), so verifyProperty can still see it.
+    let indexedVerified = switch (Map.get(addressIdx, Text.compare, key)) {
+      case (?otherId) {
+        switch (Map.get(properties, Text.compare, otherId)) {
+          case (?other) { isVerified(other.verificationLevel) };
+          case null     { false };
+        }
+      };
+      case null { false };
+    };
+    if (not indexedVerified) { Map.add(addressIdx, Text.compare, key, id) };
+    Map.add(addressClaimSince, Text.compare, key, since);
     Map.remove(inFlightRegistrations, Text.compare, callerKey);
     #ok(prop)
   };
@@ -871,6 +989,28 @@ persistent actor Property {
         #err(#NotFound)
       };
       case (?existing) {
+        // M-8: only one verified owner per address. If another active
+        // property at the same address is already verified, refuse; else the
+        // newly verified property takes the address index.
+        let key = addressKey(existing.address, existing.city, existing.state, existing.zipCode);
+        if (isVerified(level)) {
+          switch (Map.get(addressIdx, Text.compare, key)) {
+            case (?otherId) {
+              if (otherId != id) {
+                switch (Map.get(properties, Text.compare, otherId)) {
+                  case (?other) {
+                    if (other.isActive and isVerified(other.verificationLevel)) {
+                      countError("verifyProperty");
+                      return #err(#DuplicateAddress);
+                    };
+                  };
+                  case null {};
+                };
+              };
+            };
+            case null {};
+          };
+        };
         let now  = Time.now();
         let updated : Property = {
           existing with
@@ -883,6 +1023,7 @@ persistent actor Property {
           updatedAt           = now;
         };
         putProperty(updated);
+        if (isVerified(level)) { Map.add(addressIdx, Text.compare, key, id) };
         try { ignore await auditLog("PropertyVerified", ?existing.owner, "propertyId=" # id # " caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[property] fire-and-forget call failed") };
         #ok(updated)
       };
@@ -898,19 +1039,24 @@ persistent actor Property {
     )
   };
 
-  /// 3.3.2 — Unauthenticated public read: returns all active properties owned
-  /// by the given principal. Enables data portability — anyone can verify a
-  /// homeowner's records using only their Internet Identity principal.
-  public query func getPropertiesByOwner(owner: Principal) : async [Property] {
+  /// Active properties owned by `owner`.
+  /// D-1/H-5: only `owner` themself, an admin or a trusted canister may list
+  /// them; anyone else gets []. (This used to be public, which mapped any
+  /// principal to their home addresses, legal names and Stripe session IDs.)
+  public query(msg) func getPropertiesByOwner(owner: Principal) : async [Property] {
+    if (msg.caller != owner and not isAdmin(msg.caller) and not isTrustedCanister(msg.caller)) return [];
     Iter.toArray(
       Iter.filter(ownedBy(owner), func(p: Property) : Bool { p.isActive })
     )
   };
 
-  public query func getProperty(id: Text) : async Result.Result<Property, Error> {
+  /// D-1/H-5: the owner, a delegated manager, an admin or a trusted canister
+  /// gets the full record; anyone else gets the public view with identity and
+  /// verification evidence blanked (see redactProperty).
+  public query(msg) func getProperty(id: Text) : async Result.Result<Property, Error> {
     switch (Map.get(properties, Text.compare, id)) {
       case null  { #err(#NotFound) };
-      case (?p)  { #ok(p) };
+      case (?p)  { #ok(viewFor(p, msg.caller)) };
     }
   };
 
@@ -1067,7 +1213,6 @@ persistent actor Property {
         // predictable enough to brute-force — possession of this token is
         // sole authorization for the transfer (see claimTransfer below), so
         // it must not be guessable.
-        transferCounter += 1;
         let token : Text = blobToHex(randBytes);
 
         // Remove previous token from secondary index if one existed
@@ -1128,7 +1273,13 @@ persistent actor Property {
                 };
                 putProperty(updated);
 
-                // Append immutable record to ownership history
+                // M-3: the previous owner's delegates (managers, co-owners,
+                // pending invites) must not keep access to the buyer's home.
+                clearDelegatedAccess(propertyId);
+
+                // Append immutable record to ownership history. L-3: take a
+                // fresh key per claim so two claims never share a record slot.
+                transferCounter += 1;
                 let record : TransferRecord = {
                   propertyId;
                   from      = pending.from;
@@ -1168,8 +1319,16 @@ persistent actor Property {
   };
 
   /// Returns the pending transfer for a property, if any.
-  public query func getPendingTransfer(propertyId: Text) : async ?PendingTransfer {
-    Map.get(pendingTransfers, Text.compare, propertyId)
+  /// C-1: the record carries the bearer claim token, so only the current
+  /// owner (who created it) or an admin may read it; everyone else gets null.
+  public query(msg) func getPendingTransfer(propertyId: Text) : async ?PendingTransfer {
+    switch (Map.get(properties, Text.compare, propertyId)) {
+      case null null;
+      case (?prop) {
+        if (prop.owner != msg.caller and not isAdmin(msg.caller)) return null;
+        Map.get(pendingTransfers, Text.compare, propertyId)
+      };
+    }
   };
 
   /// Looks up a pending transfer by its bearer token.
@@ -1503,6 +1662,8 @@ persistent actor Property {
     description : Text
   ) : async Result.Result<(), Error> {
     if (not checkAuthorized(propertyId, msg.caller, true)) return #err(#NotAuthorized);
+    if (Text.size(description) > MAX_DESCRIPTION_CHARS)
+      return #err(#InvalidInput("description exceeds " # Nat.toText(MAX_DESCRIPTION_CHARS) # " characters"));
     // Resolve manager's display name for the notification
     let managerName : Text = switch (Map.get(managersMap, Text.compare, propertyId)) {
       case null "A manager";
@@ -1566,6 +1727,14 @@ persistent actor Property {
   ) : async Result.Result<Nat, Error> {
     switch (requireActive(msg.caller)) { case (#err e) return #err e; case _ {} };
     if (not checkAuthorized(propertyId, msg.caller, false)) return #err(#NotAuthorized);
+    if (Text.size(description) > MAX_DESCRIPTION_CHARS)
+      return #err(#InvalidInput("description exceeds " # Nat.toText(MAX_DESCRIPTION_CHARS) # " characters"));
+    let pendingCount = switch (Map.get(approvalsMap, Text.compare, propertyId)) {
+      case null    0;
+      case (?list) Array.filter<PendingApprovalRequest>(list, func(a) { a.status == #Pending }).size();
+    };
+    if (pendingCount >= MAX_APPROVALS_PER_PROPERTY)
+      return #err(#InvalidInput("Too many pending approval requests for this property"));
     let requesterName : Text = switch (Map.get(managersMap, Text.compare, propertyId)) {
       case null "A manager";
       case (?mgrs) {
@@ -1591,7 +1760,16 @@ persistent actor Property {
       case null    [];
       case (?list) list;
     };
-    Map.add(approvalsMap, Text.compare, propertyId, Array.concat<PendingApprovalRequest>(existing, [req]));
+    // M-5: once the history is full, drop the oldest resolved requests.
+    var trimmed = existing;
+    while (trimmed.size() >= MAX_APPROVALS_PER_PROPERTY) {
+      var dropped = false;
+      trimmed := Array.filter<PendingApprovalRequest>(trimmed, func(a) {
+        if (not dropped and a.status != #Pending) { dropped := true; false } else true
+      });
+      if (not dropped) return #err(#InvalidInput("Too many pending approval requests for this property"));
+    };
+    Map.add(approvalsMap, Text.compare, propertyId, Array.concat<PendingApprovalRequest>(trimmed, [req]));
     pushNotification(propertyId, msg.caller, requesterName, "Requested approval: " # description);
     #ok(approvalCounter)
   };
@@ -1924,6 +2102,9 @@ persistent actor Property {
     if (Text.size(args.paintBrand) > 100)  return #err(#InvalidInput("paintBrand exceeds 100 characters"));
     if (Text.size(args.paintCode)  > 50)   return #err(#InvalidInput("paintCode exceeds 50 characters"));
     if (Text.size(args.notes)      > 2000) return #err(#InvalidInput("notes exceed 2000 characters"));
+    // M-5: bound rooms per property.
+    if (Index.count(roomsByProperty, args.propertyId) >= MAX_ROOMS_PER_PROPERTY)
+      return #err(#InvalidInput("A property can have at most " # Nat.toText(MAX_ROOMS_PER_PROPERTY) # " rooms"));
 
     let now = Time.now();
     let room : RoomRecord = {
@@ -1945,29 +2126,46 @@ persistent actor Property {
     #ok(room)
   };
 
+  /// Room data (fixture serial numbers, notes) is visible to anyone with
+  /// access to the property, admins and trusted canisters.
+  private func canReadRooms(propertyId : Text, caller : Principal) : Bool {
+    checkAuthorized(propertyId, caller, false) or isAdmin(caller) or isTrustedCanister(caller)
+  };
+
+  /// M-3: room writes are authorised by the caller's current write access to
+  /// the room's property, not by who created the room — so a previous owner
+  /// or a removed manager loses control, and the current owner gains it.
+  private func canWriteRoom(room : RoomRecord, caller : Principal) : Bool {
+    checkAuthorized(room.propertyId, caller, true)
+  };
+
   /// Fetch a single room by ID.
-  public query func getRoom(id: Text) : async Result.Result<RoomRecord, Error> {
+  public query(msg) func getRoom(id: Text) : async Result.Result<RoomRecord, Error> {
     switch (Map.get(rooms, Text.compare, id)) {
       case null  { #err(#NotFound) };
-      case (?r)  { #ok(r) };
+      case (?r)  {
+        if (not canReadRooms(r.propertyId, msg.caller)) return #err(#NotAuthorized);
+        #ok(r)
+      };
     }
   };
 
-  /// Fetch all rooms for a property.
-  public query func getRoomsByProperty(propertyId: Text) : async [RoomRecord] {
+  /// Fetch all rooms for a property ([] for callers without access).
+  public query(msg) func getRoomsByProperty(propertyId: Text) : async [RoomRecord] {
+    if (not canReadRooms(propertyId, msg.caller)) return [];
     Iter.toArray(
       Index.records(roomsByProperty, propertyId, rooms)
     )
   };
 
-  /// Update room metadata. Only the owner may update.
+  /// Update room metadata. Requires write access to the room's property.
   public shared(msg) func updateRoom(id: Text, args: UpdateRoomArgs) : async Result.Result<RoomRecord, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     switch (Map.get(rooms, Text.compare, id)) {
       case null { #err(#NotFound) };
       case (?existing) {
-        if (existing.owner != msg.caller) return #err(#NotAuthorized);
+        if (not canWriteRoom(existing, msg.caller)) return #err(#NotAuthorized);
         if (Text.size(args.name)       == 0)   return #err(#InvalidInput("name cannot be empty"));
         if (Text.size(args.name)       > 100)  return #err(#InvalidInput("name exceeds 100 characters"));
         if (Text.size(args.floorName)  > 100)  return #err(#InvalidInput("floorName exceeds 100 characters"));
@@ -1998,34 +2196,37 @@ persistent actor Property {
     }
   };
 
-  /// Delete a room and all its fixtures. Only the owner may delete.
+  /// Delete a room and all its fixtures. Requires write access to the property.
   public shared(msg) func deleteRoom(id: Text) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     switch (Map.get(rooms, Text.compare, id)) {
       case null    { #err(#NotFound) };
       case (?room) {
-        if (room.owner != msg.caller) return #err(#NotAuthorized);
+        if (not canWriteRoom(room, msg.caller)) return #err(#NotAuthorized);
         Index.delete(rooms, roomIndexes, id);
         #ok(())
       };
     }
   };
 
-  /// Add a fixture to a room. Only the room owner may add fixtures.
+  /// Add a fixture to a room. Requires write access to the room's property.
   public shared(msg) func addFixture(roomId: Text, args: AddFixtureArgs) : async Result.Result<RoomRecord, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     switch (Map.get(rooms, Text.compare, roomId)) {
       case null    { #err(#NotFound) };
       case (?room) {
-        if (room.owner != msg.caller) return #err(#NotAuthorized);
+        if (not canWriteRoom(room, msg.caller)) return #err(#NotAuthorized);
         if (Text.size(args.brand)          > 100)  return #err(#InvalidInput("brand exceeds 100 characters"));
         if (Text.size(args.model)          > 100)  return #err(#InvalidInput("model exceeds 100 characters"));
         if (Text.size(args.serialNumber)   > 100)  return #err(#InvalidInput("serialNumber exceeds 100 characters"));
         if (Text.size(args.installedDate)  > 20)   return #err(#InvalidInput("installedDate exceeds 20 characters"));
         if (Text.size(args.warrantyExpiry) > 20)   return #err(#InvalidInput("warrantyExpiry exceeds 20 characters"));
         if (Text.size(args.notes)          > 1000) return #err(#InvalidInput("notes exceed 1000 characters"));
+        // M-5: bound fixtures per room.
+        if (room.fixtures.size() >= MAX_FIXTURES_PER_ROOM)
+          return #err(#InvalidInput("A room can have at most " # Nat.toText(MAX_FIXTURES_PER_ROOM) # " fixtures"));
 
         let fixture : Fixture = {
           id             = nextFixtureId();
@@ -2064,7 +2265,7 @@ persistent actor Property {
     switch (Map.get(rooms, Text.compare, roomId)) {
       case null    { #err(#NotFound) };
       case (?room) {
-        if (room.owner != msg.caller) return #err(#NotAuthorized);
+        if (not canWriteRoom(room, msg.caller)) return #err(#NotAuthorized);
         if (Text.size(args.brand)          > 100)  return #err(#InvalidInput("brand exceeds 100 characters"));
         if (Text.size(args.model)          > 100)  return #err(#InvalidInput("model exceeds 100 characters"));
         if (Text.size(args.serialNumber)   > 100)  return #err(#InvalidInput("serialNumber exceeds 100 characters"));
@@ -2119,7 +2320,7 @@ persistent actor Property {
     switch (Map.get(rooms, Text.compare, roomId)) {
       case null    { #err(#NotFound) };
       case (?room) {
-        if (room.owner != msg.caller) return #err(#NotAuthorized);
+        if (not canWriteRoom(room, msg.caller)) return #err(#NotAuthorized);
         let updated : RoomRecord = {
           id         = room.id;
           propertyId = room.propertyId;

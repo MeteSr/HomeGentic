@@ -8,6 +8,7 @@ import { V2_COLORS, V2_FONTS, V2_RADIUS, V2_SHADOWS, v2FocusRing } from "@/theme
 import { useAuthStore } from "@/store/authStore";
 import { useAuth } from "@/contexts/AuthContext";
 import { paymentService, type PlanTier } from "@/services/payment";
+import { voiceAgentFetch } from "@/services/voiceAgentHeaders";
 
 // ── Stripe init — lazy so Stripe.js only loads when checkout page mounts ──────
 
@@ -360,12 +361,14 @@ export default function CheckoutPage() {
   // Only fetch the Stripe intent once we have a real principal.
   const fetchIntent = useCallback(async (p: string) => {
     try {
-      const resp = await fetch(`${VOICE_AGENT_URL}/api/stripe/create-subscription-intent`, {
+      // The subscription is bound to the x-agent-session principal (`p` is
+      // only used to wait until the user is signed in).
+      void p;
+      const resp = await voiceAgentFetch(`${VOICE_AGENT_URL}/api/stripe/create-subscription-intent`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({
           tier, billing,
-          principal: p,
           email: profile?.email ?? undefined,
         }),
       });

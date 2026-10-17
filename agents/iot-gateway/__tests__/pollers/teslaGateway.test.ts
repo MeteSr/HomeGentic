@@ -108,7 +108,7 @@ describe("persistSession", () => {
     expect(mockFs.writeFileSync).toHaveBeenCalledWith(
       expect.any(String),
       expect.stringContaining(VALID_SESSION.token),
-      "utf8"
+      { encoding: "utf8", mode: 0o600 }
     );
   });
 

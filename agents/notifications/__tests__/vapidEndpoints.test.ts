@@ -6,6 +6,7 @@ jest.mock("../vapidStore", () => ({
   registerSubscription: jest.fn(),
   removeSubscription:   jest.fn(),
   getSubscriptionsForPrincipal: jest.fn(() => []),
+  findSubscription: jest.fn(() => undefined),
 }));
 jest.mock("web-push", () => ({
   setVapidDetails:  jest.fn(),
@@ -17,8 +18,8 @@ jest.mock("web-push", () => ({
 }));
 
 import request from "supertest";
-import { buildApp } from "../server";
-import { registerSubscription, removeSubscription } from "../vapidStore";
+import { buildApp, unsubscribeTokenFor } from "../server";
+import { findSubscription, getSubscriptionsForPrincipal, registerSubscription, removeSubscription } from "../vapidStore";
 
 const mockRegister = registerSubscription as jest.MockedFunction<typeof registerSubscription>;
 const mockRemove   = removeSubscription   as jest.MockedFunction<typeof removeSubscription>;
@@ -49,7 +50,7 @@ describe("POST /api/push/vapid-subscribe", () => {
       .send({ principal: "principal-1", subscription: VALID_SUB });
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true });
+    expect(res.body).toEqual({ ok: true, unsubscribeToken: unsubscribeTokenFor("web", VALID_SUB.endpoint) });
     expect(mockRegister).toHaveBeenCalledWith("principal-1", VALID_SUB);
   });
 
@@ -83,14 +84,44 @@ describe("POST /api/push/vapid-subscribe", () => {
 });
 
 describe("POST /api/push/vapid-unsubscribe", () => {
-  it("removes subscription by endpoint and returns ok", async () => {
+  const mockFind = findSubscription as jest.MockedFunction<typeof findSubscription>;
+  const mockSubsFor = getSubscriptionsForPrincipal as jest.MockedFunction<typeof getSubscriptionsForPrincipal>;
+
+  it("refuses an endpoint-only request with no session (endpoint alone is not proof)", async () => {
+    // Dev mode without CANISTER_ID_AUTH: no body principal → no session.
     const res = await request(app)
       .post("/api/push/vapid-unsubscribe")
       .send({ endpoint: VALID_SUB.endpoint });
+    expect(res.status).toBe(401);
+    expect(mockRemove).not.toHaveBeenCalled();
+  });
 
+  it("removes the subscription when the browser proves its auth secret", async () => {
+    mockFind.mockReturnValueOnce(VALID_SUB as any);
+    const res = await request(app)
+      .post("/api/push/vapid-unsubscribe")
+      .send({ endpoint: VALID_SUB.endpoint, auth: VALID_SUB.keys.auth });
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ ok: true });
     expect(mockRemove).toHaveBeenCalledWith(VALID_SUB.endpoint);
+  });
+
+  it("removes the subscription with the unsubscribe token from /vapid-subscribe", async () => {
+    const res = await request(app)
+      .post("/api/push/vapid-unsubscribe")
+      .send({ endpoint: VALID_SUB.endpoint, unsubscribeToken: unsubscribeTokenFor("web", VALID_SUB.endpoint) });
+    expect(res.status).toBe(200);
+    expect(mockRemove).toHaveBeenCalledWith(VALID_SUB.endpoint);
+  });
+
+  it("does not remove a subscription owned by another principal", async () => {
+    mockFind.mockReturnValueOnce(VALID_SUB as any);
+    mockSubsFor.mockReturnValueOnce([]);
+    const res = await request(app)
+      .post("/api/push/vapid-unsubscribe")
+      .send({ principal: "attacker", endpoint: VALID_SUB.endpoint, auth: "wrong" });
+    expect(res.status).toBe(200);
+    expect(mockRemove).not.toHaveBeenCalled();
   });
 
   it("rejects missing endpoint with 400", async () => {

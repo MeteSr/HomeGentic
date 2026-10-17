@@ -184,7 +184,7 @@ describe(haveBase ? "upgrade from base branch" : "upgrade (no base build: this b
     const snapshot = async () => norm({
       p0: await a.getJobsForProperty("P0"), p1: await b.getJobsForProperty("P1"),
       snapshots: await a.getJobSnapshotsForProperty("P0"),
-      ownerA: await a.getJobsByOwner(A.getPrincipal()), ownerB: await a.getJobsByOwner(B.getPrincipal()),
+      ownerA: await a.getJobsByOwner(A.getPrincipal()), ownerB: await b.getJobsByOwner(B.getPrincipal()),
       pending: await a.getJobsPendingMySignature(),
     });
     const before = await snapshot();
@@ -216,7 +216,7 @@ describe(haveBase ? "upgrade from base branch" : "upgrade (no base build: this b
     const a = t.as(A), b = t.as(B);
     expect("ok" in await a.registerProperty(row("1 Main St"))).toBe(true);
     expect("ok" in await b.registerProperty(row("2 Main St"))).toBe(true);
-    const snapshot = async () => norm({ mine: await a.getMyProperties(), ofB: await a.getPropertiesByOwner(B.getPrincipal()) });
+    const snapshot = async () => norm({ mine: await a.getMyProperties(), ofB: await b.getPropertiesByOwner(B.getPrincipal()) });
     const before = await snapshot();
     await t.upgrade();
     expect(await snapshot()).toEqual(before);

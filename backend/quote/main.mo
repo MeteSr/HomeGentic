@@ -236,7 +236,18 @@ persistent actor Quote {
   /// "key_1" via setVetkdKeyName (scripts/deploy.sh does this for ic). Stored —
   /// not a constant — so it can be changed without reinstalling.
   private var vetkdKeyName : Text = "test_key_1";
-  private transient let VETKD_KEY_CYCLES : Nat  = 10_000_000_000;
+  /// H2/V-1: vetkd_derive_key fee. key_1 costs ~26.15B cycles; the old flat 10B
+  /// made every mainnet reveal fail. Unused cycles are refunded.
+  private transient let VETKD_KEY_CYCLES : Nat  = 26_153_846_153;
+  private func vetkdDeriveCycles() : Nat {
+    if (vetkdKeyName == "key_1") VETKD_KEY_CYCLES else 10_000_000_000
+  };
+  /// L1: per-request IBE identity. Contractors encrypt to the UTF-8 bytes of
+  /// the requestId (not the homeowner principal), so one reveal key opens one
+  /// request's bids only — and bidders never need the homeowner's principal.
+  private func bidIdentity(requestId: Text) : Blob { Text.encodeUtf8(requestId) };
+  /// M2: an IBE ciphertext of a 4-byte amount is ~150 bytes.
+  private transient let MAX_CIPHERTEXT_BYTES : Nat = 1024;
 
   type VetKdCurve              = { #bls12_381_g2 };
   type VetKdKeyId              = { curve: VetKdCurve; name: Text };
@@ -375,6 +386,37 @@ persistent actor Quote {
     }
   };
 
+  /// L8/H1: strangers (contractors browsing leads) don't get the homeowner
+  /// principal or propertyId — either resolves to a street address via the
+  /// property canister. The homeowner and admins see the full record.
+  private func redactFor(r: QuoteRequest, caller: Principal) : QuoteRequest {
+    if (caller == r.homeowner or isAdmin(caller)) r
+    else { { r with propertyId = ""; homeowner = Principal.anonymous() } }
+  };
+
+  /// M1: the caller must own or manage (write access) the property before a
+  /// request is created against it. Without the property canister (local dev
+  /// only — deploy.sh always wires it) there is nothing to check against.
+  private func canCreateFor(propertyId: Text, caller: Principal) : async Bool {
+    if (Text.size(propCanisterId) == 0) return true;
+    let propActor = actor(propCanisterId) : actor {
+      isAuthorized : (Text, Principal, Bool) -> async Bool;
+    };
+    await propActor.isAuthorized(propertyId, caller, true)
+  };
+
+  /// M2: only registered contractors the request is visible to (zip + quality
+  /// thresholds) may bid. Without the contractor canister (local dev only —
+  /// deploy.sh always wires it) the gate can't be evaluated.
+  private func canBidOn(r: QuoteRequest, caller: Principal) : async Bool {
+    if (caller == r.homeowner) return false;
+    if (Text.size(contrCanisterId) == 0) return true;
+    switch (await contractorStats(caller)) {
+      case null    { false };
+      case (?st)   { contractorMatches(r, st) };
+    }
+  };
+
   private func nextReqId() : Text {
     reqCounter += 1;
     "REQ_" # Nat.toText(reqCounter)
@@ -480,11 +522,18 @@ persistent actor Quote {
     if (Text.size(propertyId)  == 0)   return #err(#InvalidInput("propertyId cannot be empty"));
     if (Text.size(description) == 0)   return #err(#InvalidInput("description cannot be empty"));
     if (Text.size(description) > 5000) return #err(#InvalidInput("description exceeds 5000 characters"));
+    if (Text.size(propertyId) > 200)   return #err(#InvalidInput("propertyId too long"));
+    switch (zipCode) { case (?z) { if (Text.size(z) > 20) return #err(#InvalidInput("zipCode too long")) }; case null {} };
+
+    // M1: caller must own or manage the property — no requests (and no lead
+    // notifications) against other people's homes, no borrowing their tier.
+    if (not (await canCreateFor(propertyId, msg.caller))) return #err(#NotAuthorized);
 
     // When payment canister is wired, tier comes from getTierForPrincipal();
     // otherwise falls back to the local admin-grant map.
-    // When the caller is a delegated manager, use the property owner's tier
-    // so managers don't need their own paid subscription.
+    // When the caller is a delegated manager (authorisation checked above),
+    // use the property owner's tier so managers don't need their own paid
+    // subscription.
     let effectivePrincipal : Principal = if (propCanisterId != "") {
       let propActor = actor(propCanisterId) : actor {
         getPropertyOwner : (Text) -> async ?Principal;
@@ -543,10 +592,10 @@ persistent actor Quote {
   };
 
   /// Fetch a single quote request by ID.
-  public query func getQuoteRequest(requestId: Text) : async Result.Result<QuoteRequest, Error> {
+  public query(msg) func getQuoteRequest(requestId: Text) : async Result.Result<QuoteRequest, Error> {
     switch (Map.get(requests, Text.compare, requestId)) {
       case null { #err(#NotFound) };
-      case (?r) { #ok(r) };
+      case (?r) { #ok(redactFor(r, msg.caller)) };
     }
   };
 
@@ -557,8 +606,11 @@ persistent actor Quote {
   /// - Otherwise returns only requests whose zipCode is in the caller's serviceZips,
   ///   plus requests with no zipCode set (visible to everyone).
   public shared(msg) func getOpenRequestsForMe() : async [QuoteRequest] {
+    // L8: rate-limit — this makes an inter-canister call per invocation.
+    switch (requireActive(msg.caller)) { case (#err(_)) return []; case _ {} };
+    let caller = msg.caller;
     let allOpen = Iter.toArray(
-      openRequests()
+      Iter.map<QuoteRequest, QuoteRequest>(openRequests(), func(r) { redactFor(r, caller) })
     );
 
     if (Text.size(contrCanisterId) == 0) return allOpen;
@@ -578,17 +630,17 @@ persistent actor Quote {
 
   /// Fetch all open or quoted requests — unfiltered, visible to any contractor.
   /// Capped at 200 entries; use getOpenRequestsPage for full pagination.
-  public query func getOpenRequests() : async [QuoteRequest] {
+  public query(msg) func getOpenRequests() : async [QuoteRequest] {
     let open = Iter.toArray(
-      openRequests()
+      Iter.map<QuoteRequest, QuoteRequest>(openRequests(), func(r) { redactFor(r, msg.caller) })
     );
     if (open.size() <= 200) open
     else Array.tabulate<QuoteRequest>(200, func(i) { open[i] })
   };
 
-  public query func getOpenRequestsPage(from : Nat, limit : Nat) : async [QuoteRequest] {
+  public query(msg) func getOpenRequestsPage(from : Nat, limit : Nat) : async [QuoteRequest] {
     let open = Iter.toArray(
-      openRequests()
+      Iter.map<QuoteRequest, QuoteRequest>(openRequests(), func(r) { redactFor(r, msg.caller) })
     );
     let total = open.size();
     if (from >= total) return [];
@@ -620,6 +672,13 @@ persistent actor Quote {
   ) : async Result.Result<Quote, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
+    // M2: registered contractor the request is visible to (never the homeowner).
+    switch (Map.get(requests, Text.compare, requestId)) {
+      case null { return #err(#NotFound) };
+      case (?r0) { if (not (await canBidOn(r0, msg.caller))) return #err(#NotAuthorized) };
+    };
+
+    // Everything below re-reads state after the await (TOCTOU).
     switch (Map.get(requests, Text.compare, requestId)) {
       case null { return #err(#NotFound) };
       case (?req) {
@@ -628,6 +687,10 @@ persistent actor Quote {
             if (req.status == #Cancelled) "This request has been cancelled"
             else "Request is not open for quotes"
           ));
+        // M2: one live quote per contractor per request.
+        if (Option.isSome(Iter.find(quotesFor(requestId), func(q: Quote) : Bool {
+          q.contractor == msg.caller and q.status == #Pending
+        }))) return #err(#InvalidInput("You already have a pending quote on this request"));
         if (amount == 0)    return #err(#InvalidInput("Amount must be greater than 0"));
         if (timeline == 0)  return #err(#InvalidInput("Timeline must be greater than 0"));
         if (validUntil <= Time.now()) return #err(#InvalidInput("validUntil must be in the future"));
@@ -931,6 +994,11 @@ persistent actor Quote {
     if (Text.size(description) == 0)   return #err(#InvalidInput("description cannot be empty"));
     if (Text.size(description) > 5000) return #err(#InvalidInput("description exceeds 5000 characters"));
     if (closeAtNs <= Time.now())        return #err(#InvalidInput("closeAt must be in the future"));
+    if (Text.size(propertyId) > 200)   return #err(#InvalidInput("propertyId too long"));
+    switch (zipCode) { case (?z) { if (Text.size(z) > 20) return #err(#InvalidInput("zipCode too long")) }; case null {} };
+
+    // M1: caller must own or manage the property.
+    if (not (await canCreateFor(propertyId, msg.caller))) return #err(#NotAuthorized);
 
     let effectivePrincipalSB : Principal = if (propCanisterId != "") {
       let propActor = actor(propCanisterId) : actor {
@@ -988,7 +1056,16 @@ persistent actor Quote {
     timelineDays: Nat
   ) : async Result.Result<SealedBid, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (ciphertext.size() > MAX_CIPHERTEXT_BYTES)
+      return #err(#InvalidInput("ciphertext too large"));
 
+    // M2: registered contractor the request is visible to (never the homeowner).
+    switch (Map.get(requests, Text.compare, requestId)) {
+      case null { return #err(#NotFound) };
+      case (?r0) { if (not (await canBidOn(r0, msg.caller))) return #err(#NotAuthorized) };
+    };
+
+    // Everything below re-reads state after the await (TOCTOU).
     switch (Map.get(requests, Text.compare, requestId)) {
       case null { return #err(#NotFound) };
       case (?req) {
@@ -996,6 +1073,16 @@ persistent actor Quote {
           return #err(#InvalidInput("Request is not open for bids"));
         if (ciphertext.size() == 0)
           return #err(#InvalidInput("ciphertext cannot be empty"));
+        // M2: one sealed bid per contractor per request.
+        let contractorKey = Principal.toText(msg.caller) # ":" # requestId;
+        if (Option.isSome(Map.get(sealedBidsByContractor, Text.compare, contractorKey)))
+          return #err(#InvalidInput("You already have a sealed bid on this request"));
+        // M2: maxBids applies to sealed bids too.
+        let bidCount = switch (Map.get(sealedBidsByRequest, Text.compare, requestId)) { case null 0; case (?xs) xs.size() };
+        switch (req.maxBids) {
+          case (?cap) { if (bidCount >= cap) return #err(#InvalidInput("This request has reached its maximum number of bids (" # Nat.toText(cap) # ")")) };
+          case null {};
+        };
         if (timelineDays == 0)
           return #err(#InvalidInput("timelineDays must be greater than 0"));
 
@@ -1007,6 +1094,10 @@ persistent actor Quote {
           };
           case null {};
         };
+
+        // M2: sealed bids share the 20/day submission cap with quotes.
+        if (not tryConsumeSubmissionSlot(msg.caller))
+          return #err(#InvalidInput("Daily bid submission limit reached (20/day per contractor)."));
 
         let id  = nextSealedBidId();
         let bid: SealedBid = {
@@ -1058,8 +1149,15 @@ persistent actor Quote {
   /// marks the lowest price as winner, stores the result, and returns it.
   ///
   /// Idempotent: calling twice returns the same result.
+  ///
+  /// V-1/H2: this decodes *mock* ciphertexts (little-endian bytes). Real IBE
+  /// ciphertexts would decode to garbage and be cached, so it only runs when
+  /// the canister is explicitly in local mock mode (vetKD key "dfx_test_key").
+  /// Everywhere else use revealBidsEncrypted and decrypt client-side.
   public shared(msg) func revealBids(requestId: Text) : async Result.Result<[RevealedBid], Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (vetkdKeyName != "dfx_test_key")
+      return #err(#InvalidInput("Mock reveal is disabled; use revealBidsEncrypted"));
 
     switch (Map.get(requests, Text.compare, requestId)) {
       case null { return #err(#NotFound) };
@@ -1133,11 +1231,18 @@ persistent actor Quote {
   };
 
   /// Returns already-revealed bids for a request, or an empty array if not yet revealed.
-  public query func getRevealedBids(requestId: Text) : async [RevealedBid] {
-    switch (Map.get(revealedBids, Text.compare, requestId)) {
-      case null  { [] };
+  /// L2: the homeowner and admins see every revealed bid; a bidder sees only
+  /// their own; anyone else gets [].
+  public query(msg) func getRevealedBids(requestId: Text) : async [RevealedBid] {
+    let all = switch (Map.get(revealedBids, Text.compare, requestId)) {
+      case null  { return [] };
       case (?rb) { rb };
-    }
+    };
+    let full = isAdmin(msg.caller) or (switch (Map.get(requests, Text.compare, requestId)) {
+      case (?r) { r.homeowner == msg.caller };
+      case null { false };
+    });
+    if (full) all else Array.filter<RevealedBid>(all, func(b) { b.contractor == msg.caller })
   };
 
   // ─── vetKeys Public Methods ───────────────────────────────────────────────────
@@ -1188,10 +1293,11 @@ persistent actor Quote {
         };
 
         // Derive the homeowner's IBE private key encrypted to their transport key.
-        // The identity used for IBE encryption is Principal.toBlob(homeowner),
-        // which the frontend reconstructs via myPrincipal.toUint8Array().
-        let deriveResponse = await (with cycles = VETKD_KEY_CYCLES) managementCanister.vetkd_derive_key({
-          input                = Principal.toBlob(caller);
+        // L1: derive for the request's identity, not the caller's principal —
+        // the key opens this request's bids only, and works for a delegated
+        // manager as well as the homeowner.
+        let deriveResponse = await (with cycles = vetkdDeriveCycles()) managementCanister.vetkd_derive_key({
+          input                = bidIdentity(requestId);
           context              = IBE_CONTEXT;
           transport_public_key = transportPublicKey;
           key_id               = { curve = #bls12_381_g2; name = vetkdKeyName };

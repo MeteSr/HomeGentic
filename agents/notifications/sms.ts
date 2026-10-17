@@ -100,6 +100,37 @@ export function allowCodeRequest(principal: string, now = Date.now()): boolean {
   return true;
 }
 
+// Per destination number and relay-wide caps, so many principals can't pump
+// codes to one number (harassment) or rack up Twilio cost overall.
+const PHONE_HOURLY_LIMIT  = 3;
+const PHONE_DAILY_LIMIT   = 6;
+const GLOBAL_HOURLY_LIMIT = Number(process.env.SMS_GLOBAL_HOURLY_LIMIT) || 200;
+const DAY_MS = 24 * HOUR_MS;
+const MAX_TRACKED_PHONES = 50_000;
+const phoneRequests = new Map<string, number[]>();
+let globalRequests: number[] = [];
+
+/** Records a code send to `phone`; false when that number or the relay is over its cap. */
+export function allowCodeToPhone(phone: string, now = Date.now()): boolean {
+  globalRequests = globalRequests.filter((t) => now - t < HOUR_MS);
+  const recent = (phoneRequests.get(phone) ?? []).filter((t) => now - t < DAY_MS);
+  const lastHour = recent.filter((t) => now - t < HOUR_MS).length;
+  if (globalRequests.length >= GLOBAL_HOURLY_LIMIT ||
+      lastHour >= PHONE_HOURLY_LIMIT || recent.length >= PHONE_DAILY_LIMIT) {
+    phoneRequests.set(phone, recent);
+    return false;
+  }
+  if (phoneRequests.size >= MAX_TRACKED_PHONES && !phoneRequests.has(phone)) {
+    for (const [k, v] of phoneRequests) if (!v.some((t) => now - t < DAY_MS)) phoneRequests.delete(k);
+  }
+  recent.push(now);
+  phoneRequests.set(phone, recent);
+  globalRequests.push(now);
+  return true;
+}
+
 export function resetCodeLimits(): void {
   codeRequests.clear();
+  phoneRequests.clear();
+  globalRequests = [];
 }

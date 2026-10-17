@@ -453,8 +453,8 @@ function createMaintenanceService() {
     const agentUrl =
       (import.meta as any).env?.VITE_AGENT_URL ?? "http://localhost:3001";
 
-    const { voiceAgentHeaders } = await import("./voiceAgentHeaders");
-    const res = await fetch(`${agentUrl}/api/maintenance/chat`, {
+    const { voiceAgentHeaders, voiceAgentFetch } = await import("./voiceAgentHeaders");
+    const res = await voiceAgentFetch(`${agentUrl}/api/maintenance/chat`, {
       method:  "POST",
       headers: voiceAgentHeaders(),
       body:    JSON.stringify({ message, context }),

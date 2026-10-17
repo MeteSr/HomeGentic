@@ -2,7 +2,7 @@ import { Actor } from "@icp-sdk/core/agent";
 import { getAgent } from "./actor";
 import { idlFactory } from "@/declarations/quote";
 import { serviceTypeVariant, serviceTypeFromVariant } from "./serviceTypes";
-import { ibeEncryptAmount, ibeDecryptBids, type RevealedBid as SealedRevealedBid } from "./sealedBid";
+import { ibeEncryptAmount, ibeDecryptBids, sealedBidIdentity, type RevealedBid as SealedRevealedBid } from "./sealedBid";
 import type { UsageCategory, UsageSummary } from "./quoteUsage";
 export { idlFactory };
 
@@ -371,18 +371,18 @@ function createQuoteService() {
    * @param requestId            - The sealed-bid request to bid on.
    * @param amountCents          - Bid amount in US cents.
    * @param timelineDays         - Projected completion time.
-   * @param homeownerPrincipalText - `QuoteRequest.homeowner` (principal text).
+   *
+   * The IBE identity is the request ID (sealedBidIdentity), not the homeowner's
+   * principal — the canister no longer reveals that principal to bidders, and
+   * one reveal key must only open one request's bids.
    */
   async submitSealedBidEncrypted(
     requestId:              string,
     amountCents:            number,
     timelineDays:           number,
-    homeownerPrincipalText: string,
   ): Promise<{ id: string; requestId: string; timelineDays: number; submittedAt: number }> {
-    const { Principal } = await import("@icp-sdk/core/principal");
     const pubKeyBytes = await this.getIbePublicKey();
-    const homeownerBytes = Principal.fromText(homeownerPrincipalText).toUint8Array();
-    const ciphertextBytes = await ibeEncryptAmount(pubKeyBytes, homeownerBytes, amountCents);
+    const ciphertextBytes = await ibeEncryptAmount(pubKeyBytes, sealedBidIdentity(requestId), amountCents);
 
     const a = await getActor();
     const result = await a.submitSealedBid(requestId, Array.from(ciphertextBytes), BigInt(timelineDays));
@@ -404,16 +404,14 @@ function createQuoteService() {
    * Reveal all sealed bids after the bid window closes.
    * Derives the homeowner's IBE key from the canister and decrypts each bid locally.
    *
-   * @param requestId  - The sealed-bid request whose bids to reveal.
-   * @param myPrincipalText - The caller's principal text (must be the homeowner).
+   * @param requestId  - The sealed-bid request whose bids to reveal (caller must
+   *                     own or manage its property).
    * @returns Decrypted bid amounts with isWinner set for the lowest price.
    */
   async revealBidsDecrypted(
     requestId:      string,
-    myPrincipalText: string,
   ): Promise<SealedRevealedBid[]> {
     const { TransportSecretKey } = await import("@dfinity/vetkeys");
-    const { Principal }          = await import("@icp-sdk/core/principal");
 
     const tsk = TransportSecretKey.random();
     const tpk = tsk.publicKeyBytes();
@@ -427,7 +425,7 @@ function createQuoteService() {
     }
 
     const pubKeyBytes      = await this.getIbePublicKey();
-    const myPrincipalBytes = Principal.fromText(myPrincipalText).toUint8Array();
+    const identityBytes    = sealedBidIdentity(requestId);
     const encryptedKeyBytes = new Uint8Array(result.ok.encryptedKey);
 
     const rawBids = (result.ok.bids as any[]).map((b: any) => ({
@@ -439,7 +437,7 @@ function createQuoteService() {
       submittedAt:  b.submittedAt as bigint,
     }));
 
-    return ibeDecryptBids(encryptedKeyBytes, pubKeyBytes, myPrincipalBytes, tsk, rawBids);
+    return ibeDecryptBids(encryptedKeyBytes, pubKeyBytes, identityBytes, tsk, rawBids);
   },
 
   getQuotaForTier(tier: string): number {

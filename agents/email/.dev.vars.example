@@ -16,3 +16,10 @@ RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 #
 # For local development, add http://localhost entries matching your dev server port.
 ROUTE_CONFIG=[{"origin":"https://sellingpelicanbay.com","toEmail":"info@sellingpelicanbay.com","fromEmail":"noreply@sellingpelicanbay.com","fromName":"Williamson Real Estate"},{"origin":"https://homegentic.app","toEmail":"info@homegentic.app","fromEmail":"noreply@homegentic.app","fromName":"HomeGentic"},{"origin":"http://localhost:8080","toEmail":"dev@example.com","fromEmail":"dev@example.com","fromName":"Dev Test"},{"origin":"http://localhost:5173","toEmail":"dev@example.com","fromEmail":"dev@example.com","fromName":"Dev Test"}]
+
+# Optional abuse controls (security audit F-12):
+#   wrangler secret put TURNSTILE_SECRET_KEY   — when set, /send requires a valid
+#     Cloudflare Turnstile token in the `turnstileToken` (or `cf-turnstile-response`) field.
+#   A KV namespace bound as RATE_LIMIT_KV (wrangler.toml [[kv_namespaces]]) makes the
+#     5-per-10-minutes per-IP limit global; without it the limit is per isolate.
+# TURNSTILE_SECRET_KEY=

@@ -89,10 +89,20 @@ describe("SMS confirmation", () => {
 
   it("limits code requests per user", async () => {
     mockPrincipal.mockResolvedValue("chatty-user");
+    // Different numbers so only the per-user cap (5/hour) is in play.
     for (let i = 0; i < 5; i++) {
-      expect((await request(app).post("/api/sms/start").send({ phone: PHONE })).status).toBe(200);
+      expect((await request(app).post("/api/sms/start").send({ phone: `+1512555010${i}` })).status).toBe(200);
     }
-    expect((await request(app).post("/api/sms/start").send({ phone: PHONE })).status).toBe(429);
+    expect((await request(app).post("/api/sms/start").send({ phone: "+15125550109" })).status).toBe(429);
+  });
+
+  it("limits code requests per destination number across users", async () => {
+    for (let i = 0; i < 3; i++) {
+      mockPrincipal.mockResolvedValue(`user-${i}`);
+      expect((await request(app).post("/api/sms/start").send({ phone: "+15125550177" })).status).toBe(200);
+    }
+    mockPrincipal.mockResolvedValue("user-4");
+    expect((await request(app).post("/api/sms/start").send({ phone: "+15125550177" })).status).toBe(429);
   });
 
   it("stores the number and turns SMS on when the code matches", async () => {

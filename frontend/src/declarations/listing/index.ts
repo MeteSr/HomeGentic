@@ -154,6 +154,7 @@ export const idlFactory = ({ IDL }: any) => {
     activateFsboListing: IDL.Func([PublicFsboListing], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     deactivateFsboListing: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     listActiveFsboListings: IDL.Func([], [IDL.Vec(PublicFsboListing)], ["query"]),
+    listActiveFsboListingsPage: IDL.Func([IDL.Nat, IDL.Nat], [IDL.Vec(PublicFsboListing)], ["query"]),
 
     createBidRequest: IDL.Func(
       [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Opt(IDL.Nat), IDL.Opt(IDL.Nat), IDL.Opt(IDL.Nat), IDL.Int, IDL.Opt(IDL.Nat), IDL.Text, WindowDays],
@@ -164,6 +165,7 @@ export const idlFactory = ({ IDL }: any) => {
     getBidRequest: IDL.Func([IDL.Text], [IDL.Variant({ ok: ListingBidRequest, err: Error })], ["query"]),
     cancelBidRequest: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     getOpenBidRequests: IDL.Func([], [IDL.Vec(BidRequestSummary)], ["query"]),
+    getOpenBidRequestsPage: IDL.Func([IDL.Nat, IDL.Nat], [IDL.Vec(BidRequestSummary)], ["query"]),
 
     flagPhotoForReview: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),
     reviewPhoto: IDL.Func([IDL.Text], [IDL.Variant({ ok: IDL.Null, err: Error })], []),

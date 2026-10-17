@@ -39,6 +39,11 @@ vi.mock("@/store/authStore", () => ({
   useAuthStore: vi.fn(() => ({ isAuthenticated: mockIsAuthenticated.value })),
 }));
 
+// voiceAgentFetch adds the x-agent-session header; here it's a plain fetch.
+vi.mock("@/services/voiceAgentHeaders", () => ({
+  voiceAgentFetch: (url: string, init?: RequestInit) => (global.fetch as any)(url, init),
+  voiceAgentHeaders: () => ({ "Content-Type": "application/json" }),
+}));
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: vi.fn(() => ({ login: vi.fn(), devLogin: vi.fn() })),
 }));

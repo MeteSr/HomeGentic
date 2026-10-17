@@ -110,6 +110,11 @@ persistent actor Agent {
   ]);
   /// Composite dedup key "reviewerPrincipal|transactionId" → true, one review per won bid.
   private let reviewDedup = Map.empty<Text, Bool>();
+  /// M4: transactionId (awarded proposalId) → reviewId. One review per transaction.
+  private let reviewByTransaction = Map.empty<Text, Text>();
+  /// M5: principals (besides admins, the listing canister and the profile's
+  /// owner) allowed to read agent email/phone — e.g. the Bid to List mailer.
+  private var contactReaders : [Principal] = [];
 
   private transient let MAX_BIO_LEN     : Nat = 2000;
   private transient let MAX_COMMENT_LEN : Nat = 1000;
@@ -168,7 +173,33 @@ persistent actor Agent {
     if (Text.size(a.bio) > MAX_BIO_LEN)  return ?("bio exceeds " # Nat.toText(MAX_BIO_LEN) # " characters");
     if (a.serviceCities.size() == 0)     return ?"serviceCities cannot be empty";
     if (a.serviceCities.size() > 10)     return ?"serviceCities cannot exceed 10 cities";
+    // L8: size caps so one profile can't blow up the public list queries.
+    if (Text.size(a.name) > 200)          return ?"name too long";
+    if (Text.size(a.brokerage) > 200)     return ?"brokerage too long";
+    if (Text.size(a.licenseNumber) > 100) return ?"licenseNumber too long";
+    if (Text.size(a.licenseState) > 50)   return ?"licenseState too long";
+    if (Text.size(a.county) > 100)        return ?"county too long";
+    if (Text.size(a.phone) > 50)          return ?"phone too long";
+    if (Text.size(a.email) > 254)         return ?"email too long";
+    for (c in a.serviceCities.vals()) { if (Text.size(c) > 100) return ?"service city too long" };
     null
+  };
+
+  private func canReadContact(caller: Principal, agentId: Principal) : Bool {
+    caller == agentId or isAdmin(caller) or Principal.toText(caller) == listingCanisterId
+      or Option.isSome(Array.find<Principal>(contactReaders, func(r) { r == caller }))
+  };
+
+  /// M5: public profile reads hide email and phone, which would let a homeowner
+  /// contact a bidding agent directly and skip the platform fee.
+  private func view(p: AgentProfile, caller: Principal) : AgentProfile {
+    if (canReadContact(caller, p.id)) { p } else { { p with email = ""; phone = "" } }
+  };
+
+  private transient let MAX_PROFILE_PAGE : Nat = 500;
+
+  private func viewAll(it: Iter.Iter<AgentProfile>, caller: Principal) : [AgentProfile] {
+    Iter.toArray(Iter.map<AgentProfile, AgentProfile>(Iter.take(it, MAX_PROFILE_PAGE), func(p) { view(p, caller) }))
   };
 
   // ─── Registration ────────────────────────────────────────────────────────────
@@ -213,26 +244,30 @@ persistent actor Agent {
     Map.get(profiles, Principal.compare, msg.caller)
   };
 
-  public query func getProfile(agentId: Principal) : async ?AgentProfile {
-    Map.get(profiles, Principal.compare, agentId)
+  /// Email/phone are blanked unless the caller is the agent, an admin, the
+  /// listing canister or a contact reader (M5).
+  public query(msg) func getProfile(agentId: Principal) : async ?AgentProfile {
+    switch (Map.get(profiles, Principal.compare, agentId)) {
+      case null { null };
+      case (?p) { ?view(p, msg.caller) };
+    }
   };
 
-  public query func getAllProfiles() : async [AgentProfile] {
-    Iter.toArray(Map.values(profiles))
+  /// Capped at MAX_PROFILE_PAGE entries (L8); contact fields redacted (M5).
+  public query(msg) func getAllProfiles() : async [AgentProfile] {
+    viewAll(Map.values(profiles), msg.caller)
   };
 
-  public query func getProfilesByCounty(county: Text) : async [AgentProfile] {
-    Iter.toArray(Iter.filter(Map.values(profiles), func(p: AgentProfile) : Bool { p.county == county }))
+  public query(msg) func getProfilesByCounty(county: Text) : async [AgentProfile] {
+    viewAll(Iter.filter(Map.values(profiles), func(p: AgentProfile) : Bool { p.county == county }), msg.caller)
   };
 
   /// Cities are matched lowercase; caller passes an already-lowercased city.
-  public query func getAgentsForCity(city: Text, limit: Nat) : async [AgentProfile] {
-    let matches = Iter.toArray(Iter.filter(Map.values(profiles), func(p: AgentProfile) : Bool {
+  public query(msg) func getAgentsForCity(city: Text, limit: Nat) : async [AgentProfile] {
+    let matches = Iter.filter(Map.values(profiles), func(p: AgentProfile) : Bool {
       p.isVerified and Option.isSome(Array.find<Text>(p.serviceCities, func(c) { c == city }))
-    }));
-    if (matches.size() <= limit) { matches } else {
-      Array.tabulate<AgentProfile>(limit, func(i) { matches[i] })
-    }
+    });
+    Iter.toArray(Iter.map<AgentProfile, AgentProfile>(Iter.take(matches, Nat.min(limit, MAX_PROFILE_PAGE)), func(p) { view(p, msg.caller) }))
   };
 
   public shared(msg) func updateProfile(args: UpdateArgs) : async Result.Result<AgentProfile, Error> {
@@ -244,6 +279,10 @@ persistent actor Agent {
           case (?m) { return #err(#InvalidInput(m)) };
           case null {};
         };
+        // M3: changing any identity/licence field drops verification until an
+        // admin re-verifies — no keeping the badge under someone else's licence.
+        let identityChanged = args.name != existing.name or args.brokerage != existing.brokerage
+          or args.licenseNumber != existing.licenseNumber or args.licenseState != existing.licenseState;
         let updated: AgentProfile = {
           id                   = existing.id;
           name                 = args.name;
@@ -257,8 +296,8 @@ persistent actor Agent {
           email                = args.email;
           avgDaysOnMarket      = existing.avgDaysOnMarket;
           listingsLast12Months = existing.listingsLast12Months;
-          isVerified           = existing.isVerified;
-          lastVerifiedAt       = existing.lastVerifiedAt;
+          isVerified           = existing.isVerified and not identityChanged;
+          lastVerifiedAt       = if (identityChanged) 0 else existing.lastVerifiedAt;
           cardOnFile           = existing.cardOnFile;
           createdAt            = existing.createdAt;
           updatedAt            = Time.now();
@@ -358,12 +397,31 @@ persistent actor Agent {
     if (args.rating < 1 or args.rating > 5) return #err(#InvalidInput("rating must be 1-5"));
     if (Text.size(args.comment) > MAX_COMMENT_LEN) return #err(#InvalidInput("comment too long"));
     if (Text.size(args.transactionId) == 0) return #err(#InvalidInput("transactionId cannot be empty"));
+    if (Text.size(args.transactionId) > 100) return #err(#InvalidInput("transactionId too long"));
+    if (args.agentId == msg.caller) return #err(#NotAuthorized);  // M4: no self-review
 
     let dedupKey = Principal.toText(msg.caller) # "|" # args.transactionId;
     switch (Map.get(reviewDedup, Text.compare, dedupKey)) {
       case (?_) { return #err(#DuplicateReview) };
       case null {};
     };
+    if (Option.isSome(Map.get(reviewByTransaction, Text.compare, args.transactionId))) return #err(#DuplicateReview);
+
+    // M4: the transaction must be a real, fee-paid Bid to List award by this
+    // agent, and the caller must be that listing's homeowner. Fails closed
+    // when the listing canister isn't wired.
+    if (Text.size(listingCanisterId) == 0) return #err(#InvalidInput("Listing canister not configured — cannot verify transaction"));
+    let listingActor = actor(listingCanisterId) : actor {
+      getReviewEligibility : query (Text) -> async ?{ agentId: Principal; homeowner: Principal; awarded: Bool };
+    };
+    switch (await listingActor.getReviewEligibility(args.transactionId)) {
+      case null { return #err(#NotFound) };
+      case (?e) {
+        if (not e.awarded or e.agentId != args.agentId or e.homeowner != msg.caller) return #err(#NotAuthorized);
+      };
+    };
+    // Re-check after the await (TOCTOU): a concurrent call may have reviewed it.
+    if (Option.isSome(Map.get(reviewByTransaction, Text.compare, args.transactionId))) return #err(#DuplicateReview);
     if (not tryConsumeReviewSlot(msg.caller)) {
       return #err(#InvalidInput("Rate limit exceeded: max " # Nat.toText(MAX_REVIEWS_PER_DAY) # " reviews per day"));
     };
@@ -380,6 +438,7 @@ persistent actor Agent {
     };
     Index.put(reviews, reviewsIndexes, review.id, review);
     Map.add(reviewDedup, Text.compare, dedupKey, true);
+    Map.add(reviewByTransaction, Text.compare, args.transactionId, review.id);
     #ok(review)
   };
 
@@ -392,6 +451,22 @@ persistent actor Agent {
   public shared(msg) func setListingCanisterId(id: Text) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     listingCanisterId := id;
+    #ok(())
+  };
+
+  /// M5: allow a principal (e.g. the Bid to List mailer identity) to read
+  /// agent email/phone from the profile queries. Admin only.
+  public shared(msg) func addContactReader(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (Option.isNull(Array.find<Principal>(contactReaders, func(r) { r == p }))) {
+      contactReaders := Array.concat(contactReaders, [p]);
+    };
+    #ok(())
+  };
+
+  public shared(msg) func removeContactReader(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    contactReaders := Array.filter<Principal>(contactReaders, func(r) { r != p });
     #ok(())
   };
 

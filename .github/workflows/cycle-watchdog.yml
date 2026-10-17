@@ -28,6 +28,10 @@ jobs:
   cycle-watchdog:
     runs-on: ubuntu-latest
     environment: production
+    # Holds MAINNET_IDENTITY_PEM and runs the ref's own scripts/ — only ever
+    # from main (schedule runs use the default branch; a manual dispatch on
+    # another branch is refused). Security audit finding 5.
+    if: github.ref == 'refs/heads/main'
 
     steps:
       - uses: actions/checkout@v7
@@ -47,6 +51,7 @@ jobs:
       # subcommands. See deploy.sh:889 for the same note on update-settings.
       - name: Install dfx
         run: |
+          mkdir -p /tmp/dfx-install
           curl -fsSL "https://github.com/dfinity/sdk/releases/download/0.24.3/dfx-x86_64-unknown-linux-gnu.tar.gz" \
             | tar -xzC /tmp/dfx-install
           DFX_BIN=$(find /tmp/dfx-install -name "dfx" -type f -perm /111 | head -1)

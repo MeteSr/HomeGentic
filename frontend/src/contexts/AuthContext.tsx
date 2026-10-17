@@ -14,6 +14,27 @@ import { propertyService } from "@/services/property";
 import { clearAgentSession } from "@/services/agentSession";
 import { disablePush } from "@/services/pushNotifications";
 
+// Per-user data the app caches in localStorage (AI action history, score
+// history, system ages, dismissed prompts, consents...). Cleared on logout so
+// the next person on a shared device doesn't see it. Theme preference is kept.
+const USER_STORAGE_PREFIXES = ["homegentic_", "hg_", "hf_", "pulse_"];
+
+function clearUserLocalStorage(): void {
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k) keys.push(k);
+    }
+    for (const k of keys) {
+      if (/theme/i.test(k)) continue;
+      if (USER_STORAGE_PREFIXES.some((p) => k.startsWith(p))) localStorage.removeItem(k);
+    }
+  } catch {
+    // storage unavailable — nothing to clear
+  }
+}
+
 interface AuthContextValue {
   login: () => Promise<void>;
   devLogin: () => Promise<void>;
@@ -184,6 +205,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Stop this browser receiving the signed-out user's pushes. Best effort.
       void disablePush().catch(() => {});
       clearAgentSession();
+      clearUserLocalStorage();
       clearAuth();
     }
   };

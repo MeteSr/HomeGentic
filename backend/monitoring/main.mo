@@ -304,6 +304,9 @@ persistent actor Monitoring {
   private var jobCanisterId     : Text = "";
   private var quoteCanisterId   : Text = "";
   private var paymentCanisterId : Text = "";
+  /// M10: principals (besides admins) allowed to push metrics / frontend
+  /// errors and poll cycle levels — e.g. the voice Worker's identity.
+  private var reporterEntries : [Principal] = [];
   // ─── Stable State ────────────────────────────────────────────────────────────
 
   private let canisterMetrics = Map.empty<Principal, CanisterMetrics>();
@@ -348,6 +351,41 @@ persistent actor Monitoring {
     Option.isSome(Array.find<Principal>(adminListEntries, func(a) { a == p }))
   };
 
+  private func isReporter(p: Principal) : Bool {
+    Option.isSome(Array.find<Principal>(reporterEntries, func(r) { r == p }))
+  };
+
+  /// M10: admin or registered reporter.
+  private func isWriter(p: Principal) : Bool {
+    not Principal.isAnonymous(p) and (isAdmin(p) or isReporter(p))
+  };
+
+  private func pausedNow() : Bool {
+    if (not isPaused) return false;
+    switch (pauseExpiryNs) {
+      case (?expiry) { Time.now() < expiry };
+      case null { true };
+    }
+  };
+
+  /// M10: gate for the reporter write endpoints — writer, not paused.
+  /// (Reporters are trusted services, so no per-minute rate limit here.)
+  private func canWrite(caller: Principal) : Bool {
+    isWriter(caller) and not pausedNow()
+  };
+
+  /// M10: caps on caller-supplied sizes.
+  private transient let MAX_ALERTS          : Nat = 2_000;
+  private transient let MAX_METHODS         : Nat = 500;
+  private transient let MAX_METHOD_LEN      : Nat = 120;
+  private transient let MAX_RELEASE_LEN     : Nat = 64;
+  private transient let MAX_TIER_ENTRIES    : Nat = 10;
+  private transient let MAX_TIER_NAME_LEN   : Nat = 32;
+
+  private func isTracked(id: Principal) : Bool {
+    Option.isSome(Array.find<TrackedCanister>(trackedCanisterEntries, func(c) { c.id == id }))
+  };
+
   private func _requireActive(caller: Principal) : Result.Result<(), Error> {
     if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
     if (isPaused) {
@@ -388,6 +426,23 @@ persistent actor Monitoring {
     message: Text
   ) {
     if (alertExists(category, canisterId)) return;
+    // M10: bound the alert store. Drop the oldest resolved alert first; if
+    // every stored alert is still active, keep only Critical ones coming in.
+    if (Map.size(alerts) >= MAX_ALERTS) {
+      var oldest : ?Alert = null;
+      for (a in Map.values(alerts)) {
+        if (a.resolved) {
+          switch (oldest) {
+            case (?o) { if (a.createdAt < o.createdAt) oldest := ?a };
+            case null { oldest := ?a };
+          };
+        };
+      };
+      switch (oldest) {
+        case (?o) { Map.remove(alerts, Text.compare, o.id) };
+        case null { if (severity != #Critical) return };
+      };
+    };
     let id = nextAlertId();
     let alert: Alert = {
       id;
@@ -453,9 +508,10 @@ persistent actor Monitoring {
 
   // ─── Core Functions ───────────────────────────────────────────────────────────
 
-  /// Push a metrics snapshot for a canister. Any principal may record metrics.
-  /// Auto-generates alerts when thresholds are breached.
-  public func recordCanisterMetrics(
+  /// Push a metrics snapshot for a canister. M10: admins and registered
+  /// reporters only, and (for reporters) only for canisters registered via
+  /// registerCanister(). Auto-generates alerts when thresholds are breached.
+  public shared(msg) func recordCanisterMetrics(
     canisterId: Principal,
     cyclesBalance: Nat,
     cyclesBurned: Nat,
@@ -465,6 +521,8 @@ persistent actor Monitoring {
     errorCount: Nat,
     avgResponseTimeMs: Nat
   ) : async () {
+    if (not canWrite(msg.caller)) return;
+    if (not isAdmin(msg.caller) and not isTracked(canisterId)) return;
     let m: CanisterMetrics = {
       canisterId;
       cyclesBalance;
@@ -488,8 +546,11 @@ persistent actor Monitoring {
   ///
   /// Callers: any canister may call this after a significant operation completes.
   /// The `method` string should be "canister.methodName" (e.g. "report.generateReport").
-  public func recordCallCycles(method: Text, cycles: Nat) : async () {
-    if (Text.size(method) == 0) return;
+  public shared(msg) func recordCallCycles(method: Text, cycles: Nat) : async () {
+    // M10: admins and registered reporters only; bounded key size and count.
+    if (not canWrite(msg.caller)) return;
+    if (Text.size(method) == 0 or Text.size(method) > MAX_METHOD_LEN) return;
+    if (Map.get(cyclesPerCall, Text.compare, method) == null and Map.size(cyclesPerCall) >= MAX_METHODS) return;
     let now = Time.now();
     let updated : MethodCyclesSummary = switch (Map.get(cyclesPerCall, Text.compare, method)) {
       case null {
@@ -513,9 +574,12 @@ persistent actor Monitoring {
 
   /// Aggregate cost breakdown across all reported canisters.
   /// Pass `userCount` > 0 to get a per-user cost figure.
-  public query func calculateCostMetrics(userCount: Nat) : async CostMetrics {
+  /// Appendix D #9: cost data is admin-only; other callers see zero burn.
+  public query(msg) func calculateCostMetrics(userCount: Nat) : async CostMetrics {
     var totalBurned : Nat = 0;
-    for (m in Map.values(canisterMetrics)) { totalBurned += m.cyclesBurned };
+    if (isAdmin(msg.caller)) {
+      for (m in Map.values(canisterMetrics)) { totalBurned += m.cyclesBurned };
+    };
 
     let totalUsd = Float.fromInt(totalBurned) / cyclesPerTrillion * usdPerTrillion;
 
@@ -538,14 +602,17 @@ persistent actor Monitoring {
 
   /// Compute profitability, LTV, CAC, and break-even for a billing period.
   /// `revenue` is the period's USD revenue; `users` is total users; `activeUsers` is MAU.
-  public query func calculateProfitability(
+  public query(msg) func calculateProfitability(
     revenue: Float,
     users: Nat,
     _activeUsers: Nat
   ) : async ProfitabilityMetrics {
-    // Derive cost from stored metrics (same logic as calculateCostMetrics)
+    // Derive cost from stored metrics (same logic as calculateCostMetrics).
+    // Appendix D #9: admin-only; other callers see zero burn.
     var totalBurned : Nat = 0;
-    for (m in Map.values(canisterMetrics)) { totalBurned += m.cyclesBurned };
+    if (isAdmin(msg.caller)) {
+      for (m in Map.values(canisterMetrics)) { totalBurned += m.cyclesBurned };
+    };
     let costUsd = Float.fromInt(totalBurned) / cyclesPerTrillion * usdPerTrillion;
 
     let profit = revenue - costUsd;
@@ -575,13 +642,16 @@ persistent actor Monitoring {
     }
   };
 
-  /// Return all stored canister metrics snapshots.
-  public query func getAllCanisterMetrics() : async [CanisterMetrics] {
+  /// Return all stored canister metrics snapshots. Admin-only (Appendix D #9).
+  public query(msg) func getAllCanisterMetrics() : async [CanisterMetrics] {
+    if (not isAdmin(msg.caller)) return [];
     Iter.toArray(Map.values(canisterMetrics))
   };
 
   /// Return all unresolved alerts, sorted Critical → Warning → Info.
-  public query func getActiveAlerts() : async [Alert] {
+  /// Admin-only (Appendix D #9).
+  public query(msg) func getActiveAlerts() : async [Alert] {
+    if (not isAdmin(msg.caller)) return [];
     let active = Iter.toArray(
       Iter.filter(Map.values(alerts), func(a: Alert) : Bool { not a.resolved })
     );
@@ -646,7 +716,8 @@ persistent actor Monitoring {
   };
 
   /// Generate a human-readable daily summary report.
-  public query func generateDailyReport(bm: BusinessMetrics) : async Text {
+  public query(msg) func generateDailyReport(bm: BusinessMetrics) : async Text {
+    if (not isAdmin(msg.caller)) return "";  // Appendix D #9
     // Aggregate cycles burned
     var totalBurned : Nat = 0;
     var totalRequests : Nat = 0;
@@ -739,8 +810,9 @@ persistent actor Monitoring {
     #ok(())
   };
 
-  /// Return the current registry of tracked canisters.
-  public query func getTrackedCanisters() : async [TrackedCanister] {
+  /// Return the current registry of tracked canisters. Admin or reporter only.
+  public query(msg) func getTrackedCanisters() : async [TrackedCanister] {
+    if (not isWriter(msg.caller)) return [];
     trackedCanisterEntries
   };
 
@@ -761,7 +833,11 @@ persistent actor Monitoring {
   ///   "warning"  — balance between lowCycleThresholdT and 2×
   ///   "critical" — balance below lowCycleThresholdT
   ///   "unknown"  — no data available
-  public func checkCycleLevels() : async [CycleLevelResult] {
+  public shared(msg) func checkCycleLevels() : async [CycleLevelResult] {
+    // M10: fans out a management call per tracked canister — admins and
+    // registered reporters only, honours pause, rate-limited for reporters.
+    if (not isWriter(msg.caller)) return [];
+    switch (_requireActive(msg.caller)) { case (#err _) return []; case _ {} };
     var results : [CycleLevelResult] = [];
     for (tracked in trackedCanisterEntries.vals()) {
       let result : CycleLevelResult = try {
@@ -802,9 +878,10 @@ persistent actor Monitoring {
   };
 
   /// Return all unresolved Critical and Warning cycle alerts.
-  /// Unauthenticated — intended for the cycle-watchdog cron and /admin/cycle-status
-  /// endpoint to query without managing a principal.
-  public query func getCriticalCycleAlerts() : async [Alert] {
+  /// M10: admins and registered reporters (the voice Worker's watchdog and
+  /// /admin/cycle-status endpoint call it with their identity).
+  public query(msg) func getCriticalCycleAlerts() : async [Alert] {
+    if (not isWriter(msg.caller)) return [];
     var out : [Alert] = [];
     for (a in Map.values(alerts)) {
       if (not a.resolved and a.category == #Cycles) {
@@ -830,10 +907,20 @@ persistent actor Monitoring {
     let merged = Map.empty<Text, Nat>();
     for ((tier, count) in existing.vals()) { Map.add(merged, Text.compare, tier, count) };
     for ((tier, count) in incoming.vals()) {
-      let prev = Option.get(Map.get(merged, Text.compare, tier), 0);
-      Map.add(merged, Text.compare, tier, prev + count);
+      // M10: bounded tier names and number of distinct tiers.
+      let t = strTrunc(tier, MAX_TIER_NAME_LEN);
+      switch (Map.get(merged, Text.compare, t)) {
+        case (?prev) { Map.add(merged, Text.compare, t, prev + count) };
+        case null {
+          if (Map.size(merged) < MAX_TIER_ENTRIES) Map.add(merged, Text.compare, t, count);
+        };
+      };
     };
     Iter.toArray(Map.entries(merged))
+  };
+
+  private func truncRelease(r: ?Text) : ?Text {
+    switch (r) { case (?t) ?strTrunc(t, MAX_RELEASE_LEN); case null null }
   };
 
   private func evictOldestError() {
@@ -854,9 +941,10 @@ persistent actor Monitoring {
   };
 
   /// Record or merge a frontend error summary from the voice server.
-  /// Unauthenticated — the voice server calls this after aggregating raw reports.
-  /// Cap: 500 entries with LRU eviction.
-  public func recordFrontendError(input: ErrorSummaryInput) : async () {
+  /// M10: admins and registered reporters only (the voice Worker identity).
+  /// Cap: 500 entries with LRU eviction; release and tierCounts are bounded.
+  public shared(msg) func recordFrontendError(input: ErrorSummaryInput) : async () {
+    if (not canWrite(msg.caller)) return;
     let normalizedFingerprint = strTrunc(input.fingerprint, 64);
     if (Text.size(normalizedFingerprint) == 0) return;
     switch (Map.get(frontendErrors, Text.compare, normalizedFingerprint)) {
@@ -869,7 +957,7 @@ persistent actor Monitoring {
           lastSeen    = if (input.lastSeen  > existing.lastSeen)  input.lastSeen  else existing.lastSeen;
           count       = existing.count + input.count;
           tierCounts  = mergeTierCounts(existing.tierCounts, input.tierCounts);
-          release     = switch (existing.release) { case null { input.release }; case r { r } };
+          release     = switch (existing.release) { case null { truncRelease(input.release) }; case r { truncRelease(r) } };
           resolved    = existing.resolved;
         };
         Map.add(frontendErrors, Text.compare, normalizedFingerprint, updated);
@@ -883,8 +971,8 @@ persistent actor Monitoring {
           firstSeen   = input.firstSeen;
           lastSeen    = input.lastSeen;
           count       = input.count;
-          tierCounts  = input.tierCounts;
-          release     = input.release;
+          tierCounts  = mergeTierCounts([], input.tierCounts);
+          release     = truncRelease(input.release);
           resolved    = false;
         };
         Map.add(frontendErrors, Text.compare, normalizedFingerprint, summary);
@@ -971,7 +1059,10 @@ persistent actor Monitoring {
 
   /// Pull live product metrics from property, job, quote, and payment canisters.
   /// Returns #err if any canister ID has not been configured or a call fails.
-  public func getProductMetrics() : async Result.Result<ProductMetrics, Text> {
+  public shared(msg) func getProductMetrics() : async Result.Result<ProductMetrics, Text> {
+    // M10 / Appendix D #9: business metrics, four inter-canister calls — admin only.
+    if (not isAdmin(msg.caller)) return #err("Not authorized");
+    switch (_requireActive(msg.caller)) { case (#err _) return #err("Canister is paused"); case _ {} };
     if (propCanisterId == "" or jobCanisterId == "" or quoteCanisterId == "" or paymentCanisterId == "") {
       return #err("Product canister IDs not configured. Call setProductCanisterIds() first.");
     };
@@ -1041,6 +1132,25 @@ persistent actor Monitoring {
 
   // ─── Admin Functions ──────────────────────────────────────────────────────────
 
+  /// M10: register a reporter principal (e.g. the voice Worker identity)
+  /// that may push metrics / frontend errors and poll cycle levels. Admin only.
+  public shared(msg) func addReporter(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (Principal.isAnonymous(p)) return #err(#InvalidInput("anonymous principal"));
+    if (not isReporter(p)) {
+      if (reporterEntries.size() >= 50) return #err(#InvalidInput("too many reporters"));
+      reporterEntries := Array.concat(reporterEntries, [p]);
+    };
+    #ok(())
+  };
+
+  /// M10: revoke a reporter principal. Admin only.
+  public shared(msg) func removeReporter(p: Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    reporterEntries := Array.filter<Principal>(reporterEntries, func(r) { r != p });
+    #ok(())
+  };
+
   /// Set the update-call rate limit (admin only). Pass 0 to disable enforcement.
   public shared(msg) func setUpdateRateLimit(n: Nat) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
@@ -1097,7 +1207,7 @@ persistent actor Monitoring {
     #ok(())
   };
 
-  public query func getMetrics() : async Metrics {
+  public query(msg) func getMetrics() : async Metrics {
     var active : Nat = 0;
     var critical : Nat = 0;
     for (a in Map.values(alerts)) {
@@ -1111,7 +1221,8 @@ persistent actor Monitoring {
       activeAlerts   = active;
       criticalAlerts = critical;
       isPaused;
-      cyclesPerCall  = Iter.toArray(Map.values(cyclesPerCall));   // 13.1.4
+      // 13.1.4 — per-method cycle costs are admin-only (Appendix D #9).
+      cyclesPerCall  = if (isAdmin(msg.caller)) Iter.toArray(Map.values(cyclesPerCall)) else [];
     }
   };
 

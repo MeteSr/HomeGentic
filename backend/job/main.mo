@@ -23,6 +23,7 @@ import Time      "mo:core/Time";
 import ServiceTypes "../shared/ServiceType";
 import Notify       "../shared/Notify";
 import Index        "../shared/Index";
+import Uuid         "../shared/Uuid";
 
 persistent actor Job {
 
@@ -117,6 +118,9 @@ persistent actor Job {
 
   // ─── Stable State ────────────────────────────────────────────────────────────
 
+  /// Legacy sequential counter. New job IDs are random RFC 4122 v4 UUIDs
+  /// (see newJobId); kept so the stable signature is unchanged. Existing
+  /// "JOB_<n>" IDs stay valid.
   private var jobCounter: Nat = 0;
   private var isPaused:           Bool        = false;
   private var pauseExpiryNs:      ?Int        = null;
@@ -136,8 +140,8 @@ persistent actor Job {
   /// that the sensor device's stored homeowner actually owns the property.
   private var propCanisterId:     Text        = "";
   /// Payment canister ID — set post-deploy via setPaymentCanisterId().
-  /// When set, createJob() cross-calls getTierForPrincipal() and enforces
-  /// the Free-tier job cap (max 5 jobs per homeowner).
+  /// Currently unused: the product has no per-tier job cap (see CLAUDE.md
+  /// tier table); storage is bounded by MAX_JOBS_PER_PROPERTY instead.
   private var payCanisterId:      Text        = "";
 
   // ─── Stable State ────────────────────────────────────────────────────────────
@@ -174,6 +178,15 @@ persistent actor Job {
 
   /// Maximum job amount in cents ($1,000,000). Prevents runaway values in stable storage.
   private transient let MAX_JOB_AMOUNT_CENTS : Nat = 100_000_000;
+
+  /// M-1: hard cap on job records per property (storage-exhaustion guard).
+  private transient let MAX_JOBS_PER_PROPERTY : Nat = 2_000;
+
+  /// M-9: caps on open contractor proposals (#PendingHomeownerApproval).
+  private transient let MAX_PENDING_PROPOSALS_PER_CONTRACTOR : Nat = 3;   // per property
+  private transient let MAX_PENDING_PROPOSALS_PER_PROPERTY   : Nat = 10;
+
+  private transient let MAX_PERMIT_CHARS : Nat = 100;
 
   // ─── Private Helpers ─────────────────────────────────────────────────────────
 
@@ -288,9 +301,50 @@ persistent actor Job {
     }
   };
 
-  private func nextJobId() : Text {
-    jobCounter += 1;
-    "JOB_" # Nat.toText(jobCounter)
+  /// New job ID: a random RFC 4122 v4 UUID (owner requirement — IDs must not
+  /// be sequential or enumerable). Async because it draws IC randomness, so
+  /// every caller re-checks any state it relies on after this await.
+  private func newJobId() : async Text {
+    Uuid.fromBlob(await Random.blob())
+  };
+
+  /// True when `p` has any role (owner / co-owner / manager / viewer) on the
+  /// property. Used to stop a homeowner from also acting as the contractor
+  /// (M-2). Returns false when the property canister is not wired (local dev).
+  private func isPropertyParty(propertyId: Text, p: Principal) : async Bool {
+    if (Text.size(propCanisterId) == 0) return false;
+    let propActor = actor(propCanisterId) : actor {
+      isAuthorized : (Text, Principal, Bool) -> async Bool;
+    };
+    await propActor.isAuthorized(propertyId, p, false)
+  };
+
+  /// D-1/H-5: who may read a full Job record through the public queries.
+  /// The job's homeowner and linked contractor, admins and trusted canisters.
+  /// Property managers read jobs through getJobsForProperty, which checks the
+  /// property canister (a query cannot make that call).
+  private func canViewJob(j: Job, caller: Principal) : Bool {
+    if (Principal.isAnonymous(caller)) return false;
+    if (j.homeowner == caller) return true;
+    switch (j.contractor) { case (?c) { if (c == caller) return true }; case null {} };
+    isAdmin(caller) or isTrustedCanister(caller)
+  };
+
+  private func optTooLong(t: ?Text, max: Nat) : Bool {
+    switch (t) { case (?v) { Text.size(v) > max }; case null { false } }
+  };
+
+  /// Pending (#PendingHomeownerApproval) proposals on a property: (total, by `contractor`).
+  private func pendingProposalCounts(propertyId: Text, contractor: Principal) : (Nat, Nat) {
+    var total = 0;
+    var mine  = 0;
+    for (j in Index.records(jobsByProperty, propertyId, jobs)) {
+      if (j.status == #PendingHomeownerApproval) {
+        total += 1;
+        if (j.contractor == ?contractor) mine += 1;
+      };
+    };
+    (total, mine)
   };
 
   /// Text label for a ServiceType, used where it crosses a canister boundary
@@ -335,9 +389,25 @@ persistent actor Job {
         };
       };
     };
+    if (optTooLong(contractorName, 200))           return #err(#InvalidInput("contractorName exceeds 200 characters"));
+    if (optTooLong(permitNumber, MAX_PERMIT_CHARS)) return #err(#InvalidInput("permitNumber exceeds 100 characters"));
+    if (optTooLong(sourceQuoteId, 100))            return #err(#InvalidInput("sourceQuoteId exceeds 100 characters"));
 
-    let id  = nextJobId();
+    // M-1: caller must have write access (owner / co-owner / manager) to the
+    // property. checkPropertyAuth falls back to "allowed" only when the
+    // property canister is not wired (local dev / isolated tests).
+    if (not isAdmin(msg.caller)) {
+      let ok = await checkPropertyAuth(propertyId, msg.caller, msg.caller, true);
+      if (not ok) return #err(#NotAuthorized);
+    };
+
+    let id  = await newJobId();
     let now = Time.now();
+
+    // State checks after the awaits above (TOCTOU).
+    if (Index.count(jobsByProperty, propertyId) >= MAX_JOBS_PER_PROPERTY)
+      return #err(#TierLimitReached("This property has reached the maximum number of job records"));
+    if (Map.get(jobs, Text.compare, id) != null) return #err(#InvalidInput("ID collision, retry"));
 
     let job: Job = {
       id;
@@ -367,10 +437,13 @@ persistent actor Job {
   };
 
   /// Fetch a single job by ID.
-  public query func getJob(jobId: Text) : async Result.Result<Job, Error> {
+  /// D-1/H-5: only the job's homeowner, its linked contractor, admins and
+  /// trusted canisters get the record; everyone else gets #NotFound (so the
+  /// call does not reveal whether the ID exists).
+  public query(msg) func getJob(jobId: Text) : async Result.Result<Job, Error> {
     switch (Map.get(jobs, Text.compare, jobId)) {
       case null { #err(#NotFound) };
-      case (?j) { #ok(j) };
+      case (?j) { if (canViewJob(j, msg.caller)) #ok(j) else #err(#NotFound) };
     }
   };
 
@@ -406,9 +479,12 @@ persistent actor Job {
     ))
   };
 
-  /// 3.3.2 — Unauthenticated public read: returns all jobs whose homeowner field
-  /// matches the given principal. Enables data portability without authentication.
-  public query func getJobsByOwner(owner: Principal) : async [Job] {
+  /// Returns all jobs whose homeowner field matches the given principal.
+  /// D-1/H-5: caller-scoped — only that principal itself, admins and trusted
+  /// canisters get the list; anyone else gets [].
+  public query(msg) func getJobsByOwner(owner: Principal) : async [Job] {
+    if (Principal.isAnonymous(msg.caller)) return [];
+    if (msg.caller != owner and not isAdmin(msg.caller) and not isTrustedCanister(msg.caller)) return [];
     Iter.toArray(
       Index.records(jobsByHomeowner, Principal.toText(owner), jobs)
     )
@@ -493,8 +569,16 @@ persistent actor Job {
       case null { #err(#NotFound) };
       case (?existing) {
         if (existing.verified) return #err(#AlreadyVerified);
+        // M-2: the contractor must be a different party — not the caller, the
+        // job's homeowner, or anyone with a role on the property — otherwise
+        // the homeowner could complete the "dual" signature alone.
+        if (Principal.isAnonymous(contractorPrincipal) or contractorPrincipal == msg.caller
+            or contractorPrincipal == existing.homeowner)
+          return #err(#InvalidInput("The contractor must be a different person from the homeowner"));
         let authOk = await checkPropertyAuth(existing.propertyId, existing.homeowner, msg.caller, true);
         if (not authOk) return #err(#NotAuthorized);
+        if (await isPropertyParty(existing.propertyId, contractorPrincipal))
+          return #err(#InvalidInput("The contractor must be a different person from the homeowner"));
 
         // Re-read fresh after the await above — a concurrent call could have
         // already verified or otherwise mutated this job while this call was
@@ -691,8 +775,10 @@ persistent actor Job {
       };
     };
 
-    let id  = nextJobId();
+    let id  = await newJobId();
     let now = Time.now();
+    if (Index.count(jobsByProperty, propertyId) >= MAX_JOBS_PER_PROPERTY) return #err("Job limit reached for property");
+    if (Map.get(jobs, Text.compare, id) != null) return #err("ID collision, retry");
 
     let job : Job = {
       id;
@@ -899,11 +985,16 @@ persistent actor Job {
   /// Batch-import job records on behalf of a Builder.
   ///
   /// • Designed for the construction phase before first-buyer transfer.
-  /// • Jobs are pre-verified — the builder attests to the work.
+  /// • Jobs are pre-verified — the importer attests to the work.
   /// • Both homeownerSigned and contractorSigned are set to true.
-  /// • The `homeowner` field is set to the calling Builder principal.
-  ///   After ownership transfer it will not match the new owner; the
-  ///   Report canister reads verified=true which is the canonical signal.
+  /// • The `homeowner` field is set to the property's current owner (or the
+  ///   caller when the property canister is not wired).
+  ///
+  /// J-1/H-2: because these jobs skip the dual signature, only admins and
+  /// trusted canisters may call this. The auth canister has no cross-canister
+  /// role lookup (hasRole only answers for msg.caller), so a self-declared
+  /// Builder role cannot be checked here; builder imports go through an
+  /// admin / back-office identity.
   public shared(msg) func builderImportJob(
     propertyId:     Text,
     serviceType:    ServiceType,
@@ -915,30 +1006,42 @@ persistent actor Job {
     warrantyMonths: ?Nat
   ) : async Result.Result<Job, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
-
-    // H-10: Verify property ownership before creating a pre-verified job.
-    if (not isAdmin(msg.caller)) {
-      let isOwner = await checkPropertyAuth(propertyId, msg.caller, msg.caller, true);
-      if (not isOwner) return #err(#NotAuthorized);
-    };
+    if (not isAdmin(msg.caller) and not isTrustedCanister(msg.caller)) return #err(#NotAuthorized);
 
     if (Text.size(propertyId)    == 0) return #err(#InvalidInput("propertyId cannot be empty"));
     if (Text.size(contractorName) == 0) return #err(#InvalidInput("contractorName is required"));
+    if (Text.size(contractorName) > 200) return #err(#InvalidInput("contractorName exceeds 200 characters"));
     if (amount == 0)                   return #err(#InvalidInput("amount must be greater than 0"));
     if (amount > MAX_JOB_AMOUNT_CENTS) return #err(#InvalidInput("amount exceeds maximum of 100,000,000 cents ($1,000,000)"));
     if (Text.size(description)   == 0) return #err(#InvalidInput("description cannot be empty"));
+    if (Text.size(description)   > 5000) return #err(#InvalidInput("description exceeds 5000 characters"));
+    if (optTooLong(permitNumber, MAX_PERMIT_CHARS)) return #err(#InvalidInput("permitNumber exceeds 100 characters"));
+    if (completedDate > Time.now())    return #err(#InvalidInput("completedDate cannot be in the future"));
 
-    let id  = nextJobId();
+    // Attribute the job to the property's current owner so they can read it.
+    let homeowner : Principal = if (Text.size(propCanisterId) > 0) {
+      let propActor = actor(propCanisterId) : actor {
+        getPropertyOwner : (Text) -> async ?Principal;
+      };
+      switch (await propActor.getPropertyOwner(propertyId)) {
+        case null     { return #err(#NotFound) };
+        case (?owner) { owner };
+      };
+    } else { msg.caller };
+
+    let id  = await newJobId();
     let now = Time.now();
-    let serviceTypeKey = serviceType;
+    if (Index.count(jobsByProperty, propertyId) >= MAX_JOBS_PER_PROPERTY)
+      return #err(#TierLimitReached("This property has reached the maximum number of job records"));
+    if (Map.get(jobs, Text.compare, id) != null) return #err(#InvalidInput("ID collision, retry"));
 
     let job: Job = {
       id;
       propertyId;
-      homeowner        = msg.caller;
+      homeowner;
       contractor       = null;
       title            = contractorName;
-      serviceType      = serviceTypeKey;
+      serviceType;
       description;
       contractorName   = ?contractorName;
       amount;
@@ -1053,6 +1156,9 @@ persistent actor Job {
     email:          Text,
     licenseNumber:  ?Text,
   ) : async Result.Result<Job, Error> {
+    // M-2: anonymous / pause / rate-limit checks (inspect is not a boundary).
+    switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
+    if (Text.size(token) > 100) return #err(#NotFound);
     let invite = switch (Map.get(inviteTokens, Text.compare, token)) {
       case null    { return #err(#NotFound) };
       case (?i)    { i };
@@ -1079,6 +1185,18 @@ persistent actor Job {
     if (Text.size(contractorName) == 0) return #err(#InvalidInput("contractorName cannot be empty"));
     if (Text.size(phone) == 0)          return #err(#InvalidInput("phone cannot be empty"));
     if (Text.size(email) == 0)          return #err(#InvalidInput("email cannot be empty"));
+    if (Text.size(contractorName) > 200 or Text.size(phone) > 50 or Text.size(email) > 254
+        or optTooLong(licenseNumber, 100))
+      return #err(#InvalidInput("contractor details are too long"));
+
+    // M-2: the signer must be a different party from the homeowner side.
+    // A job already linked to a contractor can only be signed by that contractor.
+    if (msg.caller == job.homeowner) return #err(#NotAuthorized);
+    switch (job.contractor) {
+      case (?linked) { if (msg.caller != linked) return #err(#NotAuthorized) };
+      case null {};
+    };
+    if (await isPropertyParty(job.propertyId, msg.caller)) return #err(#NotAuthorized);
 
     let svcText = serviceTypeText(job.serviceType);
 
@@ -1112,6 +1230,12 @@ persistent actor Job {
       case (?j)    { j };
     };
     if (freshJob.contractorSigned)          return #err(#AlreadyVerified);
+    if (freshJob.verified)                  return #err(#AlreadyVerified);
+    if (msg.caller == freshJob.homeowner)   return #err(#NotAuthorized);
+    switch (freshJob.contractor) {
+      case (?linked) { if (msg.caller != linked) return #err(#NotAuthorized) };
+      case null {};
+    };
 
     let bothSigned = freshJob.homeownerSigned;
     let updated : Job = {
@@ -1212,6 +1336,26 @@ persistent actor Job {
         if (Text.size(name) > 200) return #err(#InvalidInput("contractorName exceeds 200 characters"));
       };
     };
+    if (optTooLong(permitNumber, MAX_PERMIT_CHARS)) return #err(#InvalidInput("permitNumber exceeds 100 characters"));
+    if (completedDate > Time.now())                 return #err(#InvalidInput("completedDate cannot be in the future"));
+
+    // M-9: cheap local caps first — no more than a few open proposals per
+    // contractor per property, and a bounded number per property overall.
+    let (pendingTotal0, pendingMine0) = pendingProposalCounts(propertyId, msg.caller);
+    if (pendingMine0 >= MAX_PENDING_PROPOSALS_PER_CONTRACTOR or pendingTotal0 >= MAX_PENDING_PROPOSALS_PER_PROPERTY)
+      return #err(#TierLimitReached("Too many pending proposals for this property"));
+
+    // M-9: only registered contractors (a ContractorProfile exists for the
+    // caller) may propose jobs. Fails closed if the contractor canister errors.
+    if (Text.size(contrCanisterId) > 0 and not isAdmin(msg.caller)) {
+      let contrActor = actor(contrCanisterId) : actor {
+        getContractor : query (Principal) -> async { #ok : Any; #err : Any };
+      };
+      let registered = try {
+        switch (await contrActor.getContractor(msg.caller)) { case (#ok(_)) true; case (#err(_)) false }
+      } catch (_) { false };
+      if (not registered) return #err(#NotAuthorized);
+    };
 
     // Look up the property owner via cross-canister call (if property canister is wired).
     // Falls back to anonymous when not wired — useful in tests without a full deploy.
@@ -1229,13 +1373,24 @@ persistent actor Job {
       Principal.fromText("2vxsx-fae")   // anonymous principal as sentinel
     };
 
-    // Contractor may not propose on their own property
+    // Contractor may not propose on their own property (nor on one they manage)
     if (homeowner == msg.caller) {
       return #err(#InvalidInput("You cannot propose a job on a property you own"))
     };
+    if (await isPropertyParty(propertyId, msg.caller)) {
+      return #err(#InvalidInput("You cannot propose a job on a property you own"))
+    };
 
-    let id  = nextJobId();
+    let id  = await newJobId();
     let now = Time.now();
+
+    // Re-check the caps after the awaits above (TOCTOU).
+    let (pendingTotal, pendingMine) = pendingProposalCounts(propertyId, msg.caller);
+    if (pendingMine >= MAX_PENDING_PROPOSALS_PER_CONTRACTOR or pendingTotal >= MAX_PENDING_PROPOSALS_PER_PROPERTY)
+      return #err(#TierLimitReached("Too many pending proposals for this property"));
+    if (Index.count(jobsByProperty, propertyId) >= MAX_JOBS_PER_PROPERTY)
+      return #err(#TierLimitReached("This property has reached the maximum number of job records"));
+    if (Map.get(jobs, Text.compare, id) != null) return #err(#InvalidInput("ID collision, retry"));
 
     let job : Job = {
       id;
@@ -1260,7 +1415,12 @@ persistent actor Job {
     };
 
     putJob(job);
-    notifyAwaitingSignature(job);
+    // M-9: the push text is fixed, not the contractor-supplied title, so a
+    // proposal can't carry phishing text into the homeowner's notifications.
+    notifyLatestSeq := Notify.record(
+      notifyLog, notifyLatestSeq, "job_awaiting_signature", ?job.homeowner, job.id,
+      "New " # serviceTypeText(job.serviceType) # " job proposal awaiting your review"
+    );
     #ok(job)
   };
 
@@ -1285,28 +1445,33 @@ persistent actor Job {
 
     let approveOk = await checkPropertyAuth(existing.propertyId, existing.homeowner, msg.caller, true);
     if (not approveOk) return #err(#NotAuthorized);
-    if (existing.status != #PendingHomeownerApproval) return #err(#InvalidInput("Job is not pending approval"));
+    // Re-read after the await (TOCTOU): the proposal may have been rejected meanwhile.
+    let existing2 = switch (Map.get(jobs, Text.compare, jobId)) {
+      case null    { return #err(#NotFound) };
+      case (?j)    { j };
+    };
+    if (existing2.status != #PendingHomeownerApproval) return #err(#InvalidInput("Job is not pending approval"));
 
     let updated : Job = {
-      id               = existing.id;
-      propertyId       = existing.propertyId;
-      homeowner        = existing.homeowner;
-      contractor       = existing.contractor;
-      title            = existing.title;
-      serviceType      = existing.serviceType;
-      description      = existing.description;
-      contractorName   = existing.contractorName;
-      amount           = existing.amount;
-      completedDate    = existing.completedDate;
-      permitNumber     = existing.permitNumber;
-      warrantyMonths   = existing.warrantyMonths;
-      isDiy            = existing.isDiy;
+      id               = existing2.id;
+      propertyId       = existing2.propertyId;
+      homeowner        = existing2.homeowner;
+      contractor       = existing2.contractor;
+      title            = existing2.title;
+      serviceType      = existing2.serviceType;
+      description      = existing2.description;
+      contractorName   = existing2.contractorName;
+      amount           = existing2.amount;
+      completedDate    = existing2.completedDate;
+      permitNumber     = existing2.permitNumber;
+      warrantyMonths   = existing2.warrantyMonths;
+      isDiy            = existing2.isDiy;
       status           = #Pending;
       verified         = false;
       homeownerSigned  = true;
       contractorSigned = true;
-      createdAt        = existing.createdAt;
-      sourceQuoteId    = existing.sourceQuoteId;
+      createdAt        = existing2.createdAt;
+      sourceQuoteId    = existing2.sourceQuoteId;
     };
     putJob(updated);
     #ok(updated)
@@ -1324,7 +1489,10 @@ persistent actor Job {
 
     let rejectOk = await checkPropertyAuth(existing.propertyId, existing.homeowner, msg.caller, true);
     if (not rejectOk) return #err(#NotAuthorized);
-    if (existing.status != #PendingHomeownerApproval) return #err(#InvalidInput("Job is not pending approval"));
+    switch (Map.get(jobs, Text.compare, jobId)) {
+      case null    { return #err(#NotFound) };
+      case (?j)    { if (j.status != #PendingHomeownerApproval) return #err(#InvalidInput("Job is not pending approval")) };
+    };
 
     Index.delete(jobs, jobIndexes, jobId);
     #ok(())

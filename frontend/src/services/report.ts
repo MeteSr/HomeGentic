@@ -366,6 +366,12 @@ function createReportService() {
   }
 
   return {
+  /**
+   * Note (J-2/H-3): the report canister ignores `property` and `jobs` and
+   * reads property facts, the verification level and the job history from
+   * the property and job canisters. They are still sent for Candid
+   * compatibility. Only the property owner may generate a report.
+   */
   async generateReport(
     propertyId:        string,
     property:          PropertyInput,
@@ -432,6 +438,7 @@ function createReportService() {
       if (key === "Expired")  throw new Error("This report link has expired");
       if (key === "Revoked")  throw new Error("This report link has been revoked");
       if (key === "NotFound") throw new Error("Report not found");
+      if (key === "NotAuthorized") throw new Error("Sign in to view this report");
       const val = result.err[key];
       throw new Error(typeof val === "string" ? val : key);
     }
@@ -465,6 +472,7 @@ function createReportService() {
     }
   },
 
+  /** `verificationLevel` is ignored by the canister (M-4): it reads the level on-chain. */
   async generateRiskProfile(
     propertyId:        string,
     verificationLevel: string,

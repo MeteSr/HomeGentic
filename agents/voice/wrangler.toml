@@ -26,7 +26,8 @@ crons = ["0 * * * *"]   # every hour — fires scheduledBidtolist (deadline remi
 #
 # Required:
 #   ANTHROPIC_API_KEY
-#   VOICE_AGENT_API_KEY
+#   VOICE_AGENT_API_KEY           public client id (ships in the frontend bundle; not auth).
+#                                 Every /api/* route returns 500 without it in production.
 #   FRONTEND_ORIGIN               e.g. https://homegentic.com
 #   STRIPE_SECRET_KEY
 #   STRIPE_WEBHOOK_SECRET
@@ -42,6 +43,8 @@ crons = ["0 * * * *"]   # every hour — fires scheduledBidtolist (deadline remi
 #   STRIPE_PRICE_CREDITS_100
 #
 # Optional:
+#   ADMIN_API_KEY                 real secret for GET /admin/cycle-status (header x-admin-key);
+#                                 the route is disabled (404) when unset
 #   RENTCAST_API_KEY              Add Property prefill (/api/rentcast/properties)
 #   CANISTER_ID_MONITORING
 #   BIDTOLIST_FRONTEND_ORIGIN     e.g. https://bidtolist.com

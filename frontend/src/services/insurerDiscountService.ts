@@ -9,6 +9,7 @@
  * for the homeowner's state. No PII leaves the voice agent; the canister data
  * is already on-chain and controlled by the homeowner.
  */
+import { voiceAgentFetch } from "./voiceAgentHeaders";
 
 const VOICE_AGENT_URL = (import.meta as any).env?.VITE_VOICE_AGENT_URL || "http://localhost:3001";
 const VOICE_API_KEY   = (import.meta as any).env?.VITE_VOICE_AGENT_API_KEY || "";
@@ -136,7 +137,7 @@ export async function estimateInsurerDiscount(
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (VOICE_API_KEY) headers["x-api-key"] = VOICE_API_KEY;
 
-      const res = await fetch(`${VOICE_AGENT_URL}/api/insurer-discount`, {
+      const res = await voiceAgentFetch(`${VOICE_AGENT_URL}/api/insurer-discount`, {
         method:  "POST",
         headers,
         body:    JSON.stringify(req),
@@ -154,7 +155,7 @@ export async function estimateInsurerDiscount(
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (VOICE_API_KEY) headers["x-api-key"] = VOICE_API_KEY;
 
-  const res = await fetch(`${VOICE_AGENT_URL}/api/insurer-discount`, {
+  const res = await voiceAgentFetch(`${VOICE_AGENT_URL}/api/insurer-discount`, {
     method:  "POST",
     headers,
     body:    JSON.stringify(req),

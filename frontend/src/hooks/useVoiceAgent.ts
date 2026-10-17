@@ -115,6 +115,54 @@ export function warrantyExpiryMs(startDateStr: string, warrantyMonths: number): 
   );
 }
 
+// ── Tool confirmation (F-8) ─────────────────────────────────────────────────────
+// Tool results can carry third-party text (contractor names, quote notes,
+// homeowner job descriptions), so a prompt-injected model could ask for
+// state-changing calls the user never intended. Only these read-only tools run
+// without asking; anything else — including tools added later — needs an
+// explicit OK from the user first.
+export const READ_ONLY_TOOLS: ReadonlySet<string> = new Set([
+  "classify_home_issue",
+  "draft_work_order",
+  "search_contractors",
+  "list_bids",
+  "list_leads",
+  "get_earnings_summary",
+  "get_maintenance_forecast",
+  "get_price_benchmark",
+]);
+
+export type ToolConfirmationHandler = (
+  name: ToolName,
+  input: Record<string, unknown>,
+  label: string,
+) => Promise<boolean> | boolean;
+
+function describeInput(input: Record<string, unknown>): string {
+  const text = Object.entries(input ?? {})
+    .map(([k, v]) => `${k}: ${typeof v === "string" ? v : JSON.stringify(v)}`)
+    .join("\n");
+  return text.length > 400 ? `${text.slice(0, 400)}…` : text;
+}
+
+const defaultConfirm: ToolConfirmationHandler = (name, input, label) => {
+  if (typeof window === "undefined" || typeof window.confirm !== "function") return false;
+  return window.confirm(
+    `The assistant wants to ${label || name}.\n\n${describeInput(input)}\n\nAllow this action?`,
+  );
+};
+
+let confirmHandler: ToolConfirmationHandler = defaultConfirm;
+
+/** Replace how side-effecting tool calls are confirmed (UI card, tests). Pass null to restore the default. */
+export function setToolConfirmationHandler(handler: ToolConfirmationHandler | null): void {
+  confirmHandler = handler ?? defaultConfirm;
+}
+
+export function toolNeedsConfirmation(name: string): boolean {
+  return !READ_ONLY_TOOLS.has(name);
+}
+
 // ── Hook ───────────────────────────────────────────────────────────────────────
 
 export function useVoiceAgent(): UseVoiceAgentReturn {
@@ -507,9 +555,23 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
 
           messages.push(data.assistantMessage as MessageParam);
 
-          const toolResults: ToolResultBlock[] = await Promise.all(
-            (data.toolCalls as { id: string; name: ToolName; input: Record<string, unknown> }[])
-              .map(async (tc) => {
+          // Sequential, so each side-effecting call gets its own confirmation.
+          const toolResults: ToolResultBlock[] = [];
+          for (const tc of data.toolCalls as { id: string; name: ToolName; input: Record<string, unknown> }[]) {
+            toolResults.push(await (async () => {
+                if (toolNeedsConfirmation(tc.name)) {
+                  let approved = false;
+                  try { approved = await confirmHandler(tc.name, tc.input ?? {}, toolActionLabel(tc.name)); }
+                  catch { approved = false; }
+                  if (!approved) {
+                    addAction({ toolName: tc.name, label: toolActionLabel(tc.name), summary: "Declined by user", success: false });
+                    return {
+                      type:        "tool_result" as const,
+                      tool_use_id: tc.id,
+                      content:     JSON.stringify({ success: false, error: "The user declined this action. Do not retry it unless they ask." }),
+                    };
+                  }
+                }
                 const result = await executeTool(tc.name, tc.input);
 
                 // If propose_job returned a staged proposal, surface it in the UI
@@ -536,8 +598,8 @@ export function useVoiceAgent(): UseVoiceAgentReturn {
                   tool_use_id: tc.id,
                   content:     JSON.stringify(result),
                 };
-              })
-          );
+            })());
+          }
 
           messages.push({ role: "user", content: toolResults });
           continue;

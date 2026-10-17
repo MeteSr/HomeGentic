@@ -757,6 +757,11 @@ if [ -n "$MAINTENANCE_ID" ] && [ -n "$PROPERTY_ID" ]; then
   echo "  Wiring property -> maintenance..."
   icp canister call maintenance setPropertyCanisterId "(principal \"$PROPERTY_ID\")" -e "$ENV" &
 fi
+RECURRING_ID=$(icp canister status recurring -e "$ENV" --id-only 2>/dev/null || echo "")
+if [ -n "$RECURRING_ID" ] && [ -n "$PROPERTY_ID" ]; then
+  echo "  Wiring property -> recurring (owner/manager checks)..."
+  icp canister call recurring setPropertyCanisterId "(principal \"$PROPERTY_ID\")" -e "$ENV" &
+fi
 # Grants for the off-chain services. Both calls are idempotent, so they run on
 # every deploy; they run in the foreground so a failure is reported, but it
 # doesn't stop the deploy.
@@ -765,7 +770,7 @@ fi
 #                             to read notification events (job, quote) and email
 #                             addresses (auth).
 #   VOICE_WORKER_PRINCIPAL  — the voice Worker's DFX_IDENTITY_PEM. Made a payment
-#                             admin so it can activate subscriptions after checkout.
+#                             Stripe relay so it can activate subscriptions after checkout.
 grant() {  # grant <canister> <method> <principal> <description>
   local out
   echo "  $4 on $1..."
@@ -782,7 +787,12 @@ if [ -n "${NOTIFIER_PRINCIPAL:-}" ]; then
   done
 fi
 if [ -n "${VOICE_WORKER_PRINCIPAL:-}" ]; then
-  grant payment addAdmin "$VOICE_WORKER_PRINCIPAL" "Making the voice Worker a payment admin"
+  # A Stripe relay can only activate paid subscriptions and grant credits, not
+  # administer payment. If an older deploy made the Worker an admin, remove
+  # it by hand: icp canister call payment removeAdmin '(principal "<worker>")'.
+  grant payment addStripeRelay "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker activate Stripe-paid subscriptions and credits"
+  grant monitoring addReporter "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker report errors and cycle checks"
+  grant agent addContactReader "$VOICE_WORKER_PRINCIPAL" "Letting the voice Worker read agent emails for Bid to List mail"
 fi
 if [ -n "$CONTRACTOR_ID" ] && [ -n "$JOB_ID" ]; then
   echo "  Wiring job -> contractor..."
@@ -848,6 +858,10 @@ if [ -n "$MARKET_ID" ]     && [ -n "$JOB_ID" ]; then
   echo "  Wiring job -> market (score computation)..."
   icp canister call market     setJobCanisterId        "(\"$JOB_ID\")"              -e "$ENV" &
 fi
+if [ -n "$MARKET_ID" ]     && [ -n "$LISTING_ID" ]; then
+  echo "  Wiring listing -> market (FSBO score lookups)..."
+  icp canister call market     setListingCanisterId    "(\"$LISTING_ID\")"          -e "$ENV" &
+fi
 if [ -n "$MONITORING_ID" ] && [ -n "$PROPERTY_ID" ] && [ -n "$JOB_ID" ] && [ -n "$QUOTE_ID" ] && [ -n "$PAYMENT_ID" ]; then
   echo "  Wiring product metrics -> monitoring..."
   icp canister call monitoring setProductCanisterIds \
@@ -902,6 +916,14 @@ if [ -n "$SENSOR_ID" ] && [ -n "$JOB_ID" ]; then
   echo "  job: trusting sensor ($SENSOR_ID)..."
   icp canister call job addTrustedCanister "(principal \"$SENSOR_ID\")"       -e "$ENV" 2>/dev/null &
 fi
+if [ -n "$REPORT_ID" ] && [ -n "$JOB_ID" ]; then
+  echo "  job: trusting report ($REPORT_ID) (reports read jobs from the job canister)..."
+  icp canister call job addTrustedCanister "(principal \"$REPORT_ID\")"       -e "$ENV" 2>/dev/null &
+fi
+if [ -n "$CONTRACTOR_ID" ] && [ -n "$JOB_ID" ]; then
+  echo "  job: trusting contractor ($CONTRACTOR_ID) (review cross-check)..."
+  icp canister call job addTrustedCanister "(principal \"$CONTRACTOR_ID\")"   -e "$ENV" 2>/dev/null &
+fi
 
 # Wire audit canister: register source canisters as trusted writers, then give
 # each source canister the audit canister ID so it can call log().
@@ -920,6 +942,16 @@ if [ -n "$AUDIT_ID" ]; then
 fi
 
 wait
+
+# The audit log names each writer from this registry, not from what the caller
+# claims; it must run after the addTrustedCanister calls above have landed.
+if [ -n "$AUDIT_ID" ]; then
+  for pair in "auth:$AUTH_ID" "payment:$PAYMENT_ID" "property:$PROPERTY_ID" "report:$REPORT_ID" "photo:$PHOTO_ID"; do
+    name="${pair%%:*}"; id="${pair#*:}"
+    [ -n "$id" ] && icp canister call audit setTrustedCanisterName "(principal \"$id\", \"$name\")" -e "$ENV" 2>/dev/null &
+  done
+  wait
+fi
 
 # ── vetKD master key ─────────────────────────────────────────────────────────
 # quote (sealed bids) and market (score encryption) default to the IC's test

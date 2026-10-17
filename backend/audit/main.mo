@@ -5,6 +5,7 @@ import Map       "mo:core/Map";
 import Nat       "mo:core/Nat";
 import Principal "mo:core/Principal";
 import Result    "mo:core/Result";
+import Text      "mo:core/Text";
 import Time      "mo:core/Time";
 
 /// Append-only privileged-action audit log.
@@ -46,6 +47,9 @@ persistent actor Audit {
   /// first addAdmin() call. Consumed on first successful use.
   private var bootstrapNonce   : ?Text        = null;
   private var trustedCanisters : [Principal]  = [];
+  /// L7: registry of source-canister names. log() records the name registered
+  /// for msg.caller (never the caller-supplied one).
+  private let trustedNames     = Map.empty<Principal, Text>();
 
   // ── Internal helpers ───────────────────────────────────────────────────────
 
@@ -73,6 +77,32 @@ persistent actor Audit {
 
   private func isTrusted(p : Principal) : Bool {
     Array.find<Principal>(trustedCanisters, func(a) { a == p }) != null
+  };
+
+  // L7: field caps and a per-writer hourly volume cap, so one writer can't
+  // push the whole retained window out in a burst.
+  private transient let MAX_NAME_LEN   : Nat = 64;
+  private transient let MAX_ACTION_LEN : Nat = 100;
+  private transient let MAX_DETAIL_LEN : Nat = 2_000;
+  private transient let MAX_PER_WRITER_PER_HOUR : Nat = 1_000;
+  private transient let ONE_HOUR_NS : Int = 3_600_000_000_000;
+  private transient let writerCounts = Map.empty<Principal, (Nat, Int)>();
+
+  private func tryConsumeWrite(p : Principal) : Bool {
+    let now = Time.now();
+    switch (Map.get(writerCounts, Principal.compare, p)) {
+      case null { Map.add(writerCounts, Principal.compare, p, (1, now)); true };
+      case (?(count, start)) {
+        if (now - start >= ONE_HOUR_NS) { Map.add(writerCounts, Principal.compare, p, (1, now)); true }
+        else if (count >= MAX_PER_WRITER_PER_HOUR) { false }
+        else { Map.add(writerCounts, Principal.compare, p, (count + 1, start)); true }
+      };
+    }
+  };
+
+  private func truncate(t : Text, n : Nat) : Text {
+    if (Text.size(t) <= n) return t;
+    Text.fromIter(Iter.take(t.chars(), n))
   };
 
   // ── Ingress inspection ─────────────────────────────────────────────────────
@@ -129,6 +159,23 @@ persistent actor Audit {
     #ok(())
   };
 
+  /// L7: revoke a trusted writer (admin only).
+  public shared(msg) func removeTrustedCanister(canisterId : Principal) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    trustedCanisters := Array.filter<Principal>(trustedCanisters, func(a) { a != canisterId });
+    Map.remove(trustedNames, Principal.compare, canisterId);
+    #ok(())
+  };
+
+  /// L7: register the name recorded for a trusted canister's entries (admin only).
+  public shared(msg) func setTrustedCanisterName(canisterId : Principal, name : Text) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    if (not isTrusted(canisterId)) return #err(#InvalidInput("not a trusted canister"));
+    if (Text.size(name) == 0 or Text.size(name) > MAX_NAME_LEN) return #err(#InvalidInput("name must be 1-64 characters"));
+    Map.add(trustedNames, Principal.compare, canisterId, name);
+    #ok(())
+  };
+
   // ── Write (append-only) ────────────────────────────────────────────────────
 
   /// Append a new audit entry.  Only registered trusted canisters and admins
@@ -142,14 +189,27 @@ persistent actor Audit {
     if (not isTrusted(msg.caller) and not isAdmin(msg.caller)) {
       return #err(#NotAuthorized);
     };
+    if (Text.size(action) == 0) return #err(#InvalidInput("action required"));
+    if (not tryConsumeWrite(msg.caller)) return #err(#InvalidInput("audit write rate exceeded"));
+    // L7: the source name comes from the caller's registration, not the argument.
+    // A trusted canister without a registered name is recorded by principal;
+    // an admin writing directly is recorded as "admin:<claimed name>".
+    let source : Text = if (isTrusted(msg.caller)) {
+      switch (Map.get(trustedNames, Principal.compare, msg.caller)) {
+        case (?n) n;
+        case null Principal.toText(msg.caller);
+      }
+    } else {
+      "admin:" # truncate(canister, MAX_NAME_LEN)
+    };
     let entry : AuditEntry = {
       id        = nextId;
       timestamp = Time.now();
       caller    = msg.caller;
-      canister;
-      action;
+      canister  = source;
+      action    = truncate(action, MAX_ACTION_LEN);
       subject;
-      detail;
+      detail    = truncate(detail, MAX_DETAIL_LEN);
     };
     append(entry);
     nextId  := nextId + 1;

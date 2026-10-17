@@ -179,7 +179,20 @@ persistent actor MarketIntelligence {
   /// "key_1" via setVetkdKeyName (scripts/deploy.sh does this for ic). Stored —
   /// not a constant — so it can be changed without reinstalling.
   private var vetkdKeyName : Text = "test_key_1";
-  transient let VETKD_KEY_CYCLES : Nat  = 10_000_000_000;
+  /// H2/V-1: vetkd_derive_key fee per key. key_1 costs ~26.15B cycles, so the
+  /// old flat 10B made every mainnet derive fail. Unused cycles are refunded.
+  transient let VETKD_KEY_CYCLES : Nat  = 26_153_846_153;
+  private func vetkdDeriveCycles() : Nat {
+    if (vetkdKeyName == "key_1") VETKD_KEY_CYCLES else 10_000_000_000
+  };
+  /// M12: per-principal cap on vetKD derives (each one burns cycles).
+  private let deriveLimits = Map.empty<Principal, (Nat, Int)>();
+  transient let MAX_DERIVES_PER_DAY : Nat = 10;
+  transient let ONE_DAY_NS : Int = 86_400_000_000_000;
+  /// M12: zip aggregates are suppressed below this many submitters, so a
+  /// lone submitter's exact score isn't published.
+  transient let MIN_ZIP_SAMPLE : Nat = 5;
+  transient let MAX_SCORE_JOBS : Nat = 500;
 
   // ─── Stable State ─────────────────────────────────────────────────────────────
 
@@ -192,6 +205,8 @@ persistent actor MarketIntelligence {
   /// Canister IDs for computePropertyScore — set post-deploy via setXxxCanisterId().
   private var propCanisterId : Text = "";
   private var jobCanisterId  : Text = "";
+  /// M12: the listing canister may compute any property's score (FSBO index).
+  private var listingCanisterId : Text = "";
   // ─── Stable State ────────────────────────────────────────────────────────────
 
   private let snapshots  = Map.empty<Text, MarketSnapshot>();
@@ -591,8 +606,19 @@ persistent actor MarketIntelligence {
   /// or the job list is empty (score would be 0, indistinguishable from no data).
   /// Listing canister calls this during activateFsboListing so the FSBO buyer index
   /// always shows an authoritative on-chain score rather than a caller-supplied value.
-  public shared func computePropertyScore(propertyId: Text) : async ?Nat {
+  ///
+  /// M12: restricted to admins, the wired listing canister, and principals
+  /// authorised on the property (owner/manager/viewer). Anyone else gets null.
+  public shared(msg) func computePropertyScore(propertyId: Text) : async ?Nat {
     if (propCanisterId == "" or jobCanisterId == "") return null;
+    let trusted = isAdmin(msg.caller) or (listingCanisterId != "" and Principal.toText(msg.caller) == listingCanisterId);
+    if (not trusted) {
+      switch (requireActive(msg.caller)) { case (#err(_)) return null; case _ {} };
+      let authActor = actor(propCanisterId) : actor {
+        isAuthorized : query (Text, Principal, Bool) -> async Bool;
+      };
+      if (not (await authActor.isAuthorized(propertyId, msg.caller, false))) return null;
+    };
 
     let propActor = actor(propCanisterId) : actor {
       getPropertyYearBuilt : query (Text) -> async ?Nat;
@@ -667,6 +693,7 @@ persistent actor MarketIntelligence {
     if (Principal.isAnonymous(msg.caller)) return #err(#NotAuthorized);
     if (Text.size(zipCode) == 0 or Text.size(zipCode) > 20)
       return #err(#InvalidInput("zipCode must be 1-20 characters"));
+    if (jobs.size() > MAX_SCORE_JOBS) return #err(#InvalidInput("too many jobs"));
 
     let caller = msg.caller;
 
@@ -713,7 +740,7 @@ persistent actor MarketIntelligence {
         case null {};
       };
     };
-    if (List.size(scoresBuf) == 0) return #err(#NotFound);
+    if (List.size(scoresBuf) < MIN_ZIP_SAMPLE) return #err(#NotFound);  // M12: k-anonymity
 
     var total : Nat = 0;
     List.forEach(scoresBuf, func(s : Nat) { total += s });
@@ -753,13 +780,28 @@ persistent actor MarketIntelligence {
     // Capture caller before await — required per vetKeys skill guidance.
     let caller = msg.caller;
     if (Principal.isAnonymous(caller)) return #err(#NotAuthorized);
+    // M12: pause + per-minute limit, then a per-day derive cap.
+    switch (requireActive(caller)) { case (#err(e)) return #err(e); case _ {} };
 
     let stored = switch (Map.get(scoreStore, Principal.compare, caller)) {
       case null    { return #err(#NotFound) };
       case (?s)    { s };
     };
 
-    let response = await (with cycles = VETKD_KEY_CYCLES) managementCanister.vetkd_derive_key({
+    if (not isAdmin(caller)) {
+      let now = Time.now();
+      switch (Map.get(deriveLimits, Principal.compare, caller)) {
+        case (?(count, start)) {
+          if (now - start < ONE_DAY_NS) {
+            if (count >= MAX_DERIVES_PER_DAY) return #err(#InvalidInput("Daily encrypted-score limit reached"));
+            Map.add(deriveLimits, Principal.compare, caller, (count + 1, start));
+          } else { Map.add(deriveLimits, Principal.compare, caller, (1, now)) };
+        };
+        case null { Map.add(deriveLimits, Principal.compare, caller, (1, now)) };
+      };
+    };
+
+    let response = await (with cycles = vetkdDeriveCycles()) managementCanister.vetkd_derive_key({
       input                = Principal.toBlob(caller);
       context              = SCORE_CONTEXT;
       transport_public_key = transportPublicKey;
@@ -791,6 +833,14 @@ persistent actor MarketIntelligence {
   public shared(msg) func setPropertyCanisterId(id: Text) : async Result.Result<(), Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
     propCanisterId := id;
+    #ok(())
+  };
+
+  /// M12: wire the listing canister, the only non-admin canister allowed to
+  /// compute arbitrary properties' scores (FSBO activation).
+  public shared(msg) func setListingCanisterId(id: Text) : async Result.Result<(), Error> {
+    if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
+    listingCanisterId := id;
     #ok(())
   };
 
