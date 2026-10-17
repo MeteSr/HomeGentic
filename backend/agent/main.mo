@@ -403,7 +403,8 @@ persistent actor Agent {
 
   /// H-20: Set the one-time bootstrap nonce before calling initAdmins() the first time.
   /// Ignored once adminInitialized = true, and can only be set once.
-  public shared func setBootstrapNonce(nonce: Text) : async () {
+  public shared(msg) func setBootstrapNonce(nonce: Text) : async () {
+    if (not Principal.isController(msg.caller)) return;  // only a controller may open the bootstrap
     if (adminInitialized) return;  // already bootstrapped — ignore
     if (bootstrapNonce != null) return;  // nonce already set — can only be set once
     bootstrapNonce := ?nonce;

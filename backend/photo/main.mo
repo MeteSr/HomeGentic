@@ -612,7 +612,8 @@ persistent actor Photo {
 
   /// H-20: Set the one-time bootstrap nonce before calling addAdmin() the first time.
   /// Ignored once an admin exists, and can only be set once.
-  public shared func setBootstrapNonce(nonce: Text) : async () {
+  public shared(msg) func setBootstrapNonce(nonce: Text) : async () {
+    if (not Principal.isController(msg.caller)) return;  // only a controller may open the bootstrap
     if (adminListEntries.size() > 0) return;  // already bootstrapped — ignore
     if (bootstrapNonce != null) return;  // nonce already set — can only be set once
     bootstrapNonce := ?nonce;

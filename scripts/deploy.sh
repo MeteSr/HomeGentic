@@ -633,38 +633,51 @@ echo "  Deployer principal: $DEPLOYER"
 # script's own addAdmin/initAdmins call lands.
 BOOTSTRAP_NONCE=$(openssl rand -hex 16)
 
-# property/job/photo take (principal, nonce) via addAdmin.
-for canister in property job photo; do
+# Every bootstrap step must end with the deployer as admin. A failure here
+# means someone else may own the canister, so it stops the deploy instead of
+# being swallowed (setBootstrapNonce is controller-only, so this should only
+# fail on a broken canister or a wrong identity).
+BOOTSTRAP_FAILED=()
+verify_admin() {
+  # addAdmin(deployer) succeeds only when the caller is already an admin.
+  local canister="$1"; shift
+  local out
+  out=$(icp canister call "$canister" addAdmin "$@" -e "$ENV" 2>&1) || true
+  if echo "$out" | grep -q "variant { ok }"; then
+    echo "  ✓ $canister: deployer is admin"
+  else
+    echo "  ❌ $canister: deployer is NOT admin ($out)"
+    BOOTSTRAP_FAILED+=("$canister")
+  fi
+}
+
+# property/job/photo and the other nonce canisters take (principal, nonce) via addAdmin.
+NONCE_ADMIN_CANISTERS=(property job photo contractor quote report maintenance market sensor listing recurring bills monitoring audit referrals ai_proxy)
+for canister in "${NONCE_ADMIN_CANISTERS[@]}"; do
   echo "  $canister: setting bootstrap nonce..."
-  icp canister call "$canister" setBootstrapNonce "(\"$BOOTSTRAP_NONCE\")" -e "$ENV" 2>/dev/null
-  echo "  $canister: adding deployer as admin (nonce-gated)..."
-  icp canister call "$canister" addAdmin "(principal \"$DEPLOYER\", \"$BOOTSTRAP_NONCE\")" -e "$ENV" 2>/dev/null
+  icp canister call "$canister" setBootstrapNonce "(\"$BOOTSTRAP_NONCE\")" -e "$ENV" >/dev/null 2>&1 || true
+  verify_admin "$canister" "(principal \"$DEPLOYER\", \"$BOOTSTRAP_NONCE\")"
 done
 
-# contractor/quote/report/maintenance/market/sensor/listing/recurring/bills/
-# monitoring/audit/referrals/ai_proxy also take (principal, nonce) via addAdmin.
-ADMIN_CANISTERS=(contractor quote report maintenance market sensor listing recurring bills monitoring audit referrals ai_proxy)
-for canister in "${ADMIN_CANISTERS[@]}"; do
-  echo "  $canister: setting bootstrap nonce..."
-  icp canister call "$canister" setBootstrapNonce "(\"$BOOTSTRAP_NONCE\")" -e "$ENV" 2>/dev/null
-  echo "  $canister: adding deployer as admin (nonce-gated)..."
-  icp canister call "$canister" addAdmin "(principal \"$DEPLOYER\", \"$BOOTSTRAP_NONCE\")" -e "$ENV" \
-    2>/dev/null &
-done
-wait
-
-# payment/agent/fee take (vec principal, nonce) via initAdmins.
+# payment/agent/fee take (vec principal, nonce) via initAdmins; on an upgrade
+# initAdmins returns NotAuthorized, so success is checked with addAdmin.
 for canister in payment agent fee; do
   echo "  $canister: setting bootstrap nonce..."
-  icp canister call "$canister" setBootstrapNonce "(\"$BOOTSTRAP_NONCE\")" -e "$ENV" 2>/dev/null
-  echo "  $canister: initializing admin list (nonce-gated)..."
-  icp canister call "$canister" initAdmins "(vec { principal \"$DEPLOYER\" }, \"$BOOTSTRAP_NONCE\")" -e "$ENV" \
-    2>/dev/null || echo "  ⚠️  $canister initAdmins failed (may already be initialized)"
+  icp canister call "$canister" setBootstrapNonce "(\"$BOOTSTRAP_NONCE\")" -e "$ENV" >/dev/null 2>&1 || true
+  icp canister call "$canister" initAdmins "(vec { principal \"$DEPLOYER\" }, \"$BOOTSTRAP_NONCE\")" -e "$ENV" >/dev/null 2>&1 || true
+  verify_admin "$canister" "(principal \"$DEPLOYER\")"
 done
 
-echo "  payment: granting deployer Pro subscription for test compatibility..."
-icp canister call payment grantSubscription "(principal \"$DEPLOYER\", variant { Pro })" -e "$ENV" \
-  2>/dev/null || echo "  ⚠️  grantSubscription failed"
+if [ ${#BOOTSTRAP_FAILED[@]} -gt 0 ]; then
+  echo "❌ Admin bootstrap failed for: ${BOOTSTRAP_FAILED[*]}. Investigate before using these canisters."
+  exit 1
+fi
+
+if [ "$ENV" != "ic" ]; then
+  echo "  payment: granting deployer Pro subscription for test compatibility..."
+  icp canister call payment grantSubscription "(principal \"$DEPLOYER\", variant { Pro })" -e "$ENV" \
+    2>/dev/null || echo "  ⚠️  grantSubscription failed"
+fi
 
 echo ""
 echo "============================================"
