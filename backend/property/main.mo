@@ -30,10 +30,12 @@
 
 import Array     "mo:core/Array";
 import Blob      "mo:core/Blob";
+import Char      "mo:core/Char";
 import Debug     "mo:core/Debug";
 import Map       "mo:core/Map";
 import Int       "mo:core/Int";
 import Iter      "mo:core/Iter";
+import List      "mo:core/List";
 import Nat       "mo:core/Nat";
 import Nat8      "mo:core/Nat8";
 import Option    "mo:core/Option";
@@ -560,11 +562,51 @@ persistent actor Property {
     n
   };
 
-  /// Produces a stable address key for duplicate detection.
-  /// Concatenates the four address components with pipe separators.
-  /// Case-sensitive — users must enter addresses consistently.
+  /// Produces a stable address key for duplicate detection: the four address
+  /// components, each trimmed, lowercased and with runs of whitespace
+  /// collapsed, joined with pipes. "12 Main St" and " 12  main st" collide.
   private func addressKey(address: Text, city: Text, state: Text, zip: Text) : Text {
-    address # "|" # city # "|" # state # "|" # zip
+    normalisePart(address) # "|" # normalisePart(city) # "|" # normalisePart(state) # "|" # normalisePart(zip)
+  };
+
+  private func normalisePart(t: Text) : Text {
+    let words = Iter.filter<Text>(Text.split(Text.toLower(t), #predicate(Char.isWhitespace)), func(w) { w != "" });
+    Text.join(words, " ")
+  };
+
+  /// Re-keys addressIdx with the current addressKey. Idempotent, so it runs on
+  /// every upgrade; it converts keys written before addresses were normalised.
+  /// When several properties now share a key, a verified one wins, otherwise
+  /// the newest, which is the property registerProperty would have kept.
+  private func rekeyAddressIndex() {
+    let ids = Iter.toArray(Map.values(addressIdx));
+    Map.clear(addressIdx);
+    for (id in ids.vals()) {
+      switch (Map.get(properties, Text.compare, id)) {
+        case null {};
+        case (?p) {
+          let key = addressKey(p.address, p.city, p.state, p.zipCode);
+          let keep = switch (Map.get(addressIdx, Text.compare, key)) {
+            case null { true };
+            case (?otherId) {
+              switch (Map.get(properties, Text.compare, otherId)) {
+                case null { true };
+                case (?other) {
+                  if (isVerified(other.verificationLevel) != isVerified(p.verificationLevel)) {
+                    isVerified(p.verificationLevel)
+                  } else { p.createdAt > other.createdAt }
+                };
+              }
+            };
+          };
+          if (keep) { Map.add(addressIdx, Text.compare, key, id) };
+        };
+      };
+    };
+  };
+
+  system func postupgrade() {
+    rekeyAddressIndex();
   };
 
   private func isVerified(level: VerificationLevel) : Bool {
@@ -1796,21 +1838,26 @@ persistent actor Property {
     if (isPaused)                  { return { succeeded = []; failed = [] } };
     if (not isAdmin(msg.caller))   { return { succeeded = []; failed = [] } };
 
-    var succeeded : [Text]            = [];
-    var failed    : [BulkImportError] = [];
+    let succeeded = List.empty<Text>();
+    let failed    = List.empty<BulkImportError>();
 
     var i = 0;
     for (args in rows.vals()) {
-      // Duplicate address check (same logic as registerProperty but simplified)
-      let normalised = Text.toLower(args.address # "," # args.city # "," # args.state # "," # args.zipCode);
-      var duplicate = false;
-      for (prop in Map.values(properties)) {
-        let key = Text.toLower(prop.address # "," # prop.city # "," # prop.state # "," # prop.zipCode);
-        if (key == normalised and prop.isActive) { duplicate := true };
+      // Duplicate address check against the same index registerProperty uses
+      // (an active property at this address, or an earlier row in this batch).
+      let key = addressKey(args.address, args.city, args.state, args.zipCode);
+      let duplicate = switch (Map.get(addressIdx, Text.compare, key)) {
+        case (?existingId) {
+          switch (Map.get(properties, Text.compare, existingId)) {
+            case (?existing) { existing.isActive };
+            case null        { false };
+          }
+        };
+        case null { false };
       };
 
       if (duplicate) {
-        failed := Array.concat(failed, [{ index = i; reason = "DuplicateAddress" }]);
+        List.add(failed, { index = i; reason = "DuplicateAddress" });
       } else {
         let now   = Time.now();
         let newId = await nextPropertyId();
@@ -1841,12 +1888,13 @@ persistent actor Property {
           conflictWindowEndsAt = null;
         };
         putProperty(prop);
-        succeeded := Array.concat(succeeded, [newId]);
+        Map.add(addressIdx, Text.compare, key, newId);
+        List.add(succeeded, newId);
       };
       i += 1;
     };
 
-    { succeeded; failed }
+    { succeeded = List.toArray(succeeded); failed = List.toArray(failed) }
   };
 
   // ─── Room / Fixture CRUD (merged from room canister) ─────────────────────
