@@ -15,7 +15,7 @@
  *   - a job whose photos total more than one 2 MiB reply still loads in full
  */
 
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { photoService } from "@/services/photo";
 import type { Photo } from "@/services/photo";
 import { propertyService } from "@/services/property";
@@ -140,6 +140,10 @@ describe.skipIf(!deployed)("getPhotosByJob — more photo bytes than one reply h
       await uploadWithRetry(new File([bytes], `big-${n}.jpg`, { type: "image/jpeg" }), n);
     }
   }, 240_000);
+
+  // Six uploads use most of the 10-per-minute allowance; let it reset so the
+  // suites after this one can upload.
+  afterAll(() => new Promise((r) => setTimeout(r, 61_000)), 70_000);
 
   it("returns every photo with its bytes", async () => {
     const photos = await photoService.getByJob(BIG_JOB);
