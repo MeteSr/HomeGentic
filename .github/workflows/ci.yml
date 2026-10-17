@@ -77,6 +77,55 @@ jobs:
               icp build "$canister" || exit 1
             done
 
+  test-upgrade:
+    # PocketIC upgrade tests (tests/upgrade/): state survives upgrading each
+    # canister to itself, and upgrading from the base branch's build to this one.
+    name: test-upgrade
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Fetch base commit
+        id: base
+        env:
+          # PR: upgrade from the target branch. Push: from the previous head.
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -n "$BASE_SHA" ] && [ "$BASE_SHA" != "0000000000000000000000000000000000000000" ] \
+             && git fetch --no-tags --depth=1 origin "$BASE_SHA"; then
+            echo "sha=$BASE_SHA" >> "$GITHUB_OUTPUT"
+          else
+            echo "No base commit — the upgrade-from-base suite will skip."
+          fi
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+
+      - name: Cache mops packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/mops
+          key: mops-${{ runner.os }}-${{ hashFiles('mops.toml') }}
+
+      - name: Install mops and moc
+        run: |
+          npm install -g ic-mops
+          mops install
+          mops toolchain use moc 1.3.0
+          "$(mops toolchain bin moc)" --version
+
+      - name: Build canister Wasm (this branch and base)
+        run: |
+          bash scripts/ci/build-upgrade-wasms.sh "${{ steps.base.outputs.sha }}" \
+            auth contractor job monitoring payment property quote sensor photo audit
+
+      - name: Install test dependencies (downloads the PocketIC server)
+        run: cd tests/upgrade && npm ci
+
+      - name: Run upgrade tests
+        run: cd tests/upgrade && npm test
+
   test-backend:
     runs-on: ubuntu-latest
     needs: [motoko-check]
