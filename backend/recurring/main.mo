@@ -20,6 +20,7 @@ import Principal "mo:core/Principal";
 import Result    "mo:core/Result";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
+import Index     "../shared/Index";
 
 persistent actor Recurring {
 
@@ -103,6 +104,20 @@ persistent actor Recurring {
 
   private let services = Map.empty<Text, RecurringService>();
   private let visits   = Map.empty<Text, VisitLog>();
+
+  // Secondary indexes over `visits` (transient, rebuilt on every upgrade).
+  // Writes go through Index.put / Index.delete so they stay in step.
+  private transient let visitsByService = Index.empty();
+  private transient let visitsIndexes : [Index.Keyed<VisitLog>] = Index.indexed<VisitLog>(visits, [
+    (visitsByService, func(r : VisitLog) : ?Text { ?r.serviceId }),
+  ]);
+
+  // Secondary indexes over `services` (transient, rebuilt on every upgrade).
+  // Writes go through Index.put / Index.delete so they stay in step.
+  private transient let servicesByProperty = Index.empty();
+  private transient let servicesIndexes : [Index.Keyed<RecurringService>] = Index.indexed<RecurringService>(services, [
+    (servicesByProperty, func(r : RecurringService) : ?Text { ?r.propertyId }),
+  ]);
 
   // ─── Private Helpers ─────────────────────────────────────────────────────────
 
@@ -208,7 +223,7 @@ persistent actor Recurring {
       createdAt          = now;
     };
 
-    Map.add(services, Text.compare, id, svc);
+    Index.put(services, servicesIndexes, id, svc);
     #ok(svc)
   };
 
@@ -223,9 +238,7 @@ persistent actor Recurring {
   /// Fetch all recurring services for a given property.
   public query func getByProperty(propertyId: Text) : async [RecurringService] {
     Iter.toArray(
-      Iter.filter(Map.values(services), func(s: RecurringService) : Bool {
-        s.propertyId == propertyId
-      })
+      Index.records(servicesByProperty, propertyId, services)
     )
   };
 
@@ -265,7 +278,7 @@ persistent actor Recurring {
           contractDocPhotoId = existing.contractDocPhotoId;
           createdAt          = existing.createdAt;
         };
-        Map.add(services, Text.compare, serviceId, updated);
+        Index.put(services, servicesIndexes, serviceId, updated);
         #ok(updated)
       };
     }
@@ -302,7 +315,7 @@ persistent actor Recurring {
           contractDocPhotoId = ?photoId;
           createdAt          = existing.createdAt;
         };
-        Map.add(services, Text.compare, serviceId, updated);
+        Index.put(services, servicesIndexes, serviceId, updated);
         #ok(updated)
       };
     }
@@ -339,7 +352,7 @@ persistent actor Recurring {
           note;
           createdAt  = now;
         };
-        Map.add(visits, Text.compare, id, entry);
+        Index.put(visits, visitsIndexes, id, entry);
         #ok(entry)
       };
     }
@@ -348,7 +361,7 @@ persistent actor Recurring {
   /// Fetch all visit log entries for a recurring service, sorted by visitDate descending.
   public query func getVisitLogs(serviceId: Text) : async [VisitLog] {
     let matches = Iter.toArray(
-      Iter.filter(Map.values(visits), func(v: VisitLog) : Bool { v.serviceId == serviceId })
+      Index.records(visitsByService, serviceId, visits)
     );
     // Sort descending by visitDate (lexicographic works for YYYY-MM-DD)
     Array.sort(matches, func(a: VisitLog, b: VisitLog) : { #less; #equal; #greater } {

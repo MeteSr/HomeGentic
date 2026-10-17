@@ -22,6 +22,7 @@ import Text      "mo:core/Text";
 import Time      "mo:core/Time";
 import ServiceTypes "../shared/ServiceType";
 import Notify       "../shared/Notify";
+import Index        "../shared/Index";
 
 persistent actor Job {
 
@@ -144,6 +145,19 @@ persistent actor Job {
   private let jobs        = Map.empty<Text, Job>();
   private let inviteTokens = Map.empty<Text, InviteToken>();
   private let errsByMethod : Map.Map<Text, Nat> = Map.empty();
+
+  // Secondary indexes over `jobs` (transient, rebuilt on every upgrade).
+  // Writes go through putJob / Index.delete so they stay in step.
+  private transient let jobsByProperty   = Index.empty();
+  private transient let jobsByHomeowner  = Index.empty();
+  private transient let jobsByContractor = Index.empty();
+  private transient let jobIndexes : [Index.Keyed<Job>] = Index.indexed<Job>(jobs, [
+    (jobsByProperty,   func(j : Job) : ?Text { ?j.propertyId }),
+    (jobsByHomeowner,  func(j : Job) : ?Text { ?Principal.toText(j.homeowner) }),
+    (jobsByContractor, func(j : Job) : ?Text { Option.map(j.contractor, Principal.toText) }),
+  ]);
+
+  private func putJob(j : Job) { Index.put(jobs, jobIndexes, j.id, j) };
 
   /// Push-notification outbox read by the notification relay (see
   /// shared/Notify.mo). notifierEntries are the principals allowed to read it.
@@ -348,7 +362,7 @@ persistent actor Job {
       sourceQuoteId;
     };
 
-    Map.add(jobs, Text.compare, id, job);
+    putJob(job);
     #ok(job)
   };
 
@@ -368,7 +382,7 @@ persistent actor Job {
       if (not authorized) return #ok([]);  // return empty rather than error for UX
     };
     let matches = Iter.toArray(
-      Iter.filter(Map.values(jobs), func(j: Job) : Bool { j.propertyId == propertyId })
+      Index.records(jobsByProperty, propertyId, jobs)
     );
     #ok(matches)
   };
@@ -378,7 +392,7 @@ persistent actor Job {
   public query func getJobSnapshotsForProperty(propertyId: Text) : async [JobSnapshot] {
     let secsPerYear : Nat = 31_536_000;
     Iter.toArray(Iter.map<Job, JobSnapshot>(
-      Iter.filter(Map.values(jobs), func(j: Job) : Bool { j.propertyId == propertyId }),
+      Index.records(jobsByProperty, propertyId, jobs),
       func(j: Job) : JobSnapshot {
         let secsSince1970 = Int.abs(j.completedDate) / 1_000_000_000;
         {
@@ -396,17 +410,14 @@ persistent actor Job {
   /// matches the given principal. Enables data portability without authentication.
   public query func getJobsByOwner(owner: Principal) : async [Job] {
     Iter.toArray(
-      Iter.filter(Map.values(jobs), func(j: Job) : Bool { j.homeowner == owner })
+      Index.records(jobsByHomeowner, Principal.toText(owner), jobs)
     )
   };
 
   /// Fetch jobs where the caller is the linked contractor and has not yet signed.
   public query(msg) func getJobsPendingMySignature() : async [Job] {
-    Iter.toArray(Iter.filter(Map.values(jobs), func(j: Job) : Bool {
-      switch (j.contractor) {
-        case (?con) { con == msg.caller and not j.contractorSigned and not j.verified };
-        case null   { false };
-      }
+    Iter.toArray(Iter.filter(Index.records(jobsByContractor, Principal.toText(msg.caller), jobs), func(j: Job) : Bool {
+      not j.contractorSigned and not j.verified
     }))
   };
 
@@ -415,15 +426,11 @@ persistent actor Job {
   /// admin-only and returns every contractor's jobs). Backs the Contractor Plan
   /// & Billing fee ledger.
   public query(msg) func getMyReferralJobs() : async [Job] {
-    Iter.toArray(Iter.filter(Map.values(jobs), func(j: Job) : Bool {
-      let ownsJob = switch (j.contractor) {
-        case (?con) { con == msg.caller };
-        case null   { false };
-      };
-      ownsJob and (switch (j.sourceQuoteId) {
+    Iter.toArray(Iter.filter(Index.records(jobsByContractor, Principal.toText(msg.caller), jobs), func(j: Job) : Bool {
+      switch (j.sourceQuoteId) {
         case (?qid) { Text.size(qid) > 0 };
         case null   { false };
-      })
+      }
     }))
   };
 
@@ -469,7 +476,7 @@ persistent actor Job {
               createdAt        = fresh.createdAt;
               sourceQuoteId    = fresh.sourceQuoteId;
             };
-            Map.add(jobs, Text.compare, jobId, updated);
+            putJob(updated);
             #ok(updated)
           };
         }
@@ -519,7 +526,7 @@ persistent actor Job {
               createdAt        = fresh.createdAt;
               sourceQuoteId    = fresh.sourceQuoteId;
             };
-            Map.add(jobs, Text.compare, jobId, updated);
+            putJob(updated);
             if (fresh.homeownerSigned and not fresh.contractorSigned) {
               notifyAwaitingContractorSignature(updated, contractorPrincipal);
             };
@@ -606,7 +613,7 @@ persistent actor Job {
           createdAt        = existing2.createdAt;
           sourceQuoteId    = existing2.sourceQuoteId;
         };
-        Map.add(jobs, Text.compare, jobId, updated);
+        putJob(updated);
 
         if (isContractor and not existing2.contractorSigned and not newHomeownerSigned) {
           notifyAwaitingSignature(updated);
@@ -709,7 +716,7 @@ persistent actor Job {
       sourceQuoteId    = null;
     };
 
-    Map.add(jobs, Text.compare, id, job);
+    putJob(job);
     notifySensorAlert(job);
     #ok(id)
   };
@@ -863,8 +870,8 @@ persistent actor Job {
     var verifiedCount : Nat = 0;
     var foundSystems : [Text] = [];
 
-    for (j in Map.values(jobs)) {
-      if (j.propertyId == propertyId and j.verified) {
+    for (j in Index.records(jobsByProperty, propertyId, jobs)) {
+      if (j.verified) {
         verifiedCount += 1;
         let svcText = switch (j.serviceType) {
           case (#HVAC)       "HVAC";
@@ -946,7 +953,7 @@ persistent actor Job {
       sourceQuoteId    = null;
     };
 
-    Map.add(jobs, Text.compare, id, job);
+    putJob(job);
     #ok(job)
   };
 
@@ -1128,7 +1135,7 @@ persistent actor Job {
       createdAt        = freshJob.createdAt;
       sourceQuoteId    = freshJob.sourceQuoteId;
     };
-    Map.add(jobs, Text.compare, freshJob.id, updated);
+    putJob(updated);
 
     // Mark token as used
     let usedInvite : InviteToken = {
@@ -1251,7 +1258,7 @@ persistent actor Job {
       sourceQuoteId    = null;
     };
 
-    Map.add(jobs, Text.compare, id, job);
+    putJob(job);
     notifyAwaitingSignature(job);
     #ok(job)
   };
@@ -1259,8 +1266,8 @@ persistent actor Job {
   /// Return all proposals awaiting the caller's (homeowner's) approval.
   /// Only the property owner sees their own pending proposals.
   public query(msg) func getPendingProposals() : async [Job] {
-    Iter.toArray(Iter.filter(Map.values(jobs), func(j: Job) : Bool {
-      j.homeowner == msg.caller and j.status == #PendingHomeownerApproval
+    Iter.toArray(Iter.filter(Index.records(jobsByHomeowner, Principal.toText(msg.caller), jobs), func(j: Job) : Bool {
+      j.status == #PendingHomeownerApproval
     }))
   };
 
@@ -1300,7 +1307,7 @@ persistent actor Job {
       createdAt        = existing.createdAt;
       sourceQuoteId    = existing.sourceQuoteId;
     };
-    Map.add(jobs, Text.compare, jobId, updated);
+    putJob(updated);
     #ok(updated)
   };
 
@@ -1318,7 +1325,7 @@ persistent actor Job {
     if (not rejectOk) return #err(#NotAuthorized);
     if (existing.status != #PendingHomeownerApproval) return #err(#InvalidInput("Job is not pending approval"));
 
-    Map.remove(jobs, Text.compare, jobId);
+    Index.delete(jobs, jobIndexes, jobId);
     #ok(())
   };
 

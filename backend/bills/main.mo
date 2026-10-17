@@ -36,6 +36,7 @@ import Principal "mo:core/Principal";
 import Result    "mo:core/Result";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
+import Index     "../shared/Index";
 
 persistent actor Bills {
 
@@ -161,6 +162,19 @@ persistent actor Bills {
 
   private var recurringCounter  : Nat = 0;
   private let recurringExpenses = Map.empty<Text, RecurringExpense>();
+
+  // Secondary indexes (transient, rebuilt on every upgrade). Writes go through
+  // Index.put / Index.delete with the matching index list.
+  private transient let billsByProperty  = Index.empty();
+  private transient let billsByHomeowner = Index.empty();
+  private transient let billIndexes : [Index.Keyed<BillRecord>] = Index.indexed<BillRecord>(bills, [
+    (billsByProperty,  func(b : BillRecord) : ?Text { ?b.propertyId }),
+    (billsByHomeowner, func(b : BillRecord) : ?Text { ?Principal.toText(b.homeowner) }),
+  ]);
+  private transient let expensesByProperty = Index.empty();
+  private transient let expenseIndexes : [Index.Keyed<RecurringExpense>] = Index.indexed<RecurringExpense>(recurringExpenses, [
+    (expensesByProperty, func(e : RecurringExpense) : ?Text { ?e.propertyId }),
+  ]);
   private transient let MAX_RECURRING_PER_PROPERTY : Nat = 50;
 
   /// Property canister ID — set post-deploy via setPropertyCanisterId(). While
@@ -215,9 +229,8 @@ persistent actor Bills {
 
   private func countUploadsThisMonth(caller: Principal, nowNs: Int) : Nat {
     var count : Nat = 0;
-    for ((_, b) in Map.entries(bills)) {
-      if (Principal.equal(b.homeowner, caller)
-          and nowNs - b.uploadedAt <= ONE_MONTH_NS) {
+    for (b in Index.records(billsByHomeowner, Principal.toText(caller), bills)) {
+      if (nowNs - b.uploadedAt <= ONE_MONTH_NS) {
         count += 1;
       }
     };
@@ -238,9 +251,8 @@ persistent actor Bills {
     var count: Nat   = 0;
     let threeMonthsNs : Int = 3 * ONE_MONTH_NS;
 
-    for ((_, b) in Map.entries(bills)) {
+    for (b in Index.records(billsByProperty, propertyId, bills)) {
       if (b.id != excludeId
-          and b.propertyId == propertyId
           and Principal.equal(b.homeowner, homeowner)
           and billTypeEq(b.billType, billType)
           and b.uploadedAt < refNs
@@ -415,7 +427,7 @@ persistent actor Bills {
       anomalyReason;
     };
 
-    Map.add(bills, Text.compare, id, record);
+    Index.put(bills, billIndexes, id, record);
     #ok(record)
   };
 
@@ -424,9 +436,9 @@ persistent actor Bills {
   public shared(msg) func getBillsForProperty(propertyId: Text) : async Result.Result<[BillRecord], Error> {
     let shared_ = seesProperty(await* accessRole(propertyId, msg.caller));
     let result = Array.filter<BillRecord>(
-      Iter.toArray(Map.values(bills)),
+      Iter.toArray(Index.records(billsByProperty, propertyId, bills)),
       func(b) {
-        b.propertyId == propertyId and (shared_ or Principal.equal(b.homeowner, msg.caller))
+        shared_ or Principal.equal(b.homeowner, msg.caller)
       }
     );
     #ok(result)
@@ -443,9 +455,8 @@ persistent actor Bills {
     let cutoffNs : Int = Time.now() - (months * 30 * 24 * 3_600_000_000_000 : Nat);
     let periodsBuf = List.empty<UsagePeriod>();
 
-    for ((_, b) in Map.entries(bills)) {
-      if (b.propertyId == propertyId
-          and (shared_ or Principal.equal(b.homeowner, msg.caller))
+    for (b in Index.records(billsByProperty, propertyId, bills)) {
+      if ((shared_ or Principal.equal(b.homeowner, msg.caller))
           and billTypeEq(b.billType, billType)
           and b.uploadedAt >= cutoffNs)
       {
@@ -481,7 +492,7 @@ persistent actor Bills {
       case null { return #err(#NotFound) };
       case (?b) {
         if (Principal.equal(b.homeowner, msg.caller) or isAdmin(msg.caller)) {
-          ignore Map.delete(bills, Text.compare, id);
+          Index.delete(bills, billIndexes, id);
           return #ok(());
         };
         b.propertyId
@@ -490,7 +501,7 @@ persistent actor Bills {
     if (not hasFullControl(await* accessRole(propertyId, msg.caller))) return #err(#NotAuthorized);
     // Re-check after the await: the bill may have been removed meanwhile.
     if (Map.get(bills, Text.compare, id) == null) return #err(#NotFound);
-    ignore Map.delete(bills, Text.compare, id);
+    Index.delete(bills, billIndexes, id);
     #ok(())
   };
 
@@ -517,10 +528,7 @@ persistent actor Bills {
       ));
     };
 
-    var existing : Nat = 0;
-    for (e in Map.values(recurringExpenses)) {
-      if (e.propertyId == propertyId) existing += 1;
-    };
+    let existing = Index.count(expensesByProperty, propertyId);
     if (existing >= MAX_RECURRING_PER_PROPERTY) {
       return #err(#InvalidInput("Recurring expense limit reached for this property"));
     };
@@ -540,7 +548,7 @@ persistent actor Bills {
       createdAt   = now;
       updatedAt   = now;
     };
-    Map.add(recurringExpenses, Text.compare, expense.id, expense);
+    Index.put(recurringExpenses, expenseIndexes, expense.id, expense);
     #ok(expense)
   };
 
@@ -550,9 +558,9 @@ persistent actor Bills {
   public shared(msg) func getRecurringExpensesForProperty(propertyId: Text) : async Result.Result<[RecurringExpense], Error> {
     let role = await* accessRole(propertyId, msg.caller);
     let visible = Array.filter<RecurringExpense>(
-      Iter.toArray(Map.values(recurringExpenses)),
+      Iter.toArray(Index.records(expensesByProperty, propertyId, recurringExpenses)),
       func(e) {
-        e.propertyId == propertyId and (
+        (
           Principal.equal(e.homeowner, msg.caller)
           or (seesProperty(role) and (not isMortgage(e.category) or hasFullControl(role)))
         )
@@ -593,7 +601,7 @@ persistent actor Bills {
           endDate     = fields.endDate;
           updatedAt   = Time.now();
         };
-        Map.add(recurringExpenses, Text.compare, id, updated);
+        Index.put(recurringExpenses, expenseIndexes, id, updated);
         #ok(updated)
       };
     }
@@ -607,7 +615,7 @@ persistent actor Bills {
       case null { return #err(#NotFound) };
       case (?e) {
         if (Principal.equal(e.homeowner, msg.caller) or isAdmin(msg.caller)) {
-          ignore Map.delete(recurringExpenses, Text.compare, id);
+          Index.delete(recurringExpenses, expenseIndexes, id);
           return #ok(());
         };
         e.propertyId
@@ -615,7 +623,7 @@ persistent actor Bills {
     };
     if (not hasFullControl(await* accessRole(propertyId, msg.caller))) return #err(#NotAuthorized);
     if (Map.get(recurringExpenses, Text.compare, id) == null) return #err(#NotFound);
-    ignore Map.delete(recurringExpenses, Text.compare, id);
+    Index.delete(recurringExpenses, expenseIndexes, id);
     #ok(())
   };
 

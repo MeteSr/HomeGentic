@@ -67,6 +67,54 @@ module {
     Iter.filterMap<Text, R>(ids(ix, key), func(id) { Map.get(primary, Text.compare, id) })
   };
 
+  /// An index together with the function that gives a record's key in it
+  /// (null leaves the record out).
+  public type Keyed<R> = (Index, R -> ?Text);
+
+  /// Fills each index from `primary` and returns them; use it to initialise
+  /// a canister's transient index list.
+  public func indexed<R>(primary : Map.Map<Text, R>, ixs : [Keyed<R>]) : [Keyed<R>] {
+    for ((id, r) in Map.entries(primary)) { file(ixs, id, r) };
+    ixs
+  };
+
+  /// Stores `r` under `id` in `primary` and keeps every index in step,
+  /// re-filing the record if an indexed field changed.
+  /// Indexes whose key didn't change are left untouched, so it is safe to
+  /// put records while iterating an index over a key they keep.
+  public func put<R>(primary : Map.Map<Text, R>, ixs : [Keyed<R>], id : Text, r : R) {
+    let old = Map.get(primary, Text.compare, id);
+    Map.add(primary, Text.compare, id, r);
+    for ((ix, keyOf) in ixs.vals()) {
+      let newKey = keyOf(r);
+      let oldKey = switch (old) { case (?o) { keyOf(o) }; case null { null } };
+      if (oldKey != newKey) {
+        switch (oldKey) { case (?k) { remove(ix, k, id) }; case null {} };
+        switch (newKey) { case (?k) { add(ix, k, id) }; case null {} };
+      };
+    };
+  };
+
+  /// Removes `id` from `primary` and from every index.
+  public func delete<R>(primary : Map.Map<Text, R>, ixs : [Keyed<R>], id : Text) {
+    switch (Map.get(primary, Text.compare, id)) {
+      case (?old) { unfile(ixs, id, old); Map.remove(primary, Text.compare, id) };
+      case null   {};
+    };
+  };
+
+  func file<R>(ixs : [Keyed<R>], id : Text, r : R) {
+    for ((ix, keyOf) in ixs.vals()) {
+      switch (keyOf(r)) { case (?k) { add(ix, k, id) }; case null {} };
+    };
+  };
+
+  func unfile<R>(ixs : [Keyed<R>], id : Text, r : R) {
+    for ((ix, keyOf) in ixs.vals()) {
+      switch (keyOf(r)) { case (?k) { remove(ix, k, id) }; case null {} };
+    };
+  };
+
   /// Builds an index over `primary`; `keyOf` returns the key to file each record
   /// under, or null to leave it out.
   public func build<R>(primary : Map.Map<Text, R>, keyOf : R -> ?Text) : Index {

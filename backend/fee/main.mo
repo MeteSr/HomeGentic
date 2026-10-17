@@ -15,6 +15,7 @@ import Principal "mo:core/Principal";
 import Result    "mo:core/Result";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
+import Index     "../shared/Index";
 
 persistent actor Fee {
 
@@ -61,6 +62,13 @@ persistent actor Fee {
   private var listingCanisterId: Text = "";
 
   private let fees = Map.empty<Text, FeeRecord>();
+
+  // Secondary indexes over `fees` (transient, rebuilt on every upgrade).
+  // Writes go through Index.put / Index.delete so they stay in step.
+  private transient let feesByAgent = Index.empty();
+  private transient let feesIndexes : [Index.Keyed<FeeRecord>] = Index.indexed<FeeRecord>(fees, [
+    (feesByAgent, func(r : FeeRecord) : ?Text { ?Principal.toText(r.agentId) }),
+  ]);
   /// requestId → feeId, so a second recordFeeOwed for the same request is rejected.
   private let feeByRequest = Map.empty<Text, Text>();
 
@@ -138,7 +146,7 @@ persistent actor Fee {
             // Homeowner re-selected a different bid before payment settled — retarget
             // the still-open fee record rather than erroring.
             let updated = { existing with proposalId; agentId; homeownerId; amountCents; updatedAt = now };
-            Map.add(fees, Text.compare, existingId, updated);
+            Index.put(fees, feesIndexes, existingId, updated);
             #ok(updated)
           };
         }
@@ -149,7 +157,7 @@ persistent actor Fee {
           id; requestId; proposalId; agentId; homeownerId; amountCents;
           status = #Owed; createdAt = now; updatedAt = now;
         };
-        Map.add(fees, Text.compare, id, record);
+        Index.put(fees, feesIndexes, id, record);
         Map.add(feeByRequest, Text.compare, requestId, id);
         #ok(record)
       };
@@ -157,7 +165,7 @@ persistent actor Fee {
   };
 
   public query(msg) func getMyFees() : async [FeeRecord] {
-    Iter.toArray(Iter.filter(Map.values(fees), func(f: FeeRecord) : Bool { f.agentId == msg.caller }))
+    Iter.toArray(Index.records(feesByAgent, Principal.toText(msg.caller), fees))
   };
 
   public query(msg) func getAllFees() : async Result.Result<[FeeRecord], Error> {
@@ -176,7 +184,7 @@ persistent actor Fee {
       case null { #err(#NotFound) };
       case (?f) {
         let updated = { f with status = #Invoiced; updatedAt = Time.now() };
-        Map.add(fees, Text.compare, feeId, updated);
+        Index.put(fees, feesIndexes, feeId, updated);
         #ok(updated)
       };
     }
@@ -191,7 +199,7 @@ persistent actor Fee {
       case (?f) {
         if (f.status == #Paid) return #ok(f); // idempotent on webhook retry
         let updated = { f with status = #Paid; updatedAt = Time.now() };
-        Map.add(fees, Text.compare, feeId, updated);
+        Index.put(fees, feesIndexes, feeId, updated);
         #ok(updated)
       };
     }
@@ -204,7 +212,7 @@ persistent actor Fee {
       case null { #err(#NotFound) };
       case (?f) {
         let updated = { f with status = #Waived; updatedAt = Time.now() };
-        Map.add(fees, Text.compare, feeId, updated);
+        Index.put(fees, feesIndexes, feeId, updated);
         #ok(updated)
       };
     }

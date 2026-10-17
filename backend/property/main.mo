@@ -42,6 +42,7 @@ import Random    "mo:core/Random";
 import Result    "mo:core/Result";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
+import Index     "../shared/Index";
 
 persistent actor Property {
 
@@ -376,6 +377,25 @@ persistent actor Property {
   private let tokenIndex       = Map.empty<Text, Text>();
   private let rooms            = Map.empty<Text, RoomRecord>();
 
+  // Secondary indexes (transient, rebuilt on every upgrade). Writes to
+  // `properties` / `rooms` go through putProperty / putRoom / Index.delete.
+  private transient let propertiesByOwner = Index.empty();
+  private transient let propertyIndexes : [Index.Keyed<Property>] = Index.indexed<Property>(properties, [
+    (propertiesByOwner, func(p : Property) : ?Text { ?Principal.toText(p.owner) }),
+  ]);
+  private transient let roomsByProperty = Index.empty();
+  private transient let roomIndexes : [Index.Keyed<RoomRecord>] = Index.indexed<RoomRecord>(rooms, [
+    (roomsByProperty, func(r : RoomRecord) : ?Text { ?r.propertyId }),
+  ]);
+
+  private func putProperty(p : Property) { Index.put(properties, propertyIndexes, p.id, p) };
+  private func putRoom(r : RoomRecord)   { Index.put(rooms, roomIndexes, r.id, r) };
+
+  /// An owner's properties (active and inactive).
+  private func ownedBy(owner : Principal) : Iter.Iter<Property> {
+    Index.records(propertiesByOwner, Principal.toText(owner), properties)
+  };
+
   // ─── Manager delegation state ────────────────────────────────────────────
   /// propertyId → [PropertyManager]
   private let managersMap      = Map.empty<Text, [PropertyManager]>();
@@ -534,8 +554,8 @@ persistent actor Property {
 
   private func countOwnerProperties(owner: Principal) : Nat {
     var n = 0;
-    for (p in Map.values(properties)) {
-      if (p.owner == owner and p.isActive) { n += 1 };
+    for (p in ownedBy(owner)) {
+      if (p.isActive) { n += 1 };
     };
     n
   };
@@ -731,7 +751,7 @@ persistent actor Property {
       conflictWindowEndsAt = null;
     };
 
-    Map.add(properties, Text.compare, id, prop);
+    putProperty(prop);
     Map.add(addressIdx, Text.compare, key, id);
     Map.remove(inFlightRegistrations, Text.compare, callerKey);
     #ok(prop)
@@ -781,7 +801,7 @@ persistent actor Property {
           nameOnId             = existing.nameOnId;
           contestedWithId      = existing.contestedWithId;
         };
-        Map.add(properties, Text.compare, propertyId, updated);
+        putProperty(updated);
         #ok(updated)
       };
     }
@@ -820,7 +840,7 @@ persistent actor Property {
           };
           updatedAt           = now;
         };
-        Map.add(properties, Text.compare, id, updated);
+        putProperty(updated);
         try { ignore await auditLog("PropertyVerified", ?existing.owner, "propertyId=" # id # " caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[property] fire-and-forget call failed") };
         #ok(updated)
       };
@@ -832,9 +852,7 @@ persistent actor Property {
   public query(msg) func getMyProperties() : async [Property] {
     let caller = msg.caller;
     Iter.toArray(
-      Iter.filter(Map.values(properties), func(p: Property) : Bool {
-        p.owner == caller and p.isActive
-      })
+      Iter.filter(ownedBy(caller), func(p: Property) : Bool { p.isActive })
     )
   };
 
@@ -843,9 +861,7 @@ persistent actor Property {
   /// homeowner's records using only their Internet Identity principal.
   public query func getPropertiesByOwner(owner: Principal) : async [Property] {
     Iter.toArray(
-      Iter.filter(Map.values(properties), func(p: Property) : Bool {
-        p.owner == owner and p.isActive
-      })
+      Iter.filter(ownedBy(owner), func(p: Property) : Bool { p.isActive })
     )
   };
 
@@ -965,7 +981,7 @@ persistent actor Property {
           nameOnId           = ?name;
           updatedAt          = now;
         };
-        Map.add(properties, Text.compare, propertyId, updated);
+        putProperty(updated);
         #ok(updated)
       };
     }
@@ -1068,7 +1084,7 @@ persistent actor Property {
                   owner     = msg.caller;
                   updatedAt = now;
                 };
-                Map.add(properties, Text.compare, propertyId, updated);
+                putProperty(updated);
 
                 // Append immutable record to ownership history
                 let record : TransferRecord = {
@@ -1824,7 +1840,7 @@ persistent actor Property {
           contestedWithId      = null;
           conflictWindowEndsAt = null;
         };
-        Map.add(properties, Text.compare, newId, prop);
+        putProperty(prop);
         succeeded := Array.concat(succeeded, [newId]);
       };
       i += 1;
@@ -1876,7 +1892,7 @@ persistent actor Property {
       createdAt  = now;
       updatedAt  = now;
     };
-    Map.add(rooms, Text.compare, room.id, room);
+    putRoom(room);
     #ok(room)
   };
 
@@ -1891,7 +1907,7 @@ persistent actor Property {
   /// Fetch all rooms for a property.
   public query func getRoomsByProperty(propertyId: Text) : async [RoomRecord] {
     Iter.toArray(
-      Iter.filter(Map.values(rooms), func(r: RoomRecord) : Bool { r.propertyId == propertyId })
+      Index.records(roomsByProperty, propertyId, rooms)
     )
   };
 
@@ -1927,7 +1943,7 @@ persistent actor Property {
           createdAt  = existing.createdAt;
           updatedAt  = Time.now();
         };
-        Map.add(rooms, Text.compare, id, updated);
+        putRoom(updated);
         #ok(updated)
       };
     }
@@ -1941,7 +1957,7 @@ persistent actor Property {
       case null    { #err(#NotFound) };
       case (?room) {
         if (room.owner != msg.caller) return #err(#NotAuthorized);
-        Map.remove(rooms, Text.compare, id);
+        Index.delete(rooms, roomIndexes, id);
         #ok(())
       };
     }
@@ -1986,7 +2002,7 @@ persistent actor Property {
           createdAt  = room.createdAt;
           updatedAt  = Time.now();
         };
-        Map.add(rooms, Text.compare, roomId, updated);
+        putRoom(updated);
         #ok(updated)
       };
     }
@@ -2041,7 +2057,7 @@ persistent actor Property {
           createdAt  = room.createdAt;
           updatedAt  = Time.now();
         };
-        Map.add(rooms, Text.compare, roomId, updated);
+        putRoom(updated);
         #ok(updated)
       };
     }
@@ -2070,7 +2086,7 @@ persistent actor Property {
           createdAt  = room.createdAt;
           updatedAt  = Time.now();
         };
-        Map.add(rooms, Text.compare, roomId, updated);
+        putRoom(updated);
         #ok(updated)
       };
     }
