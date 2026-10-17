@@ -9,8 +9,10 @@
  * keys, the audit log, address keys) and the transient indexes rebuilt from
  * stable state when the actor initialises.
  *
- * Needs base Wasm in .dfx/base/ (scripts/ci/build-upgrade-wasms.sh); the
- * suite skips without it.
+ * Base Wasm comes from .dfx/base/ (scripts/ci/build-upgrade-wasms.sh). Without
+ * it each case installs this branch's build instead, so the behaviour checks
+ * (batched photo bytes, sensor order and retention, address normalisation,
+ * index-backed lists) still run; only the change of version is skipped.
  */
 
 import { describe, it, expect } from "vitest";
@@ -24,12 +26,13 @@ import { idlFactory as quoteIdl } from "../../frontend/src/declarations/quote";
 
 const CANISTERS = ["photo", "sensor", "job", "property", "quote", "audit"];
 const haveBase = CANISTERS.every((c) => baseWasmPath(c) !== null);
+if (!haveBase) console.warn("No base Wasm in .dfx/base/: installing this branch's build, so no version change is tested.");
 
 /** Installs `name` from the base branch; `upgrade()` moves it to this branch. */
 async function fromBase(name: string, idl: any) {
   const pic: PocketIc = await createPic();
   const ctl = createIdentity("ctl");
-  const f = await pic.setupCanister({ idlFactory: idl, wasm: baseWasmPath(name)!, sender: ctl.getPrincipal() });
+  const f = await pic.setupCanister({ idlFactory: idl, wasm: baseWasmPath(name) ?? wasmPath(name), sender: ctl.getPrincipal() });
   const as = (id: Identity) => { const a = pic.createActor<any>(idl, f.canisterId); a.setIdentity(id); return a; };
   const upgrade = () => pic.upgradeCanister({ canisterId: f.canisterId, wasm: readFileSync(wasmPath(name)) });
   return { pic, as, upgrade, done: () => pic.tearDown() };
@@ -47,7 +50,7 @@ const norm = (x: unknown) => JSON.stringify(x, (_k, v) =>
 
 const TIMEOUT = 180_000;
 
-describe.skipIf(!haveBase)("upgrade from base branch", () => {
+describe(haveBase ? "upgrade from base branch" : "upgrade (no base build: this branch to itself)", () => {
   // ── photo: [Nat8] bytes → Blob, per-job / per-property indexes ────────────
   it("photo: bytes, counts and lists survive; reads are batched", async () => {
     const idl = ({ IDL: I }: any) => {
