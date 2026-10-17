@@ -67,6 +67,17 @@ async function verifyTurnstile(secret: string, token: string, ip: string): Promi
   }
 }
 
+// local@domain.tld with no whitespace or angle brackets. Checked without a
+// backtracking regex so a crafted address can't stall the Worker.
+function isPlainEmail(s: string): boolean {
+  if (/[\s<>]/.test(s)) return false;
+  const at = s.indexOf("@");
+  if (at < 1 || at !== s.lastIndexOf("@")) return false;
+  const domain = s.slice(at + 1);
+  const dot = domain.lastIndexOf(".");
+  return dot > 0 && dot < domain.length - 1;
+}
+
 function fieldError(p: LeadPayload): string | null {
   for (const [field, max] of Object.entries(FIELD_LIMITS)) {
     const v = (p as Record<string, unknown>)[field];
@@ -78,7 +89,7 @@ function fieldError(p: LeadPayload): string | null {
       (typeof p.estimatedPrice !== "number" || !Number.isFinite(p.estimatedPrice))) {
     return "Invalid field: estimatedPrice";
   }
-  if (/[\r\n]/.test(p.name ?? "") || !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(p.email ?? "")) {
+  if (/[\r\n]/.test(p.name ?? "") || !isPlainEmail(p.email ?? "")) {
     return "Invalid name or email";
   }
   return null;

@@ -242,9 +242,10 @@ function markSeen(key: string): void {
 /** Constant-time comparison for shared tokens (undefined/empty never matches). */
 function tokenMatches(received: unknown, expected: string | undefined): boolean {
   if (!expected || typeof received !== "string" || !received) return false;
-  const a = crypto.createHash("sha256").update(received).digest();
-  const b = crypto.createHash("sha256").update(expected).digest();
-  return crypto.timingSafeEqual(a, b);
+  const a = Buffer.from(received);
+  const b = Buffer.from(expected);
+  // Only the length can leak; the contents are compared in constant time.
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
 // ── Device-picker OAuth browser binding ──────────────────────────────────────
