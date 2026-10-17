@@ -20,11 +20,13 @@ import Map      "mo:core/Map";
 import Iter     "mo:core/Iter";
 import Nat      "mo:core/Nat";
 import Option   "mo:core/Option";
+import Set      "mo:core/Set";
 import Principal "mo:core/Principal";
 import Result   "mo:core/Result";
 import Text     "mo:core/Text";
 import Time     "mo:core/Time";
 import ServiceTypes "../shared/ServiceType";
+import Index    "../shared/Index";
 
 persistent actor Sensor {
 
@@ -132,7 +134,12 @@ persistent actor Sensor {
   // ─── Stable State ────────────────────────────────────────────────────────
 
   private let devices      = Map.empty<Text, SensorDevice>();
+  /// Legacy event store keyed by "EVT_<n>" text, which sorts EVT_10 before
+  /// EVT_9. Kept only for upgrade compatibility; postupgrade drains it into
+  /// `eventLog`.
   private let events       = Map.empty<Text, SensorEvent>();
+  /// Events keyed by sequence number (the <n> in "EVT_<n>"), oldest first.
+  private let eventLog     = Map.empty<Nat, SensorEvent>();
   /// externalDeviceId → internal device id
   private let externalIdIdx = Map.empty<Text, Text>();
 
@@ -160,6 +167,82 @@ persistent actor Sensor {
   /// Per-device last auto-job creation timestamp (internal device ID → nanoseconds).
   /// Transient: resets on upgrade — acceptable, it is a DoS guard not business logic.
   private let lastCriticalJobNs : Map.Map<Text, Int> = Map.empty();
+
+  // ─── Secondary indexes (transient, rebuilt on every upgrade) ──────────────
+
+  /// Newest events kept per property; older ones are pruned as new ones arrive.
+  private transient let MAX_EVENTS_PER_PROPERTY : Nat = 1_000;
+
+  private transient let devicesByProperty = Index.build<SensorDevice>(devices, func(d) { ?d.propertyId });
+
+  private func fileEvent(ix : Map.Map<Text, Set.Set<Nat>>, seq : Nat, propertyId : Text) {
+    switch (Map.get(ix, Text.compare, propertyId)) {
+      case (?seqs) { Set.add(seqs, Nat.compare, seq) };
+      case null {
+        let seqs = Set.empty<Nat>();
+        Set.add(seqs, Nat.compare, seq);
+        Map.add(ix, Text.compare, propertyId, seqs);
+      };
+    };
+  };
+
+  /// propertyId → event sequence numbers.
+  private transient let eventsByProperty : Map.Map<Text, Set.Set<Nat>> = do {
+    let ix = Map.empty<Text, Set.Set<Nat>>();
+    for ((seq, e) in Map.entries(eventLog)) { fileEvent(ix, seq, e.propertyId) };
+    ix
+  };
+
+  /// "EVT_42" → 42. Every id this canister issued has that shape.
+  private func eventSeq(id : Text) : Nat {
+    switch (Text.stripStart(id, #text "EVT_")) {
+      case (?digits) { Option.get(Nat.fromText(digits), 0) };
+      case null      { 0 };
+    }
+  };
+
+  /// Stores an event and prunes the property's oldest beyond the cap.
+  private func putEvent(seq : Nat, e : SensorEvent) {
+    Map.add(eventLog, Nat.compare, seq, e);
+    fileEvent(eventsByProperty, seq, e.propertyId);
+    switch (Map.get(eventsByProperty, Text.compare, e.propertyId)) {
+      case (?seqs) {
+        while (Set.size(seqs) > MAX_EVENTS_PER_PROPERTY) {
+          switch (Set.min(seqs)) {
+            case (?oldest) {
+              Set.remove(seqs, Nat.compare, oldest);
+              Map.remove(eventLog, Nat.compare, oldest);
+            };
+            case null {};
+          };
+        };
+      };
+      case null {};
+    };
+  };
+
+  /// A property's events, oldest first.
+  private func propertyEvents(propertyId : Text) : Iter.Iter<SensorEvent> {
+    switch (Map.get(eventsByProperty, Text.compare, propertyId)) {
+      case (?seqs) {
+        Iter.filterMap<Nat, SensorEvent>(Set.values(seqs), func(seq) { Map.get(eventLog, Nat.compare, seq) })
+      };
+      case null { Iter.empty<SensorEvent>() };
+    }
+  };
+
+  /// True when `caller` registered a device on `propertyId`.
+  private func ownsDeviceOn(propertyId : Text, caller : Principal) : Bool {
+    Option.isSome(Iter.find<SensorDevice>(
+      Index.records(devicesByProperty, propertyId, devices),
+      func(d) { d.homeowner == caller }
+    ))
+  };
+
+  system func postupgrade() {
+    for ((id, e) in Map.entries(events)) { putEvent(eventSeq(id), e) };
+    Map.clear(events);
+  };
   private transient let CRITICAL_JOB_COOLDOWN_NS : Int = 60 * 60 * 1_000_000_000;  // 1 hour
 
   private func tryConsumeUpdateSlot(caller: Principal) : Bool {
@@ -356,6 +439,7 @@ persistent actor Sensor {
 
     Map.add(devices, Text.compare, id, device);
     Map.add(externalIdIdx, Text.compare, externalDeviceId, id);
+    Index.add(devicesByProperty, propertyId, id);
     #ok(device)
   };
 
@@ -385,8 +469,8 @@ persistent actor Sensor {
 
   public query func getDevicesForProperty(propertyId: Text) : async [SensorDevice] {
     Iter.toArray(
-      Iter.filter(Map.values(devices), func(d: SensorDevice) : Bool {
-        d.propertyId == propertyId and d.isActive
+      Iter.filter(Index.records(devicesByProperty, propertyId, devices), func(d: SensorDevice) : Bool {
+        d.isActive
       })
     )
   };
@@ -489,7 +573,7 @@ persistent actor Sensor {
       jobId      = maybeJobId;
     };
 
-    Map.add(events, Text.compare, eventId, event);
+    putEvent(eventSeq(eventId), event);
     #ok(event)
   };
 
@@ -497,36 +581,26 @@ persistent actor Sensor {
   public shared(msg) func getEventsForProperty(propertyId: Text, limit: Nat) : async [SensorEvent] {
     if (not isAdmin(msg.caller) and not isGateway(msg.caller)) {
       // Verify caller owns at least one device on this property
-      let hasDevice = Option.isSome(Array.find<SensorDevice>(
-        Iter.toArray(Map.values(devices)),
-        func(d: SensorDevice) : Bool { d.propertyId == propertyId and d.homeowner == msg.caller }
-      ));
-      if (not hasDevice) return [];
+      if (not ownsDeviceOn(propertyId, msg.caller)) return [];
     };
-    let all = Iter.toArray(
-      Iter.filter(Map.values(events), func(e: SensorEvent) : Bool {
-        e.propertyId == propertyId
-      })
-    );
-    let total = all.size();
-    if (limit == 0 or total <= limit) { all }
-    else {
-      Array.tabulate<SensorEvent>(limit, func(i) { all[total - limit + i] })
-    }
+    // The latest `limit` events (all when limit = 0), oldest first.
+    let seqs = switch (Map.get(eventsByProperty, Text.compare, propertyId)) {
+      case (?seqs) { seqs };
+      case null    { return [] };
+    };
+    let newest = Iter.filterMap<Nat, SensorEvent>(Set.reverseValues(seqs), func(seq) { Map.get(eventLog, Nat.compare, seq) });
+    let picked = if (limit == 0) { Iter.toArray(newest) } else { Iter.toArray(Iter.take(newest, limit)) };
+    Array.reverse(picked)
   };
 
   // M-07: restrict getPendingAlerts to property owner, admin, or trusted gateway
   public shared(msg) func getPendingAlerts(propertyId: Text) : async [SensorEvent] {
     if (not isAdmin(msg.caller) and not isGateway(msg.caller)) {
-      let hasDevice = Option.isSome(Array.find<SensorDevice>(
-        Iter.toArray(Map.values(devices)),
-        func(d: SensorDevice) : Bool { d.propertyId == propertyId and d.homeowner == msg.caller }
-      ));
-      if (not hasDevice) return [];
+      if (not ownsDeviceOn(propertyId, msg.caller)) return [];
     };
     Iter.toArray(
-      Iter.filter(Map.values(events), func(e: SensorEvent) : Bool {
-        e.propertyId == propertyId and isAlertworthy(e.severity)
+      Iter.filter(propertyEvents(propertyId), func(e: SensorEvent) : Bool {
+        isAlertworthy(e.severity)
       })
     )
   };
@@ -614,11 +688,11 @@ persistent actor Sensor {
     var active   : Nat = 0;
     var critical : Nat = 0;
     for (d in Map.values(devices)) { if (d.isActive) { active += 1 } };
-    for (e in Map.values(events))  { if (isCritical(e.severity)) { critical += 1 } };
+    for (e in Map.values(eventLog)) { if (isCritical(e.severity)) { critical += 1 } };
     {
       totalDevices   = Map.size(devices);
       activeDevices  = active;
-      totalEvents    = Map.size(events);
+      totalEvents    = Map.size(eventLog);
       criticalEvents = critical;
       jobsCreated    = jobsCreatedCount;
       isPaused;
