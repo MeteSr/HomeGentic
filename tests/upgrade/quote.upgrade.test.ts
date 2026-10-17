@@ -10,14 +10,14 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PocketIc, createIdentity } from "@dfinity/pic";
-import { createPic, wasmPath, quoteIdlFactory } from "./__helpers__/setup";
+import { createPic, wasmPath, quoteIdlFactory, paymentIdlFactory } from "./__helpers__/setup";
 
 const WASM = wasmPath("quote");
 
 interface QuoteActor {
   addAdmin:               (p: object, nonce: string) => Promise<{ ok: null } | { err: object }>;
   setBootstrapNonce:      (nonce: string) => Promise<void>;
-  setTier:                (user: object, tier: object) => Promise<{ ok: null } | { err: object }>;
+  setPaymentCanisterId:   (id: object) => Promise<{ ok: null } | { err: object }>;
   createQuoteRequest:     (propertyId: string, serviceType: object, description: string, urgency: object, zipCode: [] | [string]) => Promise<{ ok: Record<string, unknown> } | { err: object }>;
   createSealedBidRequest: (propertyId: string, serviceType: object, description: string, urgency: object, closeAtNs: bigint, zipCode: [] | [string]) => Promise<{ ok: Record<string, unknown> } | { err: object }>;
   submitSealedBid:        (requestId: string, ciphertext: Uint8Array | number[], timelineDays: bigint) => Promise<{ ok: Record<string, unknown> } | { err: object }>;
@@ -68,8 +68,19 @@ describe("quote canister — upgrade persistence", () => {
     // Bootstrap alice as first admin (H-20: nonce-gated)
     await actor.setBootstrapNonce("test-nonce");
     ok(await actor.addAdmin(alice.getPrincipal(), "test-nonce"));
-    // Grant alice Pro tier so she can create up to 10 open requests
-    ok(await actor.setTier(alice.getPrincipal(), { Pro: null }));
+
+    // Sealed-bid requests need a paid tier, which quote reads from payment.
+    const payment = await pic.setupCanister<any>({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      idlFactory: paymentIdlFactory as any,
+      wasm: wasmPath("payment"),
+      sender: alice.getPrincipal(),
+    });
+    payment.actor.setIdentity(alice);
+    await payment.actor.setBootstrapNonce("test-nonce");
+    ok(await payment.actor.initAdmins([alice.getPrincipal()], "test-nonce"));
+    ok(await payment.actor.grantSubscription(alice.getPrincipal(), { Pro: null }));
+    ok(await actor.setPaymentCanisterId(payment.canisterId));
 
     // 1. Regular HVAC request (no zipCode)
     const hvacReq: any = ok(await actor.createQuoteRequest(

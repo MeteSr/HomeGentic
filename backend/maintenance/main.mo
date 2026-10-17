@@ -18,6 +18,7 @@ import Principal "mo:core/Principal";
 import Result   "mo:core/Result";
 import Text     "mo:core/Text";
 import Time     "mo:core/Time";
+import Index     "../shared/Index";
 
 persistent actor Maintenance {
 
@@ -135,6 +136,13 @@ persistent actor Maintenance {
   // ─── Stable State ────────────────────────────────────────────────────────────
 
   private let schedule = Map.empty<Text, ScheduleEntry>();
+
+  // Secondary indexes over `schedule` (transient, rebuilt on every upgrade).
+  // Writes go through Index.put / Index.delete so they stay in step.
+  private transient let scheduleByProperty = Index.empty();
+  private transient let scheduleIndexes : [Index.Keyed<ScheduleEntry>] = Index.indexed<ScheduleEntry>(schedule, [
+    (scheduleByProperty, func(r : ScheduleEntry) : ?Text { ?r.propertyId }),
+  ]);
 
   // ─── Private Helpers ──────────────────────────────────────────────────────────
 
@@ -335,14 +343,12 @@ persistent actor Maintenance {
       createdBy   = msg.caller;
       createdAt   = Time.now();
     };
-    Map.add(schedule, Text.compare, id, entry);
+    Index.put(schedule, scheduleIndexes, id, entry);
     #ok(entry)
   };
 
   public query func getScheduleByProperty(propertyId: Text) : async [ScheduleEntry] {
-    Iter.toArray(Iter.filter(Map.values(schedule), func(e: ScheduleEntry) : Bool {
-      e.propertyId == propertyId
-    }))
+    Iter.toArray(Index.records(scheduleByProperty, propertyId, schedule))
   };
 
   public shared(msg) func markCompleted(entryId: Text) : async Result.Result<ScheduleEntry, Error> {
@@ -365,7 +371,7 @@ persistent actor Maintenance {
           createdBy          = entry.createdBy;
           createdAt          = entry.createdAt;
         };
-        Map.add(schedule, Text.compare, entryId, updated);
+        Index.put(schedule, scheduleIndexes, entryId, updated);
         #ok(updated)
       };
     }

@@ -1,5 +1,7 @@
 import Array     "mo:core/Array";
 import Blob      "mo:core/Blob";
+import Iter      "mo:core/Iter";
+import Map       "mo:core/Map";
 import Nat       "mo:core/Nat";
 import Principal "mo:core/Principal";
 import Result    "mo:core/Result";
@@ -31,7 +33,12 @@ persistent actor Audit {
 
   // ── State (all vars implicitly stable via persistent actor) ───────────────
 
+  /// Legacy array store: every write copied the whole array. Kept only for
+  /// upgrade compatibility; postupgrade drains it into `auditLog`.
   private var entries          : [AuditEntry] = [];
+  /// Entries keyed by id. Ids are consecutive, so the retained entries are
+  /// always ids [first, nextId).
+  private let auditLog         = Map.empty<Nat, AuditEntry>();
   private var nextId           : Nat          = 0;
   private var admins           : [Principal]  = [];
   private var adminInitialized : Bool         = false;
@@ -41,6 +48,24 @@ persistent actor Audit {
   private var trustedCanisters : [Principal]  = [];
 
   // ── Internal helpers ───────────────────────────────────────────────────────
+
+  /// Keep the newest MAX_ENTRIES; drop the oldest beyond that.
+  private transient let MAX_ENTRIES : Nat = 50_000;
+
+  private func append(e : AuditEntry) {
+    Map.add(auditLog, Nat.compare, e.id, e);
+    while (Map.size(auditLog) > MAX_ENTRIES) {
+      switch (Map.minEntry(auditLog)) {
+        case (?(oldest, _)) { Map.remove(auditLog, Nat.compare, oldest) };
+        case null {};
+      };
+    };
+  };
+
+  system func postupgrade() {
+    for (e in entries.vals()) { append(e) };
+    entries := [];
+  };
 
   private func isAdmin(p : Principal) : Bool {
     Array.find<Principal>(admins, func(a) { a == p }) != null
@@ -125,15 +150,7 @@ persistent actor Audit {
       subject;
       detail;
     };
-    // Cap at 50 000 entries — drop oldest when full to bound heap growth.
-    let maxEntries = 50_000;
-    entries := if (entries.size() >= maxEntries) {
-      let start = entries.size() - maxEntries + 1;
-      let tail = Array.tabulate<AuditEntry>(maxEntries - 1, func(i) { entries[start + i] });
-      Array.concat(tail, [entry])
-    } else {
-      Array.concat(entries, [entry])
-    };
+    append(entry);
     nextId  := nextId + 1;
     #ok(entry.id)
   };
@@ -146,10 +163,12 @@ persistent actor Audit {
     limit : Nat,
   ) : async Result.Result<[AuditEntry], Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    let total = entries.size();
-    if (from >= total) return #ok([]);
-    let bound = Nat.min(from + limit, total);
-    #ok(Array.tabulate<AuditEntry>(bound - from, func(i) { entries[from + i] }))
+    // `from` is a position among retained entries (0 = oldest), as before.
+    let first = switch (Map.minEntry(auditLog)) { case (?(id, _)) id; case null { return #ok([]) } };
+    #ok(Iter.toArray(Iter.map<(Nat, AuditEntry), AuditEntry>(
+      Iter.take(Map.entriesFrom(auditLog, Nat.compare, first + from), limit),
+      func((_, e)) { e }
+    )))
   };
 
   /// Filtered read by the source caller principal and action string.
@@ -158,12 +177,12 @@ persistent actor Audit {
     action : Text,
   ) : async Result.Result<[AuditEntry], Error> {
     if (not isAdmin(msg.caller)) return #err(#NotAuthorized);
-    #ok(Array.filter<AuditEntry>(entries, func(e) {
+    #ok(Iter.toArray(Iter.filter<AuditEntry>(Map.values(auditLog), func(e) {
       e.caller == target and e.action == action
-    }))
+    })))
   };
 
   public query func metrics() : async { entryCount : Nat } {
-    { entryCount = entries.size() }
+    { entryCount = Map.size(auditLog) }
   };
 }

@@ -68,7 +68,19 @@ const mockPhotoActor = {
   deletePhoto: vi.fn(async (_photoId: string) => {
     return { ok: null };
   }),
+  // Like the canister, the batch calls return at most `_batchLimit` photos per call.
+  getPhotoDataBatch: vi.fn(async (ids: string[]) => batchData(ids, () => true)),
+  getListingPhotoDataBatch: vi.fn(async (ids: string[]) => batchData(ids, (p) => p.jobId.startsWith("LISTING_"))),
 };
+
+let _batchLimit = Infinity;
+function batchData(ids: string[], allowed: (p: any) => boolean): Array<[string, number[]]> {
+  return ids
+    .map((id) => _mockPhotos.find((p) => p.id === id))
+    .filter((p) => p && allowed(p))
+    .slice(0, _batchLimit)
+    .map((p) => [p.id, p.data]);
+}
 
 vi.mock("@/services/actor", () => ({
   getAgent: vi.fn().mockResolvedValue({}),
@@ -93,6 +105,9 @@ photoService.reset = function() {
   mockPhotoActor.getPhotosByProperty.mockImplementation(async (propertyId: string) => _mockPhotos.filter((p) => p.propertyId === propertyId));
   mockPhotoActor.getPhotosByRoom.mockImplementation(async (roomId: string) => _mockPhotos.filter((p) => p.jobId === `ROOM_${roomId}`));
   mockPhotoActor.getPublicListingPhotos.mockImplementation(async (propertyId: string) => _mockPhotos.filter((p) => p.jobId === `LISTING_${propertyId}`));
+  mockPhotoActor.getPhotoDataBatch.mockImplementation(async (ids: string[]) => batchData(ids, () => true));
+  mockPhotoActor.getListingPhotoDataBatch.mockImplementation(async (ids: string[]) => batchData(ids, (p) => p.jobId.startsWith("LISTING_")));
+  _batchLimit = Infinity;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -216,6 +231,19 @@ describe("photoService", () => {
       await photoService.upload(makeFile("a"), "job-1", "p1", "Framing", "first");
       await photoService.upload(makeFile("b"), "job-1", "p1", "Framing", "second");
       expect(await photoService.getByJob("job-1")).toHaveLength(2);
+    });
+
+    it("keeps calling the batch endpoint until every photo has its bytes", async () => {
+      for (const name of ["a", "b", "c"]) {
+        await photoService.upload(makeFile(name), "job-1", "p1", "Framing", name);
+      }
+      _batchLimit = 1;
+      mockCreateObjectURL.mockClear();
+      const photos = await photoService.getByJob("job-1");
+      expect(photos).toHaveLength(3);
+      expect(mockPhotoActor.getPhotoDataBatch).toHaveBeenCalledTimes(3);
+      expect(mockCreateObjectURL).toHaveBeenCalledTimes(3);
+      expect(photos.every((p) => p.url === FAKE_BLOB_URL)).toBe(true);
     });
   });
 

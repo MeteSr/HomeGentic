@@ -17,6 +17,7 @@ import Principal "mo:core/Principal";
 import Result    "mo:core/Result";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
+import Index     "../shared/Index";
 
 persistent actor Listing {
 
@@ -224,7 +225,25 @@ persistent actor Listing {
   private var platformFeeCents : Nat = 39900;
 
   private let requests       = Map.empty<Text, ListingBidRequest>();
+
+  // Secondary indexes over `requests` (transient, rebuilt on every upgrade).
+  // Writes go through Index.put / Index.delete so they stay in step.
+  private transient let requestsByHomeowner = Index.empty();
+  private transient let openBidRequests = Index.empty();
+  private transient let requestsIndexes : [Index.Keyed<ListingBidRequest>] = Index.indexed<ListingBidRequest>(requests, [
+    (requestsByHomeowner, func(r : ListingBidRequest) : ?Text { ?Principal.toText(r.homeowner) }),
+    (openBidRequests, func(r : ListingBidRequest) : ?Text { if (r.status == #Open) ?"open" else null }),
+  ]);
   private let proposals      = Map.empty<Text, ListingProposal>();
+
+  // Secondary indexes over `proposals` (transient, rebuilt on every upgrade).
+  // Writes go through Index.put / Index.delete so they stay in step.
+  private transient let proposalsByRequest = Index.empty();
+  private transient let proposalsByAgent = Index.empty();
+  private transient let proposalsIndexes : [Index.Keyed<ListingProposal>] = Index.indexed<ListingProposal>(proposals, [
+    (proposalsByRequest, func(r : ListingProposal) : ?Text { ?r.requestId }),
+    (proposalsByAgent, func(r : ListingProposal) : ?Text { ?Principal.toText(r.agentId) }),
+  ]);
   private let threads        = Map.empty<Text, [Message]>();   // proposalId -> messages
   private let compsConfig    = Map.empty<Text, CompsConfig>(); // zipCode -> comps
   private let photoReviews   = Map.empty<Text, PhotoReviewState>(); // photoId -> review state
@@ -297,7 +316,7 @@ persistent actor Listing {
   };
 
   private func proposalsFor(requestId: Text) : [ListingProposal] {
-    Iter.toArray(Iter.filter(Map.values(proposals), func(p: ListingProposal) : Bool { p.requestId == requestId }))
+    Iter.toArray(Index.records(proposalsByRequest, requestId, proposals))
   };
 
   private func isWinningAgent(requestId: Text, caller: Principal) : Bool {
@@ -357,12 +376,12 @@ persistent actor Listing {
       notes = scrubbedNotes; windowDays; bidDeadline = Time.now() + windowDaysToNs(windowDays);
       status = #Open; feePaid = false; createdAt = Time.now();
     };
-    Map.add(requests, Text.compare, id, req);
+    Index.put(requests, requestsIndexes, id, req);
     #ok(req)
   };
 
   public query(msg) func getMyBidRequests() : async [ListingBidRequest] {
-    Iter.toArray(Iter.filter(Map.values(requests), func(r: ListingBidRequest) : Bool { r.homeowner == msg.caller }))
+    Iter.toArray(Index.records(requestsByHomeowner, Principal.toText(msg.caller), requests))
   };
 
   /// Redacts address/homeownerEmail for anyone but the homeowner, an admin, or
@@ -386,7 +405,7 @@ persistent actor Listing {
         if (req.homeowner != msg.caller) return #err(#NotAuthorized);
         if (req.status == #Cancelled)    return #err(#AlreadyCancelled);
         if (req.status != #Open)         return #err(#InvalidInput("Request is not open"));
-        Map.add(requests, Text.compare, id, { req with status = #Cancelled });
+        Index.put(requests, requestsIndexes, id, { req with status = #Cancelled });
         #ok(())
       };
     }
@@ -396,7 +415,7 @@ persistent actor Listing {
   /// is the only cross-agent signal permitted — invariant 03.
   public query func getOpenBidRequests() : async [BidRequestSummary] {
     Iter.toArray(Iter.map<ListingBidRequest, BidRequestSummary>(
-      Iter.filter(Map.values(requests), func(r: ListingBidRequest) : Bool { r.status == #Open }),
+      Index.records(openBidRequests, "open", requests),
       func(r) {
         let count = proposalsFor(r.id).size();
         {
@@ -505,7 +524,7 @@ persistent actor Listing {
           marketingCommitments; estimatedDaysOnMarket; includedServices; validUntil;
           coverLetter; status = #Pending; derived; agentRecord; createdAt = Time.now();
         };
-        Map.add(proposals, Text.compare, id, proposal);
+        Index.put(proposals, proposalsIndexes, id, proposal);
         #ok(proposal)
       };
     }
@@ -518,7 +537,7 @@ persistent actor Listing {
       case (?p) {
         if (p.agentId != msg.caller) return #err(#NotAuthorized);
         if (p.status != #Pending)    return #err(#InvalidInput("Only a sealed, pending bid can be withdrawn"));
-        Map.add(proposals, Text.compare, proposalId, { p with status = #Withdrawn });
+        Index.put(proposals, proposalsIndexes, proposalId, { p with status = #Withdrawn });
         #ok(())
       };
     }
@@ -568,7 +587,7 @@ persistent actor Listing {
   };
 
   public query(msg) func getMyProposals() : async [ListingProposal] {
-    Iter.toArray(Iter.filter(Map.values(proposals), func(p: ListingProposal) : Bool { p.agentId == msg.caller }))
+    Iter.toArray(Index.records(proposalsByAgent, Principal.toText(msg.caller), proposals))
   };
 
   // ─── Homeowner: Selection & Payment-Gated Award ─────────────────────────────
@@ -623,13 +642,13 @@ persistent actor Listing {
           case null { #err(#NotFound) };
           case (?winner) {
             if (winner.requestId != requestId) return #err(#InvalidInput("proposal does not belong to this request"));
-            Map.add(proposals, Text.compare, winner.id, { winner with status = #Accepted });
-            for ((pid, p) in Map.entries(proposals)) {
-              if (p.requestId == requestId and p.id != winner.id and p.status == #Pending) {
-                Map.add(proposals, Text.compare, pid, { p with status = #Rejected });
+            Index.put(proposals, proposalsIndexes, winner.id, { winner with status = #Accepted });
+            for (p in proposalsFor(requestId).vals()) {
+              if (p.id != winner.id and p.status == #Pending) {
+                Index.put(proposals, proposalsIndexes, p.id, { p with status = #Rejected });
               };
             };
-            Map.add(requests, Text.compare, requestId, { req with status = #Awarded; feePaid = true });
+            Index.put(requests, requestsIndexes, requestId, { req with status = #Awarded; feePaid = true });
             #ok(())
           };
         }

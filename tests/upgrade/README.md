@@ -28,15 +28,14 @@ cd tests/upgrade && npm install
 
 **3. Compile the canister Wasm files**
 
-From the project root (requires `dfx` and a local replica is NOT needed for this step):
+From the project root (needs `moc` via mops; no replica or dfx):
 
 ```bash
-dfx build auth payment        # just the tested canisters
-# or
-dfx build                     # all canisters
+bash scripts/ci/build-upgrade-wasms.sh                # every canister in this checkout
+bash scripts/ci/build-upgrade-wasms.sh main photo job # also build `main` as the upgrade base
 ```
 
-Wasm lands at `.dfx/local/canisters/<name>/<name>.wasm`. Rebuild whenever you change a Motoko source file.
+This checkout's Wasm lands at `.dfx/local/canisters/<name>/<name>.wasm`; a base ref's at `.dfx/base/canisters/<name>/<name>.wasm`. `from-base.upgrade.test.ts` upgrades from the base build to this one and skips when no base build exists. Rebuild whenever you change a Motoko source file. CI's `test-upgrade` job does the same against the PR's base commit.
 
 ---
 

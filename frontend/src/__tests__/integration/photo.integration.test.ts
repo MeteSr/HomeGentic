@@ -12,9 +12,10 @@
  *   - getPhotosByJob() / getPhotosByProperty() return only photos for the entity
  *   - getPublicListingPhotos() is accessible without auth
  *   - deletePhoto() removes the record; getPhotosByJob returns empty afterwards
+ *   - a job whose photos total more than one 2 MiB reply still loads in full
  */
 
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { photoService } from "@/services/photo";
 import type { Photo } from "@/services/photo";
 import { propertyService } from "@/services/property";
@@ -107,6 +108,47 @@ describe.skipIf(!deployed)("getPhotosByJob — entity scoping", () => {
   it("does not return photos for a different jobId", async () => {
     const photos = await photoService.getByJob(`other-job-${RUN_ID}`);
     expect(photos.every((p) => p.id !== photoId)).toBe(true);
+  });
+});
+
+// ─── Many large photos on one job ─────────────────────────────────────────────
+// Six 400 KB photos are 2.4 MB, more than one 2 MiB reply holds. Listing them
+// once failed outright; now the list carries no bytes and getByJob keeps
+// calling getPhotoDataBatch until every photo has its bytes.
+
+describe.skipIf(!deployed)("getPhotosByJob — more photo bytes than one reply holds", () => {
+  const BIG_JOB = `integ-photo-bigjob-${RUN_ID}`;
+  const COUNT = 6;
+  const SIZE  = 400_000;
+
+  /** Uploads, waiting out the 10-per-minute upload limit if other suites used it. */
+  async function uploadWithRetry(file: File, n: number) {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await photoService.upload(file, BIG_JOB, PROPERTY_ID, "Framing", `big ${n}`);
+      } catch (e: any) {
+        if (attempt < 2 && /rate limit/i.test(e.message ?? "")) { await new Promise((r) => setTimeout(r, 61_000)); continue; }
+        throw e;
+      }
+    }
+  }
+
+  beforeAll(async () => {
+    for (let n = 0; n < COUNT; n++) {
+      const bytes = new Uint8Array(SIZE);
+      for (let i = 0; i < SIZE; i++) bytes[i] = (i * 31 + n * 7 + RUN_ID) & 0xff;
+      await uploadWithRetry(new File([bytes], `big-${n}.jpg`, { type: "image/jpeg" }), n);
+    }
+  }, 240_000);
+
+  // Six uploads use most of the 10-per-minute allowance; let it reset so the
+  // suites after this one can upload.
+  afterAll(() => new Promise((r) => setTimeout(r, 61_000)), 70_000);
+
+  it("returns every photo with its bytes", async () => {
+    const photos = await photoService.getByJob(BIG_JOB);
+    expect(photos).toHaveLength(COUNT);
+    expect(photos.every((p) => p.size === SIZE && p.url !== "")).toBe(true);
   });
 });
 

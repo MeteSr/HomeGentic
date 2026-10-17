@@ -28,6 +28,7 @@ import Result     "mo:core/Result";
 import Text       "mo:core/Text";
 import Time       "mo:core/Time";
 import ServiceTypes "../shared/ServiceType";
+import Index     "../shared/Index";
 
 persistent actor Report {
 
@@ -204,6 +205,13 @@ persistent actor Report {
 
   private let snapshots = Map.empty<Text, ReportSnapshot>();
   private let links     = Map.empty<Text, ShareLink>();
+
+  // Secondary indexes over `links` (transient, rebuilt on every upgrade).
+  // Writes go through Index.put / Index.delete so they stay in step.
+  private transient let linksByProperty = Index.empty();
+  private transient let linksIndexes : [Index.Keyed<ShareLink>] = Index.indexed<ShareLink>(links, [
+    (linksByProperty, func(r : ShareLink) : ?Text { ?r.propertyId }),
+  ]);
   private let certs     = Map.empty<Text, CertRecord>();
   /// Keyed by snapshotId. Kept out of ReportSnapshot, which lives in a Map
   /// (invariant), so adding a field there would need an explicit migration.
@@ -531,7 +539,7 @@ persistent actor Report {
       hidePermits;
       hideDescriptions;
     };
-    Map.add(links, Text.compare, token, link);
+    Index.put(links, linksIndexes, token, link);
     #ok(link)
   };
 
@@ -565,7 +573,7 @@ persistent actor Report {
               hidePermits      = link.hidePermits;
               hideDescriptions = link.hideDescriptions;
             };
-            Map.add(links, Text.compare, token, updated);
+            Index.put(links, linksIndexes, token, updated);
             // 14.2.3 — enforce disclosure flags on-chain before returning
             #ok((updated, applyDisclosure(snap, updated)))
           };
@@ -595,8 +603,8 @@ persistent actor Report {
   public query func hasActivePublicShareLink(propertyId: Text) : async Bool {
     let now = Time.now();
     var found = false;
-    for (l in Map.values(links)) {
-      if (l.propertyId == propertyId and l.isActive and l.visibility == #Public) {
+    for (l in Index.records(linksByProperty, propertyId, links)) {
+      if (l.isActive and l.visibility == #Public) {
         switch (l.expiresAt) {
           case null   { found := true };
           case (?exp) { if (now < exp) found := true };
@@ -608,8 +616,8 @@ persistent actor Report {
 
   /// List all share links the caller created for a property.
   public shared(msg) func listShareLinks(propertyId: Text) : async [ShareLink] {
-    Iter.toArray(Iter.filter(Map.values(links), func(l: ShareLink) : Bool {
-      l.propertyId == propertyId and l.createdBy == msg.caller
+    Iter.toArray(Iter.filter(Index.records(linksByProperty, propertyId, links), func(l: ShareLink) : Bool {
+      l.createdBy == msg.caller
     }))
   };
 
@@ -635,7 +643,7 @@ persistent actor Report {
           hidePermits      = link.hidePermits;
           hideDescriptions = link.hideDescriptions;
         };
-        Map.add(links, Text.compare, token, revoked);
+        Index.put(links, linksIndexes, token, revoked);
         try { ignore await auditLog("ShareLinkRevoked", ?link.createdBy, "token=" # token # " caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[report] fire-and-forget call failed") };
         #ok(())
       };

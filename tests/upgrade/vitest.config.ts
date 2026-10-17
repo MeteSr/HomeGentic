@@ -7,7 +7,7 @@ export default defineConfig({
     // PocketIC ops (Wasm install, canister calls) are slow in CI
     testTimeout: 60_000,
     hookTimeout: 30_000,
-    include: ["**/*.upgrade.test.ts"],
+    include: ["**/*.upgrade.test.ts", "**/*.perf.test.ts"],
     // Run upgrade tests sequentially — each spins up its own PocketIC instance
     // but parallel instances can exhaust the pocket-ic server port range
     pool: "forks",

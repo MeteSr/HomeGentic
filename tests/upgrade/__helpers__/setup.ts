@@ -15,9 +15,10 @@
  *      cd tests/upgrade && npm install
  */
 
-import { PocketIc } from "@dfinity/pic";
+import { PocketIc, PocketIcServer, createIdentity } from "@dfinity/pic";
 import { IDL }      from "@icp-sdk/core/candid";
-import { existsSync } from "fs";
+import type { Principal } from "@icp-sdk/core/principal";
+import { copyFileSync, existsSync } from "fs";
 import { resolve }    from "path";
 
 // Project root relative to this file (tests/upgrade/__helpers__/)
@@ -36,19 +37,61 @@ export function wasmPath(canisterName: string): string {
   return p;
 }
 
+/**
+ * Wasm of the same canister built from the PR's base branch, for tests that
+ * upgrade from the code that is deployed today to this branch. Built by
+ * scripts/ci/build-upgrade-wasms.sh into .dfx/base/; null when absent, so
+ * those tests skip locally unless you build it.
+ */
+export function baseWasmPath(canisterName: string): string | null {
+  const p = resolve(ROOT, `.dfx/base/canisters/${canisterName}/${canisterName}.wasm`);
+  return existsSync(p) ? p : null;
+}
+
 // ── PocketIC factory ──────────────────────────────────────────────────────────
 
+/**
+ * Starts a PocketIC server and instance. The server binary is the one the
+ * @dfinity/pic package downloads on install (matching its own version);
+ * POCKET_IC_BIN, if set, is copied over it — e.g. for an offline machine.
+ *
+ * Canisters use enhanced orthogonal persistence, which refuses an upgrade
+ * without `wasm_memory_persistence = keep`, so upgradeCanister defaults to
+ * that. tearDown also stops the server.
+ */
 export async function createPic(): Promise<PocketIc> {
+  const bundled = resolve(__dirname, "../node_modules/@dfinity/pic/pocket-ic");
   const bin = process.env.POCKET_IC_BIN;
-  if (!bin) {
-    throw new Error(
-      `\nPOCKET_IC_BIN env var not set.\n` +
-      `Run: export POCKET_IC_BIN=~/.local/bin/pocket-ic\n` +
-      `See ../../scripts/setup-pocketic.sh for one-step installation.\n`
-    );
-  }
-  return PocketIc.create(bin);
+  if (bin && existsSync(bin)) copyFileSync(bin, bundled);
+  const server = await PocketIcServer.start();
+  const pic = await PocketIc.create(server.getUrl());
+
+  // Upgrades default to the principal that installed the canister (its
+  // controller) and to its install argument (actor classes need it). Calls default to a non-anonymous identity, because the
+  // canisters' inspect_message refuses anonymous callers.
+  const installedWith = new Map<string, { sender: Principal; arg?: Uint8Array }>();
+  const setup = pic.setupCanister.bind(pic);
+  pic.setupCanister = (async (opts: any) => {
+    const sender = opts.sender ?? CONTROLLER.getPrincipal();
+    const fixture = await setup({ ...opts, sender });
+    installedWith.set(fixture.canisterId.toText(), { sender, arg: opts.arg });
+    fixture.actor.setIdentity(CONTROLLER);
+    return fixture;
+  }) as typeof pic.setupCanister;
+  const upgrade = pic.upgradeCanister.bind(pic);
+  pic.upgradeCanister = (opts) => upgrade({
+    ...installedWith.get(opts.canisterId.toText()),
+    upgradeModeOptions: KEEP_MEMORY,
+    ...opts,
+  });
+  const tearDown = pic.tearDown.bind(pic);
+  pic.tearDown = async () => { await tearDown(); await server.stop(); };
+  return pic;
 }
+
+export const CONTROLLER = createIdentity("upgrade-test-controller");
+
+const KEEP_MEMORY = { skip_pre_upgrade: [] as [], wasm_memory_persistence: [{ keep: null }] as [{ keep: null }] };
 
 // ── IDL factories (inline — isolates upgrade tests from frontend dep graph) ───
 
@@ -94,17 +137,19 @@ export const paymentIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
     Free: I.Null, Pro: I.Null, ContractorFree: I.Null, ContractorPro: I.Null,
   });
   const Subscription = I.Record({
-    owner: I.Principal, tier: Tier, expiresAt: I.Int, createdAt: I.Int,
+    owner: I.Principal, tier: Tier, expiresAt: I.Int, createdAt: I.Int, cancelledAt: I.Opt(I.Int),
   });
   const Error = I.Variant({
-    NotFound: I.Null, NotAuthorized: I.Null, PaymentFailed: I.Text,
+    NotFound: I.Null, NotAuthorized: I.Null, PaymentFailed: I.Text, RateLimited: I.Null, InvalidInput: I.Text,
   });
   const SubscriptionStats = I.Record({
-    total: I.Nat, free: I.Nat, pro: I.Nat, premium: I.Nat,
+    total: I.Nat, free: I.Nat, pro: I.Nat, contractorFree: I.Nat,
     contractorPro: I.Nat, activePaid: I.Nat, estimatedMrrUsd: I.Nat,
   });
   return I.Service({
-    subscribe:            I.Func([Tier], [I.Variant({ ok: Subscription, err: Error })], []),
+    setBootstrapNonce:    I.Func([I.Text], [], []),
+    initAdmins:           I.Func([I.Vec(I.Principal), I.Text], [I.Variant({ ok: I.Null, err: Error })], []),
+    grantSubscription:    I.Func([I.Principal, Tier], [I.Variant({ ok: Subscription, err: Error })], []),
     getMySubscription:    I.Func([], [I.Variant({ ok: Subscription, err: Error })], ["query"]),
     getSubscriptionStats: I.Func([], [SubscriptionStats], ["query"]),
   });
@@ -148,7 +193,7 @@ export const sensorIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
     registerDevice:        I.Func([I.Text, I.Text, DeviceSource, I.Text], [I.Variant({ ok: SensorDevice, err: Error })], []),
     recordEvent:           I.Func([I.Text, SensorEventType, I.Float64, I.Text, I.Text], [I.Variant({ ok: SensorEvent, err: Error })], []),
     getDevicesForProperty: I.Func([I.Text], [I.Vec(SensorDevice)], ["query"]),
-    getEventsForProperty:  I.Func([I.Text, I.Nat], [I.Vec(SensorEvent)], ["query"]),
+    getEventsForProperty:  I.Func([I.Text, I.Nat], [I.Vec(SensorEvent)], []),
     getMetrics:            I.Func([], [Metrics], ["query"]),
   });
 };
@@ -183,7 +228,7 @@ export const quoteIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
   return I.Service({
     addAdmin:               I.Func([I.Principal, I.Text], [I.Variant({ ok: I.Null, err: Error })], []),
     setBootstrapNonce:      I.Func([I.Text], [], []),
-    setTier:                I.Func([I.Principal, SubscriptionTier], [I.Variant({ ok: I.Null, err: Error })], []),
+    setPaymentCanisterId:   I.Func([I.Principal], [I.Variant({ ok: I.Null, err: Error })], []),
     createQuoteRequest:     I.Func([I.Text, ServiceType, I.Text, UrgencyLevel, I.Opt(I.Text)], [I.Variant({ ok: QuoteRequest, err: Error })], []),
     createSealedBidRequest: I.Func([I.Text, ServiceType, I.Text, UrgencyLevel, I.Int, I.Opt(I.Text)], [I.Variant({ ok: QuoteRequest, err: Error })], []),
     submitSealedBid:        I.Func([I.Text, I.Vec(I.Nat8), I.Nat], [I.Variant({ ok: SealedBid, err: Error })], []),
@@ -268,7 +313,6 @@ export const propertyIdlFactory = ({ IDL: I }: { IDL: typeof IDL }) => {
   return I.Service({
     addAdmin:         I.Func([I.Principal, I.Text], [I.Variant({ ok: I.Null, err: Error })], []),
     setBootstrapNonce: I.Func([I.Text], [], []),
-    setTier:          I.Func([I.Principal, SubscriptionTier], [I.Variant({ ok: I.Null, err: Error })], []),
     registerProperty: I.Func([RegisterPropertyArgs], [I.Variant({ ok: Property, err: Error })], []),
     verifyProperty:   I.Func([I.Text, VerificationLevel, I.Opt(I.Text)], [I.Variant({ ok: Property, err: Error })], []),
     getProperty:      I.Func([I.Text], [I.Variant({ ok: Property, err: Error })], ["query"]),

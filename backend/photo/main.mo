@@ -5,9 +5,11 @@
  */
 
 import Array     "mo:core/Array";
+import Blob      "mo:core/Blob";
 import Debug     "mo:core/Debug";
 import Map       "mo:core/Map";
 import Iter      "mo:core/Iter";
+import List      "mo:core/List";
 import Nat       "mo:core/Nat";
 import Option    "mo:core/Option";
 import Principal "mo:core/Principal";
@@ -15,6 +17,7 @@ import Result    "mo:core/Result";
 import Runtime   "mo:core/Runtime";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
+import Index     "../shared/Index";
 
 persistent actor Photo {
 
@@ -56,8 +59,41 @@ persistent actor Photo {
     phase: ConstructionPhase;
     description: Text;
     hash: Text;           // SHA-256 hex string, used for duplicate detection
-    data: [Nat8];         // raw image bytes
+    data: Blob;           // raw image bytes
     size: Nat;            // byte count (mirrors data.size())
+    verified: Bool;
+    approvals: [Principal];
+    createdAt: Time.Time;
+  };
+
+  /// A photo without its bytes. List endpoints return these so a reply stays
+  /// small however many photos match; bytes come from getPhotoData(Batch).
+  public type PhotoMeta = {
+    id: Text;
+    jobId: Text;
+    propertyId: Text;
+    owner: Principal;
+    phase: ConstructionPhase;
+    description: Text;
+    hash: Text;
+    size: Nat;
+    verified: Bool;
+    approvals: [Principal];
+    createdAt: Time.Time;
+  };
+
+  /// Pre-Blob storage shape: `[Nat8]` spends a machine word per byte. Only the
+  /// legacy `photos` map uses it; postupgrade drains it into `photoStore`.
+  type LegacyPhoto = {
+    id: Text;
+    jobId: Text;
+    propertyId: Text;
+    owner: Principal;
+    phase: ConstructionPhase;
+    description: Text;
+    hash: Text;
+    data: [Nat8];
+    size: Nat;
     verified: Bool;
     approvals: [Principal];
     createdAt: Time.Time;
@@ -98,10 +134,50 @@ persistent actor Photo {
   private var propCanisterId: Text = "";
   // ─── Stable State ────────────────────────────────────────────────────────────
 
-  private let photos      = Map.empty<Text, Photo>();
+  /// Legacy store, kept only so upgrades stay compatible; always empty after
+  /// postupgrade has moved its photos into `photoStore`.
+  private let photos      = Map.empty<Text, LegacyPhoto>();
+  private let photoStore  = Map.empty<Text, Photo>();
   /// sha256 → photoId — O(1) duplicate detection.
   private let hashIndex   = Map.empty<Text, Text>();
   private let photoRateLimits = Map.empty<Text, (Nat, Int)>();
+
+  // Secondary indexes (photo ids by jobId / propertyId), rebuilt on every upgrade.
+  private transient let photosByJob      = Index.build<Photo>(photoStore, func(p) { ?p.jobId });
+  private transient let photosByProperty = Index.build<Photo>(photoStore, func(p) { ?p.propertyId });
+
+  private func putPhoto(p: Photo) {
+    Map.add(photoStore, Text.compare, p.id, p);
+    Index.add(photosByJob, p.jobId, p.id);
+    Index.add(photosByProperty, p.propertyId, p.id);
+  };
+
+  private func deletePhotoRecord(p: Photo) {
+    Map.remove(photoStore, Text.compare, p.id);
+    Index.remove(photosByJob, p.jobId, p.id);
+    Index.remove(photosByProperty, p.propertyId, p.id);
+  };
+
+  system func postupgrade() {
+    for (old in Map.values(photos)) {
+      putPhoto({ old with data = Blob.fromArray(old.data) });
+    };
+    Map.clear(photos);
+  };
+
+  private func meta(p: Photo) : PhotoMeta {
+    {
+      id = p.id; jobId = p.jobId; propertyId = p.propertyId; owner = p.owner;
+      phase = p.phase; description = p.description; hash = p.hash; size = p.size;
+      verified = p.verified; approvals = p.approvals; createdAt = p.createdAt;
+    }
+  };
+
+  /// Photos are listed by jobId; listing photos use the synthetic jobId
+  /// "LISTING_<propertyId>" and are public.
+  private func isListingPhoto(p: Photo) : Bool {
+    Text.startsWith(p.jobId, #text "LISTING_")
+  };
 
   // ─── Ingress Inspection ───────────────────────────────────────────────────────
 
@@ -184,17 +260,9 @@ persistent actor Photo {
     }
   };
 
-  private func countByJob(jobId: Text) : Nat {
-    var n = 0;
-    for (p in Map.values(photos)) { if (p.jobId == jobId) { n += 1 } };
-    n
-  };
+  private func countByJob(jobId: Text) : Nat { Index.count(photosByJob, jobId) };
 
-  private func countByProperty(propertyId: Text) : Nat {
-    var n = 0;
-    for (p in Map.values(photos)) { if (p.propertyId == propertyId) { n += 1 } };
-    n
-  };
+  private func countByProperty(propertyId: Text) : Nat { Index.count(photosByProperty, propertyId) };
 
 
   private transient let oneMinuteNs      : Int = 60 * 1_000_000_000;
@@ -235,8 +303,8 @@ persistent actor Photo {
     phase: ConstructionPhase,
     description: Text,
     hash: Text,
-    data: [Nat8]
-  ) : async Result.Result<Photo, Error> {
+    data: Blob
+  ) : async Result.Result<PhotoMeta, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
     if (Text.size(jobId) == 0)      return #err(#InvalidInput("jobId cannot be empty"));
@@ -324,15 +392,15 @@ persistent actor Photo {
       createdAt   = Time.now();
     };
 
-    Map.add(photos, Text.compare, id, photo);
+    putPhoto(photo);
     Map.add(hashIndex, Text.compare, hash, id);
-    #ok(photo)
+    #ok(meta(photo))
   };
 
   /// Fetch the full photo record (including raw bytes).
   /// Caller must be the photo's owner or an admin.
   public shared(msg) func getPhoto(photoId: Text) : async Result.Result<Photo, Error> {
-    switch (Map.get(photos, Text.compare, photoId)) {
+    switch (Map.get(photoStore, Text.compare, photoId)) {
       case null  { #err(#NotFound) };
       case (?p)  {
         if (not isAdmin(msg.caller)) {
@@ -346,8 +414,8 @@ persistent actor Photo {
 
   /// Fetch only the raw bytes — avoids sending the full record for metadata-only callers.
   /// Caller must be the photo's owner or an admin.
-  public shared(msg) func getPhotoData(photoId: Text) : async Result.Result<[Nat8], Error> {
-    switch (Map.get(photos, Text.compare, photoId)) {
+  public shared(msg) func getPhotoData(photoId: Text) : async Result.Result<Blob, Error> {
+    switch (Map.get(photoStore, Text.compare, photoId)) {
       case null  { #err(#NotFound) };
       case (?p)  {
         if (not isAdmin(msg.caller)) {
@@ -359,61 +427,120 @@ persistent actor Photo {
     }
   };
 
+  /// Reply budget for getPhotoDataBatch — under the 2 MiB reply limit with
+  /// room for Candid framing.
+  private transient let BATCH_REPLY_BYTES : Nat = 1_500_000;
+
+  /// Bytes for several photos in one call, in request order. Returns as many
+  /// as fit in ~1.5 MB (always at least one); the caller asks again for the
+  /// ids that were left out. Ids that don't exist or that the caller may not
+  /// read are skipped. Listing photos are public, like getPublicListingPhotos.
+  public shared(msg) func getPhotoDataBatch(photoIds: [Text]) : async [(Text, Blob)] {
+    let admin = isAdmin(msg.caller);
+    // One property-auth call per distinct property, not per photo.
+    let allowed = Map.empty<Text, Bool>();
+    let out = List.empty<(Text, Blob)>();
+    var bytes = 0;
+    label fill for (id in photoIds.vals()) {
+      switch (Map.get(photoStore, Text.compare, id)) {
+        case null {};
+        case (?p) {
+          let ok = if (admin or isListingPhoto(p)) { true } else {
+            switch (Map.get(allowed, Text.compare, p.propertyId)) {
+              case (?known) { known };
+              case null {
+                let res = await checkPropertyAuth(p.propertyId, p.owner, msg.caller, false);
+                Map.add(allowed, Text.compare, p.propertyId, res);
+                res
+              };
+            }
+          };
+          if (ok) {
+            if (List.size(out) > 0 and bytes + p.data.size() > BATCH_REPLY_BYTES) break fill;
+            List.add(out, (p.id, p.data));
+            bytes += p.data.size();
+          };
+        };
+      };
+    };
+    List.toArray(out)
+  };
+
+  /// Bytes for FSBO listing photos (public, so anonymous buyers can load
+  /// them). Same reply budget and ordering as getPhotoDataBatch; ids that
+  /// aren't listing photos are skipped.
+  public query func getListingPhotoDataBatch(photoIds: [Text]) : async [(Text, Blob)] {
+    let out = List.empty<(Text, Blob)>();
+    var bytes = 0;
+    label fill for (id in photoIds.vals()) {
+      switch (Map.get(photoStore, Text.compare, id)) {
+        case (?p) {
+          if (isListingPhoto(p)) {
+            if (List.size(out) > 0 and bytes + p.data.size() > BATCH_REPLY_BYTES) break fill;
+            List.add(out, (p.id, p.data));
+            bytes += p.data.size();
+          };
+        };
+        case null {};
+      };
+    };
+    List.toArray(out)
+  };
+
   /// All photos for a FSBO listing — publicly readable without authentication.
   /// Photos are stored with synthetic jobId "LISTING_<propertyId>" and phase #Listing.
   /// No ownership check so prospective buyers can view listing photos anonymously.
-  public query func getPublicListingPhotos(propertyId: Text) : async [Photo] {
+  public query func getPublicListingPhotos(propertyId: Text) : async [PhotoMeta] {
     let syntheticJobId = "LISTING_" # propertyId;
-    Iter.toArray(Iter.filter(Map.values(photos), func(p: Photo) : Bool {
-      p.jobId == syntheticJobId
-    }))
+    Iter.toArray(Iter.map(Index.records(photosByJob, syntheticJobId, photoStore), meta))
+  };
+
+  /// Photos with the given jobId that the caller uploaded (admins: all of them).
+  private func ownJobPhotos(jobId: Text, caller: Principal, keep: Photo -> Bool) : [PhotoMeta] {
+    let admin = isAdmin(caller);
+    Iter.toArray(Iter.map(
+      Iter.filter(Index.records(photosByJob, jobId, photoStore), func(p: Photo) : Bool {
+        (admin or p.owner == caller) and keep(p)
+      }),
+      meta
+    ))
   };
 
   /// All photos linked to a room (stored with synthetic jobId "ROOM_<roomId>").
   /// Caller must be the photo owner or an admin.
-  public shared(msg) func getPhotosByRoom(roomId: Text) : async [Photo] {
-    let syntheticJobId = "ROOM_" # roomId;
-    let caller = msg.caller;
-    let admin  = isAdmin(caller);
-    Iter.toArray(Iter.filter(Map.values(photos), func(p: Photo) : Bool {
-      p.jobId == syntheticJobId and (admin or p.owner == caller)
-    }))
+  public shared(msg) func getPhotosByRoom(roomId: Text) : async [PhotoMeta] {
+    ownJobPhotos("ROOM_" # roomId, msg.caller, func(_) { true })
   };
 
   /// All photos for a job the caller owns. Admins see all photos for the job.
-  public shared(msg) func getPhotosByJob(jobId: Text) : async [Photo] {
-    let caller = msg.caller;
-    let admin  = isAdmin(caller);
-    Iter.toArray(Iter.filter(Map.values(photos), func(p: Photo) : Bool {
-      p.jobId == jobId and (admin or p.owner == caller)
-    }))
+  public shared(msg) func getPhotosByJob(jobId: Text) : async [PhotoMeta] {
+    ownJobPhotos(jobId, msg.caller, func(_) { true })
   };
 
   /// All photos for a property the caller owns. Admins see all photos for the property.
-  public shared(msg) func getPhotosByProperty(propertyId: Text) : async [Photo] {
+  public shared(msg) func getPhotosByProperty(propertyId: Text) : async [PhotoMeta] {
     let caller = msg.caller;
     let admin  = isAdmin(caller);
-    Iter.toArray(Iter.filter(Map.values(photos), func(p: Photo) : Bool {
-      p.propertyId == propertyId and (admin or p.owner == caller)
-    }))
+    Iter.toArray(Iter.map(
+      Iter.filter(Index.records(photosByProperty, propertyId, photoStore), func(p: Photo) : Bool {
+        admin or p.owner == caller
+      }),
+      meta
+    ))
   };
 
   /// Photos for a specific job+phase the caller owns. Admins see all.
-  public shared(msg) func getPhotosByPhase(jobId: Text, phase: ConstructionPhase) : async [Photo] {
-    let caller = msg.caller;
-    let admin  = isAdmin(caller);
-    Iter.toArray(Iter.filter(Map.values(photos), func(p: Photo) : Bool {
-      p.jobId == jobId and p.phase == phase and (admin or p.owner == caller)
-    }))
+  public shared(msg) func getPhotosByPhase(jobId: Text, phase: ConstructionPhase) : async [PhotoMeta] {
+    ownJobPhotos(jobId, msg.caller, func(p) { p.phase == phase })
   };
 
   /// Approve a photo. Caller must be the owner or an admin.
   /// Adds caller to approvals; sets verified = true on first approval.
   /// Idempotent: calling again after already approving is a no-op.
-  public shared(msg) func verifyPhoto(photoId: Text) : async Result.Result<Photo, Error> {
+  public shared(msg) func verifyPhoto(photoId: Text) : async Result.Result<PhotoMeta, Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (Map.get(photos, Text.compare, photoId)) {
+    switch (Map.get(photoStore, Text.compare, photoId)) {
       case null { #err(#NotFound) };
       case (?existing) {
         if (not isAdmin(msg.caller)) {
@@ -424,25 +551,16 @@ persistent actor Photo {
         let alreadyApproved = Option.isSome(
           Array.find<Principal>(existing.approvals, func(a) { a == msg.caller })
         );
-        if (alreadyApproved) return #ok(existing);
+        if (alreadyApproved) return #ok(meta(existing));
 
         let updated: Photo = {
-          id          = existing.id;
-          jobId       = existing.jobId;
-          propertyId  = existing.propertyId;
-          owner       = existing.owner;
-          phase       = existing.phase;
-          description = existing.description;
-          hash        = existing.hash;
-          data        = existing.data;
-          size        = existing.size;
+          existing with
           verified    = true;
           approvals   = Array.concat(existing.approvals, [msg.caller]);
-          createdAt   = existing.createdAt;
         };
-        Map.add(photos, Text.compare, photoId, updated);
+        putPhoto(updated);
         try { ignore await auditLog("PhotoApproved", ?existing.owner, "photoId=" # photoId # " caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[photo] fire-and-forget call failed") };
-        #ok(updated)
+        #ok(meta(updated))
       };
     }
   };
@@ -451,14 +569,14 @@ persistent actor Photo {
   public shared(msg) func deletePhoto(photoId: Text) : async Result.Result<(), Error> {
     switch (requireActive(msg.caller)) { case (#err(e)) return #err(e); case _ {} };
 
-    switch (Map.get(photos, Text.compare, photoId)) {
+    switch (Map.get(photoStore, Text.compare, photoId)) {
       case null { #err(#NotFound) };
       case (?existing) {
         if (not isAdmin(msg.caller)) {
           let authOk = await checkPropertyAuth(existing.propertyId, existing.owner, msg.caller, true);
           if (not authOk) return #err(#NotAuthorized);
         };
-        Map.remove(photos, Text.compare, photoId);
+        deletePhotoRecord(existing);
         Map.remove(hashIndex, Text.compare, existing.hash);
         #ok(())
       };
@@ -569,12 +687,12 @@ persistent actor Photo {
   public query func getMetrics() : async Metrics {
     var verified   = 0;
     var totalBytes = 0;
-    for (p in Map.values(photos)) {
+    for (p in Map.values(photoStore)) {
       if (p.verified) { verified += 1 };
       totalBytes += p.size;
     };
     {
-      totalPhotos       = Map.size(photos);
+      totalPhotos       = Map.size(photoStore);
       verifiedPhotos    = verified;
       totalStorageBytes = totalBytes;
       isPaused;

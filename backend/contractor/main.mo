@@ -19,6 +19,7 @@ import Result    "mo:core/Result";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
 import ServiceTypes "../shared/ServiceType";
+import Index        "../shared/Index";
 
 persistent actor Contractor {
 
@@ -136,6 +137,8 @@ persistent actor Contractor {
 
   private let contractors    = Map.empty<Principal, ContractorProfile>();
   private let reviews        = Map.empty<Text, Review>();
+  /// Review ids by contractor principal (transient, rebuilt on every upgrade).
+  private transient let reviewsByContractor = Index.build<Review>(reviews, func(r) { ?Principal.toText(r.contractor) });
   private let credentials    = Map.empty<Nat, JobCredential>();
   /// compositeKey = "reviewerPrincipal|jobId" → reviewId.
   private let reviewKeys     = Map.empty<Text, Text>();
@@ -382,6 +385,7 @@ persistent actor Contractor {
       createdAt  = Time.now();
     };
     Map.add(reviews, Text.compare, id, review);
+    Index.add(reviewsByContractor, Principal.toText(review.contractor), id);
     Map.add(reviewKeys, Text.compare, compositeKey, id);
     #ok(review)
   };
@@ -463,22 +467,16 @@ persistent actor Contractor {
   };
 
   public query func getAll() : async [ContractorProfile] {
-    let all = Iter.toArray(Map.values(contractors));
-    if (all.size() <= 500) all
-    else Array.tabulate<ContractorProfile>(500, func(i) { all[i] })
+    Iter.toArray(Iter.take(Map.values(contractors), 500))
   };
 
   public query func getPage(from : Nat, limit : Nat) : async [ContractorProfile] {
-    let all = Iter.toArray(Map.values(contractors));
-    let total = all.size();
-    if (from >= total) return [];
-    let bound = Nat.min(from + Nat.min(limit, 100), total);
-    Array.tabulate<ContractorProfile>(bound - from, func(i) { all[from + i] })
+    Iter.toArray(Iter.take(Iter.drop(Map.values(contractors), from), Nat.min(limit, 100)))
   };
 
   public query func getReviewsForContractor(c: Principal) : async [Review] {
     Iter.toArray(
-      Iter.filter(Map.values(reviews), func(r: Review) : Bool { r.contractor == c })
+      Index.records(reviewsByContractor, Principal.toText(c), reviews)
     )
   };
 
@@ -494,10 +492,7 @@ persistent actor Contractor {
     switch (Map.get(contractors, Principal.compare, p)) {
       case null { null };
       case (?profile) {
-        var count = 0;
-        for (r in Map.values(reviews)) {
-          if (r.contractor == p) { count += 1 };
-        };
+        let count = Index.count(reviewsByContractor, Principal.toText(p));
         ?{
           trustScore    = profile.trustScore;
           jobsCompleted = profile.jobsCompleted;

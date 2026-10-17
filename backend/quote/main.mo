@@ -20,6 +20,7 @@ import Text     "mo:core/Text";
 import Time     "mo:core/Time";
 import ServiceTypes "../shared/ServiceType";
 import Notify       "../shared/Notify";
+import Index        "../shared/Index";
 
 persistent actor Quote {
 
@@ -186,6 +187,36 @@ persistent actor Quote {
   private let revealedBids           = Map.empty<Text, [RevealedBid]>();
   /// requestId → usage the homeowner chose to share with contractors.
   private let usageSummaries         = Map.empty<Text, UsageSummary>();
+
+  // Secondary indexes (transient, rebuilt on every upgrade). Writes to
+  // `requests` / `quotes` go through putRequest / putQuote.
+  private transient let requestsByHomeowner = Index.empty();
+  /// Requests still taking bids (#Open or #Quoted), all under OPEN_KEY.
+  private transient let openRequestIdx      = Index.empty();
+  private transient let OPEN_KEY            = "open";
+  private transient let requestIndexes : [Index.Keyed<QuoteRequest>] = Index.indexed<QuoteRequest>(requests, [
+    (requestsByHomeowner, func(r : QuoteRequest) : ?Text { ?Principal.toText(r.homeowner) }),
+    (openRequestIdx, func(r : QuoteRequest) : ?Text {
+      if (r.status == #Open or r.status == #Quoted) ?OPEN_KEY else null
+    }),
+  ]);
+  private transient let quotesByRequest    = Index.empty();
+  private transient let quotesByContractor = Index.empty();
+  private transient let quoteIndexes : [Index.Keyed<Quote>] = Index.indexed<Quote>(quotes, [
+    (quotesByRequest,    func(q : Quote) : ?Text { ?q.requestId }),
+    (quotesByContractor, func(q : Quote) : ?Text { ?Principal.toText(q.contractor) }),
+  ]);
+
+  private func putRequest(r : QuoteRequest) { Index.put(requests, requestIndexes, r.id, r) };
+  private func putQuote(q : Quote)          { Index.put(quotes, quoteIndexes, q.id, q) };
+
+  private func openRequests() : Iter.Iter<QuoteRequest> {
+    Index.records(openRequestIdx, OPEN_KEY, requests)
+  };
+
+  private func quotesFor(requestId : Text) : Iter.Iter<Quote> {
+    Index.records(quotesByRequest, requestId, quotes)
+  };
 
   /// Push-notification outbox read by the notification relay (see
   /// shared/Notify.mo). notifierEntries are the principals allowed to read it.
@@ -386,8 +417,8 @@ persistent actor Quote {
   /// Count open requests for a homeowner.
   private func countOpenRequests(homeowner: Principal) : Nat {
     var n = 0;
-    for (r in Map.values(requests)) {
-      if (r.homeowner == homeowner and r.status == #Open) { n += 1 };
+    for (r in Index.records(requestsByHomeowner, Principal.toText(homeowner), requests)) {
+      if (r.status == #Open) { n += 1 };
     };
     n
   };
@@ -505,7 +536,7 @@ persistent actor Quote {
       minReviews;
       maxBids;
     };
-    Map.add(requests, Text.compare, id, req);
+    putRequest(req);
     // The relay picks the matching contractors (trade, zip, push opt-in).
     notify("new_lead", null, id, ServiceTypes.toText(serviceType));
     #ok(req)
@@ -527,9 +558,7 @@ persistent actor Quote {
   ///   plus requests with no zipCode set (visible to everyone).
   public shared(msg) func getOpenRequestsForMe() : async [QuoteRequest] {
     let allOpen = Iter.toArray(
-      Iter.filter(Map.values(requests), func(r: QuoteRequest) : Bool {
-        r.status == #Open or r.status == #Quoted
-      })
+      openRequests()
     );
 
     if (Text.size(contrCanisterId) == 0) return allOpen;
@@ -551,9 +580,7 @@ persistent actor Quote {
   /// Capped at 200 entries; use getOpenRequestsPage for full pagination.
   public query func getOpenRequests() : async [QuoteRequest] {
     let open = Iter.toArray(
-      Iter.filter(Map.values(requests), func(r: QuoteRequest) : Bool {
-        r.status == #Open or r.status == #Quoted
-      })
+      openRequests()
     );
     if (open.size() <= 200) open
     else Array.tabulate<QuoteRequest>(200, func(i) { open[i] })
@@ -561,9 +588,7 @@ persistent actor Quote {
 
   public query func getOpenRequestsPage(from : Nat, limit : Nat) : async [QuoteRequest] {
     let open = Iter.toArray(
-      Iter.filter(Map.values(requests), func(r: QuoteRequest) : Bool {
-        r.status == #Open or r.status == #Quoted
-      })
+      openRequests()
     );
     let total = open.size();
     if (from >= total) return [];
@@ -574,18 +599,14 @@ persistent actor Quote {
   /// Fetch all requests created by the caller.
   public query(msg) func getMyQuoteRequests() : async [QuoteRequest] {
     Iter.toArray(
-      Iter.filter(Map.values(requests), func(r: QuoteRequest) : Bool {
-        r.homeowner == msg.caller
-      })
+      Index.records(requestsByHomeowner, Principal.toText(msg.caller), requests)
     )
   };
 
   /// Fetch all quotes submitted by the caller (contractor bid history).
   public query(msg) func getMyQuotes() : async [Quote] {
     Iter.toArray(
-      Iter.filter(Map.values(quotes), func(q: Quote) : Bool {
-        q.contractor == msg.caller
-      })
+      Index.records(quotesByContractor, Principal.toText(msg.caller), quotes)
     )
   };
 
@@ -616,8 +637,8 @@ persistent actor Quote {
           case null {};
           case (?cap) {
             var bidCount = 0;
-            for (q in Map.values(quotes)) {
-              if (q.requestId == requestId and q.status == #Pending) {
+            for (q in quotesFor(requestId)) {
+              if (q.status == #Pending) {
                 bidCount += 1;
               };
             };
@@ -645,7 +666,7 @@ persistent actor Quote {
           status = #Pending;
           createdAt = Time.now();
         };
-        Map.add(quotes, Text.compare, id, q);
+        putQuote(q);
         notify("quote_received", ?req.homeowner, requestId, ServiceTypes.toText(req.serviceType));
 
         // Advance request status to #Quoted if still #Open
@@ -666,7 +687,7 @@ persistent actor Quote {
             minReviews       = req.minReviews;
             maxBids          = req.maxBids;
           };
-          Map.add(requests, Text.compare, requestId, updated);
+          putRequest(updated);
         };
 
         #ok(q)
@@ -681,7 +702,7 @@ persistent actor Quote {
       case null { #err(#NotFound) };
       case (?req) {
         let allQuotes = Iter.toArray(
-          Iter.filter(Map.values(quotes), func(q: Quote) : Bool { q.requestId == requestId })
+          quotesFor(requestId)
         );
         if (isAdmin(msg.caller) or req.homeowner == msg.caller) {
           // Admin or homeowner sees all quotes
@@ -737,14 +758,15 @@ persistent actor Quote {
                       status     = #Accepted;
                       createdAt  = freshQ.createdAt;
                     };
-                    Map.add(quotes, Text.compare, quoteId, accepted);
+                    putQuote(accepted);
                     let svcLabel = ServiceTypes.toText(freshReq.serviceType);
                     notify("bid_accepted", ?accepted.contractor, accepted.id, svcLabel);
 
                     // Reject all other pending quotes for the same request
-                    for ((otherId, other) in Map.entries(quotes)) {
-                      if (other.requestId == freshQ.requestId and otherId != quoteId
-                          and other.status == #Pending) {
+                    // Snapshot first: the loop writes quotes back.
+                    for (other in Iter.toArray(quotesFor(freshQ.requestId)).vals()) {
+                      let otherId = other.id;
+                      if (otherId != quoteId and other.status == #Pending) {
                         let rejected: Quote = {
                           id         = other.id;
                           requestId  = other.requestId;
@@ -755,7 +777,7 @@ persistent actor Quote {
                           status     = #Rejected;
                           createdAt  = other.createdAt;
                         };
-                        Map.add(quotes, Text.compare, otherId, rejected);
+                        putQuote(rejected);
                         notify("bid_declined", ?rejected.contractor, rejected.id, svcLabel);
                       };
                     };
@@ -777,7 +799,7 @@ persistent actor Quote {
                       minReviews       = freshReq.minReviews;
                       maxBids          = freshReq.maxBids;
                     };
-                    Map.add(requests, Text.compare, freshReq.id, closed);
+                    putRequest(closed);
 
                     #ok(accepted)
                   };
@@ -827,7 +849,7 @@ persistent actor Quote {
               minReviews       = freshReq.minReviews;
               maxBids          = freshReq.maxBids;
             };
-            Map.add(requests, Text.compare, requestId, updated);
+            putRequest(updated);
             #ok(updated)
           };
         }
@@ -877,16 +899,10 @@ persistent actor Quote {
               minReviews       = freshReq.minReviews;
               maxBids          = freshReq.maxBids;
             };
-            Map.add(requests, Text.compare, requestId, updated);
+            putRequest(updated);
 
             // Collect principals of contractors who bid on this request
-            var bidders: [Principal] = [];
-            for (q in Map.values(quotes)) {
-              if (q.requestId == requestId) {
-                bidders := Array.concat(bidders, [q.contractor]);
-              };
-            };
-            #ok(bidders)
+            #ok(Iter.toArray(Iter.map(quotesFor(requestId), func(q : Quote) : Principal { q.contractor })))
           };
         }
       };
@@ -955,7 +971,7 @@ persistent actor Quote {
       minReviews;
       maxBids;
     };
-    Map.add(requests, Text.compare, id, req);
+    putRequest(req);
     // The relay picks the matching contractors (trade, zip, push opt-in).
     notify("new_lead", null, id, ServiceTypes.toText(serviceType));
     #ok(req)
@@ -1305,8 +1321,8 @@ persistent actor Quote {
       case null { return #err(#NotFound) };
       case (?r) r;
     };
-    let quoted = Option.isSome(Iter.find(Map.values(quotes), func(q: Quote) : Bool {
-      q.requestId == requestId and q.contractor == msg.caller
+    let quoted = Option.isSome(Iter.find(quotesFor(requestId), func(q: Quote) : Bool {
+      q.contractor == msg.caller
     }));
     if (r.homeowner != msg.caller and not isAdmin(msg.caller) and not quoted) {
       if (r.status != #Open and r.status != #Quoted) return #err(#NotAuthorized);

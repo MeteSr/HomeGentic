@@ -7,6 +7,7 @@ export const idlFactory = ({ IDL }: any) => {
     PostConstruction: IDL.Null, Warranty: IDL.Null,
     Listing: IDL.Null,  // FSBO listing photos
   });
+  // PhotoMeta in backend/photo/main.mo: a photo without its bytes.
   const Photo = IDL.Record({
     id:          IDL.Text,
     jobId:       IDL.Text,
@@ -15,7 +16,6 @@ export const idlFactory = ({ IDL }: any) => {
     phase:       ConstructionPhase,
     description: IDL.Text,
     hash:        IDL.Text,
-    data:        IDL.Vec(IDL.Nat8),
     size:        IDL.Nat,
     verified:    IDL.Bool,
     approvals:   IDL.Vec(IDL.Principal),
@@ -38,6 +38,8 @@ export const idlFactory = ({ IDL }: any) => {
     getPhotosByProperty:     IDL.Func([IDL.Text], [IDL.Vec(Photo)], []),
     getPhotosByRoom:         IDL.Func([IDL.Text], [IDL.Vec(Photo)], []),
     getPublicListingPhotos:  IDL.Func([IDL.Text], [IDL.Vec(Photo)], ["query"]),
+    getPhotoDataBatch:        IDL.Func([IDL.Vec(IDL.Text)], [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Vec(IDL.Nat8)))], []),
+    getListingPhotoDataBatch: IDL.Func([IDL.Vec(IDL.Text)], [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Vec(IDL.Nat8)))], ["query"]),
     deletePhoto: IDL.Func(
       [IDL.Text],
       [IDL.Variant({ ok: IDL.Null, err: Error })],

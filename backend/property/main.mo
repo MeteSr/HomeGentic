@@ -30,10 +30,12 @@
 
 import Array     "mo:core/Array";
 import Blob      "mo:core/Blob";
+import Char      "mo:core/Char";
 import Debug     "mo:core/Debug";
 import Map       "mo:core/Map";
 import Int       "mo:core/Int";
 import Iter      "mo:core/Iter";
+import List      "mo:core/List";
 import Nat       "mo:core/Nat";
 import Nat8      "mo:core/Nat8";
 import Option    "mo:core/Option";
@@ -42,6 +44,7 @@ import Random    "mo:core/Random";
 import Result    "mo:core/Result";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
+import Index     "../shared/Index";
 
 persistent actor Property {
 
@@ -376,6 +379,25 @@ persistent actor Property {
   private let tokenIndex       = Map.empty<Text, Text>();
   private let rooms            = Map.empty<Text, RoomRecord>();
 
+  // Secondary indexes (transient, rebuilt on every upgrade). Writes to
+  // `properties` / `rooms` go through putProperty / putRoom / Index.delete.
+  private transient let propertiesByOwner = Index.empty();
+  private transient let propertyIndexes : [Index.Keyed<Property>] = Index.indexed<Property>(properties, [
+    (propertiesByOwner, func(p : Property) : ?Text { ?Principal.toText(p.owner) }),
+  ]);
+  private transient let roomsByProperty = Index.empty();
+  private transient let roomIndexes : [Index.Keyed<RoomRecord>] = Index.indexed<RoomRecord>(rooms, [
+    (roomsByProperty, func(r : RoomRecord) : ?Text { ?r.propertyId }),
+  ]);
+
+  private func putProperty(p : Property) { Index.put(properties, propertyIndexes, p.id, p) };
+  private func putRoom(r : RoomRecord)   { Index.put(rooms, roomIndexes, r.id, r) };
+
+  /// An owner's properties (active and inactive).
+  private func ownedBy(owner : Principal) : Iter.Iter<Property> {
+    Index.records(propertiesByOwner, Principal.toText(owner), properties)
+  };
+
   // ─── Manager delegation state ────────────────────────────────────────────
   /// propertyId → [PropertyManager]
   private let managersMap      = Map.empty<Text, [PropertyManager]>();
@@ -534,17 +556,57 @@ persistent actor Property {
 
   private func countOwnerProperties(owner: Principal) : Nat {
     var n = 0;
-    for (p in Map.values(properties)) {
-      if (p.owner == owner and p.isActive) { n += 1 };
+    for (p in ownedBy(owner)) {
+      if (p.isActive) { n += 1 };
     };
     n
   };
 
-  /// Produces a stable address key for duplicate detection.
-  /// Concatenates the four address components with pipe separators.
-  /// Case-sensitive — users must enter addresses consistently.
+  /// Produces a stable address key for duplicate detection: the four address
+  /// components, each trimmed, lowercased and with runs of whitespace
+  /// collapsed, joined with pipes. "12 Main St" and " 12  main st" collide.
   private func addressKey(address: Text, city: Text, state: Text, zip: Text) : Text {
-    address # "|" # city # "|" # state # "|" # zip
+    normalisePart(address) # "|" # normalisePart(city) # "|" # normalisePart(state) # "|" # normalisePart(zip)
+  };
+
+  private func normalisePart(t: Text) : Text {
+    let words = Iter.filter<Text>(Text.split(Text.toLower(t), #predicate(Char.isWhitespace)), func(w) { w != "" });
+    Text.join(words, " ")
+  };
+
+  /// Re-keys addressIdx with the current addressKey. Idempotent, so it runs on
+  /// every upgrade; it converts keys written before addresses were normalised.
+  /// When several properties now share a key, a verified one wins, otherwise
+  /// the newest, which is the property registerProperty would have kept.
+  private func rekeyAddressIndex() {
+    let ids = Iter.toArray(Map.values(addressIdx));
+    Map.clear(addressIdx);
+    for (id in ids.vals()) {
+      switch (Map.get(properties, Text.compare, id)) {
+        case null {};
+        case (?p) {
+          let key = addressKey(p.address, p.city, p.state, p.zipCode);
+          let keep = switch (Map.get(addressIdx, Text.compare, key)) {
+            case null { true };
+            case (?otherId) {
+              switch (Map.get(properties, Text.compare, otherId)) {
+                case null { true };
+                case (?other) {
+                  if (isVerified(other.verificationLevel) != isVerified(p.verificationLevel)) {
+                    isVerified(p.verificationLevel)
+                  } else { p.createdAt > other.createdAt }
+                };
+              }
+            };
+          };
+          if (keep) { Map.add(addressIdx, Text.compare, key, id) };
+        };
+      };
+    };
+  };
+
+  system func postupgrade() {
+    rekeyAddressIndex();
   };
 
   private func isVerified(level: VerificationLevel) : Bool {
@@ -731,7 +793,7 @@ persistent actor Property {
       conflictWindowEndsAt = null;
     };
 
-    Map.add(properties, Text.compare, id, prop);
+    putProperty(prop);
     Map.add(addressIdx, Text.compare, key, id);
     Map.remove(inFlightRegistrations, Text.compare, callerKey);
     #ok(prop)
@@ -781,7 +843,7 @@ persistent actor Property {
           nameOnId             = existing.nameOnId;
           contestedWithId      = existing.contestedWithId;
         };
-        Map.add(properties, Text.compare, propertyId, updated);
+        putProperty(updated);
         #ok(updated)
       };
     }
@@ -820,7 +882,7 @@ persistent actor Property {
           };
           updatedAt           = now;
         };
-        Map.add(properties, Text.compare, id, updated);
+        putProperty(updated);
         try { ignore await auditLog("PropertyVerified", ?existing.owner, "propertyId=" # id # " caller=" # Principal.toText(msg.caller)) } catch _ { Debug.print("[property] fire-and-forget call failed") };
         #ok(updated)
       };
@@ -832,9 +894,7 @@ persistent actor Property {
   public query(msg) func getMyProperties() : async [Property] {
     let caller = msg.caller;
     Iter.toArray(
-      Iter.filter(Map.values(properties), func(p: Property) : Bool {
-        p.owner == caller and p.isActive
-      })
+      Iter.filter(ownedBy(caller), func(p: Property) : Bool { p.isActive })
     )
   };
 
@@ -843,9 +903,7 @@ persistent actor Property {
   /// homeowner's records using only their Internet Identity principal.
   public query func getPropertiesByOwner(owner: Principal) : async [Property] {
     Iter.toArray(
-      Iter.filter(Map.values(properties), func(p: Property) : Bool {
-        p.owner == owner and p.isActive
-      })
+      Iter.filter(ownedBy(owner), func(p: Property) : Bool { p.isActive })
     )
   };
 
@@ -965,7 +1023,7 @@ persistent actor Property {
           nameOnId           = ?name;
           updatedAt          = now;
         };
-        Map.add(properties, Text.compare, propertyId, updated);
+        putProperty(updated);
         #ok(updated)
       };
     }
@@ -1068,7 +1126,7 @@ persistent actor Property {
                   owner     = msg.caller;
                   updatedAt = now;
                 };
-                Map.add(properties, Text.compare, propertyId, updated);
+                putProperty(updated);
 
                 // Append immutable record to ownership history
                 let record : TransferRecord = {
@@ -1780,21 +1838,26 @@ persistent actor Property {
     if (isPaused)                  { return { succeeded = []; failed = [] } };
     if (not isAdmin(msg.caller))   { return { succeeded = []; failed = [] } };
 
-    var succeeded : [Text]            = [];
-    var failed    : [BulkImportError] = [];
+    let succeeded = List.empty<Text>();
+    let failed    = List.empty<BulkImportError>();
 
     var i = 0;
     for (args in rows.vals()) {
-      // Duplicate address check (same logic as registerProperty but simplified)
-      let normalised = Text.toLower(args.address # "," # args.city # "," # args.state # "," # args.zipCode);
-      var duplicate = false;
-      for (prop in Map.values(properties)) {
-        let key = Text.toLower(prop.address # "," # prop.city # "," # prop.state # "," # prop.zipCode);
-        if (key == normalised and prop.isActive) { duplicate := true };
+      // Duplicate address check against the same index registerProperty uses
+      // (an active property at this address, or an earlier row in this batch).
+      let key = addressKey(args.address, args.city, args.state, args.zipCode);
+      let duplicate = switch (Map.get(addressIdx, Text.compare, key)) {
+        case (?existingId) {
+          switch (Map.get(properties, Text.compare, existingId)) {
+            case (?existing) { existing.isActive };
+            case null        { false };
+          }
+        };
+        case null { false };
       };
 
       if (duplicate) {
-        failed := Array.concat(failed, [{ index = i; reason = "DuplicateAddress" }]);
+        List.add(failed, { index = i; reason = "DuplicateAddress" });
       } else {
         let now   = Time.now();
         let newId = await nextPropertyId();
@@ -1824,13 +1887,14 @@ persistent actor Property {
           contestedWithId      = null;
           conflictWindowEndsAt = null;
         };
-        Map.add(properties, Text.compare, newId, prop);
-        succeeded := Array.concat(succeeded, [newId]);
+        putProperty(prop);
+        Map.add(addressIdx, Text.compare, key, newId);
+        List.add(succeeded, newId);
       };
       i += 1;
     };
 
-    { succeeded; failed }
+    { succeeded = List.toArray(succeeded); failed = List.toArray(failed) }
   };
 
   // ─── Room / Fixture CRUD (merged from room canister) ─────────────────────
@@ -1876,7 +1940,7 @@ persistent actor Property {
       createdAt  = now;
       updatedAt  = now;
     };
-    Map.add(rooms, Text.compare, room.id, room);
+    putRoom(room);
     #ok(room)
   };
 
@@ -1891,7 +1955,7 @@ persistent actor Property {
   /// Fetch all rooms for a property.
   public query func getRoomsByProperty(propertyId: Text) : async [RoomRecord] {
     Iter.toArray(
-      Iter.filter(Map.values(rooms), func(r: RoomRecord) : Bool { r.propertyId == propertyId })
+      Index.records(roomsByProperty, propertyId, rooms)
     )
   };
 
@@ -1927,7 +1991,7 @@ persistent actor Property {
           createdAt  = existing.createdAt;
           updatedAt  = Time.now();
         };
-        Map.add(rooms, Text.compare, id, updated);
+        putRoom(updated);
         #ok(updated)
       };
     }
@@ -1941,7 +2005,7 @@ persistent actor Property {
       case null    { #err(#NotFound) };
       case (?room) {
         if (room.owner != msg.caller) return #err(#NotAuthorized);
-        Map.remove(rooms, Text.compare, id);
+        Index.delete(rooms, roomIndexes, id);
         #ok(())
       };
     }
@@ -1986,7 +2050,7 @@ persistent actor Property {
           createdAt  = room.createdAt;
           updatedAt  = Time.now();
         };
-        Map.add(rooms, Text.compare, roomId, updated);
+        putRoom(updated);
         #ok(updated)
       };
     }
@@ -2041,7 +2105,7 @@ persistent actor Property {
           createdAt  = room.createdAt;
           updatedAt  = Time.now();
         };
-        Map.add(rooms, Text.compare, roomId, updated);
+        putRoom(updated);
         #ok(updated)
       };
     }
@@ -2070,7 +2134,7 @@ persistent actor Property {
           createdAt  = room.createdAt;
           updatedAt  = Time.now();
         };
-        Map.add(rooms, Text.compare, roomId, updated);
+        putRoom(updated);
         #ok(updated)
       };
     }

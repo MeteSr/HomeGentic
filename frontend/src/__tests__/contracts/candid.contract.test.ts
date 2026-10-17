@@ -548,6 +548,8 @@ describe("photo IDL factory", () => {
     const svc = extractService(photoIdlFactory);
     expect(Object.keys(svc).sort()).toEqual([
       "deletePhoto",
+      "getListingPhotoDataBatch",
+      "getPhotoDataBatch",
       "getPhotosByJob",
       "getPhotosByProperty",
       "getPhotosByRoom",

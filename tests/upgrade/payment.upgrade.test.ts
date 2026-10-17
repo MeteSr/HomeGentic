@@ -21,10 +21,12 @@ interface Subscription {
 }
 
 interface PaymentActor {
-  subscribe:            (tier: object) => Promise<{ ok: Subscription } | { err: object }>;
+  setBootstrapNonce:    (nonce: string) => Promise<void>;
+  initAdmins:           (admins: object[], nonce: string) => Promise<{ ok: null } | { err: object }>;
+  grantSubscription:    (p: object, tier: object) => Promise<{ ok: Subscription } | { err: object }>;
   getMySubscription:    () => Promise<{ ok: Subscription } | { err: object }>;
   getSubscriptionStats: () => Promise<{
-    total: bigint; free: bigint; pro: bigint; premium: bigint;
+    total: bigint; free: bigint; pro: bigint; contractorFree: bigint;
     contractorPro: bigint; activePaid: bigint; estimatedMrrUsd: bigint;
   }>;
 }
@@ -38,6 +40,7 @@ describe("payment canister — upgrade persistence", () => {
   let pic: PocketIc;
   let actor: PaymentActor;
   let canisterId: import("@dfinity/principal").Principal;
+  let bobPrincipal: import("@dfinity/principal").Principal;
 
   beforeAll(async () => {
     pic = await createPic();
@@ -52,6 +55,10 @@ describe("payment canister — upgrade persistence", () => {
     canisterId = fixture.canisterId;
     actor = fixture.actor;
     actor.setIdentity(bob);
+    // Paid tiers come from Stripe now; an admin grant is the test path.
+    await actor.setBootstrapNonce("test-nonce");
+    ok(await actor.initAdmins([bob.getPrincipal()], "test-nonce"));
+    bobPrincipal = bob.getPrincipal();
   });
 
   afterAll(async () => {
@@ -61,7 +68,7 @@ describe("payment canister — upgrade persistence", () => {
   // ── 1. Subscription tier survives upgrade ───────────────────────────────────
 
   it("Pro subscription survives upgrade", async () => {
-    ok(await actor.subscribe({ Pro: null }));
+    ok(await actor.grantSubscription(bobPrincipal, { Pro: null }));
     const before = ok(await actor.getMySubscription());
     expect(Object.keys(before.tier)[0]).toBe("Pro");
 
@@ -91,7 +98,7 @@ describe("payment canister — upgrade persistence", () => {
 
   it("ContractorPro subscription created after Pro, then canister upgrade preserves ContractorPro", async () => {
     // Overwrite Pro with ContractorPro
-    ok(await actor.subscribe({ ContractorPro: null }));
+    ok(await actor.grantSubscription(bobPrincipal, { ContractorPro: null }));
 
     await pic.upgradeCanister({ canisterId, wasm: WASM });
 

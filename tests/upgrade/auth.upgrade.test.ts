@@ -11,6 +11,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PocketIc, createIdentity } from "@dfinity/pic";
+import { IDL } from "@icp-sdk/core/candid";
 import { createPic, wasmPath, authIdlFactory } from "./__helpers__/setup";
 
 const WASM = wasmPath("auth");
@@ -48,6 +49,8 @@ describe("auth canister — upgrade persistence", () => {
       idlFactory: authIdlFactory as any,
       wasm: WASM,
       sender: alice.getPrincipal(),
+      // Auth is `actor class Auth(initDeployer : Principal)`.
+      arg: IDL.encode([IDL.Principal], [alice.getPrincipal()]),
     });
     canisterId = fixture.canisterId;
     actor = fixture.actor;

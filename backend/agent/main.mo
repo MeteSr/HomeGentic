@@ -15,6 +15,7 @@ import Principal "mo:core/Principal";
 import Result    "mo:core/Result";
 import Text      "mo:core/Text";
 import Time      "mo:core/Time";
+import Index     "../shared/Index";
 
 persistent actor Agent {
 
@@ -100,6 +101,13 @@ persistent actor Agent {
 
   private let profiles = Map.empty<Principal, AgentProfile>();
   private let reviews   = Map.empty<Text, AgentReview>();
+
+  // Secondary indexes over `reviews` (transient, rebuilt on every upgrade).
+  // Writes go through Index.put / Index.delete so they stay in step.
+  private transient let reviewsByAgent = Index.empty();
+  private transient let reviewsIndexes : [Index.Keyed<AgentReview>] = Index.indexed<AgentReview>(reviews, [
+    (reviewsByAgent, func(r : AgentReview) : ?Text { ?Principal.toText(r.agentId) }),
+  ]);
   /// Composite dedup key "reviewerPrincipal|transactionId" → true, one review per won bid.
   private let reviewDedup = Map.empty<Text, Bool>();
 
@@ -370,13 +378,13 @@ persistent actor Agent {
       transactionId     = args.transactionId;
       createdAt         = Time.now();
     };
-    Map.add(reviews, Text.compare, review.id, review);
+    Index.put(reviews, reviewsIndexes, review.id, review);
     Map.add(reviewDedup, Text.compare, dedupKey, true);
     #ok(review)
   };
 
   public query func getReviews(agentId: Principal) : async [AgentReview] {
-    Iter.toArray(Iter.filter(Map.values(reviews), func(r: AgentReview) : Bool { r.agentId == agentId }))
+    Iter.toArray(Index.records(reviewsByAgent, Principal.toText(agentId), reviews))
   };
 
   // ─── Admin ───────────────────────────────────────────────────────────────────

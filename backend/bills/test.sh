@@ -229,7 +229,19 @@ else
     dfx canister call payment  grantSubscription "(principal \"$p\", variant { Pro })" >/dev/null 2>&1 || true
   done
 
-  REG=$(dfx canister call property registerProperty "(record {
+  # property/test.sh pauses the property canister briefly while the suites run
+  # in parallel; retry a call that lands in that window.
+  prop_call() {
+    local out
+    for _ in 1 2 3 4 5; do
+      out=$(dfx canister call property "$@" 2>&1) || true
+      [[ "$out" == *Paused* ]] || break
+      sleep 2
+    done
+    echo "$out"
+  }
+
+  REG=$(prop_call registerProperty "(record {
     address = \"$(date +%s) Shared Bills Lane\"; city = \"Tampa\"; state = \"FL\"; zipCode = \"33601\";
     propertyType = variant { SingleFamily }; yearBuilt = 2004; squareFeet = 1850; tier = variant { Pro };
   })" --identity bills-owner-test)
@@ -240,14 +252,14 @@ else
 
   for pair in "CoOwner:coowner" "Manager:manager" "Viewer:viewer"; do
     ROLE=${pair%%:*}; WHO=${pair##*:}
-    INV=$(dfx canister call property inviteManager "(\"$SHARED\", variant { $ROLE }, \"$WHO\", null)" --identity bills-owner-test)
+    INV=$(prop_call inviteManager "(\"$SHARED\", variant { $ROLE }, \"$WHO\", null)" --identity bills-owner-test)
     TOKEN=""
     if [[ "$INV" =~ token\ =\ \"([^\"]+)\" ]]; then TOKEN="${BASH_REMATCH[1]}"; fi
     [ -n "$TOKEN" ] || { echo "  ↳ ❌ inviteManager($ROLE) failed: $INV"; exit 1; }
-    CLAIM=$(dfx canister call property claimManagerRole "(\"$TOKEN\")" --identity "bills-$WHO-test")
+    CLAIM=$(prop_call claimManagerRole "(\"$TOKEN\")" --identity "bills-$WHO-test")
     expect "$ROLE claimed its invite" "$CLAIM" "variant { ok"
   done
-  ROLE_OUT=$(dfx canister call property getAccessRole "(\"$SHARED\", principal \"$MANAGER\")")
+  ROLE_OUT=$(prop_call getAccessRole "(\"$SHARED\", principal \"$MANAGER\")")
   expect "property reports the manager's role" "$ROLE_OUT" "Manager"
 
   echo ""

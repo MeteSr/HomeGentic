@@ -17,7 +17,6 @@ const WASM = wasmPath("property");
 interface PropertyActor {
   addAdmin:         (p: object, nonce: string) => Promise<{ ok: null } | { err: object }>;
   setBootstrapNonce: (nonce: string) => Promise<void>;
-  setTier:          (user: object, tier: object) => Promise<{ ok: null } | { err: object }>;
   registerProperty: (args: object) => Promise<{ ok: Record<string, unknown> } | { err: object }>;
   verifyProperty:   (id: string, level: object, method: [] | [string]) => Promise<{ ok: Record<string, unknown> } | { err: object }>;
   getProperty:      (id: string) => Promise<{ ok: Record<string, unknown> } | { err: object }>;
@@ -53,8 +52,6 @@ describe("property canister — upgrade persistence", () => {
     // Bootstrap alice as first admin (H-20: nonce-gated)
     await actor.setBootstrapNonce("test-nonce");
     ok(await actor.addAdmin(alice.getPrincipal(), "test-nonce"));
-    // Grant alice Pro tier (allows up to 5 properties)
-    ok(await actor.setTier(alice.getPrincipal(), { Pro: null }));
 
     // Register a property
     const prop: any = ok(await actor.registerProperty({
@@ -112,10 +109,12 @@ describe("property canister — upgrade persistence", () => {
   });
 
   it("tier is preserved across upgrade", async () => {
+    // The stored tier comes from the payment canister (Free here, unwired).
+    const before: any = ok(await actor.getProperty(propertyId));
     await pic.upgradeCanister({ canisterId, wasm: WASM });
 
     const prop: any = ok(await actor.getProperty(propertyId));
-    expect(Object.keys(prop.tier)[0]).toBe("Pro");
+    expect(prop.tier).toEqual(before.tier);
   });
 
   it("yearBuilt and squareFeet are preserved across upgrade", async () => {
