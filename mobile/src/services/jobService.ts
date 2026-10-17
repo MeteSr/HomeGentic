@@ -191,7 +191,7 @@ export async function uploadJobPhoto(
     { PostConstruction: null },
     "Job photo",
     hash,
-    Array.from(bytes),
+    bytes,
   );
   unwrap(result);
 }

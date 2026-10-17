@@ -28,10 +28,10 @@ export interface PhotoQuota {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function fromPhoto(raw: any): Photo {
+/** `raw` is a PhotoMeta record; `bytes` are the image bytes fetched separately. */
+function fromPhoto(raw: any, bytes: Uint8Array | number[] | undefined): Photo {
   const phaseKey = Object.keys(raw.phase)[0];
-  const blob     = new Blob([new Uint8Array(raw.data as number[])]);
-  const url      = URL.createObjectURL(blob);
+  const url      = bytes ? URL.createObjectURL(new Blob([new Uint8Array(bytes)])) : "";
   return {
     id:          raw.id,
     jobId:       raw.jobId,
@@ -154,6 +154,26 @@ async function computeHash(buffer: ArrayBuffer): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+/**
+ * List endpoints return metadata only; bytes come from a batch call that
+ * returns as many photos as fit in one reply. Keep asking for the ids it left
+ * out until every photo is loaded or a call makes no progress.
+ */
+async function withBytes(
+  metas: any[],
+  fetchBatch: (ids: string[]) => Promise<Array<[string, Uint8Array | number[]]>>,
+): Promise<Photo[]> {
+  const bytesById = new Map<string, Uint8Array | number[]>();
+  let pending = metas.map((m) => m.id as string);
+  while (pending.length > 0) {
+    const got = await fetchBatch(pending);
+    if (got.length === 0) break;
+    for (const [id, data] of got) bytesById.set(id, data);
+    pending = pending.filter((id) => !bytesById.has(id));
+  }
+  return metas.map((m) => fromPhoto(m, bytesById.get(m.id)));
+}
+
 // ─── Service factory ──────────────────────────────────────────────────────────
 
 function createPhotoService() {
@@ -182,16 +202,15 @@ function createPhotoService() {
     const hash       = await computeHash(buffer);
 
     const a    = await getActor();
-    const data = Array.from(bytes);
     const result = await a.uploadPhoto(
       jobId,
       propertyId,
       { [phase]: null },
       description,
       hash,
-      data,
+      bytes,
     );
-    if ("ok" in result) return fromPhoto(result.ok);
+    if ("ok" in result) return fromPhoto(result.ok, bytes);
     const key = Object.keys(result.err)[0];
     const val = result.err[key];
     throw new Error(typeof val === "string" ? val : key);
@@ -203,17 +222,17 @@ function createPhotoService() {
       if (jobId in photosMap) return photosMap[jobId] ?? [];
     }
     const a = await getActor();
-    return (await a.getPhotosByJob(jobId) as any[]).map(fromPhoto);
+    return withBytes(await a.getPhotosByJob(jobId), (ids) => a.getPhotoDataBatch(ids));
   },
 
   async getByProperty(propertyId: string): Promise<Photo[]> {
     const a = await getActor();
-    return (await a.getPhotosByProperty(propertyId) as any[]).map(fromPhoto);
+    return withBytes(await a.getPhotosByProperty(propertyId), (ids) => a.getPhotoDataBatch(ids));
   },
 
   async getByRoom(roomId: string): Promise<Photo[]> {
     const a = await getActor();
-    return (await a.getPhotosByRoom(roomId) as any[]).map(fromPhoto);
+    return withBytes(await a.getPhotosByRoom(roomId), (ids) => a.getPhotoDataBatch(ids));
   },
 
   /** Upload a photo for a room (no job required). Uses synthetic jobId internally. */
@@ -251,7 +270,7 @@ function createPhotoService() {
       return photosMap[propertyId] ?? [];
     }
     const a = await getActor();
-    return (await a.getPublicListingPhotos(propertyId) as any[]).map(fromPhoto);
+    return withBytes(await a.getPublicListingPhotos(propertyId), (ids) => a.getListingPhotoDataBatch(ids));
   },
 
   async deletePhoto(photoId: string): Promise<void> {

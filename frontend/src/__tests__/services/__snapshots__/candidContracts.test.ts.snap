@@ -175,6 +175,8 @@ verifyStripeSession(1) -> (1)"
 
 exports[`Candid contract snapshots — method arity > photo 1`] = `
 "deletePhoto(1) -> (1)
+getListingPhotoDataBatch(1) -> (1) [query]
+getPhotoDataBatch(1) -> (1)
 getPhotosByJob(1) -> (1)
 getPhotosByProperty(1) -> (1)
 getPhotosByRoom(1) -> (1)
