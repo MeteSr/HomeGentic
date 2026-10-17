@@ -6,6 +6,6 @@ version = "0.1.0"
 moc = "1.16.1"
 
 [dependencies]
-core = "2.7.0"
+core = "2.6.1"
 caffeineai-http-outcalls = "0.1.0"
 caffeineai-stripe = "0.1.0"
