@@ -47,6 +47,9 @@ Thumbs.db
 # Worktrees created by Claude Code's isolation mode are nested git repos.
 # Gitlinks (mode 160000) bypass parent .gitignore, so we commit a sentinel
 # .gitignore inside worktrees/ that makes git ignore every subdirectory there.
+!.claude/settings.json
+!.claude/sync-ic-skills.sh
+!.claude/skills/
 !.claude/worktrees/
 .claude/worktrees/*
 !.claude/worktrees/.gitignore
