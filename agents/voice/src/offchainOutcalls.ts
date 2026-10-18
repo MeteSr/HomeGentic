@@ -46,6 +46,13 @@ const MAX_UPSTREAM_BYTES    = 256 * 1024;
 
 // ── Quotas ────────────────────────────────────────────────────────────────────
 
+/** Strip trailing "/" without a regex (CodeQL flags /\/+$/ as polynomial). */
+function trimTrailingSlashes(s: string): string {
+  let end = s.length;
+  while (end > 0 && s.charCodeAt(end - 1) === 47) end--;
+  return s.slice(0, end);
+}
+
 function day(): string { return new Date().toISOString().slice(0, 10); }
 
 /**
@@ -270,7 +277,7 @@ export async function sendContractorInvite(
   ]);
   if (!ok) return { status: 429, body: { error: "email_limit_reached" } };
 
-  const verifyUrl = `${env.FRONTEND_ORIGIN.replace(/\/+$/, "")}/verify/${token}`;
+  const verifyUrl = `${trimTrailingSlashes(env.FRONTEND_ORIGIN)}/verify/${token}`;
   const addr      = subjectText(preview.propertyAddress, 200);
   const service   = subjectText(preview.serviceType, 60);
   const amount    = preview.amount > 0n ? `$${(preview.amount / 100n).toString()}` : "";
